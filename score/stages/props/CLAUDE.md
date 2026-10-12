@@ -15,8 +15,10 @@ DINOv2 evidence gathered, paid). World data: `data/props/<place>.json` (`prop_da
   and a table or check edit would re-buy every close-up and model. `props_test.py` holds both.
 - **The likeness gate** (`likeness.py`, `likeness_row.py`) is `tools/usd/compare.py`'s candidate check on the model
   alone: silhouettes from eight ways round, no renderer. `OUTLINE_LEAST` was set on the hub's twelve accepted
-  round-six generated models with a 0.05 margin (`likeness.py measure`); `LIKENESS_LEAST` (DINOv2) is unset until the
-  same twelve are scored (`similar.py` on `$PROPS_HOME/work/likeness-r6/accepted/pairs.json`, about EUR 0.43), so the
-  `likeness` check answers unknown and blocks until then. Change a threshold only by measuring the accepted set again.
+  round-six generated models with a 0.05 margin (`likeness.py measure`). DINOv2's least is set the same way by the
+  paid row `likeness-calibration@<place>` (`calibration_row.py`, about EUR 0.43) on the accepted models the prop data
+  names (`accepted`); without it the `likeness` check answers unknown and blocks. Change a threshold only by measuring
+  the accepted set again.
 - **The comparison** (`compare.py`) runs one place prop-first and code-first, each in its own data copy and store
-  under `$PROPS_HOME/compare/<place>/`, and writes the table and review page there. Run it with `--detach`; it spends.
+  under `$PROPS_HOME/compare/<place>/`, and writes the table and review page there. Run it with `--detach`; it spends,
+  every ledger line tagged `compare-<place>-<order>` (`ledger_tag/`).

@@ -110,6 +110,22 @@ def pixal_files(place):
             "surfaces": "{data}/surfaces/" + f"{place}.json", **PIXAL_TOOLS}
 
 
+def calibration_applies(place):
+    """Whether the place's prop data names accepted models to calibrate DINOv2 on."""
+    return applies(place) and bool(record_at(FOLDER / f"{place}.json").get("accepted"))
+
+
+def calibration_files(place):
+    """The calibration row's: the place's file, each accepted model (its .gltf and buffer) and close-up, its tools."""
+    accepted = record_at(FOLDER / f"{place}.json").get("accepted", {}) if applies(place) else {}
+    found = {"props": pattern(place), **LIKENESS_TOOLS}
+    for model, entry in accepted.items():
+        found.update({f"accepted model {model}": entry["model"],
+                      f"accepted model {model} buffer": entry["model"].removesuffix(".gltf") + ".bin",
+                      f"accepted close-up {model}": entry["closeup"]})
+    return found
+
+
 def likeness_files(place):
     """The likeness row's: the place's whole file, its inventory, every code build it names, the kinds' details
     (which kinds must stand square) and its tools."""

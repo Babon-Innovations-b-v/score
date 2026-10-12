@@ -4,6 +4,7 @@ likeness gate's silhouettes and routes, and the comparison's prepare and free fi
 The comparison's folder is one of its own under $PROPS_HOME/store-tests (never /tmp, never the framework's store),
 removed at the end. Run: .venv/bin/python score/stages/props/props_test.py
 """
+import importlib.util
 import json
 import pathlib
 import shutil
@@ -22,7 +23,7 @@ import score.stages.props.compare as compare  # noqa: E402
 import score.stages.props.likeness as likeness  # noqa: E402
 import score.stages.props.likeness_row as likeness_row  # noqa: E402
 
-PROPS = ("props-inputs", "closeup", "pixal", "likeness")
+PROPS = ("props-inputs", "closeup", "pixal", "likeness-calibration", "likeness")
 
 
 def test_no_world_1_place_has_a_prop_row_and_the_surface_line_reads_without_one():
@@ -87,9 +88,32 @@ def test_routes_send_a_failed_prop_object_to_code_and_a_failed_code_build_to_a_b
         assert outline.answer == "fail" and any(line.startswith("thin:") for line in outline.findings)
         parts = likeness_row.free_judge("close-up parts present")(output, {}, None)
         assert parts.answer == "fail" and any("untold: cannot tell" == line for line in parts.findings)
-        assert likeness_row.judge_likeness(output, {}, None).answer == "unknown"  # no DINOv2 least set yet
+        assert likeness_row.judge_likeness(output, {}, None).answer == "unknown"  # no calibration, no least
+        scored = likeness_row.routes(output, {"good": 0.9, "built": 0.4}, 0.5)
+        assert scored["good"] == "prop" and scored["built"] == "builder", scored
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+def test_the_ledger_tag_marks_cloud_and_google_lines():
+    import os
+    import types
+    spec = importlib.util.spec_from_file_location("tagging", compare.LEDGER_TAG / "sitecustomize.py")
+    tagging = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tagging)
+    written = []
+    cloud = types.SimpleNamespace(entries=lambda: [], record=written.append)
+    google = types.SimpleNamespace(write=written.append)
+    os.environ[tagging.TAG] = "compare-test"
+    try:
+        tagging.tag_cloud(cloud)
+        tagging.tag_google(google)
+        tagging.tag_cloud(cloud)  # once only
+        cloud.record({"euros": 1.0})
+        google.write({"state": "finished"})
+    finally:
+        del os.environ[tagging.TAG]
+    assert written == [{"euros": 1.0, "tag": "compare-test"}, {"state": "finished", "tag": "compare-test"}]
 
 
 def test_the_comparison_prepares_the_hub_and_runs_its_free_first_row():
@@ -107,6 +131,7 @@ def test_the_comparison_prepares_the_hub_and_runs_its_free_first_row():
         assert record["objects"] and all(entry["route"] == "prop" for entry in record["objects"].values())
         assert {entry["take"] for entry in record["objects"].values()} == set(surfaces["takes"])
         assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"])
+        assert record["accepted"], "no accepted models to calibrate DINOv2 on"
         runner = compare.runner_for("hub", "prop-first")
         runner.drive(["hub"], jobs=1, whole=False, only=["props-inputs"])
         made = runner.store.records("props-inputs@hub")

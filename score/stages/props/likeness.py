@@ -30,9 +30,6 @@ SIDE = 384
 # median 0.31 but up to 0.60 (11 of 72 pairs at 0.50 or more): the outline alone does not tell like shapes apart,
 # which is why DINOv2 must pass too.
 OUTLINE_LEAST = 0.50
-# DINOv2's least likeness: not measured yet (no model runs on this PC; similar.py rents). Until the hub's twelve are
-# scored and this is set the same way, the likeness check answers unknown, which blocks.
-LIKENESS_LEAST = None
 
 
 def candidate():
