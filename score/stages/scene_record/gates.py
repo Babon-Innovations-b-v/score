@@ -524,12 +524,34 @@ def kind_of(section, item):
     return item.get("builder") or item.get("stage") or item.get("type") or section
 
 
+def distance(item, other):
+    """How far apart two entries stand (0 when either has no spot)."""
+    here, there = spot(item), spot(other)
+    return 0.0 if here is None or there is None else float(np.linalg.norm(there - here))
+
+
+def near(item, other):
+    """Whether two entries stand within MATCH_REACH of each other (either with no spot: yes)."""
+    return distance(item, other) <= MATCH_REACH
+
+
 def matches(section, seed, made):
     """Each seed entry of a section matched to an unused new entry of its kind, nearest first within MATCH_REACH
-    (one with no spot to any of its kind): [(seed entry, new entry or None)]."""
+    (one with no spot to any of its kind), a seed entry naming an inventory row (`row`) first to one of that row, so
+    a nearer entry with no row (a console's screen) never takes it: [(seed entry, new entry or None)]."""
     free = list(made)
+    partners = {}
+    for number, item in enumerate(seed):
+        rowed = [other for other in free if item.get("row") and other.get("row") == item["row"]
+                 and kind_of(section, other) == kind_of(section, item) and near(item, other)]
+        if rowed:
+            partners[number] = min(rowed, key=lambda other: distance(item, other))
+            free.remove(partners[number])
     found = []
-    for item in seed:
+    for number, item in enumerate(seed):
+        if number in partners:
+            found.append((item, partners[number]))
+            continue
         same = [other for other in free if kind_of(section, other) == kind_of(section, item)]
         here = spot(item)
         if here is not None:
