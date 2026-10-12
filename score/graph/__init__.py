@@ -89,6 +89,9 @@ class Stage:
     score.checks on purpose: every stage's code version hashes that module, so a change there reruns every stage.
     applies: for a place stage, applies(place) is False for a place the stage has nothing to do for (its world data
     says so): that place's line has no such node. None: every place.
+    beside, neighbours: for a place stage that reads other places' outputs, {earlier stage: (schema, version)} read
+    for each place neighbours(place) names (its input `<stage>@<other place>`), versioned and waited on like `after`.
+    A stage read beside reads nothing beside itself, so two places that show each other make no cycle.
     """
     name: str
     grain: str
@@ -103,6 +106,8 @@ class Stage:
     models: tuple = ()
     gatherers: dict = field(default_factory=dict)
     applies: Callable = None
+    beside: dict = field(default_factory=dict)
+    neighbours: Callable = None
 
     def __post_init__(self):
         if self.grain not in GRAINS:
@@ -166,9 +171,13 @@ class Runner:
         self.store = store
         self.model_record = model_record or models.record
         self.code_versions = {}
-        unknown = {before for stage in stages for before in stage.after} - set(self.stages)
+        unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
         if unknown:
             raise ValueError(f"stages read stages the table lacks: {sorted(unknown)}")
+        looping = {stage.name for stage in stages for before in stage.beside if self.stages[before].beside}
+        if looping:
+            raise ValueError(f"stages read beside a stage that reads beside itself (a cycle between places): "
+                             f"{sorted(looping)}")
 
     # --- keys --------------------------------------------------------------------------------------------------
 
@@ -176,7 +185,8 @@ class Runner:
         """The stage's computed code version: its make's and its checks' source files and their imports (once a run)."""
         if stage.name not in self.code_versions:
             functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks),
-                         *([stage.files] if callable(stage.files) else [])]
+                         *([stage.files] if callable(stage.files) else []),
+                         *([stage.neighbours] if stage.neighbours else [])]
             self.code_versions[stage.name] = listing_hash(_code.code_version(functions, file_hash))
         return self.code_versions[stage.name]
 
@@ -235,7 +245,19 @@ class Runner:
                  "after": {before: self.usable(before, place, wanted)
                            for before, wanted in self.reads(stage, place).items()},
                  "models": {kind: self.model_record(kind) for kind in stage.models}}
+        beside = self.besides(stage, place)
+        if beside:  # only a stage that reads beside has this part, so no other node's key moves
+            parts["beside"] = {node: self.usable(before, other, wanted)
+                               for node, (before, other, wanted) in beside.items()}
         return {**parts, "key": text_hash(json.dumps(parts, sort_keys=True))}
+
+    def besides(self, stage, place):
+        """{node: (earlier stage, other place, (schema, version))} the node reads of other places (its `beside`, for
+        each of its neighbours)."""
+        if not stage.beside or place is None:
+            return {}
+        return {node_name(self.stages[before], other): (before, other, wanted)
+                for other in stage.neighbours(place) for before, wanted in stage.beside.items()}
 
     def reads(self, stage, place):
         """{earlier stage: (schema, version)} the node reads: its `after`, less a place stage that has nothing to do
@@ -255,6 +277,7 @@ class Runner:
         """{name: path} the stage's make reads: world files in place, earlier outputs checked out."""
         paths = {name: self.file_path(stage, name, place) for name in self.files_of(stage, place)}
         paths.update({before: self.store.checkout(output) for before, output in keyed["after"].items()})
+        paths.update({node: self.store.checkout(output) for node, output in keyed.get("beside", {}).items()})
         return paths
 
     def spending(self, stage, node):
@@ -285,7 +308,8 @@ class Runner:
         record = {"node": node, "key": keyed["key"], "output": output, "stage": stage.name, "place": keyed["place"],
                   "code": keyed["code"], "contract": keyed["contract"], "expects": keyed["expects"],
                   "params": keyed["params"], "seed": keyed["seed"], "files": keyed["files"], "after": keyed["after"],
-                  "models": keyed["models"], **_code.git_commit(),
+                  "models": keyed["models"], **({"beside": keyed["beside"]} if "beside" in keyed else {}),
+                  **_code.git_commit(),
                   "machine": platform.node(), "started": started, "finished": now(),
                   "minutes": round((time.monotonic() - clock) / 60, 3), "euros": 0}
         self.store.write_record(node, keyed["key"], record)
@@ -343,7 +367,7 @@ class Runner:
             name = reading.pop()
             if name not in kept:
                 kept.add(name)
-                reading += list(self.stages[name].after)
+                reading += [*self.stages[name].after, *self.stages[name].beside]
         return kept
 
     def line_nodes(self, places, whole, only=None):
@@ -356,13 +380,27 @@ class Runner:
             found = [(stage, place) for stage, place in found if stage.name in kept]
         if whole:
             return found
-        read, reading = set(), [before for stage, _ in found if stage.grain == "place" for before in stage.after]
-        while reading:
-            before = reading.pop()
-            if self.stages[before].grain == "world" and before not in read:
-                read.add(before)
-                reading += list(self.stages[before].after)
-        return [(stage, place) for stage, place in found if stage.grain == "place" or stage.name in read]
+        chosen = [(stage, place) for stage, place in found if stage.grain == "place"]
+        names, reading = {node_name(*node) for node in chosen}, list(chosen)
+        while reading:  # the world nodes and other places' nodes the places read, and what those read
+            for before in self.read_nodes(*reading.pop()):
+                if node_name(*before) not in names:
+                    names.add(node_name(*before))
+                    reading.append(before)
+        others = sorted({place for stage, place in self.nodes_named(names)} - {None} - set(places))
+        return [node for node in self.nodes([*places, *others]) if node_name(*node) in names]
+
+    def nodes_named(self, names):
+        """(stage, place) of each node name."""
+        for name in names:
+            stage_name, _, place = name.partition("@")
+            yield self.stages[stage_name], place or None
+
+    def read_nodes(self, stage, place):
+        """(stage, place) of every node this node reads: its own place's or the world's, and other places'."""
+        own = [(self.stages[before], place if self.stages[before].grain == "place" else None)
+               for before in self.reads(stage, place)]
+        return own + [(self.stages[before], other) for before, other, _ in self.besides(stage, place).values()]
 
     def run(self, places):
         """Run every node in table order; {node: what it did}."""
@@ -376,7 +414,8 @@ class Runner:
 
     def earlier(self, stage, place):
         """The nodes this node reads."""
-        return [node_name(self.stages[before], place) for before in self.reads(stage, place)]
+        return [node_name(self.stages[before], place) for before in self.reads(stage, place)] + list(
+            self.besides(stage, place))
 
     def gatherable(self, stage, place):
         """The checks whose missing evidence the runner can gather, when they alone keep the node from passing (none
@@ -570,10 +609,10 @@ class Runner:
         changed = [part for part in ("code", "contract", "expects", "params", "seed", "files", "after", "models")
                    if last.get(part) != keyed[part]]
         reasons = [f"{part} changed" for part in changed if part not in ("files", "after")]
-        for part in ("files", "after"):
-            if part in changed:
-                reasons += [f"{name} changed" for name in sorted(set(last[part]) | set(keyed[part]))
-                            if last[part].get(name) != keyed[part].get(name)]
+        for part in ("files", "after", "beside"):
+            if last.get(part, {}) != keyed.get(part, {}):
+                reasons += [f"{name} changed" for name in sorted(set(last.get(part, {})) | set(keyed.get(part, {})))
+                            if last.get(part, {}).get(name) != keyed.get(part, {}).get(name)]
         return reasons
 
     def node_status(self, stage, place):
@@ -612,6 +651,7 @@ class Runner:
             return []
         place = node.partition("@")[2] or None
         earlier = {node_name(self.stages[before], place): output for before, output in record["after"].items()}
+        earlier.update(record.get("beside", {}))
         return [before for before, output in earlier.items()
                 if self.store.accepted(before) != output or self.stale(before)]
 
@@ -635,6 +675,6 @@ class Runner:
                  f"{'accepted' if accepted == record['output'] else 'not accepted'}; key {record['key'][:12]}, "
                  f"code {record['code'][:12]}, commit {record['commit'][:8]}, seed {record['seed']}, "
                  f"files {', '.join(f'{name} {sha[:12]}' for name, sha in record['files'].items()) or 'none'}"]
-        for before in self.reads(self.stages[stage_name], place or None):
-            lines += self.why(node_name(self.stages[before], place or None), depth + 1)
+        for before in self.read_nodes(self.stages[stage_name], place or None):
+            lines += self.why(node_name(*before), depth + 1)
         return lines

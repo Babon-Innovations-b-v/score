@@ -37,8 +37,8 @@ def scenario(root):
     store = Store.in_folder(root / "store")
     # The worked example's own stages: terrain (a world node) spends and has its own test beside its module, so a
     # terrain that made no ground for these places stands in for it.
-    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, stages.ASSEMBLY, stages.COMPLETE), world,
-                                                 store)
+    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, stages.ASSEMBLY, stages.NEIGHBOURS,
+                                               stages.COMPLETE), world, store)
 
 
 def no_ground(inputs, out, seed, params):

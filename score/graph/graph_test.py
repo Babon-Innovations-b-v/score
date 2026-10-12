@@ -364,6 +364,48 @@ def test_the_code_version_does_not_depend_on_the_order_of_the_path():
         shutil.rmtree(root)
 
 
+
+def make_show(inputs, out, seed, params):
+    """Its own clean text, and the other place's beside it."""
+    others = sorted(name for name in inputs if name.startswith("clean@"))
+    (out / "show.txt").write_text(" ".join((inputs[name] / "clean.txt").read_text() for name in ["clean", *others]))
+
+
+SHOW = graph.Stage("show", "place", make_show, TEXT, (checks.Check("counted", judge_count),),
+                   after={"clean": ("toy-text", 1)}, beside={"clean": ("toy-text", 1)},
+                   neighbours=lambda place: [other for other in PLACES if other != place])
+
+
+def test_a_stage_reads_other_places_beside_without_a_cycle():
+    """Fault (2026-10-12): a place's references to the places it shows pointed at old seed files, so its views looked
+    onto empty space. Each place reads the other's accepted output beside its own, versioned and waited on."""
+    world, store, outputs = ready_world()
+    runner = a_runner(world, store, (CLEAN, COUNT, SHOW))
+    assert runner.earlier(SHOW, "hangar") == ["clean@hangar", "clean@station"]
+    assert [graph.node_name(*node) for node in runner.line_nodes(["hangar"], whole=False)] == [
+        "clean@hangar", "clean@station", "count@hangar", "show@hangar"]
+    found = runner.drive(["hangar"], say=lambda line: None, jobs=1, whole=False)
+    assert found["show@hangar"] == "made: pass, accepted automatically", found
+    shown = store.checkout(store.accepted("show@hangar"))
+    assert (shown / "show.txt").read_text() == "A SHIP IN A HALL A HUB"
+    assert runner.key(SHOW, "hangar")["beside"] == {"clean@station": outputs["station"]}
+    (world.roots["data"] / "station" / "brief.txt").write_text("a hub")  # the same words: the key holds
+    assert runner.status(["hangar"])["show@hangar"] == "pass, accepted"
+    (world.roots["data"] / "station" / "brief.txt").write_text("a ring")
+    runner.run(["station"])
+    give_evidence(store, runner, "station", 10)
+    runner.run(["station"])
+    assert runner.status(["hangar"])["show@hangar"] == ("to run: clean@station changed, its accepted output is stale: "
+                                                      "clean@station moved")
+    looping = dataclasses.replace(SHOW, name="loop", beside={"loop": ("toy-text", 1)})
+    try:
+        a_runner(world, store, (CLEAN, looping))
+    except ValueError as refused:
+        assert "cycle" in str(refused)
+    else:
+        raise AssertionError("a stage reading itself beside was declared")
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
