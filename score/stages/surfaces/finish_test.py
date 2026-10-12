@@ -72,6 +72,35 @@ def test_a_partly_photographic_map_is_filled_only_when_most_of_it_is_labelled():
     assert finish_maps.settled([(mostly, labels_left)], alpha) is None, mostly
 
 
+def test_a_one_finish_take_takes_its_mask_and_a_two_finish_take_still_needs_a_settled_draw():
+    import tempfile
+    from score.stages.surfaces import finish_rows
+    import finish_ask as asks  # finish_rows imports its siblings by name, from its own folder
+    picture = np.zeros((200, 200, 4), dtype=np.uint8)
+    picture[close_up_alpha()] = (90, 90, 90, 255)
+    saved = finish_rows.close_up, asks.draw_map
+    finish_rows.close_up = lambda inputs, take: Image.fromarray(picture)
+    try:
+        def never(*arguments, **options):
+            raise AssertionError("a one-finish take is never drawn")
+        asks.draw_map = never
+        one = pathlib.Path(tempfile.mkdtemp())
+        finish_rows.take_maps({}, "box", [{"finish": "grey fabric", "parts": "all"}], one)
+        record = json.loads((one / "map.json").read_text())
+        front = np.load(one / "front.npy")
+        assert record["passes"] and record["views"] == {}, record
+        assert (front[close_up_alpha()] == 0).all() and (front[~close_up_alpha()] == -1).all()
+        tinted = np.asarray(drawn(finish_ask.LABELS[0], (120, 120, 120))).copy()
+        tinted[175:250, 130:250] = (120, 120, 120)  # half the object left photographic, as lab_module's draws
+        asks.draw_map = lambda *arguments, **options: Image.fromarray(tinted)
+        two = pathlib.Path(tempfile.mkdtemp())
+        finish_rows.take_maps({}, "module", [{"finish": "paint", "parts": "body"},
+                                             {"finish": "glass", "parts": "porthole"}], two)
+        assert not json.loads((two / "map.json").read_text())["passes"] and not (two / "front.npy").exists()
+    finally:
+        finish_rows.close_up, asks.draw_map = saved
+
+
 def test_a_view_map_is_asked_with_the_close_up_and_its_map():
     picture = Image.new("RGBA", (64, 64), (100, 100, 100, 255))
     finishes = [{"finish": "gold foil", "parts": "the hull"}]
@@ -108,7 +137,7 @@ def test_a_segvigen_part_takes_its_voted_faces_finish_only_when_pure():
     assert (named[part_of == 1] == 1).all() and (named[part_of == 0] == -1).all()
 
 
-def test_a_loose_bit_joins_the_nearest_larger_island_with_its_finish():
+def test_a_loose_bit_joins_the_nearest_larger_island_of_its_own_finish():
     big = trimesh.creation.box(extents=(1, 1, 1))
     loose = trimesh.creation.box(extents=(0.02, 0.02, 0.02))
     loose.apply_translation((0.53, 0, 0))
@@ -118,7 +147,28 @@ def test_a_loose_bit_joins_the_nearest_larger_island_with_its_finish():
     label = np.r_[np.zeros(len(big.faces)), np.ones(len(loose.faces)), np.ones(len(far.faces))].astype(int)
     part_of, merged = finish_parts.merged_islands(mesh, label)
     bit = slice(len(big.faces), len(big.faces) + len(loose.faces))
-    assert len(np.unique(part_of)) == 2 and (part_of[bit] == part_of[0]).all() and (merged[bit] == 0).all()
+    assert len(np.unique(part_of)) == 2 and (part_of[bit] == part_of[-1]).all() and (merged[bit] == 1).all()
+
+
+def test_a_finish_of_crumbs_only_keeps_them_as_one_part_when_they_add_up():
+    host = trimesh.creation.box(extents=(1, 1, 1))
+    bands = []
+    for number in range(4):  # thin stripes beside the box, each a crumb, together over ISLAND_LEAST
+        band = trimesh.creation.box(extents=(0.04, 0.04, 0.04))
+        band.apply_translation((0.6, -0.3 + 0.2 * number, 0))
+        bands.append(band)
+    mesh = trimesh.util.concatenate([host, *bands])
+    band_share = sum(band.area for band in bands) / mesh.area
+    assert all(band.area / mesh.area < finish_parts.ISLAND_LEAST for band in bands)
+    assert band_share >= finish_parts.ISLAND_LEAST
+    label = np.r_[np.zeros(len(host.faces)), np.ones(len(mesh.faces) - len(host.faces))].astype(int)
+    part_of, merged = finish_parts.merged_islands(mesh, label)
+    striped = slice(len(host.faces), None)
+    assert len(np.unique(part_of)) == 2 and (merged[striped] == 1).all() and len(np.unique(part_of[striped])) == 1
+    one = trimesh.util.concatenate([host, bands[0]])  # one crumb alone still joins its neighbour with its finish
+    label = np.r_[np.zeros(len(host.faces)), np.ones(len(bands[0].faces))].astype(int)
+    part_of, merged = finish_parts.merged_islands(one, label)
+    assert len(np.unique(part_of)) == 1 and (merged == 0).all()
 
 
 def test_agreement_and_mixing_count_against_the_maps():

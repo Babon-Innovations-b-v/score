@@ -11,7 +11,8 @@ Rows (place grain, surfaces-<step>@<place>):
                     place's line (the owner may waive it: later rows then leave it out). Then a finish map of each
                     turntable view in turntable_views.MAP_VIEWS (sides and back), given the close-up and its settled
                     map as the reference, so each finish keeps its label colour; a view whose map does not settle
-                    gets none.
+                    gets none. A one-finish take is not drawn: its map is the close-up's object mask
+                    (one_finish_map).
 """
 import json
 import pathlib
@@ -123,18 +124,37 @@ def view_alpha(inputs, take, view):
     return np.load(inputs["turntable"] / "renders" / take / f"{view}-id.npz")["ids"] >= 0
 
 
+def one_finish_map(alpha, folder):
+    """A one-finish take's close-up map: its only finish on every pixel of the close-up's object (alpha), none drawn.
+    With one finish the map holds nothing but the object's outline, which the alpha gives exactly; asked to paint it
+    one colour, the picture model tinted the photo instead (the wreck's tank dome and pressure sphere, old_station's
+    bag stack: 10 to 53% of the object near the label on every draw, 2026-10-12)."""
+    import numpy as np
+    import finish_ask
+    import finish_maps
+    per_pixel = np.where(alpha, 0, -1)
+    np.save(folder / "front.npy", per_pixel.astype(np.int8))
+    finish_maps.label_picture(per_pixel, finish_ask.LABELS[:1]).save(folder / "front.png")
+    return {"attempts": [], "passes": True, "by": "one finish: the close-up's object mask"}
+
+
 def take_maps(inputs, take, finishes, folder):
-    """One take's maps: the close-up's, then each view's against it; its map.json record."""
+    """One take's maps: the close-up's, then each view's against it (a one-finish take: its mask, no views; every
+    face it has takes that finish); its map.json record."""
     from PIL import Image
     import finish_ask
     import finish_maps
     import turntable_views as views
     picture = close_up(inputs, take)
     listed = len(finishes)
-    front = settled_map(lambda map_seed, last: finish_ask.draw_map(picture, finishes, map_seed, strict=last), SEEDS,
-                        finish_maps.alpha_of(picture), listed, True, folder, "front")
+    alpha = finish_maps.alpha_of(picture)
+    if listed == 1:
+        front = one_finish_map(alpha, folder)
+    else:
+        front = settled_map(lambda map_seed, last: finish_ask.draw_map(picture, finishes, map_seed, strict=last),
+                            SEEDS, alpha, listed, True, folder, "front")
     record = {"take": take, "finishes": finishes, "front": front, "views": {}, "passes": front["passes"]}
-    if front["passes"]:
+    if front["passes"] and listed > 1:
         reference = Image.open(folder / "front.png")
         for view in views.MAP_VIEWS:
             shown = Image.open(inputs["turntable"] / "renders" / take / f"{view}.png").convert("RGBA")

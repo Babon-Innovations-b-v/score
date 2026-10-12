@@ -35,6 +35,15 @@ def test_a_proposed_library_surface_stands_as_first_proposed():
     assert len(store.registry("surfaces")) == 1
 
 
+def test_names_alike_but_for_case_stand_as_one_entry():
+    store = a_store()
+    first = registry.Registry(store).propose_surface("Polished Chrome", {"stands_in": "pipe_steel"}, {"take": "a"})
+    second = registry.Registry(store).propose_surface("polished chrome", {"stands_in": "bare_steel"}, {"take": "b"})
+    assert second == first and len(store.registry("surfaces")) == 1
+    other = registry.Registry(store).propose_surface("Polished brass", {"stands_in": "brass"}, {"take": "c"})
+    assert other["name"] == "Polished brass" and len(store.registry("surfaces")) == 2
+
+
 def test_the_paint_takes_the_method_s_surface_and_records_its_proposal():
     store = a_store()
     rows = [{"part": 0, "judge": "dark_panel", "proposed": None},
