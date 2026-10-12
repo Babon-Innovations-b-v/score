@@ -148,7 +148,8 @@ def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
     edited = "score/stages/surfaces/turntable_row.py"
     moved = {name for name, stage in table.items() if stage.paid
              and code_after_editing(stage, edited) != code_after_editing(stage, "nothing")}
-    assert moved == {"surfaces-turntable", "surfaces-segvigen"}, moved
+    # The people line's turntable runs the same make (score/stages/people/line.py), so it moves with it.
+    assert moved == {"surfaces-turntable", "surfaces-segvigen", "people-turntable"}, moved
 
 
 if __name__ == "__main__":
