@@ -242,9 +242,10 @@ def row_spots(inventory, kit):
 
 def item_faults(item, ids, made, released):
     """Why a plan item is not mapped: no rows named and no released model making it (`made`, the plan's object), a
-    row the inventory lacks, or a model the world's release lacks."""
+    row the inventory lacks, or a model the world's release lacks (unless the plan marks it `waiting` on its model,
+    which the record carries)."""
     found = []
-    if made is not None and made["model"] not in released:
+    if made is not None and made["model"] not in released and not made.get("waiting"):
         found.append(f"plan item {item['name']!r}: model {made['model']} is not in the world's release")
     if item["rows"] is None and made is None:
         return found + [f"plan item {item['name']!r} names no inventory rows and no drop"]
