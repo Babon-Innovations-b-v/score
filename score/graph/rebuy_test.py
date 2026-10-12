@@ -1,0 +1,143 @@
+"""Before a run starts paid work it lists what it would buy, and refuses to buy accepted outputs again for over EUR 5
+without a reason, both ways: rows never made are plain buys and never refuse; a changed input re-buys every paid row
+after it; a Google row asking what it asked before is cached at EUR 0 and moves nothing after it. A toy table (a free
+draw, a paid render reading it, a paid bake reading the render) in a store of its own.
+
+Fault (2026-10-12): one library change re-rendered every place and re-drew every view map, about EUR 50, with nothing
+saying so before the run.
+
+Run: .venv/bin/python score/graph/rebuy_test.py
+"""
+import pathlib
+import sys
+import tempfile
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+
+from score import checks, contracts, graph  # noqa: E402
+from score.adapters import compute  # noqa: E402
+from score.graph import _code, rebuy  # noqa: E402
+from score.store import Store  # noqa: E402
+
+TEXT = contracts.Contract("toy-text", 1, lambda folder: [])
+compute.month_refusal = lambda euros, reserved=0.0: None  # the month's ceiling is compute_test's; not this one's
+_code.git_commit = lambda: {"commit": "c0ffee", "uncommitted": False}  # the records' commit, for same_requests
+
+
+def make_copy(inputs, out, seed, params):
+    source = inputs.get("brief") or next(path for name, path in inputs.items() if name != "brief")
+    found = source if source.is_file() else next(source.glob("*.txt"))
+    (out / "text.txt").write_text(found.read_text())
+
+
+def judge_said(output, inputs, evidence):
+    return checks.Verdict("said", checks.PASS, "a text was written")
+
+
+SAID = (checks.Check("said", judge_said),)
+DRAW = graph.Stage("draw", "place", make_copy, TEXT, SAID, files={"brief": "{data}/{place}.txt"})
+RENDER = graph.Stage("render", "place", make_copy, TEXT, SAID, after={"draw": ("toy-text", 1)}, paid=True, euros=4.0)
+BAKE = graph.Stage("bake", "place", make_copy, TEXT, SAID, after={"render": ("toy-text", 1)}, paid=True, euros=3.0)
+
+
+def a_runner():
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar.txt").write_text("a hall")
+    return graph.Runner([DRAW, RENDER, BAKE], graph.World("toy", 1, {"data": data}),
+                        Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {"kind": kind})
+
+
+def made(runner):
+    """Every node of the hangar made and accepted."""
+    for stage in (DRAW, RENDER, BAKE):
+        assert "accepted automatically" in runner.run_node(stage, "hangar"), stage.name
+    return runner
+
+
+def bought(runner):
+    return rebuy.buys(runner, list(runner.nodes(["hangar"])))
+
+
+def test_rows_never_made_are_buys_and_never_refuse():
+    found = bought(a_runner())
+    assert [(buy.node, buy.euros, buy.again) for buy in found] == [("render@hangar", 4.0, False),
+                                                                   ("bake@hangar", 3.0, False)]
+    assert rebuy.refusal(found, None) is None
+
+
+def test_nothing_changed_buys_nothing():
+    assert bought(made(a_runner())) == []
+
+
+def test_a_changed_input_re_buys_every_paid_row_after_it_and_refuses_without_a_reason():
+    runner = made(a_runner())
+    (runner.world.roots["data"] / "hangar.txt").write_text("a bigger hall")
+    found = bought(runner)
+    assert [(buy.node, buy.euros, buy.again) for buy in found] == [("render@hangar", 4.0, True),
+                                                                   ("bake@hangar", 3.0, True)]
+    assert "reads draw@hangar" in found[0].why and "EUR 7.00" in rebuy.refusal(found, None)
+    assert rebuy.refusal(found, "the owner changed the hall's brief") is None
+    entry = rebuy.ledger_entry(found, "the owner changed the hall's brief")
+    assert entry["kind"] == "rebuy" and entry["euros"] == 0 and entry["estimate"] == 7.0
+
+
+def test_re_buys_under_five_euros_go_without_a_reason():
+    runner = made(a_runner())
+    runner.code_versions["bake"] = "a bake changed"
+    found = bought(runner)
+    assert [(buy.node, buy.euros) for buy in found] == [("bake@hangar", 3.0)] and "code changed" in found[0].why
+    assert rebuy.refusal(found, None) is None
+
+
+def test_a_google_row_asking_the_same_is_cached_and_moves_nothing_after_it():
+    runner = made(a_runner())
+    runner.code_versions["render"] = "a render changed"
+    original, builders = rebuy.asks_google, rebuy.builders_changed
+    rebuy.asks_google = lambda stage: stage is RENDER  # the toy render stands in for a row asking Google
+    try:
+        rebuy.builders_changed = lambda commit: False
+        found = bought(runner)
+        assert [(buy.node, buy.euros) for buy in found] == [("render@hangar", 0.0)] and "cached" in found[0].why
+        runner.code_versions["bake"], runner.remembered = "a bake changed too", None  # behind the cached row
+        found = bought(runner)
+        assert [(buy.node, buy.euros) for buy in found] == [("render@hangar", 0.0), ("bake@hangar", 3.0)]
+        assert "code changed" in found[1].why
+        del runner.code_versions["bake"]
+        rebuy.builders_changed = lambda commit: True  # its wording changed: asked and bought again
+        assert [(buy.node, buy.euros) for buy in bought(runner)] == [("render@hangar", 4.0), ("bake@hangar", 3.0)]
+    finally:
+        rebuy.asks_google, rebuy.builders_changed = original, builders
+
+
+def test_score_run_refuses_before_it_starts_and_records_a_given_reason():
+    import argparse
+    import contextlib
+    import io
+    import json
+    from score import __main__ as command
+    books = compute.ledger()
+    books.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"
+    runner = made(a_runner())
+    (runner.world.roots["data"] / "hangar.txt").write_text("a bigger hall")
+    options = argparse.Namespace(stage=None, rebuy_reason=None, detach=False)
+    try:
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            command.checked_buys(runner, ["hangar"], True, options)
+    except SystemExit as refusal:
+        assert "refused" in str(refusal.code) and "re-buy render@hangar: EUR 4.00" in printed.getvalue()
+    else:
+        raise AssertionError("a EUR 7 re-buy with no reason ran")
+    assert not books.LEDGER.exists()
+    options.rebuy_reason = "the owner changed the hall's brief"
+    with contextlib.redirect_stdout(io.StringIO()) as printed:
+        command.checked_buys(runner, ["hangar"], True, options)
+    assert "re-buy reason: the owner changed the hall's brief" in printed.getvalue()
+    line = json.loads(books.LEDGER.read_text())
+    assert line["reason"] == options.rebuy_reason and line["rebuys"] == {"render@hangar": 4.0, "bake@hangar": 3.0}
+
+
+if __name__ == "__main__":
+    for name, check in list(globals().items()):
+        if name.startswith("test_"):
+            check()
+            print(f"ok {name}")
