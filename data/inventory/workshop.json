@@ -2508,7 +2508,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept",
+			"thing": "prop:workshop_robot_frame"
 		},
 		{
 			"id": "robot_wheels",
@@ -2525,7 +2526,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept",
+			"thing": "prop:workshop_robot_wheels"
 		},
 		{
 			"id": "robot_battery_pack",
@@ -2542,7 +2544,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept",
+			"thing": "prop:workshop_robot_battery_pack"
 		},
 		{
 			"id": "robot_link_basic",
@@ -2559,7 +2562,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept",
+			"thing": "prop:workshop_robot_link_basic"
 		},
 		{
 			"id": "robot_seed_drill",
@@ -2576,7 +2580,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept",
+			"thing": "prop:workshop_robot_seed_drill"
 		},
 		{
 			"id": "robot_picker",
@@ -2593,7 +2598,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept",
+			"thing": "prop:workshop_robot_picker"
 		},
 		{
 			"id": "robot_soil_feeder",
@@ -2610,7 +2616,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept",
+			"thing": "prop:workshop_robot_soil_feeder"
 		},
 		{
 			"id": "robot_row_guide",
@@ -2627,7 +2634,8 @@
 			],
 			"count": 1,
 			"machine": true,
-			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept"
+			"why": "a part of the workshop robot P1 (the game's robot_parts list, at the scale the scene record stands it); no take yet: no close-up can be drawn without a box on a concept",
+			"thing": "prop:workshop_robot_row_guide"
 		}
 	]
 }
