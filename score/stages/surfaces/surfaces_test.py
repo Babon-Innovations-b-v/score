@@ -86,6 +86,52 @@ def test_every_place_s_surface_line_is_rows_of_world_one():
     assert all(stage.euros for stage in surfaces.ROWS if stage.paid)
 
 
+def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
+    """Lists, names, parts, paint, bake and check read the library; inputs, turntable, maps and SegviGen never do, so
+    a new surface re-asks the cheap lists and leaves the renders, the drawn maps and the split where they stood (maps
+    read the lists' answers: identical answers keep their key, the graph's own test)."""
+    data, home = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
+    for folder in ("library", "definitions"):
+        shutil.copytree(REPO / "data" / folder, data / folder)
+    (data / "surfaces").mkdir()
+    shutil.copy(surface_data.path("greenhouse"), data / "surfaces")
+    world = graph.World("world1", 1, {"data": str(data), "home": str(home), "repo": str(REPO), "seeds": str(home)})
+    runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
+    for stage in surfaces.ROWS:  # each file a row names, written small in the test's own home
+        for name in runner.files_of(stage, "greenhouse"):
+            path = runner.file_path(stage, name, "greenhouse")
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(name)
+    before = {stage.name: runner.file_keys(stage, "greenhouse") for stage in surfaces.ROWS}
+    library = json.loads((data / "library" / "materials.json").read_text())
+    library["families"]["plastic"]["variants"]["test_surface"] = {"recipe": "rubber", "token": "danger"}
+    (data / "library" / "materials.json").write_text(json.dumps(library))
+    moved = {stage.name for stage in surfaces.ROWS if runner.file_keys(stage, "greenhouse") != before[stage.name]}
+    assert moved == {"surfaces-lists", "surfaces-names", "surfaces-parts", "surfaces-paint", "surfaces-bake",
+                     "surfaces-check"}, moved
+    shutil.rmtree(data)
+    shutil.rmtree(home)
+
+
+def test_the_turntable_job_names_no_folder_of_the_run_that_made_it():
+    from score.stages.surfaces import turntable_views
+    import split_compare
+    saved = turntable_views.views_of, split_compare.raw_model
+    turntable_views.views_of = lambda take, mesh: [{"name": "c"}]
+    split_compare.raw_model = lambda take: None
+    try:
+        made = []
+        for _ in range(2):
+            folder = pathlib.Path(tempfile.mkdtemp())
+            turntable_views.cameras(folder, ["box"])
+            made.append((folder / "multiview" / "job.json").read_bytes())
+            assert str(folder).encode() not in made[-1]
+    finally:
+        turntable_views.views_of, split_compare.raw_model = saved
+    assert made[0] == made[1]
+
+
 def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothing_to_paint_has_no_rows():
     world = graph.World("world1", 1, {"data": str(REPO / "data"), "home": tempfile.mkdtemp(), "repo": str(REPO),
                                       "seeds": tempfile.mkdtemp()})

@@ -53,10 +53,17 @@ def take_files(place):
     return found
 
 
+def shape_files(place):
+    """The world files of a row that reads no library surface (inputs, maps): the place's data and its takes' files.
+    A library change never re-keys it; the maps read the lists' answers, not the library."""
+    return {"surfaces": pattern(place), **take_files(place)}
+
+
 def line_files(place):
-    """A free row's world files: the place's data, its takes' files and the library."""
-    return {"surfaces": pattern(place), **take_files(place), "library": "{data}/library",
-            "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json"}
+    """The world files of a row that reads the library (lists, names, parts, paint, check): shape_files and the
+    library, the places' surfaces and the palette."""
+    return {**shape_files(place), "library": "{data}/library", "places": "{data}/definitions/place.json",
+            "tokens": "{repo}/design/tokens/tokens.json"}
 
 
 def bake_files(place):
