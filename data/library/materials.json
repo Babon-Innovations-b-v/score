@@ -627,6 +627,20 @@
 					"roughness": 0.3,
 					"bump": 0.0001,
 					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the control cabinet's translucent blue buttons and covers, close-up L*a*b* [82.9, -10.5, -16.6]); owner to review"
+				},
+				"red_plastic": {
+					"recipe": "rubber",
+					"token": "sign-red",
+					"roughness": 0.4,
+					"bump": 0.0001,
+					"said": "added overnight 2026-10-12 for the finish-map method, owner to review: the control cabinet's red plastic buttons"
+				},
+				"bakelite": {
+					"recipe": "rubber",
+					"token": "surface-raised",
+					"roughness": 0.25,
+					"bump": 0.0001,
+					"said": "added overnight 2026-10-12 for the finish-map method, owner to review: hard dark glossy plastic, the telephone's Bakelite body (close-up L*a*b* [41.1, 2.2, 3.8] lit; the token dark brown-black)"
 				}
 			}
 		},

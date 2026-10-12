@@ -33,7 +33,8 @@ import triage  # noqa: E402
 
 FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "fittings": "{data}/library/fittings.json", "resting rules": "{data}/checks/resting.json",
-         "inventories": "{data}/inventory"}
+         "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
+         "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json"}
 SEED_PARTS = ("layers", "assets", "inputs.json")
 GROUND_LAYER = "layers/ground.usdc"
 EFFECTS_LAYER = "layers/effects.usda"
@@ -61,7 +62,23 @@ def make_from_seed(inputs, out, seed, params):
     (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE}, indent=1))
     if "effects-layer" in inputs:
         take_effects(inputs["effects-layer"], out / root.name)
+    if "surfaces-bake" in inputs:
+        take_bake(pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]), out)
     take_ground(inputs["terrain"], folder.name, out / root.name)
+
+
+def take_bake(bake, paint, out):
+    """The surface stage's baked models in place of the seed's: each model the place's bake made, written as the
+    exporter writes an asset (tools/usd/export.write_asset: drawn mesh, collision, a subset per library surface from
+    the paint's labelled parts) over the seed's assets/<model>.usdc and its maps."""
+    import export
+    import library
+    variants = library.variants(library.theme_library())
+    sounds = json.loads(export.SOUNDS.read_text())
+    for model, entry in json.loads((bake / "baked.json").read_text()).items():
+        (out / "assets" / f"{model}.usdc").unlink(missing_ok=True)
+        export.write_asset(model, bake / "made", {model: paint / "labelled" / entry["parts"]}, None, entry["base"],
+                           entry["size"], out, variants, sounds)
 
 
 def take_effects(made, root):
