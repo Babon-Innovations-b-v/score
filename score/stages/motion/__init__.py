@@ -103,7 +103,9 @@ BUILT = {}
 def source_of(inputs):
     """The stage folder the layer is written over: the seed, or for a place with an accepted scene record a copy of
     the seed with that record written over its record prims as the assembly writes it (built once a process, in a
-    folder of its own that goes when the process ends, beside links to the seed's sibling places it references)."""
+    folder of its own that goes when the process ends, beside links to the seed's sibling places it references), and,
+    when the movers record asks (`ground`: a mover drives out onto the yard), the made ground sublayered as the
+    assembly sublayers it (assembly.take_ground)."""
     if "scene-record" not in inputs:
         return pathlib.Path(inputs["seed"])
     key = str(inputs["scene-record"])
@@ -124,6 +126,8 @@ def source_of(inputs):
             elif (seed / part).exists():
                 shutil.copy2(seed / part, folder / part)
         assembly.take_record(inputs, folder, seed.name)
+        if read_json(inputs["movers"]).get("ground") and "terrain" in inputs:
+            assembly.take_ground(inputs["terrain"], seed.name, folder / f"{seed.name}.usda")
         BUILT[key] = folder
     return BUILT[key]
 

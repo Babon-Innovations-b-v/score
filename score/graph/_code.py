@@ -96,10 +96,16 @@ def code_version(functions, hash_file):
 
 
 def holds(commit):
-    """True when this checkout's HEAD is `commit` or comes after it; False for a commit it lacks or one only a newer
-    main holds."""
-    return subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", commit, "HEAD"],
-                          capture_output=True).returncode == 0
+    """True when this checkout's HEAD is `commit` or comes after it, or when no branch holds `commit` any more (a local
+    commit rebased onto main before its push: its change is on main under another commit, and nothing could ever
+    hold it; terrain's hangar seat, 2026-10-13); False for a commit it lacks or one only a newer main holds."""
+    if subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", commit, "HEAD"],
+                      capture_output=True).returncode == 0:
+        return True
+    known = subprocess.run(["git", "-C", str(REPO), "cat-file", "-e", f"{commit}^{{commit}}"], capture_output=True)
+    branches = subprocess.run(["git", "-C", str(REPO), "for-each-ref", "--contains", commit, "refs/heads",
+                               "refs/remotes"], capture_output=True, text=True)
+    return known.returncode == 0 and branches.returncode == 0 and not branches.stdout.strip()
 
 
 def git_commit():

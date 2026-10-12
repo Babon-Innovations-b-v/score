@@ -27,6 +27,8 @@ has the make and the gates; `space.py` the measures of space (hulls, still surfa
   (but their prims that move), since neighbours show each other. A game prim the new record names otherwise is the
   movers record's `renamed`; one the record dropped fails `covered`, never written to nothing, unless the movers
   record's `removed` gives the concept's reason (the workshop's robot turntable: concept K10 shows no robot).
+- **The made ground stands in the stage only where the movers record asks** (`ground`: the garage, whose rover drives
+  out onto its yard), sublayered from the terrain stage's place layer as the assembly does.
 - **Only places with a movers record have the row.** The assembly does not take the layer yet: the final assembly of
   each place takes it in place of the seed's `layers/motion.usda`.
 - Effects tied to motion (dust, exhaust) are the effects stage's (`follows`, `on`).
