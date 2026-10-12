@@ -75,6 +75,11 @@ RAY_START = resting.RAY_START
 # tipped 7.5 degrees onto three of its four legs, the fourth 7 cm up, passed).
 FOOT_LINK = 0.05
 FOOT_POINTS = 5
+# How densely a foot is sampled (metres between samples over the band's slice of the mesh), the fewest and most
+# samples, and how many of a foot's lowest points are asked their gap.
+FOOT_SPACING = 0.015
+FOOT_SAMPLES = (4000, 60000)
+FOOT_LOWEST = 10
 # A floor or held object's own up axis may lean this far (degrees) from the plane under what it touches, unless its
 # inventory row says it leans (`leans`: why, in words). The water tank stood 7.5 degrees off and passed.
 LEAN_MOST = 3.0
@@ -236,28 +241,54 @@ def standing(entry, ground, surfaces, left_out, statics):
     points = low_points(entry["mesh"])
     clearance = points[:, 1] - ground(points[:, [0, 2]])
     known = np.isfinite(clearance)
-    on_ground = np.where(known, np.maximum(np.where(known, clearance, 0.0), 0.0), np.inf)
-    gaps = surfaces.gaps_below(points, left_out)
     plain = surfaces.gaps_below(points, left_out | statics)
-    best = np.minimum(on_ground, gaps)
+    best = gaps_at(points, ground, surfaces, left_out)
+    on_ground = gaps_at(points, ground, None, left_out)
     touching = best <= TOLERANCE
     return {"gap": float(best.min()), "plain_gap": float(np.minimum(on_ground, plain).min()),
             "contacts": int(touching.sum()),
             "outside": resting.outside_by(resting.weight_at(entry["mesh"]), points[touching][:, [0, 2]]),
             "depth": max(0.0, -float(np.nanmin(clearance[known]))) if known.any() else 0.0,
-            "lowest": points[np.argmin(points[:, 1])], "feet": feet_gaps(points, best),
+            "lowest": points[np.argmin(points[:, 1])],
+            "feet": feet_gaps(entry["mesh"], lambda low: gaps_at(low, ground, surfaces, left_out)),
             "lean": lean(entry["matrix"], points[touching], best[touching])}
 
 
-def feet_gaps(points, best):
-    """Each foot of an object (feet.py: its low points clustered across and along, FOOT_LINK apart, a cluster of
-    FOOT_POINTS or more) as (its lowest point, its gap to what is under it)."""
+def gaps_at(points, ground, surfaces, left_out):
+    """How far each point stands over the ground or, with `surfaces`, the first surface under it that is not left out
+    (0 for a point under the ground, inf where nothing is under it)."""
+    clearance = points[:, 1] - ground(points[:, [0, 2]])
+    known = np.isfinite(clearance)
+    on_ground = np.where(known, np.maximum(np.where(known, clearance, 0.0), 0.0), np.inf)
+    return on_ground if surfaces is None else np.minimum(on_ground, surfaces.gaps_below(points, left_out))
+
+
+def foot_clusters(vertices, triangles, band):
+    """An object's feet (feet.py) found on its own surface within `band` of its lowest point, sampled densely there
+    (FOOT_SPACING apart over the faces reaching into the band, with their vertices; what lies over the band left out):
+    [(the foot's points, its lowest)], lowest first,
+    each of FOOT_POINTS or more. Sampled on the band alone, never on a few hundred points of the whole object: sparse
+    points on a side wall fell apart into "feet" ending up to the band's top (2026-10-12: the hangar's shelving had
+    10 cm "feet" that were its sides, a crate's flat base nine, the habitat's locker bank one 3.9 cm up)."""
     import feet
+    vertices, triangles = np.asarray(vertices, dtype=np.float64), np.asarray(triangles).reshape(-1, 3)
+    top = float(vertices[:, 1].min()) + band
+    low = trimesh.Trimesh(vertices, triangles[vertices[triangles, 1].min(axis=1) <= top], process=False)
+    count = int(np.clip(low.area / FOOT_SPACING ** 2, *FOOT_SAMPLES)) if low.area > 0 else 0
+    points = np.vstack([low.vertices[np.unique(low.faces)], low.sample(count, seed=0) if count else np.zeros((0, 3))])
+    points = points[points[:, 1] <= top]
+    return [(points[members], low) for members, low in feet.feet(points, band, FOOT_LINK)
+            if len(members) >= FOOT_POINTS]
+
+
+def feet_gaps(mesh, gaps_of):
+    """Each foot of an object (foot_clusters within LOW_BAND, in the stage's frame) as (its lowest point, its gap to
+    what is under it): the least gap of its FOOT_LOWEST lowest points (`gaps_of`: points to gaps)."""
     found = []
-    for members, _ in feet.feet(points, LOW_BAND, FOOT_LINK):
-        if len(members) >= FOOT_POINTS:
-            nearest = members[np.argmin(best[members])]
-            found.append((points[nearest], float(best[nearest])))
+    for members, _ in foot_clusters(mesh.vertices, mesh.faces, LOW_BAND):
+        low = members[np.argsort(members[:, 1])[:FOOT_LOWEST]]
+        gaps = gaps_of(low)
+        found.append((low[np.argmin(gaps)], float(gaps.min())))
     return found
 
 

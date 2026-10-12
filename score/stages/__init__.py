@@ -22,7 +22,7 @@ import pathlib
 
 from score import contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, crops, effects, images, light, machines,
-                          motion, people, physics, props, scene_record, sound, surfaces, terrain)
+                          motion, people, physics, props, scene_record, settling, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -45,6 +45,12 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
 # seed alone where the place has no scene-record row); the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
                      after={"scene-record": ("scene-record", 1)}, applies=motion.applies)
+# Experimental (PRD #6) until the owner reviews it: where each place's objects come to rest on its made ground,
+# which its assembly takes (assembly.LAYERS). A place joins SETTLED once its settle row has passed (resting track).
+SETTLED = ("habitat", "workshop")
+SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, settling.CHECKS, files=settling.files,
+                     after={"terrain": ("grounds", 1)}, paid=True, euros=settling.EUROS,
+                     applies=lambda place: place in SETTLED)
 # The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
@@ -150,7 +156,8 @@ def prop_fed(row):
     return dataclasses.replace(row, after={**row.after, **props.FEEDS})
 
 
-STAGES = (TERRAIN, EFFECTS, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER, PHYSICS_TRIAL,
+STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
+          PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
           *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES, MACHINE_BOXES, MOTION,

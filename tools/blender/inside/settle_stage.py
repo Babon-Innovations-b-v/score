@@ -2,7 +2,10 @@
 
     python3 tools/blender/session.py batch tools/blender/inside/settle_stage.py -- <stage.usda> <job.json> <out.json>
 
-job.json: {"loose": [object name, ...], "lift": {object name: metres}, "ignore": [object name, ...]} (glowing parts, left out of the statics). The stage is brought in whole; its ground
+job.json: {"loose": [object name, ...], "lift": {object name: metres}, "ignore": [object name, ...], "start": {object
+name: 4 x 4}, "under": {object name: [object name, ...]}} (ignore: glowing parts, left out of the statics; start: the
+motion, stage frame, row by row, that stands an object upright before its drop, tools/usd/settle.py's upright_start;
+under: the loose objects it is stacked on, which it meets as it meets a static: a crate on a crate). The stage is brought in whole; its ground
 (`Ground`, or a plane at y = 0 in a room, which has none) and every object not named loose are static (passive rigid bodies, their own triangles as their collision), but the sky (NOT_SOLID) and what lies past every
 loose object's reach (NEAR).
 Each loose object is lifted by its `lift` (just clear of the ground, from tools/usd/settle.py), given its convex hull
@@ -39,7 +42,10 @@ MARGIN = 0.004
 # What a stage draws that nothing stands on or against: its sky (the haze round the place, the stars, the moon's and
 # the halo's squares), whose meshes would otherwise be static and enclose every object (2026-10-10: every object of
 # usd-r3 started "inside" the haze and was dropped on the bare ground alone).
-NOT_SOLID = {"Sky"}
+NOT_SOLID = {"Sky", "Outside"}
+# The ground: the stage's Ground, else a made ground's fine patch (/<place>/Outside/near: the terrain stage's layer
+# turns the old Ground off; before 2026-10-12 the drop fell onto a plane at y = 0 there), else a plane at y = 0.
+GROUND_NAMES = ("Ground", "near")
 # How far a loose object is raised for the test of whether it starts inside a static (metres): what it only touches,
 # the deck under it, is not "inside" (the resting triage's nudge is the same 5 mm).
 NUDGE = 0.005
@@ -218,8 +224,8 @@ def main():
     world(scene)
     loose = set(job["loose"])
     holders = {item.name: item for item in bpy.data.objects if item.type == "EMPTY"}
-    ground = next((item for item in bpy.data.objects if item.type == "MESH" and item.name.split(".")[0] == "Ground"),
-                  None) or flat_ground(scene)
+    meshes = {item.name.split(".")[0]: item for item in bpy.data.objects if item.type == "MESH"}
+    ground = next((meshes[name] for name in GROUND_NAMES if name in meshes), None) or flat_ground(scene)
     rigid(unparented(ground), "PASSIVE", "MESH", range(GROUPS))
     statics, lows, middles, moving, inside = {}, {}, {}, {}, {}
     ignore = set(job.get("ignore", []))
@@ -239,12 +245,16 @@ def main():
             statics[static], lows[static], middles[static] = tree(item), heights(item)[0], box_middle(item)
             rigid(item, "PASSIVE", "MESH", range(GROUPS))
             item.rigid_body.collision_collections = [False] + [True] * (GROUPS - 1)
-    lifts = {name: Matrix.Translation(Vector((0.0, 0.0, float(job["lift"].get(name, 0.0))))) for name in moving}
-    for number, (name, item) in enumerate(moving.items()):
+    begins = {name: Matrix(job.get("start", {}).get(name, Matrix.Identity(4))) for name in moving}
+    lifts = {name: Matrix.Translation(Vector((0.0, 0.0, float(job["lift"].get(name, 0.0)))))
+             @ Y_UP_TO_Z_UP @ begins[name] @ Y_UP_TO_Z_UP.inverted() for name in moving}
+    groups = {name: own_group(number) for number, name in enumerate(moving)}
+    for name, item in moving.items():
         inside[name] = inside_statics(item, statics, lows, middles)
         weight_at_middle(item)
         item.matrix_world = lifts[name] @ item.matrix_world
-        rigid(item, "ACTIVE", "CONVEX_HULL", [0] if inside[name] else [own_group(number)])
+        stacked = [groups[other] for other in job.get("under", {}).get(name, []) if other in groups]
+        rigid(item, "ACTIVE", "CONVEX_HULL", [0] if inside[name] else [groups[name], *stacked])
     starts = {name: item.matrix_world.copy() for name, item in moving.items()}
     last = {}
     for frame in range(1, FPS * SECONDS + 1):

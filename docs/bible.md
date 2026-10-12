@@ -250,6 +250,17 @@ is meant to fix, where it is marked, and what proves it.
   run world1 --place launch --stage terrain-look`. Proven when the owner has seen the launch's and the street's before and after;
   then the other Earth places, and the Moon's and Mars's plans (still the game's plans in `data/ground/plan/`, made by
   the game's builders moved here) drawn again from their concepts.
+- **The settle stage** (`score/stages/settling`, its overlay; `tools/usd/settle.py`'s drop_job and rest_poses, the
+  stage's held.py). For the resting faults no other track covered (2026-10-12): desks, shelves and chairs an old
+  settle had left tipped onto uneven feet, a crate stacked on a crate that fell through it in the drop, monitors and
+  boxes laid tipped or in the air on what holds them, and the triage's own false faults (a side wall's sparse points
+  read as feet; a made ground read as y = 0, so the drop fell onto a plane there too). `settle@<place>` drops the
+  seed's loose objects on the made ground once (each stood upright first, meeting what it is stacked on), snaps held
+  ones onto their holders as they rest, lets floating fixed ones down, and lays where each rests as
+  `layers/settle.usda`, which the assembly takes; gated on `rested` (the drop did not break) and `resting` (nothing
+  rests worse with the layer than without). Only the places in `SETTLED` (`score/stages/__init__.py`) have the row.
+  Proven when a place's assembly passes its own drop and triage with the layer, and the owner has seen its racks
+  stand.
 - **The effects stage and its look** (`score/stages/effects`, its overlay; `data/effects/launch.json`). For the 15 of
   18 places with no effects, the launch first: its lift-off had no flame, cloud, steam or light. `effects-layer@<place>`
   makes the place's effects layer from its record (emitters riding a prim, following a motion's climb, or played once;

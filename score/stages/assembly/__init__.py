@@ -9,7 +9,7 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                       record, said unverified; an entry marked `waiting` lays nothing and is named on the root prim
                       (score:waiting) for complete. The record built from is written beside the stage (scene.json), the
                       one the neighbours stage reads
-             layers   each layer stage of LAYERS the table holds (effects, motion, light, machines, crops; all
+             layers   each layer stage of LAYERS the table holds (effects, motion, light, machines, crops, settle; all
                       experimental) as a sublayer of its own with its assets, in place of the seed's of that name,
                       the root's sublayers in ORDER and its time range as long as the longest layer's
              bakes    a place's baked models (surfaces-bake) in place of the seed's assets, each laid object stamped
@@ -69,7 +69,8 @@ LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets
           "motion": (("motion-layer", 1), "layers/motion.usda", None),
           "light": (("light", 1), "layers/light.usda", "assets/light"),
           "machines-layer": (("machines-layer", 1), "layers/machines.usda", "assets"),
-          "crops-layer": (("crops-layer", 1), "layers/crops.usda", "assets")}
+          "crops-layer": (("crops-layer", 1), "layers/crops.usda", "assets"),
+          "settle": (("settle-layer", 1), "layers/settle.usda", None)}
 # Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
 READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1),
          **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
@@ -78,7 +79,7 @@ READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1),
 NEEDS = {"effects": "effects-layer", "motion": "motion", "crops": "crops-layer"}
 EVERY_PLACE = ("sound", "light")
 # The root's sublayers, strongest first, by file name.
-ORDER = ("edit", "characters", "sound", "light", "motion", "effects", "crops", "machines", "ground", "base")
+ORDER = ("edit", "characters", "sound", "light", "motion", "effects", "crops", "machines", "settle", "ground", "base")
 # The base's prims tools/usd/scene.py writes from the scene record, removed before the accepted record is written.
 RECORD_ROOTS = ("Structure", "Terrain", "Water", "Fixtures", "Rocks", "Places", "Sky", "Lights", "Environment",
                 "Shafts")
@@ -349,11 +350,8 @@ def gather_drop_run(output, inputs, folder):
     stage_path = stage_file(output)
     stage = Usd.Stage.Open(str(stage_path))
     place = stage.GetDefaultPrim().GetName()
-    inventory = json.loads(inventory_path.read_text())
-    loose = settle.loose_objects(stage, place, inventory)
-    ignore = (settle.part_objects(stage, place, inventory) + settle.held_on_loose(stage, place, inventory, loose)
-              + settle.fixtures_on_loose(stage, place, loose))
-    settle.simulate(stage_path, loose, folder, cloud=True, ignore=ignore)
+    loose, ignore, _, under = settle.drop_job(stage, place, json.loads(inventory_path.read_text()), upright=False)
+    settle.simulate(stage_path, loose, folder, cloud=True, ignore=ignore, under=under)
     return folder / "settled.json"
 
 

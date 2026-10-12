@@ -52,12 +52,12 @@ def made(output, inputs, evidence):
     return checks.Verdict("made", checks.PASS, "no ground made for these places")
 
 
-# The surface rows the assembly and complete read, and the likeness complete reads, applying to neither place here
-# (their own checks are score/stages/surfaces' and score/stages/props').
+# The surface rows and the layer rows the assembly and complete read, and the likeness complete reads, applying to
+# neither place here (their own checks are beside their modules).
 NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
                                 (checks.Check("made", made),), applies=lambda place: False)
                     for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
-                                 "sound", "scene-record", "motion", "light", "crops-layer"))
+                                 "sound", "scene-record", "motion", "light", "crops-layer", "settle"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
@@ -145,15 +145,16 @@ def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
                                                                                        "nothing")
 
 
-def test_the_completion_gate_s_code_moves_only_complete():
+def test_the_completion_gate_s_code_moves_only_complete_and_settle():
     """Editing the completion gate (complete.py, its contents checks, reach and snap, the complete stage) moves the
     complete row and no other: the assembly, neighbours and likeness read the inputs record's helpers from
-    stage_inputs.py, not complete.py (each re-made by a gate edit before 2026-10-12)."""
+    stage_inputs.py, not complete.py (each re-made by a gate edit before 2026-10-12). The settle row snaps held
+    objects with snap.py (score/stages/settling/held.py), so a snap edit moves it too, and only it."""
     edited = ("tools/usd/complete.py", "tools/usd/contents.py", "tools/usd/reach.py", "tools/usd/snap.py",
               "score/stages/complete/__init__.py")
     moved = {stage.name for stage in stages.STAGES for path in edited
              if code_after_editing(stage, path) != code_after_editing(stage, "nothing")}
-    assert moved == {"complete"}, moved
+    assert moved == {"complete", "settle"}, moved
 
 
 def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
