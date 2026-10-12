@@ -16,7 +16,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy import ndimage
 
-from score.stages.terrain import landforms
+from score.stages.terrain import landforms, relief
 
 LANDFORMS = {"ridge": landforms.ridge, "butte": landforms.butte, "dunes": landforms.dunes, "swell": landforms.swell,
              "canyon": landforms.canyon, "hills": landforms.hills}
@@ -149,7 +149,8 @@ def run_step(shaped, record, step):
 
 
 def shape(record):
-    """The plan's large shape: every step of `shape` run in order on its grid."""
+    """The plan's large shape: every step of `shape` run in order on its grid, its hill ranges held under their
+    planned highs."""
     grid = landforms.Grid(record["side"], record["points"])
     held = held_flats(grid, record["flats"])
     on_path = path_share(grid, record["paths"]) if record.get("paths") else np.zeros_like(held)
@@ -157,7 +158,27 @@ def shape(record):
     for step in record["shape"]:
         shaped.heights = run_step(shaped, record, step)
     shaped.heights = shaped.heights.astype(np.float64)
+    held_crests(shaped, record)
     return shaped
+
+
+def held_crests(shaped, record):
+    """Each hill range's own rise lowered, in place, just enough that the made ground tops out under the range's
+    planned `high` over the datum: the builder's crest stands on the plain the range rises from, and the relief laid
+    later lifts any spot by up to its clip, so both are taken off the rise. A range already under it is left as it
+    is."""
+    reach = relief.CLIP * record["relief"]["amplitude"]
+    for name, spec in record.get("landforms", {}).items():
+        if "high" not in spec or name not in shaped.masks:
+            continue
+        rise = shaped.masks[name]
+        rising = rise > 1.0  # under a metre of rise the plain and the relief alone stand far under a range's high
+        if not rising.any():
+            continue
+        plain = shaped.heights - rise
+        kept = min(1.0, float(((spec["high"] - reach - plain[rising]) / rise[rising]).min()))
+        shaped.heights = shaped.heights - (1.0 - kept) * rise
+        shaped.masks[name] = rise * kept
 
 
 def slopes(heights, cell):

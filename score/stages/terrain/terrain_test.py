@@ -15,7 +15,7 @@ from scipy import ndimage
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from score.stages.terrain import gates, plan, record, relief, rocks, sight  # noqa: E402
+from score.stages.terrain import gates, landforms, measures, plan, record, relief, rocks, sight  # noqa: E402
 
 GROUNDS = REPO / "data/ground"
 
@@ -81,6 +81,32 @@ def test_a_picture_drawn_smaller_than_its_frame_is_found_on_the_plan():
     placed = relief.registration(picture, large, made_plan["side"], made_plan["relief"]["fine"])
     assert abs(placed["scale"] - 0.85) <= 0.021 and placed["correlation"] > 0.9, placed
     assert abs(placed["shift_x"]) < 0.021 and abs(placed["shift_z"]) < 0.021, placed
+
+
+def test_hills_over_their_plan_fail_and_hills_within_it_pass():
+    # The launch's Kowloon hills were made cresting at 526.8 m against the Earth plan's 240 to 495 m (2026-10-12).
+    made_plan = json.loads((GROUNDS / "plan" / "earth.json").read_text())
+    spec = made_plan["landforms"]["kowloon_hills"]
+    grid = landforms.Grid(made_plan["side"], 256)
+    gap, _ = landforms.segment_distance(grid.x, grid.z, spec["points"])
+    rounding = 600.0 / measures.CODES
+    for top, faulty in ((526.8, True), (spec["high"] + 2 * rounding, True), (spec["high"], False), (480.0, False)):
+        heights = np.where(gap < 50.0, top, 30.0)
+        found = measures.hill_ranges(heights, grid, made_plan, rounding)["kowloon_hills"]
+        assert ("fault" in found) is faulty, (top, found)
+
+
+def test_the_earths_hills_are_made_within_their_plan():
+    # The full plan's crest: the builder's 495 m on 28.87 m of plain (4096 points, 2026-10-12), with a flank beside it.
+    made_plan = json.loads((GROUNDS / "plan" / "earth.json").read_text())
+    spec = made_plan["landforms"]["kowloon_hills"]
+    rise, plain = np.array([495.0, 300.0, 0.5]), np.array([28.87, 20.0, 5.0])
+    shaped = plan.Shaped(None, plain + rise, None, None, masks={"kowloon_hills": rise.copy()})
+    plan.held_crests(shaped, made_plan)
+    reach = relief.CLIP * made_plan["relief"]["amplitude"]
+    top = float(shaped.heights.max())
+    assert spec["low"] <= top and abs(top + reach - spec["high"]) < 1e-6, top  # its relief's clip added stays inside
+    assert np.allclose(shaped.heights - shaped.masks["kowloon_hills"], plain), "the plain stays where it was"
 
 
 def test_a_small_worlds_horizon_dips():
