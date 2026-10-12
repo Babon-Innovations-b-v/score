@@ -119,7 +119,7 @@ def test_the_hub_s_hatches_swing_open_and_back():
         out = made(inputs, folder)
         stage = motion.composed(out, inputs)
         record = json.loads(inputs["movers"].read_text())
-        leaf = next(entry for entry in record["movers"] if entry["name"].startswith("hatch_leaf"))
+        leaf = next(entry for entry in record["movers"] if entry["name"].startswith("hatch_door_leaf"))
         swing, rate = leaf["swing"], motion.rate_of(stage)
         shape = motion.shaped(stage, leaf["prim"])
         opened = float(leaf["start"]) + float(swing["moves"][0][0]) + abs(float(swing["angle"])) / float(swing["speed"])
