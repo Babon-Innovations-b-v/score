@@ -162,6 +162,10 @@ def still_meshes(stage, place, movers):
     return found
 
 
+def box_cache(code):
+    return UsdGeom.BBoxCache(code, ["default", "render"])
+
+
 def mesh_box(mesh, boxes):
     box = boxes.ComputeWorldBound(mesh).ComputeAlignedRange()
     return np.asarray(box.GetMin(), dtype=np.float64), np.asarray(box.GetMax(), dtype=np.float64)
@@ -212,27 +216,34 @@ def surface_meshes(stage, place, surface):
             if scope_of(mesh, place) in scopes or plainly(mesh) == surface]
 
 
-def heights_under(meshes, spots, code):
-    """The height of the highest of the meshes' surfaces under each [x, z] spot (NaN where none lies under it)."""
+def heights_under(meshes, spots, code, below=np.inf):
+    """The height of the highest of the meshes' surfaces under each [x, z] spot no higher than `below` (NaN where none
+    lies under it)."""
+    return heights_over(surface_corners(meshes, code), spots, below)
+
+
+def surface_corners(meshes, code):
+    """Every triangle of the meshes where they stand at `code`, as corner triples [n, 3, 3]."""
+    found = [points[triangles] for points, triangles in (mesh_triangles(mesh, code) for mesh in meshes)
+             if len(triangles)]
+    return np.concatenate(found) if found else np.zeros((0, 3, 3))
+
+
+def heights_over(corners, spots, below=np.inf):
+    """The height of the highest of the triangles under each [x, z] spot no higher than `below` (NaN where none)."""
     heights = np.full(len(spots), np.nan)
-    for mesh in meshes:
-        points, triangles = mesh_triangles(mesh, code)
-        if not len(triangles):
-            continue
-        corners = points[triangles]
-        low, high = corners[:, :, [0, 2]].min(axis=1), corners[:, :, [0, 2]].max(axis=1)
-        for index, spot in enumerate(spots):
-            near = np.all((low <= spot) & (spot <= high), axis=1)
-            if near.any():
-                height = height_in(corners[near], spot)
-                if height is not None:
-                    heights[index] = height if np.isnan(heights[index]) else max(heights[index], height)
+    low, high = corners[:, :, [0, 2]].min(axis=1), corners[:, :, [0, 2]].max(axis=1)
+    for index, spot in enumerate(spots):
+        near = np.all((low <= spot) & (spot <= high), axis=1)
+        if near.any():
+            height = height_in(corners[near], spot, below)
+            heights[index] = np.nan if height is None else height
     return heights
 
 
-def height_in(corners, spot):
-    """The highest height over [x, z] `spot` of the triangles (corner triples) it lies in, by their barycentric
-    weights; None when it lies in none."""
+def height_in(corners, spot, below=np.inf):
+    """The highest height over [x, z] `spot`, no higher than `below`, of the triangles (corner triples) it lies in, by
+    their barycentric weights; None when it lies in none."""
     one, two, three = corners[:, 0], corners[:, 1], corners[:, 2]
     across = ((two[:, 2] - three[:, 2]) * (one[:, 0] - three[:, 0])
               + (three[:, 0] - two[:, 0]) * (one[:, 2] - three[:, 2]))
@@ -242,7 +253,8 @@ def height_in(corners, spot):
     first = ((two[:, 2] - three[:, 2]) * off_x + (three[:, 0] - two[:, 0]) * off_z) / across
     second = ((three[:, 2] - one[:, 2]) * off_x + (one[:, 0] - three[:, 0]) * off_z) / across
     third = 1.0 - first - second
-    hit = (first >= -1e-9) & (second >= -1e-9) & (third >= -1e-9)
+    heights = first * one[:, 1] + second * two[:, 1] + third * three[:, 1]
+    hit = (first >= -1e-9) & (second >= -1e-9) & (third >= -1e-9) & (heights <= below)
     if not hit.any():
         return None
-    return float((first * one[:, 1] + second * two[:, 1] + third * three[:, 1])[hit].max())
+    return float(heights[hit].max())

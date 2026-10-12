@@ -44,7 +44,8 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
 # SCORE gives the things that move there (data/movers), over its seed with its accepted scene record written in (the
 # seed alone where the place has no scene-record row); the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
-                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1)},
+                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1),
+                            "machines-layer": ("machines-layer", 1)},
                      applies=motion.applies)
 # Experimental (PRD #6) until the owner reviews it: where each place's objects come to rest on its made ground,
 # which its assembly takes (assembly.LAYERS). A place joins SETTLED once its settle row has passed (resting track).

@@ -12,10 +12,14 @@ A movers record:
         "on",                                what it moves on: "water" or "ground" (it keeps its height over that
                                              surface), "rail" (its slide or hinge holds it), "air"
         "start", "length", "loop",           as a motion record's: its round in seconds of the stage's time
-        "path": {"points", "forward"}        a closed round through the points ([x, z] in the prim's parent frame),
-                                             a centripetal Catmull-Rom curve driven at one steady speed (its length
-                                             over the round's), the prim's `forward` (its own axis, [0, 0, 1] by
-                                             default) along the curve and its height kept where the base stands it
+        "path": {"points", "forward", "closed", "relative"}
+                                             a closed round through the points ([x, z] in the prim's parent frame;
+                                             offsets from its rest spot when `relative`), or an open drive from the
+                                             first to the last (`closed`: false), a centripetal Catmull-Rom curve
+                                             driven at one steady speed (its length over the round's), the prim's
+                                             `forward` (its own axis, [0, 0, 1] by default) along the curve; its
+                                             height kept where the base stands it, or on the ground following what is
+                                             under it (write_layer's `ground`)
       | "swing": {"about", "angle", "speed", "starts", "moves"}
                                              a hinged leaf or a slewing crane: turning about the upright line through
                                              the middle of the prim `about` (a hinge; the prim itself for a slew),
@@ -81,22 +85,52 @@ def closed_curve(points, pieces=CURVE_PIECES):
         raise ValueError("a closed path needs at least three points")
     spots = []
     for index in range(count):
-        p0, p1, p2, p3 = (points[(index + step) % count] for step in (-1, 0, 1, 2))
-        t0 = 0.0
-        t1 = t0 + max(np.linalg.norm(p1 - p0), 1e-9) ** 0.5
-        t2 = t1 + max(np.linalg.norm(p2 - p1), 1e-9) ** 0.5
-        t3 = t2 + max(np.linalg.norm(p3 - p2), 1e-9) ** 0.5
-        for knot in np.linspace(t1, t2, pieces, endpoint=False):
-            a1 = (t1 - knot) / (t1 - t0) * p0 + (knot - t0) / (t1 - t0) * p1
-            a2 = (t2 - knot) / (t2 - t1) * p1 + (knot - t1) / (t2 - t1) * p2
-            a3 = (t3 - knot) / (t3 - t2) * p2 + (knot - t2) / (t3 - t2) * p3
-            b1 = (t2 - knot) / (t2 - t0) * a1 + (knot - t0) / (t2 - t0) * a2
-            b2 = (t3 - knot) / (t3 - t1) * a2 + (knot - t1) / (t3 - t1) * a3
-            spots.append((t2 - knot) / (t2 - t1) * b1 + (knot - t1) / (t2 - t1) * b2)
+        spots += list(piece(np.asarray([points[(index + step) % count] for step in (-1, 0, 1, 2)]), pieces))
     spots.append(points[0])
     spots = np.asarray(spots)
     along = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(spots, axis=0), axis=1))])
     return spots, along
+
+
+def open_curve(points, pieces=CURVE_PIECES):
+    """An open centripetal Catmull-Rom curve from the first point to the last (its ends' neighbours their mirrors),
+    cut fine: (spots [n, 2], length along it [n])."""
+    points = np.asarray(points, dtype=np.float64)
+    if len(points) < 2:
+        raise ValueError("an open path needs at least two points")
+    padded = np.concatenate([[2 * points[0] - points[1]], points, [2 * points[-1] - points[-2]]])
+    spots = []
+    for index in range(1, len(padded) - 2):
+        spots += list(piece(padded[index - 1:index + 3], pieces))
+    spots.append(points[-1])
+    spots = np.asarray(spots)
+    along = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(spots, axis=0), axis=1))])
+    return spots, along
+
+
+def piece(four, pieces):
+    """The centripetal Catmull-Rom curve between the middle two of four points, cut in `pieces`."""
+    p0, p1, p2, p3 = four
+    t0 = 0.0
+    t1 = t0 + max(np.linalg.norm(p1 - p0), 1e-9) ** 0.5
+    t2 = t1 + max(np.linalg.norm(p2 - p1), 1e-9) ** 0.5
+    t3 = t2 + max(np.linalg.norm(p3 - p2), 1e-9) ** 0.5
+    for knot in np.linspace(t1, t2, pieces, endpoint=False):
+        a1 = (t1 - knot) / (t1 - t0) * p0 + (knot - t0) / (t1 - t0) * p1
+        a2 = (t2 - knot) / (t2 - t1) * p1 + (knot - t1) / (t2 - t1) * p2
+        a3 = (t3 - knot) / (t3 - t2) * p2 + (knot - t2) / (t3 - t2) * p3
+        b1 = (t2 - knot) / (t2 - t0) * a1 + (knot - t0) / (t2 - t0) * a2
+        b2 = (t3 - knot) / (t3 - t1) * a2 + (knot - t1) / (t3 - t1) * a3
+        yield (t2 - knot) / (t2 - t1) * b1 + (knot - t1) / (t2 - t1) * b2
+
+
+def curve_of(path, rest=None):
+    """The path's curve: closed round its points, or open from the first to the last (`closed`: false); its points
+    offsets from the prim's rest spot [x, z] when `relative`."""
+    points = np.asarray(path["points"], dtype=np.float64)
+    if path.get("relative"):
+        points = points + np.asarray(rest, dtype=np.float64)
+    return closed_curve(points) if path.get("closed", True) else open_curve(points)
 
 
 def heading_of(way):
@@ -104,22 +138,27 @@ def heading_of(way):
     return float(np.degrees(np.arctan2(way[0], way[1])))
 
 
-def path_samples(path, length, seconds_in_round):
-    """Where a path's prim is at each of the moments (seconds into its round) driven at one speed round the curve:
-    ([x, z] spots, headings in degrees unwrapped)."""
-    spots, along = closed_curve(path["points"])
+def path_samples(path, length, seconds_in_round, rest=None):
+    """Where a path's prim is at each of the moments (seconds into its round) driven at one speed along the curve:
+    ([x, z] spots, headings in degrees unwrapped). An open path's heading at its end is the way it came in."""
+    spots, along = curve_of(path, rest)
     reach = (np.asarray(seconds_in_round) / float(length)) * along[-1]
     xs = np.interp(reach, along, spots[:, 0])
     zs = np.interp(reach, along, spots[:, 1])
-    ahead = np.minimum(reach + 0.5, along[-1] + 0.5)  # the way half a metre on (wrapping over the start)
-    ahead_x = np.interp(np.mod(ahead, along[-1]), along, spots[:, 0])
-    ahead_z = np.interp(np.mod(ahead, along[-1]), along, spots[:, 1])
-    headings = np.degrees(np.arctan2(ahead_x - xs, ahead_z - zs))
+    if path.get("closed", True):  # the way half a metre on, wrapping over the start
+        ahead = np.mod(reach + 0.5, along[-1])
+        behind = reach
+    else:  # the way along the half metre round it, inside the curve's ends
+        ahead = np.minimum(reach + 0.5, along[-1])
+        behind = np.maximum(ahead - 0.5, 0.0)
+    ahead_x, ahead_z = np.interp(ahead, along, spots[:, 0]), np.interp(ahead, along, spots[:, 1])
+    behind_x, behind_z = np.interp(behind, along, spots[:, 0]), np.interp(behind, along, spots[:, 1])
+    headings = np.degrees(np.arctan2(ahead_x - behind_x, ahead_z - behind_z))
     return np.stack([xs, zs], axis=1), np.degrees(np.unwrap(np.radians(headings)))
 
 
-def curve_length(path):
-    return float(closed_curve(path["points"])[1][-1])
+def curve_length(path, rest=None):
+    return float(curve_of(path, rest)[1][-1])
 
 
 # --- the rest pose ------------------------------------------------------------------------------------------------
@@ -148,8 +187,11 @@ def prepend_ops(stage, path, ops):
 
 # --- writers ------------------------------------------------------------------------------------------------------
 
-def write_path(stage, mover, rate, seconds):
-    """A prim driven round its closed path: its rest spot carried along the curve and turned to face along it."""
+def write_path(stage, mover, rate, seconds, ground=None):
+    """A prim driven along its path: its rest spot carried along the curve and turned to face along it. On the
+    ground (`on`: "ground", given `ground`: the height of what is under each [x, z] spot) it rises and falls with what
+    is under it, kept as high over it as where it rests (`ground(spots, turns)`: the height of what is under its
+    footprint carried to each [x, z] spot and turned by each turn, degrees from its rest heading)."""
     path, prim_path = mover["path"], mover["prim"]
     local = rest_local(stage, prim_path)
     rest = local[3, :3]
@@ -158,14 +200,20 @@ def write_path(stage, mover, rate, seconds):
     start, length = float(mover.get("start", 0.0)), float(mover["length"])
     moments = np.arange(start, seconds + 1e-9, 1.0 / PATH_SAMPLES)
     into = np.mod(moments - start, length) if mover.get("loop") else np.minimum(moments - start, length)
-    spots, headings = path_samples(path, length, into)  # unwrapped over every round, so a seam does not spin back
+    spots, headings = path_samples(path, length, into, rest[[0, 2]])  # unwrapped: a seam does not spin back
+    heights = np.full(len(spots), rest[1])
+    if mover.get("on") == "ground" and ground is not None:
+        under = ground(np.vstack([rest[[0, 2]], spots]), np.concatenate([[0.0], headings - rest_heading]))
+        if np.isnan(under).any():
+            raise ValueError(f"{mover['name']}: its path leaves what is under it")
+        heights = rest[1] + under[1:] - under[0]
     prim = stage.OverridePrim(prim_path)
     moved = prim.CreateAttribute("xformOp:translate:path", Sdf.ValueTypeNames.Double3)
     turned = prim.CreateAttribute("xformOp:rotateY:path", Sdf.ValueTypeNames.Double)
     prim.CreateAttribute("xformOp:translate:rest", Sdf.ValueTypeNames.Double3).Set(Gf.Vec3d(*rest))
     prepend_ops(stage, prim_path, ["xformOp:translate:path", "xformOp:rotateY:path", "!invert!xformOp:translate:rest"])
-    for moment, spot, heading in zip(moments, spots, headings):
-        moved.Set(Gf.Vec3d(float(spot[0]), float(rest[1]), float(spot[1])), motion.code(moment, rate))
+    for moment, spot, height, heading in zip(moments, spots, heights, headings):
+        moved.Set(Gf.Vec3d(float(spot[0]), float(height), float(spot[1])), motion.code(moment, rate))
         turned.Set(float(heading - rest_heading), motion.code(moment, rate))
 
 
@@ -265,7 +313,7 @@ def round_faults(movers, seconds):
     return faults
 
 
-def write_layer(place, motions, movers, source, out):
+def write_layer(place, motions, movers, source, out, ground=None):
     """The motion layer of the place's stage in `source` (a stage folder: its root and layers), written to
     `out`/layers/motion.usda, rewritten whole; what it moved, by name."""
     seconds = float((movers or {}).get("seconds", motion.WRITTEN_SECONDS))
@@ -288,7 +336,10 @@ def write_layer(place, motions, movers, source, out):
     for entry in every:
         if "adds" in entry:
             motion.added(stage, entry)
-        WRITERS[kind_of(entry)](stage, entry, rate, seconds)
+        if kind_of(entry) == "path":
+            write_path(stage, entry, rate, seconds, ground and ground(stage, entry))
+        else:
+            WRITERS[kind_of(entry)](stage, entry, rate, seconds)
         prim = stage.GetPrimAtPath(entry["prim"])
         prim.CreateAttribute("score:motion:from", Sdf.ValueTypeNames.String).Set(entry.get("from", ""))
         if "kind" in entry:
