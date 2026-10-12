@@ -32,7 +32,7 @@ blocks like fail.
     waiting     no entry of the scene record waits on its model (the assembly lays nothing for one and names it on
                 the root prim, score:waiting): each such entry fails as a gap
 
-Light and neighbours read the scene record the stage was assembled from (scene.json beside its root, which the
+Light, neighbours and game read the scene record the stage was assembled from (scene.json beside its root, which the
 assembly stage writes: the accepted scene-record output, else the seed's), and data/scene/<place>.json for a stage
 with none beside it.
 
@@ -377,9 +377,12 @@ def game_sources(found, where=""):
 
 
 def judge_game(stage, place, inventory, outputs):
-    """No record the place is made from cites the game as its source."""
-    records = {f"data/{kind}/{place}.json": record(kind, place)
-               for kind in ("scene", "characters", "effects", "motion", "movers")}
+    """No record the place is made from cites the game as its source: its scene record the one the stage was
+    assembled from (assembled_scene), the rest from data."""
+    beside = pathlib.Path(stage.GetRootLayer().realPath).parent / ASSEMBLED_SCENE
+    records = {(str(beside) if beside.exists() else f"data/scene/{place}.json"): assembled_scene(stage, place)}
+    records.update({f"data/{kind}/{place}.json": record(kind, place)
+                    for kind in ("characters", "effects", "motion", "movers")})
     records["data/sound/places.json"] = json.loads((DATA / "sound/places.json").read_text())["places"].get(place)
     counts = {name: len(game_sources(found)) for name, found in records.items() if found}
     faults = [f"{name}: {count} entries take their numbers from the game" for name, count in counts.items() if count]
