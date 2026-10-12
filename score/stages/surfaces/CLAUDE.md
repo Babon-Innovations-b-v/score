@@ -41,7 +41,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `COLOUR_DELTA_E` 32 CIE76, set on round 4's six models): the colour only chooses among library surfaces (the
   nearest of the listed one's family); a finish none fits gets a tinted proposal in the registry and fails the paint
   row's gate "colour against the close-up" by name. A finish is measured on its label's brighter half, a
-  dark one (library L* under `DARK_L` 35) on its darker quarter: the close-up's light lifts blacks to L* 40 to 45.
+  dark one (library L* under `DARK_L` 35) on all its pixels: the light lifts blacks' brighter half to L* 40 to 45.
   A Gemini 3.1 Pro ask that times out is asked again with its thinking held low (`finish_ask.low_thinking`).
 - **A finish is named again when its words or colour contradict its surface** (`surfaces-names`, paid, cached): its
   words name a material its surface's family is not (`finish_parts.contradicts`: black rubber as bare_steel), or its

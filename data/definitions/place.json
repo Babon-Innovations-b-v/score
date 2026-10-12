@@ -499,6 +499,26 @@
 			"potting_soil": {
 				"token": "soil",
 				"library": "potting_soil"
+			},
+			"cork_paper": {
+				"token": "earth-desert",
+				"library": "cork_paper"
+			},
+			"brass_aged": {
+				"token": "suit-gold",
+				"library": "brass_aged"
+			},
+			"screen_crt_off": {
+				"token": "steel-dark",
+				"library": "screen_crt_off"
+			},
+			"enamel_decal_rose": {
+				"token": "skin",
+				"library": "enamel_decal_rose"
+			},
+			"printed_paper": {
+				"token": "flat-wall",
+				"library": "printed_paper"
 			}
 		},
 		"light": {
@@ -1684,6 +1704,18 @@
 			"cast_steel": {
 				"token": "roof-steel",
 				"library": "cast_steel"
+			},
+			"screen_glow_green": {
+				"token": "ok",
+				"library": "screen_glow_green"
+			},
+			"printed_paper": {
+				"token": "flat-wall",
+				"library": "printed_paper"
+			},
+			"glass_frosted": {
+				"token": "cabin-light",
+				"library": "glass_frosted"
 			}
 		},
 		"light": {
