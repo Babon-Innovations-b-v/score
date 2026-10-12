@@ -69,15 +69,26 @@ these colours; not one pixel of the photograph may remain. The background is pla
 
 def generated(model, body, key, timeout, caller, cache):
     """google_spend.generate, asked again up to ASKS times when the connection times out or drops (a request the API
-    lost answered nothing and cost nothing; the greenhouse's naming lost one, 2026-10-12)."""
+    lost answered nothing and cost nothing; the greenhouse's naming lost one, 2026-10-12). A Gemini 3.1 Pro ask that
+    timed out is asked again with its thinking held low (low_thinking): flat's, hangar's and lab's namings timed out
+    at 300 s on every try, the same request each time, while others answered in seconds (2026-10-12)."""
     import urllib.error
     import google_spend
     for attempt in range(ASKS):
         try:
             return google_spend.generate(model, body, key, timeout, caller=caller, cache=cache)
-        except (TimeoutError, urllib.error.URLError, ConnectionError):
+        except TimeoutError:
+            if model != LIST_MODEL or attempt == ASKS - 1:
+                raise
+            body = low_thinking(body)
+        except (urllib.error.URLError, ConnectionError):
             if attempt == ASKS - 1:
                 raise
+
+
+def low_thinking(body):
+    """The request with Gemini 3's thinking held low."""
+    return dict(body, generationConfig={**body.get("generationConfig", {}), "thinkingConfig": {"thinkingLevel": "low"}})
 
 
 def secret_key():

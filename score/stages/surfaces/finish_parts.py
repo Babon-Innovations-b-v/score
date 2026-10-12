@@ -308,22 +308,30 @@ def surface_colours(entry, names):
 
 # --- each finish's surface against the close-up's colour -----------------------------------------------------------
 
-def measured_colours(take, front, count):
-    """Each finish's colour in the close-up (CIELAB) over its label's pixels in the close-up's map: the median of the
-    brighter half by L* (the shaded half left out), None for a finish with no pixel."""
-    import numpy as np
+# A finish whose library surface is darker than this (L*) is measured on its darker pixels (finish_colour).
+DARK_L = 35.0
+
+
+def measured_colours(take, front, surfaces):
+    """Each finish's colour in the close-up (CIELAB) over its label's pixels in the close-up's map (`surfaces`: each
+    finish's library spec, or None), None for a finish with no pixel (finish_colour)."""
     import labels
     import split_compare
     lab = labels.picture_lab(split_compare.picture(take))
-    found = []
-    for label in range(count):
-        pixels = lab[front == label]
-        if not len(pixels):
-            found.append(None)
-            continue
-        bright = pixels[pixels[:, 0] >= np.median(pixels[:, 0])]
-        found.append(np.median(bright, axis=0))
-    return found
+    return [finish_colour(lab[front == label], spec) for label, spec in enumerate(surfaces)]
+
+
+def finish_colour(pixels, spec):
+    """One finish's colour from its label's pixels (CIELAB): the median of the brighter half by L* (the shaded half
+    left out); for a finish whose library surface lies under DARK_L, the median of its darker quarter: the close-up's
+    light lifts a black finish to L* 40 to 45 (old_station's black rubber, garage's tyres, 2026-10-12). None with no
+    pixel."""
+    import numpy as np
+    if not len(pixels):
+        return None
+    if spec and "colour" in spec and library_lab(spec)[0] < DARK_L:
+        return np.median(pixels[pixels[:, 0] <= np.percentile(pixels[:, 0], 25)], axis=0)
+    return np.median(pixels[pixels[:, 0] >= np.median(pixels[:, 0])], axis=0)
 
 
 def library_lab(spec):
@@ -430,7 +438,9 @@ def parts_take(inputs, take, entry, out):
     import turntable_views as views
     listed = json.loads((inputs["names"] / f"{take}.json").read_text())["finishes"]
     front = np.load(inputs["maps"] / take / "front.npy").astype(int)
-    finishes = checked_finishes(entry, listed, measured_colours(take, front, len(listed)))
+    every = take_surfaces(entry)
+    finishes = checked_finishes(entry, listed,
+                                measured_colours(take, front, [every.get(finish["surface"]) for finish in listed]))
     mesh = split_compare.raw_model(take)
     part_of, face_label, per_map = laid(mesh, take, inputs, len(finishes))
     rows = part_rows(mesh, part_of, face_label, finishes)
