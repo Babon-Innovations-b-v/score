@@ -79,7 +79,9 @@ over the stage's seconds (`intensity`: [[seconds, intensity], ...]), `score:game
 An emitter that travels (a dust devil wandering downwind) has its translate and its turn sampled at the start and the
 end of its life, which USD reads straight between. A record's `replaces` makes a prim of the base inactive where the
 effects layer draws the same thing moving (the camp's still drift). Entries with a `variant` go into that variant of
-the `/<place>/Effects` variant set (the camp's weather: calm, the state the scene record holds, and storm).
+the `/<place>/Effects` variant set (the camp's weather: calm, the state the scene record holds, and storm). A record's
+`interiors` (upright cylinders in the place's frame: the camp's domes) hold no particle of an emitter standing under
+the open sky: one there at a sample is baked dead.
 
 How the bake moves a particle repeats Godot 4's ParticleProcessMaterial (its emission shapes, spread and flatness,
 gravity, damping, radial push, turbulence's steer toward a noise direction, size and colour over life, stepped at
@@ -576,11 +578,35 @@ def bake(emitter):
 
 # --- the stage ----------------------------------------------------------------------------------------------------
 
-def write_clip(emitter, out):
+def inside(spots, interiors):
+    """Which spots (place's frame) lie inside any of the record's interiors (each an upright cylinder: `middle` x
+    and z, `radius`, from `floor` to `top`)."""
+    within = np.zeros(spots.shape[:-1], dtype=bool)
+    for room in interiors or []:
+        across = np.hypot(spots[..., 0] - float(room["middle"][0]), spots[..., 2] - float(room["middle"][1]))
+        within |= ((across <= float(room["radius"])) & (spots[..., 1] >= float(room["floor"]))
+                   & (spots[..., 1] <= float(room["top"])))
+    return within
+
+
+def kept_out(emitter, points, widths, interiors):
+    """The widths with every particle let out under the open sky that stands inside an interior at a sample made
+    dead (the camp's drift blew through its domes): only an emitter standing still in the place's frame, not one
+    that rides a prim, travels or fills a room (those the `outside` gate measures as they stand)."""
+    if not interiors or emitter.get("parent") or emitter.get("path") or "room" in emitter["placement"] \
+            or emitter.get("climb"):
+        return widths
+    spots = points.astype(float) @ np.asarray(emitter["basis"], dtype=float).T + np.asarray(emitter["origin"])
+    return np.where(inside(spots, interiors), 0.0, widths).astype(np.float32)
+
+
+def write_clip(emitter, out, interiors=None):
     """The emitter's baked particles as a clip file of their own (`assets/effects/<emitter>.usdc`, the prim
-    /Effect), sampled every RATE / its samples a second; one that `starts` gets one more sample after its loop, every
-    particle dead, held before it lights; its path in the stage folder and how many samples it holds."""
+    /Effect), sampled every RATE / its samples a second, none inside the record's `interiors`; one that `starts`
+    gets one more sample after its loop, every particle dead, held before it lights; its path in the stage folder
+    and how many samples it holds."""
     points, widths, opacity = bake(emitter)
+    widths = kept_out(emitter, points, widths, interiors)
     if emitter.get("starts") is not None:
         points = np.concatenate([points, points[:1]])
         widths = np.concatenate([widths, np.zeros_like(widths[:1])])
@@ -747,7 +773,7 @@ def stood(xform, emitter):
         spin.Set(math.degrees(float(emitter["spin"]) * span), span * RATE)
 
 
-def write_emitter(stage, root, emitter, out):
+def write_emitter(stage, root, emitter, out, interiors=None):
     """One emitter: its schema prim and its baked points, played from their clip; the particles it holds. One `on` a
     prim of the base is that prim's child, the prims over it left as the base's."""
     path = emitter_path(stage, root, emitter)
@@ -755,7 +781,7 @@ def write_emitter(stage, root, emitter, out):
     stood(xform, emitter)
     for name, (kind, read) in SCHEMA.items():
         xform.GetPrim().CreateAttribute(f"score:effect:{name}", kind).Set(read(emitter))
-    clip, samples = write_clip(emitter, out)
+    clip, samples = write_clip(emitter, out, interiors)
     grains = UsdGeom.Points.Define(stage, f"{path}/{emitter['name']}_points")
     prim = grains.GetPrim()
     prim.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("effect")
@@ -837,9 +863,9 @@ def write_layer(place, effects, out, ground=None, scene=None, motions=None):
     for emitter in emitters_of(effects, ground, scene, motions):
         if emitter.get("variant"):
             with Usd.EditContext(stage, variant_target(stage, root, emitter["variant"])):
-                held[emitter["name"]] = write_emitter(stage, root, emitter, out)
+                held[emitter["name"]] = write_emitter(stage, root, emitter, out, effects.get("interiors"))
         else:
-            held[emitter["name"]] = write_emitter(stage, root, emitter, out)
+            held[emitter["name"]] = write_emitter(stage, root, emitter, out, effects.get("interiors"))
     for light in effects.get("lights", []):
         write_light(stage, place, light)
     for name, choice in effects.get("variants", {}).items():

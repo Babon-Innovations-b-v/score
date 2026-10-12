@@ -10,13 +10,19 @@ was measured on) made into the place's OpenUSD effects layer, which the assembly
                        under the effects layer)
              footage   every check of the record's `footage` block: a measure of the baked particles at a moment (how
                        far the cloud reaches out, how high it stands, how far it reaches any way and how far off its
-                       way it spreads, how long the flame is, how fine and how thick the particles are, how few lie
+                       way it spreads, how long the flame is, how high it stands over the ground beneath and
+                       at what angle (a landing's sheet), how fine and how thick the particles are, how few lie
                        loose at its edge as lone blobs, what share of them shows) lies within the range measured on
                        real footage: the launch's after lift-off in the rocket's heights from its rest, any other
                        place's at its own `at` second in metres from its `anchor` emitter
              light     the flame's light reaches the pad: from half a second after the engines light to two seconds
                        after lift-off it lights the pad round the rocket at least LIGHT_OVER times as much as the
                        place's own lamps do; a record with no lights passes only when it says why (`no_light`)
+             outside   no particle of an emitter under the open sky shows inside the place's interiors (the record's
+                       `interiors`, each centred on the prim it names: the camp's domes), and the record says which
+                       interiors there are when anything stands outside
+
+A record where nothing rides or follows a moving prim passes `attached` only when it says why (`rides_nothing`).
 
 Only places in STAGED have the row; the other places keep the effects layer of their seed. A place's effects are
 modelled on real footage first (the owner's rule): many fine particles tied to the world, never thinned to draw
@@ -34,7 +40,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import effects as effect_layer  # noqa: E402
 
-STAGED = ("launch", "airlock", "garage", "hangar", "greenhouse", "habitat")
+STAGED = ("launch", "airlock", "garage", "hangar", "greenhouse", "habitat", "wreck", "flat", "camp", "campgrounds")
 # How far an emitter on a moving prim may drift from its place on it, metres.
 DRIFT_MOST = 0.01
 # How often the composed stage is read along a motion and an event, seconds.
@@ -53,6 +59,11 @@ SEEN = 0.02
 # A fog's particles are each far thinner than SEEN and show only many deep: one under this share of its own thickest
 # is the nearly-nothing of birth or death (SEEN is about this share of the launch's clouds' thickest, 0.15).
 SEEN_SHARE = 0.14
+# How far an interior's middle may lie off the prim it names there, metres (a dome's roof cap), and how long the
+# outside gate reads particles for and how often, seconds (a devil wanders a minute).
+HELD_SLACK = 0.3
+OUTSIDE_SPAN = 60.0
+OUTSIDE_EVERY = 2.0
 
 
 def files(place):
@@ -219,8 +230,11 @@ def judge_attached(output, inputs, evidence):
         if miss > 0:
             faults.append(f"{entry['name']}: lets particles out {miss:.2f} m past where its prim stands")
     followers = sum("follows" in entry["placement"] for entry in record["effects"])
+    if not riders and not followers and record.get("rides_nothing"):
+        return checks.Verdict("attached", checks.PASS, f"nothing in the record rides a prim: {record['rides_nothing']}")
     if not riders and not followers:
-        return checks.Verdict("attached", checks.UNKNOWN, "nothing in the record rides or follows a moving prim")
+        return checks.Verdict("attached", checks.UNKNOWN, "nothing in the record rides or follows a moving prim and "
+                                                          "it does not say why (`rides_nothing`)")
     reason = (f"{len(faults)} faults over {len(riders)} riders and {followers} following emitters" if faults else
               f"{len(riders)} riders keep their place over {measures['carried']:.0f} m of their prim's travel and "
               f"{followers} following emitters let out where their prim stands")
@@ -247,9 +261,11 @@ def gathered(stage, place, record, names, seconds):
     entries = {entry["name"]: entry for entry in record["effects"]}
     spots, widths = [np.zeros((0, 3))], [np.zeros(0)]
     for name in names:
-        found = seen(stage, points_path(place, entries[name]), seconds, effect_layer.look_opacity(entries[name]))
-        spots.append(found[0])
-        widths.append(found[1])
+        for laid in laid_names(entries[name]):  # a drift laid on cells: every cell's
+            found = seen(stage, points_path(place, dict(entries[name], name=laid)), seconds,
+                         effect_layer.look_opacity(entries[name]))
+            spots.append(found[0])
+            widths.append(found[1])
     return np.concatenate(spots), np.concatenate(widths)
 
 
@@ -311,6 +327,28 @@ def spread(spots, anchor):
     return float(np.percentile(np.degrees(np.arccos(np.clip(ways @ mean, -1.0, 1.0))), 95))
 
 
+def over_ground(spots, ground):
+    """Each spot's height over the planned ground beneath it (tools/usd/ground.py's ball and heights; a flat place's
+    ground is y = 0), metres."""
+    if ground is None:
+        return spots[:, 1]
+    world = (spots + np.array([0.0, ground.drop, 0.0])) @ ground.frame + ground.origin
+    out = world / np.linalg.norm(world, axis=1, keepdims=True)
+    height, _ = ground.height(out)
+    return np.linalg.norm(world, axis=1) - (ground.radius + height)
+
+
+def rise(spots, anchor, ground, beyond):
+    """How steeply the particles' middles stand over the ground beneath them against how far out from the anchor they
+    are (95th share, those more than `beyond` metres out), degrees: a landing's dust sheet hugging the ground, as the
+    Apollo films are measured (the sheet's angle over the ground)."""
+    out = np.hypot(spots[:, 0] - anchor[0], spots[:, 2] - anchor[2])
+    far = out > beyond
+    if not far.any():
+        return None
+    return float(np.percentile(np.degrees(np.arctan2(over_ground(spots[far], ground), out[far])), 95))
+
+
 def gap(spots, widths, anchor):
     """How far from the anchor the particles first show (the nearest one's near edge), metres: the clear gap at a
     kettle's spout."""
@@ -326,15 +364,36 @@ def alive_share(stage, place, record, names, seconds):
 
 def framed(check, stage, place, record, rocket):
     """A check's second of the stage, its anchor (world spot) and its unit (metres): the launch's after lift-off,
-    from the rocket's rest, in its heights; any other place's at its own `at` second, from its `anchor` emitter's
-    spot then, in metres."""
+    from the rocket's rest (or its `anchor` emitter), in its heights; any other place's at its own `at` second, from
+    its `anchor` emitter's spot then, in metres."""
     if rocket is not None:
         tall, rest, motion = rocket
-        return lift_second(motion) + float(check["after_lift"]), rest, tall
+        seconds = lift_second(motion) + float(check["after_lift"])
+        return seconds, anchor_spot(check, stage, place, record, seconds) if "anchor" in check else rest, tall
     seconds = float(check["at"])
-    entries = {entry["name"]: entry for entry in record["effects"]}
-    holder = points_path(place, entries[check["anchor"]]).rsplit("/", 1)[0]
-    return seconds, where(stage, holder, seconds), 1.0
+    return seconds, anchor_spot(check, stage, place, record, seconds), 1.0
+
+
+def anchor_holder(check, place, record):
+    """The path of a check's `anchor` emitter (a drift laid on cells: its middle cell)."""
+    entry = next(entry for entry in record["effects"] if entry["name"] == check["anchor"])
+    laid = laid_names(entry)
+    return points_path(place, dict(entry, name=laid[len(laid) // 2])).rsplit("/", 1)[0]
+
+
+def anchor_spot(check, stage, place, record, seconds):
+    """Where a check's `anchor` emitter stands at a second."""
+    return where(stage, anchor_holder(check, place, record), seconds)
+
+
+def upright(stage, path, seconds, spots):
+    """Spots of the world in an emitter's own turn about its spot: its up their y (a devil standing on the curved
+    ground of a 220 m world leans with it)."""
+    from pxr import UsdGeom
+    matrix = np.asarray(UsdGeom.Xformable(stage.GetPrimAtPath(path)).ComputeLocalToWorldTransform(
+        seconds * effect_layer.RATE))
+    turn = matrix[:3, :3] / np.linalg.norm(matrix[:3, :3], axis=1, keepdims=True)
+    return (spots - matrix[3, :3]) @ turn.T
 
 
 def measured(check, stage, place, record, rocket):
@@ -349,6 +408,8 @@ def measured(check, stage, place, record, rocket):
         spots, widths = spots[near], widths[near]
     if not len(spots):
         return None
+    if check["measure"] in ("reach", "height") and rocket is None:  # across and up the anchor's own frame
+        spots, rest = upright(stage, anchor_holder(check, place, record), seconds, spots), np.zeros(3)
     if check["measure"] == "reach":
         return reach(spots, widths, rest) / tall
     if check["measure"] == "height":
@@ -360,6 +421,10 @@ def measured(check, stage, place, record, rocket):
         return spread(spots - np.outer((spots - rest) @ along, along), rest)
     if check["measure"] == "spread":
         return spread(spots, rest)
+    if check["measure"] == "over_ground":  # how high the particles' tops stand over the ground beneath (95th share)
+        return float(np.percentile(over_ground(spots, effect_layer.place_ground(place)) + widths / 2, 95))
+    if check["measure"] == "rise":  # the place's planned ground, as the make lays it (the declared `grounds`)
+        return rise(spots, rest, effect_layer.place_ground(place), float(check.get("beyond", 1.0)))
     if check["measure"] == "gap":
         return gap(spots, widths, rest) / tall
     if check["measure"] == "flame_length":
@@ -393,6 +458,72 @@ def judge_footage(output, inputs, evidence):
               else f"all {len(found)} measures lie within the footage's ranges")
     return checks.Verdict("footage", checks.FAIL if faults else checks.PASS, reason, measures, {},
                           tuple(faults or found))
+
+
+# --- outside ------------------------------------------------------------------------------------------------------
+
+def under_sky(record):
+    """The record's emitters that stand under the open sky: neither riding a prim nor filling a room."""
+    return [entry for entry in record["effects"] if "on" not in entry["placement"]
+            and "room" not in entry["placement"]]
+
+
+def laid_names(entry):
+    """The names an entry's emitters get in the stage: a drift laid on cells one a cell (tools/usd/effects.py's
+    cell_emitters), any other its own."""
+    cells = entry["placement"].get("cells")
+    if not cells:
+        return [entry["name"]]
+    side = 2 * int(cells["out"]) + 1
+    return [f"{entry['name']}_{row}_{column}" for row in range(side) for column in range(side)]
+
+
+def unheld(stage, place, room):
+    """What is wrong with where an interior stands: the prim it names at its middle (`middle_of`, under the place:
+    a dome's roof cap) missing, its middle more than HELD_SLACK off the interior's, or its top over the interior's.
+    An interior of a neighbour's stage (the camp's domes seen from its grounds) names none: its `from` says where."""
+    from pxr import Usd, UsdGeom
+    if "middle_of" not in room:
+        return []
+    prim = stage.GetPrimAtPath(f"/{place}/{room['middle_of']}")
+    if not prim:
+        return [f"{room['name']}: no prim {room['middle_of']}"]
+    box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(prim).ComputeAlignedRange()
+    middle = (np.asarray(box.GetMin(), dtype=float) + np.asarray(box.GetMax(), dtype=float)) / 2
+    off = float(np.hypot(middle[0] - float(room["middle"][0]), middle[2] - float(room["middle"][1])))
+    missed = [f"{room['name']}: {room['middle_of']} stands {off:.2f} m off its middle"] if off > HELD_SLACK else []
+    if float(box.GetMax()[1]) > float(room["top"]) + HELD_SLACK:
+        missed.append(f"{room['name']}: {room['middle_of']} stands over its top")
+    return missed
+
+
+def judge_outside(output, inputs, evidence):
+    """Pass when no particle of an emitter under the open sky shows inside the place's interiors (`interiors`:
+    upright cylinders, each centred on the prim it names) over the first OUTSIDE_SPAN seconds."""
+    record = read_json(inputs["record"])
+    outdoor = under_sky(record)
+    if not outdoor:
+        return checks.Verdict("outside", checks.PASS, "no emitter stands under the open sky")
+    if "interiors" not in record:
+        return checks.Verdict("outside", checks.UNKNOWN, "the record does not say which interiors the place has "
+                                                         "(`interiors`, empty for none)")
+    stage, place = composed(output, inputs), place_of(inputs)
+    faults = [fault for room in record["interiors"] for fault in unheld(stage, place, room)]
+    drawn = [(dict(entry, name=name), entry) for entry in outdoor for name in laid_names(entry)
+             if stage.GetPrimAtPath(points_path(place, dict(entry, name=name)))]  # none of a variant not chosen
+    worst = 0
+    for seconds in np.arange(0.0, OUTSIDE_SPAN + 1e-9, OUTSIDE_EVERY):
+        for entry, laid in drawn:
+            spots, _ = seen(stage, points_path(place, entry), seconds, effect_layer.look_opacity(laid))
+            count = int(effect_layer.inside(spots, record["interiors"]).sum())
+            worst = max(worst, count)
+            if count:
+                faults.append(f"{entry['name']}: {count} particles inside at {seconds:.1f} s")
+    reason = (f"{len(faults)} faults" if faults else
+              f"no particle of {len(drawn)} emitters under the sky shows inside the place's "
+              f"{len(record['interiors'])} interiors")
+    return checks.Verdict("outside", checks.FAIL if faults else checks.PASS, reason, {"most inside": worst},
+                          {"most inside": "lower"}, tuple(faults[:20]))
 
 
 # --- light --------------------------------------------------------------------------------------------------------
@@ -467,4 +598,4 @@ def layer_faults(folder):
 
 LAYER = contracts.Contract("effects-layer", 1, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
 CHECKS = (checks.Check("attached", judge_attached), checks.Check("footage", judge_footage),
-          checks.Check("light", judge_light))
+          checks.Check("light", judge_light), checks.Check("outside", judge_outside))
