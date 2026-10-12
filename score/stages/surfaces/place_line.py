@@ -53,11 +53,12 @@ MERGE_COLOUR = 12.0
 # is stretched down FOOT_MOST at most (a tenth: the water tank's shortest leg ends 6.4% of its size up); a foot further
 # up is a missing leg, a fault of the model, and fails the gate "feet in one plane" by name.
 FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
-# The paint runs on processor machines (blender_cloud.py's own classes), a job a take of about PAINT_MINUTES; the
+# The paint runs on processor machines, a job a take of about PAINT_MINUTES (campgrounds, 2026-10-12: twelve takes,
+# eight machines of 3.3 to 4.7 min each for EUR 5.83 at 5; a job about 1.5 min, crane-r1 alone 34.8 GB at its peak); the
 # keys of a take's listing besides the make's inputs (prop_env.short reads each as a path: the take is its name); the
 # repository folders its code and data come from.
 PAINT_CLASSES = "cpu-32c-128gb,cpu-32c-64gb,cpu-32c-256gb,cpu-16c-64gb"
-PAINT_MINUTES, PAINT_EUROS = 5, 0.5
+PAINT_MINUTES, PAINT_EUROS = 2, 0.5
 TAKE, RECORDS, HOME = "paint take", "paint records", "props home"
 PAINT_REPO = ("score", "tools/props", "data/library", "data/definitions", "design/tokens", "data/checks",
               "data/inventory")
@@ -223,8 +224,8 @@ def paint_take(inputs, out, take, record, records):
 
 def make_paint(inputs, out, seed, params):
     """Every take painted on rented processor machines, one job a take spread over them (blender_cloud.py,
-    inside/paint_take.py: a take holds about 2 GB; campgrounds' twelve and garage's sixteen in one process on the PC
-    passed its 14 GB cap, 2026-10-12, and heavy steps run in the cloud); the method's proposals go into the finish
+    inside/paint_take.py: most takes peak at 1.5 to 3.4 GB, campgrounds' crane-r1 at 34.8 GB, past the PC's 14 GB cap,
+    2026-10-12; heavy steps run in the cloud); the method's proposals go into the finish
     registry here first. painted.json (with the takes the method left out)."""
     from registry import Registry
     from score.store import Store
