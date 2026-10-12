@@ -95,6 +95,15 @@ def test_routes_send_a_failed_prop_object_to_code_and_a_failed_code_build_to_a_b
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_both_orders_come_from_the_prop_and_code_results():
+    try_order = compare.order_route
+    assert try_order(("prop", "prop"), ("code", "code")) == "prop"
+    assert try_order(("prop", "code"), ("code", "code")) == "code"  # prop failed, its code build passed
+    assert try_order(("prop", "code"), ("code", "builder")) == "builder"
+    assert try_order(("prop", "code"), ("code", None)) == "builder"  # no code build at all
+    assert try_order(("code", "unknown"), ("prop", "prop")) == "unknown"
+
+
 def test_the_ledger_tag_marks_cloud_and_google_lines():
     import os
     import types

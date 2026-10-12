@@ -1,34 +1,31 @@
 """The with/without comparison of the parts check's order on one place: prop-first (the owner's decision of 2026-10-12)
 against code-first (the parts check as it was: code when a kind's code build shows every part, else the prop route).
 
-    .venv/bin/python -m score.stages.props.compare prepare <place> prop-first [--code-builds <folder>]   # free
-    .venv/bin/python -m score.stages.props.compare run <place> prop-first [--detach]                     # paid
-    .venv/bin/python -m score.stages.props.compare fallback <place> [--code-builds <folder>]             # free
-    .venv/bin/python -m score.stages.props.compare run <place> prop-first [--detach]                     # free: checks
-    .venv/bin/python -m score.stages.props.compare prepare <place> code-first [--code-builds <folder>]   # free
-    .venv/bin/python -m score.stages.props.compare run <place> code-first [--detach]                     # paid
-    .venv/bin/python -m score.stages.props.compare table <place>                                         # free
+    .venv/bin/python -m score.stages.props.compare prepare <place> prop-first [--sample a,b,...]   # free
+    .venv/bin/python -m score.stages.props.compare run <place> prop-first [--detach]               # paid
+    .venv/bin/python -m score.stages.props.compare prepare <place> code-builds [--code-builds <folder>]   # free
+    .venv/bin/python -m score.stages.props.compare run <place> code-builds [--detach]              # DINOv2 only
+    .venv/bin/python -m score.stages.props.compare table <place>                                   # free
 
-Each order is a world of its own under $PROPS_HOME/compare/<place>/<order>/: a copy of the repository's data with the
-order's prop data (data/props/<place>.json) and surface data, and a store of its own, so neither order touches world
-1's store or data. `run` drives the place's line up to the likeness row with the stage table as it is (score.stages):
-props-inputs, closeup, pixal, the surface line, likeness, each paid row cleared by the runner as in world 1.
+Two runs, each a world of its own under $PROPS_HOME/compare/<place>/<run>/: a copy of the repository's data with the
+run's prop data (data/props/<place>.json) and surface data, and a store of its own, so neither touches world 1's store
+or data. `run` drives the place's line up to the likeness row with the stage table as it is (score.stages):
+props-inputs, closeup, pixal, the surface line, likeness-calibration, likeness, each paid row cleared by the runner as
+in world 1, and every ledger line it and its children write tagged compare-<place>-<run> (ledger_tag/sitecustomize.py),
+so its euros count apart from world 1's lines running beside it.
 
-- prop-first: every object of the place with a box or a close-up already drawn goes the prop route; its inventory
-  copy marks every such row `generate` (the batch builds only generated rows). `fallback` then moves each prop object
-  that failed its checks to code: to its code build (`--code-builds`, <row>_1.gltf) where one exists, else to none (a
-  builder an agent must write), and `run` again checks them (the paid rows' keys do not move: they read only the prop
-  objects' takes).
-- code-first: the parts check routes each object (sorter.route): code where it says code and a code build exists,
-  else the prop route. Its close-ups are prop-first's accepted ones, so both orders hold the same pictures; prepare it
-  after prop-first's close-ups are accepted.
+- prop-first: every object of the place (or of the sample) with a box the box gate passes or an accepted close-up
+  goes the prop route: the prop results. Its inventory copy marks every such row `generate` (the batch builds only
+  generated rows). An object every Pro close-up fails has failed the prop route there.
+- code-builds: each of those objects that has a code build (`--code-builds`, <row>_1.gltf), held to the same gate
+  with prop-first's accepted close-up: the code results. It generates nothing.
 
-`table` writes table.json and page.html in $PROPS_HOME/compare/<place>/: per order the objects passing by each route,
-those needing a builder, those a check could not tell, the euros (every cloud and Google ledger line tagged
-compare-<place>-<order>: `run` tags every line it and its children write, ledger_tag/sitecustomize.py, so the
-order's spend counts apart from world 1's lines running beside it) and the agent hours (agent-hours.json in
-the order's folder, {row: hours}, written by the session that writes a builder; none recorded is shown as such),
-and per object both orders' close-up, outline and route, for the owner's pick.
+Both orders are derived from the two result sets, so neither pays twice: prop-first tries the prop route, then the
+code build; code-first follows the parts check (sorter.route): the code build first where it says code, else the
+prop route first; an object neither passes needs a builder an agent writes. `table` writes table.json and page.html in
+$PROPS_HOME/compare/<place>/: per order the objects passing by each route, those needing a builder, those a check could
+not tell, the euros and the agent hours (agent-hours-<order>.json, {row: hours}, written by the session that writes a
+builder; none recorded shows as such), and per object both orders' route, for the owner's pick.
 """
 import argparse
 import html
@@ -53,7 +50,7 @@ FOLDER = PROPS_HOME / "compare"
 LEDGER_TAG = pathlib.Path(__file__).resolve().parent / "ledger_tag"
 TAG_VARIABLE = "SCORE_LEDGER_TAG"
 ORDERS = ("prop-first", "code-first")
-MARK = {"prop-first": "pf", "code-first": "cf"}
+RUNS = ("prop-first", "code-builds")
 NODE = "likeness@{place}"
 
 
@@ -127,7 +124,7 @@ def prop_first_objects(place, inventory):
     for row in inventory["rows"]:
         passed, why = boxes.get(row["id"], (False, "no verdict"))
         if row["id"] in drawn or (row.get("box") and passed):
-            found[row["id"]] = {"route": "prop", "take": f"{row['id']}-{MARK['prop-first']}",
+            found[row["id"]] = {"route": "prop", "take": f"{row['id']}-pf",
                                 **({"closeup": drawn[row["id"]]} if row["id"] in drawn else {})}
         else:
             left[row["id"]] = f"no accepted close-up, and the box gate fails its box: {why}" if row.get("box") \
@@ -135,16 +132,15 @@ def prop_first_objects(place, inventory):
     return found, left
 
 
-def code_first_objects(place, objects, code_builds, closeups):
-    """prop-first's objects routed by the parts check, each with prop-first's accepted close-up."""
+def code_build_objects(objects, code_builds, closeups):
+    """Every one of prop-first's objects that has a code build and a close-up, by its code build, with prop-first's
+    accepted close-up: the code results both orders are derived from."""
     found = {}
     for row in objects:
-        closeup = {"closeup": "{home}/" + (closeups / f"{row}.png").relative_to(PROPS_HOME).as_posix()}
-        build = code_build(row, code_builds)
-        if parts_check_route(place, row) == "code" and build:
-            found[row] = {"route": "code", "code_model": build, **closeup}
-        else:
-            found[row] = {"route": "prop", "take": f"{row}-{MARK['code-first']}", **closeup}
+        build, picture = code_build(row, code_builds), closeups / f"{row}.png"
+        if build and picture.exists():
+            found[row] = {"route": "code", "code_model": build,
+                          "closeup": "{home}/" + picture.relative_to(PROPS_HOME).as_posix()}
     return found
 
 
@@ -186,16 +182,20 @@ def prop_first_closeups(place):
     return target
 
 
-def prepare(place, order, code_builds):
-    """The order's world data: a copy of the repository's, with its prop data, surface data and inventory."""
+def prepare(place, order, code_builds, sample=None):
+    """The run's world data: a copy of the repository's, with its prop data, surface data and inventory; with a
+    sample, only those objects."""
     data = order_folder(place, order) / "data"
     if data.exists():
-        raise SystemExit(f"{data} exists: an order is prepared once (remove the folder to start it again)")
+        raise SystemExit(f"{data} exists: a run is prepared once (remove its data folder to prepare it again)")
     shutil.copytree(REPO / "data", data)
     inventory = json.loads((data / "inventory" / f"{place}.json").read_text())
     objects, left = prop_first_objects(place, inventory)
-    if order == "code-first":
-        objects = code_first_objects(place, objects, code_builds, prop_first_closeups(place))
+    if sample:
+        left.update({row: "outside the sample" for row in objects if row not in sample})
+        objects = {row: entry for row, entry in objects.items() if row in sample}
+    if order == "code-builds":
+        objects = code_build_objects(objects, code_builds, prop_first_closeups(place))
     for row in inventory["rows"]:
         if objects.get(row["id"], {}).get("route") == "prop" and row["kind"] == "code":
             row["was"], row["kind"] = row["kind"], "generate"  # prop-first: the batch builds only generated rows
@@ -285,22 +285,6 @@ def dinov2_scores(store, output):
     return json.loads(pathlib.Path(evidence).read_text()) if evidence else {}
 
 
-def fallback(place, code_builds):
-    """prop-first's prop objects that failed their checks, moved to their code builds (none: a builder to write)."""
-    store, output, folder = likeness_output(place, "prop-first")
-    if folder is None:
-        raise SystemExit("prop-first has no likeness output yet: run it first")
-    path = order_folder(place, "prop-first") / "data/props" / f"{place}.json"
-    record = json.loads(path.read_text())
-    moved = {row: code_build(row, code_builds)
-             for row, route in likeness_row.routes(folder, dinov2_scores(store, output)).items()
-             if route == "code" and row not in record.get("fallback", {})}
-    record["fallback"] = {**record.get("fallback", {}), **moved}
-    path.write_text(json.dumps(record, indent=1) + "\n")
-    print(f"prop-first: {len(moved)} objects to code, {sum(build is None for build in moved.values())} without a "
-          "builder")
-
-
 def ledger_euros(tag):
     """Every cloud and Google ledger line tagged `tag`, in euros: a Google call started with no finished line (failed,
     killed) at its model's estimate, as google_spend counts the month."""
@@ -325,60 +309,112 @@ def least_likeness(store, place):
     return calibration_row.least(store.checkout(output)) if output else None
 
 
-def order_row(place, order):
-    """One order's line of the table, and its objects' routes and outlines."""
-    folder = order_folder(place, order)
-    store, output, made = likeness_output(place, order)
+def results(place, run):
+    """{row: route} of one run's likeness (prop-first: "prop" passed, "code" failed; code-builds: "code" passed,
+    "builder" failed; "unknown" where a check could not tell), and its objects' records; None when it has no output."""
+    store, output, made = likeness_output(place, run)
     if made is None:
-        return {"order": order, "ran": False}, {}
-    record = json.loads((folder / "data/props" / f"{place}.json").read_text())
-    found = likeness_row.routes(made, dinov2_scores(store, output), least_likeness(store, place))
-    objects = likeness_row.objects(made)
-    hours = json.loads((folder / "agent-hours.json").read_text()) if (folder / "agent-hours.json").exists() else {}
-    def counted(route, made_by):
-        return sum(1 for name, value in found.items() if value == route and objects[name]["route"] == made_by)
-    row = {"order": order, "ran": True, "objects": len(found), "passing prop route": counted("prop", "prop"),
-           "passing code route": counted("code", "code"), "failed prop, code not checked yet": counted("code", "prop"),
-           "need a builder": counted("builder", "code"),
-           "cannot tell": sum(value == "unknown" for value in found.values()), "euros": ledger_euros(tag_of(place, order)),
-           "agent hours": round(sum(hours.values()), 2) if hours else None, "left out": len(record.get("left_out", {}))}
-    return row, {name: {"route": found[name], "outline": entry.get("outline"), "made by": entry["route"]}
-                 for name, entry in objects.items()}
+        return None, {}
+    return likeness_row.routes(made, dinov2_scores(store, output), least_likeness(store, place)), \
+        likeness_row.objects(made)
 
 
-def page(place, rows, per_object):
-    """The review page: the table, then each object's route and outline in both orders, and how to give the pick."""
-    columns = [key for key in rows[0] if key != "ran"] if rows and rows[0].get("ran") else ["order", "ran"]
+def order_route(first, second):
+    """An object's route in an order trying `first` then `second`, each (route it stands on when it passes, its result
+    or None when that route has nothing for it): the first that passed, "unknown" when one before it could not tell,
+    else "builder" (an agent writes one)."""
+    for route, result in (first, second):
+        if result == "unknown":
+            return "unknown"
+        if result == route:
+            return route
+    return "builder"
+
+
+def derived(place, prop, code):
+    """{row: {"prop-first", "code-first", "parts check"}} from the prop results and the code results: prop-first tries
+    the prop route, then the object's code build; code-first follows the parts check (sorter.route): its code build
+    first where the check says code, else the prop route first."""
+    found = {}
+    for row in sorted(prop):
+        check = parts_check_route(place, row)
+        prop_try, code_try = ("prop", prop[row]), ("code", code.get(row))
+        first = (code_try, prop_try) if check == "code" and row in code else (prop_try, code_try)
+        found[row] = {"prop-first": order_route(prop_try, code_try), "code-first": order_route(*first),
+                      "parts check": check}
+    return found
+
+
+def sample_euros(place):
+    """{what: euros} of the sample's runs from the tagged ledger lines: Pro's close-ups, the rest of prop-first
+    (Pixal3D, the surface line, DINOv2) and the code-builds run (DINOv2)."""
+    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    import google_spend
+    tag = tag_of(place, "prop-first")
+    calls = [json.loads(line) for line in google_spend.LEDGER.read_text().splitlines() if line.strip()]
+    closeups = sum(call.get("euros") or 0 for call in calls
+                   if call.get("tag") == tag and call.get("caller") == "pro" and call.get("state") == "finished")
+    total = ledger_euros(tag)
+    return {"close-ups": round(closeups, 2), "generation": round(total - closeups, 2),
+            "code checks": ledger_euros(tag_of(place, "code-builds"))}
+
+
+def order_rows(place, routes, euros):
+    """The table's line per order: objects passing by each route, needing a builder, untold; euros (the close-ups,
+    which both orders need for their checks, the code checks, and generation shared over the objects each order sends
+    the prop route); agent hours (agent-hours-<order>.json, {row: hours}; none recorded shows as such)."""
+    rows = []
+    for order in ORDERS:
+        chosen = [entry[order] for entry in routes.values()]
+        generated = sum(1 for entry in routes.values() if order == "prop-first" or entry["parts check"] != "code")
+        hours_file = FOLDER / place / f"agent-hours-{order}.json"
+        hours = json.loads(hours_file.read_text()) if hours_file.exists() else {}
+        rows.append({"order": order, "objects": len(chosen), "passing prop route": chosen.count("prop"),
+                     "passing code route": chosen.count("code"), "need a builder": chosen.count("builder"),
+                     "cannot tell": chosen.count("unknown"),
+                     "euros": round(euros["close-ups"] + euros["code checks"]
+                                    + euros["generation"] * generated / max(1, len(routes)), 2),
+                     "agent hours": round(sum(hours.values()), 2) if hours else "none recorded"})
+    return rows
+
+
+def page(place, rows, routes, prop_objects, euros):
+    """The review page: the table, each object's route in both orders with its outline, the euros, the pick."""
+    columns = list(rows[0])
     head = "".join(f"<th>{html.escape(name)}</th>" for name in columns)
-    body = "".join("<tr>" + "".join(f"<td>{html.escape(str(row.get(name, '')))}</td>" for name in columns) + "</tr>"
+    body = "".join("<tr>" + "".join(f"<td>{html.escape(str(row[name]))}</td>" for name in columns) + "</tr>"
                    for row in rows)
-    names = sorted({name for objects in per_object.values() for name in objects})
     detail = "".join(
-        f"<tr><td>{html.escape(name)}</td>" + "".join(
-            f"<td>{html.escape(str(per_object[order].get(name, {}).get('route', '-')))} "
-            f"({per_object[order].get(name, {}).get('outline', '-')})</td>" for order in ORDERS) + "</tr>"
-        for name in names)
+        f"<tr><td>{html.escape(row)}</td><td>{html.escape(entry['parts check'])}</td>"
+        f"<td>{html.escape(entry['prop-first'])}</td><td>{html.escape(entry['code-first'])}</td>"
+        f"<td>{prop_objects[row].get('outline', prop_objects[row].get('missing', '-'))}</td></tr>"
+        for row, entry in sorted(routes.items()))
     return (f"<title>Parts check order: {html.escape(place)}</title>"
             "<style>body{font:14px system-ui;margin:16px;background:#fff;color:#111}table{border-collapse:collapse}"
             "td,th{border:1px solid #ccc;padding:4px 8px;text-align:left}</style>"
-            f"<h1>Prop-first or code-first: {html.escape(place)}</h1><table><tr>{head}</tr>{body}</table>"
-            "<h2>Each object: route after its checks (best outline)</h2>"
-            f"<table><tr><th>object</th>{''.join(f'<th>{order}</th>' for order in ORDERS)}</tr>{detail}</table>"
+            f"<h1>Prop-first or code-first: {html.escape(place)}, a sample of {len(routes)} objects</h1>"
+            f"<table><tr>{head}</tr>{body}</table>"
+            f"<p>Euros: {euros['close-ups']} close-ups (Pro), {euros['generation']} generation (Pixal3D, the "
+            f"surface line, DINOv2), {euros['code checks']} code checks; generation is shared over the objects "
+            "each order generates.</p><h2>Each object</h2><table><tr><th>object</th><th>parts check</th>"
+            "<th>prop-first</th><th>code-first</th><th>prop model's outline</th></tr>" + detail + "</table>"
             "<h2>Your pick</h2><p>Name the order you pick (prop-first or code-first) on the PRD's issue; the session "
             "that ran this records it there.</p>")
 
 
 def table(place):
-    """table.json and page.html of both orders."""
-    rows, per_object = [], {}
-    for order in ORDERS:
-        row, objects = order_row(place, order)
-        rows.append(row)
-        per_object[order] = objects
+    """table.json and page.html from the prop-first and code-builds runs."""
+    prop, prop_objects = results(place, "prop-first")
+    code, _ = results(place, "code-builds")
+    if prop is None:
+        raise SystemExit("prop-first has no likeness output yet")
+    routes = derived(place, prop, code or {})
+    euros = sample_euros(place)
+    rows = order_rows(place, routes, euros)
     out = FOLDER / place
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "table.json").write_text(json.dumps({"rows": rows, "objects": per_object}, indent=1) + "\n")
-    (out / "page.html").write_text(page(place, rows, per_object))
+    (out / "table.json").write_text(json.dumps({"rows": rows, "objects": routes, "euros": euros,
+                                                "prop results": prop, "code results": code}, indent=1) + "\n")
+    (out / "page.html").write_text(page(place, rows, routes, prop_objects, euros))
     for row in rows:
         print(json.dumps(row))
     print(f"wrote {out / 'table.json'} and {out / 'page.html'}")
@@ -401,24 +437,24 @@ def detach(argv, place, order):
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("command", choices=("prepare", "run", "fallback", "table"))
+    parser.add_argument("command", choices=("prepare", "run", "table"))
     parser.add_argument("place")
-    parser.add_argument("order", nargs="?", choices=ORDERS)
+    parser.add_argument("order", nargs="?", choices=RUNS, help="the run: prop-first or code-builds")
+    parser.add_argument("--sample", help="the objects, comma separated (prepare)")
     parser.add_argument("--code-builds", type=pathlib.Path)
     parser.add_argument("--jobs", type=int, default=graph.JOBS)
     parser.add_argument("--detach", action="store_true")
     options = parser.parse_args(argv)
     builds = options.code_builds or default_code_builds(options.place)
     if options.command in ("prepare", "run") and not options.order:
-        parser.error(f"{options.command} needs an order")
+        parser.error(f"{options.command} needs a run")
     if options.command == "prepare":
-        prepare(options.place, options.order, builds)
+        prepare(options.place, options.order, builds,
+                set(options.sample.split(",")) if options.sample else None)
     elif options.command == "run" and options.detach:
         detach(argv, options.place, options.order)
     elif options.command == "run":
         run(options.place, options.order, options.jobs)
-    elif options.command == "fallback":
-        fallback(options.place, builds)
     else:
         table(options.place)
 
