@@ -38,6 +38,10 @@ LEAD_IN = 30
 # player's wrist and boot tucks by up to 12.5 mm in 179 frames where the unsettled body showed none (2026-10-10). The
 # bands run 2.5 cm under the cloth (tucks.TUCK_LENGTH).
 PIN_REACH = 0.04
+# A hard part's (a boot's, a mitt's) reach: the trouser leg settled from 4 cm above the player's boot tops went into
+# the boot shafts as he sat (foot edges through the trousers 3 to 7 cm above the boot's border: 16 unsettled, 139
+# settled, 2026-10-11); its skinned place rides the foot there (prop_build.eased_to_hard).
+PIN_REACH_HARD = 0.08
 SETTINGS = {
     "fps": 30,              # the clips' frame rate (people/clips.py)
     "substeps": 16,
@@ -153,6 +157,7 @@ def inputs(body_path, out):
     found = pokes.surfaces(document, blob)
     cloth_parts = [part for part, role, _ in found if role == pokes.GARMENT]
     other = [(part, tuck_from) for part, role, tuck_from in found if role != pokes.GARMENT]
+    tucked = [(part, tuck_from, role) for part, role, tuck_from in found if tuck_from is not None]
     # The collider's triangles garment_bake.py counts the body's edges through the cloth of (the hair left out).
     counted = np.concatenate([np.full(len(part.faces), role != "hair") for part, role, _ in found
                               if role != pokes.GARMENT])
@@ -164,10 +169,11 @@ def inputs(body_path, out):
     held = held_collider >= 0
     start = bind_locals(document, inverse_bind, skin["joints"], parent)
     arrays = {"cloth_points": cloth[0], "cloth_faces": cloth[1], "cloth_joints": cloth[2], "cloth_weights": cloth[3],
-              "held": held, "held_collider": held_collider, "pinned": pinned_near_tucks(cloth[0], held, other), "collider_points": collider[0],
+              "held": held, "held_collider": held_collider, "pinned": pinned_near_tucks(cloth[0], held, tucked), "collider_points": collider[0],
               "collider_faces": collider[1], "collider_counted": counted,
               "collider_joints": collider[2], "collider_weights": collider[3],
-              "cloth_names": np.array([part.name for part in cloth_parts])}
+              "cloth_names": np.array([part.name for part in cloth_parts]),
+              "joint_names": np.array([document["nodes"][node]["name"] for node in skin["joints"]])}
     for number, numbers in enumerate(cloth[4]):
         arrays[f"cloth_numbers_{number}"] = numbers
     clips = []
@@ -184,17 +190,17 @@ def inputs(body_path, out):
             "clips": len(clips), "frames": int(sum(len(arrays[f"moves_{clip}"]) for clip in clips))}
 
 
-def pinned_near_tucks(cloth_points, held, other):
-    """The cloth points (not held) within PIN_REACH of a cloth point on a tucked part's own border."""
+def pinned_near_tucks(cloth_points, held, tucked):
+    """The cloth points (not held) within PIN_REACH of a cloth point on a tucked skin part's own border, or
+    PIN_REACH_HARD of a tucked hard part's (`tucked`: (part, its first tuck point, its role))."""
     from scipy.spatial import cKDTree
-    tucked = [part.points[:tuck_from] for part, tuck_from in other if tuck_from is not None]
-    if not tucked:
-        return np.zeros(len(cloth_points), bool)
-    on_seam = np.isfinite(cKDTree(np.concatenate(tucked)).query(cloth_points, distance_upper_bound=1e-5)[0])
-    if not on_seam.any():
-        return np.zeros(len(cloth_points), bool)
-    near = cKDTree(cloth_points[on_seam]).query(cloth_points, distance_upper_bound=PIN_REACH)[0]
-    return np.isfinite(near) & ~held
+    pinned = np.zeros(len(cloth_points), bool)
+    for part, tuck_from, role in tucked:
+        on_seam = np.isfinite(cKDTree(part.points[:tuck_from]).query(cloth_points, distance_upper_bound=1e-5)[0])
+        if on_seam.any():
+            reach = PIN_REACH_HARD if role == "hard" else PIN_REACH
+            pinned |= np.isfinite(cKDTree(cloth_points[on_seam]).query(cloth_points, distance_upper_bound=reach)[0])
+    return pinned & ~held
 
 
 # --- run (on the card) ----------------------------------------------------------------------------------------------

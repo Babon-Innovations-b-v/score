@@ -245,8 +245,8 @@ def test_the_bake_carries_offsets_into_the_bind_pose_and_keeps_them():
     offsets = np.einsum("ab,fpb->fpa", turn[:3, :3], wanted)
     blended = garment_bake.blended_turns(data, "walking")
     assert np.allclose(garment_bake.bind_offsets(blended, offsets), wanted, atol=1e-6)
-    shapes, weights, missed = garment_bake.clip_shapes(blended, offsets)
-    assert missed <= garment_bake.MISS_MOST and len(shapes) == 1, "one shape is near enough"
+    shapes, weights, owner, missed = garment_bake.clip_shapes(blended, offsets, np.ones((5, 1)))
+    assert missed <= garment_bake.MISS_MOST and len(shapes) == 1 and list(owner) == [0], "one shape is near enough"
     assert np.abs(np.einsum("fs,spa->fpa", weights, shapes) - wanted).max() <= garment_bake.MISS_MOST
 
 
@@ -260,8 +260,23 @@ def test_a_frame_whose_shape_crosses_the_body_keeps_the_unsettled_cloth():
             "collider_joints": np.zeros((3, 4), int), "collider_weights": np.tile([1.0, 0, 0, 0], (3, 1))}
     blended = garment_bake.blended_turns(data, "walking")
     up = np.tile([0.0, 0.2, 0.0], (1, 3, 1))
-    shares, plain, kept = garment_bake.frame_shares(data, "walking", blended, up, np.array([[0.0], [1.0]]))
-    assert list(shares) == [1.0, 0.0] and plain == [0, 0] and kept == [0, 0], (shares, plain, kept)
+    shares, plain, kept = garment_bake.frame_shares(data, "walking", blended, up, np.array([[0.0], [1.0]]),
+                                                    np.zeros(1, int), np.ones((3, 1)))
+    assert list(shares[:, 0]) == [1.0, 0.0] and plain == [0, 0] and kept == [0, 0], (shares, plain, kept)
+
+
+def test_regions_follow_the_limbs_and_share_their_borders():
+    cloth = trimesh.creation.box(extents=[0.4, 0.1, 0.1]).subdivide_to_size(0.01)
+    left = cloth.vertices[:, 0] > 0
+    data = {"cloth_points": cloth.vertices, "cloth_faces": cloth.faces,
+            "cloth_joints": np.where(left, 1, 0)[:, None].repeat(4, 1), "cloth_weights": np.tile([1.0, 0, 0, 0],
+                                                                                                (len(left), 1)),
+            "joint_names": np.array(["Chest", "LeftArm"])}
+    shares = garment_bake.regions(data)
+    assert shares.shape == (len(left), 2) and np.allclose(shares.sum(1), 1)
+    far = np.abs(cloth.vertices[:, 0]) > 0.15
+    assert (shares[far & left, 0] > 0.99).all() and (shares[far & ~left, 1] > 0.99).all(), "LeftArm sorts first"
+    assert ((shares > 0.05) & (shares < 0.95)).any(1).sum() > 0, "the border is softened"
 
 
 def test_piping_is_cut_down_the_outside_of_a_limb():

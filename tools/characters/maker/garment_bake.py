@@ -16,10 +16,15 @@ on the card after the settle (prop_chain.py settle) or here, on files on disk.
   a morph target named `<clip>.<number>` (the mesh's `extras.targetNames`), its weight the clip's own coefficient
   frame by frame, scaled so the largest is 1; every other clip's shapes are 0 in that clip. A clip the settle left
   alone (every offset under KEPT) keys no shape. The record says how far the kept shapes miss (`missed_mm`).
+- **By region.** The cloth is cut into regions by its points' strongest joints (each arm, each leg, the torso),
+  their borders softened (`regions`), and each region's share of the offsets has shapes of its own, so a region can
+  be eased off in a frame while the others keep theirs.
 - **Never worse than unsettled.** In every frame the body's edges (skin, tucks and hard parts: the collider less the
-  hair) through the cloth are counted with the frame's shapes in, and unsettled; where the shapes cross more, the
-  frame's weights are halved, and where that still crosses more, set to 0 (the player's settle crossed 633 times in
-  the waiting clip's worst frame against 357 unsettled, 2026-10-10). The record counts the frames each way.
+  hair) through each region's cloth are counted with the frame's shapes in, and unsettled; where the shapes cross
+  more, that region's weights are halved, and where that still crosses more, set to 0 (the player's settle crossed
+  633 times in the waiting clip's worst frame against 357 unsettled, 2026-10-10; eased off whole, the settle's frames
+  lost what it took out of the cloth through cloth too: 1,861 crossings in the sitting clip against 513 settled). The
+  record counts the region-frames each way.
 - **Only what moved is written**: each target is a sparse accessor of the points that move more than KEPT in it; the
   other surfaces' targets have no data (all zeros, as glTF allows), since every surface of a mesh must have as many
   targets.
@@ -43,6 +48,8 @@ import joins  # noqa: E402
 
 KEPT = 0.0002
 MISS_MOST = 0.004
+# Rounds of neighbour averaging that soften the regions' borders (regions): about 3 cm on the player's cloth.
+SOFTENING = 3
 DAMPING = 1e-4
 SHARES = (1.0, 0.5, 0.0)
 
@@ -65,21 +72,69 @@ def world_miss(blended, offsets, carried):
     return float(np.linalg.norm(np.einsum("fpab,fpb->fpa", blended, carried) - offsets, axis=2).max())
 
 
-def clip_shapes(blended, offsets):
-    """A clip's strongest shapes (shapes, points, 3), as few as miss the settle by at most MISS_MOST in the world,
-    their weights frame by frame (frames, shapes), and how far they miss at worst (metres)."""
+def limb_of(name):
+    """The region of the body a joint belongs to: an arm, a leg (each side's) or the torso (with the head)."""
+    for side in ("Left", "Right"):
+        if name.startswith(side):
+            return side + ("Arm" if any(word in name for word in ("Arm", "Hand", "Shoulder")) else "Leg")
+    return "Torso"
+
+
+def regions(data):
+    """Each cloth point's share in each region (points, regions): its strongest joint's limb (limb_of), softened
+    over the cloth's triangles by SOFTENING rounds of averaging with its neighbours, so a region's shapes fade into
+    the next one's rather than stepping where their frames' shares differ. One region where the input names no
+    joints."""
+    if "joint_names" not in data:
+        return np.ones((len(data["cloth_points"]), 1))
+    strongest = data["cloth_joints"][np.arange(len(data["cloth_points"])), data["cloth_weights"].argmax(1)]
+    limbs = np.array([limb_of(str(data["joint_names"][joint])) for joint in strongest])
+    shares = (limbs[:, None] == np.unique(limbs)[None]).astype(float)
+    faces = data["cloth_faces"]
+    for _ in range(SOFTENING):
+        summed, counts = np.zeros_like(shares), np.zeros(len(shares))
+        for corner in range(3):
+            np.add.at(summed, faces[:, corner], shares[faces].sum(1))
+            np.add.at(counts, faces[:, corner], 3)
+        shares = np.where(counts[:, None] > 0, summed / np.maximum(counts, 1)[:, None], shares)
+    return shares / shares.sum(1, keepdims=True)
+
+
+def clip_shapes(blended, offsets, softened):
+    """A clip's shapes region by region (`softened`: each point's share in each region): each region's strongest
+    shapes of its share of the carried offsets, as few in all as miss the settle by at most MISS_MOST in the world
+    (each round one more for the region that holds the worst miss). The shapes (shapes, points, 3), their weights
+    frame by frame (frames, shapes), each shape's region and the worst miss (metres)."""
     frames, points = offsets.shape[:2]
     if np.abs(offsets).max() < KEPT:
-        return np.zeros((0, points, 3)), np.zeros((frames, 0)), 0.0
+        return np.zeros((0, points, 3)), np.zeros((frames, 0)), np.zeros(0, int), 0.0
     carried = bind_offsets(blended, offsets)
-    rows, strengths, shapes = np.linalg.svd(carried.reshape(frames, -1), full_matrices=False)
-    for kept in range(1, len(strengths) + 1):
-        weights = rows[:, :kept] * strengths[:kept]
-        missed = world_miss(blended, offsets, (weights @ shapes[:kept]).reshape(frames, points, 3))
-        if missed <= MISS_MOST:
+    split = [np.linalg.svd((carried * softened[None, :, region, None]).reshape(frames, -1), full_matrices=False)
+             for region in range(softened.shape[1])]
+    kept = np.zeros(len(split), int)
+    rebuilt = np.zeros_like(carried)
+    while True:
+        miss = np.linalg.norm(np.einsum("fpab,fpb->fpa", blended, rebuilt) - offsets, axis=2)
+        worst = np.unravel_index(miss.argmax(), miss.shape)
+        if miss[worst] <= MISS_MOST:
             break
-    scale = np.maximum(np.abs(weights).max(0), 1e-12)
-    return (shapes[:kept] * scale[:, None]).reshape(kept, points, 3), weights / scale, missed
+        open_regions = [region for region in range(len(split)) if kept[region] < len(split[region][1])]
+        if not open_regions:
+            break
+        region = max(open_regions, key=lambda number: softened[worst[1], number])
+        rows, strengths, shapes = split[region]
+        rebuilt += (np.outer(rows[:, kept[region]] * strengths[kept[region]], shapes[kept[region]])
+                    .reshape(frames, points, 3))
+        kept[region] += 1
+    found, weights, owner = [], [], []
+    for region, (rows, strengths, shapes) in enumerate(split):
+        for number in range(kept[region]):
+            weight = rows[:, number] * strengths[number]
+            scale = max(np.abs(weight).max(), 1e-12)
+            found.append((shapes[number] * scale).reshape(points, 3))
+            weights.append(weight / scale)
+            owner.append(region)
+    return np.array(found), np.array(weights).T, np.array(owner), float(miss[worst])
 
 
 def counted_world(data):
@@ -101,42 +156,56 @@ def skinned(points, joints, weights, moves):
                for slot in range(joints.shape[1]))
 
 
-def frame_shares(data, clip, blended, shapes, weights):
-    """Each frame's share of its shapes (SHARES' first whose body-through-cloth count is no more than unsettled), and
-    the counts: unsettled and with the share taken, frame by frame."""
+def frame_shares(data, clip, blended, shapes, weights, owner, softened):
+    """Each frame's share of each region's shapes (frames, regions): SHARES' first whose body-through-cloth count on
+    the region's own cloth triangles is no more than unsettled, the other regions' shapes in at their own; and the
+    whole cloth's counts, unsettled and with the shares taken, frame by frame."""
     import drape_measure
     faces, edges = counted_world(data)
+    face_region = softened[data["cloth_faces"]].sum(1).argmax(1)
     moves = data[f"moves_{clip}"][int(data["lead_in"]):].astype(float)
-    shares, plain_counts, kept_counts = [], [], []
+    regions_count = softened.shape[1]
+    shares = np.ones((len(weights), regions_count))
+    plain_counts, kept_counts = [], []
     for frame in range(len(weights)):
         cloth = skinned(data["cloth_points"], data["cloth_joints"], data["cloth_weights"], moves[frame])
         collider = skinned(data["collider_points"], data["collider_joints"], data["collider_weights"], moves[frame])
-        shifted = np.einsum("pab,pb->pa", blended[frame], np.tensordot(weights[frame], shapes, axes=1))
-        plain = drape_measure.edge_crossings(np.concatenate([cloth, collider]), faces, edges)
-        for share in SHARES:
-            count = plain if share == 0.0 else drape_measure.edge_crossings(
-                np.concatenate([cloth + share * shifted, collider]), faces, edges)
-            if count <= plain:
-                break
-        shares.append(share)
-        plain_counts.append(plain)
-        kept_counts.append(count)
-    return np.array(shares), plain_counts, kept_counts
+        moved = [np.einsum("pab,pb->pa", blended[frame],
+                           np.tensordot(weights[frame, owner == region], shapes[owner == region], axes=1))
+                 for region in range(regions_count)]
+
+        def counted(region_shares, region):
+            placed = cloth + sum(share * shift for share, shift in zip(region_shares, moved))
+            return drape_measure.edge_crossings(np.concatenate([placed, collider]),
+                                                faces[face_region == region], edges)
+        plain = [counted(np.zeros(regions_count), region) for region in range(regions_count)]
+        kept = []
+        for region in range(regions_count):
+            for share in SHARES:
+                shares[frame, region] = share
+                count = plain[region] if share == 0.0 else counted(shares[frame], region)
+                if count <= plain[region]:
+                    break
+            kept.append(count)
+        plain_counts.append(sum(plain))
+        kept_counts.append(sum(kept))
+    return shares, plain_counts, kept_counts
 
 
 def clip_bake(data, settled, clip):
-    """One clip's shapes, weights (each frame's share in) and record."""
+    """One clip's shapes, weights (each frame's region shares in) and record."""
     offsets = settled[f"offset_{clip}"].astype(float)
     blended = blended_turns(data, clip, len(offsets))
     offsets = offsets[:len(blended)]
-    shapes, weights, missed = clip_shapes(blended, offsets)
+    softened = regions(data)
+    shapes, weights, owner, missed = clip_shapes(blended, offsets, softened)
     record = {"shapes": len(shapes), "missed_mm": round(missed * 1000, 2)}
     if len(shapes):
-        shares, plain, kept = frame_shares(data, clip, blended, shapes, weights)
-        weights = weights * shares[:, None]
-        record.update(frames_full=int((shares == 1.0).sum()), frames_halved=int((shares == 0.5).sum()),
-                      frames_unsettled=int((shares == 0.0).sum()), body_through_cloth_plain_worst=int(max(plain)),
-                      body_through_cloth_worst=int(max(kept)))
+        shares, plain, kept = frame_shares(data, clip, blended, shapes, weights, owner, softened)
+        weights = weights * shares[:, owner]
+        record.update(region_frames_full=int((shares == 1.0).sum()), region_frames_halved=int((shares == 0.5).sum()),
+                      region_frames_unsettled=int((shares == 0.0).sum()),
+                      body_through_cloth_plain_worst=int(max(plain)), body_through_cloth_worst=int(max(kept)))
     return shapes, weights, record
 
 
