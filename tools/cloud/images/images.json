@@ -533,35 +533,35 @@
   }
  },
  "characters-motion": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-motion:1-5a5144a341ae@sha256:ade9d89c976b96bdbf169cbf73e39d0401eeb24afd8664f76c357cd82984019a",
-  "tag": "1-5a5144a341ae",
-  "digest": "sha256:ade9d89c976b96bdbf169cbf73e39d0401eeb24afd8664f76c357cd82984019a",
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-motion:1-6de194c3196e@sha256:b22c50176878aac1c597670bbbd19bec22b24f7de246476ed38f81088dad249f",
+  "tag": "1-6de194c3196e",
+  "digest": "sha256:b22c50176878aac1c597670bbbd19bec22b24f7de246476ed38f81088dad249f",
   "platforms": "linux/amd64",
-  "size_mb": 6777.6,
-  "build_minutes": 24.4,
-  "built": "2026-10-10T04:07:26Z",
+  "size_mb": 6779.3,
+  "build_minutes": 9.8,
+  "built": "2026-10-12T09:20:03Z",
   "proof": {
    "NVIDIA L4, 580.178.04": {
     "type": "L4-1-24G",
     "class": "gpu-24gb",
-    "zone": "pl-waw-2",
+    "zone": "fr-par-1",
     "answered_minutes": 0.4,
-    "docker_setup_minutes": 0.07,
-    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-motion:1-5a5144a341ae@sha256:ade9d89c976b96bdbf169cbf73e39d0401eeb24afd8664f76c357cd82984019a",
-    "pull_seconds": 87.2,
+    "docker_setup_minutes": 0.08,
+    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-motion:1-6de194c3196e@sha256:b22c50176878aac1c597670bbbd19bec22b24f7de246476ed38f81088dad249f",
+    "pull_seconds": 71.7,
     "jobs": {
-     "new-runtime": {
-      "container_seconds": 114.6,
+     "clip": {
+      "container_seconds": 144.6,
       "marks": {
-       "weights_ready": 104.1,
-       "inputs_ready": 104.1,
-       "first_result": 105.9,
-       "uploaded": 105.9
+       "weights_ready": 96.8,
+       "inputs_ready": 96.8,
+       "first_result": 140.8,
+       "uploaded": 141.0
       },
       "card": "NVIDIA L4, 580.178.04",
       "kernel_cache": null,
       "env": {},
-      "cache": "new-characters-motion"
+      "cache": "a"
      }
     }
    },
