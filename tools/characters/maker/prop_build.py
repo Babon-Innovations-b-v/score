@@ -52,10 +52,6 @@ TRAVELLING_JOINT = 1
 # that joint wholly, over the hard part's tuck.
 EASE_HOLD = 0.04
 EASE_REACH = 0.06
-# How far from the neck's and head's skin a collar's weights are eased onto the joint that skin follows.
-COLLAR_HOLD = 0.02
-COLLAR_REACH = 0.05
-NECK_JOINTS = ("Neck1", "Neck2", "Head")
 # A boot's shaft rides its foot up the shin (the player's to 29 cm): the trouser over it follows it further, or the
 # rigid shaft's top and its tuck swing out through the trouser leg as the ankle bends (20 mm when he sat, 2026-10-10).
 EASE_REACH_FOOT = 0.12
@@ -125,7 +121,9 @@ def rigid_joint(name, points, weights, names):
     if name.startswith("mitt"):
         return side + "Hand"
     if "belt" in name or "buckle" in name:
-        return "Hips"  # the belt rode the chest as he bent and cut the cloth below it up to 20 mm (2026-10-12)
+        # Posed on the player's clips without a settle (2026-10-13): on the hips its edges went over 3 mm through
+        # the cloth 22 times sitting and 29 lifting, on Spine1 none and 3.
+        return "Spine1"
     return names[int(weights.sum(0).argmax())]
 
 
@@ -156,30 +154,6 @@ def eased_to_hard(points, weights, hard_points, hard_joints, names, parents):
                      EASE_REACH_FOOT, EASE_REACH)
     share = np.clip(1.0 - (distance - EASE_HOLD) / (reach - EASE_HOLD), 0.0, 1.0)[:, None]
     return weights * (1 - share) + target * share
-
-
-def eased_to_neck(points, weights, neck_points, neck_weights):
-    """A garment's collar eased onto the joint the neck or head skin next to it follows most: within COLLAR_HOLD of
-    that skin a point rides it, on to COLLAR_REACH less and less, so the stand collar turns with the neck and the
-    head no longer goes through it as it bends (the player's bench, suit and reaching clips, 2026-10-12)."""
-    if not len(neck_points):
-        return weights
-    distance, nearest = cKDTree(neck_points).query(points)
-    target = np.zeros_like(weights)
-    target[np.arange(len(points)), neck_weights[nearest].argmax(1)] = 1.0
-    share = np.clip(1.0 - (distance - COLLAR_HOLD) / (COLLAR_REACH - COLLAR_HOLD), 0.0, 1.0)[:, None]
-    return weights * (1 - share) + target * share
-
-
-def neck_skin(pieces, role_of, names):
-    """The points and weights of the skin that follows the neck or the head (its strongest joint Neck1, Neck2 or
-    Head)."""
-    wanted = [names.index(name) for name in NECK_JOINTS if name in names]
-    found = [(points[np.isin(weights.argmax(1), wanted)], weights[np.isin(weights.argmax(1), wanted)])
-             for key, (points, _, weights, _) in pieces.items() if role_of[key] == "skin"]
-    if not found:
-        return np.zeros((0, 3)), np.zeros((0, len(names)))
-    return np.concatenate([item[0] for item in found]), np.concatenate([item[1] for item in found])
 
 
 SIDED = ("boot", "mitt")
@@ -256,11 +230,10 @@ def surfaces(fit_rig, parts, prints=None):
             hard_points.append(points)
             hard_joints.append(np.full(len(points), joint, dtype=object))
     hard_points, hard_joints = np.concatenate(hard_points), np.concatenate(hard_joints)
-    neck_points, neck_weights = neck_skin(pieces, role_of, names)
     for key, (points, faces, weights, used) in list(pieces.items()):
         if role_of[key] == "garment":
-            weights = eased_to_hard(points, weights, hard_points, hard_joints, names, np.asarray(fit_rig["parents"]))
-            pieces[key] = (points, faces, eased_to_neck(points, weights, neck_points, neck_weights), used)
+            pieces[key] = (points, faces, eased_to_hard(points, weights, hard_points, hard_joints, names,
+                                                        np.asarray(fit_rig["parents"])), used)
     colour_of = {key: parts["colours"][index[key[0]]] for key in pieces}
     strips = piped(pieces, role_of, colour_of, parts, index, prints, fit_rig)
     garment = [piece for key, piece in pieces.items() if role_of[key] == "garment"] + [strip[3:6] for strip in strips]
