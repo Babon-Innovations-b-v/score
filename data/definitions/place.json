@@ -2102,6 +2102,10 @@
 			"red_plastic": {
 				"token": "sign-red",
 				"library": "red_plastic"
+			},
+			"lettuce_leaf": {
+				"token": "earth-land",
+				"library": "lettuce_leaf"
 			}
 		},
 		"light": {
