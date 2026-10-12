@@ -21,7 +21,7 @@ from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
 SEEDS = PROPS_HOME / "work"
 PLACES = ("hangar", "hdoor")
 DATA = ("kit", "inventory", "library", "checks", "effects", "scene", "motion", "ground", "sound/surfaces.json",
-        "definitions/place.json")
+        "surfaces", "definitions/place.json")
 
 
 def world_data_copy(root):

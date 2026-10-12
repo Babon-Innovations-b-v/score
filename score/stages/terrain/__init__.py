@@ -32,7 +32,7 @@ from score import contracts
 from score.stages.terrain import gates, measures, outside, plan, record, relief, rocks
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-FILES = {"grounds": "{data}/ground", "library": "{data}/library/materials.json",
+FILES = {"grounds": "{data}/ground", "library": ("{data}/library/materials.json", record.ground_surfaces),
          "tokens": "{data}/../design/tokens/tokens.json", "scenes": "{data}/scene", "kits": "{data}/kit",
          "motion": "{data}/motion", "seeds": "{seeds}/usd-r3"}
 # The run's estimate: about a dozen Qwen-Image-Edit pictures on 80 GB cards and their depth on any card.

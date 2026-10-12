@@ -34,7 +34,9 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
                        files=assembly.FILES, gatherers=assembly.GATHERERS,
                        after={"terrain": ("grounds", 1), "effects-layer": ("effects-layer", 1),
-                              "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)})
+                              "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                       beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                       neighbours=assembly.claiming_places)
 # Experimental (PRD #6) until the owner reviews it: each place's assembly with the places its scene record shows,
 # each read beside as its own accepted assembly. Complete does not read it yet: a neighbour whose assembly fails (the
 # hub's) would stop every place that shows it.
