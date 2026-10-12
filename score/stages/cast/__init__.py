@@ -182,12 +182,12 @@ def make(inputs, out, seed, params):
 
 
 def body_spots(singles, crowd):
-    """(name, spot) of every body to measure: each person at their spot or every WALK_STEP along their walk, and
-    each crowd copy."""
-    spots = [(single["name"], spot) for single in singles for spot in (measure.walk_spots(single["path"])
-                                                                        if single.get("path") else [single["at"]])]
-    return spots + ([(f"{crowd['name']}_{number}", copy["at"]) for number, copy in enumerate(crowd["copies"])]
-                    if crowd else [])
+    """(name, spot, clip) of every body to measure: each person at their spot or every WALK_STEP along their walk,
+    and each crowd copy."""
+    spots = [(single["name"], spot, single["doing"]) for single in singles
+             for spot in (measure.walk_spots(single["path"]) if single.get("path") else [single["at"]])]
+    return spots + ([(f"{crowd['name']}_{number}", copy["at"], crowd["doing"][copy["clip"]])
+                     for number, copy in enumerate(crowd["copies"])] if crowd else [])
 
 
 def measured(record, singles, crowd, found, base, place):
@@ -196,10 +196,10 @@ def measured(record, singles, crowd, found, base, place):
     spots = body_spots(singles, crowd)
     if not spots:
         return {"bodies": [], "overlaps": [], "cast_check": []}
-    grounds = measure.ground_under([spot for _, spot in spots], found)
-    clashes = measure.run_into([spot for _, spot in spots], found)
-    bodies = [{"name": name, "at": [round(value, 3) for value in spot], **ground, "into": into}
-              for (name, spot), ground, into in zip(spots, grounds, clashes)]
+    grounds = measure.ground_under([spot for _, spot, _ in spots], found)
+    clashes = measure.run_into([spot for _, spot, _ in spots], found, [measure.top_of(doing) for _, _, doing in spots])
+    bodies = [{"name": name, "at": [round(value, 3) for value in spot], "doing": doing, **ground, "into": into}
+              for (name, spot, doing), ground, into in zip(spots, grounds, clashes)]
     return {"bodies": bodies, "overlaps": overlaps(singles, crowd),
             "cast_check": checked_cast(record, base, place)}
 
@@ -212,7 +212,7 @@ def checked_cast(record, base, place):
 
 def overlaps(singles, crowd):
     """Pairs of standing bodies whose middles are nearer than two body widths on the same level."""
-    named = [(name, at) for name, at in body_spots([single for single in singles if not single.get("path")], crowd)]
+    named = [(name, at) for name, at, _ in body_spots([single for single in singles if not single.get("path")], crowd)]
     if len(named) < 2:
         return []
     spots = np.array([at for _, at in named], dtype=float)
@@ -307,6 +307,10 @@ def judge_clear(output, inputs, evidence):
     faults = counted_faults(found["bodies"], lambda body: body["into"] and "runs into " + ", ".join(body["into"]))
     faults += [(pair[0], f"overlaps {pair[1]}") for pair in found["overlaps"]]
     faults += [("cast check", words) for words in found["cast_check"]]
+    lying = [body["name"] for body in found["bodies"] if body["into"] is None]
+    if lying and not faults:
+        return checks.Verdict("clear", checks.UNKNOWN, f"{len(lying)} lying bodies are not measured: "
+                              + ", ".join(lying[:NAMED]), {"faults": 0, "unmeasured": len(lying)})
     return verdict_of("clear", faults, len(found["bodies"]),
                       f"no body of {len(found['bodies'])} runs into a solid or another, and the cast check passes")
 
