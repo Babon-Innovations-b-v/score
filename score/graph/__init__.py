@@ -755,10 +755,15 @@ class Runner:
         if record is None:
             return []
         place = node.partition("@")[2] or None
-        earlier = {node_name(self.stages[before], place): output for before, output in record["after"].items()}
+        # A record can name an earlier stage this table does not hold (another runner's, or a line's stage not merged
+        # here, writing into the same store): it cannot be followed, so the node is stale on it, said, never a crash.
+        unknown = [f"{before} (a stage this table does not hold)" for before in record["after"]
+                   if before not in self.stages]
+        earlier = {node_name(self.stages[before], place): output for before, output in record["after"].items()
+                   if before in self.stages}
         earlier.update(record.get("beside", {}))
-        return [before for before, output in earlier.items()
-                if self.store.accepted(before) != output or self.stale(before)]
+        return unknown + [before for before, output in earlier.items()
+                          if self.store.accepted(before) != output or self.stale(before)]
 
     def ticket(self, node):
         """The node's current key, for a paid run's submit: only when every prerequisite passed and is accepted."""
