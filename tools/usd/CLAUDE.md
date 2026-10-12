@@ -82,7 +82,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   close-up each (`--closeups`). False alarms are kept, marked, never deleted. The gate's resting requirement is its real
   faults. A floor or held object (not of a bedding class) is also judged foot by foot (`../props/library/feet.py`: its
   low points clustered; a foot over 3 cm off while another touches is real, since four contact points can lie on three
-  feet) and by its lean (its own up over 3 degrees from the plane under what it touches, unless its row says `leans`):
+  feet) and by its lean (its own up over 3 degrees from the plane under what it touches); a row that says `leans`
+  (laid tilted on purpose: the wreck's debris, captain 2026-10-12) is asked neither:
   the greenhouse's water tank stood 7.5 degrees tipped, a foot 7 cm up, and passed before (2026-10-12).
 - `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,
   intersection test with an offset, distance, touches, raycast. ProcFunc's interface; its release has no such code yet.
@@ -126,7 +127,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   message and date, the page, the log line). An inventory's `concept_pick` records the concept the owner approved
   (picture, hash, source); the lock does not read it. An object the surface stage repainted carries the baked file's
   hash and `score:repaint_of` (the seed's, the model its bake repainted: the assembly's `stamp_baked_hash`); the lock
-  reads `repaint_of` first, since a pick chooses the model, never its old paint. The hash covers a model's .gltf and buffers, not its texture
+  reads `repaint_of` first, since a pick chooses the model, never its old paint. The rule itself is `pick_lock.py`
+  (what export imports) and the inputs record and hashes `stage_inputs.py`, apart from `picks.py`'s stage check and
+  `complete.py`'s checks, so editing a check moves no export's, terrain's or effects' code version (`stages_test.py`). The hash covers a model's .gltf and buffers, not its texture
   files, so a repaint that keeps the file names is not caught.
 - `compare.py` is the render-and-compare: each object with a close-up rendered alone from 8 ways round it, the best
   outline standing for the close-up's camera, scored by outline overlap and DINOv2 likeness (`../props/cloud/similar.py`).

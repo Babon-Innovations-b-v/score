@@ -28,6 +28,7 @@ import surface_data as data  # noqa: E402
 import finish_parts  # noqa: E402
 import finish_rows  # noqa: E402
 import place_line  # noqa: E402
+import row_files  # noqa: E402
 import segvigen_row  # noqa: E402
 import turntable_row  # noqa: E402
 from surface_gates import guarded  # noqa: E402
@@ -50,19 +51,11 @@ def row(name, make, faults, check, judge, files, after=(), **more):
                        after=reads(*after), applies=data.paints, **more)
 
 
-def turntable_files(place):
-    return {**turntable_row.FILES, **data.take_files(place)}
-
-
-def segvigen_files(place):
-    return {**segvigen_row.FILES, **data.take_files(place)}
-
-
 METHOD = (
     row("surfaces-inputs", finish_parts.make_inputs, finish_parts.inputs_faults, "inputs", finish_parts.judge_inputs,
         data.shape_files),
     row("surfaces-turntable", turntable_row.make_turntable, turntable_row.turntable_faults, "turntable",
-        turntable_row.judge_turntable, turntable_files, ("surfaces-inputs",), paid=True,
+        turntable_row.judge_turntable, row_files.turntable_files, ("surfaces-inputs",), paid=True,
         euros=turntable_row.TURNTABLE_EUROS),
     row("surfaces-lists", finish_rows.make_lists, finish_rows.lists_faults, "listed", finish_rows.judge_lists,
         data.line_files, ("surfaces-inputs",), paid=True, euros=finish_rows.LIST_EUROS),
@@ -72,7 +65,7 @@ METHOD = (
     row("surfaces-names", finish_rows.make_names, finish_rows.names_faults, "named", finish_rows.judge_names,
         data.line_files, ("surfaces-inputs", "surfaces-maps"), paid=True, euros=finish_rows.LIST_EUROS),
     row("surfaces-segvigen", segvigen_row.make_segvigen, segvigen_row.segvigen_faults, "split back",
-        segvigen_row.judge_segvigen, segvigen_files, ("surfaces-maps",), paid=True,
+        segvigen_row.judge_segvigen, row_files.segvigen_files, ("surfaces-maps",), paid=True,
         euros=segvigen_row.SEGVIGEN_EUROS),
     graph.Stage("surfaces-parts", "place", finish_parts.make_parts, PARTS,
                 (guarded("parts", finish_parts.judge_parts),), files=data.line_files,

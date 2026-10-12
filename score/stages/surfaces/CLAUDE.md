@@ -45,8 +45,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **The bake takes today's library and the method's paint only**: every painted surface's spec from the library, an
   old job's `regions` boxes dropped.
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
-  `score/stages/__init__.py` until the 2026-10-12 fan-out ends, since this folder's `__init__.py` is in the
-  turntable's and SegviGen's code version). A near-black triangle is a blotch only when its colour lies over
+  `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their world
+  files from `row_files.py`, so neither this folder's `__init__.py` nor `place_line.py` is in their code
+  version (`../stages_test.py` holds it). A near-black triangle is a blotch only when its colour lies over
   `BLOTCH_DELTA_E` from every surface within its reach: on a border it may bake its neighbour (the seed tray's paper
   label on black plastic passes), a black smudge along the border still fails. It also fails a model whose surfaces
   bake to one grey look its close-up does not have (`one_look_faults`: every two within 12, each near neutral, the

@@ -85,8 +85,8 @@ def feet_checked(row):
 def paint_files(place):
     """The paint's world files: the line's, and the inventory of each place a take is made for with the resting rules,
     which it reads to tell a take laid loose on the floor or held, whose feet it levels (place_line.stands_on_feet)."""
-    import complete  # tools/usd, on the path by the assembly stage's import: a place's inventory, or its kit's place's
-    inventories = {f"inventory {entry['place']}": "{data}/inventory/" + complete.inventory_path(entry["place"]).name
+    import stage_inputs  # tools/usd, on the path by the assembly stage's import: a place's inventory, or its kit's
+    inventories = {f"inventory {entry['place']}": "{data}/inventory/" + stage_inputs.inventory_path(entry["place"]).name
                    for entry in surfaces.data.takes(place).values()}
     return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json"}
 

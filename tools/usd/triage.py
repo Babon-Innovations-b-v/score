@@ -18,8 +18,8 @@ asks each object the question its support asks:
               TOLERANCE of a surface straight under them, and its weight inside what they span (SceneEval's support
               rule); else it floats or tips. Each of its feet (feet.py: its low points clustered) touches within
               TOLERANCE, else a foot is off; its own up axis leans no more than LEAN_MOST from the plane under what it
-              touches unless its row says it leans (`leans`). Sunk below its contact points past TOLERANCE, unless its
-              class may bed in.
+              touches; a row that says it leans (`leans`: laid tilted on purpose, the wreck's debris) is asked
+              neither. Sunk below its contact points past TOLERANCE, unless its class may bed in.
     wall, ceiling, hanging  supported by touching anything (SceneEval: one contact): one that touches nothing hangs free.
     kit, fixed  stand as laid; a fixed one is still judged for floating (unless joined to another piece) and sinking, a
               kit piece only for lying inside a loose one.
@@ -304,7 +304,7 @@ def held_up_faults(entry, found):
                             "stands on a deck or fixture the scene record built", found["lowest"]))
     if support == "fixed":
         return faults
-    if entry["bed"][1] is None:  # a cable, a cloth or debris may bed in and has no feet or up to keep
+    if entry["bed"][1] is None and not entry["row"].get("leans"):  # bedding in, or laid leaning: no feet or up to keep
         faults += feet_faults(entry, found)
     if found["contacts"] < CONTACTS_NEEDED:
         faults.append(fault(entry, "tips", found["contacts"], True,
@@ -318,13 +318,13 @@ def held_up_faults(entry, found):
 
 def feet_faults(entry, found):
     """A floor or held object's foot off what is under it while another touches, and its up axis leaning over
-    LEAN_MOST unless its row says it leans."""
+    LEAN_MOST (asked only of a row that does not say it leans: a piece laid tilted rests on no set of feet)."""
     faults = []
     for point, gap in found["feet"]:
         if gap > TOLERANCE:
             faults.append(fault(entry, "foot off", gap, True, f"a foot {gap * 100:.1f} cm off what is under it while "
                                 f"another touches (over {TOLERANCE * 100:.0f} cm)", point))
-    if found["lean"] > LEAN_MOST and not entry["row"].get("leans"):
+    if found["lean"] > LEAN_MOST:
         faults.append(fault(entry, "leans", found["lean"], True, f"its up axis leans {found['lean']:.1f} degrees from "
                             f"what it stands on (over {LEAN_MOST:.0f}; its row does not say it leans)",
                             entry["mesh"].bounds.mean(axis=0)))
