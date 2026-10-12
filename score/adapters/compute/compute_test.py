@@ -17,6 +17,9 @@ from score.adapters import compute  # noqa: E402
 from score.store import Store  # noqa: E402
 
 BOOKS = compute.ledger()
+import google_spend  # noqa: E402  (on the path compute.ledger() set)
+
+google_spend.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"  # each test's Google month: empty
 
 
 def make_brief(inputs, out, seed, params):
@@ -99,6 +102,20 @@ def test_a_run_the_months_ceiling_has_no_room_for_is_refused():
     assert "ceiling" in refused(dearer) and job_store.keys("") == []
     assert "needs its estimate" in refused(a_job(runner, euros=None)[1])
     assert a_job(runner, euros=0.5)[1]()
+
+
+def test_google_calls_count_in_the_month_lost_ones_at_their_estimate():
+    """Fault (2026-10-12): Google billed EUR 549 for Oct 11 while its ledger held EUR 30 and the month's check read
+    only the cloud ledger. The check now adds Google's month, a call started and never finished at its estimate."""
+    runner = a_runner("a hall")
+    month_spent(BOOKS.MONTH_EUROS - 2)
+    assert a_job(runner, euros=0.5)[1]()
+    for _ in range(20):  # twenty pictures asked and never answered: EUR 3 at their estimate
+        google_spend.started("gemini-3-pro-image", "test")
+    try:
+        assert "ceiling" in refused(a_job(runner, euros=0.5)[1])
+    finally:
+        google_spend.LEDGER.unlink()
 
 
 def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
