@@ -13,7 +13,7 @@ if str(SURFACES) not in sys.path:
     sys.path.append(str(SURFACES))  # the surface stage's modules import each other by name
 
 from score import contracts, graph  # noqa: E402
-from score.stages.people import renamed  # noqa: E402
+from score.stages.people import hair, renamed  # noqa: E402
 
 import finish_parts  # noqa: E402
 import finish_rows  # noqa: E402
@@ -68,6 +68,6 @@ ROWS = (
         NAMING, ("people-inputs", "people-turntable", "people-maps", "people-names", "people-segvigen")),
     row("people-paint", place_line.make_paint, place_line.paint_faults,
         (("one surface a part", place_line.judge_one_surface),
-         ("colour against the close-up", place_line.judge_concept_colour)),
+         ("colour against the close-up", hair.judge_colour)),
         PAINT, ("people-parts",), paid=True, euros=place_line.PAINT_EUROS),
 )
