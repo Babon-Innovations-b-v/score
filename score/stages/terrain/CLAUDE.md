@@ -18,6 +18,9 @@ from its plan in `data/ground/plan/<ground>.json`. `__init__.py`'s docstring has
 - **Paid, through the runner only.** `make` rents (pictures and depth, `tools/props/cloud/pictures.py` and
   `depth.py`) inside the runner's clearance; run it with `python -m score.stages run` (no places: the world's nodes),
   in the background.
+- **Its layout inputs are keyed on what it reads only** (`inputs.py`, 2026-10-12): of `data/scene`, `data/kit` and
+  `data/motion` only each seated place's fields terrain's make and gates read, so a light, machine or people edit
+  moves no ground. A new read of those records here needs its field added in `inputs.py`.
 - **The gates measure places, not pictures**: `openings` composes each judged place's round-three stage with the made
   ground and its record's missing neighbours (`outside.py`) and casts rays (`sight.py`); `under` compares every object
   that stood on the old ground with the made one. On a small world the horizon dips with a viewer's height: a ray
