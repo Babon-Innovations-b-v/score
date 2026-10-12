@@ -1132,6 +1132,10 @@
 			"suit_fabric_orange": {
 				"token": "earth-sunset",
 				"library": "suit_fabric_orange"
+			},
+			"cotton_white": {
+				"token": "sign-white",
+				"library": "cotton_white"
 			}
 		},
 		"light": {
@@ -1533,6 +1537,10 @@
 			"solar_cell": {
 				"token": "solar-panel",
 				"library": "solar_cell"
+			},
+			"glass_smoked": {
+				"token": "suit-pad",
+				"library": "glass_smoked"
 			}
 		},
 		"light": {
@@ -2920,6 +2928,22 @@
 			"gasket_black": {
 				"token": "rubber",
 				"library": "gasket_black"
+			},
+			"clear_glass": {
+				"token": "clear-glass",
+				"library": "clear_glass"
+			},
+			"printed_paper": {
+				"token": "flat-wall",
+				"library": "printed_paper"
+			},
+			"crane_yellow_paint": {
+				"token": "crop-stubble",
+				"library": "crane_yellow_paint"
+			},
+			"screen_glow_green_dim": {
+				"token": "flat-dado",
+				"library": "screen_glow_green_dim"
 			}
 		},
 		"light": {

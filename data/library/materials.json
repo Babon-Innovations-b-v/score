@@ -386,6 +386,12 @@
 					"bump": 0.0006,
 					"bump_size": 0.01,
 					"said": "added 2026-10-12 from the finish-map method's proposal 'Painted steel, off-white' for the greenhouse's water tank (its close-up L*a*b* [80.3, -0.2, 6.0]; painted_panel's grey lay 22.5 off and the tank baked as one grey block); the palette's flat-wall token lies 2.0 from it; owner to review"
+				},
+				"crane_yellow_paint": {
+					"recipe": "painted_metal",
+					"token": "crop-stubble",
+					"roughness": 0.5,
+					"said": "added 2026-10-12 from the finish-map method's proposal (no painted surface fit the hangar crane trolley's yellow painted steel, close-up L*a*b* [59.4, 4.6, 38.7]; the nearest palette token, dE 6.1). Own colour: partly; the close-up shows the trolley's safety yellow in shade, so the measure is darker and duller than the paint; owner to review"
 				}
 			}
 		},
@@ -870,6 +876,12 @@
 					"recipe": "glass",
 					"token": "night-horizon",
 					"roughness": 0.08
+				},
+				"glass_smoked": {
+					"recipe": "glass",
+					"token": "suit-pad",
+					"roughness": 0.05,
+					"said": "added 2026-10-12 from the finish-map method's proposal (no glass surface fit the wreck forward section's dark glass, close-up L*a*b* [53.1, 1.1, -0.1]; the nearest neutral dark palette token, dE 8.0). Own colour: partly; dark glass reflects its surroundings in the close-up, so the measure is lighter than its tint; owner to review"
 				}
 			}
 		},
@@ -993,6 +1005,11 @@
 					"recipe": "glowing",
 					"token": "ok",
 					"said": "added 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the lab microscope's green side screen, close-up L*a*b* [74.2, -37.1, 27.0]; the nearest palette token, dE 14.9); owner to review"
+				},
+				"screen_glow_green_dim": {
+					"recipe": "glowing",
+					"token": "flat-dado",
+					"said": "added 2026-10-12 from the finish-map method's proposal (no light surface fit the hangar monitor desk's green glass screen, close-up L*a*b* [56.6, -24.9, 13.2]; the nearest palette token, dE 14.5). Own colour: yes, a screen's lit content is its own colour; owner to review"
 				}
 			}
 		},
