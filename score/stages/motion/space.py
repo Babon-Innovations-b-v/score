@@ -223,20 +223,26 @@ def heights_under(meshes, spots, code):
         low, high = corners[:, :, [0, 2]].min(axis=1), corners[:, :, [0, 2]].max(axis=1)
         for index, spot in enumerate(spots):
             near = np.all((low <= spot) & (spot <= high), axis=1)
-            if not near.any():
-                continue
-            found = corners[near]
-            a, b, c = found[:, 0], found[:, 1], found[:, 2]
-            denominator = (b[:, 2] - c[:, 2]) * (a[:, 0] - c[:, 0]) + (c[:, 0] - b[:, 0]) * (a[:, 2] - c[:, 2])
-            usable = np.abs(denominator) > 1e-12
-            if not usable.any():
-                continue
-            a, b, c, denominator = a[usable], b[usable], c[usable], denominator[usable]
-            first = ((b[:, 2] - c[:, 2]) * (spot[0] - c[:, 0]) + (c[:, 0] - b[:, 0]) * (spot[1] - c[:, 2])) / denominator
-            second = ((c[:, 2] - a[:, 2]) * (spot[0] - c[:, 0]) + (a[:, 0] - c[:, 0]) * (spot[1] - c[:, 2])) / denominator
-            third = 1.0 - first - second
-            hit = (first >= -1e-9) & (second >= -1e-9) & (third >= -1e-9)
-            if hit.any():
-                height = (first * a[:, 1] + second * b[:, 1] + third * c[:, 1])[hit].max()
-                heights[index] = height if np.isnan(heights[index]) else max(heights[index], height)
+            if near.any():
+                height = height_in(corners[near], spot)
+                if height is not None:
+                    heights[index] = height if np.isnan(heights[index]) else max(heights[index], height)
     return heights
+
+
+def height_in(corners, spot):
+    """The highest height over [x, z] `spot` of the triangles (corner triples) it lies in, by their barycentric
+    weights; None when it lies in none."""
+    one, two, three = corners[:, 0], corners[:, 1], corners[:, 2]
+    across = ((two[:, 2] - three[:, 2]) * (one[:, 0] - three[:, 0])
+              + (three[:, 0] - two[:, 0]) * (one[:, 2] - three[:, 2]))
+    usable = np.abs(across) > 1e-12
+    one, two, three, across = one[usable], two[usable], three[usable], across[usable]
+    off_x, off_z = spot[0] - three[:, 0], spot[1] - three[:, 2]
+    first = ((two[:, 2] - three[:, 2]) * off_x + (three[:, 0] - two[:, 0]) * off_z) / across
+    second = ((three[:, 2] - one[:, 2]) * off_x + (one[:, 0] - three[:, 0]) * off_z) / across
+    third = 1.0 - first - second
+    hit = (first >= -1e-9) & (second >= -1e-9) & (third >= -1e-9)
+    if not hit.any():
+        return None
+    return float((first * one[:, 1] + second * two[:, 1] + third * three[:, 1])[hit].max())

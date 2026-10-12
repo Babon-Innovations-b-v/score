@@ -50,8 +50,8 @@ TURN_STEP = 30.0
 # a little reach is its own looseness, not a touch.
 REACH_MOST = 0.03
 # Points over a surface this share of a mover's thinnest size apart (within SPACING_RANGE), metres: a wall crossing a
-# hatch's 12 cm leaf still leaves points inside it.
-SPACING_SHARE, SPACING_RANGE = 0.1, (0.02, 1.5)
+# hatch's 12 cm leaf still leaves points inside it, and a rail under a 1 m trolley is read every 10 cm.
+SPACING_SHARE, SPACING_RANGE = 0.25, (0.02, 0.1)
 SEAM_MOST = 0.001
 HEIGHT_MOST = 0.05
 # How near a mover on a rail keeps to what it is mounted on, metres, past the spacing of the points it is read at.
@@ -226,7 +226,8 @@ def judge_clear(output, inputs, evidence):
         if start > REACH_MOST:  # moving together from the start: one thing (a hatch's leaf, wheel and window)
             continue
         for code in codes:
-            apart = np.linalg.norm(one.in_world(one.middle[None, :], code) - other.in_world(other.middle[None, :], code))
+            apart = np.linalg.norm(one.in_world(one.middle[None, :], code)
+                                   - other.in_world(other.middle[None, :], code))
             if apart > one.radius + other.radius:  # their bounding balls do not meet
                 continue
             depth = max(float(one.depth(other.in_world(other.surface, code), code).max()),

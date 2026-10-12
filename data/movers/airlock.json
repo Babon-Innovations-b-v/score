@@ -1,0 +1,27 @@
+{
+ "place": "airlock",
+ "about": "The airlock moves only by the game's own cycle (data/motion/airlock.json); nothing else of a moving kind stands in it.",
+ "seconds": 14.0,
+ "movers": [],
+ "still": {},
+ "through": {
+  "inner_door": {
+   "Objects/ring_floor_plate_*": "The game sinks the door out of sight under the floor (data/motion/airlock.json); the floor's slot is not cut in what it sinks through.",
+   "Structure/outer_ramp": "The game sinks the door out of sight under the floor (data/motion/airlock.json); the floor's slot is not cut in what it sinks through.",
+   "Structure/shell_deck": "The game sinks the door out of sight under the floor (data/motion/airlock.json); the floor's slot is not cut in what it sinks through.",
+   "Places/hub/Structure/shell_deck": "The game sinks the door out of sight under the floor (data/motion/airlock.json); the floor's slot is not cut in what it sinks through.",
+   "Objects/wall_*": "The door is wider than its doorway (the game's door kit): its edges run in the frame's and the wall's track beside the doorway as it rises and sinks.",
+   "Objects/door_frame_*": "The door is wider than its doorway (the game's door kit): its edges run in the frame's and the wall's track beside the doorway as it rises and sinks.",
+   "Places/hub/Structure/shell_walls": "The door is wider than its doorway (the game's door kit): its edges run in the frame's and the wall's track beside the doorway as it rises and sinks."
+  },
+  "outer_door": {
+   "Objects/ring_floor_plate_*": "The game sinks the door out of sight under the floor (data/motion/airlock.json); the floor's slot is not cut in what it sinks through.",
+   "Structure/outer_ramp": "The game sinks the door out of sight under the floor (data/motion/airlock.json); the floor's slot is not cut in what it sinks through.",
+   "Structure/shell_deck": "The game sinks the door out of sight under the floor (data/motion/airlock.json); the floor's slot is not cut in what it sinks through.",
+   "Places/hub/Structure/shell_deck": "The game sinks the door out of sight under the floor (data/motion/airlock.json); the floor's slot is not cut in what it sinks through.",
+   "Objects/wall_*": "The door is wider than its doorway (the game's door kit): its edges run in the frame's and the wall's track beside the doorway as it rises and sinks.",
+   "Objects/door_frame_*": "The door is wider than its doorway (the game's door kit): its edges run in the frame's and the wall's track beside the doorway as it rises and sinks.",
+   "Places/hub/Structure/shell_walls": "The door is wider than its doorway (the game's door kit): its edges run in the frame's and the wall's track beside the doorway as it rises and sinks."
+  }
+ }
+}

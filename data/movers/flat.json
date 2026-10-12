@@ -1,0 +1,23 @@
+{
+ "place": "flat",
+ "about": "The flat: the balcony door slides open at the start of the balcony beat as the game runs it (data/motion/flat.json), and the ceiling fan turns.",
+ "seconds": 60.0,
+ "movers": [
+  {
+   "name": "ceiling_fan",
+   "prim": "/flat/Objects/ceiling_fan_1",
+   "kind": "ceiling_fan",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": false,
+   "spin": {
+    "speed": 720.0
+   },
+   "from": "The ceiling fan at its middle speed, SCORE's own (the game stands it still): 120 rpm, 720 degrees a second (data/checks/motion.json ceiling_fan: a 52 in. fan's 69 to 170 rpm), about the upright line through its middle; 120 whole turns in the layer's 60 s, so the layer loops."
+  }
+ ],
+ "still": {
+  "timber_door_leaf_1": "The front door stands open as the game lays it: an open doorway in the game that never moves (data/motion/flat.json's about)."
+ }
+}
