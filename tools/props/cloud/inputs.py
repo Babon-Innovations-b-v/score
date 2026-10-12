@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import tarfile
@@ -205,9 +206,35 @@ def fetch(log_folder, host, items):
     return {entry["path"] for entry in reported}
 
 
+def named_links(locals_):
+    """{path as the job names it: the file it resolves to} for each input named through a link: an input lands at its
+    resolved path (staged and sent alike), so the named one is made a link to it up there too."""
+    found = {}
+    for local in locals_:
+        named = os.path.abspath(local)
+        resolved = str(pathlib.Path(local).resolve())
+        if named != resolved:
+            found[named] = resolved
+    return found
+
+
+def link_named(log_folder, host, locals_):
+    """Each input named through a link reachable on the machine at its named path (garage's rover, named
+    work/pixal/kit5-rover-3.glb, lands at work/pixal5/: Blender's import found no file there, 2026-10-12)."""
+    import batch
+
+    links = named_links(locals_)
+    if links:
+        batch.remote(log_folder, host, " && ".join(
+            f"mkdir -p {shlex.quote(os.path.dirname(named))} && ln -sfn {shlex.quote(resolved)} {shlex.quote(named)}"
+            for named, resolved in links.items()), check=True)
+
+
 def through_store(log_folder, host, locals_):
-    """The job's big inputs sent through the store to the machine; the resolved paths that arrived that way. Nothing
-    here stops a job: what does not arrive is sent directly, and why is said."""
+    """The job's inputs reachable on the machine at the paths the job names (link_named), its big ones sent through
+    the store; the resolved paths that arrived that way. Nothing here stops a job: what does not arrive is sent
+    directly, and why is said."""
+    link_named(log_folder, host, locals_)
     try:
         items = stage(log_folder, locals_)
     except (OSError, ValueError, IndexError) as failed:
