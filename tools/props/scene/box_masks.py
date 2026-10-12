@@ -6,7 +6,8 @@ box, for the box check (box_check.py --masks).
 The jobs are [{"picture": <name of a picture beside jobs.json>, "rows": [{"key", "nouns", "box"}]}]. For each picture
 every distinct noun is asked of SAM 3 once (cutout.py's way, at cutout.THRESHOLD); each instance it finds is measured
 against each row asking for that noun: `inside`, the share of the mask inside the row's box, and `fills`, the share
-of the box the mask covers. The out file maps each row's key to its instances, surest first, at most KEEP of them:
+of the box the mask covers. The out file maps each row's key to its instances, surest first, at most KEEP of them
+(or the row's own `keep`: a count of many, such as a bed's plants):
 {"box": the mask's pixel box, "score", "inside", "fills"}. No mask leaves the card. Refused on this PC
 (local_models.py); the runner is ../cloud/box_masks_cloud.py.
 """
@@ -43,7 +44,7 @@ def picture_rows(model, processor, picture, rows):
              for word in sorted({word for row in rows for word in row["nouns"]})}
     return {row["key"]: [dict(measured(mask, row["box"]), score=round(score, 3))
                          for mask, score in sorted((pair for word in row["nouns"] for pair in found[word]),
-                                                   key=lambda pair: -pair[1])[:KEEP]]
+                                                   key=lambda pair: -pair[1])[:row.get("keep", KEEP)]]
             for row in rows}
 
 
