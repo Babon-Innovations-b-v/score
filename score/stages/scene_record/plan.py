@@ -17,7 +17,8 @@ place's own frame (contract `place-plan` v2: v1 had no shell, frame, block, leve
     block     the building a kit room stands in (the plan's `block`, in the place's frame), else None
     doors     each plan door: its side, its middle in the place's frame (on its sill: a door's fifth number is the
               sill's level), its wall's outward normal, its wide and tall, what it is, and where it leads (the plan's
-              `leads`, by side or by `<side>@<level>`: a place, `outside` or `sealed`, with why), cut or shut
+              `leads`, by side or by `<side>@<level>`: a place, `outside` or `sealed`, with why), cut or shut, and
+              the leaf the record stands in it (`leaf`: its inventory row and its name, the airlock's outer door)
     items     each plan item's box in the place's frame, its facing and kind, and the inventory rows that make it
     zones     the plan's keep-clear zones; standing: the plan's people spots (a third number their level, a fourth the
               plan item they look at); elements: the concept's elements; shows: the places seen from it that no
@@ -165,7 +166,7 @@ def doors_of(plan, inventory):
                       "middle": door_middle(plan, side, at, level), "normal": outward(plan, side), "level": level,
                       "at": at, "wide": float(wide), "tall": tall, "what": what, "leads": lead.get("to"),
                       "joins": lead.get("joins"), "joins_door": lead.get("door"), "leaves": lead.get("leaves"),
-                      "why": lead.get("why"), "cut": lead.get("to") not in (None, "sealed")})
+                      "leaf": lead.get("leaf"), "why": lead.get("why"), "cut": lead.get("to") not in (None, "sealed")})
     return found
 
 
@@ -356,9 +357,10 @@ def element_faults(element, ids, doors, made, decals=(), items=()):
     return found
 
 
-def door_faults(door, places, record):
-    """Why a door's lead is not said: none, no why, a place the world lacks, a sealed door the layout leaves open, or a
-    cut door with no height. A cut door may hold a leaf: it opens (a motion), and the doorway leads on."""
+def door_faults(door, places, record, ids=None):
+    """Why a door's lead is not said: none, no why, a place the world lacks, a sealed door the layout leaves open, a
+    cut door with no height, or a leaf whose row the inventory lacks. A cut door may hold a leaf: it opens (a motion),
+    and the doorway leads on."""
     name = f"door {door['name']} ({door['what']})"
     if not door["leads"] or not door["why"]:
         return [f"{name} says nowhere it leads, or not why"]
@@ -372,6 +374,8 @@ def door_faults(door, places, record):
         found.append(f"{name} is sealed but the room layout leaves it open (no leaf shuts it)")
     if door["cut"] and door["tall"] is None:
         found.append(f"{name} has no height: neither its words nor a leaf row give one")
+    if door.get("leaf") and ids is not None and door["leaf"]["row"] not in ids:
+        found.append(f"{name}: its leaf's row {door['leaf']['row']} is not in the inventory")
     return found
 
 
@@ -414,7 +418,7 @@ def judge_mapped(output, inputs, evidence):
     faults += [fault for element in record["elements"]
                for fault in element_faults(element, ids, doors, record["objects"], decals,
                                            {item["name"] for item in record["items"]})]
-    faults += [fault for door in record["doors"] for fault in door_faults(door, places, record)]
+    faults += [fault for door in record["doors"] for fault in door_faults(door, places, record, ids)]
     faults += lit_faults(record, ids)
     shown = off_plan(record, inventory, read(inputs["kit"]))
     reason = "; ".join(faults[:3]) + (f" and {len(faults) - 3} more" if len(faults) > 3 else "") if faults else \
