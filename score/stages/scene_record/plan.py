@@ -11,7 +11,8 @@ place's own frame (contract `place-plan` v2: v1 had no shell, frame, block, leve
               plan's words) and run (the inventory's room layout, which the plan does not draw); a kit shell's ceiling
               and floor to floor (its storey) from the plan's words; a faceted room's facets, apothem, turn and pit
               (`shape: faceted`, its doors by bearing), a walkway tube's radius, axis, length and glass bands
-              (`shape: tube`, its doors its `near` and `far` ends)
+              (`shape: tube`, its doors its `near` and `far` ends), a flat-roofed room's door opening in its roof
+              (`shape: flat`, the inventory's room layout's `opening`: the hangar)
     floor     the plan's inside as the place frame's box round it, and its floor's height
     block     the building a kit room stands in (the plan's `block`, in the place's frame), else None
     doors     each plan door: its side, its middle in the place's frame (on its sill: a door's fifth number is the
@@ -47,8 +48,9 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 SIDES = {"N": "north", "S": "south", "E": "east", "W": "west"}
 LEADS = ("outside", "sealed")
 SHELLS = ("domed", "kit", "outdoor")
-# Plan items that name no rows: a keep-clear zone, and a growing plot the writer lays as plain plates (writer.plots).
-UNROWED = ("zone", "plot")
+# Plan items that name no rows: a keep-clear zone, a growing plot the writer lays as plain plates (writer.plots), and
+# a flat roof's door opening the writer leaves in its roof (writer.flat_shell).
+UNROWED = ("zone", "plot", "roof_door")
 # A row's laid spot this far outside its item's box is shown as off the plan (metres).
 SPOT_MARGIN = 0.6
 WALLS = re.compile(r"walls (\d+(?:\.\d+)?) m")
@@ -191,15 +193,18 @@ def facet_doors_of(plan):
 
 
 def walls_of(plan, layout):
-    """The room's walls: a capsule's inside wide and deep with its corners, or a faceted room's facets, apothem,
-    turn and sunken pit; with the walls' height, the roof's rise and run."""
+    """The room's walls: a capsule's inside wide and deep with its corners (a flat roof's: with its door opening),
+    or a faceted room's facets, apothem, turn and sunken pit; with the walls' height, the roof's rise and run."""
     if plan.get("shape") == "faceted":
         return {"shape": "faceted", "facets": int(plan["facets"]), "apothem": float(plan["apothem"]),
                 "turn": float(plan["turn"]), "pit_radius": float(plan["pit"]["radius"]),
                 "pit_floor": float(plan["pit"]["floor"]), "wide": 2 * float(plan["apothem"]),
                 "deep": 2 * float(plan["apothem"]), **heights(plan, layout)}
-    return {"wide": float(plan["w"]), "deep": float(plan["d"]), "corner": float(plan["corner"]),
-            **heights(plan, layout)}
+    capsule = {"wide": float(plan["w"]), "deep": float(plan["d"]), "corner": float(plan["corner"]),
+               **heights(plan, layout)}
+    if plan.get("shape") == "flat":
+        return {**capsule, "shape": "flat", "opening": [float(value) for value in layout["opening"]]}
+    return capsule
 
 
 def tube_doors_of(plan):

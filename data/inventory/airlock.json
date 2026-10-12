@@ -275,7 +275,20 @@
 			"thing": "node:InnerDoor, node:OuterDoor",
 			"made": "kit piece",
 			"group": "kit: door",
-			"at": [],
+			"at": [
+				{
+					"x": 0.0,
+					"y": 0.0,
+					"z": -2.35,
+					"facing": 180
+				},
+				{
+					"x": 0.0,
+					"y": 0.0,
+					"z": 2.35,
+					"facing": 0
+				}
+			],
 			"made_as": "prop",
 			"prop": "airlock_door_leaf",
 			"box_from": [
@@ -358,6 +371,49 @@
 				"v1.w1",
 				"v1.w4"
 			]
+		},
+		{
+			"id": "suit",
+			"view": "v1",
+			"box": [
+				1613,
+				433,
+				1820,
+				879
+			],
+			"name": "a white pressure suit, hanging in the alcove with its helmet on and its life-support pack on its back",
+			"kind": "generate",
+			"anchor": "wall",
+			"size": [
+				0.8,
+				0.5,
+				1.9
+			],
+			"count": 1,
+			"group": "kit: furniture",
+			"made": "the world release's hanging suit (models/hanging_suit/hanging_suit.glb)",
+			"release_model": "models/hanging_suit/hanging_suit.glb",
+			"ground_box": true,
+			"at": [
+				{
+					"x": 1.51,
+					"y": 0.09,
+					"z": 0.0,
+					"facing": 0
+				}
+			],
+			"box_from": [
+				"v1.28",
+				"v1.35",
+				"v1.114",
+				"v1.123",
+				"v1.331",
+				"v1.336",
+				"v1.314",
+				"v1.359",
+				"v1.258"
+			],
+			"needed": "the concept K02 shows the suit in its alcove; the captain's decision of 2026-10-12 makes it a row (it waited as a drop of the airlock's plan)"
 		},
 		{
 			"id": "suit_bench",

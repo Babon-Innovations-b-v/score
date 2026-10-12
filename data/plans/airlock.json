@@ -94,6 +94,7 @@
  "rows": {
   "SUIT LOCKER: suit + hose reel": [
    "suit_alcove",
+   "suit",
    "hose_reel",
    "hose_coil"
   ],
@@ -252,7 +253,9 @@
   },
   {
    "element": "the suit in the alcove",
-   "drop": "waits on its inventory row and kit piece (the captain's decision, 2026-10-12: the suit becomes a row), which a record does not add: one inventory edit makes every place's assembly again"
+   "rows": [
+    "suit"
+   ]
   },
   {
    "element": "hose reel beside the alcove",

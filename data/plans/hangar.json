@@ -33,7 +33,7 @@
    22.0,
    40.0,
    null,
-   "overhead"
+   "roof_door"
   ],
   [
    "SHIP KEEP-OUT 12 x 31 (the ship, nose south)",
@@ -154,5 +154,235 @@
   "Ship measured in the game: the drawn hull today is the old upright one (3.2 m across, 8.3 m tall, legs 4.4 m apart); the cabin deck inside it is 6.7 m wide over its shell, 26.3 m long (3.6 m ahead of the legs to 22.35 m behind them) and 5.5 m high over the feet (ship_cabin.gd). The locked shuttle style wraps a flat wedge round that deck: the keep-out box 12 x 31 x 8 m is the coordinator's estimate of it (deck plus hull, nose spike and engines).",
   "The ship takes off and lands straight up and down on its belly engine (CONTEXT.md virtual stick), so the big door is in the roof: 5 m clear each side of the keep-out box, 4.5 m at the ends. Coordinator's pick, owner may change: a wall door would make the pilot fly out level through it.",
   "Size 26 x 46 m, walls 13 m: coordinator's pick. It stands north of the greenhouse, joined to its north door; the garage joins its east door. The ship stands on the pad nose south, as it does in the game today."
+ ],
+ "shape": "flat",
+ "concept": {
+  "pick": "K01",
+  "picture": "{seeds}/scene/hangar/views/K01.png",
+  "read": "the concept K01 read tile by tile (place-gh/hangar/elements.json, 2026-10-07), each element mapped to the inventory's rows (data/inventory/hangar.json), a plan item, or dropped with its reason"
+ },
+ "leads": {
+  "S": {
+   "to": "tube",
+   "joins": "greenhouse",
+   "door": "N",
+   "why": "a walkway tube runs south to the greenhouse's north hatch (the Moon ground plan seats the hangar north of the greenhouse); the room layout leaves this hatch open"
+  },
+  "E": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf (inventory hatch_leaf) stays shut"
+  },
+  "W": {
+   "to": "sealed",
+   "why": "no walkway tube joined there; its hatch leaf (inventory hatch_leaf) stays shut"
+  }
+ },
+ "rows": {
+  "ROOF DOOR OPENING 22 x 40 (overhead)": [],
+  "SHIP KEEP-OUT 12 x 31 (the ship, nose south)": [],
+  "SHIP PAD 7.2 across": [
+   "machine_bay_plate"
+  ],
+  "SHIP BENCH": [
+   "ship_bench"
+  ],
+  "FUEL POINT + HOSE REEL": [
+   "fuel_pump",
+   "hose_reel"
+  ],
+  "SHIP PARTS RACKS": [
+   "parts_rack"
+  ],
+  "CRATES OF SHIP PARTS": [
+   "parts_crate"
+  ],
+  "MOBILE ACCESS STAIR": [
+   "access_stair"
+  ],
+  "CONTROL DESK (bay cycle, roof door)": [
+   "control_desk",
+   "monitor",
+   "keyboard"
+  ],
+  "BAY CONTROL PANEL": [
+   "bay_panel"
+  ],
+  "BRIDGE CRANE on rails along both long walls (overhead, 10 m up)": [
+   "lattice_ring_rib",
+   "crane_trolley"
+  ]
+ },
+ "elements": [
+  {
+   "element": "the roof's two great leaves on deep trusses, half open",
+   "item": "ROOF DOOR OPENING 22 x 40 (overhead)"
+  },
+  {
+   "element": "yellow bridge crane across the hall",
+   "rows": [
+    "lattice_ring_rib",
+    "crane_trolley"
+   ]
+  },
+  {
+   "element": "tube hatches with heavy frames and wheels",
+   "rows": [
+    "hatch_frame",
+    "hatch_leaf",
+    "hatch_wheel",
+    "hatch_hinge",
+    "hatch_window"
+   ]
+  },
+  {
+   "element": "red lamps over the hatches",
+   "rows": [
+    "bracket_beacon"
+   ]
+  },
+  {
+   "element": "hazard stripes on the floor before the hatches and round the pad",
+   "drop": "the place's rule: no hazard stripes on hatches or floors; tread mats (inventory tread_mat) lie before the hatches and the pad is a plain tie-down plate"
+  },
+  {
+   "element": "status/keypad boxes beside the hatches",
+   "rows": [
+    "door_control_box"
+   ]
+  },
+  {
+   "element": "round gauges beside the hatches",
+   "rows": [
+    "pressure_gauge"
+   ]
+  },
+  {
+   "element": "bulkhead lamps over the doors and along the walls",
+   "rows": [
+    "wall_cage_lamp"
+   ]
+  },
+  {
+   "element": "a big manifold of pipes with red hand-wheel valves on the west wall",
+   "rows": [
+    "pipe_straight",
+    "pipe_valve",
+    "pipe_bracket"
+   ]
+  },
+  {
+   "element": "cables along the walls",
+   "rows": [
+    "cable_bundle"
+   ]
+  },
+  {
+   "element": "a pump cabinet with gauges and a hose reel on the west wall",
+   "rows": [
+    "fuel_pump",
+    "hose_reel"
+   ]
+  },
+  {
+   "element": "shelving with cardboard boxes on the north wall",
+   "rows": [
+    "parts_shelving"
+   ]
+  },
+  {
+   "element": "a small desk with two monitors in the north corner",
+   "rows": [
+    "monitor_desk",
+    "monitor"
+   ]
+  },
+  {
+   "element": "the ship standing on four legs on a ringed pad",
+   "rows": [
+    "ship",
+    "machine_bay_plate"
+   ]
+  },
+  {
+   "element": "a mobile access stair with handrails",
+   "rows": [
+    "access_stair"
+   ]
+  },
+  {
+   "element": "a work table on the east side",
+   "rows": [
+    "ship_bench"
+   ]
+  },
+  {
+   "element": "crates and pallet racks",
+   "rows": [
+    "parts_crate",
+    "parts_rack"
+   ]
+  },
+  {
+   "element": "the long control desk with five monitors and keyboards at the south end",
+   "rows": [
+    "control_desk",
+    "monitor",
+    "keyboard"
+   ]
+  },
+  {
+   "element": "wall panels, posts, the riveted bands",
+   "rows": [
+    "wall_lower_plain",
+    "wall_upper_plain",
+    "wall_corner_post",
+    "wall_skirting",
+    "wall_cornice"
+   ]
+  },
+  {
+   "element": "floor plates",
+   "rows": [
+    "ring_floor_plate"
+   ]
+  },
+  {
+   "element": "the flat roof's lining round the opening",
+   "rows": [
+    "roof_face_panel"
+   ]
+  },
+  {
+   "element": "air pump panels by the doors",
+   "rows": [
+    "bay_panel"
+   ]
+  },
+  {
+   "element": "warning beacons high on the walls",
+   "rows": [
+    "bracket_beacon"
+   ]
+  },
+  {
+   "element": "floodlights",
+   "rows": [
+    "floodlight"
+   ]
+  },
+  {
+   "element": "tread mats before the hatches",
+   "rows": [
+    "tread_mat"
+   ]
+  },
+  {
+   "element": "pipes outside the south wall, the tube collar",
+   "drop": "outside the room: the walkway tube's"
+  },
+  {
+   "element": "a person at the work table",
+   "drop": "a person, not a prop (the cast stage's)"
+  }
  ]
 }

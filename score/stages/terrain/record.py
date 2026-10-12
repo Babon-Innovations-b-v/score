@@ -42,17 +42,31 @@ def decoded(path, low, span):
 
 def levelled(heights, record):
     """The plan's levelled yards (a box held at one height, eased back over its blend) laid on the heights; a yard
-    with no height is held at the ground's mean height over its box."""
+    with no height is held at the ground's mean height over its box; a yard `on_seat` is held `height` under the
+    floor of the place it is for, its seat's flat plane (a room too long to stand on the ball's curve: the hangar)."""
     for level in record.get("levels", []):
         box = level["box"]
         height = level["height"]
-        if height is None:
+        if level.get("on_seat"):
+            height = seat_plane(record, record["seats"][level["for"]], heights.shape[0]) + height
+        elif height is None:
             grid = landforms.Grid(record["side"], heights.shape[0])
             inside = (grid.x >= box[0]) & (grid.x <= box[2]) & (grid.z >= box[1]) & (grid.z <= box[3])
             height = float(heights[inside].mean())
         heights = grounds.levelled(heights, record["side"], np.array(box[:2]), np.array(box[2:]), height,
                                    level["blend"])
     return heights
+
+
+def seat_plane(record, seat, points):
+    """The height over the ball of a seat's flat plane (its tangent plane, where a room laid flat on it has its
+    floor) at every point of the plan's grid."""
+    grid = landforms.Grid(record["side"], points)
+    plan = grounds.seat_frame(record["plan_out"], 0.0)
+    toward = plan[1] * record["radius"] + grid.x[..., None] * plan[0] + grid.z[..., None] * plan[2]
+    toward /= np.linalg.norm(toward, axis=-1, keepdims=True)
+    out = np.asarray(seat["out"], dtype=float) / np.linalg.norm(seat["out"])
+    return record["radius"] / (toward @ out) - record["radius"]
 
 
 def dented(heights, record, folder, kits):

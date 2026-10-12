@@ -17,7 +17,7 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
 - **Neighbours come from the made ground's seats** (the terrain stage's ground records), the ball's curve turning each
   (`rotation`); a door joined to another place's door stands the tube's stage between the two doorways, stretched
   to the run. A place with no seat on a made ground cannot be judged outside: `openings` fails it by name.
-- **Three shell writers so far**, by the plan's `shell`: `domed` (walls with a dome: room_walls, room_deck, dome_roof,
+- **Shell writers**, by the plan's `shell`: `domed` (walls with a dome: room_walls, room_deck, dome_roof,
   doors in each wall's middle) and `kit` (`kit_shell.py`: the Earth's rooms and open places, whose kit holds their
   walls and floors; the record adds the block round a room, a light at each lamp of the sky record's lamp rows the kit
   lays, the body's night, moon, glow and harbour, the plan's `objects` and `shows`). A kit shell's plan stands in the
@@ -36,9 +36,11 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   `[bearing, wide, what]`, leads by bearing); `tube` (a walkway tube: radius, axis, length, `glass` bands; hull arcs,
   glass, deck; its two open ends `near` and `far`, its frame anchored at the near end). A sloped item outside (`2.5 m
   at 20 deg`, the airlock's ramp) is a plain plate, a `plot` item soil in a curb (it names no rows; an element may
-  name it as `item`), and an inventory row made by the route at its own spots (the hub's console) an object. Another
-  kind of place (the hangar's flat roof) needs its own shell writer here before it gets the rows; the writer refuses
-  it.
+  name it as `item`), and an inventory row made by the route at its own spots (the hub's console) or naming a world
+  release model (`release_model`: the airlock's suit) an object. `flat` (the hangar: capsule walls and deck, a roof of
+  four slabs on the walls' top round the room layout's door `opening`, a `roof_door` plan item naming no rows, the
+  layout's roof leaf stood shut over each half of the opening, raised clear of the wall tops; the openings gate judges
+  the roof leaves open).
 - **Seed reasons can name a family** (`<section>/<start>_`, kept to one place with `<place>:`), so the greenhouse's
   old bed boxes need one reason and it never excuses another room's.
 - **The plan's inventory** is `data/inventory/<place>.json`, or the plan's `inventory` name (the prologue's rooms keep

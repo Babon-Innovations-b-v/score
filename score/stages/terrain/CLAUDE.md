@@ -18,6 +18,9 @@ from its plan in `data/ground/plan/<ground>.json`. `__init__.py`'s docstring has
 - **Paid, through the runner only.** `make` rents (pictures and depth, `tools/props/cloud/pictures.py` and
   `depth.py`) inside the runner's clearance; run it with `python -m score.stages run` (no places: the world's nodes),
   in the background.
+- **A levelled yard `on_seat`** (the hangar, 2026-10-12) is held `height` under the flat plane of the seat it is
+  `for`, not at one height: a room 46 m long on the Moon's 220 m ball stands on its seat's tangent plane, which rises
+  off the ball towards its ends (`record.seat_plane`).
 - **Its layout inputs are keyed on what it reads only** (`inputs.py`, 2026-10-12): of `data/scene`, `data/kit` and
   `data/motion` only each seated place's fields terrain's make and gates read, so a light, machine or people edit
   moves no ground. A new read of those records here needs its field added in `inputs.py`.

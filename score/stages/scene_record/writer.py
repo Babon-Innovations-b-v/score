@@ -8,10 +8,13 @@ and builders.py build it unchanged; it lands as record/<place>.json in the outpu
                  walls' height, the dome's rise and run, and a doorway cut in each door that leads somewhere; a place
                  whose kit holds its walls (plan shell `kit`: the Earth's) gets its block, lamps, night sky, moon,
                  water and objects from kit_shell.py instead; a domed plan's `shape` makes a faceted room's shell
-                 (facet_shell) or a walkway tube's (tube_shell), its layout's glass_dome a glass dome; a sloped item
-                 outside is a plate (ramps), a plot soil in a curb (plots)
-    objects      each inventory row the route made and laid at its own spots, not the kit's (the hub's furniture)
-    places       each door's leaves (the plan's `leaves` kit, the inventory's leaf size, shut in the doorway); a door
+                 (facet_shell), a walkway tube's (tube_shell) or a flat-roofed room's (flat_shell: the hangar's roof
+                 slabs round its door opening), its layout's glass_dome a glass dome; a sloped item outside is a plate
+                 (ramps), a plot soil in a curb (plots)
+    objects      each inventory row the kit does not lay, at its own spots: the route made it (the hub's furniture) or
+                 it names a world release model (the airlock's suit)
+    places       each door's leaves (the plan's `leaves` kit, the inventory's leaf size, shut in the doorway), a flat
+                 roof's leaves (the layout's leaf that lies on the roof, shut over its opening); a door
                  joined to another place's door by a walkway tube (the tube's stage stood from this doorway to that
                  one, stretched along its run); and every other place seated on the same made ground, where its seat
                  stands it in this place's frame (the ball's curve turns it: `rotation`)
@@ -51,6 +54,10 @@ SLOPE = re.compile(r"(\d+(?:\.\d+)?) m at (\d+(?:\.\d+)?) deg")
 RAMP_THICK = 0.2
 RAMP_SURFACE = "deck"
 GLASS_SURFACE = "clear_glass"
+# A flat roof's slabs are this thick on the walls' top; its door leaves lie on them raised this far, so the sliding
+# leaves clear the wall tops and corner posts they reached 0.08 m into (the motion stage's clear gate, 2026-10-12).
+ROOF_SLAB = 0.25
+LEAF_CLEAR = 0.15
 # A growing plot: its soil this deep, its curb (thick, high) round it.
 SOIL = 0.06
 SOIL_SURFACE = "potting_soil"
@@ -139,13 +146,9 @@ def tube_shell(plan):
          "from": f"{said}; the deck {walls['deck']} m wide where the hull meets the floor, under the kit's plates"}]
 
 
-def shell(plan):
-    """The room's shell entries: a faceted room's (facet_shell), or a domed room's walls with the cut doorways, deck
-    and dome."""
-    if plan["walls"].get("shape") == "faceted":
-        return facet_shell(plan)
-    if plan["walls"].get("shape") == "tube":
-        return tube_shell(plan)
+def capsule_walls(plan):
+    """A capsule room's walls with the cut doorways and its deck, BACKING behind the plan's inside: the entries, the
+    grown numbers and what the plan said."""
     walls = plan["walls"]
     grown = {"wide": round(walls["wide"] + 2 * BACKING, 4), "deep": round(walls["deep"] + 2 * BACKING, 4),
              "corner": round(walls["corner"] + BACKING, 4)}
@@ -159,7 +162,62 @@ def shell(plan):
                  (", ".join(f"door {door['plan_side']} ({door['what']}, leads {door['leads']})" for door in cut)
                   or "no door")},
         {"name": "shell_deck", "builder": "room_deck", **grown, "height": -DECK_BELOW, "surface": SHELL_SURFACE,
-         "from": f"{said}; just under the kit's floor plates"},
+         "from": f"{said}; just under the kit's floor plates"}], grown, said
+
+
+def flat_shell(plan):
+    """A flat-roofed room's shell (the hangar): its capsule walls and deck, and its roof as four slabs ROOF_SLAB
+    thick on the walls' top round the door opening (the inventory's room layout's), which they leave open."""
+    walls = plan["walls"]
+    entries, grown, said = capsule_walls(plan)
+    half_wide, half_deep = grown["wide"] / 2, grown["deep"] / 2
+    open_wide, open_deep = walls["opening"][0] / 2, walls["opening"][1] / 2
+    level = walls["high"] + ROOF_SLAB / 2
+    slabs = {"west": ((-(half_wide + open_wide) / 2, 0.0), (half_wide - open_wide, 2 * half_deep)),
+             "east": (((half_wide + open_wide) / 2, 0.0), (half_wide - open_wide, 2 * half_deep)),
+             "north": ((0.0, -(half_deep + open_deep) / 2), (2 * open_wide, half_deep - open_deep)),
+             "south": ((0.0, (half_deep + open_deep) / 2), (2 * open_wide, half_deep - open_deep))}
+    return entries + [
+        {"name": f"roof_slab_{side}", "builder": "box", "centre": [round(across, 4), level, round(along, 4)],
+         "size": [round(wide, 4), ROOF_SLAB, round(deep, 4)], "surface": SHELL_SURFACE, "layer": 2, "plain": "plate",
+         "from": f"{said}; the flat roof {ROOF_SLAB} m thick on the walls' top ({walls['high']} m), its {side} slab "
+                 f"round the {walls['opening'][0]:g} x {walls['opening'][1]:g} m door opening (inventory room layout)"}
+        for side, ((across, along), (wide, deep)) in slabs.items()]
+
+
+def roof_leaves(plan):
+    """A flat roof's door leaves (the room layout's leaf that lies on the roof, its kit's stage), shut side by side
+    over the opening, each on its half; on the roof's top, raised LEAF_CLEAR so they slide clear of the walls' tops."""
+    leaf, walls = plan.get("leaf") or {}, plan["walls"]
+    if walls.get("shape") != "flat" or leaf.get("lies") != "roof":
+        return []
+    count = max(1, round(walls["opening"][0] / leaf["size"][0]))
+    high = round(walls["high"] + ROOF_SLAB + LEAF_CLEAR, 4)
+    found = []
+    for number in range(count):
+        across = round((number + 0.5) * walls["opening"][0] / count - walls["opening"][0] / 2, 4)
+        side = "west" if across < 0 else "east"
+        found.append({"name": f"roof_leaf_{side}" if count == 2 else f"roof_leaf_{number + 1}", "stage": leaf["kit"],
+                      "at": [across, high, 0.0], "yaw": 0.0, "door_leaf": "roof",
+                      "from": f"the room layout's roof leaf ({leaf['kit']} kit, {leaf['size'][0]:g} x "
+                              f"{leaf['size'][1]:g} m), {number + 1} of {count} shut over the plan's roof door "
+                              f"opening on its half, on the roof's top raised {LEAF_CLEAR} m clear of the walls' tops "
+                              "(the motion stage's clear gate)"})
+    return found
+
+
+def shell(plan):
+    """The room's shell entries: a faceted room's (facet_shell), a walkway tube's (tube_shell), a flat-roofed room's
+    (flat_shell), or a domed room's walls with the cut doorways, deck and dome."""
+    if plan["walls"].get("shape") == "faceted":
+        return facet_shell(plan)
+    if plan["walls"].get("shape") == "tube":
+        return tube_shell(plan)
+    if plan["walls"].get("shape") == "flat":
+        return flat_shell(plan)
+    walls = plan["walls"]
+    entries, grown, said = capsule_walls(plan)
+    return entries + [
         {"name": "dome_glass" if plan.get("glass") else "shell_roof", "builder": "dome_roof", **grown,
          "eave": walls["high"], "rise": walls["rise"], "run": walls["run"],
          "surface": GLASS_SURFACE if plan.get("glass") else SHELL_SURFACE, "layer": 2,
@@ -167,19 +225,29 @@ def shell(plan):
                  + ("; glazed (inventory room layout glass_dome)" if plan.get("glass") else "")}]
 
 
+def row_model(place, row):
+    """The model an inventory row the kit does not lay stands as, and what made it: the route's pick (from the
+    place's kit models) or a world release model the row names (`release_model`, the airlock's suit); else None."""
+    if row.get("release_model"):
+        return row["release_model"], f"the world release's {row['release_model']}"
+    if str(row.get("made", "")).startswith("made by the route") and row.get("pick"):
+        return f"models/{place}_kit/{row['pick']['model']}.gltf", f"made by the route, its pick {row['pick']['model']}"
+    return None
+
+
 def objects(place, inventory):
-    """Each inventory row the route made and the kit does not lay (`made` by the route, laid at its own spots, its
-    picked model): one object at each spot, turned to its facing, from the place's kit models."""
+    """Each inventory row the kit does not lay (row_model), laid at its own spots: one object at each spot, turned to
+    its facing."""
     found = []
     for row in inventory["rows"]:
-        if not str(row.get("made", "")).startswith("made by the route") or not row.get("pick"):
+        made = row_model(place, row)
+        if made is None:
             continue
         for number, spot in enumerate((spot for spot in row.get("at", []) if "x" in spot), 1):
-            found.append({"name": f"{row['id']}_{number}", "row": row["id"],
-                          "model": f"models/{place}_kit/{row['pick']['model']}.gltf",
+            found.append({"name": f"{row['id']}_{number}", "row": row["id"], "model": made[0],
                           "at": [spot["x"], spot["y"], spot["z"]], "yaw": -float(spot.get("facing", 0.0)),
-                          "from": f"inventory row {row['id']} (made by the route, its pick {row['pick']['model']}): "
-                                  f"its spot {number}, facing {spot.get('facing', 0.0)} degrees"})
+                          "from": f"inventory row {row['id']} ({made[1]}): its spot {number}, facing "
+                                  f"{spot.get('facing', 0.0)} degrees"})
     return found
 
 
@@ -365,7 +433,7 @@ def places_of(place, plan, inputs, grounds):
             found += leaves(plan, door)
         if door["cut"] and door["joins"]:
             found.append(joined_tube(place, door, inputs["plans"], grounds, read(inputs["tube length"])["tube_length"]))
-    return found + neighbours(place, grounds) + kit_shell.shown(plan, place, grounds, pose_in, quaternion)
+    return found + roof_leaves(plan) + neighbours(place, grounds) + kit_shell.shown(plan, place, grounds, pose_in, quaternion)
 
 
 # --- light, sky, views ------------------------------------------------------------------------------------------
@@ -440,9 +508,10 @@ def record_of(place, plan, inputs):
     if plan["shell"] == "outdoor":
         from score.stages.scene_record import outdoor  # it builds on this module's seats, places and views' numbers
         return outdoor.record_of(place, plan, inputs, grounds)
-    if not plan["inside"] or not (plan["walls"].get("rise") or plan["walls"].get("shape") in ("faceted", "tube")):
-        raise NotImplementedError(f"{place}: its plan's shell is domed but it is no domed room, faceted room or "
-                                  "walkway tube")
+    if not plan["inside"] or not (plan["walls"].get("rise") or
+                                  plan["walls"].get("shape") in ("faceted", "tube", "flat")):
+        raise NotImplementedError(f"{place}: its plan's shell is domed but it is no domed room, faceted room, "
+                                  "walkway tube or flat-roofed room")
     walls = plan["walls"]
     body = seated.ground
     indoor = read(inputs["sky"])[body]["indoor"]
