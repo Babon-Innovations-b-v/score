@@ -66,7 +66,7 @@ def score(jobs):
         samples, rate = soundfile.read(f"{OUT}/{job['file']}", always_2d=True)
         mono = samples.mean(axis=1).astype(numpy.float32)
         mono = mono[int(CLAP_SKIP_SECONDS * rate):][:int(CLAP_SECONDS * rate)]
-        inputs = processor(text=[job["prompt"]], audios=[mono], sampling_rate=rate, return_tensors="pt",
+        inputs = processor(text=[job["prompt"]], audio=[mono], sampling_rate=rate, return_tensors="pt",
                            padding=True)
         with torch.no_grad():
             heard = model(**{key: value.to("cuda") for key, value in inputs.items()})
