@@ -1,26 +1,36 @@
-"""The assembly stage (P5), as step 0 wires it: a place's round-three OpenUSD stage brought in as an unverified seed,
-then judged by the assembly gates that exist today. No spend: nothing is made, rendered or settled.
+"""The assembly stage (P5): a place's single, final assembly. Its round-three OpenUSD stage comes in as an unverified
+seed, and every layer stage's accepted output the node reads takes the place of the seed's part, so each place is
+assembled once its layers have landed. No spend: nothing is rendered or settled here.
 
-    make     copies the seed's stage (<place>.usda, layers/, assets/, inputs.json) into the output with origin.json
-             saying where it came from; old check results and manifests beside it are agent verdicts and stay out.
-             A place on a made ground (the terrain stage's places/<place>.usdc) takes it as layers/ground.usdc,
-             sublayered over the seed's base, so the made ground stands in for the old one (experimental, PRD #6).
-             A place the effects stage made a layer for (experimental) takes it in place of the seed's own:
-             layers/effects.usda and its baked clips, held by the root between the edit layer and the base. A
-             place's baked models (surfaces-bake) replace the seed's assets, each laid object stamped with the
-             baked file's hash and the seed's as the model it repainted (stamp_baked_hash). A place the machines
-             stage laid machines in (experimental) takes its layer, layers/machines.usda, and the machines' assets
-    gates    placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
+    make     copies the seed's stage (<place>.usda, layers/, assets/, inputs.json) into the output; old check results
+             and manifests beside it are agent verdicts and stay out. Then, each from its accepted output:
+             record   the scene-record row's record (experimental) written over the base's old record prims
+                      (RECORD_ROOTS) with tools/usd/scene.py's writer; a place without the row keeps the seed's
+                      record, said unverified. The record built from is written beside the stage (scene.json), the
+                      one the neighbours stage reads
+             layers   each layer stage of LAYERS the table holds (effects, motion, light, machines, crops; all
+                      experimental) as a sublayer of its own with its assets, in place of the seed's of that name,
+                      the root's sublayers in ORDER and its time range as long as the longest layer's
+             bakes    a place's baked models (surfaces-bake) in place of the seed's assets, each laid object stamped
+                      with the baked file's hash and the seed's as the model it repainted (stamp_baked_hash)
+             ground   the terrain stage's places/<place>.usdc as layers/ground.usdc, just over the base
+             sound    the sound row's output (experimental) written as layers/sound.usda (sounds.py), in place of the
+                      seed's
+             origin.json says the seed it came from, the record, every layer output taken and any sound placed
+             nowhere.
+    gates    layers        unknown while a layer the place needs (data/checks/contents.json's needs, sound and light
+                           for every place it lists) has no accepted output taken: never the seed's in its place;
+                           fail on a sound placed nowhere
+             placeholders  tools/usd/placeholders.py: nothing visible stands in for a made piece (the hangar's
                            code-built ship fails, 12 meshes)
              resting       tools/usd/triage.py on a drop run made on this very output (settle.py --dry-run's
                            settled.json, stored as the check's evidence); with none it answers unknown and blocks,
                            and the runner's drive gathers it (gather_drop_run: one drop run on a rented processor
                            machine, cleared at DROP_EUROS) when nothing else blocks the output
 
-The stage that builds a place from its accepted layout replaces the seed maker in step 3; the gates stay. Both judges
-read only the world files the stage declares (FILES): the resting judge reads the rules, the place's kit and the
-inventory the seed's inputs.json names, found in the declared inventory folder (the whole folder is therefore an
-input, so any inventory change makes these nodes run again); a seed naming no inventory there answers unknown.
+The judges read only the world files the stage declares (files): the resting judge reads the rules, the place's kit
+and the inventory the seed's inputs.json names, found in the declared inventory folder (the whole folder is therefore
+an input, so any inventory change makes these nodes run again); a seed naming no inventory there answers unknown.
 """
 import json
 import pathlib
@@ -28,6 +38,7 @@ import shutil
 import sys
 
 from score import checks
+from score.stages.assembly import sounds
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
@@ -38,12 +49,39 @@ FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "fittings": "{data}/library/fittings.json", "resting rules": "{data}/checks/resting.json",
          "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
          "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
-         "surfaces": "{data}/surfaces/{place}.json"}
+         "surfaces": "{data}/surfaces/{place}.json", "expected contents": "{data}/checks/contents.json",
+         "motions": "{data}/motion", "grounds": "{data}/ground"}
+
+
+def files(place):
+    """FILES, and the place's seed scene record where it has one (the door leaves' kits have none)."""
+    seed_record = {"scene": "{data}/scene/{place}.json"} if (REPO / f"data/scene/{place}.json").exists() else {}
+    return {**FILES, **seed_record}
+
+
 SEED_PARTS = ("layers", "assets", "inputs.json")
 GROUND_LAYER = "layers/ground.usdc"
-EFFECTS_LAYER = "layers/effects.usda"
-EFFECTS_CLIPS = "assets/effects"
-MACHINES_LAYER = "layers/machines.usda"
+# The layer stages the assembly takes, each a sublayer of the root of its own: {stage: ((schema, version) read, its
+# layer file, its assets folder or None)}. A stage joins the assembly's reads the day it joins the stage table
+# (score/stages.layered): the motion, light and crops rows land after this table.
+LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets/effects"),
+          "motion": (("motion-layer", 1), "layers/motion.usda", None),
+          "light": (("light", 1), "layers/light.usda", "assets/light"),
+          "machines-layer": (("machines-layer", 1), "layers/machines.usda", "assets"),
+          "crops-layer": (("crops-layer", 1), "layers/crops.usda", "assets")}
+# Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
+READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1),
+         **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
+# What each need of data/checks/contents.json asks of the place's layers, and the layers every place it lists (not a
+# part of another) needs whatever its needs: contents.py's light and sound checks judge every such place.
+NEEDS = {"effects": "effects-layer", "motion": "motion", "crops": "crops-layer"}
+EVERY_PLACE = ("sound", "light")
+# The root's sublayers, strongest first, by file name.
+ORDER = ("edit", "characters", "sound", "light", "motion", "effects", "crops", "machines", "ground", "base")
+# The base's prims tools/usd/scene.py writes from the scene record, removed before the accepted record is written.
+RECORD_ROOTS = ("Structure", "Terrain", "Water", "Fixtures", "Rocks", "Places", "Sky", "Lights", "Environment",
+                "Shafts")
+RECORD = "scene.json"
 BASE_LAYER = "./layers/base.usda"
 INVENTORY_PREFIX = "data/inventory/"
 # One drop run's estimate: a quarter to three quarters of an hour on a rented processor machine (the ledger's settle
@@ -54,7 +92,9 @@ SEED_NOTE = ("An old output brought in from world 1's round-three stages, never 
 
 
 def make_from_seed(inputs, out, seed, params):
-    """Copy a seed stage's own files into the output, with its origin."""
+    """Copy a seed stage's own files into the output, then take every accepted layer the node reads in place of the
+    seed's part (the record's prims, each layer stage's sublayer, the bakes, the ground, the sounds), and write what
+    it took into origin.json."""
     folder = inputs["seed"]
     root = folder / f"{folder.name}.usda"
     shutil.copy2(root, out / root.name)
@@ -64,16 +104,50 @@ def make_from_seed(inputs, out, seed, params):
             shutil.copytree(source, out / part)
         elif source.exists():
             shutil.copy2(source, out / part)
-    (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE}, indent=1))
-    if "effects-layer" in inputs:
-        take_effects(inputs["effects-layer"], out / root.name)
+    record = take_record(inputs, out, folder.name)
+    for name, (_, layer, assets) in LAYERS.items():
+        if name in inputs:
+            take_layer(pathlib.Path(inputs[name]), out / root.name, layer, assets)
     if "surfaces-bake" in inputs:
         take_bake(pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]), out)
-    if "machines-layer" in inputs:
-        take_machines(pathlib.Path(inputs["machines-layer"]), out / root.name)
     for claimed in claimed_bakes(inputs, out):
         take_bake(*claimed)
     take_ground(inputs["terrain"], folder.name, out / root.name)
+    unplaced = sounds.take(pathlib.Path(inputs["sound"]), out / root.name, inputs) if "sound" in inputs else []
+    taken = {name: pathlib.Path(inputs[name]).name for name in READS if name in inputs}
+    (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE,
+                                                 "record": record, "layers": taken, "unplaced sounds": unplaced},
+                                                indent=1))
+
+
+def take_record(inputs, out, place):
+    """The place's scene record, written beside the stage (RECORD): its accepted scene-record output's, written over
+    the seed base's record prims (RECORD_ROOTS removed, tools/usd/scene.py's writer run again on the base with the
+    place's kit and ground record, as export.py runs it); for a place with none, the seed's own record, unverified. Where it came from,
+    for origin.json."""
+    if "scene-record" not in inputs and "scene" not in inputs:
+        return "none: the place has no scene record"
+    if "scene-record" not in inputs:
+        shutil.copy2(inputs["scene"], out / RECORD)
+        return f"the seed's record ({pathlib.Path(inputs['scene']).name}), unverified: no scene-record row"
+    import ground as grounds
+    import scene
+    from pxr import Sdf, Usd
+    made = pathlib.Path(inputs["scene-record"]) / "record" / f"{place}.json"
+    shutil.copy2(made, out / RECORD)
+    record = json.loads(made.read_text())
+    kit = json.loads(pathlib.Path(inputs["kit"]).read_text())
+    base = Sdf.Layer.FindOrOpen(str(out / BASE_LAYER))
+    edit = Sdf.BatchNamespaceEdit()
+    for name in RECORD_ROOTS:
+        if base.GetPrimAtPath(f"/{place}/{name}"):
+            edit.Add(f"/{place}/{name}", Sdf.Path.emptyPath)
+    if not base.Apply(edit):
+        raise RuntimeError(f"{place}: the seed's record prims could not be removed from its base")
+    ground = grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))  # as export.py's main: None for a room
+    scene.write(Usd.Stage.Open(base), place, record, out, kit=kit, pieces=laid_pieces(kit, record), ground=ground)
+    base.Save()
+    return f"scene-record@{place}"
 
 
 def claiming_places(place):
@@ -142,30 +216,50 @@ def stamp_baked_hash(base, model, gltf):
     layer.Save()
 
 
-def take_effects(made, root):
-    """The effects stage's layer and its baked clips in place of the seed's, held by the root just over the base."""
-    from pxr import Sdf
-    shutil.rmtree(root.parent / EFFECTS_CLIPS, ignore_errors=True)
-    shutil.copytree(pathlib.Path(made) / EFFECTS_CLIPS, root.parent / EFFECTS_CLIPS)
-    shutil.copy2(pathlib.Path(made) / EFFECTS_LAYER, root.parent / EFFECTS_LAYER)
-    layer = Sdf.Layer.FindOrOpen(str(root))
-    layers = list(layer.subLayerPaths)
-    if f"./{EFFECTS_LAYER}" not in layers:
-        layers.insert(layers.index(BASE_LAYER), f"./{EFFECTS_LAYER}")
-        layer.subLayerPaths = layers
-        layer.Save()
+def laid_pieces(kit, record):
+    """A kit's pieces as the record's writer reads them for its lamps (scene.kit_lights): a walkway tube's on every
+    bay of its way, each with its spot (export.tube_spots, as export.kit_room_pieces lays them); another's as laid."""
+    if "bay" not in kit or not record.get("tube_length"):
+        return kit["pieces"]
+    import export
+    return [dict(laid, spot=spot.tolist()) for laid in kit["pieces"]
+            for spot in export.tube_spots(laid, record["tube_length"], float(kit["bay"]))]
 
 
-def take_machines(made, root):
-    """The machines stage's layer (experimental) and its models' assets, held by the root just over the base."""
+def take_layer(made, root, layer, assets):
+    """A layer stage's layer in place of the seed's (or beside it), with its assets: a folder of its own replaced
+    whole, the shared assets/ merged. The root holds it in its place (hold) and plays as long as it does."""
     from pxr import Sdf
-    shutil.copytree(made / "assets", root.parent / "assets", dirs_exist_ok=True)
-    shutil.copy2(made / MACHINES_LAYER, root.parent / MACHINES_LAYER)
-    layer = Sdf.Layer.FindOrOpen(str(root))
-    layers = list(layer.subLayerPaths)
-    layers.insert(layers.index(BASE_LAYER), f"./{MACHINES_LAYER}")
-    layer.subLayerPaths = layers
-    layer.Save()
+    if assets:
+        if assets != "assets":
+            shutil.rmtree(root.parent / assets, ignore_errors=True)
+        shutil.copytree(made / assets, root.parent / assets, dirs_exist_ok=True)
+    (root.parent / layer).parent.mkdir(exist_ok=True)
+    shutil.copy2(made / layer, root.parent / layer)
+    hold(root, f"./{layer}")
+    taken = Sdf.Layer.FindOrOpen(str(root.parent / layer))
+    if taken.HasEndTimeCode():
+        stage_root = Sdf.Layer.FindOrOpen(str(root))
+        stage_root.startTimeCode = 0.0
+        stage_root.endTimeCode = max(taken.endTimeCode, stage_root.endTimeCode if stage_root.HasEndTimeCode() else 0)
+        stage_root.timeCodesPerSecond = taken.timeCodesPerSecond
+        stage_root.framesPerSecond = taken.framesPerSecond
+        stage_root.Save()
+
+
+def hold(root, layer):
+    """The root holding `layer` among its sublayers, all in ORDER (strongest first, by file name); one ORDER does
+    not name goes just over the base."""
+    from pxr import Sdf
+    found = Sdf.Layer.FindOrOpen(str(root))
+    layers = [path for path in found.subLayerPaths if path != layer] + [layer]
+
+    def rank(path):
+        stem = pathlib.PurePosixPath(path).stem
+        return ORDER.index(stem) if stem in ORDER else ORDER.index("base") - 0.5
+
+    found.subLayerPaths = sorted(layers, key=rank)
+    found.Save()
 
 
 def take_ground(grounds, place, root):
@@ -173,13 +267,8 @@ def take_ground(grounds, place, root):
     made = sorted(pathlib.Path(grounds).glob(f"*/places/{place}.usdc"))
     if not made:
         return
-    from pxr import Sdf
     shutil.copy2(made[0], root.parent / GROUND_LAYER)
-    layer = Sdf.Layer.FindOrOpen(str(root))
-    layers = list(layer.subLayerPaths)
-    layers.insert(layers.index(BASE_LAYER), f"./{GROUND_LAYER}")
-    layer.subLayerPaths = layers
-    layer.Save()
+    hold(root, f"./{GROUND_LAYER}")
 
 
 def stage_file(output):
@@ -248,6 +337,39 @@ def gather_drop_run(output, inputs, folder):
     return folder / "settled.json"
 
 
-CHECKS = (checks.Check("placeholders", judge_placeholders),
+def needed_layers(place, expected):
+    """The layer stages a place needs (data/checks/contents.json's needs, and EVERY_PLACE): none for a part of another
+    place (judged on its host), None for a place it does not list."""
+    needs = expected["places"].get(place)
+    if needs is None:
+        return None
+    if "part_of" in needs:
+        return []
+    return [*EVERY_PLACE, *(stage for need, stage in NEEDS.items() if needs.get(need))]
+
+
+def judge_layers(output, inputs, evidence):
+    """Unknown while a layer the place needs has no accepted output the assembly took (never a seed's in its place);
+    fail on a sound of the sound layer that plays at nothing on the stage."""
+    origin = json.loads((output / "origin.json").read_text())
+    place = stage_file(output).stem
+    needed = needed_layers(place, json.loads(pathlib.Path(inputs["expected contents"]).read_text()))
+    taken = sorted(origin["layers"])
+    measures = {"taken": len(taken), "unplaced sounds": len(origin["unplaced sounds"])}
+    if origin["unplaced sounds"]:
+        return checks.Verdict("layers", checks.FAIL, f"{len(origin['unplaced sounds'])} sounds play at nothing on "
+                              "the stage", measures, {"unplaced sounds": "lower"}, tuple(origin["unplaced sounds"]))
+    if needed is None:
+        return checks.Verdict("layers", checks.UNKNOWN, f"{place} is not listed in data/checks/contents.json, so "
+                              "the layers it needs are not known", measures)
+    waiting = [f"{name}@{place}" for name in needed if name not in origin["layers"]]
+    if waiting:
+        return checks.Verdict("layers", checks.UNKNOWN, f"waits on {', '.join(waiting)} (no accepted output taken); "
+                              f"took {', '.join(taken) or 'none'}", measures, findings=tuple(waiting))
+    return checks.Verdict("layers", checks.PASS, f"every layer it needs taken ({', '.join(needed) or 'none'}); took "
+                          f"{', '.join(taken) or 'none'}; record: {origin['record']}", measures)
+
+
+CHECKS = (checks.Check("layers", judge_layers), checks.Check("placeholders", judge_placeholders),
           checks.Check("resting", judge_resting, evidence="a drop run (settle.py --dry-run)"))
 GATHERERS = {"resting": (gather_drop_run, DROP_EUROS)}

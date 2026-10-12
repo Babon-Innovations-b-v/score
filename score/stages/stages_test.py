@@ -56,7 +56,8 @@ def made(output, inputs, evidence):
 # (their own checks are score/stages/surfaces' and score/stages/props').
 NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
                                 (checks.Check("made", made),), applies=lambda place: False)
-                    for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts"))
+                    for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
+                                 "sound", "scene-record", "motion"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
@@ -72,8 +73,10 @@ def test_the_worked_example_on_world_1s_seeds():
         world, store, runner = scenario(root)
         first = runner().run(PLACES)
         assert first["assembly@hangar"] == "made: fail", first
-        assert first["complete@hangar"].startswith("blocked: assembly@hangar answered fail: placeholders: 12 meshes "
-                                                   "stand in for made pieces; resting: no evidence"), first
+        assert first["complete@hangar"].startswith("blocked: assembly@hangar answered fail: layers: waits on "
+                                                   "sound@hangar, light@hangar, motion@hangar (no accepted output "
+                                                   "taken); took effects-layer; placeholders: 12 meshes stand in for "
+                                                   "made pieces; resting: no evidence"), first
         assert first["assembly@hdoor"] == "made: unknown", first
         assert first["complete@hdoor"] == ("blocked: assembly@hdoor answered unknown: resting: no evidence: a drop "
                                            "run (settle.py --dry-run) for this output is missing"), first

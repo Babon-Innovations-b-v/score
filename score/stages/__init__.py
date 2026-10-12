@@ -44,10 +44,11 @@ EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, eff
 # SCORE gives the things that move there (data/movers), over its seed stage; the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
                      applies=motion.applies)
+# The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
+# joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
-                       files=assembly.FILES, gatherers=assembly.GATHERERS,
-                       after={"terrain": ("grounds", 1), "effects-layer": ("effects-layer", 1),
-                              "machines-layer": ("machines-layer", 1),
+                       files=assembly.files, gatherers=assembly.GATHERERS,
+                       after={"terrain": ("grounds", 1),
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        neighbours=assembly.claiming_places)
@@ -152,6 +153,20 @@ STAGES = (TERRAIN, EFFECTS, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
           *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES, MACHINE_BOXES, MOTION)
+
+
+def layered(row, names):
+    """The assembly reading every layer stage of assembly.READS the table holds (`names`): a layer stage joins its
+    reads the day it joins the table, and one not built yet is never silently stood in for by the seed's (the
+    assembly's layers gate answers unknown on a layer the place needs and lacks)."""
+    if row.name != "assembly":
+        return row
+    return dataclasses.replace(row, after={**row.after, **{name: wanted for name, wanted in assembly.READS.items()
+                                                         if name in names}})
+
+
+STAGES = tuple(layered(row, {stage.name for stage in STAGES}) for row in STAGES)
+ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 
 def world1():

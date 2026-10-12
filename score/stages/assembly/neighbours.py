@@ -1,6 +1,7 @@
 """The neighbours stage (experimental, PRD #6): a place's accepted assembly with every other place its scene record
-shows (`places` in data/scene/<place>.json: the square and the launch past the flat's balcony) standing in it, each
-read from the store, so a view looks out onto the other place and not onto empty space.
+shows (`places`: the square and the launch past the flat's balcony) standing in it, each read from the store, so a
+view looks out onto the other place and not onto empty space. The record is the one the assembly built from (its
+scene.json: the accepted scene-record output where the place has one, else data/scene/<place>.json).
 
     make     copies the place's accepted assembly, then each neighbour's accepted assembly (read beside, as the runner
              reads `after`: versioned and waited on) into places/<neighbour>/, and points the base layer's reference
@@ -16,19 +17,31 @@ import pathlib
 import shutil
 
 from score import checks
-from score.stages.assembly import stage_file
+from score.stages import scene_record
+from score.stages.assembly import RECORD, stage_file
+from score.store import Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACES = "places"
 SEEN = "seen {}"
 
 
+def record_of(place):
+    """The scene record the place's assembly builds from: its accepted scene-record output (the framework's store)
+    where its plan has the row, else its seed record in data/scene; {} for a place with neither."""
+    if scene_record.written(place):
+        store = Store.default()
+        output = store.accepted(f"scene-record@{place}")
+        if output:
+            return store.read_file(output, f"record/{place}.json")
+    path = REPO / f"data/scene/{place}.json"
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
 def shown(place):
     """The other places the place's scene record shows, by stage name (a place shown in itself, the tube's twin, is
     its own base layer and no neighbour)."""
-    record = REPO / f"data/scene/{place}.json"
-    entries = json.loads(record.read_text()).get("places", []) if record.exists() else []
-    return sorted({entry["stage"] for entry in entries} - {place})
+    return sorted({entry["stage"] for entry in record_of(place).get("places", [])} - {place})
 
 
 def neighbours(place):
@@ -53,7 +66,8 @@ def make(inputs, out, seed, params):
     from pxr import Sdf
     shutil.copytree(inputs["assembly"], out, dirs_exist_ok=True, copy_function=shutil.copyfile)
     base = Sdf.Layer.FindOrOpen(str(out / "layers/base.usda"))
-    for other in shown(stage_file(out).stem):
+    entries = json.loads((out / RECORD).read_text()).get("places", [])
+    for other in sorted({entry["stage"] for entry in entries} - {stage_file(out).stem}):
         source = inputs.get(f"assembly@{other}") or inputs[SEEN.format(other)]
         shutil.copytree(source, out / PLACES / other, copy_function=shutil.copyfile)
         base.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda", f"../{PLACES}/{other}/{other}.usda")
@@ -78,7 +92,7 @@ def judge_neighbours(output, inputs, evidence):
     place = stage.GetDefaultPrim().GetName()
     scope = stage.GetPrimAtPath(f"/{place}/Places")
     standing = {prim.GetName(): prim for prim in (scope.GetAllChildren() if scope else [])}
-    entries = json.loads(pathlib.Path(inputs["scene record"]).read_text()).get("places", [])
+    entries = json.loads((output / RECORD).read_text()).get("places", [])
     faults = [f"/{place}/Places/{entry['name']}: in the scene record, not in the stage" for entry in entries
               if entry["name"] not in standing]
     for name, prim in sorted(standing.items()):
