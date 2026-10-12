@@ -495,6 +495,14 @@
 					"second": "steel",
 					"contrast": 0.15,
 					"roughness": 0.55
+				},
+				"steel_dark": {
+					"recipe": "bare_metal",
+					"token": "steel-dark",
+					"roughness": 0.45,
+					"bump": 0.0002,
+					"bump_size": 0.05,
+					"said": "added 2026-10-12 for the people stage (#5), from the colour check of the people line (its measured close-up colour); owner to review"
 				}
 			}
 		},
@@ -535,6 +543,11 @@
 				"anodized_gold": {
 					"recipe": "anodized",
 					"token": "sign-gold"
+				},
+				"gold_band": {
+					"recipe": "anodized",
+					"token": "suit-gold",
+					"said": "added 2026-10-12 for the people stage (#5), from the colour check of the people line (its measured close-up colour); owner to review"
 				}
 			}
 		},
@@ -663,6 +676,14 @@
 					"bump": 0.0002,
 					"bump_size": 0.02,
 					"said": "added 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the street's red water-filled barrier, close-up L*a*b* [59.1, 34.3, 18.9]; the nearest palette token, dE 16.8); owner to review"
+				},
+				"leather_black": {
+					"recipe": "rubber",
+					"token": "rubber",
+					"roughness": 0.45,
+					"bump": 0.0002,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review"
 				}
 			}
 		},
@@ -820,6 +841,86 @@
 					"bump": 0.0003,
 					"bump_size": 0.002,
 					"said": "added 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the hanging space suit's matte orange fabric, close-up L*a*b* [71.8, 29.2, 56.1]; the nearest palette token, dE 8.8); owner to review"
+				},
+				"suit_navy": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "suit-navy"
+				},
+				"suit_panel_grey": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "suit-panel-grey"
+				},
+				"strap_green": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "strap-green"
+				},
+				"mitten_grey": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "suit-pad"
+				},
+				"suit_white": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "sign-white"
+				},
+				"suit_light_blue": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): a look's clothing at its close-up's main colour; owner to review",
+					"token": "suit-light-blue"
+				},
+				"olive_drab": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): a look's clothing at its close-up's main colour; owner to review",
+					"token": "olive-drab"
+				},
+				"wool_charcoal": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): a look's clothing at its close-up's main colour; owner to review",
+					"token": "wool-charcoal"
+				},
+				"wool_grey": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): a look's clothing at its close-up's main colour; owner to review",
+					"token": "wool-grey"
+				},
+				"jacket_blue": {
+					"recipe": "rubber",
+					"roughness": 0.9,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): a look's clothing at its close-up's main colour; owner to review",
+					"token": "jacket-blue"
 				}
 			}
 		},
@@ -2409,6 +2510,58 @@
 					"roughness": 0.9,
 					"bump": 0.0001,
 					"said": "added overnight 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the seed tray's printed paper, close-up L*a*b* [78.0, -0.4, 10.7]); owner to review"
+				}
+			}
+		},
+		"skin": {
+			"is": "A person's bare skin: face, neck and hands",
+			"surface": "rubber",
+			"variants": {
+				"skin_light": {
+					"recipe": "rubber",
+					"roughness": 0.6,
+					"bump": 0.0001,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "skin-light"
+				},
+				"skin_medium": {
+					"recipe": "rubber",
+					"roughness": 0.6,
+					"bump": 0.0001,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "skin"
+				},
+				"skin_dark": {
+					"recipe": "rubber",
+					"roughness": 0.6,
+					"bump": 0.0001,
+					"bump_size": 0.002,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "skin-dark"
+				}
+			}
+		},
+		"hair": {
+			"is": "A person's hair, brows and beard",
+			"surface": "rubber",
+			"variants": {
+				"hair_black": {
+					"recipe": "rubber",
+					"roughness": 0.7,
+					"bump": 0.0003,
+					"bump_size": 0.001,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "hair-black"
+				},
+				"hair_brown": {
+					"recipe": "rubber",
+					"roughness": 0.7,
+					"bump": 0.0003,
+					"bump_size": 0.001,
+					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review",
+					"token": "hair"
 				}
 			}
 		}
