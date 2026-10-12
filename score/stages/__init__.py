@@ -14,14 +14,15 @@ after. Neighbours (experimental) stands the places a place's scene record shows 
 own accepted assembly. The prop route (props: close-up, Pixal3D, then the surface line, then the likeness gate) runs
 only for a place with prop data. Plan and scene-record (experimental) write a place's scene record from its plan and
 concept. Cast (experimental) places each place's people and measures them against its concept's count
-(concept_people) and its geometry. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
+(concept_people) and its geometry. Motion (experimental) makes each place's motion layer from its game motions
+and its movers. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import (assembly, cast, complete, concept_people, effects, images, machines, people, physics,
-                          props, scene_record, sound, surfaces, terrain)
+from score.stages import (assembly, cast, complete, concept_people, effects, images, machines, motion, people,
+                          physics, props, scene_record, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -39,6 +40,10 @@ TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain
 # assembly takes.
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
                       applies=lambda place: place in effects.STAGED)
+# Experimental (PRD #6) until the owner reviews it: each place's motion layer, the game's timed motions and the movers
+# SCORE gives the things that move there (data/movers), over its seed stage; the final assembly takes it.
+MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
+                     applies=motion.applies)
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
                        files=assembly.FILES, gatherers=assembly.GATHERERS,
                        after={"terrain": ("grounds", 1), "effects-layer": ("effects-layer", 1),
@@ -146,7 +151,7 @@ def prop_fed(row):
 STAGES = (TERRAIN, EFFECTS, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER, PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES, MACHINE_BOXES)
+          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES, MACHINE_BOXES, MOTION)
 
 
 def world1():

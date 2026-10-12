@@ -202,8 +202,12 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   outermost translate), as overs, from `data/motion/<place>.json` (each motion's prim, its cycle:
   start, length, loop, its game numbers with a `from`, and the sounds the game plays with it for `sound.py`). A thing
   the game moves but the base does not draw while it rests (the airlock's sunk inner door, a dark warning light) is
-  the motion's `adds`, the layer's only defs. Animate only what the game moves, at its own speeds and lengths; a rest
+  the motion's `adds`, the layer's only defs. A game motion keeps the game's own speeds and lengths; a rest
   the player's pace decides is the record's and says so. `motion_test.py` checks it without Blender.
+- **Movers** (`movers.py`, experimental): what the game left standing set moving in its place from
+  `data/movers/<place>.json` (a closed path, a swing on a hinge, a spin, or a motion record's slide), written into the
+  same `layers/motion.usda` with the game's motions over a stage folder's own layers. Every number has a source (its
+  `from`; the kind's speed range in `data/checks/motion.json`); the motion stage (`score/stages/motion`) gates it.
 - **Framework shaders** (`shaders.py`): a surface the library's flat colour cannot carry gets a UsdPreviewSurface
   over a picture the framework bakes (`earth_face`: `earth.py`, NASA's Blue Marble and cloud cover, the real
   planet; a record's Earth turned by `placed_turn` so its equator and Africa face the place, as photographs from the

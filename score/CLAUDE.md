@@ -83,7 +83,9 @@ stage as each stage is built; nothing moves before.
   (`data/machines/<place>.json`: the garage's rover) on what holds them up, gated on outline, parts present and
   resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
   overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place with `data/physics/<place>.json`
-  (the habitat). A stage reads without an earlier place stage that does not apply to its place
+  (the habitat). `motion` (experimental, places with a movers record) writes a place's motion layer from its game
+  motions and its movers in `data/movers/`, gated on clear, speeds, loops, grounded and covered (its overlay). A
+  stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
 
 Rules:
