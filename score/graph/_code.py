@@ -95,6 +95,13 @@ def code_version(functions, hash_file):
     return parts
 
 
+def holds(commit):
+    """True when this checkout's HEAD is `commit` or comes after it; False for a commit it lacks or one only a newer
+    main holds."""
+    return subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", commit, "HEAD"],
+                          capture_output=True).returncode == 0
+
+
 def git_commit():
     """The repository's commit, and whether its tree has changes not committed."""
     head = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True, check=True)

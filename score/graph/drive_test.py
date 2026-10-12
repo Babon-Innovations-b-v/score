@@ -476,6 +476,32 @@ def test_a_lock_held_past_its_wait_blocks_and_makes_nothing():
     assert runner.run_node(runner.stages["slow"], "hangar") == "made: pass, accepted automatically"
 
 
+def make_note(inputs, out, seed, params):
+    (out / "note.txt").write_text(inputs["note"].read_text())
+
+
+def test_a_run_never_accepts_over_an_output_a_newer_commit_made_under_another_key():
+    """Fault (2026-10-12): a runner in an older worktree accepted terrain's old output over the newer accepted one."""
+    data, world = a_world_of(["hangar"])
+    (data / "hangar" / "note.txt").write_text("new")
+    note = graph.Stage("note", "place", make_note, TEXT, MET, files={"note": "{data}/{place}/note.txt"})
+    runner = graph.Runner((note,), world, Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    assert runner.run_node(note, "hangar") == "made: pass, accepted automatically"
+    newer = runner.store.accepted("note@hangar")
+    (data / "hangar" / "note.txt").write_text("old")  # the older checkout's input: another key
+    saved = graph._code.holds
+    graph._code.holds = lambda commit: False  # the accepted output's commit is one this checkout lacks
+    try:
+        did = runner.run_node(note, "hangar")
+    finally:
+        graph._code.holds = saved
+    assert did.startswith("made: pass, not accepted: key differs from the accepted one") and "pull main" in did, did
+    assert runner.store.accepted("note@hangar") == newer
+    (data / "hangar" / "note.txt").write_text("newest")  # a run whose checkout holds the accepted one's commit
+    assert runner.run_node(note, "hangar") == "made: pass, accepted automatically"
+    assert runner.store.accepted("note@hangar") != newer
+
+
 def make_failing(inputs, out, seed, params):
     raise RuntimeError("names failed")
 

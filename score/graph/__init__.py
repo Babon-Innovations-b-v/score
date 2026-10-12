@@ -480,9 +480,27 @@ class Runner:
         else:
             judgement = self.judge(stage, place, record)
             done = f"{'made' if made else 'judged again, output kept'}: {judgement['answer']}"
-        accepted = self.store.accepted(node) != record["output"] and review.accept_automatically(
-            self.store, node, record["output"])
+        if self.store.accepted(node) == record["output"]:
+            return done
+        newer = self.newer_accepted(node, keyed["key"])
+        if newer:
+            return f"{done}, not accepted: {newer}"
+        accepted = review.accept_automatically(self.store, node, record["output"])
         return f"{done}, accepted automatically" if accepted else done
+
+    def newer_accepted(self, node, key):
+        """Why this run must not accept over the node's accepted output: it was made under another key by a commit
+        this checkout does not hold (a runner in an older worktree accepted terrain's old output over the new one,
+        2026-10-12); None when the accepted output has this key, or was made by this commit or one before it."""
+        accepted = self.store.accepted(node)
+        records = [record for record in self.store.records(node) if record["output"] == accepted]
+        if not records or any(record["key"] == key for record in records):
+            return None
+        commits = [record.get("commit") for record in records]
+        if any(commit and _code.holds(commit) for commit in commits):
+            return None
+        return (f"key differs from the accepted one ({accepted[:12]}, made at commit "
+                f"{(commits[-1] or 'unknown')[:8]}, which this checkout does not hold); pull main")
 
     def nodes(self, places):
         """Every (stage, place) in table order: a world stage once, a place stage once per place."""
