@@ -43,10 +43,11 @@ def looks():
 
 
 def files(look, entry):
-    """The world files a look's body reads: its spec, the people's data, the maker's and people tools' code (run
-    by path, so not in the code version otherwise), its take's model and close-up, and the clips."""
+    """The world files a look's body reads: its spec, the maker's and people tools' code (run
+    by path, so not in the code version otherwise), its take's model and close-up, and the clips. Its entry in the
+    people's data is its row's parameters, so another look's edit there leaves its key alone."""
     take = entry["take"]
-    return {"spec": "{repo}/" + entry["spec"], "people": "{data}/surfaces/people.json",
+    return {"spec": "{repo}/" + entry["spec"],
             "maker": "{repo}/tools/characters/maker", "people tools": "{repo}/tools/characters/people",
             "model": f"{PIXAL}/{take}.glb", "finished": f"{PIXAL}/{take}-final.glb",
             "close-up": f"{PIXAL}/{take}.svviews", "clips": str(MOTION_HOME / "work/motions")}
@@ -244,6 +245,7 @@ def far_checks():
 def rows():
     """One paid world row a look; a far-crowd look (`far_only`) is built only and gated on what a far body shows."""
     return tuple(graph.Stage(f"{BODY}-{look}", "world", made(look, entry), contracts.Contract(BODY, 1, body_faults),
-                             far_checks() if entry.get("far_only") else checks(), files=files(look, entry), paid=True,
+                             far_checks() if entry.get("far_only") else checks(), files=files(look, entry),
+                             params={key: value for key, value in entry.items() if key != "object"}, paid=True,
                              euros=FAR_EUROS if entry.get("far_only") else EUROS)
                  for look, entry in looks().items())
