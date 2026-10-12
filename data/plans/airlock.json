@@ -84,11 +84,15 @@
  "leads": {
   "N": {
    "to": "hub",
-   "why": "the inner door opens straight onto the hub's airlock door (its facet at 330 degrees): the base's modules (data/definitions/base.json) stand the airlock on the hub's seat with its north wall against that facet; its leaf (inventory door_leaf) sinks into the floor to open"
+   "why": "the inner door opens straight onto the hub's airlock door (its facet at 330 degrees): the base's modules (data/definitions/base.json) stand the airlock on the hub's seat with its north wall against that facet; its leaf (inventory door_leaf) sinks into the floor to open; the record stands no leaf here: the airlock's cycle (its motion) copies the outer door's leaf here, sunk open while the chamber holds air"
   },
   "S": {
    "to": "outside",
-   "why": "the outer door opens onto the ramp (inventory outer_ramp) down to the Moon's regolith round the base; its leaf (inventory door_leaf) sinks into the floor"
+   "why": "the outer door opens onto the ramp (inventory outer_ramp) down to the Moon's regolith round the base; its leaf (inventory door_leaf) sinks into the floor",
+   "leaf": {
+    "row": "door_leaf",
+    "name": "outer_door"
+   }
   }
  },
  "rows": {

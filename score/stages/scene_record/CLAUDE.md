@@ -37,7 +37,8 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   glass, deck; its two open ends `near` and `far`, its frame anchored at the near end). A sloped item outside (`2.5 m
   at 20 deg`, the airlock's ramp) is a plain plate, a `plot` item soil in a curb (it names no rows; an element may
   name it as `item`), and an inventory row made by the route at its own spots (the hub's console) or naming a world
-  release model (`release_model`: the airlock's suit) an object. `flat` (the hangar: capsule walls and deck, a roof of
+  release model (`release_model`: the airlock's suit) an object, as is a door leaf a lead names (`leaf`: the airlock's
+  outer door, which its cycle's motion moves and copies for the inner door). `flat` (the hangar: capsule walls and deck, a roof of
   four slabs on the walls' top round the room layout's door `opening`, a `roof_door` plan item naming no rows, the
   layout's roof leaf stood shut over each half of the opening, raised clear of the wall tops; the openings gate judges
   the roof leaves open).

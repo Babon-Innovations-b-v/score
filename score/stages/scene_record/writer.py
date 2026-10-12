@@ -12,7 +12,8 @@ and builders.py build it unchanged; it lands as record/<place>.json in the outpu
                  slabs round its door opening), its layout's glass_dome a glass dome; a sloped item outside is a plate
                  (ramps), a plot soil in a curb (plots)
     objects      each inventory row the kit does not lay, at its own spots: the route made it (the hub's furniture) or
-                 it names a world release model (the airlock's suit)
+                 it names a world release model (the airlock's suit); and each door leaf a plan lead names (`leaf`),
+                 shut in its doorway (the airlock's outer door, which its cycle moves and copies for the inner door)
     places       each door's leaves (the plan's `leaves` kit, the inventory's leaf size, shut in the doorway), a flat
                  roof's leaves (the layout's leaf that lies on the roof, shut over its opening); a door
                  joined to another place's door by a walkway tube (the tube's stage stood from this doorway to that
@@ -248,6 +249,25 @@ def objects(place, inventory):
                           "at": [spot["x"], spot["y"], spot["z"]], "yaw": -float(spot.get("facing", 0.0)),
                           "from": f"inventory row {row['id']} ({made[1]}): its spot {number}, facing "
                                   f"{spot.get('facing', 0.0)} degrees"})
+    return found
+
+
+def door_leaves(place, plan, kit):
+    """Each door leaf the plan's leads name (`leaf`: the airlock's outer door, which its cycle's motion moves and copies
+    for the inner door) as an object shut in its doorway, the kit's model of its inventory row."""
+    found = []
+    for door in plan["doors"]:
+        leaf = door.get("leaf")
+        if not leaf:
+            continue
+        model = f"{leaf['row']}_1"
+        if model not in kit.get("models", {}):
+            raise ValueError(f"{place}: door {door['plan_side']}'s leaf, row {leaf['row']}, has no model {model} in "
+                             "its kit")
+        found.append({"name": leaf["name"], "row": leaf["row"], "model": f"models/{place}_kit/{model}.gltf",
+                      "at": door["middle"], "yaw": LEAF_YAW[door["side"]],
+                      "from": f"plan door {door['plan_side']} ({door['what']}): its leaf, inventory row {leaf['row']} "
+                              f"(the kit's {model}), shut in its doorway"})
     return found
 
 
@@ -522,7 +542,9 @@ def record_of(place, plan, inputs):
                      "its inventory, the made ground's seats and the world's sky record. Frame: the room's middle on "
                      "its floor, x east, z south.",
             "floor": plan["floor"], "ceiling": round(walls["high"] + walls["rise"], 4), "inside": True,
-            "structure": shell(plan) + ramps(plan, inventory) + plots(plan), "objects": objects(place, inventory),
+            "structure": shell(plan) + ramps(plan, inventory) + plots(plan),
+            "objects": objects(place, inventory) + door_leaves(place, plan, read(pathlib.Path(inputs["kits"]) /
+                                                                                 f"{place}.json")),
             "lights": [fill(plan, indoor)], "environment": environment(plan, indoor, body),
             "views": views(plan, eye), "places": places_of(place, plan, inputs, grounds),
             # A walkway tube's run, which its kit's bays are laid along (the assembly reads it).

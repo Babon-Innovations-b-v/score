@@ -33,8 +33,7 @@
 		"airlock_under_floor_box": 2,
 		"airlock_pipe_bracket": 8,
 		"airlock_hose_reel": 2,
-		"airlock_tool_case": 1,
-		"airlock_door_leaf": 2
+		"airlock_tool_case": 1
 	},
 	"kinds": {
 		"airlock_wall_lower_plain": {
@@ -133,9 +132,6 @@
 			"group": "hangs"
 		},
 		"airlock_cable_bundle": {
-			"group": "hangs"
-		},
-		"airlock_door_leaf": {
 			"group": "hangs"
 		}
 	},
@@ -4331,68 +4327,6 @@
 			],
 			"layer": 1,
 			"model": "door_frame_1"
-		},
-		{
-			"kind": "airlock_door_leaf",
-			"at": [
-				0.0,
-				0.0,
-				-2.35
-			],
-			"x": [
-				-1.0,
-				0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.0,
-				-0.0,
-				-1.0
-			],
-			"size": [
-				2.4,
-				2.7,
-				0.2
-			],
-			"layer": 1,
-			"door": "north",
-			"model": "door_leaf_1"
-		},
-		{
-			"kind": "airlock_door_leaf",
-			"at": [
-				0.0,
-				0.0,
-				2.35
-			],
-			"x": [
-				1.0,
-				-0.0,
-				0.0
-			],
-			"y": [
-				0.0,
-				1.0,
-				0.0
-			],
-			"z": [
-				-0.0,
-				-0.0,
-				1.0
-			],
-			"size": [
-				2.4,
-				2.7,
-				0.2
-			],
-			"layer": 1,
-			"door": "south",
-			"model": "door_leaf_1"
 		},
 		{
 			"kind": "airlock_roof_face_panel",

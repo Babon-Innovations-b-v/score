@@ -80,8 +80,6 @@ SEED_REASONS = {
                              "item), 3.6 m from where the old record stood it off that middle",
     "launch:lights/spot": "the rocket's one floodlight is now the pad's four (inventory row far_pad_floodlight), each "
                           "lit at its lamp and aimed at the rocket's middle",
-    "airlock:objects/outer_door": "the door leaves are kit pieces (inventory door_leaf, one shut in each door frame), "
-                                  "laid with the kit, not objects of the record",
     **{f"hangar:structure/{name}": "the ship is the inventory's row ship (the machines track's), not a hull the shell "
                                    "builds in code"
        for name in ("ship", "ship_legs")},
