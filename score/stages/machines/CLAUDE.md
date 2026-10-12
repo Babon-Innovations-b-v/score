@@ -14,7 +14,7 @@ trial in a world of its own.
 - **The likeness gate's DINOv2 half** is not judged until `likeness.LIKENESS_LEAST` is set; `outline` alone does not
   tell like shapes apart (props overlay).
 - **Machine rows** are inventory rows with `"machine": true`: the hangar's `ship` (its box the partition's proposals
-  round the hull) and the workshop robot P1's eight parts (`robot_*`, `"box": null` with `unseen`: concept K10 shows
-  no robot, so no close-up can be drawn and they have no take yet). `machines-boxes@<place>` (`boxes.py`, paid, about
-  EUR 1) grounds the machine rows' boxes with SAM 3 and records the grounded ones where the box gate reads them.
+  round the hull). The workshop robot's eight part rows were dropped (captain, 2026-10-12): concept K10 shows no
+  robot, and the concept decides. `machines-boxes@<place>` (`boxes.py`, paid, about EUR 0.03 measured) grounds the
+  machine rows' boxes with SAM 3 and records the grounded ones where the box gate reads them.
 - `machines_test.py` lays a stand-in rover on the garage's seed and breaks each gate once.
