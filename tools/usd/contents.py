@@ -9,7 +9,10 @@ blocks like fail.
                 (characters-layer@<place>, the cast stage) wrote every person of it with no look missing and none
                 the licence rule refused; without one, the stage's bodies are the seed's, each judged by its built
                 body's report, and a body of SOMA's mesh in drapes is no made model (the owner, #5, 2026-10-10:
-                "soma is for the rig, not the mesh"). No cast: unknown
+                "soma is for the rig, not the mesh"); and no far-only look (one data/people/bodies.json does not
+                make in full, the crowd's far body always) stands near enough to fill over FAR_SHARE of the frame
+                height in any of the record's views, as the cast stage measures it (score/stages/cast/spread.py).
+                No cast: unknown
     effects     every need the place has (data/checks/contents.json) is an entry of its effects record that stands
                 under /<place>/Effects (in any variant)
     motion      every motion of its records (data/motion, and data/movers: what SCORE moves that the game left
@@ -60,6 +63,12 @@ WAITING = "score:waiting"  # the root prim's entries of that record laid nothing
 SOUND_LAYER = "./layers/sound.usda"
 MADE_ROUTE = "prop"
 GAME = re.compile(r"\b2099\b|\bthe game\b|\.gd\b|\.tscn\b", re.IGNORECASE)
+# A far-only look may fill at most this share of a view's frame height (a person HEIGHT tall, the frame ASPECT wide, the
+# view's fov vertical): the cast stage's own rule (score/stages/cast/spread.py, the captain's cut of 2026-10-13).
+FAR_SHARE = 0.10
+HEIGHT = 1.7
+ASPECT = 16 / 9
+FULL_LOOKS = "people/bodies.json"
 # The stage outputs a check reads: {name: the accepted output's folder, or None when there is none}.
 OUTPUTS = ("likeness", "surfaces-check", "characters-layer")
 
@@ -159,12 +168,75 @@ def judge_people(stage, place, inventory, outputs):
         bodies |= set() if layer else {crowd["character"]}
     extra = sorted(set(standing) - set(wanted) - ({crowd["name"]} if crowd else set()))
     faults += [f"{name}: on the stage, not in the cast" for name in extra]
+    faults += far_faults(stage, place, cast, standing)
     for body in sorted(body for body in bodies if body):
         faults += body_faults(body)
     if None in bodies:
         faults.append("a character on the stage names no body (score:character)")
     return outcome(faults, f"{len(wanted)} people{' and a crowd of ' + str(crowd['count']) if crowd else ''}, every "
                            "body a made model" if wanted or crowd else cast.get("note", "nobody, as the cast says"))
+
+
+def frame_shares(view, spots):
+    """How much of a view's frame height a person standing at each spot fills (score/stages/cast/spread.frame_share,
+    over many spots at once): 0 behind the eye or out of the frame."""
+    import numpy as np
+    eye, aim = np.asarray(view["eye"], float), np.asarray(view["aim"], float)
+    forward = (aim - eye) / np.linalg.norm(aim - eye)
+    right = np.cross(forward, [0.0, 1.0, 0.0])
+    right /= np.linalg.norm(right)
+    up = np.cross(right, forward)
+    towards = np.asarray(spots, float).reshape(-1, 3) + [0.0, HEIGHT / 2, 0.0] - eye
+    depth = towards @ forward
+    half = np.tan(np.radians(view.get("fov", 70)) / 2)
+    seen = (depth > 0.0) & (np.abs(towards @ up) <= half * depth) & (np.abs(towards @ right) <= half * ASPECT * depth)
+    return np.where(seen, HEIGHT / (2 * np.maximum(depth, 1e-9) * half), 0.0)
+
+
+def far_only(character, look, worn, full):
+    """Whether a character wears a far-only look: its look (`<character>-<outfit>`, from the cast's `look` or the
+    outfit it wears) not made in full; with none known, its character with no look made in full."""
+    outfit = look.removeprefix(f"{character}_") if look else next(
+        (part.removeprefix("plain_").replace("_", "-") for part in worn if part.startswith(("plain_", "work_"))), None)
+    if outfit:
+        return f"{character}-{outfit}" not in full
+    return not any(made.startswith(f"{character}-") for made in full)
+
+
+def far_spots(stage, standing, cast, full):
+    """{name: [spots]} of every far-only character on the stage: a person where it stands, the crowd's copies (its
+    far body) where its instancer puts them."""
+    import numpy as np
+    from pxr import Usd, UsdGeom
+    looks = {person["name"]: person.get("look") for person in cast.get("people", [])}
+    crowd = (cast.get("crowd") or {}).get("name")
+    found = {}
+    for name, prim in standing.items():
+        world = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        if name == crowd and prim.IsA(UsdGeom.PointInstancer):
+            points = np.asarray(UsdGeom.PointInstancer(prim).GetPositionsAttr().Get() or [], float).reshape(-1, 3)
+            matrix = np.asarray(world)
+            found[name] = (points @ matrix[:3, :3] + matrix[3, :3]).tolist()
+            continue
+        about = prim.GetCustomDataByKey("score") or {}
+        if far_only(about.get("character", name), looks.get(name), list(about.get("worn") or []), full):
+            found[name] = [list(world.ExtractTranslation())]
+    return found
+
+
+def far_faults(stage, place, cast, standing):
+    """Each far-only character filling over FAR_SHARE of a view's frame height: who, the view and the share."""
+    full = set(json.loads((DATA / FULL_LOOKS).read_text())["full"])
+    views = (assembled_scene(stage, place) or {}).get("views", [])
+    faults = []
+    for name, spots in far_spots(stage, standing, cast, full).items():
+        for view in views:
+            shares = frame_shares(view, spots)
+            if len(shares) and shares.max() > FAR_SHARE:
+                faults.append(f"{name}: a far-only look fills {shares.max():.1%} of the frame height in view "
+                              f"{view.get('name', '?')} ({int((shares > FAR_SHARE).sum())} of {len(spots)} over "
+                              f"{FAR_SHARE:.0%})")
+    return faults
 
 
 # --- effects and motion ---------------------------------------------------------------------------------------------

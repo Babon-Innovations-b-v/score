@@ -30,6 +30,8 @@ def world_data(folder, place=PLACE, cast=None, needs=None, scene=None, sound=Non
     (data / "scene" / f"{place}.json").write_text(json.dumps(scene or {"place": place, "lights": [], "places": []}))
     (data / "sound/places.json").write_text(json.dumps({"places": {place: sound or {"loops": ["hum"],
                                                                                      "from": "the creator's brief"}}}))
+    (data / "people").mkdir(exist_ok=True)
+    (data / "people/bodies.json").write_text(json.dumps({"full": ["bram-work"]}))
     (folder / "bodies").mkdir(exist_ok=True)
     contents.DATA, contents.BODIES = data, folder / "bodies"
     return data
@@ -251,8 +253,45 @@ def the_assembled_record_and_a_waiting_entry_both_ways():
         return problems_of(cases)
 
 
+def a_far_look_near_a_view_both_ways():
+    """A far-only look (not made in full: the guard; the crowd's far body) filling over a tenth of a view's frame
+    height fails people by name, view and share; the full-body crew member as near passes; the far ones stood back
+    pass."""
+    from pxr import Vt
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        cast = {"place": PLACE, "people": [{"name": "guard", "character": "guard"}, {"name": "bram", "character": "bram",
+                                                                                   "look": "bram_work"}],
+                "crowd": {"name": "crowd", "character": "kit_m_avg", "count": 2}}
+        view = {"name": "gate", "eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, 10.0], "fov": 60}
+        world_data(folder, cast=cast, scene={"place": PLACE, "lights": [], "places": [], "views": [view]})
+        path = bare_stage(folder)
+        stage = Usd.Stage.Open(str(path))
+        for name, depth in (("guard", 3.0), ("bram", 3.0)):
+            person = UsdGeom.Xform.Define(stage, f"/{PLACE}/Characters/{name}")
+            person.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, depth))
+            person.GetPrim().SetCustomDataByKey("score:character", name)
+            (folder / f"bodies/{name}.json").write_text(json.dumps({"route": "prop"}))
+        crowd = UsdGeom.PointInstancer.Define(stage, f"/{PLACE}/Characters/crowd")
+        crowd.CreatePositionsAttr(Vt.Vec3fArray([Gf.Vec3f(0.0, 0.0, 4.0), Gf.Vec3f(0.0, 0.0, 80.0)]))
+        crowd.GetPrim().SetCustomDataByKey("score:character", "kit_m_avg")
+        (folder / "bodies/kit_m_avg.json").write_text(json.dumps({"route": "prop"}))
+        stage.GetRootLayer().Save()
+        near = contents.JUDGES["people"](Usd.Stage.Open(str(path)), PLACE, {"rows": []}, NONE)
+        UsdGeom.Xformable(stage.GetPrimAtPath(f"/{PLACE}/Characters/guard")).GetOrderedXformOps()[0].Set(
+            Gf.Vec3d(0.0, 0.0, 40.0))
+        crowd.GetPositionsAttr().Set(Vt.Vec3fArray([Gf.Vec3f(0.0, 0.0, 40.0), Gf.Vec3f(0.0, 0.0, 80.0)]))
+        stage.GetRootLayer().Save()
+        named = [fault for fault in near[1] if "far-only" in fault]
+        problems = [] if len(named) == 2 and named[0].startswith("guard: ") and "view gate" in named[0] and \
+            named[1].startswith("crowd: ") and "1 of 2" in named[1] else [f"the near far-only faults: {near[1]}"]
+        return problems + problems_of([("a far guard and crowd near the view", near[0], contents.FAIL),
+                                       ("both stood back", judged("people", path), contents.PASS)])
+
+
 TESTS = (people_both_ways, a_part_is_judged_on_its_host, effects_and_motion_both_ways, crops_both_ways, likeness_and_paint_both_ways,
-         light_sound_neighbours_and_game_both_ways, the_assembled_record_and_a_waiting_entry_both_ways)
+         light_sound_neighbours_and_game_both_ways, the_assembled_record_and_a_waiting_entry_both_ways,
+         a_far_look_near_a_view_both_ways)
 
 if __name__ == "__main__":
     data, bodies = contents.DATA, contents.BODIES
