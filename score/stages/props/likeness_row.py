@@ -8,8 +8,8 @@ checks written to likeness.json; an object that fails any goes to code (prop rou
 
 The gates, each failing an object by name:
 - `outline`: likeness.OUTLINE_LEAST on the best of eight ways round (likeness.py, set on the hub's accepted models).
-- `likeness`: DINOv2 on the best way's silhouette, at likeness.LIKENESS_LEAST; its evidence, the pairs' scores, is
-  gathered on a rented machine (similar.py, paid). Unknown until LIKENESS_LEAST is set from the hub's accepted ones.
+- `likeness`: DINOv2 on the best way's silhouette, at the least likeness likeness-calibration@<place> set on the
+  place's accepted models; its evidence, the pairs' scores, is gathered on a rented machine (similar.py, paid).
 - `close-up parts present`: a prop model's parts (surfaces-parts) own every finish its close-up's list names; a code
   build's fitting shows every part its close-up has (sorter.missing_parts, fittings.json); a plain kind (sorter.PLAIN)
   has no parts to show; any other code build is unknown (nothing measured its parts).
@@ -23,6 +23,7 @@ import dataclasses
 import json
 import pathlib
 
+import score.stages.props.calibration_row as calibration_row
 import score.stages.props.likeness as likeness
 import score.stages.props.prop_data as prop_data
 from score.stages.surfaces.surface_gates import guarded, unknown, verdict
@@ -150,10 +151,10 @@ def lean_faults(row, entry):
     return [] if "straight" not in entry or entry["straight"]["pass"] else ["leans or warps"]
 
 
-def scored(scores):
-    """DINOv2's faults on each object from its scores ({row: likeness}); None for one not scored or no threshold."""
+def scored(scores, least):
+    """DINOv2's faults on each object from its scores ({row: likeness}) at `least`; None for one not scored or no
+    least."""
     def faults(row, entry):
-        least = likeness.LIKENESS_LEAST
         if least is None or row not in scores:
             return None
         return [f"likeness {scores[row]:.3f} under {least}"] if scores[row] < least else []
@@ -188,12 +189,14 @@ def free_judge(name):
 
 
 def judge_likeness(output, inputs, evidence):
-    """Each best way's DINOv2 likeness ({row: score}, the gathered evidence) at least LIKENESS_LEAST."""
-    if likeness.LIKENESS_LEAST is None:
-        return unknown("likeness", "DINOv2's least likeness is not set yet: score the hub's accepted models first "
-                                   "(likeness.py measure, then similar.py on its pairs.json)")
+    """Each best way's DINOv2 likeness ({row: score}, the gathered evidence) at least the calibration's least."""
+    least = calibration_row.least(inputs.get("likeness-calibration"))
+    if least is None:
+        return unknown("likeness", "DINOv2's least likeness is not set: no accepted calibration of the place's "
+                                   "accepted models (likeness-calibration)")
     found = objects(output)
-    return judged("likeness", found, object_faults(found, scored(json.loads(pathlib.Path(evidence).read_text()))))
+    return judged("likeness", found,
+                  object_faults(found, scored(json.loads(pathlib.Path(evidence).read_text()), least)))
 
 
 def gather_likeness(output, inputs, folder):
@@ -205,12 +208,12 @@ def gather_likeness(output, inputs, folder):
     return folder / "likeness.json"
 
 
-def routes(output, scores=None):
-    """{row: "prop" | "code" | "builder" | "unknown"}: where each object stands after its checks. A prop object that
-    passed every check stays prop; one that failed any goes to code; a code object that failed needs a new builder;
-    one a check could not tell for (DINOv2 included) is unknown."""
+def routes(output, scores=None, least=None):
+    """{row: "prop" | "code" | "builder" | "unknown"}: where each object stands after its checks (DINOv2's scores at
+    `least` included). A prop object that passed every check stays prop; one that failed any goes to code; a code
+    object that failed needs a new builder; one a check could not tell for is unknown."""
     found = objects(output)
-    per_check = [object_faults(found, faults_of) for faults_of in (*FREE.values(), scored(scores or {}))]
+    per_check = [object_faults(found, faults_of) for faults_of in (*FREE.values(), scored(scores or {}, least))]
     found_routes = {}
     for row, entry in found.items():
         told = [faults[row] for faults in per_check]

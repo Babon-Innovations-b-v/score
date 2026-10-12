@@ -24,15 +24,17 @@ props-inputs, closeup, pixal, the surface line, likeness, each paid row cleared 
   after prop-first's close-ups are accepted.
 
 `table` writes table.json and page.html in $PROPS_HOME/compare/<place>/: per order the objects passing by each route,
-those needing a builder, those a check could not tell, the euros (every cloud and Google ledger line inside the
-order's runs; run the orders when no other line spends, or the ledgers mix) and the agent hours (agent-hours.json in
+those needing a builder, those a check could not tell, the euros (every cloud and Google ledger line tagged
+compare-<place>-<order>: `run` tags every line it and its children write, ledger_tag/sitecustomize.py, so the
+order's spend counts apart from world 1's lines running beside it) and the agent hours (agent-hours.json in
 the order's folder, {row: hours}, written by the session that writes a builder; none recorded is shown as such),
 and per object both orders' close-up, outline and route, for the owner's pick.
 """
 import argparse
-import datetime
 import html
+import importlib.util
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -43,10 +45,13 @@ sys.path.insert(0, str(REPO))
 
 from score import graph, stages  # noqa: E402
 from score.store import PROPS_HOME, Store  # noqa: E402
+import score.stages.props.calibration_row as calibration_row  # noqa: E402
 import score.stages.props.likeness_row as likeness_row  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
 
 FOLDER = PROPS_HOME / "compare"
+LEDGER_TAG = pathlib.Path(__file__).resolve().parent / "ledger_tag"
+TAG_VARIABLE = "SCORE_LEDGER_TAG"
 ORDERS = ("prop-first", "code-first")
 MARK = {"prop-first": "pf", "code-first": "cf"}
 NODE = "likeness@{place}"
@@ -60,8 +65,8 @@ def default_code_builds(place):
     return PROPS_HOME / "work/place" / f"{place}-round6/objects"
 
 
-def accepted_closeups(place):
-    """{row: close-up pattern} of the place's accepted takes (its surface data's models and claims elsewhere): the
+def accepted_models(place):
+    """{model: close-up pattern} of the place's accepted takes (its surface data's models and claims elsewhere): the
     close-up each take was made from (WORK/pixal/<take>.svviews/input.png)."""
     record = json.loads((REPO / "data/surfaces" / f"{place}.json").read_text())
     takes = {**record.get("bake", {}).get("models", {}),
@@ -70,7 +75,26 @@ def accepted_closeups(place):
     for model, take in sorted(takes.items()):
         picture = PROPS_HOME / "work/pixal" / f"{take}.svviews/input.png"
         if picture.exists():
-            found.setdefault(model.rsplit("_", 1)[0], "{home}/" + picture.relative_to(PROPS_HOME).as_posix())
+            found[model] = "{home}/" + picture.relative_to(PROPS_HOME).as_posix()
+    return found
+
+
+def accepted_closeups(place):
+    """{row: close-up pattern} of the place's accepted takes."""
+    found = {}
+    for model, closeup in accepted_models(place).items():
+        found.setdefault(model.rsplit("_", 1)[0], closeup)
+    return found
+
+
+def calibration_set(place, code_builds):
+    """{model: {"model", "closeup"}} the DINOv2 calibration scores: each accepted generated model the owner accepted
+    (its made .gltf in the code builds' folder, the place's round's objects) with its close-up."""
+    found = {}
+    for model, closeup in accepted_models(place).items():
+        made = pathlib.Path(code_builds) / f"{model}.gltf"
+        if made.exists():
+            found[model] = {"model": "{home}/" + made.relative_to(PROPS_HOME).as_posix(), "closeup": closeup}
     return found
 
 
@@ -178,7 +202,8 @@ def prepare(place, order, code_builds):
     (data / "inventory" / f"{place}.json").write_text(json.dumps(inventory, indent="\t") + "\n")
     (data / "props").mkdir(exist_ok=True)
     (data / "props" / f"{place}.json").write_text(json.dumps(
-        {"place": place, "order": order, "objects": objects, "fallback": {}, "left_out": left}, indent=1) + "\n")
+        {"place": place, "order": order, "objects": objects, "fallback": {}, "left_out": left,
+         "accepted": calibration_set(place, code_builds)}, indent=1) + "\n")
     details = json.loads((data / "library/details.json").read_text())
     (data / "surfaces" / f"{place}.json").write_text(
         json.dumps(surface_record(place, objects, inventory["rows"], details), indent=1) + "\n")
@@ -203,20 +228,24 @@ def runner_for(place, order):
     return graph.Runner(stages.STAGES, world, Store.in_folder(order_folder(place, order) / "store"))
 
 
+def tag_of(place, order):
+    return f"compare-{place}-{order}"
+
+
+def tagging(place, order):
+    """Tag every ledger line this run and its children write with the order's tag (ledger_tag/sitecustomize.py:
+    in this process now, in every process it starts through PYTHONPATH)."""
+    os.environ[TAG_VARIABLE] = tag_of(place, order)
+    os.environ["PYTHONPATH"] = os.pathsep.join(filter(None, [str(LEDGER_TAG), os.environ.get("PYTHONPATH")]))
+    spec = importlib.util.spec_from_file_location("ledger_tagging", LEDGER_TAG / "sitecustomize.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+
 def run(place, order, jobs):
-    """Drive the place's line up to its likeness row; the run's window kept in runs.json (the table's euros)."""
-    runner = runner_for(place, order)
-    window = {"started": now()}
-    try:
-        runner.drive([place], jobs=jobs, whole=False, only=["likeness"])
-    finally:
-        window["finished"] = now()
-        runs = order_folder(place, order) / "runs.json"
-        runs.write_text(json.dumps([*(json.loads(runs.read_text()) if runs.exists() else []), window], indent=1))
-
-
-def now():
-    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    """Drive the place's line up to its likeness row, every ledger line it writes tagged with the order's tag."""
+    tagging(place, order)
+    runner_for(place, order).drive([place], jobs=jobs, whole=False, only=["likeness"])
 
 
 def likeness_output(place, order):
@@ -250,22 +279,28 @@ def fallback(place, code_builds):
           "builder")
 
 
-def ledger_euros(windows):
-    """Every cloud and Google ledger line inside the windows, in euros."""
+def ledger_euros(tag):
+    """Every cloud and Google ledger line tagged `tag`, in euros: a Google call started with no finished line (failed,
+    killed) at its model's estimate, as google_spend counts the month."""
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import google_spend
     import ledger
-
-    def inside(moment):
-        return any(window["started"] <= moment <= window["finished"] for window in windows)
-    cloud = sum(entry.get("euros", 0) for entry in ledger.entries()
-                if inside(entry["started"].replace("Z", "+00:00")[:19]))
+    cloud = sum(entry.get("euros", 0) for entry in ledger.entries() if entry.get("tag") == tag)
     google = google_spend.LEDGER.read_text().splitlines() if google_spend.LEDGER.exists() else []
-    spoken = [json.loads(line) for line in google if line.strip()]
-    pictures = sum(entry.get("euros") or 0 for entry in spoken
-                   if inside(datetime.datetime.fromisoformat(entry["time"]).astimezone(datetime.timezone.utc)
-                             .isoformat(timespec="seconds")[:19]))
+    calls = [json.loads(line) for line in google if line.strip()]
+    calls = [call for call in calls if call.get("tag") == tag]
+    finished = {call.get("call") for call in calls if call.get("state", "finished") == "finished"}
+    pictures = sum(google_spend.estimate(call["model"]) if call.get("euros") is None else call["euros"]
+                   for call in calls if call.get("state", "finished") == "finished")
+    pictures += sum(call.get("estimate", 0) for call in calls
+                    if call.get("state") == "started" and call.get("call") not in finished)
     return round(cloud + pictures, 2)
+
+
+def least_likeness(store, place):
+    """The DINOv2 least the order's accepted calibration set, or None."""
+    output = store.accepted(f"likeness-calibration@{place}")
+    return calibration_row.least(store.checkout(output)) if output else None
 
 
 def order_row(place, order):
@@ -275,17 +310,15 @@ def order_row(place, order):
     if made is None:
         return {"order": order, "ran": False}, {}
     record = json.loads((folder / "data/props" / f"{place}.json").read_text())
-    found = likeness_row.routes(made, dinov2_scores(store, output))
+    found = likeness_row.routes(made, dinov2_scores(store, output), least_likeness(store, place))
     objects = likeness_row.objects(made)
-    windows = [{key: value[:19] for key, value in window.items()}
-               for window in json.loads((folder / "runs.json").read_text())] if (folder / "runs.json").exists() else []
     hours = json.loads((folder / "agent-hours.json").read_text()) if (folder / "agent-hours.json").exists() else {}
     def counted(route, made_by):
         return sum(1 for name, value in found.items() if value == route and objects[name]["route"] == made_by)
     row = {"order": order, "ran": True, "objects": len(found), "passing prop route": counted("prop", "prop"),
            "passing code route": counted("code", "code"), "failed prop, code not checked yet": counted("code", "prop"),
            "need a builder": counted("builder", "code"),
-           "cannot tell": sum(value == "unknown" for value in found.values()), "euros": ledger_euros(windows),
+           "cannot tell": sum(value == "unknown" for value in found.values()), "euros": ledger_euros(tag_of(place, order)),
            "agent hours": round(sum(hours.values()), 2) if hours else None, "left out": len(record.get("left_out", {}))}
     return row, {name: {"route": found[name], "outline": entry.get("outline"), "made by": entry["route"]}
                  for name, entry in objects.items()}

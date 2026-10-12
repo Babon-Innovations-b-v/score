@@ -13,6 +13,7 @@ yet, so the table's existing nodes keep their keys. `compare.py` runs a place in
 own, and writes the table and the review page.
 """
 from score import contracts, graph
+import score.stages.props.calibration_row as calibration_row
 import score.stages.props.closeup_row as closeup_row
 import score.stages.props.likeness_row as likeness_row
 import score.stages.props.pixal_row as pixal_row
@@ -38,10 +39,16 @@ PIXAL = graph.Stage("pixal", "place", pixal_row.make_pixal, contract("props-pixa
                     (guarded("takes", pixal_row.judge_takes),), files=prop_data.pixal_files,
                     after={"closeup": ("props-closeups", 1)}, paid=True, euros=pixal_row.EUROS,
                     applies=prop_data.applies)
+CALIBRATION = graph.Stage("likeness-calibration", "place", calibration_row.make_calibration,
+                          contract("likeness-calibration", calibration_row.calibration_faults),
+                          (guarded("calibrated", calibration_row.judge_calibration),),
+                          files=prop_data.calibration_files, paid=True, euros=calibration_row.EUROS,
+                          applies=prop_data.calibration_applies)
 LIKENESS = graph.Stage("likeness", "place", likeness_row.make_likeness,
                        contract("props-likeness", likeness_row.likeness_faults), likeness_row.CHECKS,
                        files=prop_data.likeness_files, gatherers=likeness_row.GATHERERS,
-                       after={"closeup": ("props-closeups", 1), "surfaces-bake": ("surfaces-bake", 1),
+                       after={"likeness-calibration": ("likeness-calibration", 1),
+                              "closeup": ("props-closeups", 1), "surfaces-bake": ("surfaces-bake", 1),
                               "surfaces-parts": ("surfaces-parts", 1), "surfaces-check": ("surfaces-check", 1)},
                        applies=prop_data.applies)
 # What the surface line's first row reads of the prop route (score/stages/__init__.py adds it to its `after`).

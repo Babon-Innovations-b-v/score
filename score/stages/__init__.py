@@ -103,7 +103,7 @@ def prop_fed(row):
 
 
 STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, props.INPUTS, props.CLOSEUP, props.PIXAL,
-          *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.LIKENESS)
+          *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS)
 
 
 def world1():
