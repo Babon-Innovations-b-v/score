@@ -8,14 +8,15 @@ was measured on) made into the place's OpenUSD effects layer, which the assembly
                        it through the prim's motion, and every emitter that follows a motion lets each particle out
                        where the moving prim stands at its birth (read off the composed stage, the seed's own layers
                        under the effects layer)
-             footage   every check of the record's `footage` block: a measure of the baked particles at a moment after
-                       lift-off (how far the cloud reaches out from the pad, how high it stands, how long the flame is,
-                       how fine and how thick the particles are, how few lie loose at its edge as lone blobs) lies
-                       within the range measured on real footage of
-                       launches, in the rocket's heights
+             footage   every check of the record's `footage` block: a measure of the baked particles at a moment (how
+                       far the cloud reaches out, how high it stands, how far it reaches any way and how far off its
+                       way it spreads, how long the flame is, how fine and how thick the particles are, how few lie
+                       loose at its edge as lone blobs, what share of them shows) lies within the range measured on
+                       real footage: the launch's after lift-off in the rocket's heights from its rest, any other
+                       place's at its own `at` second in metres from its `anchor` emitter
              light     the flame's light reaches the pad: from half a second after the engines light to two seconds
                        after lift-off it lights the pad round the rocket at least LIGHT_OVER times as much as the
-                       place's own lamps do
+                       place's own lamps do; a record with no lights passes only when it says why (`no_light`)
 
 Only places in STAGED have the row; the other places keep the effects layer of their seed. A place's effects are
 modelled on real footage first (the owner's rule): many fine particles tied to the world, never thinned to draw
@@ -33,7 +34,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import effects as effect_layer  # noqa: E402
 
-STAGED = ("launch",)
+STAGED = ("launch", "airlock", "garage", "hangar", "greenhouse", "habitat")
 # How far an emitter on a moving prim may drift from its place on it, metres.
 DRIFT_MOST = 0.01
 # How often the composed stage is read along a motion and an event, seconds.
@@ -49,6 +50,9 @@ LIGHT_AFTER_LIFT = 2.0
 LAYERS = 3
 # A particle thinner than this (its opacity) does not show: one just born or dying between two baked samples.
 SEEN = 0.02
+# A fog's particles are each far thinner than SEEN and show only many deep: one under this share of its own thickest
+# is the nearly-nothing of birth or death (SEEN is about this share of the launch's clouds' thickest, 0.15).
+SEEN_SHARE = 0.14
 
 
 def files(place):
@@ -115,16 +119,17 @@ def live(stage, path, seconds):
     return world[alive], widths[alive] * scale
 
 
-def seen(stage, path, seconds):
-    """The particles of an emitter's points that show at a second of the stage (thicker than SEEN; one just born
-    or dying between two samples is nearly nothing): their world spots and widths."""
+def seen(stage, path, seconds, thickest):
+    """The particles of an emitter's points that show at a second of the stage (thicker than SEEN, or than
+    SEEN_SHARE of `thickest`, its particles' own thickest, for one as thin as a fog; one just born or dying between
+    two samples is nearly nothing): their world spots and widths."""
     from pxr import UsdGeom
     grains = UsdGeom.Points(stage.GetPrimAtPath(path))
     code = seconds * effect_layer.RATE
     widths = np.asarray(grains.GetWidthsAttr().Get(code), dtype=float)
     thickness = np.asarray(UsdGeom.PrimvarsAPI(grains).GetPrimvar("displayOpacity").Get(code), dtype=float)
     spots, sizes = live(stage, path, seconds)
-    shows = thickness[widths > 0] > SEEN
+    shows = thickness[widths > 0] > min(SEEN, SEEN_SHARE * thickest)
     return spots[shows], sizes[shows]
 
 
@@ -242,7 +247,7 @@ def gathered(stage, place, record, names, seconds):
     entries = {entry["name"]: entry for entry in record["effects"]}
     spots, widths = [np.zeros((0, 3))], [np.zeros(0)]
     for name in names:
-        found = seen(stage, points_path(place, entries[name]), seconds)
+        found = seen(stage, points_path(place, entries[name]), seconds, effect_layer.look_opacity(entries[name]))
         spots.append(found[0])
         widths.append(found[1])
     return np.concatenate(spots), np.concatenate(widths)
@@ -292,19 +297,73 @@ def loose(spots, widths):
     return float((nearest[:, 1] > widths).mean())
 
 
+def length(spots, widths, anchor):
+    """How far the particles reach from the anchor any way (95th share, their edges), metres."""
+    return float(np.percentile(np.linalg.norm(spots - anchor, axis=1) + widths / 2, 95))
+
+
+def spread(spots, anchor):
+    """How far off their own mean way the particles lie seen from the anchor (95th share), degrees: a jet's half
+    angle."""
+    ways = spots - anchor
+    ways = ways / np.maximum(np.linalg.norm(ways, axis=1, keepdims=True), 1e-9)
+    mean = ways.mean(axis=0) / max(float(np.linalg.norm(ways.mean(axis=0))), 1e-9)
+    return float(np.percentile(np.degrees(np.arccos(np.clip(ways @ mean, -1.0, 1.0))), 95))
+
+
+def gap(spots, widths, anchor):
+    """How far from the anchor the particles first show (the nearest one's near edge), metres: the clear gap at a
+    kettle's spout."""
+    return float(max((np.linalg.norm(spots - anchor, axis=1) - widths / 2).min(), 0.0))
+
+
+def alive_share(stage, place, record, names, seconds):
+    """The share of the named emitters' particles that show at a second."""
+    counts = {entry["name"]: int(entry["count"]) for entry in record["effects"]}
+    shown = len(gathered(stage, place, record, names, seconds)[0])
+    return shown / sum(counts[name] for name in names)
+
+
+def framed(check, stage, place, record, rocket):
+    """A check's second of the stage, its anchor (world spot) and its unit (metres): the launch's after lift-off,
+    from the rocket's rest, in its heights; any other place's at its own `at` second, from its `anchor` emitter's
+    spot then, in metres."""
+    if rocket is not None:
+        tall, rest, motion = rocket
+        return lift_second(motion) + float(check["after_lift"]), rest, tall
+    seconds = float(check["at"])
+    entries = {entry["name"]: entry for entry in record["effects"]}
+    holder = points_path(place, entries[check["anchor"]]).rsplit("/", 1)[0]
+    return seconds, where(stage, holder, seconds), 1.0
+
+
 def measured(check, stage, place, record, rocket):
-    """One footage check's measure at its moment, in the rocket's heights (fineness and layering as shares)."""
-    tall, rest, motion = rocket
-    seconds = lift_second(motion) + float(check["after_lift"])
+    """One footage check's measure at its moment, in the rocket's heights or metres (fineness, layering, loose and
+    alive as shares, spread in degrees)."""
+    seconds, rest, tall = framed(check, stage, place, record, rocket)
+    if check["measure"] == "alive":
+        return alive_share(stage, place, record, check["emitters"], seconds)
     spots, widths = gathered(stage, place, record, check["emitters"], seconds)
+    if "within" in check:  # only what the footage's frame held: the particles this near the anchor, metres
+        near = np.linalg.norm(spots - rest, axis=1) <= float(check["within"])
+        spots, widths = spots[near], widths[near]
     if not len(spots):
         return None
     if check["measure"] == "reach":
         return reach(spots, widths, rest) / tall
     if check["measure"] == "height":
         return height(spots, widths, rest) / tall
+    if check["measure"] == "length":
+        return length(spots, widths, rest) / tall
+    if check["measure"] == "spread" and "slot" in check:  # a slit's cone is measured across it, its length left out
+        along = np.asarray(check["slot"], dtype=float) / np.linalg.norm(check["slot"])
+        return spread(spots - np.outer((spots - rest) @ along, along), rest)
+    if check["measure"] == "spread":
+        return spread(spots, rest)
+    if check["measure"] == "gap":
+        return gap(spots, widths, rest) / tall
     if check["measure"] == "flame_length":
-        return flame_length(spots, where(stage, motion["prim"], seconds)) / tall
+        return flame_length(spots, where(stage, rocket[2]["prim"], seconds)) / tall
     if check["measure"] == "fineness":
         return float(np.median(widths)) / (2 * reach(spots, widths, rest))
     if check["measure"] == "layering":
@@ -320,15 +379,15 @@ def judge_footage(output, inputs, evidence):
     if "footage" not in record:
         return checks.Verdict("footage", checks.UNKNOWN, "the record names no footage to measure its effects on")
     stage, place = composed(output, inputs), place_of(inputs)
-    rocket = rocket_of(record, read_json(inputs["scene"]), motions_of(inputs))
+    rocket = rocket_of(record, read_json(inputs["scene"]), motions_of(inputs)) if "rocket" in record["footage"] else None
     faults, measures, found = [], {}, []
     for check in record["footage"]["checks"]:
         value = measured(check, stage, place, record, rocket)
-        low, high = check["range"]
+        low, high = check["range"]  # None: the footage bounds it on one side only (a plume running off the frame)
         measures[check["name"]] = None if value is None else round(value, 4)
         line = f"{check['name']}: {'nothing alive' if value is None else f'{value:.3f}'} (footage {low} to {high})"
         found.append(line)
-        if value is None or not low <= value <= high:
+        if value is None or (low is not None and value < low) or (high is not None and value > high):
             faults.append(line)
     reason = (f"{len(faults)} of {len(found)} measures lie outside the footage's ranges" if faults
               else f"all {len(found)} measures lie within the footage's ranges")
@@ -364,11 +423,15 @@ def pad_spots(rest):
 
 def judge_light(output, inputs, evidence):
     """Pass when the flame's light lights the pad at least LIGHT_OVER times the place's own lamps, from just after
-    the engines light to just after lift-off."""
+    the engines light to just after lift-off; or when the record has no lights and says why its effects give none
+    (`no_light`: steam, fog and ice light nothing)."""
     from pxr import UsdLux
     record = read_json(inputs["record"])
+    if not record.get("lights") and record.get("no_light"):
+        return checks.Verdict("light", checks.PASS, f"the record's effects give off no light: {record['no_light']}")
     if not record.get("lights"):
-        return checks.Verdict("light", checks.UNKNOWN, "the record gives the effects no light of their own")
+        return checks.Verdict("light", checks.UNKNOWN, "the record gives the effects no light of their own and does "
+                                                       "not say why (`no_light`)")
     stage, place = composed(output, inputs), place_of(inputs)
     tall, rest, motion = rocket_of(record, read_json(inputs["scene"]), motions_of(inputs))
     flames = [f"/{place}/{light['on']}/{light['name']}" for light in record["lights"]]

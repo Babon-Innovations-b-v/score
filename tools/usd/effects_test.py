@@ -210,8 +210,11 @@ def names_its_source(entry, footage):
     """An entry names the game file and lines it came from, or real footage its record's footage block lists."""
     if re.search(r"(game|sim)/\S+\.(gd|gdshader|tscn):\d", entry.get("from", "")):
         return True
-    named = re.findall(r"KSC-\d{8}-PH_\w+", entry.get("from", ""))
-    return entry.get("from", "").startswith("footage: ") and bool(named) and set(named) <= set(footage)
+    said = entry.get("from", "")
+    if not said.startswith("footage: "):
+        return False
+    named = said[len("footage: "):].split(" (", 1)[0].split(", ")
+    return bool(named) and set(named) <= set(footage)
 
 
 def test_every_record_names_its_source_and_lays_out():

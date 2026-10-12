@@ -20,11 +20,11 @@ from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
 
 SEEDS = PROPS_HOME / "work"
 PLACES = ("hangar", "hdoor")
-DATA = ("kit", "inventory", "library/fittings.json", "checks")
+DATA = ("kit", "inventory", "library/fittings.json", "checks", "effects", "scene", "motion", "ground")
 
 
 def world_data_copy(root):
-    """The world files the assembly stage reads, copied so the test may change one."""
+    """The world files the assembly and effects stages read, copied so the test may change one."""
     for part in DATA:
         source, target = REPO / "data" / part, root / part
         target.parent.mkdir(parents=True, exist_ok=True)

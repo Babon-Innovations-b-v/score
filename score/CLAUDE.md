@@ -57,7 +57,7 @@ stage as each stage is built; nothing moves before.
   `complete`. `terrain` (one world node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
   scale, slope, ground under objects and openings (its overlay). `surfaces` (step 1) is each place's own line of
   rows, the finish-map method to checked bake (its overlay; per-place data in
-  `data/surfaces/`). `effects-layer` (experimental, the proof place only) makes a place's effects layer from its record in
+  `data/surfaces/`). `effects-layer` (experimental: the launch, airlock, garage, hangar, greenhouse and habitat) makes a place's effects layer from its record in
   `data/effects/`, gated on attached, footage and light, and the assembly takes it; `effects-look` (paid) renders it
   before and after (its overlay). A stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`.

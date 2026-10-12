@@ -1,0 +1,464 @@
+{
+ "place": "airlock",
+ "about": "The airlock's cycle's air, timed by its motion record (data/motion/airlock.json, 14 s a round): the fog of the pump-down and the ice the last air carries out as the outer door first opens. Every number is this record's, after real pump-downs and vents. Frame: the airlock's own.",
+ "effects": [
+  {
+   "name": "pump_fog",
+   "kind": "pump_down_fog",
+   "look": "puff",
+   "placement": {
+    "room": 0.15
+   },
+   "count": 10600,
+   "lifetime": 3.5,
+   "explosiveness": 0.6571,
+   "one_shot": {
+    "every": 14.0,
+    "at": 1.3
+   },
+   "samples": 12.0,
+   "direction": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "spread": 180.0,
+   "speed": [
+    0.02,
+    0.12
+   ],
+   "size": 0.6,
+   "scale": [
+    0.7,
+    1.4
+   ],
+   "size_over_life": [
+    [
+     0.0,
+     0.5
+    ],
+    [
+     0.4,
+     1.0
+    ],
+    [
+     1.0,
+     1.2
+    ]
+   ],
+   "colour": "#eef1f4",
+   "opacity": 0.004,
+   "opacity_over_life": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.25,
+     1.0
+    ],
+    [
+     0.55,
+     0.7
+    ],
+    [
+     1.0,
+     0.0
+    ]
+   ],
+   "turbulence": {
+    "strength": 1.0,
+    "scale": 0.5,
+    "influence": [
+     0.01,
+     0.04
+    ]
+   },
+   "space": "world",
+   "seed": 501,
+   "from": "footage: normandale-humidity-vacuum, physicsforums-vacuum-chamber-demo (the fog the air makes as the pump draws it down (expanding air cools and its water condenses on the dust in it), forming in the pump's first seconds and gone within seconds as the pressure keeps falling and the air warms again off the walls; the pump runs from 1 s to 6 s of the round (data/motion/airlock.json cycle_light))",
+   "card": "plain",
+   "near_fade": [
+    0.3,
+    1.5
+   ]
+  },
+  {
+   "name": "door_vent",
+   "kind": "vacuum_vent_ice",
+   "look": "speck",
+   "placement": {
+    "on": "Fixtures",
+    "offset": [
+     0.0,
+     2.6,
+     2.605
+    ]
+   },
+   "emitter": {
+    "shape": "box",
+    "extents": [
+     1.1,
+     0.05,
+     0.05
+    ]
+   },
+   "count": 8000,
+   "lifetime": 1.6,
+   "explosiveness": 0.6,
+   "one_shot": {
+    "every": 14.0,
+    "at": 6.0
+   },
+   "samples": 24.0,
+   "direction": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "spread": 25.0,
+   "speed": [
+    16.0,
+    30.0
+   ],
+   "gravity": [
+    0.0,
+    -1.62,
+    0.0
+   ],
+   "size": 0.005,
+   "scale": [
+    0.6,
+    1.4
+   ],
+   "colour": "#f2f6ff",
+   "opacity": 0.9,
+   "opacity_over_life": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.05,
+     1.0
+    ],
+    [
+     0.6,
+     0.8
+    ],
+    [
+     1.0,
+     0.0
+    ]
+   ],
+   "space": "world",
+   "seed": 502,
+   "from": "footage: S126E014192, STS075-313-022, soyuz-ms22-leak, NTRS-19910011413 (the air the pump leaves (a real airlock's pump stops short of empty and lets the rest out) leaving as the door first opens to the vacuum, its water frozen into fine ice that flies straight out at 16 to 30 m/s with nothing to slow it (NTRS-19910011413's 23 m/s, give or take 30 %), a cone about 14 to 33 degrees either side, under the Moon's 1.62 m/s2; the outer door starts down at 6 s (data/motion/airlock.json outer_door), so the gap opens at its top first)"
+  },
+  {
+   "placement": {
+    "on": "Fixtures",
+    "offset": [
+     0.0,
+     2.6,
+     2.605
+    ]
+   },
+   "emitter": {
+    "shape": "box",
+    "extents": [
+     1.1,
+     0.05,
+     0.05
+    ]
+   },
+   "lifetime": 1.2,
+   "explosiveness": 0.4667,
+   "one_shot": {
+    "every": 14.0,
+    "at": 6.0
+   },
+   "samples": 24.0,
+   "direction": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "spread": 25.0,
+   "speed": [
+    16.0,
+    30.0
+   ],
+   "space": "world",
+   "name": "door_vent_veil",
+   "kind": "vacuum_vent_veil",
+   "look": "puff",
+   "card": "plain",
+   "count": 6000,
+   "size": 0.25,
+   "scale": [
+    0.7,
+    1.4
+   ],
+   "size_over_life": [
+    [
+     0.0,
+     0.5
+    ],
+    [
+     1.0,
+     16.0
+    ]
+   ],
+   "colour": "#eef2f6",
+   "opacity": 0.05,
+   "opacity_over_life": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     0.05,
+     1.0
+    ],
+    [
+     0.4,
+     0.4
+    ],
+    [
+     1.0,
+     0.0
+    ]
+   ],
+   "seed": 602,
+   "from": "footage: NTRS-19910011413, S126E014192 (the gas itself leaving with the ice, the fine fog of its vapour condensing again, seen as a faint fan of white leaving with the ice at its speed and diverging at its angle (NTRS-19910011413), each puff growing as it spreads so the fan stays one soft band (a vent seen in footage is a soft veil over the sparkling ice, never the ice alone); the outer door starts down at 6 s (data/motion/airlock.json outer_door), so the gap opens at its top first)"
+  }
+ ],
+ "views": [
+  {
+   "name": "air-held",
+   "eye": [
+    0.0,
+    1.6,
+    -1.4
+   ],
+   "aim": [
+    0.0,
+    1.0,
+    2.5
+   ],
+   "fov": 70,
+   "frame": 12
+  },
+  {
+   "name": "pump-down",
+   "eye": [
+    0.0,
+    1.6,
+    -1.4
+   ],
+   "aim": [
+    0.0,
+    1.0,
+    2.5
+   ],
+   "fov": 70,
+   "frame": 72
+  },
+  {
+   "name": "door-opens",
+   "eye": [
+    0.0,
+    1.6,
+    -1.4
+   ],
+   "aim": [
+    0.0,
+    1.0,
+    2.5
+   ],
+   "fov": 70,
+   "frame": 153
+  },
+  {
+   "name": "refill",
+   "eye": [
+    0.0,
+    1.6,
+    -1.4
+   ],
+   "aim": [
+    0.0,
+    1.0,
+    2.5
+   ],
+   "fov": 70,
+   "frame": 240
+  }
+ ],
+ "no_light": "fog, ice and steam give off no light of their own; the place's lamps light them",
+ "footage": {
+  "how": "Measured on each photograph's pixels against a thing of known size in it (named with each source; a typical size where the maker's own was not looked up, so to roughly a third), or read off a report's text. A plume running off the frame bounds a measure on one side only (null). The seconds are the place's own: when its motion record runs the pump and opens the door.",
+  "sources": {
+   "NTRS-19910011413": {
+    "what": "Viereck et al. and Pike et al., the STS-29 water dump observed from the ground (NASA technical reports 19910011413 and 19900037879)",
+    "url": "https://ntrs.nasa.gov/api/citations/19910011413/downloads/19910011413.pdf",
+    "measured": "text: ice particles leave at 23 m/s, give or take 30 %, in a cone traced back to within 1 m of the nozzle, their speed across about a quarter of their speed along (about 14 degrees either side); they flicker as tumbling crystals; the fine fog of vapour condensing again diverges at about the same angle as the trail"
+   },
+   "S126E014192": {
+    "what": "STS-126's water dump seen from the shuttle's flight deck (NASA)",
+    "url": "https://commons.wikimedia.org/wiki/File:S126E014192_-_STS-126_-_Water_Dump_as_seen_by_the_STS-126_Crew_-_DPLA_-_6f18cb2e97023df03568082113baa5f1.jpg",
+    "measured": "looked at on the photograph and measured on its pixels: the whole frame dense with fine glittering specks with short streaks, a smooth diffuse glow band under them; nothing of known size in view"
+   },
+   "STS075-313-022": {
+    "what": "STS-75's waste water dump from the flight deck (NASA)",
+    "url": "https://commons.wikimedia.org/wiki/File:STS075-313-022_-_STS-075_-_Views_of_a_waste_water_dump_from_flight_deck_-_DPLA_-_c0b8eab5a5e6cb5eee6389009628ae6a.jpg",
+    "measured": "looked at on the photograph and measured on its pixels: a fan of radial streaks about 66 degrees across from where they meet, about 33 degrees either side"
+   },
+   "normandale-humidity-vacuum": {
+    "what": "Normandale Community College's vacuum-technology article on humidity in vacuum systems: a small cloud forms momentarily as the pressure drops early in roughing, often seen in glass bell jars",
+    "url": "https://www.normandale.edu/academics/degrees-certificates/vacuum-and-thin-film-technology/articles/the-effects-of-humidity-on-vacuum-systems.html",
+    "measured": "text only: the fog forms in the first moments of the pump-down; no size or duration given"
+   },
+   "physicsforums-vacuum-chamber-demo": {
+    "what": "a classroom vacuum-chamber demonstration (about a 2-gallon chamber, candle smoke to seed it)",
+    "url": "https://www.physicsforums.com/threads/vacuum-chamber-demo-investigating-temperature-humidity-changes.714062/",
+    "measured": "text only: a cloud forms for a few seconds, then disappears; the pressure falls over 50 mbar in the first few seconds"
+   },
+   "soyuz-ms22-leak": {
+    "what": "Soyuz MS-22's coolant leak at the space station, NASA TV, December 2022",
+    "url": "https://commons.wikimedia.org/wiki/File:Soyuz_MS-22_spacecraft_at_space_station_leaking_%27particles%27_into_space_(3).gif",
+    "measured": "looked at on the photograph and measured on its pixels, against the service module's 2.72 m (234 px): separate specks over at least 450 px, at least 5.2 m, running off the frame"
+   }
+  },
+  "licence": "NASA photographs and reports are not copyrighted in the United States; the others under the licence each source names. Every source is used here only as measurements, never shown.",
+  "checks": [
+   {
+    "name": "fog formed 1.5 s into the pump-down",
+    "emitters": [
+     "pump_fog"
+    ],
+    "measure": "alive",
+    "at": 2.5,
+    "anchor": "pump_fog",
+    "range": [
+     0.5,
+     1.0
+    ],
+    "from": [
+     "normandale-humidity-vacuum",
+     "physicsforums-vacuum-chamber-demo"
+    ]
+   },
+   {
+    "name": "fog still there 2.5 s into the pump-down",
+    "emitters": [
+     "pump_fog"
+    ],
+    "measure": "alive",
+    "at": 3.5,
+    "anchor": "pump_fog",
+    "range": [
+     0.5,
+     1.0
+    ],
+    "from": [
+     "normandale-humidity-vacuum",
+     "physicsforums-vacuum-chamber-demo"
+    ]
+   },
+   {
+    "name": "fog gone 5 s into the pump-down",
+    "emitters": [
+     "pump_fog"
+    ],
+    "measure": "alive",
+    "at": 6.0,
+    "anchor": "pump_fog",
+    "range": [
+     0.0,
+     0.05
+    ],
+    "from": [
+     "normandale-humidity-vacuum",
+     "physicsforums-vacuum-chamber-demo"
+    ]
+   },
+   {
+    "name": "ice reaches out 0.8 s after the door opens",
+    "emitters": [
+     "door_vent"
+    ],
+    "measure": "length",
+    "at": 6.8,
+    "anchor": "door_vent",
+    "range": [
+     5.2,
+     null
+    ],
+    "from": [
+     "soyuz-ms22-leak"
+    ]
+   },
+   {
+    "name": "ice cone's half angle 0.8 s after the door opens",
+    "emitters": [
+     "door_vent"
+    ],
+    "measure": "spread",
+    "at": 6.8,
+    "anchor": "door_vent",
+    "range": [
+     14.0,
+     33.0
+    ],
+    "from": [
+     "STS075-313-022",
+     "NTRS-19910011413"
+    ],
+    "slot": [
+     1.0,
+     0.0,
+     0.0
+    ]
+   },
+   {
+    "name": "veil's half angle 0.8 s after the door opens",
+    "emitters": [
+     "door_vent_veil"
+    ],
+    "measure": "spread",
+    "at": 6.8,
+    "anchor": "door_vent_veil",
+    "range": [
+     14.0,
+     33.0
+    ],
+    "from": [
+     "NTRS-19910011413"
+    ],
+    "slot": [
+     1.0,
+     0.0,
+     0.0
+    ]
+   },
+   {
+    "name": "veil one band, no loose blobs, 0.8 s after the door opens",
+    "emitters": [
+     "door_vent_veil"
+    ],
+    "measure": "loose",
+    "at": 6.8,
+    "anchor": "door_vent_veil",
+    "range": [
+     0.0,
+     0.01
+    ],
+    "from": [
+     "S126E014192"
+    ]
+   }
+  ]
+ }
+}

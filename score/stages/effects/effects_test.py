@@ -1,6 +1,7 @@
 """The effects stage's make and gates on the proof place's own record and seed (the launch), and the look's measures:
 the record passes all three gates; a flame light too weak fails `light`, a ground cloud too slow fails `footage`, and
-a trail baked off another climb than the rocket's fails `attached`; a point ahead of a camera lands where the picture
+a trail baked off another climb than the rocket's fails `attached`; the airlock's pump-down passes, measured in
+metres, and fails `footage` when its fog lingers and `light` is unknown when it no longer says why it gives none; a point ahead of a camera lands where the picture
 shows it; `shown` and `lit` read their measures.
 
 Run: .venv/bin/python score/stages/effects/effects_test.py   (needs the launch's round-three seed in the work folder)
@@ -20,10 +21,11 @@ from score.store import PROPS_HOME  # noqa: E402
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
 
-def launch_inputs(folder, record=None, motion=None):
-    """The launch's inputs, with the record or motion record swapped for a changed copy in `folder` when given."""
-    inputs = {name: pathlib.Path(pattern.format(place="launch", data=str(REPO / "data"), seeds=str(PROPS_HOME / "work")))
-              for name, pattern in effects.files("launch").items()}
+def launch_inputs(folder, record=None, motion=None, place="launch"):
+    """The launch's (or another place's) inputs, with the record or motion record swapped for a changed copy in
+    `folder` when given."""
+    inputs = {name: pathlib.Path(pattern.format(place=place, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work")))
+              for name, pattern in effects.files(place).items()}
     for name, changed in (("record", record), ("motion", motion)):
         if changed is not None:
             inputs[name] = pathlib.Path(folder) / f"{name}.json"
@@ -64,6 +66,20 @@ def test_a_weak_light_and_a_slow_cloud_fail():
         found = answers(launch_inputs(folder, record=record), folder)
     assert found["light"].answer == checks.FAIL, found["light"].reason
     assert found["footage"].answer == checks.FAIL, found["footage"].reason
+
+
+def test_the_airlock_passes_in_metres_and_a_lingering_fog_fails():
+    record = json.loads((REPO / "data/effects/airlock.json").read_text())
+    with tempfile.TemporaryDirectory() as folder:
+        found = answers(launch_inputs(folder, place="airlock"), folder)
+    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
+        name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
+    emitter(record, "pump_fog")["lifetime"] = 8.0
+    del record["no_light"]
+    with tempfile.TemporaryDirectory() as folder:
+        found = answers(launch_inputs(folder, record=record, place="airlock"), folder)
+    assert found["footage"].answer == checks.FAIL and found["footage"].measures["fog gone 5 s into the pump-down"] > 0.05
+    assert found["light"].answer == checks.UNKNOWN, found["light"].reason
 
 
 def test_a_trail_baked_off_another_climb_fails():

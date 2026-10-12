@@ -201,15 +201,22 @@ is meant to fix, where it is marked, and what proves it.
   18 places with no effects, the launch first: its lift-off had no flame, cloud, steam or light. `effects-layer@<place>`
   makes the place's effects layer from its record (emitters riding a prim, following a motion's climb, or played once;
   lights on a prim), gated on `attached` (read off the composed stage), `footage` (each measure of the baked particles
-  within the range read off real footage, NASA's photographs of Falcon Heavy lift-offs, in rocket heights) and
-  `light` (the flame lights the pad at least twice the place's lamps); the assembly takes the layer in place of the
-  seed's. `effects-look@launch` (paid) renders the review cameras before and after at four moments round lift-off,
-  gated on `shown` and `lit`. Only the places in `effects.STAGED` and `look.LOOKED` (the launch) have the rows. Run
+  within the range read off real footage, NASA's photographs of Falcon Heavy lift-offs, in rocket heights; elsewhere
+  in metres at the place's own seconds) and `light` (the flame lights the pad at least twice the place's lamps; a
+  record that lights nothing says why, `no_light`); the assembly takes the layer in place of the seed's.
+  `effects-look@launch` (paid) renders the review cameras before and after at four moments round lift-off, gated on
+  `shown` and `lit`. `effects.STAGED` holds the launch, airlock, garage, hangar, greenhouse and habitat;
+  `look.LOOKED` the launch only. Run
   with `python -m score run world1 --place launch --stage effects-look`. Proven when the owner has seen the launch's
   stills; then each place's record (pump-downs, steam, dust) from footage, and films on his go. 2026-10-12: all five
   gates pass on the launch (the `loose` footage check added after the first stills showed lone flakes: 10 % of the
-  cloud's particles then, 0.2 % now); the unmerged local `effects` branch (be73bb0, 694a579) holds the other places'
-  records in an older schema.
+  cloud's particles then, 0.2 % now). The same day the old local `effects` branch's records came over (pump-down
+  fog and the door's vented ice and veil in the airlock, garage and hangar; the greenhouse's humidifier mist; the
+  habitat's kettle and pot steam), each checked against photographs and reports of shuttle water dumps, a Soyuz
+  leak, vacuum-chamber demonstrations, humidifiers, kettles and pots; the vent's speed, the pot's height, the
+  kettle's gap and the mist's width put right to them. All three gates pass on each; the branch is deleted. No
+  footage was found for a pump-down fog's size or fineness, a humidifier's exit speed, or any upper bound on a
+  plume running off its photograph's frame.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.
 - **The style measure** (`tools/review/style.py`). For style coherence. Proven when it ranks the models the owner
