@@ -63,8 +63,13 @@ def place_views(inventory_folder):
     return found
 
 
+def views_text(inventory_folder):
+    """The part of the inventories the stage reads, their plan views: an inventory's rows changing moves no key."""
+    return json.dumps(place_views(inventory_folder), sort_keys=True)
+
+
 VIEWS = place_views(REPO / "data/inventory")
-FILES = {"inventory": "{data}/inventory",
+FILES = {"inventory": ("{data}/inventory", views_text),
          **{f"{place}.{view}": picture for place, views in VIEWS.items() for view, picture in views.items()}}
 
 

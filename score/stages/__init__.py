@@ -13,13 +13,15 @@ each staged place's effects layer from its record, which its assembly takes; eff
 after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
 own accepted assembly. The prop route (props: close-up, Pixal3D, then the surface line, then the likeness gate) runs
 only for a place with prop data. Plan and scene-record (experimental) write a place's scene record from its plan and
-concept. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
+concept. Cast (experimental) places each place's people and measures them against its concept's count
+(concept_people) and its geometry. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import assembly, complete, effects, images, people, props, scene_record, surfaces, terrain
+from score.stages import (assembly, cast, complete, concept_people, effects, images, people, props, scene_record,
+                          surfaces, terrain)
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -70,6 +72,11 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
                            scene_record.gates.CHECKS, files=scene_record.writer.files,
                            after={"plan": ("place-plan", 1), "terrain": ("grounds", 1)},
                            applies=scene_record.written)
+# Experimental (design 5, 2026-10-12) until the owner reviews it: each place's cast placed and measured against its
+# concept's people (concept_people, in this table so the cast reads its accepted count) and its seed's geometry.
+# Nothing reads it yet: the characters layer waits on the people route's made looks.
+CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
+                   after={"concept_people": ("concept-people", 1)}, applies=lambda place: place in cast.PLACES)
 
 
 
@@ -116,7 +123,7 @@ def prop_fed(row):
 
 STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *people.ROWS, PLAN, SCENE_RECORD)
+          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST)
 
 
 def world1():
