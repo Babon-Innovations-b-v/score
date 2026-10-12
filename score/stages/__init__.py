@@ -25,6 +25,7 @@ from score.stages import (assembly, cast, complete, concept_people, effects, ima
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
+import score.stages.machines.boxes as machine_boxes
 from score.stages.effects import look as effects_look
 from score.stages.terrain import look
 from score.store import PROPS_HOME, Store
@@ -49,6 +50,10 @@ ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.O
 # on what holds them up, as a layer the assembly takes.
 MACHINES = graph.Stage("machines-layer", "place", machines.make, machines.LAYER_CONTRACT, machines.CHECKS,
                        files=machines.files, after=machines.AFTER, applies=machines.applies)
+# Experimental (PRD #6): SAM 3's grounding of a place's machine rows' boxes, so the prop route may draw them.
+MACHINE_BOXES = graph.Stage("machines-boxes", "place", machine_boxes.make_boxes, machine_boxes.CONTRACT,
+                            machine_boxes.CHECKS, files=machine_boxes.files, paid=True, euros=machine_boxes.EUROS,
+                            applies=machine_boxes.applies)
 # Experimental (PRD #6) until the owner reviews it: each place's assembly with the places its scene record shows,
 # each read beside as its own accepted assembly. Complete reads it: a place whose shown places do not stand is not
 # complete, so a neighbour whose assembly fails (the hub's) stops every place that shows it.
@@ -141,7 +146,7 @@ def prop_fed(row):
 STAGES = (TERRAIN, EFFECTS, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER, PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES)
+          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES, MACHINE_BOXES)
 
 
 def world1():

@@ -1611,6 +1611,33 @@
 			"thing": "prop:hangar_crane_trolley",
 			"repeats": "across the room",
 			"unseen": "the crane's trolley cannot be told apart on its yellow girder under the roof truss"
+		},
+		{
+			"id": "ship",
+			"view": "v1",
+			"box": [
+				1016,
+				551,
+				1878,
+				985
+			],
+			"box_from": [
+				"v1.17",
+				"v1.13",
+				"v1.118",
+				"v1.180"
+			],
+			"name": "the crew's Mars shuttle: a long flat wedge-shaped hull of white panels over a dark grey lower hull, a cluster of dark cockpit windows on its upper deck, two round engine pods at the back, short swept fins and a nose spike, standing low on short landing legs",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				12.0,
+				31.0,
+				6.0
+			],
+			"count": 1,
+			"machine": true,
+			"why": "the machine the hangar holds (owner's look, 2026-10-01: flat wedge shuttle, white panels on a dark hull; concept K01 shows it standing on its legs on the pad, not lifting); its box is the four partition proposals that cover its hull (once dropped as the game's ship); size from the plan's keep-out box 12 x 31 m and the cabin deck's 5.5 m with the hull round it; made by the prop route (score/stages/machines/ship_trial.py), no take yet"
 		}
 	]
 }

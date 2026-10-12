@@ -100,6 +100,36 @@ def test_assembly_takes_it(work):
     assert (work / "place/assets/rover_1.usdc").exists() and (work / "place" / machines.LAYER).exists()
 
 
+def test_boxes_grounds_the_machine_rows(work):
+    """machines-boxes asks SAM 3 for the hangar's ship only, and its gate fails a box SAM 3 found elsewhere (the cloud
+    call and the partition's record stood in for)."""
+    import score.stages.machines.boxes as boxes
+    box_check, box_masks_cloud = boxes.box_tools()
+    recorded = []
+    asked = []
+
+    def fake_mask(jobs, out, *rest):
+        found = json.loads(pathlib.Path(jobs).read_text())
+        asked.extend(row["key"] for job in found for row in job["rows"])
+        pathlib.Path(out).write_text(json.dumps({row["key"]: [{"box": [0, 0, 50, 50], "inside": 0.0, "fills": 0.0,
+                                                                  "score": 0.9}]
+                                                 for job in found for row in job["rows"]}))
+    kept = box_masks_cloud.mask, box_check.record_results
+    box_masks_cloud.mask, box_check.record_results = fake_mask, lambda results, measured: recorded.append(results)
+    try:
+        out = work / "boxes"
+        out.mkdir()
+        inputs = {"inventory": boxes.REPO / "data/inventory/hangar.json",
+                  "view v1": PROPS_HOME / "work/scene/hangar/views/K01.png"}
+        boxes.make_boxes(inputs, out, 0, {})
+    finally:
+        box_masks_cloud.mask, box_check.record_results = kept
+    assert asked == ["hangar.ship"], asked
+    verdict = boxes.judge_grounded(out, inputs, None)
+    assert verdict.answer == checks.FAIL and "off" in verdict.findings[0], verdict
+    assert recorded and recorded[0]["hangar.ship"]["passes"] is None  # an ungrounded box is not recorded as passing
+
+
 def main():
     work = PROPS_HOME / "store-tests/machines"
     shutil.rmtree(work, ignore_errors=True)
@@ -107,6 +137,7 @@ def main():
     try:
         test_layout_and_gates(work)
         test_assembly_takes_it(work)
+        test_boxes_grounds_the_machine_rows(work)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     print("machines_test: ok")

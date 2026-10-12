@@ -331,8 +331,9 @@ is meant to fix, where it is marked, and what proves it.
   likeness gate's free half against its close-up), `parts present` (its close-up's finishes in its split) and
   `resting` (resting.py on the composed stage). Its motion and effects are the motion and effects stages'. Only the
   garage's rover has a record. Proven when the garage's rover ends accepted and the owner sees it; the ship and the
-  robot need inventory rows with boxes the box gate passes before the prop route can draw them
-  (`ship_trial.py` runs the ship by the prop route in a world of its own once it has one).
+  ship is the hangar's `ship` inventory row, grounded by `machines-boxes@hangar` (paid, SAM 3) and made by the prop
+  route in a world of its own (`ship_trial.py`); the robot's eight parts are rows with no box (concept K10 shows no
+  robot) and no take yet.
 
 ## architecture/trust-boundaries
 
