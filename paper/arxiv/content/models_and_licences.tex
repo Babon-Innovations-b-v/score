@@ -2,7 +2,11 @@
 
 Every model in the framework must allow commercial use of its output (Table C1); we read each licence for its clauses on commercial use. Candidates were dropped under this rule, among them NVIDIA's Lyra 2.0 (weights for internal research only), Hunyuan3D 2.1 (licence does not apply in the European Union) and GarmentCode's fork of NVIDIA Warp (non-commercial research only), which Newton's cloth solver on upstream Warp replaced; Blender's cloth simulation \citep{blender} is kept as a second route. The one open doubt is the face LoRA, whose training data is not disclosed.
 
+\par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
+
 \textbf{Table C1.} Models in the framework.
+
+\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -49,9 +53,15 @@ MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
 }
 
+\endgroup
+
 The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none scored wrong or failed, and failed nine that were good or usable. The judge's single answer at temperature zero was rejected: asked the same 51 questions twice in one batch, it changed its verdict on 7. On the lab, 7 of the closed model's first pictures failed for drawing the room or dimension lines around the object, and all 7 passed when redrawn from the crop alone. Table C2 gives the stage's runs on world 1.
 
+\par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
+
 \textbf{Table C2.} The close-up stage on world 1. Cloud is rented card time in euros; the closed model's pictures are in dollars.
+
+\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -86,5 +96,7 @@ Lab, 22 rows (earlier check: one answer) & 22 & 8 & 14 & 0 & €4.12 & \$2.81 \\
 World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 & \$4.02 \\
 \end{longtable}
 }
+
+\endgroup
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound generation, all checks and the assembly run automatically. Coding agents (Claude Code \citep{claudecode}) write the plans, the inventories and every code builder; in the hub's final round, 86 of its 98 models were built in code. Some steps were still done by hand: some generated objects were turned to face the right way by eye, and a few labels were placed by hand before a rule took over that job. The concepts and the verdicts are the creator's own choices.

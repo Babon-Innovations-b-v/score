@@ -42,3 +42,35 @@ function Div(el)
   table.insert(blocks, pandoc.RawBlock('latex', '\\end{minipage}}\\end{center}'))
   return blocks
 end
+
+-- A table's caption is the bold "Table X." paragraph just above it. In LaTeX the caption
+-- starts a new page when fewer than 12 lines are left, so it never sits apart from its
+-- table, and the table is set in footnote-size type with narrow column gaps.
+local KEEP_WITH_NEXT = '\\par\\penalty-100'
+  .. '\\ifdim\\dimexpr\\pagegoal-\\pagetotal\\relax<12\\baselineskip\\clearpage\\fi'
+
+local function is_table_caption(block)
+  return block.t == 'Para' and block.content[1] ~= nil and block.content[1].t == 'Strong'
+    and pandoc.utils.stringify(block.content[1]):match('^Table ') ~= nil
+end
+
+function Blocks(blocks)
+  if not FORMAT:match('latex') then
+    return nil
+  end
+  local out = pandoc.Blocks{}
+  for index, block in ipairs(blocks) do
+    local next_block = blocks[index + 1]
+    if is_table_caption(block) and next_block ~= nil and next_block.t == 'Table' then
+      out:insert(pandoc.RawBlock('latex', KEEP_WITH_NEXT))
+    end
+    if block.t == 'Table' then
+      out:insert(pandoc.RawBlock('latex', '\\begingroup\\footnotesize\\setlength{\\tabcolsep}{3pt}'))
+      out:insert(block)
+      out:insert(pandoc.RawBlock('latex', '\\endgroup'))
+    else
+      out:insert(block)
+    end
+  end
+  return out
+end

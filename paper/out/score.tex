@@ -796,17 +796,21 @@ The mechanisms of Section 3 came out of six rounds of work on the hub on
 before (Table A1). In the first two rounds, he chose between the old and
 the new method side by side from the same cameras.
 
+\par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
+
 \textbf{Table A1.} The hub's six rounds. Cost is given as rented GPU
 time in euros and picture-model calls in dollars. Frame time is the mean
 frame time on an RTX 5080, in the night scene, at 1600×900.
 
+\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
+
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1414}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.3232}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.3232}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.0909}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1212}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Round
@@ -841,6 +845,8 @@ check & ``this looks amazing, I have no negative feedback'' & €3.48,
 \$1.07 & 5.6 ms \\
 \end{longtable}
 }
+
+\endgroup
 
 Three findings shaped the method. First, deterministic checks catch what
 agents miss: in round one, the share of rays leaking out through walls
@@ -918,7 +924,11 @@ Warp replaced; Blender's cloth simulation {[}31{]} is kept as a second
 route. The one open doubt is the face LoRA, whose training data is not
 disclosed.
 
+\par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
+
 \textbf{Table C1.} Models in the framework.
+
+\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -997,6 +1007,8 @@ MakeHuman eyes & the characters' eyes & CC0 \\
 \end{longtable}
 }
 
+\endgroup
+
 The close-ups' shape check was tuned on 40 close-ups that four open
 picture models drew of the lab's ten objects, each scored by hand, and
 on Nano Banana Pro's ten pictures of the same objects. With the majority
@@ -1010,8 +1022,12 @@ drawing the room or dimension lines around the object, and all 7 passed
 when redrawn from the crop alone. Table C2 gives the stage's runs on
 world 1.
 
+\par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
+
 \textbf{Table C2.} The close-up stage on world 1. Cloud is rented card
 time in euros; the closed model's pictures are in dollars.
+
+\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -1048,6 +1064,8 @@ World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 &
 \$4.02 \\
 \end{longtable}
 }
+
+\endgroup
 
 The picture-to-3D step, the part splitting, the surface bakes, the sound
 generation, all checks and the assembly run automatically. Coding agents
@@ -1087,35 +1105,39 @@ the place as complete as it could in about 50 minutes, through its
 layout data only; one arm had the framework from before these tools.
 Each arm ran once, so Table E1 shows what happened, not an average.
 
+\par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
+
 \textbf{Table E1.} One session per arm and place. Faults are the resting
 triage's real faults left on the final stage, measured against the arm's
 own data; placeholders by the first placeholder check; rows are
 inventory rows with no object and no written reason. Agent cost is the
 session's model cost; cloud is its rented machines' cost.
 
+\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
+
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1000}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.2000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0900}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0800}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0600}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0700}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0700}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0700}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.0900}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 18\tabcolsep) * \real{0.1200}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Place, arm
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Real faults (start → end)
+Faults, start → end
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
 Placeholders
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
 Rows missing
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Minutes
+Min.
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
 Agent cost
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
@@ -1125,7 +1147,7 @@ Cloud
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
 Exports
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Gate said unknown
+Unknown gate calls
 \end{minipage} \\
 \midrule\noalign{}
 \endhead
@@ -1134,17 +1156,19 @@ Gate said unknown
 Workshop, without & 18 → 13 & 0 → 0 & 1 → 0 & 36 & \$2.26 & 30.4k &
 €0.85 & 7 & not used \\
 Workshop, with & 18 → 0 & 0 → 0 & 1 → 0 & 26 & \$1.42 & 14.3k & €0.85 &
-2 & 2 of 4 calls \\
+2 & 2 of 4 \\
 Street, without & 11 → 0 & 0 → 0 & 0 → 0 & 38 & \$2.40 & 30.0k & €0.32 &
 9 & not used \\
 Street, with & 12 → 0 & 0 → 0 & 0 → 0 & 39 & \$1.21 & 10.4k & €0.76 & 1
-& 0 of 5 calls \\
+& 0 of 5 \\
 Hangar, without & 14 → 4 & 5 → 0 & 0 → 0 & 47 & \$2.01 & 26.6k & €0.00 &
 7 & not used \\
 Hangar, with & 14 → 9 & 5 → 0 & 0 → 0 & 32 & \$2.34 & 29.1k & €0.64 & 5
-& 3 of 6 calls \\
+& 3 of 6 \\
 \end{longtable}
 }
+
+\endgroup
 
 The tools made building cheaper more often than they made the scene
 better. On the workshop and the street, the arm with the tools used
