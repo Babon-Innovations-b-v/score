@@ -4,7 +4,7 @@
  "seconds": 60.0,
  "movers": [
   {
-   "name": "hatch_leaf_2",
+   "name": "hatch_door_leaf_2",
    "prim": "/greenhouse/Objects/hatch_leaf_2",
    "kind": "hatch",
    "on": "rail",
@@ -30,7 +30,7 @@
    "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_3, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
   },
   {
-   "name": "hatch_wheel_2",
+   "name": "hatch_door_wheel_2",
    "prim": "/greenhouse/Objects/hatch_wheel_2",
    "kind": "hatch",
    "on": "rail",
@@ -56,7 +56,7 @@
    "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_3, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
   },
   {
-   "name": "hatch_window_2",
+   "name": "hatch_door_window_2",
    "prim": "/greenhouse/Objects/hatch_window_2",
    "kind": "hatch",
    "on": "rail",
