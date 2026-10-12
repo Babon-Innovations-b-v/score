@@ -21,6 +21,8 @@ IOU_LEAST = 0.85
 NEAR_LEAST = 0.9
 # The power unit's two first maps left its cabinet door photographic: 76 and 78% of the object near a label.
 FILL_LEAST = 0.7
+# The colours a close-up is split into when no draw settled (colour_split).
+SPLIT_COLOURS = 8
 
 
 def object_box(mask):
@@ -103,6 +105,37 @@ def settled(attempts, alpha, every_label=True):
         return None
     best = max(usable, key=lambda index: attempts[index][0]["near_label"])
     return best, filled(attempts[best][1], alpha), True
+
+
+def colour_split(picture, alpha, attempts):
+    """The close-up's own label map when no draw settled (owner-approved fallback, 2026-10-12, old_station's lab
+    module: every draw left half the photo unpainted): the close-up's colours ONLY split its object into regions
+    (k-means of its Lab colours into SPLIT_COLOURS, each colour's connected pieces a region); each region takes the
+    label most of the draws' labelled pixels in it name, a region none name its nearest named neighbour's. Paint
+    still comes from the library by finish; the colours name nothing."""
+    from scipy import ndimage
+    from scipy.cluster.vq import kmeans2
+    import labels
+    pixels = np.asarray(picture.convert("RGB"), dtype=np.float64)[alpha] / 255.0
+    lab = labels.lab(pixels)
+    _, colour_of = kmeans2(lab, SPLIT_COLOURS, seed=0, minit="++")
+    colours = np.full(alpha.shape, -1)
+    colours[alpha] = colour_of
+    regions = np.zeros(alpha.shape, dtype=int)
+    count = 0
+    for colour in range(SPLIT_COLOURS):
+        pieces, found = ndimage.label(colours == colour)
+        regions[pieces > 0] = pieces[pieces > 0] + count
+        count += found
+    listed = max(len(attempt[0]["label_shares"]) for attempt in attempts)
+    votes = np.zeros((count + 1, listed))
+    for _, per_pixel in attempts:
+        named = (per_pixel >= 0) & alpha
+        np.add.at(votes, (regions[named], per_pixel[named]), 1)
+    named_region = np.where(votes.sum(1) > 0, votes.argmax(1), -1)
+    named_region[0] = -1
+    per_pixel = np.where(alpha, named_region[regions], -1)
+    return filled(per_pixel, alpha)
 
 
 def alpha_of(picture):

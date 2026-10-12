@@ -73,6 +73,21 @@ def test_a_partly_photographic_map_is_filled_only_when_most_of_it_is_labelled():
     assert finish_maps.settled([(mostly, labels_left)], alpha) is None, mostly
 
 
+def test_no_settled_draw_falls_back_to_the_close_ups_colours_split_and_the_draws_names():
+    """old_station's lab module, 2026-10-12: every draw left half the photo unpainted. The close-up's colours split
+    it; the few labelled pixels of the draws name each region."""
+    alpha = close_up_alpha()
+    picture = np.full((200, 200, 4), 0, dtype=np.uint8)
+    picture[50:100, 60:140] = (200, 200, 195, 255)  # a light grey body
+    picture[100:150, 60:140] = (40, 50, 90, 255)  # a dark blue window
+    pixels = np.asarray(drawn((120, 120, 120), (120, 120, 120))).copy()
+    pixels[100:115, 130:250] = finish_ask.LABELS[0]
+    pixels[235:250, 130:250] = finish_ask.LABELS[1]
+    measures, per_pixel = finish_maps.check(Image.fromarray(pixels), alpha, 2, finish_ask.LABELS)
+    assert finish_maps.settled([(measures, per_pixel)], alpha) is None, measures
+    split = finish_maps.colour_split(Image.fromarray(picture), alpha, [(measures, per_pixel)])
+    assert (split[50:100, 60:140] == 0).all() and (split[100:150, 60:140] == 1).all() and (split[~alpha] == -1).all()
+
 def test_a_one_finish_take_takes_its_mask_and_a_two_finish_take_still_needs_a_settled_draw():
     import tempfile
     from score.stages.surfaces import finish_rows

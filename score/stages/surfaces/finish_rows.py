@@ -102,14 +102,23 @@ def drawn_attempts(draw, seeds, alpha, listed, every_label, folder, name):
     return records, attempts, kept_seeds
 
 
-def settled_map(draw, seeds, alpha, listed, every_label, folder, name):
-    """A picture's draws settled (finish_maps.settled): its record, and <name>.npy and <name>.png when one settled."""
+def settled_map(draw, seeds, alpha, listed, every_label, folder, name, split=None):
+    """A picture's draws settled (finish_maps.settled): its record, and <name>.npy and <name>.png when one settled.
+    With `split` (the close-up) and no draw settled, the close-up's colours split it and the draws name the regions
+    (finish_maps.colour_split)."""
     import numpy as np
     import finish_ask
     import finish_maps
     records, attempts, kept_seeds = drawn_attempts(draw, seeds, alpha, listed, every_label, folder, name)
     settled = finish_maps.settled(attempts, alpha, every_label)
     record = {"attempts": records, "passes": settled is not None}
+    if settled is None and split is not None and attempts:
+        per_pixel = finish_maps.colour_split(split, alpha, attempts)
+        used = np.bincount(per_pixel[alpha & (per_pixel >= 0)], minlength=listed) / max(alpha.sum(), 1)
+        if int((used >= finish_maps.USED_LEAST).sum()) == listed:
+            record.update(passes=True, by="the close-up's colours split it, the draws named the regions")
+            np.save(folder / f"{name}.npy", per_pixel.astype(np.int8))
+            finish_maps.label_picture(per_pixel, finish_ask.LABELS[:listed]).save(folder / f"{name}.png")
     if settled is not None:
         index, per_pixel, was_filled = settled
         record.update(kept=kept_seeds[index], filled=was_filled,
@@ -152,7 +161,7 @@ def take_maps(inputs, take, finishes, folder):
         front = one_finish_map(alpha, folder)
     else:
         front = settled_map(lambda map_seed, last: finish_ask.draw_map(picture, finishes, map_seed, strict=last),
-                            SEEDS, alpha, listed, True, folder, "front")
+                            SEEDS, alpha, listed, True, folder, "front", split=picture)
     record = {"take": take, "finishes": finishes, "front": front, "views": {}, "passes": front["passes"]}
     if front["passes"] and listed > 1:
         reference = Image.open(folder / "front.png")
