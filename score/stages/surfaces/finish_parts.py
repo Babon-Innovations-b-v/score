@@ -13,8 +13,10 @@ Rows (place grain, surfaces-<step>@<place>):
                     3. a voted face keeps its own vote; any other face its SegviGen part's finish, else the finish of
                        the nearest voted face along the surface (walked)
                     4. smoothed over the surface and its crumbs joined (cleaned), then every island under
-                       ISLAND_LEAST of the area, joined to the rest or loose, taken into the nearest larger island in
-                       space, its finish with it (merged_islands): the aft section's ~9,600 loose bits were parts
+                       ISLAND_LEAST of the area, joined to the rest or loose, taken into the nearest larger island of
+                       its own finish, its finish's crumbs one part when it has none and they reach ISLAND_LEAST
+                       together, else the nearest larger island with its finish (merged_islands): the aft section's
+                       ~9,600 loose bits were parts
                     5. measured against the maps: per map the share of the faces it sees painted its finish, the
                        parts whose voted faces mix two finishes (MIX_SHARE), the parts; front and back pictures
                     parts.json per take: each part's share, its finish's library surface (`judge`) and words, the new
@@ -195,9 +197,12 @@ def cleaned(mesh, face_label, count):
 
 def merged_islands(mesh, face_label):
     """Each face's part and finish once every island (one finish's faces joined by shared edges) under ISLAND_LEAST
-    of the area, joined to the rest or loose, is taken into the larger island nearest it in space (the nearest face
-    middle; a loose bit shares no edge, so without_crumbs never reaches it). With no larger island, the largest
-    island takes the rest."""
+    of the area, joined to the rest or loose (a loose bit shares no edge, so without_crumbs never reaches it), is
+    taken in by its finish: into the larger island of its own finish nearest it in space; when its finish has no
+    larger island, its finish's small islands together are one part if they reach ISLAND_LEAST; else into the larger
+    island of any finish nearest it, its finish with it. Taken in by space alone, the crane trolley's black warning
+    stripes (each band a crumb) and the cut's yellow and rope crumbs went into its forged steel, the black finish
+    vanished and that part mixed (2026-10-12). With no larger island, the largest island takes the rest."""
     import numpy as np
     from scipy.spatial import cKDTree
     import patchy
@@ -207,11 +212,19 @@ def merged_islands(mesh, face_label):
     if not large.any():
         large[area.argmax()] = True
     kept = large[island]
-    host = np.flatnonzero(kept)
     part_of, label = island.copy(), face_label.copy()
-    if (~kept).any():
-        nearest = host[cKDTree(mesh.triangles_center[host]).query(mesh.triangles_center[~kept])[1]]
-        part_of[~kept], label[~kept] = island[nearest], face_label[nearest]
+    middles = mesh.triangles_center
+    hosts = kept.copy()
+    for finish in np.unique(face_label[~kept]):
+        lost = np.flatnonzero(~kept & (face_label == finish))
+        host = np.flatnonzero(hosts & (face_label == finish))
+        if not len(host) and mesh.area_faces[lost].sum() >= ISLAND_LEAST * mesh.area:
+            part_of[lost] = island[lost[0]]
+            continue
+        if not len(host):
+            host = np.flatnonzero(hosts)
+        nearest = host[cKDTree(middles[host]).query(middles[lost])[1]]
+        part_of[lost], label[lost] = part_of[nearest], face_label[nearest]
     return np.unique(part_of, return_inverse=True)[1], label
 
 

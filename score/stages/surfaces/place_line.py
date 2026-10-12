@@ -206,7 +206,8 @@ def judge_concept_colour(output, inputs, evidence):
                if finish.get("by") == "off its colour"]
     swapped = sum(finish.get("by") == "nearest of its family by colour" for report in found.values()
                   for finish in report.get("finishes", []))
-    return gates.verdict("colour against the close-up", failing, len(found), "finishes no surface fits by colour",
+    finishes = sum(len(report.get("finishes", [])) for report in found.values())
+    return gates.verdict("colour against the close-up", failing, finishes, "finishes no surface fits by colour",
                          {"swapped": swapped})
 
 
