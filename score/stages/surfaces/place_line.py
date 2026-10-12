@@ -223,8 +223,9 @@ def bake_entries(inputs, labelled):
             entry = next(found for found in json.loads(inputs[f"bake job {name}"].read_text())["chunky"]
                          if found["name"] == name)
         entries[name] = entry
-    chunky = [dict(entries[name], name=name, parts=str(labelled[take])) for name, take in bake["models"].items()
-              if take in labelled]
+    # regions: an old job's boxes that forced a variant over the paint (the water tank's top as glass): the method paints
+    chunky = [dict(entries[name], name=name, parts=str(labelled[take]), regions=[])
+              for name, take in bake["models"].items() if take in labelled]
     return job, chunky
 
 
