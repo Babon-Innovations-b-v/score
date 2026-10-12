@@ -247,7 +247,7 @@ is meant to fix, where it is marked, and what proves it.
   instructions as the published build's) gates a paid `image-proof-<kind>` cleared against the month's ceiling
   (build.py, then prove.py on real jobs, the kind's own output check), and publish writes the accepted record into
   images.json. Proved so far (2026-10-12): moss and characters-motion built, proved and published through it (two
-  real MOSS takes at the build before's CLAP scores; a 5 s Kimodo walking clip), closing 29 Dependabot alerts with
+  real MOSS takes at the build before's CLAP scores; a 5 s Kimodo walking clip), closing 30 Dependabot alerts (64 open to 34) with
   no world 1 key moved. Proven fully when parts, sam and pixal run through it too, after the world 1 run, and the
   pins gate checks each pin's hashes against the index the build installs from (a triton hash from the wrong index
   passed it and failed a paid build).
