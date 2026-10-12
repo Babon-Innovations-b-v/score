@@ -60,14 +60,20 @@ def on_grid(made, plan_record):
     return heights, grid, ndimage.zoom(held, zoom, order=1), ndimage.zoom(on_path, zoom, order=1)
 
 
+def yards(grid, plan_record):
+    """Where the plan's levelled yards lie: each level's box grown by its blend (the yard and its bank)."""
+    found = np.zeros(grid.x.shape, dtype=bool)
+    for level in plan_record.get("levels", []):
+        box = level["box"]
+        found |= ((grid.x > box[0] - level["blend"]) & (grid.x < box[2] + level["blend"]) &
+                  (grid.z > box[1] - level["blend"]) & (grid.z < box[3] + level["blend"]))
+    return found
+
+
 def relief_mask(grid, plan_record, shaped):
     """Where the made ground should differ from the plan's large shape by its relief alone: off the levelled yards'
     boxes and their blends, and inside the plan's `only` landform when it names one."""
-    mask = np.ones(grid.x.shape, dtype=bool)
-    for level in plan_record.get("levels", []):
-        box = level["box"]
-        mask &= ~((grid.x > box[0] - level["blend"]) & (grid.x < box[2] + level["blend"]) &
-                  (grid.z > box[1] - level["blend"]) & (grid.z < box[3] + level["blend"]))
+    mask = ~yards(grid, plan_record)
     only = plan_record["relief"].get("only")
     if only:
         weight = ndimage.zoom(shaped.masks[only["landform"]], grid.points / shaped.grid.points, order=1)
@@ -168,12 +174,13 @@ def exempt(grid, plan_record):
 
 def slope(made, plan_record, inputs):
     """The held flats' steepest slope over a metre (two cells in from their edge, over land, less the exempt
-    yards), the paths' 99th percentile over a metre, and every room's floor against the ground under it (the ground
+    yards and the levelled yards with their banks, which the level holds, not the flats: the hangar's yard, held on its
+    seat's plane, banks into the base's flat), the paths' 99th percentile over a metre, and every room's floor against the ground under it (the ground
     never above its floor); the faults."""
     from score.stages.terrain import gates
     heights, grid, held, on_path = on_grid(made, plan_record)
     slopes = plan.slopes(ndimage.gaussian_filter(heights, SLOPE_OVER / grid.cell), grid.cell)
-    flats = ndimage.binary_erosion(held > 0.99, iterations=2) & ~exempt(grid, plan_record)
+    flats = ndimage.binary_erosion(held > 0.99, iterations=2) & ~exempt(grid, plan_record) & ~yards(grid, plan_record)
     if made.get("water"):
         flats &= ndimage.binary_erosion(heights > made["water"]["level"] - 0.5, iterations=3)
     found = {"flats_max": round(float(slopes[flats].max()), 2) if flats.any() else 0.0,
