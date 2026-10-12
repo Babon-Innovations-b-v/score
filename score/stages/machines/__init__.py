@@ -1,0 +1,302 @@
+"""The machines stage (experimental, PRD #6, until the owner reviews it): a place's machines (the garage's rover, the
+hangar's ship, the workshop's robot), each a model the prop route made and the surface line painted, laid in the place
+on what holds it up, as the place's machines layer, which the assembly stage puts into the place's stage. Code lays
+the machines out only; what shows is the made model (owner, 2026-10-05). Their motion and effects are the motion and
+effects stages' (captain, 2026-10-12): they ride the machine's prim, /<place>/Objects/<model>.
+
+    make     each machine of the place's record (data/machines/<place>.json) written as the assembly writes a baked
+             model (export.write_asset: the surface line's bake, its paint's labelled parts) under assets/, and laid
+             in layers/machines.usda: turned across or along what it stands on (`turn`: its long side against the
+             support's long side), centred on the support's footprint and let down from `drop_from` metres over the
+             ground to the first thing under it; placed.json holds each pose, the drop and the outline measure
+    gates    outline        likeness.py's outline of the baked model from eight ways round against its take's
+                            close-up (the prop route's likeness gate, its free half) at least OUTLINE_LEAST
+             parts present  every finish the take's close-up lists is owned by a part of its split (surfaces-parts,
+                            likeness_row.finishes_missing)
+             resting        resting.py's verdict on the machine in the composed stage (the machines layer over the
+                            place's seed): no gap over what is under it, its weight over what it touches, nothing of
+                            it sunk, and it lies in no other object deeper than resting.TOLERANCE
+
+A place without a record has no row. DINOv2's likeness is not judged here until likeness.LIKENESS_LEAST is set (the
+prop route's likeness row blocks on it the same way); the outline alone does not tell like shapes apart.
+"""
+import json
+import math
+import pathlib
+import sys
+
+import numpy as np
+
+from score import checks, contracts
+import score.stages.props.likeness as likeness
+import score.stages.props.likeness_row as likeness_row
+
+REPO = pathlib.Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO / "tools/usd"))  # already on the path by the assembly stage's import: no new folder
+import resting  # noqa: E402
+
+FOLDER = REPO / "data/machines"
+LAYER = "layers/machines.usda"
+# How far over the ground a machine is let down from when its record names none, in metres: above a lift's arms and
+# a pad's deck, under a lift's top beam.
+DROP_FROM = 0.5
+# Points of a machine looked down from to find what it lands on.
+DROP_SAMPLES = 6000
+
+
+def applies(place):
+    return (FOLDER / f"{place}.json").exists()
+
+
+def record_of(place):
+    return json.loads((FOLDER / f"{place}.json").read_text())
+
+
+def files(place):
+    """The place's machines record, its seed (the layout the machines are laid in), what the asset writer reads (the
+    library, the surfaces' sounds, the design tokens) and each machine's close-up (its take's Pixal3D input)."""
+    found = {"record": "{data}/machines/{place}.json", "seed": "{seeds}/usd-r3/{place}", "library": "{data}/library",
+             "sounds": "{data}/sound/surfaces.json", "tokens": "{repo}/design/tokens/tokens.json"}
+    for model, entry in record_of(place)["machines"].items() if applies(place) else ():
+        found[f"close-up {model}"] = "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
+    return found
+
+
+def read_json(path):
+    return json.loads(pathlib.Path(path).read_text())
+
+
+# --- the layout ---------------------------------------------------------------------------------------------------
+
+def seed_stage(seed):
+    from pxr import Usd
+    seed = pathlib.Path(seed)
+    return Usd.Stage.Open(str(seed / f"{seed.name}.usda"))
+
+
+def drawn(prim):
+    """An object's drawn mesh (its `geo`, never its collision) in the stage's frame."""
+    import trimesh
+    points, triangles = resting.in_stage(prim.GetChild("geo"))
+    return trimesh.Trimesh(points, triangles, process=False)
+
+
+def support_mesh(stage, place, name):
+    """The drawn mesh of the object a machine stands on, in the stage's frame."""
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    if not (prim and prim.GetChild("geo").IsValid()):
+        raise KeyError(f"/{place}/Objects/{name}: the support the record names is not in the place")
+    return drawn(prim)
+
+
+def everything_near(stage, place, low, high, leave_out="//"):
+    """Every object's drawn mesh (but `leave_out` and its children), the structure's and the fixtures', whose box
+    reaches over the footprint, joined; None when nothing does."""
+    meshes = {path: drawn(prim) for path, prim in resting.objects_of(stage, place).items()
+              if path != leave_out and not path.startswith(leave_out + "/")}
+    return resting.neighbours({**meshes, **resting.structure_of(stage, place), **resting.fixtures_of(stage, place)},
+                              leave_out, low, high)
+
+
+def long_axis(extent):
+    """0 when x is the longer horizontal side of a box's extent, 2 when z is."""
+    return 0 if extent[0] >= extent[2] else 2
+
+
+def turned(points, turn, support):
+    """The machine's points and yaw (degrees) turned about y so its long side lies across or along the support's.
+    shortcut: the sides are read off world-axis boxes, so a support laid off the axes needs its own frame first."""
+    mine, theirs = long_axis(np.ptp(points, axis=0)), long_axis(np.ptp(support.vertices, axis=0))
+    yaw = 0.0 if (mine == theirs) == (turn == "along") else 90.0
+    cosine, sine = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    rotation = np.array([[cosine, 0.0, -sine], [0.0, 1.0, 0.0], [sine, 0.0, cosine]])  # row vectors, y up
+    return points @ rotation, yaw, rotation
+
+
+def drop_to_first(points, others, ground):
+    """How far the points fall straight down before the first of them meets the ground or another surface."""
+    sample = points[np.unique(np.concatenate([np.argsort(points[:, 1])[:resting.FOOTPRINT],
+                                              np.linspace(0, len(points) - 1, DROP_SAMPLES).astype(int)]))]
+    falls = sample[:, 1] - ground(sample[:, [0, 2]])
+    if others is not None:
+        hits, rays, _ = others.ray.intersects_location(sample, np.tile([0.0, -1.0, 0.0], (len(sample), 1)))
+        under = np.full(len(sample), np.inf)
+        np.minimum.at(under, rays, sample[rays, 1] - hits[:, 1])
+        falls = np.minimum(falls, under)
+    return float(np.nanmin(falls))
+
+
+def pose(points, entry, stage, place):
+    """A machine's placement: its 4x4 matrix (row vectors, as USD writes it), its yaw and how far it was let down."""
+    support = support_mesh(stage, place, entry["on"])
+    spun, yaw, rotation = turned(points, entry.get("turn", "along"), support)
+    middle = (support.bounds[0] + support.bounds[1]) / 2
+    ground = resting.ground_height(stage, place)
+    centre = (spun.min(axis=0) + spun.max(axis=0)) / 2
+    move = np.array([middle[0] - centre[0], 0.0, middle[2] - centre[2]])
+    move[1] = float(np.nanmax(ground((spun + move)[:, [0, 2]]))) + entry.get("drop_from", DROP_FROM) - spun[:, 1].min()
+    placed = spun + move
+    low, high = placed.min(axis=0), placed.max(axis=0)
+    drop = drop_to_first(placed, everything_near(stage, place, low, high), ground)
+    move[1] -= drop
+    matrix = np.eye(4)
+    matrix[:3, :3], matrix[3, :3] = rotation, move
+    return matrix, yaw, drop
+
+
+# --- the make -----------------------------------------------------------------------------------------------------
+
+def write_model(model, bake, paint, out):
+    """The baked model under out/assets as the assembly writes it (assembly.take_bake); its baked .gltf."""
+    import export
+    import library
+    baked = read_json(bake / "baked.json")
+    if model not in baked:
+        raise FileNotFoundError(f"{bake}: the surface line baked no {model} (is its take in the place's surface data?)")
+    entry = baked[model]
+    export.write_asset(model, bake / "made", {model: paint / "labelled" / entry["parts"]}, None, entry["base"],
+                       entry["size"], out, library.variants(library.theme_library()),
+                       json.loads(export.SOUNDS.read_text()))
+    return bake / "made" / f"{model}.gltf"
+
+
+def lay(layer, place, model, entry, matrix, sha256):
+    """One machine's prim in the layer: the model's asset referenced, its record's words, its placement."""
+    from pxr import Gf, Sdf
+    objects = Sdf.CreatePrimInLayer(layer, f"/{place}/Objects")
+    for path in (f"/{place}", f"/{place}/Objects"):
+        layer.GetPrimAtPath(path).specifier = Sdf.SpecifierOver
+    spec = Sdf.PrimSpec(objects, model, Sdf.SpecifierDef, "Xform")
+    spec.referenceList.Prepend(Sdf.Reference(f"../assets/{model}.usdc"))
+    values = {"score:kind": entry["kind"], "score:model": model, "score:model_sha256": sha256, "score:anchor": "floor",
+              "score:row": model, "score:machine": entry["take"], "score:on": entry["on"]}
+    for name, value in values.items():
+        Sdf.AttributeSpec(spec, name, Sdf.ValueTypeNames.String).default = value
+    Sdf.AttributeSpec(spec, "score:fixed", Sdf.ValueTypeNames.Bool).default = False
+    Sdf.AttributeSpec(spec, "xformOp:transform", Sdf.ValueTypeNames.Matrix4d).default = Gf.Matrix4d(matrix.tolist())
+    Sdf.AttributeSpec(spec, "xformOpOrder", Sdf.ValueTypeNames.TokenArray, variability=Sdf.VariabilityUniform
+                      ).default = ["xformOp:transform"]
+
+
+def make(inputs, out, seed, params):
+    """Every machine of the place's record made into its asset and laid in the machines layer; placed.json."""
+    from pxr import Sdf
+    import stage_inputs
+    record = read_json(inputs["record"])
+    place = record["place"]
+    stage = seed_stage(inputs["seed"])
+    (out / "layers").mkdir(parents=True)
+    layer = Sdf.Layer.CreateNew(str(out / LAYER))
+    placed = {}
+    for model, entry in sorted(record["machines"].items()):
+        gltf = write_model(model, pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]), out)
+        points, _ = likeness.gltf_mesh(gltf)
+        matrix, yaw, drop = pose(points, entry, stage, place)
+        lay(layer, place, model, entry, matrix, stage_inputs.model_hash(gltf))
+        placed[model] = {"prim": f"/{place}/Objects/{model}", "take": entry["take"], "on": entry["on"],
+                         "yaw": yaw, "at": matrix[3, :3].round(4).tolist(), "dropped": round(drop, 4),
+                         **likeness.best_way(gltf, inputs[f"close-up {model}"])}
+    layer.Save()
+    (out / "placed.json").write_text(json.dumps({"place": place, "machines": placed}, indent=1) + "\n")
+
+
+def layer_faults(folder):
+    folder = pathlib.Path(folder)
+    if not (folder / LAYER).exists() or not (folder / "placed.json").exists():
+        return [f"no {LAYER} or placed.json"]
+    return [f"{model}: no asset" for model in read_json(folder / "placed.json")["machines"]
+            if not (folder / "assets" / f"{model}.usdc").exists()]
+
+
+# --- the gates ----------------------------------------------------------------------------------------------------
+
+def placed_of(output):
+    return read_json(pathlib.Path(output) / "placed.json")["machines"]
+
+
+def composed(output, inputs):
+    """The machines layer over the place's seed stage, opened as one stage."""
+    from pxr import Sdf, Usd
+    seed = pathlib.Path(inputs["seed"])
+    root = Sdf.Layer.CreateAnonymous(".usda")
+    root.subLayerPaths = [str(pathlib.Path(output) / LAYER), str(seed / f"{seed.name}.usda")]
+    stage = Usd.Stage.Open(root)
+    stage.SetDefaultPrim(stage.GetPrimAtPath(f"/{seed.name}"))
+    return stage
+
+
+def verdict(name, failing, total, measures):
+    return checks.Verdict(name, checks.FAIL if failing else checks.PASS,
+                          f"{len(failing)} of {total} machines fail" if failing else f"all {total} pass",
+                          {"failing": len(failing), **measures}, {"failing": "lower"}, tuple(failing))
+
+
+def judge_outline(output, inputs, evidence):
+    """Each machine's best outline against its close-up at least likeness.OUTLINE_LEAST."""
+    placed = placed_of(output)
+    failing = [f"{model}: outline {entry['outline']:.3f} under {likeness.OUTLINE_LEAST}"
+               for model, entry in sorted(placed.items()) if entry["outline"] < likeness.OUTLINE_LEAST]
+    return verdict("outline", failing, len(placed), {"least outline": min(e["outline"] for e in placed.values())})
+
+
+def judge_parts(output, inputs, evidence):
+    """Every finish each machine's close-up lists is owned by a part of its take's split."""
+    parts = read_json(pathlib.Path(inputs["surfaces-parts"]) / "parts.json")
+    placed, failing, untold = placed_of(output), [], []
+    for model, entry in sorted(placed.items()):
+        missing = likeness_row.finishes_missing(entry["take"], parts)
+        if missing is None:
+            untold.append(model)
+        failing += [f"{model}: misses {finish}" for finish in missing or ()]
+    if untold and not failing:
+        return checks.Verdict("parts present", checks.UNKNOWN, f"no split of {', '.join(untold)}'s take")
+    return verdict("parts present", failing + [f"{model}: no split" for model in untold], len(placed),
+                   {"missing finishes": len(failing)})
+
+
+def overlapped(stage, place, name, mesh):
+    """[(other object, depth)] of the objects the machine lies in deeper than resting.TOLERANCE."""
+    found = []
+    for path, prim in resting.objects_of(stage, place).items():
+        if path == name or path.startswith(name + "/"):
+            continue
+        other = drawn(prim)
+        low, high = np.maximum(mesh.bounds[0], other.bounds[0]), np.minimum(mesh.bounds[1], other.bounds[1])
+        if np.any(low > high):
+            continue
+        depth = max(resting.overlap_depth(mesh, other), resting.overlap_depth(other, mesh))
+        if depth > resting.TOLERANCE:
+            found.append((path.removeprefix(f"/{place}/Objects/"), round(depth, 3)))
+    return found
+
+
+def rested(stage, place, model):
+    """resting.py's verdict on one machine in the composed stage, with what it lies in."""
+    name = f"/{place}/Objects/{model}"
+    prim = stage.GetPrimAtPath(name)
+    mesh = drawn(prim)
+    found = resting.judged(model, prim, mesh, resting.ground_height(stage, place),
+                           everything_near(stage, place, *mesh.bounds, leave_out=name))
+    found["overlaps"] = overlapped(stage, place, name, mesh)
+    return found
+
+
+def judge_resting(output, inputs, evidence):
+    """Every machine rests on what is under it and lies in nothing (resting.py, on the composed stage)."""
+    stage = composed(output, inputs)
+    place = stage.GetDefaultPrim().GetName()
+    failing, gaps = [], []
+    for model in sorted(placed_of(output)):
+        found = rested(stage, place, model)
+        gaps.append(found.get("gap") or 0.0)
+        if not found.get("passed", True):
+            failing.append(f"{model}: {found['result']}")
+        failing += [f"{model}: lies {depth * 100:.0f} cm inside {other}" for other, depth in found["overlaps"]]
+    return verdict("resting", failing, len(placed_of(output)), {"largest gap": max(gaps)})
+
+
+LAYER_CONTRACT = contracts.Contract("machines-layer", 1, layer_faults, {"length": "metre", "up axis": "Y"})
+AFTER = {"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
+         "surfaces-parts": ("surfaces-parts", 1)}
+CHECKS = (checks.Check("outline", judge_outline), checks.Check("parts present", judge_parts),
+          checks.Check("resting", judge_resting))
