@@ -22,6 +22,10 @@ has the make and the gates; `space.py` the measures of space (hulls, still surfa
   one that strikes at every angle stays shut with the strike as its `still` reason.
 - **A thing it starts inside is its mount** (a boom's rail, a hatch's frame), named in `clear`'s findings and not
   judged; a mover on a `rail` must keep touching one of them.
+- **Over the place's accepted scene record, the place alone.** Where the place has a scene-record row the layer is
+  written over its accepted record as the assembly writes it, else over the seed; the places it shows are left out
+  (but their prims that move), since neighbours show each other. A game prim the new record names otherwise is the
+  movers record's `renamed`; one the record dropped fails `covered`, never written to nothing.
 - **Only places with a movers record have the row.** The assembly does not take the layer yet: the final assembly of
   each place takes it in place of the seed's `layers/motion.usda`.
 - Effects tied to motion (dust, exhaust) are the effects stage's (`follows`, `on`).

@@ -6,6 +6,8 @@ source of its numbers) are written into one layer over the place's stage: its se
 written over the seed's record prims, as the assembly writes it (assembly.take_record), or the seed alone for a place
 with no scene-record row. A game motion's prim the new record names otherwise is the movers record's `renamed`
 ({old prim: new prim}); a game motion whose prim the place no longer has is not written, and `covered` fails on it.
+The stage is the place itself (movers.place_only): the places it shows are left out, all but their prims that move,
+so two places that show each other never load each other round.
 
     make     tools/usd/movers.py's write_layer: layers/motion.usda (taking the place of the seed's) and movers.json
              (what it moved, the game motions whose prim is gone, and the layer's seconds)
@@ -137,18 +139,30 @@ def game_motions(inputs, stage):
     """(the game's motions whose prim the place has, renamed as its record names them; those whose prim is gone)."""
     names = read_json(inputs["movers"]).get("renamed", {})
     motions = [renamed(entry, names) for entry in (game_record(inputs) or {}).get("motions", [])]
-    present = [entry for entry in motions
-               if stage.GetPrimAtPath(entry["prim"]) or ("adds" in entry and stage.GetPrimAtPath(
-                   entry["adds"].get("like", "/")))
-               or ("adds" in entry and "light" in entry["adds"])]
+    present = [entry for entry in motions if stands(stage, entry)]
     return present, [entry for entry in motions if entry not in present]
+
+
+def stands(stage, entry):
+    """Whether a game motion's prim is in the place's stage: a light it switches, a light it adds, a copy of a prim
+    the stage draws, or a prim that draws a mesh."""
+    adds = entry.get("adds", {})
+    if "light" in adds:
+        return True
+    prim = stage.GetPrimAtPath(adds["like"] if "like" in adds else entry["prim"])
+    return bool(prim) and ("light" in entry or bool(space.shown_meshes(prim)))
 
 
 def make(inputs, out, seed, params):
     """The place's motion layer from its game motions and its movers, over its stage."""
-    from pxr import Usd
+    from pxr import Sdf
     place, source = place_of(inputs), source_of(inputs)
-    present, gone = game_motions(inputs, Usd.Stage.Open(str(source / f"{place}.usda")))
+    names = read_json(inputs["movers"]).get("renamed", {})
+    every = [renamed(entry, names) for entry in (game_record(inputs) or {}).get("motions", [])]
+    every += read_json(inputs["movers"]).get("movers", [])
+    stage = mover_layer.working_stage(place, source, Sdf.Layer.CreateAnonymous(".usda"),
+                                      mover_layer.moving_prims(every))
+    present, gone = game_motions(inputs, stage)
     written = mover_layer.write_layer(place, {"motions": present}, read_json(inputs["movers"]), source, out)
     (out / "movers.json").write_text(json.dumps({"place": place, "moved": written["moved"],
                                                  "gone": [f"{entry['name']}: {entry['prim']}" for entry in gone],
@@ -161,7 +175,8 @@ def composed(output, inputs):
     """The motion layer over the place's stage (its edit, its other layers and base), opened as one stage."""
     from pxr import Sdf
     layer = Sdf.Layer.FindOrOpen(str(pathlib.Path(output) / game_motion.LAYER))
-    return game_motion.working_stage(place_of(inputs), source_of(inputs), layer)
+    return mover_layer.working_stage(place_of(inputs), source_of(inputs), layer,
+                                     mover_layer.moving_prims(entries(inputs)))
 
 
 def entries(inputs):
