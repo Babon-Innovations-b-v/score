@@ -14,6 +14,12 @@ has the make and the gates; `space.py` the measures of space (hulls, still surfa
 - **The game's timed motions stay the game's.** Their records (`data/motion`) are read as they are; the effects stage
   reads them too, so editing one moves the effects rows' keys. A place's movers record may set the layer's
   `seconds` so the game's loops also fit it whole.
+- **Designed pass-throughs are written, never assumed.** A motion that passes through a still thing by its design (the
+  airlock's doors sinking through a floor whose slot the stage does not cut, a door's edges in its wall's track) is
+  the movers record's `through` ({motion: {prim pattern: why}}), shown in `clear`'s findings. A thing standing in a
+  track by layout (the garage's pressure gauge in the big door's way) is a fault of the place, not a pass-through.
+- **Hatches are fitted by the gate.** A hatch opens into its room as far as `clear` allows (100 degrees down to 60);
+  one that strikes at every angle stays shut with the strike as its `still` reason.
 - **A thing it starts inside is its mount** (a boom's rail, a hatch's frame), named in `clear`'s findings and not
   judged; a mover on a `rail` must keep touching one of them.
 - **Only places with a movers record have the row.** The assembly does not take the layer yet: the final assembly of

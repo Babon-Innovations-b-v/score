@@ -1,0 +1,9 @@
+{
+ "place": "campgrounds",
+ "about": "The expedition camp's grounds: its one moving kind is the cargo crane.",
+ "seconds": 60.0,
+ "movers": [],
+ "still": {
+  "crane_1": "One mesh from base to hook (the made model, take crane-r1): its slewing top cannot turn without turning its outrigger feet on the ground with it. It slews (data/checks/motion.json crane, about 6 degrees a second) once the model is split into a base and a top."
+ }
+}

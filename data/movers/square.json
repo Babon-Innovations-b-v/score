@@ -1,0 +1,7 @@
+{
+ "place": "square",
+ "about": "Nothing of a moving kind stands in the square itself; the launch's ferries it shows move in the launch's own layer.",
+ "seconds": 60.0,
+ "movers": [],
+ "still": {}
+}

@@ -30,7 +30,8 @@ A movers record:
 
 Each mover is written as an `over` with xform ops before the base's own: a path's `translate:path` and
 `rotateY:path` round the prim's rest spot (`!invert!translate:rest`), a swing's `rotateY:swing` round its hinge
-(`translate:hinge` and its inverse), a spin's `rotateY:spin` round its middle (`translate:spin`). Every sample is a time code of the stage's own rate.
+(`translate:hinge` and its inverse), a spin's `rotateY:spin` round its middle (`translate:spin`). Every sample is a
+time code of the stage's own rate.
 """
 import argparse
 import json

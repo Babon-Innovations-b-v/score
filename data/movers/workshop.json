@@ -1,0 +1,242 @@
+{
+ "place": "workshop",
+ "about": "The workshop: the robot on its turntable as the game runs it (data/motion/workshop.json) and the three hatches each in turn.",
+ "seconds": 60.0,
+ "movers": [
+  {
+   "name": "hatch_leaf_1",
+   "prim": "/workshop/Objects/hatch_leaf_1",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_1",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      4.0,
+      "open"
+     ],
+     [
+      15.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_1, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  },
+  {
+   "name": "hatch_wheel_1",
+   "prim": "/workshop/Objects/hatch_wheel_1",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_1",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      4.0,
+      "open"
+     ],
+     [
+      15.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_1, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  },
+  {
+   "name": "hatch_window_1",
+   "prim": "/workshop/Objects/hatch_window_1",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_1",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      4.0,
+      "open"
+     ],
+     [
+      15.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_1, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  },
+  {
+   "name": "hatch_leaf_2",
+   "prim": "/workshop/Objects/hatch_leaf_2",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_3",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      17.0,
+      "open"
+     ],
+     [
+      28.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_3, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  },
+  {
+   "name": "hatch_wheel_2",
+   "prim": "/workshop/Objects/hatch_wheel_2",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_3",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      17.0,
+      "open"
+     ],
+     [
+      28.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_3, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  },
+  {
+   "name": "hatch_window_2",
+   "prim": "/workshop/Objects/hatch_window_2",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_3",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      17.0,
+      "open"
+     ],
+     [
+      28.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_3, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  },
+  {
+   "name": "hatch_leaf_3",
+   "prim": "/workshop/Objects/hatch_leaf_3",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_5",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      30.0,
+      "open"
+     ],
+     [
+      41.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_5, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  },
+  {
+   "name": "hatch_wheel_3",
+   "prim": "/workshop/Objects/hatch_wheel_3",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_5",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      30.0,
+      "open"
+     ],
+     [
+      41.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_5, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  },
+  {
+   "name": "hatch_window_3",
+   "prim": "/workshop/Objects/hatch_window_3",
+   "kind": "hatch",
+   "on": "rail",
+   "start": 0.0,
+   "length": 60.0,
+   "loop": true,
+   "swing": {
+    "about": "Objects/hatch_hinge_5",
+    "angle": 100.0,
+    "speed": 30.0,
+    "starts": "shut",
+    "moves": [
+     [
+      30.0,
+      "open"
+     ],
+     [
+      41.333,
+      "shut"
+     ]
+    ]
+   },
+   "from": "A pressure hatch opened by someone passing through, SCORE's own (the game opens a hatch only when the player presses it): swung 100 degrees into the room on the upright line through its hinge hatch_hinge_5, at 30 degrees a second (data/checks/motion.json hatch: a low-energy swing door's 18 to 27, a power door's at most 53), held open 8 s, shut again; each hatch of the room in its own turn of the 60 s round. Its wheel and window ride it."
+  }
+ ],
+ "still": {}
+}
