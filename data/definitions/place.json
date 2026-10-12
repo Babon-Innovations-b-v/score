@@ -640,6 +640,10 @@
 			"vinyl_brown": {
 				"token": "soil-wet",
 				"library": "vinyl_brown"
+			},
+			"bakelite": {
+				"token": "surface-raised",
+				"library": "bakelite"
 			}
 		},
 		"light": {
@@ -1986,6 +1990,10 @@
 			"tank_water": {
 				"token": "deck",
 				"library": "tank_water"
+			},
+			"red_plastic": {
+				"token": "sign-red",
+				"library": "red_plastic"
 			}
 		},
 		"light": {

@@ -20,7 +20,8 @@ from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
 
 SEEDS = PROPS_HOME / "work"
 PLACES = ("hangar", "hdoor")
-DATA = ("kit", "inventory", "library/fittings.json", "checks", "effects", "scene", "motion", "ground")
+DATA = ("kit", "inventory", "library", "checks", "effects", "scene", "motion", "ground", "sound/surfaces.json",
+        "definitions/place.json")
 
 
 def world_data_copy(root):
@@ -33,11 +34,13 @@ def world_data_copy(root):
 
 
 def scenario(root):
-    world = graph.World("world1", 3, {"data": str(world_data_copy(root / "data")), "seeds": str(SEEDS)})
+    world = graph.World("world1", 3, {"data": str(world_data_copy(root / "data")), "seeds": str(SEEDS),
+                                      "repo": str(REPO)})
     store = Store.in_folder(root / "store")
     # The worked example's own stages: terrain (a world node) spends and has its own test beside its module, so a
     # terrain that made no ground for these places stands in for it.
-    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, stages.ASSEMBLY, stages.NEIGHBOURS,
+    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, *NO_SURFACES, stages.ASSEMBLY,
+                                               stages.NEIGHBOURS,
                                                stages.COMPLETE), world, store)
 
 
@@ -49,6 +52,10 @@ def made(output, inputs, evidence):
     return checks.Verdict("made", checks.PASS, "no ground made for these places")
 
 
+# The surface rows the assembly reads, applying to neither place here (their own checks are score/stages/surfaces').
+NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
+                                (checks.Check("made", made),), applies=lambda place: False)
+                    for name in ("surfaces-paint", "surfaces-bake"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
