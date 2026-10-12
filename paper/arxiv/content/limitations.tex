@@ -9,7 +9,7 @@
 \item
   \textbf{Places come out sparser than their concepts.} The concept-density check catches this but does not fix it.
 \item
-  \textbf{One stage still depends on a closed, paid picture model.} Nano Banana Pro draws the concepts and every close-up that the open model's pictures fail; on the last 17 close-ups of world 1, none of the open model's pictures passed the shape check (Appendix E). Its daily limits set the pace of world 1, and it can change or be retired, which limits reproducibility.
+  \textbf{Two stages depend on closed, paid models.} Nano Banana Pro draws the concepts and every close-up that the open model's pictures fail; on the last 17 close-ups of world 1, none of the open model's pictures passed the shape check (Appendix E). The surface stage uses two of Google's models: Gemini 3.1 Pro lists each model's finishes on its close-up and names their library surfaces, and Nano Banana Pro draws the finish map that SegviGen lays onto the shape. A public framework thus depends on closed services for two of its stages. Their daily limits set the pace of world 1, and they can change their price or be retired, which limits reproducibility. An open-model fallback for both stages is future work.
 \item
   \textbf{Parts do not follow finishes, and shadow reads as paint.} PartCrafter's parts follow shape, not paint, so a finish without its own part, such as a gold foil patch on a white hull, is lost when the part is painted with one surface, and the judge that names each part's surface reads shadow on the close-up as dark paint. A split seeded by the close-up's regions (GeoSAM2 \citep{deng2025geosam2}) owns more finishes in a comparison on 22 models, but is not yet part of the route.
 \item
