@@ -2,7 +2,7 @@
 # sam3dbody steps install them on a rented card; one image for both because body_picture.py (the body read off a
 # picture by SAM3DBody-cpp) runs in the motion environment, as do export_body.py, head.py, the face and hair fits and
 # the build. So the characters-body and characters-motion kinds share this image.
-#   /root/envs/motion    Python 3.11: torch 2.11.0+cu128, Kimodo (nv-tlabs/kimodo at the commit vendor/kimodo holds,
+#   /root/envs/motion    Python 3.11: torch 2.13.0 (CUDA 13.0), Kimodo (nv-tlabs/kimodo at the commit vendor/kimodo holds,
 #                        Apache-2.0) with SOMA-X (NVlabs/SOMA-X, Apache-2.0, pinned) and the rest of motion()'s list
 #                        (requirements.txt, resolved and hashed).
 #   /root/sam3dbody-cpp  SAM3DBody-cpp (AmmarkoV/SAM3DBody-cpp at the commit vendor/sam3dbody-cpp holds, MIT) built with
