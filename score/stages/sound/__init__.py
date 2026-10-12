@@ -1,0 +1,261 @@
+"""The sound stage (experimental, PRD #6, until the owner has heard it): a place's sound layer data, every sound the
+place plays with its files, its level, where it plays and who made it, for the place's assembly to write into its
+OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions' sounds, the surfaces' bank).
+
+    make     every source the place names (data/sound/places.json: its room tones, what the suit lets through, its
+             `objects`; its inventory rows' `sound`; its motions' `sounds`; every surface's footstep, impact and scrape
+             in data/sound/surfaces.json) answered by one sound: the world's file of a sound already picked (a MOSS
+             take, a file tools/sound/made.py makes, or a recording the owner chose over the takes), else MOSS takes
+             of its brief made in the moss image on a rented card (PAID, takes.py), each brought to its category's
+             loudness and chosen by the picker's rule (its CLAP match to its prompt less its faults,
+             tools/sound/picker); `sound.json` and the files under `files/`
+    gates    sources   every source has a sound with its files, and every object it plays at stands in the place's
+                       inventory or scene record
+             level     every file, measured: its true peak under the ceiling, its loudness within its category's
+                       target (tools/sound/loudness), its length within its brief
+             likeness  every MOSS-made sound's CLAP match to its prompt at least gates.CLAP_FLOOR
+             no freesound  no file is a Freesound recording but those the owner chose over the generated takes
+
+Only places with an entry in data/sound/places.json have the row.
+"""
+import json
+import pathlib
+import shutil
+import sys
+
+from score import checks, contracts
+from score.stages.sound import gates
+from score.stages.sound import takes as moss_takes
+from score.stages.sound.gates import FREESOUND, RECORD, read_json
+
+REPO = pathlib.Path(__file__).resolve().parents[3]
+for folder in ("tools/sound/picker", "tools/sound/loudness", "tools/usd", "tools/assets"):
+    sys.path.insert(0, str(REPO / folder))
+import apply as picker_apply  # noqa: E402
+import loudness  # noqa: E402
+import takes as picker_takes  # noqa: E402
+import page as picker_page  # noqa: E402
+import sources as picker_sources  # noqa: E402
+import stage_inputs  # noqa: E402
+import world as world_assets  # noqa: E402
+
+FILES = "files"
+HAPPENINGS = ("footstep", "impact", "scrape")
+MADE_BY_MOSS = "MOSS"
+PLACES_JSON = REPO / "data/sound/places.json"
+# One rented L4 for a place's new briefs (8 takes a brief, about 30 s each): about EUR 0.2 measured on the image's
+# proof; the estimate leaves room for a slow card and a second claim.
+EUROS = 1.0
+
+
+def applies(place):
+    return place in json.loads(PLACES_JSON.read_text())["places"]
+
+
+def files(place):
+    """What the stage reads: the sound data, the release's manifest (which file of the world is which), and the
+    place's own scene, inventory and motion records (where its sounds play)."""
+    found = {"sounds": "{data}/sound/sounds.json", "catalogue": "{data}/sound/catalogue.json",
+             "places": "{data}/sound/places.json", "surfaces": "{data}/sound/surfaces.json",
+             "licences": "{data}/sound/licences.json", "assets": "{data}/assets/world1.json",
+             "scene": "{data}/scene/{place}.json"}
+    inventory = stage_inputs.inventory_path(place)
+    if inventory.exists():
+        found["inventory"] = "{data}/inventory/" + inventory.name
+    if (REPO / f"data/motion/{place}.json").exists():
+        found["motion"] = "{data}/motion/{place}.json"
+    return found
+
+
+def place_of(inputs):
+    return pathlib.Path(inputs["scene"]).stem
+
+
+# --- the sources ----------------------------------------------------------------------------------------------------
+
+def uses_of(place, inputs):
+    """Every place the place plays a sound from: [{sound, role, on, from}]."""
+    record = read_json(inputs["places"])["places"][place]
+    uses = [{"sound": name, "role": "room", "on": None, "from": "data/sound/places.json"}
+            for name in record.get("loops", []) + record.get("heard_through", [])]
+    uses += [{"sound": entry["sound"], "role": "object", "on": entry["on"], "from": "data/sound/places.json objects"}
+             for entry in record.get("objects", [])]
+    if "inventory" in inputs:
+        uses += [{"sound": row["sound"], "role": "object", "on": row["id"],
+                  "from": f"{pathlib.Path(inputs['inventory']).name} row {row['id']}"}
+                 for row in read_json(inputs["inventory"]).get("rows", []) if row.get("sound")]
+    if "motion" in inputs:
+        uses += [{"sound": sound["name"], "role": "motion", "on": motion.get("prim", ""), "at": sound.get("at"),
+                  "loops_until": sound.get("loops_until"), "from": sound.get("from", "")}
+                 for motion in read_json(inputs["motion"]).get("motions", []) for sound in motion.get("sounds", [])]
+    return uses + bank_uses(read_json(inputs["surfaces"]))
+
+
+def bank_uses(surfaces):
+    """Every surface's footstep, impact and scrape, and the fallback footstep, as bank sounds."""
+    found = {}
+    for surface, sounds in surfaces["surfaces"].items():
+        for happening in HAPPENINGS:
+            if sounds.get(happening):
+                found.setdefault(sounds[happening], []).append(f"{surface} {happening}")
+    if surfaces.get("fallback", {}).get("footstep"):
+        found.setdefault(surfaces["fallback"]["footstep"], []).append("fallback footstep")
+    return [{"sound": name, "role": "bank", "on": ", ".join(where), "from": "data/sound/surfaces.json"}
+            for name, where in found.items()]
+
+
+def entry_of(name, inputs):
+    """A sound's fields as the game read them: the catalogue's defaults, its entry, the data's over it (its brief
+    apart); a sound only the data names takes its loop from its brief."""
+    catalogue, sounds = read_json(inputs["catalogue"]), read_json(inputs["sounds"])["sounds"]
+    filled = {**catalogue["defaults"], **catalogue["sounds"].get(name, {}),
+              **{key: value for key, value in sounds.get(name, {}).items() if key != "pick"}}
+    if name not in catalogue["sounds"] and sounds.get(name, {}).get("pick", {}).get("loop"):
+        filled["loops"] = True
+    filled.pop("note", None)
+    return filled
+
+
+def listed(named):
+    if not named:
+        return []
+    return [named] if isinstance(named, str) else list(named)
+
+
+# --- a sound picked already -----------------------------------------------------------------------------------------
+
+def levelled(paths, category, loops):
+    """The files of a sound brought to its category's loudness (the loudness rule), when any is off it; the dB its
+    volume moves by so it plays as loud as before (its loudest file's change, as tools/sound/picker/apply.py levels)."""
+    target = loudness.TARGETS[picker_takes.TARGET[category]]
+    before = {path: loudness.measure(path) for path in paths}
+    if all(loudness.is_kept(measured, target) for measured in before.values()):
+        return 0.0
+    after = {}
+    for path in paths:
+        source = path.with_name(f"before-{path.name}")
+        path.rename(source)
+        after[path] = loudness.normalise(source, path, target, fade_ms=0 if loops else 8)
+        source.unlink()
+        if after[path] is None:
+            raise RuntimeError(f"{path.name} cannot be brought to {target} LUFS under the loudness rule")
+    return max(measured["lufs"] for measured in before.values()) - max(measured["lufs"] for measured in after.values())
+
+
+def picked(name, brief, entry, inputs, out):
+    """A sound the world already plays: its files copied from the release, its credit from the licence list."""
+    licences = {listing["file"]: listing for listing in read_json(inputs["licences"])}
+    names = listed(entry.get("file"))
+    credits = [licences.get(world_name, {"file": world_name}) for world_name in names]
+    for world_name in names:
+        target = out / FILES / world_name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(world_assets.resolve(world_name), target)
+    volume = float(entry.get("volume_db", 0.0))
+    if brief.get("category"):
+        volume += levelled([out / FILES / world_name for world_name in names], brief["category"], bool(entry.get("loops")))
+    chosen = brief.get("chosen", {})
+    made_by = ("moss" if all(MADE_BY_MOSS in credit.get("source", "") for credit in credits) else
+               "recording" if any(FREESOUND in credit.get("source", "") for credit in credits) else "made")
+    prompt, seed = None, None
+    if made_by == "moss" and chosen.get("take", "").startswith("moss:"):
+        stem = chosen["take"][5:]
+        prompt = brief["prompts"][int(stem.split("__p")[1].split("__")[0]) - 1]
+        seed = int(stem.rsplit("__s", 1)[1])
+    return {"files": [f"{FILES}/{world_name}" for world_name in names], "volume_db": round(volume, 1),
+            "made_by": made_by, "credits": credits, "prompt": prompt, "seed": seed, "clap": chosen.get("clap"),
+            "chosen_by": chosen.get("by", "the game's catalogue"), "decided": chosen.get("decided")}
+
+
+# --- a sound made here ----------------------------------------------------------------------------------------------
+
+def need_of(name, brief):
+    """The picker's need for a brief (tools/sound/picker/needs.py's shape)."""
+    return {"name": name, "category": brief["category"], "where": brief["where"], "loop": bool(brief.get("loop")),
+            "seconds": float(brief.get("seconds", 8)), "level": brief.get("level"), "before": name, "now": []}
+
+
+def candidates(name, jobs, scored, weights):
+    """The picker's candidates of a brief's takes, each with its CLAP score."""
+    return [picker_sources.Candidate(
+        "moss", f"moss:{pathlib.Path(job['file']).stem}", f"Generated, seed {job['seed']}",
+        f"generated with MOSS-SoundEffect v2.0 ({weights})", picker_sources.Moss.LICENCE, moss_takes.MODEL_PAGE,
+        (moss_takes.TAKES / job["file"]).as_uri(), float(job["seconds"]), prompt=job["prompt"], seed=job["seed"],
+        clap=scored[job["file"]]) for job in jobs]
+
+
+def generated(name, brief, entry, inputs, out, weights):
+    """A sound made here: its brief's MOSS takes, each brought to its category's loudness and judged, the best one's
+    files into the output at the level its brief asks (or its category's)."""
+    jobs = moss_takes.jobs_for(name, brief, weights)
+    scored = moss_takes.made(jobs, out / "cloud" / name)
+    need = need_of(name, brief)
+    kept = picker_page.made_safe(need, candidates(name, jobs, scored, weights), out / "work")
+    judged = picker_page.page_need(need, kept)
+    take = next((take for take in judged["takes"] if take["key"] == judged["chosen"]), None)
+    if take is None:
+        return None
+    files_out = []
+    for page_file, world_name in picker_apply.world_files_for(need, take):
+        target = out / FILES / world_name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(out / "work" / page_file, target)
+        files_out.append(world_name)
+    level = float(brief["level"]) if brief.get("level") is not None else picker_apply.LEVELS[brief["category"]]
+    loudest = max(take["measures"][page_file]["lufs"] for page_file in take["files"])
+    return {"files": [f"{FILES}/{world_name}" for world_name in files_out],
+            "volume_db": round(min(level - loudest, 0.0), 1), "made_by": "moss",
+            "credits": [{"file": world_name, "source": f"{moss_takes.MODEL_PAGE}; prompt: {take['prompt']}; "
+                                                      f"seed {take['seed']}",
+                         "author": take["author"], "licence": take["licence"]} for world_name in files_out],
+            "prompt": take["prompt"], "seed": take["seed"], "clap": take["clap"], "faults": take["faults"],
+            "chosen_by": "scoring", "takes": len(jobs), "kept": len(kept)}
+
+
+def sound_of(name, inputs, out, weights):
+    """One sound's record: picked already, made here, or None (no file and no brief)."""
+    entry = entry_of(name, inputs)
+    brief = read_json(inputs["sounds"])["sounds"].get(name, {}).get("pick", {})
+    if entry.get("file"):
+        found = picked(name, brief, entry, inputs, out)
+    elif brief.get("prompts"):
+        found = generated(name, brief, entry, inputs, out, weights)
+    else:
+        return None
+    if found is None:
+        return None
+    return {**found, "bus": entry.get("bus", ""), "loops": bool(entry.get("loops")),
+            "reach": float(entry.get("reach", 0.0)), "ground_thud": bool(entry.get("ground_thud", False)),
+            "category": brief.get("category"), "brief_seconds": brief.get("seconds")}
+
+
+def make(inputs, out, seed, params):
+    """The place's sound layer data: sound.json and every file it names under files/."""
+    from score.adapters import models
+    place = place_of(inputs)
+    weights = next(model["revision"] for model in models.record(moss_takes.KIND)["models"]
+                   if model["name"] == moss_takes.MODELS[0])
+    uses = uses_of(place, inputs)
+    sounds = {}
+    for name in dict.fromkeys(use["sound"] for use in uses):
+        found = sound_of(name, inputs, out, weights)
+        if found is not None:
+            sounds[name] = found
+    shutil.rmtree(out / "work", ignore_errors=True)
+    shutil.rmtree(out / "cloud", ignore_errors=True)
+    (out / RECORD).write_text(json.dumps({"place": place, "sounds": sounds, "uses": uses}, indent=1))
+
+
+def layer_faults(folder):
+    """The record is there and every file it names is in the output."""
+    folder = pathlib.Path(folder)
+    if not (folder / RECORD).exists():
+        return [f"no {RECORD}"]
+    record = read_json(folder / RECORD)
+    return [f"{name}: {path} is missing" for name, sound in record["sounds"].items() for path in sound["files"]
+            if not (folder / path).exists()]
+
+
+LAYER = contracts.Contract("sound-layer", 1, layer_faults, {"time": "second"})
+CHECKS = (checks.Check("sources", gates.judge_sources), checks.Check("level", gates.judge_level),
+          checks.Check("likeness", gates.judge_likeness), checks.Check("no freesound", gates.judge_no_freesound))
