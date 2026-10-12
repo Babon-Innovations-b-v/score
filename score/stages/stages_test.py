@@ -16,7 +16,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 from score import checks, contracts, graph, review, stages  # noqa: E402
-from score.store import PROPS_HOME, Store  # noqa: E402
+from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
 
 SEEDS = PROPS_HOME / "work"
 PLACES = ("hangar", "hdoor")
@@ -85,6 +85,27 @@ def test_the_worked_example_on_world_1s_seeds():
         assert why.startswith("assembly@hangar: output") and "fail, not accepted" in why and "seed " in why
     finally:
         shutil.rmtree(root)
+
+
+def terrain_code_after_editing(edited):
+    """Terrain's code version as if the repository file `edited` had changed (its hash moved; nothing written)."""
+    stage = stages.TERRAIN
+    functions = [stage.make, stage.contract.faults, *(check.judge for check in stage.checks)]
+    return graph._code.code_version(functions, lambda path: file_hash(path) + ("+edit" if path == REPO / edited
+                                                                               else ""))
+
+
+def test_terrain_s_code_version_moves_with_its_own_code_only():
+    """Another line's edits to the runner, the stage table or another stage's module leave terrain's key alone (they
+    re-made terrain under the effects line, 2026-10-12); its own module and what it imports move it."""
+    before = terrain_code_after_editing("nothing")
+    for unrelated in ("score/stages/__init__.py", "score/graph/__init__.py", "score/review/__init__.py",
+                      "score/adapters/compute/__init__.py", "score/stages/effects/__init__.py",
+                      "score/stages/assembly/__init__.py", "score/stages/surfaces/__init__.py"):
+        assert terrain_code_after_editing(unrelated) == before, unrelated
+    for own in ("score/stages/terrain/__init__.py", "score/stages/terrain/landforms.py", "tools/usd/ground.py",
+                "tools/props/cloud/depth.py"):
+        assert terrain_code_after_editing(own) != before, own
 
 
 if __name__ == "__main__":

@@ -37,7 +37,9 @@ stage as each stage is built; nothing moves before.
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
   stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved
   since. A node's key hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
-  import, inside functions and through `sys.path` folders too), parameters, seed, pinned models and every input.
+  import, inside functions and through `sys.path` folders too; never the framework's own runner, review, clearance
+  and stage table, `_code.FRAMEWORK`, so one line's edits there re-make no other line's nodes), parameters, seed,
+  pinned models and every input.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
   `accept_automatically` (the runner's); and the owner's `reject` (the accepted output moves back to the one accepted
   before, later nodes that read it go stale, the runner never takes it again), `accept` (his own, a worse one with his
