@@ -185,6 +185,7 @@ class Runner:
         self.store = store
         self.model_record = model_record or models.record
         self.code_versions = {}
+        self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
         unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
         if unknown:
             raise ValueError(f"stages read stages the table lacks: {sorted(unknown)}")
@@ -204,6 +205,38 @@ class Runner:
             if before not in found:
                 found.add(before)
                 todo += [*self.stages[before].after, *self.stages[before].beside]
+        return found
+
+    @contextlib.contextmanager
+    def still(self):
+        """A pass that writes nothing to the store (status, lines, a finished node's verdict): its listing is walked
+        once, not once a lookup (one walk reads the whole store: 0.8 s at 35,000 objects, 2026-10-12), and each
+        node's key and staleness are worked out once, not once a path through the nodes that read it (both recurse
+        through every node a node reads; a run's closing status took longer than its run)."""
+        if self.remembered is not None:
+            yield
+            return
+        listing = self.store.objects.keys("")
+        self.store.objects.keys = lambda prefix: [key for key in listing if key.startswith(prefix)]
+        self.remembered = {}
+        try:
+            yield
+        finally:
+            del self.store.objects.keys
+            self.remembered = None
+
+    def remember(self, what, node, work):
+        """work() once a `still` pass (its Blocked too); outside one, every time."""
+        if self.remembered is None:
+            return work()
+        if (what, node) not in self.remembered:
+            try:
+                self.remembered[what, node] = work()
+            except Blocked as block:
+                self.remembered[what, node] = block
+        found = self.remembered[what, node]
+        if isinstance(found, Blocked):
+            raise found
         return found
 
     # --- keys --------------------------------------------------------------------------------------------------
@@ -267,6 +300,10 @@ class Runner:
 
     def key(self, stage, place):
         """The node's key and everything it hashes; raises Blocked when an input is missing or not usable."""
+        return self.remember("key", node_name(stage, place), lambda: self.worked_out_key(stage, place))
+
+    def worked_out_key(self, stage, place):
+        """The node's key worked out from its inputs (`key`)."""
         parts = {"stage": stage.name, "grain": stage.grain, "place": place if stage.grain == "place" else None,
                  "code": self.code(stage), "contract": stage.contract.stamp_of(),
                  "expects": {before: list(wanted) for before, wanted in self.reads(stage, place).items()},
@@ -565,9 +602,14 @@ class Runner:
         return {receiving: (stage, place, process)}
 
     def node_process(self, stage, place, sending):
-        """In the node's own process: drive it and send back what it did."""
+        """In the node's own process: drive it, send back what it did and end the process at once: a thread its make
+        left running (a library's pool, a read that never returns) would otherwise hold the process at its exit, and
+        the drive's join with it, after the node is done."""
         sending.send(self.drive_node(stage, place))
         sending.close()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
 
     def outcome(self, receiving, process):
         """What a node's process did, once it ended; an error when it ended without saying."""
@@ -582,9 +624,10 @@ class Runner:
     def conclude(self, stage, place, did):
         """A finished node's fault report when it does not stand, else its old report removed; (what it did, whether
         it stands)."""
-        cause = self.standing(stage, place)
-        if cause:
-            return f"{did}; fault report {self.fault_report(stage, place, did, cause)}", False
+        with self.still():
+            cause = self.standing(stage, place)
+            if cause:
+                return f"{did}; fault report {self.fault_report(stage, place, did, cause)}", False
         report = self.desk("faults", node_name(stage, place), ".txt")
         if report.exists():
             report.unlink()
@@ -631,16 +674,21 @@ class Runner:
         another (`whole` False: only the world nodes the places read). A line is done when every node stands
         accepted, else stopped (a fault report waits) or waiting at its first node that does not stand."""
         found = {}
-        states = self.status(places)
-        for stage, place in self.line_nodes(places, whole, only):
-            node, line = node_name(stage, place), place or WORLD_LINE
-            summary, nodes = found.get(line, ("done", {}))
-            nodes[node] = states[node]
-            if summary == "done" and self.standing(stage, place):
-                report = self.desk("faults", node, ".txt")
-                summary = f"stopped at {node}: fault report {report}" if report.exists() else f"waits at {node}"
-            found[line] = (summary, nodes)
+        with self.still():
+            for stage, place in self.line_nodes(places, whole, only):
+                self.add_to_line(found, stage, place)
         return found
+
+    def add_to_line(self, found, stage, place):
+        """One node's state into its line's entry of `lines`, the line stopped or waiting at it when it does not
+        stand and nothing before it in the line stopped it."""
+        node, line = node_name(stage, place), place or WORLD_LINE
+        summary, nodes = found.get(line, ("done", {}))
+        nodes[node] = self.node_state(stage, place)
+        if summary == "done" and self.standing(stage, place):
+            report = self.desk("faults", node, ".txt")
+            summary = f"stopped at {node}: fault report {report}" if report.exists() else f"waits at {node}"
+        found[line] = (summary, nodes)
 
     # --- reading ---------------------------------------------------------------------------------------------
 
@@ -679,16 +727,22 @@ class Runner:
 
     def status(self, places):
         """{node: its state, and the earlier nodes its accepted output went stale on}, running nothing."""
-        found = {}
-        for stage, place in self.nodes(places):
-            node, stale = node_name(stage, place), self.stale(node_name(stage, place))
-            found[node] = self.node_status(stage, place) + (
-                f", its accepted output is stale: {', '.join(stale)} moved" if stale else "")
-        return found
+        with self.still():
+            return {node_name(stage, place): self.node_state(stage, place) for stage, place in self.nodes(places)}
+
+    def node_state(self, stage, place):
+        """One node's status, and the earlier nodes its accepted output went stale on."""
+        stale = self.stale(node_name(stage, place))
+        return self.node_status(stage, place) + (f", its accepted output is stale: {', '.join(stale)} moved"
+                                                  if stale else "")
 
     def stale(self, node):
         """The earlier nodes whose accepted output is no longer the one the node's accepted output read (an owner's
         reject moved it back), or is itself stale; none when the node has no accepted output."""
+        return self.remember("stale", node, lambda: self.worked_out_stale(node))
+
+    def worked_out_stale(self, node):
+        """`stale` worked out from the store."""
         accepted = self.store.accepted(node)
         record = review.record_of(self.store, node, accepted) if accepted else None
         if record is None:
