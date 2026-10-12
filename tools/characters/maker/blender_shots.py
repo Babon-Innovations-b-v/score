@@ -4,9 +4,8 @@ bodies were), on a rented card, never on the owner's PC.
 
     blender -b -P blender_shots.py -- <body.glb> <out folder> --outfit work [--size 768]
 
-Writes <out>/apose_front.png and apose_side.png (the bind pose, no clip), walk_a.png and walk_b.png (the walking clip
-at a quarter and three quarters of its length) and sit.png (the sitting clip at two thirds), from 35 degrees for the
-clips. A settled body's garments carry corrective shapes each clip keys (garment_bake.py): the importer puts them in
+Writes <out>/apose_front.png, apose_side.png and apose_back.png (the bind pose, no clip) and, from 35 degrees, each
+SHOTS clip at its share of its length (walk_a and walk_b, sit, wait, point, reach, clap, door). A settled body's garments carry corrective shapes each clip keys (garment_bake.py): the importer puts them in
 the clip's action under a slot of their own, which is given to the outfit's shape keys with the armature's.
 """
 import argparse
@@ -20,7 +19,9 @@ import blender_review  # noqa: E402
 
 HEIGHT = 1.8
 SAMPLES = 64
-SHOTS = (("walk_a", "walking", 0.25), ("walk_b", "walking", 0.75), ("sit", "sitting", 0.67))
+# The review page's clip strip (#5): walking, sitting and the clips whose hands came near the body.
+SHOTS = (("walk_a", "walking", 0.25), ("walk_b", "walking", 0.75), ("sit", "sitting", 0.67), ("wait", "waiting", 0.5),
+         ("point", "pointing", 0.5), ("reach", "reaching", 0.5), ("clap", "clapping", 0.5), ("door", "door", 0.5))
 
 
 def arguments():
@@ -111,13 +112,17 @@ def main():
     rest_shapes(meshes)
     armature.data.pose_position = "REST"
     scene.frame_set(1)
-    for name, azimuth in (("apose_front", 0), ("apose_side", 90)):
+    for name, azimuth in (("apose_front", 0), ("apose_side", 90), ("apose_back", 180)):
         blender_review.camera(scene, azimuth, HEIGHT)
         blender_review.render(scene, f"{options.out}/{name}.png")
     armature.data.pose_position = "POSE"
     blender_review.camera(scene, 35, HEIGHT)
     for name, clip, share in SHOTS:
-        start, end = play(armature, clip)
+        try:
+            start, end = play(armature, clip)
+        except StopIteration:
+            print("SHOT", name, "skipped: the body has no clip", clip, flush=True)
+            continue
         shaped = shape_keys_follow(meshes, clip)
         frame = start + round((end - start) * share)
         scene.frame_set(frame)
