@@ -387,6 +387,12 @@
 					"bump_size": 0.01,
 					"said": "added 2026-10-12 from the finish-map method's proposal 'Painted steel, off-white' for the greenhouse's water tank (its close-up L*a*b* [80.3, -0.2, 6.0]; painted_panel's grey lay 22.5 off and the tank baked as one grey block); the palette's flat-wall token lies 2.0 from it; owner to review"
 				},
+				"enamel_decal_rose": {
+					"recipe": "painted_metal",
+					"token": "skin",
+					"roughness": 0.3,
+					"said": "added 2026-10-12 from the finish-map method's proposal (no painted surface fit the flat enamel basin's painted decal, close-up L*a*b* [62.2, 17.4, 19.6]; the nearest palette token, dE 10.0). Own colour: yes, a rose enamel decal; owner to review"
+				},
 				"crane_yellow_paint": {
 					"recipe": "painted_metal",
 					"token": "crop-stubble",
@@ -399,6 +405,12 @@
 			"is": "Unpainted steel: brushed, cast, perforated, tread plate and galvanized",
 			"surface": "steel_plate",
 			"variants": {
+				"brass_aged": {
+					"recipe": "bare_metal",
+					"token": "suit-gold",
+					"roughness": 0.4,
+					"said": "added 2026-10-12 from the finish-map method's proposal (no surface fit the flat bedside lamp's aged brass, close-up L*a*b* [49.3, 6.3, 23.6]; the nearest gold palette token, dE 8.6). Own colour: yes, tarnished brass; owner to review"
+				},
 				"bare_steel": {
 					"recipe": "bare_metal",
 					"token": "steel",
@@ -999,6 +1011,12 @@
 					"recipe": "screen",
 					"token": "ink-line",
 					"picture": "screen_readout"
+				},
+				"screen_crt_off": {
+					"recipe": "glass",
+					"token": "steel-dark",
+					"roughness": 0.1,
+					"said": "added 2026-10-12 from the finish-map method's proposal (no screen surface fit the flat's old television's switched-off CRT glass, close-up L*a*b* [38.6, -3.1, 2.8]; the nearest palette token, dE 5.2). Own colour: partly, a dark glass face lit by the room; owner to review"
 				},
 				"screen_off": {
 					"recipe": "glass",
@@ -2504,6 +2522,13 @@
 			"is": "Paper and card: seed packets, sheets and printed labels as plain matte card",
 			"surface": "rubber",
 			"variants": {
+				"cork_paper": {
+					"recipe": "rubber",
+					"token": "earth-desert",
+					"roughness": 0.9,
+					"bump": 0.0002,
+					"said": "added 2026-10-12 from the finish-map method's proposal (no surface fit the flat ashtray's cork-patterned paper, close-up L*a*b* [75.5, 6.8, 36.3]; the nearest palette token, dE 8.1). Own colour: yes, cork paper's tan; owner to review"
+				},
 				"printed_paper": {
 					"recipe": "rubber",
 					"token": "flat-wall",

@@ -323,14 +323,14 @@ def measured_colours(take, front, surfaces):
 
 def finish_colour(pixels, spec):
     """One finish's colour from its label's pixels (CIELAB): the median of the brighter half by L* (the shaded half
-    left out); for a finish whose library surface lies under DARK_L, the median of its darker quarter: the close-up's
-    light lifts a black finish to L* 40 to 45 (old_station's black rubber, garage's tyres, 2026-10-12). None with no
-    pixel."""
+    left out); for a finish whose library surface lies under DARK_L, the median of all its pixels: the close-up's light
+    lifts a black finish's brighter half to L* 40 to 45 (old_station's black rubber, garage's tyres), and its darker
+    quarter is shadow (launch's dark wood at L* 2, flat's soil at 3; 2026-10-12). None with no pixel."""
     import numpy as np
     if not len(pixels):
         return None
     if spec and "colour" in spec and library_lab(spec)[0] < DARK_L:
-        return np.median(pixels[pixels[:, 0] <= np.percentile(pixels[:, 0], 25)], axis=0)
+        return np.median(pixels, axis=0)
     return np.median(pixels[pixels[:, 0] >= np.median(pixels[:, 0])], axis=0)
 
 

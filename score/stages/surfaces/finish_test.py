@@ -220,13 +220,15 @@ def test_a_naming_that_timed_out_is_asked_again_with_low_thinking():
 
 
 def test_a_dark_finish_is_measured_on_its_darker_pixels_and_a_grey_one_named_black_still_fails():
-    """old_station's black rubber, 2026-10-12: the close-up's light lifts its brighter half to L* 42."""
+    """old_station's black rubber, 2026-10-12: the close-up's light lifts its brighter half to L* 42; its lightness
+    here spread as the comms mast's was (median L* 33)."""
     black = {"colour": [0.01, 0.01, 0.01], "family": "rubber"}
-    lightness = np.concatenate([np.linspace(18, 30, 30), np.linspace(35, 60, 70)])
+    lightness = np.concatenate([np.linspace(10, 30, 50), np.linspace(35, 50, 50)])
     lit_black = np.stack([lightness, np.zeros(100), np.zeros(100)], axis=1)
     near = np.linalg.norm(finish_parts.library_lab(black) - finish_parts.finish_colour(lit_black, black))
     assert near < finish_parts.COLOUR_DELTA_E, near
-    assert finish_parts.finish_colour(lit_black, None)[0] > 45  # a light surface keeps its brighter half
+    lifted = np.linalg.norm(finish_parts.library_lab(black) - finish_parts.finish_colour(lit_black, None))
+    assert lifted > finish_parts.COLOUR_DELTA_E, lifted  # the brighter half alone failed it
     grey = np.stack([np.linspace(50, 62, 100), np.zeros(100), np.zeros(100)], axis=1)
     far = np.linalg.norm(finish_parts.library_lab(black) - finish_parts.finish_colour(grey, black))
     assert far > finish_parts.COLOUR_DELTA_E, far
