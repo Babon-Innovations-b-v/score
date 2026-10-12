@@ -2,9 +2,10 @@
  "place": "garage",
  "about": "The garage moves by the game's own cycle (data/motion/garage.json): its round of 17 s written four times, so the layer loops whole.",
  "seconds": 68.0,
+ "ground": "the made ground (the terrain stage's garage layer) stands in the stage, so the yard past the big door is real ground for the rover to drive out onto (demo F7)",
  "movers": [],
  "still": {
-  "rover_1": "Kept in the lift's bay to be customised (data/machines/garage.json, the machines stage lays it). The room cycles for the rover going out, but the garage's stage holds no ground past its door to drive onto: its drive out waits on a stage that shows the ground outside.",
+  "rover_1": "Kept in the lift's bay to be customised (data/machines/garage.json, the machines stage lays it) until its drive out is written: the stage now holds the made ground past the big door, and the drive must pass the door in its 3 s open window of the 17 s cycle (data/motion/garage.json).",
   "chain_hoist_1": "One mesh, its hook and chain fixed to its body: it cannot lift without lifting itself. It hangs on the rover lift's top beam ready for work on the rover, which the garage does not show.",
   "hatch_leaf_1": "The room is an airlock pumped down for all but about 1 s of its 17 s round (data/motion/garage.json); its pressure hatches to the tubes stay shut while it cycles.",
   "hatch_leaf_2": "The room is an airlock pumped down for all but about 1 s of its 17 s round (data/motion/garage.json); its pressure hatches to the tubes stay shut while it cycles.",
