@@ -46,4 +46,8 @@ path); it proves itself when a stage's paid node runs through it end to end. `k8
   `score-job` in plain docker, each with a named node cache (a new name is a new node), and writes the pull and
   every job's marks into images.json (`proof`, by card). A job's command is the image's run wrapper (`sam-run`,
   `judge-run`, `pictures-run`), which puts the cached weights where the machine runner's worker looks.
+- **A rebuild goes through the runner** once its kind has a plan (`images/<kind>/prove.json`): `python -m score run
+  images` checks the pins for free, then builds and proves the kind cleared like any paid row, and `python -m score
+  images publish <kind>` writes the accepted record into images.json (`score/stages/images`). No hand build.py run
+  needs the owner's override.
 - Tests run against a folder store, no cloud: `.venv/bin/python tools/cloud/runtime/job_test.py` and its siblings.

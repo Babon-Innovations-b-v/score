@@ -1,0 +1,11 @@
+{"classes": ["gpu-24gb"], "minutes": 60, "disk_gb": 200, "euros": 2.0,
+ "runs": [{"kind": "characters-motion", "code": ["tools/characters/people/clips.py"], "inputs": [],
+           "jobs": [{"name": "clip", "cache": "a",
+                     "models": ["kimodo-soma-rp-v1.1", "llm2vec-llama3-mntp", "llm2vec-llama3-mntp-supervised",
+                                "llama3-8b-instruct", "soma-x-assets"],
+                     "minutes": 40,
+                     "command": ["bash", "-c", "mkdir -p /root/clip && exec characters-run /root/envs/motion/bin/kimodo_gen 'a person walking forward at a steady, easy pace' --model Kimodo-SOMA-RP-v1.1 --duration 5 --output /root/clip/walking --bvh --bvh_standard_tpose"],
+                     "outputs": [{"path": "/root/clip", "to": "clip"}]}]}],
+ "expect": {"clip": {"npz": "walking.npz", "seconds": 5.0, "fps": 30, "travel_metres": [2.0, 10.0],
+                     "root_height_metres": [0.7, 1.2],
+                     "note": "the walking clip of tools/characters/people/clips.py; the one made on 2026-10-09 travels 6.07 m with its root at 0.98 m"}}}

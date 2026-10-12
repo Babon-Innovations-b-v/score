@@ -17,7 +17,7 @@ import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import assembly, complete, effects, surfaces, terrain
+from score.stages import assembly, complete, effects, images, surfaces, terrain
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -84,13 +84,18 @@ def world1():
 
 
 def places(world):
-    """A world's places: one kit each in its data."""
+    """A world's places: one kit each in its data (none for a world without data, the images world)."""
+    if "data" not in world.roots:
+        return []
     return sorted(path.stem for path in (pathlib.Path(world.roots["data"]) / "kit").glob("*.json"))
 
 
-WORLDS = {"world1": world1}
+WORLDS = {"world1": world1, "images": images.image_world}
+# A world whose stages are not world 1's: the images world (each job image rebuilt and proved, score/stages/images).
+TABLES = {"images": images.STAGES}
 
 
 def runner(store=None, world=None):
     """The runner over the stage table, on world 1 and the framework's store unless told otherwise."""
-    return graph.Runner(STAGES, world or world1(), store or Store.default())
+    world = world or world1()
+    return graph.Runner(TABLES.get(world.name, STAGES), world, store or Store.default())

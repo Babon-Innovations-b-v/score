@@ -1,0 +1,4 @@
+[
+ {"file": "habitat__p1__s1.wav", "prompt": "Quiet interior room tone of a sealed space station module: a steady soft hiss of air handling, a distant low ventilation fan drone and a faint electrical hum, constant and even, no voices and no events.", "seconds": 15, "seed": 1},
+ {"file": "airlock_hatch_seal_clunk__p1__s1.wav", "prompt": "Heavy steel hatch locking bolts engaging: a deep mechanical clunk and a solid metallic latch in a small metal room, short and final.", "seconds": 5, "seed": 1}
+]

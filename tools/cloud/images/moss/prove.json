@@ -1,0 +1,9 @@
+{"classes": ["gpu-24gb"], "minutes": 60, "disk_gb": 200, "euros": 2.0,
+ "runs": [{"kind": "moss", "code": ["tools/props/cloud/moss_generate.py"],
+           "inputs": [{"from": "prove-jobs.json", "path": "/root/sfx/jobs-0.json"}],
+           "jobs": [{"name": "takes", "cache": "a", "models": ["moss-soundeffect-v2", "clap-larger-general"],
+                     "minutes": 30, "command": ["moss-run", "/root/sfx/jobs-0.json", "0"],
+                     "outputs": [{"path": "/root/sfx/out", "to": "takes"}]}]}],
+ "expect": {"takes": {"jobs": "prove-jobs.json", "scores": "scores-0.json",
+                      "clap_before": {"habitat__p1__s1.wav": 0.4517, "airlock_hatch_seal_clunk__p1__s1.wav": 0.4278},
+                      "note": "CLAP scores of the same prompt, seed and weights on the game page (sound-picker moss/game, 2026-10-06)"}}}

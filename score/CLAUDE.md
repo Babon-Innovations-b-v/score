@@ -65,7 +65,7 @@ stage as each stage is built; nothing moves before.
   neighbours (its scene record's `places`) in its assembly, each read beside (`Stage.beside`, `Stage.neighbours`:
   another place's accepted output, versioned and waited on like `after`) as its own accepted assembly, gated on
   `neighbours` (every shown place stands, resolves and has children); `complete` does not read it yet. A stage reads without an earlier place stage that does not apply to its place
-  (`Runner.reads`). World 1's record is `data/definitions/world.json`.
+  (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
 
 Rules:
 
