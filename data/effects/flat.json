@@ -1,31 +1,160 @@
 {
  "place": "flat",
- "about": "The smoke of the cigarette the player smokes on the balcony on launch day, as the game 2099 draws it (CigaretteView): a thin wisp rising off the lit end all the time it burns, and the breath of a drag let out ahead of the face, slowing, spreading, rising and thinning away. Both are let go into the world rather than carried with the head. The cigarette hangs off the player's camera, so both are hung here off the scene record's balcony camera; the cigarette itself, the player's own, is not on the stage. Real footage checked: exhaled cigarette smoke leaves the lips as a dense stream that slows within a few tens of centimetres and billows, and a resting cigarette's smoke rises as one thin laminar thread that breaks into curls (the owner's rule: start from footage, many fine cards tied to the world).",
+ "about": "The smoke of the cigarette the player smokes on the balcony on launch day, as the game 2099 draws it (CigaretteView): a thin wisp rising off the lit end all the time it burns, and the breath of a drag let out ahead of the face, slowing, spreading, rising and thinning away. Both are let go into the world rather than carried with the head. The cigarette hangs off the player's camera, so both are hung here off the scene record's balcony camera; the cigarette itself, the player's own, is not on the stage. Every shape, speed and count is now measured on real footage (the footage block; the game's own 40 and 220 cards read as dots), the spots and timing kept from the game. Real footage checked before: exhaled cigarette smoke leaves the lips as a dense stream that slows within a few tens of centimetres and billows, and a resting cigarette's smoke rises as one thin laminar thread that breaks into curls (the owner's rule: start from footage, many fine cards tied to the world).",
  "effects": [
-  {"name": "wisp", "kind": "smoke_wisp", "look": "puff",
-   "placement": {"eye": "balcony", "offset": [0.0661, -0.0723, -0.1502]},
-   "emitter": {"shape": "point"}, "count": 40, "lifetime": 2.5, "direction": [0.0, 1.0, 0.0], "spread": 15.0,
-   "speed": [0.02, 0.05], "rise": 0.15, "size": 0.015, "scale": [1.0, 5.0],
-   "size_over_life": [[0.0, 0.2], [0.4, 0.7], [1.0, 1.0]], "colour": "#ece8e0", "opacity": 0.18,
-   "opacity_over_life": [[0.0, 0.0], [0.1, 1.0], [1.0, 0.0]],
-   "turbulence": {"strength": 0.4, "scale": 0.6, "influence": [0.02, 0.06]}, "near_fade": [1.0, 6.0],
-   "space": "world", "seed": 31,
-   "from": "game/prologue/cigarette_view/cigarette_view.gd:20-30,46-53,107-113,216-233,264-306 (the lit end at MOUTH (0.02, -0.06, -0.06) plus POINTING out FILTER_LENGTH 0.025 + PAPER_LENGTH 0.075 + half EMBER_LENGTH 0.004 in the camera's numbers; WISP_CARDS 40, WISP_SECONDS 2.5, WISP_CARD 0.015, WISP_GROWS 5 with _growing's curve 0.2 / 0.7 / 1 (read straight between its points), WISP_RISE 0.15 up the world, WISP_THICKNESS 0.18 of AIR_HAZE #ece8e0, spread 15, 0.02 to 0.05 m/s, turbulence 0.4 / 0.6 / 0.02 to 0.06, fading 0 / 0.1 / 1), game/outside/dust/dust_grains.gd:81-88 (the lit puff)"},
-  {"name": "breath", "kind": "smoke_breath", "look": "puff",
-   "placement": {"eye": "balcony", "offset": [0.0, -0.08, -0.18]},
-   "emitter": {"shape": "sphere", "radius": 0.01}, "count": 220, "lifetime": 4.0, "explosiveness": 0.4,
-   "one_shot": {"every": 8.0, "at": 0.8}, "direction": [0.0, 0.0, -1.0], "spread": 7.0, "speed": [0.54, 0.9],
-   "damping": [1.28, 1.6], "rise": 0.12, "size": 0.07, "scale": [1.0, 7.0],
-   "size_over_life": [[0.0, 0.142857], [0.4, 0.7], [1.0, 1.0]], "colour": "#ece8e0", "opacity": 0.5,
-   "opacity_over_life": [[0.0, 0.0], [0.1, 1.0], [1.0, 0.0]],
-   "turbulence": {"strength": 0.6, "scale": 0.8, "influence": [0.03, 0.08]}, "near_fade": [1.0, 6.0],
-   "space": "world", "seed": 32,
-   "from": "game/prologue/cigarette_view/cigarette_view.gd:16-18,54-67,124-139,159-163,236-261 (BREATH_OUT (0, -0.08, -0.18) ahead of the eye, along the face's -z; BREATH_CARDS 220, BREATH_SECONDS 4, one shot at explosiveness 0.4, a 0.01 m sphere, spread 7, 0.6 to 1 of BREATH_SPEED 0.9, damping 0.8 to 1 of BREATH_SLOWS 1.6, BREATH_CARD 0.07 growing BREATH_GROWS 7, BREATH_RISE 0.12, BREATH_THICKNESS 0.5, turbulence 0.6 / 0.8 / 0.03 to 0.08; let out 0.8 s into a drag, after DRAW_IN_SECONDS 1 times 0.4 lifted and 0.4 waited), game/prologue/cigarette/cigarette.gd:15-19 (DRAG_SECONDS 2 between drags at least); the bake breathes out once every 8 s, when one breath has gone"}
+  {"name": "wisp", "kind": "smoke_wisp", "look": "puff", "placement": {"eye": "balcony", "offset": [0.0661, -0.0723, -0.1502]}, "emitter": {"shape": "point"}, "count": 3000, "lifetime": 3.0, "direction": [0.0, 1.0, 0.0], "spread": 20.0, "speed": [0.12, 0.2], "rise": 0.05, "size": 0.006, "scale": [0.8, 1.4], "size_over_life": [[0.0, 0.5], [0.08, 1.0], [0.3, 3.0], [1.0, 8.0]], "colour": "#ece8e0", "opacity": 0.05, "opacity_over_life": [[0.0, 0.0], [0.05, 1.0], [0.5, 0.6], [1.0, 0.0]], "turbulence": {"strength": 0.5, "scale": 6.0, "influence": [0.01, 0.06]}, "near_fade": [1.0, 6.0], "space": "world", "seed": 31, "from": "footage: commons-Cigarettesmoke.JPG, commons-Still_smoking_(2329760820).jpg, commons-Incense_stick.JPG (one thin thread off the lit end, straight for 4 to 10 cm, then folding into curls and sheets that widen at 15 to 35 degrees either side, one connected veil seen at least 22 cm up and never loose blobs: 3,000 fine cards a 3 s life, rising at 0.12 to 0.2 m/s and slowly growing to about 5 cm, each faint so many overlap into the thread); the lit end's spot, the colour and the drift into the world are the game's: game/prologue/cigarette_view/cigarette_view.gd:20-30,46-53,107-113,216-233,264-306 (the lit end at MOUTH (0.02, -0.06, -0.06) plus POINTING out FILTER_LENGTH 0.025 + PAPER_LENGTH 0.075 + half EMBER_LENGTH 0.004 in the camera's numbers; WISP_CARDS 40, WISP_SECONDS 2.5, WISP_CARD 0.015, WISP_GROWS 5 with _growing's curve 0.2 / 0.7 / 1 (read straight between its points), WISP_RISE 0.15 up the world, WISP_THICKNESS 0.18 of AIR_HAZE #ece8e0, spread 15, 0.02 to 0.05 m/s, turbulence 0.4 / 0.6 / 0.02 to 0.06, fading 0 / 0.1 / 1), game/outside/dust/dust_grains.gd:81-88 (the lit puff)", "lives": 2},
+  {"name": "breath", "kind": "smoke_breath", "look": "puff", "placement": {"eye": "balcony", "offset": [0.0, -0.08, -0.18]}, "emitter": {"shape": "sphere", "radius": 0.01}, "count": 4000, "lifetime": 4.0, "explosiveness": 0.7, "one_shot": {"every": 8.0, "at": 0.8}, "direction": [0.0, 0.0, -1.0], "spread": 18.0, "speed": [0.9, 1.3], "damping": [1.3, 1.8], "rise": 0.03, "size": 0.02, "scale": [0.8, 1.6], "size_over_life": [[0.0, 0.5], [0.3, 3.0], [1.0, 8.0]], "colour": "#ece8e0", "opacity": 0.06, "opacity_over_life": [[0.0, 0.0], [0.1, 1.0], [1.0, 0.0]], "turbulence": {"strength": 0.6, "scale": 5.0, "influence": [0.02, 0.08]}, "near_fade": [1.0, 6.0], "space": "world", "seed": 32, "from": "footage: commons-Exhaling_cloud_of_cigarette_smoke_(50652653823).png, doi-10.1371/journal.pone.0059970, doi-10.1111/j.1600-0668.2009.00623.x, pmc-PMC7111220 (a breath of smoke leaving the lips about level at up to 1.3 m/s, spreading 15 to 25 degrees either side, slowing within 0.6 to 2.5 s and billowing 0.2 to 0.8 m ahead of the mouth, barely rising: 4,000 fine cards let out over 1.2 s, slowed by 1.3 to 1.8 m/s/s, growing to about 0.15 m as they spread); the mouth's spot, the colour and the breath every 8 s are the game's: game/prologue/cigarette_view/cigarette_view.gd:16-18,54-67,124-139,159-163,236-261 (BREATH_OUT (0, -0.08, -0.18) ahead of the eye, along the face's -z; BREATH_CARDS 220, BREATH_SECONDS 4, one shot at explosiveness 0.4, a 0.01 m sphere, spread 7, 0.6 to 1 of BREATH_SPEED 0.9, damping 0.8 to 1 of BREATH_SLOWS 1.6, BREATH_CARD 0.07 growing BREATH_GROWS 7, BREATH_RISE 0.12, BREATH_THICKNESS 0.5, turbulence 0.6 / 0.8 / 0.03 to 0.08; let out 0.8 s into a drag, after DRAW_IN_SECONDS 1 times 0.4 lifted and 0.4 waited), game/prologue/cigarette/cigarette.gd:15-19 (DRAG_SECONDS 2 between drags at least); the bake breathes out once every 8 s, when one breath has gone"}
  ],
  "views": [
-  {"name": "balcony-smoke", "eye": [-4.0, 1.62, -3.5], "aim": [-45.65, -3.11, -3.7], "fov": 80, "frame": 48,
-   "from": "data/scene/flat.json view balcony (the game's own, o-balcony.png), 1.2 s after the breath is let out: game/main/main.gd:806-811 takes its balcony-smoke picture 1.4 s after a drag"},
-  {"name": "balcony-smoke-side", "eye": [-6.2, 2.0, -1.4], "aim": [-4.15, 1.62, -3.5], "fov": 50, "frame": 60,
-   "from": "the stage's own: from just past the balcony rail, 3 m off the player's eye, looking back at where the smoke is let out (the game's puff is gone within 1 m of the eye, so its own camera barely sees its breath)"}
- ]
+  {"name": "balcony-smoke", "eye": [-4.0, 1.62, -3.5], "aim": [-45.65, -3.11, -3.7], "fov": 80, "frame": 48, "from": "data/scene/flat.json view balcony (the game's own, o-balcony.png), 1.2 s after the breath is let out: game/main/main.gd:806-811 takes its balcony-smoke picture 1.4 s after a drag"},
+  {"name": "balcony-smoke-side", "eye": [-6.2, 2.0, -1.4], "aim": [-4.15, 1.62, -3.5], "fov": 50, "frame": 60, "from": "the stage's own: from just past the balcony rail, 3 m off the player's eye, looking back at where the smoke is let out (the game's puff is gone within 1 m of the eye, so its own camera barely sees its breath)"}
+ ],
+ "interiors": [],
+ "rides_nothing": "the smoke hangs off the player's eye (the balcony camera), as the game hangs the cigarette off the player's camera; the player is not on the stage and the smoke is let go into the world",
+ "no_light": "smoke gives off no light of its own; the flat's lamps and the city light it",
+ "footage": {
+  "how": "Measured on each photograph's pixels against a thing of known size in it (the cigarette's width, a head's length), or read off a paper's text. A plume running off the frame bounds a measure on one side only (null). The seconds are the stage's: the breath is let out 0.8 s into each 8 s, as the game's balcony-smoke picture is taken 1.2 s after it.",
+  "sources": {
+   "commons-Cigarettesmoke.JPG": {
+    "what": "a hand-held lit cigarette, its smoke against a plain wall in still indoor air (Wikimedia Commons)",
+    "url": "https://commons.wikimedia.org/wiki/File:Cigarettesmoke.JPG",
+    "measured": "measured on its pixels against the cigarette's 7.8 mm width (15 px of 900): clear for about 1.5 cm over the ember, one straight thread about 6.8 cm long, then folding into sheets and curls; the plume at least 22 cm over the tip before the frame's edge, widening at 25 to 35 degrees either side above the break; one connected veil, no loose blobs"
+   },
+   "commons-Still_smoking_(2329760820).jpg": {
+    "what": "a cigarette butt in an ashtray, a thin thread of smoke (Wikimedia Commons)",
+    "url": "https://commons.wikimedia.org/wiki/File:Still_smoking_(2329760820).jpg",
+    "measured": "measured against the butt's 7.8 mm width (55 px): one faint thread 6.5 cm up to the frame's top, still unbroken, meandering from 3.5 cm up"
+   },
+   "commons-Incense_stick.JPG": {
+    "what": "an incense stick's smoke on black, the same kind of plume (Wikimedia Commons)",
+    "url": "https://commons.wikimedia.org/wiki/File:Incense_stick.JPG",
+    "measured": "measured against the stick (3 to 5 mm across): smooth for about 4 to 6 cm, then curling, seen 10 to 17 cm up, fanning out at about 28 degrees either side; folded sheets, no blobs"
+   },
+   "commons-Exhaling_cloud_of_cigarette_smoke_(50652653823).png": {
+    "what": "a man in profile breathing out cigarette smoke outdoors (Wikimedia Commons)",
+    "url": "https://commons.wikimedia.org/wiki/File:Exhaling_cloud_of_cigarette_smoke_(50652653823).png",
+    "measured": "measured against the head's length (about 19.5 cm, an adult's typical): the dense core about 8 cm from the lips, the whole cloud about 0.20 m ahead and 0.18 m tall, opening 20 to 25 degrees either side on the mean, its middle 1.5 cm over the mouth; soft and billowing, no loose blobs"
+   },
+   "doi-10.1371/journal.pone.0059970": {
+    "what": "Tang et al. 2013, schlieren of human breathing (PLoS ONE), 20 people",
+    "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0059970",
+    "measured": "read: breathing out of the mouth goes at most 0.8 m at up to 1.3 m/s, mainly level, not lifted by its warmth within the first metre, tracked for 0.5 to 2.5 s"
+   },
+   "doi-10.1111/j.1600-0668.2009.00623.x": {
+    "what": "Gupta, Lin and Chen 2010, the air breathed out in breathing and talking (Indoor Air)",
+    "url": "https://engineering.purdue.edu/~yanchen/paper/2010-5.pdf",
+    "measured": "read: the mouth's jet leaves about level, spreading 30 degrees seen from the side (about 15 either side; 27 to 34 over four people)"
+   },
+   "pmc-PMC7111220": {
+    "what": "Xu et al. 2017, schlieren and anemometer of breathing out (Building and Environment)",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7111220/",
+    "measured": "read: standing, mouth only, spreading 36 plus or minus 6 degrees (about 18 either side); under 0.1 m/s by 0.4 m out"
+   }
+  },
+  "checks": [
+   {
+    "name": "the wisp seen at least 22 cm up",
+    "emitters": [
+     "wisp"
+    ],
+    "measure": "height",
+    "at": 6.0,
+    "anchor": "wisp",
+    "range": [
+     0.22,
+     null
+    ],
+    "from": [
+     "commons-Cigarettesmoke.JPG",
+     "commons-Incense_stick.JPG"
+    ]
+   },
+   {
+    "name": "the wisp's half angle",
+    "emitters": [
+     "wisp"
+    ],
+    "measure": "spread",
+    "at": 6.0,
+    "anchor": "wisp",
+    "range": [
+     15.0,
+     35.0
+    ],
+    "from": [
+     "commons-Cigarettesmoke.JPG",
+     "commons-Incense_stick.JPG"
+    ]
+   },
+   {
+    "name": "the wisp one veil, no loose blobs",
+    "emitters": [
+     "wisp"
+    ],
+    "measure": "loose",
+    "at": 6.0,
+    "anchor": "wisp",
+    "range": [
+     0.0,
+     0.01
+    ],
+    "from": [
+     "commons-Cigarettesmoke.JPG",
+     "commons-Still_smoking_(2329760820).jpg"
+    ]
+   },
+   {
+    "name": "the breath's reach 1.2 s after it is let out",
+    "emitters": [
+     "breath"
+    ],
+    "measure": "length",
+    "at": 2.0,
+    "anchor": "breath",
+    "range": [
+     0.2,
+     0.8
+    ],
+    "from": [
+     "commons-Exhaling_cloud_of_cigarette_smoke_(50652653823).png",
+     "doi-10.1371/journal.pone.0059970"
+    ]
+   },
+   {
+    "name": "the breath's half angle in its first 0.2 m",
+    "emitters": [
+     "breath"
+    ],
+    "measure": "spread",
+    "at": 2.0,
+    "anchor": "breath",
+    "within": 0.2,
+    "range": [
+     15.0,
+     25.0
+    ],
+    "from": [
+     "doi-10.1111/j.1600-0668.2009.00623.x",
+     "pmc-PMC7111220",
+     "commons-Exhaling_cloud_of_cigarette_smoke_(50652653823).png"
+    ]
+   },
+   {
+    "name": "the breath one cloud, no loose blobs",
+    "emitters": [
+     "breath"
+    ],
+    "measure": "loose",
+    "at": 2.0,
+    "anchor": "breath",
+    "range": [
+     0.0,
+     0.01
+    ],
+    "from": [
+     "commons-Exhaling_cloud_of_cigarette_smoke_(50652653823).png"
+    ]
+   }
+  ]
+ }
 }

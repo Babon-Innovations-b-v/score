@@ -29,7 +29,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   make it cheaper to draw. An emitter can ride a prim of the base (`on`: written as its child), fill a room
   (`room`: a box over the scene record's floor to its ceiling), follow a motion's
   climb (`follows`), play once at its own seconds (`once`, its own `samples` a second) or light at a second
-  (`starts`); a record's `lights` ride a prim with keyed intensity (usd_views keys a light on a moving prim where it
+  (`starts`); a record's `interiors` (the camp's domes) hold no particle of an emitter under the open sky; a record's `lights` ride a prim with keyed intensity (usd_views keys a light on a moving prim where it
   stands). An entry the game never drew names the real footage it was measured on (`footage: <source id>`, listed
   in its record's `footage` block). The effects stage (`score/stages/effects`) is the way in for the places it
   covers.
