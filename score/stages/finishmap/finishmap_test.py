@@ -14,7 +14,7 @@ from score.stages.finishmap import trial  # noqa: E402
 
 def test_the_rows_hold_together():
     rows = trial.stages()
-    assert [stage.name for stage in rows] == ["fm-inputs", "fm-turntable", "fm-lists", "fm-maps", "fm-segvigen",
+    assert [stage.name for stage in rows] == ["fm-inputs", "fm-turntable", "fm-lists", "fm-maps", "fm-names", "fm-segvigen",
                                               "fm-parts"]
     assert all(stage.euros for stage in rows if stage.paid) and not any(stage.paid for stage in rows[:2])
     assert all(stage.grain == "world" for stage in rows)

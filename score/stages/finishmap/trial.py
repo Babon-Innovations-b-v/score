@@ -8,7 +8,7 @@ round 4's paid turntable is read back, not rendered again.
     fm-inputs     (free)  the six takes' rows (round 4's flat/takes.json) and the turntable's cameras for them
     fm-turntable  (free)  round 4's turntable renders of the close-up's camera and turntable_views.MAP_VIEWS, face maps
                           compressed as the surface stage's turntable row keeps them
-    fm-lists, fm-maps, fm-segvigen (paid), fm-parts (free): the surface stage's method rows (finish_rows.py,
+    fm-lists, fm-maps, fm-names, fm-segvigen (paid), fm-parts (free): the surface stage's method rows (finish_rows.py,
                           segvigen_row.py, finish_parts.py), unchanged
 
 fm-parts' parts.json holds the re-test's measures per take (agreement with each map on the faces its view sees, the
@@ -44,6 +44,7 @@ def model_files():
 
 FILES = {"takes": "{round}/work/flat/takes.json", "round job": "{round}/work/multiview/job.json",
          "round renders": "{round}/work/multiview/renders", "library": "{repo}/data/library", **model_files()}
+NAMING = {**FILES, "places": "{repo}/data/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json"}
 
 
 def wanted_views():
@@ -97,14 +98,16 @@ def stages():
         stage("fm-turntable", make_turntable, turntable_row.turntable_faults, "turntable",
               turntable_row.judge_turntable, ("fm-inputs",)),
         stage("fm-lists", finish_rows.make_lists, finish_rows.lists_faults, "listed", finish_rows.judge_lists,
-              ("fm-inputs",), paid=True, euros=finish_rows.LIST_EUROS),
+              ("fm-inputs",), NAMING, paid=True, euros=finish_rows.LIST_EUROS),
         stage("fm-maps", finish_rows.make_maps, finish_rows.maps_faults, "maps checked", finish_rows.judge_maps,
               ("fm-inputs", "fm-turntable", "fm-lists"), paid=True, euros=finish_rows.MAP_EUROS),
+        stage("fm-names", finish_rows.make_names, finish_rows.names_faults, "named", finish_rows.judge_names,
+              ("fm-inputs", "fm-maps"), NAMING, paid=True, euros=finish_rows.LIST_EUROS),
         stage("fm-segvigen", segvigen_row.make_segvigen, segvigen_row.segvigen_faults, "split back",
               segvigen_row.judge_segvigen, ("fm-maps",), {**FILES, **segvigen_row.FILES}, paid=True,
               euros=segvigen_row.SEGVIGEN_EUROS),
         stage("fm-parts", finish_parts.make_parts, finish_parts.parts_faults, "parts", finish_parts.judge_parts,
-              ("fm-inputs", "fm-turntable", "fm-maps", "fm-segvigen")))
+              ("fm-inputs", "fm-turntable", "fm-maps", "fm-names", "fm-segvigen"), NAMING))
 
 
 def runner():
