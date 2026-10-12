@@ -12,8 +12,9 @@ the runner, waited on by the runner), and stops a line whose node fails, errors 
 (faults/<node>.txt beside the store) to point an agent or the owner at; the other lines go on. It exits 1 when any line
 stopped. --detach returns at once with the log's path: the run goes on in a session of its own
 (tools/props/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
-(`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line. Wait for that line with
-the Monitor tool, never a poll loop.
+(`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line; a run stopped by
+SIGTERM, SIGINT or SIGHUP says `score run: stopped by signal N`, then `detached: stopped by signal N exit=128+N ...`.
+Wait for that line with the Monitor tool, never a poll loop.
 
 Before it starts, `run` lists every paid row it would buy with its estimate (score/graph/rebuy.py; a Google ask its
 cache answers at EUR 0) and refuses, before detaching, when buying again rows that already have an accepted output
@@ -28,7 +29,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from score import graph, stages  # noqa: E402
-from score.graph import rebuy  # noqa: E402
+from score.graph import rebuy, stopped  # noqa: E402
 from score.store import Store  # noqa: E402
 
 DETACH = "--detach"
@@ -54,11 +55,12 @@ def parse(argv):
 
 def detach(argv):
     """Start this command (argv, less --detach) again in a session of its own under detached.py, its output and then
-    its result line into a fresh log; print the log's path and return at once."""
+    its result line into a fresh log (graph/stopped.py: on a stopping signal too); print the log's path and return
+    at once."""
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import detached
     log = detached.log_path_for("score-run")
-    command = [sys.executable, detached.__file__, "--log", str(log), "--outputs",
+    command = [sys.executable, stopped.__file__, "--log", str(log), "--outputs",
                str(Store.default().cache.parent / "faults"), "--", sys.executable,
                *[word for word in argv if word != DETACH]]
     with open(log, "a") as result:  # detached.py prints its result line here, after the run's own output
@@ -104,6 +106,7 @@ def main(argv=None):
         detach(sys.argv)
         return
     if options.command == "run":
+        stopped.stop_on_signals(lambda number: print(f"score run: stopped by signal {number}", flush=True))
         runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
                      only=options.stage)
     lines = runner.lines(places, whole, options.stage)

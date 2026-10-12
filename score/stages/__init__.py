@@ -28,13 +28,13 @@ from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 import score.stages.machines.boxes as machine_boxes
 from score.stages.effects import look as effects_look
-from score.stages.terrain import look
+from score.stages.terrain import inputs as terrain_inputs, look
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 WORLD1 = REPO / "data/definitions/world.json"
 
-TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain.FILES,
+TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain.CHECKS, files=terrain_inputs.FILES,
                       paid=True, euros=terrain.EUROS)
 # Experimental (PRD #6) until the owner reviews it: each staged place's effects layer (effects.STAGED), which its
 # assembly takes.

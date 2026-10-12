@@ -390,6 +390,25 @@ def test_detach_returns_at_once_with_the_log_its_result_line_last():
     assert lines[0] == "the run went on" and lines[-1].startswith("detached: ok exit=0 "), lines
 
 
+def test_a_detached_run_stopped_by_a_signal_still_ends_with_its_line():
+    """Fault (2026-10-12): a run whose process group was sent SIGTERM ended its log with no line."""
+    import signal
+    from score import __main__ as command
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        command.detach(["-c", "import time; print('working', flush=True); time.sleep(60)", command.DETACH])
+    pid = int(printed.getvalue().split("pid=")[1].split()[0])
+    log = pathlib.Path(printed.getvalue().strip().rpartition("log=")[2])
+    deadline = time.time() + 30
+    while "working" not in log.read_text() and time.time() < deadline:
+        time.sleep(0.1)
+    os.killpg(pid, signal.SIGTERM)  # the session detach started: its process group
+    while "detached:" not in log.read_text() and time.time() < deadline:
+        time.sleep(0.1)
+    lines = log.read_text().splitlines()
+    assert lines[-1].startswith("detached: stopped by signal 15 exit=143 ") and f"log={log}" in lines[-1], lines
+
+
 # --- runs side by side on one store ----------------------------------------------------------------------------------
 
 def made_slowly(data):
