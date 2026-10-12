@@ -53,6 +53,14 @@ MERGE_COLOUR = 12.0
 # is stretched down FOOT_MOST at most (a tenth: the water tank's shortest leg ends 6.4% of its size up); a foot further
 # up is a missing leg, a fault of the model, and fails the gate "feet in one plane" by name.
 FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
+# The paint runs on processor machines (blender_cloud.py's own classes), a job a take of about PAINT_MINUTES; the
+# keys of a take's listing besides the make's inputs (prop_env.short reads each as a path: the take is its name); the
+# repository folders its code and data come from.
+PAINT_CLASSES = "cpu-32c-128gb,cpu-32c-64gb,cpu-32c-256gb,cpu-16c-64gb"
+PAINT_MINUTES, PAINT_EUROS = 5, 0.5
+TAKE, RECORDS, HOME = "paint take", "paint records", "props home"
+PAINT_REPO = ("score", "tools/props", "data/library", "data/definitions", "design/tokens", "data/checks",
+              "data/inventory")
 
 
 def data_of(inputs):
@@ -170,8 +178,9 @@ def levelled_feet(vertices, faces):
     return points, {"feet": record["feet"], **shares}
 
 
-def paint_take(inputs, out, take, record, registry):
-    """One take painted: each part's surface, the labelled folder and faces.npz, its report."""
+def paint_take(inputs, out, take, record, records):
+    """One take painted from its part records (method_surfaces): each part's surface, the labelled folder and
+    faces.npz, its report."""
     import numpy as np
     import labels
     import patchy
@@ -182,7 +191,6 @@ def paint_take(inputs, out, take, record, registry):
     colours = np.load(inputs["parts"] / take / "colours.npy")
     mesh = split_compare.raw_model(take)
     names = list(labels.allowed_materials(entry["library_places"][0], entry["kind"], []))
-    records = method_surfaces(take, entry["place"], record["parts"], registry)
     chosen = bordered(mesh, part_of, records, names)
     unnamed = [part for part in range(len(records)) if chosen[part] < 0]
     safe = np.where(chosen < 0, 0, chosen)
@@ -214,27 +222,59 @@ def paint_take(inputs, out, take, record, registry):
 
 
 def make_paint(inputs, out, seed, params):
-    prop_env.handover(__file__, "paint", inputs, out)
-
-
-def paint_step(inputs, out):
-    """The prop environment's side: every take the method gave parts for painted, each in a process of its own (a
-    take holds about 2 GB for 9 s; campgrounds' and garage's twelve and sixteen in one process passed the 14 GB cap,
-    2026-10-12); painted.json (with the takes the method left out)."""
-    method = json.loads((inputs["parts"] / "parts.json").read_text())
-    for take in method["takes"]:
-        prop_env.checked([sys.executable, __file__, "paint-take", str(out / prop_env.LISTING), str(out), take],
-                         f"paint {take}")
+    """Every take painted on rented processor machines, one job a take spread over them (blender_cloud.py,
+    inside/paint_take.py: a take holds about 2 GB; campgrounds' twelve and garage's sixteen in one process on the PC
+    passed its 14 GB cap, 2026-10-12, and heavy steps run in the cloud); the method's proposals go into the finish
+    registry here first. painted.json (with the takes the method left out)."""
+    from registry import Registry
+    from score.store import Store
+    short = prop_env.short(inputs)
+    data = data_of(short)
+    method = json.loads((short["parts"] / "parts.json").read_text())
+    registry = Registry(Store.default())
+    jobs = [paint_job(inputs, short, out, take,
+                      method_surfaces(take, data["takes"][take]["place"], record["parts"], registry))
+            for take, record in method["takes"].items()]
+    done = subprocess.run([str(prop_env.PROPS_PYTHON), str(PROPS / "cloud/blender_cloud.py"), *map(str, jobs), "--who",
+                           f"surfaces-paint-{data['place']}", "--classes", PAINT_CLASSES], cwd=REPO,
+                          capture_output=True, text=True)
+    (out / "paint.log").write_text(done.stdout[-20000:] + done.stderr[-20000:])
+    if done.returncode:
+        raise RuntimeError(f"blender_cloud.py paint failed: {done.stderr[-3000:]}")
+    for path in out.glob(".paint-*"):
+        path.unlink()
     found = {take: json.loads((out / "labelled" / take / "labels.json").read_text()) for take in method["takes"]}
     (out / "painted.json").write_text(json.dumps({"takes": found, "left_out": method["left_out"]}, indent=1))
 
 
-def paint_take_step(inputs, out, take):
-    """One take painted (paint_take), its proposals into the finish registry."""
-    from registry import Registry
-    from score.store import Store
-    method = json.loads((inputs["parts"] / "parts.json").read_text())
-    paint_take(inputs, out, take, method["takes"][take], Registry(Store.default()))
+def paint_job(inputs, short, out, take, records):
+    """One take's cloud job file: its listing (the make's inputs, the take, its part records, PROPS_HOME) and every
+    file the paint reads at its own path (the repository's code and data it imports and reads, the take's raw,
+    finished and turned models, its parts); its labelled folder comes back."""
+    listing, kept = out / f".paint-{take}.json", out / f".paint-{take}-records.json"
+    kept.write_text(json.dumps(records))
+    listing.write_text(json.dumps({**{name: str(path) for name, path in inputs.items()}, TAKE: take,
+                                   RECORDS: str(kept), HOME: str(prop_env.PROPS_HOME)}))
+    pixal = prop_env.PROPS_HOME / "work/pixal"
+    models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
+    inventories = [path for name, path in short.items() if name.startswith("inventory ")]
+    read = [listing, kept, short["surfaces"], short["parts"] / "parts.json", short["parts"] / take,
+            short["resting rules"], *inventories, *models, *(REPO / folder for folder in PAINT_REPO)]
+    job = out / f".paint-{take}-job.json"
+    job.write_text(json.dumps({"script": "score/stages/surfaces/inside/paint_take.py", "args": [str(listing)],
+                               "inputs": [str(path) for path in read], "outputs": [str(out / "labelled" / take)],
+                               "minutes": PAINT_MINUTES}, indent=1))
+    return job
+
+
+def paint_take_step(inputs, out):
+    """On the rented machine (inside/paint_take.py hands it here): one take painted (paint_take) from its listing's
+    take and part records."""
+    import heavy
+    heavy.refuse_here("the surface stage's paint")
+    take = inputs[TAKE].name
+    record = json.loads((inputs["parts"] / "parts.json").read_text())["takes"][take]
+    paint_take(inputs, out, take, record, json.loads(inputs[RECORDS].read_text()))
 
 
 def paint_faults(folder):
@@ -520,7 +560,7 @@ def judge_triangles(output, inputs, evidence):
                          {"triangles": sum(record["triangles"] for record in found.values())})
 
 
-STEPS = {"paint": paint_step, "paint-take": paint_take_step, "check": check_step}
+STEPS = {"paint-take": paint_take_step, "check": check_step}
 
 if __name__ == "__main__":
     prop_env.main(STEPS)

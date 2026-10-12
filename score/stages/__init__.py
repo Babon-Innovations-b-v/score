@@ -88,7 +88,8 @@ def paint_files(place):
     import stage_inputs  # tools/usd, on the path by the assembly stage's import: a place's inventory, or its kit's
     inventories = {f"inventory {entry['place']}": "{data}/inventory/" + stage_inputs.inventory_path(entry["place"]).name
                    for entry in surfaces.data.takes(place).values()}
-    return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json"}
+    return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json",
+            "paint script": "{repo}/score/stages/surfaces/inside/paint_take.py"}  # run by path on the machine
 
 
 STAGES = (TERRAIN, EFFECTS, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK,
