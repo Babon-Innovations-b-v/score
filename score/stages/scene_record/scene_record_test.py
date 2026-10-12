@@ -1,8 +1,11 @@
-"""The scene-record stage on its proof place, the garage: its plan maps (an item with no rows, a door that says
-nowhere it leads and a sealed door the layout leaves open each fail `mapped`); its written record passes all four
-gates on the accepted made ground; a `from` naming a game script fails `game-free`, a shell a metre wide of the plan fails
-`plan-matched`, the north tube taken away fails `openings` (its door's place does not stand in it), and the room fill
-taken away fails `seed-matched` (the seed's light is left out with no reason). Skipped, and says so, on a machine
+"""The scene-record stage on its proof places, the garage (a domed room) and the stairwell (a kit shell): the
+garage's plan maps (an item with no rows, a door that says nowhere it leads and a sealed door the layout leaves open
+each fail `mapped`); its written record passes all four gates on the accepted made ground; a `from` naming a game
+script fails `game-free`, a shell a metre wide of the plan fails `plan-matched`, the north tube taken away fails
+`openings` (its door's place does not stand in it), and the room fill taken away fails `seed-matched` (the seed's light
+is left out with no reason). The stairwell's record passes all four too; its block a metre off the plan's fails
+`plan-matched`, the flat taken away fails `openings` (the front door's place), and its landing lights taken away fail
+`seed-matched`; a plan door moved off the kit's doorway fails `plan-matched`. Skipped, and says so, on a machine
 without the round-three seeds or an accepted terrain output.
 
 Run: .venv/bin/python score/stages/scene_record/scene_record_test.py
@@ -25,14 +28,14 @@ PLACE = "garage"
 SEEDS = PROPS_HOME / "work"
 
 
-def inputs_of(files):
-    return {name: pathlib.Path(pattern.format(place=PLACE, data=str(REPO / "data"), seeds=str(SEEDS), repo=str(REPO)))
+def inputs_of(files, place=PLACE):
+    return {name: pathlib.Path(pattern.format(place=place, data=str(REPO / "data"), seeds=str(SEEDS), repo=str(REPO)))
             for name, pattern in files.items()}
 
 
-def made_plan(folder, change=None):
-    """plan@garage made into `folder`, from the garage's plan changed by `change` when given."""
-    inputs = inputs_of(plan.files(PLACE))
+def made_plan(folder, change=None, place=PLACE):
+    """plan@<place> made into `folder`, from the place's plan changed by `change` when given."""
+    inputs = inputs_of(plan.files(place), place)
     if change is not None:
         changed = json.loads(inputs["plan"].read_text())
         change(changed)
@@ -51,9 +54,9 @@ def terrain():
     return store.checkout(accepted) if accepted else None
 
 
-def written(folder, ground):
-    plan_out, _ = made_plan(folder)
-    inputs = {**inputs_of(writer.files(PLACE)), "plan": plan_out, "terrain": ground}
+def written(folder, ground, place=PLACE, change=None):
+    plan_out, _ = made_plan(folder, change, place)
+    inputs = {**inputs_of(writer.files(place), place), "plan": plan_out, "terrain": ground}
     out = pathlib.Path(folder) / "record"
     out.mkdir()
     writer.make(inputs, out, 0, {})
@@ -115,7 +118,42 @@ def test_the_garage_record_passes_and_each_fault_fails():
             assert result == checks.FAIL, (name, found.reason)
 
 
+def moved_door(record):
+    record["doors"][0][1] += 0.5
+
+
+def test_a_kit_shell_record_passes_and_each_fault_fails():
+    ground = terrain()
+    if not (SEEDS / "usd-r3" / "stairwell").exists() or ground is None:
+        print("skipped: no round-three seeds or no accepted terrain output on this machine")
+        return
+    with tempfile.TemporaryDirectory() as folder:
+        out, inputs = written(folder, ground, "stairwell")
+        for check in gates.CHECKS:
+            result, found = answer(check, out, inputs)
+            assert result == checks.PASS, (check.name, found.reason, found.findings)
+        base = json.loads(next(out.glob("record/*.json")).read_text())
+        faults = (
+            ("plan-matched", lambda record: record["structure"][0].update(
+                {"centre": [record["structure"][0]["centre"][0] + 1.0, *record["structure"][0]["centre"][1:]]})),
+            ("openings", lambda record: record.update(places=[item for item in record["places"]
+                                                              if item["name"] != "flat"])),
+            ("seed-matched", lambda record: record.update(lights=[light for light in record["lights"]
+                                                                  if light["type"] == "sun"])))
+        for name, change in faults:
+            rewritten(out, lambda record: record.update(copy.deepcopy(base)))
+            rewritten(out, change)
+            check = next(check for check in gates.CHECKS if check.name == name)
+            result, found = answer(check, out, inputs)
+            assert result == checks.FAIL, (name, found.reason)
+    with tempfile.TemporaryDirectory() as folder:
+        out, inputs = written(folder, ground, "stairwell", moved_door)
+        result, found = answer(next(check for check in gates.CHECKS if check.name == "plan-matched"), out, inputs)
+        assert result == checks.FAIL and "doorway" in found.reason, found.reason
+
+
 if __name__ == "__main__":
     test_the_garage_plan_maps_and_faults_fail()
     test_the_garage_record_passes_and_each_fault_fails()
+    test_a_kit_shell_record_passes_and_each_fault_fails()
     print("scene_record_test: ok")

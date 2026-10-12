@@ -216,9 +216,13 @@ is meant to fix, where it is marked, and what proves it.
   plan, the inventory, the made ground's seats and the sky record, gated on `game-free`, `plan-matched`, `openings`
   (the record composed over the made ground: every doorway onto a floor, no view into nothing, every door's place
   standing in it) and `seed-matched` (the old record an unverified seed: each entry matched or left out with a
-  written reason). Only places whose plan has `leads` have the rows; domed rooms only; no assembly reads the record
-  yet. The sky record's numbers are the old records' shared ones, unverified. Proven when the garage's record passes
-  its gates and the owner has seen it built; then each domed room, and a shell writer for each other kind of place.
+  written reason). Only places whose plan has `leads` have the rows; no assembly reads the record yet. Two shell
+  writers: domed rooms, and kit shells (`kit_shell.py`, 2026-10-12: the Earth's flat, stairwell, street, square and
+  launch view, whose kits hold their walls; the record adds the block round a room, the lamps of the sky record's
+  lamp rows where the kit lays them, the Earth's night, moon, glow and harbour, the plan's released models and the
+  far city it shows; `plan-matched` holds the plan's doors to the kit's doorways). The sky record's numbers are the
+  old records' shared ones, unverified. Proven when the garage's record passes its gates and the owner has seen it
+  built; then each domed room, and a shell writer for each other kind of place.
 - **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
   `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the
   terrain stage makes every ground from its plan; the assembly stage now sublayers the place's made ground over its
