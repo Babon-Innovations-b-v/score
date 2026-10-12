@@ -5,7 +5,8 @@ ferry's round of the harbour, a boom's travel on its rail, a hatch swung open on
 source of its numbers) are written into one layer over the place's stage: its seed with its accepted scene record
 written over the seed's record prims, as the assembly writes it (assembly.take_record), or the seed alone for a place
 with no scene-record row. A game motion's prim the new record names otherwise is the movers record's `renamed`
-({old prim: new prim}); a game motion whose prim the place no longer has is not written, and `covered` fails on it.
+({old prim: new prim}); a game motion whose prim the place no longer has is not written, and `covered` fails on it
+unless the movers record's `removed` ({motion: why}) says the concept took it out.
 The stage is the place itself (movers.place_only): the places it shows are left out, all but their prims that move,
 so two places that show each other never load each other round.
 
@@ -540,17 +541,23 @@ def judge_covered(output, inputs, evidence):
     """Pass when every prim of a moving kind moves in the layer or its standing still is written down."""
     stage, place = composed(output, inputs), place_of(inputs)
     moved = {entry["prim"] for entry in bodies(inputs, output)}
-    still = read_json(inputs["movers"]).get("still", {})
+    record = read_json(inputs["movers"])
+    still, removed = record.get("still", {}), record.get("removed", {})
     wanted = moving_kind_prims(stage, place, kinds_of(inputs))
-    missing = [f"{path} ({kind})" for path, kind in sorted(wanted.items())
+    unmoved = [f"{path} ({kind})" for path, kind in sorted(wanted.items())
                if path not in moved and path not in still and path.rsplit("/", 1)[-1] not in still]
-    missing += [f"{line}: the game's motion has no prim in the place's stage" for line in gone_of(output)]
+    gone = [line.split(":", 1)[0] for line in gone_of(output)]
+    missing = unmoved + [f"{name}: the game's motion has no prim in the place's stage and the record does not say "
+                         "the concept removed it" for name in gone if name not in removed]
     measures = {"moving kinds": len(wanted), "moved": len([path for path in wanted if path in moved]),
-                "still with a reason": len(wanted) - len(missing) - len([path for path in wanted if path in moved])}
+                "still with a reason": len(wanted) - len(unmoved) - len([path for path in wanted if path in moved]),
+                "removed by the concept": len([name for name in gone if name in removed])}
     reason = (f"{len(missing)} prims of a moving kind or game motions neither move nor say why" if missing else
               f"all {len(wanted)} prims of a moving kind move ({measures['moved']}) or say why not")
+    said = [f"{name}: {why}" for name, why in still.items()]
+    said += [f"{name}: removed by the concept: {removed[name]}" for name in gone if name in removed]
     return checks.Verdict("covered", checks.FAIL if missing else checks.PASS, reason, measures, {},
-                          tuple(missing) or tuple(f"{name}: {why}" for name, why in still.items()))
+                          tuple(missing) or tuple(said))
 
 
 def layer_faults(folder):
