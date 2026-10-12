@@ -41,9 +41,10 @@ TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
                       applies=lambda place: place in effects.STAGED)
 # Experimental (PRD #6) until the owner reviews it: each place's motion layer, the game's timed motions and the movers
-# SCORE gives the things that move there (data/movers), over its seed stage; the final assembly takes it.
+# SCORE gives the things that move there (data/movers), over its seed with its accepted scene record written in (the
+# seed alone where the place has no scene-record row); the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
-                     applies=motion.applies)
+                     after={"scene-record": ("scene-record", 1)}, applies=motion.applies)
 # The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
 ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.OPENUSD_STAGE, assembly.CHECKS,
