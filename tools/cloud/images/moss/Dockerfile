@@ -1,6 +1,6 @@
 # MOSS-SoundEffect v2.0 (OpenMOSS, Apache-2.0 code and weights) and LAION's CLAP, as tools/props/cloud/moss_setup.sh
 # installs them on a rented card: the MOSS-TTS code at moss_sound.py's MOSS_SHA in /root/sfx/MOSS-TTS (where
-# moss_generate.py imports it from), Python 3.12 with MOSS's own pins and its torch-cu128 extra (torch 2.9.0+cu128),
+# moss_generate.py imports it from), Python 3.12 with MOSS's own pins and its torch-cu128 extra (torch 2.9.1+cu128 here),
 # hf_xet and transformers (requirements.txt, resolved and hashed). No weights: score-job fetches MOSS and CLAP into the
 # node cache (models.json) and run.sh links them where moss_generate.py looks.
 ARG BASE
