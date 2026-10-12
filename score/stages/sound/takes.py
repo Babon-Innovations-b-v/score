@@ -6,6 +6,7 @@ A take is named by its sound, its prompt's and length's hash and its seed, and k
 same prompt, length, seed and weights make the same take, so a take made once is never paid for again (a rerun of
 the row, or another place's line asking the same brief).
 """
+import fcntl
 import hashlib
 import json
 import pathlib
@@ -105,12 +106,14 @@ def made(jobs, work):
         back.mkdir(parents=True)
         (work / "jobs.json").write_text(json.dumps(wanted, indent=1))
         on_card(plan_for(work / "jobs.json", back, round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted) * 2)))
-        kept = scores()
-        kept.update(json.loads((back / "scores-0.json").read_text()))
         for job in wanted:
             if (back / job["file"]).exists():
                 shutil.copy2(back / job["file"], TAKES / job["file"])
-        (TAKES / SCORES).write_text(json.dumps(kept, indent=1))
+        with (TAKES / "scores.lock").open("w") as lock:  # places' lines run side by side: no score is lost
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            kept = scores()
+            kept.update(json.loads((back / "scores-0.json").read_text()))
+            (TAKES / SCORES).write_text(json.dumps(kept, indent=1))
         shutil.rmtree(work)
     lost = missing(jobs)
     if lost:
