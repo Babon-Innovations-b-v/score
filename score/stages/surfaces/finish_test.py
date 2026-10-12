@@ -18,7 +18,8 @@ from PIL import Image
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from score.stages.surfaces import finish_ask, finish_maps, finish_parts  # noqa: E402
+from score.stages.surfaces import finish_ask, finish_maps, finish_parts, turntable_row  # noqa: E402
+from PIL.PngImagePlugin import PngInfo  # noqa: E402
 
 
 def close_up_alpha():
@@ -217,6 +218,30 @@ def test_a_finish_list_reply_is_parsed_to_library_names():
     reply = json.dumps({"finishes": [{"parts": "foil", "finish": "gold foil", "surface": "M1", "fits": True},
                                      {"parts": "legs", "finish": "steel", "surface": "M2", "fits": True}]})
     assert [entry["surface"] for entry in finish_ask.parsed_list(reply, surfaces)] == ["mli_gold", "bare_steel"]
+
+
+def test_two_renders_of_the_same_pixels_are_the_same_file_once_their_text_is_dropped():
+    """Blender stamps each render's date and Cycles' times into the PNG: the same pixels written twice with other
+    times are byte-identical after without_text, and their pixels are untouched."""
+    folder = REPO / "tmp/turntable-png-test"
+    folder.mkdir(parents=True, exist_ok=True)
+    pixels = np.random.default_rng(0).integers(0, 255, (32, 32, 4), dtype=np.uint8)
+    paths = []
+    for number, seconds in enumerate(("00:00.81", "00:00.67")):
+        info = PngInfo()
+        info.add_text("Date", f"2026/10/12 13:48:5{number}")
+        info.add_text("cycles.ViewLayer.total_time", seconds)
+        path = folder / f"render{number}.png"
+        Image.fromarray(pixels).save(path, pnginfo=info)
+        paths.append(path)
+    assert paths[0].read_bytes() != paths[1].read_bytes()
+    for path in paths:
+        turntable_row.without_text(path)
+    assert paths[0].read_bytes() == paths[1].read_bytes()
+    assert (np.asarray(Image.open(paths[0])) == pixels).all()
+    for path in paths:
+        path.unlink()
+    folder.rmdir()
 
 
 if __name__ == "__main__":

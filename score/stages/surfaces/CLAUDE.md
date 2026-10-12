@@ -23,7 +23,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **A library change re-keys only the rows that read the library** (lists, names, parts, paint, bake, check:
   `surface_data.line_files`); inputs, turntable, maps and SegviGen declare none (`shape_files`), the inputs'
   output names no folder of its run, and the turntable renders on the processor with a fixed seed
-  (`inside/turntable.py` `cycles_fixed`). On 2026-10-12 the making folder in `job.json` and card renders that
+  (`inside/turntable.py` `cycles_fixed`), its PNGs kept without Blender's date and render-time text
+  (`turntable_row.without_text`: the same pixels are the same file). On 2026-10-12 the making folder in `job.json` and card renders that
   differed run to run made one library change re-render every place and re-draw every view map (about EUR 50).
   Before pushing a change that moves a paid row's key, list what it re-buys (`_code.source_files` and the
   row's files).
