@@ -210,8 +210,8 @@
     "lab"
    ],
    "library_places": [
-    "expedition_camp",
-    "lab"
+    "lab",
+    "expedition_camp"
    ],
    "place": "camp",
    "kind": "camp_sample_tray",
