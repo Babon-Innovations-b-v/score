@@ -2991,5 +2991,157 @@
 			"picked": "2026-10-07, the coordinator, from its causes (owner may change)"
 		},
 		"game_only": "Kept in the game 2099 (JoeyKardolus/2099#130): the roof door's moving leaves and the bay's air cycle, the ship pad, ship bench and fuel point as game nodes (take-off refused under a shut roof), the ship itself."
+	},
+	"people": {
+		"name": "the people",
+		"scenes": [],
+		"why": "The people stage's library (score/stages/people, #5): the surfaces a person's clothing, skin and hair take. Not a place one visits.",
+		"materials": {
+			"suit_navy": {
+				"token": "suit-navy",
+				"library": "suit_navy"
+			},
+			"suit_panel_grey": {
+				"token": "suit-panel-grey",
+				"library": "suit_panel_grey"
+			},
+			"strap_green": {
+				"token": "strap-green",
+				"library": "strap_green"
+			},
+			"mitten_grey": {
+				"token": "suit-pad",
+				"library": "mitten_grey"
+			},
+			"suit_white": {
+				"token": "sign-white",
+				"library": "suit_white"
+			},
+			"cotton_white": {
+				"token": "sign-white",
+				"library": "cotton_white"
+			},
+			"flag_red": {
+				"token": "sign-red",
+				"library": "flag_red"
+			},
+			"canvas_beige": {
+				"token": "flat-wall",
+				"library": "canvas_beige"
+			},
+			"quilted_white": {
+				"token": "hull",
+				"library": "quilted_white"
+			},
+			"suit_fabric_orange": {
+				"token": "earth-sunset",
+				"library": "suit_fabric_orange"
+			},
+			"beta_cloth": {
+				"token": "hull",
+				"library": "beta_cloth"
+			},
+			"leather_black": {
+				"token": "rubber",
+				"library": "leather_black"
+			},
+			"plastic_grey": {
+				"token": "idle",
+				"library": "plastic_grey"
+			},
+			"plastic_white": {
+				"token": "hull",
+				"library": "plastic_white"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"rubber_grey": {
+				"token": "idle",
+				"library": "rubber_grey"
+			},
+			"gasket_black": {
+				"token": "rubber",
+				"library": "gasket_black"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"brushed_steel_fine": {
+				"token": "steel",
+				"library": "brushed_steel_fine"
+			},
+			"anodized_gold": {
+				"token": "sign-gold",
+				"library": "anodized_gold"
+			},
+			"mli_gold": {
+				"token": "sign-gold",
+				"library": "mli_gold"
+			},
+			"glass": {
+				"token": "glass",
+				"library": "glass"
+			},
+			"glass_tinted": {
+				"token": "night-horizon",
+				"library": "glass_tinted"
+			},
+			"skin_light": {
+				"token": "skin-light",
+				"library": "skin_light"
+			},
+			"skin_medium": {
+				"token": "skin",
+				"library": "skin_medium"
+			},
+			"skin_dark": {
+				"token": "skin-dark",
+				"library": "skin_dark"
+			},
+			"hair_black": {
+				"token": "hair-black",
+				"library": "hair_black"
+			},
+			"hair_brown": {
+				"token": "hair",
+				"library": "hair_brown"
+			},
+			"gold_band": {
+				"token": "suit-gold",
+				"library": "gold_band"
+			},
+			"steel_dark": {
+				"token": "steel-dark",
+				"library": "steel_dark"
+			},
+			"suit_light_blue": {
+				"token": "suit-light-blue",
+				"library": "suit_light_blue"
+			},
+			"olive_drab": {
+				"token": "olive-drab",
+				"library": "olive_drab"
+			},
+			"wool_charcoal": {
+				"token": "wool-charcoal",
+				"library": "wool_charcoal"
+			},
+			"wool_grey": {
+				"token": "wool-grey",
+				"library": "wool_grey"
+			},
+			"jacket_blue": {
+				"token": "jacket-blue",
+				"library": "jacket_blue"
+			}
+		},
+		"wear": {
+			"level": "clean",
+			"dirt": 0.0,
+			"picked": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review"
+		}
 	}
 }
