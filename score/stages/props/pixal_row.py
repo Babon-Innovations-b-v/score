@@ -54,20 +54,29 @@ def raw_made(take):
     return raw.exists() and cameras.exists()
 
 
-def finish_here(take, closeup, out):
-    """A take the cloud brought back but whose finish never ran (its batch was stopped), finished here as the batch
-    finishes every take: pixal.py --finish-only (Blender and the processor, no model), its default faces and seed."""
+def faces_of(surfaces, row):
+    """The triangles a take is finished to: its bake entry's (route.faces_for its size), so a small object is not
+    asked for more than its remeshed surface has (cable_drop: 32,362 after the remesh, 40,000 asked, the finish
+    failed rather than write a worse model)."""
+    return json.loads(surfaces.read_text())["bake"]["entries"][f"{row}_1"]["faces"]
+
+
+def finish_here(take, closeup, faces, out):
+    """A take the cloud brought back but whose finish never ran or failed, finished here as the batch finishes every
+    take: pixal.py --finish-only (Blender and the processor, no model)."""
     with (out / "finish.log").open("a") as log:
         done = subprocess.run([str(REPO / ".venv/bin/python"), str(REPO / "tools/props/pixal.py"), str(closeup), take,
-                               "--who", "score pixal", "--finish-only"], cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
+                               "--who", "score pixal", "--finish-only", f"--faces={faces}"], cwd=REPO, stdout=log,
+                              stderr=subprocess.STDOUT)
     if done.returncode:
         raise RuntimeError(f"the finish of {take} failed (exit {done.returncode}); its log is finish.log")
 
 
-def batch_list(objects, closeups, out):
-    """The batch's list, one take with no raw model a line with its close-up; its path, or None when there is none."""
-    lines = [f"{entry['take']} {closeups / f'{row}.png'}" for row, entry in sorted(objects.items())
-             if not raw_made(entry["take"])]
+def batch_list(objects, closeups, surfaces, out):
+    """The batch's list, one take with no raw model a line with its close-up and its faces; its path, or None when
+    there is none."""
+    lines = [f"{entry['take']} {closeups / f'{row}.png'} --faces {faces_of(surfaces, row)}"
+             for row, entry in sorted(objects.items()) if not raw_made(entry["take"])]
     if not lines:
         return None
     (out / "list.txt").write_text("\n".join(lines) + "\n")
@@ -79,7 +88,7 @@ def make_pixal(inputs, out, seed, params):
     closeups = inputs["closeup"] / "closeups"
     objects = {row: entry for row, entry in prop_data.prop_objects(prop_data.record_at(inputs["props"])).items()
                if (closeups / f"{row}.png").exists()}  # one with no close-up failed the prop route there
-    listing = batch_list(objects, closeups, out)
+    listing = batch_list(objects, closeups, inputs["surfaces"], out)
     if listing:
         done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/batch.py"), str(listing), "--who",
                                f"score pixal {prop_data.record_at(inputs['props'])['place']}", "--inventory",
@@ -89,7 +98,7 @@ def make_pixal(inputs, out, seed, params):
             raise RuntimeError(f"the Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
     for row, entry in sorted(objects.items()):
         if raw_made(entry["take"]) and not made(entry["take"]):
-            finish_here(entry["take"], closeups / f"{row}.png", out)
+            finish_here(entry["take"], closeups / f"{row}.png", faces_of(inputs["surfaces"], row), out)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in objects.items()}
