@@ -70,6 +70,8 @@ SAGE_TURN = 8.0
 # An object's feet are looked for this share of its height over its lowest point (the paint's FOOT_BAND,
 # score/stages/surfaces/place_line.py), at least the triage's LOW_BAND: the water tank's shortest leg ended 12.7 cm up.
 FOOT_BAND = 0.15
+# How far a loose object's bottom may lie from the top of another under it and still be stacked on it (metres).
+STACK_REACH = 0.05
 
 
 def loose_objects(stage, place, inventory):
@@ -179,25 +181,186 @@ def carried_with(stage, place, inventory, settled):
     return found
 
 
-def simulate(stage_path, loose, folder, cloud=False, ignore=()):
+def upright_starts(stage, place, inventory, loose, ground):
+    """{name: the motion (stage frame, column vectors) that stands it upright in its own seat about its middle, its
+    heading and spot kept} for each loose object the resting triage asks to stand on its feet (no `leans`, no bedding
+    class) that is laid tipped by more than a hundredth of a degree but at most TURN_MOST. Its drop starts there: an old
+    settle's tip onto uneven feet (written before 2026-10-12: the hangar's racks 2 to 4 degrees, its monitor desk 8) is
+    no pose to drop from, while a piece laid over further keeps its pose (the composition is the owner's)."""
+    import triage
+    data = triage.rules()
+    rows = {row["id"]: row for row in inventory["rows"]}
+    found = {}
+    for name in loose:
+        prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+        if lies_as_laid(rows.get(prim.GetAttribute("score:row").Get(), {}), data):
+            continue
+        laid = laid_matrix(stage, place, name)
+        scale = float(np.cbrt(np.linalg.det(laid[:3, :3])))
+        turn = laid[:3, :3] / scale
+        across, along, _, in_seat = layout_pose(laid, ground, scale)
+        seat = np.eye(3) if ground is None else ground.standing(across, along, 0.0)[1]
+        upright = seat.T @ Rotation.from_euler("y", -math.radians(heading_of(in_seat))).as_matrix()
+        change = upright @ turn.T
+        tipped = math.degrees(Rotation.from_matrix(change).magnitude())
+        if tipped < 0.01 or tipped > TURN_MOST:
+            continue
+        middle = laid[:3, :3] @ np.asarray(object_middle(stage, place, name)) + laid[:3, 3]
+        motion = np.eye(4)
+        motion[:3, :3] = change
+        motion[:3, 3] = middle - change @ middle
+        found[name] = motion
+    return found
+
+
+def lies_as_laid(row, data):
+    """Whether a row lies as laid, asked neither to stand upright nor to rest on its feet: it says it `leans` (laid
+    tilted on purpose) or is of a bedding class (a towel over a handle, a cable through its skirting)."""
+    import triage
+    return bool(row.get("leans")) or triage.bedding(row, data)[1] is not None
+
+
+def start_lift(stage, place, name, start):
+    """How far to lift an object stood at `start` (a motion from as laid) for its lowest point to begin its fall
+    SETTLE_DROP over the ground, and at least as high as it lay (standing it up lowers a corner: on a deck it would
+    begin inside it)."""
+    points = object_points(stage, place, name)
+    moved = points @ start[:3, :3].T + start[:3, 3]
+    clearance = float(np.nanmin(moved[:, 1] - resting.ground_height(stage, place)(moved[:, [0, 2]])))
+    return max(0.0, SETTLE_DROP - clearance, float(points[:, 1].min() - moved[:, 1].min()))
+
+
+def object_points(stage, place, name):
+    """An object's drawn points in the stage's frame."""
+    return resting.in_stage(stage.GetPrimAtPath(f"/{place}/Objects/{name}").GetChild("geo"))[0]
+
+
+def touching(stage, place, name, start, rested):
+    """`start` (a motion from as laid) moved up or down until the object's lowest point stands where it did at rest
+    (`rested`, a motion from as laid): on what held it there, ground or deck."""
+    points = object_points(stage, place, name)
+    down = np.eye(4)
+    down[1, 3] = float((points @ rested[:3, :3].T + rested[:3, 3])[:, 1].min()
+                       - (points @ start[:3, :3].T + start[:3, 3])[:, 1].min())
+    return down @ start
+
+
+def stacked_under(stage, place, loose):
+    """{name: the loose objects it is stacked on}: each loose object whose top lies within STACK_REACH of another's
+    bottom and whose footprint it overlaps (a crate laid on a crate, the hangar's parts_crate_4), which the drop lets
+    meet it. Loose objects otherwise pass through each other in the drop, so a stacked one fell to the floor."""
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    boxes = {}
+    for name in loose:
+        box = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange()
+        boxes[name] = (np.asarray(box.GetMin()), np.asarray(box.GetMax()))
+    found = {}
+    for name, (low, high) in boxes.items():
+        under = [other for other, (other_low, other_high) in boxes.items() if other != name
+                 and abs(other_high[1] - low[1]) <= STACK_REACH and other_low[1] < low[1]
+                 and np.all(np.minimum(high[[0, 2]], other_high[[0, 2]]) > np.maximum(low[[0, 2]], other_low[[0, 2]]))]
+        if under:
+            found[name] = sorted(under)
+    return found
+
+
+def drop_job(stage, place, inventory, upright, kit_path=None):
+    """What a drop of the stage takes: the loose objects with their lifts, what is left out of the statics, the
+    upright starts (only when `upright`: a drop that finds rest poses; a drop that judges the laid pose, SAGE's,
+    starts as laid; the kit, data/kit/<place>.json or the file given, names the place's seat) and what each loose
+    object is stacked on."""
+    loose = loose_objects(stage, place, inventory)
+    ignore = (part_objects(stage, place, inventory) + held_on_loose(stage, place, inventory, loose)
+              + fixtures_on_loose(stage, place, loose))
+    starts = {}
+    if upright:
+        kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
+        starts = upright_starts(stage, place, inventory, loose, grounds.place_ground(place, kit.get("on_seat",
+                                                                                                    [0.0, 0.0])))
+        loose.update({name: start_lift(stage, place, name, start) for name, start in starts.items()})
+    return loose, ignore, starts, stacked_under(stage, place, loose)
+
+
+def simulate(stage_path, loose, folder, cloud=False, ignore=(), start=None, under=None, cache=None):
     """The Blender run: how each loose object moved from as laid to at rest (stage frame, column vectors), how fast
     it still moved at the end, and the static objects it started inside; `ignore` are objects left out of the
-    statics (part_objects, held_on_loose, fixtures_on_loose)."""
+    statics (part_objects, held_on_loose, fixtures_on_loose), `start` the motions that stand objects upright before
+    their drop (upright_starts) and `under` what each is stacked on (stacked_under). With a `cache` folder, a cloud
+    drop of the very same job on the very same stage with the same drop script is not paid for twice
+    (drop_key)."""
     folder.mkdir(parents=True, exist_ok=True)
     job, out = folder / "settle-job.json", folder / "settled.json"
-    job.write_text(json.dumps({"loose": sorted(loose), "lift": loose, "ignore": sorted(ignore)}, indent=1))
+    job.write_text(json.dumps({"loose": sorted(loose), "lift": loose, "ignore": sorted(ignore),
+                               "start": {name: np.asarray(motion).tolist() for name, motion in (start or {}).items()},
+                               "under": under or {}}, indent=1))
     if out.exists():
         out.unlink()
     if cloud:  # a rented processor machine (tools/props/cloud/blender_cloud.py), not this PC's one Blender
+        kept = pathlib.Path(cache) / drop_key(stage_path, job) / "settled.json" if cache else None
+        if kept is not None and kept.exists():
+            out.write_bytes(kept.read_bytes())
+            return json.loads(out.read_text())
         sys.path.insert(0, str(REPO / "tools/props/cloud"))
         import blender_cloud
         blender_cloud.run_elsewhere(INSIDE, [stage_path, job, out], [stage_path.parent, job], [out],
-                                    blender_cloud.DEFAULT_CLASSES, "settle", minutes=15)
+                                    blender_cloud.DEFAULT_CLASSES, "settle", minutes=30)
+        if kept is not None:
+            kept.parent.mkdir(parents=True, exist_ok=True)
+            kept.write_bytes(out.read_bytes())
         return json.loads(out.read_text())
     command = [sys.executable, str(SESSION), "batch", str(INSIDE), "--", str(stage_path), str(job), str(out)]
     if subprocess.run(command, stdout=subprocess.DEVNULL).returncode != 0 or not out.exists():
         raise RuntimeError(f"the settle run failed; run it by hand to see its output: {command}")
     return json.loads(out.read_text())
+
+
+def drop_key(stage_path, job):
+    """A drop's identity: the hash of its job, the drop script and every file of the stage's folder."""
+    import hashlib
+    digest = hashlib.sha256(pathlib.Path(job).read_bytes() + INSIDE.read_bytes())
+    folder = pathlib.Path(stage_path).parent
+    for path in sorted(item for item in folder.rglob("*") if item.is_file()):
+        digest.update(str(path.relative_to(folder)).encode())
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+    return digest.hexdigest()
+
+
+def rest_poses(stage, place, inventory, simulated, starts):
+    """Where a drop leaves each loose object, as the rest layer lays it: {name: {"before", "after" (stage frame,
+    column vectors), "rested": True when it came to rest by a small correction (write_layout's limits), "said": what it
+    did}}, and what lies on a written one carried with it (carried_with). One laid inside a static, still moving, or
+    that would turn or drift past the limits keeps its laid pose, not rested (its layout is put right instead). A tip
+    onto uneven feet stands upright on its lowest foot (its start, let down to touch), not rested either: the model's
+    feet are the paint's to level (feet.py), and the assembly's own drop judges the levelled model."""
+    poses = {}
+    for name, found in sorted(simulated["objects"].items()):
+        before = laid_matrix(stage, place, name)
+        entry = {"before": before, "after": np.asarray(found["motion"]) @ before,
+                 "middle": object_middle(stage, place, name), "uneven": uneven_feet(stage, place, name)}
+        turned, drift = correction(entry)
+        said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
+        piece = max(UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]).ComputeWorldBound(
+            stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange().GetSize())
+        debris = piece <= DEBRIS_SIZE
+        if found["inside"] or found["moving"] > STILL:
+            why = (f"laid inside {', '.join(found['inside'])}" if found["inside"]
+                   else f"still moving {found['moving']:.2f} m/s at the end")
+            poses[name] = {"before": before, "after": before, "rested": False, "said": f"{why}; left as laid"}
+        elif tips_on_uneven_feet(tip := {**entry, "before": starts.get(name, np.eye(4)) @ before}):
+            # the tip from where its drop started: an old settle's tip onto the same feet is no rest either
+            start = touching(stage, place, name, starts.get(name, np.eye(4)), np.asarray(found["motion"]))
+            poses[name] = {"before": before, "after": start @ before, "rested": False,
+                           "said": f"{said}{uneven_said(tip)}; stood upright on its lowest foot"}
+        elif (not debris and turned > TURN_MOST) or drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
+            poses[name] = {"before": before, "after": before, "rested": False,
+                           "said": f"would not rest as laid: {said}"}
+        else:
+            poses[name] = {**entry, "rested": True, "said": said}
+    written = {name: {key: pose[key] for key in ("before", "after")} | {"middle": object_middle(stage, place, name)}
+               for name, pose in poses.items() if pose["after"] is not pose["before"]}
+    for name, found in carried_with(stage, place, inventory, written).items():
+        poses[name] = {**found, "rested": True, "said": "carried with what it lies on"}
+    return poses
 
 
 def layout_pose(matrix, ground, scale):
@@ -255,17 +418,15 @@ def correction(found):
 
 def uneven_feet(stage, place, name):
     """How far (metres, in its own frame as laid: its scale kept, its turn taken off) an object's highest foot ends
-    over its lowest, when it has three feet or more (triage.feet_gaps' feet; feet.py), else 0."""
-    import feet
+    over its lowest, when it has three feet or more (triage.foot_clusters, as the triage finds them), else 0."""
     import triage
     prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
     points, triangles = resting.in_stage(prim.GetChild("geo"))
     laid = laid_matrix(stage, place, name)
     turn = laid[:3, :3] / np.cbrt(np.linalg.det(laid[:3, :3]))
-    own = feet.surface_points((points - laid[:3, 3]) @ turn, triangles)
-    height, _ = feet.model_scale(own)
-    found = [low for members, low in feet.feet(own, max(triage.LOW_BAND, FOOT_BAND * height), triage.FOOT_LINK)
-             if len(members) >= triage.FOOT_POINTS]
+    own = (points - laid[:3, 3]) @ turn
+    height = float(np.ptp(own[:, 1]))
+    found = [low for _, low in triage.foot_clusters(own, triangles, max(triage.LOW_BAND, FOOT_BAND * height))]
     return found[-1] - found[0] if len(found) >= 3 else 0.0
 
 
@@ -412,13 +573,11 @@ def main():
     stage = Usd.Stage.Open(str(stage_path))
     place = stage.GetDefaultPrim().GetName()
     inventory_path, kit_path = stage_inputs.inventory_path(place), KITS / f"{place}.json"
-    loose = loose_objects(stage, place, json.loads(inventory_path.read_text()))
     last = stage_path.parent / "settle" / "settled.json"
     inventory = json.loads(inventory_path.read_text())
-    ignore = (part_objects(stage, place, inventory) + held_on_loose(stage, place, inventory, loose)
-              + fixtures_on_loose(stage, place, loose))
+    loose, ignore, starts, under = drop_job(stage, place, inventory, upright=not arguments.dry_run)
     simulated = (json.loads(last.read_text()) if arguments.reuse
-                 else simulate(stage_path, loose, stage_path.parent / "settle", arguments.cloud, ignore))
+                 else simulate(stage_path, loose, stage_path.parent / "settle", arguments.cloud, ignore, starts, under))
     for first, second in simulated["overlaps"]:
         print(f"{first} and {second} came to rest inside each other")
     settled = {}

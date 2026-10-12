@@ -74,7 +74,10 @@ stage as each stage is built; nothing moves before.
   `neighbours` (every shown place stands, resolves and has children). `complete` is the completion gate on what
   the place holds: `tools/usd/complete.py`'s own checks (all but resting, the assembly's gate) on the place's
   neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
-  (`stages/complete/complete_test.py` holds them equal). `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
+  (`stages/complete/complete_test.py` holds them equal).
+  `settle` (experimental, paid, its overlay; only the places in `stages.SETTLED`) drops a place's loose objects
+  on its made ground, snaps its held ones onto their holders and lays where each rests as a layer the assembly
+  takes, gated on `rested` and `resting`. `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
   apply only to a place with `data/props/<place>.json`, which no world 1 place has yet. `cast`
   (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a

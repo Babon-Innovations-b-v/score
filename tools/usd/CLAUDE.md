@@ -60,6 +60,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   take of any name (`-r1`, `-s1`). Never guess a take name.
 - `resting.py` is the scene check (floating, tipping, sunk below its contact points, one piece inside another; hung
   rows exempt by their inventory `anchor`, fixed rows not judged for tipping, two fixed rows may be joined). Never put a fault right by lowering a piece: settle it.
+  Its ground is the stage's `Ground`, or the made ground's fine patch (`MADE_GROUND`, `/<place>/Outside/near`) where
+  the terrain stage's layer turns the old Ground off; the drop stands on the same (`settle_stage.py` GROUND_NAMES).
+  Before 2026-10-12 both read y = 0 there.
 - `placeholders.py` is the placeholder check: nothing visible stands in for a made piece. Every mesh a scene record's
   code builder drew says which plain thing it is (`plain`: plate, pipe, trim, shell, ground, soil, water or sky; the
   ground's and water's groups by their kind) or fails, whatever the builder, a primitive or one that puts a thing
@@ -90,8 +93,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   settle run (`settle.py --dry-run`: over 0.2 m or 8 degrees is unstable), and real faults grouped by cause with a
   close-up each (`--closeups`). False alarms are kept, marked, never deleted. The gate's resting requirement is its real
   faults. A floor or held object (not of a bedding class) is also judged foot by foot (`../props/library/feet.py`: its
-  low points clustered; a foot over 3 cm off while another touches is real, since four contact points can lie on three
-  feet) and by its lean (its own up over 3 degrees from the plane under what it touches); a row that says `leans`
+  surface within 10 cm of its lowest point sampled densely and clustered, `foot_clusters`; a foot over 3 cm off while
+  another touches is real, since four contact points can lie on three feet; on 600 sparse points a side wall fell
+  apart into "feet" up to 10 cm off, 2026-10-12) and by its lean (its own up over 3 degrees from the plane under what it touches); a row that says `leans`
   (laid tilted on purpose: the wreck's debris, captain 2026-10-12) is asked neither:
   the greenhouse's water tank stood 7.5 degrees tipped, a foot 7 cm up, and passed before (2026-10-12).
 - `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,
@@ -159,6 +163,14 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   shallow bowl under a piece (a thrown sphere, a section's impact) so it rests where it was laid. A tip over 3 degrees
   onto feet that do not lie in one plane in the model's own frame (`uneven_feet`) is never written either: it is the
   model's fault (the surface stage's paint levels a take's feet), marked `unrested` with the feet's spread.
+  A drop that finds rest poses (`drop_job(upright=True)`: settle.py's write, the settle stage) starts each loose piece
+  stood upright in its seat (`upright_starts`: an old settle's tip of up to 15 degrees is no pose to drop from; a row
+  that `leans` or may bed in starts as laid), and a piece stacked on another loose one meets it (`stacked_under`: a
+  crate on a crate fell through it to the floor). A drop that judges the laid pose (`--dry-run`, the assembly's
+  resting evidence) starts as laid. `rest_poses` is the settle stage's write: the same limits, the rest as matrices;
+  `score/stages/settling/held.py`'s `held_rests` snaps held ones onto their holders (a level spot within 30 cm when the straight snap leaves one
+  leaning), `fixed_let_down` lets a floating fixed one down. A cloud drop of the very same job, drop script and stage
+  is read back from a cache (`simulate(cache=...)`, `drop_key`), never bought twice.
 - `export_test.py` checks the edit survival, the parts, the units, children and the parts lookup on places made in the
   test itself; `resting_test.py` the resting check and the planned ground; `settle_test.py` the settle's write-back
   (a pose round-trips through the layout and the export) and the levelled yard, without Blender.

@@ -197,8 +197,29 @@ def a_box_on_the_game_s_furniture_rests_on_it():
         return problems + ([] if after == "rests" else [f"on the furniture the box reads '{after}'"])
 
 
+def the_made_ground_is_read_where_the_old_one_is_off():
+    """Where a made ground's layer turns the old Ground off, the ground is the made ground's fine patch, not y = 0."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        made_models(folder)
+        path = laid_place(folder, [("crate", "box", (4, 0, 2))], [("crate", "floor")], sloping_ground(folder))
+        layer = Sdf.Layer.CreateNew(str(path.parent / "layers" / "ground.usda"))
+        made = Usd.Stage.Open(layer)
+        made.OverridePrim(f"/{PLACE}/Ground").SetActive(False)
+        near = UsdGeom.Mesh.Define(made, f"/{PLACE}/{resting.MADE_GROUND}")
+        near.CreatePointsAttr([(-50, 0.5, -50), (50, 0.5, -50), (50, 0.5, 50), (-50, 0.5, 50)])
+        near.CreateFaceVertexCountsAttr([3, 3])
+        near.CreateFaceVertexIndicesAttr([0, 1, 2, 0, 2, 3])
+        layer.Save()
+        root = Sdf.Layer.FindOrOpen(str(path))
+        root.subLayerPaths = ["./layers/ground.usda", *root.subLayerPaths]
+        root.Save()
+        height = resting.ground_height(Usd.Stage.Open(str(path)), PLACE)(np.array([[4.0, 2.0]]))[0]
+        return [] if abs(height - 0.5) < 1e-6 else [f"the made ground reads {height} m under the crate, not 0.5"]
+
+
 CHECKS = (floating_sunk_and_hung_are_told_apart, a_crate_on_a_structure_deck_rests, a_box_on_the_game_s_furniture_rests_on_it,
-          a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground,
+          a_plank_held_at_one_end_tips, a_box_stands_on_the_planned_ground, the_made_ground_is_read_where_the_old_one_is_off,
           two_boxes_inside_each_other_overlap, a_room_lies_flat_on_its_seat_over_a_dug_pit)
 
 

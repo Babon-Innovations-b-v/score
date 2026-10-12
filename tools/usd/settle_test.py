@@ -267,7 +267,54 @@ def a_kit_room_piece_moves_with_its_object():
     return problems + ([] if names == ["desk_1", "desk_2", "desk_lamp_glow_1"] else [f"the room's names are {names}"])
 
 
-CHECKS = (a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
+def tipped_place(folder, pieces):
+    """A place of 1 m boxes (row, at, degrees tipped about x) laid loose on the floor, exported; its stage's path."""
+    kit = {"place": PLACE, "lamps": [], "children": [],
+           "pieces": [{"prop": f"test_{row}", "kind": f"test_{row}", "model": "box", "row": row, "size": [1.0] * 3,
+                       "at": list(at), "facing": 30.0,
+                       "rotation": Rotation.from_euler("yx", [-30.0, degrees], degrees=True).as_quat().tolist()}
+                      for row, at, degrees in pieces]}
+    inventory = {"rows": [{"id": row, "name": row, "anchor": "floor", "thing": f"prop:test_{row}"}
+                          for row in sorted({row for row, _, _ in pieces})]}
+    (folder / "kit.json").write_text(json.dumps(kit))
+    (folder / "inventory.json").write_text(json.dumps(inventory))
+    return resting_test.export.export(PLACE, folder / "models", folder / "stage", kit_path=folder / "kit.json",
+                                      inventory_path=folder / "inventory.json")
+
+
+def a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder():
+    """A crate an old settle left 6 degrees tipped starts its drop upright (its facing and middle kept), one laid
+    40 degrees over keeps its pose, and a crate laid on a crate meets it in the drop."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = tipped_place(folder, [("crate", (0, 0, 0), 6.0), ("crate", (4, 0, 0), 40.0), ("box", (8, 0, 0), 0.0),
+                                     ("box", (8, 1.0, 0), 0.0)])
+        stage = Usd.Stage.Open(str(path))
+        inventory = json.loads((folder / "inventory.json").read_text())
+        names = ("crate_1", "crate_2", "box_1", "box_2")
+        starts = settle.upright_starts(stage, PLACE, inventory, names, None)
+        under = settle.stacked_under(stage, PLACE, names)
+        problems = []
+        if sorted(starts) != ["crate_1"]:
+            problems.append(f"upright starts for {sorted(starts)}, not crate_1 alone")
+        else:
+            laid = stage_matrix(path, "crate_1")
+            upright = starts["crate_1"] @ laid
+            turn = upright[:3, :3]
+            facing = settle.heading_of(laid[:3, :3])
+            if not np.allclose(turn[:, 1], [0, 1, 0], atol=1e-6) or abs(settle.heading_of(turn) - facing) > 1e-3:
+                problems.append(f"crate_1 starts with up {turn[:, 1]} facing {settle.heading_of(turn)}")
+            middle = np.append(settle.object_middle(stage, PLACE, "crate_1"), 1.0)
+            if not np.allclose(upright @ middle, laid @ middle, atol=1e-6):
+                problems.append("crate_1's middle moved as it was stood upright")
+        if under != {"box_2": ["box_1"]}:
+            problems.append(f"stacked: {under}")
+        return problems
+
+
+CHECKS = (a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
+          a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
           a_fixture_on_a_dropped_piece_is_no_static_of_the_drop, what_lies_on_a_settled_piece_moves_with_it, a_big_turn_is_marked_not_made,
           a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl, a_tip_onto_uneven_feet_is_refused)

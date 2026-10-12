@@ -47,6 +47,9 @@ FOOTPRINT = 600
 RAY_START = 0.1
 # How far an object's weight may fall outside what it touches and still stand.
 BALANCE = 0.05
+# The made ground's fine patch round the place (score/stages/terrain/outside.py), the ground where its layer turns the
+# old Ground off.
+MADE_GROUND = "Outside/near"
 # How many of an object's points are tested for lying inside another, at most.
 OVERLAP_SAMPLES = 3000
 # How densely another object's surface is sampled to find where this one touches it, and the most samples taken.
@@ -64,9 +67,13 @@ def in_stage(prim):
 
 
 def ground_height(stage, place):
-    """The ground's height under any (x, z): read off the stage's ground mesh, or 0 on a flat place."""
+    """The ground's height under any (x, z): read off the stage's ground mesh (the made ground's fine patch, MADE_GROUND,
+    where a made ground's layer turns the old Ground off), or 0 on a flat place. Before 2026-10-12 a made ground read
+    as 0 everywhere: the campgrounds' objects, a metre under it, passed."""
     prim = stage.GetPrimAtPath(f"/{place}/Ground")
-    if not (prim and prim.IsActive()):  # a made ground's layer turns the old Ground off
+    if not (prim and prim.IsActive()):
+        prim = stage.GetPrimAtPath(f"/{place}/{MADE_GROUND}")
+    if not (prim and prim.IsActive()):
         return lambda flat: np.zeros(len(flat))
     points, _ = in_stage(prim)
     return LinearNDInterpolator(points[:, [0, 2]], points[:, 1])
