@@ -136,6 +136,15 @@ def test_an_owners_reject_moves_the_accepted_output_back_and_marks_what_read_it_
     assert found["count@hangar"].startswith("blocked: clean@hangar's output")
 
 
+def test_a_record_naming_a_stage_the_table_lacks_is_stale_not_a_crash():
+    """Fault (2026-10-12): a node's accepted record named an earlier stage another runner wrote into the same store
+    (the old light runner's lightkit under light@camp), and status crashed with a KeyError for every line."""
+    world, store, _ = ready_world()
+    lone = a_runner(world, store, (dataclasses.replace(COUNT, after={}),))  # count's records name clean
+    assert lone.stale("count@hangar") == ["clean (a stage this table does not hold)"], lone.stale("count@hangar")
+    assert lone.status(["hangar"])["count@hangar"].endswith("clean (a stage this table does not hold) moved")
+
+
 def test_a_failed_gate_blocks_what_follows():
     world, store = a_world({"hangar": "a ship in a very long hall"}), Store.in_folder(tempfile.mkdtemp())
     runner = a_runner(world, store)
