@@ -129,11 +129,22 @@ def the_gate_runs_it():
                                               ("crate", "box", (0.0, 0, 0))],
                                      [triage_test.row("pen", fixed=True), triage_test.row("shut"),
                                       triage_test.row("crate")])
-        complete.run_checks(resting_test.PLACE, stage, ["reach"])
-        found = {requirement["name"]: requirement["result"]
-                 for requirement in complete.requirements(resting_test.PLACE, stage)}
-        said = found.get("reach")
-        return [] if said == complete.FAIL else [f"the gate's reach requirement reads {said}"]
+        def reach_requirement():
+            return next(requirement for requirement in complete.requirements(resting_test.PLACE, stage)
+                        if requirement["name"] == "reach")
+        problems = []
+        before = reach_requirement()
+        if before["result"] != complete.UNKNOWN:
+            problems.append(f"the gate's reach requirement reads {before['result']} before reach ran")
+        ran = complete.run_checks(resting_test.PLACE, stage, ["reach"])[0]
+        if ran["result"] != complete.FAIL:
+            problems.append(f"the crate shut in its pen reads {ran['result']} in the gate's reach check")
+        after = reach_requirement()
+        # Experimental: its fail is shown on the manifest, and what the gate counts is that it was recorded.
+        if after["result"] != complete.PASS or not after["why"].startswith("recorded, fail") \
+                or "experimental" not in after:
+            problems.append(f"the gate's reach requirement after a failing run reads {after}")
+        return problems
 
 
 def a_place_s_own_door_leaves_are_walked_to_and_shown_places_not():
