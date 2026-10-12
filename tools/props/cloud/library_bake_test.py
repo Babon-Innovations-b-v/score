@@ -31,3 +31,11 @@ def test_a_bake_keeps_the_machines_paths(tmp_path):
     assert found["env"] == {"FARM_CYCLES_GPU": "1"} and found["kernel_cache"] == "blender-5.0.1"
     processor = library_bake.cluster_job(job, 3, False, tmp_path / "job3.json")
     assert processor["env"] == {"FARM_CYCLES_CPU": "1"} and "kernel_cache" not in processor
+
+
+def test_a_failed_job_names_its_last_error(tmp_path):
+    (tmp_path / "library-1").mkdir()
+    (tmp_path / "library-1" / "job6.log").write_text("Blender 5.0.1\nRuntimeError: Error: Cannot read '/gone/x.png'\n"
+                                                     "Blender quit\n")
+    assert library_bake.last_error(tmp_path, 6) == "RuntimeError: Error: Cannot read '/gone/x.png'"
+    assert library_bake.last_error(tmp_path, 7) == "never ran, or its log says no error"

@@ -261,7 +261,16 @@ def main():
         print(json.dumps(entry))
     left = sorted(number for number, _ in [*shares.failed, *shares.waiting])
     if left:
-        raise SystemExit(f"library jobs {', '.join(map(str, left))} failed or never ran (logs under {run_folder})")
+        raise SystemExit(f"library jobs {', '.join(map(str, left))} failed or never ran (logs under {run_folder})"
+                         + "".join(f"\n  job {number}: {last_error(run_folder, number)}" for number in left))
+
+
+def last_error(run_folder, number):
+    """The last error line of a job's log on any of the run's machines (camp's bake, 2026-10-12: the run's message
+    ended on the claim's stock lines, its cause, a picture at a path long gone, only in the job's log)."""
+    lines = [line.strip() for log in run_folder.glob(f"*/job{number}.log") for line in log.read_text().splitlines()
+             if "Error" in line]
+    return lines[-1] if lines else "never ran, or its log says no error"
 
 
 if __name__ == "__main__":
