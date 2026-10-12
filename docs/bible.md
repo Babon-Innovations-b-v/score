@@ -155,11 +155,13 @@ Experimental means: the code and its overlay say so, and where it would run or c
 a flag or a spec asks for it. Nothing here is a result; the paper's gaps name the same items. Each entry says what it
 is meant to fix, where it is marked, and what proves it.
 
-- **The people prop route** (#5; `tools/characters/maker/prop_person.py`, specs `player_prop.json` and
-  `nev_prop.json`). For bloated clothes on SOMA-made people. Runs only with `make.py --experimental`. Proven when the
-  player and Nev pass tucks, pokes and skin-through-cloth on every clip by the independent checker, the corrective
-  shapes are in UsdSkel, and the owner picks them on a side-by-side page. Today the player fails tucks and pokes and
-  Nev is not made.
+- **The people stage** (#5; `score/stages/people`, its overlay; `tools/characters/maker/prop_person.py`'s steps,
+  specs `data/characters/makes/<name>_prop.json`, takes in `data/surfaces/people.json`). For bloated clothes on
+  SOMA-made people: people made like every prop (owner, 2026-10-11), the clothing painted through the surface
+  stage's own rows, SOMA-X only for the rig, Kimodo's clips swung clear of the body's own bulk (`clearance.py`).
+  World rows run only when asked for by name (`--stage people-...`). Proven when the player and Nev pass every body
+  gate (joins, tucks, cloth and body through cloth, rigid, outline, likeness, triangles) on every clip, the clothing
+  passes the surface stage's paint gates on library surfaces, and the owner picks them on the review page.
 - **The drapes** (`drape_garment.py`, `newton_drape.py`, `cloth_drape.py`, `rebuild.py`; the drapes-fix,
   drapes-perlook and drapes-uipc branches stay off main). For the non-commercial Warp fork and drapes that slid or
   left arms bare. No default simulator: a person is made only when its spec names `drape_simulator`. The shipped

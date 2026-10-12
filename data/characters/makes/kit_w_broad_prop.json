@@ -1,0 +1,59 @@
+{
+ "name": "kit_w_broad",
+ "kind": "person",
+ "route": "prop",
+ "experimental": "people stage (#5): the prop route, experimental until its gates pass on every look",
+ "approved": "owner, 2026-10-11 (#5, #6): people are made like every prop (Pixal3D shape, split into parts, SOMA-X only for the skeleton so Kimodo's clips play); world 1 finished today",
+ "why": "a front row member of the square's crowd (w_broad, coat-grey); its face and hair come from the kit's face step and hair route",
+ "references": [],
+ "pose_picture": "~/.farm-factory-motion/candidates/prop-people/player/work/closeup/pp-player-work-s1.png",
+ "closeup_seeds": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "closeups": [],
+ "description": "a Chinese woman in her forties, a broad sturdy build, an ordinary citizen in the crowd, short black hair",
+ "outfit_words": {
+  "coat-grey": "a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
+  "jacket-blue": "a plain blue cotton jacket with a stand collar, a front opening with dark buttons, the jacket ending at the hips, dark grey trousers, black leather shoes",
+  "uniform-olive": "a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather shoes"
+ },
+ "hair": "short black hair",
+ "face": "a plain face",
+ "outfits": [
+  "coat-grey",
+  "jacket-blue",
+  "uniform-olive"
+ ],
+ "garment_body": "mean_female",
+ "look": {
+  "scale": 0.9759723583253876,
+  "kit": {
+   "faces": [
+    "f2",
+    "f4",
+    "f6"
+   ],
+   "hair": [
+    "bob",
+    "pixie",
+    "bun",
+    "side"
+   ],
+   "schemes": [
+    "navy",
+    "olive",
+    "maroon"
+   ],
+   "plain": [
+    "jacket_blue",
+    "coat_grey",
+    "uniform_olive"
+   ]
+  }
+ },
+ "shipped_body": "kit_w_broad",
+ "shipped_outfit": "plain_coat_grey"
+}
