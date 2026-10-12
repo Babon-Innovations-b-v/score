@@ -378,6 +378,16 @@ is meant to fix, where it is marked, and what proves it.
   ship is the hangar's `ship` inventory row, grounded by `machines-boxes@hangar` (paid, SAM 3) and made by the prop
   route in a world of its own (`ship_trial.py`); the workshop has no robot row: its concept K10 shows none, and
   the concept decides (captain, 2026-10-12).
+- **The crops stage** (`score/stages/crops`, its overlay; `data/crops/greenhouse*.json`). For the greenhouse's bare
+  beds under a concept of planted ones. `crops-concept@greenhouse` (paid) measures each kind on the concept with SAM 3
+  on 2x tiles: its patches' share of the plot and its spacing in plant widths (2026-10-12: lettuce 49 plants 1.06
+  widths apart, potato 65 at 1.57, herb 28 at 1.27, the parsley and kale one canopy, `greens`; seedlings dropped with
+  the reason in the data). The crop kinds are inventory rows made by the prop route and painted by the surface stage
+  on a line of their own (`crops-boxes`, `crops-props-inputs` ... `crops-surfaces-check`), so the greenhouse's own line
+  and its reviewed models do not move; `crops-layer` (free) lays each baked kind on its beds at the measured spacing,
+  one point instancer a kind, gated on `on beds` and `spacing`, and the assembly takes it; `crops-look` (paid) renders
+  the beds at the concept's slant and counts them with SAM 3 again (`seen`, `density`). Proven when the look's gates
+  pass and the owner has seen it; the crop state (mid-season beds, not the game's bare start) is his open decision.
 
 ## architecture/trust-boundaries
 

@@ -2451,6 +2451,122 @@
 			],
 			"made": "kit piece",
 			"model": "control_cabinet_1"
+		},
+		{
+			"id": "crop_lettuce",
+			"view": "v1",
+			"box": [
+				1066,
+				771,
+				1130,
+				818
+			],
+			"name": "lettuce, a single head",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.3,
+				0.3,
+				0.2
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_crop_lettuce",
+			"made": "crop",
+			"group": "crops",
+			"at": [],
+			"fixed": true,
+			"repeats": "on its beds, laid by the crops stage at the concept's spacing (data/crops/greenhouse.json, score/stages/crops)",
+			"why": "a crop the concept K09 grows on the plot (crops-concept@greenhouse b1c487bece76, SAM 3 on its 2x tiles); the 2026-10-07 partition dropped the beds' plants as the game's own, design D (2026-10-12) maps them back",
+			"box_from": [
+				"v1.364"
+			]
+		},
+		{
+			"id": "crop_potato",
+			"view": "v1",
+			"box": [
+				1085,
+				973,
+				1122,
+				996
+			],
+			"name": "potato, lying on the plot's soil",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.13,
+				0.09,
+				0.07
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_crop_potato",
+			"made": "crop",
+			"group": "crops",
+			"at": [],
+			"fixed": true,
+			"repeats": "on its beds, laid by the crops stage at the concept's spacing (data/crops/greenhouse.json, score/stages/crops)",
+			"why": "a crop the concept K09 grows on the plot (crops-concept@greenhouse b1c487bece76, SAM 3 on its 2x tiles); the 2026-10-07 partition dropped the beds' plants as the game's own, design D (2026-10-12) maps them back",
+			"box_from": [
+				"v1.635"
+			]
+		},
+		{
+			"id": "crop_herb",
+			"view": "v1",
+			"box": [
+				1233,
+				990,
+				1281,
+				1081
+			],
+			"name": "rosemary, a single upright plant",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.25,
+				0.25,
+				0.5
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_crop_herb",
+			"made": "crop",
+			"group": "crops",
+			"at": [],
+			"fixed": true,
+			"repeats": "on its beds, laid by the crops stage at the concept's spacing (data/crops/greenhouse.json, score/stages/crops)",
+			"why": "a crop the concept K09 grows on the plot (crops-concept@greenhouse b1c487bece76, SAM 3 on its 2x tiles); the 2026-10-07 partition dropped the beds' plants as the game's own, design D (2026-10-12) maps them back",
+			"box_from": [
+				"v1.281"
+			]
+		},
+		{
+			"id": "crop_greens",
+			"view": "v1",
+			"box": [
+				1439,
+				869,
+				1689,
+				1019
+			],
+			"name": "leafy bush of fern-leaved kale, a single plant",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.4,
+				0.4,
+				0.35
+			],
+			"count": 1,
+			"thing": "prop:greenhouse_crop_greens",
+			"made": "crop",
+			"group": "crops",
+			"at": [],
+			"fixed": true,
+			"repeats": "on its beds, laid by the crops stage at the concept's spacing (data/crops/greenhouse.json, score/stages/crops)",
+			"why": "a crop the concept K09 grows on the plot (crops-concept@greenhouse b1c487bece76, SAM 3 on its 2x tiles); the 2026-10-07 partition dropped the beds' plants as the game's own, design D (2026-10-12) maps them back; boxed on its patch (proposal v1.37): on the whole picture SAM 3 finds these bushes only as one mass, so a single bush's box cannot be grounded",
+			"box_from": [
+				"v1.37"
+			]
 		}
 	],
 	"concept_pick": {

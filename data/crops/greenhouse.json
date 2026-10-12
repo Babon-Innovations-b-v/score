@@ -1,0 +1,22 @@
+{
+ "place": "greenhouse",
+ "state": "the concept's planted mid-season beds (K09), not the game's start state of bare soil: the coordinator's proposal in the stage design of 2026-10-12, the owner's decision still open; on the scene's 25 start beds only (the tarped stages stay as the owner reviewed them)",
+ "concept": {
+  "view": "v1",
+  "plot": {"nouns": ["raised garden bed", "vegetable garden bed"],
+           "plan_item": "HOME PLOT 12 x 12 m (beds 0.6 m)"}
+ },
+ "beds": "bed_",
+ "kinds_order": "a plant SAM 3 finds under the nouns of two kinds is the earlier kind's: the more specific nouns first, the bushes last (on 2026-10-12 'leafy bush' also found the herbs and the young greens)",
+ "kinds": {
+  "lettuce": {"row": "crop_lettuce", "nouns": ["lettuce"]},
+  "potato": {"row": "crop_potato", "nouns": ["potato"]},
+  "herb": {"row": "crop_herb", "nouns": ["rosemary", "small shrub"]},
+  "greens": {"row": "crop_greens", "nouns": ["leafy bush"],
+             "canopy": "the concept draws its bushy greens (curly parsley right of the potatoes, fern-leaf kale in front of it) as closed canopies of bushes whose leaves meet (K09 at full size, 2026-10-12); on its 2x tiles SAM 3 finds them only as a few merged masses, so their spacing is not measured: laid one bush width apart, leaves meeting"}
+ },
+ "dropped": {
+  "kale and parsley apart": "the concept's fern-leaf kale and curly parsley are one kind here, greens: SAM 3 tells neither apart from the other nor counts their touching bushes (2026-10-12, its 'leafy bush', 'leafy green plant', 'kale' and 'curly parsley' on the 2x tiles)",
+  "seedling": "the design's third kind; the concept's plot shows no seedlings apart from its young greens (the back left rows, which SAM 3 reads as lettuce): crops of K09 at full size, 2026-10-12, and SAM 3's 'seedling' instances there all lay on those rows; the seedlings it shows stand in trays on the wall rack, the inventory's existing row 'seedling tray of young plants'"
+ }
+}

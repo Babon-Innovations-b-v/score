@@ -21,8 +21,8 @@ import dataclasses
 import pathlib
 
 from score import contracts, graph
-from score.stages import (assembly, cast, complete, concept_people, effects, images, light, machines, motion,
-                          people, physics, props, scene_record, sound, surfaces, terrain)
+from score.stages import (assembly, cast, complete, concept_people, crops, effects, images, light, machines,
+                          motion, people, physics, props, scene_record, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -154,7 +154,7 @@ STAGES = (TERRAIN, EFFECTS, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
           *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES, MACHINE_BOXES, MOTION,
-          *light.ROWS)
+          *light.ROWS, *crops.ROWS)
 
 
 def layered(row, names):

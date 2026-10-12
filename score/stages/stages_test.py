@@ -57,7 +57,7 @@ def made(output, inputs, evidence):
 NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
                                 (checks.Check("made", made),), applies=lambda place: False)
                     for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
-                                 "sound", "scene-record", "motion", "light"))
+                                 "sound", "scene-record", "motion", "light", "crops-layer"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
@@ -163,8 +163,12 @@ def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
     edited = "score/stages/surfaces/turntable_row.py"
     moved = {name for name, stage in table.items() if stage.paid
              and code_after_editing(stage, edited) != code_after_editing(stage, "nothing")}
-    # The people line's turntable runs the same make (score/stages/people/line.py), so it moves with it.
-    assert moved == {"surfaces-turntable", "surfaces-segvigen", "people-turntable"}, moved
+    # The people line's turntable runs the same make (score/stages/people/line.py), so it moves with it. The crops'
+    # line keeps its rows' files functions in score/stages/crops/line.py, which imports the turntable, so every paid
+    # row of it moves too (its overlay: they move to a module of their own the next time that line is made again).
+    crops = {"crops-boxes", "crops-closeup", "crops-pixal", *(f"crops-surfaces-{step}" for step in (
+        "turntable", "lists", "maps", "names", "segvigen", "paint", "bake"))}
+    assert moved == {"surfaces-turntable", "surfaces-segvigen", "people-turntable", *crops}, moved
 
 
 if __name__ == "__main__":
