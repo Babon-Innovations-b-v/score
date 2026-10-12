@@ -10,8 +10,8 @@ was measured on) made into the place's OpenUSD effects layer, which the assembly
                        under the effects layer)
              footage   every check of the record's `footage` block: a measure of the baked particles at a moment (how
                        far the cloud reaches out, how high it stands, how far it reaches any way and how far off its
-                       way it spreads, how long the flame is, how high it stands over the ground beneath and
-                       at what angle (a landing's sheet), how fine and how thick the particles are, how few lie
+                       way it spreads, how long the flame is, how high it stands over the ground beneath (a
+                       drift), how fine and how thick the particles are, how few lie
                        loose at its edge as lone blobs, what share of them shows) lies within the range measured on
                        real footage: the launch's after lift-off in the rocket's heights from its rest, any other
                        place's at its own `at` second in metres from its `anchor` emitter
@@ -40,7 +40,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import effects as effect_layer  # noqa: E402
 
-STAGED = ("launch", "airlock", "garage", "hangar", "greenhouse", "habitat", "wreck", "flat", "camp", "campgrounds")
+STAGED = ("launch", "airlock", "garage", "hangar", "greenhouse", "habitat", "flat", "camp", "campgrounds")
 # How far an emitter on a moving prim may drift from its place on it, metres.
 DRIFT_MOST = 0.01
 # How often the composed stage is read along a motion and an event, seconds.
@@ -338,17 +338,6 @@ def over_ground(spots, ground):
     return np.linalg.norm(world, axis=1) - (ground.radius + height)
 
 
-def rise(spots, anchor, ground, beyond):
-    """How steeply the particles' middles stand over the ground beneath them against how far out from the anchor they
-    are (95th share, those more than `beyond` metres out), degrees: a landing's dust sheet hugging the ground, as the
-    Apollo films are measured (the sheet's angle over the ground)."""
-    out = np.hypot(spots[:, 0] - anchor[0], spots[:, 2] - anchor[2])
-    far = out > beyond
-    if not far.any():
-        return None
-    return float(np.percentile(np.degrees(np.arctan2(over_ground(spots[far], ground), out[far])), 95))
-
-
 def gap(spots, widths, anchor):
     """How far from the anchor the particles first show (the nearest one's near edge), metres: the clear gap at a
     kettle's spout."""
@@ -423,8 +412,6 @@ def measured(check, stage, place, record, rocket):
         return spread(spots, rest)
     if check["measure"] == "over_ground":  # how high the particles' tops stand over the ground beneath (95th share)
         return float(np.percentile(over_ground(spots, effect_layer.place_ground(place)) + widths / 2, 95))
-    if check["measure"] == "rise":  # the place's planned ground, as the make lays it (the declared `grounds`)
-        return rise(spots, rest, effect_layer.place_ground(place), float(check.get("beyond", 1.0)))
     if check["measure"] == "gap":
         return gap(spots, widths, rest) / tall
     if check["measure"] == "flame_length":

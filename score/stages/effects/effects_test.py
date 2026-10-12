@@ -2,9 +2,7 @@
 the record passes all four gates; a flame light too weak fails `light`, a ground cloud too slow fails `footage`, and
 a trail baked off another climb than the rocket's fails `attached`; the airlock's pump-down passes, measured in
 metres, and fails `footage` when its fog lingers and `light` is unknown when it no longer says why it gives none; the
-camp's drift stays out of its domes and fails `outside` baked without them; the wreck's landing veil passes and fails
-`footage` when it stands too steep over the ground, `attached` unknown when the record no longer says why nothing
-rides; a point ahead of a camera lands where the picture shows it; `shown` and `lit` read their measures.
+camp's drift stays out of its domes and fails `outside` baked without them; a point ahead of a camera lands where the picture shows it; `shown` and `lit` read their measures.
 
 Run: .venv/bin/python score/stages/effects/effects_test.py   (needs the launch's round-three seed in the work folder)
 """
@@ -110,20 +108,6 @@ def test_the_camp_drift_stays_out_of_its_domes_and_a_leak_fails():
         effects.make(launch_inputs(folder, record=dict(record, interiors=[]), place="camp"), leaking, 0, {})
         verdict = effects.judge_outside(leaking, inputs, None)
     assert verdict.answer == checks.FAIL and verdict.measures["most inside"] > 0, verdict.reason
-
-
-def test_the_wreck_veil_hugs_the_ground_and_a_steep_one_fails():
-    record = json.loads((REPO / "data/effects/wreck.json").read_text())
-    with tempfile.TemporaryDirectory() as folder:
-        found = answers(launch_inputs(folder, place="wreck"), folder)
-    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-        name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
-    emitter(record, "landing_dust")["flatness"] = 0.9
-    del record["rides_nothing"]
-    with tempfile.TemporaryDirectory() as folder:
-        found = answers(launch_inputs(folder, record=record, place="wreck"), folder)
-    assert found["footage"].answer == checks.FAIL and found["footage"].measures["the veil's rise over the ground"] > 3
-    assert found["attached"].answer == checks.UNKNOWN, found["attached"].reason
 
 
 def test_a_point_ahead_lands_mid_picture_and_one_to_the_right_right_of_it():

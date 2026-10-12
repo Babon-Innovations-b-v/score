@@ -236,8 +236,8 @@ is meant to fix, where it is marked, and what proves it.
   record that lights nothing says why, `no_light`) and `outside` (no open-sky particle inside the record's `interiors`);
   the assembly takes the layer in place of the seed's.
   `effects-look@launch` (paid) renders the review cameras before and after at four moments round lift-off, gated on
-  `shown` and `lit`. `effects.STAGED` holds the launch, airlock, garage, hangar, greenhouse, habitat, wreck, flat,
-  camp and campgrounds;
+  `shown` and `lit`. `effects.STAGED` holds the launch, airlock, garage, hangar, greenhouse, habitat, flat, camp
+  and campgrounds;
   `look.LOOKED` the launch only. Run
   with `python -m score run world1 --place launch --stage effects-look`. Proven when the owner has seen the launch's
   stills; then each place's record (pump-downs, steam, dust) from footage, and films on his go. 2026-10-12: all five
@@ -249,18 +249,17 @@ is meant to fix, where it is marked, and what proves it.
   kettle's gap and the mist's width put right to them. All three gates pass on each; the branch is deleted. No
   footage was found for a pump-down fog's size or fineness, a humidifier's exit speed, or any upper bound on a
   plume running off its photograph's frame. Later on 2026-10-12 (the owner: every place gets the effects its concept
-  and machines imply) four places joined `STAGED`, each measured on footage: the wreck's landing dust back (the
-  owner's word; one see-through veil 1 to 3 degrees over the ground, the Apollo landing papers, pulled down to follow
-  the 220 m world's curve; the supply rocket is not on the stage), the flat's cigarette smoke (Commons photographs,
+  and machines imply) three places joined `STAGED`, each measured on footage: the flat's cigarette smoke (Commons photographs,
   breath papers: 3,000 and 4,000 fine cards where the game had 40 and 220), the camp's and its grounds' dust devils
   (Spirit's Gusev films, Greeley's counts: one see-through column about 10 m across, not the game's 1.2 m specks)
   over the game's drift, and the launch's liquid oxygen venting before ignition (a fuelled Falcon 9 at night: the
   steam at the rocket's base the concepts show). A fourth gate, `outside`, keeps open-sky emitters out of a record's
-  `interiors` (the camp's drift blew through its domes); `rise` and `over_ground` measure over the planned ground, and
+  `interiors` (the camp's drift blew through its domes); `over_ground` measures over the planned ground, and
   reach and height are measured in the anchor emitter's own frame (a devil stands along the curved ground's up).
   Waiting on movers: wheel dust (the rovers stand), the hangar ship's exhaust (it never lifts), boot dust (nobody walks
   on regolith in any cast); none is staged until its motion exists, since a record that cannot pass would stop the
-  place's assembly.
+  place's assembly. The wreck's landing dust was measured on the Apollo landing papers and brought back, then taken
+  out again: its concept shows no landing, and the concept decides (the captain, 2026-10-12; the veil is in e9e8cc8).
 - **The neighbours stage** (`score/stages/assembly/neighbours.py`). A place's views looked out onto empty space: the
   seeds' references to the places they show (`../../launch/launch.usda`) resolve to nothing once each place is its own
   node, so the launch's accepted assembly showed the square and the far city with no children. `neighbours@<place>`
