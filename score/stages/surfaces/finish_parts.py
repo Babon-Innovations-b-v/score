@@ -288,8 +288,7 @@ def surface_colours(entry, names):
     """Each surface's library colour, sRGB 0-255."""
     import numpy as np
     import labels
-    import library
-    every = library.resolved(entry["library_places"][0])
+    every = take_surfaces(entry)
     return {name: np.clip(labels.srgb(np.array(every[name]["colour"], dtype=float)) * 255, 0, 255).astype(np.uint8)
             for name in names}
 
