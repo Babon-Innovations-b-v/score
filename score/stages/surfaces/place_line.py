@@ -331,8 +331,9 @@ def gltf_model(gltf):
 
 
 def baked_surfaces(geometry, labelled, entry):
-    """Each baked triangle's surface: the labelled part (one .ply per surface) whose nearest point lies under the
-    triangle's middle, the parts laid into the kit frame as make_chunky lays them (stored_parts.kit_frame)."""
+    """Each baked triangle's surface (the labelled part, one .ply per surface, whose nearest point lies under the
+    triangle's middle, the parts laid into the kit frame as make_chunky lays them, stored_parts.kit_frame) and
+    whether it lies inside its part (all three corners' nearest points on it too)."""
     import numpy as np
     import trimesh
     from scipy.spatial import cKDTree
@@ -344,8 +345,11 @@ def baked_surfaces(geometry, labelled, entry):
         points.append(vertices)
         names += [path.stem] * len(vertices)
     laid = stored_parts.kit_frame(np.vstack(points), np.array(entry["base"]).reshape(3, 3), entry["size"])
+    tree, names = cKDTree(laid), np.array(names)
     middles = geometry["positions"][geometry["triangles"]].mean(axis=1)
-    return np.array(names)[cKDTree(laid).query(middles)[1]]
+    surface = names[tree.query(middles)[1]]
+    corners = names[tree.query(geometry["positions"])[1]][geometry["triangles"]]
+    return surface, (corners == surface[:, None]).all(axis=1)
 
 
 def check_model(name, entry, labelled, made, materials):
@@ -369,7 +373,7 @@ def check_model(name, entry, labelled, made, materials):
     colour = labels.lab(picture[rows, columns])
     corners = geometry["positions"][geometry["triangles"]]
     areas = 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
-    surface = baked_surfaces(geometry, labelled, entry)
+    surface, interior = baked_surfaces(geometry, labelled, entry)
     for name_of in sorted(set(surface.tolist())):
         chosen = surface == name_of
         order = np.argsort(colour[chosen, 0])
@@ -377,7 +381,8 @@ def check_model(name, entry, labelled, made, materials):
         middle = colour[chosen][order][np.searchsorted(weights, weights[-1] / 2)]
         token = labels.lab(labels.srgb(np.array(materials[name_of]["colour"]))[None])[0] \
             if name_of in materials else None
-        blotch = float(areas[chosen & (colour[:, 0] < BLOTCH_L)].sum() / max(areas[chosen].sum(), 1e-12))
+        inside = chosen & interior  # a triangle across a border bakes its neighbour's colour (a paper label on black)
+        blotch = float(areas[inside & (colour[:, 0] < BLOTCH_L)].sum() / max(areas[inside].sum(), 1e-12))
         record["surfaces"][name_of] = {
             "share": round(float(areas[chosen].sum() / areas.sum()), 4),
             "baked_lab": [round(float(value), 1) for value in middle],
