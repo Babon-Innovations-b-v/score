@@ -4,7 +4,7 @@ author:
   - "J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands"
 date: "Working draft, 13 October 2026"
 abstract: |
-  Games, films and robot training need 3D worlds that are complete, editable and owned by the people who make them. World models and one-shot 3D generators can produce a convincing place from a sentence or a picture, but they give frames that no engine can open, or one fused scene without separate objects or clear rights. Studios have always built worlds in stages, from concept art and layout to modelling, surfacing, lighting, sound and review. We present SCORE, a world generation framework that keeps these stages and automates them with open vision foundation models, procedural tools and coding agents, while the creator chooses and reviews. Every stage is a node of one runner: its output is keyed on its inputs and its code, judged by gates that answer pass, fail or unknown, and accepted only when nothing got worse, so a fault is fixed in its own stage and only what follows it runs again. Paid steps are cleared against a month's budget read from the provider's own bill. Every model in the framework allows commercial use of its output, so the creator stays the author of the result. We describe the framework as built for its first world, the game world of 2099 with 18 places, and the measured gates of each of its layers: surfaces, resting, light, motion, effects, sound and people. Results per place are being gathered. Code and paper are available at https://github.com/Babon-Innovations-b-v/score (MIT license).
+  Games, films and robot training need 3D worlds that are complete, editable and owned by their makers; world models and one-shot generators give frames no engine opens, or one fused scene without separate objects or clear rights. Studios build worlds in stages, from concept art to review. SCORE keeps these stages and automates them with open vision foundation models, procedural tools and coding agents, while the creator chooses and reviews. Every stage is a node of one runner: its output is keyed on its inputs and code, judged by gates that answer pass, fail or unknown, and accepted only when nothing got worse, so a fault is fixed in its own stage and only what follows it runs again; paid steps are cleared against a budget read from the provider's bill. Every model allows commercial use of its output, so the creator stays the author. We describe the framework as built for its first world, the game world of 2099 with 18 places, and the measured gates of its surfaces, resting, light, motion, effects, sound and people. Code and paper are available at https://github.com/Babon-Innovations-b-v/score (MIT license).
 ---
 
 <!--
@@ -27,171 +27,139 @@ abstract: |
 ```
 
 ::: gap
-**Gap: Figure 1, four worlds.** World 1's panel: the square (the prologue on Earth), the hub (the Moon base) and the Mars camp, each concept beside its finished stage rendered from the concept's own camera; worlds 2 to 4 shown as not started. It waits on those three places passing their completion gate on their final assembly; the square and the camp wait on their people's bodies.
+**Gap: Figure 1, four worlds.** World 1's square, hub and Mars camp beside their concepts; worlds 2 to 4 as not started. It waits on those places' completion gates.
 :::
 
 <!-- Demo target F1. -->
 
 # Introduction
 
-Interactive 3D worlds are the raw material of games, film and embodied AI [@yang2024holodeck], and building one is expensive: every object has to be modelled, surfaced, placed, given collision, lit and given sound in one style, and the world has to stay editable. Generative models promise to take over much of this, but in GDC's 2026 survey 52 percent of game workers thought generative AI was hurting the industry [@gdc2026survey]; a tool for building worlds has to leave the result in the creator's hands.
+Interactive 3D worlds are the raw material of games, film and embodied AI [@yang2024holodeck], and building one is expensive: every object is modelled, surfaced, placed, given collision, lit and given sound in one style, and the world stays editable. Generative models promise to take over much of this, but in GDC's 2026 survey 52 percent of game workers thought generative AI was hurting the industry [@gdc2026survey]; a tool for building worlds has to leave the result in the creator's hands.
 
 World models generate a world as frames [@bruce2024genie; @genie3] that no engine can open. 3D world generators [@wang2025worldgen; @hyworld2] produce geometry, but mostly as one fused asset, from which separate objects are recovered after the fact [@hu2026worldact; @niu2026worldsculpt]. Both work in one shot, so a creator cannot find or change the step behind a fault. Procedural systems [@raistrick2023infinigen; @raistrick2024indoors] and coding agents that write scenes as programs [@hu2024scenecraft; @li2026rcwm; @guo2026worldclaw; @yin2026autoue] keep the world explicit, but rebuild a scene that already exists or draw their objects from a fixed library, and such agents judge their own geometry unreliably [@li2026lego]. Open vision foundation models [@oquab2023dinov2] now read shapes [@li2026pixal3d], masks [@carion2025sam3], depth [@wang2025moge2] and parts [@lin2025partcrafter] out of pictures, and a coding agent can connect them as tools; none of them provides one style across objects that different models made, which the field names as an open problem [@wu2026production; @yang2026flowscene].
 
-Studios build worlds in stages, each with an output a person can check. SCORE keeps these stages and automates them with the models above, procedural tools and coding agents, while the creator chooses and reviews. Its worlds are **complete**: every object, surface, light and sound exists wherever the player looks. They are **owned**: every model in the framework allows commercial use of its output, so the creator stays the author, holding the full commercial rights. They are **responsive**: every object has real collision, mass and material. And they can be any kind of **environment**. To our knowledge, no other openly available world generation work joins vision foundation models into engine-ready scenes that are built from reference pictures, steered by a person's choices at each step, and made only with models that allow commercial use of their output.
+Studios build worlds in stages, each with an output a person can check; SCORE keeps these stages and automates them. Its worlds are **complete**: every object, surface, light and sound exists wherever the player looks. They are **owned**: every model in the framework allows commercial use of its output, so the creator stays the author, holding the full commercial rights. They are **responsive**: every object has real collision, mass and material. And they can be any kind of **environment**. To our knowledge, no other openly available world generation work joins vision foundation models into engine-ready scenes that are built from reference pictures, steered by a person's choices at each step, and made only with models that allow commercial use of their output.
 
 <!-- "To our knowledge" claim and nearest exceptions: 2099 paper material/08-reframe.md, "The owner's position" (availability check of twelve systems, 2026-10-05); the repository is now public under MIT. Hand-off pattern: material/11-vision-foundation-models.md. -->
 
-This paper makes three contributions:
-
-- **The SCORE framework:** stages as nodes of one runner that keys, judges and accepts every output, over one canonical scene: a generated base under the creator's edit layer (Section 2).
-- **Stages with measured gates** for every layer of a place: models, surfaces, resting, light, motion, effects, sound and people, and a completion gate over all of them (Section 3).
-- **Evidence from a first world**, with its spend per stage read from the ledgers and the bill (Section 4).
+We contribute **the SCORE framework**, stages as nodes of one runner that keys, judges and accepts every output over one canonical scene (Section 2); **measured gates** for every layer of a place and a completion gate over them (Section 3); and **evidence from a first world**, with its spend per stage (Section 4).
 
 # The framework
 
-A world is a table of stages; world 1's has 95 rows. A **node** is one stage for one place (`assembly@hangar`) or for the whole world, and one runner makes, judges and accepts every node. The creator's picks (the concept of each place, the style, the references) are the inputs; from there everything runs without a typed yes, and the creator reviews.
+A world is a table of stages; world 1's has 95 rows. A **node** is one stage for one place (`assembly@hangar`) or for the world, and one runner makes, judges and accepts every node. The creator's picks (concepts, style, references) are the inputs; from there everything runs without a typed yes, and the creator reviews.
 
 <!-- 95 rows: len(score.stages.STAGES) at 4c5365e. Picks as inputs, no typed yes: the owner's answers of 2026-10-11 on issue #6 (design approved, decisions 1 to 3). -->
 
 ## Keys, gates and accepts
 
-**Keys.** A node is made only when its key has no finish record. The key hashes the stage and place, a code version, the contracts of its output and inputs, its parameters, a seed derived from the world's, the pinned model images, every world file it reads and the accepted output of every node it reads. The code version hashes every source file the stage's make and gates import, walked through their imports; the runner and the renting code are left out, since they change what a run costs, not what it makes. A fault fixed in one stage moves the keys of that stage and of what follows it, and nothing else. Outputs are kept by content hash, never overwritten, each stamped with its schema in metres, seconds and degrees.
+**Keys.** A node is made only when its key has no finish record. The key hashes the stage and place, a code version, the contracts of its output and inputs, its parameters, a seed derived from the world's, the pinned model images, every world file it reads and the accepted output of every node it reads. The code version hashes every source file the stage imports, leaving out the runner and the renting code, which change what a run costs, not what it makes. A fault fixed in one stage moves only its key and those after it. Outputs are kept by content hash, never overwritten.
 
-**Gates and accepts.** Each gate answers pass, fail or unknown, with measures and a reason; missing evidence is unknown, and unknown blocks like fail. The runner accepts an output by itself when every gate passed and it is no worse than the output accepted before: no answer dropped, no measure moved the wrong way, no gate went missing. Later nodes read only accepted outputs. The creator keeps four commands, from his own terminal: reject an accepted output (it moves back to the one before, and every node that read it is stale), accept a worse one with his reason, waive one gate for one key, and override the runner for one paid run. None is needed for a run. Agents are kept from them by a barrier, not a lock: the commands want a terminal, the store refuses the creator's records from any process an agent started, and a hook blocks the other routes.
+**Gates and accepts.** Each gate answers pass, fail or unknown, with measures and a reason; missing evidence is unknown, and unknown blocks like fail. The runner accepts an output by itself when every gate passed and it is no worse than the one accepted before: no answer dropped, no measure moved the wrong way, no gate missing. Later nodes read only accepted outputs. The creator keeps four commands, from his own terminal: reject an accepted output (it moves back to the one before, and every node that read it is stale), accept a worse one with his reason, waive one gate for one key, and override the runner for one paid run. None is needed for a run; a barrier keeps agents from them (a terminal, a store that refuses the creator's records from an agent's process, and a hook).
 
-**Spending and review.** A paid node is cleared only when every gate on its inputs passed and the month's ceiling has room for its estimate (Section 3.7); every place in the code that rents a machine or calls a paid model refuses without that ticket, and a run that would buy again more than EUR 5 of accepted outputs needs a written reason. Each node's review page is built from the store alone (its gates' answers and measures, who accepted it, the command that rejects it), and the creator reviews a place in a USD viewer on the store's copy of its accepted assembly; nothing is rendered for review.
+**Spending and review.** A paid node is cleared only when every gate on its inputs passed and the month's ceiling has room for its estimate (Section 3.7); everything that rents a machine or calls a paid model refuses without that ticket, and buying again more than EUR 5 of accepted outputs needs a written reason. Each node's review page is built from the store alone, and the creator reviews a place in a USD viewer on the store's copy of its accepted assembly; nothing is rendered for review.
 
 <!-- Keys: score/graph/__init__.py (own_parts, worked_out_key, node_seed, code, usable), score/graph/_code.py (source_files, FRAMEWORK). Contracts and store: score/contracts, score/store. Gates: score/checks (judge, missing_evidence, overall, blocks, regressions). Accepts and the creator's commands: score/review/__init__.py (accept_automatically, accept, reject, waive), score/review/__main__.py (terminal check), score/store OWNER_AREAS, .claude/hooks/accept_guard.py. Clearance: score/adapters/compute/__init__.py (clearance, month_refusal, require_cleared). Re-buys: score/graph/rebuy.py LIMIT = 5.0. Review in the viewer, no renders: commits f63212c, 4c5365e. -->
 
-::: gap
-**Gap: Figure 2, the stages on the hub** (concept, plan, inventory, close-ups, a library surface at three wears, the assembled room), **and Figure 3, the greenhouse's review page.** They wait on the hub's and the greenhouse's one assembly passing its completion gate; the earlier hub figure predates the runner and is withdrawn.
-:::
-
-<!-- Demo targets F2 and F10. -->
-
 ## From concept to scene
 
-**Inventory, plan and record.** A coding agent lists every visible element of the concept as an inventory row (kind, anchor, size, count) or drops it with a written reason; nothing is made or placed that is not a row. It draws a dimensioned plan, gated on `mapped` (every element of the concept a row, a door or a written drop; every door says where it leads). The scene record is written from the plan, inventory, made ground and sky, gated on `game-free` (nothing copied from the game the world came from), `plan-matched` (the shell within 5 cm of the plan), `openings` (every doorway onto a floor, no view into nothing) and `seed-matched` (every old entry matched or dropped with a reason).
+**Inventory, plan and record.** A coding agent lists every visible element of the concept as an inventory row (kind, anchor, size, count) or drops it with a written reason; nothing is made or placed that is not a row. It draws a dimensioned plan, gated on `mapped` (every element a row, a door or a written drop; every door says where it leads). The scene record is written from the plan, inventory, made ground and sky, gated on `game-free` (nothing copied from the game the world came from), `plan-matched` (the shell within 5 cm of the plan), `openings` (every doorway onto a floor, no view into nothing) and `seed-matched` (every old entry matched or dropped with a reason).
 
-**The canonical scene.** Every place is one OpenUSD stage [@openusd] in which each object carries its kind, transform, collision and the library surface of each part. Its layers lie in a fixed order, the creator's edit layer on top, then people, sound, light, motion, effects, crops, machines, settle, ground and the generated base, so an edit survives a regenerated base. Each place is assembled once, from every layer's accepted output; its `layers` gate answers unknown while a layer the place needs has none, and an old output never stands in.
+**The canonical scene.** Every place is one OpenUSD stage [@openusd]; each object, one per real-world object, carries its kind, transform, collision and each part's library surface. Its layers lie in a fixed order, the creator's edit layer on top, then people, sound, light, motion, effects, crops, machines, settle, ground and the generated base, so an edit survives a regenerated base. Each place is assembled once, from every layer's accepted output; its `layers` gate answers unknown while a needed layer has none, and an old output never stands in.
 
 <!-- Inventory rule: the owner's rule of 2026-10-08; issue #130, 2026-10-07T23:04. Plan and record: score/stages/scene_record (plan.py, gates.py: TOLERANCE = 0.05). Layer order: score/stages/assembly/__init__.py ORDER; layers gate: judge_layers; needs per place: data/checks/contents.json. -->
 
-**Models, generation first.** Every object goes the prop route first: Nano Banana Pro [@nanobananapro] draws its close-up from its crop of the concept, Pixal3D [@li2026pixal3d] builds it, the surface stage paints it, and a free likeness gate compares its outline from eight sides with its close-up. Only an object whose measured checks fail is built by a code builder that a coding agent writes. This reverses the earlier parts check, which built a kind in code whenever its code build showed every part of the close-up (the creator's choice, 12 October 2026). Every real-world object stays one model: a console is a desk carrying separate monitors. Most of world 1's models predate the change and enter as unverified seeds, judged by the stages after them.
+**Models, generation first.** Every object goes the prop route first: Nano Banana Pro [@nanobananapro] draws its close-up from its crop of the concept, Pixal3D [@li2026pixal3d] builds it, the surface stage paints it, and a likeness gate compares its outline from eight sides with its close-up. Only an object whose checks fail is built by a code builder a coding agent writes, reversing the earlier parts check (the creator's choice, 12 October 2026). On 13 of the hub's objects both orders end the same (Table 1), but generation first draws a close-up of every object. Every close-up of eight thin and flat objects failed the shape check, so code builds carry them. The hatch wheel shows the gain: its code build's outline overlap was 0.45, a fail, and its generated model's 0.60. Most of world 1's models predate the change and enter as unverified seeds.
 
-<!-- score/stages/props/CLAUDE.md (prop route first, owner 2026-10-12; likeness.py: eight outlines, OUTLINE_LEAST = 0.50); unverified seeds: CONTEXT.md, docs/bible.md architecture/components. -->
+**Table 1.** How 13 hub objects, chosen to cover the kinds, end in each order. Close-ups cost EUR 8.12 and the sample's prop route EUR 13.80, about EUR 2.20 an object; no take was baked (the run stopped at the keyboard's paint gate).
+
+| Order | Prop route | Code build | Needs a new builder |
+|---|---|---|---|
+| Generation first | 4 | 7 | 2 |
+| Code first | 4 | 7 | 2 |
+
+<!-- paper/evidence/compare-hub/table.json (counts, euros, unit costs, rows: hatch_wheel outline 0.60 against code build 0.45; eight objects "every Pro take failed the shape check"; keyboard paint dE 33.1) and sample-measures.json; run by score/stages/props/compare.py, 2026-10-12. Prop route first: score/stages/props/CLAUDE.md (owner 2026-10-12); likeness.py (eight outlines, OUTLINE_LEAST = 0.50); unverified seeds: CONTEXT.md. -->
 
 ::: gap
-**Gap: Figure 4, one scene, an edit kept** (the wreck from camera 1, with an edit that survives a regenerated base whose models were repainted), **and Figure 5, generation first** (four of the hub's objects, two generated and two falling back to code, with passes, euros and agent hours for both orders). Figure 4 waits on the wreck's surface check and assembly; the hub's comparison has run and waits on its record being published.
+**Gap: Figures 2 to 5.** (2) The stages on the hub, from concept to assembled room; (3) the greenhouse's review page; (4) the wreck with an edit that survives a regenerated base whose models were repainted; (5) four of Table 1's objects from close-up to final model. They wait on those places' assemblies and on renders of the sample's takes; the earlier hub figure predates the runner and is withdrawn, and the comparison recorded no agent hours.
 :::
 
-<!-- Demo targets F5 and F3. -->
+<!-- Demo targets F2, F10, F5 and F3. -->
 
 # Stages and their gates
 
 ## Surfaces: the finish map
 
-Models give shape only; every part takes one surface from a shared library of rule-based surfaces, written as ProcFunc functions [@raistrick2026procfunc] on Infinigen's shaders [@raistrick2023infinigen], coloured from the place's palette and worn only where wear has a cause (Appendix D). Gemini 3.1 Pro [@gemini31pro] lists the close-up's finishes and names a library surface for each. Nano Banana Pro draws the close-up again with one flat colour per finish, up to three times until the map fits the close-up's outline, then draws unlit renders of the raw model's sides and back against that map. SegviGen [@li2026segvigen] splits the mesh guided by the close-up's map, every map votes on the faces its view sees, and a part whose second finish holds a fifth of it fails. Each part is painted from its library surface and baked; the picture's own colours are never kept, because when every piece kept them, every piece brought its own rust and stains (Appendix A).
+Models give shape only; every part takes one surface from a shared library of rule-based surfaces, written as ProcFunc functions [@raistrick2026procfunc] on Infinigen's shaders [@raistrick2023infinigen], coloured from the place's palette and worn only where wear has a cause (Appendix D). Gemini 3.1 Pro [@gemini31pro] lists the close-up's finishes and names a library surface for each. Nano Banana Pro draws the close-up again with one flat colour per finish, up to three times until the map fits the close-up's outline, then draws unlit renders of the raw model's sides and back against it. SegviGen [@li2026segvigen] splits the mesh guided by the close-up's map, every map votes on the faces its view sees, and a part whose second finish holds a fifth of it fails. Each part is painted from its library surface and baked, never in the picture's colours, which gave every piece its own rust and stains (Appendix A).
 
-The bake is checked against the close-up. A finish's surface must lie within ΔE 32 of its colour there, else a nearer surface of its family is taken or a new one is proposed to the creator, and the part fails by name. Two checks came from the greenhouse's water tank, which the creator found baked as three near greys and standing tipped: a bake fails when it turns a finish the close-up shows lighter into a darker one, or all its surfaces into one grey the close-up does not have; and a model on legs has its short legs stretched onto one level plane before its bake, a foot more than 3 cm off the floor failing. Each model is dirtied as much as its close-up shows, capped at its place's dirt.
+The bake is checked against the close-up. A finish's surface must lie within ΔE 32 of its colour there, else a nearer surface of its family is taken or a new one is proposed to the creator, and the part fails by name. From the greenhouse's water tank, which the creator found baked as three near greys and tipped, came two checks: a bake fails when it darkens a finish the close-up shows lighter, or turns all surfaces into one grey; and short legs are stretched onto one level plane, a foot over 3 cm off the floor failing. Dirt follows the close-up.
 
 <!-- score/stages/surfaces: ROWS (inputs, turntable, lists, maps, names, segvigen, parts, paint, bake, check); finish_ask.py LIST_MODEL gemini-3.1-pro-preview, MAP_MODEL gemini-3-pro-image; finish_rows.py SEEDS (1, 2, 3); finish_maps.py IOU_LEAST 0.85; finish_parts.py FRONT_VOTE 2.0, MIX_SHARE 0.2, COLOUR_DELTA_E 32.0; bake_check.py BAKE_DELTA_E 20.0, CLOSE_UP_DELTA_E 32.0, order_faults, one_look_faults, judge_stance (STANCE_GAP 0.03), OWN_COLOUR; place_line.py measured_dirt; tools/props/library/feet.py; registry.py. The water tank: docs/bible.md architecture/experimental, the surface stage's method (2026-10-12). Finish-map method chosen by the owner on 2026-10-12. -->
 
-::: gap
-**Gap: Figure 6, shape and surface apart.** Library swatches; the water tank's close-up, finish map, split and painted model; the hub's tool board with picture colours against library paint. It waits on the surface line at the greenhouse's and the hub's final assemblies.
-:::
-
-<!-- Demo target F4. -->
-
 ## Resting
 
-Loose objects are dropped onto the made ground in a physics simulation; one that would turn more than 15 degrees or drift more than 30 cm is a resting fault of the layout and keeps its laid pose. The settle stage lays where each object comes to rest as a layer of its own (held objects snapped onto their holders, a stack onto one support, an object that would rest worse kept as laid). Its gates are `rested` and `resting` (no fault that appears with the layer and not without it).
+Loose objects are dropped onto the made ground in a physics simulation; one that would turn more than 15 degrees or drift more than 30 cm is a resting fault of the layout and keeps its laid pose. The settle stage lays where each object comes to rest as a layer (held objects snapped onto their holders, a stack onto one support, an object that would rest worse kept as laid), gated on `rested` and `resting` (no fault that appears with the layer and not without it).
 
 <!-- tools/usd/settle.py TURN_MOST 15, DRIFT_MOST 0.3; score/stages/settling (held.py, onto_one_support, kept_where_worse; gates rested, resting); SETTLED in score/stages/__init__.py. -->
 
 ## Light
 
-Lamp strengths are measured, never copied from the source game. The light layer places live lamps where the scene record puts them, with the sky, the sun and, seen from the Moon, the Earth. One paid render per place gives every lamp its own Cycles light group on the place's views; because light adds up, the look at any strengths is mixed from these passes without rendering again, and a free sweep chooses the scale that brings the place's brightness within 1.5 times its concept's, halving any lamp that turns what it lights white. Under the open sky the suns are swept after the lamps. A lamp is measured where it shines: one whose fixture stops 90 percent of its rays moves out of the fixture, and one behind a clear lens stands just outside it, since Cycles passes no light through a lens that also glows. Baking a pass per lamp, mixed live in the engine, is planned.
+Lamp strengths are measured, never copied from the source game. The light layer places live lamps from the scene record, with the sky, the sun and the Earth. One paid render per place gives every lamp its own Cycles light group on the place's views; because light adds up, the look at any strengths is mixed from these passes without rendering again, and a free sweep chooses the scale that brings the place's brightness within 1.5 times its concept's, halving any lamp that turns what it lights white. Outdoors the suns are swept after the lamps. A lamp whose fixture stops 90 percent of its rays moves out of it, and one behind a clear lens stands just outside, as Cycles passes no light through a glowing lens.
 
 <!-- score/stages/light: mix.py (BRIGHT_WITHIN 1.5, BLOWN_MOST 0.2, HALVINGS 5), layer.py lamps_through_fixtures (ENCLOSED 0.9; commits a564c54, f8ee407), sun_lamps (4ab0827), gates in __init__.py; live lamps and the baked per-lamp plan: score/stages/light/CLAUDE.md. -->
 
 ## Motion, effects and sound
 
-**Motion.** Each moving thing is a mover in the place's record (a path, a hinge, a spin, a rail, a turn, a climb) with its kind's speed range cited from real machines. The gates read the composed stage every quarter second: `clear` (no mover within 3 cm of a still thing or another mover), `speeds`, `loops`, `grounded` and `covered` (every prim of a moving kind that stays still says why).
-
-**Effects** are emitters on a prim, measured against real footage: the launch's cloud and flame in rocket heights from photographs of real lift-offs, the camp's dust devils from rover films of Mars. The gates are `attached`, `footage` (every measure of the baked particles within the range read off footage), `light` (the flame lights the pad at least twice as brightly as the place's lamps) and `outside` (no open-sky particle inside a room).
-
-**Sound.** Every source a place names (room tones, objects, motions, each surface's steps and impacts) gets the world's picked file or the best of eight MOSS-SoundEffect [@moss2026] takes of its brief, gated on `sources`, `level` (loudness, peak and length), `likeness` (CLAP [@wu2022clap] score at least 0.30, the tenth percentile of the world's picks) and `no freesound`.
+**Motion.** Each mover (a path, a hinge, a spin, a rail, a turn, a climb) has its kind's speed range cited from real machines, gated on `clear` (no mover within 3 cm of a still thing or another mover, read every quarter second), `speeds`, `loops`, `grounded` and `covered` (every still prim of a moving kind says why). **Effects** are emitters measured against real footage (photographs of lift-offs, rover films of Martian dust devils), gated on `attached`, `footage`, `light` (the flame lights the pad at least twice as brightly as the place's lamps) and `outside` (no open-sky particle inside a room). **Sound:** every source a place names (room tones, objects, motions, each surface's steps) gets the world's picked file or the best of eight MOSS-SoundEffect [@moss2026] takes of its brief, gated on `sources`, `level`, `likeness` (CLAP [@wu2022clap] score at least 0.30, the tenth percentile of the world's picks) and `no freesound`.
 
 <!-- Motion: score/stages/motion, tools/usd/movers.py, data/checks/motion.json (speed ranges, cited), REACH_MOST 0.03. Effects: score/stages/effects (LIGHT_OVER 2.0), data/effects/*.json, sources in docs/bible.md architecture/experimental. Sound: score/stages/sound (gates.py CLAP_FLOOR 0.30, 8 takes a brief). -->
 
-::: gap
-**Gap: Figure 7, light** (the old station with the Earth lit, a dark side away from the sun; one room at its swept strengths beside its concept), **and Figure 8, things that move** (the launch's lift-off, a rover leaving the garage with wheel dust, the camp's dust devil, an airlock cycle). They wait on those places' assemblies; the rover's drive waits on its painted model.
-:::
-
-<!-- Demo targets F8 and F7. -->
-
 ## People
 
-People are made like props. A close-up of the dressed person in SOMA-X's bind pose, drawn by FLUX.2 klein [@flux2klein], is built by Pixal3D and painted by the surface line. SOMA-X's body is fitted just inside the look (Gauss-Newton on 24 shape numbers), and every point of the look takes the skin weights of its closest body triangle, so Kimodo's clips [@rempe2026kimodo], written from sentences, move it. The **shell gate** passes a look when 99 percent of its soft points lie within 5 cm of the body, its worst point recorded. Hard parts ride one joint each (hair, boots, bare hands, helmets), and belts are worn as cloth. Each clip gets its own verdict (tucks, hard parts stretched, cloth through cloth, body through cloth), and a cast uses only the clips that pass. A look seen only far away is judged on its far body, and a look's colour comes from the cast record's words (Appendix B).
-
-**Casts.** SAM 3 [@carion2025sam3] finds the figures on a place's views, and a vision-language judge tells a person from a picture, a reflection or an empty suit. A cast is gated on `counted`, `standing`, `clear`, `made` and `drapes`; a crowd stands only where no copy fills a tenth of a view's height, and every person wears their look's accepted body, never a stand-in.
+People are made like props. A close-up of the dressed person in SOMA-X's bind pose, drawn by FLUX.2 klein [@flux2klein], is built by Pixal3D and painted by the surface line. SOMA-X's body is fitted just inside the look (Gauss-Newton on 24 shape numbers), and every point of the look takes the skin weights of its closest body triangle, so Kimodo's clips [@rempe2026kimodo], written from sentences, move it. The **shell gate** passes a look when 99 percent of its soft points lie within 5 cm of the body, its worst point recorded. Hard parts ride one joint each, belts are worn as cloth, and each clip gets its own verdict (tucks, hard parts stretched, cloth or body through cloth); a cast uses only the clips that pass. A look seen only far away is judged on its far body (Appendix B). **Casts:** SAM 3 [@carion2025sam3] finds the figures on a place's views, a vision-language judge tells a person from a picture, a reflection or an empty suit, and a cast is gated on `counted`, `standing`, `clear`, `made` and `drapes`; a crowd stands only where no copy fills a tenth of a view's height.
 
 <!-- score/stages/people_bodies/bodies.py (FITTED 24, Gauss-Newton; SHELL_SHARE 0.99, OFFSET_MOST 0.05), tools/characters/maker/prop_build.py rigid_joint, CLOTH_WORDS; clips.py; far.py; tools/characters/maker/outline.py; data/people/colours.json; score/stages/cast (gates, FAR_SHARE 0.10), concept_people, layer.py. Commits 0d6a28a, 4ff0a0c, e80f07d, 45af7ec, 530316b, d045948. -->
 
-::: gap
-**Gap: Figure 9, people made like props.** The player from close-up to a walking frame, and the square's crowd of 10,000 with its front row. It waits on the people batch; the player's work suit had no usable clip because of its belt.
-:::
-
-<!-- Demo target F6. -->
-
 ## Completion
 
-A place is complete when its completion gate passes on its final assembly: every inventory row has its object or a written reason; nothing visible is unmade or a code placeholder; no resting fault; every pick of the creator is the model shown; and the place holds what it needs: its cast in made looks, its effects and motions, its crops, every generated model held to its close-up and repainted, every lamp and room tone of its record, every place it shows, and nothing copied from the source game. Each answer is tied to a fingerprint of the stage; an answer made on another stage is unknown, and a hook refuses to end an agent's session that claims a place is done while its gate fails. Coding agents judging their own scenes agree with a measured score on geometry only 45.8 percent of the time [@li2026lego], so no agent's word completes a place.
+A place is complete when its gate passes on its final assembly: every row has its object or a reason; nothing visible is unmade or a placeholder; no resting fault; the creator's picks are shown; and it holds its cast in made looks, its effects, motions and crops, every generated model repainted and held to its close-up, every lamp and room tone, every place it shows, and nothing from the source game. A hook stops an agent claiming a place is done while its gate fails: agents judging their own scenes agree with a measured geometry score only 45.8 percent of the time [@li2026lego].
 
 <!-- tools/usd/complete.py CHECKS; tools/usd/contents.py JUDGES (people, effects, motion, crops, likeness, painted, light, sound, neighbours, game, waiting); score/stages/complete; .claude/hooks/completion_guard.py. LEGO-Anything 45.8%: arXiv 2609.36380 Sec. 5.1. -->
 
 ::: gap
-**Gap: Figure 10, responsive.** A room in a physics engine, a dropped crate and a door reacting. The physics stage writes UsdPhysics collision, mass and friction and runs a Bullet trial, so far on the habitat only; until it passes, responsiveness is that trial.
+**Gap: Figures 6 to 10.** (6) The water tank painted, the tool board in picture colours against library paint; (7) the lit Earth, a room at swept strengths; (8) lift-off, a rover's drive, a dust devil, an airlock cycle; (9) the player from close-up to a walk, the square's crowd; (10) a room in a physics engine. They wait on assemblies and the people batch. The physics trial runs on the habitat only; until it passes, responsiveness is that trial.
 :::
 
-<!-- Demo target F11. score/stages/physics, tools/usd/physics.py, data/physics/. -->
+<!-- Demo targets F4, F8, F7, F6 and F11. score/stages/physics, tools/usd/physics.py, data/physics/. score/stages/physics, tools/usd/physics.py, data/physics/. -->
 
 ## Budget and ledgers
 
-Every rented machine writes a ledger line with its euros, and every call to Google's models writes a started line before the call and a priced line after it, so a call that never returns still counts. Each line carries the ticket of its node. The month's spend is the higher of the ledgers and the provider's bill, because the ledgers missed costs: on 12 October 2026 the month's cloud bill stood at EUR 1,554 against EUR 1,387 in the ledger (disks and addresses billed by the hour, storage, some card time), and on 11 October Google billed EUR 549 for a day in which the earlier ledger held EUR 30. Over 13.8 hours of world 1's run from the first ticketed line, the ledgers hold EUR 117.45 of rented machines and EUR 34.19 of Google's models; the largest stages were painting (EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and the light passes (EUR 10.17).
+Every rented machine, and every Google call before and after it, writes a ledger line with its node's ticket. The month's spend is the higher of the ledgers and the bill, which caught what they missed: on 12 October 2026 the cloud bill stood at EUR 1,554 against EUR 1,387 in the ledger (disks, addresses, storage), and on 11 October Google billed EUR 549 for a day the earlier ledger put at EUR 30. Over 13.8 hours of world 1's run the ledgers hold EUR 117.45 of machines and EUR 34.19 of Google calls, most for painting (EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and the light passes (EUR 10.17).
 
 <!-- tools/props/cloud/CLAUDE.md (bill EUR 1,554 vs ledger 1,387 on 2026-10-12; Google EUR 549 vs 30 on 2026-10-11; google_spend started and finished lines); score/adapters/compute month_refusal. Per stage: paper/evidence/cloud/stage-euros-2026-10-13.txt (ledger lines with a runner ticket, 2026-10-12T19:06Z to 2026-10-13T08:54Z). -->
 
 # Evidence
 
-We build four worlds with the same stages: the game world of 2099 (a prologue on Earth, a Moon base and a camp on Mars), a stylised underwater world, a simulation world for robots, and a third-person fantasy world. World 1 has 18 places, each its own line of the table, assembled and judged complete once, when every layer it needs stands accepted.
+We build four worlds (the game world of 2099, an underwater, a robot simulation and a fantasy world); each of world 1's 18 places is assembled and judged once, when its layers stand accepted.
 
 ::: gap
-**Gap: Table 1, results per place and stage, and the film.** Per place: inventory rows, models generated and built in code, the layers present, faults caught before and after spending, time, euros from Scaleway's and Google's bills, and the creator's verdict; and a four-minute walk through world 1 from each place's own cameras with its sound. They wait on each place's one assembly and completion gate.
+**Gap: Table 2 and the film.** Per place: rows, models generated and in code, layers, faults before and after spending, time, euros, the creator's verdict; and a walk through world 1. They wait on each place's completion gate.
 :::
 
 <!-- Demo targets T1 and the film; F9 is in Appendix F. -->
 
-**With and without the agent tools.** On two of three places of world 1, an agent with the completion gate and its tools used about half the output and cost of one without them; on the third, the one without left fewer faults. Each arm ran once (Appendix E).
+**With and without the agent tools.** On two of three places, an agent with the gate and its tools used about half the output and cost; on the third, the one without left fewer faults; one run each (Appendix E).
 
 <!-- paper/evidence/agent-tools-bench/analysis.json; Table E1. -->
 
-# Limitations
+# Limitations and future work
 
-Every verdict is one creator's, and he accepted one place, the hub, before the runner existed. Closed, paid models draw the concepts, the prop route's close-ups and the finish maps (Nano Banana Pro) and list the finishes (Gemini 3.1 Pro); their limits set the pace, and they can change price or be retired, which limits reproducibility. People are not finished: belts worn as hard parts could not follow a deep forward bend. Light is live, not baked, and was measured on earlier layouts; objects are physical but not interactive.
+Every verdict is one creator's; he accepted the hub before the runner. Closed models (Nano Banana Pro, Gemini 3.1 Pro) draw concepts, close-ups and finish maps and can change price or be retired. Hard belts failed deep bends. Light is live, not baked, measured on earlier layouts; objects are not interactive. Next: three more worlds, an engine adapter, interactable objects, baked per-lamp light, open close-up and map models, a library of locked parts, LEGO-Bench [@li2026lego] and a style measure.
 
 <!-- Belt and clips: commits 45af7ec, 530316b, e80f07d; issue #5. Light: score/stages/light/CLAUDE.md. Physics: score/stages/physics. Closed models: score/stages/props/CLAUDE.md (close-ups by Nano Banana Pro), finish_ask.py. Hub accepted: Appendix A. -->
 
-# Future work
-
-The three further worlds; an engine adapter with mass and friction; interactable objects, which robotics needs; baked per-lamp light; open models for close-ups and finish maps; a shared library of locked, versioned parts that worlds reference instead of buying again; LEGO-Bench [@li2026lego]; and a measure of whether a place keeps one style.
-
 # Conclusion
 
-SCORE builds worlds from a creator's choices in stages whose outputs are kept, keyed and judged, so a fault is fixed where it happens and only what follows it runs again. On its first world, every layer of a place, from surfaces to light and people, has gates measured against the concept or real footage. Whether the framework holds across a whole world, and across kinds of worlds, is what world 1's completed places and the further worlds will show.
-
+SCORE builds worlds in stages whose outputs are kept, keyed and judged, so a fault is fixed where it happens; the completed places and further worlds will show whether this holds.
 
 # References {-}
 
@@ -279,7 +247,7 @@ Every model in the framework must allow commercial use of its output (Table C1);
 | Robust Skin Weights Transfer [@abdrashitov2023rswt] | the SOMA-X skeleton's skin weights moved onto a Pixal3D person (a trial) | MIT reference code, ported with trimesh and SciPy; libigl, whose bindings carry GPL-3.0, not used |
 | MakeHuman eyes | the characters' eyes | CC0 |
 
-The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none scored wrong or failed, and failed nine that were good or usable. The judge's single answer at temperature zero was rejected: asked the same 51 questions twice in one batch, it changed its verdict on 7. On the lab, 7 of the closed model's first pictures failed for drawing the room or dimension lines around the object, and all 7 passed when redrawn from the crop alone. Table C2 gives the stage's runs on world 1.
+The close-ups' shape check was tuned on 40 close-ups that four open picture models drew of the lab's ten objects, each scored by hand, and on Nano Banana Pro's ten pictures of the same objects. With the majority of three sampled answers, the check agreed with the hand score on 29 of the 40, passed all ten of the closed model's pictures and two marginal ones, passed none scored wrong or failed, and failed nine that were good or usable. A single answer at temperature zero was rejected: asked 51 questions twice in one batch, it changed 7 verdicts. On the lab, 7 of the closed model's first pictures drew the room or dimension lines; all 7 passed when redrawn from the crop alone.
 
 **Table C2.** The close-up stage on world 1. Cloud is rented card time in euros; the closed model's pictures are in dollars.
 
