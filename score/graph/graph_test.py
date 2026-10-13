@@ -10,6 +10,7 @@ import json
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -315,6 +316,31 @@ def test_a_stage_whose_files_differ_by_place_keys_each_place_on_its_own_files():
     (pathlib.Path(world.roots["data"]) / "hangar" / "notes.txt").write_text("notes")
     assert set(runner.key(stage, "hangar")["files"]) == {"brief", "notes"}
     assert set(runner.key(stage, "station")["files"]) == {"brief"}
+
+
+def make_with_code(inputs, out, seed, params):
+    """A make that imports a module from its declared code folder, in its own process and in a child's."""
+    sys.path.insert(0, str(inputs["code"]))
+    try:
+        import made_here
+    finally:
+        sys.path.remove(str(inputs["code"]))
+        sys.modules.pop("made_here", None)
+    subprocess.run([sys.executable, "-c", "import made_here"], cwd=inputs["code"], check=True)
+    (out / "made.txt").write_text(made_here.WORD)
+
+
+def test_a_make_importing_from_a_declared_folder_leaves_its_hash_unchanged():
+    world = a_world({"hangar": "a ship in a hall"})
+    code = pathlib.Path(world.roots["data"]) / "code"
+    code.mkdir()
+    (code / "made_here.py").write_text("WORD = 'made'\n")
+    before = tree_hash(code)
+    stage = graph.Stage("coded", "place", make_with_code, TEXT, (checks.Check("counted", judge_count),),
+                        files={"code": "{data}/code"})
+    result = a_runner(world, Store.in_folder(tempfile.mkdtemp()), (stage,)).run(["hangar"])
+    assert result["coded@hangar"].startswith("made: pass"), result
+    assert tree_hash(code) == before and not (code / "__pycache__").exists()
 
 
 def test_seeds_differ_by_stage_and_place_and_hold_for_the_same_ones():
