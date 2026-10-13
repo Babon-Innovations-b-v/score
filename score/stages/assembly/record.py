@@ -57,11 +57,26 @@ def take_record(inputs, out, place):
     ground = grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))  # as export.py's main: None for a room
     stage = Usd.Stage.Open(base)
     laid, waiting = without_waiting(record)
-    scene.write(stage, place, laid, out, kit=kit, pieces=laid_pieces(kit, record), ground=ground)
+    scene.write(stage, place, laid, out, kit=kit, pieces=laid_pieces(kit, record), ground=ground,
+                near=near_patch(stage, place))
     if waiting:
         stage.GetPrimAtPath(f"/{place}").CreateAttribute(WAITING, Sdf.ValueTypeNames.StringArray).Set(waiting)
     base.Save()
     return f"scene-record@{place}{moved}"
+
+
+def near_patch(stage, place):
+    """The box (across, along) of the near ground the seed's base keeps at /<place>/Ground (export.py's ground_mesh
+    drew it), which the record's planned ground runs on past, as export.py hands it to the writer; None with no near
+    ground (a room)."""
+    import numpy as np
+    from pxr import UsdGeom
+    prim = stage.GetPrimAtPath(f"/{place}/Ground")
+    points = UsdGeom.Mesh(prim).GetPointsAttr().Get() if prim and prim.IsA(UsdGeom.Mesh) else None
+    if not points:
+        return None
+    flat = np.asarray(points, dtype=float)[:, [0, 2]]
+    return flat.min(axis=0), flat.max(axis=0)
 
 
 def without_waiting(record):
