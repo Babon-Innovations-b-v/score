@@ -1,6 +1,6 @@
 """The characters layer on the hub's cast with a stand-in accepted body: Bram laid in his look's body at his spot,
-playing his clip; a person whose look has no accepted body is left out and the place answers unknown, never a
-stand-in. The stand-in body is a built body on this machine (the motion work's bram.glb); skipped, and says so,
+playing his clip; a person whose look has no accepted body is left out, never a stand-in, and the layer passes
+with the gap named, which complete's people check (tools/usd/contents.py) fails by name. The stand-in body is a built body on this machine (the motion work's bram.glb); skipped, and says so,
 without one. Nothing rented.
 
 Run: .venv/bin/python score/stages/cast/layer_test.py
@@ -32,7 +32,7 @@ def a_cast(folder, people):
     return {"cast": folder / "cast", "cast record": folder / "record.json"}
 
 
-def test_a_person_stands_in_their_own_accepted_body_and_a_missing_body_is_unknown():
+def test_a_person_stands_in_their_own_accepted_body_and_a_missing_body_is_named():
     if not BODY.exists():
         print(f"skipped: no built body at {BODY}")
         return
@@ -60,7 +60,12 @@ def test_a_person_stands_in_their_own_accepted_body_and_a_missing_body_is_unknow
         assert (out / layer.ASSETS / "bram-work.usdc").exists()
         assert not stage.GetPrimAtPath("/hub/Characters/nev")
         verdict = layer.judge_laid(out, inputs, None)
-        assert verdict.answer == checks.UNKNOWN and "nev (nev/work)" in verdict.findings[0], verdict
+        assert verdict.answer == checks.PASS and verdict.measures["missing"] == 1, verdict
+        assert "nev (nev/work)" in verdict.findings[0], verdict
+        sys.path.insert(0, str(REPO / "tools/usd"))
+        import contents
+        assert [fault for fault in contents.layer_faults(out) if fault.startswith("nev (nev/work)")], \
+            contents.layer_faults(out)
         out_all = folder / "all"
         out_all.mkdir()
         inputs = {**a_cast(folder / "bram only", [bram]), layer.body_row("bram/work"): dressed}

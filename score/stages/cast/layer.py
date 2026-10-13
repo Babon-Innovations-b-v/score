@@ -10,7 +10,10 @@ accepted cast, each in its own look's accepted body, for the assembly to take in
              characters.json: each person's look and, for one not laid, what is missing (the completion gate's
              people check reads it)
     gate     laid    every person and the crowd laid in their own look's accepted body; a cast naming no look, or a
-                     look with no accepted dressed body, leaves its person out and answers unknown, never a stand-in
+                     look with no usable dressed body (the dress rows are the row's optional reads), leaves its person
+                     out, never a stand-in, and passes with each gap named in characters.json and its findings: the
+                     place assembles with what passed and complete's people check fails each gap by name (the
+                     overseer's 14:00 rule, 2026-10-13)
 
 tools/characters is loaded by its file path inside the make, never put on the import path (the cast stage's overlay:
 on the path it would join other stages' code versions); its two files are declared inputs instead.
@@ -160,8 +163,9 @@ def judge_laid(output, inputs, evidence):
     """Unknown on every person not laid in their own look's accepted body, named; pass when all are."""
     looks = json.loads((output / RECORD).read_text())["looks"]
     missing = tuple(f"{name} ({look['look']}): {look['missing']}" for name, look in looks.items() if "missing" in look)
-    if missing:
-        return checks.Verdict("laid", checks.UNKNOWN, f"{len(missing)} of {len(looks)} people wait on their body",
+    if missing:  # the overseer's 14:00 rule: the layer stands with what passed; complete's people check fails the gap
+        return checks.Verdict("laid", checks.PASS, f"{len(looks) - len(missing)} of {len(looks)} people laid; "
+                              f"{len(missing)} named missing, for complete's people check to fail",
                               {"missing": len(missing)}, {"missing": "lower"}, missing)
     return checks.Verdict("laid", checks.PASS, f"{len(looks)} people laid, each in their own look's body",
                           {"missing": 0}, {"missing": "lower"})

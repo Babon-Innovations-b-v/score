@@ -157,6 +157,29 @@ def test_a_failed_gate_blocks_what_follows():
     assert found["count@hangar"] == "blocked: clean@hangar answered fail: words: 7 words, limit 2"
 
 
+def make_maybe(inputs, out, seed, params):
+    (out / "maybe.txt").write_text("read clean" if "clean" in inputs else "clean not usable: left out")
+
+
+def test_an_optional_read_is_left_out_while_not_usable_and_taken_once_it_is():
+    """A failed optional read does not block: the node runs without it, and again with it once it passes."""
+    maybe = graph.Stage("maybe", "place", make_maybe, TEXT, (checks.Check("counted", judge_count),),
+                        after={"clean": ("toy-text", 1)}, optional=("clean",))
+    world, store = a_world({"hangar": "a ship in a very long hall"}), Store.in_folder(tempfile.mkdtemp())
+    found = a_runner(world, store, (CLEAN, maybe)).run(["hangar"])  # clean unknown: no word limit yet
+    assert found["maybe@hangar"].startswith("made: pass"), found
+    give_evidence(store, a_runner(world, store, (CLEAN, maybe)), "hangar", 2)
+    found = a_runner(world, store, (CLEAN, maybe)).run(["hangar"])
+    assert found == {"clean@hangar": "judged again, output kept: fail", "maybe@hangar": "fresh"}, found
+    assert (store.checkout(store.accepted("maybe@hangar")) / "maybe.txt").read_text() == "clean not usable: left out"
+    (world.roots["data"] / "hangar" / "brief.txt").write_text("a hall")  # clean made again, then passes
+    a_runner(world, store, (CLEAN, maybe)).run(["hangar"])
+    give_evidence(store, a_runner(world, store, (CLEAN, maybe)), "hangar", 2)
+    found = a_runner(world, store, (CLEAN, maybe)).run(["hangar"])
+    assert found["maybe@hangar"].startswith("made: pass"), found
+    assert (store.checkout(store.accepted("maybe@hangar")) / "maybe.txt").read_text() == "read clean"
+
+
 def test_nothing_changed_runs_nothing():
     world, store, _ = ready_world()
     MADE.clear()
