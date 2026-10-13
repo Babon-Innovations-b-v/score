@@ -338,6 +338,11 @@ def test_one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view
     faults = bake_check.one_look_faults("fragment", fragment)
     assert len(faults) == 1 and "no view distance" in faults[0], "a gate never passes on what it cannot measure"
     assert abs(bake_check.noticed([50, 0, 0], [55.155, 0, 0], 10.0) - 1.0) < 0.01, "ND(50) of L* at 6 degrees"
+    desk = [{"model": "models/hub_kit/comms_1.gltf", "at": [2.0, 0.0, 0.0], "yaw": 90.0,
+             "children": [{"model": "models/hub_kit/headset_1.gltf", "at": [1.0, 0.5, 0.0]}]}]
+    spots = list(bake_check.object_spots(desk, {"headset_1": {"size": [0.2, 0.2, 0.1]}}))
+    assert [model for model, _, _ in spots] == ["headset_1"], "a model laid on a desk the kit does not size is found"
+    assert [round(value, 6) for value in spots[0][1]] == [2.0, 0.5, -1.0], spots  # turned by the desk's yaw
 
 
 def tank_mesh(ends, height=1.6):
