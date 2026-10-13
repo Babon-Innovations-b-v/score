@@ -11,7 +11,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/characters/maker"))
 
-from score.stages.people import bodies, clips, dress, renamed  # noqa: E402
+from score.stages.people import bodies, clips, dress, far, renamed  # noqa: E402
 import clearance  # noqa: E402
 
 
@@ -47,6 +47,18 @@ def test_a_body_is_judged_clip_by_clip():
         assert passing == ["standing"] and len(failing["walking"]) == 2, failing
         verdict = bodies.judge_clips(folder, {}, {})
         assert verdict.answer == "pass" and verdict.measures["failing"] == 1 and "walking" in verdict.findings[0]
+
+
+def test_a_far_only_look_is_judged_on_its_far_body():
+    with tempfile.TemporaryDirectory() as held:
+        checks = pathlib.Path(held) / "checks"
+        checks.mkdir()
+        (checks / "build.json").write_text(json.dumps({"levels": {"far": {"triangles": 1220},
+                                                                  "coat": {"triangles": 34159}}}))
+        (checks / "shell.json").write_text(json.dumps({"offset_most_m": 0.09}))
+        assert far.judge_far_triangles(pathlib.Path(held), {}, {}).answer == "pass"
+        recorded = far.judge_near_recorded(pathlib.Path(held), {}, {})
+        assert recorded.answer == "pass" and recorded.measures == {"near_triangles": 34159, "shell_most_m": 0.09}
 
 
 def test_a_cast_doing_a_failing_clip_fails():

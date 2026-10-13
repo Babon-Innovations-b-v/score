@@ -170,6 +170,18 @@ def paint_files(place):
             "paint script": "{repo}/score/stages/surfaces/inside/paint_take.py"}  # run by path on the machine
 
 
+def far_judged(row):
+    """A far-only people body judged on what is drawn (captain, 2026-10-13; people/far.py): its joins, its likeness
+    and the far body's triangles, the near outfit recorded. Set here, in the table, so the full bodies' code versions
+    (people/bodies.py and the package) do not move."""
+    if not row.name.startswith("people-body-") or not row.params.get("far_only"):
+        return row
+    from score.stages.people import bodies, far
+    drawn = tuple(check for check in row.checks if check.name in ("joins", "likeness"))
+    return dataclasses.replace(row, checks=drawn + (bodies.guarded("far triangles", far.judge_far_triangles),
+                                                    bodies.guarded("near outfit recorded", far.judge_near_recorded)))
+
+
 def prop_fed(row):
     """surfaces-inputs waiting on the prop route's Pixal3D row (props.FEEDS), whose takes its line paints. A place
     with no prop data reads without it (Runner.reads), so its key does not move."""
@@ -182,7 +194,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRA
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
+          *map(far_judged, people.ROWS), PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
           *light.ROWS, *crops.ROWS)
 
 
