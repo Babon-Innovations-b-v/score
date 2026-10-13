@@ -290,7 +290,7 @@ def make(inputs, out, seed, params):
               "floor": floor, "floor_height": floor_height, "block": plan.get("block"),
               "doors": doors, "items": items_of(plan), "standing": standing_of(plan),
               "elements": plan.get("elements", []), "shows": plan.get("shows", {}), "objects": plan.get("objects", {}),
-              "aims": plan.get("aims", {}), "far_ground": plan.get("far_ground"),
+              "aims": plan.get("aims", {}), "removes": plan.get("removes", []), "far_ground": plan.get("far_ground"),
               # Each door leaf a lead stands open (`moves`: its kit piece's node, by how far, why).
               "moves": [{**move, "door": side} for side, lead in sorted(plan.get("leads", {}).items())
                         for move in lead.get("moves", [])],
