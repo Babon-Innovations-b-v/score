@@ -280,9 +280,12 @@ def look_at(held, curve, look, scales):
 def floodlight_sweep(place, passes_folder, scales, shafted, out, record, haze_folder=None):
     """The floodlights' strength (their shafts' light with them): the least of FLOODLIGHT_SCALES at which the heads
     rule holds on the looks mixed at it, else the layer's own (1), set into `scales`; the looks at the final strengths
-    are left in out/looks. What was tried, {scale: passed}."""
+    are left in out/looks. The layer's own strength is tried first and kept when it meets the rule: a floodlight is
+    dimmed or brightened only where its gate needs it (2026-10-13: dimmed to the least passing strength, the square's
+    heads read worse than its earlier accepted output while passing). What was tried, {scale: passed}."""
     tried = {}
-    for scale in (FLOODLIGHT_SCALES if shafted and place in LAMP_KINDS else (1.0,)):
+    order = (1.0, *(scale for scale in FLOODLIGHT_SCALES if scale != 1.0))
+    for scale in (order if shafted and place in LAMP_KINDS else (1.0,)):
         scales.update(dict.fromkeys(shafted, scale))
         mixed_looks(passes_folder, scales, shafted, out, haze_folder)
         if not (shafted and place in LAMP_KINDS):
