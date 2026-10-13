@@ -130,10 +130,10 @@ def blotch_share(colour, areas, chosen, reach, tokens):
     return float(areas[blotch].sum() / max(areas[chosen].sum(), 1e-12))
 
 
-def check_model(name, entry, labelled, made, materials):
+def check_model(name, entry, labelled, made, materials, dirt=0.0):
     """One baked model measured: per surface its parts' baked base colour (area-weighted median over its triangles'
-    texture at their middles' coordinates; glTF's v runs down the picture) against the surface's colour, its
-    blotch share, its maps and its triangles against the job's budget."""
+    texture at their middles' coordinates; glTF's v runs down the picture) against the surface's colour dirtied as the
+    place's dirt dirties it (on_surface), its blotch share, its maps and its triangles against the job's budget."""
     import numpy as np
     from PIL import Image
     import labels
@@ -154,6 +154,8 @@ def check_model(name, entry, labelled, made, materials):
     names, surface, reach = baked_surfaces(geometry, labelled, entry)
     tokens = [labels.lab(labels.srgb(np.array(materials[each]["colour"]))[None])[0] if each in materials else None
               for each in names]
+    dirty = [labels.lab(labels.srgb(np.array(materials[each]["dirt_colour"]))[None])[0]
+             if each in materials and "dirt_colour" in materials[each] else None for each in names]
     for index in sorted(set(surface.tolist())):
         chosen = surface == index
         order = np.argsort(colour[chosen, 0])
@@ -164,10 +166,24 @@ def check_model(name, entry, labelled, made, materials):
             "share": round(float(areas[chosen].sum() / areas.sum()), 4),
             "baked_lab": [round(float(value), 1) for value in middle],
             "surface_lab": None if token is None else [round(float(value), 1) for value in token],
-            "delta_e": None if token is None else round(float(np.linalg.norm(middle - token)), 1),
+            "delta_e": None if token is None else round(on_surface(middle, token, dirty[index], dirt), 1),
+            "dirt_lab": None if dirty[index] is None else [round(float(value), 1) for value in dirty[index]],
             "near_black": round(blotch_share(colour, areas, chosen, reach, tokens), 4),
             "family": materials.get(names[index], {}).get("family")}
     return record
+
+
+def on_surface(baked, clean, dirt_colour, dirt):
+    """How far (CIE76) a part's baked colour lies from its library colour dirtied toward the place's dirt colour, as
+    far as the place's dirt amount: the nearest point of that stretch (the bake dirties a surface up to its place's
+    dirt; wreck and old_station are dirt 0.6 in regolith: a white at L* 89.6 bakes to 69). A clean place, or a surface
+    with no dirt colour, is measured against its library colour alone."""
+    import numpy as np
+    if dirt_colour is None or dirt <= 0:
+        return float(np.linalg.norm(baked - clean))
+    toward = dirt_colour - clean
+    share = float(np.clip(np.dot(baked - clean, toward) / max(float(np.dot(toward, toward)), 1e-9), 0.0, dirt))
+    return float(np.linalg.norm(baked - (clean + share * toward)))
 
 
 def close_up_colours(labelled):
@@ -190,8 +206,9 @@ def check_step(inputs, out):
     import library
     name = data_of(inputs)["library"]
     materials = {**library.by_library(name), **library.resolved(name)}
+    dirt = library.wear_of(name)[1]
     found = {model: check_model(model, entry, inputs["paint"] / "labelled" / entry["parts"], inputs["bake"] / "made",
-                                materials)
+                                materials, dirt)
              for model, entry in json.loads((inputs["bake"] / "baked.json").read_text()).items()}
     (out / "checks.json").write_text(json.dumps(found, indent=1))
 

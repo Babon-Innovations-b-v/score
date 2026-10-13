@@ -376,6 +376,13 @@ def contradicts(words, family):
     return bool(named) and family in FAMILY_CLASSES and not named & set(FAMILY_CLASSES[family])
 
 
+# Not paint (owner, #8, 2026-10-12): glass, screen glow, lamp light and print are judged by their own colour, so one
+# off the close-up's lit colour keeps its surface. A finish the close-up shows over ORDER_L lighter than another must
+# not lie over ORDER_LIBRARY darker in the library (bake_check's ORDER_L and ORDER_BAKED, before the bake).
+OWN_COLOUR = ("glass", "screen", "light", "print")
+ORDER_L, ORDER_LIBRARY = 10.0, 3.0
+
+
 def checked_finishes(entry, finishes, measured):
     """Each finish with its surface checked against the close-up's colour: the listed surface when it lies within
     COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) the take's
@@ -399,6 +406,8 @@ def checked_finishes(entry, finishes, measured):
             nearest_apart, nearest = min(family) if family else (float("inf"), None)
             if nearest_apart <= COLOUR_DELTA_E:
                 record.update(surface=nearest, delta_e=round(nearest_apart, 1), by="nearest of its family by colour")
+            elif listed.get("family") in OWN_COLOUR:
+                record.update(by="its own colour")
             else:
                 record.update(by="off its colour", fits=False, new_surface={
                     "name": f"{finish['finish']} ({take_words(entry)})",
@@ -408,6 +417,41 @@ def checked_finishes(entry, finishes, measured):
                            f"colour (nearest {nearest}, dE {nearest_apart:.1f})",
                     "lab": [round(float(value), 1) for value in colour]})
         found.append(record)
+    return in_close_up_order(entry, found, every)
+
+
+def in_close_up_order(entry, found, every):
+    """The finishes with their opaque surfaces in the close-up's lightness order: where the close-up shows a finish
+    over ORDER_L lighter than another whose surface lies over ORDER_LIBRARY lighter in the library (painted_panel L* 61.6
+    under bare_steel 66.3 on the greenhouse's water tank, the panel 13 lighter in its close-up; the bake keeps the
+    library's order), the lighter finish takes the nearest surface of its family by colour, within COLOUR_DELTA_E,
+    that keeps the order; else it is marked off its colour by its order (the paint's gate fails it). Glass, glow, lamp
+    light and print (OWN_COLOUR) are left out; a take with no such pair comes back as it was."""
+    import numpy as np
+    lightness = {name: float(library_lab(spec)[0]) for name, spec in every.items()
+                 if "colour" in spec and spec.get("family") not in OWN_COLOUR}
+    for lighter in found:
+        for darker in found:
+            if not (lighter.get("measured_lab") and darker.get("measured_lab") and lighter["surface"] in lightness
+                    and darker["surface"] in lightness and lighter.get("by") != "off its colour"):
+                continue
+            seen = lighter["measured_lab"][0] - darker["measured_lab"][0]
+            floor = lightness[darker["surface"]] - ORDER_LIBRARY
+            if seen <= ORDER_L or lightness[lighter["surface"]] >= floor:
+                continue
+            colour = np.array(lighter["measured_lab"])
+            family = every[lighter["surface"]].get("family")
+            fits = sorted((float(np.linalg.norm(library_lab(every[name]) - colour)), name) for name in lightness
+                          if every[name].get("family") == family and lightness[name] >= floor)
+            if fits and fits[0][0] <= COLOUR_DELTA_E:
+                lighter.update(surface=fits[0][1], delta_e=round(fits[0][0], 1), by="nearest of its family in order")
+                continue
+            lighter.update(by="off its colour", fits=False, new_surface={
+                "name": f"{lighter['finish']} ({take_words(entry)})",
+                "description": f"{lighter['finish']}, measured in the close-up at L*a*b* {lighter['measured_lab']}",
+                "why": f"{seen:.1f} L* lighter than {darker['surface']} in the close-up, but no {family} surface within "
+                       f"dE {COLOUR_DELTA_E:.0f} lies lighter in the library",
+                "lab": lighter["measured_lab"]})
     return found
 
 
