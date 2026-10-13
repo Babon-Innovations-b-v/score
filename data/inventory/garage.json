@@ -599,16 +599,18 @@
 			],
 			"view": "v1",
 			"box": [
-				907,
-				1266,
-				977,
-				1379
+				585,
+				407,
+				649,
+				471
 			],
 			"thing": "prop:garage_pipe_straight",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.146"
-			]
+				"v1.231"
+			],
+			"ground_box": "judge",
+			"why_box": "the coolant lines bending down the west wall between the two terminals (proposal v1.231); the old box was round the outer wall, which the box judge failed (2026-10-13)"
 		},
 		{
 			"id": "pipe_valve",
