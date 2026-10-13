@@ -170,6 +170,11 @@ def paint_files(place):
             "paint script": "{repo}/score/stages/surfaces/inside/paint_take.py"}  # run by path on the machine
 
 
+# The people's render row is not run: the owner reviews people in the browser viewer and page renders wait for each
+# place's assembly (captain, 2026-10-13); its looks left the people line.
+NOT_RUN = ("people-look",)
+
+
 def far_judged(row):
     """A far-only people body judged on what is drawn (captain, 2026-10-13; people/far.py): its joins, its likeness
     and the far body's triangles, the near outfit recorded. Set here, in the table, so the full bodies' code versions
@@ -194,7 +199,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRA
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *map(far_judged, people.ROWS), PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
+          *(far_judged(row) for row in people.ROWS if row.name not in NOT_RUN), PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
           *light.ROWS, *crops.ROWS)
 
 
