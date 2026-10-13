@@ -189,15 +189,6 @@
    "item"
   ],
   [
-   "CABLES on the ground from the masts and the power unit",
-   2.5,
-   3.0,
-   16.0,
-   17.0,
-   null,
-   "item"
-  ],
-  [
    "THE PATH IN from the base (east): keep clear",
    21.0,
    10.5,
@@ -268,9 +259,6 @@
   ],
   "DUST APRON before the ladder, where the path from the base arrives": [
    "apron"
-  ],
-  "CABLES on the ground from the masts and the power unit": [
-   "cable_run"
   ],
   "THE PATH IN from the base (east): keep clear": []
  },
@@ -349,9 +337,7 @@
   },
   {
    "element": "cables lying across the ground",
-   "rows": [
-    "cable_run"
-   ]
+   "drop": "concept C4 shows no cables on the ground (captain, 2026-10-13): the row is dropped and removed"
   },
   {
    "element": "ladder steps down from the lander's hatch to the ground",
@@ -393,5 +379,17 @@
   },
   "why": "the site's north-west corner in the place's frame (its seat's; the plan unturned)"
  },
- "far_ground": {"reach": 130.0, "step": 2.0, "ball": "moon_regolith", "why": "concept C4 shows the Moon's ground running out to the horizon round the station; reach and step the old record's (an unverified seed)"}
+ "far_ground": {
+  "reach": 130.0,
+  "step": 2.0,
+  "ball": "moon_regolith",
+  "why": "concept C4 shows the Moon's ground running out to the horizon round the station; reach and step the old record's (an unverified seed)"
+ },
+ "removes": [
+  {
+   "row": "cable_run",
+   "date": "2026-10-13",
+   "why": "concept C4 shows no cables on the ground between the masts, the power unit and the modules"
+  }
+ ]
 }

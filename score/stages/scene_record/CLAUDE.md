@@ -42,6 +42,9 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   four slabs on the walls' top round the room layout's door `opening`, a `roof_door` plan item naming no rows, the
   layout's roof leaf stood shut over each half of the opening, raised clear of the wall tops; the openings gate judges
   the roof leaves open).
+- **A plan may remove rows the concept does not show** (`removes`: row, date, why): the record carries them as
+  `coordinator_removed` (`rows`), and the assembly's relay_kit takes every seed object of those rows out of the base (the
+  old station's cables, 2026-10-13).
 - **A plan object stands on what holds it up**, not at the plan's level: its model's lowest point (scaled to its
   `height`) on the top of the kit's floor pieces under its middle (else the plan's floor at its level), or on the made
   ground outside (`kit_shell.support`, `model_low`; the launch's rocket stood 6 mm into its pad, 2026-10-13).

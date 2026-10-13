@@ -608,6 +608,13 @@ def planned_ground(plan):
                     "the place, the ball under it"}
 
 
+def removed(plan):
+    """The rows the plan's concept leaves out (its `removes`), as the record's coordinator_removed: the assembly takes
+    every seed object of those rows out of the base (assembly record.relay_kit)."""
+    return [{"what": f"inventory row {entry['row']}", "rows": [entry["row"]], "date": entry["date"],
+             "why": entry["why"], "from": f"plan removes {entry['row']} ({entry['why']})"} for entry in plan["removes"]]
+
+
 def make(inputs, out, seed, params):
     """record/<place>.json: the place's scene record, with its planned ground when the plan sees one."""
     plan = read(pathlib.Path(inputs["plan"]) / "plan.json")
@@ -616,6 +623,8 @@ def make(inputs, out, seed, params):
     far = planned_ground(plan)
     if far:
         record["planned_ground"] = far
+    if plan.get("removes"):
+        record["coordinator_removed"] = removed(plan)
     (out / "record").mkdir()
     (out / "record" / f"{place}.json").write_text(json.dumps(record, indent=1))
 

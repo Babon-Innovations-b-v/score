@@ -149,9 +149,23 @@ def transform_of(piece, ground):
     return xform.GetLocalTransformation(), ops
 
 
+def taken_out(stage, place, record):
+    """Every seed object of a row the record's coordinator_removed names (`rows`) made inactive; their names."""
+    rows = {row for entry in record.get("coordinator_removed", []) if isinstance(entry, dict)
+            for row in entry.get("rows", [])}
+    objects = stage.GetPrimAtPath(f"/{place}/Objects")
+    gone = sorted(child.GetName() for child in (objects.GetChildren() if objects and rows else [])
+                  if child.GetAttribute("score:row").Get() in rows)
+    for name in gone:
+        stage.GetPrimAtPath(f"/{place}/Objects/{name}").SetActive(False)
+    return gone
+
+
 def relay_kit(inputs, out, place):
     """Every kit piece laid at its kit spot now where the seed's base laid it elsewhere: its transform ops written
-    anew in the base. How many moved, and how many kit pieces the seed has no object for, as words for origin.json."""
+    anew in the base; every seed object of a row the record's coordinator_removed names (`rows`: the old station's
+    cables, which its concept does not show) taken out. How many moved, how many kit pieces the seed has no object
+    for and how many seed objects were taken out, as words for origin.json."""
     import export
     import ground as grounds
     from pxr import Sdf, Usd, UsdGeom
@@ -164,6 +178,7 @@ def relay_kit(inputs, out, place):
     base = Sdf.Layer.FindOrOpen(str(out / BASE_LAYER))
     stage = Usd.Stage.Open(base)
     moved, missing = [], []
+    gone = taken_out(stage, place, record)
     for name, piece in zip(export.object_names(pieces), pieces):
         prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
         if not prim or piece.get("unmade"):
@@ -183,7 +198,8 @@ def relay_kit(inputs, out, place):
     base.Save()
     return (f"; kit: {len(moved)} pieces laid at their kit spot ({', '.join(moved[:8])}"
             f"{', ...' if len(moved) > 8 else ''})" if moved else "") + \
-        (f"; {len(missing)} kit pieces the seed has no object for" if missing else "")
+        (f"; {len(missing)} kit pieces the seed has no object for" if missing else "") + \
+        (f"; {len(gone)} seed objects of removed rows taken out ({', '.join(gone[:8])})" if gone else "")
 
 
 def hold(root, layer):
