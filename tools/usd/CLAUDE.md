@@ -166,7 +166,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   A drop that finds rest poses (`drop_job(upright=True)`: settle.py's write, the settle stage) starts each loose piece
   stood upright in its seat (`upright_starts`: an old settle's tip of up to 15 degrees is no pose to drop from; a row
   that `leans` or may bed in starts as laid), and a piece stacked on another loose one meets it (`stacked_under`: a
-  crate on a crate fell through it to the floor). A drop that judges the laid pose (`--dry-run`, the assembly's
+  crate on a crate fell through it to the floor), starting wholly over the one support it overlaps most
+  (`onto_one_support`: a crate laid across two rested with a skid 99 cm in the air). A drop that judges the laid pose (`--dry-run`, the assembly's
   resting evidence) starts as laid. `rest_poses` is the settle stage's write: the same limits, the rest as matrices;
   `score/stages/settling/held.py`'s `held_rests` snaps held ones onto their holders (a level spot within 30 cm when the straight snap leaves one
   leaning), `fixed_let_down` lets a floating fixed one down. A cloud drop of the very same job, drop script and stage
