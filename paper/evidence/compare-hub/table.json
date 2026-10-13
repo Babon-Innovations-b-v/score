@@ -1,0 +1,144 @@
+{
+ "rows": [
+  {
+   "object": "hammer",
+   "kind": "thin",
+   "parts check": "model",
+   "prop route": "pass: outline 0.77, every close-up finish present, paint passed (not baked)",
+   "code build": "-: no code build",
+   "prop-first": "prop",
+   "code-first": "prop"
+  },
+  {
+   "object": "hatch_wheel",
+   "kind": "round",
+   "parts check": "code",
+   "prop route": "pass: outline 0.60, every close-up finish present, paint passed (not baked)",
+   "code build": "fail: outline 0.45, thin and proportion pass",
+   "prop-first": "prop",
+   "code-first": "prop"
+  },
+  {
+   "object": "headset",
+   "kind": "round",
+   "parts check": "model",
+   "prop route": "pass: outline 0.56, every close-up finish present, paint passed (not baked)",
+   "code build": "-: no code build",
+   "prop-first": "prop",
+   "code-first": "prop"
+  },
+  {
+   "object": "keyboard",
+   "kind": "flat",
+   "parts check": "code",
+   "prop route": "fail: paint: fails colour against the close-up: reddish screen, dE 33.1 to its surface",
+   "code build": "fail: outline 0.78, thin and proportion fail",
+   "prop-first": "builder",
+   "code-first": "builder"
+  },
+  {
+   "object": "lattice_diamond_strut",
+   "kind": "thin",
+   "parts check": "code",
+   "prop route": "fail: close-up: every Pro take failed the shape check",
+   "code build": "pass: thin and proportion pass; outline not measurable (no close-up)",
+   "prop-first": "code",
+   "code-first": "code"
+  },
+  {
+   "object": "lattice_hip_rib",
+   "kind": "thin",
+   "parts check": "code",
+   "prop route": "fail: close-up: every Pro take failed the shape check",
+   "code build": "pass: thin and proportion pass; outline not measurable (no close-up)",
+   "prop-first": "code",
+   "code-first": "code"
+  },
+  {
+   "object": "lattice_node_plate",
+   "kind": "flat",
+   "parts check": "code",
+   "prop route": "fail: close-up: every Pro take failed the shape check",
+   "code build": "pass: thin and proportion pass; outline not measurable (no close-up)",
+   "prop-first": "code",
+   "code-first": "code"
+  },
+  {
+   "object": "lattice_ring_rib",
+   "kind": "thin",
+   "parts check": "code",
+   "prop route": "fail: close-up: every Pro take failed the shape check",
+   "code build": "pass: thin and proportion pass; outline not measurable (no close-up)",
+   "prop-first": "code",
+   "code-first": "code"
+  },
+  {
+   "object": "pipe_bracket",
+   "kind": "thin",
+   "parts check": "code",
+   "prop route": "fail: close-up: every Pro take failed the shape check",
+   "code build": "fail: thin and proportion fail; outline not measurable (no close-up)",
+   "prop-first": "builder",
+   "code-first": "builder"
+  },
+  {
+   "object": "pipe_straight",
+   "kind": "thin",
+   "parts check": "code",
+   "prop route": "fail: close-up: every Pro take failed the shape check",
+   "code build": "pass: thin and proportion pass; outline not measurable (no close-up)",
+   "prop-first": "code",
+   "code-first": "code"
+  },
+  {
+   "object": "pliers",
+   "kind": "thin",
+   "parts check": "model",
+   "prop route": "pass: outline 0.81, every close-up finish present, paint passed (not baked)",
+   "code build": "-: no code build",
+   "prop-first": "prop",
+   "code-first": "prop"
+  },
+  {
+   "object": "screwdriver",
+   "kind": "thin",
+   "parts check": "code",
+   "prop route": "fail: close-up: every Pro take failed the shape check",
+   "code build": "pass: thin and proportion pass; outline not measurable (no close-up)",
+   "prop-first": "code",
+   "code-first": "code"
+  },
+  {
+   "object": "tread_mat",
+   "kind": "flat",
+   "parts check": "code",
+   "prop route": "fail: close-up: every Pro take failed the shape check",
+   "code build": "pass: thin and proportion pass; outline not measurable (no close-up)",
+   "prop-first": "code",
+   "code-first": "code"
+  }
+ ],
+ "counts": {
+  "prop-first": {
+   "prop": 4,
+   "builder": 2,
+   "code": 7
+  },
+  "code-first": {
+   "prop": 4,
+   "builder": 2,
+   "code": 7
+  }
+ },
+ "euros": {
+  "close-ups (Pro, 54 hub objects)": 8.12,
+  "sample's prop route (Pixal3D, surface line to paint, DINOv2)": 13.8
+ },
+ "unit costs": {
+  "Pro close-up": 0.15,
+  "Pixal3D take": "0.10 to 0.15",
+  "surface line to paint, a take": 1.9,
+  "DINOv2 pair": 0.001,
+  "prop route, an object": 2.2
+ }
+}
