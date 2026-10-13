@@ -52,6 +52,17 @@ TRAVELLING_JOINT = 1
 # that joint wholly, over the hard part's tuck.
 EASE_HOLD = 0.04
 EASE_REACH = 0.06
+# The waist's joints: a hard part on one of them (a belt) eases the cloth within its reach whatever joint that cloth
+# follows most (the trousers' tops follow the legs, and went through the player's belt as he walked, 2026-10-13).
+WAIST = ("Hips", "Spine1", "Spine2")
+# A belt's ease is narrower than a boot's: eased over 4 cm, the hips' cloth stopped following the legs and the
+# player's hands went through it at his sides (suit, walking; posed without a settle, 2026-10-13).
+WAIST_HOLD = 0.015
+WAIST_REACH = 0.035
+# How far out of the skin and hard parts a garment point is moved at the bind (over the body-through-cloth gate's
+# 3 mm), and how near the body a point must be to be moved.
+CLEAR = 0.004
+CLEAR_REACH = 0.02
 # A boot's shaft rides its foot up the shin (the player's to 29 cm): the trouser over it follows it further, or the
 # rigid shaft's top and its tuck swing out through the trouser leg as the ankle bends (20 mm when he sat, 2026-10-10).
 EASE_REACH_FOOT = 0.12
@@ -141,7 +152,7 @@ def eased_to_hard(points, weights, hard_points, hard_joints, names, parents):
         number = names.index(joint)
         family = [number, parents[number], parents[parents[number]] if parents[number] >= 0 else -1]
         family += np.flatnonzero(parents == number).tolist()
-        mine = np.isin(strongest, family)
+        mine = np.isin(strongest, family) | (names[number] in WAIST)  # a belt: the hips' cloth on the legs too
         if not mine.any():
             continue
         found = np.full(len(points), np.inf)
@@ -150,10 +161,45 @@ def eased_to_hard(points, weights, hard_points, hard_joints, names, parents):
         distance[closer] = found[closer]
         target[closer] = 0.0
         target[closer, number] = 1.0
-    reach = np.where(target[:, [names.index(name) for name in names if name.endswith("Foot")]].any(1),
-                     EASE_REACH_FOOT, EASE_REACH)
-    share = np.clip(1.0 - (distance - EASE_HOLD) / (reach - EASE_HOLD), 0.0, 1.0)[:, None]
+    feet = target[:, [names.index(name) for name in names if name.endswith("Foot")]].any(1)
+    waist = target[:, [names.index(name) for name in WAIST if name in names]].any(1)
+    reach = np.where(feet, EASE_REACH_FOOT, np.where(waist, WAIST_REACH, EASE_REACH))
+    hold = np.where(waist, WAIST_HOLD, EASE_HOLD)
+    share = np.clip(1.0 - (distance - hold) / (reach - hold), 0.0, 1.0)[:, None]
     return weights * (1 - share) + target * share
+
+
+def cleared_of_body(points, body_points, body_normals):
+    """A garment's points pushed out of the skin and the hard parts it was fused into: Pixal3D draws the collar into
+    the neck and the trouser hem into the boot, so split apart they cross at rest and more as the person moves (the
+    player's head through his collar, his right boot through the hem, 2026-10-13). A point within CLEAR_REACH of the
+    body standing less than CLEAR outside it (by the nearest body point's normal) is moved out to CLEAR."""
+    if not len(body_points):
+        return points
+    distance, nearest = cKDTree(body_points).query(points)
+    out = np.einsum("ij,ij->i", points - body_points[nearest], body_normals[nearest])
+    moved = (distance < CLEAR_REACH) & (out < CLEAR)
+    found = points.copy()
+    found[moved] += (CLEAR - out[moved])[:, None] * body_normals[nearest[moved]]
+    return found
+
+
+def body_surface(pieces, role_of):
+    """The skin's and the hard parts' points and their normals at the bind, every piece of them."""
+    found = [(points, point_normals(points, faces)) for key, (points, faces, _, _) in pieces.items()
+             if role_of[key] == "hard"]
+    if not found:
+        return np.zeros((0, 3)), np.zeros((0, 3))
+    return np.concatenate([item[0] for item in found]), np.concatenate([item[1] for item in found])
+
+
+def point_normals(points, faces):
+    corners = points[faces]
+    face_normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    found = np.zeros_like(points)
+    for corner in range(3):
+        np.add.at(found, faces[:, corner], face_normals)
+    return found / np.maximum(np.linalg.norm(found, axis=1, keepdims=True), 1e-12)
 
 
 SIDED = ("boot", "mitt")
@@ -230,10 +276,12 @@ def surfaces(fit_rig, parts, prints=None):
             hard_points.append(points)
             hard_joints.append(np.full(len(points), joint, dtype=object))
     hard_points, hard_joints = np.concatenate(hard_points), np.concatenate(hard_joints)
+    body_points, body_normals = body_surface(pieces, role_of)
     for key, (points, faces, weights, used) in list(pieces.items()):
         if role_of[key] == "garment":
-            pieces[key] = (points, faces, eased_to_hard(points, weights, hard_points, hard_joints, names,
-                                                        np.asarray(fit_rig["parents"])), used)
+            pieces[key] = (cleared_of_body(points, body_points, body_normals), faces,
+                           eased_to_hard(points, weights, hard_points, hard_joints, names,
+                                         np.asarray(fit_rig["parents"])), used)
     colour_of = {key: parts["colours"][index[key[0]]] for key in pieces}
     strips = piped(pieces, role_of, colour_of, parts, index, prints, fit_rig)
     garment = [piece for key, piece in pieces.items() if role_of[key] == "garment"] + [strip[3:6] for strip in strips]
