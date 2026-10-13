@@ -58,10 +58,16 @@ def parts_of(document, blob, outfit):
     for primitive in document["meshes"][node["mesh"]]["primitives"]:
         material = document["materials"][primitive["material"]]
         attributes = primitive["attributes"]
+        faces = joins.accessor(document, blob, primitive["indices"]).astype(int).reshape(-1, 3)
+        tuck_from = (material.get("extras") or {}).get("tuck_from")
+        if tuck_from is not None:
+            # A part's own drawn surface only: its tuck is a band laid under the cloth on purpose, its showing the
+            # tucks gate's to judge (pokes.py); counted here, the head's neck tuck read as head through the collar
+            # in every frame, standing included (the player, 2026-10-13).
+            faces = faces[(faces < tuck_from).all(1)]
         part = joins.Part(material["name"], joins.accessor(document, blob, attributes["POSITION"]),
                           joins.accessor(document, blob, attributes["JOINTS_0"]),
-                          joins.accessor(document, blob, attributes["WEIGHTS_0"]),
-                          joins.accessor(document, blob, primitive["indices"]).astype(int).reshape(-1, 3))
+                          joins.accessor(document, blob, attributes["WEIGHTS_0"]), faces)
         named = sum(name == material["name"] or name.startswith(material["name"] + "#") for name, _, _ in found)
         name = material["name"] + (f"#{named}" if named else "")  # several tucks share a material: one entry each
         found.append((name, kind_of(material["name"], material.get("extras")), part))
