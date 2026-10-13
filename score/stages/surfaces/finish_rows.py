@@ -27,6 +27,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 import prop_env  # noqa: E402
+
+# A finish asked again whose close-up colour lies over this chroma (CIELAB) is also asked whether it is a lamp's own
+# light (finish_ask.GLOW_QUESTION): the garage beacon's red light measured chroma 57, its metal housing named for it.
+GLOW_CHROMA = 40.0
 import surface_gates as gates  # noqa: E402
 
 # Estimates (EUR), rounded up: a list about EUR 0.03 a take; a map $0.134, up to three of the close-up and two of each
@@ -209,7 +213,8 @@ def named_again(inputs, take, entry, record):
                and np.linalg.norm(finish_parts.library_lab(spec) - colour) > finish_parts.COLOUR_DELTA_E)
         finish = dict(finish, listed_surface=finish["surface"], by="the list")
         if wrong_kind or off:
-            named = finish_ask.name_finish(picture, reference, entry["object"], number, finish, every)
+            glow = colour is not None and float(np.hypot(colour[1], colour[2])) > GLOW_CHROMA
+            named = finish_ask.name_finish(picture, reference, entry["object"], number, finish, every, glow)
             reason = "its material" if wrong_kind else "its colour"
             finish.update(surface=named, fits=True, by=f"named again ({reason})")
         found.append(finish)

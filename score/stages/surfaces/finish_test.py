@@ -198,6 +198,17 @@ def test_agreement_and_mixing_count_against_the_maps():
     assert mixing and mixing[0][0] == 0, mixing
 
 
+def test_a_strongly_coloured_finish_is_asked_whether_it_is_lamp_light_and_no_other_question_moves():
+    picture = Image.new("RGBA", (8, 8), (200, 30, 30, 255))
+    finish = {"finish": "Polished reflective metal", "parts": "the lamp housing"}
+    surfaces = {"cast_steel": {"family": "steel"}, "led_red": {"family": "light"}}
+    plain = finish_ask.name_body(picture, picture, "a red warning lamp", 0, finish, surfaces)
+    asked = finish_ask.name_body(picture, picture, "a red warning lamp", 0, finish, surfaces, glow=True)
+    text = plain["contents"][0]["parts"][2]["text"]
+    assert text.endswith("then by its colour in the first picture."), text  # word for word: its cache stands
+    assert asked["contents"][0]["parts"][2]["text"] == text + finish_ask.GLOW_QUESTION
+
+
 def test_a_naming_that_timed_out_is_asked_again_with_low_thinking():
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import google_spend
