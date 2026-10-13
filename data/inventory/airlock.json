@@ -377,6 +377,7 @@
 				1.9
 			],
 			"count": 1,
+			"thing": "model:hanging_suit",
 			"group": "kit: furniture",
 			"made": "the world release's hanging suit (models/hanging_suit/hanging_suit.glb)",
 			"release_model": "models/hanging_suit/hanging_suit.glb",
