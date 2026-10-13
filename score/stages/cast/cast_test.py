@@ -1,8 +1,7 @@
 """The cast stage's make and gates on a one-person cast on the hub's seed: the person stands and keeps clear; the record
 holds 1 where a concept showing 3 fails `counted` and one showing 1 passes; a person lifted off the floor fails
-`standing`, one stood in a thing fails `clear`; no look is made and every body wears rejected drapes. A take with a
-clean checks.txt and a body is made, one with a FAIL is not; a crowd's lattice keeps two body widths apart; KEEP is
-box_masks.py's.
+`standing`, one stood in a thing fails `clear`; a look with no usable dress row is not made, one whose dress row
+the runner gave is; a crowd's lattice keeps two body widths apart; KEEP is box_masks.py's.
 
 Run: .venv/bin/python score/stages/cast/cast_test.py   (needs the hub's round-three seed in the work folder)
 """
@@ -59,8 +58,8 @@ def test_the_hub():
     assert found["standing"].answer == checks.PASS, found["standing"].reason
     assert found["clear"].answer == checks.PASS, found["clear"].reason
     assert found["counted"].answer == checks.FAIL and found["counted"].measures["cast"] == 1
-    assert found["made"].answer == checks.FAIL and "no made take" in found["made"].reason
-    assert found["drapes"].answer == checks.FAIL and "Newton" in found["drapes"].reason
+    assert found["made"].answer == checks.FAIL and "no accepted dressed body" in found["made"].reason
+    assert "drapes" not in found
     assert answers(hub_record(), 1)["counted"].answer == checks.PASS
 
 
@@ -75,17 +74,14 @@ def test_a_person_off_the_floor_or_in_a_thing():
     assert found.answer == checks.FAIL and "runs into" in found.reason, found.reason
 
 
-def test_a_made_take():
-    with tempfile.TemporaryDirectory() as folder:
-        take = pathlib.Path(folder) / "bram/work"
-        (take / "checks").mkdir(parents=True)
-        (take / "out").mkdir()
-        (take / "out/bram.glb").write_bytes(b"")
-        (take / "checks/checks.txt").write_text("joins.py  wrist  4.0 cm  >= 1.0 cm  pass\n")
-        look = cast.look_of({"character": "bram", "look": "bram_work"})
-        assert look == ("bram", "work") and cast.made_take(look, folder)
-        (take / "checks/checks.txt").write_text("pokes.py  tuck  12.0 mm  <= 5.0 mm  FAIL\n")
-        assert cast.made_take(look, folder) is None
+def test_a_look_is_made_by_its_usable_dress_row():
+    look = cast.look_of({"character": "bram", "look": "bram_work"})
+    assert look == ("bram", "work")
+    assert cast.made_row(look, "hub", {"people-dress-bram-work": "accepted"}) == "people-dress-bram-work"
+    assert cast.made_row(look, "hub", {}) is None
+    assert cast.made_row(look, "camp", {"people-dress-bram-work": "accepted"}) is None  # the camp's is coloured
+    assert cast.made_row(look, "camp", {"people-dress-bram-work-in-camp": "a"}) == "people-dress-bram-work-in-camp"
+    assert cast.made_row(None, "hub", {}) is None
     assert cast.look_of({"character": "kit_m_avg", "worn": ["plain_coat_grey", "head_f1"]}) == ("kit_m_avg", "coat-grey")
 
 
@@ -118,13 +114,6 @@ def test_copied_constants_agree():
     cast_rules, cast_check = measure.characters()
     assert (measure.BODY_RADIUS, measure.KNEE, measure.HEAD) == (cast_check.BODY_RADIUS, cast_check.KNEE,
                                                                  cast_check.HEAD)
-    assert cast.BODIES == cast_rules.BODIES
-
-
-def test_shippable_is_cloth_licence_less_newton():
-    sys.path.insert(0, str(REPO / "tools/characters/people"))
-    import cloth_licence
-    assert set(cast.SHIPPABLE) == set(cloth_licence.COMMERCIAL) - {"Newton"}
 
 
 def test_keep_is_box_masks():
