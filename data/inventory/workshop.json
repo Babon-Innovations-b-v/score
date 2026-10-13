@@ -2403,7 +2403,8 @@
 			],
 			"box_from": [
 				"v1.338"
-			]
+			],
+			"leans": "laid tilted on the electronics bench on purpose by its composite (captain's decision, 2026-10-13; the owner reviews samples later)"
 		},
 		{
 			"id": "soldering_station",
@@ -2430,7 +2431,8 @@
 			],
 			"box_from": [
 				"v1.304"
-			]
+			],
+			"leans": "laid tilted on the electronics bench on purpose by its composite (captain's decision, 2026-10-13; the owner reviews samples later)"
 		},
 		{
 			"id": "spares_box",

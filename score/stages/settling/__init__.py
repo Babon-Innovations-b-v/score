@@ -134,7 +134,9 @@ def make(inputs, out, seed, params):
         poses = merged(poses, fixed_phase(root, found, place), seed, place)  # before the held: they lie on these
         poses = merged(poses, held_phase(root, scratch / "fixed.usda", inputs, inventory, poses, seed), seed, place)
         laid_over(root, seed, place, poses, scratch / "held.usda")
-        worse = faulty(judged(root, inputs), place) - laid
+        rested = judged(root, inputs)
+        poses = merged(poses, fixed_phase(root, rested, place, ("floor",)), seed, place)  # a hull's hollow on the drop
+        worse = faulty(rested, place) - laid
         poses = kept_where_worse(poses, worse | supports_of(Usd.Stage.Open(str(root)), place, worse), inventory)
         write_layer(seed, place, moved(poses), out / LAYER)
         del stage, seed
@@ -246,11 +248,12 @@ def held_phase(root, path, inputs, inventory, poses, seed):
     return held
 
 
-def fixed_phase(root, found, place):
-    """Each fixed object the triage (`found`, with everything else at rest) finds floating, let down onto what is
-    under it (held.fixed_let_down): {name: pose}."""
+def fixed_phase(root, found, place, supports=("fixed",)):
+    """Each object of these supports the triage (`found`) finds floating, let down onto what is under it
+    (held.fixed_let_down): {name: pose}. A fixed one as laid; after the drop a loose one too, which the drop rests on
+    its convex hull: the wreck's aft section, a hull open at its end, lay 4.6 cm over the crater rim its hull met."""
     floating = sorted({fault["object"].removeprefix(f"/{place}/Objects/") for fault in found["faults"]
-                       if fault["real"] and fault["kind"] == "floats" and fault["support"] == "fixed"})
+                       if fault["real"] and fault["kind"] == "floats" and fault["support"] in supports})
     return snapped.fixed_let_down(root, place, [name for name in floating if "/" not in name])
 
 
