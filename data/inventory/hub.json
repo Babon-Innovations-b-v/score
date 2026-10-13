@@ -1730,10 +1730,10 @@
 			"id": "door_control_box",
 			"view": "v1",
 			"box": [
-				1002,
-				301,
-				1044,
-				347
+				992,
+				390,
+				1036,
+				474
 			],
 			"name": "a steel door control box with a keypad, a status light and a label",
 			"kind": "generate",
@@ -1795,13 +1795,16 @@
 				}
 			],
 			"box_from": [
-				"v1.118"
+				"v1.108",
+				"v1.189"
 			],
 			"pick": {
 				"model": "door_control_box_1",
 				"sha256": "9a51642861ae17b99db2b829b9e82d2690a63ddaf2dca659e1a08f96ec6f3d5c",
 				"decided": "owner, 2026-10-07 16:20 UTC: signed off the hub's round six with no negative feedback (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #338; handoffs/overseer-2026-10-04.txt line 60: round six is 2099 commit 4de59532); round six's own file (2099 4de59532, game/base/models/hub_kit). The export's model differs: 2099 c2318ea4 (2026-10-07 18:52 UTC, after the sign-off, not shown to the owner) changed it, so the lock holds round six until the owner approves the change (pick_replaced)"
-			}
+			},
+			"ground_box": "judge",
+			"why_box": "the door control box on the wall right of the north door: its steel box and its lit status panel under it (proposals v1.108, v1.189); the old box was round a small plain wall box the box judge failed (2026-10-13)"
 		},
 		{
 			"id": "grab_bar",
