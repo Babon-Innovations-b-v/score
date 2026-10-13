@@ -181,16 +181,18 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				1825,
-				415,
-				1845,
-				482
+				988,
+				381,
+				1046,
+				696
 			],
 			"thing": "prop:hangar_wall_corner_post",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.383"
-			]
+				"v1.124"
+			],
+			"ground_box": "judge",
+			"why_box": "the square steel post standing up the west wall beside the hatch (proposal v1.124); the old box was round a vertical strut of the roof truss (2026-10-13)"
 		},
 		{
 			"id": "ring_floor_plate",
@@ -217,7 +219,8 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v1.65"
-			]
+			],
+			"box_fails": "the box judge failed it twice: the concept's hall floor is flat metal plates, the row's words say diamond tread (2026-10-13)"
 		},
 		{
 			"id": "roof_face_panel",
@@ -1495,16 +1498,18 @@
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/beacon.png",
 			"view": "v1",
 			"box": [
-				628,
-				1131,
-				667,
-				1162
+				859,
+				484,
+				886,
+				512
 			],
 			"thing": "prop:hangar_bracket_beacon",
 			"own_model": "a different object of the same name: the hangar's amber rotating beacon, not the garage's red warning lamp in a steel housing",
 			"box_from": [
-				"v1.426"
-			]
+				"v1.470"
+			],
+			"ground_box": "judge",
+			"why_box": "the amber warning beacon on its bracket over the west hatch (proposal v1.470); the old box was round a small red light panel over the lower door (2026-10-13)"
 		},
 		{
 			"id": "floodlight",
