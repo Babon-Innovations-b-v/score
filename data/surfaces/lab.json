@@ -279,6 +279,33 @@
    "sample_scanner_1": "sample_scanner-lab1",
    "hanging_glove_1": "hanging_glove-lab1"
   },
-  "entries": {}
+  "entries": {
+   "ceiling_lamp_1": {
+    "name": "ceiling_lamp_1",
+    "base": [
+     0.0,
+     0.0,
+     -1.0,
+     0.0,
+     1.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0
+    ],
+    "size": [
+     0.6,
+     0.2,
+     0.26
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 3.58,
+    "faces": 6840,
+    "regions": []
+   }
+  }
  }
 }
