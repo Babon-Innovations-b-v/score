@@ -164,7 +164,8 @@ def test_a_type_short_in_a_zone_where_we_parked_one_is_offered_as_parked():
     import time
     kept = scaleway.scw, scaleway.price, scaleway.PARKED, scaleway.ZONES
     folder = pathlib.Path(tempfile.mkdtemp())
-    (folder / "a.json").write_text(json.dumps({"type": "POP2-32C-128G", "zone": "fr-par-2", "until": time.time() + 600}))
+    (folder / "a.json").write_text(json.dumps({"type": "POP2-32C-128G", "zone": "fr-par-2",
+                                               "until": time.time() + 600}))
     (folder / "b.json").write_text(json.dumps({"type": "POP2-32C-128G", "zone": "pl-waw-2", "until": time.time() - 60}))
     (folder / "c.json").write_text("{\"type\": ")  # one being written as it is read
     scaleway.scw = lambda *arguments: [{"name": "POP2-32C-128G", "availability": "shortage"}]
@@ -175,6 +176,67 @@ def test_a_type_short_in_a_zone_where_we_parked_one_is_offered_as_parked():
     finally:
         scaleway.scw, scaleway.price, scaleway.PARKED, scaleway.ZONES = kept
     assert found == {"fr-par-2": "parked", "pl-waw-2": "shortage"}, found
+
+
+def created_with(address, failing=(), owner=OURS):
+    """create() on a mocked Scaleway whose new machine got `address`; failing: the `ip` commands that fail. (its
+    answer, the scw calls, the machines deleted)."""
+    import subprocess
+    import types
+    calls, deleted = [], []
+
+    def fake_scw(*arguments):
+        calls.append(arguments)
+        if arguments[:2] == ("instance", "ip") and arguments[2] in failing:
+            raise RuntimeError(f"scw ip {arguments[2]} failed")
+        return {"ip": {"id": arguments[3], "project": owner}} if arguments[:3] == ("instance", "ip", "get") else {}
+
+    server = {"id": "srv-1", "public_ips": [{"id": "ip-1", "address": address, "family": "inet"}]}
+    kept = scaleway.scw, scaleway.delete, subprocess.run
+    scaleway.scw, scaleway.delete = fake_scw, lambda server_id, zone: deleted.append(server_id) or True
+    subprocess.run = lambda *arguments, **options: types.SimpleNamespace(returncode=0, stdout=json.dumps(server),
+                                                                          stderr="")
+    offer = types.SimpleNamespace(type="POP2-32C-128G", zone="pl-waw-2", machine_class="cpu-32c-128gb")
+    try:
+        answer = scaleway.create(OURS, offer, "blender-1", [], 60)
+    finally:
+        scaleway.scw, scaleway.delete, subprocess.run = kept
+    return answer, calls, deleted
+
+
+def test_a_machine_given_a_bad_address_gets_a_fresh_one_and_the_bad_one_is_quarantined():
+    """2026-10-10 to 13: every machine given 151.115.78.211 dropped SSH mid-job."""
+    answer, calls, deleted = created_with("151.115.78.211")
+    assert answer == ("srv-1", None) and not deleted, (answer, deleted)
+    assert [call[2] for call in calls] == ["create", "get", "detach", "update"], calls
+    assert "server=srv-1" in calls[0] and f"project-id={OURS}" in calls[0]
+    assert f"tags.0={scaleway.QUARANTINED}" in calls[3] and calls[3][3] == "ip-1", calls[3]
+
+
+def test_a_machine_given_a_good_address_is_left_as_it_is():
+    answer, calls, deleted = created_with("151.115.10.10")
+    assert answer == ("srv-1", None) and calls == [] and not deleted
+
+
+def test_a_failed_detach_or_another_projects_address_deletes_the_machine_for_the_next_offer():
+    for failing, owner in ((("detach",), OURS), ((), OTHER)):
+        answer, calls, deleted = created_with("151.115.78.211", failing, owner)
+        assert answer[0] is None and "deleted" in answer[1] and deleted == ["srv-1"], (answer, deleted)
+        assert not any(call[2] == "update" for call in calls), calls  # nothing tagged or touched past the check
+
+
+def test_a_quarantined_address_is_never_a_leftover_to_delete():
+    addresses = [{"id": "ip-q", "address": "151.115.78.211", "project": OURS, "server": None,
+                  "tags": [scaleway.QUARANTINED, "reason=ssh"]},
+                 {"id": "ip-l", "address": "151.115.1.1", "project": OURS, "server": None, "tags": []},
+                 {"id": "ip-x", "address": "151.115.2.2", "project": OTHER, "server": None, "tags": []}]
+    kept = scaleway.scw, scaleway.ZONES
+    scaleway.scw, scaleway.ZONES = (lambda *arguments: addresses), ("pl-waw-2",)
+    try:
+        found = scaleway.leftover_addresses(OURS)
+    finally:
+        scaleway.scw, scaleway.ZONES = kept
+    assert found == [("ip-l", "pl-waw-2", "151.115.1.1")], found
 
 
 if __name__ == "__main__":
