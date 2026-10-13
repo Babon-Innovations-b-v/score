@@ -64,6 +64,15 @@ def test_fleet_size():
         raise AssertionError("a target shorter than one run was accepted")
 
 
+def test_a_capped_batch_aims_for_what_its_cards_can_do():
+    """A one-card take of 3 models at 18.7 card minutes each, 3 at once, cannot finish in 60 min (5 setup, 56.1 for
+    the run's last share): it aims for the 117 its one card takes and rents that card, rather than refusing."""
+    aim = batch.aimed_minutes(3, 1, 3, 18.7, 60)
+    assert round(aim, 1) == 117.2
+    assert min(1, batch.cards_needed(3, 3, aim, 18.7)) == 1
+    assert batch.aimed_minutes(5, 20, 3, 3.95, 60) == 60  # an uncapped small batch keeps its aim
+
+
 def test_model_minutes_come_from_the_batch_started_last():
     # A batch stopped part way is written after a later one; its slow rate must not set the estimate.
     entries = [{"started": "2026-09-30T17:56:47Z", "models_done": 5, "card_minutes": 25},

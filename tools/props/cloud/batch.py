@@ -217,6 +217,13 @@ def cards_needed(count, per_card, minutes, per_model):
     return max(1, math.ceil(count * per_model / working))
 
 
+def aimed_minutes(count, max_cards, per_card, per_model, minutes):
+    """The batch's aim: `minutes`, or, when its card cap cannot finish that soon, the soonest the capped cards can
+    (2026-10-13: a one-card characters take was refused as 'too short' once the ledger's minutes a model grew; the
+    owner's limits, 4 h and the euros, still decide)."""
+    return max(minutes, expected_minutes(count, max_cards, per_card, per_model))
+
+
 def expected_minutes(count, cards, per_card, per_model):
     """How long a batch keeps its machines, on `cards` cards."""
     return SETUP_MINUTES + count * per_model / cards + per_model * per_card
@@ -934,8 +941,10 @@ def plan(models, options, account):
     if not found:
         raise SystemExit(f"none of those capability classes is sold by the {cloud.NAME} backend")
     per_model = card_minutes_per_model()
-    cards = min(options.max_cards,
-                cards_needed(len(models), options.per_card or PER_CARD, options.minutes, per_model))
+    aim = aimed_minutes(len(models), options.max_cards, options.per_card or PER_CARD, per_model, options.minutes)
+    if aim > options.minutes:
+        say(f"{options.max_cards} card(s) cannot finish in {options.minutes:.0f} min; aiming for {aim:.0f}")
+    cards = min(options.max_cards, cards_needed(len(models), options.per_card or PER_CARD, aim, per_model))
     minutes = expected_minutes(len(models), cards, options.per_card or PER_CARD, per_model)
     spent = month_spent(account)
     found = affordable(found, minutes, cards, spent)
