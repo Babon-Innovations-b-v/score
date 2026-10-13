@@ -9,7 +9,7 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                       record, said unverified; an entry marked `waiting` lays nothing and is named on the root prim
                       (score:waiting) for complete. The record built from is written beside the stage (scene.json), the
                       one the neighbours stage reads
-             layers   each layer stage of LAYERS the table holds (effects, motion, light, machines, crops, settle; all
+             layers   each layer stage of LAYERS the table holds (effects, motion, light, machines, crops, settle, characters; all
                       experimental) as a sublayer of its own with its assets, in place of the seed's of that name,
                       the root's sublayers in ORDER and its time range as long as the longest layer's
              bakes    a place's baked models (surfaces-bake) in place of the seed's assets, each laid object stamped
@@ -54,6 +54,7 @@ FILES = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
          "inventories": "{data}/inventory", "library": "{data}/library", "sounds": "{data}/sound/surfaces.json",
          "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json",
          "surfaces": "{data}/surfaces/{place}.json", "expected contents": "{data}/checks/contents.json",
+         "casts": "{data}/characters",
          "motions": "{data}/motion", "grounds": "{data}/ground"}
 
 
@@ -72,7 +73,8 @@ LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets
           "light": (("light", 1), "layers/light.usda", "assets/light"),
           "machines-layer": (("machines-layer", 1), "layers/machines.usda", "assets"),
           "crops-layer": (("crops-layer", 1), "layers/crops.usda", "assets"),
-          "settle": (("settle-layer", 1), "layers/settle.usda", None)}
+          "settle": (("settle-layer", 1), "layers/settle.usda", None),
+          "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters")}
 # Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
 READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1),
          **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
@@ -268,15 +270,18 @@ def gather_drop_run(output, inputs, folder):
     return folder / "settled.json"
 
 
-def needed_layers(place, expected):
-    """The layer stages a place needs (data/checks/contents.json's needs, and EVERY_PLACE): none for a part of another
-    place (judged on its host), None for a place it does not list."""
+def needed_layers(place, expected, cast=None):
+    """The layer stages a place needs (data/checks/contents.json's needs, and EVERY_PLACE; the characters layer where
+    its cast holds anybody): none for a part of another place (judged on its host), None for a place it does not
+    list."""
     needs = expected["places"].get(place)
     if needs is None:
         return None
     if "part_of" in needs:
         return []
-    return [*EVERY_PLACE, *(stage for need, stage in NEEDS.items() if needs.get(need))]
+    people = any((cast or {}).get(part) for part in ("people", "groups", "crowd"))
+    return [*EVERY_PLACE, *(stage for need, stage in NEEDS.items() if needs.get(need)),
+            *(["characters-layer"] if people else [])]
 
 
 def judge_layers(output, inputs, evidence):
@@ -284,7 +289,9 @@ def judge_layers(output, inputs, evidence):
     fail on a sound of the sound layer that plays at nothing on the stage."""
     origin = json.loads((output / "origin.json").read_text())
     place = stage_file(output).stem
-    needed = needed_layers(place, json.loads(pathlib.Path(inputs["expected contents"]).read_text()))
+    cast = pathlib.Path(inputs["casts"]) / f"{place}.json" if "casts" in inputs else None
+    needed = needed_layers(place, json.loads(pathlib.Path(inputs["expected contents"]).read_text()),
+                           json.loads(cast.read_text()) if cast and cast.exists() else None)
     taken = sorted(origin["layers"])
     measures = {"taken": len(taken), "unplaced sounds": len(origin["unplaced sounds"])}
     if origin["unplaced sounds"]:

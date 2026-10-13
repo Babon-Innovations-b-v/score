@@ -24,6 +24,8 @@ from score import contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, crops, effects, images, light, machines,
                           motion, people, physics, props, scene_record, settling, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check
+import score.stages.cast.layer as characters_layer
+import score.stages.people.bodies as people_bodies
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 import score.stages.machines.boxes as machine_boxes
@@ -81,7 +83,8 @@ NEIGHBOURS = graph.Stage("neighbours", "place", neighbours.make, contracts.OPENU
 COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PLACE_MANIFEST, complete.CHECKS,
                        files=complete.files,
                        after={"assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1),
-                              "surfaces-check": ("surfaces-check", 1), "likeness": ("props-likeness", 1)})
+                              "surfaces-check": ("surfaces-check", 1), "likeness": ("props-likeness", 1),
+                              "characters-layer": ("characters-layer", 1)})
 # Experimental (PRD #6) until the owner reviews it: the proof place's before and after its made ground, rendered.
 TERRAIN_LOOK = graph.Stage("terrain-look", "place", look.make, look.LOOK, look.CHECKS, files=look.files,
                            after={"assembly": ("openusd-stage", 1)}, paid=True, euros=look.EUROS,
@@ -102,6 +105,13 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
 # Nothing reads it yet: the characters layer waits on the people route's made looks.
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
                    after={"concept_people": ("concept-people", 1)}, applies=lambda place: place in cast.PLACES)
+# Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
+# dressed body (score/stages/cast/layer.py), as a layer the assembly takes; a body not accepted leaves the place unknown.
+CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, characters_layer.CONTRACT,
+                         characters_layer.CHECKS, files=characters_layer.files,
+                         after={"cast": ("cast", 1), **{f"{characters_layer.DRESS}-{look}": ("people-dress", 1)
+                                                         for look in people_bodies.looks()}},
+                         applies=lambda place: place in cast.PLACES)
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no world file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
@@ -162,7 +172,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRA
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, MACHINES, MACHINE_BOXES, MOTION,
+          *people.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
           *light.ROWS, *crops.ROWS)
 
 

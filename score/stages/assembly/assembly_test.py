@@ -249,6 +249,8 @@ def test_a_place_waits_on_every_layer_it_needs():
         assert judged({"part_of": "host", "effects": ["x"]}, []).answer == checks.PASS
         assert judged(needs, ["sound", "light", "effects-layer", "crops-layer"], ["hum"]).answer == checks.FAIL
         assert judged(None, ["sound"]).answer == checks.UNKNOWN
+        assert assembly.needed_layers(TOY, {"places": {TOY: {}}}, {"people": [{"name": "bram"}]})[-1] == \
+            "characters-layer"  # a cast with anybody needs its characters layer
 
 
 def test_a_tube_s_lamps_hang_on_every_bay_of_its_way():
