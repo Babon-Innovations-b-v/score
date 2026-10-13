@@ -649,6 +649,20 @@ def reason_for(name, place):
     return SEED_REASONS[max(named, key=len)] if named else None
 
 
+def children_left(name, item, partner):
+    """Each seed child of a matched entry its partner lacks (by model), named `<entry>/children/<model>`: a child
+    dropped without a reason fails like any seed entry (the camp's rack cases, 2026-10-13)."""
+    have = [pathlib.PurePosixPath(child["model"]).stem for child in partner.get("children", []) if "model" in child]
+    left = []
+    for child in item.get("children", []):
+        stem = pathlib.PurePosixPath(child.get("model", "")).stem
+        if stem and stem in have:
+            have.remove(stem)
+        elif stem:
+            left.append(f"{name}/children/{stem}")
+    return left
+
+
 def seed_diff(seed, record, place=None):
     """Every seed entry matched or unmatched (with the writer's reason or none), and what moved."""
     matched, unmatched, shown = 0, [], []
@@ -663,6 +677,7 @@ def seed_diff(seed, record, place=None):
                 else:
                     matched += 1
                     shown += moved(name, item, partner)
+                    unmatched += [(left, reason_for(left, place)) for left in children_left(name, item, partner)]
         elif section in record:
             matched += 1
             if isinstance(value, dict):

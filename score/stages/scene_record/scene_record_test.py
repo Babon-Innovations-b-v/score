@@ -220,7 +220,26 @@ def test_a_moved_leaf_runs_clear_only_its_open_way():
     assert any("crt_tv" in line for line in found), found
 
 
+def test_an_object_carries_its_kit_models_children_and_a_dropped_child_fails():
+    """The camp's stores rack carries the eight cases its kit model stands on it; a rack without them leaves the
+    seed's cases unmatched with no reason (seed-matched fails them by name), and a removed row's children stay off."""
+    kit = json.loads((REPO / "data/kit/camp.json").read_text())
+    rows = {row["id"] for row in json.loads((REPO / "data/inventory/camp.json").read_text())["rows"]}
+    rack = {"name": "StoresRack", "model": "models/camp_kit/stores_rack_1.gltf", "at": [-1.028, 0.0, -3.429]}
+    children = writer.kit_children(rack, kit, rows, set(), "camp")
+    assert [child["model"] for child in children] == ["models/camp_kit/case_1.gltf"] * 8, children
+    assert {child["row"] for child in children} == {"case"}
+    desk = writer.kit_children({"model": "models/camp_kit/comms_desk_1.gltf"}, kit, rows, set(), "camp")
+    assert sum(child["model"].endswith("monitor_1_glow.gltf") for child in desk) == 2, desk
+    assert writer.kit_children(rack, kit, rows, {"case"}, "camp") == []
+    seed = next(entry for entry in json.loads((REPO / "data/scene/camp.json").read_text())["objects"]
+                if entry["name"] == "StoresRack")
+    assert gates.children_left("objects/StoresRack", seed, {**rack, "children": children}) == []
+    assert len(gates.children_left("objects/StoresRack", seed, rack)) == 8
+
+
 if __name__ == "__main__":
+    test_an_object_carries_its_kit_models_children_and_a_dropped_child_fails()
     test_a_moved_leaf_runs_clear_only_its_open_way()
     test_every_shell_kind_matches_its_plan_and_a_moved_number_fails()
     test_the_garage_plan_maps_and_faults_fail()
