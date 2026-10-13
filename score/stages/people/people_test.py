@@ -56,7 +56,7 @@ def test_a_cast_doing_a_failing_clip_fails():
         (folder / "casts" / "lab.json").write_text(json.dumps({"place": "lab", "people": [
             {"name": "a", "look": "bram_work", "doing": "walking"}, {"name": "b", "look": "bram_work",
                                                                       "doing": "standing"}]}))
-        (folder / "cut.json").write_text(json.dumps({"cast_names": {"bram-work": ["bram_work"]}}))
+        (folder / "cut.json").write_text(json.dumps({"cast_names": {}}))
         (folder / "usable.json").write_text(json.dumps({"bram-work": {"usable": ["standing"],
                                                                      "failing": {"walking": ["tucks: 5.1 mm"]}}}))
         verdict = clips.judge_casts(folder, {"casts": folder / "casts", "cut": folder / "cut.json"}, {})

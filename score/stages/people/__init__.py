@@ -36,7 +36,21 @@ LOOK = graph.Stage("people-look", "world", look.make_look, contracts.Contract("p
                    after={**{f"people-dress-{name}": ("people-dress", 1) for name in LOOKED},
                           **{f"{bodies.BODY}-{name}": (bodies.BODY, 1) for name in LOOKED}},
                    paid=True, euros=look.EUROS * len(LOOKED))
-FULL = [look for look, entry in bodies.looks().items() if not entry.get("far_only")]
+def cast_looks():
+    """The full looks a world 1 cast names (<name>_<outfit>, or another name bodies.json gives the look)."""
+    import json
+    import pathlib
+    data = pathlib.Path(__file__).resolve().parents[3] / "data"
+    named = {entry.get("look") or f"{entry.get('character')}_{entry.get('outfit')}"
+             for path in (data / "characters").glob("*.json")
+             for entry in [*json.loads(path.read_text()).get("people", []),
+                           *json.loads(path.read_text()).get("groups", [])]}
+    extra = json.loads((data / "people/bodies.json").read_text()).get("cast_names", {})
+    return [look for look, entry in bodies.looks().items() if not entry.get("far_only")
+            and (look.replace("-", "_", 1) in named or set(extra.get(look, [])) & named)]
+
+
+FULL = cast_looks()
 # Free: each full body's passing clips, and every world 1 cast held to them (clips.py).
 CLIPS = graph.Stage("people-clips", "world", clips.make_usable, contracts.Contract("people-clips", 1,
                                                                                  clips.usable_faults),

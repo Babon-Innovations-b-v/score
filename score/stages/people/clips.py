@@ -90,6 +90,8 @@ def judge_casts(output, inputs, evidence):
     usable_clips = json.loads((output / "usable.json").read_text())
     names = json.loads(pathlib.Path(inputs["cut"]).read_text()).get("cast_names", {})
     looks_of = {}
+    for look in usable_clips:
+        looks_of.setdefault(look.replace("-", "_", 1), []).append(look)  # a cast names <name>_<outfit>
     for look, cast_names in names.items():
         for cast_name in cast_names:
             looks_of.setdefault(cast_name, []).append(look)  # a kit group wears every kit look
