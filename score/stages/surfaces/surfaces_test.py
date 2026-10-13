@@ -253,7 +253,7 @@ def paper_record(rows):
     colour = np.array([row[:3] for row in rows])
     reach = np.array([[flag == "1" for flag in row[4]] for row in rows])
     share = bake_check.blotch_share(colour, np.array([row[3] for row in rows]), np.ones(len(rows), dtype=bool), reach,
-                                    SEED_TRAY_SURFACES)
+                                    [[surface] for surface in SEED_TRAY_SURFACES])
     return {"surfaces": {"printed_paper": {"share": 0.0117, "baked_lab": [77.7, -0.7, 7.7],
                                            "surface_lab": list(SEED_TRAY_SURFACES[1]), "delta_e": 1.5,
                                            "near_black": share}}}
@@ -271,6 +271,31 @@ def test_a_clean_label_border_passes_and_a_black_smudge_along_it_fails():
     faults = bake_check.surface_faults("seed_tray_1", paper_record(smudge))
     assert len(faults) == 1 and "printed_paper" in faults[0] and "near black" in faults[0], faults
     assert {stage.name: stage for stage in stages.STAGES}["surfaces-check"].make is bake_check.make_check
+
+
+# The flat's quilt_cotton as the library resolves it (linear RGB): red cotton, ink-line seams as its second.
+QUILT_COTTON = {"colour": [0.2542, 0.0782, 0.0648], "second": [0.00304, 0.00273, 0.00243]}
+
+
+def quilt_record(spec):
+    """A quilt baked as its recipe draws it (6% of its area the seams' near black, 94% its red; flat bake of
+    2026-10-13), its blotch share measured against `spec`'s colours."""
+    import numpy as np
+    from score.stages.surfaces import bake_check
+    shades = bake_check.library_shades(spec)
+    colour = np.array([shades[0]] * 94 + [bake_check.library_shades(QUILT_COTTON)[1]] * 6)
+    share = bake_check.blotch_share(colour, np.ones(100), np.ones(100, dtype=bool), np.ones((100, 1), dtype=bool),
+                                    [shades])
+    return {"surfaces": {"quilt_cotton": {"share": 1.0, "baked_lab": [round(float(value), 1) for value in shades[0]],
+                                          "surface_lab": [round(float(value), 1) for value in shades[0]],
+                                          "delta_e": 0.0, "near_black": share}}}
+
+
+def test_a_surfaces_own_drawn_seams_are_not_blotches():
+    from score.stages.surfaces import bake_check
+    assert bake_check.surface_faults("quilt_1", quilt_record(QUILT_COTTON)) == []
+    faults = bake_check.surface_faults("quilt_1", quilt_record({"colour": QUILT_COTTON["colour"]}))
+    assert len(faults) == 1 and "near black" in faults[0], faults
 
 
 WATER_TANK_CLOSE_UP = {"painted_panel": [80.3, -0.2, 6.0], "bare_steel": [67.3, -0.3, 1.0],
