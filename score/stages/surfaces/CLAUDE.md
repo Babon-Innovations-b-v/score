@@ -97,9 +97,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   fails right blacks; compare a model's surfaces with each other instead).
 - **A base that slopes as one piece is brought down level** in the paint (`place_line.flattened_base`, after the legs):
   each footprint quadrant of the bottom quarter over 1% of the size up comes down its whole gap at its lowest point,
-  spread by inverse squared distance and faded over the band; over 15% is a model fault, refused. **Each model bakes
-  with the dirt and wear its close-up shows** (`measured_share`: its finishes' close-up colours as a share of the way
-  from clean toward the dirt colour, or toward the steel a paint wears through to; the median, at most the place's).
+  spread by inverse squared distance and faded over the band; over 15% is a model fault, refused. Wear and dirt stay
+  the room's one setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
+  picture-derived look (tried 2026-10-13, reverted).
 - **The paint levels a take's feet before its bake** (`place_line.levelled_feet`, `tools/props/library/feet.py`):
   a take a row lays loose on the floor or held (`stands_on_feet`, from the inventory and the resting rules, declared
   in the table) has its short legs stretched onto the level plane through its lowest foot, in its own frame; a foot

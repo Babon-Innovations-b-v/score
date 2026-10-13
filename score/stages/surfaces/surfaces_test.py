@@ -460,18 +460,6 @@ def test_a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_
     level[:4, 1] = 0.0
     assert place_line.flattened_base(level, 0.25, 0.01, 0.15)[1]["flattened"] == []
 
-def test_a_model_bakes_with_the_dirt_its_close_up_shows_at_most_its_place_s():
-    import numpy as np
-    from score.stages.surfaces import place_line
-    import labels
-    specs = {"hull_white": {"family": "painted", "colour": [0.8, 0.8, 0.8], "dirt_colour": [0.2, 0.2, 0.18]},
-             "glass": {"family": "glass", "colour": [0.5, 0.5, 0.5], "dirt_colour": [0.2, 0.2, 0.18]}}
-    clean = [round(float(v), 1) for v in labels.lab(labels.srgb(np.array(specs["hull_white"]["colour"]))[None])[0]]
-    dusty = [round(float(v), 1) for v in labels.lab(labels.srgb(np.array(specs["hull_white"]["dirt_colour"]))[None])[0]]
-    assert place_line.measured_share([{"surface": "hull_white", "measured_lab": clean}], specs, "dirt_colour", 0.6) == 0.0
-    assert place_line.measured_share([{"surface": "hull_white", "measured_lab": dusty}], specs, "dirt_colour", 0.6) == 0.6
-    assert place_line.measured_share([{"surface": "glass", "measured_lab": dusty}], specs, "bare", 0.6) == 0.6  # none measured
-
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
