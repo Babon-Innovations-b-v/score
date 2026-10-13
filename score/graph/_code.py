@@ -1,6 +1,7 @@
 """A stage's code version, computed: the hash of every repository file its functions' modules are, and every
 repository module those import, followed import by import. No hand-bumped string to forget."""
 import ast
+import functools
 import importlib.util
 import inspect
 import pathlib
@@ -29,20 +30,23 @@ def in_repo(path):
     return path.is_relative_to(REPO) and not any(path.is_relative_to(folder) for folder in OUTSIDE)
 
 
+@functools.cache
+def search_folders():
+    """The import path's folders as this process first works out a code version, kept from then on. A make or a
+    later import that puts a folder on the path (the light layer's tools/props/scene, terrain's tools/props/cloud)
+    would otherwise give another same-named module to a stage worked out after it: effects-layer took in triage.py
+    and feet.py through stages_test's earlier tests, 2026-10-13."""
+    return tuple(sorted({pathlib.Path(entry).resolve() for entry in sys.path if entry}))
+
+
 def module_files(name):
-    """Every source file of ours an import name could find: the one it finds on today's path, and the one in each
-    other folder on the path. Hashing all of them keeps the code version the same whatever order a process put the
-    path's folders in (judge.py puts tools/props first when imported; a row's key moved with no file changed)."""
+    """Every source file of ours an import name could find in each folder of the path (`search_folders`), read
+    from the files alone, never from what is imported. Hashing all of them keeps the code version the same whatever
+    order a process put the path's folders in (judge.py puts tools/props first when imported; a row's key moved
+    with no file changed)."""
     found = set()
-    try:
-        spec = importlib.util.find_spec(name)
-    except (ImportError, ValueError):  # a parent package that does not import here: not one of ours to hash
-        spec = None
-    origin = spec.origin if spec else None
-    if origin and origin.endswith(".py") and in_repo(origin):
-        found.add(pathlib.Path(origin).resolve())
     parts = name.split(".")
-    for folder in {pathlib.Path(entry).resolve() for entry in sys.path if entry}:  # "" (the cwd): find_spec's
+    for folder in search_folders():
         for path in (folder.joinpath(*parts).with_suffix(".py"), folder.joinpath(*parts, "__init__.py")):
             if path.is_file() and in_repo(path):
                 found.add(path.resolve())
