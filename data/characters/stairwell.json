@@ -1,6 +1,41 @@
 {
  "place": "stairwell",
- "from": "the game 2099's EarthSite (game/prologue/earth_site/earth_site.gd), checked 2026-10-08",
- "note": "The game places nobody in the stairwell: the player goes down it alone on launch day.",
- "people": []
+ "from": "the stairwell's concept (K02.png), measured by score.stages.concept_people (accepted 2026-10-12): two people (a man standing on an upper landing by a flat's door, a man sitting on the ground floor's bottom step); each stands at the plan's people spot for them (data/plans/stairwell.json `people`, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures",
+ "note": "Two people, as the concept shows, told apart by appearance against the made looks. The man by the flat's door upstairs (an adult man, dark hair, slim) is the player leaving his flat on launch night; his made look is the work suit, not the concept's T-shirt. The heavier man sitting on the ground floor has no made look of his own: a kit look stands for him (kit_m_broad, the nearest build; its uniform is not his clothes). The clips' sitting is on the ground, knees drawn up.",
+ "people": [
+  {
+   "name": "player",
+   "character": "player",
+   "look": "player_work",
+   "doing": "standing",
+   "at": [
+    4.6,
+    7.52,
+    -5.2
+   ],
+   "facing_to": [
+    3.35,
+    7.52,
+    -1.6
+   ],
+   "why": "the player by his flat's door on the upper landing, as the concept shows him"
+  },
+  {
+   "name": "neighbour",
+   "character": "kit_m_broad",
+   "look": "kit_m_broad_uniform-olive",
+   "doing": "sitting",
+   "at": [
+    5.3,
+    0.02,
+    -1.5
+   ],
+   "facing_to": [
+    3.95,
+    0.02,
+    -1.25
+   ],
+   "why": "a neighbour sitting by the letterboxes on the ground floor, as the concept shows him"
+  }
+ ]
 }

@@ -1,10 +1,41 @@
 {
  "place": "tube",
- "from": "the place's concept as a freshly picked input (owner, 2026-10-11): the people on it counted by SAM 3 and the judge (score.stages.concept_people), each stood at the thing they stand at on the concept (today/records/tools/cast_place.py), the people from the cast list the people stage makes (data/characters/makes/*_prop.json)",
+ "from": "the tube's concept (K12.png), measured by score.stages.concept_people (accepted 2026-10-12): a man walking down the tube and a man sitting against its wall further on; a third figure the judge called a person stands behind the right-hand glass, outside the tube, like the reflection behind the left glass; each cast person stands at the plan's people spot (data/plans/tube.json `people`, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures (each 0.3 m off its spot, which stands on a hoop)",
+ "note": "Two people, told apart by appearance against the made looks: both are dark-haired men in blue coveralls. The walker is the player (the made work suit is navy coveralls, the nearest of every made look); the sitter has no made look of his own: a kit look stands for him (kit_m_avg, the nearest build; its uniform is olive, not blue). The third figure is behind the glass, where the tube has no floor; it is not cast (it reads as a reflection, on the owner's list).",
  "people": [
-  {"name": "bram", "character": "bram", "look": "bram_work", "doing": "standing", "at": [0.0, 0.0, 2.175], "facing_to": [0.0, 0.0, 4.35],
-   "why": "Bram, standing on the open floor, where the concept (K12.png) shows a crew member at no row, at the clear spot nearest the floor's middle; the concept shows them walking, but every walk along the floor crosses a piece the cast check counts as in the way (walker walks 0.00 m from Objects/hoop_3 (keeps 0.40 m clear); walker walks 0.13 m from Objects/hoop_5 (keeps 0.40 m clear)), so they stand"},
-  {"name": "sefa", "character": "sefa", "look": "sefa_work", "doing": "sitting", "at": [-0.15, 0.0, 1.525], "facing_to": [0.0, 0.0, 2.175],
-   "why": "Sefa, sitting on the open floor, where the concept (K12.png) shows a crew member at no row, at the clear spot nearest the floor's middle"}
+  {
+   "name": "player",
+   "character": "player",
+   "look": "player_work",
+   "doing": "standing",
+   "at": [
+    -0.15,
+    0.0,
+    1.14
+   ],
+   "facing_to": [
+    -0.15,
+    0.0,
+    4.35
+   ],
+   "why": "the player in the tube, facing its far door; the concept shows him walking, but every walk the cast stage measured runs his body into a hoop (hoop_1, hoop_2, hoop_4), so he stands"
+  },
+  {
+   "name": "sitter",
+   "character": "kit_m_avg",
+   "look": "kit_m_avg_uniform-olive",
+   "doing": "sitting",
+   "at": [
+    0.15,
+    0.0,
+    3.26
+   ],
+   "facing_to": [
+    0.15,
+    0.0,
+    1.4
+   ],
+   "why": "a crew member sitting on the tube's floor further on, as the concept shows him"
+  }
  ]
 }
