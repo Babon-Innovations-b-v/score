@@ -786,7 +786,7 @@
 			"id": "hose_reel",
 			"name": "hose reel",
 			"kind": "code",
-			"anchor": "on:suit_alcove",
+			"anchor": "wall",
 			"size": [
 				0.36,
 				0.36,
@@ -808,7 +808,8 @@
 			"box_from": [
 				"v1.119",
 				"v1.238"
-			]
+			],
+			"why_anchor": "the concept K02 shows the reel mounted on the wall beside the alcove, about 1.1 m up; standing on the alcove it tipped 15 cm (resting, captain 2026-10-13)"
 		},
 		{
 			"id": "beacon",
