@@ -16,7 +16,10 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   seed (the old records' shared numbers) until the light stage's sweep sets them against each concept.
 - **Neighbours come from the made ground's seats** (the terrain stage's ground records), the ball's curve turning each
   (`rotation`); a door joined to another place's door stands the tube's stage between the two doorways, stretched
-  to the run. A place with no seat on a made ground cannot be judged outside: `openings` fails it by name.
+  to the run. A place with no seat on a made ground cannot be judged outside: `openings` fails it by name. Only the
+  neighbours the place's own views see stay in its record (`seen.py`: in a view's frame, at least 0.5 degrees across,
+  nothing of the place's own seed or made ground between; glass, windows and portholes seen through), and the nearest
+  place of each stage a doorway opens onto; of the base the old station's views see only the hangar (2026-10-13).
 - **Shell writers**, by the plan's `shell`: `domed` (walls with a dome: room_walls, room_deck, dome_roof,
   doors in each wall's middle) and `kit` (`kit_shell.py`: the Earth's rooms and open places, whose kit holds their
   walls and floors; the record adds the block round a room, a light at each lamp of the sky record's lamp rows the kit

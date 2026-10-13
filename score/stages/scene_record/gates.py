@@ -52,6 +52,9 @@ SEED_REASONS = {
               "record draws no ground of its own",
     "tube:planned_ground": "the walkway tube has no window: no ground past it is seen from inside",
     "planned_rocks": "the ground's rocks are the terrain stage's, laid by its plan's rule with the ground",
+    "places": "a place on the same made ground stands in the record only when the place's own views see it (in a "
+              "view's frame, near enough to show, nothing of the place between: seen.py) or a doorway opens onto it; "
+              "the concept decides what is shown, not the ground's seats",
     **{f"{place}:objects/{name}": "the solar rows and the inverter round the base are no element of this place's "
                                   "concept (the base shows far off or not at all) and no row of this place; they come "
                                   "back with the base's outside rows"
