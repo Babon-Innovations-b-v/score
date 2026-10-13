@@ -1019,6 +1019,10 @@
 			"enamel_white": {
 				"token": "sign-white",
 				"library": "enamel_white"
+			},
+			"cream_paint": {
+				"token": "flat-wall",
+				"library": "cream_paint"
 			}
 		},
 		"light": {
