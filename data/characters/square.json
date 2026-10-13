@@ -16,7 +16,8 @@
     4.24,
     -3.5
    ],
-   "why": "the leader speaking from the podium"
+   "why": "the leader speaking from the podium",
+   "look": "leader_state-suit"
   }
  ],
  "groups": [
@@ -244,6 +245,8 @@
     ],
     "fov": 60.0
    }
-  ]
+  ],
+  "look": "kit_m_avg_coat-grey",
+  "look_why": "the crowd's copies are the far body only (none fills over 10 % of a view's frame), so it wears a far-only look the people batch makes: kit_m_avg in the grey coat"
  }
 }

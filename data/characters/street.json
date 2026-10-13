@@ -16,7 +16,8 @@
     0.0,
     5.2
    ],
-   "why": "the driver waiting by the state car for the player"
+   "why": "the driver waiting by the state car for the player",
+   "look": "driver_driver-suit"
   },
   {
    "name": "guard",
@@ -32,7 +33,8 @@
     0.024,
     -1.15
    ],
-   "why": "the guard at the block's street door, at the plan's people spot under the street door canopy (data/plans/street.json, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures"
+   "why": "the guard at the block's street door, at the plan's people spot under the street door canopy (data/plans/street.json, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures",
+   "look": "guard_guard-uniform"
   }
  ]
 }
