@@ -50,6 +50,10 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   record's `planned_ground`, so the export draws the made ground out past its near patch and the ball under it; left
   out, the horizon renders as a flat haze band (the camp, 2026-10-13). A plan beam may stand on another place's row
   (`place`: the camp sees the camp grounds' mast beam), on the first piece of it that place's kit lays.
+- **A lead may stand its leaf open** (`moves`: the kit piece's node, `by`, why; the record's `moved`, as the
+  motion stage's `rests: open` expects): the flat's balcony leaf, 1.4 m south. `plan-matched` sweeps each moved
+  piece's box along its path and fails on any other kit piece deeper than 1 cm in it (the leaf slid north ran
+  into the TV, 2026-10-13).
 - **Seed reasons can name a family** (`<section>/<start>_`, kept to one place with `<place>:`), so the greenhouse's
   old bed boxes need one reason and it never excuses another room's.
 - **The plan's inventory** is `data/inventory/<place>.json`, or the plan's `inventory` name (the prologue's rooms keep

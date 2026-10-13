@@ -10,6 +10,7 @@
                   storey line over the room's ceiling to its roof; under: the room's inside grown by its walls, from
                   the street to the floor), no other structure, and the kit's doorways the plan's doors: each cut door
                   a kit doorway at its middle (along its wall; out of it, within the piece's thickness), wide and tall,
+                  every kit piece the record moves (a leaf stood open) clear of the others along its path,
                   no doorway at a shut door, no open doorway off the plan (one a kit piece fills, a shopfront, is
                   none). An outdoor place: the floor box the plan's site, no room shell, a light for each plan lamp,
                   each plan decal painted and each plan beam stood; its openings' viewers stand on the made ground
@@ -49,7 +50,6 @@ SEED_REASONS = {
                       "writes it back: the record needs no list of it",
     "ground": "the made ground (the terrain stage) is the ground round the place: the assembly sublayers it, so the "
               "record draws no ground of its own",
-    "moved": "the record moves no kit piece: the plan's door stands where the plan and the kit put it",
     "tube:planned_ground": "the walkway tube has no window: no ground past it is seen from inside",
     "planned_rocks": "the ground's rocks are the terrain stage's, laid by its plan's rule with the ground",
     **{f"{place}:objects/{name}": "the solar rows and the inverter round the base are no element of this place's "
@@ -369,13 +369,50 @@ def tube_faults(record, plan):
     return found
 
 
+# A moved kit piece's path may touch another piece this deep (metres): a leaf runs against its wall.
+SWEEP_TOUCH = 0.01
+
+
+def piece_box(piece):
+    """A kit piece's box (low, high) in the place's frame: x across and z out centred on its `at`, y up from it."""
+    axes = np.array([piece[axis] for axis in ("x", "y", "z")], dtype=float)
+    corners = np.array([[across, up, out] for across in (-0.5, 0.5) for up in (0.0, 1.0) for out in (-0.5, 0.5)])
+    laid = np.asarray(piece["at"], dtype=float) + (corners * np.asarray(piece["size"], dtype=float)) @ axes
+    return laid.min(axis=0), laid.max(axis=0)
+
+
+def sweep_faults(record, kit):
+    """Each kit piece the record moves (`moved`: a leaf it stands open) sweeps its box from where the kit lays it to
+    where it stands; no other kit piece may stand deeper than SWEEP_TOUCH in that path."""
+    found = []
+    for move in record.get("moved", []):
+        moving = [piece for piece in kit["pieces"] if piece.get("node") == move["node"]]
+        if not moving:
+            found.append(f"moved node {move['node']} is no piece of the kit")
+            continue
+        by = np.asarray(move["by"], dtype=float)
+        for piece in moving:
+            low, high = piece_box(piece)
+            low, high = np.minimum(low, low + by), np.maximum(high, high + by)
+            for other in kit["pieces"]:
+                if other.get("node") == move["node"]:
+                    continue
+                other_low, other_high = piece_box(other)
+                depth = float(np.min(np.minimum(high, other_high) - np.maximum(low, other_low)))
+                if depth > SWEEP_TOUCH:
+                    found.append(f"{piece['kind']} ({move['node']}) moving {by.tolist()} m runs {depth:.2f} m into "
+                                 f"{other['kind']} at {np.round(other['at'], 2).tolist()}")
+    return found
+
+
 def judge_plan_matched(output, inputs, evidence):
     """Fail on a shell number or a door off the plan (an outdoor place: its site, lamps, decals and beams)."""
     place, record = writer.record_in(output)
     plan = plan_of(inputs)
     if plan["shell"] == "kit":
         kit = json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text())
-        found = tuple(floor_faults(record, plan) + block_faults(record, plan) + kit_door_faults(plan, kit))
+        found = tuple(floor_faults(record, plan) + block_faults(record, plan) + kit_door_faults(plan, kit) +
+                      sweep_faults(record, kit))
     elif plan["shell"] == "outdoor":
         found = tuple(floor_faults(record, plan) + site_faults(record, plan))
     elif plan["walls"].get("shape") == "faceted":

@@ -14,7 +14,7 @@
   ["E", 4.4, 1.0, "FRONT DOOR to the stair landing 1.0 x 2.2 m"]
  ],
  "leads": {
-  "W": {"to": "outside", "why": "the glass door onto the flat's balcony (the kit's slab and rail), over the square and the harbour"},
+  "W": {"to": "outside", "why": "the glass door onto the flat's balcony (the kit's slab and rail), over the square and the harbour", "moves": [{"node": "BalconyDoor", "by": [0.0, 0.0, 1.4], "why": "slid the doorway's 1.4 m south along the inside of the wall, open from the balcony beat on (data/motion/flat.json rests it open), clear of the TV beside the doorway's north, as concept K06 stands the TV by the table and not in the door's path"}]},
   "E": {"to": "stairwell", "why": "the front door onto the stairwell's top landing (the stairwell is its own place, its flat door at 9 m)"}
  },
  "items": [
