@@ -163,15 +163,17 @@ def yawed(degrees):
 
 
 def objects(plan, laid):
-    """Each plan item a released world model makes (the plan's `objects`), on the made ground at its item's middle,
-    turned by its `yaw` and tipped with the ground's seat there."""
+    """Each plan item a released world model makes (the plan's `objects`), on the made ground at its item's middle, its
+    model's lowest point on the ground (kit_shell.model_low), turned by its `yaw` and tipped with the ground's seat
+    there."""
     found = []
     for item in plan["items"]:
         made = plan["objects"].get(item["name"])
         if made is None:
             continue
         low_x, low_z, high_x, high_z = item["box"]
-        at, own = laid.standing((low_x + high_x) / 2, (low_z + high_z) / 2, made.get("level", 0.0))
+        lift = made.get("level", 0.0) + kit_shell.model_low(made)
+        at, own = laid.standing((low_x + high_x) / 2, (low_z + high_z) / 2, lift)
         found.append({"name": made["name"], "model": made["model"], "at": np.round(at, 4).tolist(),
                       "rotation": writer.quaternion(yawed(made.get("yaw", 0.0)) @ own),
                       **{key: made[key] for key in ("row", "height", "kind", "waiting") if key in made},
@@ -228,5 +230,5 @@ def record_of(place, plan, inputs, grounds):
     if plan["decals"]:
         record["ground_decals"] = decals(plan, tokens_of(inputs["tokens"]))
     if plan["objects"]:
-        record["objects"] = kit_shell.objects(plan) if plan["inside"] else objects(plan, laid)
+        record["objects"] = kit_shell.objects(plan, kit) if plan["inside"] else objects(plan, laid)
     return record

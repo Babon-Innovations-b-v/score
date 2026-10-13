@@ -22,6 +22,9 @@ import pathlib
 
 import numpy as np
 
+# A kit floor piece is what a plan object stands on when its top lies this near the plan's level (metres).
+SUPPORT_REACH = 0.5
+
 # A light stands this far in front of a lamp piece with no glow part (metres), as a kit lamp's does.
 LAMP_OUT = 0.05
 # Two pieces of one lamp row this close are one lamp (a cage and its lens).
@@ -183,17 +186,63 @@ def kit_glow(sky):
 
 # --- objects and shown places -----------------------------------------------------------------------------------
 
-def objects(plan):
-    """Each plan item a released world model makes (the plan's `objects`), on its item's middle at its level."""
+def kit_floors(kit):
+    """The kit's floor pieces (its kinds' group `floors`) as box entries round each piece (x across and z out
+    centred on its `at`, y up from it).
+    shortcut: a box round the piece, exact for a piece square to the axes (every Earth floor), wider for a turned one."""
+    floors = {kind for kind, about in kit.get("kinds", {}).items() if about.get("group") == "floors"}
+    found = []
+    for number, piece in enumerate(piece for piece in kit.get("pieces", []) if piece["kind"] in floors):
+        axes = np.array([piece[axis] for axis in ("x", "y", "z")], dtype=float)
+        size = np.asarray(piece["size"], dtype=float)
+        corners = np.array([[across, up, out] for across in (-0.5, 0.5) for up in (0.0, 1.0) for out in (-0.5, 0.5)])
+        laid = np.asarray(piece["at"], dtype=float) + (corners * size) @ axes
+        low, high = laid.min(axis=0), laid.max(axis=0)
+        found.append({"name": f"kit_floor_{number}", "builder": "box", "centre": ((low + high) / 2).tolist(),
+                      "size": (high - low).tolist(), "surface": "kit_floor"})
+    return found
+
+
+def model_low(made):
+    """How far a plan object's released world model's lowest point lies under its origin once stood as the record
+    stands it (scaled to its `height`, pressed by its `stretch`): metres, positive downward (the rocket's base 6 mm
+    under its origin); 0 for an object still `waiting` on its model."""
+    if made.get("waiting"):
+        return 0.0
+    model, height, stretch = made["model"], made.get("height"), made.get("stretch")
+    import sys
+    import trimesh
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/usd"))
+    import scene
+    low, high = trimesh.load(str(scene.world_file(None, model)), force="scene").bounds
+    scale = float(height) / float(high[1] - low[1]) if height else 1.0
+    return -float(low[1]) * scale * (float(stretch[1]) if stretch else 1.0)
+
+
+def support(kit, across, along, nominal):
+    """The top of what a plan object stands on at (across, along): the highest of the kit's floor pieces under that
+    spot that tops out within SUPPORT_REACH of the plan's level, else the plan's level itself."""
+    tops = [box["centre"][1] + box["size"][1] / 2 for box in kit_floors(kit or {})
+            if abs(across - box["centre"][0]) <= box["size"][0] / 2 and abs(along - box["centre"][2]) <= box["size"][2] / 2]
+    near = [top for top in tops if abs(top - nominal) <= SUPPORT_REACH]
+    return max(near) if near else nominal
+
+
+def objects(plan, kit=None):
+    """Each plan item a released world model makes (the plan's `objects`), on its item's middle, its model's lowest
+    point on the top of what it stands on (support: the kit's floor pieces there, else the plan's floor at its level),
+    never its origin at the plan's level."""
     found = []
     for item in plan["items"]:
         made = plan["objects"].get(item["name"])
         if made is None:
             continue
         low_x, low_z, high_x, high_z = item["box"]
+        across, along = (low_x + high_x) / 2, (low_z + high_z) / 2
+        top = support(kit, across, along, plan["floor_height"] + made.get("level", 0.0))
         entry = {"name": made["name"], "model": made["model"],
-                 "at": [round((low_x + high_x) / 2, 4), round(plan["floor_height"] + made.get("level", 0.0), 4),
-                        round((low_z + high_z) / 2, 4)],
+                 "at": [round(across, 4), round(top + model_low(made),
+                                                4), round(along, 4)],
                  **{key: made[key] for key in ("row", "yaw", "height", "stretch", "kind") if key in made},
                  "from": f"plan item {item['name']!r}: the released model {made['model']} ({made['why']})"}
         found.append(entry)
