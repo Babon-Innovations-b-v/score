@@ -193,8 +193,17 @@ def logged(path):
                 os.close(copy)
 
 
+def no_bytecode():
+    """This process and every make and child process it starts write no bytecode: a .pyc written into a declared
+    code folder mid-run (tools/characters/maker, 2026-10-13) read as an input changed while the node ran, and the
+    paid try stored nothing."""
+    sys.dont_write_bytecode = True
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+
+
 class Runner:
     def __init__(self, stages, world, store, model_record=None):
+        no_bytecode()
         self.stages = {stage.name: stage for stage in stages}
         self.world = world
         self.store = store
