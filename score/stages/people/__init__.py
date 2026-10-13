@@ -4,17 +4,18 @@ step (prop_prints.py's print), the hair as the mesh carries it, SOMA-X only for 
 World rows, each look's data a take of data/people/surfaces.json:
 
     people-inputs ... people-paint   the surface stage's method and paint on the looks' takes (line.py)
-    people-body-<look>               a look's body: rig, build, settle and every body gate (bodies.py)
+    people-body-<look>               a look's body: rig, build, settle and every body gate (people_bodies/bodies.py)
     people-dress-<look>              the paint's library surfaces laid on the body (dress.py)
     people-dress-<look>-in-<place>   the same in a coloured place: its fabrics the concept's colour (colours.json)
-    people-clips                     each full body's passing clips; the casts held to them (clips.py)
+    people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
     people-look                      the review page of the LOOKED looks (look.py)
 
     .venv/bin/python -m score run world1 --stage people-look --detach
 """
 from score import contracts, graph
-from score.stages.people import bodies, clips, dress, line, look
-from score.stages.people.bodies import guarded
+from score.stages.people import dress, line, look
+from score.stages.people_bodies import bodies, clips
+from score.stages.people_bodies.bodies import guarded
 
 # The looks the review page shows: the player and Nev first (#5), the casts' looks once they pass.
 LOOKED = ("player-work", "nev-space")
@@ -55,7 +56,7 @@ def cast_looks():
 
 
 FULL = cast_looks()
-# Free: each full body's passing clips, and every world 1 cast held to them (clips.py).
+# Free: each full body's passing clips, and every world 1 cast held to them (people_bodies/clips.py).
 CLIPS = graph.Stage("people-clips", "world", clips.make_usable, contracts.Contract("people-clips", 1,
                                                                                  clips.usable_faults),
                     (guarded("casts use passing clips", clips.judge_casts),),

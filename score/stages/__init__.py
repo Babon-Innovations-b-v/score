@@ -181,7 +181,7 @@ def far_judged(row):
     (people/bodies.py and the package) do not move."""
     if not row.name.startswith("people-body-") or not row.params.get("far_only"):
         return row
-    from score.stages.people import bodies, far
+    from score.stages.people_bodies import bodies, far
     drawn = tuple(check for check in row.checks if check.name in ("joins", "likeness"))
     return dataclasses.replace(row, checks=drawn + (bodies.guarded("far triangles", far.judge_far_triangles),
                                                     bodies.guarded("near outfit recorded", far.judge_near_recorded)))
