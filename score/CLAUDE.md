@@ -81,8 +81,9 @@ stage as each stage is built; nothing moves before.
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
   apply only to a place with `data/props/<place>.json`, which no world 1 place has yet. `cast`
   (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a
-  world node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes); nothing reads
-  it yet. `machines-layer` (experimental, `stages/machines`, its overlay) lays each place's machines
+  world node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes);
+  `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed
+  body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `machines-layer` (experimental, `stages/machines`, its overlay) lays each place's machines
   (`data/machines/<place>.json`: the garage's rover) on what holds them up, gated on outline, parts present and
   resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
   overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place with `data/physics/<place>.json`
