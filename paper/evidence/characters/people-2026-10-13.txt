@@ -345,3 +345,65 @@ clapping  shF   56 shE    0 shAb   56 shAd    0 elb  115 hipF    2 hipE    2 hip
 shifting  shF   22 shE   15 shAb   28 shAd    0 elb   47 hipF    9 hipE    3 hipAb   13 hipAd    6 knee   22 trF    2 trE    4 trL   14 trR    6 prot  -11 | over: -
 clipboard shF   54 shE    0 shAb   54 shAd    0 elb   89 hipF    0 hipE    8 hipAb    6 hipAd    0 knee   16 trF    0 trE   10 trL    2 trR    0 prot    1 | over: -
 sitting   shF  107 shE    0 shAb  107 shAd    0 elb   71 hipF   92 hipE    0 hipAb   20 hipAd    0 knee   98 trF   57 trE    0 trL    1 trR    2 prot   10 | over: -
+
+## 9. Wider A-pose takes (evening of 2026-10-13): arms 45 degrees below level, feet 35 cm apart (spec bind_pose)
+Eleven wide takes passed their take rows (close-ups with arms apart, Pixal3D take kept): the player, bram, sefa, nev,
+the four olive kits, the driver, the guard and the leader. Bodies made: player_wide (fails triangles, 30,504 over
+29,849; joins, outline 0.960, likeness 0.871 and shell 3.4 cm pass; 0 of 19 clips usable by the gate) and
+kit_m_avg_wide (fails shell, 6.1 cm over 5 cm; 0 of 19 clips). kit_w_broad, kit_m_broad and kit_w_slim's bodies and
+the people line's paint rerun were stopped unfinished on these numbers; the driver, guard and leader bodies were not
+started. The paint first failed on the leader's red piece (no library surface within dE 32; enamel_red then added to
+the library for owner review).
+Camera rule on the one-piece bind (same cameras and scoring as section 5), visible crossings at each clip's worst frame:
+Player (flat and tube cameras, close views):
+clip      narrow  wide
+standing     104   365
+walking      236   551
+bench        130   654
+suit         294   726
+shouting     114   269
+cheering     256   764
+leaning      304   509
+pointing     167   336
+waiting      137   448
+checking     139   397
+reaching     373   635
+lying        125   346
+dragging     142   795
+lifting      563  1147
+door         160   408
+clapping     185   470
+shifting     167   465
+clipboard     87   328
+sitting      395   997
+narrow total 4078 clean 0 bind 772
+wide total 10610 clean 0 bind 678
+kit_m_avg (the flat's youth: flat cameras, close views):
+clip      narrow  wide
+standing     386   248
+walking      591   477
+bench        492   438
+suit         609   563
+shouting     238   277
+cheering     557   580
+leaning      485   391
+pointing     333   280
+waiting      347   345
+checking     349   468
+reaching     600   542
+lying        326   248
+dragging     679   672
+lifting      888   947
+door         464   448
+clapping     268   292
+shifting     494   357
+clipboard    194   224
+sitting      576  1001
+narrow total 8876 clean 0 bind 2905
+wide total 8798 clean 0 bind 1892
+
+Finding: the wider pose lowers the crossings at the bind (player 772 -> 678, kit 2,905 -> 1,892) but not in motion:
+the clips bring the arms further down from 45 degrees, and the player's total rises from 4,078 to 10,610 (the kit's
+stays about equal, 8,876 -> 8,798, flat cameras only). No clip is clean in either pose. In the sitting close-up the
+armpit surface still stretches between arm and chest. Pictures (local numpy renders, narrow beside wide, same six
+views): kept with the run records, not in the repository.
