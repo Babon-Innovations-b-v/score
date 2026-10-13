@@ -1172,6 +1172,14 @@
 			"painted_grey_light": {
 				"token": "suit-panel-grey",
 				"library": "painted_grey_light"
+			},
+			"suit_fabric_white": {
+				"token": "hull",
+				"library": "suit_fabric_white"
+			},
+			"plastic_white": {
+				"token": "hull",
+				"library": "plastic_white"
 			}
 		},
 		"light": {
