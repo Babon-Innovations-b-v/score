@@ -143,7 +143,8 @@
     "model": "aft_section",
     "sha256": "e1b469800d355af123c6f5beff40ecef64d2718d0a518310a35e453a0e8a09fc",
     "decided": "owner, 2026-10-08 13:20 UTC: the wreck's rerun from the framework (run wreck-score1, page claude.ai/artifact/7FPgxkcoDvWxMTqTGPMbG1) is solid apart from its paint (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #409; playtest3/progress-framework-move.txt lines 7 to 18). It replaces his first sign-off of the wreck built in 2099 7e0d3bd7 (2026-10-07 21:16 UTC, #354), whose models it made again on the same plan"
-   }
+   },
+   "leans": "a crashed lander's debris, lying tilted on the ground on purpose (captain's decision, 2026-10-12; the owner reviews samples later)"
   },
   {
    "id": "forward_section",
