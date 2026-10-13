@@ -115,11 +115,33 @@ Lamp strengths are measured, never copied from the source game. The light layer 
 
 ## People
 
-People are made like props. A close-up of the dressed person in SOMA-X's bind pose, drawn by FLUX.2 klein [@flux2klein], is built by Pixal3D and painted by the surface line. SOMA-X's body is fitted just inside the look (Gauss-Newton on 24 shape numbers), and every point of the look takes the skin weights of its closest body triangle, so Kimodo's clips [@rempe2026kimodo], written from sentences, move it. The **shell gate** passes a look when 99 percent of its soft points lie within 5 cm of the body, its worst point recorded. Hard parts ride one joint each, belts are worn as cloth, and each clip gets its own verdict (tucks, hard parts stretched, cloth or body through cloth); a cast uses only the clips that pass. A look seen only far away is judged on its far body (Appendix B). **Casts:** SAM 3 [@carion2025sam3] finds the figures on a place's views, a vision-language judge tells a person from a picture, a reflection or an empty suit, and a cast is gated on `counted`, `standing`, `clear`, `made` and `drapes`; a crowd stands only where no copy fills a tenth of a view's height.
+People are made like props: a FLUX.2 klein [@flux2klein] close-up in SOMA-X's bind pose, built by Pixal3D, painted by the surface line, over SOMA-X's body fitted just inside (Gauss-Newton, 24 shape numbers), whose skin weights each look point takes from its closest triangle; Kimodo's clips [@rempe2026kimodo], from sentences, move it. The **shell gate** passes a look when 99 percent of its soft points lie within 5 cm of the body, its worst point recorded. Hard parts ride one joint, belts are cloth, each clip gets its own verdict (tucks, hard parts stretched, cloth or body through cloth) and casts use only passing clips; a far-only look is judged on its far body (Appendix B). **Casts:** SAM 3 [@carion2025sam3] finds the concept's figures, a judge tells people from pictures, reflections and empty suits, and casts are gated on `counted`, `standing`, `clear`, `made` and `drapes`; no crowd copy fills a tenth of a view's height.
 
-**Results so far (experimental).** On 13 October four looks passed every body gate (joins, outline, likeness, triangles, shell) and a fifth failed on triangles, but few of their clips are usable (Table 2). Two faults run through every clip of Nev and Sefa before any motion: a boot's tuck band lies 9 to 11 mm outside the trouser leg at the bind pose. Scored only on what is drawn (the bands left out), no clip of any look is usable: where hair or cloth meets the head or hand skin the two sides are weighted differently and open as the joints move (cloth seams never open), and the settled cloth crosses itself beyond the bind. Openings over 10 cm on three looks are not yet confirmed by a render. Binding the take as one closed mesh removes the openings, but the player's limbs still sink into the chest and hips at the bends: in every clip 87 to 563 crossing points are visible from the places' cameras and close views. Pushing points out of the look's own volume, limiting the offset from SOMA-X at the armpits and inner thighs, fold-centred weights and dual-quaternion skinning each left that count the same or higher. The renders trace it to the take itself: the close-up's arms and thighs lie against the body, so Pixal3D builds the armpit and groin as one surface, which stretches when a limb moves. The clips' joint angles stay within the normal human ranges of the American Academy of Orthopaedic Surgeons, except hip extension of 24 and 27 degrees (limit 20) in two clips.
+<!-- score/stages/people_bodies/bodies.py (FITTED 24, Gauss-Newton; SHELL_SHARE 0.99, OFFSET_MOST 0.05), tools/characters/maker/prop_build.py rigid_joint, CLOTH_WORDS; clips.py; far.py; tools/characters/maker/outline.py; data/people/colours.json; score/stages/cast (gates, FAR_SHARE 0.10), concept_people, layer.py. Commits 0d6a28a, 4ff0a0c, e80f07d, 45af7ec, 530316b, d045948. -->
 
-**Table 2.** Usable clips of 19 per look, 13 October 2026 (experimental). Gate: the per-clip checks as built; visible: the same bodies scored only on drawn surfaces; cameras: the one-piece bind judged on crossings the places' cameras can see.
+## Completion
+
+A place is complete when its gate passes on its final assembly: every row made or dropped with a reason, nothing unmade, no placeholder or resting fault, the creator's picks shown, every layer and shown place present, nothing from the source game. A hook stops an agent claiming otherwise: agents judging their own scenes agree with a measured geometry score only 45.8 percent of the time [@li2026lego].
+
+<!-- tools/usd/complete.py CHECKS; tools/usd/contents.py JUDGES (people, effects, motion, crops, likeness, painted, light, sound, neighbours, game, waiting); score/stages/complete; .claude/hooks/completion_guard.py. LEGO-Anything 45.8%: arXiv 2609.36380 Sec. 5.1. -->
+
+::: gap
+**Gap: Figures 6 to 10.** (6) The water tank painted, the tool board in picture against library colours; (7) the lit Earth, a swept room; (8) lift-off, a rover, a dust devil, an airlock; (9) the player walking, the crowd; (10) a room in a physics engine. They wait on assemblies; until the habitat's physics trial passes, responsiveness is that trial.
+:::
+
+<!-- Demo targets F4, F8, F7, F6 and F11. score/stages/physics, tools/usd/physics.py, data/physics/. score/stages/physics, tools/usd/physics.py, data/physics/. -->
+
+## Budget and ledgers
+
+Machines and Google calls write ledger lines with their node's ticket; the month's spend is the higher of ledgers and bill, which caught misses: EUR 1,554 billed against EUR 1,387 in the cloud ledger on 12 October 2026, and EUR 549 billed by Google for a day the earlier ledger put at EUR 30. Over 13.8 hours of world 1's run the ledgers hold EUR 117.45 of machines and EUR 34.19 of Google calls, most for painting (EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and the light passes (EUR 10.17).
+
+<!-- tools/props/cloud/CLAUDE.md (bill EUR 1,554 vs ledger 1,387 on 2026-10-12; Google EUR 549 vs 30 on 2026-10-11; google_spend started and finished lines); score/adapters/compute month_refusal. Per stage: paper/evidence/cloud/stage-euros-2026-10-13.txt (ledger lines with a runner ticket, 2026-10-12T19:06Z to 2026-10-13T08:54Z). -->
+
+# Evidence
+
+Four worlds are planned; world 1's 18 places are judged once their layers stand accepted.
+
+**Table 2.** People, 13 October (experimental, Section 3.5): usable clips of 19 per look by the gate as built, on drawn surfaces only, and as one piece on what cameras see. Faults and fixes: Appendix B.
 
 | Look | Body gates | Gate | Visible | Cameras, one piece |
 |---|---|---|---|---|
@@ -127,53 +149,26 @@ People are made like props. A close-up of the dressed person in SOMA-X's bind po
 | Bram (work) | pass | 5 | 0 | not run |
 | Sefa (work) | pass | 0 | 0 | not run |
 | Nev (work) | pass | 0 | 0 | not run |
-| Crew kit, average man (olive) | fail: triangles | 0 | not run | not run |
+| Kit, average man (olive) | fail: triangles | 0 | not run | not run |
 
 <!-- paper/evidence/characters/people-2026-10-13.txt (sections 1-8: gate verdicts per look and clip, bind tucks, visible-only re-score, one-piece bind, camera rule, offset clamp, fold weights and dual quaternions, AAOS joint ranges). Measured with numpy on the stored bodies; no runs. Issue #5. -->
 
-<!-- score/stages/people_bodies/bodies.py (FITTED 24, Gauss-Newton; SHELL_SHARE 0.99, OFFSET_MOST 0.05), tools/characters/maker/prop_build.py rigid_joint, CLOTH_WORDS; clips.py; far.py; tools/characters/maker/outline.py; data/people/colours.json; score/stages/cast (gates, FAR_SHARE 0.10), concept_people, layer.py. Commits 0d6a28a, 4ff0a0c, e80f07d, 45af7ec, 530316b, d045948. -->
-
-## Completion
-
-A place is complete when its gate passes on its final assembly: every row has its object or a reason; nothing visible is unmade or a placeholder; no resting fault; the creator's picks are shown; and it holds its cast in made looks, its effects, motions and crops, every generated model repainted and held to its close-up, every lamp and room tone, every place it shows, and nothing from the source game. A hook stops an agent claiming a place is done while its gate fails: agents judging their own scenes agree with a measured geometry score only 45.8 percent of the time [@li2026lego].
-
-<!-- tools/usd/complete.py CHECKS; tools/usd/contents.py JUDGES (people, effects, motion, crops, likeness, painted, light, sound, neighbours, game, waiting); score/stages/complete; .claude/hooks/completion_guard.py. LEGO-Anything 45.8%: arXiv 2609.36380 Sec. 5.1. -->
-
 ::: gap
-**Gap: Figures 6 to 10.** (6) The water tank painted, the tool board in picture colours against library paint; (7) the lit Earth, a room at swept strengths; (8) lift-off, a rover's drive, a dust devil, an airlock cycle; (9) the player from close-up to a walk, the square's crowd; (10) a room in a physics engine. They wait on assemblies and the people batch. The physics trial runs on the habitat only; until it passes, responsiveness is that trial.
-:::
-
-<!-- Demo targets F4, F8, F7, F6 and F11. score/stages/physics, tools/usd/physics.py, data/physics/. score/stages/physics, tools/usd/physics.py, data/physics/. -->
-
-## Budget and ledgers
-
-Every rented machine, and every Google call before and after it, writes a ledger line with its node's ticket. The month's spend is the higher of the ledgers and the bill, which caught what they missed: on 12 October 2026 the cloud bill stood at EUR 1,554 against EUR 1,387 in the ledger (disks, addresses, storage), and on 11 October Google billed EUR 549 for a day the earlier ledger put at EUR 30. Over 13.8 hours of world 1's run the ledgers hold EUR 117.45 of machines and EUR 34.19 of Google calls, most for painting (EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and the light passes (EUR 10.17).
-
-<!-- tools/props/cloud/CLAUDE.md (bill EUR 1,554 vs ledger 1,387 on 2026-10-12; Google EUR 549 vs 30 on 2026-10-11; google_spend started and finished lines); score/adapters/compute month_refusal. Per stage: paper/evidence/cloud/stage-euros-2026-10-13.txt (ledger lines with a runner ticket, 2026-10-12T19:06Z to 2026-10-13T08:54Z). -->
-
-# Evidence
-
-We build four worlds (the game world of 2099, an underwater, a robot simulation and a fantasy world); each of world 1's 18 places is assembled and judged once, when its layers stand accepted.
-
-::: gap
-**Gap: Table 2 and the film.** Per place: rows, models generated and in code, layers, faults before and after spending, time, euros, the creator's verdict; and a walk through world 1. They wait on each place's completion gate.
+**Gap: Table 3 and the film.** Per place: rows, models made and coded, layers, faults before and after spending, time, euros, verdict; a walk through world 1. They wait on the completion gates.
 :::
 
 <!-- Demo targets T1 and the film; F9 is in Appendix F. -->
 
-**With and without the agent tools.** On two of three places, an agent with the gate and its tools used about half the output and cost; on the third, the one without left fewer faults; one run each (Appendix E).
+**Agent tools.** With them an agent used about half the output and cost on two of three places; on the third it left more faults; one run each (Appendix E).
 
 <!-- paper/evidence/agent-tools-bench/analysis.json; Table E1. -->
 
-# Limitations and future work
+# Limitations, future work and conclusion
 
-Every verdict is one creator's; he accepted the hub before the runner. Closed models (Nano Banana Pro, Gemini 3.1 Pro) draw concepts, close-ups and finish maps and can change price or be retired. Hard belts failed deep bends. Light is live, not baked, measured on earlier layouts; objects are not interactive. Next: three more worlds, an engine adapter, interactable objects, baked per-lamp light, open close-up and map models, a library of locked parts, LEGO-Bench [@li2026lego] and a style measure.
+One creator judges; he accepted the hub before the runner. Closed models (Nano Banana Pro, Gemini 3.1 Pro) may change or go. Hard belts failed deep bends; light is live, measured on earlier layouts; objects are not interactive. Next: three worlds, an engine adapter, interaction, baked lamps, open models, locked parts, LEGO-Bench [@li2026lego]. In short, SCORE keeps, keys and judges every stage's output, so a fault is fixed where it happens; completed places will show if it holds.
 
 <!-- Belt and clips: commits 45af7ec, 530316b, e80f07d; issue #5. Light: score/stages/light/CLAUDE.md. Physics: score/stages/physics. Closed models: score/stages/props/CLAUDE.md (close-ups by Nano Banana Pro), finish_ask.py. Hub accepted: Appendix A. -->
 
-# Conclusion
-
-SCORE builds worlds in stages whose outputs are kept, keyed and judged, so a fault is fixed where it happens; the completed places and further worlds will show whether this holds.
 
 # References {-}
 
@@ -226,6 +221,8 @@ Three findings shaped the method. First, deterministic checks catch what agents 
 - **What the creator acts on:** he rejects, accepts or waives only an output he has seen on its review page. This is his rule; the commands do not yet check that the page was opened.
 - **People seen by the cameras (experimental):** a clip's crossings of body through cloth are counted only where a camera that will show the person can see them: the place's views at the person's cast spot, and a close front and three-quarter view. Crossings no camera sees are recorded, not counted against the clip. So far this is a measure on the stored bodies (Section 3.5); the per-clip gate does not use it yet.
 - **Completion gate:** the requirements given in Section 3.6, each with its result tied to a fingerprint of the stage's files and inputs; a result made on another stage counts as unknown. The placeholder check judges every mesh a code builder draws, and only the shell builders pass unnamed.
+
+**People results in detail (experimental, Section 3.5).** The body gates are joins, outline, likeness, triangles and shell. Nev's and Sefa's boot tuck bands lie 9 to 11 mm outside the trouser leg at the bind pose. Scored on drawn surfaces only, no clip of any look is usable: skin seams open and settled cloth crosses itself. Bound as one closed mesh, the player's limbs sink into chest and hips, 87 to 563 crossing points visible from the places' cameras and close views per clip: Pixal3D builds armpit and groin as one surface when the close-up's arms and thighs lie against the body. The boot tuck bands run through every clip of Nev and Sefa before any motion. Where hair or cloth meets the head or hand skin the two sides are weighted differently and open as the joints move (cloth seams never open), and the settled cloth crosses itself beyond the bind; openings over 10 cm on three looks are not yet confirmed by a render. Binding the take as one closed mesh removes the openings. Pushing points out of the look's own volume, limiting the offset from SOMA-X at the armpits and inner thighs, fold-centred weights and dual-quaternion skinning each left the visible crossings the same or higher, and the renders trace them to the take itself. The clips' joint angles stay within the normal human ranges of the American Academy of Orthopaedic Surgeons, except hip extension of 24 and 27 degrees (limit 20) in two clips. <!-- paper/evidence/characters/people-2026-10-13.txt sections 1-8; issue #5. -->
 
 **Decisions recorded in these checks.** Three people's gates are decisions of the captain, the agent session that runs world 1, taken on 12 and 13 October 2026 under the creator's rules and open to his reversal. (1) The shell gate counts 99 percent of the soft points rather than every point, with the worst point recorded: the points beyond it were loose cloth edges (cuffs, hems, caps), which no part label names, so they could not be given a joint of their own by label. (2) A look seen only far away is judged on what is drawn far away, not on the near outfit it was made from. (3) The A-pose outline is judged against the finished take, not the raw model, so the take's own loss is not charged to the build. Earlier, the full-body cut (which looks get bodies in full and which only far ones) was set by the people's share of the budget.
 
