@@ -86,6 +86,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   seen over 10 L* lighter, baked over 3 darker; the light moves L* but keeps the order), and a part baked over 32
   from its close-up colour (kept at 32: the close-up's light lifts right surfaces 15 to 30 L*, so a tighter number
   fails right blacks; compare a model's surfaces with each other instead).
+- **A base that slopes as one piece is brought down level** in the paint (`place_line.flattened_base`, after the legs):
+  each footprint quadrant of the bottom quarter over 1% of the size up comes down its whole gap at its lowest point,
+  spread by inverse squared distance and faded over the band; over 15% is a model fault, refused. **Each model bakes
+  with the dirt its close-up shows** (`measured_dirt`: its painted finishes' close-up colours as a share of the way
+  from clean toward the dirt colour, the median, at most the place's dirt).
 - **The paint levels a take's feet before its bake** (`place_line.levelled_feet`, `tools/props/library/feet.py`):
   a take a row lays loose on the floor or held (`stands_on_feet`, from the inventory and the resting rules, declared
   in the table) has its short legs stretched onto the level plane through its lowest foot, in its own frame; a foot

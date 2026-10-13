@@ -53,6 +53,9 @@ MERGE_COLOUR = 12.0
 # is stretched down FOOT_MOST at most (a tenth: the water tank's shortest leg ends 6.4% of its size up); a foot further
 # up is a missing leg, a fault of the model, and fails the gate "feet in one plane" by name.
 FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
+# A base that slopes as one piece (flattened_base): its bottom BASE_BAND of height, each footprint quadrant brought
+# down level when over FOOT_TOLERANCE of its size up, refused over BASE_MOST (the rack's legs: 7.4% of its size).
+BASE_BAND, BASE_MOST = 0.25, 0.15
 # The paint runs on processor machines, a job a take of about PAINT_MINUTES (campgrounds, 2026-10-12: twelve takes,
 # eight machines of 3.3 to 4.7 min each for EUR 5.83 at 5; a job about 1.5 min, crane-r1 alone 34.8 GB at its peak); the
 # keys of a take's listing besides the make's inputs (prop_env.short reads each as a path: the take is its name); the
@@ -175,8 +178,48 @@ def levelled_feet(vertices, faces):
     size = max(height, diagonal)
     points, record = feet.level(vertices, faces, FOOT_BAND * height, FOOT_LINK * diagonal, FOOT_TOLERANCE * size,
                                 FOOT_MOST * size)
+    points, base = flattened_base(points, BASE_BAND * height, FOOT_TOLERANCE * size, BASE_MOST * size)
+    record["refused"] = record["refused"] + base["refused"]
     shares = {key: [round(gap / size, 4) for gap in record[key]] for key in ("gaps", "levelled", "refused")}
-    return points, {"feet": record["feet"], **shares}
+    return points, {"feet": record["feet"], **shares,
+                    "base": [round(gap / size, 4) for gap in base["quadrants"]],
+                    "flattened": [round(gap / size, 4) for gap in base["flattened"]]}
+
+
+def flattened_base(points, band, tolerance, most):
+    """A take's vertices with its base brought down level where it slopes as one piece (the hangar's parts rack stood
+    on a middle part, its legs 22 cm up; the shelving's one side 10 cm short; the paint's legs check found one foot
+    and passed them): each footprint quadrant of the bottom `band` whose lowest point lies over `tolerance` above the
+    lowest is brought down, the drop spread over the footprint by inverse squared distance from the quadrants' lowest
+    points (each of them comes down its whole gap) and faded over the band (one at the band's top moves none). Never by tipping the model. A quadrant over
+    `most` up is a fault of the model: nothing moves and its gap comes back refused. Returns (vertices, {"quadrants":
+    each quadrant's gap, "flattened": the gaps brought down, "refused": ...})."""
+    import numpy as np
+    points = np.array(points, dtype=np.float64)
+    low = points[:, 1].min()
+    base = points[points[:, 1] <= low + band]
+    middle = (base.min(axis=0) + base.max(axis=0)) / 2
+    gaps, places = np.zeros(4), np.zeros((4, 2))
+    sides = [(x_side, z_side) for x_side in (base[:, 0] < middle[0], base[:, 0] >= middle[0])
+             for z_side in (base[:, 2] < middle[2], base[:, 2] >= middle[2])]
+    for number, (x_side, z_side) in enumerate(sides):
+        chosen = base[x_side & z_side]
+        lowest = chosen[chosen[:, 1].argmin()] if len(chosen) else np.array([middle[0], low, middle[2]])
+        gaps[number], places[number] = lowest[1] - low, lowest[[0, 2]]
+    record = {"quadrants": [float(gap) for gap in gaps], "flattened": [], "refused": []}
+    if gaps.max() <= tolerance:
+        return points, record
+    if gaps.max() > most:
+        record["refused"] = [float(gap) for gap in gaps if gap > most]
+        return points, record
+    drops = np.where(gaps > tolerance, gaps, 0.0)
+    distance = ((points[:, None, [0, 2]] - places[None]) ** 2).sum(axis=2)
+    weights = 1.0 / np.maximum(distance, 1e-12)
+    drop = (weights * drops).sum(axis=1) / weights.sum(axis=1)
+    fade = np.clip((low + band - points[:, 1]) / np.maximum(band - drop, 1e-9), 0.0, 1.0)  # a quadrant's low: all
+    points[:, 1] -= drop * fade
+    record["flattened"] = [float(gap) for gap in drops if gap > 0]
+    return points, record
 
 
 def paint_take(inputs, out, take, record, records):
@@ -358,6 +401,27 @@ def baking_specs(library_name, specs, labelled):
     return found
 
 
+def measured_dirt(finishes, specs, most):
+    """The dirt one model bakes with, from its close-up: for each finish on a painted surface (not glass, screen,
+    light or print) with a measured colour, how far that colour lies from the surface's clean colour toward its dirt
+    colour, as a share of the way; the median, within 0 and the place's dirt (`most`). A fixed 0.6 in regolith baked
+    the wreck's and old_station's whites to L* 69 where their close-ups show them near 90 (2026-10-13)."""
+    import numpy as np
+    import labels
+    shares = []
+    for finish in finishes:
+        spec = specs.get(finish.get("surface"), {})
+        if finish.get("measured_lab") is None or "colour" not in spec or "dirt_colour" not in spec \
+                or spec.get("family") in ("glass", "screen", "light", "print"):
+            continue
+        clean = labels.lab(labels.srgb(np.array(spec["colour"], dtype=float))[None])[0]
+        toward = labels.lab(labels.srgb(np.array(spec["dirt_colour"], dtype=float))[None])[0] - clean
+        reach = float(np.dot(toward, toward))
+        if reach > 1.0:
+            shares.append(float(np.clip(np.dot(np.array(finish["measured_lab"]) - clean, toward) / reach, 0.0, 1.0)))
+    return round(min(float(np.median(shares)), most), 3) if shares else most
+
+
 def make_bake(inputs, out, seed, params):
     """The labelled folders baked on rented cards (library_bake.py make_chunky), one job per model."""
     inputs = prop_env.short(inputs)
@@ -369,7 +433,9 @@ def make_bake(inputs, out, seed, params):
     job["specs"] = baking_specs(data["library"], job["specs"], list(labelled.values()))
     jobs = []
     for entry in chunky:
-        one = dict(job, chunky=[entry], out=str(out / "made"), report=f"report-{entry['name']}.json")
+        report = json.loads((pathlib.Path(entry["parts"]) / "labels.json").read_text())
+        one = dict(job, chunky=[entry], out=str(out / "made"), report=f"report-{entry['name']}.json",
+                   dirt=measured_dirt(report.get("finishes", []), job["specs"], job["dirt"]))
         for key in ("kit", "pieces", "code", "was"):
             one.pop(key, None)
         path = out / f".job-{entry['name']}.json"
