@@ -196,7 +196,7 @@
 		},
 		{
 			"id": "ring_floor_plate",
-			"name": "a heavy steel deck plate, diamond tread, bolted",
+			"name": "a flat steel deck plate, bolted",
 			"kind": "code",
 			"anchor": "floor",
 			"size": [
@@ -220,7 +220,8 @@
 			"box_from": [
 				"v1.65"
 			],
-			"box_fails": "the box judge failed it twice: the concept's hall floor is flat metal plates, the row's words say diamond tread (2026-10-13)"
+			"ground_box": "judge",
+			"why_name": "the concept K01 shows flat floor plates, no tread (captain, 2026-10-13); the kit's code-built plate (ring_floor_plate) is a plain bevelled plate with bolts"
 		},
 		{
 			"id": "roof_face_panel",
