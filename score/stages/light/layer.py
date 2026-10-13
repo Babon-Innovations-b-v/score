@@ -42,11 +42,9 @@ LENS_NEAR = 1.0
 # A mesh no side of which is over this is small enough to be a lamp's fixture, metres; a freed lamp stands this far clear of it.
 FIXTURE_MOST = 1.5
 FIXTURE_GAP = 0.05
-# A fixture whose solid parts stop this share of a lamp's ways out encloses it (RAYS ways tried); a lens let through
-# has this opacity.
+# A fixture whose solid parts stop this share of a lamp's ways out encloses it (RAYS ways tried).
 ENCLOSED = 0.9
 RAYS = 256
-LENS_OPACITY = 0.2
 
 
 def light_data(place):
@@ -237,24 +235,27 @@ def blocked_share(spot, meshes):
     return float(np.mean(hit))
 
 
-def see_through(stage, path):
-    """A lens let through its lamp's light, as glass does: its material's opacity LENS_OPACITY (Cycles passes light
-    through what is not fully opaque), its glow kept."""
-    from pxr import Sdf, UsdShade
-    material = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath(path)).ComputeBoundMaterial()[0]
-    surface = material.ComputeSurfaceSource()[0] if material else None
-    if surface:
-        surface.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(LENS_OPACITY)
-    return bool(surface)
+def out_of(stage, path, spot, way, low, high):
+    """A lamp set FIXTURE_GAP past a box (low, high) along a way from its spot; where it stands now."""
+    from pxr import Gf, UsdGeom
+    way = way / np.linalg.norm(way)
+    steps = [((high if step > 0 else low)[axis] - spot[axis]) / step for axis, step in enumerate(way) if abs(step) > 1e-9]
+    out = spot + way * (min(steps) + FIXTURE_GAP)
+    xform = UsdGeom.Xformable(stage.GetPrimAtPath(path))
+    next(op for op in xform.GetOrderedXformOps() if op.GetOpType() == UsdGeom.XformOp.TypeTranslate).Set(
+        Gf.Vec3d(*map(float, out)))
+    return out
 
 
 def lamps_through_fixtures(stage, place):
     """Each lamp standing inside a small mesh (its fixture: the stairwell's caged bulkheads held all seven, and their
     cage and lens took nearly all their light, 2026-10-13), by measure: where the fixture's solid parts (its meshes
-    not named glow) stop at least ENCLOSED of the ways out, the lamp moves out of the fixture, FIXTURE_GAP clear of
-    its box, toward its lens where it has one, else toward the place's middle; otherwise it stays and its lens lets
-    its light through (see_through). {lamp path: {rule, blocked, moved}}, the rule each lamp took."""
-    from pxr import Gf, Usd, UsdGeom
+    not named glow) stop at least ENCLOSED of the ways out, the lamp moves out of the whole fixture, FIXTURE_GAP clear,
+    toward its lens where it has one, else toward the place's middle; where they do not, a lamp behind a lens stands
+    just outside the lens, inside the rest of its fixture, so the lens lets its light through as clear glass does (the
+    library's clear glass stops 2%; Cycles cannot pass light through a lens that also glows) and the cage or shade
+    still shapes it; a lamp in an open fixture with no lens stays. {lamp path: {rule, blocked, moved}}."""
+    from pxr import Usd, UsdGeom
     boxes = fixture_boxes(stage, place)
     middle = np.array(UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(
         stage.GetPrimAtPath(f"/{place}")).ComputeAlignedRange().GetMidpoint())
@@ -264,27 +265,24 @@ def lamps_through_fixtures(stage, place):
                    if np.all(spot >= low - 1e-3) and np.all(spot <= high + 1e-3)]
         if not holders:
             continue
-        bodies = [name for name, _, _ in holders if "glow" not in name]
-        lenses = [(name, (low + high) / 2) for name, low, high in holders if "glow" in name]
-        blocked = blocked_share(spot, [world_mesh(stage, name) for name in bodies])
-        if blocked < ENCLOSED:
-            found[path] = {"rule": "lens lets it through", "blocked": round(blocked, 3), "moved": 0.0,
-                           "lenses": [name for name, _ in lenses if see_through(stage, name)]}
-            continue
-        low = np.min([low for _, low, _ in holders], axis=0)
-        high = np.max([high for _, _, high in holders], axis=0)
-        way = (lenses[0][1] - (low + high) / 2) if lenses else (middle - spot)
+        bodies = [(name, low, high) for name, low, high in holders if "glow" not in name]
+        lenses = [(name, low, high) for name, low, high in holders if "glow" in name]
+        blocked = blocked_share(spot, [world_mesh(stage, name) for name, _, _ in bodies])
+        whole_low = np.min([low for _, low, _ in holders], axis=0)
+        whole_high = np.max([high for _, _, high in holders], axis=0)
+        lens_middle = (lenses[0][1] + lenses[0][2]) / 2 if lenses else None
+        way = (lens_middle - (whole_low + whole_high) / 2) if lenses else (middle - spot)
         if np.linalg.norm(way) < 1e-6:
             way = middle - spot
-        way = way / np.linalg.norm(way)
-        steps = [((high if step > 0 else low)[axis] - spot[axis]) / step for axis, step in enumerate(way)
-                 if abs(step) > 1e-9]
-        out = spot + way * (min(steps) + FIXTURE_GAP)
-        xform = UsdGeom.Xformable(stage.GetPrimAtPath(path))
-        translate = next(op for op in xform.GetOrderedXformOps() if op.GetOpType() == UsdGeom.XformOp.TypeTranslate)
-        translate.Set(Gf.Vec3d(*map(float, out)))
-        found[path] = {"rule": "moved out of its fixture", "blocked": round(blocked, 3),
-                       "moved": round(float(np.linalg.norm(out - spot)), 3)}
+        if blocked >= ENCLOSED:
+            out = out_of(stage, path, spot, way, whole_low, whole_high)
+            rule = "moved out of its fixture"
+        elif lenses:
+            out = out_of(stage, path, spot, way, lenses[0][1], lenses[0][2])
+            rule = "set just outside its lens"
+        else:
+            out, rule = spot, "open fixture, kept"
+        found[path] = {"rule": rule, "blocked": round(blocked, 3), "moved": round(float(np.linalg.norm(out - spot)), 3)}
     return found
 
 
