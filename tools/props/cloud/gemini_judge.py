@@ -44,23 +44,36 @@ ANSWER_LINE = ('Answer with one JSON object: {"part": what the outlined part is,
                'from the list, or "unknown"}.')
 
 
+# A box question (tools/props/scene/box_check.py's, a job with "answer": "box"): whether the box shows the thing, whether
+# it is the main thing in it, and what the box is mostly drawn round.
+BOX_SCHEMA = {"type": "OBJECT", "properties": {"shows": {"type": "BOOLEAN"}, "main": {"type": "BOOLEAN"},
+                                               "what": {"type": "STRING"}},
+              "required": ["shows", "main", "what"], "propertyOrdering": ["shows", "main", "what"]}
+BOX_ANSWER_LINE = 'Answer with one JSON object: {"shows": true or false, "main": true or false, "what": a few words}.'
+MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
 def codes_of(text):
     """The material codes a question lists ("- M1: ..." lines), in order."""
     return re.findall(r"^- (M\d+):", text, flags=re.M)
 
 
 def request_body(job, record):
-    """The generateContent request for one question: its pictures, its text and the enum-restricted answer."""
-    pictures = [{"inline_data": {"mime_type": "image/png", "data": base64.b64encode(pathlib.Path(path).read_bytes())
-                                 .decode()}} for path in job["images"]]
-    schema = {"type": "OBJECT", "properties": {"part": {"type": "STRING"},
-                                               "material": {"type": "STRING",
-                                                            "enum": [*codes_of(job["text"]), "unknown"]}},
-              "required": ["part", "material"], "propertyOrdering": ["part", "material"]}
+    """The generateContent request for one question: its pictures, its text and the enum-restricted answer (a box
+    question's own: BOX_SCHEMA)."""
+    pictures = [{"inline_data": {"mime_type": MIME.get(pathlib.Path(path).suffix.lower(), "image/png"),
+                                 "data": base64.b64encode(pathlib.Path(path).read_bytes()).decode()}}
+                for path in job["images"]]
+    boxed = job.get("answer") == "box"
+    schema = BOX_SCHEMA if boxed else {
+        "type": "OBJECT", "properties": {"part": {"type": "STRING"},
+                                         "material": {"type": "STRING", "enum": [*codes_of(job["text"]), "unknown"]}},
+        "required": ["part", "material"], "propertyOrdering": ["part", "material"]}
     config = {"temperature": record["temperature"], "responseMimeType": "application/json", "responseSchema": schema}
     if record["thinking"] != "default":
         config["thinkingConfig"] = {"thinkingLevel": record["thinking"]}
-    return {"contents": [{"role": "user", "parts": [*pictures, {"text": job["text"].split(TAIL)[0] + ANSWER_LINE}]}],
+    line = BOX_ANSWER_LINE if boxed else ANSWER_LINE
+    return {"contents": [{"role": "user", "parts": [*pictures, {"text": job["text"].split(TAIL)[0] + line}]}],
             "generationConfig": config}
 
 
