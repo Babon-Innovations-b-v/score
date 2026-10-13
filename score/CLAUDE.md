@@ -91,7 +91,7 @@ stage as each stage is built; nothing moves before.
   motions and its movers in `data/movers/`, gated on clear, speeds, loops, grounded and covered (its overlay).
   `light-layer`, `light-passes` (paid) and `light` (experimental, `stages/light`, its overlay) make each place's
   light layer: today's sky and lamps over the seed, one render with a light group a lamp, the lamps' strengths
-  swept on it against the concept; the assembly does not take the layer yet. A
+  swept on it against the concept; the assembly takes the accepted layer (`assembly.LAYERS`). A
   stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
 
