@@ -1,0 +1,5764 @@
+{
+ "summary": {
+  "airlock": {
+   "code rows": 23,
+   "checked": 22,
+   "passing": 16,
+   "thin or out of proportion": 6,
+   "leans or warps": 0,
+   "no model found": 1
+  },
+  "camp": {
+   "code rows": 36,
+   "checked": 21,
+   "passing": 11,
+   "thin or out of proportion": 10,
+   "leans or warps": 0,
+   "no model found": 15
+  },
+  "campgrounds": {
+   "code rows": 2,
+   "checked": 0,
+   "passing": 0,
+   "thin or out of proportion": 0,
+   "leans or warps": 0,
+   "no model found": 2
+  },
+  "garage": {
+   "code rows": 22,
+   "checked": 21,
+   "passing": 19,
+   "thin or out of proportion": 2,
+   "leans or warps": 0,
+   "no model found": 1
+  },
+  "greenhouse": {
+   "code rows": 52,
+   "checked": 52,
+   "passing": 43,
+   "thin or out of proportion": 9,
+   "leans or warps": 0,
+   "no model found": 0
+  },
+  "habitat": {
+   "code rows": 30,
+   "checked": 30,
+   "passing": 25,
+   "thin or out of proportion": 5,
+   "leans or warps": 0,
+   "no model found": 0
+  },
+  "hangar": {
+   "code rows": 24,
+   "checked": 24,
+   "passing": 18,
+   "thin or out of proportion": 6,
+   "leans or warps": 0,
+   "no model found": 0
+  },
+  "hub": {
+   "code rows": 8,
+   "checked": 3,
+   "passing": 1,
+   "thin or out of proportion": 2,
+   "leans or warps": 0,
+   "no model found": 5
+  },
+  "lab": {
+   "code rows": 25,
+   "checked": 25,
+   "passing": 21,
+   "thin or out of proportion": 4,
+   "leans or warps": 0,
+   "no model found": 0
+  },
+  "launch": {
+   "code rows": 3,
+   "checked": 3,
+   "passing": 2,
+   "thin or out of proportion": 1,
+   "leans or warps": 0,
+   "no model found": 0
+  },
+  "old_station": {
+   "code rows": 3,
+   "checked": 0,
+   "passing": 0,
+   "thin or out of proportion": 0,
+   "leans or warps": 0,
+   "no model found": 3
+  },
+  "prologue_flat": {
+   "code rows": 28,
+   "checked": 28,
+   "passing": 23,
+   "thin or out of proportion": 5,
+   "leans or warps": 0,
+   "no model found": 0
+  },
+  "prologue_stairwell": {
+   "code rows": 20,
+   "checked": 20,
+   "passing": 14,
+   "thin or out of proportion": 6,
+   "leans or warps": 0,
+   "no model found": 0
+  },
+  "square": {
+   "code rows": 39,
+   "checked": 38,
+   "passing": 18,
+   "thin or out of proportion": 20,
+   "leans or warps": 0,
+   "no model found": 1
+  },
+  "street": {
+   "code rows": 33,
+   "checked": 31,
+   "passing": 25,
+   "thin or out of proportion": 6,
+   "leans or warps": 0,
+   "no model found": 2
+  },
+  "tube": {
+   "code rows": 13,
+   "checked": 13,
+   "passing": 11,
+   "thin or out of proportion": 2,
+   "leans or warps": 0,
+   "no model found": 0
+  },
+  "workshop": {
+   "code rows": 49,
+   "checked": 48,
+   "passing": 44,
+   "thin or out of proportion": 4,
+   "leans or warps": 0,
+   "no model found": 1
+  },
+  "wreck": {
+   "code rows": 1,
+   "checked": 0,
+   "passing": 0,
+   "thin or out of proportion": 0,
+   "leans or warps": 0,
+   "no model found": 1
+  }
+ },
+ "places": {
+  "airlock": {
+   "wall_lower_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 568,
+     "watertight": false,
+     "pieces": 23,
+     "biggest_share": 0.645,
+     "spread": 3.232,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_upper_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 852,
+     "watertight": false,
+     "pieces": 41,
+     "biggest_share": 0.63,
+     "spread": 3.378,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_skirting": {
+    "model_check": {
+     "class": "slender",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0599,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cornice": {
+    "model_check": {
+     "class": "slender",
+     "faces": 324,
+     "watertight": false,
+     "pieces": 3,
+     "biggest_share": 0.49,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "ring_floor_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 344,
+     "watertight": false,
+     "pieces": 7,
+     "biggest_share": 0.998,
+     "spread": 0.053,
+     "thinnest": 0.0329,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "roof_face_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.528,
+     "thinnest": 0.0499,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.816,
+     "spread": 0.0,
+     "thinnest": 0.0118,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "under_floor_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 60,
+     "watertight": false,
+     "pieces": 5,
+     "biggest_share": 0.644,
+     "spread": 1.739,
+     "thinnest": 0.0036,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "hose_reel": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 7076,
+     "watertight": true,
+     "pieces": 20,
+     "biggest_share": 0.151,
+     "spread": 0.056,
+     "thinnest": 0.0096,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "beacon": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1704,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.373,
+     "spread": 0.579,
+     "thinnest": 0.0154,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "lock_console": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 4568,
+     "watertight": true,
+     "pieces": 30,
+     "biggest_share": 0.626,
+     "spread": 0.059,
+     "thinnest": 0.0041,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "lock_gauge_panel": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 976,
+     "watertight": true,
+     "pieces": 16,
+     "biggest_share": 0.691,
+     "spread": 0.105,
+     "thinnest": 0.0035,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "vent_grille": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1248,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.49,
+     "spread": 0.0,
+     "thinnest": 0.0052,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hose_coil": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1240,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.235,
+     "spread": 0.354,
+     "thinnest": 0.0098,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "tool_case": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 672,
+     "watertight": false,
+     "pieces": 21,
+     "biggest_share": 0.491,
+     "spread": 0.033,
+     "thinnest": 0.0055,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "small_readout": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1848,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.81,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_control_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 972,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.558,
+     "spread": 0.05,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "conduit_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1636,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.525,
+     "spread": 0.016,
+     "thinnest": 0.0044,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "notice_board": {
+    "model_check": {
+     "class": "decal",
+     "faces": 1520,
+     "watertight": true,
+     "pieces": 13,
+     "biggest_share": 0.352,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_drop": {
+    "model_check": {
+     "class": "slender",
+     "faces": 444,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.43,
+     "spread": 0.0,
+     "thinnest": 0.0205,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_bundle": {
+    "model_check": {
+     "class": "slender",
+     "faces": 1152,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.275,
+     "spread": 0.0,
+     "thinnest": 0.008,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "outer_ramp": {
+    "missing": true
+   },
+   "hose_unit": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 7076,
+     "watertight": true,
+     "pieces": 20,
+     "biggest_share": 0.137,
+     "spread": 0.0,
+     "thinnest": 0.0099,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   }
+  },
+  "camp": {
+   "dome_wall_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 324,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.852,
+     "spread": 0.078,
+     "thinnest": 0.0356,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "dome_window_panel": {
+    "model_check": {
+     "class": "opening",
+     "faces": 1200,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.473,
+     "spread": 0.078,
+     "thinnest": 0.0126,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "dome_rib": {
+    "model_check": {
+     "class": "slender",
+     "faces": 372,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.996,
+     "spread": 0.0,
+     "thinnest": 0.1142,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "dome_ceiling_gore": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 300,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.906,
+     "spread": 0.59,
+     "thinnest": 0.0248,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "dome_roof_cap": {
+    "model_check": {
+     "class": "flat",
+     "faces": 4632,
+     "watertight": false,
+     "pieces": 16,
+     "biggest_share": 0.848,
+     "spread": 35.364,
+     "thinnest": 0.003,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "dome_deck_wedge": {
+    "model_check": {
+     "class": "flat",
+     "faces": 180,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.822,
+     "spread": 54.418,
+     "thinnest": 0.002,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "dome_opening_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 736,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.38,
+     "spread": 0.265,
+     "thinnest": 0.0221,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "passage_lining": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 456,
+     "watertight": false,
+     "pieces": 6,
+     "biggest_share": 0.248,
+     "spread": 0.173,
+     "thinnest": 0.0395,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "partition": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1396,
+     "watertight": true,
+     "pieces": 13,
+     "biggest_share": 0.162,
+     "spread": 0.172,
+     "thinnest": 0.0179,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "rod_lamp": {
+    "model_check": {
+     "class": "slender",
+     "faces": 612,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.565,
+     "spread": 0.0,
+     "thinnest": 0.0321,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "shell_gore": {
+    "model_check": {
+     "class": "flat",
+     "faces": 484,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.938,
+     "spread": 0.07,
+     "thinnest": 0.0001,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "shell_gore_window": {
+    "model_check": {
+     "class": "opening",
+     "faces": 724,
+     "watertight": false,
+     "pieces": 12,
+     "biggest_share": 0.47,
+     "spread": 0.07,
+     "thinnest": 0.0003,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "shell_gore_open": {
+    "model_check": {
+     "class": "flat",
+     "faces": 432,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.947,
+     "spread": 0.461,
+     "thinnest": 0.0001,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "foot_ring": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 356,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.857,
+     "spread": 0.107,
+     "thinnest": 0.013,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "passage_hull": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 108,
+     "watertight": false,
+     "pieces": 9,
+     "biggest_share": 0.304,
+     "spread": 0.141,
+     "thinnest": 0.0107,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "pedestal_table": {
+    "missing": true
+   },
+   "comms_desk": {
+    "missing": true
+   },
+   "monitor": {
+    "missing": true
+   },
+   "radio": {
+    "missing": true
+   },
+   "stores_rack": {
+    "missing": true
+   },
+   "case": {
+    "missing": true
+   },
+   "hygiene": {
+    "missing": true
+   },
+   "ring_lamp": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1236,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.975,
+     "spread": 4.0,
+     "thinnest": 0.003,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_net": {
+    "model_check": {
+     "class": "flat",
+     "faces": 768,
+     "watertight": false,
+     "pieces": 16,
+     "biggest_share": 0.133,
+     "spread": 0.0,
+     "thinnest": 0.0094,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "floor_cable": {
+    "model_check": {
+     "class": "slender",
+     "faces": 1116,
+     "watertight": true,
+     "pieces": 29,
+     "biggest_share": 0.08,
+     "spread": 0.0,
+     "thinnest": 0.0031,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "crate": {
+    "missing": true
+   },
+   "crate_small": {
+    "missing": true
+   },
+   "sample_shelf": {
+    "missing": true
+   },
+   "window_strip_lamp": {
+    "model_check": {
+     "class": "opening",
+     "faces": 616,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.911,
+     "spread": 0.0,
+     "thinnest": 0.0029,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "galley_bin": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1616,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.473,
+     "spread": 0.305,
+     "thinnest": 0.005,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "shelf_case": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 696,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.485,
+     "spread": 0.083,
+     "thinnest": 0.0044,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "airlock_tube": {
+    "missing": true
+   },
+   "airlock_end": {
+    "missing": true
+   },
+   "airlock_lamp": {
+    "missing": true
+   },
+   "airlock_cycle_lamp": {
+    "missing": true
+   },
+   "link_tube": {
+    "missing": true
+   }
+  },
+  "campgrounds": {
+   "mast": {
+    "missing": true
+   },
+   "ground_cable": {
+    "missing": true
+   }
+  },
+  "garage": {
+   "wall_lower_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 744,
+     "watertight": false,
+     "pieces": 27,
+     "biggest_share": 0.553,
+     "spread": 0.045,
+     "thinnest": 0.0079,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_upper_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1028,
+     "watertight": false,
+     "pieces": 45,
+     "biggest_share": 0.536,
+     "spread": 0.121,
+     "thinnest": 0.0079,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_skirting": {
+    "model_check": {
+     "class": "slender",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0599,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cornice": {
+    "model_check": {
+     "class": "slender",
+     "faces": 324,
+     "watertight": false,
+     "pieces": 3,
+     "biggest_share": 0.488,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_corner_post": {
+    "model_check": {
+     "class": "slender",
+     "faces": 240,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.999,
+     "spread": 0.0,
+     "thinnest": 0.1931,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "ring_floor_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 372,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.998,
+     "spread": 0.029,
+     "thinnest": 0.0329,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "roof_face_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 2.61,
+     "thinnest": 0.0499,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "lattice_ring_rib": {
+    "missing": true
+   },
+   "hatch_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 1500,
+     "watertight": true,
+     "pieces": 27,
+     "biggest_share": 0.765,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_leaf": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3144,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.826,
+     "spread": 0.0,
+     "thinnest": 0.0089,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_wheel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2100,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.591,
+     "spread": 0.0,
+     "thinnest": 0.008,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_hinge": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1024,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.405,
+     "spread": 0.064,
+     "thinnest": 0.0159,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_window": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3020,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.562,
+     "spread": 0.0,
+     "thinnest": 0.0069,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_bracket": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1196,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.386,
+     "spread": 0.429,
+     "thinnest": 0.0056,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "tread_mat": {
+    "model_check": {
+     "class": "repeat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "machine_bay_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1180,
+     "watertight": false,
+     "pieces": 9,
+     "biggest_share": 0.894,
+     "spread": 0.0,
+     "thinnest": 0.0366,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.968,
+     "spread": 0.0,
+     "thinnest": 0.0041,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_valve": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3232,
+     "watertight": true,
+     "pieces": 33,
+     "biggest_share": 0.246,
+     "spread": 0.0,
+     "thinnest": 0.0034,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_bundle": {
+    "model_check": {
+     "class": "slender",
+     "faces": 1584,
+     "watertight": true,
+     "pieces": 16,
+     "biggest_share": 0.255,
+     "spread": 0.0,
+     "thinnest": 0.0053,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_drop": {
+    "model_check": {
+     "class": "slender",
+     "faces": 444,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.441,
+     "spread": 0.0,
+     "thinnest": 0.017,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_control_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 972,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.558,
+     "spread": 0.05,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "small_readout": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1848,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.81,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   }
+  },
+  "greenhouse": {
+   "wall_lower_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 568,
+     "watertight": false,
+     "pieces": 23,
+     "biggest_share": 0.589,
+     "spread": 1.283,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_upper_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 852,
+     "watertight": false,
+     "pieces": 41,
+     "biggest_share": 0.573,
+     "spread": 1.361,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_upper_cables": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2428,
+     "watertight": false,
+     "pieces": 59,
+     "biggest_share": 0.504,
+     "spread": 0.037,
+     "thinnest": 0.007,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_lower_vent": {
+    "model_check": {
+     "class": "flat",
+     "faces": 4552,
+     "watertight": false,
+     "pieces": 75,
+     "biggest_share": 0.453,
+     "spread": 0.072,
+     "thinnest": 0.005,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_skirting": {
+    "model_check": {
+     "class": "slender",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0599,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cornice": {
+    "model_check": {
+     "class": "slender",
+     "faces": 324,
+     "watertight": false,
+     "pieces": 3,
+     "biggest_share": 0.489,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "lattice_hip_rib": {
+    "model_check": {
+     "class": "slender",
+     "faces": 228,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.352,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "lattice_ring_rib": {
+    "model_check": {
+     "class": "slender",
+     "faces": 228,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.356,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "lattice_node_plate": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 284,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.973,
+     "spread": 0.02,
+     "thinnest": 0.0428,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "ring_floor_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 372,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.973,
+     "spread": 9.0,
+     "thinnest": 0.0274,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "ledge_cover": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1724,
+     "watertight": false,
+     "pieces": 44,
+     "biggest_share": 0.348,
+     "spread": 0.2,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "hatch_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 1500,
+     "watertight": true,
+     "pieces": 27,
+     "biggest_share": 0.765,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_leaf": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3144,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.826,
+     "spread": 0.0,
+     "thinnest": 0.0089,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_wheel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2100,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.591,
+     "spread": 0.0,
+     "thinnest": 0.008,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_hinge": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1024,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.405,
+     "spread": 0.064,
+     "thinnest": 0.0159,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_window": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3020,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.562,
+     "spread": 0.0,
+     "thinnest": 0.0069,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_strip_lamp": {
+    "model_check": {
+     "class": "slender",
+     "faces": 616,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.954,
+     "spread": 0.0,
+     "thinnest": 0.0057,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_control_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 972,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.558,
+     "spread": 0.05,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "grab_bar": {
+    "model_check": {
+     "class": "slender",
+     "faces": 1036,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.453,
+     "spread": 0.0,
+     "thinnest": 0.0076,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cage_lamp": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1764,
+     "watertight": true,
+     "pieces": 14,
+     "biggest_share": 0.549,
+     "spread": 0.037,
+     "thinnest": 0.0058,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.968,
+     "spread": 0.0,
+     "thinnest": 0.0042,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_valve": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3232,
+     "watertight": true,
+     "pieces": 33,
+     "biggest_share": 0.246,
+     "spread": 0.0,
+     "thinnest": 0.0034,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_bracket": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1196,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.386,
+     "spread": 0.429,
+     "thinnest": 0.0056,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "conduit_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1636,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.525,
+     "spread": 0.016,
+     "thinnest": 0.0044,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "small_readout": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1848,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.81,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "notice_board": {
+    "model_check": {
+     "class": "decal",
+     "faces": 1520,
+     "watertight": true,
+     "pieces": 13,
+     "biggest_share": 0.362,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "intercom_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1960,
+     "watertight": false,
+     "pieces": 19,
+     "biggest_share": 0.631,
+     "spread": 0.0,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "tread_mat": {
+    "model_check": {
+     "class": "repeat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "grow_light_bar": {
+    "model_check": {
+     "class": "slender",
+     "faces": 2856,
+     "watertight": false,
+     "pieces": 35,
+     "biggest_share": 0.578,
+     "spread": 0.0,
+     "thinnest": 0.0144,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "grow_light_glow": {
+    "model_check": {
+     "class": "slender",
+     "faces": 12,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0299,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "rig_rail": {
+    "model_check": {
+     "class": "slender",
+     "faces": 2796,
+     "watertight": true,
+     "pieces": 31,
+     "biggest_share": 0.756,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "rig_hanger": {
+    "model_check": {
+     "class": "slender",
+     "faces": 3912,
+     "watertight": false,
+     "pieces": 32,
+     "biggest_share": 0.485,
+     "spread": 0.0,
+     "thinnest": 0.0027,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "irrigation_boom": {
+    "model_check": {
+     "class": "slender",
+     "faces": 5648,
+     "watertight": true,
+     "pieces": 35,
+     "biggest_share": 0.838,
+     "spread": 0.0,
+     "thinnest": 0.005,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "dosing_unit": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 8156,
+     "watertight": false,
+     "pieces": 54,
+     "biggest_share": 0.33,
+     "spread": 0.007,
+     "thinnest": 0.015,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "control_console": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 7828,
+     "watertight": false,
+     "pieces": 77,
+     "biggest_share": 0.216,
+     "spread": 0.0,
+     "thinnest": 0.0099,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "work_desk": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 2040,
+     "watertight": true,
+     "pieces": 30,
+     "biggest_share": 0.381,
+     "spread": 0.0,
+     "thinnest": 0.0149,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "seedling_shelf": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 6320,
+     "watertight": true,
+     "pieces": 63,
+     "biggest_share": 0.221,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "humidifier": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 4976,
+     "watertight": true,
+     "pieces": 43,
+     "biggest_share": 0.241,
+     "spread": 0.03,
+     "thinnest": 0.0082,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "dock_pad_one": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1628,
+     "watertight": false,
+     "pieces": 201,
+     "biggest_share": 0.359,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "dock_pad_two": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1628,
+     "watertight": false,
+     "pieces": 201,
+     "biggest_share": 0.359,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "dock_pad_three": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1628,
+     "watertight": false,
+     "pieces": 201,
+     "biggest_share": 0.359,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "charge_post": {
+    "model_check": {
+     "class": "slender",
+     "faces": 4242,
+     "watertight": false,
+     "pieces": 16,
+     "biggest_share": 0.717,
+     "spread": 0.0,
+     "thinnest": 0.0022,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_screen_cluster": {
+    "model_check": {
+     "class": "flat",
+     "faces": 4596,
+     "watertight": true,
+     "pieces": 27,
+     "biggest_share": 0.685,
+     "spread": 0.0,
+     "thinnest": 0.0077,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "status_display": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1464,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.877,
+     "spread": 0.0,
+     "thinnest": 0.0134,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_bundle": {
+    "model_check": {
+     "class": "slender",
+     "faces": 936,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.266,
+     "spread": 0.0,
+     "thinnest": 0.0114,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_drop": {
+    "model_check": {
+     "class": "slender",
+     "faces": 444,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.405,
+     "spread": 0.0,
+     "thinnest": 0.0165,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_lower_patched": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2536,
+     "watertight": false,
+     "pieces": 66,
+     "biggest_share": 0.474,
+     "spread": 0.091,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_upper_patched": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1576,
+     "watertight": false,
+     "pieces": 56,
+     "biggest_share": 0.492,
+     "spread": 0.017,
+     "thinnest": 0.007,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "waste_bin": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1616,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.473,
+     "spread": 0.305,
+     "thinnest": 0.005,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "floor_grating": {
+    "model_check": {
+     "class": "repeat",
+     "faces": 840,
+     "watertight": true,
+     "pieces": 30,
+     "biggest_share": 0.078,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "under_floor_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 60,
+     "watertight": false,
+     "pieces": 6,
+     "biggest_share": 0.461,
+     "spread": 4.889,
+     "thinnest": 0.0016,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "keyboard": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1048,
+     "watertight": true,
+     "pieces": 78,
+     "biggest_share": 0.585,
+     "spread": 0.235,
+     "thinnest": 0.0092,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   }
+  },
+  "habitat": {
+   "wall_lower_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 656,
+     "watertight": false,
+     "pieces": 25,
+     "biggest_share": 0.565,
+     "spread": 0.414,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_upper_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 940,
+     "watertight": false,
+     "pieces": 43,
+     "biggest_share": 0.549,
+     "spread": 0.463,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_skirting": {
+    "model_check": {
+     "class": "slender",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0599,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cornice": {
+    "model_check": {
+     "class": "slender",
+     "faces": 324,
+     "watertight": false,
+     "pieces": 3,
+     "biggest_share": 0.488,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "ring_floor_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 372,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.998,
+     "spread": 0.0,
+     "thinnest": 0.0329,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "roof_face_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.48,
+     "thinnest": 0.0499,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.863,
+     "spread": 0.0,
+     "thinnest": 0.0124,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pillow": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0978,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "food_jug": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 516,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.768,
+     "spread": 0.029,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "food_tin": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 596,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.643,
+     "spread": 0.031,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "ration_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 324,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.53,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pot": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1644,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.856,
+     "spread": 0.083,
+     "thinnest": 0.0036,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "couch_pillow": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 216,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.525,
+     "spread": 0.049,
+     "thinnest": 0.0127,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "med_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 240,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.53,
+     "spread": 0.1,
+     "thinnest": 0.0035,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "med_bottle": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 588,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.449,
+     "spread": 0.133,
+     "thinnest": 0.0034,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "supply_cart": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 684,
+     "watertight": false,
+     "pieces": 25,
+     "biggest_share": 0.335,
+     "spread": 0.087,
+     "thinnest": 0.0074,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "gas_cylinder": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1320,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.642,
+     "spread": 0.0,
+     "thinnest": 0.0166,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "floor_marking": {
+    "model_check": {
+     "class": "flat",
+     "faces": 236,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.872,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "slippers": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1328,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.308,
+     "spread": 0.077,
+     "thinnest": 0.0244,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_coil": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 2568,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.326,
+     "spread": 0.478,
+     "thinnest": 0.0136,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "cable_drop": {
+    "model_check": {
+     "class": "slender",
+     "faces": 444,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.405,
+     "spread": 0.0,
+     "thinnest": 0.0165,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_control_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 972,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.558,
+     "spread": 0.05,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "small_readout": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1848,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.81,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "conduit_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1636,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.525,
+     "spread": 0.016,
+     "thinnest": 0.0044,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cage_lamp": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1764,
+     "watertight": true,
+     "pieces": 14,
+     "biggest_share": 0.549,
+     "spread": 0.037,
+     "thinnest": 0.0058,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "waste_bin": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1616,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.473,
+     "spread": 0.305,
+     "thinnest": 0.005,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_upper_cables": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2428,
+     "watertight": false,
+     "pieces": 63,
+     "biggest_share": 0.505,
+     "spread": 0.035,
+     "thinnest": 0.0064,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "storage_case": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 540,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.55,
+     "spread": 0.017,
+     "thinnest": 0.0791,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tool_case": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 672,
+     "watertight": true,
+     "pieces": 8,
+     "biggest_share": 0.562,
+     "spread": 0.02,
+     "thinnest": 0.0228,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tea_towel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 216,
+     "watertight": false,
+     "pieces": 12,
+     "biggest_share": 0.813,
+     "spread": 0.04,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   }
+  },
+  "hangar": {
+   "wall_lower_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 920,
+     "watertight": false,
+     "pieces": 31,
+     "biggest_share": 0.546,
+     "spread": 0.265,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_upper_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1556,
+     "watertight": false,
+     "pieces": 57,
+     "biggest_share": 0.525,
+     "spread": 0.087,
+     "thinnest": 0.0079,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_skirting": {
+    "model_check": {
+     "class": "slender",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0599,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cornice": {
+    "model_check": {
+     "class": "slender",
+     "faces": 324,
+     "watertight": false,
+     "pieces": 3,
+     "biggest_share": 0.488,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_corner_post": {
+    "model_check": {
+     "class": "slender",
+     "faces": 240,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.1931,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "ring_floor_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 372,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.998,
+     "spread": 0.005,
+     "thinnest": 0.0329,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "roof_face_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 540,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.901,
+     "spread": 0.188,
+     "thinnest": 0.0149,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "lattice_ring_rib": {
+    "model_check": {
+     "class": "slender",
+     "faces": 228,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.383,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 1500,
+     "watertight": true,
+     "pieces": 27,
+     "biggest_share": 0.765,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_leaf": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3144,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.826,
+     "spread": 0.0,
+     "thinnest": 0.0089,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_wheel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2100,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.591,
+     "spread": 0.0,
+     "thinnest": 0.008,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_hinge": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1024,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.405,
+     "spread": 0.064,
+     "thinnest": 0.0159,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_window": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3020,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.562,
+     "spread": 0.0,
+     "thinnest": 0.0069,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_bracket": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1196,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.386,
+     "spread": 0.429,
+     "thinnest": 0.0056,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_cage_lamp": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1764,
+     "watertight": true,
+     "pieces": 14,
+     "biggest_share": 0.549,
+     "spread": 0.037,
+     "thinnest": 0.0058,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_control_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 972,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.558,
+     "spread": 0.05,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tread_mat": {
+    "model_check": {
+     "class": "repeat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.985,
+     "spread": 0.0,
+     "thinnest": 0.0019,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "pipe_valve": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3232,
+     "watertight": true,
+     "pieces": 33,
+     "biggest_share": 0.246,
+     "spread": 0.0,
+     "thinnest": 0.0034,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_bundle": {
+    "model_check": {
+     "class": "slender",
+     "faces": 8928,
+     "watertight": true,
+     "pieces": 84,
+     "biggest_share": 0.257,
+     "spread": 0.0,
+     "thinnest": 0.0007,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "machine_bay_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1180,
+     "watertight": false,
+     "pieces": 9,
+     "biggest_share": 0.943,
+     "spread": 0.0,
+     "thinnest": 0.0366,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "hose_reel": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 7076,
+     "watertight": true,
+     "pieces": 20,
+     "biggest_share": 0.137,
+     "spread": 0.02,
+     "thinnest": 0.0098,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "monitor": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1184,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.411,
+     "spread": 0.337,
+     "thinnest": 0.0058,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "keyboard": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1048,
+     "watertight": true,
+     "pieces": 78,
+     "biggest_share": 0.585,
+     "spread": 4.667,
+     "thinnest": 0.0033,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   }
+  },
+  "hub": {
+   "roof_face_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 944,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.897,
+     "spread": 0.014,
+     "thinnest": 0.0149,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "stair_stringer": {
+    "model_check": {
+     "class": "flat",
+     "faces": 452,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.995,
+     "spread": 0.25,
+     "thinnest": 0.0242,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "under_floor_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 60,
+     "watertight": false,
+     "pieces": 6,
+     "biggest_share": 0.461,
+     "spread": 0.749,
+     "thinnest": 0.0056,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "radio": {
+    "missing": true
+   },
+   "monitor": {
+    "missing": true
+   },
+   "keyboard": {
+    "missing": true
+   },
+   "glovebox": {
+    "missing": true
+   },
+   "screwdriver": {
+    "missing": true
+   }
+  },
+  "lab": {
+   "wall_lower_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 656,
+     "watertight": false,
+     "pieces": 25,
+     "biggest_share": 0.574,
+     "spread": 0.746,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_upper_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 940,
+     "watertight": false,
+     "pieces": 43,
+     "biggest_share": 0.558,
+     "spread": 0.806,
+     "thinnest": 0.0079,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_upper_pipes": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2028,
+     "watertight": false,
+     "pieces": 79,
+     "biggest_share": 0.497,
+     "spread": 0.2,
+     "thinnest": 0.0085,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_upper_cables": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2516,
+     "watertight": false,
+     "pieces": 65,
+     "biggest_share": 0.502,
+     "spread": 0.2,
+     "thinnest": 0.0074,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_skirting": {
+    "model_check": {
+     "class": "slender",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0599,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cornice": {
+    "model_check": {
+     "class": "slender",
+     "faces": 324,
+     "watertight": false,
+     "pieces": 3,
+     "biggest_share": 0.488,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "ring_floor_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 372,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.998,
+     "spread": 0.167,
+     "thinnest": 0.0329,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "roof_face_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 1.173,
+     "thinnest": 0.0499,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "hatch_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 1500,
+     "watertight": true,
+     "pieces": 27,
+     "biggest_share": 0.765,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_leaf": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3144,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.826,
+     "spread": 0.0,
+     "thinnest": 0.0089,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_wheel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2100,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.591,
+     "spread": 0.0,
+     "thinnest": 0.008,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_hinge": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1024,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.405,
+     "spread": 0.064,
+     "thinnest": 0.0159,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_window": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3020,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.562,
+     "spread": 0.0,
+     "thinnest": 0.0069,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_strip_lamp": {
+    "model_check": {
+     "class": "slender",
+     "faces": 616,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.954,
+     "spread": 0.0,
+     "thinnest": 0.0057,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_control_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 972,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.558,
+     "spread": 0.05,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "intercom_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1960,
+     "watertight": false,
+     "pieces": 19,
+     "biggest_share": 0.631,
+     "spread": 0.0,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "grab_bar": {
+    "model_check": {
+     "class": "slender",
+     "faces": 1036,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.453,
+     "spread": 0.0,
+     "thinnest": 0.0079,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tread_mat": {
+    "model_check": {
+     "class": "repeat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.924,
+     "spread": 0.0,
+     "thinnest": 0.0122,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_valve": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3232,
+     "watertight": true,
+     "pieces": 33,
+     "biggest_share": 0.246,
+     "spread": 0.0,
+     "thinnest": 0.0034,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_bracket": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1196,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.386,
+     "spread": 0.429,
+     "thinnest": 0.0056,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "cable_drop": {
+    "model_check": {
+     "class": "slender",
+     "faces": 444,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.405,
+     "spread": 0.0,
+     "thinnest": 0.0165,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_bundle": {
+    "model_check": {
+     "class": "slender",
+     "faces": 396,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.26,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "conduit_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1636,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.525,
+     "spread": 0.016,
+     "thinnest": 0.0044,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "small_readout": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1848,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.81,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   }
+  },
+  "launch": {
+   "far_pad": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 2.125,
+     "thinnest": 3.1999,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_lightning_mast": {
+    "model_check": {
+     "class": "slender",
+     "faces": 1972,
+     "watertight": true,
+     "pieces": 161,
+     "biggest_share": 0.144,
+     "spread": 0.0,
+     "thinnest": 0.0248,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_pad_floodlight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 1364,
+     "watertight": true,
+     "pieces": 63,
+     "biggest_share": 0.105,
+     "spread": 0.0,
+     "thinnest": 0.0158,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   }
+  },
+  "old_station": {
+   "walkway_tube": {
+    "missing": true
+   },
+   "apron": {
+    "missing": true
+   },
+   "cable_run": {
+    "missing": true
+   }
+  },
+  "prologue_flat": {
+   "plaster_wall": {
+    "model_check": {
+     "class": "flat",
+     "faces": 432,
+     "watertight": false,
+     "pieces": 19,
+     "biggest_share": 0.555,
+     "spread": 0.007,
+     "thinnest": 0.0219,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "plaster_ceiling": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 165.667,
+     "thinnest": 0.0299,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "floorboards": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 165.667,
+     "thinnest": 0.0299,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "render_wall": {
+    "model_check": {
+     "class": "flat",
+     "faces": 436,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.947,
+     "spread": 0.219,
+     "thinnest": 0.0219,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "balcony_slab": {
+    "model_check": {
+     "class": "flat",
+     "faces": 324,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.516,
+     "spread": 1.0,
+     "thinnest": 0.0199,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "balcony_rail": {
+    "model_check": {
+     "class": "flat",
+     "faces": 3888,
+     "watertight": true,
+     "pieces": 36,
+     "biggest_share": 0.217,
+     "spread": 0.048,
+     "thinnest": 0.0179,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "balcony_door_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 876,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.225,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "sliding_glass_leaf": {
+    "model_check": {
+     "class": "flat",
+     "faces": 576,
+     "watertight": true,
+     "pieces": 8,
+     "biggest_share": 0.811,
+     "spread": 0.0,
+     "thinnest": 0.0035,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "timber_door_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 648,
+     "watertight": false,
+     "pieces": 6,
+     "biggest_share": 0.301,
+     "spread": 0.0,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "timber_door_leaf": {
+    "model_check": {
+     "class": "flat",
+     "faces": 628,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.989,
+     "spread": 0.006,
+     "thinnest": 0.0243,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wardrobe": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 2096,
+     "watertight": false,
+     "pieces": 46,
+     "biggest_share": 0.454,
+     "spread": 0.045,
+     "thinnest": 0.0114,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "table": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 972,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.529,
+     "spread": 0.0,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "timber_chair": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1944,
+     "watertight": true,
+     "pieces": 18,
+     "biggest_share": 0.334,
+     "spread": 0.023,
+     "thinnest": 0.0179,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tv_cabinet": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 948,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.44,
+     "spread": 0.061,
+     "thinnest": 0.0169,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "kitchen_counter": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3020,
+     "watertight": false,
+     "pieces": 35,
+     "biggest_share": 0.165,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_shelf": {
+    "model_check": {
+     "class": "slender",
+     "faces": 620,
+     "watertight": false,
+     "pieces": 9,
+     "biggest_share": 0.905,
+     "spread": 0.0,
+     "thinnest": 0.0049,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "washbasin_stand": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 2272,
+     "watertight": true,
+     "pieces": 17,
+     "biggest_share": 0.193,
+     "spread": 0.0,
+     "thinnest": 0.0139,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "bedside_table": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 816,
+     "watertight": true,
+     "pieces": 8,
+     "biggest_share": 0.388,
+     "spread": 0.025,
+     "thinnest": 0.0077,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "bed_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3312,
+     "watertight": false,
+     "pieces": 88,
+     "biggest_share": 0.07,
+     "spread": 0.003,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "mattress": {
+    "model_check": {
+     "class": "flat",
+     "faces": 396,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.907,
+     "spread": 0.001,
+     "thinnest": 0.0054,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "ceiling_fan": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1740,
+     "watertight": true,
+     "pieces": 13,
+     "biggest_share": 0.173,
+     "spread": 0.089,
+     "thinnest": 0.0052,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tube_light": {
+    "model_check": {
+     "class": "slender",
+     "faces": 600,
+     "watertight": false,
+     "pieces": 6,
+     "biggest_share": 0.38,
+     "spread": 0.0,
+     "thinnest": 0.0064,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_print": {
+    "model_check": {
+     "class": "flat",
+     "faces": 248,
+     "watertight": false,
+     "pieces": 5,
+     "biggest_share": 0.283,
+     "spread": 0.103,
+     "thinnest": 0.0006,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "storage_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1296,
+     "watertight": true,
+     "pieces": 20,
+     "biggest_share": 0.343,
+     "spread": 0.008,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tea_tin": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 800,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.414,
+     "spread": 0.022,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hanging_towel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 856,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.454,
+     "spread": 0.0,
+     "thinnest": 0.004,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cooking_pot": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1896,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.632,
+     "spread": 0.074,
+     "thinnest": 0.0046,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1152,
+     "watertight": false,
+     "pieces": 99,
+     "biggest_share": 0.368,
+     "spread": 0.0,
+     "thinnest": 0.0032,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   }
+  },
+  "prologue_stairwell": {
+   "plaster_wall": {
+    "model_check": {
+     "class": "flat",
+     "faces": 432,
+     "watertight": false,
+     "pieces": 13,
+     "biggest_share": 0.59,
+     "spread": 0.0,
+     "thinnest": 0.0219,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "plaster_ceiling": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 92.333,
+     "thinnest": 0.0299,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "stair_flight": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1968,
+     "watertight": false,
+     "pieces": 26,
+     "biggest_share": 0.425,
+     "spread": 0.127,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "landing": {
+    "model_check": {
+     "class": "flat",
+     "faces": 396,
+     "watertight": false,
+     "pieces": 3,
+     "biggest_share": 0.522,
+     "spread": 1.333,
+     "thinnest": 0.0299,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "stair_rail": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1696,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.8,
+     "spread": 0.79,
+     "thinnest": 0.0059,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "balcony_rail": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1512,
+     "watertight": true,
+     "pieces": 14,
+     "biggest_share": 0.2,
+     "spread": 0.0,
+     "thinnest": 0.0179,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "timber_door_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 648,
+     "watertight": false,
+     "pieces": 6,
+     "biggest_share": 0.301,
+     "spread": 0.0,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "timber_door_leaf": {
+    "model_check": {
+     "class": "flat",
+     "faces": 628,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.989,
+     "spread": 0.006,
+     "thinnest": 0.0243,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "security_gate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 3304,
+     "watertight": false,
+     "pieces": 146,
+     "biggest_share": 0.12,
+     "spread": 0.0,
+     "thinnest": 0.0023,
+     "pass": false
+    },
+    "closed": false,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "wall_print": {
+    "model_check": {
+     "class": "slender",
+     "faces": 24,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.506,
+     "spread": 0.0,
+     "thinnest": 0.0014,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "cage_bulkhead": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 2220,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.565,
+     "spread": 0.001,
+     "thinnest": 0.0062,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "meter_cabinet": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 4208,
+     "watertight": true,
+     "pieces": 28,
+     "biggest_share": 0.486,
+     "spread": 0.017,
+     "thinnest": 0.0121,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "letterboxes": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 10056,
+     "watertight": false,
+     "pieces": 82,
+     "biggest_share": 0.557,
+     "spread": 0.014,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "lobby_notice": {
+    "model_check": {
+     "class": "decal",
+     "faces": 1080,
+     "watertight": true,
+     "pieces": 18,
+     "biggest_share": 0.433,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "exit_sign": {
+    "model_check": {
+     "class": "decal",
+     "faces": 348,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0443,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "street_gate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1604,
+     "watertight": true,
+     "pieces": 27,
+     "biggest_share": 0.351,
+     "spread": 0.158,
+     "thinnest": 0.0031,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.873,
+     "spread": 0.0,
+     "thinnest": 0.0013,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "fire_hose_cabinet": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 10404,
+     "watertight": false,
+     "pieces": 31,
+     "biggest_share": 0.457,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wiring_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1416,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.605,
+     "spread": 0.013,
+     "thinnest": 0.007,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_drop": {
+    "model_check": {
+     "class": "slender",
+     "faces": 444,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.488,
+     "spread": 0.0,
+     "thinnest": 0.0603,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   }
+  },
+  "square": {
+   "far_paving": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 99.0,
+     "thinnest": 0.0998,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_terrace": {
+    "model_check": {
+     "class": "flat",
+     "faces": 120,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.518,
+     "spread": 17.968,
+     "thinnest": 0.7992,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_road": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 99.0,
+     "thinnest": 0.0999,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_promenade": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 99.0,
+     "thinnest": 0.0999,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_promenade_rail": {
+    "model_check": {
+     "class": "flat",
+     "faces": 156,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.317,
+     "spread": 0.0,
+     "thinnest": 0.0399,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_lantern": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 168,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.44,
+     "spread": 1.222,
+     "thinnest": 0.0307,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_cable": {
+    "model_check": {
+     "class": "slender",
+     "faces": 20,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0242,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_floodlight_tower": {
+    "model_check": {
+     "class": "slender",
+     "faces": 2216,
+     "watertight": true,
+     "pieces": 134,
+     "biggest_share": 0.234,
+     "spread": 0.0,
+     "thinnest": 0.0203,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_square_lamp": {
+    "model_check": {
+     "class": "flat",
+     "faces": 224,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.599,
+     "spread": 0.031,
+     "thinnest": 0.0505,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_stage": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1368,
+     "watertight": false,
+     "pieces": 58,
+     "biggest_share": 0.438,
+     "spread": 0.135,
+     "thinnest": 0.0198,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "far_backdrop": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1512,
+     "watertight": true,
+     "pieces": 23,
+     "biggest_share": 0.59,
+     "spread": 0.007,
+     "thinnest": 0.0173,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_podium": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 512,
+     "watertight": false,
+     "pieces": 16,
+     "biggest_share": 0.483,
+     "spread": 0.032,
+     "thinnest": 0.0799,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "far_lectern": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 416,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.489,
+     "spread": 0.017,
+     "thinnest": 0.0301,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_banner": {
+    "model_check": {
+     "class": "slender",
+     "faces": 192,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.528,
+     "spread": 0.0,
+     "thinnest": 0.0093,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_neon_column": {
+    "model_check": {
+     "class": "flat",
+     "faces": 268,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.31,
+     "spread": 0.119,
+     "thinnest": 0.0042,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "bay_balcony_slab": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 21.0,
+     "thinnest": 0.1995,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "bay_balcony_rail": {
+    "model_check": {
+     "class": "flat",
+     "faces": 756,
+     "watertight": true,
+     "pieces": 35,
+     "biggest_share": 0.187,
+     "spread": 0.0,
+     "thinnest": 0.019,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "render_upper": {
+    "model_check": {
+     "class": "flat",
+     "faces": 128,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.322,
+     "thinnest": 0.1999,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_render_upper": {
+    "model_check": {
+     "class": "flat",
+     "faces": 128,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.322,
+     "thinnest": 0.1999,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "render_shop": {
+    "model_check": {
+     "class": "flat",
+     "faces": 292,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.925,
+     "spread": 0.322,
+     "thinnest": 0.1666,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_render_shop": {
+    "model_check": {
+     "class": "flat",
+     "faces": 292,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.925,
+     "spread": 0.322,
+     "thinnest": 0.1666,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "facade_band": {
+    "model_check": {
+     "class": "flat",
+     "faces": 120,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.88,
+     "spread": 22.056,
+     "thinnest": 0.0499,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_facade_band": {
+    "model_check": {
+     "class": "flat",
+     "faces": 120,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.88,
+     "spread": 22.056,
+     "thinnest": 0.0499,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "drainpipe": {
+    "model_check": {
+     "class": "flat",
+     "faces": 840,
+     "watertight": true,
+     "pieces": 22,
+     "biggest_share": 0.92,
+     "spread": 212.793,
+     "thinnest": 0.0009,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_drainpipe": {
+    "model_check": {
+     "class": "flat",
+     "faces": 840,
+     "watertight": true,
+     "pieces": 22,
+     "biggest_share": 0.92,
+     "spread": 212.793,
+     "thinnest": 0.0009,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "window_dark": {
+    "model_check": {
+     "class": "opening",
+     "faces": 228,
+     "watertight": false,
+     "pieces": 19,
+     "biggest_share": 0.152,
+     "spread": 0.012,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "far_window_dark": {
+    "model_check": {
+     "class": "opening",
+     "faces": 228,
+     "watertight": false,
+     "pieces": 19,
+     "biggest_share": 0.152,
+     "spread": 0.012,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "window_lit": {
+    "model_check": {
+     "class": "opening",
+     "faces": 192,
+     "watertight": true,
+     "pieces": 16,
+     "biggest_share": 0.191,
+     "spread": 0.012,
+     "thinnest": 0.0399,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_window_lit": {
+    "model_check": {
+     "class": "opening",
+     "faces": 192,
+     "watertight": true,
+     "pieces": 16,
+     "biggest_share": 0.191,
+     "spread": 0.012,
+     "thinnest": 0.0399,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "ac_unit": {
+    "model_check": {
+     "class": "flat",
+     "faces": 968,
+     "watertight": true,
+     "pieces": 29,
+     "biggest_share": 0.675,
+     "spread": 0.151,
+     "thinnest": 0.0023,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_ac_unit": {
+    "model_check": {
+     "class": "flat",
+     "faces": 648,
+     "watertight": true,
+     "pieces": 25,
+     "biggest_share": 0.686,
+     "spread": 0.151,
+     "thinnest": 0.0023,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "window_cage": {
+    "model_check": {
+     "class": "opening",
+     "faces": 480,
+     "watertight": true,
+     "pieces": 24,
+     "biggest_share": 0.314,
+     "spread": 0.067,
+     "thinnest": 0.0089,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "far_window_cage": {
+    "model_check": {
+     "class": "opening",
+     "faces": 480,
+     "watertight": true,
+     "pieces": 24,
+     "biggest_share": 0.314,
+     "spread": 0.067,
+     "thinnest": 0.0089,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "shop_shutter": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1004,
+     "watertight": true,
+     "pieces": 34,
+     "biggest_share": 0.165,
+     "spread": 0.217,
+     "thinnest": 0.0221,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_shop_shutter": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1004,
+     "watertight": true,
+     "pieces": 34,
+     "biggest_share": 0.165,
+     "spread": 0.217,
+     "thinnest": 0.0221,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "shop_sign": {
+    "model_check": {
+     "class": "decal",
+     "faces": 1120,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.442,
+     "spread": 2.218,
+     "thinnest": 0.0031,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_shop_sign": {
+    "model_check": {
+     "class": "decal",
+     "faces": 1120,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.442,
+     "spread": 2.218,
+     "thinnest": 0.0031,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "far_render_lower": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.069,
+     "thinnest": 0.1499,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "crowd_banner": {
+    "missing": true
+   }
+  },
+  "street": {
+   "ground_asphalt": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 11.09,
+     "thinnest": 0.0799,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "ground_paving": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 23.785,
+     "thinnest": 0.0798,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "kerb_stone": {
+    "model_check": {
+     "class": "slender",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.1399,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "render_upper": {
+    "model_check": {
+     "class": "flat",
+     "faces": 128,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.001,
+     "thinnest": 0.1499,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "render_lower": {
+    "model_check": {
+     "class": "flat",
+     "faces": 140,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 1.288,
+     "thinnest": 0.1499,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "render_shop": {
+    "model_check": {
+     "class": "flat",
+     "faces": 292,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.919,
+     "spread": 0.001,
+     "thinnest": 0.1405,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "facade_band": {
+    "model_check": {
+     "class": "slender",
+     "faces": 120,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.88,
+     "spread": 0.0,
+     "thinnest": 0.0111,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "drainpipe": {
+    "model_check": {
+     "class": "slender",
+     "faces": 840,
+     "watertight": true,
+     "pieces": 22,
+     "biggest_share": 0.92,
+     "spread": 0.0,
+     "thinnest": 0.0098,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "parapet": {
+    "missing": true
+   },
+   "block_roof": {
+    "missing": true
+   },
+   "window_dark": {
+    "model_check": {
+     "class": "opening",
+     "faces": 228,
+     "watertight": false,
+     "pieces": 19,
+     "biggest_share": 0.152,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "window_lit": {
+    "model_check": {
+     "class": "opening",
+     "faces": 192,
+     "watertight": true,
+     "pieces": 16,
+     "biggest_share": 0.191,
+     "spread": 0.0,
+     "thinnest": 0.0349,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "ac_unit": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 968,
+     "watertight": true,
+     "pieces": 29,
+     "biggest_share": 0.675,
+     "spread": 0.263,
+     "thinnest": 0.0037,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "window_cage": {
+    "model_check": {
+     "class": "opening",
+     "faces": 480,
+     "watertight": true,
+     "pieces": 24,
+     "biggest_share": 0.314,
+     "spread": 0.031,
+     "thinnest": 0.017,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "shop_shutter": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1004,
+     "watertight": true,
+     "pieces": 34,
+     "biggest_share": 0.165,
+     "spread": 0.065,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "shop_open": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1676,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.338,
+     "spread": 0.065,
+     "thinnest": 0.0319,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tea_front": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1676,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.338,
+     "spread": 0.065,
+     "thinnest": 0.0319,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "shop_sign": {
+    "model_check": {
+     "class": "decal",
+     "faces": 1120,
+     "watertight": true,
+     "pieces": 9,
+     "biggest_share": 0.442,
+     "spread": 0.0,
+     "thinnest": 0.0047,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "neon_sign": {
+    "model_check": {
+     "class": "decal",
+     "faces": 1000,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.567,
+     "spread": 0.0,
+     "thinnest": 0.0058,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_canopy": {
+    "model_check": {
+     "class": "flat",
+     "faces": 404,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.779,
+     "spread": 0.0,
+     "thinnest": 0.014,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "street_lamp": {
+    "model_check": {
+     "class": "slender",
+     "faces": 1200,
+     "watertight": true,
+     "pieces": 20,
+     "biggest_share": 0.18,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "notice_case": {
+    "model_check": {
+     "class": "decal",
+     "faces": 1128,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.484,
+     "spread": 0.105,
+     "thinnest": 0.0034,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "poster_stand": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1676,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.6,
+     "spread": 0.069,
+     "thinnest": 0.0052,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "road_line": {
+    "model_check": {
+     "class": "slender",
+     "faces": 12,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "facade_pipe": {
+    "model_check": {
+     "class": "slender",
+     "faces": 92,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.915,
+     "spread": 0.0,
+     "thinnest": 0.0239,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "end_wall": {
+    "model_check": {
+     "class": "slender",
+     "faces": 216,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.729,
+     "spread": 0.0,
+     "thinnest": 0.0799,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "end_fence": {
+    "model_check": {
+     "class": "slender",
+     "faces": 924,
+     "watertight": true,
+     "pieces": 69,
+     "biggest_share": 0.154,
+     "spread": 0.0,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "window_awning": {
+    "model_check": {
+     "class": "opening",
+     "faces": 232,
+     "watertight": true,
+     "pieces": 18,
+     "biggest_share": 0.061,
+     "spread": 0.232,
+     "thinnest": 0.0093,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "drying_rack": {
+    "model_check": {
+     "class": "flat",
+     "faces": 120,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.24,
+     "spread": 0.0,
+     "thinnest": 0.0162,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "vent_louvre": {
+    "model_check": {
+     "class": "flat",
+     "faces": 132,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.16,
+     "spread": 0.0,
+     "thinnest": 0.0079,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "meter_box": {
+    "model_check": {
+     "class": "flat",
+     "faces": 256,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.618,
+     "spread": 0.0,
+     "thinnest": 0.0092,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "barber_pole": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 272,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.327,
+     "spread": 0.333,
+     "thinnest": 0.0048,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "menu_board": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1676,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.56,
+     "spread": 0.076,
+     "thinnest": 0.0052,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   }
+  },
+  "tube": {
+   "ring_floor_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 372,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.999,
+     "spread": 0.002,
+     "thinnest": 0.0329,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hull_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 516,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 3.53,
+     "thinnest": 0.0398,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "hoop": {
+    "model_check": {
+     "class": "flat",
+     "faces": 3336,
+     "watertight": true,
+     "pieces": 2,
+     "biggest_share": 0.616,
+     "spread": 0.035,
+     "thinnest": 0.0189,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.907,
+     "spread": 0.0,
+     "thinnest": 0.0134,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "cable_bundle": {
+    "model_check": {
+     "class": "slender",
+     "faces": 612,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.263,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "crown_strip_lamp": {
+    "model_check": {
+     "class": "slender",
+     "faces": 616,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.938,
+     "spread": 0.0,
+     "thinnest": 0.0091,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hull_patch": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1236,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.854,
+     "spread": 0.041,
+     "thinnest": 0.0069,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "sign_plate": {
+    "model_check": {
+     "class": "decal",
+     "faces": 616,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.718,
+     "spread": 0.042,
+     "thinnest": 0.0034,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "end_mat": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1092,
+     "watertight": true,
+     "pieces": 51,
+     "biggest_share": 0.52,
+     "spread": 0.0,
+     "thinnest": 0.0041,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "rail_bracket": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1180,
+     "watertight": false,
+     "pieces": 34,
+     "biggest_share": 0.386,
+     "spread": 0.0,
+     "thinnest": 0.0033,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "pipe_bracket": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1196,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.386,
+     "spread": 0.429,
+     "thinnest": 0.0056,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "small_readout": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1848,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.81,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "conduit_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1636,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.525,
+     "spread": 0.016,
+     "thinnest": 0.0044,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   }
+  },
+  "workshop": {
+   "wall_lower_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 744,
+     "watertight": false,
+     "pieces": 27,
+     "biggest_share": 0.556,
+     "spread": 0.1,
+     "thinnest": 0.0079,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_upper_plain": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1028,
+     "watertight": false,
+     "pieces": 41,
+     "biggest_share": 0.54,
+     "spread": 0.138,
+     "thinnest": 0.0079,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_lower_patched": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2464,
+     "watertight": false,
+     "pieces": 68,
+     "biggest_share": 0.474,
+     "spread": 0.091,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_upper_cables": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2428,
+     "watertight": false,
+     "pieces": 63,
+     "biggest_share": 0.504,
+     "spread": 0.076,
+     "thinnest": 0.0073,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_upper_pipes": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1940,
+     "watertight": false,
+     "pieces": 77,
+     "biggest_share": 0.501,
+     "spread": 0.053,
+     "thinnest": 0.0085,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "wall_skirting": {
+    "model_check": {
+     "class": "slender",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0599,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cornice": {
+    "model_check": {
+     "class": "slender",
+     "faces": 324,
+     "watertight": false,
+     "pieces": 3,
+     "biggest_share": 0.488,
+     "spread": 0.0,
+     "thinnest": 0.0249,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "ring_floor_plate": {
+    "model_check": {
+     "class": "flat",
+     "faces": 372,
+     "watertight": true,
+     "pieces": 7,
+     "biggest_share": 0.998,
+     "spread": 0.021,
+     "thinnest": 0.0329,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "roof_face_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 1.443,
+     "thinnest": 0.0499,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "hatch_frame": {
+    "model_check": {
+     "class": "opening",
+     "faces": 1500,
+     "watertight": true,
+     "pieces": 27,
+     "biggest_share": 0.765,
+     "spread": 0.0,
+     "thinnest": 0.0119,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_leaf": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3144,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.826,
+     "spread": 0.0,
+     "thinnest": 0.0089,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_wheel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2100,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.591,
+     "spread": 0.0,
+     "thinnest": 0.008,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_hinge": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1024,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.405,
+     "spread": 0.064,
+     "thinnest": 0.0159,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "hatch_window": {
+    "model_check": {
+     "class": "opening",
+     "faces": 3020,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.562,
+     "spread": 0.0,
+     "thinnest": 0.0069,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_bracket": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1196,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.386,
+     "spread": 0.429,
+     "thinnest": 0.0056,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "pipe_straight": {
+    "model_check": {
+     "class": "slender",
+     "faces": 660,
+     "watertight": true,
+     "pieces": 3,
+     "biggest_share": 0.93,
+     "spread": 0.0,
+     "thinnest": 0.0097,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pipe_valve": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3232,
+     "watertight": true,
+     "pieces": 33,
+     "biggest_share": 0.246,
+     "spread": 0.0,
+     "thinnest": 0.0034,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_strip_lamp": {
+    "model_check": {
+     "class": "slender",
+     "faces": 616,
+     "watertight": true,
+     "pieces": 6,
+     "biggest_share": 0.954,
+     "spread": 0.0,
+     "thinnest": 0.0057,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "door_control_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 972,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.558,
+     "spread": 0.05,
+     "thinnest": 0.0037,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "tread_mat": {
+    "model_check": {
+     "class": "repeat",
+     "faces": 108,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0199,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "intercom_panel": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1960,
+     "watertight": false,
+     "pieces": 19,
+     "biggest_share": 0.631,
+     "spread": 0.0,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "conduit_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1636,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.525,
+     "spread": 0.016,
+     "thinnest": 0.0044,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "small_readout": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1848,
+     "watertight": true,
+     "pieces": 15,
+     "biggest_share": 0.81,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "robot_bench": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 6240,
+     "watertight": false,
+     "pieces": 62,
+     "biggest_share": 0.237,
+     "spread": 0.009,
+     "thinnest": 0.0197,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "tool_bench": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3156,
+     "watertight": true,
+     "pieces": 35,
+     "biggest_share": 0.338,
+     "spread": 0.0,
+     "thinnest": 0.0059,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "toolboard": {
+    "model_check": {
+     "class": "flat",
+     "faces": 2900,
+     "watertight": false,
+     "pieces": 53,
+     "biggest_share": 0.318,
+     "spread": 0.0,
+     "thinnest": 0.0043,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "rack": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1660,
+     "watertight": true,
+     "pieces": 19,
+     "biggest_share": 0.62,
+     "spread": 0.06,
+     "thinnest": 0.0131,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "waste_bin": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1616,
+     "watertight": true,
+     "pieces": 12,
+     "biggest_share": 0.473,
+     "spread": 0.305,
+     "thinnest": 0.005,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "spares_crate": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3304,
+     "watertight": true,
+     "pieces": 34,
+     "biggest_share": 0.498,
+     "spread": 0.011,
+     "thinnest": 0.0058,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "work_stool": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 4560,
+     "watertight": false,
+     "pieces": 24,
+     "biggest_share": 0.308,
+     "spread": 0.0,
+     "thinnest": 0.0076,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "elec_bench": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 6784,
+     "watertight": false,
+     "pieces": 37,
+     "biggest_share": 0.241,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "parts_drawers": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 11640,
+     "watertight": true,
+     "pieces": 226,
+     "biggest_share": 0.283,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "spares_shelves": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 7660,
+     "watertight": true,
+     "pieces": 48,
+     "biggest_share": 0.149,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "low_cabinet": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 5184,
+     "watertight": false,
+     "pieces": 36,
+     "biggest_share": 0.444,
+     "spread": 0.023,
+     "thinnest": 0.0058,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "status_display": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1464,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.877,
+     "spread": 0.0,
+     "thinnest": 0.0134,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "floor_socket": {
+    "model_check": {
+     "class": "flat",
+     "faces": 908,
+     "watertight": false,
+     "pieces": 17,
+     "biggest_share": 0.511,
+     "spread": 0.0,
+     "thinnest": 0.0032,
+     "pass": true
+    },
+    "closed": false,
+    "faults": []
+   },
+   "bay_mark": {
+    "model_check": {
+     "class": "flat",
+     "faces": 164,
+     "watertight": true,
+     "pieces": 1,
+     "biggest_share": 1.0,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "pendant_lamp": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 5444,
+     "watertight": true,
+     "pieces": 11,
+     "biggest_share": 0.712,
+     "spread": 0.0,
+     "thinnest": 0.0049,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "wall_cage_lamp": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1764,
+     "watertight": true,
+     "pieces": 14,
+     "biggest_share": 0.549,
+     "spread": 0.037,
+     "thinnest": 0.0058,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "equipment_bench": {
+    "missing": true
+   },
+   "arm_monitor": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 2700,
+     "watertight": true,
+     "pieces": 26,
+     "biggest_share": 0.501,
+     "spread": 0.011,
+     "thinnest": 0.0057,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "keyboard": {
+    "model_check": {
+     "class": "flat",
+     "faces": 1048,
+     "watertight": true,
+     "pieces": 78,
+     "biggest_share": 0.585,
+     "spread": 0.235,
+     "thinnest": 0.0092,
+     "pass": false
+    },
+    "closed": true,
+    "faults": [
+     "thin or out of proportion"
+    ]
+   },
+   "vise": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3776,
+     "watertight": true,
+     "pieces": 24,
+     "biggest_share": 0.152,
+     "spread": 0.0,
+     "thinnest": 0.0079,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "screwdriver": {
+    "model_check": {
+     "class": "slender",
+     "faces": 256,
+     "watertight": true,
+     "pieces": 4,
+     "biggest_share": 0.739,
+     "spread": 0.0,
+     "thinnest": 0.0058,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "monitor": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 1184,
+     "watertight": true,
+     "pieces": 5,
+     "biggest_share": 0.411,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "oscilloscope": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 5020,
+     "watertight": true,
+     "pieces": 40,
+     "biggest_share": 0.692,
+     "spread": 0.0,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "bench_meter": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3288,
+     "watertight": true,
+     "pieces": 19,
+     "biggest_share": 0.317,
+     "spread": 0.015,
+     "thinnest": 0.0039,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "soldering_station": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 3916,
+     "watertight": true,
+     "pieces": 23,
+     "biggest_share": 0.391,
+     "spread": 0.023,
+     "thinnest": 0.0042,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   },
+   "spares_box": {
+    "model_check": {
+     "class": "chunky",
+     "faces": 600,
+     "watertight": true,
+     "pieces": 10,
+     "biggest_share": 0.576,
+     "spread": 0.02,
+     "thinnest": 0.0038,
+     "pass": true
+    },
+    "closed": true,
+    "faults": []
+   }
+  },
+  "wreck": {
+   "cable_run": {
+    "missing": true
+   }
+  }
+ }
+}
