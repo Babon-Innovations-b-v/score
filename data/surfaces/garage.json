@@ -84,8 +84,7 @@
     "garage"
    ],
    "library_places": [
-    "garage",
-    "lab"
+    "garage"
    ],
    "place": "garage",
    "kind": "garage_rover",
