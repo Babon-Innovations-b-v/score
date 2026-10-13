@@ -1,0 +1,9 @@
+{
+ "why": "Looks whose close-ups and Pixal3D take are made by the runner (score/stages/people_takes): the player's home clothes in the flat, which the flat's concept (K06) shows him in (owner via the captain, 2026-10-13, #5).",
+ "looks": {
+  "player-home": {
+   "spec": "data/characters/makes/player_home_prop.json",
+   "outfit": "home"
+  }
+ }
+}
