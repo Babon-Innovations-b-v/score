@@ -5,18 +5,19 @@ one-shot 3D generators can produce a convincing place from a sentence or
 a picture, but they give frames that no engine can open, or one fused
 scene without separate objects or clear rights. Studios have always
 built worlds in stages, from concept art and layout to modelling,
-surfacing, sound and review. We present SCORE, a world generation
-framework that keeps these stages and automates large parts of them with
+surfacing, lighting, sound and review. We present SCORE, a world
+generation framework that keeps these stages and automates them with
 open vision foundation models, procedural tools and coding agents, while
-the creator chooses and reviews. Because every stage's output is kept,
-the creator can rerun or fix any single stage, and because every model
-allows commercial use, the creator stays the author of the result,
-holding its full commercial rights. We are building SCORE's first world,
-the game world of 2099, only 3 of whose 18 places passed its completion
-gate when it was last measured, and plan three further worlds of
-different kinds. Our aim is to show that checkable stages, with open
-models for shape and closed, paid models for pictures and surfaces, can
-build worlds that a creator owns and keeps editing. Code and paper are
-available at https://github.com/Babon-Innovations-b-v/score (MIT
-license).
+the creator chooses and reviews. Every stage is a node of one runner:
+its output is keyed on its inputs and its code, judged by gates that
+answer pass, fail or unknown, and accepted only when nothing got worse,
+so a fault is fixed in its own stage and only what follows it runs
+again. Paid steps are cleared against a month's budget read from the
+provider's own bill. Every model in the framework allows commercial use
+of its output, so the creator stays the author of the result. We
+describe the framework as built for its first world, the game world of
+2099 with 18 places, and the measured gates of each of its layers:
+surfaces, resting, light, motion, effects, sound and people. Results per
+place are being gathered. Code and paper are available at
+https://github.com/Babon-Innovations-b-v/score (MIT license).
 \end{abstract}
