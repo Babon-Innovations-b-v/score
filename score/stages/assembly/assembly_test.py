@@ -21,7 +21,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 
 from score import checks  # noqa: E402
 from score.stages import assembly  # noqa: E402
-from score.stages.assembly import record, sounds  # noqa: E402
+from score.stages.assembly import made_waiting, record, sounds  # noqa: E402
 import triage_test  # noqa: E402
 
 STILL = {"objects": {}}
@@ -279,6 +279,42 @@ def test_an_entry_waiting_on_its_model_lays_nothing_and_is_named():
         assert not stage.GetPrimAtPath(f"/{TOY}/Fixtures/cairn")
         assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [
             "objects cairn: its model comes through the next batch"]
+
+
+def test_a_waiting_entry_whose_row_the_bake_made_is_laid_with_it_and_no_longer_named():
+    """The camp grounds' cairn (2026-10-13): its record entry waits on a released model that never comes; once the
+    place's surface line has baked its row, the assembly lays that model where the entry stands (turned, its middle
+    over the spot, its foot on it) and the entry leaves the root's waiting list."""
+    from pxr import Gf, Usd, UsdGeom
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        root = a_toy(folder / "out")
+        (folder / "record/record").mkdir(parents=True)
+        record_data = {"place": TOY, "objects": [{"name": "cairn", "model": "models/none/none.glb", "row": "cairn",
+                                                  "at": [3.0, 0.5, -2.0], "rotation": [0.0, 0.7071068, 0.0, 0.7071068],
+                                                  "waiting": "no released model"}]}
+        (folder / f"record/record/{TOY}.json").write_text(json.dumps(record_data))
+        (folder / "kit.json").write_text(json.dumps({"pieces": []}))
+        assembly.take_record({"scene-record": folder / "record", "kit": folder / "kit.json"}, root.parent, TOY)
+        (root.parent / "assets").mkdir(exist_ok=True)
+        asset = Usd.Stage.CreateNew(str(root.parent / "assets/cairn.usdc"))
+        mesh = UsdGeom.Mesh.Define(asset, "/cairn/drawn")
+        mesh.CreatePointsAttr([(-1.0, -1.0, -0.25), (1.0, -1.0, -0.25), (1.0, 1.0, 0.25), (-1.0, 1.0, 0.25)])
+        mesh.CreateFaceVertexCountsAttr([4])
+        mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+        asset.SetDefaultPrim(asset.GetPrimAtPath("/cairn"))
+        asset.Save()
+        (folder / "bake").mkdir()
+        (folder / "bake/baked.json").write_text(json.dumps({"cairn": {}}))
+        assert made_waiting.lay(root.parent, TOY, folder / "bake") == ["cairn"]
+        stage = Usd.Stage.Open(str(root))
+        prim = stage.GetPrimAtPath(f"/{TOY}/Fixtures/cairn")
+        box = UsdGeom.BBoxCache(0, [UsdGeom.Tokens.default_]).ComputeWorldBound(prim).ComputeAlignedRange()
+        middle = (box.GetMin() + box.GetMax()) / 2
+        assert Gf.IsClose(box.GetMin()[1], 0.5, 1e-5) and Gf.IsClose(middle[0], 3.0, 1e-5), box
+        assert Gf.IsClose(middle[2], -2.0, 1e-5) and Gf.IsClose(box.GetSize()[2], 2.0, 1e-4), box  # turned 90 degrees
+        assert prim.GetAttribute("score:row").Get() == "cairn"
+        assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
 
 
 def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot():

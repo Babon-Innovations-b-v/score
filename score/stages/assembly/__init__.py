@@ -13,7 +13,8 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                       experimental) as a sublayer of its own with its assets, in place of the seed's of that name,
                       the root's sublayers in ORDER and its time range as long as the longest layer's
              bakes    a place's baked models (surfaces-bake) in place of the seed's assets, each laid object stamped
-                      with the baked file's hash and the seed's as the model it repainted (stamp_baked_hash)
+                      with the baked file's hash and the seed's as the model it repainted (stamp_baked_hash); a
+                      record entry waiting on its model whose row the bake made is laid with it (made_waiting.py)
              ground   the terrain stage's places/<place>.usdc as layers/ground.usdc, just over the base
              sound    the sound row's output (experimental) written as layers/sound.usda (sounds.py), in place of the
                       seed's
@@ -39,7 +40,7 @@ import shutil
 import sys
 
 from score import checks
-from score.stages.assembly import sounds
+from score.stages.assembly import made_waiting, sounds
 from score.stages.assembly.record import (  # noqa: F401  (motion and light call take_record)
     BASE_LAYER, GROUND_LAYER, ORDER, RECORD, RECORD_ROOTS, WAITING, hold, laid_pieces, take_ground, take_record,
     without_waiting)
@@ -108,7 +109,10 @@ def make_from_seed(inputs, out, seed, params):
         if name in inputs:
             take_layer(pathlib.Path(inputs[name]), out / root.name, layer, assets)
     if "surfaces-bake" in inputs:
-        take_bake(pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]), out)
+        bake = pathlib.Path(inputs["surfaces-bake"])
+        take_bake(bake, pathlib.Path(inputs["surfaces-paint"]), out)
+        for row in made_waiting.lay(out, folder.name, bake):
+            stamp_baked_hash(out / BASE_LAYER, row, bake / "made" / f"{row}.gltf")
     for claimed in claimed_bakes(inputs, out):
         take_bake(*claimed)
     take_ground(inputs["terrain"], folder.name, out / root.name)

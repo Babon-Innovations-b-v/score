@@ -153,11 +153,11 @@
    "item"
   ],
   [
-   "CAIRN (Bram's grave): a long low heap of flat stones",
-   38.05,
-   39.75,
-   1.9,
-   0.5,
+   "CAIRN (Bram's grave): a narrow tower of stacked flat stones",
+   38.55,
+   39.55,
+   0.9,
+   0.9,
    null,
    "item"
   ]
@@ -248,12 +248,13 @@
    "yaw": 0.0,
    "why": "K05's tall boulder: the camp's own made boot rock, its along kept along the seat, where the old outside plan stands it (11, 14)"
   },
-  "CAIRN (Bram's grave): a long low heap of flat stones": {
+  "CAIRN (Bram's grave): a narrow tower of stacked flat stones": {
    "name": "cairn",
    "model": "models/campgrounds_cairn/campgrounds_cairn.glb",
    "yaw": 0.0,
-   "waiting": "its model comes through the prop route's next batch (the inventory's held-back cairn, prop campgrounds_cairn); until then nothing stands here",
-   "why": "K05's stone heap beside the tall boulder: the cairn ending, which the camp follows (captain, 2026-10-12: build what the owner's concept shows until he decides), 1.9 m long and 0.5 m high where the old outside plan stands it (13, 16)"
+   "waiting": "no released model: the assembly lays the cairn row's model the camp grounds' surface line baked (the prop route's take), and names the entry a gap until that bake has it",
+   "why": "K05's stacked stone tower beside the tall boulder: the cairn ending, which the camp follows (captain, 2026-10-12), its shape and size from the concept (captain, 2026-10-13: 0.9 m wide, 1.1 m tall, the inventory row's size_from), centred where the old outside plan stands it (13, 16)",
+   "row": "cairn"
   }
  },
  "elements": [
@@ -317,7 +318,7 @@
   },
   {
    "element": "stacked stone tower (A-left, 1)",
-   "object": "CAIRN (Bram's grave): a long low heap of flat stones"
+   "object": "CAIRN (Bram's grave): a narrow tower of stacked flat stones"
   },
   {
    "element": "scattered small rocks (A-left, 1)",
