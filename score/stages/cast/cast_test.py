@@ -1,5 +1,5 @@
-"""The cast stage's make and gates on the hub's own record and seed: its three crew stand and keep clear; the record
-holds 3 where a concept showing 1 fails `counted` and one showing 3 passes; a person lifted off the floor fails
+"""The cast stage's make and gates on the hub's own record and seed: its one person stands and keeps clear; the record
+holds 1 where a concept showing 3 fails `counted` and one showing 1 passes; a person lifted off the floor fails
 `standing`, one stood in a thing fails `clear`; no look is made and every body wears rejected drapes. A take with a
 clean checks.txt and a body is made, one with a FAIL is not; a crowd's lattice keeps two body widths apart; KEEP is
 box_masks.py's.
@@ -52,23 +52,23 @@ def hub_record():
 
 
 def test_the_hub():
-    found = answers(hub_record(), 1)
+    found = answers(hub_record(), 3)
     assert found["standing"].answer == checks.PASS, found["standing"].reason
     assert found["clear"].answer == checks.PASS, found["clear"].reason
-    assert found["counted"].answer == checks.FAIL and found["counted"].measures["cast"] == 3
-    assert found["made"].answer == checks.FAIL and "names no look" in found["made"].reason
+    assert found["counted"].answer == checks.FAIL and found["counted"].measures["cast"] == 1
+    assert found["made"].answer == checks.FAIL and "no made take" in found["made"].reason
     assert found["drapes"].answer == checks.FAIL and "Newton" in found["drapes"].reason
-    assert answers(hub_record(), 3)["counted"].answer == checks.PASS
+    assert answers(hub_record(), 1)["counted"].answer == checks.PASS
 
 
 def test_a_person_off_the_floor_or_in_a_thing():
     lifted = hub_record()
     lifted["people"][0]["at"][1] += 0.3
-    assert answers(lifted, 3)["standing"].answer == checks.FAIL
+    assert answers(lifted, 1)["standing"].answer == checks.FAIL
     inside = hub_record()
     nev = inside["people"][0]
-    nev["at"] = [nev["facing_to"][0], 0.0, nev["facing_to"][2]]  # where she faces: the lab bench
-    found = answers(inside, 3)["clear"]
+    nev["at"] = list(nev["facing_to"])  # where he faces: the console
+    found = answers(inside, 1)["clear"]
     assert found.answer == checks.FAIL and "runs into" in found.reason, found.reason
 
 
