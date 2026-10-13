@@ -50,7 +50,8 @@ stage as each stage is built; nothing moves before.
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
   accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
-  `accept_automatically` (the runner's); and the owner's `reject` (the accepted output moves back to the one accepted
+  `accept_automatically` (the runner's; "worse than accepted" is `review.regressions`: a measure is worse only by its
+  `TOLERANCES` step, the smallest change a viewer could see, one more for a count; a failing check still fails); and the owner's `reject` (the accepted output moves back to the one accepted
   before, later nodes that read it go stale, the runner never takes it again), `accept` (his own, a worse one with his
   reason), `waive` (one check passes for one key, with his reason; it ends when the key changes and shows on the page
   and in status) and `spend` (his override, a yes for a run outside the runner, node `override`). `python -m
