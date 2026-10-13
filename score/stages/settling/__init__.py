@@ -82,8 +82,9 @@ def place_of(inputs):
 # --- the stage dropped -------------------------------------------------------------------------------------------
 
 def grounded_seed(inputs, folder):
-    """The seed's stage in `folder` on the place's made ground, each kit piece at its kit spot (the assembly's
-    take_ground and relay_kit, so the settle starts from what the assembly lays): its root and layers copied, its
+    """The seed's stage in `folder` with its accepted scene record written in and each kit piece at its kit spot, on
+    the place's made ground (the assembly's take_record and take_ground, so the settle starts from what the assembly
+    lays: the airlock's alcove, moved off its wall, met the seed's old hanging suit): its root and layers copied, its
     assets linked (read, never written). The root's path."""
     import score.stages.assembly.record as record  # this form: the code version hashes record.py alone
     seed = pathlib.Path(inputs["seed"])
@@ -97,8 +98,9 @@ def grounded_seed(inputs, folder):
         elif source.exists():
             shutil.copy2(source, folder / part)
     shutil.copytree(seed / "assets", folder / "assets", copy_function=linked)
+    record.take_record({key: inputs[key] for key in ("kit", "scene", "scene-record") if key in inputs}, folder,
+                       seed.name)
     record.take_ground(inputs["terrain"], seed.name, root)
-    record.relay_kit({key: inputs[key] for key in ("kit", "scene") if key in inputs}, folder, seed.name)
     return root
 
 
