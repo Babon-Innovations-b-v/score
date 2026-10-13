@@ -11,7 +11,8 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/characters/maker"))
 
-from score.stages.people import bodies, clips, dress, far, renamed  # noqa: E402
+from score.stages.people import dress, renamed  # noqa: E402
+from score.stages.people_bodies import bodies, clips, far  # noqa: E402
 import clearance  # noqa: E402
 
 

@@ -262,7 +262,7 @@ def judge_clips(output, inputs, evidence):
     """The body judged clip by clip (captain, 2026-10-13; clips.py): tucks, rigid, cloth through cloth and body
     through cloth per clip. It passes once every clip is judged; each failing clip is named with its numbers, and a
     cast may use only the passing ones (people-clips holds the casts to it)."""
-    from score.stages.people import clips
+    from score.stages.people_bodies import clips
     passing, failing = clips.usable(output)
     findings = [f"{clip}: {'; '.join(faults)}" for clip, faults in sorted(failing.items())]
     return Verdict("clips", PASS, f"{len(passing)} of {len(passing) + len(failing)} clips usable"
