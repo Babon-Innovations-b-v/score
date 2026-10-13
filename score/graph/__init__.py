@@ -115,6 +115,9 @@ class Stage:
     for each place neighbours(place) names (its input `<stage>@<other place>`), versioned and waited on like `after`.
     The table refuses a stage that reads itself through what it reads, after or beside (Runner.reached); two places
     that show each other read a stage that reads nothing back, so they make no cycle.
+    optional: names in `after` the node reads only while usable (passed, accepted, on its current key); one that is
+    not is left out of its reads and its key, so the node runs with what has passed and runs again once it is (the
+    characters layer's dress rows: a place lays the people whose look is accepted and names the rest, 2026-10-13).
     """
     name: str
     grain: str
@@ -131,6 +134,7 @@ class Stage:
     applies: Callable = None
     beside: dict = field(default_factory=dict)
     neighbours: Callable = None
+    optional: tuple = ()
 
     def __post_init__(self):
         if self.grain not in GRAINS:
@@ -139,6 +143,8 @@ class Stage:
             raise TypeError(f"stage {self.name}: its output needs a contract (score.contracts), not {self.contract!r}")
         if not isinstance(self.after, dict):
             raise TypeError(f"stage {self.name}: after maps each earlier stage to the (schema, version) it expects")
+        if set(self.optional) - set(self.after):
+            raise ValueError(f"stage {self.name}: optional names a stage it does not read after")
 
 
 @dataclass(frozen=True)
@@ -355,8 +361,18 @@ class Runner:
     def reads(self, stage, place):
         """{earlier stage: (schema, version)} the node reads: its `after`, less a place stage that has nothing to do
         for this place (its `applies`), which the node then reads without."""
-        return {before: wanted for before, wanted in stage.after.items()
-                if place is None or self.stages[before].applies is None or self.stages[before].applies(place)}
+        found = {before: wanted for before, wanted in stage.after.items()
+                 if place is None or self.stages[before].applies is None or self.stages[before].applies(place)}
+        return {before: wanted for before, wanted in found.items()
+                if before not in stage.optional or self.usable_now(before, place, wanted)}
+
+    def usable_now(self, before, place, wanted):
+        """True when an earlier node's output is usable (`usable`) now."""
+        try:
+            self.usable(before, place, wanted)
+        except Blocked:
+            return False
+        return True
 
     def evidence_state(self, stage, output):
         """The hash of every check's evidence on an output ("none" for a check that needs none)."""

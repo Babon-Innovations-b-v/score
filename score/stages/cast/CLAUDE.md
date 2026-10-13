@@ -20,5 +20,7 @@ The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for th
   never pass today's SOMA-mesh bodies in the rejected drapes off as done.
 - **The characters layer** (`layer.py`, row `characters-layer@<place>`) lays each person of the accepted cast in
   their own look's accepted dressed body (`people-dress-<look>`); a person whose cast names no look, or whose look has
-  no accepted body, is left out and the row answers unknown. Never lay a stand-in body. `layer_test.py` holds it.
+  no usable body (its dress rows are optional reads, `Stage.optional`), is left out, named in `characters.json`,
+  and the row passes with the gaps as findings, so the place assembles and complete's people check fails each gap
+  by name (overseer, 2026-10-13). Never lay a stand-in body. `layer_test.py` holds it.
 - `cast_test.py` runs the make and gates on the hub's record and seed and breaks `standing`, `clear` and `counted`.
