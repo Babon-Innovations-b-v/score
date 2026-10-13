@@ -508,7 +508,7 @@ COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
 
 
 # A piece that does not say where its foot stands is taken to stand clear of any kick; a spec that does not say
-# whether its place is walked (library.unkicked) is taken to be walked.
+# whether its place is walked (place_line.unwalked, from the surface data's foot_traffic) is taken to be walked.
 NO_FOOT = 100.0
 WALKED = 1.0
 
