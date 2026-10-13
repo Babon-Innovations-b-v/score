@@ -232,8 +232,20 @@ def head():
     return template[template.index("<link"):template.index("</style>") + len("</style>")]
 
 
+def place_name(place):
+    """The place's name (data/definitions/place.json); a part of another place, which has none of its own (the
+    garage's and the hangar's door leaves, contents.json `part_of`), named with its host."""
+    places = json.loads(PLACES.read_text())
+    if place in places:
+        return places[place].get("name", place)
+    host = json.loads((REPO / "data/checks/contents.json").read_text())["places"].get(place, {}).get("part_of")
+    if host:
+        return f"{place}, part of {places.get(host, {}).get('name', host)}"
+    return place
+
+
 def page_html(store, place, stage, output, statuses, audit):
-    name = json.loads(PLACES.read_text())[place].get("name", place)
+    name = place_name(place)
     url = VIEWER_URL.format(place=place)
     origin = stage.parent / "origin.json"
     seed = json.loads(origin.read_text()).get("note", "") if origin.exists() else ""
