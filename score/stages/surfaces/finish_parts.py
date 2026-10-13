@@ -378,8 +378,11 @@ def contradicts(words, family):
 
 
 # Not paint (owner, #8, 2026-10-12): glass, screen glow, lamp light and print are judged by their own colour, so one
-# off the close-up's lit colour keeps its surface. A finish the close-up shows over ORDER_L lighter than another must
-# not lie over ORDER_LIBRARY darker in the library (bake_check's ORDER_L and ORDER_BAKED, before the bake).
+# off the close-up's lit colour keeps its surface. A finish the close-up shows over ORDER_L lighter than another is
+# named again when it lies over ORDER_LIBRARY darker in the library (bake_check's ORDER_L and ORDER_BAKED), and its
+# parts keep the order in the library itself (ORDER_KEPT): the bake moves a surface's L* on its own (the hangar's parts
+# shelving, 2026-10-13: plastic_grey 1.5 under galvanized_steel in the library, the steel baked 3.0 over its colour, so
+# the plastic seen 27.7 L* lighter baked 4.5 darker).
 # A finish seen through (see_through): its surface's family, or these words in its finish or parts. A see-through
 # part's pixels cover what lies behind it, grown by COVER_GROW pixels (face middles land a pixel or two apart).
 SEEN_THROUGH_FAMILIES = ("glass", "screen", "light")
@@ -389,7 +392,7 @@ COVER_GROW = 2
 # see-through finish is seen through it (seen_within): the garage beacon's reflector, 97.6% its red dome.
 OUTLINE, SEEN_WITHIN = 3, 0.9
 OWN_COLOUR = ("glass", "screen", "light", "print")
-ORDER_L, ORDER_LIBRARY = 10.0, 3.0
+ORDER_L, ORDER_LIBRARY, ORDER_KEPT = 10.0, 3.0, 0.0
 
 
 def checked_finishes(entry, finishes, measured):
@@ -445,46 +448,76 @@ def opaque_lightness(every):
             if "colour" in spec and spec.get("family") not in OWN_COLOUR}
 
 
-def out_of_order(lighter, darker, lightness):
-    """True when the close-up shows `lighter` over ORDER_L lighter than `darker` while its surface lies over
-    ORDER_LIBRARY darker in the library (`lightness`: opaque_lightness)."""
+def out_of_order(lighter, darker, lightness, slack=ORDER_LIBRARY):
+    """True when the close-up shows `lighter` over ORDER_L lighter than `darker` while its surface lies over `slack`
+    darker in the library (`lightness`: opaque_lightness)."""
     return (lighter.get("measured_lab") is not None and darker.get("measured_lab") is not None
             and lighter["surface"] in lightness and darker["surface"] in lightness
             and lighter["measured_lab"][0] - darker["measured_lab"][0] > ORDER_L
-            and lightness[lighter["surface"]] < lightness[darker["surface"]] - ORDER_LIBRARY)
+            and lightness[lighter["surface"]] < lightness[darker["surface"]] - slack)
+
+
+def nearest_in_order(finish, every, lightness, keeps):
+    """The surface of `finish`'s family nearest its close-up colour, within COLOUR_DELTA_E, whose library L* `keeps`
+    (a test on it) allows: (dE, name), or None."""
+    import numpy as np
+    colour = np.array(finish["measured_lab"])
+    family = every[finish["surface"]].get("family")
+    fits = sorted((float(np.linalg.norm(library_lab(every[name]) - colour)), name) for name in lightness
+                  if every[name].get("family") == family and keeps(lightness[name]))
+    return fits[0] if fits and fits[0][0] <= COLOUR_DELTA_E else None
 
 
 def in_close_up_order(entry, found, every):
-    """The finishes with their opaque surfaces in the close-up's lightness order: where the close-up shows a finish
-    over ORDER_L lighter than another whose surface lies over ORDER_LIBRARY lighter in the library (painted_panel L* 61.6
-    under bare_steel 66.3 on the greenhouse's water tank, the panel 13 lighter in its close-up; the bake keeps the
-    library's order), the lighter finish takes the nearest surface of its family by colour, within COLOUR_DELTA_E,
-    that keeps the order; else it is marked off its colour by its order (the paint's gate fails it). Glass, glow, lamp
-    light and print (OWN_COLOUR) and a finish judged by its own colour are left out; a take with no such pair comes back
-    as it was."""
-    import numpy as np
+    """The finishes with their opaque surfaces in the close-up's lightness order. Where the close-up shows a finish
+    over ORDER_L lighter than another whose surface lies over ORDER_LIBRARY lighter in the library (painted_panel L*
+    61.6 under bare_steel 66.3 on the greenhouse's water tank, the panel 13 lighter in its close-up), the order is
+    kept (reordered) or the lighter finish is marked off its colour by its order (the paint's gate fails it). Where it
+    lies lighter by less (the bake may still reverse them: the hangar's parts shelving), the order is kept only by a
+    surface nearer the finish's close-up colour. Glass, glow, lamp light and print (OWN_COLOUR) and a finish judged by
+    its own colour are left out; a take with no such pair comes back as it was."""
     lightness = opaque_lightness(every)
     for lighter in found:
         for darker in found:
             if (lighter.get("by") == "off its colour" or "its own colour" in (lighter.get("by"), darker.get("by"))
-                    or not out_of_order(lighter, darker, lightness)):
+                    or not out_of_order(lighter, darker, lightness, ORDER_KEPT)):
                 continue
-            seen = lighter["measured_lab"][0] - darker["measured_lab"][0]
-            floor = lightness[darker["surface"]] - ORDER_LIBRARY
-            colour = np.array(lighter["measured_lab"])
-            family = every[lighter["surface"]].get("family")
-            fits = sorted((float(np.linalg.norm(library_lab(every[name]) - colour)), name) for name in lightness
-                          if every[name].get("family") == family and lightness[name] >= floor)
-            if fits and fits[0][0] <= COLOUR_DELTA_E:
-                lighter.update(surface=fits[0][1], delta_e=round(fits[0][0], 1), by="nearest of its family in order")
-                continue
-            lighter.update(by="off its colour", fits=False, new_surface={
-                "name": f"{lighter['finish']} ({take_words(entry)})",
-                "description": f"{lighter['finish']}, measured in the close-up at L*a*b* {lighter['measured_lab']}",
-                "why": f"{seen:.1f} L* lighter than {darker['surface']} in the close-up, but no {family} surface within "
-                       f"dE {COLOUR_DELTA_E:.0f} lies lighter in the library",
-                "lab": lighter["measured_lab"]})
+            wide = out_of_order(lighter, darker, lightness)
+            if not reordered(lighter, darker, every, lightness, wide) and wide:
+                lighter.update(by="off its colour", fits=False, new_surface=order_proposal(entry, lighter, darker))
     return found
+
+
+def reordered(lighter, darker, every, lightness, wide):
+    """Whether one of the pair took the nearest surface of its family by colour, within COLOUR_DELTA_E, that keeps
+    the close-up's order (ORDER_KEPT): the lighter finish first, else the darker (the hangar's parts shelving: its
+    steel seen at L* 42 takes cast_steel under its light grey plastic bins). Unless the pair is `wide` apart, only a
+    surface nearer the finish's close-up colour than its own is taken."""
+    floor = lightness[darker["surface"]] - ORDER_KEPT
+    ceiling = lightness[lighter["surface"]] + ORDER_KEPT
+    for finish, keeps in ((lighter, lambda level: level >= floor), (darker, lambda level: level <= ceiling)):
+        fit = nearest_in_order(finish, every, lightness, keeps)
+        if fit and (wide or fit[0] < close_up_apart(finish, every)):
+            finish.update(surface=fit[1], delta_e=round(fit[0], 1), by="nearest of its family in order")
+            return True
+    return False
+
+
+def close_up_apart(finish, every):
+    """CIE76 distance between a finish's library surface and its colour in the close-up."""
+    import numpy as np
+    return float(np.linalg.norm(library_lab(every[finish["surface"]]) - np.array(finish["measured_lab"])))
+
+
+def order_proposal(entry, lighter, darker):
+    """The new surface proposed for a finish the close-up shows lighter than `darker` when no surface of either's
+    family keeps the order."""
+    seen = lighter["measured_lab"][0] - darker["measured_lab"][0]
+    return {"name": f"{lighter['finish']} ({take_words(entry)})",
+            "description": f"{lighter['finish']}, measured in the close-up at L*a*b* {lighter['measured_lab']}",
+            "why": f"{seen:.1f} L* lighter than {darker['surface']} in the close-up, but no surface of its family or "
+                   f"{darker['surface']}'s within dE {COLOUR_DELTA_E:.0f} keeps that order in the library",
+            "lab": lighter["measured_lab"]}
 
 
 def take_words(entry):

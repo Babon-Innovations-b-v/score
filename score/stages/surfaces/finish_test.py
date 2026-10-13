@@ -300,6 +300,29 @@ def test_a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_co
     assert lit[0]["surface"] == "glass" and lit[0]["by"] == "its own colour" and "cover" not in lit[0], lit[0]
 
 
+def test_a_finish_a_little_out_of_order_keeps_it_by_a_nearer_surface_of_either():
+    """The hangar's parts shelving: its grey plastic bins 27.7 L* over its steel in the close-up, plastic_grey 1.5
+    under galvanized_steel in the library (the steel baked 3 over its colour, the bins 4.5 under it). The steel, seen
+    at L* 42, takes cast_steel, nearer its close-up colour; with none nearer, the order stays as it was."""
+    every = {"galvanized_steel": {"family": "steel", "colour": [0.328, 0.361, 0.397]},
+             "plastic_grey": {"family": "plastic", "colour": [0.386, 0.332, 0.258]},
+             "cast_steel": {"family": "steel", "colour": [0.070, 0.084, 0.102]}}
+
+    def shelving():
+        return [{"finish": "Grey steel", "surface": "galvanized_steel", "measured_lab": [41.9, 0.6, -0.6],
+                 "by": "the list"},
+                {"finish": "Light grey plastic", "surface": "plastic_grey", "measured_lab": [69.6, 0.2, 0.9],
+                 "by": "named again (its material)"}]
+    found = finish_parts.in_close_up_order({"object": "parts shelving"}, shelving(), every)
+    assert found[0]["surface"] == "cast_steel" and found[0]["by"] == "nearest of its family in order", found[0]
+    assert found[1]["surface"] == "plastic_grey" and found[1]["by"] == "named again (its material)", found[1]
+    bright = [dict(finish) for finish in shelving()]
+    bright[0]["measured_lab"] = [66.0, -1.0, -4.0]  # the steel seen as light as galvanized_steel: none nearer
+    bright[1]["measured_lab"] = [80.0, 0.0, 0.0]
+    assert finish_parts.in_close_up_order({"object": "parts shelving"}, [dict(finish) for finish in bright],
+                                          every) == bright
+
+
 def test_a_finish_out_of_order_is_named_again_and_a_part_behind_a_see_through_cover_is_left_out():
     lightness = {"anodized_natural": 60.0, "dust_coated_paint": 70.0}
     white = {"surface": "anodized_natural", "measured_lab": [80.6, 1.0, 2.0]}  # the campgrounds' power unit
