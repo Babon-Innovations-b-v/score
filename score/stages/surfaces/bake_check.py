@@ -74,6 +74,14 @@ CLOSE_UP_DELTA_E = 32.0
 ORDER_L, ORDER_BAKED = 10.0, 3.0
 SEEN_THROUGH = ("glass", "screen", "light", "water")
 PART_POINTS = 60000  # labelled points kept per model to name each baked triangle (export.PART_POINTS)
+# The bake names a baked triangle's colour by a ray (make_chunky's bake_from: Blender's selected-to-active, its cage
+# BAKE_REACH_SHARE of the piece's largest side out, at least BAKE_REACH_LEAST, as make_chunky's REACH_SHARE and
+# REACH_LEAST), so the check names its surface the same way: from its middle that far out along its normal, inward,
+# the first labelled face hit. The nearest labelled point named the wrong part: the bake's cut-down copy stands a wall
+# proud of the model (0.6 m on far_city's 140 m pencil tower, 2026-10-13), and from there a thin post's side lies
+# nearer than the facade the bake's ray meets, so half of what the check called post_dark baked the facade and its
+# median failed at dE 45 while every triangle the bake's ray gave the post baked its library colour exactly.
+BAKE_REACH_SHARE, BAKE_REACH_LEAST = 0.03, 0.01
 
 
 def data_of(inputs):
@@ -101,35 +109,56 @@ def gltf_model(gltf):
     return geometry, maps
 
 
-def baked_surfaces(geometry, labelled, entry):
-    """Each baked triangle's surface and the surfaces within its reach, the labelled parts (one .ply per surface)
-    laid into the kit frame as make_chunky lays them (stored_parts.kit_frame): (surface names, each triangle's surface
-    index (the part whose nearest point lies under its middle), reach (triangles x surfaces: its own, its corners'
-    and every part with a point within its furthest corner from its middle))."""
+def laid_parts(labelled, entry):
+    """A labelled take's parts (one .ply per surface) as one mesh laid into the kit frame as make_chunky lays them
+    (stored_parts.kit_frame): (surface names, the mesh, each vertex's surface index, each face's surface index)."""
     import numpy as np
     import trimesh
-    from scipy.spatial import cKDTree
     import stored_parts
     paths = sorted(labelled.glob("*.ply"))
-    points, codes = [], []
-    for code, path in enumerate(paths):
-        vertices = np.asarray(trimesh.load(path, process=False).vertices)
-        vertices = vertices[::max(1, len(vertices) // PART_POINTS)]
-        points.append(vertices)
-        codes += [code] * len(vertices)
-    laid = stored_parts.kit_frame(np.vstack(points), np.array(entry["base"]).reshape(3, 3), entry["size"])
-    tree, codes = cKDTree(laid), np.array(codes)
+    meshes = [trimesh.load(path, process=False) for path in paths]
+    joined = trimesh.util.concatenate(meshes)
+    laid = stored_parts.kit_frame(np.asarray(joined.vertices), np.array(entry["base"]).reshape(3, 3), entry["size"])
+    vertex_codes = np.concatenate([np.full(len(mesh.vertices), code) for code, mesh in enumerate(meshes)])
+    codes = np.concatenate([np.full(len(mesh.faces), code) for code, mesh in enumerate(meshes)])
+    return [path.stem for path in paths], trimesh.Trimesh(laid, joined.faces, process=False), vertex_codes, codes
+
+
+def ray_surfaces(geometry, laid, codes, size):
+    """Each baked triangle's surface index as the bake's ray finds it (BAKE_REACH_SHARE): the first laid face hit from
+    its middle that far out along its normal, inward; -1 where the ray meets nothing."""
+    import numpy as np
+    corners = geometry["positions"][geometry["triangles"]]
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
+    reach = max(max(size) * BAKE_REACH_SHARE, BAKE_REACH_LEAST)
+    hit = laid.ray.intersects_first(corners.mean(axis=1) + normals * reach, -normals)
+    return np.where(hit >= 0, codes[np.maximum(hit, 0)], -1)
+
+
+def baked_surfaces(geometry, labelled, entry):
+    """Each baked triangle's surface and the surfaces within its reach, the labelled parts laid in the kit frame
+    (laid_parts): (surface names, each triangle's surface index (the bake's ray, ray_surfaces; the part whose nearest
+    point lies under its middle where the ray meets nothing), reach (triangles x surfaces: its own, its corners' and
+    every part with a point within its furthest corner from its middle))."""
+    import numpy as np
+    from scipy.spatial import cKDTree
+    names, laid, vertex_codes, codes = laid_parts(labelled, entry)
+    kept = np.concatenate([np.flatnonzero(vertex_codes == code)[::max(1, (vertex_codes == code).sum() // PART_POINTS)]
+                           for code in range(len(names))])
+    tree, point_codes = cKDTree(laid.vertices[kept]), vertex_codes[kept]
     corners = geometry["positions"][geometry["triangles"]]
     middles = corners.mean(axis=1)
-    surface = codes[tree.query(middles)[1]]
-    reach = np.zeros((len(middles), len(paths)), dtype=bool)
+    surface = ray_surfaces(geometry, laid, codes, entry["size"])
+    surface = np.where(surface >= 0, surface, point_codes[tree.query(middles)[1]])
+    reach = np.zeros((len(middles), len(names)), dtype=bool)
     reach[np.arange(len(middles)), surface] = True
-    for corner in codes[tree.query(geometry["positions"])[1]][geometry["triangles"]].T:
+    for corner in point_codes[tree.query(geometry["positions"])[1]][geometry["triangles"]].T:
         reach[np.arange(len(middles)), corner] = True
     radius = np.linalg.norm(corners - middles[:, None], axis=2).max(axis=1)
     for triangle, found in enumerate(tree.query_ball_point(middles, radius)):
-        reach[triangle, np.unique(codes[found])] = True
-    return [path.stem for path in paths], surface, reach
+        reach[triangle, np.unique(point_codes[found])] = True
+    return names, surface, reach
 
 
 def blotch_share(colour, areas, chosen, reach, shades):

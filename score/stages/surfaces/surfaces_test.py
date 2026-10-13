@@ -469,6 +469,38 @@ def test_a_bake_is_held_against_its_surface_dirtied_as_far_as_its_place_s_dirt()
     assert bake_check.on_surface(np.array([40.0, 0, 0]), white, regolith, 0.6) > bake_check.BAKE_DELTA_E
     assert bake_check.on_surface(baked, white, None, 0.6) > bake_check.BAKE_DELTA_E
 
+
+def test_a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part():
+    """far_city's pencil tower, 2026-10-13: the cut-down copy stands 0.6 m proud of the facade; beside a post, the
+    post's side lies nearer than the facade the bake's ray meets, so the nearest part named the facade's colour
+    post_dark (dE 45). The bake's ray from the triangle inward names the facade; a triangle over the post, the post.
+    The check's reach constants are make_chunky's."""
+    import ast
+    import numpy as np
+    import trimesh
+    from score.stages.surfaces import bake_check
+    facade = trimesh.creation.box(bounds=[[-5.0, 0.0, -1.0], [5.0, 2.0, 0.0]]).subdivide_to_size(0.1)
+    post = trimesh.creation.box(bounds=[[-0.05, 0.0, 0.0], [0.05, 2.0, 1.0]]).subdivide_to_size(0.1)
+    beside = [[0.3, 0.9, 0.6], [0.5, 0.9, 0.6], [0.4, 1.1, 0.6]]
+    over = [[-0.1, 0.9, 1.6], [0.1, 0.9, 1.6], [0.0, 1.1, 1.6]]
+    geometry = {"positions": np.array(beside + over), "triangles": np.array([[0, 1, 2], [3, 4, 5]])}
+    entry = {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [10.0, 2.0, 2.0]}
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        facade.export(folder / "facade_paint.ply")
+        post.export(folder / "post_dark.ply")
+        names, surface, reach = bake_check.baked_surfaces(geometry, folder, entry)
+        nearest = bake_check.laid_parts(folder, entry)[1].nearest.on_surface([[0.4, 1.0, 0.6]])[0][0]
+    assert abs(nearest[0]) <= 0.05 + 1e-9, f"the post lies nearer than the facade behind: {nearest}"
+    assert [names[index] for index in surface] == ["facade_paint", "post_dark"], surface
+    assert reach[0].all(), "both parts lie within the triangle's reach"
+    found = {node.targets[0].id: node.value.value for node in ast.parse(
+        (REPO / "tools/props/library/inside/make_chunky.py").read_text()).body
+        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id in ("REACH_SHARE", "REACH_LEAST")}
+    assert (found["REACH_SHARE"], found["REACH_LEAST"]) == (bake_check.BAKE_REACH_SHARE, bake_check.BAKE_REACH_LEAST)
+
+
 def test_a_standing_model_with_a_foot_off_the_floor_fails_and_lying_wreckage_is_left_out():
     """The hangar's parts rack stood on a middle part, its legs 22 cm up."""
     import numpy as np
