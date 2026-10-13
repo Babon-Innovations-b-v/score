@@ -38,14 +38,21 @@ STANCE_BAND, STANCE_GAP = 0.25, 0.03
 OWN_COLOUR = ("glass", "screen", "light", "print")
 DARK_SURFACE, BLOTCH_L, BLOTCH_SHARE, BLOTCH_DELTA_E = 35.0, 12.0, 0.05, 6.0
 PART_LEAST = 0.01
-# A model's surfaces collapse into one look when every two of them bake within ONE_LOOK_DELTA_E (CIE76) and every one
-# is near neutral (chroma under NEUTRAL_CHROMA), while its close-up shows them over DISTINCT_DELTA_E apart (twice
-# ONE_LOOK) or its main surface's close-up colour is not neutral. The greenhouse's water tank (2026-10-12): cream paint,
-# bare steel and water, 28.5 apart in the close-up, baked as three greys 10.2 apart at most, which the owner saw as one
-# white block. On world 1's 39 split models with two surfaces or more (measured 2026-10-12) the next widest after the
-# tank's and the greenhouse crop crate's (9.3: off-white paint over wood in the grey deck token) is 15.1 (the
-# campgrounds' cargo pallet).
-ONE_LOOK_DELTA_E, NEUTRAL_CHROMA, DISTINCT_DELTA_E = 12.0, 10.0, 24.0
+# A model's surfaces collapse into one look when no two of them bake far enough apart for a viewer to tell at the
+# place's view distance, every one is near neutral (chroma under NEUTRAL_CHROMA), while its close-up shows them over
+# DISTINCT_DELTA_E apart or its main surface's close-up colour is not neutral (the greenhouse's water tank, 2026-10-12:
+# cream paint, bare steel and water, 28.5 apart in the close-up, baked as three greys). What a viewer tells apart is
+# measured, not set: Stone, Szafir and Setlur (2014, "An Engineering Model for Color Difference as a Function of
+# Size", IS&T Color and Imaging Conference 22, Table 3) measured the CIELAB difference half of their viewers see
+# between two colours s degrees of visual angle wide, per axis ND(50, s) = C + K / s (NOTICED: C, K for L*, a*, b*),
+# on sizes 1/3 to 6 degrees (SEEN_DEGREES; a size outside is taken at the nearer end). Two surfaces are told apart
+# when their difference, each axis over its ND, is 1 or more. A surface's size is its model's middle size times the
+# root of its share, seen from the place's nearest view (its scene record's eyes, its inventory's spots). It replaced
+# a fixed CIE76 12 (owner, 2026-10-13: the wreck's access cover, its steel 9.3 L* under its scorched white, failed
+# on a difference he sees; at 6 degrees half of viewers see 5.2 L*).
+NOTICED = ((5.079, 0.751), (5.339, 1.541), (5.349, 2.871))
+SEEN_DEGREES = (1 / 3, 6.0)
+NEUTRAL_CHROMA, DISTINCT_DELTA_E = 10.0, 24.0
 # A part's baked colour must lie within this of its finish's colour in the close-up (finish_parts.COLOUR_DELTA_E, kept
 # at 32, measured 2026-10-12 on world 1's 145 measured finishes): the close-up's light lifts a right surface's L* by
 # 15 to 30 (stainless 66 seen at 85, black rubber 9 seen at 30 to 40), so right surfaces lie up to dE 31.7 from it
@@ -231,6 +238,22 @@ def close_up_colours(labelled):
             for surface, colours in measured.items()}
 
 
+def seen_degrees(inputs):
+    """Each kit model's middle size in degrees of visual angle from the place's nearest view (its scene record's
+    eyes) to its nearest spot (the kit's pieces, in the record's frame): {model: degrees}; {} with no kit or view."""
+    kit, scene = inputs.get("kit"), inputs.get("scene record")
+    if kit is None or scene is None or not kit.exists() or not scene.exists():
+        return {}
+    eyes = [view["eye"] for view in json.loads(scene.read_text()).get("views", [])]
+    nearest = {}
+    for piece in json.loads(kit.read_text()).get("pieces", []) if eyes else []:
+        near = min(math.dist(piece["at"], eye) for eye in eyes)
+        middle = sorted(piece["size"])[1]
+        nearest[piece["model"]] = max(nearest.get(piece["model"], 0.0),
+                                      math.degrees(2 * math.atan2(middle / 2, max(near, 1e-3))))
+    return {model: round(value, 2) for model, value in nearest.items()}
+
+
 def make_check(inputs, out, seed, params):
     prop_env.handover(__file__, "check", inputs, out)
 
@@ -244,11 +267,13 @@ def check_step(inputs, out):
     rows = [row for key, path in inputs.items() if key.startswith("inventory ") and path.exists()
             for row in json.loads(path.read_text()).get("rows", [])]
     lying = [word for kind in json.loads(inputs["stance rules"].read_text())["lies"] for word in kind["words"]]
+    degrees = seen_degrees(inputs)
     found = {}
     for model, entry in json.loads((inputs["bake"] / "baked.json").read_text()).items():
         labelled = inputs["paint"] / "labelled" / entry["parts"]
         found[model] = check_model(model, entry, labelled, inputs["bake"] / "made", materials, dirt)
         found[model]["stands"] = stands(model, labelled, rows, lying)
+        found[model]["seen_degrees"] = degrees.get(model)
     (out / "checks.json").write_text(json.dumps(found, indent=1))
 
 
@@ -333,21 +358,47 @@ def chroma(colour):
     return math.hypot(colour[1], colour[2])
 
 
+def noticed(first, second, degrees):
+    """How many noticeable differences (Stone et al.'s ND(50), NOTICED) two L*a*b* colours lie apart, each `degrees`
+    wide in the view: under 1, half of viewers or more cannot tell them apart."""
+    degrees = min(max(degrees, SEEN_DEGREES[0]), SEEN_DEGREES[1])
+    return math.sqrt(sum(((one - other) / (least + fall / degrees)) ** 2
+                         for one, other, (least, fall) in zip(first, second, NOTICED)))
+
+
+def told_apart(judged, degrees):
+    """The most noticeable differences between two of a model's judged surfaces, each pair seen at the smaller one's
+    size (the model's `degrees` times the root of its share)."""
+    names = list(judged)
+    return max(noticed(judged[first]["baked_lab"], judged[second]["baked_lab"],
+                       degrees * math.sqrt(min(judged[first]["share"], judged[second]["share"])))
+               for index, first in enumerate(names) for second in names[index + 1:])
+
+
 def one_look_faults(name, record):
-    """A model whose judged surfaces bake to one near-neutral look (every two within ONE_LOOK_DELTA_E, each under
-    NEUTRAL_CHROMA) while its close-up shows them over DISTINCT_DELTA_E apart, or its main surface not neutral."""
+    """A model whose judged surfaces bake to one near-neutral look (no two told apart at the place's view distance,
+    each under NEUTRAL_CHROMA) while its close-up shows them over DISTINCT_DELTA_E apart, or its main surface not
+    neutral. A model with no view distance is named: whether a viewer tells its surfaces apart is unknown."""
     judged = judged_surfaces(record)
     baked = [entry["baked_lab"] for entry in judged.values()]
-    if len(judged) < 2 or widest(baked) >= ONE_LOOK_DELTA_E or max(map(chroma, baked)) >= NEUTRAL_CHROMA:
+    if len(judged) < 2 or max(map(chroma, baked)) >= NEUTRAL_CHROMA:
         return []
     close_up = {surface: colour for surface, colour in record.get("close_up", {}).items() if surface in judged}
     main = max(judged, key=lambda surface: judged[surface]["share"])
     seen = widest(close_up.values())
     if seen <= DISTINCT_DELTA_E and (main not in close_up or chroma(close_up[main]) < NEUTRAL_CHROMA):
         return []
+    degrees = record.get("seen_degrees")
+    if degrees is None:
+        return [f"{name}: no view distance (no spot in its place's kit or no view in its scene record), so "
+                f"whether a viewer tells its {len(judged)} near-neutral surfaces apart is unknown"]
+    apart = told_apart(judged, degrees)
+    if apart >= 1:
+        return []
     return [f"{name}: its {len(judged)} surfaces ({', '.join(sorted(judged))}) bake to one grey look, "
-            f"{widest(baked):.1f} apart at most (under {ONE_LOOK_DELTA_E:.0f}), while its close-up shows them "
-            f"{seen:.1f} apart (its main surface {main} seen at {close_up.get(main)})"]
+            f"{widest(baked):.1f} apart at most, {apart:.2f} noticeable differences at its view ({degrees:.1f} "
+            f"degrees, under 1), while its close-up shows them {seen:.1f} apart (its main surface {main} seen at "
+            f"{close_up.get(main)})"]
 
 
 def judge_lit(output, inputs, evidence):

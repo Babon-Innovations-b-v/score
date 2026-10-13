@@ -277,11 +277,11 @@ WATER_TANK_CLOSE_UP = {"painted_panel": [80.3, -0.2, 6.0], "bare_steel": [67.3, 
                        "tank_water": [53.2, -3.2, -2.3]}  # the finish-map method's measures, greenhouse, 2026-10-12
 
 
-def baked_record(surfaces, close_up):
+def baked_record(surfaces, close_up, degrees=None):
     """A checks.json record of a model baked exactly on its surfaces ({surface: (share, L*a*b*)})."""
     return {"surfaces": {name: {"share": share, "baked_lab": list(colour), "surface_lab": list(colour),
                                 "delta_e": 0.0, "near_black": 0.0} for name, (share, colour) in surfaces.items()},
-            "close_up": close_up}
+            "close_up": close_up, "seen_degrees": degrees}
 
 
 def greenhouse_lab(surface):
@@ -293,23 +293,24 @@ def greenhouse_lab(surface):
     return [round(float(value), 1) for value in labels.lab(labels.srgb(np.array(spec["colour"]))[None])[0]]
 
 
-def test_the_water_tank_s_three_greys_fail_as_one_look_and_its_cream_paint_passes():
+def test_the_water_tank_s_reversed_greys_fail_and_its_cream_paint_passes():
     from score.stages.surfaces import bake_check
     before = baked_record({"painted_panel": (0.7253, [61.6, -1.5, -6.5]), "bare_steel": (0.1536, [66.3, -1.1, -4.5]),
                            "tank_water": (0.1212, [58.7, -1.7, 2.4])}, WATER_TANK_CLOSE_UP)  # its stored check
+    before["seen_degrees"] = 23.83  # 1.4 m wide, 3.3 m from the greenhouse's nearest view
     faults = bake_check.surface_faults("water_tank_1", before)
-    assert len(faults) == 2 and "one grey look" in faults[0] and "painted_panel is 13.0 L* lighter than bare_steel" \
-        in faults[1], faults
+    # its water bakes 8.9 b* off its paint, 1.9 noticeable differences at that size: told apart, not one look
+    assert len(faults) == 1 and "painted_panel is 13.0 L* lighter than bare_steel" in faults[0], faults
     grey_body = baked_record({"painted_panel": (0.7253, [61.6, -1.5, -6.5]),
                               "bare_steel": (0.1536, greenhouse_lab("bare_steel")),
-                              "tank_water": (0.1212, greenhouse_lab("tank_water"))}, WATER_TANK_CLOSE_UP)
+                              "tank_water": (0.1212, greenhouse_lab("tank_water"))}, WATER_TANK_CLOSE_UP, 23.83)
     faults = bake_check.surface_faults("water_tank_1", grey_body)  # the water fixed, the body still grey
     assert len(faults) == 1 and "lighter than bare_steel" in faults[0], faults
     after = baked_record({"cream_paint": (0.7253, greenhouse_lab("cream_paint")),
                           "bare_steel": (0.1536, greenhouse_lab("bare_steel")),
                           "tank_water": (0.1212, greenhouse_lab("tank_water"))},
                          {"cream_paint": WATER_TANK_CLOSE_UP["painted_panel"],
-                          **{name: WATER_TANK_CLOSE_UP[name] for name in ("bare_steel", "tank_water")}})
+                          **{name: WATER_TANK_CLOSE_UP[name] for name in ("bare_steel", "tank_water")}}, 23.83)
     assert bake_check.surface_faults("water_tank_1", after) == [], bake_check.surface_faults("water_tank_1", after)
     assert greenhouse_lab("tank_water") != greenhouse_lab("deck"), "the tank's water still takes the deck's colour"
     one = baked_record({"painted_panel": (1.0, [61.6, -1.5, -6.5])}, {"painted_panel": [80.3, -0.2, 6.0]})
@@ -318,6 +319,25 @@ def test_the_water_tank_s_three_greys_fail_as_one_look_and_its_cream_paint_passe
                         {"painted_panel": [61.0, 0.0, 0.0], "rubber": [62.0, 0.0, 0.0]})
     faults = bake_check.surface_faults("cabinet_1", dark)
     assert len(faults) == 1 and "rubber" in faults[0] and "over 32" in faults[0], faults
+
+
+def test_one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view_distance():
+    from score.stages.surfaces import bake_check
+    cover = baked_record({"bare_steel": (0.2813, [66.3, -1.1, -4.5]), "hull_white_scorched": (0.7187, [75.6, -1.2, -1.0])},
+                         {"hull_white_scorched": [92.7, -0.3, 0.0], "bare_steel": [65.4, 1.6, 5.6]})
+    cover["seen_degrees"] = 11.29  # the wreck's access cover, 4.5 m from wreck-home
+    assert bake_check.one_look_faults("access_cover", cover) == [], "9.3 L* at 6 degrees is seen"
+    fragment = baked_record({"bare_steel": (0.4118, [64.1, -0.8, -3.2]), "galvanized_steel": (0.4758, [68.6, -1.2, -2.2]),
+                             "roof_steel_paint": (0.1123, [63.7, -1.0, -2.7])},
+                            {"bare_steel": [51.1, 1.9, 7.0], "galvanized_steel": [89.6, -0.2, 3.6],
+                             "roof_steel_paint": [49.7, -1.0, 2.8]})
+    fragment["seen_degrees"] = 4.71
+    faults = bake_check.one_look_faults("fragment", fragment)
+    assert len(faults) == 1 and "one grey look" in faults[0], faults
+    del fragment["seen_degrees"]
+    faults = bake_check.one_look_faults("fragment", fragment)
+    assert len(faults) == 1 and "no view distance" in faults[0], "a gate never passes on what it cannot measure"
+    assert abs(bake_check.noticed([50, 0, 0], [55.155, 0, 0], 10.0) - 1.0) < 0.01, "ND(50) of L* at 6 degrees"
 
 
 def tank_mesh(ends, height=1.6):

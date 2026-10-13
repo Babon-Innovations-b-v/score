@@ -146,9 +146,11 @@ def bake_checked(row):
 
 
 def check_files(place):
-    """The check's world files: the paint's (its line's, the inventories, the resting rules) and the stance rules."""
+    """The check's world files: the paint's (its line's, the inventories, the resting rules), the stance rules, and
+    the place's kit and scene record (each model's spots and the views, its view distance)."""
     return {**{name: pattern for name, pattern in paint_files(place).items() if name != "paint script"},
-            "stance rules": "{data}/checks/stance.json"}
+            "stance rules": "{data}/checks/stance.json", "kit": "{data}/kit/" + f"{place}.json",
+            "scene record": "{data}/scene/" + f"{place}.json"}
 
 
 def feet_checked(row):
