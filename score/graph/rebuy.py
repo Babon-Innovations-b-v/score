@@ -79,6 +79,8 @@ def to_make(runner, stage, place, pending, remade):
             return None
         if hasattr(stage.files, "carries") and stage.files.carries(runner, stage, place, keyed):
             return None  # the runner keeps its accepted output under the new key (surfaces/carry.py)
+        if runner.bytecode_proof(stage, place, keyed):
+            return None  # only bytecode moved its key: the runner keeps its accepted output (#67)
         return keyed
     except Blocked:  # it reads a node not made on its current inputs yet, or one that blocks it
         if not pending:

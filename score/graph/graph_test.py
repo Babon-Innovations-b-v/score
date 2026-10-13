@@ -496,6 +496,64 @@ def test_a_stage_reads_other_places_beside_without_a_cycle():
     a_runner(world, store, (CLEAN, COUNT, SHOW, shown_again))
 
 
+def judge_seen(output, inputs, evidence):
+    return checks.Verdict("seen", checks.PASS, "it was made")
+
+
+def make_seen(inputs, out, seed, params):
+    (out / "seen.txt").write_text("seen")
+
+
+SOURCES = graph.Stage("seen", "place", make_seen, TEXT, (checks.Check("seen", judge_seen),),
+                      files={"code": "{repo}/score/checks"})
+
+
+def test_bytecode_in_a_declared_folder_is_left_out_of_its_key():
+    world = a_world({"hangar": "a ship in a hall"})
+    folder = pathlib.Path(world.roots["data"]) / "hangar"
+    runner = a_runner(world, Store.in_folder(tempfile.mkdtemp()), (CLEAN,))
+    before = runner.file_keys(CLEAN, "hangar")
+    (folder / "__pycache__").mkdir()
+    (folder / "__pycache__" / "brief.cpython-312.pyc").write_bytes(b"bytecode")
+    (folder / "stray.pyc").write_bytes(b"bytecode")
+    assert a_runner(world, runner.store, (CLEAN,)).file_keys(CLEAN, "hangar") == before
+
+
+def made_with_bytecode_in_its_key(world, store, commit):
+    """seen@hangar made and accepted by a runner that still hashed bytecode (before #67), as a committed tree at
+    `commit` in a checkout whose score/checks held its own __pycache__."""
+    saved = graph.source_hash, _code.git_commit
+    graph.source_hash = tree_hash
+    _code.git_commit = lambda: {"commit": commit, "uncommitted": False}
+    try:
+        assert a_runner(world, store, (SOURCES,)).run(["hangar"])["seen@hangar"].endswith("accepted automatically")
+    finally:
+        graph.source_hash, _code.git_commit = saved
+
+
+def test_an_output_whose_key_moved_only_by_bytecode_is_kept_and_a_source_change_is_not():
+    cache = _code.REPO / "score/checks/__pycache__"
+    if not any(cache.glob("*.pyc")):
+        import py_compile
+        py_compile.compile(str(_code.REPO / "score/checks/__init__.py"))
+    world = graph.World("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
+    head, first = (subprocess.run(["git", "-C", str(_code.REPO), *command], capture_output=True, text=True,
+                                  check=True).stdout.split()[-1]
+                   for command in (["rev-parse", "HEAD"], ["rev-list", "--max-parents=0", "HEAD"]))
+    for commit, kept in ((head, True), (first, False)):  # score/checks is as at HEAD; it was not there at first
+        store = Store.in_folder(tempfile.mkdtemp())
+        made_with_bytecode_in_its_key(world, store, commit)
+        runner = a_runner(world, store, (SOURCES,))
+        keyed = runner.key(SOURCES, "hangar")
+        assert store.record("seen@hangar", keyed["key"]) is None  # the bytecode moved its key
+        done = runner.run(["hangar"])["seen@hangar"]
+        assert done == ("fresh" if kept else "made: pass"), (commit, done)
+        if kept:
+            carried = store.record("seen@hangar", keyed["key"])["carried"]
+            assert carried["reason"] == graph.BYTECODE_REASON and carried["made by"]["commit"] == head
+            assert carried["sources"]["code"]["at its commit"] == keyed["files"]["code"]
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
