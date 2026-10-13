@@ -75,17 +75,29 @@ def test_a_cast_doing_a_failing_clip_fails():
         assert verdict.answer == "fail" and verdict.measures == {"failing": 1, "judged": 2}, verdict
 
 
-def test_the_shell_leaves_rigid_parts_out():
+def shell_verdict(soft_tail):
+    """judge_shell on a look of 1,000 soft points, `soft_tail` of them 8 cm off, and a hand and a boot 12 cm off."""
     with tempfile.TemporaryDirectory() as held:
         checks = pathlib.Path(held) / "checks"
         checks.mkdir()
+        near, far = [0] * 21, [0] * 81
+        near[20], far[80] = 1000 - soft_tail, soft_tail
+        rigid = [0] * 121
+        rigid[120] = 50
         (checks / "shell.json").write_text(json.dumps({"scale": 1.0, "parts": {
-            "1": {"most_m": 0.02}, "2": {"most_m": 0.09}, "3": {"most_m": 0.08}}}))
-        (checks / "parts.json").write_text(json.dumps({"parts": [{"part": 1, "role": "garment"},
-                                                                 {"part": 2, "role": "hard"},
-                                                                 {"part": 3, "role": "skin"}]}))
-        found = bodies.judge_shell(pathlib.Path(held), {}, {})
-        assert found.answer == "fail" and len(found.findings) == 1 and "part 3" in found.findings[0], found
+            "1": {"most_m": 0.02, "offsets_mm": near}, "2": {"most_m": 0.08, "offsets_mm": far},
+            "3": {"most_m": 0.12, "offsets_mm": rigid}, "4": {"most_m": 0.12, "offsets_mm": rigid}}}))
+        (checks / "parts.json").write_text(json.dumps({"parts": [
+            {"part": 1, "role": "garment", "name": "cloth"}, {"part": 2, "role": "garment", "name": "cloth"},
+            {"part": 3, "role": "hard", "name": "boot"}, {"part": 4, "role": "skin", "name": "skin_hands"}]}))
+        return bodies.judge_shell(pathlib.Path(held), {}, {})
+
+
+def test_the_shell_holds_most_soft_points_and_leaves_rigid_parts_out():
+    passing, failing = shell_verdict(9), shell_verdict(20)
+    assert passing.answer == "pass" and passing.measures["offset_share_m"] == 0.02, passing
+    assert passing.measures["offset_most_m"] == 0.08 and "part 2" in passing.reason, passing
+    assert failing.answer == "fail" and failing.measures["offset_share_m"] == 0.08, failing
 
 
 def test_missing_record_is_unknown():

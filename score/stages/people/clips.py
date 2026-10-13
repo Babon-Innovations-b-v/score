@@ -17,7 +17,8 @@ RIGID_MOST = 1.2
 def per_clip(output):
     """{clip: {check: (passes, numbers in words)}} of a body's output folder."""
     pokes = json.loads((output / "checks" / "pokes.json").read_text())
-    shipped = json.loads((output / "checks" / "pokes_shipped.json").read_text())
+    reference = output / "checks" / "pokes_shipped.json"  # absent: no shipped body wears it, held to its own rest
+    shipped = json.loads(reference.read_text()) if reference.exists() else {"clips": {}}
     counted = json.loads((output / "checks" / "bodycloth.json").read_text())
     bind = counted["bind"]["deep_by_part"]
     found = {}

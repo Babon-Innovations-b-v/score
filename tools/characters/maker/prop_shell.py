@@ -4,17 +4,18 @@ the weights RSWT moved over from the mean body (prop_rig.py), whose inpainted we
 
     fit   (the card's motion environment, prop_chain.py `shell`):
           /root/envs/motion/bin/python prop_shell.py fit <fit rig.npz> <shell.npz>
-          SOMA-X's identity (its first FITTED shape numbers and a global scale) chosen by least squares so the body,
-          laid on the fitted skeleton's bind (each kept joint's SOMA bind moved onto the fitted one, the surface by
-          SOMA's own weights), lies inside the look and close under it: the mean squared distance from each look point
-          to the body plus INSIDE_WEIGHT times the mean squared depth of body points outside the look (by the look's
-          nearest point's normal), less INSIDE_MARGIN.
+          SOMA-X's identity (its first FITTED shape numbers and a global scale) chosen by damped Gauss-Newton (`fit`)
+          so the body, laid on the fitted skeleton's bind (each kept joint's SOMA bind moved onto the fitted one, the
+          surface by SOMA's own weights), lies just inside the look. SOMA's bone-length scales are not fitted: they
+          cover only limb and finger segments, whose joints the laying already puts on the fitted skeleton's.
     bind  (the PC, the prop environment: plain geometry):
           ~/.farm-factory-props/env/bin/python prop_shell.py bind <fit rig.npz> <shell.npz> <out rig.npz> <shell.json>
           every look point bound to its closest body triangle: its weights SOMA's at that point (the triangle's corners'
           weights by the point's barycentric place), its offset along the body's normal recorded; the fit rig written
           again with those weights (the RSWT ones kept as `rswt_weights`). Hard parts and hair still ride one joint
-          each (prop_build.py's rigid_joint). shell.json: the offsets per part, and the fit's measures.
+          each, and so do the hands (prop_build.py's rigid_joint). shell.json: per part the offsets' most, mean and
+          depth inside and their count per whole millimetre (`offsets_mm`, so a gate can pool parts), and the fit's
+          measures.
 """
 import json
 import pathlib
@@ -24,14 +25,17 @@ import numpy as np
 
 MAKER = pathlib.Path(__file__).resolve().parent
 FITTED = 24
-INSIDE_WEIGHT = 10.0
 INSIDE_MARGIN = 0.003
 SCALE_RANGE = (0.85, 1.25)
 COEFF_RANGE = 5.0
-# Least squares' finite-difference step and its budget of body evaluations (each about a third of a second).
-DIFF_STEP = 0.02
-EVALUATIONS = 1200
 SAMPLES = 6000
+# The Gauss-Newton fit: its rounds, the steps its Jacobian takes on a shape number and on the scale, its starting
+# damping, and the weight of the look's points reaching for the body against the body's points reaching inside.
+ROUNDS = 12
+COEFF_STEP = 0.25
+SCALE_STEP = 0.01
+DAMPING = 1.0
+COVER_WEIGHT = 0.5
 
 
 def soma_layer():
@@ -84,8 +88,11 @@ def vertex_normals(points, faces):
 
 
 def fit(fit_path, out):
-    """The identity whose body lies closest inside the look; shell.npz."""
-    from scipy.optimize import least_squares
+    """The identity whose body lies just inside the look, by damped Gauss-Newton on matched points (each round every
+    body point is matched to the look's nearest point moved INSIDE_MARGIN in along its normal, and COVER_WEIGHT of the
+    look's sampled points to the body's nearest point), the Jacobian by a step of each shape number: shell.npz. A
+    least-squares fit on the summed nearest distances stopped after about 40 evaluations with only the scale moved
+    (Bram's look 11 cm off, 2026-10-13)."""
     from scipy.spatial import cKDTree
     rig = np.load(fit_path)
     layer, body, kept, carries = soma_layer()
@@ -95,36 +102,63 @@ def fit(fit_path, out):
     rng = np.random.default_rng(0)
     sampled = look[rng.choice(len(look), min(SAMPLES, len(look)), replace=False)]
     look_tree = cKDTree(look)
+    fitted = min(FITTED, layer.identity_model.num_identity_coeffs)
+    low = np.r_[np.full(fitted, -COEFF_RANGE), SCALE_RANGE[0]]
+    high = np.r_[np.full(fitted, COEFF_RANGE), SCALE_RANGE[1]]
+    steps = np.r_[np.full(fitted, COEFF_STEP), SCALE_STEP]
 
     def shell(variables):
         world, vertices = soma_bind(layer, variables[:-1], variables[-1])
         return laid(vertices, weights, world[kept], rig["bind"])
 
-    def residuals(variables):
-        """Each sampled look point's distance to the body, and each body point's depth outside the look (less the
-        margin), weighted: least squares of them is the fit's loss."""
-        points = shell(variables)
-        near, _ = cKDTree(points).query(sampled)
+    def matched(points):
+        """The residuals (body to its inside target, then weighted look samples to the body) and the points used."""
         _, nearest = look_tree.query(points)
-        outside = np.einsum("ij,ij->i", points - look[nearest], look_normals[nearest]) + INSIDE_MARGIN
-        return np.r_[near / np.sqrt(len(near)), np.sqrt(INSIDE_WEIGHT / len(outside)) * np.maximum(outside, 0.0)]
+        target = look[nearest] - look_normals[nearest] * INSIDE_MARGIN
+        _, cover = cKDTree(points).query(sampled)
+        return np.r_[(points - target).ravel(), np.sqrt(COVER_WEIGHT) * (points[cover] - sampled).ravel()], cover
 
-    def loss(variables):
-        return float(np.sum(residuals(variables) ** 2))
+    def offsets(points):
+        near, _ = cKDTree(points).query(look)
+        return float(near.mean()), float(near.max())
 
-    fitted = min(FITTED, layer.identity_model.num_identity_coeffs)
-    start = np.r_[np.zeros(fitted), 1.0]
-    low = np.r_[np.full(fitted, -COEFF_RANGE), SCALE_RANGE[0]]
-    high = np.r_[np.full(fitted, COEFF_RANGE), SCALE_RANGE[1]]
-    found = least_squares(residuals, start, bounds=(low, high), method="trf", diff_step=DIFF_STEP,
-                          max_nfev=EVALUATIONS)
-    points = shell(found.x)
-    near, _ = cKDTree(points).query(look)
-    np.savez_compressed(out, points=points, faces=faces, weights=weights, coefficients=found.x[:-1],
-                        scale=found.x[-1], loss_start=loss(start), loss=loss(found.x))
-    return {"loss_start": round(loss(start), 6), "loss": round(loss(found.x), 6), "evaluations": int(found.nfev),
-            "scale": round(float(found.x[-1]), 4), "look_to_body_mean_m": round(float(near.mean()), 4),
-            "look_to_body_most_m": round(float(near.max()), 4)}
+    variables = np.r_[np.zeros(fitted), 1.0]
+    points = shell(variables)
+    start = offsets(points)
+    damping = DAMPING
+    for _ in range(ROUNDS):
+        residual, cover = matched(points)
+        columns = []
+        for number in range(len(variables)):
+            moved = variables.copy()
+            moved[number] = min(high[number], moved[number] + steps[number])
+            change = (shell(moved) - points) / max(moved[number] - variables[number], 1e-9)
+            columns.append(np.r_[change.ravel(), np.sqrt(COVER_WEIGHT) * change[cover].ravel()])
+        jacobian = np.stack(columns, 1)
+        normal = jacobian.T @ jacobian
+        step = np.linalg.solve(normal + damping * np.diag(np.diag(normal) + 1e-9), -jacobian.T @ residual)
+        trial = np.clip(variables + step, low, high)
+        trial_points = shell(trial)
+        if np.sum(matched(trial_points)[0] ** 2) < np.sum(residual ** 2):
+            variables, points, damping = trial, trial_points, damping / 3
+        else:
+            damping *= 4
+    mean, most = offsets(points)
+    np.savez_compressed(out, points=points, faces=faces, weights=weights, coefficients=variables[:-1],
+                        scale=variables[-1], loss_start=start[0], loss=mean)
+    return {"start_mean_m": round(start[0], 4), "start_most_m": round(start[1], 4), "scale": round(float(variables[-1]), 4),
+            "look_to_body_mean_m": round(mean, 4), "look_to_body_most_m": round(most, 4)}
+
+
+def part_record(offsets, mine, rig):
+    """A part's offsets: the most (and the joint nearest that point), the mean, the depth inside, and the count per
+    whole millimetre (`offsets_mm`, so a gate can pool parts)."""
+    reach = np.abs(offsets[mine])
+    worst = rig["points"][mine][reach.argmax()]
+    nearest = int(np.linalg.norm(rig["bind"][:, :3, 3] - worst, axis=1).argmin())
+    return {"most_m": round(float(reach.max()), 4), "most_near": str(rig["names"][nearest]),
+            "mean_m": round(float(reach.mean()), 4), "inside_m": round(float(-offsets[mine].min()), 4),
+            "offsets_mm": np.bincount(np.round(reach * 1000).astype(int)).tolist()}
 
 
 def bind(fit_path, shell_path, out, record_path):
@@ -144,10 +178,7 @@ def bind(fit_path, shell_path, out, record_path):
     np.savez_compressed(out, **rig)
     faces_of = np.zeros(len(rig["points"]), int)
     faces_of[rig["faces"].ravel()] = np.repeat(rig["part_of"], 3)
-    parts = {int(part): {"most_m": round(float(np.abs(offsets[faces_of == part]).max()), 4),
-                         "mean_m": round(float(np.abs(offsets[faces_of == part]).mean()), 4),
-                         "inside_m": round(float(-offsets[faces_of == part].min()), 4)}
-             for part in np.unique(faces_of)}
+    parts = {int(part): part_record(offsets, faces_of == part, rig) for part in np.unique(faces_of)}
     record = {"scale": float(shell["scale"]), "coefficients": shell["coefficients"].round(4).tolist(),
               "loss_start": float(shell["loss_start"]), "loss": float(shell["loss"]),
               "offset_most_m": round(float(np.abs(offsets).max()), 4),

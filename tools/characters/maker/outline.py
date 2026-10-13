@@ -1,15 +1,18 @@
 """The prop route's A-pose outline check: the built person at its bind pose, drawn as a mask from the close-up's own
-camera (the one labels.py paints by), set against the close-up's cut-out, and the same for the raw Pixal3D model.
-Measures that the rig, the parts and the tucks kept the shape the picture asked for. CPU only.
+camera (the one labels.py paints by), set against the close-up's cut-out, and the same for the finished Pixal3D take
+it starts from and for the raw model. Measures that the rig, the parts and the tucks kept the shape the picture asked
+for. CPU only.
 
     ~/.farm-factory-props/env/bin/python tools/characters/maker/outline.py <take> <fit rig.npz> <body.glb> \
         --out <outline.json>
 
 The built mesh lies in the skeleton's frame; it is carried back to the raw model's (prop_rig.py's stand undone, then
 the finish's turn undone: labels.finish_turn refined by labels.onto_finished) and projected as labels.seen_faces
-projects. Recorded: each mask's intersection over union with the cut-out (alpha over half), the drop from the raw
-model's, and the widths of the bands (head, chest, waist, hips, knees) as shares of the figure's height in pixels.
-Gate: the IoU drops no more than IOU_DROP and no band moves more than BAND_SHARE of the figure's height.
+projects. Recorded: each mask's intersection over union with the cut-out (alpha over half), the build's drop from the
+finished take's, the finished take's own drop from the raw model's (`finish_drop`: Pixal3D's finish shaved Bram's
+rim by 0.0109, 2026-10-13; a measure of the take, not of the build), and the widths of the bands (head, chest, waist,
+hips, knees) as shares of the figure's height in pixels. Gate: the build's IoU drops no more than IOU_DROP from the
+finished take's and no band moves more than BAND_SHARE of the figure's height.
 """
 import argparse
 import json
@@ -89,20 +92,29 @@ def built_mesh(path):
 
 
 def measure(take, fit_path, body_path):
+    """The outline record and the masks (cut-out, finished take, built). The build is judged against the finished
+    take it starts from (captain, 2026-10-13: a fault belongs to the stage that makes it); the finished take's own
+    drop against the raw model is recorded (`finish_drop`), never gated here."""
     views = labels.PIXAL / f"{take}.svviews"
     camera = json.loads((views / "transforms.json").read_text())
     cut_out = np.asarray(Image.open(views / "input.png").convert("RGBA"))[..., 3] > 127
+    fit_rig = np.load(fit_path)
     points, faces = built_mesh(body_path)
-    on_raw, raw = built_on_raw(take, np.load(fit_path), points)
+    final = trimesh.load(labels.PIXAL / f"{take}-final.glb", force="mesh", process=False)
+    final_on_fit = final.vertices @ fit_rig["turn"].T * fit_rig["scale"] + fit_rig["shift"]
+    on_raw, raw = built_on_raw(take, fit_rig, np.concatenate([points, final_on_fit]))
     raw_mask = mask(raw.vertices, raw.faces, camera, cut_out.shape)
-    built_mask = mask(on_raw, faces, camera, cut_out.shape)
-    raw_bands, built_bands = bands(raw_mask), bands(built_mask)
-    moved = {name: round(abs(built_bands[name] - raw_bands[name]), 4) for name in BANDS}
-    record = {"take": take, "iou_raw": round(iou(raw_mask, cut_out), 4), "iou_built": round(iou(built_mask, cut_out), 4),
-              "bands_raw": raw_bands, "bands_built": built_bands, "band_moved": moved}
-    record["iou_drop"] = round(record["iou_raw"] - record["iou_built"], 4)
+    finished_mask = mask(on_raw[len(points):], final.faces, camera, cut_out.shape)
+    built_mask = mask(on_raw[:len(points)], faces, camera, cut_out.shape)
+    finished_bands, built_bands = bands(finished_mask), bands(built_mask)
+    moved = {name: round(abs(built_bands[name] - finished_bands[name]), 4) for name in BANDS}
+    record = {"take": take, "iou_raw": round(iou(raw_mask, cut_out), 4),
+              "iou_finished": round(iou(finished_mask, cut_out), 4), "iou_built": round(iou(built_mask, cut_out), 4),
+              "bands_finished": finished_bands, "bands_built": built_bands, "band_moved": moved}
+    record["finish_drop"] = round(record["iou_raw"] - record["iou_finished"], 4)
+    record["iou_drop"] = round(record["iou_finished"] - record["iou_built"], 4)
     record["pass"] = record["iou_drop"] <= IOU_DROP and max(moved.values()) <= BAND_SHARE
-    return record, raw_mask, built_mask, cut_out
+    return record, finished_mask, built_mask, cut_out
 
 
 def main():
@@ -112,11 +124,12 @@ def main():
     parser.add_argument("body", type=pathlib.Path)
     parser.add_argument("--out", required=True, type=pathlib.Path)
     options = parser.parse_args()
-    record, raw_mask, built_mask, cut_out = measure(options.take, options.fit, options.body)
+    record, finished_mask, built_mask, cut_out = measure(options.take, options.fit, options.body)
     options.out.write_text(json.dumps(record, indent=1))
-    picture = np.stack([cut_out, raw_mask, built_mask], -1).astype(np.uint8) * 255
+    picture = np.stack([cut_out, finished_mask, built_mask], -1).astype(np.uint8) * 255
     Image.fromarray(picture).save(options.out.with_suffix(".png"))
-    print(f"outline: {'pass' if record['pass'] else 'FAIL'} iou raw {record['iou_raw']} built {record['iou_built']}; "
+    print(f"outline: {'pass' if record['pass'] else 'FAIL'} iou finished {record['iou_finished']} built "
+          f"{record['iou_built']} (the take's own drop {record['finish_drop']}); "
           f"{options.out}")
 
 

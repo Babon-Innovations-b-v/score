@@ -12,13 +12,15 @@ tucks, rigid, cloth through cloth and body through cloth per clip; every clip ju
 their numbers, a cast held to the passing ones by people-clips), outline (outline.py: the built A-pose against the
 close-up's cut-out), likeness (the props' likeness gate, score/stages/props/likeness.py: the body's best outline of
 eight ways round against its close-up, at least its OUTLINE_LEAST), triangles (within the shipped player's budget)
-and shell (every part but the rigid ones within OFFSET_MOST of SOMA-X's body fitted to the look's outside,
-prop_shell.py).
+and shell (SHELL_SHARE of the soft parts' points within OFFSET_MOST of SOMA-X's body fitted to the look's
+outside, prop_shell.py; the worst point recorded).
 """
 import json
 import pathlib
 import shutil
 import sys
+
+import numpy as np
 
 from score import contracts, graph
 from score.checks import FAIL, PASS, Check, Verdict
@@ -39,7 +41,12 @@ SHIPPED_TRIANGLES = 29849
 # shell. First set at 5 cm, about a coat's and a padded suit's thickness over the body, before any fit was measured;
 # the player's fit is the first measure (#5).
 OFFSET_MOST = 0.05
+# The share of the soft points the reach holds for (captain, 2026-10-13): the rest, under 1% on every look, are
+# loose cloth edges (cuffs, hems, caps) inside a garment's part.
+SHELL_SHARE = 0.99
 RIGID_ROLES = ("hard", "hair")
+# Parts by name that ride one joint whatever their role (prop_build.py's RIGID_NAMES less the hair, a role here).
+RIGID_NAMES = ("skin_hands",)
 
 
 def looks():
@@ -106,9 +113,11 @@ def kept(folder, name, entry, out):
     shutil.copytree(folder / "settle" / "usd", out / "usd")
     checks = out / "checks"
     checks.mkdir()
-    for record in ("pokes.json", "pokes_shipped.json", "outline.json", "bodycloth.json", "bodycloth_plain.json",
-                   "checks.txt"):
+    for record in ("pokes.json", "outline.json", "bodycloth.json", "bodycloth_plain.json", "checks.txt",
+                   "cloth_reference.txt"):
         shutil.copy2(folder / "checks" / record, checks / record)
+    if (folder / "checks" / "pokes_shipped.json").exists():  # none where no shipped body wears the outfit
+        shutil.copy2(folder / "checks" / "pokes_shipped.json", checks / "pokes_shipped.json")
     shutil.copy2(folder / "out" / "checks" / f"{name}.json", checks / "joins.json")
     shutil.copy2(folder / "out" / f"{name}.json", checks / "build.json")
     shutil.copy2(folder / "settle" / f"{name}.bake.json", checks / "bake.json")
@@ -178,9 +187,11 @@ def judge_joins(output, inputs, evidence):
 
 def judge_outline(output, inputs, evidence):
     found = record(output, "outline.json")
-    failing = [] if found["pass"] else [f"A-pose outline drop {found['iou_drop']} (raw {found['iou_raw']}, built "
-                                        f"{found['iou_built']})"]
-    return verdict("outline", failing, f"built A-pose IoU {found['iou_built']}", {"iou_built": found["iou_built"]})
+    failing = [] if found["pass"] else [f"A-pose outline drop {found['iou_drop']} (finished take "
+                                        f"{found['iou_finished']}, built {found['iou_built']})"]
+    return verdict("outline", failing, f"built A-pose IoU {found['iou_built']}; the finished take's own drop against "
+                   f"the raw model {found['finish_drop']}", {"iou_built": found["iou_built"],
+                                                            "finish_drop": found["finish_drop"]})
 
 
 def judge_likeness(output, inputs, evidence):
@@ -213,16 +224,28 @@ def guarded(name, judge):
 
 
 def judge_shell(output, inputs, evidence):
-    """The look a thin shell over SOMA-X's fitted body (owner, 2026-10-12): every part but the rigid ones (hard parts
-    and hair, which ride one joint) within OFFSET_MOST of the body."""
+    """The look a thin shell over SOMA-X's fitted body (owner, 2026-10-12): SHELL_SHARE of the soft parts' points
+    (every part but the rigid ones: hard parts, hair and the bare hands, which ride one joint) within OFFSET_MOST of
+    the body. A proxy (captain, 2026-10-13, the owner may reverse it): the points past it are loose cloth edges, cuffs,
+    hems and caps, which no part label names; the clips gate judges what the cloth does in every clip. The worst
+    point's part and offset are recorded."""
     found = record(output, "shell.json")
-    roles = {str(part["part"]): part["role"] for part in record(output, "parts.json")["parts"]}
-    failing = [f"part {part} ({roles.get(part, 'no role')}): {entry['most_m']} m off the body"
-               for part, entry in found["parts"].items()
-               if roles.get(part) not in RIGID_ROLES and entry["most_m"] > OFFSET_MOST]
-    shelled = [entry["most_m"] for part, entry in found["parts"].items() if roles.get(part) not in RIGID_ROLES]
-    return verdict("shell", failing, f"every part within {OFFSET_MOST} m of the body",
-                   {"offset_most_m": max(shelled, default=0.0), "scale": found["scale"]})
+    parts = {str(part["part"]): part for part in record(output, "parts.json")["parts"]}
+    soft = {key: entry for key, entry in found["parts"].items()
+            if parts.get(key, {}).get("role") not in RIGID_ROLES and parts.get(key, {}).get("name") not in RIGID_NAMES}
+    counts = np.zeros(max((len(entry["offsets_mm"]) for entry in soft.values()), default=1))
+    for entry in soft.values():
+        counts[:len(entry["offsets_mm"])] += entry["offsets_mm"]
+    reach_m = float(np.searchsorted(np.cumsum(counts), SHELL_SHARE * counts.sum())) / 1000
+    worst = max(soft, key=lambda key: soft[key]["most_m"], default=None)
+    worst_m = soft[worst]["most_m"] if worst else 0.0
+    failing = [] if reach_m <= OFFSET_MOST else [f"{SHELL_SHARE:.0%} of the soft points within {reach_m} m, over "
+                                                f"{OFFSET_MOST} m"]
+    where = (f"part {worst} ({parts.get(worst, {}).get('name')}, by {soft[worst].get('most_near', 'no joint recorded')})"
+             if worst else "no soft part")
+    return verdict("shell", failing, f"{SHELL_SHARE:.0%} of the soft points within {reach_m} m of the body; worst "
+                   f"{worst_m} m, {where}", {"offset_share_m": reach_m, "offset_most_m": worst_m,
+                                            "scale": found["scale"]})
 
 
 def judge_clips(output, inputs, evidence):

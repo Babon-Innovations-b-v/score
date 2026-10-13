@@ -62,7 +62,7 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   weights moved on by RSWT, the SOMA surface only their hidden source), GeoSAM2 parts and the close-up's SAM 2.1
   finish regions named by the judge in one run (three seeds; an unnamed part takes its mirror image's answers; a
   region's answer far from its own colour is not believed), tucks under the joins (`tucks.py`), built by
-  `prop_build.py` (every hard thing on one joint, the cloth next to it eased onto that joint; the face cut from the
+  `prop_build.py` (every hard thing, the hair and the bare hands on one joint, the cloth next to it eased onto that joint; the face cut from the
   close-up and the flag drawn are the only pictures, `prop_prints.py`; piping cut in as thin strips down the outside
   of the sleeves and trouser legs, `piping.py`), the garments settled through every clip by Newton against the
   person's own posed surface with the cloth over each tuck held on its skinned place (`garment_settle.py`) and baked

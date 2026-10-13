@@ -483,11 +483,17 @@ def table_rows(spec, outfit, folder, take):
     rows.append(("pokes.py", "tuck outside the person's surface, worst frame", f"{worst:.1f} mm ({over} frames over)",
                  f"<= {5.0} mm every frame", "pass" if poked["verdict"]["tucks"] else "FAIL"))
     crossing = max(clip["most_crossings"] for clip in poked["clips"].values())
-    shipped = json.loads((folder / "checks" / "pokes_shipped.json").read_text())
-    shipped_worst = max(clip["most_crossings"] for clip in shipped["clips"].values())
-    rows.append(("pokes.py", "cloth through cloth (crossings), rest / worst frame; shipped body's",
-                 f"{poked['rest_crossings']} / {crossing}; shipped {shipped['rest_crossings']} / {shipped_worst}",
-                 "no clip above the shipped body's", "pass" if poked["verdict"]["cloth_through_cloth"] else "FAIL"))
+    reference = folder / "checks" / "pokes_shipped.json"
+    if reference.exists():
+        shipped = json.loads(reference.read_text())
+        shipped_worst = max(clip["most_crossings"] for clip in shipped["clips"].values())
+        rows.append(("pokes.py", "cloth through cloth (crossings), rest / worst frame; shipped body's",
+                     f"{poked['rest_crossings']} / {crossing}; shipped {shipped['rest_crossings']} / {shipped_worst}",
+                     "no clip above the shipped body's", "pass" if poked["verdict"]["cloth_through_cloth"] else "FAIL"))
+    else:
+        rows.append(("pokes.py", "cloth through cloth (crossings), rest / worst frame; no shipped body wears it",
+                     f"{poked['rest_crossings']} / {crossing}", "no clip above its own rest",
+                     "pass" if poked["verdict"]["cloth_through_cloth"] else "FAIL"))
     stretched = max(clip["rigid_stretch"] for clip in poked["clips"].values())
     rows.append(("pokes.py", "hard parts' edges at their longest against the bind, worst frame", f"{stretched:.3f}x",
                  f"<= {RIGID_MOST}x", "pass" if poked["verdict"]["rigid"] else "FAIL"))
@@ -499,9 +505,12 @@ def table_rows(spec, outfit, folder, take):
     rows.append(("garment_bake.py", "corrective shapes (8 a clip) / their worst miss of the settle",
                  f"{baked['targets']} / {max(clip['missed_mm'] for clip in baked['clips'].values()):.1f} mm",
                  "record", "-"))
-    rows.append(("outline.py", "A-pose IoU against the cut-out, raw / built",
-                 f"{outlined['iou_raw']} / {outlined['iou_built']} (drop {outlined['iou_drop']})",
+    rows.append(("outline.py", "A-pose IoU against the cut-out, finished take / built",
+                 f"{outlined['iou_finished']} / {outlined['iou_built']} (drop {outlined['iou_drop']})",
                  "drop <= 0.01, bands <= 1 %", "pass" if outlined["pass"] else "FAIL"))
+    rows.append(("outline.py", "the finished take's own drop against the raw Pixal3D model",
+                 f"{outlined['iou_raw']} / {outlined['iou_finished']} (drop {outlined['finish_drop']})", "record",
+                 "-"))
     rows.append(("drape_measure.py", "silhouette against a Warp drape", "not applicable",
                  "record only", "a Pixal3D mesh has no GarmentCode panels to cut by; its self-crossings are "
                  "pokes.py's rest count"))
@@ -631,6 +640,23 @@ def counts_by_clips(body, outfit, checked):
     return found
 
 
+def shipped_reference(spec, outfit):
+    """The shipped body and the node of its outfit a look's cloth is held to: the outfit by the look's own name, as the
+    kits name theirs (plain_uniform_olive for uniform-olive), or the spec's shipped_outfit (the driver's and the
+    guard's "person"); (None, None) where no shipped body wears it (the 2026-10-13 batch asked the driver's body for
+    "driver-suit" and failed)."""
+    sys.path.insert(0, str(HERE.parent / "people"))
+    import joins
+    shipped = MOTION_HOME / "work" / "bodies" / f"{spec.get('shipped_body', spec['name'])}.glb"
+    if not shipped.exists():
+        return None, None
+    worn = {node.get("name") for node in joins.read_glb(shipped)[0]["nodes"] if "mesh" in node}
+    for wanted in (SHIPPED_OUTFIT.get(outfit, outfit), "plain_" + outfit.replace("-", "_"), spec.get("shipped_outfit")):
+        if wanted in worn:
+            return shipped, wanted
+    return None, None
+
+
 def checks_cloud(spec, outfit, who, held, dry_run):
     """`checks`' records made side by side on a rented processor machine (inside/body_checks.py through
     blender_cloud.py): the shipped body's pokes first where they are missing, then pokes, the outline and the two
@@ -640,13 +666,17 @@ def checks_cloud(spec, outfit, who, held, dry_run):
     checked = folder / "checks"
     checked.mkdir(exist_ok=True)
     body = folder / "settle" / f"{spec['name']}.glb"
-    shipped = MOTION_HOME / "work" / "bodies" / f"{spec.get('shipped_body', spec['name'])}.glb"
+    shipped, shipped_outfit = shipped_reference(spec, outfit)
     python = lambda script, *arguments: [str(HERE / script), *map(str, arguments)]  # noqa: E731
-    first = {} if (checked / "pokes_shipped.json").exists() else {
+    first = {} if shipped is None or (checked / "pokes_shipped.json").exists() else {
         "pokes shipped": python("pokes.py", shipped, "--out", checked / "pokes_shipped.json", "--outfit",
-                                SHIPPED_OUTFIT.get(outfit, outfit))}
+                                shipped_outfit)}
+    against = [] if shipped is None else ["--against", checked / "pokes_shipped.json"]
+    (checked / "cloth_reference.txt").write_text(
+        f"the shipped {shipped.stem}'s {shipped_outfit}" if shipped else "the look's own rest crossings (no shipped body "
+        "wears this outfit)")
     listing = {"repo": str(REPO), "props home": str(PIXAL.parents[1]), "first": first, "checks": {
-        "pokes": python("pokes.py", body, "--out", checked / "pokes.json", "--against", checked / "pokes_shipped.json"),
+        "pokes": python("pokes.py", body, "--out", checked / "pokes.json", *against),
         "outline": python("outline.py", take, folder / "fit" / "rig.npz", body, "--out", checked / "outline.json"),
         **counts_by_clips(body, outfit, checked)}, "then": {
         name: python("bodycloth.py", "merge", checked / f"{name}.json",
@@ -660,7 +690,8 @@ def checks_cloud(spec, outfit, who, held, dry_run):
     job = place / "job.json"
     job.write_text(json.dumps({
         "script": "tools/characters/maker/inside/body_checks.py", "args": [str(place / "listing.json")],
-        "inputs": [str(path) for path in (place / "listing.json", body, folder / "fit" / "rig.npz", shipped, checked,
+        "inputs": [str(path) for path in (place / "listing.json", body, folder / "fit" / "rig.npz", *([shipped] if shipped
+                                                                                                     else []), checked,
                                           REPO / "tools/characters", REPO / "tools/props", *takes)],
         "outputs": [str(checked)], "minutes": CHECK_MINUTES}, indent=1))
     if dry_run:
