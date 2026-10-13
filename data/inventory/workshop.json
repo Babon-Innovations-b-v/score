@@ -83,12 +83,6 @@
 		{
 			"id": "wall_lower_plain",
 			"view": "v1",
-			"box": [
-				1432,
-				349,
-				1535,
-				461
-			],
 			"name": "plain lower wall panel, bolted, worn",
 			"kind": "code",
 			"anchor": "wall",
@@ -103,11 +97,8 @@
 			"group": "kit: wall",
 			"at": [],
 			"repeats": "across the room",
-			"box_from": [
-				"v1.241"
-			],
-			"why_box": "the north wall's lower panels west of the drawer cabinet, under its pipes (proposal v1.241); the old box was round a stretch of floor (2026-10-13)",
-			"box_fails": "the box judge failed it twice (a stretch of floor, then a pipe elbow and valve): no proposal of the partition holds a plain lower wall panel alone (2026-10-13)"
+			"box": null,
+			"unseen": "the concept K10 shows no plain lower wall panel: the room's lower wall stands behind its pipes, cabinets and benches, a shell piece the kit lays unseen (captain, 2026-10-13)"
 		},
 		{
 			"id": "wall_upper_plain",
