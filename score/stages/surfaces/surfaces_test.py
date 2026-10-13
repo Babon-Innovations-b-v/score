@@ -298,6 +298,31 @@ def test_a_surfaces_own_drawn_seams_are_not_blotches():
     assert len(faults) == 1 and "near black" in faults[0], faults
 
 
+def test_a_finish_judged_by_its_own_colour_is_not_compared_with_its_close_up():
+    """The garage beacon: its red transparent dome measured pale pink on its brighter half (its highlights and what
+    lies behind it), so the paint keeps red_plastic by its own colour; the bake check leaves it out of the close-up
+    too. The opaque knob of the same surface is still compared."""
+    from score.stages.surfaces import bake_check
+    dome = {"finish": "Red transparent plastic", "surface": "red_plastic", "measured_lab": [70.8, 21.2, 11.5],
+            "by": "its own colour", "cover": True}
+    label = {"finish": "Printed label", "surface": "printed_paper", "measured_lab": [30.0, 5.0, 5.0],
+             "by": "its own colour"}  # print off its listed colour: judged by its own colour, still in the close-up
+    knob = {"finish": "Red plastic", "surface": "red_plastic", "measured_lab": [40.0, 55.0, 40.0], "by": "the list"}
+    with tempfile.TemporaryDirectory() as scratch:
+        folder = pathlib.Path(scratch)
+        (folder / "labels.json").write_text(json.dumps({"finishes": [dome]}))
+        assert bake_check.close_up_colours(folder) == {}
+        (folder / "labels.json").write_text(json.dumps({"finishes": [dome, label]}))
+        assert bake_check.close_up_colours(folder) == {"printed_paper": [30.0, 5.0, 5.0]}
+        (folder / "labels.json").write_text(json.dumps({"finishes": [dome, knob]}))
+        assert bake_check.close_up_colours(folder) == {"red_plastic": [40.0, 55.0, 40.0]}
+    red = [38.5, 57.0, 47.5]
+    assert bake_check.close_up_faults("beacon_1", baked_record({"red_plastic": (1.0, red)}, {})) == []
+    faults = bake_check.close_up_faults("beacon_1", baked_record({"red_plastic": (1.0, red)},
+                                                                 {"red_plastic": dome["measured_lab"]}))
+    assert len(faults) == 1 and "red_plastic" in faults[0], faults
+
+
 WATER_TANK_CLOSE_UP = {"painted_panel": [80.3, -0.2, 6.0], "bare_steel": [67.3, -0.3, 1.0],
                        "tank_water": [53.2, -3.2, -2.3]}  # the finish-map method's measures, greenhouse, 2026-10-12
 

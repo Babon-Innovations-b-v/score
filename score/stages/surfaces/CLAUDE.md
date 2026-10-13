@@ -86,7 +86,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   lowest quarter ends within 3 cm of its lowest point (the hangar's rack stood on a middle part, its legs 22 cm up;
   the paint's feet check, in shares of size, let it pass). A model its paint did not level (no floor or held row) or
   whose inventory row names a lying class (`data/checks/stance.json`: torn wreckage) is left out. Glass, glow, lamp
-  light and print skip the close-up comparison (#8).
+  light and print skip the close-up comparison (#8), and so does a coloured see-through cover the paint judged by its
+  own colour (`cover`: the garage beacon's red_plastic dome), left out of `close_up_colours`; other finishes judged
+  by their own colour stay in it for the order and one-look checks.
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
   `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their world
   files from `row_files.py`, so neither this folder's `__init__.py` nor `place_line.py` is in their code

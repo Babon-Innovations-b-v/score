@@ -297,7 +297,7 @@ def test_a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_co
                                             [np.array([45.0, 60.0, 40.0])])
     finally:
         labels.allowed_materials = saved
-    assert lit[0]["surface"] == "glass" and lit[0]["by"] == "its own colour", lit[0]
+    assert lit[0]["surface"] == "glass" and lit[0]["by"] == "its own colour" and "cover" not in lit[0], lit[0]
 
 
 def test_a_finish_out_of_order_is_named_again_and_a_part_behind_a_see_through_cover_is_left_out():
@@ -355,7 +355,7 @@ def test_a_coloured_see_through_finish_keeps_its_surface_against_its_highlights(
              {"finish": "Red plastic", "parts": "knob", "surface": "red_plastic"}], [pale, pale])
     finally:
         labels.allowed_materials = saved
-    assert found[0]["surface"] == "red_plastic" and found[0]["by"] == "its own colour", found[0]
+    assert found[0]["surface"] == "red_plastic" and found[0]["by"] == "its own colour" and found[0]["cover"], found[0]
     assert found[1]["surface"] == "plastic_grey" and found[1]["by"] == "nearest of its family by colour", found[1]
 
 
