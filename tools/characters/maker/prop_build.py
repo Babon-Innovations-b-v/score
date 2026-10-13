@@ -404,11 +404,15 @@ def primitive(contents, body, glb, points, faces, weights, material_index, uv=No
 
 
 def far_body(far_path):
-    """prop_far.py's far body: [(surface, colour, points, faces, weights)] for skin, clothes, boots."""
+    """prop_far.py's far body: [(surface, colour, points, faces, weights)] for skin, clothes, boots; a surface with no
+    faces (a take whose parts hold no boot: kit_m_broad's wide take, 2026-10-13) is left out, and named in the build's
+    report by build()."""
     far = np.load(far_path)
     found = []
     for number, surface in enumerate(far["surfaces"]):
         mine = far["surface_of_face"] == number
+        if not mine.any():
+            continue
         used, renumbered = np.unique(far["faces"][mine], return_inverse=True)
         found.append((str(surface), far["colours"][number], far["points"][used], renumbered.reshape(-1, 3),
                       far["weights"][used]))
@@ -460,7 +464,9 @@ def build(fit_path, mean_path, parts_path, far_path, out, outfit, prints_path=No
     document["meshes"].append({"primitives": far_primitives})
     document["nodes"].append({"name": "far", "mesh": len(document["meshes"]) - 1, "skin": 0})
     document["nodes"][0]["children"].append(len(document["nodes"]) - 1)
-    report["levels"]["far"] = {"triangles": int(sum(len(item[3]) for item in far))}
+    report["levels"]["far"] = {"triangles": int(sum(len(item[3]) for item in far)),
+                               "surfaces_without_faces": sorted(set(map(str, np.load(far_path)["surfaces"]))
+                                                                - {item[0] for item in far})}
     near = []
     for name, role, colour, points, faces, weights, tuck_from, uv, picture in surfaces(fit_rig, parts, prints):
         texture = None if picture is None else texture_of(contents, document, picture)

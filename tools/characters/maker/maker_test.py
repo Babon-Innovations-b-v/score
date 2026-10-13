@@ -140,6 +140,16 @@ def test_the_pose_picture_words_name_no_one_by_pronoun():
     assert " her " not in words and " his " not in words
 
 
+def test_a_far_surface_with_no_faces_is_left_out_not_crashed_on(tmp_path):
+    """2026-10-13: kit_m_broad's wide take has no boot part, and the build crashed on the far body's empty boots."""
+    prop_build = pytest.importorskip("prop_build")
+    far = tmp_path / "far.npz"
+    np.savez(far, points=np.eye(3), faces=np.array([[0, 1, 2]]), surface_of_face=np.array([1]),
+             weights=np.ones((3, 27)) / 27, surfaces=np.array(["skin", "clothes", "boots"]),
+             colours=np.zeros((3, 3)))
+    assert [item[0] for item in prop_build.far_body(far)] == ["clothes"]
+
+
 def test_any_outfit_with_words_can_be_split_and_one_without_is_refused_on_the_pc(tmp_path):
     """2026-10-13: the parts step refused a kit's uniform-olive after 4 machine-minutes; now an outfit with words takes
     the work suit's material names for its roles, and one with no words is refused by `check` before any machine."""
