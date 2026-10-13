@@ -20,59 +20,18 @@ Lamp strengths are measured, never copied from the source game. The light layer 
 
 \subsection{People}\label{people}
 
-People are made like props. A close-up of the dressed person in SOMA-X's bind pose, drawn by FLUX.2 klein \citep{flux2klein}, is built by Pixal3D and painted by the surface line. SOMA-X's body is fitted just inside the look (Gauss-Newton on 24 shape numbers), and every point of the look takes the skin weights of its closest body triangle, so Kimodo's clips \citep{rempe2026kimodo}, written from sentences, move it. The \textbf{shell gate} passes a look when 99 percent of its soft points lie within 5 cm of the body, its worst point recorded. Hard parts ride one joint each, belts are worn as cloth, and each clip gets its own verdict (tucks, hard parts stretched, cloth or body through cloth); a cast uses only the clips that pass. A look seen only far away is judged on its far body (Appendix B). \textbf{Casts:} SAM 3 \citep{carion2025sam3} finds the figures on a place's views, a vision-language judge tells a person from a picture, a reflection or an empty suit, and a cast is gated on \texttt{counted}, \texttt{standing}, \texttt{clear}, \texttt{made} and \texttt{drapes}; a crowd stands only where no copy fills a tenth of a view's height.
-
-\textbf{Results so far (experimental).} On 13 October four looks passed every body gate (joins, outline, likeness, triangles, shell) and a fifth failed on triangles, but few of their clips are usable (Table 2). Two faults run through every clip of Nev and Sefa before any motion: a boot's tuck band lies 9 to 11 mm outside the trouser leg at the bind pose. Scored only on what is drawn (the bands left out), no clip of any look is usable: where hair or cloth meets the head or hand skin the two sides are weighted differently and open as the joints move (cloth seams never open), and the settled cloth crosses itself beyond the bind. Openings over 10 cm on three looks are not yet confirmed by a render. Binding the take as one closed mesh removes the openings, but the player's limbs still sink into the chest and hips at the bends: in every clip 87 to 563 crossing points are visible from the places' cameras and close views. Pushing points out of the look's own volume, limiting the offset from SOMA-X at the armpits and inner thighs, fold-centred weights and dual-quaternion skinning each left that count the same or higher. The renders trace it to the take itself: the close-up's arms and thighs lie against the body, so Pixal3D builds the armpit and groin as one surface, which stretches when a limb moves. The clips' joint angles stay within the normal human ranges of the American Academy of Orthopaedic Surgeons, except hip extension of 24 and 27 degrees (limit 20) in two clips.
-
-\par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
-
-\textbf{Table 2.} Usable clips of 19 per look, 13 October 2026 (experimental). Gate: the per-clip checks as built; visible: the same bodies scored only on drawn surfaces; cameras: the one-piece bind judged on crossings the places' cameras can see.
-
-\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
-
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Look
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Body gates
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Gate
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Visible
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Cameras, one piece
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Player (work) & pass & 5 & 0 & 0 \\
-Bram (work) & pass & 5 & 0 & not run \\
-Sefa (work) & pass & 0 & 0 & not run \\
-Nev (work) & pass & 0 & 0 & not run \\
-Crew kit, average man (olive) & fail: triangles & 0 & not run & not run \\
-\end{longtable}
-}
-
-\endgroup
+People are made like props: a FLUX.2 klein \citep{flux2klein} close-up in SOMA-X's bind pose, built by Pixal3D, painted by the surface line, over SOMA-X's body fitted just inside (Gauss-Newton, 24 shape numbers), whose skin weights each look point takes from its closest triangle; Kimodo's clips \citep{rempe2026kimodo}, from sentences, move it. The \textbf{shell gate} passes a look when 99 percent of its soft points lie within 5 cm of the body, its worst point recorded. Hard parts ride one joint, belts are cloth, each clip gets its own verdict (tucks, hard parts stretched, cloth or body through cloth) and casts use only passing clips; a far-only look is judged on its far body (Appendix B). \textbf{Casts:} SAM 3 \citep{carion2025sam3} finds the concept's figures, a judge tells people from pictures, reflections and empty suits, and casts are gated on \texttt{counted}, \texttt{standing}, \texttt{clear}, \texttt{made} and \texttt{drapes}; no crowd copy fills a tenth of a view's height.
 
 \subsection{Completion}\label{completion}
 
-A place is complete when its gate passes on its final assembly: every row has its object or a reason; nothing visible is unmade or a placeholder; no resting fault; the creator's picks are shown; and it holds its cast in made looks, its effects, motions and crops, every generated model repainted and held to its close-up, every lamp and room tone, every place it shows, and nothing from the source game. A hook stops an agent claiming a place is done while its gate fails: agents judging their own scenes agree with a measured geometry score only 45.8 percent of the time \citep{li2026lego}.
+A place is complete when its gate passes on its final assembly: every row made or dropped with a reason, nothing unmade, no placeholder or resting fault, the creator's picks shown, every layer and shown place present, nothing from the source game. A hook stops an agent claiming otherwise: agents judging their own scenes agree with a measured geometry score only 45.8 percent of the time \citep{li2026lego}.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: Figures 6 to 10.} (6) The water tank painted, the tool board in picture colours against library paint; (7) the lit Earth, a room at swept strengths; (8) lift-off, a rover's drive, a dust devil, an airlock cycle; (9) the player from close-up to a walk, the square's crowd; (10) a room in a physics engine. They wait on assemblies and the people batch. The physics trial runs on the habitat only; until it passes, responsiveness is that trial.
+\textbf{Gap: Figures 6 to 10.} (6) The water tank painted, the tool board in picture against library colours; (7) the lit Earth, a swept room; (8) lift-off, a rover, a dust devil, an airlock; (9) the player walking, the crowd; (10) a room in a physics engine. They wait on assemblies; until the habitat's physics trial passes, responsiveness is that trial.
 
 \end{minipage}}\end{center}
 
 \subsection{Budget and ledgers}\label{budget-and-ledgers}
 
-Every rented machine, and every Google call before and after it, writes a ledger line with its node's ticket. The month's spend is the higher of the ledgers and the bill, which caught what they missed: on 12 October 2026 the cloud bill stood at EUR 1,554 against EUR 1,387 in the ledger (disks, addresses, storage), and on 11 October Google billed EUR 549 for a day the earlier ledger put at EUR 30. Over 13.8 hours of world 1's run the ledgers hold EUR 117.45 of machines and EUR 34.19 of Google calls, most for painting (EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and the light passes (EUR 10.17).
+Machines and Google calls write ledger lines with their node's ticket; the month's spend is the higher of ledgers and bill, which caught misses: EUR 1,554 billed against EUR 1,387 in the cloud ledger on 12 October 2026, and EUR 549 billed by Google for a day the earlier ledger put at EUR 30. Over 13.8 hours of world 1's run the ledgers hold EUR 117.45 of machines and EUR 34.19 of Google calls, most for painting (EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and the light passes (EUR 10.17).
