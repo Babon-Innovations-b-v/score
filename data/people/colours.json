@@ -1,0 +1,56 @@
+{
+ "why": "The concept decides the clothes (owner, 2026-10-13, through the overseer and the captain): a cast place's people wear the colour its cast record's words give them (the surface method's own rule: name from the picture, library surface by name: of the people place's fabrics the words name, the nearest by dE, used only within dE 32 of the measured torso), on every fabric surface of the outfit but a print. The torso colour is measured on the concept (the median of each figure's torso, rows 30-60% and columns 30-70% of SAM 3's box) and recorded with its CIE76 dE, but not used to choose: the concepts are dim, warm-lit rooms, so a torso's lightness is the room's light, not the cloth's, and by dE every place's nearest fabric is wool_charcoal.",
+ "places": {
+  "camp": {
+   "words": "olive coveralls",
+   "surface": "olive_drab",
+   "torso_lab": [
+    20.6,
+    6.1,
+    9.8
+   ],
+   "figures": 6,
+   "de_to_surface": 26.7,
+   "nearest_fabric": [
+    "wool_charcoal",
+    17.7
+   ],
+   "hue_against_words": "the torso's hue is warmer (a 6.1, b 9.8) than olive_drab's (a -5.1, b 15.8)"
+  },
+  "airlock": {
+   "words": "grey coveralls",
+   "surface": "mitten_grey",
+   "torso_lab": [
+    31.2,
+    0.3,
+    4.8
+   ],
+   "figures": 1,
+   "de_to_surface": 14.8,
+   "nearest_fabric": [
+    "wool_charcoal",
+    6.9
+   ],
+   "hue_against_words": "agrees"
+  },
+  "tube": {
+   "words": "blue coveralls",
+   "surface": "suit_navy",
+   "torso_lab": [
+    16.6,
+    -4.6,
+    -7.1
+   ],
+   "figures": 2,
+   "de_to_surface": 17.5,
+   "nearest_fabric": [
+    "wool_charcoal",
+    17.0
+   ],
+   "hue_against_words": "agrees"
+  }
+ },
+ "not_coloured": {
+  "greenhouse": "khaki coveralls: no library surface lies within dE 32 of the measured torso (canvas_beige 64.8, the nearest khaki-like name); left in the painted colours until a khaki surface is added (captain, 2026-10-13)"
+ }
+}

@@ -25,7 +25,6 @@ from score.stages import (assembly, cast, complete, concept_people, crops, effec
                           motion, people, physics, props, scene_record, settling, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check
 import score.stages.cast.layer as characters_layer
-import score.stages.people.bodies as people_bodies
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 import score.stages.machines.boxes as machine_boxes
@@ -111,8 +110,8 @@ CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cas
 # dressed body (score/stages/cast/layer.py), as a layer the assembly takes; a body not accepted leaves the place unknown.
 CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, characters_layer.CONTRACT,
                          characters_layer.CHECKS, files=characters_layer.files,
-                         after={"cast": ("cast", 1), **{f"{characters_layer.DRESS}-{look}": ("people-dress", 1)
-                                                         for look in people_bodies.looks()}},
+                         after={"cast": ("cast", 1), **{row.name: ("people-dress", 1) for row in people.ROWS
+                                                         if row.name.startswith(f"{characters_layer.DRESS}-")}},
                          applies=lambda place: place in cast.PLACES)
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no world file answers, paid), for the place's assembly to write into its stage.
@@ -218,8 +217,9 @@ def worn(row):
     (characters_layer.cast_looks), so a cast place waits on its own looks, not the slowest of all."""
     if not row.name.startswith(f"{characters_layer.DRESS}-"):
         return row
-    look = row.name.removeprefix(f"{characters_layer.DRESS}-")
-    return dataclasses.replace(row, applies=lambda place: look in characters_layer.cast_looks(place))
+    look, _, coloured = row.name.removeprefix(f"{characters_layer.DRESS}-").partition("-in-")
+    return dataclasses.replace(row, applies=lambda place: look in characters_layer.cast_looks(place) and (
+        place == coloured if coloured else place not in characters_layer.coloured_places()))
 
 
 STAGES = tuple(layered(worn(row), {stage.name for stage in STAGES}) for row in STAGES)

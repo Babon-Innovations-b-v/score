@@ -3,8 +3,9 @@ accepted cast, each in its own look's accepted body, for the assembly to take in
 
     make     every person of the cast (cast@<place>'s cast.json: spot or walk, turn, clip and its start, look) laid
              as tools/characters/cast.py lays one (a SkelRoot referencing its body, placed or walking, playing its
-             clip, held still where the cast says), the body its look's dressed body (people-dress-<look>,
-             converted by tools/characters/skel_usd.py into assets/characters/<look>.usdc); the crowd as cast.py's
+             clip, held still where the cast says), the body its look's dressed body (people-dress-<look>, or
+             people-dress-<look>-in-<place> where data/people/colours.json colours the place, converted by
+             tools/characters/skel_usd.py into assets/characters/<look>.usdc); the crowd as cast.py's
              point instancer over its look's body, its copies the cast's own. layers/characters.usda, and
              characters.json: each person's look and, for one not laid, what is missing (the completion gate's
              people check reads it)
@@ -34,14 +35,23 @@ SCRATCH = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm
 
 
 def files(place):
-    """The cast record (the crowd's phases and palettes) and the two tools/characters files the make loads."""
-    return {"cast record": "{data}/characters/{place}.json", "cast writer": "{repo}/tools/characters/cast.py",
-            "skeleton writer": "{repo}/tools/characters/skel_usd.py"}
+    """The cast record (the crowd's phases and palettes), the people's colours and the two tools/characters files the
+    make loads."""
+    return {"cast record": "{data}/characters/{place}.json", "colours": "{data}/people/colours.json",
+            "cast writer": "{repo}/tools/characters/cast.py", "skeleton writer": "{repo}/tools/characters/skel_usd.py"}
 
 
-def body_row(look):
-    """The dress row of a cast look (`person/outfit`), or None for a cast that names none."""
-    return f"{DRESS}-{look.replace('/', '-')}" if look else None
+def coloured_places():
+    """The places whose people wear their concept's colour (data/people/colours.json), each with its own dress rows."""
+    return frozenset(json.loads((REPO / "data/people/colours.json").read_text())["places"])
+
+
+def body_row(look, place=None):
+    """The dress row of a cast look (`person/outfit`) in its place (`-in-<place>` where the place is coloured), or
+    None for a cast that names none."""
+    if not look:
+        return None
+    return f"{DRESS}-{look.replace('/', '-')}" + (f"-in-{place}" if place in coloured_places() else "")
 
 
 def loaded(name):
@@ -125,7 +135,7 @@ def make(inputs, out, seed, params):
     layer.GetPrimAtPath(f"/{place}").specifier = Sdf.SpecifierOver  # the place itself is the base's
     looks, assets = {}, {}
     for single in cast["characters"] + ([cast["crowd"]] if cast.get("crowd") else []):
-        row = body_row(single.get("look"))
+        row = body_row(single.get("look"), place)
         looks[single["name"]] = {"look": single.get("look") or "none named"}
         if row is None or row not in inputs:
             looks[single["name"]]["missing"] = (f"no accepted body of its look ({row})" if row

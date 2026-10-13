@@ -160,6 +160,16 @@ def test_the_completion_gate_s_code_moves_only_complete_and_settle():
     assert moved == {"complete", "settle"}, moved
 
 
+def test_a_coloured_place_reads_its_own_dress_rows():
+    """A place data/people/colours.json colours reads its looks' `-in-<place>` dress rows, every other place the
+    plain ones (captain, 2026-10-13: the concept decides the clothes)."""
+    table = {stage.name: stage for stage in stages.STAGES}
+    coloured, plain = table["people-dress-bram-work-in-camp"], table["people-dress-bram-work"]
+    assert coloured.applies("camp") and not coloured.applies("greenhouse") and coloured.params == {"surface": "olive_drab"}
+    assert plain.applies("greenhouse") and not plain.applies("camp")
+    assert "people-dress-bram-work-in-camp" in table["characters-layer"].after
+
+
 def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
     """Editing turntable_row.py (its PNGs written without text, 2026-10-12) moves the turntable row, and SegviGen's
     through row_files.py (both rows' world files), and no other paid row: the maps read its pictures, never its code."""

@@ -65,7 +65,9 @@ def surface_of_points(points, painted_points, painted_names):
 
 
 def make_dress(inputs, out, seed, params):
-    """The dressed body.glb, its usd/ and dress.json (each surface's library surface and its median distance)."""
+    """The dressed body.glb, its usd/ and dress.json (each surface's library surface and its median distance). With
+    `params["surface"]` (a coloured place's row, data/people/colours.json) every fabric surface of the outfit but a
+    print wears that library surface instead of the paint's."""
     body = pathlib.Path(next(path for name, path in inputs.items() if name.startswith("people-body-")))
     paint = pathlib.Path(inputs["people-paint"])
     look = json.loads((body / "look.json").read_text())
@@ -88,9 +90,13 @@ def make_dress(inputs, out, seed, params):
             record["surfaces"][material["name"]] = {"library": None, "route": "hair", "role": role, "known": True,
                                                     "median_m": round(apart * scale, 4)}
             continue
+        painted_name = name
+        if params.get("surface") and surfaces.get(name, {}).get("family") == "fabric" and \
+                not material.get("extras", {}).get("print"):
+            name = params["surface"]
         spec = surfaces.get(name)
         record["surfaces"][material["name"]] = {"library": name, "median_m": round(apart * scale, 4), "role": role,
-                                                "known": spec is not None}
+                                                "known": spec is not None, "painted": painted_name}
         if spec is None:
             continue
         material.setdefault("extras", {})["library"] = name

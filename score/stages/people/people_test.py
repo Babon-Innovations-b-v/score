@@ -100,6 +100,12 @@ def test_the_shell_holds_most_soft_points_and_leaves_rigid_parts_out():
     assert failing.answer == "fail" and failing.measures["offset_share_m"] == 0.08, failing
 
 
+def test_a_belt_is_worn_as_cloth():
+    assert not bodies.rigid_part({"role": "hard", "name": "black_leather_belt"})
+    assert not bodies.rigid_part({"role": "hard", "name": "steel_buckle"})
+    assert bodies.rigid_part({"role": "hard", "name": "boot"}) and bodies.rigid_part({"role": "skin", "name": "skin_hands"})
+
+
 def test_missing_record_is_unknown():
     with tempfile.TemporaryDirectory() as held:
         joins = dict((check.name, check) for check in bodies.checks())["joins"]

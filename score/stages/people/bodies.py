@@ -47,6 +47,8 @@ SHELL_SHARE = 0.99
 RIGID_ROLES = ("hard", "hair")
 # Parts by name that ride one joint whatever their role (prop_build.py's RIGID_NAMES less the hair, a role here).
 RIGID_NAMES = ("skin_hands",)
+# Hard parts worn as cloth, on the shell (prop_build.py's CLOTH_WORDS; owner, 2026-10-13).
+CLOTH_WORDS = ("belt", "buckle")
 
 
 def looks():
@@ -223,16 +225,24 @@ def guarded(name, judge):
     return Check(name, judged)
 
 
+def rigid_part(part):
+    """A part that rides one joint (prop_build.py's rule): a hard part but a belt or a buckle, the hair, a bare hand."""
+    name = str(part.get("name", ""))
+    if any(word in name for word in CLOTH_WORDS):
+        return False
+    return part.get("role") in RIGID_ROLES or name in RIGID_NAMES
+
+
 def judge_shell(output, inputs, evidence):
     """The look a thin shell over SOMA-X's fitted body (owner, 2026-10-12): SHELL_SHARE of the soft parts' points
-    (every part but the rigid ones: hard parts, hair and the bare hands, which ride one joint) within OFFSET_MOST of
+    (every part but the rigid ones: hard parts other than belts and buckles, hair and the bare hands, which ride
+    one joint) within OFFSET_MOST of
     the body. A proxy (captain, 2026-10-13, the owner may reverse it): the points past it are loose cloth edges, cuffs,
     hems and caps, which no part label names; the clips gate judges what the cloth does in every clip. The worst
     point's part and offset are recorded."""
     found = record(output, "shell.json")
     parts = {str(part["part"]): part for part in record(output, "parts.json")["parts"]}
-    soft = {key: entry for key, entry in found["parts"].items()
-            if parts.get(key, {}).get("role") not in RIGID_ROLES and parts.get(key, {}).get("name") not in RIGID_NAMES}
+    soft = {key: entry for key, entry in found["parts"].items() if not rigid_part(parts.get(key, {}))}
     counts = np.zeros(max((len(entry["offsets_mm"]) for entry in soft.values()), default=1))
     for entry in soft.values():
         counts[:len(entry["offsets_mm"])] += entry["offsets_mm"]
