@@ -244,14 +244,33 @@ def seen_degrees(inputs):
     kit, scene = inputs.get("kit"), inputs.get("scene record")
     if kit is None or scene is None or not kit.exists() or not scene.exists():
         return {}
-    eyes = [view["eye"] for view in json.loads(scene.read_text()).get("views", [])]
+    record = json.loads(scene.read_text())
+    eyes = [view["eye"] for view in record.get("views", [])]
+    found = json.loads(kit.read_text())
+    spots = [(piece["model"], piece["at"], piece["size"]) for piece in found.get("pieces", [])]
+    spots += list(object_spots(record.get("objects", []), found.get("models", {})))
     nearest = {}
-    for piece in json.loads(kit.read_text()).get("pieces", []) if eyes else []:
-        near = min(math.dist(piece["at"], eye) for eye in eyes)
-        middle = sorted(piece["size"])[1]
-        nearest[piece["model"]] = max(nearest.get(piece["model"], 0.0),
-                                      math.degrees(2 * math.atan2(middle / 2, max(near, 1e-3))))
+    for model, spot, size in spots if eyes else []:
+        near = min(math.dist(spot, eye) for eye in eyes)
+        nearest[model] = max(nearest.get(model, 0.0),
+                             math.degrees(2 * math.atan2(sorted(size)[1] / 2, max(near, 1e-3))))
     return {model: round(value, 2) for model, value in nearest.items()}
+
+
+def object_spots(objects, sizes, origin=(0.0, 0.0, 0.0), yaw=0.0):
+    """(model, spot, size) of each scene-record object the kit sizes, and of the models laid on it (`children`, their
+    spots turned by the parent's yaw about +y: the hub's headset on its comms desk)."""
+    turn = math.radians(yaw)
+    for entry in objects:
+        offset = entry.get("at")
+        if not isinstance(offset, list) or len(offset) != 3:
+            continue
+        spot = [origin[0] + offset[0] * math.cos(turn) + offset[2] * math.sin(turn), origin[1] + offset[1],
+                origin[2] - offset[0] * math.sin(turn) + offset[2] * math.cos(turn)]
+        model = pathlib.Path(entry.get("model", "")).stem
+        if "size" in sizes.get(model, {}):
+            yield model, spot, sizes[model]["size"]
+        yield from object_spots(entry.get("children", []), sizes, spot, yaw + entry.get("yaw", 0.0))
 
 
 def make_check(inputs, out, seed, params):
