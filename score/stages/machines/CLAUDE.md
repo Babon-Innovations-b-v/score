@@ -16,6 +16,7 @@ trial in a world of its own.
 - **Machine rows** are inventory rows with `"machine": true`: the hangar's `ship` (its box the partition's proposals
   round the hull). The workshop robot's eight part rows were dropped (captain, 2026-10-12): concept K10 shows no
   robot, and the concept decides. A row added after its place's partition ran names `"ground_box": true` (the
-  airlock's suit, 2026-10-12) and is grounded the same way. `machines-boxes@<place>` (`boxes.py`, paid, about EUR 0.03 measured) grounds the
+  airlock's suit, 2026-10-12) and is grounded the same way; a box SAM 3 does not ground, and a row flagged
+  `"ground_box": "judge"`, goes to the box judge on Gemini (cents an ask). `machines-boxes@<place>` (`boxes.py`, paid, about EUR 0.03 measured) grounds the
   machine rows' boxes with SAM 3 and records the grounded ones where the box gate reads them.
 - `machines_test.py` lays a stand-in rover on the garage's seed and breaks each gate once.
