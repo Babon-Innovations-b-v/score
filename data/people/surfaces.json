@@ -1,7 +1,7 @@
 {
  "place": "people",
  "library": "people",
- "why": "The people stage's line (score/stages/people, #5, owner 2026-10-11: people are made like every prop): each look's Pixal3D take, painted through the surface stage's own method and paint as a place's takes are; its body rows read `spec` and `outfit` beside each take.",
+ "why": "The people stage's line (score/stages/people, #5, owner 2026-10-11: people are made like every prop): each look's Pixal3D take, painted through the surface stage's own method and paint as a place's takes are; its body rows read `spec` and `outfit` beside each take. Only the looks the final casts name are kept (captain, 2026-10-13).",
  "takes": {
   "pp-player-work-s1": {
    "places": [
@@ -15,32 +15,6 @@
    "object": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
    "spec": "data/characters/makes/player_prop.json",
    "outfit": "work"
-  },
-  "pp-nev-space-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "an astronaut in a white space suit with a raised helmet visor, grey mittens, grey moon boots and green straps",
-   "spec": "data/characters/makes/nev_prop.json",
-   "outfit": "space"
-  },
-  "pp-bram-space-s1": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a white one-piece space suit",
-   "spec": "data/characters/makes/bram_prop.json",
-   "outfit": "space"
   },
   "pp-bram-work-s3": {
    "places": [
@@ -108,34 +82,6 @@
    "spec": "data/characters/makes/kit_m_avg_prop.json",
    "outfit": "uniform-olive"
   },
-  "pp-kit_m_broad-coat-grey-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
-   "spec": "data/characters/makes/kit_m_broad_prop.json",
-   "outfit": "coat-grey",
-   "far_only": true
-  },
-  "pp-kit_m_broad-jacket-blue-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain blue cotton jacket with a stand collar, a front opening with dark buttons, the jacket ending at the hips, dark grey trousers, black leather ",
-   "spec": "data/characters/makes/kit_m_broad_prop.json",
-   "outfit": "jacket-blue",
-   "far_only": true
-  },
   "pp-kit_m_broad-uniform-olive-s3": {
    "places": [
     "people"
@@ -149,47 +95,6 @@
    "spec": "data/characters/makes/kit_m_broad_prop.json",
    "outfit": "uniform-olive"
   },
-  "pp-kit_w_avg-coat-grey-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
-   "spec": "data/characters/makes/kit_w_avg_prop.json",
-   "outfit": "coat-grey"
-  },
-  "pp-kit_w_broad-coat-grey-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
-   "spec": "data/characters/makes/kit_w_broad_prop.json",
-   "outfit": "coat-grey",
-   "far_only": true
-  },
-  "pp-kit_w_broad-jacket-blue-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain blue cotton jacket with a stand collar, a front opening with dark buttons, the jacket ending at the hips, dark grey trousers, black leather ",
-   "spec": "data/characters/makes/kit_w_broad_prop.json",
-   "outfit": "jacket-blue",
-   "far_only": true
-  },
   "pp-kit_w_broad-uniform-olive-s3": {
    "places": [
     "people"
@@ -202,20 +107,6 @@
    "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
    "spec": "data/characters/makes/kit_w_broad_prop.json",
    "outfit": "uniform-olive"
-  },
-  "pp-kit_w_slim-coat-grey-s3": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a plain mid grey coat with a stand collar and dark buttons down the front, ending at the knees, dark grey trousers, black leather shoes",
-   "spec": "data/characters/makes/kit_w_slim_prop.json",
-   "outfit": "coat-grey",
-   "far_only": true
   },
   "pp-kit_w_slim-uniform-olive-s3": {
    "places": [
@@ -255,19 +146,6 @@
    "object": "a person in a dark navy one-piece work suit with light grey shoulder panels and a small printed flag patch",
    "spec": "data/characters/makes/nev_prop.json",
    "outfit": "work"
-  },
-  "pp-oona-space-s4": {
-   "places": [
-    "people"
-   ],
-   "library_places": [
-    "people"
-   ],
-   "place": "people",
-   "kind": "person",
-   "object": "a person in a white one-piece space suit",
-   "spec": "data/characters/makes/oona_prop.json",
-   "outfit": "space"
   },
   "pp-sefa-work-s3": {
    "places": [
