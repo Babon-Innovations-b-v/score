@@ -34,7 +34,7 @@ has the make and the gates; `space.py` the measures of space (hulls, still surfa
   from where the mover rests.
 - **The made ground stands in the stage only where the movers record asks** (`ground`: the garage, whose rover drives
   out onto its yard), sublayered from the terrain stage's place layer as the assembly does.
-- **Only places with a movers record have the row.** The assembly does not take the layer yet: the final assembly of
-  each place takes it in place of the seed's `layers/motion.usda`.
+- **Only places with a movers record have the row.** The assembly takes the accepted layer (`assembly.LAYERS`) in
+  place of the seed's `layers/motion.usda`.
 - Effects tied to motion (dust, exhaust) are the effects stage's (`follows`, `on`).
 - `motion_test.py` makes a small stage of its own, writes a path, a swing and a slide, and breaks each gate once.
