@@ -444,6 +444,34 @@ def test_a_standing_model_with_a_foot_off_the_floor_fails_and_lying_wreckage_is_
     assert verdict.answer == "fail" and len(verdict.findings) == 1 and "parts_rack_1: a foot 24.0 cm" in verdict.findings[0]
     assert set(json.loads((REPO / "data/checks/stance.json").read_text())) == {"about", "lies"}
 
+def test_a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_refused():
+    """The hangar's parts rack: two legs ending 8% of its size over a middle part."""
+    import numpy as np
+    from score.stages.surfaces import place_line
+    corners = [(x, z) for x in (-0.4, 0.4) for z in (-0.3, 0.3)]
+    rack = np.array([[x, 0.08 if x > 0 else 0.0, z] for x, z in corners] + [[x, 0.5, z] for x, z in corners]
+                    + [[0.0, 1.0, 0.0]])
+    points, record = place_line.flattened_base(rack, 0.25, 0.01, 0.15)
+    assert np.allclose(points[:4, 1], 0.0, atol=1e-9) and record["flattened"] == [0.08, 0.08], record
+    assert np.allclose(points[4:, 1], rack[4:, 1]), "a point over the band does not move"
+    points, record = place_line.flattened_base(rack + [0, 0, 0], 0.25, 0.01, 0.05)
+    assert record["refused"] == [0.08, 0.08] and np.allclose(points, rack)
+    level = rack.copy()
+    level[:4, 1] = 0.0
+    assert place_line.flattened_base(level, 0.25, 0.01, 0.15)[1]["flattened"] == []
+
+def test_a_model_bakes_with_the_dirt_its_close_up_shows_at_most_its_place_s():
+    import numpy as np
+    from score.stages.surfaces import place_line
+    import labels
+    specs = {"hull_white": {"family": "painted", "colour": [0.8, 0.8, 0.8], "dirt_colour": [0.2, 0.2, 0.18]},
+             "glass": {"family": "glass", "colour": [0.5, 0.5, 0.5], "dirt_colour": [0.2, 0.2, 0.18]}}
+    clean = [round(float(v), 1) for v in labels.lab(labels.srgb(np.array(specs["hull_white"]["colour"]))[None])[0]]
+    dusty = [round(float(v), 1) for v in labels.lab(labels.srgb(np.array(specs["hull_white"]["dirt_colour"]))[None])[0]]
+    assert place_line.measured_dirt([{"surface": "hull_white", "measured_lab": clean}], specs, 0.6) == 0.0
+    assert place_line.measured_dirt([{"surface": "hull_white", "measured_lab": dusty}], specs, 0.6) == 0.6
+    assert place_line.measured_dirt([{"surface": "glass", "measured_lab": dusty}], specs, 0.6) == 0.6  # none measured
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
