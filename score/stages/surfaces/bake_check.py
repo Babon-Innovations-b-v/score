@@ -124,22 +124,55 @@ def laid_parts(labelled, entry):
     return [path.stem for path in paths], trimesh.Trimesh(laid, joined.faces, process=False), vertex_codes, codes
 
 
-def ray_surfaces(geometry, laid, codes, size):
+def ray_surfaces(geometry, laid, codes, size, sampled=None):
     """Each baked triangle's surface index as the bake's ray finds it (BAKE_REACH_SHARE): the first laid face hit from
-    its middle that far out along its normal, inward; -1 where the ray meets nothing."""
+    its sampled point (`sampled`: (points, triangles they lie on), else each triangle's middle) that far out along its
+    triangle's normal, inward; -1 where the ray meets nothing."""
     import numpy as np
     corners = geometry["positions"][geometry["triangles"]]
     normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
     normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
+    points, owners = sampled if sampled is not None else (corners.mean(axis=1), np.arange(len(corners)))
     reach = max(max(size) * BAKE_REACH_SHARE, BAKE_REACH_LEAST)
-    hit = laid.ray.intersects_first(corners.mean(axis=1) + normals * reach, -normals)
+    hit = laid.ray.intersects_first(points + normals[owners] * reach, -normals[owners])
     return np.where(hit >= 0, codes[np.maximum(hit, 0)], -1)
 
 
-def baked_surfaces(geometry, labelled, entry):
+def sampled_points(geometry, rows, columns, width, height):
+    """Where on the baked mesh each triangle's sampled texel (rows, columns) was baked: the bake writes a texel by its
+    centre's point, which lies on whichever triangle covers it in the texture layout, often not the triangle sampled
+    (the flat's bowl stack, bake of 2026-10-13: 1,543 of its 4,995 triangles, its glass rims under a texel each); a
+    centre on no triangle (the bake's padding round each island) keeps the sampled triangle's middle. Returns (points,
+    the triangle each lies on)."""
+    import numpy as np
+    corners = geometry["positions"][geometry["triangles"]]
+    pixel = (geometry["uvs"][geometry["triangles"]] % 1.0) * [width, height]
+    owner = np.full((height, width), -1)
+    weights = np.zeros((height, width, 3))
+    for triangle, (first, second, third) in enumerate(pixel):
+        low = np.floor(np.minimum(np.minimum(first, second), third) - 0.5).astype(int)
+        high = np.ceil(np.maximum(np.maximum(first, second), third) - 0.5).astype(int)
+        columns_here, rows_here = np.meshgrid(np.arange(max(low[0], 0), min(high[0], width - 1) + 1),
+                                              np.arange(max(low[1], 0), min(high[1], height - 1) + 1))
+        columns_here, rows_here = columns_here.ravel(), rows_here.ravel()
+        frame = np.array([second - first, third - first]).T
+        if len(columns_here) == 0 or abs(np.linalg.det(frame)) < 1e-12:
+            continue
+        local = np.linalg.solve(frame, (np.stack([columns_here + 0.5, rows_here + 0.5], axis=1) - first).T).T
+        inside = (local[:, 0] >= 0) & (local[:, 1] >= 0) & (local.sum(axis=1) <= 1)
+        owner[rows_here[inside], columns_here[inside]] = triangle
+        weights[rows_here[inside], columns_here[inside]] = np.stack(
+            [1 - local[inside].sum(axis=1), local[inside, 0], local[inside, 1]], axis=1)
+    found = owner[rows, columns]
+    owners = np.where(found >= 0, found, np.arange(len(corners)))
+    bary = np.where((found >= 0)[:, None], weights[rows, columns], 1 / 3)
+    return np.einsum("ij,ijk->ik", bary, corners[owners]), owners
+
+
+def baked_surfaces(geometry, labelled, entry, sampled=None):
     """Each baked triangle's surface and the surfaces within its reach, the labelled parts laid in the kit frame
-    (laid_parts): (surface names, each triangle's surface index (the bake's ray, ray_surfaces; the part whose nearest
-    point lies under its middle where the ray meets nothing), reach (triangles x surfaces: its own, its corners' and
+    (laid_parts): (surface names, each triangle's surface index (the bake's ray from its sampled point, ray_surfaces
+    and sampled_points; the part whose nearest point lies under its middle where the ray meets nothing), reach (triangles x surfaces: its own, its corners' and
     every part with a point within its furthest corner from its middle))."""
     import numpy as np
     from scipy.spatial import cKDTree
@@ -149,7 +182,7 @@ def baked_surfaces(geometry, labelled, entry):
     tree, point_codes = cKDTree(laid.vertices[kept]), vertex_codes[kept]
     corners = geometry["positions"][geometry["triangles"]]
     middles = corners.mean(axis=1)
-    surface = ray_surfaces(geometry, laid, codes, entry["size"])
+    surface = ray_surfaces(geometry, laid, codes, entry["size"], sampled)
     surface = np.where(surface >= 0, surface, point_codes[tree.query(middles)[1]])
     reach = np.zeros((len(middles), len(names)), dtype=bool)
     reach[np.arange(len(middles)), surface] = True
@@ -205,7 +238,8 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0):
     colour = labels.lab(picture[rows, columns])
     corners = geometry["positions"][geometry["triangles"]]
     areas = 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
-    names, surface, reach = baked_surfaces(geometry, labelled, entry)
+    names, surface, reach = baked_surfaces(geometry, labelled, entry,
+                                           sampled_points(geometry, rows, columns, width, height))
     shades = [library_shades(materials[each]) if each in materials else [] for each in names]
     tokens = [colours[0] if colours else None for colours in shades]
     dirty = [labels.lab(labels.srgb(np.array(materials[each]["dirt_colour"]))[None])[0]
