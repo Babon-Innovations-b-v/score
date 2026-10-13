@@ -39,6 +39,14 @@ MOVE_MOST = 5.0
 SAME_SPOT = 0.05
 # How near a record lamp stands to a kit lamp of the light data for the two to be one lamp, metres.
 LENS_NEAR = 1.0
+# A mesh no side of which is over this is small enough to be a lamp's fixture, metres; a freed lamp stands this far clear of it.
+FIXTURE_MOST = 1.5
+FIXTURE_GAP = 0.05
+# A fixture whose solid parts stop this share of a lamp's ways out encloses it (RAYS ways tried); a lens let through
+# has this opacity.
+ENCLOSED = 0.9
+RAYS = 256
+LENS_OPACITY = 0.2
 
 
 def light_data(place):
@@ -185,6 +193,101 @@ def moved(stage, path, entry):
         shaping.CreateShapingConeSoftnessAttr().Set(float(entry.get("softness", scene.SPOT_SOFTNESS)))
 
 
+def fixture_boxes(stage, place):
+    """[(path, low, high)] of every small drawn mesh (no side over FIXTURE_MOST) of the place: a lamp's fixture."""
+    from pxr import Usd, UsdGeom
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"])
+    found = []
+    for prim in stage.GetPrimAtPath(f"/{place}").GetAllChildren():
+        if prim.GetName() in ("Lights", "Sky", "Shafts", "Places"):
+            continue
+        for mesh in Usd.PrimRange(prim):
+            if mesh.IsA(UsdGeom.Mesh):
+                box = cache.ComputeWorldBound(mesh).ComputeAlignedRange()
+                low, high = np.array(box.GetMin()), np.array(box.GetMax())
+                if not box.IsEmpty() and np.all(high - low <= FIXTURE_MOST):
+                    found.append((str(mesh.GetPath()), low, high))
+    return found
+
+
+def world_mesh(stage, path):
+    """A drawn mesh prim as a trimesh in the stage's frame (its faces fanned into triangles)."""
+    import trimesh
+    from pxr import UsdGeom
+    mesh = UsdGeom.Mesh(stage.GetPrimAtPath(path))
+    points = np.asarray(mesh.GetPointsAttr().Get(), dtype=float)
+    counts, indices = mesh.GetFaceVertexCountsAttr().Get(), np.asarray(mesh.GetFaceVertexIndicesAttr().Get())
+    faces, start = [], 0
+    for count in counts:
+        faces += [(indices[start], indices[start + corner], indices[start + corner + 1]) for corner in range(1, count - 1)]
+        start += count
+    matrix = np.asarray(UsdGeom.XformCache().GetLocalToWorldTransform(mesh.GetPrim()), dtype=float)
+    return trimesh.Trimesh(points @ matrix[:3, :3] + matrix[3, :3], np.asarray(faces), process=False)
+
+
+def blocked_share(spot, meshes):
+    """The share of RAYS ways out from a spot (spread evenly over the sphere) that hit one of the meshes."""
+    if not meshes:
+        return 0.0
+    import trimesh
+    turn = np.pi * (3.0 - np.sqrt(5.0)) * np.arange(RAYS)
+    height = 1.0 - 2.0 * (np.arange(RAYS) + 0.5) / RAYS
+    ways = np.column_stack([np.sqrt(1.0 - height ** 2) * np.cos(turn), height, np.sqrt(1.0 - height ** 2) * np.sin(turn)])
+    hit = trimesh.util.concatenate(meshes).ray.intersects_any(np.repeat([spot], RAYS, axis=0), ways)
+    return float(np.mean(hit))
+
+
+def see_through(stage, path):
+    """A lens let through its lamp's light, as glass does: its material's opacity LENS_OPACITY (Cycles passes light
+    through what is not fully opaque), its glow kept."""
+    from pxr import Sdf, UsdShade
+    material = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath(path)).ComputeBoundMaterial()[0]
+    surface = material.ComputeSurfaceSource()[0] if material else None
+    if surface:
+        surface.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(LENS_OPACITY)
+    return bool(surface)
+
+
+def lamps_through_fixtures(stage, place):
+    """Each lamp standing inside a small mesh (its fixture: the stairwell's caged bulkheads held all seven, and their
+    cage and lens took nearly all their light, 2026-10-13), by measure: where the fixture's solid parts (its meshes
+    not named glow) stop at least ENCLOSED of the ways out, the lamp moves out of the fixture, FIXTURE_GAP clear of
+    its box, toward its lens where it has one, else toward the place's middle; otherwise it stays and its lens lets
+    its light through (see_through). {lamp path: {rule, blocked, moved}}, the rule each lamp took."""
+    from pxr import Gf, Usd, UsdGeom
+    boxes = fixture_boxes(stage, place)
+    middle = np.array(UsdGeom.BBoxCache(Usd.TimeCode.Default(), ["default", "render"]).ComputeWorldBound(
+        stage.GetPrimAtPath(f"/{place}")).ComputeAlignedRange().GetMidpoint())
+    found = {}
+    for path, spot, _ in own_lamps(stage, place):
+        holders = [(name, low, high) for name, low, high in boxes
+                   if np.all(spot >= low - 1e-3) and np.all(spot <= high + 1e-3)]
+        if not holders:
+            continue
+        bodies = [name for name, _, _ in holders if "glow" not in name]
+        lenses = [(name, (low + high) / 2) for name, low, high in holders if "glow" in name]
+        blocked = blocked_share(spot, [world_mesh(stage, name) for name in bodies])
+        if blocked < ENCLOSED:
+            found[path] = {"rule": "lens lets it through", "blocked": round(blocked, 3), "moved": 0.0,
+                           "lenses": [name for name, _ in lenses if see_through(stage, name)]}
+            continue
+        low = np.min([low for _, low, _ in holders], axis=0)
+        high = np.max([high for _, _, high in holders], axis=0)
+        way = (lenses[0][1] - (low + high) / 2) if lenses else (middle - spot)
+        if np.linalg.norm(way) < 1e-6:
+            way = middle - spot
+        way = way / np.linalg.norm(way)
+        steps = [((high if step > 0 else low)[axis] - spot[axis]) / step for axis, step in enumerate(way)
+                 if abs(step) > 1e-9]
+        out = spot + way * (min(steps) + FIXTURE_GAP)
+        xform = UsdGeom.Xformable(stage.GetPrimAtPath(path))
+        translate = next(op for op in xform.GetOrderedXformOps() if op.GetOpType() == UsdGeom.XformOp.TypeTranslate)
+        translate.Set(Gf.Vec3d(*map(float, out)))
+        found[path] = {"rule": "moved out of its fixture", "blocked": round(blocked, 3),
+                       "moved": round(float(np.linalg.norm(out - spot)), 3)}
+    return found
+
+
 def earth_entries(record):
     """The record's Earth on its ball: (group root, kind, entry) for each structure or ground entry named earth."""
     return [(root, kind, entry) for group, root, kind in (("structure", "Structure", "structure"),
@@ -272,6 +375,7 @@ def write(place, record, seed_folder, out):
     stage.SetEditTarget(Usd.EditTarget(layer))
     moves = laid_again(stage, place, light_data(place))
     placed = placed_lamps(stage, place, record)
+    fixtures = lamps_through_fixtures(stage, place)
     sky = write_sky(stage, place, record, out)
     glow = light_data(place).get("glow")
     if glow:
@@ -287,6 +391,8 @@ def write(place, record, seed_folder, out):
     for lamp in lamps:
         lamp["shaft"] = lamp["path"] in shafted
     found = {"place": place, "lamps": lamps, "placed": placed, "sky": sky}
+    if fixtures:
+        found["fixtures"] = fixtures
     return dict(found, moved=moves) if moves else found
 
 
