@@ -26,12 +26,15 @@ import score.stages.props.likeness_row as likeness_row  # noqa: E402
 PROPS = ("props-inputs", "closeup", "pixal", "likeness-calibration", "likeness")
 
 
-def test_no_world_1_place_has_a_prop_row_and_the_surface_line_reads_without_one():
+def test_only_the_camp_grounds_have_prop_rows_and_a_place_without_them_reads_without_one():
+    """The camp grounds' cairn (2026-10-13) is world 1's first object by the prop route; every other place's surface
+    line reads without its rows, so no other key moves."""
     runner = stages.runner()
     places = stages.places(runner.world)
-    assert not [node for node in runner.nodes(places) if node[0].name in PROPS]
+    assert {node[1] for node in runner.nodes(places) if node[0].name in PROPS} == {"campgrounds"}
     inputs = runner.stages["surfaces-inputs"]
     assert "pixal" in inputs.after and "pixal" not in runner.reads(inputs, "hub")
+    assert "pixal" in runner.reads(inputs, "campgrounds")
 
 
 def test_the_paid_rows_code_leaves_the_checks_and_the_comparison_out():
