@@ -401,24 +401,26 @@ def baking_specs(library_name, specs, labelled):
     return found
 
 
-def measured_dirt(finishes, specs, most):
-    """The dirt one model bakes with, from its close-up: for each finish on a painted surface (not glass, screen,
-    light or print) with a measured colour, how far that colour lies from the surface's clean colour toward its dirt
-    colour, as a share of the way; the median, within 0 and the place's dirt (`most`). A fixed 0.6 in regolith baked
-    the wreck's and old_station's whites to L* 69 where their close-ups show them near 90 (2026-10-13)."""
+def measured_share(finishes, specs, toward, most):
+    """How much dirt (`toward` "dirt_colour") or wear ("bare": the steel a painted surface wears through to) one model
+    bakes with, from its close-up: for each finish on a surface with that colour (not glass, screen, light or print)
+    and a measured colour, how far that colour lies from the surface's clean colour toward it, as a share of the way;
+    the median, within 0 and the place's amount (`most`). The place's fixed dirt 0.6 and wear 0.8 baked the wreck's
+    and old_station's whites to L* 69 and its access cover to one grey look, where their close-ups show them near 90
+    (2026-10-13)."""
     import numpy as np
     import labels
     shares = []
     for finish in finishes:
         spec = specs.get(finish.get("surface"), {})
-        if finish.get("measured_lab") is None or "colour" not in spec or "dirt_colour" not in spec \
+        if finish.get("measured_lab") is None or "colour" not in spec or toward not in spec \
                 or spec.get("family") in ("glass", "screen", "light", "print"):
             continue
         clean = labels.lab(labels.srgb(np.array(spec["colour"], dtype=float))[None])[0]
-        toward = labels.lab(labels.srgb(np.array(spec["dirt_colour"], dtype=float))[None])[0] - clean
-        reach = float(np.dot(toward, toward))
+        way = labels.lab(labels.srgb(np.array(spec[toward], dtype=float))[None])[0] - clean
+        reach = float(np.dot(way, way))
         if reach > 1.0:
-            shares.append(float(np.clip(np.dot(np.array(finish["measured_lab"]) - clean, toward) / reach, 0.0, 1.0)))
+            shares.append(float(np.clip(np.dot(np.array(finish["measured_lab"]) - clean, way) / reach, 0.0, 1.0)))
     return round(min(float(np.median(shares)), most), 3) if shares else most
 
 
@@ -435,7 +437,8 @@ def make_bake(inputs, out, seed, params):
     for entry in chunky:
         report = json.loads((pathlib.Path(entry["parts"]) / "labels.json").read_text())
         one = dict(job, chunky=[entry], out=str(out / "made"), report=f"report-{entry['name']}.json",
-                   dirt=measured_dirt(report.get("finishes", []), job["specs"], job["dirt"]))
+                   dirt=measured_share(report.get("finishes", []), job["specs"], "dirt_colour", job["dirt"]),
+                   wear=measured_share(report.get("finishes", []), job["specs"], "bare", job["wear"]))
         for key in ("kit", "pieces", "code", "was"):
             one.pop(key, None)
         path = out / f".job-{entry['name']}.json"
