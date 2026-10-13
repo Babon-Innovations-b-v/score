@@ -202,13 +202,15 @@ def measured(record, singles, crowd, found, base, place):
     bodies = [{"name": name, "at": [round(value, 3) for value in spot], "doing": doing, **ground, "into": into}
               for (name, spot, doing), ground, into in zip(spots, grounds, clashes)]
     return {"bodies": bodies, "overlaps": overlaps(singles, crowd),
-            "cast_check": checked_cast(record, base, place)}
+            "cast_check": checked_cast(record)}
 
 
-def checked_cast(record, base, place):
-    """tools/characters/cast_check.py's faults of the record against the base layer's things."""
+def checked_cast(record):
+    """tools/characters/cast_check.py's people faults of the record: nobody twice, no walk through a person. Its walk
+    against things is left out: it tests each thing's box, so a walk through a ring (the tube's hoops) runs into the
+    box round it; the bodies' own triangle test (measure.run_into, every WALK_STEP along a walk) judges things."""
     _, cast_check = measure.characters()
-    return cast_check.check(record, cast_check.stage_things(base, place))
+    return cast_check.check(record, [])
 
 
 def overlaps(singles, crowd):
