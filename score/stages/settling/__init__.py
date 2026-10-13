@@ -50,6 +50,8 @@ EUROS = 1.0
 DROPS = PROPS_HOME / "store/cache/drops"
 # Where the gates put a seed together to judge it (on disk, beside the store's cache).
 SCRATCH = PROPS_HOME / "store/cache"
+# How far round an object, and over or under its bottom, another may lie and hold it up (metres; supports_of).
+SUPPORT_REACH = 0.1
 SEED_PARTS = ("layers", "inputs.json")
 # A rest the paint finishes: the faults the triage raises of an object stood upright on uneven feet.
 FOR_THE_PAINT = ("foot off", "leans", "tips")
@@ -132,7 +134,8 @@ def make(inputs, out, seed, params):
         poses = merged(poses, fixed_phase(root, found, place), seed, place)  # before the held: they lie on these
         poses = merged(poses, held_phase(root, scratch / "fixed.usda", inputs, inventory, poses, seed), seed, place)
         laid_over(root, seed, place, poses, scratch / "held.usda")
-        poses = kept_where_worse(poses, faulty(judged(root, inputs), place) - laid, inventory)
+        worse = faulty(judged(root, inputs), place) - laid
+        poses = kept_where_worse(poses, worse | supports_of(Usd.Stage.Open(str(root)), place, worse), inventory)
         write_layer(seed, place, moved(poses), out / LAYER)
         del stage, seed
     finally:
@@ -164,8 +167,31 @@ def kept_where_worse(poses, worse, inventory):
     rows = {name.rsplit("_", 1)[0] for name in worse}
     kept = {name for name in poses if name in worse or held_on.get(name.rsplit("_", 1)[0]) in rows}
     return {name: (dict(pose, after=pose["before"], rested=False,
-                        said=f"kept as laid: {pose['said']} made it rest worse") if name in kept else pose)
+                        said=f"kept as laid: {pose['said']} made it, or what lies on it, rest worse") if name in kept
+                   else pose)
             for name, pose in poses.items()}
+
+
+def supports_of(stage, place, names):
+    """The objects each named one may rest on as it lies: under its footprint (SUPPORT_REACH wider) with their top
+    within SUPPORT_REACH of its bottom (the greenhouse's keyboard, kept as laid, ended a foot off when the cabinet
+    beside the console it lies on was settled 6 cm: the cabinet is kept as laid too)."""
+    import numpy as np
+    from pxr import Usd, UsdGeom
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    boxes = {}
+    for prim in stage.GetPrimAtPath(f"/{place}/Objects").GetChildren():
+        box = cache.ComputeWorldBound(prim).ComputeAlignedRange()
+        if not box.IsEmpty():
+            boxes[prim.GetName()] = (np.asarray(box.GetMin()), np.asarray(box.GetMax()))
+    found = set()
+    for name in names & set(boxes):
+        low, high = boxes[name]
+        found |= {other for other, (other_low, other_high) in boxes.items() if other != name
+                  and abs(other_high[1] - low[1]) <= SUPPORT_REACH
+                  and np.all(other_low[[0, 2]] <= high[[0, 2]] + SUPPORT_REACH)
+                  and np.all(other_high[[0, 2]] >= low[[0, 2]] - SUPPORT_REACH)}
+    return found
 
 
 def still(loose, folder):
