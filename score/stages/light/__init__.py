@@ -117,21 +117,23 @@ def make_layer(inputs, out, seed, params):
     place = place_of(inputs)
     stage = passes.source(place, inputs, out / "source")
     found = layer.write(place, passes.record_of(place, inputs), stage, out)
-    if not found["lamps"]:
-        found["lamps"] = sun_lamps(place, out, stage)
+    if not found["lamps"] or not (passes.record_of(place, inputs).get("environment") or {}).get("inside"):
+        found["lamps"] += sun_lamps(place, out, stage)
     shutil.rmtree(out / "source")
     layer.lamps_file(found, out)
 
 
 def sun_lamps(place, out, stage):
-    """A place lit by no lamp (the old station, under the sun and the earthshine): its suns, each swept as a lamp is,
-    so the sweep can bring it to its concept's brightness (the captain, 2026-10-12, after the first fan-out: the old
-    station stood at 0.38 of C4's with nothing to sweep)."""
+    """The suns of a place lit by no lamp or under the open sky (its record's environment not `inside`), each in a
+    light group of its own, swept after the lamps when they cannot bring the place to its concept's brightness (the
+    captain, 2026-10-12: the old station stood at 0.38 of C4's with nothing to sweep, the wreck reached C4's only with
+    its one small lamp at 500 times its strength)."""
     from pxr import Sdf, Usd, UsdLux
     composed = Sdf.Layer.CreateAnonymous(".usda")
     composed.subLayerPaths.append(str(out / layer.LAYER))
     composed.subLayerPaths.append(str(stage / f"{place}.usda"))
-    lights = Usd.Stage.Open(composed).GetPrimAtPath(f"/{place}/Lights")
+    held = Usd.Stage.Open(composed)  # kept: a prim of a stage nobody holds is gone
+    lights = held.GetPrimAtPath(f"/{place}/Lights")
     return [{"path": str(prim.GetPath()), "spot": None, "shaped": False, "shaft": False, "sun": True,
              "intensity": float(prim.GetAttribute("inputs:intensity").Get())}
             for prim in (lights.GetChildren() if lights else []) if prim.IsA(UsdLux.DistantLight)]
@@ -233,18 +235,27 @@ def strengths(place, passes_folder, lamps, views_folder):
     views = {view: (held, curve) for view, (held, curve, _) in view_passes(views_folder, place).items()}
     target = concept_brightness(place)
     held = {group for passes_held, _ in views.values() for group in passes_held}
-    swept = [group for group, path in groups.items() if not by_path[path]["shaft"] and group in held]
+    swept = [group for group, path in groups.items()
+             if not by_path[path]["shaft"] and not by_path[path].get("sun") and group in held]
     scale = mix.sweep(views, swept, target)
     scales = {group: (scale if group in swept else 1.0) for group in groups}
+    suns = [group for group, path in groups.items() if by_path[path].get("sun") and group in held]
+    sun_scale = 1.0
+    if suns and not mix.within(views, scales, target):  # the lamps cannot: the sky's light can
+        sun_scale = mix.sweep(views, suns, target, scales)
+        scales.update(dict.fromkeys(suns, sun_scale))
     lamp_found = {}
     for group, path in sorted(groups.items()):
+        if by_path[path].get("sun"):  # a sun is not turned down for its own glare: its light is the whole sky's
+            lamp_found[path] = {"group": group, "scale": scales[group], "views": {}, "sun": True, "on_screen": []}
+            continue
         scales[group], measures = mix.turned_down(views, scales, group)
         lamp_found[path] = {"group": group, "scale": scales[group], "views": measures,
                             "sun": bool(by_path[path].get("sun")),
                             "on_screen": on_screen(by_path[path]["spot"], place) if by_path[path]["spot"] else []}
     for entry in lamp_found.values():
         entry["fault"] = mix.lamp_faults(lamp_measures_again(views, scales, entry["group"]), entry["on_screen"])
-    return scales, {"concept": round(target, 4), "swept_scale": scale, "swept": len(swept),
+    return scales, {"concept": round(target, 4), "swept_scale": scale, "swept": len(swept), "sun_scale": sun_scale,
                     "before": {name: round(value, 4) for name, value in mix.brightness(views, {}).items()},
                     "after": {name: round(value, 4) for name, value in mix.brightness(views, scales).items()},
                     "lamps": lamp_found}

@@ -82,13 +82,19 @@ def place_brightness(views, scales):
     return float(np.median(list(brightness(views, scales).values())))
 
 
-def sweep(views, swept, target):
-    """The scale (from SCALES) of every swept lamp that brings the place's brightness nearest `target`; 1.0 when no
-    lamp is swept."""
+def sweep(views, swept, target, held=None):
+    """The scale (from SCALES) of every swept lamp that brings the place's brightness nearest `target`, the other
+    groups at their `held` scales; 1.0 when no lamp is swept."""
     if not swept:
         return 1.0
-    gaps = [abs(np.log(max(place_brightness(views, dict.fromkeys(swept, scale)), FLOOR) / target)) for scale in SCALES]
+    gaps = [abs(np.log(max(place_brightness(views, dict(held or {}, **dict.fromkeys(swept, scale))), FLOOR) / target))
+            for scale in SCALES]
     return float(SCALES[int(np.argmin(gaps))])
+
+
+def within(views, scales, target):
+    """Whether the place's brightness at the scales is within BRIGHT_WITHIN of `target`."""
+    return abs(np.log(max(place_brightness(views, scales), FLOOR) / target)) <= np.log(BRIGHT_WITHIN)
 
 
 def lamp_measures(views, scales, group):
