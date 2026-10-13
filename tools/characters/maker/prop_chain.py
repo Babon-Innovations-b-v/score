@@ -18,6 +18,7 @@ The spec (in/spec.json, written by prop_person.py) names its `steps`, in order, 
 No body is read off a picture on this route (owner, 2026-10-10): SOMA-X gives the skeleton and its skin weights only.
 The record of every step (minutes, card, failure) is out/make.json, as chain.py writes it.
 """
+import json
 import pathlib
 import shutil
 import sys
@@ -32,8 +33,20 @@ SEEDS = (1, 2)
 
 
 def pose(chain):
-    """The bind pose the close-up is drawn in."""
+    """The bind pose the close-up is drawn in: SOMA-X's measured one, with the spec's `bind_pose` numbers over it (a
+    wider A-pose, 2026-10-13: arms further out and feet further apart leave open space at the armpits and the groin,
+    which Pixal3D otherwise builds as one surface with the body)."""
     chain.run([MOTION, MAKER / "prop_read.py", chain.out / "pose.json"])
+    widened(chain.out / "pose.json", chain.spec.get("bind_pose", {}))
+
+
+def widened(path, numbers):
+    """The pose file with `numbers` (arm_degrees, hands_forward_m, ankles_m) written over the measured ones."""
+    unknown = set(numbers) - {"arm_degrees", "hands_forward_m", "ankles_m"}
+    if unknown:
+        raise SystemExit(f"bind_pose: unknown numbers {sorted(unknown)}")
+    if numbers:
+        path.write_text(json.dumps({**json.loads(path.read_text()), **numbers}, indent=1))
 
 
 def closeup(chain):

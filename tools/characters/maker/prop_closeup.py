@@ -32,8 +32,8 @@ POSE = ("full body seen straight from the front by a level telephoto camera at c
 
 # Said when a pose picture is the last reference: only its pose is taken.
 POSE_PICTURE = ("standing in exactly the pose of the figure in the last reference picture, with its arms held out "
-                "at the same wide angle and open background between each arm and the body, but with her own face, "
-                "body and outfit")
+                "at the same wide angle and open background between each arm and the body, but with the described "
+                "person's own face, body and outfit")
 
 
 def wording(who, outfit, pose, referenced, pose_picture=False):
