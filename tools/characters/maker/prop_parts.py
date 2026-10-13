@@ -65,7 +65,9 @@ OUTFIT_PALETTES = {"work": WORK_CHINESE, "space": SPACE_CHINESE}
 # An outfit with no palette of its own (a kit's uniform, the driver's suit) takes the work suit's material names: they
 # only give each part its role for the judge (fabric, print, belt, buckle, boot); its dress row paints it from the
 # library (score/stages/people/dress.py), never in these colours.
-FALLBACK_PALETTE = WORK_CHINESE
+# It offers shoes beside boots: kit_m_broad's judge called his shoes leather and, with no shoe to choose, took the belt's
+# material, so his feet were no boot part and his far body had no boots (2026-10-13).
+FALLBACK_PALETTE = {**WORK_CHINESE, "black leather shoe": ("rubber", (30, 31, 34))}
 
 
 def palette_of(outfit):
@@ -76,7 +78,7 @@ def problems_of(spec, outfit):
     """Why the parts of `outfit` cannot be asked for this spec ([] when they can): checked on the PC before renting."""
     return [] if outfit in spec.get("outfit_words", {}) else [f"the spec has no outfit_words for {outfit!r}"]
 # The materials a part named by them is: boots and mitts are split by side for joins.py (boot_l, mitt_r, ...).
-BOOTS = ("black rubber boot", "grey moon boot rubber")
+BOOTS = ("black rubber boot", "grey moon boot rubber", "black leather shoe")
 MITTS = ("grey mitten rubber",)
 # A part's role in the body, by its material's family.
 ROLES = {"skin": "skin", "hair": "hair", "fabric": "garment", "print": "garment", "rubber": "hard", "steel": "hard",

@@ -140,6 +140,18 @@ def test_the_pose_picture_words_name_no_one_by_pronoun():
     assert " her " not in words and " his " not in words
 
 
+def test_an_outfit_without_a_palette_can_name_shoes_as_boots():
+    """2026-10-13: with no shoe to choose, the judge gave kit_m_broad's shoes the belt's material."""
+    props_python = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
+    if not props_python.exists():
+        pytest.skip("no props environment on this box")
+    ask = ("import prop_parts; shoes = [name for name in prop_parts.palette_of('uniform-olive') "
+           "if name in prop_parts.BOOTS]; print(shoes)")
+    found = subprocess.run([str(props_python), "-B", "-c", ask], capture_output=True, text=True,
+                           cwd=pathlib.Path(__file__).resolve().parent)
+    assert found.returncode == 0 and "black leather shoe" in found.stdout
+
+
 def test_a_far_surface_with_no_faces_is_left_out_not_crashed_on(tmp_path):
     """2026-10-13: kit_m_broad's wide take has no boot part, and the build crashed on the far body's empty boots."""
     prop_build = pytest.importorskip("prop_build")
