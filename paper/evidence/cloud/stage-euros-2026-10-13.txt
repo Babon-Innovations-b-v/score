@@ -1,0 +1,37 @@
+Euros per stage from the ledgers, 2026-10-12 19:06Z to 2026-10-13 08:54Z.
+Cloud (Scaleway, rented machines), by the runner ticket each ledger row carries:
+     37.61   109 rows  surfaces-paint
+     16.09    78 rows  people-body (every look)
+     10.41    10 rows  people-paint
+     10.17   196 rows  light-passes
+      9.47    12 rows  surfaces-turntable
+      7.89   162 rows  surfaces-bake
+      4.72     4 rows  crops-surfaces-turntable
+      4.08    32 rows  surfaces-segvigen
+      3.43    11 rows  settle
+      2.41    16 rows  concept_people
+      1.87    12 rows  pixal
+      1.76    13 rows  people-segvigen
+      1.24    15 rows  people-turntable
+      1.10    19 rows  effects-look
+      0.90     9 rows  terrain-look
+      0.73     9 rows  crops-surfaces-segvigen
+      0.69    20 rows  light-haze
+      0.68   107 rows  machines-boxes
+      0.59     7 rows  assembly
+      0.59     3 rows  crops-surfaces-paint
+      0.25     6 rows  crops-surfaces-bake
+      0.21     2 rows  people-take (every look)
+      0.20    11 rows  crops-look
+      0.12     8 rows  terrain
+      0.09     6 rows  crops-boxes
+      0.09     4 rows  crops-concept
+      0.04     4 rows  likeness-calibration
+    117.45  total with a ticket; 4.28 without one
+Google (Gemini and Nano Banana Pro), by caller:
+     26.59  surfaces-maps (Nano Banana Pro)
+      4.54  surfaces-names (Gemini 3.1 Pro)
+      2.24  Nano Banana Pro pictures (close-ups, casts)
+      0.83  surfaces-lists (Gemini 3.1 Pro)
+     34.19  total
+Made from the cloud ledger (ledger.jsonl) and the Google ledger (google-ledger.jsonl) (see tools/props/cloud/CLAUDE.md): cloud rows summed by the stage named in their runner ticket ("<stage>@<place> <key>"), the people-body-<look> and people-take-<look> rows merged; Google calls summed by caller, a finished call at its price, a call started and never finished at its estimate. No machine names, addresses or keys are copied.
