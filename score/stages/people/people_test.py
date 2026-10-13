@@ -11,7 +11,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/characters/maker"))
 
-from score.stages.people import bodies, dress, renamed  # noqa: E402
+from score.stages.people import bodies, clips, dress, renamed  # noqa: E402
 import clearance  # noqa: E402
 
 
@@ -21,28 +21,46 @@ def test_renamed_inputs():
 
 
 def write_checks(folder, deep, bind_deep, tuck_over=0):
+    """A body's records with two clips: walking with the given counts, standing clean."""
     checks = folder / "checks"
     checks.mkdir(parents=True)
     (checks / "bodycloth.json").write_text(json.dumps({
         "margin_mm": 3.0, "bind": {"deep_by_part": {"boot_r": bind_deep}},
-        "clips": {"walking": {"deep_by_part": {"boot_r": deep}, "deepest_mm": 9.0}}}))
-    (checks / "pokes.json").write_text(json.dumps({
-        "verdict": {"tucks": tuck_over == 0, "rigid": True, "cloth_through_cloth": True},
-        "clips": {"walking": {"worst_tuck_out_mm": 2.0 + tuck_over, "frames_tuck_over": tuck_over,
-                              "rigid_stretch": 1.0}}}))
+        "clips": {"walking": {"deep_by_part": {"boot_r": deep}, "deepest_mm": 9.0},
+                  "standing": {"deep_by_part": {"boot_r": bind_deep}, "deepest_mm": 2.0}}}))
+    clip = {"worst_tuck_out_mm": 2.0, "frames_tuck_over": 0, "rigid_stretch": 1.0, "most_crossings": 10}
+    (checks / "pokes.json").write_text(json.dumps({"rest_crossings": 10, "clips": {
+        "walking": dict(clip, worst_tuck_out_mm=2.0 + tuck_over, frames_tuck_over=tuck_over), "standing": clip}}))
+    (checks / "pokes_shipped.json").write_text(json.dumps({"rest_crossings": 10, "clips": {
+        "walking": {"most_crossings": 20}, "standing": {"most_crossings": 20}}}))
 
 
-def test_body_through_cloth_holds_the_bind():
+def test_a_body_is_judged_clip_by_clip():
     with tempfile.TemporaryDirectory() as held:
         folder = pathlib.Path(held)
         write_checks(folder, deep=13, bind_deep=13)
-        assert bodies.judge_body_through_cloth(folder, {}, {}).answer == "pass"
+        assert clips.usable(folder) == (["standing", "walking"], {})
     with tempfile.TemporaryDirectory() as held:
         folder = pathlib.Path(held)
         write_checks(folder, deep=50, bind_deep=13, tuck_over=3)
-        assert bodies.judge_body_through_cloth(folder, {}, {}).answer == "fail"
-        tucks = dict((check.name, check) for check in bodies.checks())["tucks"]
-        assert tucks.judge(folder, {}, {}).answer == "fail"
+        passing, failing = clips.usable(folder)
+        assert passing == ["standing"] and len(failing["walking"]) == 2, failing
+        verdict = bodies.judge_clips(folder, {}, {})
+        assert verdict.answer == "pass" and verdict.measures["failing"] == 1 and "walking" in verdict.findings[0]
+
+
+def test_a_cast_doing_a_failing_clip_fails():
+    with tempfile.TemporaryDirectory() as held:
+        folder = pathlib.Path(held)
+        (folder / "casts").mkdir()
+        (folder / "casts" / "lab.json").write_text(json.dumps({"place": "lab", "people": [
+            {"name": "a", "look": "bram_work", "doing": "walking"}, {"name": "b", "look": "bram_work",
+                                                                      "doing": "standing"}]}))
+        (folder / "cut.json").write_text(json.dumps({"cast_names": {"bram-work": ["bram_work"]}}))
+        (folder / "usable.json").write_text(json.dumps({"bram-work": {"usable": ["standing"],
+                                                                     "failing": {"walking": ["tucks: 5.1 mm"]}}}))
+        verdict = clips.judge_casts(folder, {"casts": folder / "casts", "cut": folder / "cut.json"}, {})
+        assert verdict.answer == "fail" and verdict.measures == {"failing": 1, "judged": 2}, verdict
 
 
 def test_the_shell_leaves_rigid_parts_out():

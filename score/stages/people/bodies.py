@@ -1,19 +1,19 @@
 """The people's body rows (#5, the owner's plan of 2026-10-11: people are made like every prop): one world row a look,
 `people-body-<look>`, paid, each a node of its own so the looks run side by side. A look is a take of
-data/people/surfaces.json with its `spec` and `outfit`: the prop route's Pixal3D take, SOMA-X's skeleton placed
-inside it (only the rig, so Kimodo's clips play), its parts, its garments settled through every clip, and its checks
-(tools/characters/maker/prop_person.py's stages build, settle and checks-cloud, the checks side by side on a rented
-processor machine; its parts first when the take has none). The maker works in its candidate folder (~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row
-copies the made body and every record the gates read into its output.
+data/people/surfaces.json with its `spec` and `outfit`: the prop route's Pixal3D take, SOMA-X's body fitted under it
+as its moving base (only the rig, so Kimodo's clips play), its parts, its garments settled through every clip, and
+its checks (tools/characters/maker/prop_person.py's stages build, settle and checks-cloud, the checks side by side on
+a rented processor machine; its parts first when the take has none). The maker works in its candidate folder
+(~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row copies the made body and every record the
+gates read into its output.
 
-Gates (unknown blocks): joins (wrist, ankle, stance; people/joins.py), tucks (no tuck point over pokes.POKE_MM
-outside the person's surface in any frame), cloth through cloth (no clip's garments cross more than the shipped
-body's), rigid (hard parts unstretched), body through cloth (no clip frame puts any skin or hard part deeper than
-bodycloth.MARGIN_MM through the cloth more often than the bind pose does: the bind's crossings are the parts' own
-joins, held by tucks and joins), outline (outline.py: the built A-pose against the close-up's cut-out) and likeness
-(the props' likeness gate, score/stages/props/likeness.py: the body's best outline of eight ways round against its
-close-up, at least its OUTLINE_LEAST), triangles (within the shipped player's budget) and shell (every part but the
-rigid ones within OFFSET_MOST of SOMA-X's body fitted to the look's outside, prop_shell.py).
+Gates (unknown blocks): joins (wrist, ankle, stance; people/joins.py), clips (the body judged clip by clip, clips.py:
+tucks, rigid, cloth through cloth and body through cloth per clip; every clip judged, the failing ones named with
+their numbers, a cast held to the passing ones by people-clips), outline (outline.py: the built A-pose against the
+close-up's cut-out), likeness (the props' likeness gate, score/stages/props/likeness.py: the body's best outline of
+eight ways round against its close-up, at least its OUTLINE_LEAST), triangles (within the shipped player's budget)
+and shell (every part but the rigid ones within OFFSET_MOST of SOMA-X's body fitted to the look's outside,
+prop_shell.py).
 """
 import json
 import pathlib
@@ -176,36 +176,6 @@ def judge_joins(output, inputs, evidence):
     return verdict("joins", failing, "wrist, ankle and stance pass")
 
 
-def pokes_gate(name, key, what):
-    def judge(output, inputs, evidence):
-        found = record(output, "pokes.json")
-        clips = found["clips"]
-        measures = {"worst_tuck_mm": max(clip["worst_tuck_out_mm"] for clip in clips.values()),
-                    "rigid_stretch": max(clip["rigid_stretch"] for clip in clips.values())}
-        failing = [] if found["verdict"][key] else [what(found)]
-        return verdict(name, failing, f"{name} pass over {len(clips)} clips", measures)
-    return Check(name, judge)
-
-
-def tucks_fault(found):
-    over = {clip: round(entry["worst_tuck_out_mm"], 1) for clip, entry in found["clips"].items()
-            if entry["frames_tuck_over"]}
-    return f"tucks showing over 5 mm in {over}"
-
-
-def judge_body_through_cloth(output, inputs, evidence):
-    """No clip frame puts a skin or hard part deeper than the margin through the cloth more often than the bind does
-    (per part; the bind's deep crossings are the parts' joins, which tucks and joins hold)."""
-    found = record(output, "bodycloth.json")
-    bind = found["bind"]["deep_by_part"]
-    failing = [f"{clip}: {part} {deep} edges over {found['margin_mm']} mm deep (bind {bind.get(part, 0)})"
-               for clip, entry in found["clips"].items() for part, deep in entry["deep_by_part"].items()
-               if deep > bind.get(part, 0)]
-    deepest = max(entry["deepest_mm"] for entry in found["clips"].values())
-    return verdict("body through cloth", failing, f"no clip deeper than its bind over {found['margin_mm']} mm",
-                   {"deepest_mm": deepest, "margin_mm": found["margin_mm"]})
-
-
 def judge_outline(output, inputs, evidence):
     found = record(output, "outline.json")
     failing = [] if found["pass"] else [f"A-pose outline drop {found['iou_drop']} (raw {found['iou_raw']}, built "
@@ -255,15 +225,22 @@ def judge_shell(output, inputs, evidence):
                    {"offset_most_m": max(shelled, default=0.0), "scale": found["scale"]})
 
 
+def judge_clips(output, inputs, evidence):
+    """The body judged clip by clip (captain, 2026-10-13; clips.py): tucks, rigid, cloth through cloth and body
+    through cloth per clip. It passes once every clip is judged; each failing clip is named with its numbers, and a
+    cast may use only the passing ones (people-clips holds the casts to it)."""
+    from score.stages.people import clips
+    passing, failing = clips.usable(output)
+    findings = [f"{clip}: {'; '.join(faults)}" for clip, faults in sorted(failing.items())]
+    return Verdict("clips", PASS, f"{len(passing)} of {len(passing) + len(failing)} clips usable"
+                   + (f"; failing {', '.join(sorted(failing))}" if failing else ""),
+                   {"usable": len(passing), "failing": len(failing)}, {"usable": "higher"}, tuple(findings))
+
+
 def checks():
-    tucks = pokes_gate("tucks", "tucks", tucks_fault)
-    cloth = pokes_gate("cloth through cloth", "cloth_through_cloth",
-                       lambda found: f"clips crossing more than the shipped body: {found.get('cloth_worse_than_shipped')}")
-    rigid = pokes_gate("rigid", "rigid", lambda found: "a hard part stretches over 1.2x")
-    return (guarded("joins", judge_joins), guarded("tucks", tucks.judge), guarded("cloth through cloth", cloth.judge),
-            guarded("rigid", rigid.judge), guarded("body through cloth", judge_body_through_cloth),
-            guarded("outline", judge_outline), guarded("likeness", judge_likeness),
-            guarded("triangles", judge_triangles), guarded("shell", judge_shell))
+    return (guarded("joins", judge_joins), guarded("clips", judge_clips), guarded("outline", judge_outline),
+            guarded("likeness", judge_likeness), guarded("triangles", judge_triangles),
+            guarded("shell", judge_shell))
 
 
 BODY = "people-body"

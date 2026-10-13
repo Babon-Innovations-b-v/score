@@ -6,12 +6,13 @@ World rows, each look's data a take of data/people/surfaces.json:
     people-inputs ... people-paint   the surface stage's method and paint on the looks' takes (line.py)
     people-body-<look>               a look's body: rig, build, settle and every body gate (bodies.py)
     people-dress-<look>              the paint's library surfaces laid on the body (dress.py)
+    people-clips                     each full body's passing clips; the casts held to them (clips.py)
     people-look                      the review page of the LOOKED looks (look.py)
 
     .venv/bin/python -m score run world1 --stage people-look --detach
 """
 from score import contracts, graph
-from score.stages.people import bodies, dress, line, look
+from score.stages.people import bodies, clips, dress, line, look
 from score.stages.people.bodies import guarded
 
 # The looks the review page shows: the player and Nev first (#5), the casts' looks once they pass.
@@ -35,4 +36,11 @@ LOOK = graph.Stage("people-look", "world", look.make_look, contracts.Contract("p
                    after={**{f"people-dress-{name}": ("people-dress", 1) for name in LOOKED},
                           **{f"{bodies.BODY}-{name}": (bodies.BODY, 1) for name in LOOKED}},
                    paid=True, euros=look.EUROS * len(LOOKED))
-ROWS = (*line.ROWS, *bodies.rows(), *map(dress_row, bodies.looks()), LOOK)
+FULL = [look for look, entry in bodies.looks().items() if not entry.get("far_only")]
+# Free: each full body's passing clips, and every world 1 cast held to them (clips.py).
+CLIPS = graph.Stage("people-clips", "world", clips.make_usable, contracts.Contract("people-clips", 1,
+                                                                                 clips.usable_faults),
+                    (guarded("casts use passing clips", clips.judge_casts),),
+                    files={"casts": "{data}/characters", "cut": "{data}/people/bodies.json"},
+                    after={f"{bodies.BODY}-{look}": (bodies.BODY, 1) for look in FULL})
+ROWS = (*line.ROWS, *bodies.rows(), *map(dress_row, bodies.looks()), CLIPS, LOOK)

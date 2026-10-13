@@ -47,7 +47,9 @@ import glb  # noqa: E402
 import joins  # noqa: E402
 
 KEPT = 0.0002
-MISS_MOST = 0.004
+# Under the body-through-cloth check's 3 mm margin (bodycloth.MARGIN_MM): at 4 mm the baked cloth sat up to 4 mm off
+# the settle, and the player's belt showed 2 edges just past 3 mm in every clip (2026-10-13).
+MISS_MOST = 0.002
 # Rounds of neighbour averaging that soften the regions' borders (regions): about 3 cm on the player's cloth.
 SOFTENING = 3
 DAMPING = 1e-4
