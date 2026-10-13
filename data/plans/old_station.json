@@ -392,5 +392,6 @@
    ]
   },
   "why": "the site's north-west corner in the place's frame (its seat's; the plan unturned)"
- }
+ },
+ "far_ground": {"reach": 130.0, "step": 2.0, "ball": "moon_regolith", "why": "concept C4 shows the Moon's ground running out to the horizon round the station; reach and step the old record's (an unverified seed)"}
 }

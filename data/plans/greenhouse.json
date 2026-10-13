@@ -421,5 +421,6 @@
    "element": "three crew at work",
    "drop": "the crew are the characters stage's (#100), not rows"
   }
- ]
+ ],
+ "far_ground": {"reach": 130.0, "step": 2.0, "ball": "moon_regolith", "why": "the greenhouse's glass dome looks out on the Moon's ground to the horizon; reach and step the old record's (an unverified seed)"}
 }

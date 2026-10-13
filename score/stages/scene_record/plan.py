@@ -290,7 +290,7 @@ def make(inputs, out, seed, params):
               "floor": floor, "floor_height": floor_height, "block": plan.get("block"),
               "doors": doors, "items": items_of(plan), "standing": standing_of(plan),
               "elements": plan.get("elements", []), "shows": plan.get("shows", {}), "objects": plan.get("objects", {}),
-              "aims": plan.get("aims", {}),
+              "aims": plan.get("aims", {}), "far_ground": plan.get("far_ground"),
               **({key: plan.get(key, []) for key in ("lamps", "decals", "beams", "blocks")}
                  if shell == "outdoor" else {}),
               "concept": plan.get("concept", {}), "notes": plan.get("notes", []),
@@ -382,7 +382,8 @@ def door_faults(door, places, record, ids=None):
 def lit_faults(record, ids):
     """Why an outdoor plan's lamp or beam is not mapped: the row it stands on is not in the inventory."""
     return [f"{kind[:-1]} {entry['name']!r}: row {entry['row']} is not in the inventory"
-            for kind in ("lamps", "beams") for entry in record.get(kind, []) if entry["row"] not in ids]
+            for kind in ("lamps", "beams") for entry in record.get(kind, [])
+            if entry["row"] not in ids and not entry.get("place")]  # another place's row: its kit, the writer's
 
 
 def off_plan(record, inventory, kit):

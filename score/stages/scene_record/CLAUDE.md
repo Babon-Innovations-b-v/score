@@ -45,6 +45,11 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
 - **A plan object stands on what holds it up**, not at the plan's level: its model's lowest point (scaled to its
   `height`) on the top of the kit's floor pieces under its middle (else the plan's floor at its level), or on the made
   ground outside (`kit_shell.support`, `model_low`; the launch's rocket stood 6 mm into its pad, 2026-10-13).
+- **The far ground is the plan's** (`far_ground`: reach, step, the ball's surface, why): a place that sees the ground
+  to its horizon (the outdoor places, the camp's domes, the hub's portholes, the greenhouse's glass) gets the
+  record's `planned_ground`, so the export draws the made ground out past its near patch and the ball under it; left
+  out, the horizon renders as a flat haze band (the camp, 2026-10-13). A plan beam may stand on another place's row
+  (`place`: the camp sees the camp grounds' mast beam), on the first piece of it that place's kit lays.
 - **Seed reasons can name a family** (`<section>/<start>_`, kept to one place with `<place>:`), so the greenhouse's
   old bed boxes need one reason and it never excuses another room's.
 - **The plan's inventory** is `data/inventory/<place>.json`, or the plan's `inventory` name (the prologue's rooms keep

@@ -377,5 +377,6 @@
     "under_floor_box"
    ]
   }
- ]
+ ],
+ "far_ground": {"reach": 130.0, "step": 2.0, "ball": "moon_regolith", "why": "the hub's portholes look out on the Moon's ground to the horizon; reach and step the old record's (an unverified seed)"}
 }
