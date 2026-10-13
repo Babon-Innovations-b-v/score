@@ -212,7 +212,16 @@ def test_every_shell_kind_matches_its_plan_and_a_moved_number_fails():
             assert shell_faults_of(made, moved), (place, name, key)
 
 
+def test_a_moved_leaf_runs_clear_only_its_open_way():
+    """The flat's balcony leaf slid open south runs clear; slid north it runs into the TV and its cabinet."""
+    kit = json.loads((REPO / "data/kit/flat.json").read_text())
+    assert gates.sweep_faults({"moved": [{"node": "BalconyDoor", "by": [0.0, 0.0, 1.4]}]}, kit) == []
+    found = gates.sweep_faults({"moved": [{"node": "BalconyDoor", "by": [0.0, 0.0, -1.4]}]}, kit)
+    assert any("crt_tv" in line for line in found), found
+
+
 if __name__ == "__main__":
+    test_a_moved_leaf_runs_clear_only_its_open_way()
     test_every_shell_kind_matches_its_plan_and_a_moved_number_fails()
     test_the_garage_plan_maps_and_faults_fail()
     test_the_garage_record_passes_and_each_fault_fails()

@@ -590,6 +590,10 @@ def kit_record(place, plan, inputs, grounds):
         record["water"] = kit_shell.water(sky, seated.made, pose)
     if plan["inside"]:
         record["ceiling"] = round(plan["floor_height"] + plan["walls"]["high"], 4)
+    if plan.get("moves"):
+        record["moved"] = [{"node": move["node"], "by": move["by"],
+                            "from": f"plan door {move['door']}: its leaf stands open ({move['why']})"}
+                           for move in plan["moves"]]
     return record
 
 

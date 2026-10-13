@@ -291,6 +291,9 @@ def make(inputs, out, seed, params):
               "doors": doors, "items": items_of(plan), "standing": standing_of(plan),
               "elements": plan.get("elements", []), "shows": plan.get("shows", {}), "objects": plan.get("objects", {}),
               "aims": plan.get("aims", {}), "far_ground": plan.get("far_ground"),
+              # Each door leaf a lead stands open (`moves`: its kit piece's node, by how far, why).
+              "moves": [{**move, "door": side} for side, lead in sorted(plan.get("leads", {}).items())
+                        for move in lead.get("moves", [])],
               **({key: plan.get(key, []) for key in ("lamps", "decals", "beams", "blocks")}
                  if shell == "outdoor" else {}),
               "concept": plan.get("concept", {}), "notes": plan.get("notes", []),
