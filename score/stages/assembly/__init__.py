@@ -184,12 +184,13 @@ def stamp_baked_hash(base, model, gltf):
 
 
 def take_layer(made, root, layer, assets):
-    """A layer stage's layer in place of the seed's (or beside it), with its assets: a folder of its own replaced
-    whole, the shared assets/ merged. The root holds it in its place (hold) and plays as long as it does."""
+    """A layer stage's layer in place of the seed's (or beside it), with its assets when its output has any (the
+    light stage's live lamps have none): a folder of its own replaced whole, the seed's gone with none, the shared
+    assets/ merged. The root holds it in its place (hold) and plays as long as it does."""
     from pxr import Sdf
-    if assets:
-        if assets != "assets":
-            shutil.rmtree(root.parent / assets, ignore_errors=True)
+    if assets and assets != "assets":
+        shutil.rmtree(root.parent / assets, ignore_errors=True)
+    if assets and (made / assets).is_dir():
         shutil.copytree(made / assets, root.parent / assets, dirs_exist_ok=True)
     (root.parent / layer).parent.mkdir(exist_ok=True)
     shutil.copy2(made / layer, root.parent / layer)

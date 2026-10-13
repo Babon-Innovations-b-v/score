@@ -155,6 +155,11 @@ def test_a_layer_is_held_in_its_place_and_the_root_plays_as_long_as_it():
         assert list(found.subLayerPaths) == [f"./layers/{name}.usda" for name in
                                              ("edit", "characters", "sound", "light", "motion", "effects", "base")]
         assert found.endTimeCode == 480.0 and (root.parent / "assets/light/earth.png").exists()
+        live = pathlib.Path(temporary) / "live"  # the light stage's live lamps: a layer and no assets (2026-10-13)
+        (live / "layers").mkdir(parents=True)
+        (live / "layers/light.usda").write_text("#usda 1.0\n")
+        assembly.take_layer(live, root, "layers/light.usda", "assets/light")
+        assert not (root.parent / "assets/light").exists()
 
 
 def test_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_its_seed_record():
