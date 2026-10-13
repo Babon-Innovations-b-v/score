@@ -291,9 +291,21 @@ def main():
     if not options.no_export:
         export_viewer(options.place, stage)
     page = folder / "page.html"
-    page.write_text(page_html(store, options.place, stage, output, line_status(options.world, options.place),
-                              options.audit))
+    statuses = line_status(options.world, options.place)
+    page.write_text(page_html(store, options.place, stage, output, statuses, options.audit))
+    stamp_review(folder, stage)
+    if not options.no_check:  # the gate again, now that the page it reviews by stands: its review requirement
+        subprocess.run([PYTHON, str(REPO / "tools/usd/complete.py"), "done", options.place, "--stage", str(stage)])
+        page.write_text(page_html(store, options.place, stage, output, statuses, options.audit))
     print(f"{page} viewer {VIEWER_URL.format(place=options.place)}")
+
+
+def stamp_review(folder, stage):
+    """The store page's stamp (complete.py's review requirement): the stage it was built from, by fingerprint."""
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import complete
+    (folder / complete.REVIEW_STAMP).write_text(json.dumps({"fingerprint": complete.fingerprint(stage),
+                                                             "at": complete.now(), "page": "page.html"}, indent=1))
 
 
 if __name__ == "__main__":

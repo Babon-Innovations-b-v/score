@@ -184,10 +184,44 @@ def a_part_answers_for_its_own_rows_only():
         return problems
 
 
+def the_store_page_is_the_review_and_a_store_copy_is_judged_by_its_key():
+    """The owner reviews from the store page (store_page.py, no renders): its stamp on the stage as it is answers the
+    review requirement, an older stamp fails it. A stage copied out of the store (its output marker beside it) is
+    judged by the runner's key, never by its inputs record's file times."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = laid(folder)
+        saved = complete.STORE_REVIEWS, complete.store_stage_requirement
+        complete.STORE_REVIEWS = folder / "review-store"
+        problems = []
+        try:
+            (complete.STORE_REVIEWS / resting_test.PLACE).mkdir(parents=True)
+            stamp = complete.STORE_REVIEWS / resting_test.PLACE / complete.REVIEW_STAMP
+            stamp.write_text(json.dumps({"fingerprint": complete.fingerprint(stage), "at": "now"}))
+            if complete.review_requirement(resting_test.PLACE, stage, None, complete.fingerprint(stage))[0] != \
+                    complete.PASS:
+                problems.append("the store page built from this stage does not answer the review")
+            stamp.write_text(json.dumps({"fingerprint": "an earlier stage", "at": "then"}))
+            if complete.review_requirement(resting_test.PLACE, stage, None, complete.fingerprint(stage))[0] != \
+                    complete.FAIL:
+                problems.append("a store page built from an earlier stage still answers the review")
+            asked = []
+            complete.store_stage_requirement = lambda place, output: asked.append((place, output)) or (complete.PASS,
+                                                                                                         "keyed")
+            (stage.parent / complete.STORE_OUTPUT).write_text("abc123\n")
+            if complete.stage_requirement(stage, "garage") != (complete.PASS, "keyed") or \
+                    asked != [("garage", "abc123")]:
+                problems.append(f"a store copy was not judged by the runner's key: {asked}")
+        finally:
+            complete.STORE_REVIEWS, complete.store_stage_requirement = saved
+        return problems
+
+
 CHECKS = (a_finished_place_passes, a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
-          a_check_that_cannot_run_is_unknown, a_part_answers_for_its_own_rows_only)
+          a_check_that_cannot_run_is_unknown, a_part_answers_for_its_own_rows_only,
+          the_store_page_is_the_review_and_a_store_copy_is_judged_by_its_key)
 
 
 if __name__ == "__main__":
