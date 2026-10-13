@@ -478,6 +478,8 @@ class Runner:
         """`run_node` under the node's key's lock."""
         node = node_name(stage, place)
         record = self.store.record(node, keyed["key"])
+        if record is None and hasattr(stage.files, "carried"):  # its accepted output, kept when its inputs are the same
+            record = stage.files.carried(self, stage, place, keyed)
         made = record is None
         if made:
             try:

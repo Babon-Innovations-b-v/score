@@ -75,7 +75,11 @@ def to_make(runner, stage, place, pending, remade):
     node = node_name(stage, place)
     try:
         keyed = runner.key(stage, place)
-        return keyed if runner.store.record(node, keyed["key"]) is None else None
+        if runner.store.record(node, keyed["key"]) is not None:
+            return None
+        if hasattr(stage.files, "carries") and stage.files.carries(runner, stage, place, keyed):
+            return None  # the runner keeps its accepted output under the new key (surfaces/carry.py)
+        return keyed
     except Blocked:  # it reads a node not made on its current inputs yet, or one that blocks it
         if not pending:
             return None
