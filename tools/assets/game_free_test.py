@@ -125,7 +125,8 @@ def named_files():
     def walk(value, key):
         if isinstance(value, dict):
             for inner, item in value.items():
-                walk(item, inner)
+                if not (inner == "model" and "waiting" in value):  # a waiting entry's model is baked, not released
+                    walk(item, inner)
         elif isinstance(value, list):
             for item in value:
                 walk(item, key)

@@ -6,6 +6,7 @@ The store is a folder of its own under $PROPS_HOME (never /tmp, never the framew
 
 Run: .venv/bin/python score/stages/stages_test.py
 """
+import dataclasses
 import json
 import pathlib
 import shutil
@@ -13,6 +14,10 @@ import sys
 import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+# The script's own folder (score/stages) off the path: on it, tools/usd's `import motion` also finds the motion
+# stage, and the code versions measured here take in its imports (feet.py, triage.py) as `python -m score` never does.
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path[:] = [entry for entry in sys.path if pathlib.Path(entry or ".").resolve() != HERE]
 sys.path.insert(0, str(REPO))
 
 from score import checks, contracts, graph, review, stages  # noqa: E402
@@ -40,10 +45,15 @@ def scenario(root):
     store = Store.in_folder(root / "store")
     # The worked example's own stages: terrain (a world node) spends and has its own test beside its module, so a
     # terrain that made no ground for these places stands in for it.
-    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, stages.MACHINES, *NO_SURFACES, stages.ASSEMBLY,
+    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, stages.MACHINES, *NO_SURFACES, ASSEMBLY,
                                                stages.NEIGHBOURS,
                                                stages.COMPLETE), world, store)
 
+
+
+# The assembly with no claiming place: the hangar's rack is old_station's (data/surfaces/hangar.json `elsewhere`), whose
+# line this example does not run.
+ASSEMBLY = dataclasses.replace(stages.ASSEMBLY, neighbours=lambda place: [])
 
 def no_ground(inputs, out, seed, params):
     (out / "none").mkdir()
@@ -179,9 +189,10 @@ def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
              and code_after_editing(stage, edited) != code_after_editing(stage, "nothing")}
     # The people line's turntable runs the same make (score/stages/people/line.py), so it moves with it. The crops'
     # line keeps its rows' files functions in score/stages/crops/line.py, which imports the turntable, so every paid
-    # row of it moves too (its overlay: they move to a module of their own the next time that line is made again).
+    # row of it moves too (its overlay: they move to a module of their own the next time that line is made again),
+    # but paint and bake, which key only the library surfaces they read (library_reads.py) since 2026-10-13.
     crops = {"crops-boxes", "crops-closeup", "crops-pixal", *(f"crops-surfaces-{step}" for step in (
-        "turntable", "lists", "maps", "names", "segvigen", "paint", "bake"))}
+        "turntable", "lists", "maps", "names", "segvigen"))}
     assert moved == {"surfaces-turntable", "surfaces-segvigen", "people-turntable", *crops}, moved
 
 

@@ -1,8 +1,10 @@
 import json
 import pathlib
+import sys
 import tempfile
 
-from score.stages import people_takes
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+from score.stages import people_takes  # noqa: E402
 
 
 def test_a_take_row_a_look_of_the_takes_record():
