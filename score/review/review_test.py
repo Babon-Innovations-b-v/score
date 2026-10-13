@@ -65,8 +65,27 @@ def test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_
     assert "faults 1 became 2" in refusal(lambda: review.accept(store, "tally@hangar", second, "owner"))
     assert store.accepted("tally@hangar") == first
     written = review.accept(store, "tally@hangar", second, "owner", worse_reason="the second fault is a false alarm")
-    assert written["worse"] == ["faults: faults 1 became 2 (lower is better)"]
+    assert written["worse"] == ["faults: faults 1 became 2 (lower is better; worse from 1)"]
     assert store.accepted("tally@hangar") == second
+
+
+def card(answer, **measures):
+    sides = {"halo": "higher", "veil": "lower", "faults": "lower", "lowest clap": "higher", "ferry reach": "lower"}
+    return {"heads": {"answer": answer, "measures": measures, "better": {name: sides[name] for name in measures}}}
+
+
+def test_a_measure_is_worse_only_by_a_step_a_viewer_could_see_and_a_fail_stays_a_fail():
+    """A halo 0.01 darker or a veil 0.019 more washed out reads the same; 0.02 is worse. One more fault is worse;
+    a score no viewer reads is worse by any move; a 4 mm reach is not, 5 mm is; and an answer that drops is worse
+    whatever the measures did."""
+    assert review.regressions(card("pass", halo=0.31), card("pass", halo=0.32)) == []
+    assert review.regressions(card("pass", veil=0.059), card("pass", veil=0.04)) == []
+    assert review.regressions(card("pass", halo=0.30), card("pass", halo=0.32)) != []
+    assert review.regressions(card("pass", faults=3), card("pass", faults=2)) != []
+    assert review.regressions(card("pass", **{"lowest clap": 0.3760}), card("pass", **{"lowest clap": 0.3761})) != []
+    assert review.regressions(card("pass", **{"ferry reach": 0.024}), card("pass", **{"ferry reach": 0.02})) == []
+    assert review.regressions(card("pass", **{"ferry reach": 0.026}), card("pass", **{"ferry reach": 0.02})) != []
+    assert review.regressions(card("fail", halo=0.33), card("pass", halo=0.32)) == ["heads: pass became fail"]
 
 
 def test_the_page_shows_the_record_the_gates_and_the_accept():

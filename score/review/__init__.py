@@ -45,6 +45,44 @@ td, th { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: lef
 """
 MOST_FINDINGS = 40
 
+# "Worse than the accepted output" counts only a move a viewer could see (the owner, 2026-10-13: a measure that moved
+# where nothing visible changed must not send him a decision). Each measure's tolerance is the smallest move that
+# counts as worse; a check whose answer drops (pass, unknown, fail) is worse whatever its measures did, and a check
+# that fails still fails: tolerances never touch pass or fail. Kept here, in a framework file, so changing a step
+# moves no node's key (score/graph/_code.FRAMEWORK).
+# A whole-number measure counts faults, misses or usable things: one more fault (or one fewer usable) is worse.
+COUNT_STEP = 1
+# Lightness on 0..1 (a halo's or fill's median, a beam's gain, a haze's wash): about 2% of full scale, 5 of 255
+# levels, is the step a viewer notices between two pictures; less reads the same.
+LIGHTNESS_STEP = 0.02
+# A colour gap in 0..255 levels: the same just-noticeable 2%, 5 levels.
+LEVEL_STEP = 5.0
+# A brightness ratio (the pad lit by the flame over the lamps): 0.05, under the ~6% change in light that the 2%
+# lightness step takes.
+RATIO_STEP = 0.05
+# A share of the picture (effects shown, ground under the horizon showing nothing): one percent of the picture.
+PICTURE_SHARE_STEP = 0.01
+# A share of the Earth's lit disc: a twentieth of a disc that is itself a small part of the view.
+DISC_SHARE_STEP = 0.05
+# A length in metres (a moving part's reach into another, a rider's drift, a loop's seam, a wall's thinnest):
+# 5 mm, too small to see from where a viewer stands.
+LENGTH_STEP = 0.005
+# A score no viewer reads directly (a model's likeness to its reference, a fit's spread): any move counts.
+NO_STEP = 0.0
+# {measure name, or `*<end>` for a family: its step}; a fractional measure named nowhere here counts any move.
+TOLERANCES = {
+    "halo": LIGHTNESS_STEP, "fill": LIGHTNESS_STEP, "beam": LIGHTNESS_STEP, "veil": LIGHTNESS_STEP,
+    "gap": LEVEL_STEP,
+    "least brighter": RATIO_STEP, "least over the lamps": RATIO_STEP,
+    "least changed": PICTURE_SHARE_STEP, "least changed share shown": PICTURE_SHARE_STEP,
+    "worst after": PICTURE_SHARE_STEP,
+    "smooth": DISC_SHARE_STEP, "flat_share": DISC_SHARE_STEP,
+    "drift": LENGTH_STEP, "miss": LENGTH_STEP, "seam": LENGTH_STEP, "thinnest": LENGTH_STEP,
+    "* reach": LENGTH_STEP, "* height drift": LENGTH_STEP,
+    "lowest clap": NO_STEP, "lowest": NO_STEP, "best pure": NO_STEP, "spread": NO_STEP, "least edges kept": NO_STEP,
+    "least overlap": NO_STEP, "no verdict share": NO_STEP,
+}
+
 
 class Refused(Exception):
     """The store refuses an accept: the output did not pass, is unknown, or is worse with no reason given."""
@@ -117,7 +155,44 @@ def worse_than_accepted(store, node, judgement):
     if accepted is None or accepted == judgement["output"]:
         return []
     accepted_judgement = newest_judgement(store, record_of(store, node, accepted))
-    return checks.regressions(judgement["verdicts"], accepted_judgement["verdicts"] if accepted_judgement else {})
+    return regressions(judgement["verdicts"], accepted_judgement["verdicts"] if accepted_judgement else {})
+
+
+def tolerance(name, new, old):
+    """The smallest move of measure `name` that counts as worse: one for whole numbers, else its TOLERANCES step
+    (by name, then by family `*<end>`), else nought."""
+    if all(isinstance(value, int) and not isinstance(value, bool) for value in (new, old)):
+        return COUNT_STEP
+    if name in TOLERANCES:
+        return TOLERANCES[name]
+    return next((step for key, step in TOLERANCES.items() if key.startswith("*") and name.endswith(key[1:])), NO_STEP)
+
+
+def measure_worse(name, side, new, old):
+    """True when a measure moved the wrong way for its side by at least its tolerance (any move when that is nought)."""
+    moved = round(new - old if side == "lower" else old - new, 9)  # 0.32 - 0.30 must reach a 0.02 step
+    return moved > 0 and moved >= tolerance(name, new, old)
+
+
+def regressions(new_card, accepted_card):
+    """Each way the new scorecard is worse than the accepted one, as a line: a check's answer dropped, a check the
+    accepted one had is missing, or a measure moved the wrong way by its tolerance or more."""
+    worse = []
+    for name, old in accepted_card.items():
+        new = new_card.get(name)
+        if new is None:
+            worse.append(f"{name}: judged on the accepted output, not on this one")
+            continue
+        if checks.ANSWERS.index(new["answer"]) > checks.ANSWERS.index(old["answer"]):
+            worse.append(f"{name}: {old['answer']} became {new['answer']}")
+        for measure, side in old.get("better", {}).items():
+            if measure not in new["measures"]:
+                continue
+            before, after = old["measures"][measure], new["measures"][measure]
+            if measure_worse(measure, side, after, before):
+                worse.append(f"{name}: {measure} {before} became {after} ({side} is better; worse from "
+                             f"{tolerance(measure, after, before)})")
+    return worse
 
 
 def waive(store, node, key, check, by, reason):
