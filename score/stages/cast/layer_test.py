@@ -68,6 +68,16 @@ def test_a_person_stands_in_their_own_accepted_body_and_a_missing_body_is_unknow
         assert layer.judge_laid(out_all, inputs, None).answer == checks.PASS
 
 
+def test_a_place_reads_only_the_looks_its_cast_names():
+    """Each cast place waits on its own looks' bodies, not the slowest look of all: the looks are dealt from its
+    record as the cast stage deals them (a named look, the crowd's far body)."""
+    record = {"people": [{"name": "bram", "character": "bram", "look": "bram_work", "at": [0, 0, 0],
+                          "facing_to": [0, 0, 1], "doing": "standing"}],
+              "crowd": {"name": "crowd", "character": "kit_m_avg", "body": "far"}}
+    assert layer.dealt_looks(json.dumps(record)) == {"bram-work", "kit_m_avg-far"}
+    assert layer.dealt_looks(json.dumps({"people": []})) == frozenset()
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

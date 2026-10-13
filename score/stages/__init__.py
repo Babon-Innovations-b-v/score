@@ -186,7 +186,16 @@ def layered(row, names):
                                                          if name in names}})
 
 
-STAGES = tuple(layered(row, {stage.name for stage in STAGES}) for row in STAGES)
+def worn(row):
+    """A look's dress row read by a place's characters layer only where that place's accepted cast names the look
+    (characters_layer.cast_looks), so a cast place waits on its own looks, not the slowest of all."""
+    if not row.name.startswith(f"{characters_layer.DRESS}-"):
+        return row
+    look = row.name.removeprefix(f"{characters_layer.DRESS}-")
+    return dataclasses.replace(row, applies=lambda place: look in characters_layer.cast_looks(place))
+
+
+STAGES = tuple(layered(worn(row), {stage.name for stage in STAGES}) for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 

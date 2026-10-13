@@ -14,6 +14,7 @@ accepted cast, each in its own look's accepted body, for the assembly to take in
 tools/characters is loaded by its file path inside the make, never put on the import path (the cast stage's overlay:
 on the path it would join other stages' code versions); its two files are declared inputs instead.
 """
+import functools
 import importlib.util
 import json
 import os
@@ -158,3 +159,25 @@ def judge_laid(output, inputs, evidence):
 
 CONTRACT = contracts.Contract("characters-layer", 1, layer_faults, {"length": "metre", "up axis": "Y"})
 CHECKS = (checks.Check("laid", judge_laid),)
+
+
+
+def cast_looks(place):
+    """The looks the place's cast names (`person-outfit`, as the dress rows are named), dealt from its record
+    (data/characters/<place>.json) by the cast stage's own rules, as its cast.json names them: each person's look,
+    a group member's by the outfit it wears, the crowd's far body. None for a place with no record."""
+    path = REPO / "data/characters" / f"{place}.json"
+    return dealt_looks(path.read_text()) if path.exists() else frozenset()
+
+
+@functools.lru_cache(maxsize=64)
+def dealt_looks(text):
+    """cast_looks of one record's text (cached: the runner asks once per dress row)."""
+    from score.stages.cast import look_of
+    record = json.loads(text)
+    named = {person["name"]: person.get("look") for person in record.get("people", [])}
+    singles = [dict(single, look=named.get(single["name"])) for single in loaded("cast").characters_of(record)]
+    looks = {look_of(single) for single in singles}
+    if record.get("crowd"):
+        looks.add((record["crowd"]["character"], record["crowd"].get("body", "far")))
+    return frozenset("-".join(look) for look in looks if look)
