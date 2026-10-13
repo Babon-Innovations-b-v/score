@@ -57,6 +57,32 @@ def test_a_take_s_faces_come_from_the_bake_model_made_from_it_whatever_its_name(
         shutil.rmtree(folder)
 
 
+def test_the_takes_gate_judges_the_prop_objects_takes_only():
+    """Fault (2026-10-13): pixal@campgrounds failed on the twelve takes earlier routes made, listed in the camp
+    grounds' surface data beside the cairn. Only a prop object's take listed and not made fails."""
+    import score.stages.props.pixal_row as pixal_row
+    folder = PROPS_HOME / "store-tests/takes"
+    folder.mkdir(parents=True, exist_ok=True)
+    made_files = pixal_row.take_files
+    pixal_row.take_files = lambda take: [folder / f"{take}{suffix}" for suffix in (".glb", "-final.glb")]
+    try:
+        for suffix in (".glb", "-final.glb"):
+            (folder / f"cairn-p1{suffix}").write_text("made")
+        (folder / "takes.json").write_text(json.dumps({"cairn": {"take": "cairn-p1", **{
+            path.name: pixal_row.file_hash(path) for path in pixal_row.take_files("cairn-p1")}}}))
+        objects = {"cairn": {"route": "prop", "take": "cairn-p1"}, "boulder": {"route": "prop", "take": "boulder-p1"}}
+        (folder / "props.json").write_text(json.dumps({"objects": objects}))
+        inputs = {"props": folder / "props.json", "surfaces": folder / "surfaces.json"}
+        (folder / "surfaces.json").write_text(json.dumps({"takes": {"cairn-p1": {}, "drift-r1": {}}}))
+        assert pixal_row.judge_takes(folder, inputs, {}).answer == "pass"
+        (folder / "surfaces.json").write_text(json.dumps({"takes": {"cairn-p1": {}, "boulder-p1": {}}}))
+        verdict = pixal_row.judge_takes(folder, inputs, {})
+        assert verdict.answer == "fail" and "boulder-p1" in " ".join(verdict.findings), verdict
+    finally:
+        pixal_row.take_files = made_files
+        shutil.rmtree(folder)
+
+
 def test_the_paid_rows_code_leaves_the_checks_and_the_comparison_out():
     for row in (props.CLOSEUP, props.PIXAL):
         files = {path.relative_to(REPO).as_posix() for path in _code.source_files(
