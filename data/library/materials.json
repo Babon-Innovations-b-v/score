@@ -872,6 +872,14 @@
 					"bump_size": 0.002,
 					"said": "added 2026-10-12 from the finish-map method's proposal (Gemini named it, no library surface fit the hanging space suit's matte orange fabric, close-up L*a*b* [71.8, 29.2, 56.1]; the nearest palette token, dE 8.8); owner to review"
 				},
+				"suit_fabric_white": {
+					"recipe": "rubber",
+					"token": "hull",
+					"roughness": 0.85,
+					"bump": 0.0003,
+					"bump_size": 0.002,
+					"said": "added 2026-10-13 for the airlock's hanging space suit: its main body is white fabric (close-up L*a*b* [88.4, -0.2, -0.6]), and the airlock's only white fabric, cotton_white, is on the warm sign-white token the finish list reads as light gold, so Gemini named painted_grey_light and the lightness order failed it; on the neutral hull token, dE 2.9. Own colour: yes, a white suit; owner to review"
+				},
 				"suit_navy": {
 					"recipe": "rubber",
 					"roughness": 0.9,
