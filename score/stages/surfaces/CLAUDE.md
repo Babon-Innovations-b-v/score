@@ -55,8 +55,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   Glass, screen glow, lamp light and print off the lit colour keep their surface (owner, #8: judged by their own
   colour), and so does a see-through finish of another family (`coloured_cover`: the garage beacon's red transparent
   dome, its pixels its highlights and what lies behind it). A finish the close-up shows over 10 L* lighter than another whose surface lies over 3 L* lighter in the
-  library takes the nearest surface of its family that keeps the order, else fails the gate by its order
-  (`in_close_up_order`); a finish out of that order is also named again (`out_of_order`). A finish's close-up pixels
+  library takes the nearest surface of its family that keeps the order, else the darker finish does, else fails the
+  gate by its order (`in_close_up_order`); a finish out of that order is also named again (`out_of_order`). Lighter
+  by 3 or less, the pair is reordered only by a surface nearer its finish's close-up colour (`reordered`): the bake
+  moves L* on its own (the hangar's parts shelving: plastic_grey 1.5 under galvanized_steel baked 4.5 under it). A finish's close-up pixels
   whose first face from the camera is a see-through part (glass, light, screen, transparent or translucent words) are
   left out of its measure (`behind_left_out`). A finish drawn within one see-through finish (its outline at least
   90% that cover, `seen_within`) is laid as the cover, in every map: the model is the cover's shell with nothing
