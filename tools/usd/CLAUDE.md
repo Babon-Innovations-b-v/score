@@ -95,7 +95,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   faults. A floor or held object (not of a bedding class) is also judged foot by foot (`../props/library/feet.py`: its
   surface within 10 cm of its lowest point sampled densely and clustered, `foot_clusters`; a foot over 3 cm off while
   another touches is real, since four contact points can lie on three feet; on 600 sparse points a side wall fell
-  apart into "feet" up to 10 cm off, 2026-10-12) and by its lean (its own up over 3 degrees from the plane under what it touches); a row that says `leans`
+  apart into "feet" up to 10 cm off, 2026-10-12; a foot is down when any of its sole touches) and by its lean. An
+  object whose lowest points touch nothing is read again by the points nearest what is under them
+  (`nearest_points`: a hull lying across a crater's rim touches 15 cm over its lowest point) (its own up over 3 degrees from the plane under what it touches); a row that says `leans`
   (laid tilted on purpose: the wreck's debris, captain 2026-10-12) is asked neither:
   the greenhouse's water tank stood 7.5 degrees tipped, a foot 7 cm up, and passed before (2026-10-12).
 - `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,
