@@ -12,5 +12,17 @@
   "kit_m_broad-uniform-olive",
   "kit_w_broad-uniform-olive",
   "kit_w_slim-uniform-olive"
- ]
+ ],
+ "cast_names_are": "The names a world 1 cast gives each full look (data/characters/<place>.json: a person's look, or its character and outfit); people-clips holds those casts to the look's passing clips. The hub's and camp's bare nev, sefa and bram still name the shipped bodies.",
+ "cast_names": {
+  "nev-work": ["nev_work"],
+  "bram-work": ["bram_work"],
+  "sefa-work": ["sefa_work"],
+  "driver-driver-suit": ["driver"],
+  "guard-guard-uniform": ["guard"],
+  "kit_m_avg-uniform-olive": ["kit_plain"],
+  "kit_m_broad-uniform-olive": ["kit_plain"],
+  "kit_w_broad-uniform-olive": ["kit_plain"],
+  "kit_w_slim-uniform-olive": ["kit_plain"]
+ }
 }

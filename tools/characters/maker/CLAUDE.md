@@ -66,7 +66,7 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   close-up and the flag drawn are the only pictures, `prop_prints.py`; piping cut in as thin strips down the outside
   of the sleeves and trouser legs, `piping.py`), the garments settled through every clip by Newton against the
   person's own posed surface with the cloth over each tuck held on its skinned place (`garment_settle.py`) and baked
-  on the card as corrective shapes each clip keys, as many as keep every point within 4 mm of the settle, a frame's
+  on the card as corrective shapes each clip keys, as many as keep every point within 2 mm of the settle, a frame's
   shapes eased off where they would put the cloth through the body more than unsettled (`garment_bake.py`; glTF morph
   targets, which `joins.py` and `pokes.py` read, and UsdSkel blend shapes), and checked by `joins.py`, `pokes.py`
   (tucks, cloth through cloth against the shipped body's record, hard parts' stretch), `outline.py` and the
