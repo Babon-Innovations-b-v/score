@@ -325,6 +325,7 @@ def test_seeds_differ_by_stage_and_place_and_hold_for_the_same_ones():
 
 def test_the_code_version_follows_imports_into_functions_and_sys_path_folders():
     sys.path.insert(0, str(_code.REPO / "tools/usd"))
+    _code.search_folders.cache_clear()
     import complete
     found = {path.relative_to(_code.REPO).as_posix() for path in _code.source_files([complete.resting_check])}
     assert {"tools/usd/complete.py", "tools/usd/triage.py", "tools/usd/resting.py"} <= found, found
@@ -362,6 +363,7 @@ def test_the_code_version_does_not_depend_on_the_order_of_the_path():
         found = []
         for order in (("one", "other"), ("other", "one")):
             sys.path[1:1] = [str(root / name) for name in order]
+            _code.search_folders.cache_clear()
             sys.modules.pop("top_of_order", None)
             import top_of_order
             found.append(_code.source_files([top_of_order.work]))
@@ -369,6 +371,31 @@ def test_the_code_version_does_not_depend_on_the_order_of_the_path():
         assert found[0] == found[1] and len(found[0]) == 3, found
     finally:
         sys.path[:] = saved
+        _code.search_folders.cache_clear()
+        sys.modules.pop("top_of_order", None)
+        sys.modules.pop("shared_name", None)
+        shutil.rmtree(root)
+
+
+def test_a_folder_put_on_the_path_later_moves_no_code_version():
+    """A folder a make or an import puts on the path after the process's first code version gives no stage another
+    same-named module (stages_test's earlier tests gave effects-layer triage.py and feet.py, 2026-10-13)."""
+    root = pathlib.Path(tempfile.mkdtemp(prefix="_code_later_", dir=_code.REPO / "score/graph"))
+    saved = list(sys.path)
+    try:
+        for name, text in (("first", "import shared_name\n\n\ndef work():\n    return shared_name\n"),
+                           ("one", "VALUE = 1\n"), ("later", "VALUE = 2\n")):
+            (root / name).mkdir()
+            (root / name / ("top_of_order.py" if name == "first" else "shared_name.py")).write_text(text)
+        sys.path[:0] = [str(root / "first"), str(root / "one")]
+        _code.search_folders.cache_clear()
+        import top_of_order
+        before = _code.source_files([top_of_order.work])
+        sys.path.insert(0, str(root / "later"))
+        assert _code.source_files([top_of_order.work]) == before and len(before) == 2, before
+    finally:
+        sys.path[:] = saved
+        _code.search_folders.cache_clear()
         sys.modules.pop("top_of_order", None)
         sys.modules.pop("shared_name", None)
         shutil.rmtree(root)
