@@ -37,6 +37,26 @@ def test_only_the_camp_grounds_have_prop_rows_and_a_place_without_them_reads_wit
     assert "pixal" in runner.reads(inputs, "campgrounds")
 
 
+def test_a_take_s_faces_come_from_the_bake_model_made_from_it_whatever_its_name():
+    """Fault (2026-10-13): pixal@campgrounds looked for `cairn_1`, a name made from the row, where the camp grounds
+    name their models by the row alone (`cairn`). The entry is found by the take the model is made from."""
+    import score.stages.props.pixal_row as pixal_row
+    folder = PROPS_HOME / "store-tests/faces"
+    folder.mkdir(parents=True, exist_ok=True)
+    surfaces = folder / "surfaces.json"
+    surfaces.write_text(json.dumps({"bake": {"models": {"cairn": "cairn-p1", "drift": "drift-r1"},
+                                             "entries": {"cairn": {"faces": 19000}}}}))
+    try:
+        assert pixal_row.faces_of(surfaces, "cairn-p1") == 19000
+        try:
+            pixal_row.faces_of(surfaces, "drift-r1")  # its entry is an old bake job's: not read here
+            raise AssertionError("a take with no written entry passed")
+        except KeyError:
+            pass
+    finally:
+        shutil.rmtree(folder)
+
+
 def test_the_paid_rows_code_leaves_the_checks_and_the_comparison_out():
     for row in (props.CLOSEUP, props.PIXAL):
         files = {path.relative_to(REPO).as_posix() for path in _code.source_files(
