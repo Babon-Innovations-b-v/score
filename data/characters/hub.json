@@ -1,74 +1,24 @@
 {
  "place": "hub",
- "from": "the game 2099's crew on the base (sim/base/crew/crew_places.gd WHERE and FACING, game/people/crew_at_work/crew_at_work.gd POSES, crew_on_the_base.gd body_of): the seat's across and along turned half round into the Habitat node's own frame, as main.tscn lays it",
+ "from": "the hub's concept (M3, six views), measured by score.stages.concept_people (accepted 2026-10-12): one person, on v4 (M3-south.png, box 878,862 to 911,900), at the operations console's chair at the picture's bottom edge; the spot is the first clear one on the floor of the pit in front of the console (data/plans/hub.json's OPERATIONS CONSOLE and CONSOLE CHAIR, found by the cast stage's own ground and body measures, 0.15 m from the chair's side)",
+ "note": "One person, as the concept shows (the captain's decision of 2026-10-13: the concept decides). The figure is a sliver of light skin beside the console chair, cut off by the picture's edge: Bram fits it (Sefa's skin is dark; Nev is the botanist, whose place is the lab bench, not the operations console). No clip sits on a chair, so he works standing at the console. Nev and Sefa are not in the hub: the concept does not show them. The figure is small and at the edge; if it is read as the chair's lit back instead, the hub holds nobody.",
  "people": [
   {
-   "name": "nev",
-   "character": "nev",
+   "name": "bram",
+   "character": "bram",
+   "look": "bram_work",
    "doing": "bench",
    "at": [
-    2.988,
-    0.0,
-    1.725
+    -0.535,
+    -0.407,
+    0.9
    ],
    "facing_to": [
-    3.854,
-    0.0,
-    2.225
+    -0.606,
+    -0.407,
+    1.517
    ],
-   "why": "the botanist at the lab desk, the hub's lab bench against its 300-degree wall (CrewPlaces LAB_DESK, facing 60 on the seat) Worn as the made look nev_work (the people route, #5), not the game's body; the clip is one every body is checked over.",
-   "look": "nev_work"
-  },
-  {
-   "name": "resting",
-   "character": "sefa",
-   "doing": "waiting",
-   "at": [
-    2.3,
-    0.0,
-    -2.3
-   ],
-   "facing_to": [
-    2.3,
-    0.0,
-    -1.3
-   ],
-   "why": "a crew member with nothing to do, resting by the hub's south-west wall (CrewPlaces REST, facing 0 on the seat); drawn as Sefa, one of the crew the story names with a body of their own (2099 game/people/CLAUDE.md), as the game's take C stand-in would show the same person as the one walking in Worn as the made look sefa_work (the people route, #5), not the game's body; the clip is one every body is checked over.",
-   "look": "sefa_work"
-  },
-  {
-   "name": "walking_in",
-   "character": "bram",
-   "doing": "walking",
-   "at": [
-    -1.625,
-    0.0,
-    -2.815
-   ],
-   "facing_to": [
-    2.3,
-    0.0,
-    -2.3
-   ],
-   "path": [
-    [
-     -1.625,
-     0.0,
-     -2.815
-    ],
-    [
-     0.4,
-     0.0,
-     -2.7
-    ],
-    [
-     1.419,
-     0.0,
-     -2.485
-    ]
-   ],
-   "why": "a crew member back from outside, Bram (a body of his own, 2099 game/people/CLAUDE.md), walking from the airlock's inner door to the rest spot (CrewPlaces DOORSTEP to REST, at the walk clip's 1.333 m a second); he starts 0.2 m further in than the doorstep so his body clears the hatch's frame, and stops 0.9 m short of the rest spot, beside Sefa who rests there, so his walk keeps clear of people and things (tools/characters/cast_check.py) Worn as the made look bram_work (the people route, #5), not the game's body; the clip is one every body is checked over.",
-   "look": "bram_work"
+   "why": "Bram at the operations console in the pit, where the concept's one figure is"
   }
  ]
 }
