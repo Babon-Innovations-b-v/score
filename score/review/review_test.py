@@ -69,6 +69,22 @@ def test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_
     assert store.accepted("tally@hangar") == second
 
 
+def test_the_runner_accepts_within_what_the_owner_allowed_and_no_further():
+    """His worse accept records each measure's from and to; a later passing output no worse than the one he took is
+    accepted by the runner with his accept named, one beyond it waits for him."""
+    store, data, first = made(1)
+    _, _, second = made(2, store, data)
+    given = review.accept(store, "tally@hangar", second, "owner", worse_reason="two faults are fine here")
+    assert given["allowed"] == {"faults": {"faults": {"from": 1, "to": 2}}}, given["allowed"]
+    _, _, third = made(1, store, data)  # better: the runner takes it as ever
+    _, _, fourth = made("2\n", store, data)  # worse than the third, as bad as the one he took
+    assert store.accepted("tally@hangar") == fourth
+    assert store.current_accept("tally@hangar")["reason"].startswith("accepted automatically: within the owner's "
+                                                                    f"accept of {given['at'][:10]} ({second[:12]})")
+    _, _, fifth = made(3, store, data)  # beyond what he allowed
+    assert store.accepted("tally@hangar") == fourth
+
+
 def card(answer, **measures):
     sides = {"halo": "higher", "veil": "lower", "faults": "lower", "lowest clap": "higher", "ferry reach": "lower"}
     return {"heads": {"answer": answer, "measures": measures, "better": {name: sides[name] for name in measures}}}
