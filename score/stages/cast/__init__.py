@@ -15,8 +15,9 @@ shows, each placed in the place with a clip, and measured against the concept an
                        yet, so seated crew stand at their desks)
              clear     no person's body (knee to head, cast_check's BODY_RADIUS) runs into any solid of the place,
                        no two bodies overlap, and cast_check's own rules hold (nobody twice, walks clear)
-             made      every look has a usable dressed body of the SOMA-shell route: its dress row passed and stands
-                       accepted (a look with none stays not made, named; complete's people check names it too)
+             made      which looks have a usable dressed body of the SOMA-shell route (its dress row passed and stands
+                       accepted); a look with none is a named gap, never a stop: the gate passes with it as a finding,
+                       the characters layer names it, complete's people check fails it
 
 `drapes` (no body in the rejected Newton drapes) is retired, 2026-10-13: the SOMA-shell rig (the owner, 2026-10-12
 21:40) replaced the drapes route, and the people rows' per-clip, shell and outline gates judge the cloth now.
@@ -290,12 +291,21 @@ def judge_clear(output, inputs, evidence):
 
 
 def judge_made(output, inputs, evidence):
-    """Every look has a usable dressed body (its dress row passed and stands accepted)."""
+    """Which looks have a usable dressed body (its dress row passed and stands accepted). A look without one is a
+    named gap carried down, never a stop: the cast passes with each gap as a finding, the characters layer leaves
+    that person out and names them, and complete's people check fails each gap by name (the owner's rule of
+    2026-10-13: a place whose people fail ships with the people as a named fail; nothing waits on them)."""
     cast = read_json(output / "cast.json")
     everyone = cast["characters"] + ([cast["crowd"]] if cast["crowd"] else [])
-    faults = [(who["name"], f"{who['look']} has no accepted dressed body (its people-dress row)" if who["look"]
-               else "its record names no look (which outfit)") for who in everyone if not who["made"]]
-    return verdict_of("made", faults, len(everyone), f"all {len(everyone)} looks have accepted dressed bodies")
+    missing = tuple(f"{who['name']}: " + (f"{who['look']} has no accepted dressed body (its people-dress row)"
+                                          if who["look"] else "its record names no look (which outfit)")
+                    for who in everyone if not who["made"])
+    if missing:
+        return checks.Verdict("made", checks.PASS, f"{len(everyone) - len(missing)} of {len(everyone)} looks made; "
+                              f"{len(missing)} named missing, for complete's people check to fail",
+                              {"missing": len(missing), "bodies": len(everyone)}, {"missing": "lower"}, missing)
+    return checks.Verdict("made", checks.PASS, f"all {len(everyone)} looks have accepted dressed bodies",
+                          {"missing": 0, "bodies": len(everyone)}, {"missing": "lower"})
 
 
 CHECKS = (checks.Check("counted", judge_counted), checks.Check("standing", judge_standing),

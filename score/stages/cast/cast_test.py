@@ -1,6 +1,6 @@
 """The cast stage's make and gates on a one-person cast on the hub's seed: the person stands and keeps clear; the record
 holds 1 where a concept showing 3 fails `counted` and one showing 1 passes; a person lifted off the floor fails
-`standing`, one stood in a thing fails `clear`; a look with no usable dress row is not made, one whose dress row
+`standing`, one stood in a thing fails `clear`; a look with no usable dress row is not made (a named gap, the gate passing), one whose dress row
 the runner gave is; a crowd's lattice keeps two body widths apart; KEEP is box_masks.py's.
 
 Run: .venv/bin/python score/stages/cast/cast_test.py   (needs the hub's round-three seed in the work folder)
@@ -58,7 +58,9 @@ def test_the_hub():
     assert found["standing"].answer == checks.PASS, found["standing"].reason
     assert found["clear"].answer == checks.PASS, found["clear"].reason
     assert found["counted"].answer == checks.FAIL and found["counted"].measures["cast"] == 1
-    assert found["made"].answer == checks.FAIL and "no accepted dressed body" in found["made"].reason
+    # a look with no dressed body is a named gap carried down, never a stop (complete's people check fails it)
+    assert found["made"].answer == checks.PASS and found["made"].measures["missing"] >= 1
+    assert all("no accepted dressed body" in finding for finding in found["made"].findings)
     assert "drapes" not in found
     assert answers(hub_record(), 1)["counted"].answer == checks.PASS
 
