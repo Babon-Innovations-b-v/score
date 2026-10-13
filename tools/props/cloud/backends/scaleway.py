@@ -53,6 +53,11 @@ QUOTAS = {"gpu-80gb": 20, "gpu-24gb": 50, "gpu-48gb": 10}
 PER_UNIT_MINUTES = {"minute": 1, "hour": 60}
 # Scaleway's words for a type's stock, best first.
 STOCK_ORDER = {"available": 0, "parked": 1, "scarce": 1, "shortage": 2}
+# Addresses whose machines drop SSH (reset or closed connections on every run that got one, 2026-10-10 to 13): a new
+# machine given one gets a fresh address, and the bad one is kept in the project under QUARANTINED (about EUR 3.60 a
+# month each, captain 2026-10-13), which leftover_addresses and so every sweep leave alone.
+BAD_ADDRESSES = {"151.115.78.211": "ssh-drops-2026-10-13"}
+QUARANTINED = "farm-factory-quarantined"
 # Where park.py keeps its records of parked machines (batch.CLOUD / "parked"); read here, not imported (park imports
 # batch, which imports this backend through provider).
 PARKED = HOME / "cloud" / "parked"
@@ -230,9 +235,36 @@ def create(project, offer, name, tags, disk_gb):
          f"root-volume=sbs:{disk_gb}GB",
          *[f"tags.{index}={tag}" for index, tag in enumerate([TAG, *tags])], "-o", "json"],
         capture_output=True, text=True)
-    if done.returncode == 0:
-        return json.loads(done.stdout)["id"], None
-    return None, done.stderr.strip()[:300]
+    if done.returncode != 0:
+        return None, done.stderr.strip()[:300]
+    server = json.loads(done.stdout)
+    server_id = server["id"]
+    try:
+        quarantine_bad_address(project, server, zone)
+    except Exception as error:  # noqa: BLE001 - a machine left on a bad address is deleted, the next offer tried
+        delete(server_id, zone)
+        return None, f"its address could not be swapped off a quarantined one ({error}); deleted"[:300]
+    return server_id, None
+
+
+def quarantine_bad_address(project, server, zone):
+    """When the new machine (`server`, as its create answered) got an address in BAD_ADDRESSES: a fresh address
+    attached to it first, then the bad one detached and kept in the project, tagged QUARANTINED with its reason, so
+    Scaleway never hands it to us again. Each address's own project is checked before it is touched."""
+    server_id = server["id"]
+    given = {ip["id"]: ip for ip in [*(server.get("public_ips") or []), server.get("public_ip") or {}] if ip.get("id")}
+    bad = [ip for ip in given.values() if ip.get("address") in BAD_ADDRESSES]
+    if not bad:
+        return
+    scw("instance", "ip", "create", f"project-id={project}", f"zone={zone}", "type=routed_ipv4",
+        f"server={server_id}", f"tags.0={TAG}")
+    for ip in bad:
+        held = scw("instance", "ip", "get", ip["id"], f"zone={zone}") or {}
+        if (held.get("ip") or held).get("project") != project:  # `ip get` answers {"ip": {...}}
+            raise RuntimeError(f"address {ip['address']} is not the project's own; left alone")
+        scw("instance", "ip", "detach", ip["id"], f"zone={zone}")
+        scw("instance", "ip", "update", ip["id"], f"zone={zone}", f"tags.0={QUARANTINED}",
+            f"tags.1=reason={BAD_ADDRESSES[ip['address']]}")
 
 
 def start_if_stopped(server_id, zone):
@@ -289,7 +321,8 @@ def leftover_addresses(project):
     found = []
     for zone in ZONES:
         for address in scw("instance", "ip", "list", f"project-id={project}", f"zone={zone}") or []:
-            if address.get("project") == project and not address.get("server"):
+            if (address.get("project") == project and not address.get("server")
+                    and QUARANTINED not in (address.get("tags") or [])):  # held so it is never given to us again
                 found.append((address["id"], zone, address["address"]))
     return found
 
