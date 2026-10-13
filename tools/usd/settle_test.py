@@ -313,7 +313,25 @@ def a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder():
         return problems
 
 
+def a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most():
+    """A 1 m crate laid across two (0.6 m over one, 0.2 m over the other) starts its drop moved 0.4 m back onto the
+    first alone, and meets only it."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        path = tipped_place(folder, [("crate", (8, 0, 0), 0.0), ("crate", (9.2, 0, 0), 0.0),
+                                     ("crate", (8.4, 1.0, 0), 0.0)])
+        stage = Usd.Stage.Open(str(path))
+        under = settle.stacked_under(stage, PLACE, ("crate_1", "crate_2", "crate_3"))
+        found = settle.onto_one_support(stage, PLACE, under)
+        support, shift = found.get("crate_3", (None, np.eye(4)))
+        if support != "crate_1" or not np.allclose(shift[:3, 3], [-0.4, 0.0, 0.0], atol=0.02):
+            return [f"crate_3 starts over {support}, moved {shift[:3, 3]}"]
+        return []
+
+
 CHECKS = (a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
+          a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most,
           a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
           a_fixture_on_a_dropped_piece_is_no_static_of_the_drop, what_lies_on_a_settled_piece_moves_with_it, a_big_turn_is_marked_not_made,

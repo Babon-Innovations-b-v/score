@@ -272,13 +272,44 @@ def drop_job(stage, place, inventory, upright, kit_path=None):
     loose = loose_objects(stage, place, inventory)
     ignore = (part_objects(stage, place, inventory) + held_on_loose(stage, place, inventory, loose)
               + fixtures_on_loose(stage, place, loose))
-    starts = {}
+    starts, under = {}, stacked_under(stage, place, loose)
     if upright:
         kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
         starts = upright_starts(stage, place, inventory, loose, grounds.place_ground(place, kit.get("on_seat",
                                                                                                     [0.0, 0.0])))
+        for name, (support, shift) in onto_one_support(stage, place, under).items():
+            starts[name] = shift @ starts.get(name, np.eye(4))
+            under[name] = [support]
         loose.update({name: start_lift(stage, place, name, start) for name, start in starts.items()})
-    return loose, ignore, starts, stacked_under(stage, place, loose)
+    return loose, ignore, starts, under
+
+
+def onto_one_support(stage, place, under):
+    """{name: (its support, the shift that sets it wholly over it)} for each stacked object (stacked_under): the
+    support it overlaps most, and the least move across that puts its footprint inside that support's (or its middle
+    over the support's, when it is the wider). A stacked object rests on one support: the hangar's parts_crate_4,
+    laid across two crates, came to rest with a skid 99 cm over the floor (2026-10-13)."""
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+
+    def footprint(name):
+        box = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange()
+        return np.asarray(box.GetMin())[[0, 2]], np.asarray(box.GetMax())[[0, 2]]
+
+    found = {}
+    for name, supports in under.items():
+        low, high = footprint(name)
+        overlap = {support: float(np.prod(np.clip(np.minimum(high, footprint(support)[1])
+                                                  - np.maximum(low, footprint(support)[0]), 0.0, None)))
+                   for support in supports}
+        support = max(sorted(overlap), key=overlap.get)
+        support_low, support_high = footprint(support)
+        inside = np.where(high - low <= support_high - support_low,
+                          np.clip(low, support_low, support_high - (high - low)) - low,
+                          (support_low + support_high) / 2 - (low + high) / 2)
+        shift = np.eye(4)
+        shift[[0, 2], 3] = inside
+        found[name] = (support, shift)
+    return found
 
 
 def simulate(stage_path, loose, folder, cloud=False, ignore=(), start=None, under=None, cache=None):

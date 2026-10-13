@@ -5,11 +5,11 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
              loose object dropped once in headless Blender on a rented processor machine (tools/usd/settle.py's drop
              job: an object an old settle left tipped onto uneven feet stood upright first, one stacked on another
              meeting it), and each one's rest (settle.rest_poses: a small correction written, a large one left as laid,
-             a tip onto uneven feet stood upright for the paint to level); then each held object stood upright and
-             snapped down onto its holder as it rests (held.held_rests); each object that then rests worse than as
-             laid kept as laid with what it holds (kept_where_worse); and each fixed one the triage finds floating
-             let down onto what is under it (held.fixed_let_down); all laid as layers/settle.usda (an over of each
-             moved object's transform), with settle.json (each object's rest and what it did) and the drop's own
+             a tip onto uneven feet stood upright for the paint to level); then each fixed one the triage finds
+             floating as laid let down onto what is under it (held.fixed_let_down); then each held object stood
+             upright and snapped down onto its holder as it rests (held.held_rests); and each object that then rests
+             worse than as laid kept as laid with what it holds (kept_where_worse); all laid as layers/settle.usda
+             (an over of each moved object's transform), with settle.json (each object's rest and what it did) and the drop's own
              record (drop/settle-job.json, drop/settled.json). A drop is bought only when something loose is to be
              stood up or unstacked or the triage finds a fault on it (free, first); a drop already paid for (the same
              job, drop script and stage) is read back from DROPS, not bought again.
@@ -120,18 +120,19 @@ def make(inputs, out, seed, params):
         seed = Usd.Stage.Open(str(pathlib.Path(inputs["seed"]) / root.name))  # the seed's poses, which nothing moves
         stage = Usd.Stage.Open(str(root))
         loose, ignore, starts, under = settle.drop_job(stage, place, inventory, upright=True, kit_path=inputs["kit"])
-        laid = faulty(judged(root, inputs), place)
+        found = judged(root, inputs)
+        laid = faulty(found, place)
         if starts or under or laid & set(loose):
             simulated = settle.simulate(root, loose, out / DROP, cloud=True, ignore=ignore, start=starts, under=under,
                                         cache=DROPS)
         else:  # nothing loose to stand up, unstack or put right: no drop is bought, each rests as laid
             simulated = still(loose, out / DROP)
         poses = settle.rest_poses(stage, place, inventory, simulated, starts)
-        poses = merged(poses, held_phase(root, scratch / "dropped.usda", inputs, inventory, poses, seed), seed, place)
+        laid_over(root, seed, place, poses, scratch / "dropped.usda")
+        poses = merged(poses, fixed_phase(root, found, place), seed, place)  # before the held: they lie on these
+        poses = merged(poses, held_phase(root, scratch / "fixed.usda", inputs, inventory, poses, seed), seed, place)
         laid_over(root, seed, place, poses, scratch / "held.usda")
-        rested = judged(root, inputs)
-        poses = kept_where_worse(poses, faulty(rested, place) - laid, inventory)
-        poses = merged(poses, fixed_phase(root, rested, place), seed, place)
+        poses = kept_where_worse(poses, faulty(judged(root, inputs), place) - laid, inventory)
         write_layer(seed, place, moved(poses), out / LAYER)
         del stage, seed
     finally:
@@ -258,13 +259,14 @@ def layer_faults(folder):
 # --- the gates ---------------------------------------------------------------------------------------------------
 
 def judge_rested(output, inputs, evidence):
-    """Fail when the drop broke: an object still moving at its end, or two at rest inside each other. One that would
-    not rest as laid keeps its pose (its fault stays where it was, for its layout or its model) and one stood upright
-    on uneven feet waits on the paint: both are named, neither fails the row."""
+    """Fail when the drop broke: an object still moving at its end, or two at rest inside each other (a rest of at
+    least one written). One that would not rest as laid keeps its pose (its fault stays where it was, for its layout
+    or its model) and one stood upright on uneven feet waits on the paint: both are named, neither fails the row."""
     record = read_json(pathlib.Path(output) / RECORD)
     faults = [f"{name}: {entry['said']}" for name, entry in sorted(record["objects"].items())
               if "still moving" in entry["said"]]
-    faults += [f"{first} and {second} came to rest inside each other" for first, second in record["overlaps"]]
+    faults += [f"{first} and {second} came to rest inside each other" for first, second in record["overlaps"]
+               if any(record["objects"].get(name, {}).get("rested") for name in (first, second))]  # not both kept
     kept = [f"{name}: {entry['said']}" for name, entry in sorted(record["objects"].items())
             if not entry["rested"] and "still moving" not in entry["said"]]
     reason = (f"{len(faults)} drops broke" if faults else f"all {len(record['objects'])} rests found") + \

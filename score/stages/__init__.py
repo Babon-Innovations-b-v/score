@@ -49,7 +49,7 @@ MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS
                      applies=motion.applies)
 # Experimental (PRD #6) until the owner reviews it: where each place's objects come to rest on its made ground,
 # which its assembly takes (assembly.LAYERS). A place joins SETTLED once its settle row has passed (resting track).
-SETTLED = ("habitat", "lab", "workshop")
+SETTLED = ("airlock", "garage", "habitat", "hangar", "lab", "square", "workshop", "wreck")
 SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, settling.CHECKS, files=settling.files,
                      after={"terrain": ("grounds", 1)}, paid=True, euros=settling.EUROS,
                      applies=lambda place: place in SETTLED)
