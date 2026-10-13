@@ -289,7 +289,7 @@
 		},
 		{
 			"id": "lattice_ring_rib",
-			"name": "a straight steel I-beam: crane rail, roof and door-leaf rib",
+			"name": "a steel truss girder: the lattice rib the kit lays along the roof's and the door leaves' edges",
 			"kind": "code",
 			"anchor": "ceiling",
 			"size": [
@@ -303,18 +303,18 @@
 			"at": [],
 			"view": "v1",
 			"box": [
-				1198,
-				274,
-				1472,
-				365
+				557,
+				82,
+				1815,
+				381
 			],
 			"thing": "prop:hangar_lattice_ring_rib",
 			"repeats": "across the room",
 			"box_from": [
-				"v1.82"
+				"v1.w4"
 			],
 			"ground_box": true,
-			"why_box": "the box round one clear example (the row repeats across the room): the crane's yellow steel I-beam under the roof leaves (proposal v1.82); the old box was round the roof leaf's truss, which the box judge failed (2026-10-13)"
+			"why_box": "the box round one clear example (the row repeats across the room): the west roof leaf's truss girder (proposal v1.w4), the rib the kit lays on the roof and door leaves (captain, 2026-10-13); the crane's I-beam was no rib of the row and SAM 3 found it under no word"
 		},
 		{
 			"id": "hatch_frame",
