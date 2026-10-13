@@ -89,8 +89,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   version (`../stages_test.py` holds it). A near-black triangle is a blotch only when its colour lies over
   `BLOTCH_DELTA_E` from every surface within its reach: on a border it may bake its neighbour (the seed tray's paper
   label on black plastic passes), a black smudge along the border still fails. It also fails a model whose surfaces
-  bake to one grey look its close-up does not have (`one_look_faults`: every two within 12, each near neutral, the
-  close-up's over 24 apart; the greenhouse's water tank and crop crate, 2026-10-12: the check of bake against
+  bake to one grey look its close-up does not have (`one_look_faults`: no two told apart at the place's view distance,
+  by Stone, Szafir and Setlur's measured ND(50) for their size in degrees from the nearest view (`seen_degrees`, the
+  kit's spots and the scene record's eyes; owner, 2026-10-13: a fixed 12 failed the wreck's access cover on a step he
+  sees), each near neutral, the close-up's over 24 apart; a model with no view distance is named; the greenhouse's water tank and crop crate, 2026-10-12: the check of bake against
   library alone passed them at dE 0), two opaque surfaces whose lightness order the bake reverses (`order_faults`:
   seen over 10 L* lighter, baked over 3 darker; the light moves L* but keeps the order), and a part baked over 32
   from its close-up colour (kept at 32: the close-up's light lifts right surfaces 15 to 30 L*, so a tighter number

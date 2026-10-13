@@ -1,4 +1,4 @@
-\begin{thebibliography}{53}
+\begin{thebibliography}{54}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -217,6 +217,14 @@ Yusong Wu, Ke~Chen, Tianyu Zhang, et~al.
 Davis Rempe, Mathis Petrovich, Ye~Yuan, Haotian Zhang, Xue~Bin Peng, et~al.
 \newblock {Kimodo}: Scaling controllable human motion generation.
 \newblock \emph{arXiv preprint arXiv:2603.15546}, 2026.
+
+\bibitem[Stone et~al.(2014)Stone, Szafir, and Setlur]{stone2014size}
+Maureen Stone, Danielle~Albers Szafir, and Vidya Setlur.
+\newblock {An Engineering Model for Color Difference as a Function of Size}.
+\newblock In \emph{Color and Imaging Conference (CIC 22)}. Society for Imaging
+  Science and Technology, 2014.
+\newblock URL
+  \url{https://library.imaging.org/admin/apis/public/api/ist/website/downloadArticle/cic/22/1/art00045}.
 
 \bibitem[{Blender Foundation}(2026)]{blender}
 {Blender Foundation}.
