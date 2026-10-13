@@ -239,6 +239,68 @@ def test_a_quarantined_address_is_never_a_leftover_to_delete():
     assert found == [("ip-l", "pl-waw-2", "151.115.1.1")], found
 
 
+def deleting(still_there, refusal="Failed to detach block volume v-1: volume_id does not respect constraint"):
+    """delete() on a mocked Scaleway whose terminate is refused with `refusal`, the machine read again after it
+    `still_there` (True: it still exists). (its answer or the error it raised, the ledger lines written)."""
+    import subprocess
+    import types
+    reads, written = [], []
+
+    def run(command, **options):
+        if command[2:4] == ["server", "get"]:
+            reads.append(1)
+            if len(reads) > 1 and not still_there:
+                return types.SimpleNamespace(returncode=1, stdout="", stderr="server not found")
+            return types.SimpleNamespace(returncode=0, stdout=json.dumps({"id": "srv-1", "volumes": {}}), stderr="")
+        return types.SimpleNamespace(returncode=1, stdout="", stderr=refusal)
+
+    kept = subprocess.run, scaleway.record_disk_and_address, scaleway.time.sleep
+    subprocess.run, scaleway.time.sleep = run, lambda seconds: None
+    scaleway.record_disk_and_address = lambda server, gb, now: written.append(server["id"])
+    try:
+        try:
+            answer = scaleway.delete("srv-1", "pl-waw-2")
+        except RuntimeError as error:
+            answer = error
+    finally:
+        subprocess.run, scaleway.record_disk_and_address, scaleway.time.sleep = kept
+    return answer, written
+
+
+def test_a_leftover_another_sweep_deleted_meanwhile_is_gone_not_an_error():
+    """surfaces-bake@wreck, 2026-10-13: two sweeps deleted one leftover; the second's refused detach killed its job."""
+    assert deleting(still_there=False) == (False, [])  # gone: the other sweep wrote its ledger line
+
+
+def test_a_delete_refused_while_the_machine_stays_still_raises():
+    answer, written = deleting(still_there=True)
+    assert isinstance(answer, RuntimeError) and "does not respect constraint" in str(answer) and not written, answer
+
+
+def test_deleting_an_address_or_disk_already_gone_is_done_and_another_failure_raises():
+    import subprocess
+
+    def refusing(text):
+        def scw(*arguments):
+            raise subprocess.CalledProcessError(1, ["scw", *arguments], output="", stderr=text)
+        return scw
+    kept = scaleway.scw
+    try:
+        scaleway.scw = refusing("ip not found")
+        scaleway.delete_address("ip-1", "pl-waw-2")
+        scaleway.scw = refusing("volume not found")
+        scaleway.delete_disk("v-1", "pl-waw-2")
+        scaleway.scw = refusing("permission denied")
+        try:
+            scaleway.delete_disk("v-1", "pl-waw-2")
+            raised = False
+        except subprocess.CalledProcessError:
+            raised = True
+    finally:
+        scaleway.scw = kept
+    assert raised
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

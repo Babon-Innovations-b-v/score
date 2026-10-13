@@ -72,6 +72,8 @@ DISK_EUROS_A_GB_HOUR = 0.00013
 ADDRESS_EUROS_AN_HOUR = 0.005
 # How many times, 10 s apart, a delete waits out a machine that is still shutting down.
 STOPPING_TRIES = 12
+# How many times, 10 s apart, a failed delete reads the machine again to see whether another run deleted it.
+GONE_TRIES = 3
 
 
 def scw(*arguments):
@@ -177,7 +179,7 @@ def server_record(server_id, zone):
                           capture_output=True, text=True)
     if done.returncode == 0:
         return json.loads(done.stdout)
-    if any(gone in (done.stderr + done.stdout).lower() for gone in ("not found", "cannot find")):
+    if is_gone(done.stderr + done.stdout):
         return None
     raise RuntimeError(f"reading {server_id} failed: {done.stderr.strip()}")
 
@@ -341,11 +343,26 @@ def leftover_disks(project):
 
 
 def delete_address(address_id, zone):
-    scw("instance", "ip", "delete", address_id, f"zone={zone}")
+    deleted_unless_gone("instance", "ip", "delete", address_id, f"zone={zone}")
 
 
 def delete_disk(disk_id, zone):
-    scw("block", "volume", "delete", disk_id, f"zone={zone}")
+    deleted_unless_gone("block", "volume", "delete", disk_id, f"zone={zone}")
+
+
+def deleted_unless_gone(*arguments):
+    """One `scw` delete; one that fails because the item is already gone (another run's sweep took it first) is
+    done, any other failure raises."""
+    try:
+        scw(*arguments)
+    except subprocess.CalledProcessError as failed:
+        if not is_gone(f"{failed.stderr or ''}{failed.stdout or ''}"):
+            raise
+
+
+def is_gone(text):
+    """True when Scaleway's answer says the item does not exist."""
+    return any(gone in text.lower() for gone in ("not found", "cannot find"))
 
 
 def delete(server_id, zone):
@@ -357,11 +374,30 @@ def delete(server_id, zone):
     server = server_record(server_id, zone)
     if server is None:
         return False
-    gb = disk_gb(server, zone)
-    deleted = terminate(server_id, zone)
+    try:
+        gb = disk_gb(server, zone)
+        deleted = terminate(server_id, zone)
+    except (RuntimeError, subprocess.CalledProcessError):
+        # Two sweeps deleting one leftover at once (surfaces-bake@wreck, 2026-10-13: "Failed to detach block
+        # volume ... volume_id does not respect constraint", the machine and its volume gone a moment later): the
+        # other one deleted it and wrote its ledger line, so it is gone, not this call's to count.
+        if gone_after_failure(server_id, zone):
+            return False
+        raise
     if deleted:
         record_disk_and_address(server, gb, time.time())
     return deleted
+
+
+def gone_after_failure(server_id, zone):
+    """True when the machine no longer exists, read again up to GONE_TRIES times 10 s apart (a delete under way
+    elsewhere takes a moment to finish)."""
+    for attempt in range(GONE_TRIES):
+        if server_record(server_id, zone) is None:
+            return True
+        if attempt < GONE_TRIES - 1:
+            time.sleep(10)
+    return False
 
 
 def terminate(server_id, zone):
@@ -374,7 +410,7 @@ def terminate(server_id, zone):
         time.sleep(10)
     if done.returncode == 0:
         return True
-    if any(gone in (done.stderr + done.stdout).lower() for gone in ("not found", "cannot find")):
+    if is_gone(done.stderr + done.stdout):
         return False
     if "invalid state 'stopped'" in done.stderr:
         # A machine the zone had no card to start stays stopped, and terminate refuses a stopped
@@ -383,7 +419,7 @@ def terminate(server_id, zone):
                                "with-ip=true", "with-volumes=all"], capture_output=True, text=True)
         if done.returncode == 0:
             return True
-        if any(gone in (done.stderr + done.stdout).lower() for gone in ("not found", "cannot find")):
+        if is_gone(done.stderr + done.stdout):
             return False  # it went while the terminate was refused (another run's sweep, its own self-delete)
     raise RuntimeError(f"deleting {server_id} failed: {done.stderr.strip()}")
 
