@@ -393,6 +393,18 @@
 					"roughness": 0.3,
 					"said": "added 2026-10-12 from the finish-map method's proposal (no painted surface fit the flat enamel basin's painted decal, close-up L*a*b* [62.2, 17.4, 19.6]; the nearest palette token, dE 10.0). Own colour: yes, a rose enamel decal; owner to review"
 				},
+				"painted_grey_light": {
+					"recipe": "painted_metal",
+					"token": "suit-panel-grey",
+					"roughness": 0.5,
+					"said": "added 2026-10-13 for the lightness order against the close-up: grey painted steel the close-ups show lighter than plastic_grey and bare_steel (the hangar's desks and bench, close-ups L* 51 to 83; the airlock's dust vacuum [57.5, 0.9, 2.9], dE 11.9), where painted_panel (61.6) lies under them in the library. Own colour: yes, a light grey paint; owner to review"
+				},
+				"paint_green": {
+					"recipe": "painted_metal",
+					"token": "flat-dado",
+					"roughness": 0.4,
+					"said": "added 2026-10-13 from the finish-map method's measure (the flat's green thermos flask, close-up L*a*b* [56.8, -18.4, 9.4], named hull_white_old for want of a green paint; the nearest palette token, dE 8.8). Own colour: yes; owner to review"
+				},
 				"crane_yellow_paint": {
 					"recipe": "painted_metal",
 					"token": "crop-stubble",
@@ -405,6 +417,12 @@
 			"is": "Unpainted steel: brushed, cast, perforated, tread plate and galvanized",
 			"surface": "steel_plate",
 			"variants": {
+				"steel_polished": {
+					"recipe": "bare_metal",
+					"token": "hull",
+					"roughness": 0.15,
+					"said": "added 2026-10-13 for the lightness order against the close-up: the flat thermos's bare polished metal (close-up [68.3, -3.1, 5.2]) shows lighter than its white paint, where bare_steel (66.3) lies under hull_white_old (89.6) in the library; on the light hull token, dE 21.7. Own colour: partly, a mirror finish reflecting the room; owner to review"
+				},
 				"brass_aged": {
 					"recipe": "bare_metal",
 					"token": "suit-gold",
@@ -2418,6 +2436,11 @@
 					"bump": 0.0006,
 					"bump_size": 0.03
 				},
+				"mli_silver_bright": {
+					"recipe": "anodized",
+					"token": "hull",
+					"said": "added 2026-10-13 for the lightness order against the close-up: old_station's lander's silver foil (close-up [71.9, 0.5, 1.5]) shows lighter than its white hull, where mli_silver (66.3) lies under hull_white_old (89.6) in the library; on the hull token, dE 17.8. Own colour: partly, a crinkled foil catching the light; owner to review"
+				},
 				"mli_silver": {
 					"recipe": "anodized",
 					"token": "steel",
@@ -2530,6 +2553,13 @@
 			"is": "Paper and card: seed packets, sheets and printed labels as plain matte card",
 			"surface": "rubber",
 			"variants": {
+				"paper_white": {
+					"recipe": "rubber",
+					"token": "eye-white",
+					"roughness": 0.9,
+					"bump": 0.0001,
+					"said": "added 2026-10-13 for the lightness order against the close-up: the lab sample scanner's matte paper and tape (close-up [85.7, -0.0, 3.7]) shows lighter than its white enamel, where printed_paper (79.2) lies under enamel_white (91.7) in the library; dE 7.4. Own colour: yes, white paper; owner to review"
+				},
 				"cork_paper": {
 					"recipe": "rubber",
 					"token": "earth-desert",

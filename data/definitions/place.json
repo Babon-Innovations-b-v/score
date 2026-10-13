@@ -519,6 +519,14 @@
 			"printed_paper": {
 				"token": "flat-wall",
 				"library": "printed_paper"
+			},
+			"paint_green": {
+				"token": "flat-dado",
+				"library": "paint_green"
+			},
+			"steel_polished": {
+				"token": "hull",
+				"library": "steel_polished"
 			}
 		},
 		"light": {
@@ -1007,6 +1015,10 @@
 			"mars_dust_fine": {
 				"token": "earth-desert",
 				"library": "mars_dust_fine"
+			},
+			"enamel_white": {
+				"token": "sign-white",
+				"library": "enamel_white"
 			}
 		},
 		"light": {
@@ -1156,6 +1168,10 @@
 			"cotton_white": {
 				"token": "sign-white",
 				"library": "cotton_white"
+			},
+			"painted_grey_light": {
+				"token": "suit-panel-grey",
+				"library": "painted_grey_light"
 			}
 		},
 		"light": {
@@ -1436,6 +1452,10 @@
 			"glass_smoked": {
 				"token": "suit-pad",
 				"library": "glass_smoked"
+			},
+			"mli_silver_bright": {
+				"token": "hull",
+				"library": "mli_silver_bright"
 			}
 		},
 		"light": {
@@ -1716,6 +1736,10 @@
 			"glass_frosted": {
 				"token": "cabin-light",
 				"library": "glass_frosted"
+			},
+			"paper_white": {
+				"token": "eye-white",
+				"library": "paper_white"
 			}
 		},
 		"light": {
@@ -3020,6 +3044,10 @@
 			"screen_glow_green_dim": {
 				"token": "flat-dado",
 				"library": "screen_glow_green_dim"
+			},
+			"painted_grey_light": {
+				"token": "suit-panel-grey",
+				"library": "painted_grey_light"
 			}
 		},
 		"light": {

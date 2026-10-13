@@ -300,6 +300,24 @@ def test_a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_co
     assert lit[0]["surface"] == "glass" and lit[0]["by"] == "its own colour", lit[0]
 
 
+def test_a_finish_out_of_order_is_named_again_and_a_part_behind_a_see_through_cover_is_left_out():
+    lightness = {"anodized_natural": 60.0, "dust_coated_paint": 70.0}
+    white = {"surface": "anodized_natural", "measured_lab": [80.6, 1.0, 2.0]}  # the campgrounds' power unit
+    dusty = {"surface": "dust_coated_paint", "measured_lab": [69.7, 0, 0]}
+    assert finish_parts.out_of_order(white, dusty, lightness) and not finish_parts.out_of_order(dusty, white, lightness)
+    assert not finish_parts.out_of_order(white, dict(dusty, measured_lab=None), lightness)
+    every = {"red_plastic": {"family": "plastic"}, "cast_steel": {"family": "steel"}, "glass": {"family": "glass"}}
+    listed = [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
+              {"finish": "Polished reflective metal", "parts": "internal reflector", "surface": "cast_steel"},
+              {"finish": "Grey painted steel", "parts": "housing", "surface": "cast_steel"}]
+    assert [finish_parts.see_through(finish, every) for finish in listed] == [True, False, False]
+    front = np.array([[0, 1, 1], [2, 2, 1]])
+    cover = np.array([[True, True, False], [False, False, False]])
+    left = finish_parts.behind_left_out(front, cover, listed, every)
+    assert (left == np.array([[0, -1, 1], [2, 2, 1]])).all(), left  # the dome kept, the reflector behind it left out
+    assert (finish_parts.behind_left_out(front, np.zeros_like(cover), listed, every) == front).all()
+
+
 def test_a_finish_whose_words_name_another_material_is_named_again():
     assert finish_parts.contradicts("black rubber, on the lamp's foot", "steel")
     assert finish_parts.contradicts("printed paper, on the tray's label", "rubber")

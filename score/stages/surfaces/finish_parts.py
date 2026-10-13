@@ -379,6 +379,11 @@ def contradicts(words, family):
 # Not paint (owner, #8, 2026-10-12): glass, screen glow, lamp light and print are judged by their own colour, so one
 # off the close-up's lit colour keeps its surface. A finish the close-up shows over ORDER_L lighter than another must
 # not lie over ORDER_LIBRARY darker in the library (bake_check's ORDER_L and ORDER_BAKED, before the bake).
+# A finish seen through (see_through): its surface's family, or these words in its finish or parts. A see-through
+# part's pixels cover what lies behind it, grown by COVER_GROW pixels (face middles land a pixel or two apart).
+SEEN_THROUGH_FAMILIES = ("glass", "screen", "light")
+SEEN_THROUGH_WORDS = ("transparent", "translucent")
+COVER_GROW = 2
 OWN_COLOUR = ("glass", "screen", "light", "print")
 ORDER_L, ORDER_LIBRARY = 10.0, 3.0
 
@@ -420,6 +425,21 @@ def checked_finishes(entry, finishes, measured):
     return in_close_up_order(entry, found, every)
 
 
+def opaque_lightness(every):
+    """{surface: its library L*} of the take's surfaces that are paint (not OWN_COLOUR) and have a colour."""
+    return {name: float(library_lab(spec)[0]) for name, spec in every.items()
+            if "colour" in spec and spec.get("family") not in OWN_COLOUR}
+
+
+def out_of_order(lighter, darker, lightness):
+    """True when the close-up shows `lighter` over ORDER_L lighter than `darker` while its surface lies over
+    ORDER_LIBRARY darker in the library (`lightness`: opaque_lightness)."""
+    return (lighter.get("measured_lab") is not None and darker.get("measured_lab") is not None
+            and lighter["surface"] in lightness and darker["surface"] in lightness
+            and lighter["measured_lab"][0] - darker["measured_lab"][0] > ORDER_L
+            and lightness[lighter["surface"]] < lightness[darker["surface"]] - ORDER_LIBRARY)
+
+
 def in_close_up_order(entry, found, every):
     """The finishes with their opaque surfaces in the close-up's lightness order: where the close-up shows a finish
     over ORDER_L lighter than another whose surface lies over ORDER_LIBRARY lighter in the library (painted_panel L* 61.6
@@ -428,17 +448,13 @@ def in_close_up_order(entry, found, every):
     that keeps the order; else it is marked off its colour by its order (the paint's gate fails it). Glass, glow, lamp
     light and print (OWN_COLOUR) are left out; a take with no such pair comes back as it was."""
     import numpy as np
-    lightness = {name: float(library_lab(spec)[0]) for name, spec in every.items()
-                 if "colour" in spec and spec.get("family") not in OWN_COLOUR}
+    lightness = opaque_lightness(every)
     for lighter in found:
         for darker in found:
-            if not (lighter.get("measured_lab") and darker.get("measured_lab") and lighter["surface"] in lightness
-                    and darker["surface"] in lightness and lighter.get("by") != "off its colour"):
+            if lighter.get("by") == "off its colour" or not out_of_order(lighter, darker, lightness):
                 continue
             seen = lighter["measured_lab"][0] - darker["measured_lab"][0]
             floor = lightness[darker["surface"]] - ORDER_LIBRARY
-            if seen <= ORDER_L or lightness[lighter["surface"]] >= floor:
-                continue
             colour = np.array(lighter["measured_lab"])
             family = every[lighter["surface"]].get("family")
             fits = sorted((float(np.linalg.norm(library_lab(every[name]) - colour)), name) for name in lightness
@@ -475,6 +491,43 @@ def part_rows(mesh, part_of, face_label, finishes):
     return rows
 
 
+def see_through(finish, every):
+    """True for a finish one sees through or that gives its own light: its surface glass, a screen or a light (or its
+    words a transparent or translucent material)."""
+    words = f"{finish['finish']} {finish['parts']}".lower()
+    return (every.get(finish["surface"], {}).get("family") in SEEN_THROUGH_FAMILIES
+            or any(word in words for word in SEEN_THROUGH_WORDS))
+
+
+def see_through_cover(mesh, take, face_label, listed, every):
+    """The close-up's pixels whose first face from its camera belongs to a see-through finish (see_through): each seen
+    face of such a finish marks the pixel its middle lands on, grown by COVER_GROW pixels to close the gaps between
+    face middles."""
+    import numpy as np
+    from scipy import ndimage
+    import labels
+    picture, seen, row, column = labels.picture_view(mesh, take)
+    through = [number for number, finish in enumerate(listed) if see_through(finish, every)]
+    cover = np.zeros((picture.size[1], picture.size[0]), dtype=bool)
+    if through:
+        faces = seen & np.isin(face_label, through)
+        cover[row[faces], column[faces]] = True
+        cover = ndimage.binary_dilation(cover, iterations=COVER_GROW)
+    return cover
+
+
+def behind_left_out(front, cover, listed, every):
+    """The close-up map with each opaque finish's pixels under a see-through part (`cover`) left out of its measure:
+    its colour there is the cover's (the garage beacon's reflector measured its red dome's colour, 2026-10-13). A
+    finish with every pixel behind the cover is left unmeasured; one with none behind comes back as it was."""
+    import numpy as np
+    found = front.copy()
+    for number, finish in enumerate(listed):
+        if not see_through(finish, every):
+            found[(front == number) & cover] = -1
+    return found
+
+
 def parts_take(inputs, take, entry, out):
     """One take's parts, its arrays and pictures under <out>/<take>/; its parts.json record."""
     import numpy as np
@@ -483,10 +536,11 @@ def parts_take(inputs, take, entry, out):
     listed = json.loads((inputs["names"] / f"{take}.json").read_text())["finishes"]
     front = np.load(inputs["maps"] / take / "front.npy").astype(int)
     every = take_surfaces(entry)
+    mesh = split_compare.raw_model(take)
+    part_of, face_label, per_map = laid(mesh, take, inputs, len(listed))
+    front = behind_left_out(front, see_through_cover(mesh, take, face_label, listed, every), listed, every)
     finishes = checked_finishes(entry, listed,
                                 measured_colours(take, front, [every.get(finish["surface"]) for finish in listed]))
-    mesh = split_compare.raw_model(take)
-    part_of, face_label, per_map = laid(mesh, take, inputs, len(finishes))
     rows = part_rows(mesh, part_of, face_label, finishes)
     folder = out / take
     folder.mkdir(parents=True)

@@ -46,7 +46,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   Glass, screen glow, lamp light and print off the lit colour keep their surface (owner, #8: judged by their own
   colour). A finish the close-up shows over 10 L* lighter than another whose surface lies over 3 L* lighter in the
   library takes the nearest surface of its family that keeps the order, else fails the gate by its order
-  (`in_close_up_order`). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
+  (`in_close_up_order`); a finish out of that order is also named again (`out_of_order`). A finish's close-up pixels
+  whose first face from the camera is a see-through part (glass, light, screen, transparent or translucent words) are
+  left out of its measure (`behind_left_out`: the garage beacon's reflector behind its red dome). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
   row's key, so an edit there repaints and rebakes every place. A strongly coloured finish named again (chroma over
   40) is also asked whether it is lamp light (`finish_ask.GLOW_QUESTION`); other naming requests stay word for word.
 - **A finish is named again when its words or colour contradict its surface** (`surfaces-names`, paid, cached): its

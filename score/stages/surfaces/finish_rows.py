@@ -194,8 +194,10 @@ def maps_faults(folder):
 
 def named_again(inputs, take, entry, record):
     """One take's finishes, each asked once more of Gemini (close-up, its finish map, every surface the take may
-    take) when its words name a material its surface's family is not, or its surface lies over
-    finish_parts.COLOUR_DELTA_E from its colour in the close-up."""
+    take) when its words name a material its surface's family is not, its surface lies over
+    finish_parts.COLOUR_DELTA_E from its colour in the close-up, or the close-up shows it lighter than another finish
+    whose surface the library holds lighter (finish_parts.out_of_order: the campgrounds' white power unit named
+    anodized_natural, 2026-10-13)."""
     import numpy as np
     from PIL import Image
     import finish_ask
@@ -205,17 +207,21 @@ def named_again(inputs, take, entry, record):
     measured = finish_parts.measured_colours(take, front, [every.get(finish["surface"])
                                                            for finish in record["finishes"]])
     picture, reference = close_up(inputs, take), Image.open(inputs["maps"] / take / "front.png")
+    seen = [{"surface": finish["surface"], "measured_lab": None if colour is None else list(colour)}
+            for finish, colour in zip(record["finishes"], measured)]
+    lightness = finish_parts.opaque_lightness(every)
     found = []
     for number, (finish, colour) in enumerate(zip(record["finishes"], measured)):
         spec = every.get(finish["surface"], {})
         wrong_kind = finish_parts.contradicts(f"{finish['finish']} {finish['parts']}", spec.get("family"))
         off = (colour is not None and "colour" in spec
                and np.linalg.norm(finish_parts.library_lab(spec) - colour) > finish_parts.COLOUR_DELTA_E)
+        unordered = any(finish_parts.out_of_order(seen[number], other, lightness) for other in seen)
         finish = dict(finish, listed_surface=finish["surface"], by="the list")
-        if wrong_kind or off:
+        if wrong_kind or off or unordered:
             glow = colour is not None and float(np.hypot(colour[1], colour[2])) > GLOW_CHROMA
             named = finish_ask.name_finish(picture, reference, entry["object"], number, finish, every, glow)
-            reason = "its material" if wrong_kind else "its colour"
+            reason = "its material" if wrong_kind else "its colour" if off else "its lightness order"
             finish.update(surface=named, fits=True, by=f"named again ({reason})")
         found.append(finish)
     return found
