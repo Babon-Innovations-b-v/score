@@ -23,7 +23,7 @@ stage as each stage is built; nothing moves before.
   when changed; an agent's process cannot write the framework
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout.
 - **`python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]`** and **`python -m score
-  status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and what they read): the runner drives every line (the world's own nodes, then each place's) to its end with no agent
+  status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place): the runner drives every line (the world's own nodes, then each place's) to its end with no agent
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
   most `--jobs` at once (default 8), so a line waiting on a cloud step holds up no other, and a world node every line
   reads is made once. It starts each node the moment the nodes it reads stand accepted,

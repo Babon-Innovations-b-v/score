@@ -509,24 +509,21 @@ class Runner:
                 if place is None or stage.applies is None or stage.applies(place):
                     yield stage, place
 
-    def read_closure(self, only):
-        """The named stages and every stage they read, directly or through another."""
-        kept, reading = set(), list(only)
-        while reading:
-            name = reading.pop()
-            if name not in kept:
-                kept.add(name)
-                reading += [*self.stages[name].after, *self.stages[name].beside]
-        return kept
-
     def line_nodes(self, places, whole, only=None):
         """The nodes a drive runs: every one of `nodes` for the whole world, else the places' own and only the world
-        nodes they read (directly or through another world node); `only` (stage names) keeps those stages and the
-        ones they read."""
+        nodes they read (directly or through another world node); `only` (stage names) keeps those stages' nodes and
+        the nodes they read, place by place: a stage one place reads (the garage's motion its machines layer, and so
+        its surface line) is not run for a place that does not read it."""
         found = list(self.nodes(places))
         if only:
-            kept = self.read_closure(only)
-            found = [(stage, place) for stage, place in found if stage.name in kept]
+            reading = [(stage, place) for stage, place in found if stage.name in only]
+            names = {node_name(*node) for node in reading}
+            while reading:
+                for before in self.read_nodes(*reading.pop()):
+                    if node_name(*before) not in names:
+                        names.add(node_name(*before))
+                        reading.append(before)
+            found = [(stage, place) for stage, place in found if node_name(stage, place) in names]
         if whole:
             return found
         chosen = [(stage, place) for stage, place in found if stage.grain == "place"]
