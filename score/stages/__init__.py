@@ -22,7 +22,8 @@ import pathlib
 
 from score import contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, crops, effects, images, light, machines,
-                          motion, people, physics, props, scene_record, settling, sound, surfaces, terrain)
+                          motion, people, people_takes, physics, props, scene_record, settling, sound, surfaces,
+                          terrain)
 from score.stages.surfaces import bake_check
 import score.stages.cast.layer as characters_layer
 from score.stages.surfaces.surface_gates import guarded
@@ -198,7 +199,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRA
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *(far_judged(row) for row in people.ROWS if row.name not in NOT_RUN), PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
+          *(far_judged(row) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
           *light.ROWS, *crops.ROWS)
 
 
