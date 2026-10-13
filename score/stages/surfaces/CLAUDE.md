@@ -28,6 +28,15 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   differed run to run made one library change re-render every place and re-draw every view map (about EUR 50).
   Before pushing a change that moves a paid row's key, list what it re-buys (`_code.source_files` and the
   row's files); `score run` lists it again before it starts and refuses over EUR 5 without `--rebuy-reason`.
+- **The paint and bake rows (and their crops and people twins) key only what they read of the library**
+  (`library_reads.py`, set in the table by `score/stages/__init__.py` `library_narrowed`): their library places'
+  materials and wear in place.json, the variants those name and the bake job's specs, with their recipes, families,
+  pictures and the kinds' details. A surface added for one place re-keys no other place's paint (2026-10-13: the
+  hub's assembly wanted about EUR 60 of re-buys). Before making one, the runner keeps its accepted output under the
+  new key when nothing it reads changed (`carry.py`: the library parts rebuilt from git at the record's commit, a
+  committed record only); a row whose own code changed carries only with a proof stored as evidence on the output
+  (`carry.proof_fault`: every changed file named with why, the free rows before it remade to their accepted outputs).
+  `python -m score.stages.surfaces.carry` lists what carries and why not.
 - **A map that does not settle blocks its model, never passes**: measured (`finish_maps.check`: overlap, share near
   a label colour, every finish used), filled from labelled neighbours only when its sole fault is a labelled share
   between `FILL_LEAST` and `NEAR_LEAST`; a one-finish model is not drawn (its map is the close-up's object mask:

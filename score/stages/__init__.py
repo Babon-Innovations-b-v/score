@@ -18,13 +18,14 @@ concept. Cast (experimental) places each place's people and measures them agains
 and its movers. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import dataclasses
+import json
 import pathlib
 
 from score import contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, crops, effects, images, light, machines,
                           motion, people, people_takes, physics, props, scene_record, settling, sound, surfaces,
                           terrain)
-from score.stages.surfaces import bake_check
+from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
@@ -187,6 +188,30 @@ def far_judged(row):
                                                     bodies.guarded("near outfit recorded", far.judge_near_recorded)))
 
 
+def people_surfaces(place):
+    """The people line's surface data (a world line: no place)."""
+    from score.stages.people import line as people_line
+    return json.loads(people_line.DATA.read_text())
+
+
+# The rows keyed on the library parts they read (surfaces/library_reads.py), each with its surface data's reader.
+LIBRARY_READERS = {"surfaces-paint": surfaces.data.record, "surfaces-bake": surfaces.data.record,
+                   "crops-surfaces-paint": crops.line.line_record, "crops-surfaces-bake": crops.line.line_record,
+                   "people-paint": people_surfaces}
+
+
+def library_narrowed(row):
+    """A paint or bake row (and its crops and people twins) keyed on the library surfaces and place.json entries it
+    reads, not the whole library folder and place.json: one surface added for one place re-keyed every place's paint
+    and bake (the hub's assembly wanted about EUR 60 of re-buys, 2026-10-13). Set here, in the table, so no other
+    row's code version moves; surfaces/carry.py carries each accepted output over to its narrower key once."""
+    if row.name not in LIBRARY_READERS:
+        return row
+    files = library_reads.narrowed(row.files, LIBRARY_READERS[row.name])
+    files.carries, files.carried = carry.carries, carry.carried  # the runner's carry-over (here: no key moves)
+    return dataclasses.replace(row, files=files)
+
+
 def prop_fed(row):
     """surfaces-inputs waiting on the prop route's Pixal3D row (props.FEEDS), whose takes its line paints. A place
     with no prop data reads without it (Runner.reads), so its key does not move."""
@@ -198,9 +223,10 @@ def prop_fed(row):
 STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
-          *map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS))), props.CALIBRATION, props.LIKENESS,
-          *(far_judged(row) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
-          *light.ROWS, *crops.ROWS)
+          *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
+          props.CALIBRATION, props.LIKENESS,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
+          *light.ROWS, *map(library_narrowed, crops.ROWS))
 
 
 def layered(row, names):
