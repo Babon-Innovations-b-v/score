@@ -29,6 +29,9 @@ def main():
                                                                  "  Reads wrong           an empty hall")
         assert store_page.audit_section(audit, "garage") == "  Close-ups             M"
         assert store_page.audit_section(audit, "hangar") is None
+    # A part of another place has no entry of its own in place.json (KeyError 'gdoor', 2026-10-13): named with its host.
+    assert store_page.place_name("gdoor") == "gdoor, part of the garage"
+    assert store_page.place_name("garage") == "the garage"
     print("store_page_test: pass")
 
 
