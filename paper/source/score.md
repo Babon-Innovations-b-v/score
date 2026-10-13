@@ -117,6 +117,20 @@ Lamp strengths are measured, never copied from the source game. The light layer 
 
 People are made like props. A close-up of the dressed person in SOMA-X's bind pose, drawn by FLUX.2 klein [@flux2klein], is built by Pixal3D and painted by the surface line. SOMA-X's body is fitted just inside the look (Gauss-Newton on 24 shape numbers), and every point of the look takes the skin weights of its closest body triangle, so Kimodo's clips [@rempe2026kimodo], written from sentences, move it. The **shell gate** passes a look when 99 percent of its soft points lie within 5 cm of the body, its worst point recorded. Hard parts ride one joint each, belts are worn as cloth, and each clip gets its own verdict (tucks, hard parts stretched, cloth or body through cloth); a cast uses only the clips that pass. A look seen only far away is judged on its far body (Appendix B). **Casts:** SAM 3 [@carion2025sam3] finds the figures on a place's views, a vision-language judge tells a person from a picture, a reflection or an empty suit, and a cast is gated on `counted`, `standing`, `clear`, `made` and `drapes`; a crowd stands only where no copy fills a tenth of a view's height.
 
+**Results so far (experimental).** On 13 October four looks passed every body gate (joins, outline, likeness, triangles, shell) and a fifth failed on triangles, but few of their clips are usable (Table 2). Two faults run through every clip of Nev and Sefa before any motion: a boot's tuck band lies 9 to 11 mm outside the trouser leg at the bind pose. Scored only on what is drawn (the bands left out), no clip of any look is usable: where hair or cloth meets the head or hand skin the two sides are weighted differently and open as the joints move (cloth seams never open), and the settled cloth crosses itself beyond the bind. Openings over 10 cm on three looks are not yet confirmed by a render. Binding the take as one closed mesh removes the openings, but the player's limbs still sink into the chest and hips at the bends: in every clip 87 to 563 crossing points are visible from the places' cameras and close views. Pushing points out of the look's own volume, limiting the offset from SOMA-X at the armpits and inner thighs, fold-centred weights and dual-quaternion skinning each left that count the same or higher. The renders trace it to the take itself: the close-up's arms and thighs lie against the body, so Pixal3D builds the armpit and groin as one surface, which stretches when a limb moves. The clips' joint angles stay within the normal human ranges of the American Academy of Orthopaedic Surgeons, except hip extension of 24 and 27 degrees (limit 20) in two clips.
+
+**Table 2.** Usable clips of 19 per look, 13 October 2026 (experimental). Gate: the per-clip checks as built; visible: the same bodies scored only on drawn surfaces; cameras: the one-piece bind judged on crossings the places' cameras can see.
+
+| Look | Body gates | Gate | Visible | Cameras, one piece |
+|---|---|---|---|---|
+| Player (work) | pass | 5 | 0 | 0 |
+| Bram (work) | pass | 5 | 0 | not run |
+| Sefa (work) | pass | 0 | 0 | not run |
+| Nev (work) | pass | 0 | 0 | not run |
+| Crew kit, average man (olive) | fail: triangles | 0 | not run | not run |
+
+<!-- paper/evidence/characters/people-2026-10-13.txt (sections 1-8: gate verdicts per look and clip, bind tucks, visible-only re-score, one-piece bind, camera rule, offset clamp, fold weights and dual quaternions, AAOS joint ranges). Measured with numpy on the stored bodies; no runs. Issue #5. -->
+
 <!-- score/stages/people_bodies/bodies.py (FITTED 24, Gauss-Newton; SHELL_SHARE 0.99, OFFSET_MOST 0.05), tools/characters/maker/prop_build.py rigid_joint, CLOTH_WORDS; clips.py; far.py; tools/characters/maker/outline.py; data/people/colours.json; score/stages/cast (gates, FAR_SHARE 0.10), concept_people, layer.py. Commits 0d6a28a, 4ff0a0c, e80f07d, 45af7ec, 530316b, d045948. -->
 
 ## Completion

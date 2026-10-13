@@ -1,0 +1,347 @@
+People route evidence, 2026-10-13 (issue #5; experimental). Every number below is read from the store's
+judgements of the body rows or measured on the stored bodies with numpy (no runs, no machines).
+Bodies: prop route (Pixal3D take, SOMA-X skeleton and fit, parts, garments settled per clip). Clip names are
+Kimodo's 19 clips; a clip is usable when every per-clip check passes (score/stages/people_bodies/clips.py).
+
+## 1. Body gates per look (store judgements)
+== people-body-player-work (judged 2026-10-13T08:56 UTC, key 4499d721413d): pass
+   joins: pass, wrist, ankle and stance pass
+   outline: pass, built A-pose IoU 0.9653; the finished take's own drop against the raw model 0.0029
+   likeness: pass, best outline 0.8822
+   triangles: pass, 29692 triangles
+   shell: pass, 99% of the soft points within 0.036 m of the body; worst 0.0479 m, part 27 (cloth, by RightArm)
+   clips: 5 of 19 clips usable; failing bench, cheering, clapping, clipboard, door, dragging, leaning, lifting, lying, reaching, sitting, suit, waiting, walking
+   cast clips usable: checking, standing, shifting, pointing
+     bench: body through cloth: over the bind {'skin_hands': 2}, deepest 5.21 mm
+     cheering: cloth through cloth: 343 crossings, the shipped body's 151; body through cloth: over the bind {'skin_hands': 2, 'skin_hands#1': 1}, deepest 3.99 mm
+     clapping: body through cloth: over the bind {'skin_hands': 2}, deepest 4.0 mm
+     clipboard: body through cloth: over the bind {'skin_hands': 2}, deepest 3.79 mm
+     door: body through cloth: over the bind {'skin_hands': 3}, deepest 3.37 mm
+     dragging: body through cloth: over the bind {'skin_hands': 1, 'skin_hands#1': 3}, deepest 4.56 mm
+     leaning: cloth through cloth: 189 crossings, the shipped body's 186
+     lifting: body through cloth: over the bind {'skin_hands': 2}, deepest 4.04 mm
+     lying: body through cloth: over the bind {'skin_head': 1}, deepest 3.82 mm
+     reaching: body through cloth: over the bind {'skin_hands': 2, 'skin_head': 1}, deepest 5.33 mm
+     sitting: cloth through cloth: 652 crossings, the shipped body's 484
+     suit: body through cloth: over the bind {'boot_l': 2, 'boot_r': 4, 'skin_hands': 1}, deepest 3.84 mm
+     waiting: body through cloth: over the bind {'skin_hands': 1}, deepest 3.15 mm
+     walking: body through cloth: over the bind {'boot_l': 1, 'boot_r': 1}, deepest 4.83 mm
+
+== people-body-bram-work (judged 2026-10-13T08:41 UTC, key 351c1a9e7a24): pass
+   joins: pass, wrist, ankle and stance pass
+   outline: pass, built A-pose IoU 0.9582; the finished take's own drop against the raw model 0.0108
+   likeness: pass, best outline 0.8651
+   triangles: pass, 28930 triangles
+   shell: pass, 99% of the soft points within 0.049 m of the body; worst 0.0811 m, part 5 (cloth, by RightHand)
+   clips: 5 of 19 clips usable; failing cheering, door, dragging, leaning, lifting, lying, pointing, reaching, shifting, shouting, sitting, suit, waiting, walking
+   cast clips usable: bench, checking, standing, clapping
+     cheering: cloth through cloth: 392 crossings, the shipped body's 269; body through cloth: over the bind {'skin_head': 4}, deepest 7.96 mm
+     door: body through cloth: over the bind {'skin_head': 2}, deepest 9.39 mm
+     dragging: tucks: worst tuck 5.49 mm; body through cloth: over the bind {'boot_l': 7, 'boot_r': 6}, deepest 6.03 mm
+     leaning: body through cloth: over the bind {'skin_head': 2}, deepest 8.05 mm
+     lifting: tucks: worst tuck 14.15 mm; cloth through cloth: 1028 crossings, the shipped body's 561; body through cloth: over the bind {'boot_l': 41, 'boot_r': 36, 'skin_head': 3}, deepest 27.94 mm
+     lying: cloth through cloth: 406 crossings, the shipped body's 326; body through cloth: over the bind {'skin_head': 6}, deepest 20.86 mm
+     pointing: body through cloth: over the bind {'skin_head': 2}, deepest 9.16 mm
+     reaching: body through cloth: over the bind {'skin_head': 10}, deepest 29.32 mm
+     shifting: body through cloth: over the bind {'skin_head': 5}, deepest 8.53 mm
+     shouting: body through cloth: over the bind {'skin_head': 2}, deepest 8.89 mm
+     sitting: tucks: worst tuck 16.52 mm; cloth through cloth: 1073 crossings, the shipped body's 919; body through cloth: over the bind {'skin_head': 2}, deepest 6.61 mm
+     suit: cloth through cloth: 506 crossings, the shipped body's 362; body through cloth: over the bind {'boot_l': 5, 'boot_r': 1}, deepest 9.02 mm
+     waiting: body through cloth: over the bind {'skin_head': 2}, deepest 9.05 mm
+     walking: cloth through cloth: 598 crossings, the shipped body's 423; body through cloth: over the bind {'boot_l': 12, 'boot_r': 19}, deepest 19.57 mm
+
+== people-body-sefa-work (judged 2026-10-13T08:46 UTC, key bc2842e5ae23): pass
+   joins: pass, wrist, ankle and stance pass
+   outline: pass, built A-pose IoU 0.9555; the finished take's own drop against the raw model -0.0006
+   likeness: pass, best outline 0.8639
+   triangles: pass, 27646 triangles
+   shell: pass, 99% of the soft points within 0.044 m of the body; worst 0.0838 m, part 18 (cloth, by LeftToeEnd)
+   clips: 0 of 19 clips usable; failing bench, checking, cheering, clapping, clipboard, door, dragging, leaning, lifting, lying, pointing, reaching, shifting, shouting, sitting, standing, suit, waiting, walking
+   cast clips usable: none
+     bench: tucks: worst tuck 11.11 mm; cloth through cloth: 1217 crossings, the shipped body's 297; body through cloth: over the bind {'boot_l': 50, 'boot_r': 56}, deepest 19.88 mm
+     checking: tucks: worst tuck 11.11 mm; cloth through cloth: 1259 crossings, the shipped body's 377; body through cloth: over the bind {'boot_r': 58, 'skin_head': 3}, deepest 19.85 mm
+     cheering: tucks: worst tuck 11.11 mm; cloth through cloth: 1904 crossings, the shipped body's 262; body through cloth: over the bind {'boot_l': 54, 'boot_r': 66, 'skin_head': 3}, deepest 19.91 mm
+     clapping: tucks: worst tuck 11.11 mm; cloth through cloth: 1233 crossings, the shipped body's 351; body through cloth: over the bind {'boot_l': 51, 'boot_r': 59}, deepest 19.86 mm
+     clipboard: tucks: worst tuck 11.11 mm; cloth through cloth: 1107 crossings, the shipped body's 214; body through cloth: over the bind {'boot_l': 51, 'boot_r': 56}, deepest 19.84 mm
+     door: tucks: worst tuck 11.11 mm; cloth through cloth: 1981 crossings, the shipped body's 567; body through cloth: over the bind {'boot_l': 55, 'boot_r': 61, 'skin_head': 3}, deepest 19.9 mm
+     dragging: tucks: worst tuck 11.11 mm; cloth through cloth: 1462 crossings, the shipped body's 263; body through cloth: over the bind {'boot_l': 65, 'boot_r': 59}, deepest 20.41 mm
+     leaning: tucks: worst tuck 11.11 mm; cloth through cloth: 1292 crossings, the shipped body's 271; body through cloth: over the bind {'boot_l': 51, 'boot_r': 58}, deepest 19.88 mm
+     lifting: tucks: worst tuck 11.11 mm; cloth through cloth: 2047 crossings, the shipped body's 577; body through cloth: over the bind {'boot_l': 53, 'boot_r': 61, 'skin_head': 10}, deepest 19.91 mm
+     lying: tucks: worst tuck 11.11 mm; cloth through cloth: 1181 crossings, the shipped body's 349; body through cloth: over the bind {'boot_l': 52}, deepest 20.07 mm
+     pointing: tucks: worst tuck 11.11 mm; cloth through cloth: 1491 crossings, the shipped body's 569; body through cloth: over the bind {'boot_l': 52, 'boot_r': 63}, deepest 19.85 mm
+     reaching: tucks: worst tuck 11.11 mm; cloth through cloth: 2428 crossings, the shipped body's 603; body through cloth: over the bind {'boot_l': 54, 'boot_r': 63, 'skin_head': 4}, deepest 19.87 mm
+     shifting: tucks: worst tuck 11.11 mm; cloth through cloth: 1433 crossings, the shipped body's 567; body through cloth: over the bind {'boot_l': 53, 'boot_r': 62}, deepest 19.88 mm
+     shouting: tucks: worst tuck 11.11 mm; cloth through cloth: 1336 crossings, the shipped body's 566; body through cloth: over the bind {'boot_l': 50, 'boot_r': 59}, deepest 19.86 mm
+     sitting: tucks: worst tuck 6.96 mm; cloth through cloth: 1711 crossings, the shipped body's 815; body through cloth: over the bind {'boot_l': 53, 'boot_r': 59}, deepest 19.84 mm
+     standing: tucks: worst tuck 11.11 mm; cloth through cloth: 1017 crossings, the shipped body's 697; body through cloth: over the bind {'boot_l': 50, 'boot_r': 56}, deepest 19.85 mm
+     suit: tucks: worst tuck 19.09 mm; cloth through cloth: 1340 crossings, the shipped body's 322; body through cloth: over the bind {'boot_l': 56, 'boot_r': 60, 'skin_head': 3}, deepest 27.43 mm
+     waiting: tucks: worst tuck 11.11 mm; cloth through cloth: 1236 crossings, the shipped body's 420; body through cloth: over the bind {'boot_l': 50, 'boot_r': 56, 'skin_head': 3}, deepest 19.87 mm
+     walking: tucks: worst tuck 14.46 mm; cloth through cloth: 1410 crossings, the shipped body's 403; body through cloth: over the bind {'boot_l': 51}, deepest 21.77 mm
+
+== people-body-nev-work (judged 2026-10-13T13:42 UTC, key b210a3941e97): pass
+   joins: pass, wrist, ankle and stance pass
+   outline: pass, built A-pose IoU 0.9618; the finished take's own drop against the raw model 0.0005
+   likeness: pass, best outline 0.8606
+   triangles: pass, 28810 triangles
+   shell: pass, 99% of the soft points within 0.034 m of the body; worst 0.0471 m, part 4 (cloth, by Chest)
+   clips: 0 of 19 clips usable; failing bench, checking, cheering, clapping, clipboard, door, dragging, leaning, lifting, lying, pointing, reaching, shifting, shouting, sitting, standing, suit, waiting, walking
+   cast clips usable: none
+     bench: tucks: worst tuck 9.4 mm; cloth through cloth: 735 crossings, the shipped body's 187; body through cloth: over the bind {'boot_r': 7, 'skin_head#1': 19}, deepest 9.21 mm
+     checking: tucks: worst tuck 9.29 mm; cloth through cloth: 640 crossings, the shipped body's 390; body through cloth: over the bind {'boot_r': 7, 'skin_head#1': 21}, deepest 13.73 mm
+     cheering: tucks: worst tuck 9.4 mm; cloth through cloth: 1531 crossings, the shipped body's 140; body through cloth: over the bind {'boot_r': 7, 'skin_hands#1': 5, 'skin_head#1': 16}, deepest 13.66 mm
+     clapping: tucks: worst tuck 9.4 mm; cloth through cloth: 879 crossings, the shipped body's 303; body through cloth: over the bind {'boot_r': 6, 'skin_hands#1': 7, 'skin_head#1': 27}, deepest 11.62 mm
+     clipboard: tucks: worst tuck 9.37 mm; cloth through cloth: 819 crossings, the shipped body's 206; body through cloth: over the bind {'boot_r': 6, 'skin_hands': 30, 'skin_head#1': 16}, deepest 15.67 mm
+     door: tucks: worst tuck 9.4 mm; cloth through cloth: 1571 crossings, the shipped body's 637; body through cloth: over the bind {'boot_r': 7, 'skin_hands': 37, 'skin_head#1': 25}, deepest 19.46 mm
+     dragging: tucks: worst tuck 9.29 mm; cloth through cloth: 782 crossings, the shipped body's 284; body through cloth: over the bind {'boot_r': 10, 'skin_hands': 31, 'skin_hands#1': 3, 'skin_head#1': 16}, deepest 12.04 mm
+     leaning: tucks: worst tuck 9.25 mm; cloth through cloth: 1169 crossings, the shipped body's 176; body through cloth: over the bind {'boot_r': 6, 'skin_head#1': 21}, deepest 18.75 mm
+     lifting: tucks: worst tuck 9.4 mm; cloth through cloth: 1404 crossings, the shipped body's 566; body through cloth: over the bind {'boot_r': 9, 'skin_hands': 36, 'skin_head#1': 18}, deepest 19.43 mm
+     lying: tucks: worst tuck 9.32 mm; cloth through cloth: 1106 crossings, the shipped body's 278
+     pointing: tucks: worst tuck 9.4 mm; cloth through cloth: 624 crossings, the shipped body's 588; body through cloth: over the bind {'boot_r': 6, 'skin_hands': 29, 'skin_head#1': 25}, deepest 17.96 mm
+     reaching: tucks: worst tuck 9.4 mm; cloth through cloth: 2494 crossings, the shipped body's 634; body through cloth: over the bind {'boot_r': 10, 'skin_hands': 39, 'skin_hands#1': 1, 'skin_head#1': 17}, deepest 19.63 mm
+     shifting: tucks: worst tuck 9.3 mm; cloth through cloth: 667 crossings, the shipped body's 525; body through cloth: over the bind {'boot_r': 7, 'skin_head#1': 38}, deepest 15.1 mm
+     shouting: tucks: worst tuck 9.4 mm; cloth through cloth: 623 crossings, the shipped body's 611; body through cloth: over the bind {'boot_r': 5, 'skin_head#1': 19}, deepest 9.8 mm
+     sitting: tucks: worst tuck 9.32 mm; cloth through cloth: 2496 crossings, the shipped body's 725; body through cloth: over the bind {'skin_hands#1': 1, 'skin_head#1': 15}, deepest 9.22 mm
+     standing: tucks: worst tuck 9.4 mm; body through cloth: over the bind {'boot_r': 6, 'skin_head#1': 16}, deepest 9.21 mm
+     suit: tucks: worst tuck 9.32 mm; cloth through cloth: 1213 crossings, the shipped body's 281; body through cloth: over the bind {'boot_r': 11, 'skin_hands': 22, 'skin_head#1': 23}, deepest 11.8 mm
+     waiting: tucks: worst tuck 9.39 mm; cloth through cloth: 1547 crossings, the shipped body's 333; body through cloth: over the bind {'boot_r': 6, 'skin_hands': 29, 'skin_head#1': 16}, deepest 16.54 mm
+     walking: tucks: worst tuck 9.4 mm; cloth through cloth: 1018 crossings, the shipped body's 353; body through cloth: over the bind {'boot_r': 11, 'skin_head#1': 19}, deepest 9.22 mm
+
+== people-body-kit_m_avg-uniform-olive (judged 2026-10-13T15:16 UTC, key f74783141bb5): fail
+   joins: pass, wrist, ankle and stance pass
+   outline: pass, built A-pose IoU 0.9653; the finished take's own drop against the raw model -0.0011
+   likeness: pass, best outline 0.849
+   triangles: fail, 32058 triangles over 29849
+   shell: pass, 99% of the soft points within 0.039 m of the body; worst 0.0676 m, part 1 (cloth, by LeftToeBase)
+   clips: 0 of 19 clips usable; failing bench, checking, cheering, clapping, clipboard, door, dragging, leaning, lifting, lying, pointing, reaching, shifting, shouting, sitting, standing, suit, waiting, walking
+   cast clips usable: none
+     bench: cloth through cloth: 1678 crossings, the shipped body's 342; body through cloth: over the bind {'boot_l': 104, 'boot_r': 106, 'skin_hands': 63, 'skin_hands#1': 41, 'skin_head': 4, 'skin_head#1': 2}, deepest 17.69 mm
+     checking: cloth through cloth: 1552 crossings, the shipped body's 658; body through cloth: over the bind {'boot_l': 103, 'boot_r': 111, 'skin_hands': 31, 'skin_hands#1': 38}, deepest 17.8 mm
+     cheering: cloth through cloth: 1861 crossings, the shipped body's 416; body through cloth: over the bind {'boot_l': 107, 'boot_r': 112, 'skin_hands': 55}, deepest 18.85 mm
+     clapping: tucks: worst tuck 7.86 mm; cloth through cloth: 2520 crossings, the shipped body's 550; body through cloth: over the bind {'boot_l': 103, 'boot_r': 105, 'skin_hands': 71, 'skin_hands#1': 78, 'skin_head': 3}, deepest 17.69 mm
+     clipboard: cloth through cloth: 1752 crossings, the shipped body's 329; body through cloth: over the bind {'boot_l': 105, 'boot_r': 108, 'skin_hands#1': 44}, deepest 17.73 mm
+     door: tucks: worst tuck 7.97 mm; cloth through cloth: 2875 crossings, the shipped body's 1111; body through cloth: over the bind {'boot_l': 105, 'boot_r': 115, 'skin_hands': 40, 'skin_hands#1': 79, 'skin_head': 10}, deepest 21.79 mm
+     dragging: cloth through cloth: 2669 crossings, the shipped body's 447; body through cloth: over the bind {'boot_l': 121, 'boot_r': 101, 'skin_hands': 70, 'skin_hands#1': 43}, deepest 26.11 mm
+     leaning: cloth through cloth: 1656 crossings, the shipped body's 393; body through cloth: over the bind {'boot_l': 103, 'boot_r': 112, 'skin_hands': 45, 'skin_hands#1': 40}, deepest 17.66 mm
+     lifting: tucks: worst tuck 5.35 mm; cloth through cloth: 3965 crossings, the shipped body's 1194; body through cloth: over the bind {'boot_l': 128, 'boot_r': 181, 'skin_hands': 69, 'skin_hands#1': 62, 'skin_head': 13, 'skin_head#1': 5}, deepest 37.91 mm
+     lying: cloth through cloth: 2813 crossings, the shipped body's 479; body through cloth: over the bind {'boot_l': 153, 'skin_hands#1': 48}, deepest 25.21 mm
+     pointing: tucks: worst tuck 5.04 mm; cloth through cloth: 1743 crossings, the shipped body's 1219; body through cloth: over the bind {'boot_l': 105, 'boot_r': 107, 'skin_hands': 30, 'skin_hands#1': 59, 'skin_head': 7}, deepest 17.78 mm
+     reaching: cloth through cloth: 3444 crossings, the shipped body's 1363; body through cloth: over the bind {'boot_l': 114, 'boot_r': 114, 'skin_hands': 56, 'skin_hands#1': 34, 'skin_head': 12, 'skin_head#1': 6}, deepest 17.94 mm
+     shifting: cloth through cloth: 1566 crossings, the shipped body's 935; body through cloth: over the bind {'boot_l': 105, 'boot_r': 113, 'skin_hands': 39, 'skin_head': 19}, deepest 45.78 mm
+     shouting: cloth through cloth: 1547 crossings, the shipped body's 1111; body through cloth: over the bind {'boot_l': 104, 'boot_r': 105, 'skin_hands': 41, 'skin_hands#1': 35, 'skin_head': 3}, deepest 17.89 mm
+     sitting: body through cloth: over the bind {'boot_l': 137, 'boot_r': 128, 'skin_hands': 46, 'skin_hands#1': 63}, deepest 19.35 mm
+     standing: cloth through cloth: 1540 crossings, the shipped body's 1187; body through cloth: over the bind {'boot_l': 97, 'boot_r': 110}, deepest 17.72 mm
+     suit: cloth through cloth: 2763 crossings, the shipped body's 495; body through cloth: over the bind {'boot_l': 114, 'boot_r': 152, 'skin_hands': 41, 'skin_hands#1': 37, 'skin_head': 5}, deepest 32.74 mm
+     waiting: cloth through cloth: 1828 crossings, the shipped body's 590; body through cloth: over the bind {'boot_l': 103, 'boot_r': 107, 'skin_hands': 39}, deepest 18.56 mm
+     walking: cloth through cloth: 2773 crossings, the shipped body's 698; body through cloth: over the bind {'boot_l': 121, 'boot_r': 123, 'skin_hands': 37, 'skin_head': 3}, deepest 25.6 mm
+
+== people-body-kit_m_broad-uniform-olive: not made (no judgement)
+
+== people-body-kit_w_broad-uniform-olive: not made (no judgement)
+
+
+## 2. Tucks at the bind (no clip): each tucked part's band points outside the look
+nev:    boot_r 11 band points, worst 9.32 mm out, 2 over the 5 mm limit (every clip shows 9.3-9.4 mm, 1,445 of 1,445 frames)
+sefa:   boot_r 74 points, worst 11.11 mm, 7 over; boot_l 70 points, worst 8.94 mm, 3 over (every clip 11.11 mm or more)
+player: no band point over 5 mm at the bind
+Cause: the boot's tuck band lies outside the trouser leg before any motion, so it fails every clip of nev and sefa.
+
+## 3. Visible-only re-score of the built bodies (parts as built, tuck bands left out; every 5th frame)
+== player.glb: bind crossings 428; usable strict 0/19, loose 0/19
+   standing  new through itself   40 (cloth 40); hairline open   6.7 mm; cuff/collar open  11.5 mm; strict no, loose no
+   walking   new through itself  169 (cloth 169, hair 3, skin 1, hard 2); hairline open  14.1 mm; cuff/collar open  12.3 mm; strict no, loose no
+   bench     new through itself  122 (cloth 109, skin 13); hairline open   9.1 mm; cuff/collar open  26.9 mm; strict no, loose no
+   suit      new through itself  224 (cloth 215, skin 9, hard 5, hair 5); hairline open  16.7 mm; cuff/collar open  14.4 mm; strict no, loose no
+   shouting  new through itself   39 (cloth 34, hair 5, skin 2); hairline open  18.8 mm; cuff/collar open  14.3 mm; strict no, loose no
+   cheering  new through itself  338 (cloth 338, skin 11); hairline open  14.5 mm; cuff/collar open  23.7 mm; strict no, loose no
+   leaning   new through itself  189 (cloth 181, hair 8); hairline open  17.3 mm; cuff/collar open  16.5 mm; strict no, loose no
+   pointing  new through itself  231 (cloth 223, hair 19, skin 4); hairline open  32.1 mm; cuff/collar open  18.6 mm; strict no, loose no
+   waiting   new through itself   88 (cloth 88); hairline open   5.0 mm; cuff/collar open  11.0 mm; strict no, loose no
+   checking  new through itself   31 (cloth 27, hair 4); hairline open  16.9 mm; cuff/collar open  11.3 mm; strict no, loose no
+   reaching  new through itself  276 (cloth 271, skin 53); hairline open  14.9 mm; cuff/collar open  23.6 mm; strict no, loose no
+   lying     new through itself   55 (cloth 53, skin 2); hairline open   7.0 mm; cuff/collar open  12.7 mm; strict no, loose no
+   dragging  new through itself  108 (cloth 103, skin 7); hairline open  13.5 mm; cuff/collar open  38.7 mm; strict no, loose no
+   lifting   new through itself  364 (cloth 307, skin 57); hairline open  14.6 mm; cuff/collar open  29.9 mm; strict no, loose no
+   door      new through itself  270 (cloth 270, skin 10, hair 5); hairline open  21.6 mm; cuff/collar open  20.6 mm; strict no, loose no
+   clapping  new through itself  250 (cloth 241, hair 9, skin 5); hairline open  19.2 mm; cuff/collar open  25.1 mm; strict no, loose no
+   shifting  new through itself   54 (cloth 32, skin 8, hair 22); hairline open  44.2 mm; cuff/collar open  12.2 mm; strict no, loose no
+   clipboard new through itself  139 (cloth 135, skin 4); hairline open   8.8 mm; cuff/collar open  16.4 mm; strict no, loose no
+   sitting   new through itself  648 (cloth 648, skin 1); hairline open  10.0 mm; cuff/collar open  10.4 mm; strict no, loose no
+== bram.glb: bind crossings 332; usable strict 0/19, loose 0/19
+   standing  new through itself   29 (cloth 29, hair 1); hairline open  25.0 mm; cuff/collar open  22.8 mm; strict no, loose no
+   walking   new through itself  486 (hair 5, cloth 485, hard 30); hairline open  54.7 mm; cuff/collar open  50.2 mm; strict no, loose no
+   bench     new through itself  218 (cloth 172, hair 44, skin 2); hairline open  32.5 mm; cuff/collar open  32.3 mm; strict no, loose no
+   suit      new through itself  422 (cloth 401, hair 25); hairline open  52.7 mm; cuff/collar open  50.0 mm; strict no, loose no
+   shouting  new through itself   32 (cloth 29, hair 4); hairline open  70.2 mm; cuff/collar open  64.8 mm; strict no, loose no
+   cheering  new through itself  329 (cloth 317, hair 33, skin 1); hairline open  48.2 mm; cuff/collar open  37.5 mm; strict no, loose no
+   leaning   new through itself  132 (cloth 127, hair 6); hairline open  72.6 mm; cuff/collar open  63.4 mm; strict no, loose no
+   pointing  new through itself   39 (hair 8, cloth 32); hairline open  68.3 mm; cuff/collar open  60.0 mm; strict no, loose no
+   waiting   new through itself  104 (cloth 103, hair 2); hairline open  21.9 mm; cuff/collar open  20.2 mm; strict no, loose no
+   checking  new through itself   58 (hair 6, cloth 53); hairline open  54.4 mm; cuff/collar open  49.7 mm; strict no, loose no
+   reaching  new through itself  514 (cloth 385, hair 129, skin 10); hairline open  54.8 mm; cuff/collar open  33.9 mm; strict no, loose no
+   lying     new through itself  345 (cloth 339, hair 7, skin 1); hairline open  37.4 mm; cuff/collar open  17.4 mm; strict no, loose no
+   dragging  new through itself  176 (hair 8, cloth 171, hard 27); hairline open  61.7 mm; cuff/collar open  60.4 mm; strict no, loose no
+   lifting   new through itself 1313 (cloth 1092, hair 137, skin 13, hard 74); hairline open  48.2 mm; cuff/collar open  44.5 mm; strict no, loose no
+   door      new through itself  394 (cloth 388, hair 42, skin 1); hairline open  80.4 mm; cuff/collar open  72.9 mm; strict no, loose no
+   clapping  new through itself   86 (hair 4, cloth 83); hairline open  70.5 mm; cuff/collar open  58.4 mm; strict no, loose no
+   shifting  new through itself  198 (cloth 138, hair 60, skin 2); hairline open 171.3 mm; cuff/collar open 158.8 mm; strict no, loose no
+   clipboard new through itself   39 (cloth 38, hair 7); hairline open  28.8 mm; cuff/collar open  26.8 mm; strict no, loose no
+   sitting   new through itself  976 (cloth 973, hair 3, hard 2); hairline open  47.9 mm; cuff/collar open  43.9 mm; strict no, loose no
+== sefa.glb: bind crossings 1416; usable strict 0/19, loose 0/19
+   standing  new through itself  195 (cloth 182, hair 13, hard 10); hairline open  21.1 mm; cuff/collar open  20.3 mm; strict no, loose no
+   walking   new through itself  738 (cloth 673, hair 34, hard 47); hairline open  49.8 mm; cuff/collar open  48.4 mm; strict no, loose no
+   bench     new through itself  458 (cloth 437, hair 20, hard 7); hairline open  27.8 mm; cuff/collar open  25.0 mm; strict no, loose no
+   suit      new through itself  810 (cloth 755, hair 39, hard 37, skin 1); hairline open  46.1 mm; cuff/collar open  45.7 mm; strict no, loose no
+   shouting  new through itself  722 (cloth 684, hair 38, hard 7); hairline open  60.7 mm; cuff/collar open  58.4 mm; strict no, loose no
+   cheering  new through itself 1232 (cloth 1199, hair 29, hard 16); hairline open  38.6 mm; cuff/collar open  38.2 mm; strict no, loose no
+   leaning   new through itself  686 (cloth 638, hair 45, hard 15); hairline open  61.5 mm; cuff/collar open  61.0 mm; strict no, loose no
+   pointing  new through itself  797 (cloth 754, hair 38, hard 7); hairline open  58.5 mm; cuff/collar open  57.7 mm; strict no, loose no
+   waiting   new through itself  384 (cloth 371, hair 10, hard 7); hairline open  17.6 mm; cuff/collar open  16.4 mm; strict no, loose no
+   checking  new through itself  529 (cloth 494, hair 36, hard 7); hairline open  47.2 mm; cuff/collar open  46.1 mm; strict no, loose no
+   reaching  new through itself 1574 (cloth 1572, hard 13, hair 70, skin 1); hairline open  41.7 mm; cuff/collar open  34.0 mm; strict no, loose no
+   lying     new through itself  367 (cloth 307, hard 49, hair 11); hairline open  24.4 mm; cuff/collar open  24.9 mm; strict no, loose no
+   dragging  new through itself  678 (cloth 659, hair 35, hard 26); hairline open  51.3 mm; cuff/collar open  48.4 mm; strict no, loose no
+   lifting   new through itself 1445 (cloth 1379, hair 61, hard 14, skin 3); hairline open  42.6 mm; cuff/collar open  40.8 mm; strict no, loose no
+   door      new through itself 1290 (cloth 1241, hair 50, hard 33); hairline open  69.2 mm; cuff/collar open  67.5 mm; strict no, loose no
+   clapping  new through itself  549 (cloth 507, hair 42, hard 14); hairline open  59.8 mm; cuff/collar open  59.6 mm; strict no, loose no
+   shifting  new through itself  906 (cloth 825, hair 105, hard 12, skin 1); hairline open 139.3 mm; cuff/collar open 129.5 mm; strict no, loose no
+   clipboard new through itself  409 (cloth 384, hair 22, hard 6); hairline open  23.8 mm; cuff/collar open  23.0 mm; strict no, loose no
+   sitting   new through itself 1338 (cloth 1264, hard 55, hair 23); hairline open  40.4 mm; cuff/collar open  39.6 mm; strict no, loose no
+== nev.glb: bind crossings 925; usable strict 0/19, loose 0/19
+   standing  new through itself  274 (cloth 239, skin 34, hard 2); hairline open   6.5 mm; cuff/collar open  62.7 mm; strict no, loose no
+   walking   new through itself  622 (cloth 580, skin 50, hard 10, hair 6); hairline open  14.3 mm; cuff/collar open  45.5 mm; strict no, loose no
+   bench     new through itself  495 (cloth 429, skin 70, hard 2); hairline open   9.0 mm; cuff/collar open 167.3 mm; strict no, loose no
+   suit      new through itself  914 (cloth 857, skin 65, hair 7, hard 13); hairline open  16.9 mm; cuff/collar open  78.8 mm; strict no, loose no
+   shouting  new through itself  386 (cloth 338, skin 45, hard 2, hair 7); hairline open  19.1 mm; cuff/collar open  67.2 mm; strict no, loose no
+   cheering  new through itself 1320 (cloth 1268, skin 50, hard 5, hair 2); hairline open  14.1 mm; cuff/collar open 114.5 mm; strict no, loose no
+   leaning   new through itself  952 (cloth 897, skin 52, hair 7, hard 2); hairline open  18.1 mm; cuff/collar open 138.5 mm; strict no, loose no
+   pointing  new through itself  514 (cloth 435, skin 71, hard 2, hair 7); hairline open  18.5 mm; cuff/collar open  72.6 mm; strict no, loose no
+   waiting   new through itself 1367 (cloth 1318, skin 54, hard 3); hairline open   4.6 mm; cuff/collar open 122.0 mm; strict no, loose no
+   checking  new through itself  503 (cloth 425, skin 69, hard 2, hair 7); hairline open  17.0 mm; cuff/collar open  80.4 mm; strict no, loose no
+   reaching  new through itself 2219 (cloth 2176, skin 109, hair 4, hard 4); hairline open  14.9 mm; cuff/collar open 145.9 mm; strict no, loose no
+   lying     new through itself  842 (cloth 769, skin 73); hairline open   6.6 mm; cuff/collar open 112.2 mm; strict no, loose no
+   dragging  new through itself  689 (cloth 606, skin 104, hard 8, hair 6); hairline open  13.9 mm; cuff/collar open 158.0 mm; strict no, loose no
+   lifting   new through itself 1266 (cloth 1159, skin 131, hair 6, hard 2); hairline open  14.3 mm; cuff/collar open 125.3 mm; strict no, loose no
+   door      new through itself 1457 (cloth 1337, skin 161, hair 10, hard 3); hairline open  21.4 mm; cuff/collar open 140.6 mm; strict no, loose no
+   clapping  new through itself  788 (skin 97, cloth 696, hair 5, hard 2); hairline open  19.5 mm; cuff/collar open 157.4 mm; strict no, loose no
+   shifting  new through itself  408 (cloth 377, skin 39, hard 2, hair 7); hairline open  41.8 mm; cuff/collar open  37.4 mm; strict no, loose no
+   clipboard new through itself  698 (cloth 619, skin 82, hard 2, hair 1); hairline open   8.4 mm; cuff/collar open 118.5 mm; strict no, loose no
+   sitting   new through itself 2141 (cloth 2100, skin 43, hair 6); hairline open  10.3 mm; cuff/collar open  40.6 mm; strict no, loose no
+Two causes fail every clip: (a) the borders where hair or cloth meet the head or hand skin are
+skinned differently on each side and open as the joints move (cloth seams never open); (b) the
+settled cloth crosses itself well beyond the bind. Openings over 10 cm (bram, sefa, nev) are
+UNVERIFIED until a render shows them.
+
+## 4. One-piece bind (the take as one closed mesh with its fit's smooth weights), no push-out; player
+bind crossing edges 417
+standing  new crossing edges   217  longest edge against its rest length 12.527x
+walking   new crossing edges   476  longest edge against its rest length 19.895x
+bench     new crossing edges   332  longest edge against its rest length 29.587x
+suit      new crossing edges   359  longest edge against its rest length 27.772x
+shouting  new crossing edges   315  longest edge against its rest length 10.799x
+cheering  new crossing edges   393  longest edge against its rest length 83.404x
+leaning   new crossing edges   329  longest edge against its rest length 57.378x
+pointing  new crossing edges   558  longest edge against its rest length 48.068x
+waiting   new crossing edges   439  longest edge against its rest length 43.647x
+checking  new crossing edges   348  longest edge against its rest length 12.887x
+reaching  new crossing edges   529  longest edge against its rest length 79.469x
+lying     new crossing edges   297  longest edge against its rest length 26.048x
+dragging  new crossing edges   332  longest edge against its rest length 23.968x
+lifting   new crossing edges   949  longest edge against its rest length 70.622x
+door      new crossing edges   438  longest edge against its rest length 54.893x
+clapping  new crossing edges   610  longest edge against its rest length 38.322x
+shifting  new crossing edges   305  longest edge against its rest length 17.165x
+clipboard new crossing edges   355  longest edge against its rest length 38.829x
+sitting   new crossing edges   985  longest edge against its rest length 71.9x
+Openings: none by construction (one point a border).
+Push-out (each frame, points inside the look's own volume moved along the nearest outside triangle's normal, 3 rounds): sampled standing 222 -> 288, walking 414 -> 469, sitting 985 -> 1,252 new crossing edges, largest push 27-39 mm; dropped.
+
+## 5. One-piece player judged by cameras (scene-record views of the flat and the tube at his cast spots, plus close front and three-quarter views; only the body occludes, so an upper bound)
+bind: 772 crossing points; places: flat (standing at [-4.1, 0.02, -4.0]); tube (walking at [0.0, 0.0, 0.4])
+standing  new   304  visible  104  frames with any visible 12/12  nearest joints {'RightArm': 47, 'Chest': 29, 'LeftArm': 13, 'RightFoot': 5}  cameras [('tube:along-west', 70), ('flat:room-from-the-door', 32)]
+walking   new   877  visible  236  frames with any visible 14/14  nearest joints {'LeftLeg': 41, 'RightLeg': 38, 'LeftArm': 35, 'RightFoot': 32}  cameras [('tube:along-west', 141), ('flat:room-from-the-door', 116)]
+bench     new   582  visible  130  frames with any visible 7/7  nearest joints {'Chest': 47, 'RightArm': 30, 'Hips': 11, 'Neck1': 10}  cameras [('tube:along-west', 96), ('flat:room-from-the-door', 39)]
+suit      new   783  visible  294  frames with any visible 14/14  nearest joints {'LeftLeg': 80, 'LeftArm': 52, 'Chest': 45, 'RightArm': 36}  cameras [('tube:along-west', 178), ('flat:room-from-the-door', 128)]
+shouting  new   391  visible  114  frames with any visible 8/8  nearest joints {'Chest': 44, 'RightArm': 23, 'LeftLeg': 16, 'RightLeg': 15}  cameras [('tube:along-west', 79), ('flat:room-from-the-door', 34)]
+cheering  new   731  visible  256  frames with any visible 20/20  nearest joints {'RightArm': 97, 'Chest': 48, 'LeftLeg': 30, 'LeftArm': 27}  cameras [('flat:room-from-the-door', 199), ('tube:along-west', 97)]
+leaning   new   685  visible  304  frames with any visible 12/12  nearest joints {'RightArm': 108, 'Chest': 73, 'RightLeg': 38, 'LeftLeg': 34}  cameras [('flat:room-from-the-door', 212), ('tube:along-west', 116)]
+pointing  new   975  visible  167  frames with any visible 28/28  nearest joints {'Chest': 69, 'RightArm': 32, 'LeftArm': 28, 'LeftLeg': 15}  cameras [('tube:along-west', 128), ('flat:room-from-the-door', 52)]
+waiting   new   734  visible  137  frames with any visible 11/11  nearest joints {'LeftArm': 46, 'RightArm': 33, 'Chest': 30, 'RightForeArm': 8}  cameras [('tube:along-west', 76), ('flat:room-from-the-door', 67)]
+checking  new   470  visible  139  frames with any visible 10/10  nearest joints {'Chest': 53, 'RightArm': 27, 'RightLeg': 22, 'LeftLeg': 18}  cameras [('tube:along-west', 105), ('flat:room-from-the-door', 41)]
+reaching  new   784  visible  373  frames with any visible 35/35  nearest joints {'RightArm': 103, 'Chest': 37, 'LeftFoot': 33, 'RightFoot': 32}  cameras [('flat:room-from-the-door', 290), ('tube:along-west', 124)]
+lying     new   469  visible  125  frames with any visible 13/13  nearest joints {'RightArm': 62, 'RightForeArm': 27, 'Chest': 19, 'Hips': 8}  cameras [('flat:room-from-the-door', 65), ('flat:close-front', 41)]
+dragging  new   498  visible  142  frames with any visible 25/25  nearest joints {'Chest': 42, 'RightArm': 34, 'LeftArm': 30, 'RightFoot': 13}  cameras [('flat:room-from-the-door', 109), ('tube:along-west', 61)]
+lifting   new  1419  visible  563  frames with any visible 18/18  nearest joints {'RightShin': 95, 'RightLeg': 75, 'Chest': 72, 'RightArm': 72}  cameras [('tube:along-west', 253), ('flat:close-three-quarter-left', 179)]
+door      new   654  visible  160  frames with any visible 36/36  nearest joints {'Chest': 59, 'RightArm': 59, 'LeftArm': 23, 'RightLeg': 8}  cameras [('tube:along-west', 109), ('flat:room-from-the-door', 78)]
+clapping  new  1099  visible  185  frames with any visible 12/12  nearest joints {'Chest': 62, 'LeftArm': 58, 'RightArm': 47, 'RightShoulder': 6}  cameras [('tube:along-west', 99), ('flat:room-from-the-door', 96)]
+shifting  new   480  visible  167  frames with any visible 21/21  nearest joints {'RightArm': 66, 'Chest': 32, 'LeftArm': 21, 'RightLeg': 21}  cameras [('tube:along-west', 121), ('flat:room-from-the-door', 48)]
+clipboard new   646  visible   87  frames with any visible 11/11  nearest joints {'Chest': 34, 'LeftArm': 28, 'RightArm': 16, 'LeftShoulder': 5}  cameras [('tube:along-west', 58), ('flat:room-from-the-door', 46)]
+sitting   new  1413  visible  395  frames with any visible 15/15  nearest joints {'RightArm': 94, 'Chest': 87, 'LeftArm': 67, 'Spine2': 38}  cameras [('flat:room-from-the-door', 136), ('flat:close-three-quarter-right', 134)]
+clips with no visible crossing: 0 of 19
+Pictures (numpy z-buffer, local): standing from the tube's along-west camera reads clean, the marks on the back of the shoulders; sitting close shows the upper arm and forearm smeared into long stretched triangles folding through the torso and thigh.
+
+## 6. Bend-region offset clamp (armpits and inner thighs picked by SOMA-X's joint weights)
+8 mm, 4 cm blend, joint weights >= 0.15 (377 points moved, most 18 mm): visible crossings summed over the 19 clips' worst frames 4078 -> 4208; clean clips 0
+5 mm, 6 cm blend, joint weights >= 0.05 (711 points moved, most 26 mm): visible crossings summed over the 19 clips' worst frames 4078 -> 4437; clean clips 0
+
+## 0. Body runs of 2026-10-13 not made (no judgement)
+kit_m_avg-uniform-olive, first run: no graphics card in stock in any zone for 45 min; nothing stored (fault report).
+kit_m_broad-uniform-olive: an input changed while it ran (bytecode written into the maker's folder by a local
+  measuring script started with python -I, which ignores PYTHONDONTWRITEBYTECODE); nothing stored. Not rerun.
+kit_w_broad-uniform-olive: no L4 card in stock for 45 min (cards limited to L4 by the budget); nothing stored.
+kit_m_avg-uniform-olive, second run (L4 only): made and judged (section 1): fails triangles (32,058 over the
+  shipped body's 29,849); 0 of 19 clips usable.
+
+## 7. Fold-centred weights and dual-quaternion skinning, one-piece player, camera rule (worst frame per clip)
+Fold weights: per bending joint (shoulder, elbow, hip, knee) the fold plane through the joint across its child bone;
+child-side points follow the child's chain; a parent-side band (10 cm shoulder, 12 cm hip, 5 cm elbow, 6 cm knee)
+blends towards the child joint. Dual quaternions after Kavan et al. 2007. Visible crossings per clip:
+clip       one piece, linear | fold weights (parent-side band) | dual quaternions | fold weights + dual quaternions
+standing  104 | 117 | 101 | 105
+walking   236 | 331 | 242 | 334
+bench     130 | 252 | 146 | 250
+suit      294 | 403 | 314 | 404
+shouting  114 | 130 | 117 | 129
+cheering  256 | 478 | 287 | 431
+leaning   304 | 415 | 300 | 402
+pointing  167 | 222 | 185 | 251
+waiting   137 | 232 | 138 | 198
+checking  139 | 228 | 149 | 208
+reaching  373 | 423 | 344 | 396
+lying     125 | 183 | 162 | 224
+dragging  142 | 308 | 130 | 201
+lifting   563 | 809 | 810 | 954
+door      160 | 228 | 192 | 220
+clapping  185 | 306 | 191 | 277
+shifting  167 | 177 | 165 | 185
+clipboard 87 | 156 | 107 | 152
+sitting   395 | 557 | 512 | 660
+one piece, linear: total 4078, clean clips 0
+fold weights (parent-side band): total 5955, clean clips 0
+dual quaternions: total 4592, clean clips 0
+fold weights + dual quaternions: total 5981, clean clips 0
+
+## 8. Joint angles per clip against AAOS normal ranges (player's skeleton, every frame; degrees, worst frame)
+Limits: AAOS (Joint Motion: Method of Measuring and Recording, 1965) as tabulated in Hendriks et al., Plast Reconstr
+Surg Glob Open 2020, supplementary content 1: shoulder flexion 180, extension 60, abduction 180, adduction 40; elbow
+flexion 150; hip flexion 120, extension 20, abduction 40, adduction 20; knee flexion 135; thoracolumbar flexion 80,
+extension 25, lateral flexion 35, rotation 45. Shoulder flexion and abduction are both the arm's raise from hanging;
+protraction (prot) is recorded, with no AAOS value.
+standing  shF    0 shE    6 shAb   21 shAd    0 elb   17 hipF    7 hipE    0 hipAb   12 hipAd    0 knee   20 trF    0 trE    6 trL    2 trR    3 prot  -17 | over: -
+walking   shF   28 shE   18 shAb   28 shAd    0 elb   48 hipF   31 hipE   20 hipAb   13 hipAd    8 knee   69 trF    2 trE    2 trL    7 trR    8 prot   -5 | over: -
+bench     shF   48 shE    0 shAb   48 shAd    0 elb   86 hipF    6 hipE    2 hipAb   10 hipAd    0 knee   18 trF    0 trE    1 trL    3 trR    2 prot  -12 | over: -
+suit      shF   41 shE   25 shAb   44 shAd    0 elb   68 hipF   30 hipE   27 hipAb   17 hipAd    8 knee   71 trF   10 trE    0 trL    6 trR    9 prot    1 | over: hip extension 27.1 > 20 (frame 59)
+shouting  shF    0 shE    8 shAb   20 shAd    0 elb   28 hipF    0 hipE    8 hipAb    4 hipAd    0 knee    7 trF    4 trE    0 trL    3 trR    2 prot   -8 | over: -
+cheering  shF  156 shE    0 shAb  156 shAd    0 elb   86 hipF   14 hipE    4 hipAb   26 hipAd   15 knee   34 trF    0 trE    9 trL   11 trR    3 prot    2 | over: -
+leaning   shF  105 shE   12 shAb  105 shAd    0 elb   45 hipF   20 hipE    0 hipAb   16 hipAd    5 knee   23 trF    6 trE    0 trL    6 trR    4 prot    2 | over: -
+pointing  shF   68 shE   16 shAb   68 shAd    0 elb   75 hipF   22 hipE   14 hipAb   13 hipAd   12 knee   32 trF   18 trE    0 trL    7 trR    6 prot   10 | over: -
+waiting   shF   56 shE    0 shAb   56 shAd    0 elb  110 hipF    0 hipE    5 hipAb   10 hipAd    0 knee   20 trF    0 trE    7 trL    5 trR    2 prot    0 | over: -
+checking  shF   19 shE    4 shAb   19 shAd    0 elb   53 hipF   34 hipE    0 hipAb    2 hipAd    0 knee   13 trF   12 trE    0 trL    3 trR    1 prot  -13 | over: -
+reaching  shF  142 shE   20 shAb  142 shAd    0 elb  144 hipF   17 hipE    1 hipAb   10 hipAd    7 knee   15 trF    0 trE   14 trL    4 trR    6 prot   20 | over: -
+lying     shF    0 shE   24 shAb   45 shAd    0 elb  123 hipF   22 hipE    0 hipAb   31 hipAd    0 knee   32 trF    0 trE    8 trL    5 trR    2 prot   -9 | over: -
+dragging  shF   33 shE    0 shAb   33 shAd    0 elb   91 hipF   25 hipE    8 hipAb   16 hipAd    0 knee   55 trF    9 trE    0 trL    8 trR    6 prot   -3 | over: -
+lifting   shF   99 shE    6 shAb   99 shAd    0 elb   99 hipF   90 hipE   16 hipAb   17 hipAd    0 knee  117 trF   64 trE    4 trL   12 trR    4 prot   18 | over: -
+door      shF   86 shE   37 shAb   86 shAd    0 elb  112 hipF   21 hipE   24 hipAb   12 hipAd    8 knee   41 trF   11 trE    2 trL   12 trR   13 prot   21 | over: hip extension 24.2 > 20 (frame 53)
+clapping  shF   56 shE    0 shAb   56 shAd    0 elb  115 hipF    2 hipE    2 hipAb    6 hipAd    0 knee   13 trF    0 trE    6 trL    4 trR    3 prot   -2 | over: -
+shifting  shF   22 shE   15 shAb   28 shAd    0 elb   47 hipF    9 hipE    3 hipAb   13 hipAd    6 knee   22 trF    2 trE    4 trL   14 trR    6 prot  -11 | over: -
+clipboard shF   54 shE    0 shAb   54 shAd    0 elb   89 hipF    0 hipE    8 hipAb    6 hipAd    0 knee   16 trF    0 trE   10 trL    2 trR    0 prot    1 | over: -
+sitting   shF  107 shE    0 shAb  107 shAd    0 elb   71 hipF   92 hipE    0 hipAb   20 hipAd    0 knee   98 trF   57 trE    0 trL    1 trR    2 prot   10 | over: -
