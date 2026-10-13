@@ -71,6 +71,11 @@ PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 # inputs record or a settle run kept beside it).
 STAGE_PARTS = ("layers", "assets")
 REVIEW_STAMP = "review.json"
+# The owner reviews a place in the browser viewer from its store page (tools/review/store_page.py, owner 2026-10-11:
+# no renders); page.py's rendered page is for films and figures. Either page's stamp answers the review requirement.
+STORE_REVIEWS = WORK / "review-store"
+# The marker store_page.py writes beside a stage it copied out of the store: the accepted output it is.
+STORE_OUTPUT = "output.txt"
 
 
 # --- where things are ---------------------------------------------------------------------------------------------
@@ -281,11 +286,16 @@ def recorded(verdict, why):
 
 # --- the requirements ---------------------------------------------------------------------------------------------
 
-def stage_requirement(stage):
-    """Whether the stage was exported after the last change to every input export.py recorded."""
+def stage_requirement(stage, place=None):
+    """Whether the stage is current: a copy of the store's assembly (STORE_OUTPUT beside it) is judged by the runner's
+    key, the accepted assembly output on the current key of every input; a work stage by whether it was exported
+    after the last change to every input export.py recorded."""
     record = pathlib.Path(stage).parent / INPUTS
     if not pathlib.Path(stage).exists():
         return UNKNOWN, f"no stage at {stage}"
+    marker = pathlib.Path(stage).parent / STORE_OUTPUT
+    if marker.exists():
+        return store_stage_requirement(place or pathlib.Path(stage).stem, marker.read_text().strip())
     if not record.exists():
         return UNKNOWN, "the stage has no inputs record (exported before export.py wrote one): export it again"
     changed = [name for name, hashed in json.loads(record.read_text())["inputs"].items()
@@ -295,6 +305,26 @@ def stage_requirement(stage):
     if changed:
         return FAIL, "changed since the stage was exported: " + ", ".join(sorted(changed)) + "; export it again"
     return PASS, "exported after the last change to its inputs"
+
+
+def store_stage_requirement(place, output):
+    """Whether `output` is assembly@<place>'s accepted output on the key its inputs give now (the runner's)."""
+    sys.path.insert(0, str(REPO))
+    from score import graph, stages
+    runner = stages.runner()
+    node = f"assembly@{place}"
+    try:
+        key = runner.key(runner.stages["assembly"], place)["key"]
+    except graph.Blocked as block:
+        return UNKNOWN, f"{node}'s current key cannot be worked out: {block}"
+    record = runner.store.record(node, key)
+    if record is None:
+        return FAIL, f"{node} has not run on its current inputs: this stage ({output[:12]}) is out of date"
+    if record["output"] != output:
+        return FAIL, f"this stage ({output[:12]}) is not {node}'s output on the current key ({record['output'][:12]})"
+    if runner.store.accepted(node) != output:
+        return FAIL, f"this stage ({output[:12]}) is {node}'s output on the current key but not accepted"
+    return PASS, f"{node}'s accepted output on the current key ({key[:12]})"
 
 
 def check_requirement(check, stage, current):
@@ -313,10 +343,18 @@ def check_requirement(check, stage, current):
 
 
 def review_requirement(place, stage, review, current):
-    """Whether the review page was built, and its scene rendered, from the stage as it is now."""
+    """Whether the place's review page was built from the stage as it is now: its store page (STORE_REVIEWS, what
+    the owner reviews), or page.py's page with its scene rendered from it."""
+    shown = STORE_REVIEWS / place / REVIEW_STAMP
+    if review is None and shown.exists():
+        built = json.loads(shown.read_text())
+        if built.get("fingerprint") != current:
+            return FAIL, f"the store page was built at {built.get('at')} from an earlier stage: build it again"
+        return PASS, f"store page built at {built.get('at')}"
     stamp = pathlib.Path(review or REVIEWS / place) / REVIEW_STAMP
     if not stamp.exists():
-        return UNKNOWN, f"no review page built by page.py at {stamp.parent}"
+        return UNKNOWN, f"no review page: neither a store page (store_page.py) at {shown.parent} nor page.py's at " \
+                        f"{stamp.parent}"
     built = json.loads(stamp.read_text())
     if built.get("fingerprint") != current:
         return FAIL, f"the review page was built at {built.get('at')} from an earlier stage: build it again"
@@ -328,7 +366,7 @@ def review_requirement(place, stage, review, current):
 def requirements(place, stage, review=None):
     """Every requirement of a complete place: [{name, result, why}], in order."""
     current = fingerprint(stage)
-    found = [("stage", *stage_requirement(stage))]
+    found = [("stage", *stage_requirement(stage, place))]
     found += [(check, *(recorded(*check_requirement(check, stage, current)) if check in EXPERIMENTAL
                         else check_requirement(check, stage, current))) for check in CHECKS]
     stale = [name for name, verdict, _ in found[1:] if verdict == UNKNOWN]
