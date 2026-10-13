@@ -6,12 +6,14 @@ plants, and the measured gate breaking when a kind is missing.
 import json
 import math
 import pathlib
+import sys
 import tempfile
 
-import score.stages.crops.concept as concept
-import score.stages.crops.crop_data as crop_data
-import score.stages.crops.layer as layer
-import score.stages.crops.look as look
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+import score.stages.crops.concept as concept  # noqa: E402
+import score.stages.crops.crop_data as crop_data  # noqa: E402
+import score.stages.crops.layer as layer  # noqa: E402
+import score.stages.crops.look as look  # noqa: E402
 
 RECORD = crop_data.record("greenhouse")
 SQUARE_PLOT = {"plot:raised garden bed": [{"box": [0, 0, 2000, 2000], "score": 0.9, "inside": 1.0, "fills": 1.0}]}

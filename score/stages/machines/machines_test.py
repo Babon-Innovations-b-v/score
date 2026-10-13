@@ -101,8 +101,8 @@ def test_assembly_takes_it(work):
 
 
 def test_boxes_grounds_the_machine_rows(work):
-    """machines-boxes asks SAM 3 for the hangar's ship only, and its gate fails a box SAM 3 found elsewhere (the cloud
-    call and the partition's record stood in for)."""
+    """machines-boxes asks SAM 3 for the hangar's ship and its ground_box row only, and its gate fails a box SAM 3
+    found elsewhere (the cloud call, the box judge and the partition's record stood in for)."""
     import score.stages.machines.boxes as boxes
     box_check, box_masks_cloud = boxes.box_tools()
     recorded = []
@@ -114,8 +114,9 @@ def test_boxes_grounds_the_machine_rows(work):
         pathlib.Path(out).write_text(json.dumps({row["key"]: [{"box": [0, 0, 50, 50], "inside": 0.0, "fills": 0.0,
                                                                   "score": 0.9}]
                                                  for job in found for row in job["rows"]}))
-    kept = box_masks_cloud.mask, box_check.record_results
+    kept = box_masks_cloud.mask, box_check.record_results, boxes.judged
     box_masks_cloud.mask, box_check.record_results = fake_mask, lambda results, measured: recorded.append(results)
+    boxes.judged = lambda *rest: {}  # the Gemini box judge (a paid ask) stood in for: it gives no verdict
     try:
         out = work / "boxes"
         out.mkdir()
@@ -123,10 +124,10 @@ def test_boxes_grounds_the_machine_rows(work):
                   "view v1": PROPS_HOME / "work/scene/hangar/views/K01.png"}
         boxes.make_boxes(inputs, out, 0, {})
     finally:
-        box_masks_cloud.mask, box_check.record_results = kept
-    assert asked == ["hangar.ship"], asked
+        box_masks_cloud.mask, box_check.record_results, boxes.judged = kept
+    assert sorted(asked) == ["hangar.lattice_ring_rib", "hangar.ship"], asked  # the machine row, the ground_box one
     verdict = boxes.judge_grounded(out, inputs, None)
-    assert verdict.answer == checks.FAIL and "off" in verdict.findings[0], verdict
+    assert verdict.answer == checks.FAIL and "hangar.ship: unchecked (SAM 3: off)" in verdict.findings, verdict
     assert recorded and recorded[0]["hangar.ship"]["passes"] is None  # an ungrounded box is not recorded as passing
 
 
