@@ -43,6 +43,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   row's gate "colour against the close-up" by name. A finish is measured on its label's brighter half, a
   dark one (library L* under `DARK_L` 35) on all its pixels: the light lifts blacks' brighter half to L* 40 to 45.
   A Gemini 3.1 Pro ask that times out is asked again with its thinking held low (`finish_ask.low_thinking`).
+  Glass, screen glow, lamp light and print off the lit colour keep their surface (owner, #8: judged by their own
+  colour). A finish the close-up shows over 10 L* lighter than another whose surface lies over 3 L* lighter in the
+  library takes the nearest surface of its family that keeps the order, else fails the gate by its order
+  (`in_close_up_order`). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
+  row's key, so an edit there repaints and rebakes every place. A strongly coloured finish named again (chroma over
+  40) is also asked whether it is lamp light (`finish_ask.GLOW_QUESTION`); other naming requests stay word for word.
 - **A finish is named again when its words or colour contradict its surface** (`surfaces-names`, paid, cached): its
   words name a material its surface's family is not (`finish_parts.contradicts`: black rubber as bare_steel), or its
   surface lies over `COLOUR_DELTA_E` from its close-up colour; Gemini is asked once with the close-up, the finish map
@@ -58,6 +64,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   signal; the registry proposals are written here first. `tools/props/heavy.py` refuses the step anywhere the
   cloud runner's mark (FARM_LOCAL_MODELS=1) is not set. prop_env.py is left alone: the method's rows import it, and an
   edit there re-keys every place's inputs.
+- **The check holds a bake against its surface dirtied as its place dirties it** (`bake_check.on_surface`: the
+  stretch from the library colour toward the place's dirt colour, as far as its dirt amount; the wreck's whites
+  bake to L* 69 in regolith at 0.6 and pass, a wrong surface still fails).
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
   `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their world
   files from `row_files.py`, so neither this folder's `__init__.py` nor `place_line.py` is in their code

@@ -268,6 +268,38 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
     assert found[1]["new_surface"]["lab"] == [round(float(value), 1) for value in light_grey]
 
 
+def test_a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_colour():
+    """The water tank: its panel 13 L* lighter than its steel in the close-up, painted_panel under bare_steel in the
+    library; cream_paint keeps the order. Glass off the lit colour keeps its surface (owner, #8)."""
+    every = {"painted_panel": {"family": "painted", "colour": [0.30, 0.31, 0.33]},
+             "cream_paint": {"family": "painted", "colour": [0.55, 0.53, 0.46]},
+             "bare_steel": {"family": "steel", "colour": [0.35, 0.36, 0.38]},
+             "glass": {"family": "glass", "colour": [0.6, 0.65, 0.7]}}
+    panel_lab = [round(float(value), 1) for value in finish_parts.library_lab(every["cream_paint"]) - [4, 0, 0]]
+    steel_lab = [round(float(value), 1) for value in finish_parts.library_lab(every["bare_steel"]) - [8, 0, 0]]
+    found = finish_parts.in_close_up_order({"object": "water tank"}, [
+        {"finish": "off-white paint", "surface": "painted_panel", "measured_lab": panel_lab, "by": "the list"},
+        {"finish": "steel legs", "surface": "bare_steel", "measured_lab": steel_lab, "by": "the list"}], every)
+    assert found[0]["surface"] == "cream_paint" and found[0]["by"] == "nearest of its family in order", found[0]
+    alone = {name: spec for name, spec in every.items() if name != "cream_paint"}
+    flagged = finish_parts.in_close_up_order({"object": "water tank"}, [
+        {"finish": "off-white paint", "surface": "painted_panel", "measured_lab": panel_lab, "by": "the list"},
+        {"finish": "steel legs", "surface": "bare_steel", "measured_lab": steel_lab, "by": "the list"}], alone)
+    assert flagged[0]["by"] == "off its colour" and "lighter than bare_steel" in flagged[0]["new_surface"]["why"]
+    kept = [{"finish": "steel legs", "surface": "bare_steel", "measured_lab": steel_lab, "by": "the list"}]
+    assert finish_parts.in_close_up_order({"object": "x"}, [dict(kept[0])], every) == kept  # nothing to order
+    import labels
+    saved = labels.allowed_materials
+    labels.allowed_materials = lambda place, kind, without: every
+    try:
+        lit = finish_parts.checked_finishes({"library_places": ["lab"], "kind": "lamp", "object": "lamp"},
+                                            [{"finish": "red lit lens", "parts": "lens", "surface": "glass"}],
+                                            [np.array([45.0, 60.0, 40.0])])
+    finally:
+        labels.allowed_materials = saved
+    assert lit[0]["surface"] == "glass" and lit[0]["by"] == "its own colour", lit[0]
+
+
 def test_a_finish_whose_words_name_another_material_is_named_again():
     assert finish_parts.contradicts("black rubber, on the lamp's foot", "steel")
     assert finish_parts.contradicts("printed paper, on the tray's label", "rubber")

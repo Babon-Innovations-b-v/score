@@ -407,27 +407,17 @@ def test_a_take_s_paint_job_sends_what_it_reads_and_brings_its_folder_back():
         assert json.loads(pathlib.Path(listing["paint records"]).read_text()) == [{"part": 0}]
 
 
-def test_a_surface_the_close_up_shows_lighter_but_the_library_holds_darker_fails_before_the_bake():
-    """The greenhouse's water tank: painted_panel (L* 61.6) under bare_steel (66.3) in the library, the panel 13 L*
-    lighter in its close-up."""
-    from score.stages.surfaces import place_line
-    lightness = {"painted_panel": 61.6, "bare_steel": 66.3, "cream_paint": 80.0}
-    tank = [{"surface": "painted_panel", "measured_lab": [80.3, 0, 6]},
-            {"surface": "bare_steel", "measured_lab": [67.3, 0, 0]}]
-    assert place_line.order_faults("water_tank-r1", tank, lightness) == [
-        "water_tank-r1: painted_panel is 13.0 L* lighter than bare_steel in its close-up but 4.7 darker in the library"]
-    tank[0]["surface"] = "cream_paint"
-    assert place_line.order_faults("water_tank-r1", tank, lightness) == []
-    glass = [{"surface": "glass", "measured_lab": [90, 0, 0]}, {"surface": "bare_steel", "measured_lab": [60, 0, 0]}]
-    assert place_line.order_faults("lamp", glass, lightness) == []  # glass is not in the opaque lightness
-
-
-def test_glass_glow_lamp_light_and_print_are_judged_by_their_own_colour():
-    from score.stages.surfaces import place_line
-    assert set(place_line.OWN_COLOUR) == {"glass", "screen", "light", "print"}
-    garage = json.loads((REPO / "data/surfaces/garage.json").read_text())["takes"]
-    families = place_line.surface_families(garage["charge_post-g1"])
-    assert families["screen"] == "screen" and families["cast_steel"] == "steel", families
+def test_a_bake_is_held_against_its_surface_dirtied_as_far_as_its_place_s_dirt():
+    """The wreck: dirt 0.6 in regolith (L* 56.8); its white hull (89.6) bakes to 69.0 and is on its surface; the same
+    white at a clean place, or baked darker than its dirt reaches, is not; a wrong surface is not."""
+    import numpy as np
+    from score.stages.surfaces import bake_check
+    white, regolith = np.array([89.6, -1.7, 1.6]), np.array([56.8, 0.2, 3.1])
+    baked = np.array([69.0, -0.8, -3.2])
+    assert bake_check.on_surface(baked, white, regolith, 0.6) < 6
+    assert bake_check.on_surface(baked, white, regolith, 0.0) > bake_check.BAKE_DELTA_E
+    assert bake_check.on_surface(np.array([40.0, 0, 0]), white, regolith, 0.6) > bake_check.BAKE_DELTA_E
+    assert bake_check.on_surface(baked, white, None, 0.6) > bake_check.BAKE_DELTA_E
 
 if __name__ == "__main__":
     for name, test in list(globals().items()):

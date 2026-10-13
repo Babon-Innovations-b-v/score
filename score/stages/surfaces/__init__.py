@@ -75,8 +75,7 @@ METHOD = (
 LINE = (
     graph.Stage("surfaces-paint", "place", place_line.make_paint, contract("surfaces-paint", place_line.paint_faults),
                 (guarded("one surface a part", place_line.judge_one_surface),
-                 guarded("colour against the close-up", place_line.judge_concept_colour),
-                 guarded("lightness order against the close-up", place_line.judge_concept_order)),
+                 guarded("colour against the close-up", place_line.judge_concept_colour)),
                 files=data.line_files, after=reads("surfaces-parts"), applies=data.paints, paid=True,
                 euros=place_line.PAINT_EUROS),
     row("surfaces-bake", place_line.make_bake, place_line.bake_faults, "baked", place_line.judge_baked,
