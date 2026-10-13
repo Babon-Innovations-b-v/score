@@ -1,6 +1,41 @@
 {
  "place": "flat",
- "from": "the game 2099's EarthSite (game/prologue/earth_site/earth_site.gd), checked 2026-10-08",
- "note": "The game places nobody in the flat: the player is alone at home on launch night, and the leader is only a picture on the television.",
- "people": []
+ "from": "the flat's concept (K06.png), measured by score.stages.concept_people (accepted 2026-10-12): two people (a man standing on the balcony, a youth sitting at the table; three framed pictures of people are pictures); each stands at the plan's people spot for them (data/plans/prologue_flat... data/plans/flat.json `people`, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures",
+ "note": "Two people, as the concept shows, told apart by appearance against the made looks. The man on the balcony watching the launch, seen from behind (an adult man, dark hair, average build), is the player: the prologue is his launch night at home, and the player is the only made adult man of that look; his made look is the work suit, not the concept's shirt and trousers. The youth at the table has no made look of his own: a kit look stands for him (kit_m_avg, the nearest build; the kit is adult and its uniform is not his clothes). No clip sits on a chair, so he stands at the table.",
+ "people": [
+  {
+   "name": "player",
+   "character": "player",
+   "look": "player_work",
+   "doing": "standing",
+   "at": [
+    -4.1,
+    0.02,
+    -4.0
+   ],
+   "facing_to": [
+    -6.0,
+    0.02,
+    -4.0
+   ],
+   "why": "the player on the balcony, watching the launch over the square, as the concept shows him"
+  },
+  {
+   "name": "youth",
+   "character": "kit_m_avg",
+   "look": "kit_m_avg_uniform-olive",
+   "doing": "bench",
+   "at": [
+    0.4,
+    0.02,
+    -3.0
+   ],
+   "facing_to": [
+    -0.85,
+    0.02,
+    -4.0
+   ],
+   "why": "the youth the concept shows sitting at the table, standing at it (no clip sits on a chair)"
+  }
+ ]
 }
