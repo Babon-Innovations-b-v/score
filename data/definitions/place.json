@@ -2807,6 +2807,10 @@
 			"screen_glow_blue": {
 				"token": "earth-ocean",
 				"library": "screen_glow_blue"
+			},
+			"enamel_white": {
+				"token": "sign-white",
+				"library": "enamel_white"
 			}
 		},
 		"light": {
