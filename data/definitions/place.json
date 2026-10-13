@@ -3197,6 +3197,10 @@
 				"token": "earth-sunset",
 				"library": "suit_fabric_orange"
 			},
+			"enamel_red": {
+				"token": "danger",
+				"library": "enamel_red"
+			},
 			"beta_cloth": {
 				"token": "hull",
 				"library": "beta_cloth"
