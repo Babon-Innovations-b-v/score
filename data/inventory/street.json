@@ -348,10 +348,10 @@
 			"id": "facade_band",
 			"view": "v2",
 			"box": [
-				1602,
-				565,
-				2752,
-				623
+				1972,
+				460,
+				2748,
+				505
 			],
 			"name": "render band along a floor",
 			"kind": "code",
@@ -367,12 +367,10 @@
 			"close_up": "place-ssl/pics/facade_band.png",
 			"repeats": "across the room",
 			"box_from": [
-				"v2.332",
-				"v2.458",
-				"v2.706",
-				"v2.714",
-				"v2.722"
-			]
+				"v2.121"
+			],
+			"ground_box": "judge",
+			"why_box": "the render band along the east facade's floor line under a row of windows (proposal v2.121); its old box was round the gas pipe (2026-10-13)"
 		},
 		{
 			"id": "drainpipe",
@@ -921,10 +919,10 @@
 			"id": "facade_pipe",
 			"view": "v2",
 			"box": [
-				1899,
-				233,
+				1602,
+				565,
 				2752,
-				602
+				623
 			],
 			"name": "gas pipe along a face over the shop signs",
 			"kind": "code",
@@ -941,45 +939,13 @@
 			"repeats": "across the room",
 			"box_from": [
 				"v2.332",
-				"v2.722",
-				"v2.24",
-				"v2.57",
-				"v2.64",
-				"v2.81",
-				"v2.102",
-				"v2.115",
-				"v2.119",
-				"v2.121",
-				"v2.132",
-				"v2.144",
-				"v2.150",
-				"v2.164",
-				"v2.167",
-				"v2.175",
-				"v2.193",
-				"v2.207",
-				"v2.223",
-				"v2.238",
-				"v2.289",
-				"v2.304",
-				"v2.318",
-				"v2.326",
-				"v2.333",
-				"v2.348",
-				"v2.355",
-				"v2.357",
-				"v2.365",
-				"v2.367",
-				"v2.369",
-				"v2.372",
-				"v2.378",
-				"v2.408",
-				"v2.463",
-				"v2.520",
-				"v2.549",
-				"v2.572",
-				"v2.723"
-			]
+				"v2.458",
+				"v2.706",
+				"v2.714",
+				"v2.722"
+			],
+			"ground_box": "judge",
+			"why_box": "the gas pipe along the east facade over the shop signs (the band's old proposals, the box the judge named a horizontal pipe); the old box was round windows and air conditioners (2026-10-13)"
 		},
 		{
 			"id": "end_wall",
