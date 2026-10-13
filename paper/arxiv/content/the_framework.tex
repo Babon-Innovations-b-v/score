@@ -1,31 +1,31 @@
 \section{The framework}\label{the-framework}
 
-\begin{figure}
-\centering
-\includegraphics[width=0.7\linewidth,height=\textheight,keepaspectratio,alt={The stages on the hub of the game 2099: (a) the concept the creator chose, (b) the plan in metres, (c) part of the inventory, (d) two close-ups, (e) one library surface at three wear settings, (f) the room in the game engine.}]{figures/fig-overview.jpg}
-\caption{The stages on the hub of the game 2099: (a) the concept the creator chose, (b) the plan in metres, (c) part of the inventory, (d) two close-ups, (e) one library surface at three wear settings, (f) the room in the game engine.}
-\end{figure}
+A world is a table of stages; world 1's has 95 rows. A \textbf{node} is one stage for one place (\texttt{assembly@hangar}) or for the whole world, and one runner makes, judges and accepts every node. The creator's picks (the concept of each place, the style, the references) are the inputs; from there everything runs without a typed yes, and the creator reviews.
 
-Figure 1 shows the stages on one place, from the creator's concept to the assembled room. Every stage's output is kept, so the creator can trace a weak result to its stage and rerun or fix that stage alone. Appendix C lists every model, its licence, and what was automatic or done by hand.
+\subsection{Keys, gates and accepts}\label{keys-gates-and-accepts}
 
-\textbf{Inventory.} A coding agent cuts the concept into tiles and lists every visible element, and each element becomes a row, with its kind, anchor, size and count, or is dropped with a written reason. Nothing is made or placed that is not a row.
+\textbf{Keys.} A node is made only when its key has no finish record. The key hashes the stage and place, a code version, the contracts of its output and inputs, its parameters, a seed derived from the world's, the pinned model images, every world file it reads and the accepted output of every node it reads. The code version hashes every source file the stage's make and gates import, walked through their imports; the runner and the renting code are left out, since they change what a run costs, not what it makes. A fault fixed in one stage moves the keys of that stage and of what follows it, and nothing else. Outputs are kept by content hash, never overwritten, each stamped with its schema in metres, seconds and degrees.
 
-\textbf{Close-ups.} Every inventory row gets a close-up, a picture of the object alone, drawn from its crop of the concept by an open model, Qwen-Image-Edit-2511 \citep{qwenimageedit}; only a close-up that fails the shape check (Section 3.1) is redrawn by a closed one, Nano Banana Pro \citep{nanobananapro}.
+\textbf{Gates and accepts.} Each gate answers pass, fail or unknown, with measures and a reason; missing evidence is unknown, and unknown blocks like fail. The runner accepts an output by itself when every gate passed and it is no worse than the output accepted before: no answer dropped, no measure moved the wrong way, no gate went missing. Later nodes read only accepted outputs. The creator keeps four commands, from his own terminal: reject an accepted output (it moves back to the one before, and every node that read it is stale), accept a worse one with his reason, waive one gate for one key, and override the runner for one paid run. None is needed for a run. Agents are kept from them by a barrier, not a lock: the commands want a terminal, the store refuses the creator's records from any process an agent started, and a hook blocks the other routes.
 
-\textbf{Models.} Each object is built by a code builder that a coding agent writes or generated from its close-up by Pixal3D \citep{li2026pixal3d}, as the parts check decides (Section 3.2). Every real-world object becomes one model: a console becomes a desk carrying separate monitors and keyboards. Models give shape only (Section 3.3). Outdoor ground follows a plan of flat areas and paths, with landforms from a picture drawn over it.
-
-\textbf{The canonical scene.} Every place is one OpenUSD stage \citep{openusd} in which each object carries its kind, its transform in metres, its collision and the library surface of each part, together with the room's shell, the ground, the backdrop, the lights and the cameras the place is judged from. The generated base layer lies under an edit layer that belongs to the creator, so an edit survives when the base is generated again (Figure 2).
-
-\begin{figure}
-\centering
-\includegraphics[width=0.6\linewidth,height=\textheight,keepaspectratio,alt={The wreck as an OpenUSD stage: (a) in the game; (b) rendered in Blender from the same camera; (c) Blender's object outlines over the game's picture; (d) after an edit in the edit layer (cover moved, hull given another surface) and a regenerated base.}]{figures/fig-usd.jpg}
-\caption{The wreck as an OpenUSD stage: (a) in the game; (b) rendered in Blender from the same camera; (c) Blender's object outlines over the game's picture; (d) after an edit in the edit layer (cover moved, hull given another surface) and a regenerated base.}
-\end{figure}
-
-\textbf{The other layers.} The same stage holds the rest of what makes a place complete, each in a layer of its own: people, as skinned characters that a chain of open models makes from a picture or a few words; sound, generated by MOSS-SoundEffect \citep{moss2026} and tied to surfaces, rooms and objects; motion, as time samples; particle effects; and shaders, baked into pictures any USD reader can draw. Every stage that loads a model runs as a batch on rented cards that are deleted afterwards, or as a job on a Kubernetes cluster.
+\textbf{Spending and review.} A paid node is cleared only when every gate on its inputs passed and the month's ceiling has room for its estimate (Section 3.7); every place in the code that rents a machine or calls a paid model refuses without that ticket, and a run that would buy again more than EUR 5 of accepted outputs needs a written reason. Each node's review page is built from the store alone (its gates' answers and measures, who accepted it, the command that rejects it), and the creator reviews a place in a USD viewer on the store's copy of its accepted assembly; nothing is rendered for review.
 
 \begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
 
-\textbf{Gap: the scene in a game engine.} The same stage loaded in a game engine with its collision, surfaces, mass and friction. It waits on the game engine adapter.
+\textbf{Gap: Figure 2, the stages on the hub} (concept, plan, inventory, close-ups, a library surface at three wears, the assembled room), \textbf{and Figure 3, the greenhouse's review page.} They wait on the hub's and the greenhouse's one assembly passing its completion gate; the earlier hub figure predates the runner and is withdrawn.
+
+\end{minipage}}\end{center}
+
+\subsection{From concept to scene}\label{from-concept-to-scene}
+
+\textbf{Inventory, plan and record.} A coding agent lists every visible element of the concept as an inventory row (kind, anchor, size, count) or drops it with a written reason; nothing is made or placed that is not a row. It draws a dimensioned plan, gated on \texttt{mapped} (every element of the concept a row, a door or a written drop; every door says where it leads). The scene record is written from the plan, inventory, made ground and sky, gated on \texttt{game-free} (nothing copied from the game the world came from), \texttt{plan-matched} (the shell within 5 cm of the plan), \texttt{openings} (every doorway onto a floor, no view into nothing) and \texttt{seed-matched} (every old entry matched or dropped with a reason).
+
+\textbf{The canonical scene.} Every place is one OpenUSD stage \citep{openusd} in which each object carries its kind, transform, collision and the library surface of each part. Its layers lie in a fixed order, the creator's edit layer on top, then people, sound, light, motion, effects, crops, machines, settle, ground and the generated base, so an edit survives a regenerated base. Each place is assembled once, from every layer's accepted output; its \texttt{layers} gate answers unknown while a layer the place needs has none, and an old output never stands in.
+
+\textbf{Models, generation first.} Every object goes the prop route first: Nano Banana Pro \citep{nanobananapro} draws its close-up from its crop of the concept, Pixal3D \citep{li2026pixal3d} builds it, the surface stage paints it, and a free likeness gate compares its outline from eight sides with its close-up. Only an object whose measured checks fail is built by a code builder that a coding agent writes. This reverses the earlier parts check, which built a kind in code whenever its code build showed every part of the close-up (the creator's choice, 12 October 2026). Every real-world object stays one model: a console is a desk carrying separate monitors. Most of world 1's models predate the change and enter as unverified seeds, judged by the stages after them.
+
+\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+
+\textbf{Gap: Figure 4, one scene, an edit kept} (the wreck from camera 1, with an edit that survives a regenerated base whose models were repainted), \textbf{and Figure 5, generation first} (four of the hub's objects, two generated and two falling back to code, with passes, euros and agent hours for both orders). Figure 4 waits on the wreck's surface check and assembly; the hub's comparison has run and waits on its record being published.
 
 \end{minipage}}\end{center}
