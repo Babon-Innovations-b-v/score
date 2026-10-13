@@ -261,18 +261,18 @@ def standing(entry, ground, surfaces, left_out, statics):
 
 def nearest_points(mesh, points, gaps, gaps_of):
     """An object's footing taken by how near its points come to what is under them, not by how low they are, when
-    its lowest points touch nothing: its points (of its lower half, at most LOW_POINTS) whose gap lies within LOW_BAND
+    its lowest points touch nothing: its points of its lower half (each asked) whose gap lies within LOW_BAND
     of the least, or the lowest points and their gaps when none comes nearer. The wreck's aft section, a hull lying
     across a crater's rim, touched the rim 15 cm over its lowest point and was read as floating (2026-10-13)."""
     every = np.vstack([np.asarray(mesh.vertices), mesh.sample(OWN_SAMPLES, seed=0)]) if mesh.area > 0 else \
         np.asarray(mesh.vertices)
     lower = every[every[:, 1] <= (every[:, 1].min() + every[:, 1].max()) / 2]
-    if len(lower) > LOW_POINTS:
-        lower = lower[np.random.default_rng(0).choice(len(lower), LOW_POINTS, replace=False)]
-    found = gaps_of(lower)
+    found = gaps_of(lower)  # every one of them asked: a contact is a few points of thousands (the snap found it)
     if not len(found) or found.min() >= gaps.min():
         return points, gaps
-    near = found <= found.min() + LOW_BAND
+    near = np.nonzero(found <= found.min() + LOW_BAND)[0]
+    if len(near) > LOW_POINTS:
+        near = near[np.random.default_rng(0).choice(len(near), LOW_POINTS, replace=False)]
     return lower[near], found[near]
 
 
