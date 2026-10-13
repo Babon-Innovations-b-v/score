@@ -53,11 +53,15 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   dark one (library L* under `DARK_L` 35) on all its pixels: the light lifts blacks' brighter half to L* 40 to 45.
   A Gemini 3.1 Pro ask that times out is asked again with its thinking held low (`finish_ask.low_thinking`).
   Glass, screen glow, lamp light and print off the lit colour keep their surface (owner, #8: judged by their own
-  colour). A finish the close-up shows over 10 L* lighter than another whose surface lies over 3 L* lighter in the
+  colour), and so does a see-through finish of another family (`coloured_cover`: the garage beacon's red transparent
+  dome, its pixels its highlights and what lies behind it). A finish the close-up shows over 10 L* lighter than another whose surface lies over 3 L* lighter in the
   library takes the nearest surface of its family that keeps the order, else fails the gate by its order
   (`in_close_up_order`); a finish out of that order is also named again (`out_of_order`). A finish's close-up pixels
   whose first face from the camera is a see-through part (glass, light, screen, transparent or translucent words) are
-  left out of its measure (`behind_left_out`: the garage beacon's reflector behind its red dome). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
+  left out of its measure (`behind_left_out`). A finish drawn within one see-through finish (its outline at least
+  90% that cover, `seen_within`) is laid as the cover, in every map: the model is the cover's shell with nothing
+  inside, so the maps drew what lies behind it on the cover's own faces (the garage beacon's reflector on its red
+  dome). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
   row's key, so an edit there repaints and rebakes every place. A strongly coloured finish named again (chroma over
   40) is also asked whether it is lamp light (`finish_ask.GLOW_QUESTION`); other naming requests stay word for word.
 - **A finish is named again when its words or colour contradict its surface** (`surfaces-names`, paid, cached): its
