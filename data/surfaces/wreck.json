@@ -1,6 +1,8 @@
 {
  "place": "wreck",
  "library": "wreck",
+ "foot_traffic": false,
+ "foot_traffic_cause": "a crash site on open ground nobody walks: lunar dust and decades of sun and cold; edges chip, no boots kick the pieces' feet (2026-10-13)",
  "takes": {
   "access_cover-s1": {
    "places": [

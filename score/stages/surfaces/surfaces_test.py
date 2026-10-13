@@ -596,6 +596,21 @@ def test_a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_
     level[:4, 1] = 0.0
     assert place_line.flattened_base(level, 0.25, 0.01, 0.15)[1]["flattened"] == []
 
+def test_only_a_place_nobody_walks_bakes_with_no_kick_wear():
+    """The wreck's surface data says nobody walks it: its bake's specs say kicks 0. Every other place's data says
+    nothing, so unwalked hands its specs back as given, the very same object (recipes.WALKED: kicked as before), and
+    its bake is the same as before the change (2026-10-13)."""
+    from score.stages.surfaces import place_line
+    specs = {"dark_panel": {"recipe": "painted_metal"}, "bare_steel": {"recipe": "bare_metal"}}
+    assert {spec["kicks"] for spec in place_line.unwalked(specs, surface_data.record("wreck")).values()} == {0.0}
+    unwalked = sorted(path.stem for path in surface_data.FOLDER.glob("*.json")
+                      if json.loads(path.read_text()).get("foot_traffic", True) is False)
+    assert unwalked == ["wreck"], unwalked
+    for path in surface_data.FOLDER.glob("*.json"):
+        if path.stem != "wreck":
+            assert place_line.unwalked(specs, surface_data.record(path.stem)) is specs, path.stem
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

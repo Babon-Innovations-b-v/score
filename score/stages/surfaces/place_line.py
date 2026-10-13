@@ -401,6 +401,15 @@ def baking_specs(library_name, specs, labelled):
     return found
 
 
+def unwalked(specs, data):
+    """The bake specs as the place paints them: in a place nobody walks (its surface data's `foot_traffic` false, the
+    wreck's crash site, 2026-10-13) each says `kicks` 0, so recipes.kick_mask wears nothing there and wear comes only
+    from its other causes; a walked place's specs as given."""
+    if data.get("foot_traffic", True):
+        return specs
+    return {name: dict(spec, kicks=0.0) for name, spec in specs.items()}
+
+
 def make_bake(inputs, out, seed, params):
     """The labelled folders baked on rented cards (library_bake.py make_chunky), one job per model."""
     inputs = prop_env.short(inputs)
@@ -409,7 +418,7 @@ def make_bake(inputs, out, seed, params):
     takes = json.loads((painted / "painted.json").read_text())["takes"]
     labelled = {take: painted / "labelled" / take for take in takes}
     job, chunky = bake_entries(inputs, labelled)
-    job["specs"] = baking_specs(data["library"], job["specs"], list(labelled.values()))
+    job["specs"] = unwalked(baking_specs(data["library"], job["specs"], list(labelled.values())), data)
     jobs = []
     for entry in chunky:
         one = dict(job, chunky=[entry], out=str(out / "made"), report=f"report-{entry['name']}.json")
