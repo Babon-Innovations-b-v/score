@@ -18,7 +18,7 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   (prop_prints.py: the face from the close-up, the flag patch drawn) are the only pictures. A skin part, a boot and a
   mitt get a tuck under every border they share with a garment (tucks.py): the joins joins.py measures and the neck; a
   hard part elsewhere (a belt, a pack) sits on the cloth and needs none. Every hard part and the hair ride one joint
-  rigidly (`rigid_joint`: a boot its foot, a mitt its hand, the hair the head, a belt, buckle, helmet or pack the joint
+  rigidly, and so do the bare hands (`rigid_joint`: a boot its foot, a mitt or a hand its hand, the hair the head, a belt, buckle, helmet or pack the joint
   its weights favour), and a garment within EASE_REACH of a hard part is eased onto that part's joint, so the trouser
   hem goes with the boot it covers.
 - **Piping is cut in, not found** (piping.py): where the parts name a piping material, thin strips down the outside
@@ -98,6 +98,11 @@ def floor_lift(mean_rig, fit_rig, names, scale):
     return float(fit_rig["bind"][feet, 1, 3].min() - world[0, feet, 1, 3].min())
 
 
+# Parts that ride one joint whatever their role: the hair, and the bare hands (captain, 2026-10-13, the owner's
+# rigid-parts-on-one-bone rule: the look's hands lie well off SOMA-X's, so a shell would warp them).
+RIGID_NAMES = ("hair", "skin_hands")
+
+
 def face_parts(fit_rig, parts):
     """Each fit face's part: the thinned mesh's own (prop_rig.py --parts) where it has one, else parts.npz's."""
     return fit_rig["part_of"] if "part_of" in fit_rig.files else parts["part_of"]
@@ -123,13 +128,13 @@ def on_one_joint(count, names, joint):
 def rigid_joint(name, points, weights, names):
     """The one joint a hard part or the hair rides (plan step 3: boots, buckles, helmets, packs ride one joint
     rigidly; the review found the boots stretched 6.7 to 8.2 times on three joints, 2026-10-10): the hair the head, a
-    boot its side's foot, a mitt its side's hand, any other the joint its transferred weights favour."""
+    boot its side's foot, a mitt or a bare hand its side's hand, any other the joint its transferred weights favour."""
     side = "Left" if points[:, 0].mean() > 0 else "Right"
     if name == "hair":
         return "Head"
     if name.startswith("boot"):
         return side + "Foot"
-    if name.startswith("mitt"):
+    if name.startswith("mitt") or name == "skin_hands":
         return side + "Hand"
     if "belt" in name or "buckle" in name:
         # Posed on the player's clips without a settle (2026-10-13): on the hips its edges went over 3 mm through
@@ -262,7 +267,7 @@ def surfaces(fit_rig, parts, prints=None):
                                     face_parts(fit_rig, parts)), names_of)
     role_of = {key: str(parts["roles"][index[key[0]]]) for key in pieces}
     hard_points, hard_joints = [np.zeros((0, 3))], [np.zeros(0, dtype=object)]
-    rigid = [key for key in pieces if role_of[key] == "hard" or key[1] == "hair"]
+    rigid = [key for key in pieces if role_of[key] == "hard" or key[1] in RIGID_NAMES]
     joint_of = {}
     for group in hard_things(rigid, pieces):
         joint = rigid_joint(group[0][1], np.concatenate([pieces[key][0] for key in group]),
