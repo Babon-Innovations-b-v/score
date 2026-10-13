@@ -46,7 +46,10 @@ stage as each stage is built; nothing moves before.
   since. A node's key hashes its computed code version (`_code.py`: its make's and checks' files and every repository module they
   import, inside functions and through `sys.path` folders too (read from the files, in the folders the path held at the process's first code version, so a folder a make adds later moves nothing); never the framework's own runner, review, clearance,
   stage table and renting code (`batch`, `capacity`, `park`, `blender_cloud`), `_code.FRAMEWORK`, so one line's edits there re-make no other line's nodes), parameters, seed,
-  pinned models and every input. Before `run` starts, `rebuy.py` lists every paid row it would buy with its
+  pinned models and every input, a declared folder's bytecode left out (`graph.source_hash`: each checkout writes its
+  own __pycache__, #67; an accepted output whose key moved only by it is kept under the new key when its record is
+  of a committed tree and the folder's sources at that commit, from git, hash as now: `Runner.kept_over_bytecode`,
+  "same sources, bytecode left out of the key", the proof in its record). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
   accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);

@@ -2,6 +2,7 @@
 repository module those import, followed import by import. No hand-bumped string to forget."""
 import ast
 import functools
+import hashlib
 import importlib.util
 import inspect
 import pathlib
@@ -110,6 +111,32 @@ def holds(commit):
     branches = subprocess.run(["git", "-C", str(REPO), "for-each-ref", "--contains", commit, "refs/heads",
                                "refs/remotes"], capture_output=True, text=True)
     return known.returncode == 0 and branches.returncode == 0 and not branches.stdout.strip()
+
+
+def source_hash_at(commit, relative):
+    """The key hash (graph.source_hash) a repository file or folder had at `commit`, from git's own objects: the
+    sources only, as git holds no bytecode."""
+    from score.store import listing_hash
+    entries = subprocess.run(["git", "-C", str(REPO), "ls-tree", "-r", "-z", commit, "--", relative],
+                             capture_output=True, text=True, check=True).stdout.split("\0")
+    blobs = {}
+    for entry in filter(None, entries):
+        meta, name = entry.split("\t", 1)
+        if meta.split()[1] == "blob":
+            blobs[pathlib.PurePosixPath(name).name if name == relative
+                  else pathlib.PurePosixPath(name).relative_to(relative).as_posix()] = meta.split()[2]
+    if not blobs:  # nothing there at that commit
+        return listing_hash({})
+    asked = ("\n".join(blobs.values()) + "\n").encode()
+    batch = subprocess.run(["git", "-C", str(REPO), "cat-file", "--batch"], input=asked, capture_output=True,
+                           check=True).stdout
+    listing, at = {}, 0
+    for name, blob in blobs.items():
+        header_end = batch.index(b"\n", at)
+        size = int(batch[at:header_end].split()[2])
+        listing[name] = hashlib.sha256(batch[header_end + 1:header_end + 1 + size]).hexdigest()
+        at = header_end + 1 + size + 1
+    return listing_hash(listing)
 
 
 def git_commit():

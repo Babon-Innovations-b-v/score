@@ -61,7 +61,7 @@ from typing import Callable
 from score import checks, contracts, review
 from score.adapters import models
 from score.graph import _code
-from score.store import file_hash, listing_hash, text_hash, tree_hash, tree_listing
+from score.store import file_hash, listing_hash, text_hash, tree_files, tree_listing
 
 GRAINS = ("world", "place")
 WORLD_LINE = "world"
@@ -168,6 +168,20 @@ def now():
 def node_seed(world_seed, stage, place):
     """The seed of one node, from the world's seed, the stage and the place: never a typed number."""
     return int(text_hash(f"{world_seed}/{stage}/{place}")[:8], 16)
+
+
+BYTECODE_REASON = "same sources, bytecode left out of the key"
+
+
+def bytecode(relative):
+    """True for Python's bytecode (a __pycache__ folder's file or a .pyc): each checkout writes its own beside the
+    sources it runs, so a key that hashed it moved with the worktree a run came from (#67, 2026-10-13)."""
+    return relative.endswith(".pyc") or "__pycache__" in relative.split("/")
+
+
+def source_hash(path):
+    """A world file's or folder's hash as a key part: the store's tree hash of it, its bytecode left out."""
+    return listing_hash({name: file_hash(found) for name, found in tree_files(path).items() if not bytecode(name)})
 
 
 def node_name(stage, place):
@@ -295,7 +309,7 @@ class Runner:
             path = self.file_path(stage, name, place)
             if not path.exists():
                 raise Blocked(f"{node_name(stage, place)}: its input {name} is missing ({path})")
-            keys[name] = text_hash(pattern[1](path)) if isinstance(pattern, tuple) else tree_hash(path)
+            keys[name] = text_hash(pattern[1](path)) if isinstance(pattern, tuple) else source_hash(path)
         return keys
 
     def usable(self, before, place, wanted):
@@ -496,6 +510,8 @@ class Runner:
         record = self.store.record(node, keyed["key"])
         if record is None and hasattr(stage.files, "carried"):  # its accepted output, kept when its inputs are the same
             record = stage.files.carried(self, stage, place, keyed)
+        if record is None:  # its accepted output, kept when only bytecode moved its key (#67)
+            record = self.kept_over_bytecode(stage, place, keyed)
         made = record is None
         if made:
             try:
@@ -514,6 +530,53 @@ class Runner:
             return f"{done}, not accepted: {newer}"
         accepted = review.accept_automatically(self.store, node, record["output"])
         return f"{done}, accepted automatically" if accepted else done
+
+    def bytecode_proof(self, stage, place, keyed):
+        """{file name: its recorded hash, its sources' hash at the record's commit and now} when the node's accepted
+        output differs from `keyed` only by bytecode in declared repository files (#67: keys hashed each checkout's
+        __pycache__ until 2026-10-13): a record of a committed tree, every other key part the same, and each file
+        that moved, rebuilt from git at the record's commit, hashing as it does now. None otherwise."""
+        node = node_name(stage, place)
+        accepted = self.store.accepted(node)
+        record = review.record_of(self.store, node, accepted) if accepted else None
+        if record is None or record.get("uncommitted", True) or not record.get("commit"):
+            return None
+        if any(record.get(part) != keyed.get(part) for part in ("code", "contract", "expects", "params", "seed",
+                                                                 "models", "after", "beside")):
+            return None
+        if set(record["files"]) != set(keyed["files"]):
+            return None
+        proof = {}
+        for name in sorted(name for name in keyed["files"] if record["files"][name] != keyed["files"][name]):
+            path = self.file_path(stage, name, place).resolve()
+            if isinstance(self.files_of(stage, place)[name], tuple) or not path.is_relative_to(_code.REPO):
+                return None
+            then = _code.source_hash_at(record["commit"], path.relative_to(_code.REPO).as_posix())
+            if then != keyed["files"][name]:
+                return None
+            proof[name] = {"recorded": record["files"][name], "at its commit": then, "now": keyed["files"][name]}
+        return {"record": record, "files": proof} if proof else None
+
+    def kept_over_bytecode(self, stage, place, keyed):
+        """The node's accepted output stored under `keyed` when only bytecode moved its key (bytecode_proof): its
+        record and judgements copied, the record naming the reason, both keys, the commit that made it and the proof.
+        Its new record, or None (the runner then makes the node)."""
+        proved = self.bytecode_proof(stage, place, keyed)
+        if proved is None:
+            return None
+        node, record = node_name(stage, place), proved["record"]
+        new = {**record, "key": keyed["key"], "files": keyed["files"],
+               "carried": {"reason": BYTECODE_REASON, "from key": record["key"], "to key": keyed["key"],
+                           "made by": {"commit": record["commit"], "code": record["code"]},
+                           "sources": proved["files"]}}
+        try:
+            self.store.write_record(node, keyed["key"], new)
+        except FileExistsError:  # another run kept it first
+            return self.store.record(node, keyed["key"])
+        for judgement in self.store.judgements(node, record["key"]):
+            self.store.write_judgement(node, keyed["key"], judgement["evidence"],
+                                       {**judgement, "key": keyed["key"], "carried": new["carried"]})
+        return new
 
     def newer_accepted(self, node, key):
         """Why this run must not accept over the node's accepted output: it was made under another key by a commit
