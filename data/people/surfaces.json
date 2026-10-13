@@ -159,6 +159,149 @@
    "object": "a person in a light blue one-piece indoor suit",
    "spec": "data/characters/makes/sefa_prop.json",
    "outfit": "work"
+  },
+  "pp-player_wide-work-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "an astronaut in a dark navy one-piece work suit with grey shoulder panels, red piping, a small printed flag patch, a black belt with a steel buckle and black boots",
+   "spec": "data/characters/makes/player_wide_prop.json",
+   "outfit": "work"
+  },
+  "pp-kit_m_avg_wide-uniform-olive-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
+   "spec": "data/characters/makes/kit_m_avg_wide_prop.json",
+   "outfit": "uniform-olive"
+  },
+  "pp-kit_m_broad_wide-uniform-olive-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
+   "spec": "data/characters/makes/kit_m_broad_wide_prop.json",
+   "outfit": "uniform-olive"
+  },
+  "pp-kit_w_broad_wide-uniform-olive-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
+   "spec": "data/characters/makes/kit_w_broad_wide_prop.json",
+   "outfit": "uniform-olive"
+  },
+  "pp-kit_w_slim_wide-uniform-olive-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a plain olive drab tunic jacket with a stand collar, brass buttons down the front and two chest pocket flaps, matching olive trousers, black leather",
+   "spec": "data/characters/makes/kit_w_slim_wide_prop.json",
+   "outfit": "uniform-olive"
+  },
+  "pp-driver_wide-driver-suit-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a charcoal grey suit jacket over a white shirt and a dark tie, matching charcoal trousers, white gloves, a charcoal peaked cap with a black peak, bl",
+   "spec": "data/characters/makes/driver_wide_prop.json",
+   "outfit": "driver-suit"
+  },
+  "pp-guard_wide-guard-uniform-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in an olive drab military uniform",
+   "spec": "data/characters/makes/guard_wide_prop.json",
+   "outfit": "guard-uniform"
+  },
+  "pp-leader_wide-state-suit-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a mid grey state suit",
+   "spec": "data/characters/makes/leader_wide_prop.json",
+   "outfit": "state-suit"
+  },
+  "pp-bram_wide-work-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a light blue one-piece indoor suit",
+   "spec": "data/characters/makes/bram_wide_prop.json",
+   "outfit": "work"
+  },
+  "pp-sefa_wide-work-s1": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a light blue one-piece indoor suit",
+   "spec": "data/characters/makes/sefa_wide_prop.json",
+   "outfit": "work"
+  },
+  "pp-nev_wide-work-s3": {
+   "places": [
+    "people"
+   ],
+   "library_places": [
+    "people"
+   ],
+   "place": "people",
+   "kind": "person",
+   "object": "a person in a dark navy one-piece work suit with light grey shoulder panels and a small printed flag patch",
+   "spec": "data/characters/makes/nev_wide_prop.json",
+   "outfit": "work"
   }
  }
 }
