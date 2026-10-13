@@ -468,9 +468,9 @@ def test_a_model_bakes_with_the_dirt_its_close_up_shows_at_most_its_place_s():
              "glass": {"family": "glass", "colour": [0.5, 0.5, 0.5], "dirt_colour": [0.2, 0.2, 0.18]}}
     clean = [round(float(v), 1) for v in labels.lab(labels.srgb(np.array(specs["hull_white"]["colour"]))[None])[0]]
     dusty = [round(float(v), 1) for v in labels.lab(labels.srgb(np.array(specs["hull_white"]["dirt_colour"]))[None])[0]]
-    assert place_line.measured_dirt([{"surface": "hull_white", "measured_lab": clean}], specs, 0.6) == 0.0
-    assert place_line.measured_dirt([{"surface": "hull_white", "measured_lab": dusty}], specs, 0.6) == 0.6
-    assert place_line.measured_dirt([{"surface": "glass", "measured_lab": dusty}], specs, 0.6) == 0.6  # none measured
+    assert place_line.measured_share([{"surface": "hull_white", "measured_lab": clean}], specs, "dirt_colour", 0.6) == 0.0
+    assert place_line.measured_share([{"surface": "hull_white", "measured_lab": dusty}], specs, "dirt_colour", 0.6) == 0.6
+    assert place_line.measured_share([{"surface": "glass", "measured_lab": dusty}], specs, "bare", 0.6) == 0.6  # none measured
 
 if __name__ == "__main__":
     for name, test in list(globals().items()):
