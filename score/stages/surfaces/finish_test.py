@@ -318,6 +318,47 @@ def test_a_finish_out_of_order_is_named_again_and_a_part_behind_a_see_through_co
     assert (finish_parts.behind_left_out(front, np.zeros_like(cover), listed, every) == front).all()
 
 
+def test_a_finish_drawn_within_a_see_through_cover_is_laid_as_the_cover():
+    """The garage beacon: its reflector drawn inside its red dome is the dome's (the model has nothing inside); the
+    note on the opaque housing stays the note."""
+    every = {"red_plastic": {"family": "plastic"}, "cast_steel": {"family": "steel"},
+             "printed_paper": {"family": "paper"}}
+    listed = [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
+              {"finish": "Polished reflective metal", "parts": "internal reflector", "surface": "cast_steel"},
+              {"finish": "Grey painted steel", "parts": "housing", "surface": "cast_steel"},
+              {"finish": "Matte paper", "parts": "note", "surface": "printed_paper"}]
+    front = np.full((40, 40), -1)
+    front[2:18, 5:35] = 0
+    front[6:14, 12:28] = 1
+    front[18:38, 5:35] = 2
+    front[24:32, 12:20] = 3
+    within = finish_parts.seen_within(front, listed, every)
+    assert within == {1: 0}, within
+    taken = finish_parts.taken_in(front, within)
+    assert (taken[6:14, 12:28] == 0).all() and (taken[24:32, 12:20] == 3).all()
+    assert (finish_parts.taken_in(front, {}) == front).all()
+
+
+def test_a_coloured_see_through_finish_keeps_its_surface_against_its_highlights():
+    """The beacon's red transparent dome measured pale pink on its brighter half: it keeps red_plastic, not the
+    nearer plastic_grey; an opaque grey plastic that far off still moves."""
+    import labels
+    library = {"red_plastic": {"family": "plastic", "colour": [0.45, 0.02, 0.01]},
+               "plastic_grey": {"family": "plastic", "colour": [0.33, 0.31, 0.27]}}
+    saved = labels.allowed_materials
+    labels.allowed_materials = lambda place, kind, without: library
+    try:
+        pale = np.array([70.8, 21.2, 11.5])
+        found = finish_parts.checked_finishes(
+            {"library_places": ["garage"], "kind": "beacon", "object": "beacon"},
+            [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
+             {"finish": "Red plastic", "parts": "knob", "surface": "red_plastic"}], [pale, pale])
+    finally:
+        labels.allowed_materials = saved
+    assert found[0]["surface"] == "red_plastic" and found[0]["by"] == "its own colour", found[0]
+    assert found[1]["surface"] == "plastic_grey" and found[1]["by"] == "nearest of its family by colour", found[1]
+
+
 def test_a_finish_whose_words_name_another_material_is_named_again():
     assert finish_parts.contradicts("black rubber, on the lamp's foot", "steel")
     assert finish_parts.contradicts("printed paper, on the tray's label", "rubber")

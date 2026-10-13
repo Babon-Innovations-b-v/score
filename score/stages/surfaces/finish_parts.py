@@ -228,10 +228,11 @@ def merged_islands(mesh, face_label):
     return np.unique(part_of, return_inverse=True)[1], label
 
 
-def laid(mesh, take, inputs, count):
-    """One take's maps laid: (part per face, finish per face, the maps' labels per face)."""
+def laid(mesh, take, inputs, count, within):
+    """One take's maps laid, each finish seen within a cover laid as its cover (`within`: seen_within): (part per face,
+    finish per face, the maps' labels per face)."""
     import numpy as np
-    per_map = map_labels(mesh, take, inputs)
+    per_map = {name: taken_in(label, within) for name, label in map_labels(mesh, take, inputs).items()}
     votes = voted(per_map, count)
     own = np.where(votes.sum(1) > 0, votes.argmax(1), -1)
     from_parts = segvigen_labels(mesh, segvigen_split(mesh, inputs["segvigen"] / take), votes)
@@ -384,6 +385,9 @@ def contradicts(words, family):
 SEEN_THROUGH_FAMILIES = ("glass", "screen", "light")
 SEEN_THROUGH_WORDS = ("transparent", "translucent")
 COVER_GROW = 2
+# An opaque finish whose outline in the close-up's map (OUTLINE pixels round it) is at least SEEN_WITHIN one
+# see-through finish is seen through it (seen_within): the garage beacon's reflector, 97.6% its red dome.
+OUTLINE, SEEN_WITHIN = 3, 0.9
 OWN_COLOUR = ("glass", "screen", "light", "print")
 ORDER_L, ORDER_LIBRARY = 10.0, 3.0
 
@@ -392,7 +396,8 @@ def checked_finishes(entry, finishes, measured):
     """Each finish with its surface checked against the close-up's colour: the listed surface when it lies within
     COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) the take's
     library places allow, when within it; else the listed one kept, a new surface tinted to the measured colour
-    proposed, and the finish marked off its colour (the paint's gate fails it)."""
+    proposed, and the finish marked off its colour (the paint's gate fails it). A see-through finish of a surface
+    that is not glass, glow or light keeps its surface (coloured_cover)."""
     import numpy as np
     every = take_surfaces(entry)
     found = []
@@ -405,7 +410,9 @@ def checked_finishes(entry, finishes, measured):
         listed = every[finish["surface"]]
         apart = float(np.linalg.norm(library_lab(listed) - colour))
         record.update(measured_lab=[round(float(value), 1) for value in colour], delta_e=round(apart, 1))
-        if apart > COLOUR_DELTA_E:
+        if apart > COLOUR_DELTA_E and coloured_cover(finish, every):
+            record.update(by="its own colour")
+        elif apart > COLOUR_DELTA_E:
             family = [(float(np.linalg.norm(library_lab(spec) - colour)), name) for name, spec in every.items()
                       if spec.get("family") == listed.get("family") and "colour" in spec]
             nearest_apart, nearest = min(family) if family else (float("inf"), None)
@@ -423,6 +430,13 @@ def checked_finishes(entry, finishes, measured):
                     "lab": [round(float(value), 1) for value in colour]})
         found.append(record)
     return in_close_up_order(entry, found, every)
+
+
+def coloured_cover(finish, every):
+    """True for a see-through finish whose surface is not glass, glow or light (the garage beacon's red transparent
+    dome as red_plastic): its close-up pixels are its highlights and what lies behind it, not its colour, so like
+    glass (owner, #8) it is judged by its own colour. Its pale highlights took the dome to plastic_grey (2026-10-13)."""
+    return see_through(finish, every) and every.get(finish["surface"], {}).get("family") not in OWN_COLOUR
 
 
 def opaque_lightness(every):
@@ -446,12 +460,14 @@ def in_close_up_order(entry, found, every):
     under bare_steel 66.3 on the greenhouse's water tank, the panel 13 lighter in its close-up; the bake keeps the
     library's order), the lighter finish takes the nearest surface of its family by colour, within COLOUR_DELTA_E,
     that keeps the order; else it is marked off its colour by its order (the paint's gate fails it). Glass, glow, lamp
-    light and print (OWN_COLOUR) are left out; a take with no such pair comes back as it was."""
+    light and print (OWN_COLOUR) and a finish judged by its own colour are left out; a take with no such pair comes back
+    as it was."""
     import numpy as np
     lightness = opaque_lightness(every)
     for lighter in found:
         for darker in found:
-            if lighter.get("by") == "off its colour" or not out_of_order(lighter, darker, lightness):
+            if (lighter.get("by") == "off its colour" or "its own colour" in (lighter.get("by"), darker.get("by"))
+                    or not out_of_order(lighter, darker, lightness)):
                 continue
             seen = lighter["measured_lab"][0] - darker["measured_lab"][0]
             floor = lightness[darker["surface"]] - ORDER_LIBRARY
@@ -516,6 +532,34 @@ def see_through_cover(mesh, take, face_label, listed, every):
     return cover
 
 
+def seen_within(front, listed, every):
+    """{finish: the see-through finish round it} for each opaque finish whose outline in the close-up's map (OUTLINE
+    pixels round it, off the object counted) is at least SEEN_WITHIN that one see-through finish: the model is the
+    cover's shell with nothing inside it, so the maps drew what lies behind the cover on the cover's own faces (the
+    garage beacon's reflector on its red dome's front, measured red and painted cast_steel, 2026-10-13)."""
+    import numpy as np
+    from scipy import ndimage
+    found = {}
+    for number, finish in enumerate(listed):
+        here = front == number
+        if see_through(finish, every) or not here.any():
+            continue
+        outline = front[ndimage.binary_dilation(here, iterations=OUTLINE) & ~here]
+        covers, counts = np.unique(outline[outline >= 0], return_counts=True)
+        for cover, count in zip(covers, counts):
+            if see_through(listed[cover], every) and count >= SEEN_WITHIN * len(outline):
+                found[number] = int(cover)
+    return found
+
+
+def taken_in(label, within):
+    """The labels (a map's pixels or faces) with each finish seen within a cover given its cover's (seen_within)."""
+    found = label.copy()
+    for finish, cover in within.items():
+        found[label == finish] = cover
+    return found
+
+
 def behind_left_out(front, cover, listed, every):
     """The close-up map with each opaque finish's pixels under a see-through part (`cover`) left out of its measure:
     its colour there is the cover's (the garage beacon's reflector measured its red dome's colour, 2026-10-13). A
@@ -537,10 +581,14 @@ def parts_take(inputs, take, entry, out):
     front = np.load(inputs["maps"] / take / "front.npy").astype(int)
     every = take_surfaces(entry)
     mesh = split_compare.raw_model(take)
-    part_of, face_label, per_map = laid(mesh, take, inputs, len(listed))
-    front = behind_left_out(front, see_through_cover(mesh, take, face_label, listed, every), listed, every)
+    within = seen_within(front, listed, every)
+    part_of, face_label, per_map = laid(mesh, take, inputs, len(listed), within)
+    front = behind_left_out(taken_in(front, within), see_through_cover(mesh, take, face_label, listed, every), listed,
+                            every)
     finishes = checked_finishes(entry, listed,
                                 measured_colours(take, front, [every.get(finish["surface"]) for finish in listed]))
+    for number, cover in within.items():
+        finishes[number]["seen_within"] = listed[cover]["finish"]
     rows = part_rows(mesh, part_of, face_label, finishes)
     folder = out / take
     folder.mkdir(parents=True)
