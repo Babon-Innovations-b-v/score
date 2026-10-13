@@ -92,17 +92,6 @@
    "kind": "hangar_fuel_pump",
    "object": "the fuel point: a squat propellant and air pump cabinet with gauges, two hose couplings and a small screen"
   },
-  "parts_rack-h1": {
-   "places": [
-    "hangar"
-   ],
-   "library_places": [
-    "hangar"
-   ],
-   "place": "hangar",
-   "kind": "hangar_parts_rack",
-   "object": "a tall heavy steel pallet rack, three levels, holding crates and big ship parts wrapped in film"
-  },
   "parts_shelving-h1": {
    "places": [
     "hangar"
@@ -149,10 +138,15 @@
    "fuel_pump_1": "fuel_pump-h1",
    "monitor_desk_1": "work_desk-h1",
    "parts_crate_1": "crate-h1",
-   "parts_rack_1": "parts_rack-h1",
    "parts_shelving_1": "parts_shelving-h1",
    "ship_bench_1": "ship_bench-h1"
   },
   "entries": {}
+ },
+ "elsewhere": {
+  "parts_rack_1": {
+   "take": "parts_rack-r1",
+   "place": "old_station"
+  }
  }
 }

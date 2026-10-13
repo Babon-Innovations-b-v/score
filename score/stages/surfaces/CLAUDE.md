@@ -69,6 +69,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **The check holds a bake against its surface dirtied as its place dirties it** (`bake_check.on_surface`: the
   stretch from the library colour toward the place's dirt colour, as far as its dirt amount; the wreck's whites
   bake to L* 69 in regolith at 0.6 and pass, a wrong surface still fails).
+- **A standing model stands level** (`bake_check.judge_stance`, gate "stands level"): each footprint quadrant of its
+  lowest quarter ends within 3 cm of its lowest point (the hangar's rack stood on a middle part, its legs 22 cm up;
+  the paint's feet check, in shares of size, let it pass). A model its paint did not level (no floor or held row) or
+  whose inventory row names a lying class (`data/checks/stance.json`: torn wreckage) is left out. Glass, glow, lamp
+  light and print skip the close-up comparison (#8).
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
   `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their world
   files from `row_files.py`, so neither this folder's `__init__.py` nor `place_line.py` is in their code

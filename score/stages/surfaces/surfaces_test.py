@@ -419,6 +419,31 @@ def test_a_bake_is_held_against_its_surface_dirtied_as_far_as_its_place_s_dirt()
     assert bake_check.on_surface(np.array([40.0, 0, 0]), white, regolith, 0.6) > bake_check.BAKE_DELTA_E
     assert bake_check.on_surface(baked, white, None, 0.6) > bake_check.BAKE_DELTA_E
 
+def test_a_standing_model_with_a_foot_off_the_floor_fails_and_lying_wreckage_is_left_out():
+    """The hangar's parts rack stood on a middle part, its legs 22 cm up."""
+    import numpy as np
+    from score.stages.surfaces import bake_check
+    feet = [(x, z) for x in (-0.5, 0.5) for z in (-0.3, 0.3)]
+    level = np.array([[x, 0.0, z] for x, z in feet] + [[0, 1.0, 0]])
+    rack = np.array([[x, 0.22 if x > 0 else 0.0, z] for x, z in feet] + [[0, 1.0, 0]])
+    assert max(bake_check.stance_lows(level)) == 0.0
+    assert abs(max(bake_check.stance_lows(rack)) - 0.22) < 1e-6
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        (folder / "labels.json").write_text(json.dumps({"feet": {"feet": 4}}))
+        rows = [{"id": "parts_rack_1", "name": "steel parts rack"}, {"id": "leg_strut", "name": "torn-off landing leg"}]
+        assert bake_check.stands("parts_rack_1", folder, rows, ["torn"])
+        assert not bake_check.stands("leg_strut", folder, rows, ["torn"])
+        (folder / "labels.json").write_text(json.dumps({"feet": {"skipped": "no floor or held row lays its kind"}}))
+        assert not bake_check.stands("parts_rack_1", folder, rows, ["torn"])
+        (folder / "checks.json").write_text(json.dumps({
+            "parts_rack_1": {"stands": True, "stance_lows": [0.0, 0.221, 0.0, 0.24]},
+            "leg_strut": {"stands": False, "stance_lows": [0.0, 0.3, 0.2, 0.0]},
+            "crate": {"stands": True, "stance_lows": [0.0, 0.01, 0.0, 0.02]}}))
+        verdict = bake_check.judge_stance(folder, {}, None)
+    assert verdict.answer == "fail" and len(verdict.findings) == 1 and "parts_rack_1: a foot 24.0 cm" in verdict.findings[0]
+    assert set(json.loads((REPO / "data/checks/stance.json").read_text())) == {"about", "lies"}
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

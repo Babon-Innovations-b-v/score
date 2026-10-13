@@ -31,6 +31,11 @@ import prop_env  # noqa: E402
 # it). A smudge within BLOTCH_DELTA_E of a dark neighbour's colour cannot be told from that neighbour and passes.
 # Parts under PART_LEAST of the model are not judged.
 BAKE_DELTA_E = 20.0
+# A standing model's footprint quadrants (of its lowest STANCE_BAND of height) end within STANCE_GAP of its lowest
+# point (the resting check's 3 cm).
+STANCE_BAND, STANCE_GAP = 0.25, 0.03
+# Not paint (owner, #8): judged by their own colour, never against the close-up's lit colour.
+OWN_COLOUR = ("glass", "screen", "light", "print")
 DARK_SURFACE, BLOTCH_L, BLOTCH_SHARE, BLOTCH_DELTA_E = 35.0, 12.0, 0.05, 6.0
 PART_LEAST = 0.01
 # A model's surfaces collapse into one look when every two of them bake within ONE_LOOK_DELTA_E (CIE76) and every one
@@ -140,6 +145,7 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0):
     geometry, maps = gltf_model(made / f"{name}.gltf")
     record = {"triangles": int(len(geometry["triangles"])), "budget": int(entry["faces"]),
               "maps": sorted(maps), "surfaces": {}, "close_up": close_up_colours(labelled)}
+    record["stance_lows"] = stance_lows(geometry["positions"])
     record["missing_maps"] = [role for role in ("base_color", "metal_roughness", "normal") if role not in maps]
     if "base_color" in record["missing_maps"]:
         return record
@@ -186,6 +192,34 @@ def on_surface(baked, clean, dirt_colour, dirt):
     return float(np.linalg.norm(baked - (clean + share * toward)))
 
 
+def stance_lows(points):
+    """How far (metres) the lowest point of each footprint quadrant of a model's lowest quarter (what it stands on,
+    +y up) lies over its lowest point: a standing model's are all near 0."""
+    import numpy as np
+    low, high = points.min(0), points.max(0)
+    points = points[points[:, 1] <= low[1] + STANCE_BAND * (high[1] - low[1])]
+    middle = (points.min(0) + points.max(0)) / 2
+    found = []
+    for x_side in (points[:, 0] < middle[0], points[:, 0] >= middle[0]):
+        for z_side in (points[:, 2] < middle[2], points[:, 2] >= middle[2]):
+            chosen = points[x_side & z_side]
+            if len(chosen):
+                found.append(round(float(chosen[:, 1].min() - low[1]), 3))
+    return found
+
+
+def stands(name, labelled, inventory_rows, lying_words):
+    """Whether a baked model stands on its feet: its paint levelled its feet (not 'skipped': no floor or held row of
+    its place lays it) and its inventory row's words name no lying class (data/checks/stance.json: torn wreckage on
+    its side lies, it does not stand)."""
+    report = json.loads((labelled / "labels.json").read_text())
+    if "skipped" in report.get("feet", {}):
+        return False
+    row = next((row for row in inventory_rows if row.get("id") == name), {})
+    words = f"{row.get('id', '')} {row.get('name', '')}".lower()
+    return not any(word in words for word in lying_words)
+
+
 def close_up_colours(labelled):
     """Each surface's colour in the close-up (L*a*b*, the mean of its finishes' measured colours) from the paint's
     report of the take (labels.json `finishes`); {} when the method measured none."""
@@ -207,10 +241,27 @@ def check_step(inputs, out):
     name = data_of(inputs)["library"]
     materials = {**library.by_library(name), **library.resolved(name)}
     dirt = library.wear_of(name)[1]
-    found = {model: check_model(model, entry, inputs["paint"] / "labelled" / entry["parts"], inputs["bake"] / "made",
-                                materials, dirt)
-             for model, entry in json.loads((inputs["bake"] / "baked.json").read_text()).items()}
+    rows = [row for key, path in inputs.items() if key.startswith("inventory ") and path.exists()
+            for row in json.loads(path.read_text()).get("rows", [])]
+    lying = [word for kind in json.loads(inputs["stance rules"].read_text())["lies"] for word in kind["words"]]
+    found = {}
+    for model, entry in json.loads((inputs["bake"] / "baked.json").read_text()).items():
+        labelled = inputs["paint"] / "labelled" / entry["parts"]
+        found[model] = check_model(model, entry, labelled, inputs["bake"] / "made", materials, dirt)
+        found[model]["stands"] = stands(model, labelled, rows, lying)
     (out / "checks.json").write_text(json.dumps(found, indent=1))
+
+
+def judge_stance(output, inputs, evidence):
+    """Every baked model that stands on its feet stands level: each footprint quadrant's lowest point within
+    STANCE_GAP of its lowest (the hangar's parts rack stood on a middle part, its legs 22 cm up; the paint's feet
+    check, in shares of the model's size, let 7% pass). Lying wreckage and wall or held models are left out (stands)."""
+    found = json.loads((output / "checks.json").read_text())
+    standing = {model: record for model, record in found.items() if record.get("stands")}
+    failing = [f"{model}: a foot {max(record['stance_lows']) * 100:.1f} cm off the floor while another touches "
+               f"(quadrant lows {[round(low * 100, 1) for low in record['stance_lows']]} cm)"
+               for model, record in standing.items() if max(record["stance_lows"]) > STANCE_GAP]
+    return gates.verdict("stands level", failing, len(standing), "standing models with a foot off the floor")
 
 
 def check_faults(folder):
@@ -257,10 +308,13 @@ def judged_surfaces(record):
 
 
 def close_up_faults(name, record):
-    """Each judged surface whose baked colour lies over CLOSE_UP_DELTA_E from its colour in the close-up."""
+    """Each judged surface whose baked colour lies over CLOSE_UP_DELTA_E from its colour in the close-up. Glass, screen
+    glow, lamp light and print are judged by their own colour, not the close-up's lit one (owner, #8)."""
     close_up = record.get("close_up", {})
     faults = []
     for surface, entry in judged_surfaces(record).items():
+        if entry.get("family") in OWN_COLOUR:
+            continue
         apart = math.dist(entry["baked_lab"], close_up[surface]) if surface in close_up else 0.0
         if apart > CLOSE_UP_DELTA_E:
             faults.append(f"{name}: {surface} baked {entry['baked_lab']}, its close-up {close_up[surface]} "

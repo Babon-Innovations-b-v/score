@@ -139,7 +139,15 @@ def bake_checked(row):
     return dataclasses.replace(row, make=bake_check.make_check,
                                contract=contracts.Contract("surfaces-check", 1, bake_check.check_faults),
                                checks=(guarded("baked matches its surfaces", bake_check.judge_lit),
-                                       guarded("triangles within budget", bake_check.judge_triangles)))
+                                       guarded("triangles within budget", bake_check.judge_triangles),
+                                       guarded("stands level", bake_check.judge_stance)),
+                               files=check_files)
+
+
+def check_files(place):
+    """The check's world files: the paint's (its line's, the inventories, the resting rules) and the stance rules."""
+    return {**{name: pattern for name, pattern in paint_files(place).items() if name != "paint script"},
+            "stance rules": "{data}/checks/stance.json"}
 
 
 def feet_checked(row):
