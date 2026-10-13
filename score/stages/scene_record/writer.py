@@ -13,7 +13,9 @@ and builders.py build it unchanged; it lands as record/<place>.json in the outpu
                  (ramps), a plot soil in a curb (plots)
     objects      each inventory row the kit does not lay, at its own spots: the route made it (the hub's furniture) or
                  it names a world release model (the airlock's suit); and each door leaf a plan lead names (`leaf`),
-                 shut in its doorway (the airlock's outer door, which its cycle moves and copies for the inner door)
+                 shut in its doorway (the airlock's outer door, which its cycle moves and copies for the inner door);
+                 every object whose model the kit lists with `children` carries them (kit_children: the cases on the
+                 camp's stores rack, the hub console's screens), each with its glow parts, its row the inventory's
     places       each door's leaves (the plan's `leaves` kit, the inventory's leaf size, shut in the doorway), a flat
                  roof's leaves (the layout's leaf that lies on the roof, shut over its opening); a door
                  joined to another place's door by a walkway tube (the tube's stage stood from this doorway to that
@@ -615,11 +617,52 @@ def removed(plan):
              "why": entry["why"], "from": f"plan removes {entry['row']} ({entry['why']})"} for entry in plan["removes"]]
 
 
+def child_row(model, rows, place):
+    """The inventory row a kit child model is of: its name less its number (`case_1`: case), a row the inventory has."""
+    row = re.sub(r"_\d+$", "", model)
+    if row not in rows:
+        raise ValueError(f"{place}: kit child model {model} names no inventory row {row}")
+    return row
+
+
+def kit_children(entry, kit, rows, removed_rows, place):
+    """What stands on an object as its kit's model lists it (`children`: model, at and turn in the object's own
+    frame), each with the model's glow parts (kit models `part_of` it), less rows the plan removes; [] for a model
+    the kit lists none for. Left out, the cases on the camp's stores rack went missing (2026-10-13)."""
+    model_path = pathlib.PurePosixPath(entry["model"])
+    models = kit.get("models", {})
+    found = []
+    for number, child in enumerate(models.get(model_path.stem, {}).get("children", []), 1):
+        row = child_row(child["model"], rows, place)
+        if row in removed_rows:
+            continue
+        glows = [name for name, about in sorted(models.items()) if about.get("part_of") == child["model"]]
+        found += [{"model": str(model_path.parent / f"{name}.gltf"), "row": row, "at": child["at"],
+                   "yaw": float(child["turn"]),
+                   "from": f"kit model {model_path.stem}'s child {number} ({child['model']}), inventory row {row}"}
+                  for name in [child["model"], *glows]]
+    return found
+
+
+def with_children(record, place, inputs, plan):
+    """The record's objects, each carrying what its kit's model stands on it (kit_children)."""
+    kit_path = pathlib.Path(inputs["kits"]) / f"{place}.json"
+    if not kit_path.exists():
+        return
+    kit, rows = read(kit_path), {row["id"] for row in read(inputs["inventory"])["rows"]}
+    removed_rows = {entry["row"] for entry in plan.get("removes", [])}
+    for entry in record.get("objects", []):
+        children = kit_children(entry, kit, rows, removed_rows, place) if "model" in entry else []
+        if children:
+            entry["children"] = children
+
+
 def make(inputs, out, seed, params):
     """record/<place>.json: the place's scene record, with its planned ground when the plan sees one."""
     plan = read(pathlib.Path(inputs["plan"]) / "plan.json")
     place = plan["place"]
     record = record_of(place, plan, inputs)
+    with_children(record, place, inputs, plan)
     far = planned_ground(plan)
     if far:
         record["planned_ground"] = far

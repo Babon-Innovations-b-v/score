@@ -42,6 +42,10 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   four slabs on the walls' top round the room layout's door `opening`, a `roof_door` plan item naming no rows, the
   layout's roof leaf stood shut over each half of the opening, raised clear of the wall tops; the openings gate judges
   the roof leaves open).
+- **An object carries what its kit model stands on it** (`writer.kit_children`: the kit model's `children`, each with
+  its glow parts, its row the inventory's, less removed rows): the camp's rack cases, desk screens and radio, the hub
+  console's screens and tools. `seed-matched` compares a matched seed entry's children by model, so a dropped child
+  fails by name (the camp's rack cases went missing unseen, 2026-10-13).
 - **A plan may remove rows the concept does not show** (`removes`: row, date, why): the record carries them as
   `coordinator_removed` (`rows`), and the assembly's relay_kit takes every seed object of those rows out of the base (the
   old station's cables, 2026-10-13).
