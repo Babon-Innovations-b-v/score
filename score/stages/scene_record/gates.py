@@ -85,7 +85,9 @@ SEED_REASONS = {
     "workshop:objects":"the robot and the parts tray come from the machines track as rows, not from this record",
     "workshop:structure/tray_tile_": "the workshop's parts tray (its tiles and the robot parts on them) comes from "
                                      "the machines track as rows, not as plain plates of the shell",
-    "hub:objects/screen_": "the console's screens are its monitors, laid on it by its composite, not loose objects",
+    "hub:objects/lab_bench/children/status_lamp_1": "concept M3-east (inventory view v3) shows the lab bench with no "
+                                                    "red status lamp on it; the inventory has no row for one",
+    "hub:objects/screen_":"the console's screens are its monitors, laid on it by its composite, not loose objects",
     **{f"{place}:views": "the record's views are its plan's: one inside each door and one from each standing spot; "
                          "a seed view with no such spot near it was a camera of the game's"
        for place in ("airlock", "workshop", "lab", "habitat", "greenhouse", "hub", "tube", "hangar")},
