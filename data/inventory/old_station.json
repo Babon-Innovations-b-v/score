@@ -880,12 +880,6 @@
   {
    "id": "cable_run",
    "view": "v1",
-   "box": [
-    1263,
-    973,
-    1339,
-    1000
-   ],
    "name": "power and signal cables lying on the ground",
    "kind": "code",
    "anchor": "floor",
@@ -950,9 +944,6 @@
    ],
    "why": "Between the masts, the power unit and the modules (cable_bundle laid on its back).",
    "fixed": true,
-   "box_from": [
-    "v1.203"
-   ],
    "pick": {
     "models": {
      "cable_run_1p28": "da1cd98a2c9dabb830a95f1a65577db5f79e1b45847cad1a56e3b35c271af9dd",
@@ -964,7 +955,10 @@
      "cable_run_7": "c05e6e819a1f8ca9ac637e3895623856c63de4aea22ac1db24982bff4cdb6b7e"
     },
     "decided": "owner, 2026-10-07 21:16 UTC: signed off the old station on its page (claude.ai/artifact/GD8FUguvgYYJymh2Dm33B2) as looking great (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #354; handoffs/overseer-2026-10-04.txt line 62); the model as built in 2099 7e0d3bd7 (game/world/old_station/models/made, unchanged since)"
-   }
+   },
+   "box": null,
+   "unseen": "the concept C4 shows no cables lying on the ground",
+   "dropped": "the concept C4 shows no cables on the ground between the masts, the power unit and the modules (captain, 2026-10-13)"
   },
   {
    "id": "gas_bottle",
