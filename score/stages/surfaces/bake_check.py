@@ -24,11 +24,15 @@ import prop_env  # noqa: E402
 # A baked part lies on its surface when its median base colour is within BAKE_DELTA_E (CIE76) of the surface's
 # colour: the bake's wear and dirt (0.4 each) move a surface's colour, a wrong surface moves it far more. A part
 # whose surface is not dark (L* over DARK_SURFACE) fails with over BLOTCH_SHARE of its area a blotch: a triangle under
-# BLOTCH_L (the black blotches of round six) whose colour lies over BLOTCH_DELTA_E from every surface within its
-# reach. Inside a part that is its own surface, so every near-black triangle counts; on a border it may bake its
+# BLOTCH_L (the black blotches of round six) whose colour lies over BLOTCH_DELTA_E from every colour of every surface
+# within its reach: a surface's colour and the second its recipe draws (the flat's quilt_cotton draws ink-line seams,
+# 6% of its bake near black, 2026-10-13; measured against its colour alone they failed it as blotches). Inside a part
+# that is its own surface, so every near-black triangle off its colours counts; on a border it may bake its
 # neighbour's colour and count only when it is off that one too (the seed tray's paper label on black plastic, bake of
 # 2026-10-12: its 19 near-black triangles bake the plastic, nine in ten within 3.3 of its colour; black lies 9.5 off
 # it). A smudge within BLOTCH_DELTA_E of a dark neighbour's colour cannot be told from that neighbour and passes.
+# The cost of counting a drawn second: 4 of the library's 369 variants (perforated_steel, perforated_blue_board,
+# quilt_cotton, composite_grey; not dark, a second at L* 2.5) can now hide a black smudge under L* 8.5 on themselves.
 # Parts under PART_LEAST of the model are not judged.
 BAKE_DELTA_E = 20.0
 # A standing model's footprint quadrants (of its lowest STANCE_BAND of height) end within STANCE_GAP of its lowest
@@ -128,18 +132,26 @@ def baked_surfaces(geometry, labelled, entry):
     return [path.stem for path in paths], surface, reach
 
 
-def blotch_share(colour, areas, chosen, reach, tokens):
+def blotch_share(colour, areas, chosen, reach, shades):
     """The share of the chosen triangles' area that is a blotch: under BLOTCH_L and over BLOTCH_DELTA_E (CIE76) from
-    the colour of every surface within its reach (`reach`: triangles x surfaces; `tokens`: each surface's L*a*b*, None
-    for one not in the library, which explains nothing)."""
+    every colour of every surface within its reach (`reach`: triangles x surfaces; `shades`: each surface's L*a*b*
+    colours (library_shades), none for one not in the library, which explains nothing)."""
     import numpy as np
     far = np.full(len(colour), np.inf)
-    for index, token in enumerate(tokens):
-        if token is not None:
-            near = np.linalg.norm(colour - np.asarray(token), axis=1)
+    for index, colours in enumerate(shades):
+        for shade in colours:
+            near = np.linalg.norm(colour - np.asarray(shade), axis=1)
             far = np.where(reach[:, index], np.minimum(far, near), far)
     blotch = chosen & (colour[:, 0] < BLOTCH_L) & (far > BLOTCH_DELTA_E)
     return float(areas[blotch].sum() / max(areas[chosen].sum(), 1e-12))
+
+
+def library_shades(spec):
+    """A library surface's L*a*b* colours as its recipe draws them: its colour, then its `second` when it has one (the
+    quilt's ink-line seams, a perforated sheet's holes, tile grout: drawn on purpose, not a blotch)."""
+    import numpy as np
+    import labels
+    return [labels.lab(labels.srgb(np.array(spec[key]))[None])[0] for key in ("colour", "second") if key in spec]
 
 
 def check_model(name, entry, labelled, made, materials, dirt=0.0):
@@ -165,8 +177,8 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0):
     corners = geometry["positions"][geometry["triangles"]]
     areas = 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
     names, surface, reach = baked_surfaces(geometry, labelled, entry)
-    tokens = [labels.lab(labels.srgb(np.array(materials[each]["colour"]))[None])[0] if each in materials else None
-              for each in names]
+    shades = [library_shades(materials[each]) if each in materials else [] for each in names]
+    tokens = [colours[0] if colours else None for colours in shades]
     dirty = [labels.lab(labels.srgb(np.array(materials[each]["dirt_colour"]))[None])[0]
              if each in materials and "dirt_colour" in materials[each] else None for each in names]
     for index in sorted(set(surface.tolist())):
@@ -181,7 +193,7 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0):
             "surface_lab": None if token is None else [round(float(value), 1) for value in token],
             "delta_e": None if token is None else round(on_surface(middle, token, dirty[index], dirt), 1),
             "dirt_lab": None if dirty[index] is None else [round(float(value), 1) for value in dirty[index]],
-            "near_black": round(blotch_share(colour, areas, chosen, reach, tokens), 4),
+            "near_black": round(blotch_share(colour, areas, chosen, reach, shades), 4),
             "family": materials.get(names[index], {}).get("family")}
     return record
 
