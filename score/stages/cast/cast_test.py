@@ -1,4 +1,4 @@
-"""The cast stage's make and gates on the hub's own record and seed: its one person stands and keeps clear; the record
+"""The cast stage's make and gates on a one-person cast on the hub's seed: the person stands and keeps clear; the record
 holds 1 where a concept showing 3 fails `counted` and one showing 1 passes; a person lifted off the floor fails
 `standing`, one stood in a thing fails `clear`; no look is made and every body wears rejected drapes. A take with a
 clean checks.txt and a body is made, one with a FAIL is not; a crowd's lattice keeps two body widths apart; KEEP is
@@ -48,7 +48,10 @@ def answers(record, concept_people):
 
 
 def hub_record():
-    return json.loads((REPO / "data/characters/hub.json").read_text())
+    """A one-person cast on the hub's seed (the hub's own cast holds nobody: its concept's figure is a chair)."""
+    return {"place": "hub", "people": [{"name": "bram", "character": "bram", "look": "bram_work", "doing": "bench",
+                                        "at": [-0.535, -0.407, 0.9], "facing_to": [-0.606, -0.407, 1.517],
+                                        "why": "at the operations console in the pit"}]}
 
 
 def test_the_hub():
