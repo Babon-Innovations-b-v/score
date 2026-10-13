@@ -81,14 +81,14 @@ def made(look, entry):
         (folder / "take.txt").write_text(entry["take"])
         if not (folder / "parts" / entry["take"] / "parts.npz").exists():
             prop_person.parts(spec, outfit, who, None, False)
-        if entry.get("far_only"):
-            prop_person.record_stage(folder, "build", *timed(prop_person.build, spec, outfit, who, None))
-            kept_far(folder, spec["name"], entry, out)
-            return
-        with prop_person.machine_held(spec, outfit, who) as held:  # one machine, set up once, builds and settles
-            for stage in ("build", "settle"):
+        stages = ("build",) if entry.get("far_only") else ("build", "settle")
+        with prop_person.machine_held(spec, outfit, who) as held:  # one machine, set up once: shell, build, settle
+            for stage in stages:
                 prop_person.record_stage(folder, stage, *timed(prop_person.STAGE_WORK[stage], spec, outfit, who,
                                                                held))
+        if entry.get("far_only"):
+            kept_far(folder, spec["name"], entry, out)
+            return
         prop_person.record_stage(folder, "checks-cloud", *timed(prop_person.checks_cloud, spec, outfit, who, None))
         kept(folder, spec["name"], entry, out)
     return make
