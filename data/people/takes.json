@@ -8,6 +8,18 @@
   "player_wide-work": {
    "spec": "data/characters/makes/player_wide_prop.json",
    "outfit": "work"
+  },
+  "bram_wide-work": {
+   "spec": "data/characters/makes/bram_wide_prop.json",
+   "outfit": "work"
+  },
+  "sefa_wide-work": {
+   "spec": "data/characters/makes/sefa_wide_prop.json",
+   "outfit": "work"
+  },
+  "nev_wide-work": {
+   "spec": "data/characters/makes/nev_wide_prop.json",
+   "outfit": "work"
   }
  }
 }
