@@ -593,12 +593,27 @@ def kit_record(place, plan, inputs, grounds):
     return record
 
 
+def planned_ground(plan):
+    """The ground past the place to the horizon and the ball under it (the plan's `far_ground`: how far round the
+    place, how fine, the ball's surface), as the record's `planned_ground`; None when the plan sees no far ground."""
+    far = plan.get("far_ground")
+    if not far:
+        return None
+    return {"reach": far["reach"], "step": far["step"], "ball": far["ball"],
+            "from": f"plan far_ground ({far['why']}): the made ground's place layer drawn out to {far['reach']} m round "
+                    "the place, the ball under it"}
+
+
 def make(inputs, out, seed, params):
-    """record/<place>.json: the place's scene record."""
+    """record/<place>.json: the place's scene record, with its planned ground when the plan sees one."""
     plan = read(pathlib.Path(inputs["plan"]) / "plan.json")
     place = plan["place"]
+    record = record_of(place, plan, inputs)
+    far = planned_ground(plan)
+    if far:
+        record["planned_ground"] = far
     (out / "record").mkdir()
-    (out / "record" / f"{place}.json").write_text(json.dumps(record_of(place, plan, inputs), indent=1))
+    (out / "record" / f"{place}.json").write_text(json.dumps(record, indent=1))
 
 
 def record_faults(folder):

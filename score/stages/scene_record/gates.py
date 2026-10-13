@@ -50,8 +50,7 @@ SEED_REASONS = {
     "ground": "the made ground (the terrain stage) is the ground round the place: the assembly sublayers it, so the "
               "record draws no ground of its own",
     "moved": "the record moves no kit piece: the plan's door stands where the plan and the kit put it",
-    "planned_ground": "the ground past the place and the ball under it are the terrain stage's place layer, which "
-                      "the assembly sublayers; the record holds no ground",
+    "tube:planned_ground": "the walkway tube has no window: no ground past it is seen from inside",
     "planned_rocks": "the ground's rocks are the terrain stage's, laid by its plan's rule with the ground",
     **{f"{place}:objects/{name}": "the solar rows and the inverter round the base are no element of this place's "
                                   "concept (the base shows far off or not at all) and no row of this place; they come "
@@ -90,7 +89,6 @@ SEED_REASONS = {
     **{f"{place}:views": "the record's views are its plan's: one inside each door and one from each standing spot; "
                          "a seed view with no such spot near it was a camera of the game's"
        for place in ("airlock", "workshop", "lab", "habitat", "greenhouse", "hub", "tube", "hangar")},
-    "planned_ground": "the ground under a place is the terrain stage's made ground at its seat, not the record's",
     "greenhouse:structure/bed_": "the plot is the plan's one bed of soil in its curb (plot_soil, plot_wall); its "
                                  "rows of crops are the crops track's",
     "greenhouse:structure/ridge_": "the plot is the plan's one bed of soil in its curb (plot_soil, plot_wall); its "

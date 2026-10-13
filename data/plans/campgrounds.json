@@ -432,5 +432,6 @@
    ]
   },
   "why": "the site's north-west corner in the place's frame (its seat's; the plan unturned)"
- }
+ },
+ "far_ground": {"reach": 130.0, "step": 2.0, "ball": "mars_regolith", "why": "concept K05 shows the plain running out to the hills on the horizon; reach and step the old record's (an unverified seed)"}
 }

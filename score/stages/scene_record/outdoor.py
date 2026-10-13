@@ -120,19 +120,36 @@ def lamps(plan, rows, laid, kit):
     return found
 
 
-def beams(plan, rows, laid):
-    """Each plan beam on its row's first laid spot, straight up out of the body's middle there."""
+def beam_foot(beam, rows, laid, grounds, kits):
+    """A beam's foot and way up in this place's frame: on its row's first laid spot here, or, for a beam of another
+    place (`place`: the camp sees the camp grounds' mast), on the first piece of the row that place's kit lays, stood
+    on that place's made ground and brought into this frame through the two seats."""
+    if not beam.get("place"):
+        foot = on_ground(laid, rows[beam["row"]][0][0])
+        way = in_place(laid.direction(laid.frame, laid.origin, foot[0], foot[2]), laid)
+        return foot, way
+    other = grounds[beam["place"]].laid
+    kit = writer.read(pathlib.Path(kits) / f"{beam['place']}.json")
+    piece = next((piece for piece in kit["pieces"] if piece["kind"] == f"{beam['place']}_{beam['row']}"), None)
+    if piece is None:
+        raise ValueError(f"beam {beam['name']}: {beam['place']}'s kit lays no {beam['row']}")
+    foot = on_ground(other, piece["at"])
+    way = in_place(other.direction(other.frame, other.origin, foot[0], foot[2]), other)
+    position, axes = writer.pose_in(laid, other)
+    return position + foot @ axes, way @ axes
+
+
+def beams(plan, rows, laid, grounds, kits):
+    """Each plan beam on its row's first laid spot, straight up out of the body's middle there (beam_foot)."""
     found = []
     for beam in plan["beams"]:
-        spots, _ = rows[beam["row"]]
-        foot = on_ground(laid, spots[0])
-        out = laid.direction(laid.frame, laid.origin, foot[0], foot[2])
-        way = in_place(out, laid)
+        foot, way = beam_foot(beam, rows, laid, grounds, kits)
+        whose = f"{beam['place']}'s kit's" if beam.get("place") else "inventory"
         found.append({"name": beam["name"], "foot": np.round(foot, 4).tolist(),
                       "way": np.round(way / np.linalg.norm(way), 6).tolist(),
                       **{key: beam[key] for key in ("low", "high", "radius", "sides", "least_half_angle", "colour",
                                                     "glow")},
-                      "from": f"plan beam {beam['name']} ({beam['why']}): on inventory row {beam['row']}'s laid "
+                      "from": f"plan beam {beam['name']} ({beam['why']}): on {whose} row {beam['row']}'s laid "
                               "spot on the made ground, straight up out of the body's middle there"})
     return found
 
@@ -146,11 +163,11 @@ def decals(plan, tokens):
                      f"{decal['token']}"} for decal in plan["decals"]]
 
 
-def environment(sky, body, plan, rows, laid):
+def environment(sky, body, plan, rows, laid, grounds, kits):
     """The body's outdoor sky record, with the plan's beams."""
     found = {**json.loads(json.dumps(sky["environment"])),
              "from": f"sky record (data/definitions/sky.json) {body} outdoor"}
-    stood = beams(plan, rows, laid)
+    stood = beams(plan, rows, laid, grounds, kits)
     if stood:
         found["beams"] = stood
     return found
@@ -221,7 +238,7 @@ def record_of(place, plan, inputs, grounds):
               "floor": plan["floor"], "inside": plan["inside"],
               "structure": bodies(sky, laid) + blocks(plan),
               "lights": suns(sky, laid, body) + lamps(plan, rows, laid, kit),
-              "environment": environment(sky, body, plan, rows, laid),
+              "environment": environment(sky, body, plan, rows, laid, grounds, inputs["kits"]),
               # A place inside its kit's walls is viewed from its own floor, not the ground under it.
               "views": writer.views(plan, eye) if plan["inside"] else views(plan, laid, eye),
               "places": writer.places_of(place, plan, inputs, grounds)}

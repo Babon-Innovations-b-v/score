@@ -573,7 +573,7 @@
   }
  ],
  "decals": [],
- "beams": [],
+ "beams": [{"name": "mast_beam", "row": "mast", "low": 12.0, "high": 2500.0, "radius": 0.8, "sides": 8, "least_half_angle": 0.0035, "colour": "#74b9ea", "glow": 0.6, "why": "the camp grounds' beacon over the radio mast, seen from the camp's domes (concepts K01 and K08); its numbers the camp grounds' plan's", "place": "campgrounds"}],
  "blocks": [
   {
    "name": "camp_airlock_footing",
@@ -771,5 +771,6 @@
  "notes": [
   "Frame: the habitat's own (its deck at nought), 0.55 m over the ground under the camp seat, turned with its seat; the domes, passage and airlock are the camp kit's pieces, the furniture the released camp models.",
   "The boot rock stands in the camp grounds' plan (K05), seen from here through the grounds."
- ]
+ ],
+ "far_ground": {"reach": 130.0, "step": 2.0, "ball": "mars_regolith", "why": "concepts K01 and K08 show Mars's plain and hills to the horizon past the domes' glass; reach and step the old record's (an unverified seed)"}
 }
