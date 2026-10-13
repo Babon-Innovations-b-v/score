@@ -347,6 +347,9 @@ def parts(spec, outfit, who, held, dry_run):
     run = folder / "parts"
     pictures = run / "pictures"
     pictures.mkdir(parents=True, exist_ok=True)
+    spec_file = folder / "spec.json"
+    spec_file.write_text(json.dumps(spec, indent=1))
+    local("prop_parts.py", "check", run, take, spec_file, "--outfit", outfit)  # refused here, before any machine
     shutil.copy2(PIXAL / f"{take}.svviews" / "input.png", pictures / f"{take}.png")
     cloud("segment.py", pictures, "--who", who, *(["--dry-run"] if dry_run else []))
     if dry_run:
@@ -359,8 +362,6 @@ def parts(spec, outfit, who, held, dry_run):
         split_compare.write_inputs(run, take, pictures / "masks")
     cloud("meshparts.py", run, "--who", who, "--takes", take, "--methods", "geosam2")
     split_spread.lay_geosam2(run, take)
-    spec_file = folder / "spec.json"
-    spec_file.write_text(json.dumps(spec, indent=1))
     local("prop_parts.py", "questions", run, take, spec_file, "--outfit", outfit)
     local("prop_parts.py", "regions", run, take, spec_file, "--outfit", outfit)
     cloud("judge.py", run / "questions" / "questions.json", run / "answers")

@@ -62,6 +62,19 @@ SPACE_CHINESE = {"white suit fabric": ("fabric", (228, 224, 212)), "white backpa
                  "grey moon boot rubber": ("rubber", (140, 141, 137)), "dark knob plastic": ("plastic", (70, 72, 74)),
                  "printed flag patch": ("print", (184, 48, 38))}
 OUTFIT_PALETTES = {"work": WORK_CHINESE, "space": SPACE_CHINESE}
+# An outfit with no palette of its own (a kit's uniform, the driver's suit) takes the work suit's material names: they
+# only give each part its role for the judge (fabric, print, belt, buckle, boot); its dress row paints it from the
+# library (score/stages/people/dress.py), never in these colours.
+FALLBACK_PALETTE = WORK_CHINESE
+
+
+def palette_of(outfit):
+    return OUTFIT_PALETTES.get(outfit, FALLBACK_PALETTE)
+
+
+def problems_of(spec, outfit):
+    """Why the parts of `outfit` cannot be asked for this spec ([] when they can): checked on the PC before renting."""
+    return [] if outfit in spec.get("outfit_words", {}) else [f"the spec has no outfit_words for {outfit!r}"]
 # The materials a part named by them is: boots and mitts are split by side for joins.py (boot_l, mitt_r, ...).
 BOOTS = ("black rubber boot", "grey moon boot rubber")
 MITTS = ("grey mitten rubber",)
@@ -97,7 +110,7 @@ def person_materials(spec, outfit):
     look = spec.get("look", {})
     found = {"skin": {"family": "skin", "colour": linear(look.get("skin", TAKE_C_SKIN))},
              "hair": {"family": "hair", "colour": linear(look.get("hair", TAKE_C_HAIR))}}
-    for name, (family, colour) in OUTFIT_PALETTES[outfit].items():
+    for name, (family, colour) in palette_of(outfit).items():
         found[name] = {"family": family, "colour": linear(colour)}
     return found
 
@@ -336,14 +349,19 @@ def parts(run, take, spec, outfit):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("what", choices=("questions", "regions", "parts"))
+    parser.add_argument("what", choices=("check", "questions", "regions", "parts"))
     parser.add_argument("run", type=pathlib.Path)
     parser.add_argument("take")
     parser.add_argument("more", help="the prop route spec (data/characters/makes/<name>.json)")
-    parser.add_argument("--outfit", default="work", choices=sorted(OUTFIT_PALETTES))
+    parser.add_argument("--outfit", default="work")
     options = parser.parse_args()
     spec = json.loads(pathlib.Path(options.more).read_text())
-    if options.what == "questions":
+    if options.what == "check":
+        problems = problems_of(spec, options.outfit)
+        if problems:
+            raise SystemExit("; ".join(problems))
+        print(f"{options.outfit}: parts can be asked")
+    elif options.what == "questions":
         print(f"{len(questions(options.run, options.take, spec, options.outfit))} questions in {options.run / 'questions'}")
     elif options.what == "regions":
         print(f"{len(region_questions(options.run, options.take, spec, options.outfit))} questions in "
