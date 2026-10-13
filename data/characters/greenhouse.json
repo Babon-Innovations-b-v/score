@@ -1,12 +1,58 @@
 {
  "place": "greenhouse",
- "from": "the place's concept as a freshly picked input (owner, 2026-10-11): the people on it counted by SAM 3 and the judge (score.stages.concept_people), each stood at the thing they stand at on the concept (today/records/tools/cast_place.py), the people from the cast list the people stage makes (data/characters/makes/*_prop.json)",
+ "from": "the greenhouse's concept (K09.png), measured by score.stages.concept_people (re-count of 2026-10-13): three people at work; each stands at the plan's people spot for them (data/plans/greenhouse.json `people`, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures; the plan's spot for the one at the water tank (-3.0, -6.4) lies in the plot's beds, so he stands on the floor beside the tank where the concept shows him",
+ "note": "Three people, told apart by appearance against the made looks: three men in khaki coveralls, no woman (so not Nev). The darker-skinned man at the front bed's edge is Sefa; the two lighter-skinned men are Bram (hands in the mealworm bin) and the player (reading a tablet by the water tank), the only other made men. Their coveralls are khaki on the concept, the made work suits light blue and navy (the owner's list). Clips as the concept shows them: working at the bin, holding the tablet like a clipboard, bending to the bed's edge.",
  "people": [
-  {"name": "nev", "character": "nev", "look": "nev_work", "doing": "lifting", "at": [0.003, 0.0, 4.995], "facing_to": [0.003, 0.0, 5.795],
-   "why": "Nev, lifting at the crop crate, where the concept (K09.png) shows a crew member at it (their feet 48.0 px from the line it stands on), at the nearest spot clear of everything on the stage"},
-  {"name": "bram", "character": "bram", "look": "bram_work", "doing": "checking", "at": [-6.574, 0.0, -5.034], "facing_to": [-7.524, 0.0, -5.034],
-   "why": "Bram, checking the humidifier, where the concept (K09.png) shows a crew member at it (their feet 48.0 px from the line it stands on), at the nearest spot clear of everything on the stage"},
-  {"name": "sefa", "character": "sefa", "look": "sefa_work", "doing": "checking", "at": [0.85, 0.0, 5.5], "facing_to": [0.0, 0.0, 0.0],
-   "why": "Sefa, checking on the open floor, where the concept (K09.png) shows a crew member at no row, at the clear spot nearest the floor's middle"}
+  {
+   "name": "bram",
+   "character": "bram",
+   "look": "bram_work",
+   "doing": "bench",
+   "at": [
+    4.0,
+    -0.007,
+    5.6
+   ],
+   "facing_to": [
+    4.0,
+    -0.007,
+    6.6
+   ],
+   "why": "Bram working at the mealworm bin, as the concept shows a man with his hands in it"
+  },
+  {
+   "name": "player",
+   "character": "player",
+   "look": "player_work",
+   "doing": "clipboard",
+   "at": [
+    -6.5,
+    -0.007,
+    -6.6
+   ],
+   "facing_to": [
+    -5.0,
+    -0.007,
+    -8.0
+   ],
+   "why": "the player by the water tank reading a tablet, as the concept shows him"
+  },
+  {
+   "name": "sefa",
+   "character": "sefa",
+   "look": "sefa_work",
+   "doing": "checking",
+   "at": [
+    -0.39,
+    -0.007,
+    5.375
+   ],
+   "facing_to": [
+    0.0,
+    -0.007,
+    -1.0
+   ],
+   "why": "Sefa bending to the front bed's edge, as the concept shows him (0.45 m off the plan's spot, clear)"
+  }
  ]
 }

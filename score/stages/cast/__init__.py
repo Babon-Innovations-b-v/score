@@ -39,10 +39,10 @@ import stage_inputs  # noqa: E402
 
 from score.stages.cast import measure, spread  # noqa: E402
 
-# Places whose concept shows people (concept_people's accepted count, 2026-10-12). The greenhouse's people are the
-# greenhouse crops-and-people line's (design D, 2026-10-12).
-PLACES = ("airlock", "camp", "flat", "garage", "habitat", "hangar", "hub", "lab", "square", "stairwell", "street",
-          "tube", "workshop")
+# Places whose concept shows people (concept_people's accepted count, 2026-10-13; the greenhouse joined that day,
+# the captain's call).
+PLACES = ("airlock", "camp", "flat", "garage", "greenhouse", "habitat", "hangar", "hub", "lab", "square", "stairwell",
+          "street", "tube", "workshop")
 # Where the people route (issue #5: Pixal3D's mesh, library clothing, faces, SOMA-X rig) lands each take.
 PROP_PEOPLE = pathlib.Path(os.environ.get("PROP_PEOPLE",
                                           pathlib.Path.home() / ".farm-factory-motion/candidates/prop-people"))
