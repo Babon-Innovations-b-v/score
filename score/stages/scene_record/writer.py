@@ -608,11 +608,36 @@ def planned_ground(plan):
                     "the place, the ball under it"}
 
 
+def shown_only(place, plan, record, inputs):
+    """The record with only the seated neighbours its own views see (seen.py); the nearest place of each stage a door
+    leads to (its doorway opens onto it), a joined tube, a door leaf and a place the plan shows are always kept."""
+    from score.stages.scene_record import seen
+    from score.stages.terrain import gates as ground_gates
+    grounds = seats(inputs)
+    seated = [entry for entry in record["places"] if entry["name"] in grounds and "joins" not in entry
+              and not entry.get("door_leaf") and entry["name"] not in plan.get("shows", {})]
+    opened = {id(min(those, key=lambda entry: np.linalg.norm(np.asarray(entry["at"]) - door_outside(door))))
+              for door in plan["doors"] if door["cut"]
+              for those in [[entry for entry in seated if entry["stage"] == door["leads"]]] if those}
+    candidates = [entry for entry in seated if id(entry) not in opened]
+    if not candidates:
+        return record
+    here = grounds[place]
+    kit_path = pathlib.Path(inputs["kits"]) / f"{here.stage}.json"
+    kit = read(kit_path) if kit_path.exists() else None
+    zoned, _ = outside.meshes(here.made, here.entry, on_seat_of(inputs["kits"], here.stage),
+                              ground_gates.footprint(record, kit))
+    rays = ground_gates.caster(seen.occluders(here.stage, inputs["seeds"], zoned))
+    kept = seen.visible(record["views"], candidates, inputs["plans"], rays, VIEW_FOV)
+    return {**record, "places": [entry for entry in record["places"]
+                                 if entry not in candidates or entry["name"] in kept]}
+
+
 def make(inputs, out, seed, params):
     """record/<place>.json: the place's scene record, with its planned ground when the plan sees one."""
     plan = read(pathlib.Path(inputs["plan"]) / "plan.json")
     place = plan["place"]
-    record = record_of(place, plan, inputs)
+    record = shown_only(place, plan, record_of(place, plan, inputs), inputs)
     far = planned_ground(plan)
     if far:
         record["planned_ground"] = far
