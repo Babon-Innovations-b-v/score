@@ -167,10 +167,27 @@ def a_failing_reach_is_shown_not_counted():
         return problems
 
 
+def a_part_answers_for_its_own_rows_only():
+    """Fault (2026-10-13): complete@gdoor failed on 40 of the garage's rows and on reach's 0 views. A part of another
+    place (contents.json `part_of`) answers rows, boxes and picks for the rows its own kit lays; reach is its host's."""
+    contents.DATA = HERE.parents[1] / "data"  # the world's own part_of records (earlier tests point it at theirs)
+    with tempfile.TemporaryDirectory() as temporary:
+        stage = pathlib.Path(temporary) / "gdoor.usda"  # no inputs record: the place's own inventory, the garage's
+        problems = []
+        own = {row["id"] for row in complete.own_inventory("gdoor", stage)["rows"]}
+        if own != {"lattice_ring_rib", "wall_upper_plain"}:
+            problems.append(f"the garage door leaves answer for rows {sorted(own)}, not their kit's two")
+        if len(complete.own_inventory("garage", stage)["rows"]) <= len(own):
+            problems.append("the garage itself lost its rows")
+        if complete.reach_check("gdoor", stage)["result"] != complete.PASS:
+            problems.append("reach is judged on the door leaves, not on the garage")
+        return problems
+
+
 CHECKS = (a_finished_place_passes, a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
-          a_check_that_cannot_run_is_unknown)
+          a_check_that_cannot_run_is_unknown, a_part_answers_for_its_own_rows_only)
 
 
 if __name__ == "__main__":
