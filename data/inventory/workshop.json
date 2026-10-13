@@ -2035,10 +2035,10 @@
 			"id": "equipment_bench",
 			"view": "v1",
 			"box": [
-				1121,
-				1190,
-				1291,
-				1301
+				380,
+				564,
+				669,
+				794
 			],
 			"name": "equipment maker's workbench: cabinet base, steel top, back panel with a copper bus bar and switched sockets",
 			"kind": "code",
@@ -2055,13 +2055,10 @@
 			"at": [],
 			"why": "placed by the game's EquipmentBench node (shown only once built), not by the game's kit: main.tscn:134-135 stands it unturned at (20.5, 0, 6.55) on the base seat, the workshop at (17, 0, 0) (main.tscn:112-113), so the stage lays its made model there (route.py late-plan and late-lay, 2026-10-10)",
 			"box_from": [
-				"v1.216",
-				"v1.259",
-				"v1.325",
-				"v1.377",
-				"v1.386",
-				"v1.w61"
-			]
+				"v1.w53"
+			],
+			"ground_box": true,
+			"why_box": "the workbench on the west wall with its pegboard back panel (proposal v1.w53, SAM 3's workbench); the old box was round the desk with a monitor the box judge failed (2026-10-13)"
 		},
 		{
 			"id": "arm_monitor",
