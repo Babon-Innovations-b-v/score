@@ -411,7 +411,7 @@ def checked_finishes(entry, finishes, measured):
         apart = float(np.linalg.norm(library_lab(listed) - colour))
         record.update(measured_lab=[round(float(value), 1) for value in colour], delta_e=round(apart, 1))
         if apart > COLOUR_DELTA_E and coloured_cover(finish, every):
-            record.update(by="its own colour")
+            record.update(by="its own colour", cover=True)
         elif apart > COLOUR_DELTA_E:
             family = [(float(np.linalg.norm(library_lab(spec) - colour)), name) for name, spec in every.items()
                       if spec.get("family") == listed.get("family") and "colour" in spec]

@@ -270,10 +270,13 @@ def stands(name, labelled, inventory_rows, lying_words):
 
 def close_up_colours(labelled):
     """Each surface's colour in the close-up (L*a*b*, the mean of its finishes' measured colours) from the paint's
-    report of the take (labels.json `finishes`); {} when the method measured none."""
+    report of the take (labels.json `finishes`); {} when the method measured none. A coloured see-through cover
+    (`cover`, finish_parts.coloured_cover: the garage beacon's red_plastic dome, whose pixels are its highlights and
+    what lies behind it) is left out, as glass is (owner, #8); any other finish judged by its own colour (an OWN_COLOUR
+    family's, print off its listed colour) stays in, so the order and one-look checks still see it."""
     measured = {}
     for finish in json.loads((labelled / "labels.json").read_text()).get("finishes", []):
-        if finish.get("measured_lab") is not None:
+        if finish.get("measured_lab") is not None and not finish.get("cover"):
             measured.setdefault(finish["surface"], []).append(finish["measured_lab"])
     return {surface: [round(sum(colour[axis] for colour in colours) / len(colours), 1) for axis in range(3)]
             for surface, colours in measured.items()}
@@ -394,7 +397,8 @@ def judged_surfaces(record):
 
 def close_up_faults(name, record):
     """Each judged surface whose baked colour lies over CLOSE_UP_DELTA_E from its colour in the close-up. Glass, screen
-    glow, lamp light and print are judged by their own colour, not the close-up's lit one (owner, #8)."""
+    glow, lamp light, print and a coloured see-through cover (close_up_colours) are judged by their own colour, not
+    the close-up's lit one (owner, #8)."""
     close_up = record.get("close_up", {})
     faults = []
     for surface, entry in judged_surfaces(record).items():
