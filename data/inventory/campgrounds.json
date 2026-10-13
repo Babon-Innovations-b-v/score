@@ -894,6 +894,59 @@
 				}
 			],
 			"unseen": "the concept shows no one lying at the camp's edge, so no drift over his legs"
+		},
+		{
+			"id": "cairn",
+			"view": "v1",
+			"box": [
+				442,
+				1112,
+				641,
+				1380
+			],
+			"name": "cairn of flat stones stacked into a narrow tower, the wider slabs leaning round its foot",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				0.9,
+				0.9,
+				1.1
+			],
+			"count": 1,
+			"thing": "prop:campgrounds_cairn",
+			"parent": "",
+			"made": "made by the route",
+			"why_code": "mars-build 2026-10-07: the camp grounds from the picked concept (outside K05), one model per real-world object",
+			"prop": "campgrounds_cairn",
+			"at": [
+				{
+					"x": 13.0,
+					"y": 0.0,
+					"z": 16.0,
+					"facing": 0.0,
+					"level": "ground",
+					"fit": "seat across/along"
+				}
+			],
+			"box_from": [
+				"v1.348",
+				"v1.337",
+				"v1.265",
+				"v1.213",
+				"v1.227",
+				"v1.294",
+				"v1.205",
+				"v1.211",
+				"v1.75",
+				"v1.221",
+				"v1.116",
+				"v1.134",
+				"v1.200",
+				"v1.97"
+			],
+			"ground_box": true,
+			"size_from": "tall 1.1 m: on K05 the tower stands 240 px (y 1130 to 1370) beside the tall boulder's 310 px (y 990 to 1300), the camp's boot rock model laid 1.443 m tall; its foot 0.9 m wide (195 px, x 445 to 640, the leaning slabs; the stack above them 75 px, 0.35 m); deep as wide, a stack being round",
+			"why": "K05's stacked stone tower beside the tall boulder is the cairn (Bram's grave): the camp follows K05's ending, and the concept decides its shape and size (captain, 2026-10-13)"
 		}
 	],
 	"concept_elements": [
@@ -962,7 +1015,7 @@
 			"element": "stacked stone tower",
 			"where": "A-left",
 			"count": 1,
-			"dropped": "dropped: the story's cairn is Bram's grave, a long low heap, and it stands only on the ending where he lies under it, which is not cast; a tower would read as a marker, not a grave"
+			"row": "cairn"
 		},
 		{
 			"element": "scattered small rocks",
@@ -1067,43 +1120,6 @@
 			"where": "D-right",
 			"count": 1,
 			"dropped": "dropped: the camp's stone heap is the cairn (not on this ending); a second ring has no story"
-		}
-	],
-	"held_back": [
-		{
-			"id": "cairn",
-			"view": "v1",
-			"box": [
-				421,
-				1132,
-				635,
-				1366
-			],
-			"name": "low grave cairn of flat stones",
-			"kind": "generate",
-			"anchor": "floor",
-			"size": [
-				1.9,
-				0.5,
-				0.5
-			],
-			"count": 1,
-			"thing": "prop:campgrounds_cairn",
-			"parent": "",
-			"made": "made by the route",
-			"why_code": "mars-build 2026-10-07: the camp grounds from the picked concept (outside K05), one model per real-world object",
-			"prop": "campgrounds_cairn",
-			"at": [
-				{
-					"x": 13.0,
-					"y": 0.0,
-					"z": 16.0,
-					"facing": 0.0,
-					"level": "ground",
-					"fit": "seat across/along"
-				}
-			],
-			"why_held": "held back 2026-10-09: the cairn (Bram's grave) stands only on the ending where he lies under it, which is not cast (the camp's cast shows him out in the dust), and its close-up waits for the owner's look; it comes back as a row if that ending is cast"
 		}
 	]
 }

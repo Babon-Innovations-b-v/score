@@ -134,6 +134,17 @@
    "place": "campgrounds",
    "kind": "campgrounds_sample_case",
    "object": "Bram's hard geology sample case"
+  },
+  "cairn-p1": {
+   "places": [
+    "campgrounds"
+   ],
+   "library_places": [
+    "expedition_camp"
+   ],
+   "place": "campgrounds",
+   "kind": "campgrounds_cairn",
+   "object": "cairn of flat stones stacked into a narrow tower, the wider slabs leaning round its foot"
   }
  },
  "bake": {
@@ -150,7 +161,8 @@
    "lander": "lander-r1",
    "mast_cabinet": "mast_cabinet-r1",
    "power_unit": "power_unit-g1",
-   "reactor": "reactor-r1"
+   "reactor": "reactor-r1",
+   "cairn": "cairn-p1"
   },
   "entries": {
    "sample_case": "{home}/work/place/campgrounds-score1/job-chunky2.json",
@@ -158,7 +170,31 @@
    "cargo_pallet": "{home}/work/place/campgrounds-score1/job-chunky2.json",
    "coiled_cable": "{home}/work/place/campgrounds-score1/job-chunky2.json",
    "ice_drill": "{home}/work/place/campgrounds-score1/job-chunky2.json",
-   "reactor": "{home}/work/place/campgrounds-score1/job-chunky2.json"
+   "reactor": "{home}/work/place/campgrounds-score1/job-chunky2.json",
+   "cairn": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.9,
+     1.1,
+     0.9
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   }
   }
  }
 }
