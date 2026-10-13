@@ -54,11 +54,18 @@ def raw_made(take):
     return raw.exists() and cameras.exists()
 
 
-def faces_of(surfaces, row):
-    """The triangles a take is finished to: its bake entry's (route.faces_for its size), so a small object is not
-    asked for more than its remeshed surface has (cable_drop: 32,362 after the remesh, 40,000 asked, the finish
-    failed rather than write a worse model)."""
-    return json.loads(surfaces.read_text())["bake"]["entries"][f"{row}_1"]["faces"]
+def faces_of(surfaces, take):
+    """The triangles a take is finished to: the bake entry of the model the surface data bakes from it (route.faces_for
+    its size), so a small object is not asked for more than its remeshed surface has (cable_drop: 32,362 after the
+    remesh, 40,000 asked, the finish failed rather than write a worse model). The model is found by its take, never
+    by a name made from the row (the camp grounds name theirs by the row alone, `cairn`). A new take's entry is written
+    out in the surface data (compare.bake_entry), never left to an old bake job's file, which this row does not read."""
+    bake = json.loads(surfaces.read_text())["bake"]
+    model = next((model for model, made in bake["models"].items() if made == take), None)
+    entry = bake.get("entries", {}).get(model)
+    if not isinstance(entry, dict):
+        raise KeyError(f"{surfaces}: the take {take} has no bake model with its entry written out (model {model})")
+    return entry["faces"]
 
 
 def finish_here(take, closeup, faces, out):
@@ -75,7 +82,7 @@ def finish_here(take, closeup, faces, out):
 def batch_list(objects, closeups, surfaces, out):
     """The batch's list, one take with no raw model a line with its close-up and its faces; its path, or None when
     there is none."""
-    lines = [f"{entry['take']} {closeups / f'{row}.png'} --faces {faces_of(surfaces, row)}"
+    lines = [f"{entry['take']} {closeups / f'{row}.png'} --faces {faces_of(surfaces, entry['take'])}"
              for row, entry in sorted(objects.items()) if not raw_made(entry["take"])]
     if not lines:
         return None
@@ -98,7 +105,7 @@ def make_pixal(inputs, out, seed, params):
             raise RuntimeError(f"the Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
     for row, entry in sorted(objects.items()):
         if raw_made(entry["take"]) and not made(entry["take"]):
-            finish_here(entry["take"], closeups / f"{row}.png", faces_of(inputs["surfaces"], row), out)
+            finish_here(entry["take"], closeups / f"{row}.png", faces_of(inputs["surfaces"], entry["take"]), out)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in objects.items()}
