@@ -171,6 +171,7 @@ def node_seed(world_seed, stage, place):
 
 
 BYTECODE_REASON = "same sources, bytecode left out of the key"
+NO_OP_REASON = "same result: every change since it was made is proved a no-op for it"
 
 
 def bytecode(relative):
@@ -512,6 +513,8 @@ class Runner:
             record = stage.files.carried(self, stage, place, keyed)
         if record is None:  # its accepted output, kept when only bytecode moved its key (#67)
             record = self.kept_over_bytecode(stage, place, keyed)
+        if record is None:  # its accepted output, kept when a stored proof says every change is a no-op for it
+            record = self.kept_by_proof(stage, place, keyed)
         made = record is None
         if made:
             try:
@@ -569,6 +572,74 @@ class Runner:
                "carried": {"reason": BYTECODE_REASON, "from key": record["key"], "to key": keyed["key"],
                            "made by": {"commit": record["commit"], "code": record["code"]},
                            "sources": proved["files"]}}
+        try:
+            self.store.write_record(node, keyed["key"], new)
+        except FileExistsError:  # another run kept it first
+            return self.store.record(node, keyed["key"])
+        for judgement in self.store.judgements(node, record["key"]):
+            self.store.write_judgement(node, keyed["key"], judgement["evidence"],
+                                       {**judgement, "key": keyed["key"], "carried": new["carried"]})
+        return new
+
+    def changes_since(self, stage, place, keyed):
+        """(the accepted output's record, the repository files changed since its commit that moved its key) when
+        only its code and declared repository files moved: a record of a committed tree, every other key part the
+        same. None otherwise, or when no changed file accounts for the move."""
+        node = node_name(stage, place)
+        accepted = self.store.accepted(node)
+        record = review.record_of(self.store, node, accepted) if accepted else None
+        if record is None or record.get("uncommitted", True) or not record.get("commit"):
+            return None
+        if any(record.get(part) != keyed.get(part) for part in ("contract", "expects", "params", "seed", "models",
+                                                                 "after", "beside")):
+            return None
+        if set(record["files"]) != set(keyed["files"]):
+            return None
+        paths = []
+        if record["code"] != keyed["code"]:
+            paths += [str(path.relative_to(_code.REPO)) for path in _code.source_files(code_functions(stage))]
+        for name in keyed["files"]:
+            if record["files"][name] != keyed["files"][name]:
+                path = self.file_path(stage, name, place).resolve()
+                if not path.is_relative_to(_code.REPO):
+                    return None
+                paths.append(path.relative_to(_code.REPO).as_posix())
+        changed = _code.changed_since(record["commit"], paths) if paths else []
+        return (record, changed) if changed else None
+
+    def no_op_proof(self, stage, place, keyed):
+        """The stored proof that the node's code and file changes since its accepted output leave its result as it
+        is: JSON stored as evidence on the output under check `no-op-<new key>` ({"from key": the record's key, "to
+        key": the new key, "no-ops": {changed file: why its change leaves this node's result as it was}}), naming
+        every changed file (changes_since). {"record", "changed", "proof", "check"} when it holds, else None."""
+        found = self.changes_since(stage, place, keyed)
+        if found is None:
+            return None
+        record, changed = found
+        check = f"no-op-{keyed['key']}"
+        path = self.store.evidence_file(check, record["output"])
+        if path is None:
+            return None
+        proof = json.loads(pathlib.Path(path).read_text())
+        if proof.get("from key") != record["key"] or proof.get("to key") != keyed["key"]:
+            return None
+        if any(not str(proof.get("no-ops", {}).get(name, "")).strip() for name in changed):
+            return None
+        return {"record": record, "changed": changed, "proof": proof, "check": check}
+
+    def kept_by_proof(self, stage, place, keyed):
+        """The node's accepted output stored under `keyed` when a stored proof says its changes are no-ops for it
+        (no_op_proof): its record and judgements copied, the record naming both keys, the commit and code that made
+        it and the proof. Its new record, or None (the runner then makes the node)."""
+        proved = self.no_op_proof(stage, place, keyed)
+        if proved is None:
+            return None
+        node, record = node_name(stage, place), proved["record"]
+        new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"],
+               "carried": {"reason": NO_OP_REASON, "from key": record["key"], "to key": keyed["key"],
+                           "made by": {"commit": record["commit"], "code": record["code"]},
+                           "proof": self.store.evidence_key(proved["check"], record["output"]),
+                           "no-ops": {name: proved["proof"]["no-ops"][name] for name in proved["changed"]}}}
         try:
             self.store.write_record(node, keyed["key"], new)
         except FileExistsError:  # another run kept it first

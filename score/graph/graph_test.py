@@ -554,6 +554,41 @@ def test_an_output_whose_key_moved_only_by_bytecode_is_kept_and_a_source_change_
             assert carried["sources"]["code"]["at its commit"] == keyed["files"]["code"]
 
 
+NOTED = graph.Stage("noted", "place", make_seen, TEXT, (checks.Check("seen", judge_seen),),
+                    files={"notes": "{repo}/CLAUDE.md"})
+
+
+def test_an_output_is_kept_over_a_change_only_with_a_proof_naming_every_changed_file():
+    """noted@hangar made at the repository's first commit, when CLAUDE.md read otherwise: made again with no proof
+    or one that leaves CLAUDE.md out; kept, with the proof in its record, when the proof names it."""
+    world = graph.World("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
+    first = subprocess.run(["git", "-C", str(_code.REPO), "rev-list", "--max-parents=0", "HEAD"],
+                           capture_output=True, text=True, check=True).stdout.split()[0]
+    for no_ops, kept in (({}, False), ({"README.md": "not read"}, False),
+                         ({"CLAUDE.md": "only its wording changed"}, True)):
+        store = Store.in_folder(tempfile.mkdtemp())
+        saved = graph.source_hash, _code.git_commit
+        graph.source_hash, _code.git_commit = (lambda path: "the file as it read then",
+                                               lambda: {"commit": first, "uncommitted": False})
+        try:
+            assert a_runner(world, store, (NOTED,)).run(["hangar"])["noted@hangar"].endswith("automatically")
+        finally:
+            graph.source_hash, _code.git_commit = saved
+        runner = a_runner(world, store, (NOTED,))
+        keyed = runner.key(NOTED, "hangar")
+        old = store.records("noted@hangar")[0]
+        if no_ops:
+            proof = pathlib.Path(tempfile.mkdtemp()) / "proof.json"
+            proof.write_text(json.dumps({"from key": old["key"], "to key": keyed["key"], "no-ops": no_ops}))
+            store.put_evidence(f"no-op-{keyed['key']}", old["output"], proof)
+        done = runner.run(["hangar"])["noted@hangar"]
+        assert done == ("fresh" if kept else "made: pass"), (no_ops, done)
+        if kept:
+            carried = store.record("noted@hangar", keyed["key"])["carried"]
+            assert carried["reason"] == graph.NO_OP_REASON and carried["no-ops"] == no_ops
+            assert carried["made by"]["commit"] == first and carried["from key"] == old["key"]
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

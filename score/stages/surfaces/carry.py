@@ -184,13 +184,59 @@ def listed(runner, row, place, write):
     return f"{'carried' if write else 'carries'}: {REASON} ({record['key'][:12]} -> {keyed['key'][:12]})"
 
 
+def proved(runner, places, reasons, skip, write):
+    """Every node in table order whose key moved only by repository files `reasons` names ({file: why its change
+    is a no-op}), never one of `skip`: its proof stored as evidence on its accepted output (graph.no_op_proof) and
+    the output kept under its new key by the runner's rule, so the nodes after it see the same input. Its line."""
+    with runner.still():
+        for stage, place in runner.nodes(places):
+            node = graph.node_name(stage, place)
+            if runner.store.accepted(node) is None:
+                continue
+            try:
+                keyed = runner.key(stage, place)
+            except Blocked as blocked:
+                yield f"{node}: blocked: {blocked}"
+                continue
+            if runner.store.record(node, keyed["key"]) is not None:
+                continue
+            found = runner.changes_since(stage, place, keyed)
+            unproved = None if found is None else [name for name in found[1] if name not in reasons]
+            if node in skip or found is None or unproved:
+                why = ("its change is not a no-op for it" if node in skip else "other key parts moved"
+                       if found is None else f"{', '.join(unproved)} changed")
+                yield f"{node}: made again ({why})"
+                continue
+            record, changed = found
+            if write:
+                proof = {"from key": record["key"], "to key": keyed["key"],
+                         "no-ops": {name: reasons[name] for name in changed}}
+                path = COMMITS / f"proof-{keyed['key']}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(proof, indent=1))
+                runner.store.put_evidence(f"no-op-{keyed['key']}", record["output"], path)
+                path.unlink()
+                if runner.kept_by_proof(stage, place, keyed) is None:
+                    raise RuntimeError(f"{node}: its proof was stored but the runner did not keep it")
+            yield f"{node}: {'kept' if write else 'keeps'} ({', '.join(changed)} a no-op)"
+
+
 def main(argv=None):
     from score import stages
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--write", action="store_true", help="store what carries now (default: only list it)")
-    write = parser.parse_args(argv).write
+    parser.add_argument("--no-op", action="append", default=[], metavar="FILE=WHY",
+                        help="a repository file whose change is a no-op for every node but --skip ones, and why")
+    parser.add_argument("--skip", action="append", default=[], metavar="NODE", help="a node the change does reach")
+    options = parser.parse_args(argv)
+    write = options.write
     runner = stages.runner(world=stages.WORLDS["world1"]())
     places = stages.places(runner.world)
+    if options.no_op:
+        reasons = dict(entry.split("=", 1) for entry in options.no_op)
+        for line in proved(runner, places, reasons, set(options.skip), write):
+            print(line, flush=True)
+        return
     for row in runner.stages.values():
         if not hasattr(row.files, "wide"):
             continue

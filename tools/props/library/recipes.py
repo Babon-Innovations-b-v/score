@@ -63,21 +63,23 @@ def edge_wear_mask(vector, wear, edge_width, breakup_scale, seed):
 
 # Wear from a cause (hub round five, method B): boots and carts scuff paint off a piece's foot up to KICK_HIGH metres
 # over the floor it stands on, in patches, as hard as the room's one wear setting; dirt gathers there too. A piece
-# tells how high its foot stands (`foot`): a porthole's or a tool board's is far above any kick.
+# tells how high its foot stands (`foot`): a porthole's or a tool board's is far above any kick. A place says whether
+# anyone walks it (`kicks`: 1 where people walk, 0 where nobody does, the wreck's crash site, 2026-10-13).
 KICK_HIGH = 0.32
 KICK_SOFT = 0.08
 
 
-def kick_mask(vector, foot, wear, breakup_scale, seed):
+def kick_mask(vector, foot, wear, kicks, breakup_scale, seed):
     """Where kicks have worn paint: within KICK_HIGH of the floor (the object's own up plus its foot's height), in
-    patches from a breakup noise, scaled by the room's wear; nothing on a piece whose foot stands high."""
+    patches from a breakup noise, scaled by the room's wear and by `kicks`; nothing on a piece whose foot stands high
+    or in a place nobody walks."""
     point = pf.nodes.math.separate_xyz(vector)
     band = pf.nodes.math.map_range(value=point.z + foot, from_min=KICK_HIGH, from_max=KICK_SOFT,
                                    interpolation_type="SMOOTHSTEP")
     scuffs = pf.nodes.texture.noise(vector=vector, scale=breakup_scale * 1.5, detail=4.0, noise_dimensions="4D",
                                     w=seed + 31.0)
     patchy = pf.nodes.math.map_range(value=scuffs.fac, from_min=0.46, from_max=0.6)
-    return pf.nodes.math.clamp(band * patchy * wear * 1.6)
+    return pf.nodes.math.clamp(band * patchy * wear * kicks * 1.6)
 
 
 def dirt_mask(vector, dirt, reach, seed):
@@ -117,10 +119,10 @@ def layered(top, under, wear_mask, dirt_colour, dirt_amount):
 
 
 def painted_metal(colour, bare, dirt_colour, roughness, bare_roughness, metal, bump, bump_size, edge_width,
-                  breakup_scale, dirt_reach, wear, dirt, seed, foot):
+                  breakup_scale, dirt_reach, wear, dirt, seed, foot, kicks):
     """Paint on steel: worn through to bare steel on the edges and where feet kick it, dirty in the cavities."""
     vector = coordinates()
-    kicked = kick_mask(vector, foot, wear, breakup_scale, seed)
+    kicked = kick_mask(vector, foot, wear, kicks, breakup_scale, seed)
     wear_mask = pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked)
     dirty = pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5)
     base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 1.0), wear_mask, dirt_colour, dirty)
@@ -299,11 +301,11 @@ def lumpy_relief(vector, bump, bump_size, seed):
 
 
 def painted_plaster(colour, bare, dirt_colour, roughness, bare_roughness, bump, bump_size, edge_width, breakup_scale,
-                    dirt_reach, wear, dirt, seed, foot):
+                    dirt_reach, wear, dirt, seed, foot, kicks):
     """Whitewash or gloss paint on rendered plaster: chipped to the bare render on edges and corners and scuffed where
     feet kick the foot of the wall, dirty in the cavities."""
     vector = coordinates()
-    kicked = kick_mask(vector, foot, wear, breakup_scale, seed)
+    kicked = kick_mask(vector, foot, wear, kicks, breakup_scale, seed)
     wear_mask = pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed), kicked)
     dirty = pf.nodes.math.maximum(dirt_mask(vector, dirt, dirt_reach, seed), kicked * dirt * 0.5)
     base, rough, shine = layered((colour, roughness, 0.0), (bare, bare_roughness, 0.0), wear_mask, dirt_colour, dirty)
@@ -332,13 +334,13 @@ def rain_streaks(vector, streaks, streak_length, seed):
 
 
 def weathered_render(colour, bare, dirt_colour, roughness, bare_roughness, bump, bump_size, edge_width, breakup_scale,
-                     dirt_reach, peel, streaks, streak_length, mottle, wear, dirt, seed, foot):
+                     dirt_reach, peel, streaks, streak_length, mottle, wear, dirt, seed, foot, kicks):
     """Painted render on an old block's outside walls (the street's tenements, 2026-10-10: the flat plates read as
     new paint up close): painted_plaster's chips and kicks, the paint peeled off the render in patches as far as the
     place's wear (`peel`), rain streaks down the upright faces as dirty as the place (`streaks`), and the paint's
     shade mottled by patches of fading and repainting (`mottle`)."""
     vector = coordinates()
-    kicked = kick_mask(vector, foot, wear, breakup_scale, seed)
+    kicked = kick_mask(vector, foot, wear, kicks, breakup_scale, seed)
     patches = pf.nodes.texture.noise(vector=vector, scale=breakup_scale, detail=5.0, noise_dimensions="4D",
                                      w=seed + 23.0)
     peeled = pf.nodes.math.map_range(value=patches.fac, from_min=0.74 - 0.25 * wear * peel,
@@ -408,7 +410,7 @@ def boards(colour, bare, second, dirt_colour, roughness, bare_roughness, board_w
 
 
 def rusted_metal(colour, bare, dirt_colour, roughness, bare_roughness, metal, bump, bump_size, edge_width,
-                 breakup_scale, dirt_reach, wear, dirt, seed, foot):
+                 breakup_scale, dirt_reach, wear, dirt, seed, foot, kicks):
     """Paint on mild steel outdoors: rust on the edges, in blooms where the paint let the rain in and where feet kick
     it, as far as the place's wear; rust is matt and dark, pitted, never shiny."""
     vector = coordinates()
@@ -416,8 +418,9 @@ def rusted_metal(colour, bare, dirt_colour, roughness, bare_roughness, metal, bu
                                     w=seed + 7.0)
     bloomed = pf.nodes.math.map_range(value=blooms.fac, from_min=0.72 - 0.3 * wear, from_max=0.78 - 0.3 * wear,
                                       interpolation_type="SMOOTHSTEP") * pf.nodes.math.greater_than(wear, 0.001)
+    kicked = kick_mask(vector, foot, wear, kicks, breakup_scale, seed)
     rusted = pf.nodes.math.maximum(pf.nodes.math.maximum(edge_wear_mask(vector, wear, edge_width, breakup_scale, seed),
-                                                         bloomed), kick_mask(vector, foot, wear, breakup_scale, seed))
+                                                         bloomed), kicked)
     dirty = dirt_mask(vector, dirt, dirt_reach, seed)
     base, rough, shine = layered((colour, roughness, metal), (bare, bare_roughness, 0.0), rusted, dirt_colour, dirty)
     pits = pf.nodes.texture.noise(vector=vector, scale=1.0 / bump_size, detail=3.0, noise_dimensions="4D", w=seed)
@@ -504,8 +507,10 @@ PARTS = {
 COLOUR_ARGUMENTS = ("colour", "bare", "second", "dirt_colour")
 
 
-# A piece that does not say where its foot stands is taken to stand clear of any kick.
+# A piece that does not say where its foot stands is taken to stand clear of any kick; a spec that does not say
+# whether its place is walked (library.unkicked) is taken to be walked.
 NO_FOOT = 100.0
+WALKED = 1.0
 
 
 def arguments(spec, wear, dirt, seed, foot=None):
@@ -513,7 +518,7 @@ def arguments(spec, wear, dirt, seed, foot=None):
     high the piece's foot stands over its floor: its colours as ProcFunc colours, its picture (if it has one) loaded
     into Blender, the wear scaled by its age."""
     given = dict(spec, wear=min(1.0, wear * spec.get("wear_scale", 1.0)), dirt=dirt, seed=float(seed),
-                 foot=NO_FOOT if foot is None else float(foot))
+                 foot=NO_FOOT if foot is None else float(foot), kicks=float(spec.get("kicks", WALKED)))
     for name in COLOUR_ARGUMENTS:
         if name in spec:
             given[name] = pf.Color(tuple(spec[name]))

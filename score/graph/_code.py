@@ -113,12 +113,24 @@ def holds(commit):
     return known.returncode == 0 and branches.returncode == 0 and not branches.stdout.strip()
 
 
+def changed_since(commit, relatives):
+    """Of the repository paths `relatives`, those whose content differs between `commit` and this tree (changes not
+    committed included); None when git does not know the commit (nothing can be proved against it)."""
+    found = subprocess.run(["git", "-C", str(REPO), "diff", "--name-only", commit, "--", *relatives],
+                           capture_output=True, text=True)
+    return sorted(found.stdout.split()) if found.returncode == 0 else None
+
+
 def source_hash_at(commit, relative):
-    """The key hash (graph.source_hash) a repository file or folder had at `commit`, from git's own objects: the
+    """The key hash (graph.source_hash) a repository file or folder had at `commit`, from git's own objects (None
+    for a commit git does not know): the
     sources only, as git holds no bytecode."""
     from score.store import listing_hash
-    entries = subprocess.run(["git", "-C", str(REPO), "ls-tree", "-r", "-z", commit, "--", relative],
-                             capture_output=True, text=True, check=True).stdout.split("\0")
+    listed = subprocess.run(["git", "-C", str(REPO), "ls-tree", "-r", "-z", commit, "--", relative],
+                            capture_output=True, text=True)
+    if listed.returncode:  # a commit git does not know: nothing to compare with
+        return None
+    entries = listed.stdout.split("\0")
     blobs = {}
     for entry in filter(None, entries):
         meta, name = entry.split("\t", 1)
