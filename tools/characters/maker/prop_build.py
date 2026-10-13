@@ -17,10 +17,10 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   colour for this person (no picture colour), its family and material in `extras`; the two printed plates
   (prop_prints.py: the face from the close-up, the flag patch drawn) are the only pictures. A skin part, a boot and a
   mitt get a tuck under every border they share with a garment (tucks.py): the joins joins.py measures and the neck; a
-  hard part elsewhere (a belt, a pack) sits on the cloth and needs none. Every hard part and the hair ride one joint
-  rigidly, and so do the bare hands (`rigid_joint`: a boot its foot, a mitt or a hand its hand, the hair the head, a belt, buckle, helmet or pack the joint
-  its weights favour), and a garment within EASE_REACH of a hard part is eased onto that part's joint, so the trouser
-  hem goes with the boot it covers.
+  hard part elsewhere (a pack) sits on the cloth and needs none. A belt and its buckle are cloth (`worn_as_cloth`).
+  Every other hard part, the hair and the bare hands ride one joint rigidly (`rigid_joint`: a boot its foot, a mitt
+  or a hand its hand, the hair the head, a helmet or pack the joint its weights favour), and a garment within
+  EASE_REACH of a hard part is eased onto that part's joint, so the trouser hem goes with the boot it covers.
 - **Piping is cut in, not found** (piping.py): where the parts name a piping material, thin strips down the outside
   of each sleeve and trouser leg are cut into the garment's triangles and drawn in its colour, and the patches the
   parts found are drawn in the cloth's.
@@ -101,6 +101,13 @@ def floor_lift(mean_rig, fit_rig, names, scale):
 # Parts that ride one joint whatever their role: the hair, and the bare hands (captain, 2026-10-13, the owner's
 # rigid-parts-on-one-bone rule: the look's hands lie well off SOMA-X's, so a shell would warp them).
 RIGID_NAMES = ("hair", "skin_hands")
+# Hard parts by name that are worn as cloth (owner, 2026-10-13: rigid means helmets, boots, visors and tools): a belt
+# and its buckle ride the shell with the clothing, so they follow the hips.
+CLOTH_WORDS = ("belt", "buckle")
+
+
+def worn_as_cloth(name):
+    return any(word in name for word in CLOTH_WORDS)
 
 
 def face_parts(fit_rig, parts):
@@ -126,7 +133,7 @@ def on_one_joint(count, names, joint):
 
 
 def rigid_joint(name, points, weights, names):
-    """The one joint a hard part or the hair rides (plan step 3: boots, buckles, helmets, packs ride one joint
+    """The one joint a hard part or the hair rides (plan step 3: boots, helmets, packs ride one joint
     rigidly; the review found the boots stretched 6.7 to 8.2 times on three joints, 2026-10-10): the hair the head, a
     boot its side's foot, a mitt or a bare hand its side's hand, any other the joint its transferred weights favour."""
     side = "Left" if points[:, 0].mean() > 0 else "Right"
@@ -136,10 +143,6 @@ def rigid_joint(name, points, weights, names):
         return side + "Foot"
     if name.startswith("mitt") or name == "skin_hands":
         return side + "Hand"
-    if "belt" in name or "buckle" in name:
-        # Posed on the player's clips without a settle (2026-10-13): on the hips its edges went over 3 mm through
-        # the cloth 22 times sitting and 29 lifting, on Spine1 none and 3.
-        return "Spine1"
     return names[int(weights.sum(0).argmax())]
 
 
@@ -265,7 +268,7 @@ def surfaces(fit_rig, parts, prints=None):
     names_of = {part: str(parts["names"][number]) for part, number in index.items()}
     pieces = boot_names(split_parts(fit_rig["points"], fit_rig["faces"], fit_rig["weights"],
                                     face_parts(fit_rig, parts)), names_of)
-    role_of = {key: str(parts["roles"][index[key[0]]]) for key in pieces}
+    role_of = {key: "garment" if worn_as_cloth(key[1]) else str(parts["roles"][index[key[0]]]) for key in pieces}
     hard_points, hard_joints = [np.zeros((0, 3))], [np.zeros(0, dtype=object)]
     rigid = [key for key in pieces if role_of[key] == "hard" or key[1] in RIGID_NAMES]
     joint_of = {}

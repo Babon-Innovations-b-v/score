@@ -20,3 +20,10 @@ The people stage (#5, experimental; bible `architecture/experimental`): people m
   the settle) and measure again.
 - **The dress is the paint's library surfaces, nothing else** (`dress.py`): colour, roughness and metalness from the
   library surface; the face print keeps its picture. Tests: `people_test.py`.
+- **The concept decides the clothes** (owner, 2026-10-13): a place `data/people/colours.json` names wears its
+  concept's colour, the library surface its cast record's words name (within dE 32 of the measured torso; lightness
+  never chooses, the concepts are dim and warm-lit), on every fabric surface but a print, through a dress row of its
+  own, `people-dress-<look>-in-<place>`, which that place's characters layer reads. A colour with no surface that
+  near is reported, never added to the library here (a library edit re-keys every place's paint).
+- **Belts are cloth** (owner, 2026-10-13): rigid means helmets, boots, visors and tools; a belt and its buckle ride
+  the shell with the clothing and are no rigid part in any gate.
