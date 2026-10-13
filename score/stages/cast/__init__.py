@@ -136,7 +136,7 @@ def crowd_of(record, singles, takes, views):
     if not crowd:
         return None
     keep_clear = [single["at"] for single in singles if single["name"].startswith(crowd.get("keep_clear_of", "\0"))]
-    look = (crowd["character"], crowd.get("body", "far"))
+    look = look_of(crowd) or (crowd["character"], crowd.get("body", "far"))  # the record's far-only look
     candidates = spread.far_enough(spread.lattice(crowd, keep_clear), views)
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
             "made": made_take(look, takes), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}

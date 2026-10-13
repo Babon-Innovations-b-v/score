@@ -2,9 +2,23 @@
  "place": "airlock",
  "from": "the place's concept as a freshly picked input (owner, 2026-10-11): the people on it counted by SAM 3 and the judge (score.stages.concept_people), each stood at the thing they stand at on the concept (today/records/tools/cast_place.py), the people from the cast list the people stage makes (data/characters/makes/*_prop.json)",
  "people": [
-  {"name": "bram", "character": "bram", "look": "bram_work", "doing": "bench", "at": [-1.013, 0.0, -0.2], "facing_to": [-1.663, 0.0, -0.2],
-   "why": "Bram, working at the suit bench, where the concept (K02.png) shows a crew member at it (their feet 11.0 px from the line it stands on), at the nearest spot clear of everything on the stage; the concept shows them seated, and no clip sits on a chair (the clips' sitting is on the ground)"},
-  {"name": "sefa", "character": "sefa", "look": "sefa_work", "doing": "standing", "at": [0.78, 0.0, 0.0], "facing_to": [1.58, 0.0, 0.0],
-   "why": "Sefa, standing by the suit alcove, where the concept (K02.png) shows a crew member at it (their feet 0.0 px from the line it stands on), at the nearest spot clear of everything on the stage"}
- ]
+  {
+   "name": "bram",
+   "character": "bram",
+   "look": "bram_work",
+   "doing": "bench",
+   "at": [
+    -1.013,
+    0.0,
+    -0.2
+   ],
+   "facing_to": [
+    -1.663,
+    0.0,
+    -0.2
+   ],
+   "why": "Bram, working at the suit bench, where the concept (K02.png) shows a crew member at it (their feet 11.0 px from the line it stands on), at the nearest spot clear of everything on the stage; the concept shows them seated, and no clip sits on a chair (the clips' sitting is on the ground)"
+  }
+ ],
+ "note": "One person, as the concept shows (concept_people's re-count of 2026-10-13): a man in grey coveralls sitting on a crate (Bram by appearance: light skin, short hair). The figure in the suit alcove is an empty space suit on its stand (the judge's majority: suit), so Sefa, who stood for it, is not cast. No clip sits on a crate, so Bram works at the bench beside it."
 }
