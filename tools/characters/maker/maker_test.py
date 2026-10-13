@@ -117,3 +117,23 @@ def test_a_drape_has_no_default_simulator(tmp_path):
     with pytest.raises(ValueError, match="no default simulator"):
         drape_garment.drape(tmp_path / "body", "work_suit", tmp_path / "out", "work")
     assert not (tmp_path / "out").exists()
+
+
+def test_a_spec_bind_pose_is_written_over_the_measured_pose(tmp_path):
+    """A wider A-pose (2026-10-13): the spec's numbers replace the measured ones, the rest stay; an unknown number is
+    refused."""
+    import prop_chain
+    pose = tmp_path / "pose.json"
+    pose.write_text(json.dumps({"arm_degrees": 67.3, "hands_forward_m": 0.04, "ankles_m": 0.21}))
+    prop_chain.widened(pose, {"arm_degrees": 45, "ankles_m": 0.35})
+    assert json.loads(pose.read_text()) == {"arm_degrees": 45, "hands_forward_m": 0.04, "ankles_m": 0.35}
+    with pytest.raises(SystemExit):
+        prop_chain.widened(pose, {"elbow_degrees": 10})
+
+
+def test_the_pose_picture_words_name_no_one_by_pronoun():
+    """The pose picture's words said "her own face" for every look, the player's too (read from the file: its module
+    needs the picture environment)."""
+    words = (pathlib.Path(__file__).resolve().parent / "prop_closeup.py").read_text()
+    words = words[words.index("POSE_PICTURE = ("):words.index("def wording")]
+    assert " her " not in words and " his " not in words

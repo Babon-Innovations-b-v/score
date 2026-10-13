@@ -4,6 +4,10 @@
   "player-home": {
    "spec": "data/characters/makes/player_prop.json",
    "outfit": "home"
+  },
+  "player_wide-work": {
+   "spec": "data/characters/makes/player_wide_prop.json",
+   "outfit": "work"
   }
  }
 }
