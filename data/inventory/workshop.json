@@ -84,10 +84,10 @@
 			"id": "wall_lower_plain",
 			"view": "v1",
 			"box": [
-				2127,
-				652,
-				2346,
-				750
+				1432,
+				349,
+				1535,
+				461
 			],
 			"name": "plain lower wall panel, bolted, worn",
 			"kind": "code",
@@ -104,8 +104,10 @@
 			"at": [],
 			"repeats": "across the room",
 			"box_from": [
-				"v1.82"
-			]
+				"v1.241"
+			],
+			"why_box": "the north wall's lower panels west of the drawer cabinet, under its pipes (proposal v1.241); the old box was round a stretch of floor (2026-10-13)",
+			"box_fails": "the box judge failed it twice (a stretch of floor, then a pipe elbow and valve): no proposal of the partition holds a plain lower wall panel alone (2026-10-13)"
 		},
 		{
 			"id": "wall_upper_plain",
@@ -1663,10 +1665,10 @@
 			"id": "floor_socket",
 			"view": "v1",
 			"box": [
-				478,
-				672,
-				1083,
-				1013
+				721,
+				739,
+				784,
+				777
 			],
 			"name": "flush floor service socket with a checker-plate lid",
 			"kind": "code",
@@ -1804,32 +1806,10 @@
 			],
 			"repeats": "across the room",
 			"box_from": [
-				"v1.360",
-				"v1.295",
-				"v1.305",
-				"v1.400",
-				"v1.29",
-				"v1.44",
-				"v1.47",
-				"v1.54",
-				"v1.67",
-				"v1.72",
-				"v1.129",
-				"v1.184",
-				"v1.196",
-				"v1.227",
-				"v1.264",
-				"v1.271",
-				"v1.294",
-				"v1.321",
-				"v1.323",
-				"v1.342",
-				"v1.344",
-				"v1.415",
-				"v1.w8",
-				"v1.w28",
-				"v1.w50"
-			]
+				"v1.294"
+			],
+			"ground_box": "judge",
+			"why_box": "one flush floor socket with its lid in the west floor square (proposal v1.294); the old box was round the whole floor square with three (2026-10-13)"
 		},
 		{
 			"id": "bay_mark",
@@ -2393,15 +2373,17 @@
 			"why_code": "modules round (2026-10-07): one model per real-world object, placed on purpose on its parent",
 			"view": "v1",
 			"box": [
-				1811,
-				1228,
-				1855,
-				1278
+				1712,
+				1290,
+				1767,
+				1322
 			],
 			"box_from": [
-				"v1.338"
+				"v1.329"
 			],
-			"leans": "laid tilted on the electronics bench on purpose by its composite (captain's decision, 2026-10-13; the owner reviews samples later)"
+			"leans": "laid tilted on the electronics bench on purpose by its composite (captain's decision, 2026-10-13; the owner reviews samples later)",
+			"ground_box": "judge",
+			"why_box": "the yellow bench meter on the south-east desk (proposal v1.329); the old box was round the keyboard (2026-10-13)"
 		},
 		{
 			"id": "soldering_station",
