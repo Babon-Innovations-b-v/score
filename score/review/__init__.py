@@ -114,6 +114,34 @@ def accept_automatically(store, node, output):
         return accept(store, node, output, RUNNER, "accepted automatically: every gate passed and nothing got worse "
                       "than the accepted output")
     except Refused:
+        return within_owners_accept(store, node, output)
+
+
+def owners_allowance(store, node):
+    """The owner's newest accept of a worse output of the node (one with his `worse_reason`) that no later reject of
+    that output undid, or None."""
+    rejected = {reject["output"]: reject["at"] for reject in store.rejects(node)}
+    allowed = [given for given in store.accepts(node) if given["by"] != RUNNER and given.get("worse_reason")
+               and given["at"] > rejected.get(given["output"], "")]
+    return allowed[-1] if allowed else None
+
+
+def within_owners_accept(store, node, output):
+    """The runner's accept of a passing output that is worse than the accepted one but no worse than the output the
+    owner accepted as worse (owners_allowance; within the tolerances), or None: a move beyond what he accepted still
+    waits for him."""
+    allowance = owners_allowance(store, node)
+    record = record_of(store, node, output)
+    judgement = record and newest_judgement(store, record)
+    if allowance is None or judgement is None:
+        return None
+    allowed_judgement = newest_judgement(store, record_of(store, node, allowance["output"]))
+    if allowed_judgement is None or regressions(judgement["verdicts"], allowed_judgement["verdicts"]):
+        return None
+    why = f"within the owner's accept of {allowance['at'][:10]} ({allowance['output'][:12]})"
+    try:
+        return accept(store, node, output, RUNNER, f"accepted automatically: {why}", worse_reason=why)
+    except Refused:
         return None
 
 
@@ -144,18 +172,38 @@ def accept(store, node, output, by, reason="", worse_reason=None):
         raise Refused(f"{node}'s output {output[:12]} is worse than the accepted one: {'; '.join(worse)}. "
                       "Accept it only with a written reason (--worse).")
     written = {"node": node, "output": output, "key": record["key"], "by": by, "at": now(), "reason": reason,
-               "worse": worse, "worse_reason": worse_reason}
+               "worse": worse, "worse_reason": worse_reason,
+               "allowed": allowed_moves(judgement["verdicts"], accepted_card(store, node, output)) if worse else {}}
     store.write_accept(node, written)
     return written
 
 
 def worse_than_accepted(store, node, judgement):
     """How a judgement's scorecard is worse than the accepted output's, as lines; none when nothing is accepted."""
+    return regressions(judgement["verdicts"], accepted_card(store, node, judgement["output"]))
+
+
+def accepted_card(store, node, output):
+    """The accepted output's scorecard; {} when nothing is accepted or `output` is the accepted one."""
     accepted = store.accepted(node)
-    if accepted is None or accepted == judgement["output"]:
-        return []
+    if accepted is None or accepted == output:
+        return {}
     accepted_judgement = newest_judgement(store, record_of(store, node, accepted))
-    return regressions(judgement["verdicts"], accepted_judgement["verdicts"] if accepted_judgement else {})
+    return accepted_judgement["verdicts"] if accepted_judgement else {}
+
+
+def allowed_moves(new_card, old_card):
+    """What an accept of a worse output allowed: {check: {measure: {"from": accepted value, "to": new value}}} for
+    each measure that moved the wrong way by its tolerance or more."""
+    found = {}
+    for name, old in old_card.items():
+        new = new_card.get(name)
+        for measure, side in (old.get("better") or {}).items():
+            if new and measure in new["measures"] and measure_worse(measure, side, new["measures"][measure],
+                                                                  old["measures"][measure]):
+                found.setdefault(name, {})[measure] = {"from": old["measures"][measure],
+                                                       "to": new["measures"][measure]}
+    return found
 
 
 def tolerance(name, new, old):
