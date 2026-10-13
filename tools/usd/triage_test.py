@@ -140,6 +140,23 @@ def a_foot_off_the_floor_and_a_lean_fail():
                 if said.get(name) != want]
 
 
+def a_block_tipped_onto_one_edge_of_its_sole_leans():
+    """A foot is down when any of its sole touches, so a 1 m block tipped 6 degrees onto one edge of its flat base has
+    its one foot down, and still fails: its up leans 6 degrees from the floor it touches along that edge."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        place_of(folder, [("tipped", "box", (0, 0, 0))], [row("tipped")])
+        kit = json.loads((folder / "kit.json").read_text())
+        kit["pieces"][0].update(tilt=6.0, at=[0.0, 0.5 * np.sin(np.radians(6.0)), 0.0])
+        (folder / "kit.json").write_text(json.dumps(kit))
+        stage = export.export(PLACE, folder / "models", folder / "stage", kit_path=folder / "kit.json",
+                              inventory_path=folder / "inventory.json")
+        said = verdicts(triage.triage(stage)).get("tipped_1") or []
+        problems = [] if ("leans", True) in said else [f"the tipped block reads {said}, not leaning"]
+        return problems + ([f"its foot reads off: {said}"] if ("foot off", True) in said else [])
+
+
 def the_collision_set():
     box = trimesh.creation.box((1.0, 1.0, 1.0))
     scene = collide.Scene()
@@ -193,7 +210,8 @@ def the_data_read_is_the_data_given():
 
 
 CHECKS = (supports_and_guards, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
-          a_foot_off_the_floor_and_a_lean_fail, the_collision_set, occlusion_boundaries, the_data_read_is_the_data_given)
+          a_foot_off_the_floor_and_a_lean_fail, a_block_tipped_onto_one_edge_of_its_sole_leans, the_collision_set,
+          occlusion_boundaries, the_data_read_is_the_data_given)
 
 
 if __name__ == "__main__":
