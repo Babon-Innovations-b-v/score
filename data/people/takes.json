@@ -20,6 +20,34 @@
   "nev_wide-work": {
    "spec": "data/characters/makes/nev_wide_prop.json",
    "outfit": "work"
+  },
+  "kit_m_avg_wide-uniform-olive": {
+   "spec": "data/characters/makes/kit_m_avg_wide_prop.json",
+   "outfit": "uniform-olive"
+  },
+  "kit_m_broad_wide-uniform-olive": {
+   "spec": "data/characters/makes/kit_m_broad_wide_prop.json",
+   "outfit": "uniform-olive"
+  },
+  "kit_w_broad_wide-uniform-olive": {
+   "spec": "data/characters/makes/kit_w_broad_wide_prop.json",
+   "outfit": "uniform-olive"
+  },
+  "kit_w_slim_wide-uniform-olive": {
+   "spec": "data/characters/makes/kit_w_slim_wide_prop.json",
+   "outfit": "uniform-olive"
+  },
+  "driver_wide-driver-suit": {
+   "spec": "data/characters/makes/driver_wide_prop.json",
+   "outfit": "driver-suit"
+  },
+  "guard_wide-guard-uniform": {
+   "spec": "data/characters/makes/guard_wide_prop.json",
+   "outfit": "guard-uniform"
+  },
+  "leader_wide-state-suit": {
+   "spec": "data/characters/makes/leader_wide_prop.json",
+   "outfit": "state-suit"
   }
  }
 }

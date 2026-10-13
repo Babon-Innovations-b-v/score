@@ -1,0 +1,41 @@
+{
+ "name": "leader_wide",
+ "kind": "person",
+ "route": "prop",
+ "experimental": "people stage (#5): the prop route, experimental until its gates pass on every look",
+ "approved": "owner, 2026-10-13 19:05-19:15 via the coordinator (#5): every prologue person in the wider pose; the hard stop EUR 320 in total",
+ "why": "leader in the state-suit outfit drawn in a wider A-pose (arms 45 degrees below level, feet 35 cm apart), so the close-up leaves open space at the armpits and the groin and Pixal3D builds the arms and chest, and the thighs, as separate surfaces (#5, 2026-10-13: the one-piece bind stretched the take's armpit web in every clip)",
+ "references": [
+  "~/.farm-factory-motion/work/style/people/takes/leader_b_19.png"
+ ],
+ "pose_picture": "~/.farm-factory-motion/candidates/prop-people/player/work/closeup/pp-player-work-s1.png",
+ "closeup_seeds": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "closeups": [],
+ "description": "an old Chinese man in his seventies, the state's leader, a heavy build, silver hair combed straight back, dark rectangular glasses",
+ "outfit_words": {
+  "state-suit": "a mid grey state suit: a buttoned tunic jacket with a stand collar, four patch pockets with flaps, a small red pin on the left chest, matching grey trousers, black leather shoes"
+ },
+ "hair": "silver hair combed straight back",
+ "face": "leader's face",
+ "outfits": [
+  "state-suit"
+ ],
+ "garment_body": "mean_male",
+ "look": {
+  "scale": 1.0019088375050844,
+  "prologue": "leader",
+  "face": "leader",
+  "hair_style": "back"
+ },
+ "shipped_body": "leader",
+ "shipped_outfit": "person",
+ "bind_pose": {
+  "arm_degrees": 45,
+  "ankles_m": 0.35
+ }
+}
