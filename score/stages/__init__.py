@@ -105,14 +105,15 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
                            applies=scene_record.written)
 # Experimental (design 5, 2026-10-12) until the owner reviews it: each place's cast placed and measured against its
 # concept's people (concept_people, in this table so the cast reads its accepted count) and its seed's geometry.
-# Nothing reads it yet: the characters layer waits on the people route's made looks.
+# Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
+DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
 CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
-                   after={"concept_people": ("concept-people", 1)}, applies=lambda place: place in cast.PLACES)
+                   after={"concept_people": ("concept-people", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
+                   optional=DRESS_ROWS, applies=lambda place: place in cast.PLACES)
 # Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
 # dressed body (score/stages/cast/layer.py), as a layer the assembly takes. Its dress rows are optional reads: a look
 # whose body is not usable is left out by name (the overseer's 14:00 rule: assemble with what passed; complete fails
 # the gap), never a stand-in.
-DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
 CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, characters_layer.CONTRACT,
                          characters_layer.CHECKS, files=characters_layer.files,
                          after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},

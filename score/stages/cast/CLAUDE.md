@@ -14,10 +14,12 @@ The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for th
 - **Do not import tools/characters at load.** Its `cast_check` on the path or in `sys.modules` joins the assembly's
   code version through `tools/usd/reach.py` and moves every place's assembly key: `measure.characters()` imports
   `cast` and `cast_check` inside the make and the gates, and the stage declares both files as inputs. Constants
-  copied from them (`KEEP`, body sizes, `BODIES`, `SHIPPABLE`) are checked in `cast_test.py`.
-- **`made` and `drapes` fail until the people route lands.** A look is made when its take under `PROP_PEOPLE` has its
-  built body in `out/` and a `checks.txt` with no FAIL. Until then the characters layer is not written from a cast:
-  never pass today's SOMA-mesh bodies in the rejected drapes off as done.
+  copied from them (`KEEP`, body sizes) are checked in `cast_test.py`.
+- **`made` reads the SOMA-shell route's dress rows.** A look is made when its dress row (`people-dress-<look>`,
+  `-in-<place>` where data/people/colours.json colours the place) stands usable; the cast reads them as optional
+  inputs (`Stage.optional`), so a look with none stays not made, named, and complete's people check names it too.
+  `drapes` is retired (2026-10-13): the SOMA-shell rig replaced the drapes route (owner, 2026-10-12 21:40), and the
+  people rows' per-clip, shell and outline gates judge the cloth now.
 - **The characters layer** (`layer.py`, row `characters-layer@<place>`) lays each person of the accepted cast in
   their own look's accepted dressed body (`people-dress-<look>`); a person whose cast names no look, or whose look has
   no usable body (its dress rows are optional reads, `Stage.optional`), is left out, named in `characters.json`,

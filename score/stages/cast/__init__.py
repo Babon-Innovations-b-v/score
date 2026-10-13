@@ -3,8 +3,8 @@ shows, each placed in the place with a clip, and measured against the concept an
 
     make     the place's cast (`data/characters/<place>.json`, the record tools/characters/cast.py reads) dealt into
              its characters by cast.py's own rules (people, a group's members, a crowd's copies), each with its
-             spot, clip, look and the body it would play: the look's made model when the people route
-             (issue #5, `PROP_PEOPLE`) has one, else today's built body (`cast.BODIES`); `cast.json`. Then every
+             spot, clip, look and whether it is made: its look's dress row (people-dress-<look>, `-in-<place>`
+             where the place is coloured) stands usable, read as an optional input; `cast.json`. Then every
              spot measured on the seed's base layer (measure.py): what it stands on and what its body runs into;
              `measures.json`.
     gates    counted   the cast holds as many people as the concept shows (concept_people's count, the most any one
@@ -15,16 +15,16 @@ shows, each placed in the place with a clip, and measured against the concept an
                        yet, so seated crew stand at their desks)
              clear     no person's body (knee to head, cast_check's BODY_RADIUS) runs into any solid of the place,
                        no two bodies overlap, and cast_check's own rules hold (nobody twice, walks clear)
-             made      every look is a made model of the people route: a take under PROP_PEOPLE/<person>/<outfit>
-                       with its built body and a checks.txt with no FAIL
-             drapes    no person plays a body in drapes the owner rejected (the Newton drapes, 2026-10-10) or whose
-                       simulator's licence is not commercial-OK (people/cloth_licence.py)
+             made      every look has a usable dressed body of the SOMA-shell route: its dress row passed and stands
+                       accepted (a look with none stays not made, named; complete's people check names it too)
+
+`drapes` (no body in the rejected Newton drapes) is retired, 2026-10-13: the SOMA-shell rig (the owner, 2026-10-12
+21:40) replaced the drapes route, and the people rows' per-clip, shell and outline gates judge the cloth now.
 
 Only places whose concept shows people (PLACES) have the row. Nothing reads its output yet: the characters layer is
 written from it once every look is made (the people agent's route), and the assembly takes that layer then.
 """
 import json
-import os
 import pathlib
 import sys
 
@@ -37,52 +37,28 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))  # already on it by the assembly's import
 import stage_inputs  # noqa: E402
 
-from score.stages.cast import measure, spread  # noqa: E402
+from score.stages.cast import layer, measure, spread  # noqa: E402
 
 # Places whose concept shows people (concept_people's accepted count, 2026-10-13; the greenhouse joined that day,
 # the captain's call).
 PLACES = ("airlock", "camp", "flat", "garage", "greenhouse", "habitat", "hangar", "hub", "lab", "square", "stairwell",
           "street", "tube", "workshop")
-# Where the people route (issue #5: Pixal3D's mesh, library clothing, faces, SOMA-X rig) lands each take.
-PROP_PEOPLE = pathlib.Path(os.environ.get("PROP_PEOPLE",
-                                          pathlib.Path.home() / ".farm-factory-motion/candidates/prop-people"))
 # The most figures concept_people keeps a picture (tools/props/scene/box_masks.py KEEP, which imports torch, so
 # not imported here; cast_test.py checks the two agree): a view with this many is capped.
 KEEP = 5
-# Today's built bodies (tools/characters/cast.py's BODIES, not imported at load: measure.characters).
-BODIES = pathlib.Path(os.environ.get("MOTION_WORK", pathlib.Path.home() / ".farm-factory-motion/work")) / "bodies"
 # How far feet may stand off what is under them, metres: the floor's own unevenness, not a float or a sink.
 STAND_SLACK = 0.05
-# The drape simulators a body may ship in: people/cloth_licence.py's COMMERCIAL less Newton, whose drapes the owner
-# rejected (2026-10-10). Not imported from there: its folder on the path would put its paths.py into every other
-# stage's code version. cast_test.py checks the two agree.
-SHIPPABLE = ("Blender",)
 # Faults named on the review page, at most this many a gate (a crowd's thousands are counted, not listed).
 NAMED = 20
 
 
-def takes_text(folder):
-    """The part of the people route's folder the stage reads: each take's checks and built bodies."""
-    lines = []
-    for checked in sorted(pathlib.Path(folder).glob("*/*/checks/checks.txt")):
-        take = checked.parents[1]
-        bodies = sorted(path.name for path in (take / "out").glob("*.glb"))
-        lines.append(f"{take.relative_to(folder)} {bodies}\n{checked.read_text()}")
-    return "\n".join(lines)
-
-
-def reports_text(folder):
-    """The part of today's bodies folder the stage reads: each built body's report."""
-    return "\n".join(f"{path.name}\n{path.read_text()}" for path in sorted(pathlib.Path(folder).glob("*.json")))
-
-
 def files(place):
-    """The place's cast record, its kit (which inventory's concept it is), its seed stage, the people route's takes,
-    today's bodies' reports, and cast.py's and cast_check.py's code (imported only inside the make and the gates, so
-    the code version does not follow them: measure.characters)."""
+    """The place's cast record, its kit (which inventory's concept it is), its seed stage, the people's colours (which
+    dress row a look is) and cast.py's and cast_check.py's code (imported only inside the make and the gates, so the
+    code version does not follow them: measure.characters)."""
     return {"record": "{data}/characters/{place}.json", "kit": "{data}/kit/{place}.json",
-            "seed": "{seeds}/usd-r3/{place}", "takes": (str(PROP_PEOPLE), takes_text),
-            "bodies": (str(BODIES), reports_text), "cast rules": "{repo}/tools/characters/cast.py",
+            "seed": "{seeds}/usd-r3/{place}", "colours": "{data}/people/colours.json",
+            "cast rules": "{repo}/tools/characters/cast.py",
             "cast check": "{repo}/tools/characters/cast_check.py", "scene": "{data}/scene/{place}.json"}
 
 
@@ -104,32 +80,27 @@ def look_of(character):
     return None
 
 
-def made_take(look, folder):
-    """The people route's take of a look when it is made: its built body there and a checks.txt with no FAIL."""
-    if look is None:
-        return None
-    take = pathlib.Path(folder) / look[0] / look[1]
-    checked = take / "checks/checks.txt"
-    bodies = sorted((take / "out").glob("*.glb"))
-    if not checked.exists() or not bodies or any(line.rstrip().endswith("FAIL")
-                                                 for line in checked.read_text().splitlines()):
-        return None
-    return str(bodies[0])
+def made_row(look, place, inputs):
+    """The dress row of a look (layer.body_row) when it stands usable for this node (an optional input the runner
+    gave it), else None: the look is not made."""
+    row = layer.body_row("/".join(look), place) if look else None
+    return row if row in inputs else None
 
 
-def dealt(record, takes):
-    """Every single character of the cast (cast.py's people and groups' members) with its look and body."""
+def dealt(record, place, inputs):
+    """Every single character of the cast (cast.py's people and groups' members) with its look and its made dress
+    row (None when not made)."""
     found = []
     looks = {person["name"]: person.get("look") for person in record.get("people", [])}
     cast_rules, _ = measure.characters()
     for single in cast_rules.characters_of(record):
         single = dict(single, look=looks.get(single["name"]))
         look = look_of(single)
-        found.append({**single, "look": "/".join(look) if look else None, "made": made_take(look, takes)})
+        found.append({**single, "look": "/".join(look) if look else None, "made": made_row(look, place, inputs)})
     return found
 
 
-def crowd_of(record, singles, takes, views):
+def crowd_of(record, singles, place, inputs, views):
     """The crowd's far body's look and its candidate copies (spread.lattice, kept off each of the place's views:
     spread.far_enough), or None for a cast with no crowd."""
     crowd = record.get("crowd")
@@ -139,7 +110,7 @@ def crowd_of(record, singles, takes, views):
     look = look_of(crowd) or (crowd["character"], crowd.get("body", "far"))  # the record's far-only look
     candidates = spread.far_enough(spread.lattice(crowd, keep_clear), views)
     return {"name": crowd["name"], "character": crowd["character"], "look": "/".join(look),
-            "made": made_take(look, takes), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}
+            "made": made_row(look, place, inputs), "doing": crowd["doing"], "asked": crowd["count"], "copies": candidates}
 
 
 def members_of(record):
@@ -164,8 +135,8 @@ def make(inputs, out, seed, params):
     place = pathlib.Path(inputs["seed"]).name
     base = pathlib.Path(inputs["seed"]) / "layers/base.usda"
     record = read_json(inputs["record"])
-    singles = dealt(record, inputs["takes"])
-    crowd = crowd_of(record, singles, inputs["takes"], read_json(inputs["scene"]).get("views", []))
+    singles = dealt(record, place, inputs)
+    crowd = crowd_of(record, singles, place, inputs, read_json(inputs["scene"]).get("views", []))
     found = measure.solids(base, place) if singles or crowd else {}
     if found:
         members = members_of(record)
@@ -319,34 +290,13 @@ def judge_clear(output, inputs, evidence):
 
 
 def judge_made(output, inputs, evidence):
-    """Every look is a made model of the people route."""
+    """Every look has a usable dressed body (its dress row passed and stands accepted)."""
     cast = read_json(output / "cast.json")
     everyone = cast["characters"] + ([cast["crowd"]] if cast["crowd"] else [])
-    faults = [(who["name"], f"{who['look']} has no made take under {PROP_PEOPLE}" if who["look"]
+    faults = [(who["name"], f"{who['look']} has no accepted dressed body (its people-dress row)" if who["look"]
                else "its record names no look (which outfit)") for who in everyone if not who["made"]]
-    return verdict_of("made", faults, len(everyone), f"all {len(everyone)} looks are made models")
-
-
-def rejected(report):
-    """The drapes of a body's report the owner rejected or whose licence does not allow shipping."""
-    return [f"{kind} hung by {simulator.get('name')}" for kind, simulator in sorted((report.get("drapes") or {}).items())
-            if not simulator.get("name", "").startswith(SHIPPABLE)]
-
-
-def judge_drapes(output, inputs, evidence):
-    """No one plays a body in rejected drapes: everyone not on a made take plays today's body, whose drapes count."""
-    cast = read_json(output / "cast.json")
-    everyone = cast["characters"] + ([cast["crowd"]] if cast["crowd"] else [])
-    faults = []
-    for who in everyone:
-        report = pathlib.Path(inputs["bodies"]) / f"{who['character']}.json"
-        if who["made"] or not report.exists():
-            continue
-        found = rejected(read_json(report))
-        if found:
-            faults.append((who["name"], f"plays today's {who['character']} body: " + ", ".join(found)))
-    return verdict_of("drapes", faults, len(everyone), f"none of {len(everyone)} plays a body in rejected drapes")
+    return verdict_of("made", faults, len(everyone), f"all {len(everyone)} looks have accepted dressed bodies")
 
 
 CHECKS = (checks.Check("counted", judge_counted), checks.Check("standing", judge_standing),
-          checks.Check("clear", judge_clear), checks.Check("made", judge_made), checks.Check("drapes", judge_drapes))
+          checks.Check("clear", judge_clear), checks.Check("made", judge_made))
