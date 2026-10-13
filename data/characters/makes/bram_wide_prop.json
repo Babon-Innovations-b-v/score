@@ -1,0 +1,38 @@
+{
+ "name": "bram_wide",
+ "kind": "person",
+ "route": "prop",
+ "experimental": "people stage (#5): the prop route, experimental until its gates pass on every look",
+ "approved": "owner, 2026-10-13 19:05 via the coordinator (#5): bram, sefa and nev in the wider pose alongside the player; the people money about EUR 15 for all four",
+ "why": "Bram in the work suit drawn in a wider A-pose (arms 45 degrees below level, feet 35 cm apart), so the close-up leaves open space at the armpits and the groin and Pixal3D builds the arms and chest, and the thighs, as separate surfaces (#5, 2026-10-13: the one-piece bind stretched the take's armpit web in every clip)",
+ "references": [
+  "~/.farm-factory-motion/rnd/people/nev_mars/refs/bram_suit.png"
+ ],
+ "pose_picture": "~/.farm-factory-motion/candidates/prop-people/player/work/closeup/pp-player-work-s1.png",
+ "closeup_seeds": [
+  1,
+  2,
+  3,
+  4
+ ],
+ "closeups": [],
+ "description": "an American man in his forties, an astronaut of the first expedition, a big broad build, short brown hair swept back, a full brown beard and moustache",
+ "outfit_words": {
+  "work": "a light blue one-piece indoor suit: a stand collar, a front zip, a chest pocket with a small white name tag, a US flag patch on the left upper sleeve, a darker blue fabric belt at the waist, ribbed cuffs at the wrists, trouser legs gathered at the ankles over white sneakers"
+ },
+ "hair": "short brown hair swept back, a full brown beard and moustache",
+ "face": "bram's face",
+ "outfits": [
+  "work"
+ ],
+ "garment_body": "mean_male",
+ "look": {
+  "work": "american"
+ },
+ "shipped_body": "bram",
+ "shipped_outfit": "suit",
+ "bind_pose": {
+  "arm_degrees": 45,
+  "ankles_m": 0.35
+ }
+}
