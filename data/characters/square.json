@@ -44,7 +44,19 @@
     3.3,
     -3.5
    ],
-   "why": "the crowd's front row under the balcony, close enough to be drawn in detail"
+   "why": "the crowd's front row under the balcony, close enough to be drawn in detail",
+   "kit": {
+    "builds": [
+     "m_avg",
+     "m_broad",
+     "w_broad",
+     "w_slim"
+    ],
+    "plain": [
+     "uniform_olive"
+    ],
+    "why": "the front row fills 10 to 15 % of the balcony views, so it wears only the kit looks made in full (data/people/bodies.json: the uniform-olive kit of these four builds; the captain, 2026-10-13)"
+   }
   }
  ],
  "crowd": {

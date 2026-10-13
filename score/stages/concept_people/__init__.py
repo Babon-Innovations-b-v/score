@@ -11,7 +11,8 @@ on one rented card through tools/props/cloud/box_masks_cloud.py), each instance 
 (at most box_masks.KEEP a picture, surest first). SAM 3 also finds a person in a poster, a framed print, a
 reflection in glass or an empty suit on its hook, so every figure is then put to the judge (tools/props/cloud/judge.py,
 a vision-language model on rented cards): the figure ringed in red on the picture round it, beside its own crop,
-asked what it is (QUESTION: a person there, a picture of one, a reflection, an empty suit or something else) and, for
+asked what it is (QUESTION: a person there, one outside the place behind glass, a picture of one, a reflection, an
+empty suit or something else; only a person there is counted, the others kept with their answer as the reason) and, for
 a person, what they are doing, once with each of SEEDS and once more with each of MORE_SEEDS when those split; the
 answer most seeds give is the figure's (a tie is unknown). The output is `people.json`: {place: {view: {"picture",
 "size", "people", "instances"}}}, `people` counting the figures judged a person, each instance with its `judged`
@@ -38,18 +39,21 @@ SEEDS = (1, 2, 3)
 # A figure the first seeds split on (its answer or what it is doing) is asked again with these, and the majority of
 # all its answers taken.
 MORE_SEEDS = (4, 5, 6, 7)
-ANSWERS = ("person", "picture", "reflection", "suit", "other")
+# A figure whose spot is on no floor of the place (behind glass, past its walls) is `outside`: not counted.
+ANSWERS = ("person", "outside", "picture", "reflection", "suit", "other")
 DOINGS = ("walking", "standing", "sitting", "crouching", "lying", "working")
 # The picture round a figure: this many times its box each way, the figure ringed in red.
 CONTEXT = 3.0
 QUESTION = ("The first picture is part of a concept painting of a place; one figure is ringed in red. The second is "
             "that figure close up. What is the ringed figure? Answer person if it is a human being present in the "
-            "place (standing, sitting, walking, working, near or far); picture if it is a person shown in a poster, "
+            "place (standing, sitting, walking, working, near or far); outside if it is a human being beyond a window or a "
+            "glass wall, in a space the picture only looks into through glass, where the place has no floor (a "
+            "person through an open door or out on a balcony is a person); picture if it is a person shown in a poster, "
             "photograph, painting, screen or print; reflection if it is a person's reflection or a ghostly see-through "
             "figure in glass, a window or a shiny surface; suit if it is an empty suit, garment, mannequin or statue; "
             "other if it is not a figure at all. If it is a person, also say what they are doing: walking, standing, "
             "sitting, crouching, lying, or working (standing at something with their hands on it). End with two "
-            "lines: VERDICT: person, picture, reflection, suit or other; then DOING: walking, standing, sitting, "
+            "lines: VERDICT: person, outside, picture, reflection, suit or other; then DOING: walking, standing, sitting, "
             "crouching, lying, working or none.")
 
 

@@ -69,15 +69,20 @@ WALK_PACE = 1.333
 
 # --- who ----------------------------------------------------------------------------------------------------------
 
-def kit_mix(seed):
-    """One person from the kit by a seed: their build's file and the body parts they wear in each outfit."""
+def kit_mix(seed, kit=None):
+    """One person from the kit by a seed: their build's file and the body parts they wear in each outfit. A group's
+    `kit` ({"builds": [...], "plain": [...]}) holds the draw to those builds and plain outfits (the square's front
+    row to the looks made in full); a sex none of whose builds is allowed is drawn again."""
     draw = random.Random(seed)
+    builds = (kit or {}).get("builds")
     sex = KIT_WOMEN if draw.random() < 0.5 else KIT_MEN
-    build = draw.choice(sex["builds"])
+    if builds and not set(sex["builds"]) & set(builds):
+        sex = KIT_MEN if sex is KIT_WOMEN else KIT_WOMEN
+    build = draw.choice([name for name in sex["builds"] if not builds or name in builds])
     face = draw.choice(sex["faces"])
     hair = draw.choice(sex["hair"])
     scheme = draw.choice(KIT_SCHEMES)
-    plain = draw.choice(KIT_PLAIN)
+    plain = draw.choice((kit or {}).get("plain") or KIT_PLAIN)
     head = [f"head_{face}", f"hair_{hair}_{face}"]
     return {"character": f"kit_{build}",
             "worn": {"plain": [f"plain_{plain}"] + head, "work": [f"work_{scheme}"] + head, "suit": ["suit"]}}
@@ -89,11 +94,11 @@ def look_of(character, worn):
     return (character, *sorted(part for part in (worn or []) if part.startswith(("head_", "hair_"))))
 
 
-def unseen_mix(seed, outfit, taken):
+def unseen_mix(seed, outfit, taken, kit=None):
     """A kit mix from a seed whose look nobody in `taken` has yet (the seed stepped on by MIX_STEP until one is new),
     added to `taken`: a place never shows the same person twice."""
     for tries in range(MIX_TRIES):
-        mix = kit_mix(seed + tries * MIX_STEP)
+        mix = kit_mix(seed + tries * MIX_STEP, kit)
         look = look_of(mix["character"], mix["worn"][outfit])
         if look not in taken:
             taken.add(look)
@@ -196,7 +201,7 @@ def characters_of(cast):
     for group in cast.get("groups", []):
         outfit = group.get("outfit", "plain")
         for number, at in enumerate(band_places(group)):
-            mix = unseen_mix(group["seed"] + number, outfit, taken)
+            mix = unseen_mix(group["seed"] + number, outfit, taken, group.get("kit"))
             found.append({"name": f"{group['name']}_{number}", "character": mix["character"], "at": at,
                           "turn": facing_degrees(at, group["facing_to"]),
                           "doing": group["doing"][number % len(group["doing"])],

@@ -103,6 +103,14 @@ def test_a_crowd_keeps_clear_of_each_view():
     assert spread.far_enough([near, far, behind], [view]) == [far, behind]
 
 
+def test_a_group_wears_only_its_kit():
+    cast_rules, _ = measure.characters()
+    kit = {"builds": ["m_avg", "w_slim"], "plain": ["uniform_olive"]}
+    mixes = [cast_rules.kit_mix(seed, kit) for seed in range(200)]
+    assert {mix["character"] for mix in mixes} == {"kit_m_avg", "kit_w_slim"}
+    assert {mix["worn"]["plain"][0] for mix in mixes} == {"plain_uniform_olive"}
+
+
 def test_copied_constants_agree():
     cast_rules, cast_check = measure.characters()
     assert (measure.BODY_RADIUS, measure.KNEE, measure.HEAD) == (cast_check.BODY_RADIUS, cast_check.KNEE,

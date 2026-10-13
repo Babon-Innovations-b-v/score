@@ -1,24 +1,36 @@
 {
  "place": "tube",
- "from": "the tube's concept (K12.png), measured by score.stages.concept_people (accepted 2026-10-12): a man walking down the tube and a man sitting against its wall further on; a third figure the judge called a person stands behind the right-hand glass, outside the tube, like the reflection behind the left glass; each cast person stands at the plan's people spot (data/plans/tube.json `people`, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures (each 0.3 m off its spot, which stands on a hoop)",
+ "from": "the tube's concept (K12.png), measured by score.stages.concept_people (accepted 2026-10-12): a man walking down the tube and a man sitting against its wall further on; a third figure the judge called a person stands behind the right-hand glass, outside the tube, like the reflection behind the left glass; each cast person stands at the plan's people spot (data/plans/tube.json `people`, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures",
  "note": "Two people, told apart by appearance against the made looks: both are dark-haired men in blue coveralls. The walker is the player (the made work suit is navy coveralls, the nearest of every made look); the sitter has no made look of his own: a kit look stands for him (kit_m_avg, the nearest build; its uniform is olive, not blue). The third figure is behind the glass, where the tube has no floor; it is not cast (it reads as a reflection, on the owner's list).",
  "people": [
   {
    "name": "player",
    "character": "player",
    "look": "player_work",
-   "doing": "standing",
+   "doing": "walking",
    "at": [
-    -0.15,
     0.0,
-    1.14
+    0.0,
+    0.4
    ],
    "facing_to": [
-    -0.15,
     0.0,
-    4.35
+    0.0,
+    2.3
    ],
-   "why": "the player in the tube, facing its far door; the concept shows him walking, but every walk the cast stage measured runs his body into a hoop (hoop_1, hoop_2, hoop_4), so he stands"
+   "why": "the player walking down the tube's walkway centreline towards its far door, through his plan spot, as the concept shows him; he stops short of the man sitting further on",
+   "path": [
+    [
+     0.0,
+     0.0,
+     0.4
+    ],
+    [
+     0.0,
+     0.0,
+     2.3
+    ]
+   ]
   },
   {
    "name": "sitter",
@@ -26,12 +38,12 @@
    "look": "kit_m_avg_uniform-olive",
    "doing": "sitting",
    "at": [
-    0.15,
     0.0,
-    3.26
+    0.0,
+    3.0
    ],
    "facing_to": [
-    0.15,
+    0.0,
     0.0,
     1.4
    ],

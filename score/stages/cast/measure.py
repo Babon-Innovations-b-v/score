@@ -73,14 +73,16 @@ def solids(base, place):
 
 
 def meshes(holder):
-    """Every visible mesh under a prim, a point instancer's prototypes left out (they stand only where it copies
-    them, far off: shortcut: the copies themselves are not tested, which only the far city's towers are today;
-    test them once a crowd stands among instanced things)."""
+    """Every drawn mesh under a prim: a point instancer's prototypes left out (they stand only where it copies them,
+    far off: shortcut: the copies themselves are not tested, which only the far city's towers are today; test them
+    once a crowd stands among instanced things), and a guide or proxy mesh too (export.py's collision is a convex
+    hull round each model, a guide never drawn: a ring's hull is a solid disc across the tube's walkway)."""
     walk = iter(Usd.PrimRange(holder, Usd.TraverseInstanceProxies()))
     for prim in walk:
         if prim.IsA(UsdGeom.PointInstancer):
             walk.PruneChildren()
-        elif prim.IsA(UsdGeom.Mesh) and UsdGeom.Imageable(prim).ComputeVisibility() != UsdGeom.Tokens.invisible:
+        elif (prim.IsA(UsdGeom.Mesh) and UsdGeom.Imageable(prim).ComputeVisibility() != UsdGeom.Tokens.invisible
+              and UsdGeom.Imageable(prim).ComputePurpose() not in (UsdGeom.Tokens.guide, UsdGeom.Tokens.proxy)):
             yield prim
 
 
