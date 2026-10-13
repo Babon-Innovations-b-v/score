@@ -1,7 +1,10 @@
 """The completion gate: a place is complete only when its evidence says so, never because an agent says so.
 
-    .venv/bin/python tools/usd/complete.py check <place> [--stage <stage.usda>] [--only rows,made_only,...]
-    .venv/bin/python tools/usd/complete.py done <place> [--stage <stage.usda>] [--review <the review page's folder>]
+    .venv/bin/python tools/usd/complete.py check <place> [--stage <stage.usda> | --work-stage] [--only rows,...]
+    .venv/bin/python tools/usd/complete.py done <place> [--stage <stage.usda> | --work-stage] [--review <folder>]
+
+The stage judged by default is the store copy of the place's accepted assembly (WORK/review-store/<place>/stage,
+made by tools/review/store_page.py); --work-stage judges the old export at WORK/usd/<place>.
 
 `check` runs the place's checks on its OpenUSD stage and writes each result beside the stage
 (`<stage folder>/checks/<check>.json`); `done` reads them and writes the place's manifest (`<stage folder>/manifest.json`)
@@ -80,9 +83,13 @@ STORE_OUTPUT = "output.txt"
 
 # --- where things are ---------------------------------------------------------------------------------------------
 
-def stage_path(place, stage=None):
-    """The place's stage file: the one given, else the work folder's (WORK/usd/<place>/<place>.usda)."""
-    return pathlib.Path(stage) if stage else STAGES / place / f"{place}.usda"
+def stage_path(place, stage=None, work=False):
+    """The place's stage file: the one given; else the store copy of its accepted assembly
+    (WORK/review-store/<place>/stage/<place>.usda, made by tools/review/store_page.py), the framework's one source;
+    with `work`, the old export's (WORK/usd/<place>/<place>.usda)."""
+    if stage:
+        return pathlib.Path(stage)
+    return STAGES / place / f"{place}.usda" if work else STORE_REVIEWS / place / "stage" / f"{place}.usda"
 
 
 # --- the fingerprint ----------------------------------------------------------------------------------------------
@@ -411,11 +418,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("command", choices=("check", "done"))
     parser.add_argument("place")
-    parser.add_argument("--stage", type=pathlib.Path)
+    parser.add_argument("--stage", type=pathlib.Path,
+                        help="the stage to judge; default the store copy store_page.py makes of the accepted assembly")
+    parser.add_argument("--work-stage", action="store_true",
+                        help="judge the old export at WORK/usd/<place> instead of the store copy")
     parser.add_argument("--review", type=pathlib.Path, help="the review page's folder (WORK/review/<place>)")
     parser.add_argument("--only", help="the checks to run, comma separated: " + ",".join(CHECKS))
     options = parser.parse_args()
-    stage = stage_path(options.place, options.stage)
+    stage = stage_path(options.place, options.stage, options.work_stage)
     if options.command == "check":
         for outcome in run_checks(options.place, stage, options.only.split(",") if options.only else CHECKS):
             print(f"{outcome['check']}: {outcome['result']}: {len(outcome['faults'])} faults {outcome['note']}".rstrip())
