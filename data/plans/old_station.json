@@ -389,7 +389,8 @@
   {
    "row": "cable_run",
    "date": "2026-10-13",
-   "why": "concept C4 shows no cables on the ground between the masts, the power unit and the modules"
+   "why": "concept C4 shows no cables on the ground between the masts, the power unit and the modules",
+   "kit": "its kit keeps the seven cable pieces: the terrain stage measures the old station's footprint from its kit's spots (its seed record has no floor), so taking them out would make the ground again; the record's coordinator_removed takes them out of the stage"
   }
  ]
 }
