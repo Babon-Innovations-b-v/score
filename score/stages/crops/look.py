@@ -4,8 +4,10 @@ on its plot, and its plants counted with SAM 3 the way the concept's were: the c
     make     a stage of the beds alone (the scene record's bed boxes, nothing else of the place) with the crops layer
              and its assets over it, rendered from VIEWS (tools/blender/inside/usd_views.py through
              tools/props/cloud/blender_cloud.py, the look's pictures); SAM 3 asked for every kind's nouns on each
-             picture (box_masks_cloud.py); each plant's centre taken back onto the beds' top through the view's
-             camera; seen.json per view and kind: plants seen on the kind's beds and their spacing in plant widths
+             picture (box_masks_cloud.py), each plant once whatever noun found it; each plant's centre taken back
+             onto the beds' top from its foot (its box's bottom middle) through the view's camera, and counted
+             the kind of the bed it stands on;
+             seen.json per view and kind: plants seen on the kind's beds and their spacing in plant widths
              (the median distance to the nearest seen neighbour over the made model's width)
     gates    seen      every kind seen on its beds: at least SEEN_LEAST of its laid plants (a canopy at least one mass),
                        in the view that sees it best
@@ -59,7 +61,8 @@ def views_of(beds):
         level = AWAY * math.cos(math.radians(DOWN))
         eye = [middle[0] + level * math.cos(math.radians(bearing)), middle[1] + AWAY * math.sin(math.radians(DOWN)),
                middle[2] + level * math.sin(math.radians(bearing))]
-        found.append({"name": name, "eye": [round(value, 4) for value in eye], "aim": list(middle), "fov": FOV,
+        found.append({"name": name, "eye": [round(value, 4) for value in eye], "aim": list(middle),
+                      "up": [0.0, 1.0, 0.0], "fov": FOV,
                       "review": True})
     return found
 
@@ -127,18 +130,38 @@ def count_jobs(record, views, out):
             for view in views]
 
 
+def view_plants(view, instances):
+    """Every plant SAM 3 found on one view under any kind's nouns, each once (the surest of boxes that are one plant,
+    concept.same_plant), merged masses left out (concept.MERGED times the median width)."""
+    found = sorted((instance for key, listed in instances.items() if key.startswith(f"{view['name']}/")
+                    for instance in listed), key=lambda instance: -instance["score"])
+    if not found:
+        return []
+    middle = statistics.median(concept.width(instance["box"]) for instance in found)
+    kept = []
+    for instance in found:
+        if concept.width(instance["box"]) <= concept.MERGED * middle and \
+                not any(concept.same_plant(instance["box"], other["box"]) for other in kept):
+            kept.append(instance)
+    return kept
+
+
+def foot(box):
+    """Where a plant meets its bed in the picture: its box's bottom middle (a tall plant's box middle stands above
+    the bed and lands behind its own bed when taken back onto the floor)."""
+    return ((box[0] + box[2]) / 2.0, float(box[3]))
+
+
 def seen_on_beds(record, view, instances, beds, shared, spots_record):
-    """{kind: seen plants on the kind's beds, their spacing in plant widths} on one view."""
-    own = {key.split("/", 1)[1]: listed for key, listed in instances.items() if key.startswith(f"{view['name']}/")}
-    plants = concept.plants_in(own, [0, 0, *SIZE], record["kinds"])
+    """{kind: plants seen on the kind's beds, their spacing in plant widths} on one view. A plant is the kind of the
+    bed it stands on: the render's beds are laid by the layer, so where a plant stands says what it is, and the nouns
+    only find plants (on the 2026-10-13 render SAM 3's 'rosemary' and 'small shrub' found none of the herbs that its
+    'leafy bush' found)."""
     height = max(float(bed["centre"][1]) + float(bed["size"][1]) / 2.0 for bed in beds.values())
+    spots = [on_floor(view, foot(plant["box"]), SIZE, height) for plant in view_plants(view, instances)]
     found = {}
     for kind in record["kinds"]:
-        points = []
-        for plant in (plant for plant in plants if plant["kind"] == kind):
-            spot = on_floor(view, concept.centre(plant["box"]), SIZE, height)
-            if spot and any(on_bed(spot, beds[name]) for name in shared[kind]):
-                points.append(spot)
+        points = [spot for spot in spots if spot and any(on_bed(spot, beds[name]) for name in shared[kind])]
         spacing = (statistics.median(concept.nearest_distances(points)) / spots_record["widths"][kind]
                    if len(points) >= 2 else None)
         found[kind] = {"seen": len(points), "laid": sum(spot["kind"] == kind for spot in spots_record["spots"]),

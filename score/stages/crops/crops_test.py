@@ -129,6 +129,23 @@ def test_look_finds_the_floor_again():
             assert 0 <= pixel[0] < look.SIZE[0] and 0 <= pixel[1] < look.SIZE[1], (view["name"], point, pixel)
 
 
+def test_look_counts_a_plant_the_kind_of_its_bed():
+    """A plant found by any kind's noun, twice, is one plant of the kind laid on the bed its foot stands on."""
+    import score.stages.effects.look as effects_look
+    beds = {bed["name"]: bed for bed in layer.beds_of(json.loads((crop_data.REPO / "data/scene/greenhouse.json")
+                                                                 .read_text()), RECORD["beds"])}
+    view = look.views_of(list(beds.values()))[0]
+    foot_x, foot_y = effects_look.projected(view, (-5.7, 0.06, 4.7), look.SIZE)
+    box = [foot_x - 20, foot_y - 60, foot_x + 20, foot_y]
+    instances = {f"{view['name']}/greens:leafy bush": [{"box": box, "score": 0.8}],
+                 f"{view['name']}/herb:rosemary": [{"box": [value + 1 for value in box], "score": 0.7}]}
+    shared = {kind: [] for kind in RECORD["kinds"]}
+    shared["herb"] = ["bed_0_0"]
+    spots_record = {"spots": [], "widths": {kind: 0.2 for kind in RECORD["kinds"]}}
+    seen = look.seen_on_beds(RECORD, view, instances, beds, shared, spots_record)
+    assert seen["herb"]["seen"] == 1 and seen["greens"]["seen"] == 0, seen
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
