@@ -17,6 +17,10 @@ its own runner (`python -m score.stages.light run lightkit`).
 - **Every fault is measured on the looks mixed from the node's own passes**, never on an older render (the demo's
   frames are not inputs): a floodlight's head, beam and veil with its lamps off and on, against K04; the Earth's
   smooth share against C4; Mars's sky colour against K05.
+- **Lamps are measured where they shine** (2026-10-13): a lamp inside its fixture moves out of it when the fixture's
+  solid parts stop 90% of its rays, or stands just outside its lens otherwise (`layer.lamps_through_fixtures`, each
+  lamp's rule in lamps.json); under the open sky the suns are swept after the lamps when the lamps cannot reach the
+  concept; a place whose demo views were drawn on another's stage is judged on that place's passes (`drawn_on`).
 - **The layer holds live lights.** The owner's plan is baked per-lamp layers mixed live; the passes are that idea on
   the views only, nothing is baked into the surfaces yet. Say so wherever the layer is shown.
 - **The assembly takes the layer just over the seed's base** (under the motion, effects and edit layers, so a light
