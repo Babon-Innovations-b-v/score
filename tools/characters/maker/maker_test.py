@@ -2,6 +2,7 @@
 loads a model or needs numpy beyond the grid's own maths."""
 import json
 import pathlib
+import subprocess
 import sys
 
 import numpy as np
@@ -137,3 +138,18 @@ def test_the_pose_picture_words_name_no_one_by_pronoun():
     words = (pathlib.Path(__file__).resolve().parent / "prop_closeup.py").read_text()
     words = words[words.index("POSE_PICTURE = ("):words.index("def wording")]
     assert " her " not in words and " his " not in words
+
+
+def test_any_outfit_with_words_can_be_split_and_one_without_is_refused_on_the_pc(tmp_path):
+    """2026-10-13: the parts step refused a kit's uniform-olive after 4 machine-minutes; now an outfit with words takes
+    the work suit's material names for its roles, and one with no words is refused by `check` before any machine."""
+    props_python = pathlib.Path.home() / ".farm-factory-props/env/bin/python"
+    if not props_python.exists():
+        pytest.skip("no props environment on this box")
+    script = pathlib.Path(__file__).resolve().parent / "prop_parts.py"
+    spec_file = tmp_path / "spec.json"
+    spec_file.write_text(json.dumps({"outfit_words": {"uniform-olive": "an olive uniform"}}))
+    ask = [str(props_python), "-B", str(script), "check", str(tmp_path), "take", str(spec_file), "--outfit"]
+    assert subprocess.run(ask + ["uniform-olive"], capture_output=True).returncode == 0
+    refused = subprocess.run(ask + ["driver-suit"], capture_output=True, text=True)
+    assert refused.returncode != 0 and "no outfit_words" in refused.stderr
