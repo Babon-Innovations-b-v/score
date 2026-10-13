@@ -325,6 +325,14 @@
 					"wear_scale": 0.5,
 					"bump": 0.0001
 				},
+				"enamel_red": {
+					"recipe": "painted_metal",
+					"token": "danger",
+					"roughness": 0.25,
+					"wear_scale": 0.5,
+					"bump": 0.0001,
+					"said": "added 2026-10-13 for the people's leader's wider-pose state suit: its red enamel or plastic piece (close-up L*a*b* [57.5, 32.4, 17.7]); the nearest people surface, flag_red, lies dE 37.3 off (gate 32). Enamel as enamel_white and enamel_blue are (painted_metal, roughness 0.25, half wear), on the danger token, dE 19.4. Own colour: yes, red enamel; owner to review"
+				},
 				"roof_steel_paint": {
 					"recipe": "painted_metal",
 					"token": "roof-steel",
