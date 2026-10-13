@@ -495,6 +495,35 @@ def test_a_bake_is_held_against_its_surface_dirtied_as_far_as_its_place_s_dirt()
     assert bake_check.on_surface(baked, white, None, 0.6) > bake_check.BAKE_DELTA_E
 
 
+def test_a_triangle_under_a_texel_is_named_by_where_the_bake_wrote_its_texel():
+    """The flat's bowl stack, bake of 2026-10-13: its glass rims' triangles lie under a texel each, so the texel the
+    check samples for one was baked from the centre's point on a neighbour (enamel), and its glass failed at dE 66.6
+    while the bake was right. The check names the sampled texel by the ray from that point, as the bake did."""
+    import numpy as np
+    import trimesh
+    from score.stages.surfaces import bake_check
+    enamel = trimesh.creation.box(bounds=[[-1.0, 0.0, -0.05], [0.0, 1.0, 0.05]])
+    glass = trimesh.creation.box(bounds=[[0.0, 0.0, -0.05], [1.0, 1.0, 0.05]])
+    # one large triangle over the enamel covering texel (0, 0)'s centre in a 2 x 2 texture, one sliver over the glass
+    # whose middle falls in that texel but not on its centre
+    positions = np.array([[-0.9, 0.1, 0.05], [-0.1, 0.1, 0.05], [-0.5, 0.9, 0.05],
+                          [0.4, 0.4, 0.05], [0.6, 0.4, 0.05], [0.5, 0.6, 0.05]])
+    uvs = np.array([[0.2, 0.0], [0.5, 0.0], [0.2, 0.45], [0.05, 0.05], [0.12, 0.05], [0.05, 0.12]])
+    geometry = {"positions": positions, "uvs": uvs, "triangles": np.array([[0, 1, 2], [3, 4, 5]])}
+    entry = {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [2.0, 1.0, 0.1]}
+    rows, columns = np.array([0, 0]), np.array([0, 0])
+    points, owners = bake_check.sampled_points(geometry, rows, columns, 2, 2)
+    assert owners.tolist() == [0, 0], owners
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        enamel.export(folder / "enamel_white.ply")
+        glass.export(folder / "glass.ply")
+        names, middle_named, _ = bake_check.baked_surfaces(geometry, folder, entry)
+        names, texel_named, _ = bake_check.baked_surfaces(geometry, folder, entry, (points, owners))
+    assert [names[index] for index in middle_named] == ["enamel_white", "glass"], middle_named
+    assert [names[index] for index in texel_named] == ["enamel_white", "enamel_white"], texel_named
+
+
 def test_a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part():
     """far_city's pencil tower, 2026-10-13: the cut-down copy stands 0.6 m proud of the facade; beside a post, the
     post's side lies nearer than the facade the bake's ray meets, so the nearest part named the facade's colour

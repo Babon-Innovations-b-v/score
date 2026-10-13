@@ -97,7 +97,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   version (`../stages_test.py` holds it). Each baked triangle is named by the bake's own ray (`bake_check.ray_surfaces`:
   from its middle make_chunky's reach out along its normal, inward, the first labelled face hit), never the nearest
   part: the cut-down copy stands a wall proud, and beside a thin post the post lay nearer than the facade the bake
-  met (far_city's pencil tower, 2026-10-13: post_dark failed at dE 45, baked right). A near-black triangle is a blotch only when its colour lies over
+  met (far_city's pencil tower, 2026-10-13: post_dark failed at dE 45, baked right); the ray starts where the bake
+  wrote the texel the check samples (`sampled_points`: its centre's point, often on a neighbour of a triangle under a
+  texel; the flat's bowl stack's glass rims failed at dE 66.6, baked right). A near-black triangle is a blotch only when its colour lies over
   `BLOTCH_DELTA_E` from every surface within its reach: on a border it may bake its neighbour (the seed tray's paper
   label on black plastic passes), a black smudge along the border still fails. It also fails a model whose surfaces
   bake to one grey look its close-up does not have (`one_look_faults`: no two told apart at the place's view distance,
