@@ -80,7 +80,8 @@ def files(place):
     return {"inventory": f"{{data}}/inventory/{place_plan.inventory_name(place)}.json", "kits": "{data}/kit",
             "plans": "{data}/plans",
             "sky": "{data}/definitions/sky.json", "base": "{data}/definitions/base.json", "tube length": "{data}/scene/tube.json",
-            "places": "{data}/definitions/place.json", "seed record": "{data}/scene/{place}.json",
+            "places": "{data}/definitions/place.json", "assets": "{data}/assets/world1.json",
+            "seed record": "{data}/scene/{place}.json",
             "seeds": "{seeds}/usd-r3", "tokens": "{data}/../design/tokens/tokens.json"}
 
 
@@ -580,7 +581,7 @@ def kit_record(place, plan, inputs, grounds):
                        f"its kit's lamps, the made ground's seats and the world's sky record. Frame: its kit's, "
                        f"{sky['frame_of']}'s frame moved to its seat.",
               "floor": plan["floor"], "inside": plan["inside"], "structure": kit_shell.block(plan),
-              "objects": kit_shell.objects(plan),
+              "objects": kit_shell.objects(plan, kit),
               "lights": kit_shell.lamps(plan, kit, sky) + [kit_shell.moonlight(sky, pose)],
               "moon": kit_shell.moon(sky, pose), "kit_glow": kit_shell.kit_glow(sky),
               "environment": kit_shell.environment(plan, sky, pose), "views": views(plan, eye),

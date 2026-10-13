@@ -31,7 +31,7 @@ import numpy as np
 from pxr import Usd, UsdGeom, UsdShade
 
 from score import checks
-from score.stages.scene_record import writer
+from score.stages.scene_record import kit_shell, writer
 from score.stages.terrain import gates as ground_gates, outside, sight
 
 # A game file or the game's code: a Godot script, scene or shader, a path into its tree, its shell class.
@@ -423,23 +423,6 @@ def bare_stage(place):
     return stage
 
 
-def kit_floors(kit):
-    """The kit's floor pieces (its kinds' group `floors`) as box entries round each piece (x across and z out
-    centred on its `at`, y up from it).
-    shortcut: a box round the piece, exact for a piece square to the axes (every Earth floor), wider for a turned one."""
-    floors = {kind for kind, about in kit.get("kinds", {}).items() if about.get("group") == "floors"}
-    found = []
-    for number, piece in enumerate(piece for piece in kit.get("pieces", []) if piece["kind"] in floors):
-        axes = np.array([piece[axis] for axis in ("x", "y", "z")], dtype=float)
-        size = np.asarray(piece["size"], dtype=float)
-        corners = np.array([[across, up, out] for across in (-0.5, 0.5) for up in (0.0, 1.0) for out in (-0.5, 0.5)])
-        laid = np.asarray(piece["at"], dtype=float) + (corners * size) @ axes
-        low, high = laid.min(axis=0), laid.max(axis=0)
-        found.append({"name": f"kit_floor_{number}", "builder": "box", "centre": ((low + high) / 2).tolist(),
-                      "size": (high - low).tolist(), "surface": "kit_floor"})
-    return found
-
-
 def door_places(record, plan):
     """The record's places a doorway opens onto: each place of a stage a cut door leads to (a joined tube among them).
     The other places it shows are left out of the openings gate's stage: one only stands in a ray's way, so leaving it
@@ -456,7 +439,7 @@ def composed(output, inputs):
     stage = bare_stage(place)
     structure = record.get("structure", [])
     if plan_of(inputs)["shell"] == "kit":
-        structure = structure + kit_floors(json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text()))
+        structure = structure + kit_shell.kit_floors(json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text()))
     for surface in {item["surface"] for item in structure if item.get("surface")}:
         UsdShade.Material.Define(stage, f"/{place}/Library/{surface}")  # bound only: rays see shapes, not paint
     outside.scene_records.write_structure(stage, place, structure, out=pathlib.Path(output))
