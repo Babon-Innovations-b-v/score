@@ -94,4 +94,10 @@ serve: skill `make-scene`, bible "How a scene is designed".
   place job, 2026-10-07): a glass dome on a frame of ribs instead of plates, the floor's rises (SteppedFloor's dais,
   steps and ledges) surfaced, the robot station's pieces on PlotField's spots and the grow-light gantry over the plot;
   `greenhouse_kit_test.py` reads the game's own numbers (SteppedFloor, PlotField, main.tscn) and holds it to them.
+- `ship_kit.py <room> <out.json>` lays a ship room's kit (the ship as a world 1 place, 2026-10-14; the bridge first)
+  from its plan alone (`w`, `d`, the ceiling in its height words, its doors, its `kit` block: the nose's cut corners,
+  the windows' sill, head and pillar) and its inventory's spots: walls in two bands of plain plates round the wedge
+  outline, a doorway left clear, the cut corners and the front glazed, the floor and ceiling in grids with a triangle in
+  each cut corner. Shell plates take the sorter's plain names; a room's name is one word (`bridge`), as the route's
+  kinds are `<room>_<own>`. `ship_kit_test.py` checks it on a bridge-shaped room.
 - `camp_kit.py` lays the expedition camp habitat's kit on Mars (data/kit/camp.json via route.py) from the camp scripts' own numbers; `camp_kit_test.py` reads them back. `camp_shots.tscn` draws the habitat from cameras in its own frame (run with `--mars`, so the game's own check stays on Mars while it shoots).
