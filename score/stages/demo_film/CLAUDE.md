@@ -1,18 +1,21 @@
 # score/stages/demo_film/
 
-The demo-film row (experimental, 2026-10-14): demo K9's walk-through film of one place, from its final stage once it
-passes complete, with its own sound; paid and cleared by the runner like any paid row. `__init__.py`'s docstring has
-the make, the output and the gate.
+The demo-film and demo-film-extra rows (experimental, 2026-10-14): demo K9's walk-through films of a place, from its
+final stage once it passes complete, with its own sound; paid and cleared by the runner like any paid row.
+`__init__.py`'s docstring has the make, the output and the gate.
 
-- **Only the places `data/definitions/demo_films.json` names have the row**, each with the scene record's camera
-  nearest its concept. Add a place there once it passes complete (group by group, as the coordinator names them);
-  nothing films before. All 18 places come to about EUR 11.
+- **One record a film**, `data/definitions/demo_films/<film>.json` (`place`, `camera`, `why`), so adding a film moves no
+  other film's key. `<place>.json` is the place's own film (demo-film@place); any other name is another film of its
+  `place` (demo-film-extra@place, all of that place's other films in one node): the ship's hull through the hangar
+  goes in as `hull.json` (place hangar, camera ship) only once the hull has landed, or it films the gap.
+- **The camera** is the scene record's camera nearest the place's concept (picked by laying the concept beside every
+  camera's game shot). The path starts there; the first frame is kept as `concept.png`, demo K8's still (no separate
+  render); a standing shot starts 5 degrees off the camera's aim and a walk's start may move up to 1.5 m to stand clear,
+  which views.json records.
 - **The film is the place's own**: the neighbours output where the place shows others, else its assembly, never a seed;
-  one camera path starting at that camera, 1280x720, the look only (no ink). Its first frame is kept as `concept.png`,
-  demo K8's still beside the concept (no separate render); a standing shot starts 5 degrees off the camera's aim and a
-  walk's start may move up to 1.5 m to stand clear, which views.json records.
-  People need no handling: the characters layer lays nobody today.
+  one camera path, 1280x720, the look only (no ink). People need no handling: the characters layer lays nobody today.
+  All 18 places come to about EUR 11.
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
-  frame. Whether the film reads well is the creator's call.
-- Run: add the place to the record, then `python -m score run world1 --place <place> --stage demo-film --detach`.
-  Test: `demo_film_test.py` (no Blender, no spend).
+  frame. Whether a film reads well is the creator's call.
+- Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film starts by itself once its place
+  passes complete in any world run). Test: `demo_film_test.py` (no Blender, no spend).

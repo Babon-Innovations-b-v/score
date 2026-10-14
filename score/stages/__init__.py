@@ -293,15 +293,20 @@ DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, d
                               demo_turntable.CHECKS, files=demo_turntable.files, paid=True,
                               euros=demo_turntable.euros())
 # Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, only
-# for the places data/definitions/demo_films.json names (added group by group), paid.
+# for the places with a film record in data/definitions/demo_films/, paid.
 DEMO_FILM = graph.Stage("demo-film", "place", demo_film.make, demo_film.CONTRACT, demo_film.CHECKS,
                         files=demo_film.files, after={"assembly": ("openusd-stage", 1),
                                                       "neighbours": ("openusd-stage", 1),
                                                       "complete": ("place-manifest", 1)},
                         paid=True, euros=demo_film.EUROS, applies=demo_film.applies)
+# A place's other films (the ship's hull through the hangar), one node a place, so its own film's key never moves.
+DEMO_FILM_EXTRA = dataclasses.replace(DEMO_FILM, name="demo-film-extra", make=demo_film.make_extra,
+                                      contract=demo_film.EXTRA_CONTRACT, checks=demo_film.EXTRA_CHECKS,
+                                      files=demo_film.extra_files, applies=demo_film.applies_extra)
 
 
 STAGES = (TERRAIN, CONCEPT_VIEWS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, DEMO_FILM,
+          DEMO_FILM_EXTRA,
           TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
