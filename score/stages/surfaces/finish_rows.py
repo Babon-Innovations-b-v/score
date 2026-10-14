@@ -214,13 +214,15 @@ def named_again(inputs, take, entry, record):
     for number, (finish, colour) in enumerate(zip(record["finishes"], measured)):
         spec = every.get(finish["surface"], {})
         wrong_kind = finish_parts.contradicts(f"{finish['finish']} {finish['parts']}", spec.get("family"))
-        off = (colour is not None and "colour" in spec
-               and np.linalg.norm(finish_parts.library_lab(spec) - colour) > finish_parts.COLOUR_DELTA_E)
+        apart = None if colour is None or "colour" not in spec else float(
+            np.linalg.norm(finish_parts.library_lab(spec) - colour))
+        off = apart is not None and apart > finish_parts.COLOUR_DELTA_E
         unordered = any(finish_parts.out_of_order(seen[number], other, lightness) for other in seen)
         finish = dict(finish, listed_surface=finish["surface"], by="the list")
         if wrong_kind or off or unordered:
             glow = colour is not None and float(np.hypot(colour[1], colour[2])) > GLOW_CHROMA
-            named = finish_ask.name_finish(picture, reference, entry["object"], number, finish, every, glow)
+            named = finish_ask.name_finish(picture, reference, entry["object"], number, finish, every, glow,
+                                           (colour, apart) if off else None)
             reason = "its material" if wrong_kind else "its colour" if off else "its lightness order"
             finish.update(surface=named, fits=True, by=f"named again ({reason})")
         found.append(finish)

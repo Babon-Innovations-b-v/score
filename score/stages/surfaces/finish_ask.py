@@ -175,14 +175,27 @@ GLOW_QUESTION = """
 If the colour this part shows in the first picture is light it gives off (a lamp, a beacon, an indicator, a lit lens
 or a screen), choose the light or screen surface for it, not the material of its housing."""
 
+# Asked besides, of a finish whose surface lies over COLOUR_DELTA_E from its close-up colour: asked by its words alone,
+# Gemini named the same surface again (2026-10-14: the galley seat's dark grey bracket anodized_black again, dE 40;
+# the navigation hatch frame's orange padding, labelled "unpainted metal" in its map, perforated_steel again, dE 49).
+COLOUR_QUESTION = """
+It is asked again because its colour where the finish map paints it, L*a*b* {lab}, lies {delta:.0f} (CIE76) from
+{surface}, the surface first named for it. The finish map may have painted this label over another material, or the
+words may name the wrong one: choose the surface of what the first picture shows where the map paints this finish."""
 
-def name_body(picture, front_map, object_words, number, finish, surfaces, glow=False):
+
+def name_body(picture, front_map, object_words, number, finish, surfaces, glow=False, off=None):
     """The second naming of one finish: the close-up, its finish map and the take's surfaces, the answer one code;
-    with `glow`, also asked whether its colour is a lamp's own light (GLOW_QUESTION)."""
+    with `glow`, also asked whether its colour is a lamp's own light (GLOW_QUESTION); with `off` (its measured
+    L*a*b* and its listed surface's distance from it), also told its colour is off (COLOUR_QUESTION)."""
     import part_judge
     text = NAME_QUESTION.format(object=object_words, label=LABEL_WORDS[number], finish=finish["finish"],
                                 parts=finish["parts"], surfaces=part_judge.material_lines(surfaces))
     text += GLOW_QUESTION if glow else ""
+    if off is not None:
+        lab, delta = off
+        text += COLOUR_QUESTION.format(lab=[round(float(value), 1) for value in lab], delta=delta,
+                                       surface=finish["surface"])
     schema = {"type": "OBJECT", "properties": {"surface": {"type": "STRING", "enum": surface_codes(surfaces)}},
               "required": ["surface"]}
     return {"contents": [{"role": "user", "parts": [picture_part(picture, 1600), picture_part(front_map, 1600),
@@ -191,12 +204,12 @@ def name_body(picture, front_map, object_words, number, finish, surfaces, glow=F
                                  "responseSchema": schema}}
 
 
-def name_finish(picture, front_map, object_words, number, finish, surfaces, glow=False):
-    """The library surface Gemini 3.1 Pro names for one finish when asked again with its finish map."""
+def name_finish(picture, front_map, object_words, number, finish, surfaces, glow=False, off=None):
+    """The library surface Gemini 3.1 Pro names for one finish when asked again with its finish map (name_body)."""
     from score.adapters import compute
     compute.require_cleared("a Gemini finish naming")
     response = generated(LIST_MODEL, name_body(picture, front_map, object_words, number, finish,
-                                    surfaces, glow), secret_key(), TIMEOUT,
+                                    surfaces, glow, off), secret_key(), TIMEOUT,
                          caller="finishmap-name", cache=True)
     code = json.loads(reply_text(response))["surface"]
     return list(surfaces)[surface_codes(surfaces).index(code)]

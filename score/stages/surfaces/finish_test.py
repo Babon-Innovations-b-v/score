@@ -221,6 +221,22 @@ def test_a_strongly_coloured_finish_is_asked_whether_it_is_lamp_light_and_no_oth
     assert asked["contents"][0]["parts"][2]["text"] == text + finish_ask.GLOW_QUESTION
 
 
+def test_a_finish_named_again_for_its_colour_is_told_its_colour_and_no_other_question_moves():
+    """Galley, 2026-10-14: asked by its words alone, the seat's dark grey bracket ("black metal") came back
+    anodized_black at dE 40; asked again for its colour, the question now says the colour and how far it lies."""
+    picture = Image.new("RGBA", (8, 8), (100, 100, 100, 255))
+    finish = {"finish": "black metal", "parts": "screws and bolts", "surface": "anodized_black"}
+    surfaces = {"anodized_black": {"family": "anodized"}, "cast_steel": {"family": "steel"}}
+    plain = finish_ask.name_body(picture, picture, "a fold-down seat", 1, finish, surfaces)
+    asked = finish_ask.name_body(picture, picture, "a fold-down seat", 1, finish, surfaces,
+                                 off=(np.array([42.5, 0.2, 0.4]), 40.04))
+    text = plain["contents"][0]["parts"][2]["text"]
+    assert text.endswith("then by its colour in the first picture."), text  # word for word: its cache stands
+    added = asked["contents"][0]["parts"][2]["text"][len(text):]
+    assert added == finish_ask.COLOUR_QUESTION.format(lab=[42.5, 0.2, 0.4], delta=40.04, surface="anodized_black")
+    assert "[42.5, 0.2, 0.4]" in added and "lies 40 " in added and "anodized_black" in added, added
+
+
 def test_a_naming_that_timed_out_is_asked_again_with_low_thinking():
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import google_spend
