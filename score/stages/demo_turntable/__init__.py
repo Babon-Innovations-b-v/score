@@ -1,6 +1,6 @@
 """demo-turntables: models that already exist turned round for the paper's demos, one world node, paid (one Blender job
 on the cheapest card, tools/props/cloud/blender_cloud.py inside the runner's clearance, drawn by the review page's
-model script tools/blender/inside/review_models.py: Workbench, studio light, each model framed on its own). The first:
+model script tools/blender/inside/review_models.py: Workbench, studio light, each model framed whole on its own). The first:
 demo K2, four of the hub comparison's objects, each one's generated model and code build where it has them.
 
     data/definitions/demo_turntables.json   {"why", "headings" (degrees round the model),
@@ -27,6 +27,8 @@ PROPS_PYTHON = pathlib.Path(os.environ.get("PROPS_PYTHON", PROPS_HOME / "env/bin
 # Workbench needs a card's OpenGL; the cheapest card first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
 CLASSES = "gpu-24gb"
 SIZE = (1024, 1024)
+# The whole bounding sphere and a little more in frame: review_models' own 0.8 cut the long thin tools off (2026-10-14).
+MARGIN = 1.05
 MINUTES = 15
 # One L4 job: set-up and a few minutes of Workbench renders at about EUR 0.013 a minute, rounded up.
 EUROS = 0.5
@@ -58,7 +60,7 @@ def member_name(item, what, heading):
 def shots(turntables, inputs):
     """review_models.py's shots: one group a model and heading, so each model is framed on its own."""
     return {"size": list(SIZE),
-            "groups": [{"name": member_name(item, what, heading), "heading": heading,
+            "groups": [{"name": member_name(item, what, heading), "heading": heading, "margin": MARGIN,
                         "members": [{"name": member_name(item, what, heading),
                                      "files": [{"path": str(inputs[f"{item['id']} {what} 0"])}]}]}
                        for item in turntables["objects"] for what in item["models"]
