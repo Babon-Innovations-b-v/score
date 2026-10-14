@@ -22,7 +22,7 @@ PINNED = ("name", "revision", "sha256", "licence", "commercial_use")
 # 2026-10-11: 3 of 83 answered pairs differ against Qwen3.8-27B's 12 of 87); it names surfaces from the library and
 # makes nothing a world ships.
 API = {"gemini-judge": {"provider": "google-gemini-api", "model": "gemini-3.1-pro-preview", "temperature": 0,
-                        "thinking": "default", "timeout_seconds": 60, "tries": 5, "parallel": 32,
+                        "thinking": "default", "tries": 5, "parallel": 32,
                         "commercial_use": True}}
 
 

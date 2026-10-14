@@ -96,7 +96,7 @@ def answer_one(job, record, key):
             time.sleep(BACKOFF_SECONDS * 2 ** (attempt - 1))
         attempt += 1
         try:
-            response = google_spend.generate(record["model"], body, key, record["timeout_seconds"],
+            response = google_spend.generate(record["model"], body, key, compute.judge_timeout(),
                                              caller="gemini_judge", cache=True)
             return reply_text(response) or "the model gave no answer"
         except urllib.error.HTTPError as error:
