@@ -55,6 +55,13 @@
    "shape": "landscape",
    "why": "the pilot's flight stick shown whole (the owner, 2026-10-14, via the coordinator: a normal flight stick matching the levers on his cockpit reference's centre pedestal; the Outer Wilds picture is the thrust indicator, not the stick). His cockpit reference shows the pedestal's levers only a few pixels tall. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of a spaceship cockpit. Draw one concept painting of the pilot's flight stick in this cockpit, in exactly the same style, materials and light, large in the picture: one upright ergonomic hand grip with a thumb button on top and a trigger at the front, on a black rubber boot set into the dark console, dark metal and black rubber with small orange accents, matching the throttle levers on the centre pedestal between the seats. A little of the console round it in view. No people, no hands, no text, no labels."
+  },
+  {
+   "id": "room_walkway",
+   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "shape": "landscape",
+   "why": "the walkway's concept (the ship plan v7; the owner's 2026-10-14 'finish the whole ship'): the corridor has no reference picture of its own; drawn in the style of his quarters reference from its plan's elements. The reference is found artwork, kept in the work folder and off public pages.",
+   "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship. Draw one concept painting of the corridor inside the same spaceship, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, white light strips. The corridor is 1.2 m wide, 2.4 m high and about 10 m long, seen from one end at standing eye height, its whole length in view. It holds: steel frame ribs arching over it, white with an orange edge, between the doors; doors in hexagonal orange and white frames off both sides, two on each side, and one at the far end; a steel grating down the middle of the dark deck; white light strips down the ceiling and amber strips along the wall tops; grey panelled walls and ceiling. No people, no text, no labels, nothing outside the corridor."
   }
  ]
 }
