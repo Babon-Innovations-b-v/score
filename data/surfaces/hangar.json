@@ -124,6 +124,50 @@
    "place": "hangar",
    "kind": "hangar_monitor_desk",
    "object": "a steel desk with three monitors, a keyboard, a control strip and a drawer pedestal"
+  },
+  "ship-s1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_ship",
+   "object": "the crew's Mars shuttle: a long flat wedge-shaped hull of white panels over a dark grey lower hull, a squared-off snout, a cluster of dark window panes on its upper deck, small swept fins, two ribbed engine tubes set into the stern either side of a dark airlock block, a ring on its starboard side as hull detail, standing low on short landing legs"
+  },
+  "main_engine-s1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_main_engine",
+   "object": "main engine: a long ribbed dark grey tube with a round white nozzle housing at its back end"
+  },
+  "lift_thruster-s1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_lift_thruster",
+   "object": "lift thruster: a round downward-facing nozzle with a louvred ring, set in a square dark grey belly plate"
+  },
+  "nose_thruster-s1": {
+   "places": [
+    "hangar"
+   ],
+   "library_places": [
+    "hangar"
+   ],
+   "place": "hangar",
+   "kind": "hangar_nose_thruster",
+   "object": "nose thruster: a small square port with three short copper nozzles in a dark grey plate"
   }
  },
  "bake": {
@@ -139,9 +183,110 @@
    "monitor_desk_1": "work_desk-h1",
    "parts_crate_1": "crate-h1",
    "parts_shelving_1": "parts_shelving-h1",
-   "ship_bench_1": "ship_bench-h1"
+   "ship_bench_1": "ship_bench-h1",
+   "ship_1": "ship-s1",
+   "main_engine_1": "main_engine-s1",
+   "lift_thruster_1": "lift_thruster-s1",
+   "nose_thruster_1": "nose_thruster-s1"
   },
-  "entries": {}
+  "entries": {
+   "ship_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     9.02,
+     5.43,
+     31.0
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "main_engine_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     1.0,
+     1.0,
+     2.3
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "lift_thruster_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     1.0,
+     0.4,
+     1.0
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "nose_thruster_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.3,
+     0.3,
+     0.2
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 5000
+   }
+  }
  },
  "elsewhere": {
   "parts_rack_1": {

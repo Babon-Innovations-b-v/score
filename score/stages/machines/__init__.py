@@ -144,6 +144,38 @@ def pose(points, entry, stage, place):
     return matrix, yaw, drop
 
 
+NOSES = {"+x": (1.0, 0.0, 0.0), "-x": (-1.0, 0.0, 0.0), "+z": (0.0, 0.0, 1.0), "-z": (0.0, 0.0, -1.0)}
+
+
+def mount_point(low, high, nose, at):
+    """Where a mounted piece's middle goes in the stage's frame: its host's placed box (low, high), the host's nose
+    direction in the stage (+x, -x, +z or -z) and the piece's place in the host's own plan frame (x across, starboard
+    positive; y back from the nose's tip; z up from the host's foot), metres (the ship plan's frame,
+    data/definitions/ship.json)."""
+    forward, up = np.array(NOSES[nose]), np.array([0.0, 1.0, 0.0])
+    low, high = np.asarray(low, dtype=float), np.asarray(high, dtype=float)
+    tip = (low + high) / 2 + forward * float(np.abs(forward) @ (high - low)) / 2
+    tip[1] = low[1]
+    return tip - forward * at[1] + np.cross(forward, up) * at[0] + up * at[2]
+
+
+def mounted_pose(points, entry, hosts, record):
+    """A mounted piece's placement (the hangar ship's thrusters, set into its hull): turned as its host is and its
+    middle at its mount point; never let down (its host holds it).
+    shortcut: the piece keeps its host's turn, so a take modelled off the ship's axes needs a `turn` of its own."""
+    host = entry["mounted"]["on"]
+    nose = record["machines"][host].get("nose")
+    if nose not in NOSES:
+        raise ValueError(f"{host}: its nose's direction in the place (`nose`: +x, -x, +z or -z) is not in the "
+                         "machines record; read it off the placed host's baked model")
+    low, high, rotation, _ = hosts[host]
+    spun = points @ rotation
+    move = mount_point(low, high, nose, entry["mounted"]["at"]) - (spun.min(axis=0) + spun.max(axis=0)) / 2
+    matrix = np.eye(4)
+    matrix[:3, :3], matrix[3, :3] = rotation, move
+    return matrix
+
+
 # --- the make -----------------------------------------------------------------------------------------------------
 
 def write_model(model, bake, paint, out):
@@ -160,8 +192,14 @@ def write_model(model, bake, paint, out):
     return bake / "made" / f"{model}.gltf"
 
 
+def held_by(entry):
+    """What holds a machine up: the support it stands on, or the host a mounted piece is set into."""
+    return entry["mounted"]["on"] if "mounted" in entry else entry["on"]
+
+
 def lay(layer, place, model, entry, matrix, sha256):
-    """One machine's prim in the layer: the model's asset referenced, its record's words, its placement; its row is
+    """One machine's prim in the layer: the model's asset referenced (a piece laid more than once, the asset of the
+    one model the bake made of its take: `model` in its entry), its record's words, its placement; its row is
     the record's inventory row (`row`), as every laid object's is, never the model's name: the garage's rover_idle sound
     plays at row rover, and the completion gate counts rows (assembly@garage, 2026-10-15: the rover laid as row rover_1
     left its sound playing at nothing)."""
@@ -170,9 +208,9 @@ def lay(layer, place, model, entry, matrix, sha256):
     for path in (f"/{place}", f"/{place}/Objects"):
         layer.GetPrimAtPath(path).specifier = Sdf.SpecifierOver
     spec = Sdf.PrimSpec(objects, model, Sdf.SpecifierDef, "Xform")
-    spec.referenceList.Prepend(Sdf.Reference(f"../assets/{model}.usdc"))
+    spec.referenceList.Prepend(Sdf.Reference(f"../assets/{entry.get('model', model)}.usdc"))
     values = {"score:kind": entry["kind"], "score:model": model, "score:model_sha256": sha256, "score:anchor": "floor",
-              "score:row": entry["row"], "score:machine": entry["take"], "score:on": entry["on"]}
+              "score:row": entry["row"], "score:machine": entry["take"], "score:on": held_by(entry)}
     for name, value in values.items():
         Sdf.AttributeSpec(spec, name, Sdf.ValueTypeNames.String).default = value
     Sdf.AttributeSpec(spec, "score:fixed", Sdf.ValueTypeNames.Bool).default = False
@@ -190,14 +228,25 @@ def make(inputs, out, seed, params):
     stage = seed_stage(inputs["seed"])
     (out / "layers").mkdir(parents=True)
     layer = Sdf.Layer.CreateNew(str(out / LAYER))
-    placed = {}
-    for model, entry in sorted(record["machines"].items()):
-        gltf = write_model(model, pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]), out)
+    placed, hosts, written = {}, {}, {}
+    # Hosts first, so a mounted piece finds its host laid.
+    for model, entry in sorted(record["machines"].items(), key=lambda item: ("mounted" in item[1], item[0])):
+        asset = entry.get("model", model)
+        if asset not in written:
+            written[asset] = write_model(asset, pathlib.Path(inputs["surfaces-bake"]),
+                                         pathlib.Path(inputs["surfaces-paint"]), out)
+        gltf = written[asset]
         points, _ = likeness.gltf_mesh(gltf)
-        matrix, yaw, drop = pose(points, entry, stage, place)
+        if "mounted" in entry:
+            matrix, yaw, drop = mounted_pose(points, entry, hosts, record), None, 0.0
+        else:
+            matrix, yaw, drop = pose(points, entry, stage, place)
+            laid = points @ matrix[:3, :3] + matrix[3, :3]
+            hosts[model] = (laid.min(axis=0), laid.max(axis=0), matrix[:3, :3], yaw)
         lay(layer, place, model, entry, matrix, stage_inputs.model_hash(gltf))
-        placed[model] = {"prim": f"/{place}/Objects/{model}", "take": entry["take"], "on": entry["on"],
-                         "yaw": yaw, "at": matrix[3, :3].round(4).tolist(), "dropped": round(drop, 4),
+        placed[model] = {"prim": f"/{place}/Objects/{model}", "take": entry["take"], "on": held_by(entry),
+                         "asset": asset, "yaw": yaw, "at": matrix[3, :3].round(4).tolist(), "dropped": round(drop, 4),
+                         **({"mounted": True} if "mounted" in entry else {}),
                          **likeness.best_way(gltf, inputs[f"close-up {model}"])}
     layer.Save()
     (out / "placed.json").write_text(json.dumps({"place": place, "machines": placed}, indent=1) + "\n")
@@ -207,8 +256,8 @@ def layer_faults(folder):
     folder = pathlib.Path(folder)
     if not (folder / LAYER).exists() or not (folder / "placed.json").exists():
         return [f"no {LAYER} or placed.json"]
-    return [f"{model}: no asset" for model in read_json(folder / "placed.json")["machines"]
-            if not (folder / "assets" / f"{model}.usdc").exists()]
+    return [f"{model}: no asset" for model, entry in read_json(folder / "placed.json")["machines"].items()
+            if not (folder / "assets" / f"{entry.get('asset', model)}.usdc").exists()]
 
 
 # --- the gates ----------------------------------------------------------------------------------------------------
@@ -289,12 +338,19 @@ def judge_resting(output, inputs, evidence):
     stage = composed(output, inputs)
     place = stage.GetDefaultPrim().GetName()
     failing, gaps = [], []
-    for model in sorted(placed_of(output)):
+    for model, entry in sorted(placed_of(output).items()):
+        if entry.get("mounted"):  # set into its host, which holds it: it lies in nothing else
+            name = f"/{place}/Objects/{model}"
+            failing += [f"{model}: lies {depth * 100:.0f} cm inside {other}"
+                        for other, depth in overlapped(stage, place, name, drawn(stage.GetPrimAtPath(name)))
+                        if other != entry["on"]]
+            continue
         found = rested(stage, place, model)
         gaps.append(found.get("gap") or 0.0)
         if not found.get("passed", True):
             failing.append(f"{model}: {found['result']}")
-        failing += [f"{model}: lies {depth * 100:.0f} cm inside {other}" for other, depth in found["overlaps"]]
+        failing += [f"{model}: lies {depth * 100:.0f} cm inside {other}" for other, depth in found["overlaps"]
+                    if not placed_of(output).get(other, {}).get("mounted")]
     return verdict("resting", failing, len(placed_of(output)), {"largest gap": max(gaps)})
 
 

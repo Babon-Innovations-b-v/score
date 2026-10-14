@@ -85,6 +85,26 @@ def test_layout_and_gates(work):
     assert missing.answer == checks.FAIL and "black tyres" in missing.findings[0], missing
 
 
+def test_a_mounted_piece_goes_where_its_host_plan_puts_it():
+    """A ship 31 m long laid along z with its nose at -z: a piece 2 m back from the tip, 1 m to starboard (+x when
+    facing -z) and 0.5 m up sits there; a host with no nose refuses its pieces by name."""
+    low, high = (-4.0, 0.2, -15.5), (4.0, 6.2, 15.5)
+    point = machines.mount_point(low, high, "-z", [1.0, 2.0, 0.5])
+    assert np.allclose(point, [1.0, 0.7, -13.5]), point
+    assert np.allclose(machines.mount_point(low, high, "+x", [1.0, 0.0, 0.0]), [4.0, 0.2, 1.0])  # facing +x, starboard is +z
+    hosts = {"ship_1": (np.array(low), np.array(high), np.eye(3), 0.0)}
+    piece = {"mounted": {"on": "ship_1", "at": [1.0, 2.0, 0.5]}}
+    matrix = machines.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), piece, hosts,
+                                   {"machines": {"ship_1": {"nose": "-z"}}})
+    assert np.allclose(matrix[3, :3], [1.0, 0.7, -13.5]), matrix
+    try:
+        machines.mounted_pose(np.zeros((2, 3)), piece, hosts, {"machines": {"ship_1": {}}})
+    except ValueError as refused:
+        assert "ship_1" in str(refused), refused
+    else:
+        raise AssertionError("a host with no nose laid its piece")
+
+
 def test_assembly_takes_it(work):
     """The assembly holds the machines layer just over the base and carries the machine's asset; the machine stands
     as its inventory row, where its sound plays (assembly@garage, 2026-10-15: laid as rover_1, rover_idle found
@@ -136,7 +156,9 @@ def test_boxes_grounds_the_machine_rows(work):
         boxes.make_boxes(inputs, out, 0, {})
     finally:
         box_masks_cloud.mask, box_check.record_results, boxes.judged = kept
-    assert sorted(asked) == ["hangar.lattice_ring_rib", "hangar.ship"], asked  # the machine row, the ground_box one
+    # the machine rows (the hull and its three thruster designs) and the ground_box one
+    assert sorted(asked) == ["hangar.lattice_ring_rib", "hangar.lift_thruster", "hangar.main_engine",
+                             "hangar.nose_thruster", "hangar.ship"], asked
     verdict = boxes.judge_grounded(out, inputs, None)
     assert verdict.answer == checks.FAIL and "hangar.ship: unchecked (SAM 3: off)" in verdict.findings, verdict
     assert recorded and recorded[0]["hangar.ship"]["passes"] is None  # an ungrounded box is not recorded as passing
@@ -148,6 +170,7 @@ def main():
     work.mkdir(parents=True)
     try:
         test_layout_and_gates(work)
+        test_a_mounted_piece_goes_where_its_host_plan_puts_it()
         test_assembly_takes_it(work)
         test_boxes_grounds_the_machine_rows(work)
     finally:

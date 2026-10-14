@@ -1,0 +1,164 @@
+{
+ "place": "hangar",
+ "machines": {
+  "ship_1": {
+   "row": "ship",
+   "take": "ship-s1",
+   "kind": "hangar_ship",
+   "on": "machine_bay_plate_1",
+   "turn": "along",
+   "nose": null,
+   "why": "The hangar holds the crew's shuttle on its pad (place.json, the ship plan v7 at the hangar's 31 m): laid along the pad, let down onto it. Its nose's direction in the place is read off the baked model once it is made (`nose`: +x, -x, +z or -z); until then its thrusters refuse to lay, by name."
+  },
+  "main_engine_1": {
+   "row": "main_engine",
+   "take": "main_engine-s1",
+   "kind": "hangar_main_engine",
+   "model": "main_engine_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     -2.4,
+     27.25,
+     2.7
+    ]
+   },
+   "why": "the ship plan v7's main engine 1 (data/definitions/ship.json), set into the hull"
+  },
+  "main_engine_2": {
+   "row": "main_engine",
+   "take": "main_engine-s1",
+   "kind": "hangar_main_engine",
+   "model": "main_engine_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     2.4,
+     27.25,
+     2.7
+    ]
+   },
+   "why": "the ship plan v7's main engine 2 (data/definitions/ship.json), set into the hull"
+  },
+  "lift_thruster_1": {
+   "row": "lift_thruster",
+   "take": "lift_thruster-s1",
+   "kind": "hangar_lift_thruster",
+   "model": "lift_thruster_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     -2.2,
+     10.5,
+     0.6
+    ]
+   },
+   "why": "the ship plan v7's lift thruster 1 (data/definitions/ship.json), set into the hull"
+  },
+  "lift_thruster_2": {
+   "row": "lift_thruster",
+   "take": "lift_thruster-s1",
+   "kind": "hangar_lift_thruster",
+   "model": "lift_thruster_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     2.2,
+     10.5,
+     0.6
+    ]
+   },
+   "why": "the ship plan v7's lift thruster 2 (data/definitions/ship.json), set into the hull"
+  },
+  "lift_thruster_3": {
+   "row": "lift_thruster",
+   "take": "lift_thruster-s1",
+   "kind": "hangar_lift_thruster",
+   "model": "lift_thruster_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     -2.8,
+     23.5,
+     0.6
+    ]
+   },
+   "why": "the ship plan v7's lift thruster 3 (data/definitions/ship.json), set into the hull"
+  },
+  "lift_thruster_4": {
+   "row": "lift_thruster",
+   "take": "lift_thruster-s1",
+   "kind": "hangar_lift_thruster",
+   "model": "lift_thruster_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     2.8,
+     23.5,
+     0.6
+    ]
+   },
+   "why": "the ship plan v7's lift thruster 4 (data/definitions/ship.json), set into the hull"
+  },
+  "nose_thruster_1": {
+   "row": "nose_thruster",
+   "take": "nose_thruster-s1",
+   "kind": "hangar_nose_thruster",
+   "model": "nose_thruster_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     -1.6,
+     4.0,
+     1.6
+    ]
+   },
+   "why": "the ship plan v7's nose thruster 1 (data/definitions/ship.json), set into the hull"
+  },
+  "nose_thruster_2": {
+   "row": "nose_thruster",
+   "take": "nose_thruster-s1",
+   "kind": "hangar_nose_thruster",
+   "model": "nose_thruster_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     1.6,
+     4.0,
+     1.6
+    ]
+   },
+   "why": "the ship plan v7's nose thruster 2 (data/definitions/ship.json), set into the hull"
+  },
+  "nose_thruster_3": {
+   "row": "nose_thruster",
+   "take": "nose_thruster-s1",
+   "kind": "hangar_nose_thruster",
+   "model": "nose_thruster_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     0.0,
+     4.0,
+     1.2
+    ]
+   },
+   "why": "the ship plan v7's nose thruster 3 (data/definitions/ship.json), set into the hull"
+  },
+  "nose_thruster_4": {
+   "row": "nose_thruster",
+   "take": "nose_thruster-s1",
+   "kind": "hangar_nose_thruster",
+   "model": "nose_thruster_1",
+   "mounted": {
+    "on": "ship_1",
+    "at": [
+     0.0,
+     4.0,
+     2.1
+    ]
+   },
+   "why": "the ship plan v7's nose thruster 4 (data/definitions/ship.json), set into the hull"
+  }
+ }
+}
