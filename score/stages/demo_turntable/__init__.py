@@ -24,8 +24,9 @@ RECORD = REPO / "data/definitions/demo_turntables.json"
 SCRIPT = "tools/blender/inside/review_models.py"
 PROPS_HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 PROPS_PYTHON = pathlib.Path(os.environ.get("PROPS_PYTHON", PROPS_HOME / "env/bin/python"))
-# Workbench needs a card's OpenGL; the cheapest card first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
-CLASSES = "gpu-24gb"
+# Workbench needs a card's OpenGL; the cheapest card first (capacity.KIND_ORDER), a 48 GB one when no L4 is in stock
+# (2026-10-14), never an H100 (capacity.NEVER).
+CLASSES = "gpu-24gb,gpu-48gb"
 SIZE = (1024, 1024)
 # The whole bounding sphere and a little more in frame: review_models' own 0.8 cut the long thin tools off (2026-10-14).
 MARGIN = 1.05
