@@ -8,8 +8,7 @@ A member is one take of one thing: a made model (one .gltf, drawn with its own b
 (one .ply per library surface, each drawn flat in that surface's colour, `colour` linear RGB). `up` is the axis the
 files stand on, "y" (glTF, and the labelled parts) or "z". Every member of a group is drawn from one camera, set from
 all the members' bounds together, so two takes of a thing (before and after a stage was rerun) are seen the same way;
-a group's `heading` (degrees, HEADING when absent) turns that camera round the model, 180 more to see its back, and
-its `margin` (MARGIN when absent) widens the frame round the bounds, so a long thin model is not cut off.
+a group's `heading` (degrees, HEADING when absent) turns that camera round the model, 180 more to see its back.
 Per member it writes <member name>.png, and shots-report.json with each member's triangles and size in its own units.
 Workbench draws them (studio light, no shadows): it is fast on the processor and shows shape and colour plainly.
 """
@@ -104,10 +103,10 @@ def bounds(points):
             Vector([max(point[axis] for point in points) for axis in range(3)]))
 
 
-def camera_for(scene, low, high, heading_degrees=HEADING, margin=MARGIN):
+def camera_for(scene, low, high, heading_degrees=HEADING):
     """A camera from `heading_degrees` round (the front-right by default) and above that holds the whole box."""
     middle = (low + high) / 2
-    radius = (high - low).length / 2 * margin
+    radius = (high - low).length / 2 * MARGIN
     distance = radius / math.sin(math.radians(LENS_ANGLE) / 2)
     heading, elevation = math.radians(heading_degrees), math.radians(ELEVATION)
     eye = middle + distance * Vector((math.sin(heading) * math.cos(elevation), -math.cos(heading) * math.cos(elevation),
@@ -138,7 +137,7 @@ def render_group(scene, group, out):
     imported = {member["name"]: (member, import_member(member)) for member in group["members"]}
     everything = [item for _, objects in imported.values() for item in objects]
     low, high = bounds(corners(everything))
-    camera = camera_for(scene, low, high, group.get("heading", HEADING), group.get("margin", MARGIN))
+    camera = camera_for(scene, low, high, group.get("heading", HEADING))
     report = {}
     for name, (member, objects) in imported.items():
         for item in everything:

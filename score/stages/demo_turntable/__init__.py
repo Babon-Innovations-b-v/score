@@ -1,7 +1,7 @@
 """demo-turntables: models that already exist turned round for the paper's demos, one world node, paid (one Blender job
 on the cheapest card, tools/props/cloud/blender_cloud.py inside the runner's clearance, drawn by the review page's
-model script tools/blender/inside/review_models.py: Workbench, studio light, each model framed whole on its own). The first:
-demo K2, four of the hub comparison's objects, each one's generated model and code build where it has them.
+model script tools/blender/inside/review_models.py, run by turntable_models.py with its frame widened: Workbench,
+studio light, each model framed whole on its own). The first: demo K2, four of the hub comparison's objects, each one's generated model and code build where it has them.
 
     data/definitions/demo_turntables.json   {"why", "headings" (degrees round the model),
                                              "objects": [{"id", "models": {<what>: [the model file, its side files]}}]}
@@ -21,15 +21,14 @@ from score import checks, contracts
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 RECORD = REPO / "data/definitions/demo_turntables.json"
-SCRIPT = "tools/blender/inside/review_models.py"
+SCRIPT = "score/stages/demo_turntable/turntable_models.py"
+DRAWER = "tools/blender/inside/review_models.py"
 PROPS_HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
 PROPS_PYTHON = pathlib.Path(os.environ.get("PROPS_PYTHON", PROPS_HOME / "env/bin/python"))
 # Workbench needs a card's OpenGL; the cheapest card first (capacity.KIND_ORDER), a 48 GB one when no L4 is in stock
 # (2026-10-14), never an H100 (capacity.NEVER).
 CLASSES = "gpu-24gb,gpu-48gb"
 SIZE = (1024, 1024)
-# The whole bounding sphere and a little more in frame: review_models' own 0.8 cut the long thin tools off (2026-10-14).
-MARGIN = 1.05
 MINUTES = 15
 # One L4 job: set-up and a few minutes of Workbench renders at about EUR 0.013 a minute, rounded up.
 EUROS = 0.5
@@ -44,7 +43,7 @@ def record():
 def files(place=None):
     """The record and every model's files (the model first, then its buffers and textures)."""
     return {"turntables": "{data}/definitions/demo_turntables.json",
-            "model script": "{repo}/" + SCRIPT,
+            "model script": "{repo}/" + SCRIPT, "drawer": "{repo}/" + DRAWER,
             **{f"{item['id']} {what} {number}": pattern
                for item in record()["objects"] for what, patterns in item["models"].items()
                for number, pattern in enumerate(patterns)}}
@@ -61,7 +60,7 @@ def member_name(item, what, heading):
 def shots(turntables, inputs):
     """review_models.py's shots: one group a model and heading, so each model is framed on its own."""
     return {"size": list(SIZE),
-            "groups": [{"name": member_name(item, what, heading), "heading": heading, "margin": MARGIN,
+            "groups": [{"name": member_name(item, what, heading), "heading": heading,
                         "members": [{"name": member_name(item, what, heading),
                                      "files": [{"path": str(inputs[f"{item['id']} {what} 0"])}]}]}
                        for item in turntables["objects"] for what in item["models"]
@@ -77,7 +76,7 @@ def make(inputs, out, seed, params):
     job.write_text(json.dumps({"script": SCRIPT, "args": [str(out / "shots.json"), str(renders)],
                                "inputs": [str(out / "shots.json"),
                                           *(str(path) for name, path in inputs.items()
-                                            if name not in ("turntables", "model script"))],
+                                            if name not in ("turntables", "model script", "drawer"))],
                                "outputs": [str(renders)], "minutes": MINUTES}, indent=1))
     done = subprocess.run([str(PROPS_PYTHON), str(REPO / "tools/props/cloud/blender_cloud.py"), str(job),
                            "--who", "demo-turntables", "--classes", CLASSES], cwd=REPO, capture_output=True, text=True)
