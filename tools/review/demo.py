@@ -117,14 +117,14 @@ def shot_cameras(record, count=SHOTS, names=()):
     return [level[index] for index in picks]
 
 
-def film_cameras(place, record, names=(), picks=viewpoints.PICKS):
-    """A film's cameras: the ones named (the record's or the owner's picked viewpoints), else the owner's picked
-    viewpoints of the place in the order he saved them (tools/review/viewer: his picks become the shots), else
-    shot_cameras's spread of the record's."""
+def film_cameras(place, record, names=(), picks=viewpoints.PICKS, count=SHOTS):
+    """A film's cameras: the ones named (the record's or the owner's picked viewpoints), else the first `count` of the
+    owner's picked viewpoints of the place in the order he saved them (tools/review/viewer: his picks become the
+    shots), else shot_cameras's spread of `count` of the record's."""
     picked = viewpoints.read(place, picks)
     if picked and not names:
-        return picked
-    return shot_cameras(dict(record, views=[*record.get("views", []), *picked]), names=names)
+        return picked[:count]
+    return shot_cameras(dict(record, views=[*record.get("views", []), *picked]), count, names)
 
 
 def steep(view):
@@ -377,10 +377,12 @@ def linked_frames(keep, out, film, views):
             link.symlink_to(keep / "frames" / film / f"{view['name']}-look.png")
 
 
-def film_jobs(out, film, stage, shown, views, kind, jobs_each):
-    """Cloud jobs for a film's frames of one kind ("look": rendered with their ink; "lines": the ink lines alone over
-    looks rendered before), `jobs_each` at most, the frames dealt out between them in turn: the job files."""
-    flags, minutes = (({"ink": True}, FRAME_MINUTES + LINES_MINUTES) if kind == "look"
+def film_jobs(out, film, stage, shown, views, kind, jobs_each, size=SIZE, ink=True):
+    """Cloud jobs for a film's frames of one kind ("look": rendered with their ink, or alone when not `ink`; "lines":
+    the ink lines alone over looks rendered before), `jobs_each` at most, the frames dealt out between them in turn,
+    each `size` (wide, tall): the job files."""
+    flags, minutes = (({"ink": True}, FRAME_MINUTES + LINES_MINUTES) if kind == "look" and ink
+                      else ({"look_only": True}, FRAME_MINUTES) if kind == "look"
                       else ({"lines_only": True}, LINES_MINUTES))
     frames = out / "frames" / film
     count = min(jobs_each, len(views))
@@ -389,7 +391,7 @@ def film_jobs(out, film, stage, shown, views, kind, jobs_each):
         share = [dict(view, **flags) for view in views[part::count]]
         name = f"{film}-{part}" if kind == "look" else f"{film}-lines-{part}"
         path = out / "views" / f"{name}.json"
-        path.write_text(json.dumps({"size": list(SIZE), "views": share}, indent=1))
+        path.write_text(json.dumps({"size": list(size), "views": share}, indent=1))
         job = {"script": str((REPO / "tools/blender/inside/usd_views.py").relative_to(REPO)),
                "args": [str(stage), str(path), str(frames)],
                "inputs": [str(stage.parent), *map(str, shown), str(path)], "outputs": [str(frames)],
@@ -399,10 +401,11 @@ def film_jobs(out, film, stage, shown, views, kind, jobs_each):
     return written
 
 
-def plan(out, stages, places, jobs_each=1, keep=None):
+def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots=SHOTS):
     """Each place's views and its cloud jobs (`jobs_each` a place for its new frames and as many for the ink lines of
     the frames it keeps from the earlier take in `keep`); the job files. The views file records every shot's move
-    (its path or its spot, its seed, how far its start moved, the take it was kept from) and the planner's commit."""
+    (its path or its spot, its seed, how far its start moved, the take it was kept from) and the planner's commit.
+    `size`, `ink` and `shots` (shots a film) set the frames: the demo's default is SIZE with ink, SHOTS a film."""
     (out / "views").mkdir(parents=True, exist_ok=True)
     (out / "jobs").mkdir(parents=True, exist_ok=True)
     written = []
@@ -413,31 +416,33 @@ def plan(out, stages, places, jobs_each=1, keep=None):
         if not record or not record.get("views"):
             raise SystemExit(f"{place} has no scene record with cameras (data/scene/{place}.json)")
         scenes = camera_paths.place_scenes(stage)
-        moves, shots = film_shots(record, stage, scenes, film_cameras(place, record, names),
+        moves, shots = film_shots(record, stage, scenes, film_cameras(place, record, names, count=shots),
                                   kept_shots(keep, film, scenes, stage))
         views = [view for shot, _ in shots for view in shot]
         new = [view for shot, fresh in shots if fresh for view in shot]
         old = [view for shot, fresh in shots if not fresh for view in shot]
         (out / "views" / f"{film}.json").write_text(json.dumps(
-            {"size": list(SIZE), "views": views, "moves": moves, "stage": str(stage), "planned_with": planned_with()},
+            {"size": list(size), "ink": ink, "views": views, "moves": moves, "stage": str(stage),
+             "planned_with": planned_with()},
             indent=1))
         if old and keep.resolve() != out.resolve():
             linked_frames(keep, out, film, old)
-        shown = [stages / name for name in renders.places_shown(record) if name != place]
-        written += film_jobs(out, film, stage, shown, new, "look", jobs_each) if new else []
-        written += film_jobs(out, film, stage, shown, old, "lines", jobs_each) if old else []
+        # A shown place stands in its own folder beside the stage, or inside the stage's folder (the neighbours stage).
+        shown = [stages / name for name in renders.places_shown(record) if name != place and (stages / name).exists()]
+        written += film_jobs(out, film, stage, shown, new, "look", jobs_each, size, ink) if new else []
+        written += film_jobs(out, film, stage, shown, old, "lines", jobs_each, size) if old else []
         walked = sum(move["move"] == "walk" for move in moves)
         print(f"{film}: {len(views)} frames, {len(new)} new and {len(old)} kept, {walked} of {len(moves)} shots walk")
     return written
 
 
-def title_card(name, path):
+def title_card(name, path, size=SIZE):
     """A plain card: the place's name, white on black."""
-    card = Image.new("RGB", SIZE, (0, 0, 0))
+    card = Image.new("RGB", tuple(size), (0, 0, 0))
     draw = ImageDraw.Draw(card)
-    font = ImageFont.truetype(str(FONT), SIZE[1] // 13)
+    font = ImageFont.truetype(str(FONT), size[1] // 13)
     width = draw.textlength(name, font=font)
-    draw.text(((SIZE[0] - width) / 2, SIZE[1] / 2 - SIZE[1] // 22), name, font=font, fill=(235, 235, 235))
+    draw.text(((size[0] - width) / 2, size[1] / 2 - size[1] // 22), name, font=font, fill=(235, 235, 235))
     card.save(path)
 
 
@@ -494,30 +499,31 @@ def inked(frames, name):
 
 
 def cut_place(out, place, title):
-    """A place's video: its title card, then its shots drawn with their ink, joined by cross-fades; its length in
-    seconds."""
+    """A place's video: its title card, then its shots drawn with their ink (their look alone where the plan has no
+    ink), joined by cross-fades; its length in seconds."""
     frames = out / "frames" / place
     planned = json.loads((out / "views" / f"{place}.json").read_text())
-    views = planned["views"]
+    views, ink = planned["views"], planned.get("ink", True)
     missing = [view["name"] for view in views if not (frames / f"{view['name']}-look.png").exists()
-               or not any((frames / f"{view['name']}-{kind}.png").exists() for kind in ("ink", "lines"))]
+               or ink and not any((frames / f"{view['name']}-{kind}.png").exists() for kind in ("ink", "lines"))]
     if missing:
-        raise SystemExit(f"{place}: {len(missing)} of {len(views)} frames not rendered with their ink (first "
-                         f"{missing[0]}); render its jobs again")
-    for view in views:
+        raise SystemExit(f"{place}: {len(missing)} of {len(views)} frames not rendered{' with their ink' * ink} "
+                         f"(first {missing[0]}); render its jobs again")
+    for view in views if ink else ():
         inked(frames, view["name"])
     stage = planned.get("stage")
     voiced = bool(stage) and (pathlib.Path(stage).parent / "layers/sound.usda").exists()
     shots = sorted({shot_of(view) for view in views}, key=lambda name: int(name[4:]))
     work = out / "clips" / place
     work.mkdir(parents=True, exist_ok=True)
-    title_card(title, work / "title.png")
+    title_card(title, work / "title.png", planned.get("size", SIZE))
     silence = ["-f", "lavfi", "-t", TITLE_SECONDS, "-i", f"anullsrc=r={SAMPLE_RATE}:cl=stereo", "-c:a", "aac",
                "-shortest"] if voiced else []
     ffmpeg("-loop", "1", "-t", TITLE_SECONDS, "-i", work / "title.png", *silence, *encode(work / "title.mp4"))
     clips, seconds = [work / "title.mp4"], [TITLE_SECONDS]
     for shot in shots:
-        ffmpeg("-framerate", RATE, "-i", frames / f"{shot}-%03d-ink.png", *encode(work / f"{shot}.mp4"))
+        ffmpeg("-framerate", RATE, "-i", frames / f"{shot}-%03d-{'ink' if ink else 'look'}.png",
+               *encode(work / f"{shot}.mp4"))
         if voiced:
             renders.heard(stage, [view for view in views if shot_of(view) == shot], RATE,
                           work / f"{shot}.mp4")

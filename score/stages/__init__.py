@@ -23,9 +23,9 @@ import json
 import pathlib
 
 from score import checks, contracts, graph
-from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_turntable, effects, gaps,
-                          images, light, machines, motion, people, people_takes, physics, props, scene_record, settling,
-                          sound, surfaces, terrain)
+from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
+                          effects, gaps, images, light, machines, motion, people, people_takes, physics, props,
+                          scene_record, settling, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
 from score.stages.surfaces.surface_gates import guarded
@@ -292,9 +292,16 @@ CONCEPT_VIEWS = graph.Stage("concept-views", "world", concept_view.make, concept
 DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, demo_turntable.CONTRACT,
                               demo_turntable.CHECKS, files=demo_turntable.files, paid=True,
                               euros=demo_turntable.euros())
+# Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, only
+# for the places data/definitions/demo_films.json names (added group by group), paid.
+DEMO_FILM = graph.Stage("demo-film", "place", demo_film.make, demo_film.CONTRACT, demo_film.CHECKS,
+                        files=demo_film.files, after={"assembly": ("openusd-stage", 1),
+                                                      "neighbours": ("openusd-stage", 1),
+                                                      "complete": ("place-manifest", 1)},
+                        paid=True, euros=demo_film.EUROS, applies=demo_film.applies)
 
 
-STAGES = (TERRAIN, CONCEPT_VIEWS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE,
+STAGES = (TERRAIN, CONCEPT_VIEWS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, DEMO_FILM,
           TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
