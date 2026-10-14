@@ -25,6 +25,9 @@
   {"scene": "shiplock", "views": [{"id": "v1", "picture": "{seeds}/scene/shiplock/views/shiplock.png"}],
    "why": "the ship's airlock (ship plan v7): its concept drawn by concept-views from its plan"},
   {"scene": "walkway", "views": [{"id": "v1", "picture": "{seeds}/scene/walkway/views/walkway.png"}],
-   "why": "the walkway (ship plan v7): its concept drawn by concept-views from its plan"}
+   "why": "the walkway (ship plan v7): its concept drawn by concept-views from its plan"},
+  {"scene": "hangar", "views": [{"id": "v2", "picture": "{seeds}/scene/hangar/views/shuttle.png"},
+                                {"id": "v3", "picture": "{seeds}/scene/hangar/views/thrusters.png"}],
+   "why": "the hangar's ship, its hull and thrusters (the hull through the hangar, 2026-10-14): v2 the owner's shuttle reference (a shuttle concept by PAUL (zana), found online; found artwork, kept in the work folder and off public pages), v3 the thruster sheet concept-views drew from it. Only these two views: v1 (K01) keeps the proposals its mapping was made on, and these are added to them."}
  ]
 }

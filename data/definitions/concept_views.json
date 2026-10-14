@@ -62,6 +62,13 @@
    "shape": "landscape",
    "why": "the walkway's concept (the ship plan v7; the owner's 2026-10-14 'finish the whole ship'): the corridor has no reference picture of its own; drawn in the style of his quarters reference from its plan's elements. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship. Draw one concept painting of the corridor inside the same spaceship, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, white light strips. The corridor is 1.2 m wide, 2.4 m high and about 10 m long, seen from one end at standing eye height, its whole length in view. It holds: steel frame ribs arching over it, white with an orange edge, between the doors; doors in hexagonal orange and white frames off both sides, two on each side, and one at the far end; a steel grating down the middle of the dark deck; white light strips down the ceiling and amber strips along the wall tops; grey panelled walls and ceiling. No people, no text, no labels, nothing outside the corridor."
+  },
+  {
+   "id": "hangar_thrusters",
+   "reference": "{seeds}/scene/hangar/views/shuttle.png",
+   "shape": "landscape",
+   "why": "the ship's three thruster designs shown whole, as separate made pieces (the owner, 2026-10-14, via the coordinator): his shuttle reference shows the main engines only from the side and the nose thrusters small, and the belly's lift thrusters not at all. Drawn in that reference's style; the reference is found artwork (a shuttle concept by PAUL (zana), found online), kept in the work folder and off public pages, and so is this drawing.",
+   "wording": "The attached picture is a concept drawing of a spaceship. Draw one concept sheet of three of its thruster parts, side by side with space between them on a plain light grey ground, in exactly the same style, colours and line: on the left, a main engine: a long ribbed dark grey tube with a round white nozzle housing at its back end; in the middle, a lift thruster: a round downward-facing nozzle with a louvred ring, set in a square dark grey belly plate, seen from below at an angle; on the right, a nose thruster: a small square port with three short copper nozzles in a dark grey plate. Each part whole and clearly apart from the others. No ship, no people, no text, no labels."
   }
  ]
 }
