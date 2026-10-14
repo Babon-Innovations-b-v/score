@@ -28,19 +28,49 @@ def folder():
 
 
 def test_only_the_named_places_have_the_row_and_it_declares_its_tools():
-    named = demo_film.record()["places"]
-    assert all(demo_film.applies(place) for place in named) and not demo_film.applies("no such place")
+    own = [name for name, film in demo_film.films().items() if film["place"] == name]
+    assert all(demo_film.applies(place) for place in own) and not demo_film.applies("no such place")
     found = demo_film.files("hub")
-    assert found["scene"] == "{data}/scene/hub.json" and found["films"] == "{data}/definitions/demo_films.json"
+    assert found["scene"] == "{data}/scene/hub.json"
+    assert found["film hub"] == "{data}/definitions/demo_films/hub.json"
+    assert not any(name.startswith("film ") and name != "film hub" for name in found)
     assert all((REPO / path).exists() for path in demo_film.TOOLS)
     assert found["tool tools/review/demo.py"] == "{repo}/tools/review/demo.py"
 
 
-def test_every_filmed_place_names_a_camera_its_scene_record_holds():
-    """The path starts at that camera, so the film's first frame is the still beside the concept (demo K8)."""
-    for place, camera in demo_film.record()["places"].items():
-        record = json.loads((REPO / "data/scene" / f"{place}.json").read_text())
-        assert camera in [view["name"] for view in record["views"]], (place, camera)
+def test_every_film_names_a_camera_its_place_s_scene_record_holds():
+    """The path starts at that camera, so a place's own film's first frame is the still beside the concept (K8)."""
+    for name, film in demo_film.films().items():
+        record = json.loads((REPO / "data/scene" / f"{film['place']}.json").read_text())
+        assert film["camera"] in [view["name"] for view in record["views"]], (name, film)
+
+
+def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alone():
+    root = folder()
+    real = demo_film.FILMS
+    try:
+        for name, place, camera in (("hangar", "hangar", "across"), ("hull", "hangar", "ship")):
+            (root / f"{name}.json").write_text(json.dumps({"place": place, "camera": camera}))
+        demo_film.FILMS = root
+        assert demo_film.extras("hangar") == ["hull"] and demo_film.applies_extra("hangar")
+        assert not demo_film.applies_extra("hub") and not demo_film.applies("hull")
+        assert "film hull" not in demo_film.files("hangar")
+        assert demo_film.extra_files("hangar")["film hull"] == "{data}/definitions/demo_films/hull.json"
+        assert "film hangar" not in demo_film.extra_files("hangar")
+        made = []
+        real_one = demo_film.film_one
+        demo_film.film_one = lambda stage, name, film, out, log: made.append((name, film["camera"], out.name))
+        try:
+            (root / "stage").mkdir()
+            (root / "stage/hangar.usda").write_text("#usda 1.0\n")
+            demo_film.make_extra({"assembly": root / "stage", "film hull": root / "hull.json"}, root / "out", 0, {})
+        finally:
+            demo_film.film_one = real_one
+        assert made == [("hull", "ship", "hull")], made
+        assert demo_film.extra_faults(root / "stage") == ["no film"]
+    finally:
+        demo_film.FILMS = real
+        shutil.rmtree(root)
 
 
 def test_the_plan_asks_look_only_frames_at_its_size():
