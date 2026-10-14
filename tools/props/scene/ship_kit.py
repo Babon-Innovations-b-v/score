@@ -319,6 +319,65 @@ def tapered_deck(room, plan, kind, deep, roof):
     return found
 
 
+RULED = ("edge_light_strip", "ceiling_light_panel", "floor_grate", "frame_rib", "pipe_straight")
+STRIP_IN = 0.05  # a wall-top light strip's or hand rail's middle off its wall
+STRIP_DOWN = 0.15  # a wall-top light strip under the ceiling
+RAIL_HIGH = 1.0  # a hand rail's height
+RIB_BAR = 0.12  # a frame rib's bar, wide
+
+
+def side_door_spans(plan, letter):
+    """The z spans (from, to) of the doors in a side wall (`E` or `W`), each with a margin of a rib bar."""
+    spans = []
+    for door_side, at, wide, *_ in plan["doors"]:
+        if door_side == letter:
+            middle = -plan["d"] / 2 + at
+            spans.append((middle - wide / 2 - RIB_BAR, middle + wide / 2 + RIB_BAR))
+    return spans
+
+
+def ruled_spots(plan, row):
+    """Spots for a plain row the plan lays by rule (its `laid` words, no spots of its own): light strips along the two
+    side walls under the ceiling, ceiling light panels evenly down the ceiling's middle, grates evenly down the deck's
+    middle, hand rails along the side walls, and frame ribs evenly down a corridor (a bar up each side wall, where no
+    door is, and one across the ceiling). Frame: x east, z south, y up; `facing` the bearing the piece's front looks."""
+    w, d, count, size = plan["w"], plan["d"], row.get("count", 1), row["size"]
+    steps = [-d / 2 + (index + 0.5) * d / count for index in range(count)]
+    kind = row["id"]
+    if kind == "edge_light_strip":
+        return [{"x": side * (w / 2 - STRIP_IN), "y": ceiling_at(plan, 0.0) - STRIP_DOWN, "z": 0.0,
+                 "facing": 270 if side > 0 else 90} for side in (-1, 1)][:count]
+    if kind == "pipe_straight":
+        return [{"x": side * (w / 2 - STRIP_IN), "y": RAIL_HIGH, "z": 0.0, "facing": 270 if side > 0 else 90,
+                 "size": [size[2], size[1], size[0]]} for side in (-1, 1)][:count]
+    if kind == "ceiling_light_panel":
+        wide = min(size[0], w - 0.2)
+        return [{"x": 0.0, "y": ceiling_at(plan, z) - size[2], "z": z, "facing": 0, "size": [wide, size[1], size[2]]}
+                for z in steps]
+    if kind == "floor_grate":
+        return [{"x": 0.0, "y": 0.0, "z": z, "facing": 0} for z in steps]
+    if kind == "frame_rib":
+        found = []
+        for z in steps:
+            high = ceiling_at(plan, z)
+            found.append({"x": 0.0, "y": high - RIB_BAR / 2, "z": z, "facing": 0, "size": [w, RIB_BAR, RIB_BAR / 2]})
+            for side, letter in ((-1, "W"), (1, "E")):
+                if any(low <= z <= top for low, top in side_door_spans(plan, letter)):
+                    continue
+                found.append({"x": side * (w / 2 - RIB_BAR / 4), "y": 0.0, "z": z, "facing": 270 if side > 0 else 90,
+                              "size": [RIB_BAR, RIB_BAR / 2, high]})
+        return found
+    raise ValueError(f"{kind}: no rule lays it")
+
+
+def with_ruled_spots(plan, inventory):
+    """The inventory with spots for every plain row the plan lays by rule and gives no spots (RULED); the cockpit's
+    rows carry their own spots and are laid as they are."""
+    rows = [dict(row, at=ruled_spots(plan, row)) if row["id"] in RULED and not row.get("at") else row
+            for row in inventory["rows"]]
+    return dict(inventory, rows=rows)
+
+
 def size_of(kinds, kind, fallback):
     return room_kit.size_of(kinds, kind)[2] if kind in kinds else fallback
 
@@ -336,6 +395,7 @@ def laid_out(room, plan, inventory):
     else:
         found += deck(room, plan, "ring_floor_plate", -floor_deep / 2, UP, floor_deep)
         found += deck(room, plan, "roof_face_panel", ceiling + roof_deep / 2, DOWN, roof_deep)
+    inventory = with_ruled_spots(plan, inventory)
     found += room_kit.placed_rows(room, None, kinds, inventory) + room_kit.flat_rows(room, inventory, kinds)
     return room_kit.cut_openings(room, found)
 
