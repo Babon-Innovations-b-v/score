@@ -1,0 +1,374 @@
+{
+ "place": "cockpit",
+ "library": "cockpit",
+ "takes": {
+  "pilot_seat-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_pilot_seat",
+   "object": "one single chunky padded pilot seat, shown large and alone, nothing under its pedestal: high back with a head pad, thick side bolsters and armrests, dark blue-grey covers, on a short steel pedestal"
+  },
+  "control_stick-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_control_stick",
+   "object": "flight stick: an upright ergonomic hand grip with a thumb button on top and a trigger at the front, on a black rubber boot set in the console, dark metal and black rubber with small orange accents"
+  },
+  "thrust_indicator-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_thrust_indicator",
+   "object": "thrust indicator: a plus-shaped gauge set in the dash, orange-lit bars along its four arms showing the thrust's direction, dark ribbed ends"
+  },
+  "centre_pedestal-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_centre_pedestal",
+   "object": "throttle pedestal between the pilot seats: a long dark grey box, switch panels and small screens down its sloped face, twin throttle levers with black grips in a slotted quadrant on its top"
+  },
+  "main_console-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_main_console",
+   "object": "main console across the front: a dark grey panelled desk, three screens (the middle red-orange, two amber) over rows of buttons and switches"
+  },
+  "side_console-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_side_console",
+   "object": "angled side console along a side wall: a dark grey body with an illuminated switch panel on its sloped top"
+  },
+  "overhead_console-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_overhead_console",
+   "object": "overhead console behind the windows: a dark switch panel box"
+  },
+  "overhead_vent-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_overhead_vent",
+   "object": "black overhead vent box with a louvred grille"
+  },
+  "ceiling_equipment-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_ceiling_equipment",
+   "object": "ceiling equipment module on the ceiling: two large square vents side by side, ribbed dark metal panels, bundled cables and pipes running along it, a few small orange indicator lights, white panel edges"
+  },
+  "corner_lamp-s1": {
+   "places": [
+    "cockpit"
+   ],
+   "library_places": [
+    "cockpit"
+   ],
+   "place": "cockpit",
+   "kind": "cockpit_corner_lamp",
+   "object": "small square orange lamp in an upper front corner"
+  }
+ },
+ "bake": {
+  "job": "{home}/work/place/cockpit-score1/run/job-chunky.json",
+  "models": {
+   "pilot_seat_1": "pilot_seat-s1",
+   "control_stick_1": "control_stick-s1",
+   "thrust_indicator_1": "thrust_indicator-s1",
+   "centre_pedestal_1": "centre_pedestal-s1",
+   "main_console_1": "main_console-s1",
+   "side_console_1": "side_console-s1",
+   "overhead_console_1": "overhead_console-s1",
+   "overhead_vent_1": "overhead_vent-s1",
+   "ceiling_equipment_1": "ceiling_equipment-s1",
+   "corner_lamp_1": "corner_lamp-s1"
+  },
+  "entries": {
+   "pilot_seat_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.7,
+     1.25,
+     0.8
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "control_stick_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.25,
+     0.4,
+     0.25
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 5000
+   },
+   "thrust_indicator_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.4,
+     0.4,
+     0.08
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 5000
+   },
+   "centre_pedestal_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.5,
+     0.9,
+     1.1
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "main_console_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     3.6,
+     1.0,
+     0.65
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "side_console_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     1.2,
+     0.95,
+     0.6
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "overhead_console_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     1.2,
+     0.3,
+     0.6
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "overhead_vent_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.5,
+     0.2,
+     0.4
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 5000
+   },
+   "ceiling_equipment_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     1.4,
+     0.3,
+     0.6
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "corner_lamp_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.15,
+     0.12,
+     0.08
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 5000
+   }
+  }
+ },
+ "elsewhere": {}
+}

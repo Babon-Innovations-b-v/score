@@ -1,0 +1,28 @@
+{
+ "scenes": [
+  {
+   "scene": "cockpit",
+   "views": [
+    {"id": "v1", "picture": "{seeds}/scene/cockpit/views/cockpit.png"},
+    {"id": "v2", "picture": "{seeds}/scene/cockpit/views/controls.png"},
+    {"id": "v3", "picture": "{seeds}/scene/cockpit/views/quarters.png"},
+    {"id": "v4", "picture": "{seeds}/scene/cockpit/views/stick.png"},
+    {"id": "v5", "picture": "{seeds}/scene/cockpit/views/seat.png"},
+    {"id": "v6", "picture": "{seeds}/scene/cockpit/views/flight-stick.png"}
+   ],
+   "why": "the cockpit, the ship's first place (the owner's ok to the ship plan v7, 2026-10-14): its inventory's boxes come from these proposals before it lands. v1 is his cockpit reference, v2 his controls reference (the thrust indicator), v3 his quarters reference (the ship's door frames), v4 the thrust indicator alone cut from v2 and enlarged four times, v5 one pilot seat whole (the concept-views row's cockpit_seat; v1 shows only the seat backs' tops), v6 the flight stick whole (cockpit_stick: the owner's normal stick, like the pedestal's levers): found artwork, kept in the work folder and off public pages."
+  },
+  {"scene": "quarters", "views": [{"id": "v1", "picture": "{seeds}/scene/quarters/views/quarters.png"}],
+   "why": "the crew quarters (ship plan v7): his quarters reference is its concept (found artwork, kept private)"},
+  {"scene": "navigation", "views": [{"id": "v1", "picture": "{seeds}/scene/navigation/views/navigation.png"}],
+   "why": "the navigation room (ship plan v7): its concept drawn by concept-views from its plan"},
+  {"scene": "galley", "views": [{"id": "v1", "picture": "{seeds}/scene/galley/views/galley.png"}],
+   "why": "the galley (ship plan v7): its concept drawn by concept-views from its plan"},
+  {"scene": "storage", "views": [{"id": "v1", "picture": "{seeds}/scene/storage/views/storage.png"}],
+   "why": "the storage room (ship plan v7): its concept drawn by concept-views from its plan"},
+  {"scene": "engineroom", "views": [{"id": "v1", "picture": "{seeds}/scene/engineroom/views/engineroom.png"}],
+   "why": "the engine and power room (ship plan v7): its concept drawn by concept-views from its plan"},
+  {"scene": "shiplock", "views": [{"id": "v1", "picture": "{seeds}/scene/shiplock/views/shiplock.png"}],
+   "why": "the ship's airlock (ship plan v7): its concept drawn by concept-views from its plan"}
+ ]
+}

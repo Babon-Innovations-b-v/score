@@ -1,0 +1,206 @@
+{
+ "title": "CREW QUARTERS (sleep: four bunks in two stacks), ship plan v7",
+ "shell": "kit",
+ "inside": true,
+ "ground_free": "the room stands in the ship, parked in the hangar, not on a made ground: its openings are judged against its own walls (as the cockpit)",
+ "kit": {
+  "nose_cut": 0.0,
+  "glazed": "none"
+ },
+ "frame": {
+  "anchor": {
+   "plan": [
+    1.4,
+    3.0
+   ],
+   "place": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "why": "the room's own frame, its middle on its floor (x east, z south), the nose south as the ship stands in the hangar"
+ },
+ "w": 2.8,
+ "d": 6.0,
+ "corner": 0.0,
+ "height": "ceiling 2.58 m at the front, 3.51 m at the back under the hull's rise",
+ "doors": [
+  [
+   "E",
+   3.0,
+   0.9,
+   "DOOR to the walkway (hexagonal frame, sliding leaf) 0.9 x 2.0 m"
+  ]
+ ],
+ "leads": {
+  "E": {
+   "to": "sealed",
+   "why": "the neighbouring ship place is no place yet: the leaf stays shut until it is made, then the door leads there"
+  }
+ },
+ "items": [
+  [
+   "LOCKER 1",
+   2.2,
+   0.1,
+   0.6,
+   0.6,
+   "W",
+   "item"
+  ],
+  [
+   "LOCKER 2",
+   2.2,
+   0.7,
+   0.6,
+   0.6,
+   "W",
+   "item"
+  ],
+  [
+   "LOCKER 3",
+   2.2,
+   4.7,
+   0.6,
+   0.6,
+   "W",
+   "item"
+  ],
+  [
+   "LOCKER 4",
+   2.2,
+   5.3,
+   0.6,
+   0.6,
+   "W",
+   "item"
+  ],
+  [
+   "SIDE CONSOLE 1",
+   -0.0,
+   2.4,
+   0.6,
+   1.2,
+   "E",
+   "item"
+  ],
+  [
+   "ON THE WALLS AND CEILING",
+   0.0,
+   0.0,
+   2.8,
+   6.0,
+   null,
+   "item"
+  ]
+ ],
+ "rows": {
+  "LOCKER 1": [
+   "locker"
+  ],
+  "LOCKER 2": [
+   "locker"
+  ],
+  "LOCKER 3": [
+   "locker"
+  ],
+  "LOCKER 4": [
+   "locker"
+  ],
+  "SIDE CONSOLE 1": [
+   "side_console"
+  ],
+  "ON THE WALLS AND CEILING": [
+   "bunk",
+   "wall_screen",
+   "overhead_vent"
+  ]
+ },
+ "people": [],
+ "notes": [
+  "From the locked ship plan v7 (data/definitions/ship.json, the owner's 'ok' of 2026-10-14): ship y 12.8 to 18.8 m from the spike's tip, port side, 2.81 to 3.48 m wide inside, 2.58 to 3.51 m clear.",
+  "For the game: sleep: four bunks; save and skip time.",
+  "Shared made pieces (rows with `reuse`) are placed from the take the owning place makes (work/ship/rooms/shared.json).",
+  "The ship's shape is traced from a shuttle concept by PAUL (zana), found online (the ship plan's notes).",
+  "A side room's hull wall leans out along its length (the widths above); the plan keeps the narrower width as a straight box, so the hull wall's lean is the ship kit's later step."
+ ],
+ "concept": {
+  "pick": "the owner's quarters reference (2026-10-01), the look; the ship plan v7, the size",
+  "picture": "{seeds}/scene/quarters/views/quarters.png",
+  "read": "the quarters reference read element by element (2026-10-14); to crop from WORK/references/ship-interior-quarters-2026-10-01.png, as the cockpit's was"
+ },
+ "elements": [
+  {
+   "element": "low beds with thick orange padded mattresses on dark plinths (the plan: four bunks in two stacks)",
+   "rows": [
+    "bunk"
+   ]
+  },
+  {
+   "element": "dark grey wall desks with switch rows under the wall screens",
+   "rows": [
+    "side_console"
+   ]
+  },
+  {
+   "element": "wall screens with amber and white readouts, one a round glowing display",
+   "rows": [
+    "wall_screen"
+   ]
+  },
+  {
+   "element": "hexagonal door frames in orange and white panels down the room",
+   "door": "E",
+   "rows": [
+    "hatch_door_frame",
+    "door_leaf"
+   ]
+  },
+  {
+   "element": "white light strips along the ceiling and the wall tops",
+   "rows": [
+    "ceiling_light_panel",
+    "edge_light_strip"
+   ]
+  },
+  {
+   "element": "grey panelled walls and ceiling",
+   "rows": [
+    "wall_lower_plain",
+    "wall_upper_plain",
+    "roof_face_panel"
+   ]
+  },
+  {
+   "element": "dark deck plates with lit inlays",
+   "rows": [
+    "ring_floor_plate"
+   ]
+  },
+  {
+   "element": "black ceiling boxes and vents",
+   "rows": [
+    "overhead_vent"
+   ]
+  },
+  {
+   "element": "lockers for the crew's kit (the plan; the reference's room shows none)",
+   "rows": [
+    "locker"
+   ]
+  },
+  {
+   "element": "a black cylinder machine with hoses on the deck by a bed",
+   "drop": "no use in quarters for sleep; the engine room holds the ship's machines"
+  },
+  {
+   "element": "the corridor and further rooms seen through the frames",
+   "drop": "the walkway and its neighbours are their own places; the door leaf is shut until they land"
+  },
+  {
+   "element": "a lens button and '740 x 415' on the picture",
+   "drop": "the screenshot's interface"
+  }
+ ]
+}

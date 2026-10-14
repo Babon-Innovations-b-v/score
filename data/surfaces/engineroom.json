@@ -1,0 +1,86 @@
+{
+ "place": "engineroom",
+ "library": "engineroom",
+ "takes": {
+  "power_core-s1": {
+   "places": [
+    "engineroom"
+   ],
+   "library_places": [
+    "engineroom"
+   ],
+   "place": "engineroom",
+   "kind": "engineroom_power_core",
+   "object": "power core: an upright cylinder in a dark grey frame, amber-lit rings round it, cyan coolant pipes into its top and base, a warning-striped plinth"
+  },
+  "fuel_tank-s1": {
+   "places": [
+    "engineroom"
+   ],
+   "library_places": [
+    "engineroom"
+   ],
+   "place": "engineroom",
+   "kind": "engineroom_fuel_tank",
+   "object": "fuel tank: a white upright tank with orange bands on a dark steel cradle, a gauge and valve on its side, pipes out of its top"
+  }
+ },
+ "bake": {
+  "job": "{home}/work/place/engineroom-score1/run/job-chunky.json",
+  "models": {
+   "power_core_1": "power_core-s1",
+   "fuel_tank_1": "fuel_tank-s1"
+  },
+  "entries": {
+   "power_core_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     1.4,
+     2.3,
+     1.4
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "fuel_tank_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.9,
+     1.8,
+     0.9
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   }
+  }
+ },
+ "elsewhere": {}
+}

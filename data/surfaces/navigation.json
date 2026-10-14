@@ -1,0 +1,122 @@
+{
+ "place": "navigation",
+ "library": "navigation",
+ "takes": {
+  "nav_table-s1": {
+   "places": [
+    "navigation"
+   ],
+   "library_places": [
+    "navigation"
+   ],
+   "place": "navigation",
+   "kind": "navigation_nav_table",
+   "object": "navigation table: a waist-high dark grey pedestal table, its top a glowing star map screen in amber with a cyan route line, a raised rim of switches"
+  },
+  "wall_screen-s1": {
+   "places": [
+    "navigation"
+   ],
+   "library_places": [
+    "navigation"
+   ],
+   "place": "navigation",
+   "kind": "navigation_wall_screen",
+   "object": "wall screen: a flat screen in a dark grey bezel, amber readouts and a cyan frame line"
+  },
+  "hatch_door_frame-s1": {
+   "places": [
+    "navigation"
+   ],
+   "library_places": [
+    "navigation"
+   ],
+   "place": "navigation",
+   "kind": "navigation_hatch_door_frame",
+   "object": "hexagonal door frame in orange padded and white painted panels round the doorway"
+  }
+ },
+ "bake": {
+  "job": "{home}/work/place/navigation-score1/run/job-chunky.json",
+  "models": {
+   "nav_table_1": "nav_table-s1",
+   "wall_screen_1": "wall_screen-s1",
+   "hatch_door_frame_1": "hatch_door_frame-s1"
+  },
+  "entries": {
+   "nav_table_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     1.2,
+     0.95,
+     0.8
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   },
+   "wall_screen_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     0.9,
+     0.6,
+     0.08
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 15390
+   },
+   "hatch_door_frame_1": {
+    "base": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "size": [
+     1.4,
+     2.2,
+     0.3
+    ],
+    "screens": [],
+    "cuts": [],
+    "density": 1024,
+    "decals": [],
+    "foot": 0.0,
+    "faces": 19000
+   }
+  }
+ },
+ "elsewhere": {}
+}

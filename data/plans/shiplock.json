@@ -1,0 +1,174 @@
+{
+ "title": "AIRLOCK (the one way in and out, and the dock), ship plan v7",
+ "shell": "kit",
+ "inside": true,
+ "ground_free": "the room stands in the ship, parked in the hangar, not on a made ground: its openings are judged against its own walls (as the cockpit)",
+ "kit": {
+  "nose_cut": 0.0,
+  "glazed": "none",
+  "ceiling_front": 2.12,
+  "why": "the ship plan v7: a chamber 3.0 m wide on a floor 2.4 m up in the stern's dark block, 2.12 m clear at its front falling to 1.95 m at the back; the passage from its aft wall to the stern face (y 28.6 to 31.0) is the hull's"
+ },
+ "frame": {
+  "anchor": {
+   "plan": [
+    1.5,
+    1.35
+   ],
+   "place": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "why": "the room's own frame, its middle on its floor (x east, z south), the nose south as the ship stands in the hangar"
+ },
+ "w": 3.0,
+ "d": 2.7,
+ "corner": 0.0,
+ "height": "ceiling 2.12 m at the front, falling to 1.95 m at the back",
+ "doors": [
+  [
+   "S",
+   1.5,
+   0.9,
+   "INNER DOOR to the engine room (hexagonal frame, sliding leaf) 0.9 x 2.0 m"
+  ],
+  [
+   "N",
+   1.5,
+   0.9,
+   "OUTER HATCH to the stern face and outside, or a docked craft 0.9 x 1.8 m"
+  ]
+ ],
+ "leads": {
+  "N": {
+   "to": "sealed",
+   "why": "the neighbouring ship place is no place yet: the leaf stays shut until it is made, then the door leads there"
+  },
+  "S": {
+   "to": "sealed",
+   "why": "the neighbouring ship place is no place yet: the leaf stays shut until it is made, then the door leads there"
+  }
+ },
+ "items": [
+  [
+   "LOCKER 1",
+   0.0,
+   1.05,
+   0.6,
+   0.6,
+   "E",
+   "item"
+  ],
+  [
+   "LOCKER 2",
+   0.0,
+   1.65,
+   0.6,
+   0.6,
+   "E",
+   "item"
+  ],
+  [
+   "FLOOR GRATE 1",
+   1.2,
+   1.03,
+   1.2,
+   0.04,
+   "N",
+   "item"
+  ],
+  [
+   "ON THE WALLS AND CEILING",
+   0.0,
+   0.0,
+   3.0,
+   2.7,
+   null,
+   "item"
+  ]
+ ],
+ "rows": {
+  "LOCKER 1": [
+   "locker"
+  ],
+  "LOCKER 2": [
+   "locker"
+  ],
+  "FLOOR GRATE 1": [
+   "floor_grate"
+  ],
+  "ON THE WALLS AND CEILING": [
+   "wall_screen",
+   "corner_lamp",
+   "overhead_vent"
+  ]
+ },
+ "people": [],
+ "notes": [
+  "From the locked ship plan v7 (data/definitions/ship.json, the owner's 'ok' of 2026-10-14): ship y 25.9 to 28.6 m from the spike's tip, whole side, 3.0 to 3.0 m wide inside, 2.12 to 1.95 m clear.",
+  "For the game: the one way in and out, and the dock: inner door from the engine room, outer hatch at the stern.",
+  "Shared made pieces (rows with `reuse`) are placed from the take the owning place makes (work/ship/rooms/shared.json).",
+  "The ship's shape is traced from a shuttle concept by PAUL (zana), found online (the ship plan's notes).",
+  "the outer hatch is 1.8 m tall on purpose (the owner, 2026-10-14): a tall player ducks through it, as through a real spacecraft's hatch; the chamber's aft clear height is 1.95 m"
+ ],
+ "concept": {
+  "pick": "to draw: one concept picture of this room from the owner's interior references (cockpit and quarters) and this plan, before the partition; the ship plan v7, its size",
+  "picture": "{seeds}/scene/shiplock/views/shiplock.png",
+  "read": "elements below are this plan's and the brief's words, to read again against the drawn concept"
+ },
+ "elements": [
+  {
+   "element": "the outer pressure hatch in the aft wall, the one way in and the dock",
+   "door": "N",
+   "rows": [
+    "outer_hatch"
+   ]
+  },
+  {
+   "element": "the inner door to the engine room in the ship's hexagonal frame",
+   "door": "S",
+   "rows": [
+    "hatch_door_frame",
+    "door_leaf"
+   ]
+  },
+  {
+   "element": "suit lockers along the port wall",
+   "rows": [
+    "locker"
+   ]
+  },
+  {
+   "element": "the cycle panel by the outer hatch and two orange lamps",
+   "rows": [
+    "wall_screen",
+    "corner_lamp"
+   ]
+  },
+  {
+   "element": "hand rails along the walls, a grated drain in the deck",
+   "rows": [
+    "pipe_straight",
+    "floor_grate"
+   ]
+  },
+  {
+   "element": "a vent for the cycle's air, a white ceiling strip",
+   "rows": [
+    "overhead_vent",
+    "ceiling_light_panel"
+   ]
+  },
+  {
+   "element": "grey panelled walls and ceiling, dark deck",
+   "rows": [
+    "wall_lower_plain",
+    "wall_upper_plain",
+    "roof_face_panel",
+    "ring_floor_plate"
+   ]
+  }
+ ]
+}
