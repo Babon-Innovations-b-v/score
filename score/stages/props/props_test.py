@@ -57,6 +57,24 @@ def test_a_take_s_faces_come_from_the_bake_model_made_from_it_whatever_its_name(
         shutil.rmtree(folder)
 
 
+def test_the_likeness_pairs_are_read_from_the_stored_output():
+    """Fault (2026-10-15): likeness@campgrounds sent DINOv2 the paths pairs.json holds, into the folder its make ran
+    in, removed once the output was stored. The pictures are read from the output's own pairs/ folder."""
+    folder = PROPS_HOME / "store-tests/likeness-pairs"
+    (folder / "pairs").mkdir(parents=True, exist_ok=True)
+    try:
+        for name in ("cairn-model.png", "cairn-closeup.png"):
+            (folder / "pairs" / name).write_bytes(b"png")
+        gone = "/nowhere/making/abc-tmp/pairs"
+        (folder / "pairs.json").write_text(json.dumps({"cairn": [f"{gone}/cairn-model.png",
+                                                                 f"{gone}/cairn-closeup.png"]}))
+        found = likeness_row.stored_pairs(folder)
+        assert found == {"cairn": [str(folder / "pairs/cairn-model.png"), str(folder / "pairs/cairn-closeup.png")]}
+        assert all(pathlib.Path(picture).exists() for picture in found["cairn"])
+    finally:
+        shutil.rmtree(folder)
+
+
 def test_the_takes_gate_judges_the_prop_objects_takes_only():
     """Fault (2026-10-13): pixal@campgrounds failed on the twelve takes earlier routes made, listed in the camp
     grounds' surface data beside the cairn. Only a prop object's take listed and not made fails."""
