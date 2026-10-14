@@ -1,0 +1,39 @@
+{
+ "gaps": [
+  {
+   "name": "ship: no made model",
+   "row": "assembly",
+   "check": "placeholders",
+   "objects": [
+    "/hangar/Structure/ship",
+    "/hangar/Structure/ship_2",
+    "/hangar/Structure/ship_3",
+    "/hangar/Structure/ship_4",
+    "/hangar/Structure/ship_5",
+    "/hangar/Structure/ship_6",
+    "/hangar/Structure/ship_7",
+    "/hangar/Structure/ship_8",
+    "/hangar/Structure/ship_9",
+    "/hangar/Structure/ship_10",
+    "/hangar/Structure/ship_legs",
+    "/hangar/Structure/ship_legs_2"
+   ],
+   "reason": "the hangar ships today with its code-built ship as a named fail; a made ship model comes next month",
+   "decided": "owner, 2026-10-14 08:40",
+   "faults": [
+    "/hangar/Structure/ship: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_2: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_3: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_4: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_5: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_6: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_7: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_8: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_9: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_10: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_legs: plain: drawn by the record's ship_legs builder without saying which plain thing it is (a made piece's stand-in)",
+    "/hangar/Structure/ship_legs_2: plain: drawn by the record's ship_legs builder without saying which plain thing it is (a made piece's stand-in)"
+   ]
+  }
+ ]
+}

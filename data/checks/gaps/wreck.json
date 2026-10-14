@@ -1,0 +1,25 @@
+{
+ "gaps": [
+  {
+   "name": "wreck: three pieces do not rest",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "/wreck/Objects/leg_strut_1",
+    "/wreck/Objects/leg_foot_1",
+    "/wreck/Objects/forward_section_1"
+   ],
+   "reason": "fix next week: settle drops pre-bake models",
+   "decided": "overseer, 2026-10-14",
+   "faults": [
+    "/wreck/Objects/forward_section_1: tips 0.531: its weight falls outside what it touches",
+    "/wreck/Objects/forward_section_1: sunk 0.1374: below its own contact points",
+    "/wreck/Objects/leg_strut_1: floats 0.037: nothing under it within the tolerance",
+    "/wreck/Objects/leg_foot_1: tips 0.2439: its weight falls outside what it touches",
+    "/wreck/Objects/leg_foot_1: sunk 0.0466: below its own contact points",
+    "/wreck/Objects/forward_section_1: unstable 0.2525: moves 0.25 m and turns 7 degrees when dropped (SAGE: over 0.2 m or 8 degrees)",
+    "/wreck/Objects/leg_strut_1: unstable 0.0947: moves 0.09 m and turns 10 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
+   ]
+  }
+ ]
+}
