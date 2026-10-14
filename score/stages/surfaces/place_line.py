@@ -56,6 +56,10 @@ FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
 # A base that slopes as one piece (flattened_base): its bottom BASE_BAND of height, each footprint quadrant brought
 # down level when over FOOT_TOLERANCE of its size up, refused over BASE_MOST (the rack's legs: 7.4% of its size).
 BASE_BAND, BASE_MOST = 0.25, 0.15
+# A base that slopes as one plane (sloped_base): its underside read as the lowest point of each BASE_CELL (a share of
+# its footprint's diagonal) square of the bottom band, one plane when BASE_ON_PLANE of those lie within FOOT_TOLERANCE
+# of the plane fitted to them. The quadrants above miss it: each quadrant's lowest point lies by the middle.
+BASE_CELL, BASE_ON_PLANE = 1 / 16, 0.8
 # The paint runs on processor machines, a job a take of about PAINT_MINUTES (campgrounds, 2026-10-12: twelve takes,
 # eight machines of 3.3 to 4.7 min each for EUR 5.83 at 5; a job about 1.5 min, crane-r1 alone 34.8 GB at its peak); the
 # keys of a take's listing besides the make's inputs (prop_env.short reads each as a path: the take is its name); the
@@ -179,11 +183,15 @@ def levelled_feet(vertices, faces):
     points, record = feet.level(vertices, faces, FOOT_BAND * height, FOOT_LINK * diagonal, FOOT_TOLERANCE * size,
                                 FOOT_MOST * size)
     points, base = flattened_base(points, BASE_BAND * height, FOOT_TOLERANCE * size, BASE_MOST * size)
-    record["refused"] = record["refused"] + base["refused"]
+    points, plane = sloped_base(points, BASE_BAND * height, BASE_CELL * diagonal, FOOT_TOLERANCE * size,
+                                BASE_MOST * size)
+    record["refused"] = record["refused"] + base["refused"] + plane["refused"]
     shares = {key: [round(gap / size, 4) for gap in record[key]] for key in ("gaps", "levelled", "refused")}
-    return points, {"feet": record["feet"], **shares,
-                    "base": [round(gap / size, 4) for gap in base["quadrants"]],
-                    "flattened": [round(gap / size, 4) for gap in base["flattened"]]}
+    found = {"feet": record["feet"], **shares, "base": [round(gap / size, 4) for gap in base["quadrants"]],
+             "flattened": [round(gap / size, 4) for gap in base["flattened"]]}
+    if plane["rise"] is not None:  # only a take whose base slopes as one plane says so: the others' reports as before
+        found["sloped"] = round(plane["rise"] / size, 4)
+    return points, found
 
 
 def flattened_base(points, band, tolerance, most):
@@ -219,6 +227,42 @@ def flattened_base(points, band, tolerance, most):
     fade = np.clip((low + band - points[:, 1]) / np.maximum(band - drop, 1e-9), 0.0, 1.0)  # a quadrant's low: all
     points[:, 1] -= drop * fade
     record["flattened"] = [float(gap) for gap in drops if gap > 0]
+    return points, record
+
+
+def sloped_base(points, band, cell, tolerance, most):
+    """A take's vertices with its base brought down level where its underside is one sloping plane (the square's
+    guard hut, 2026-10-14: its base rose 14 cm from one side to the other under a level roof, each quadrant's lowest
+    point lay by the middle, so flattened_base found nothing and the hut stood on a strip, its weight outside it):
+    the underside is the lowest point of each `cell` square of the bottom `band`; when the plane fitted to those lies
+    within `tolerance` of BASE_ON_PLANE of them and rises over `tolerance`, every point comes down by the plane's
+    height over its lowest (never past the lowest point), faded over the band as flattened_base fades it. Never by
+    tipping the model. A
+    rise over `most` is a fault of the model: nothing moves and it comes back refused. Returns (vertices, {"rise": the
+    plane's rise when the underside is one sloping plane, else None; "refused": [...]})."""
+    import numpy as np
+    points = np.array(points, dtype=np.float64)
+    low = points[:, 1].min()
+    base = points[points[:, 1] <= low + band]
+    _, square = np.unique(np.floor(base[:, [0, 2]] / cell).astype(int), axis=0, return_inverse=True)
+    square = square.ravel()
+    order = np.lexsort((base[:, 1], square))  # by square, then height: each square's lowest point comes first
+    under = base[order][np.r_[0, np.nonzero(np.diff(square[order]))[0] + 1]]
+    across = np.c_[under[:, 0], under[:, 2], np.ones(len(under))]
+    fit = np.linalg.lstsq(across, under[:, 1], rcond=None)[0]
+    plane = across @ fit
+    rise = float(plane.max() - plane.min())
+    record = {"rise": None, "refused": []}
+    if len(under) < 3 or rise <= tolerance or np.mean(np.abs(under[:, 1] - plane) <= tolerance) < BASE_ON_PLANE:
+        return points, record
+    record["rise"] = rise
+    if rise > most:
+        record["refused"] = [rise]
+        return points, record
+    drop = np.clip(np.c_[points[:, 0], points[:, 2], np.ones(len(points))] @ fit - plane.min(), 0.0, rise)
+    drop = np.minimum(drop, points[:, 1] - low)  # a point under the plane comes down to the lowest, never past it
+    fade = np.clip((low + band - points[:, 1]) / np.maximum(band - drop, 1e-9), 0.0, 1.0)
+    points[:, 1] -= drop * fade
     return points, record
 
 
