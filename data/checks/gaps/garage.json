@@ -14,6 +14,22 @@
     "parts_trolley-g1: Red paint measured L*a*b* [49.9, 35.8, 15.1], warning_paint dE 22.7 (proposed: Red paint (a two-shelf steel parts trolley on casto))",
     "spares_shelf-g1: Grey steel measured L*a*b* [67.1, 0.0, 0.0], galvanized_steel dE 4.7 (proposed: Grey steel (a narrow steel shelf unit with a toolbox))"
    ]
+  },
+  {
+   "name": "garage: two models bake out of their close-ups' light-dark order",
+   "row": "surfaces-check",
+   "check": "baked matches its surfaces",
+   "objects": [
+    "fluid_shelves_1",
+    "parts_trolley_1"
+   ],
+   "contains": " in its close-up but bakes ",
+   "reason": "library surfaces (darker steel, red, darker wood) held until next month with 98111ee (overseer 2026-10-13, extended 2026-10-14)",
+   "decided": "overseer, 2026-10-14",
+   "faults": [
+    "fluid_shelves_1: crane_yellow_paint is 11.3 L* lighter than galvanized_steel in its close-up but bakes 4.7 darker",
+    "parts_trolley_1: warning_paint is 13.3 L* lighter than wood_board in its close-up but bakes 15.1 darker"
+   ]
   }
  ]
 }
