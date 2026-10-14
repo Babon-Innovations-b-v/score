@@ -412,9 +412,13 @@ def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots
     for given in places:
         film, place, names = chosen(given)
         stage = stage_of(stages, place)
-        record = scene_record.record(place)
+        # The record the stage was assembled from, where its folder keeps one with cameras (a planned place's own),
+        # else the seed's.
+        kept = stage.parent / "scene.json"
+        own = json.loads(kept.read_text()) if kept.exists() else {}
+        record = own if own.get("views") else scene_record.record(place)
         if not record or not record.get("views"):
-            raise SystemExit(f"{place} has no scene record with cameras (data/scene/{place}.json)")
+            raise SystemExit(f"{place} has no scene record with cameras ({kept} or data/scene/{place}.json)")
         scenes = camera_paths.place_scenes(stage)
         moves, shots = film_shots(record, stage, scenes, film_cameras(place, record, names, count=shots),
                                   kept_shots(keep, film, scenes, stage))

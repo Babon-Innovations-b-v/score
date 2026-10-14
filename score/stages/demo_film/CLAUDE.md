@@ -9,7 +9,9 @@ final stage once it passes complete, with its own sound; paid and cleared by the
   `place` (demo-film-extra@place, all of that place's other films in one node): the ship's hull through the hangar
   goes in as `hull.json` (place hangar, camera ship) only once the hull has landed, or it films the gap.
 - **The camera** is the scene record's camera nearest the place's concept (picked by laying the concept beside every
-  camera's game shot). The path starts there; the first frame is kept as `concept.png`, demo K8's still (no separate
+  camera's game shot). A planned place's stage carries its own record (`scene.json` with cameras: spot-N,
+  from-...-door), which demo.py plans from, so its film names that record's camera nearest the seed pick (by eye and
+  aim; each record's `why` says how near). The path starts there; the first frame is kept as `concept.png`, demo K8's still (no separate
   render); a standing shot starts 5 degrees off the camera's aim and a walk's start may move up to 1.5 m to stand clear,
   which views.json records.
 - **The film is the place's own**: the neighbours output where the place shows others, else its assembly, never a seed;

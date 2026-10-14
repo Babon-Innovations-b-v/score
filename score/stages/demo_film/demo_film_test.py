@@ -40,7 +40,10 @@ def test_only_the_named_places_have_the_row_and_it_declares_its_tools():
 
 def test_every_film_names_a_camera_its_place_s_scene_record_holds():
     """The path starts at that camera, so a place's own film's first frame is the still beside the concept (K8)."""
+    from score.stages import scene_record
     for name, film in demo_film.films().items():
+        if scene_record.written(film["place"]):
+            continue  # a planned place's cameras are its assembled record's, made by the run, not in data/scene
         record = json.loads((REPO / "data/scene" / f"{film['place']}.json").read_text())
         assert film["camera"] in [view["name"] for view in record["views"]], (name, film)
 
