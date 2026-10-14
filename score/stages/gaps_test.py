@@ -54,13 +54,20 @@ def test_complete_fails_each_named_gap_by_name_with_its_numbers():
 
 def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gates():
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
-    assert places == ["campgrounds", "hangar", "wreck"], places
+    assert places == ["campgrounds", "garage", "greenhouse", "hangar", "wreck"], places
     assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("hub")
     assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("flat")
     assert "named gaps" in [check.name for check in ROWS["complete"].checks]
-    for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level")):
+    for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
+                      ("surfaces-paint", "colour against the close-up")):
         check = next(check for check in ROWS[row].checks if check.name == gate)
         assert hasattr(check.judge, "__wrapped__"), (row, gate)
+    assert hasattr(ROWS["surfaces-paint"].files, "carries") and hasattr(ROWS["surfaces-paint"].files, "wide")
+    from score import graph
+    from score.graph import _code
+    hashing = {name for name in ("assembly", "surfaces-check", "surfaces-paint", "complete")
+               if _code.REPO / "score/stages/gaps.py" in _code.source_files(graph.code_functions(ROWS[name]))}
+    assert hashing == {"complete"}, hashing  # moving a verdict re-makes nothing, the paid paint above all
     every = [entry for place in places for entry in json.loads((gaps.FOLDER / f"{place}.json").read_text())["gaps"]]
     for entry in every:
         assert entry["faults"] and all(gaps.object_of(fault) in entry["objects"] for fault in entry["faults"])

@@ -1,0 +1,19 @@
+{
+ "gaps": [
+  {
+   "name": "garage: two finishes held off their close-up colour",
+   "row": "surfaces-paint",
+   "check": "colour against the close-up",
+   "objects": [
+    "parts_trolley-g1",
+    "spares_shelf-g1"
+   ],
+   "reason": "library surfaces held until next month with 98111ee (overseer 2026-10-13)",
+   "decided": "overseer, 2026-10-14",
+   "faults": [
+    "parts_trolley-g1: Red paint measured L*a*b* [49.9, 35.8, 15.1], warning_paint dE 22.7 (proposed: Red paint (a two-shelf steel parts trolley on casto))",
+    "spares_shelf-g1: Grey steel measured L*a*b* [67.1, 0.0, 0.0], galvanized_steel dE 4.7 (proposed: Grey steel (a narrow steel shelf unit with a toolbox))"
+   ]
+  }
+ ]
+}
