@@ -1,0 +1,743 @@
+{
+ "scene": "galley",
+ "place": "galley",
+ "plan": {
+  "world": "",
+  "seed": 0,
+  "concept": "WORK/scene/galley/views/galley.png",
+  "views": [
+   {
+    "id": "v1",
+    "picture": "WORK/scene/galley/views/galley.png"
+   }
+  ],
+  "dimensioned": [
+   "data/plans/galley.json"
+  ]
+ },
+ "approved": "the owner, 2026-10-14, via the overseer: \"u can continu without checking again\" (the room as shown on the pieces page)",
+ "migrated": "",
+ "room": {
+  "shell": "",
+  "light": "place",
+  "backdrop": "",
+  "wall_fill": [],
+  "layout": {
+   "inside": [
+    3.1,
+    6.0
+   ],
+   "corner": 0.0,
+   "wall": 3.12,
+   "doors": {
+    "west": "door"
+   },
+   "open": []
+  }
+ },
+ "rows": [
+  {
+   "id": "galley_counter",
+   "name": "galley counter: a compact built-in ship galley unit, a dark grey cabinet run with white panel doors and orange pulls, a steel worktop with a flush two-plate hob and a small round steel basin, an amber-lit splashback",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    2.4,
+    0.65,
+    0.95
+   ],
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": 1.225,
+     "y": 0.0,
+     "z": -1.6,
+     "facing": 270
+    }
+   ],
+   "thing": "prop:galley_galley_counter",
+   "solid": true,
+   "count": 1,
+   "view": "v1",
+   "box": [
+    0,
+    385,
+    475,
+    641
+   ],
+   "made": "kit piece",
+   "ground_box": true,
+   "box_from": [
+    "v1.4",
+    "v1.21",
+    "v1.27",
+    "v1.46",
+    "v1.49",
+    "v1.51",
+    "v1.56",
+    "v1.68",
+    "v1.69",
+    "v1.74",
+    "v1.75",
+    "v1.83",
+    "v1.91",
+    "v1.102",
+    "v1.136",
+    "v1.143",
+    "v1.145",
+    "v1.154",
+    "v1.157",
+    "v1.167",
+    "v1.172",
+    "v1.177",
+    "v1.178",
+    "v1.226",
+    "v1.230",
+    "v1.237",
+    "v1.255",
+    "v1.264",
+    "v1.265",
+    "v1.266",
+    "v1.267",
+    "v1.268",
+    "v1.270",
+    "v1.272",
+    "v1.274",
+    "v1.275",
+    "v1.277",
+    "v1.278"
+   ]
+  },
+  {
+   "id": "galley_table",
+   "name": "mess table: a dark grey top with an orange edge band on one steel pedestal bolted to the deck",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    1.6,
+    0.8,
+    0.75
+   ],
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": -0.75,
+     "y": 0.0,
+     "z": 1.7,
+     "facing": 90
+    }
+   ],
+   "thing": "prop:galley_galley_table",
+   "solid": true,
+   "count": 1,
+   "view": "v1",
+   "box": [
+    545,
+    377,
+    855,
+    473
+   ],
+   "made": "kit piece",
+   "ground_box": true,
+   "box_from": [
+    "v1.22",
+    "v1.58",
+    "v1.62",
+    "v1.188",
+    "v1.216",
+    "v1.218",
+    "v1.220",
+    "v1.231"
+   ]
+  },
+  {
+   "id": "fold_down_seat",
+   "name": "fold-down seat: a wall-mounted fold-down ship seat, a white padded seat and back on a dark grey steel wall bracket with orange hinge arms, folding up flat to the wall; no legs, not a folding chair",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.45,
+    0.45,
+    0.85
+   ],
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": -1.32,
+     "y": 0.0,
+     "z": 1.3,
+     "facing": 90
+    },
+    {
+     "x": -1.32,
+     "y": 0.0,
+     "z": 2.1,
+     "facing": 90
+    },
+    {
+     "x": -0.95,
+     "y": 0.0,
+     "z": 2.77,
+     "facing": 0
+    },
+    {
+     "x": -0.45,
+     "y": 0.0,
+     "z": 2.77,
+     "facing": 0
+    }
+   ],
+   "thing": "prop:galley_fold_down_seat",
+   "solid": true,
+   "count": 4,
+   "view": "v1",
+   "box": [
+    558,
+    456,
+    688,
+    636
+   ],
+   "made": "kit piece",
+   "ground_box": true,
+   "box_from": [
+    "v1.15",
+    "v1.103",
+    "v1.104"
+   ]
+  },
+  {
+   "id": "locker",
+   "name": "tall locker (here the food stores): a dark grey panelled door, an orange handle strip and a small status light",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    0.6,
+    0.6,
+    1.9
+   ],
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": 1.25,
+     "y": 0.0,
+     "z": 0.3,
+     "facing": 270
+    },
+    {
+     "x": 1.25,
+     "y": 0.0,
+     "z": 0.9,
+     "facing": 270
+    }
+   ],
+   "thing": "prop:shiplock_locker",
+   "reuse": "shiplock:locker",
+   "solid": true,
+   "count": 2,
+   "view": "v1",
+   "box": [
+    417,
+    169,
+    1200,
+    507
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.39",
+    "v1.40",
+    "v1.42",
+    "v1.52",
+    "v1.54",
+    "v1.59",
+    "v1.66",
+    "v1.76",
+    "v1.92",
+    "v1.93",
+    "v1.99",
+    "v1.101",
+    "v1.119",
+    "v1.132",
+    "v1.139",
+    "v1.141",
+    "v1.148",
+    "v1.152",
+    "v1.156",
+    "v1.159",
+    "v1.161",
+    "v1.210",
+    "v1.217",
+    "v1.239",
+    "v1.253",
+    "v1.260",
+    "v1.279"
+   ]
+  },
+  {
+   "id": "wall_screen",
+   "name": "wall screen: a flat screen in a dark grey bezel, amber readouts and a cyan frame line",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.9,
+    0.08,
+    0.6
+   ],
+   "group": "kit: wall",
+   "at": [
+    {
+     "x": -0.5,
+     "y": 1.5,
+     "z": -2.96,
+     "facing": 180
+    }
+   ],
+   "thing": "prop:navigation_wall_screen",
+   "reuse": "navigation:wall_screen",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    637,
+    243,
+    854,
+    411
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.5",
+    "v1.11",
+    "v1.64",
+    "v1.147",
+    "v1.197",
+    "v1.200",
+    "v1.201"
+   ]
+  },
+  {
+   "id": "overhead_vent",
+   "name": "black overhead vent box with a louvred grille",
+   "kind": "generate",
+   "anchor": "ceiling",
+   "size": [
+    0.5,
+    0.4,
+    0.2
+   ],
+   "group": "kit: vent",
+   "at": [
+    {
+     "x": 0.0,
+     "y": 2.9,
+     "z": -1.5,
+     "facing": 0
+    },
+    {
+     "x": 0.0,
+     "y": 2.9,
+     "z": 1.5,
+     "facing": 0
+    }
+   ],
+   "thing": "prop:cockpit_overhead_vent",
+   "reuse": "cockpit:overhead_vent",
+   "count": 2,
+   "view": "v1",
+   "box": [
+    177,
+    20,
+    1056,
+    230
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.20",
+    "v1.45",
+    "v1.53",
+    "v1.111",
+    "v1.117",
+    "v1.128",
+    "v1.165",
+    "v1.171",
+    "v1.189",
+    "v1.198",
+    "v1.219",
+    "v1.228",
+    "v1.252",
+    "v1.258"
+   ]
+  },
+  {
+   "id": "hatch_door_frame",
+   "name": "hexagonal door frame in orange padded and white painted panels round the doorway",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    1.4,
+    0.3,
+    2.2
+   ],
+   "group": "kit: door",
+   "at": [
+    {
+     "x": -1.55,
+     "y": 0.0,
+     "z": 0.0,
+     "facing": 90
+    }
+   ],
+   "thing": "prop:navigation_hatch_door_frame",
+   "reuse": "navigation:hatch_door_frame",
+   "parts": [
+    "hatch_door_frame",
+    "door_leaf"
+   ],
+   "count": 1,
+   "view": "v1",
+   "box": [
+    850,
+    228,
+    1079,
+    480
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.108",
+    "v1.224",
+    "v1.225",
+    "v1.232",
+    "v1.262",
+    "v1.263",
+    "v1.273",
+    "v1.276"
+   ]
+  },
+  {
+   "id": "door_leaf",
+   "name": "sliding door leaf: a dark grey panel with a white band, closing the hexagonal frame",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.9,
+    0.08,
+    2.0
+   ],
+   "group": "kit: door",
+   "at": [
+    {
+     "x": -1.55,
+     "y": 0.0,
+     "z": 0.0,
+     "facing": 90
+    }
+   ],
+   "thing": "prop:galley_door_leaf",
+   "parts": [
+    "hatch_door_frame",
+    "door_leaf"
+   ],
+   "count": 1,
+   "view": "v1",
+   "box": [
+    865,
+    223,
+    1081,
+    482
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.1",
+    "v1.12",
+    "v1.14",
+    "v1.67",
+    "v1.109",
+    "v1.114",
+    "v1.116",
+    "v1.131",
+    "v1.142",
+    "v1.155"
+   ]
+  },
+  {
+   "id": "edge_light_strip",
+   "name": "warm amber light strip along the top of a side wall",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    5.6,
+    0.06,
+    0.05
+   ],
+   "group": "kit: light",
+   "at": [],
+   "thing": "prop:galley_edge_light_strip",
+   "count": 2,
+   "laid": "by the ship kit along the two long walls under the ceiling",
+   "light": {
+    "strength": 0.1,
+    "reach": 3.0,
+    "high": 0.03
+   },
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    1200,
+    256
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.10",
+    "v1.18",
+    "v1.44",
+    "v1.60",
+    "v1.65",
+    "v1.100",
+    "v1.120",
+    "v1.124",
+    "v1.130",
+    "v1.135",
+    "v1.164",
+    "v1.223"
+   ]
+  },
+  {
+   "id": "ceiling_light_panel",
+   "name": "white light strip set in the ceiling",
+   "kind": "code",
+   "anchor": "ceiling",
+   "size": [
+    1.4,
+    0.2,
+    0.05
+   ],
+   "group": "kit: light",
+   "at": [],
+   "thing": "prop:galley_ceiling_light_panel",
+   "count": 2,
+   "laid": "by the ship kit down the ceiling's middle",
+   "light": {
+    "strength": 0.2,
+    "reach": 4.0,
+    "high": 0.05
+   },
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    949,
+    409
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.2",
+    "v1.31",
+    "v1.32",
+    "v1.70",
+    "v1.71",
+    "v1.125",
+    "v1.137",
+    "v1.146",
+    "v1.153",
+    "v1.166",
+    "v1.168",
+    "v1.169",
+    "v1.180",
+    "v1.181",
+    "v1.183",
+    "v1.186",
+    "v1.195",
+    "v1.207",
+    "v1.211",
+    "v1.212",
+    "v1.214",
+    "v1.215",
+    "v1.221",
+    "v1.236",
+    "v1.238",
+    "v1.245",
+    "v1.247",
+    "v1.248",
+    "v1.249"
+   ]
+  },
+  {
+   "id": "wall_lower_plain",
+   "name": "dark grey lower wall plate, bolted, with a recessed seam",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.06,
+    1.1
+   ],
+   "group": "kit: wall",
+   "at": [],
+   "thing": "prop:galley_wall_lower_plain",
+   "repeats": "across the room",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    1075,
+    462,
+    1104,
+    488
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.242"
+   ]
+  },
+  {
+   "id": "wall_upper_plain",
+   "name": "light grey upper wall plate, bolted",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.06,
+    2.02
+   ],
+   "group": "kit: wall",
+   "at": [],
+   "thing": "prop:galley_wall_upper_plain",
+   "repeats": "across the room",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    0,
+    161,
+    1200,
+    416
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.17",
+    "v1.19",
+    "v1.35",
+    "v1.37",
+    "v1.38",
+    "v1.41",
+    "v1.55",
+    "v1.149",
+    "v1.160",
+    "v1.176",
+    "v1.182",
+    "v1.196",
+    "v1.199",
+    "v1.203",
+    "v1.205",
+    "v1.206",
+    "v1.213",
+    "v1.233",
+    "v1.240",
+    "v1.241",
+    "v1.246",
+    "v1.256",
+    "v1.261",
+    "v1.269"
+   ]
+  },
+  {
+   "id": "roof_face_panel",
+   "name": "grey ceiling plate, bolted",
+   "kind": "code",
+   "anchor": "ceiling",
+   "size": [
+    1.2,
+    0.04,
+    1.2
+   ],
+   "group": "kit: ceiling",
+   "at": [],
+   "thing": "prop:galley_roof_face_panel",
+   "repeats": "across the room",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    1200,
+    357
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.9",
+    "v1.24",
+    "v1.28",
+    "v1.63",
+    "v1.72",
+    "v1.77",
+    "v1.79",
+    "v1.81",
+    "v1.84",
+    "v1.85",
+    "v1.86",
+    "v1.95",
+    "v1.96",
+    "v1.97",
+    "v1.98",
+    "v1.113",
+    "v1.133",
+    "v1.144",
+    "v1.162",
+    "v1.163",
+    "v1.173",
+    "v1.191",
+    "v1.193",
+    "v1.194",
+    "v1.202",
+    "v1.208",
+    "v1.209",
+    "v1.222",
+    "v1.234",
+    "v1.243",
+    "v1.250"
+   ]
+  },
+  {
+   "id": "ring_floor_plate",
+   "name": "dark deck plate, bolted",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    1.2,
+    0.04,
+    1.2
+   ],
+   "group": "kit: floor",
+   "at": [],
+   "thing": "prop:galley_ring_floor_plate",
+   "repeats": "across the room",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    256,
+    476,
+    1134,
+    693
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.3",
+    "v1.25",
+    "v1.43",
+    "v1.48",
+    "v1.57",
+    "v1.89",
+    "v1.106",
+    "v1.107",
+    "v1.115",
+    "v1.123",
+    "v1.184",
+    "v1.185",
+    "v1.251",
+    "v1.254",
+    "v1.281"
+   ]
+  }
+ ],
+ "concept_pick": {
+  "concept": "to draw: one concept picture of this room from the owner's interior references (cockpit and quarters) and this plan, before the partition; the ship plan v7, its size",
+  "picture": "{seeds}/scene/galley/views/galley.png",
+  "decided": "owner, 2026-10-01: the ship's design and its references; 2026-10-14 his 'ok' to the ship plan v7"
+ }
+}

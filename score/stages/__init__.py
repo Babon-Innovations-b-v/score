@@ -25,7 +25,7 @@ import pathlib
 from score import checks, contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
                           effects, gaps, images, light, machines, motion, people, people_takes, physics, props,
-                          scene_record, settling, sound, surfaces, terrain)
+                          proposals, scene_record, settling, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
@@ -288,6 +288,10 @@ def prop_fed(row):
 # written request (data/definitions/concept_views.json), one world node, paid: the ship's top and side views first.
 CONCEPT_VIEWS = graph.Stage("concept-views", "world", concept_view.make, concept_view.CONTRACT, concept_view.CHECKS,
                             files=concept_view.files, paid=True, euros=concept_view.euros())
+# Experimental (2026-10-14): the concept partition's SAM 2.1 proposals for scenes whose inventory has not landed
+# (data/definitions/partitions.json), one world node, paid: the cockpit first.
+PARTITION_PROPOSALS = graph.Stage("partition-proposals", "world", proposals.make, proposals.CONTRACT, proposals.CHECKS,
+                                  files=proposals.files, paid=True, euros=proposals.euros())
 # Experimental (2026-10-14): models that already exist turned round for the paper's demos
 # (data/definitions/demo_turntables.json), one world node, paid: demo K2's hub objects first.
 DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, demo_turntable.CONTRACT,
@@ -310,8 +314,8 @@ DEMO_STILLS = dataclasses.replace(DEMO_FILM, name="demo-stills", make=demo_still
                                   euros=demo_stills.euros())
 
 
-STAGES = (TERRAIN, CONCEPT_VIEWS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, DEMO_FILM,
-          DEMO_FILM_EXTRA, DEMO_STILLS,
+STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
+          COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS,
           TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,

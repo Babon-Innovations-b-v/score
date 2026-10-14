@@ -1,0 +1,718 @@
+{
+ "scene": "shiplock",
+ "place": "shiplock",
+ "plan": {
+  "world": "",
+  "seed": 0,
+  "concept": "WORK/scene/shiplock/views/shiplock.png",
+  "views": [
+   {
+    "id": "v1",
+    "picture": "WORK/scene/shiplock/views/shiplock.png"
+   }
+  ],
+  "dimensioned": [
+   "data/plans/shiplock.json"
+  ]
+ },
+ "approved": "the owner, 2026-10-14, via the overseer: \"u can continu without checking again\" (the room as shown on the pieces page)",
+ "migrated": "",
+ "room": {
+  "shell": "",
+  "light": "place",
+  "backdrop": "",
+  "wall_fill": [],
+  "layout": {
+   "inside": [
+    3.0,
+    2.7
+   ],
+   "corner": 0.0,
+   "wall": 1.95,
+   "doors": {
+    "north": "door",
+    "south": "door"
+   },
+   "open": []
+  }
+ },
+ "rows": [
+  {
+   "id": "outer_hatch",
+   "name": "outer pressure hatch: a heavy rounded-corner hatch in a thick white frame with orange and black warning stripes, four locking dogs and a wheel, a small round window",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    1.3,
+    0.35,
+    1.9
+   ],
+   "group": "kit: door",
+   "at": [
+    {
+     "x": 0.0,
+     "y": 0.0,
+     "z": -1.35,
+     "facing": 180
+    }
+   ],
+   "thing": "prop:shiplock_outer_hatch",
+   "parts": [
+    "outer_hatch"
+   ],
+   "count": 1,
+   "view": "v1",
+   "box": [
+    673,
+    207,
+    991,
+    643
+   ],
+   "made": "kit piece",
+   "ground_box": true,
+   "box_from": [
+    "v1.1",
+    "v1.42",
+    "v1.56",
+    "v1.78",
+    "v1.82",
+    "v1.107",
+    "v1.111",
+    "v1.113",
+    "v1.149",
+    "v1.157",
+    "v1.162",
+    "v1.164",
+    "v1.165",
+    "v1.168",
+    "v1.170",
+    "v1.179",
+    "v1.181",
+    "v1.188",
+    "v1.189",
+    "v1.210",
+    "v1.218"
+   ]
+  },
+  {
+   "id": "locker",
+   "name": "tall locker (here the suit lockers): a dark grey panelled door, an orange handle strip and a small status light",
+   "kind": "generate",
+   "anchor": "floor",
+   "size": [
+    0.6,
+    0.6,
+    1.9
+   ],
+   "group": "kit: furniture",
+   "at": [
+    {
+     "x": -1.2,
+     "y": 0.0,
+     "z": 0.0,
+     "facing": 90
+    },
+    {
+     "x": -1.2,
+     "y": 0.0,
+     "z": 0.6,
+     "facing": 90
+    }
+   ],
+   "thing": "prop:shiplock_locker",
+   "solid": true,
+   "count": 2,
+   "view": "v1",
+   "box": [
+    186,
+    204,
+    254,
+    504
+   ],
+   "made": "kit piece",
+   "ground_box": true,
+   "box_from": [
+    "v1.6",
+    "v1.96",
+    "v1.120",
+    "v1.176",
+    "v1.192",
+    "v1.211",
+    "v1.221",
+    "v1.222"
+   ]
+  },
+  {
+   "id": "wall_screen",
+   "name": "cycle panel: wall screen: a flat screen in a dark grey bezel, amber readouts and a cyan frame line",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.9,
+    0.08,
+    0.6
+   ],
+   "group": "kit: wall",
+   "at": [
+    {
+     "x": 1.46,
+     "y": 1.4,
+     "z": 0.0,
+     "facing": 270
+    }
+   ],
+   "thing": "prop:navigation_wall_screen",
+   "reuse": "navigation:wall_screen",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    498,
+    214,
+    674,
+    461
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.12",
+    "v1.28",
+    "v1.32",
+    "v1.110",
+    "v1.151",
+    "v1.155",
+    "v1.159",
+    "v1.183",
+    "v1.199",
+    "v1.215"
+   ]
+  },
+  {
+   "id": "corner_lamp",
+   "name": "small square orange lamp",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    0.15,
+    0.08,
+    0.12
+   ],
+   "group": "kit: light",
+   "at": [
+    {
+     "x": -0.85,
+     "y": 1.75,
+     "z": -1.3,
+     "facing": 180
+    },
+    {
+     "x": 0.85,
+     "y": 1.75,
+     "z": -1.3,
+     "facing": 180
+    }
+   ],
+   "thing": "prop:cockpit_corner_lamp",
+   "reuse": "cockpit:corner_lamp",
+   "light": {
+    "strength": 0.05,
+    "reach": 2.0,
+    "high": 0.06
+   },
+   "count": 2,
+   "view": "v1",
+   "box": [
+    698,
+    0,
+    990,
+    400
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.33",
+    "v1.61",
+    "v1.109",
+    "v1.153",
+    "v1.172"
+   ]
+  },
+  {
+   "id": "overhead_vent",
+   "name": "black overhead vent box with a louvred grille",
+   "kind": "generate",
+   "anchor": "ceiling",
+   "size": [
+    0.5,
+    0.4,
+    0.2
+   ],
+   "group": "kit: vent",
+   "at": [
+    {
+     "x": 0.6,
+     "y": 1.9,
+     "z": 0.4,
+     "facing": 0
+    }
+   ],
+   "thing": "prop:cockpit_overhead_vent",
+   "reuse": "cockpit:overhead_vent",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    317,
+    0,
+    696,
+    130
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.2",
+    "v1.21",
+    "v1.55",
+    "v1.105"
+   ]
+  },
+  {
+   "id": "hatch_door_frame",
+   "name": "hexagonal door frame in orange padded and white painted panels round the doorway",
+   "kind": "generate",
+   "anchor": "wall",
+   "size": [
+    1.4,
+    0.3,
+    2.2
+   ],
+   "group": "kit: door",
+   "at": [
+    {
+     "x": 0.0,
+     "y": 0.0,
+     "z": 1.35,
+     "facing": 0
+    }
+   ],
+   "thing": "prop:navigation_hatch_door_frame",
+   "reuse": "navigation:hatch_door_frame",
+   "parts": [
+    "hatch_door_frame",
+    "door_leaf"
+   ],
+   "count": 1,
+   "view": "v1",
+   "box": [
+    313,
+    204,
+    497,
+    417
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.101",
+    "v1.115",
+    "v1.116",
+    "v1.202",
+    "v1.204",
+    "v1.206",
+    "v1.208"
+   ]
+  },
+  {
+   "id": "door_leaf",
+   "name": "sliding door leaf: a dark grey panel with a white band, closing the hexagonal frame",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.9,
+    0.08,
+    2.0
+   ],
+   "group": "kit: door",
+   "at": [
+    {
+     "x": 0.0,
+     "y": 0.0,
+     "z": 1.35,
+     "facing": 0
+    }
+   ],
+   "thing": "prop:shiplock_door_leaf",
+   "parts": [
+    "hatch_door_frame",
+    "door_leaf"
+   ],
+   "count": 1,
+   "view": "v1",
+   "box": [
+    319,
+    139,
+    562,
+    470
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.3",
+    "v1.4",
+    "v1.63",
+    "v1.64",
+    "v1.65",
+    "v1.68",
+    "v1.126",
+    "v1.127",
+    "v1.175"
+   ]
+  },
+  {
+   "id": "pipe_straight",
+   "name": "steel hand rail along a side wall",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    0.05,
+    0.05,
+    2.2
+   ],
+   "group": "kit: pipe",
+   "at": [],
+   "thing": "prop:shiplock_pipe_straight",
+   "count": 2,
+   "laid": "by the ship kit along both side walls at 1.0 m",
+   "view": "v1",
+   "box": [
+    0,
+    299,
+    1200,
+    506
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.58",
+    "v1.59",
+    "v1.71",
+    "v1.75",
+    "v1.79",
+    "v1.118",
+    "v1.119",
+    "v1.129",
+    "v1.156",
+    "v1.160",
+    "v1.166",
+    "v1.178",
+    "v1.209"
+   ]
+  },
+  {
+   "id": "floor_grate",
+   "name": "steel grating over the deck's drain",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    1.2,
+    0.04,
+    1.2
+   ],
+   "group": "kit: floor",
+   "at": [
+    {
+     "x": 0.3,
+     "y": 0.0,
+     "z": -0.3,
+     "facing": 0
+    }
+   ],
+   "thing": "prop:shiplock_floor_grate",
+   "lies": "floor",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    365,
+    512,
+    754,
+    693
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.5",
+    "v1.15",
+    "v1.27",
+    "v1.34",
+    "v1.46",
+    "v1.131",
+    "v1.154",
+    "v1.203",
+    "v1.205"
+   ]
+  },
+  {
+   "id": "ceiling_light_panel",
+   "name": "white light strip set in the ceiling",
+   "kind": "code",
+   "anchor": "ceiling",
+   "size": [
+    1.4,
+    0.2,
+    0.05
+   ],
+   "group": "kit: light",
+   "at": [],
+   "thing": "prop:shiplock_ceiling_light_panel",
+   "count": 1,
+   "laid": "by the ship kit down the ceiling's middle",
+   "light": {
+    "strength": 0.2,
+    "reach": 4.0,
+    "high": 0.05
+   },
+   "view": "v1",
+   "box": [
+    233,
+    0,
+    771,
+    204
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.10",
+    "v1.48",
+    "v1.50",
+    "v1.66",
+    "v1.81",
+    "v1.97",
+    "v1.128",
+    "v1.133",
+    "v1.137",
+    "v1.148",
+    "v1.177",
+    "v1.180",
+    "v1.190",
+    "v1.193",
+    "v1.194"
+   ]
+  },
+  {
+   "id": "wall_lower_plain",
+   "name": "dark grey lower wall plate, bolted, with a recessed seam",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.06,
+    1.1
+   ],
+   "group": "kit: wall",
+   "at": [],
+   "thing": "prop:shiplock_wall_lower_plain",
+   "repeats": "across the room",
+   "count": 1,
+   "view": "v1",
+   "box": null,
+   "made": "kit piece",
+   "unseen": "the lower wall band is hidden behind the room's furniture and panels"
+  },
+  {
+   "id": "wall_upper_plain",
+   "name": "light grey upper wall plate, bolted",
+   "kind": "code",
+   "anchor": "wall",
+   "size": [
+    1.2,
+    0.06,
+    0.85
+   ],
+   "group": "kit: wall",
+   "at": [],
+   "thing": "prop:shiplock_wall_upper_plain",
+   "repeats": "across the room",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    0,
+    3,
+    1200,
+    500
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.17",
+    "v1.20",
+    "v1.22",
+    "v1.23",
+    "v1.24",
+    "v1.26",
+    "v1.40",
+    "v1.44",
+    "v1.45",
+    "v1.54",
+    "v1.70",
+    "v1.72",
+    "v1.73",
+    "v1.80",
+    "v1.86",
+    "v1.90",
+    "v1.93",
+    "v1.94",
+    "v1.95",
+    "v1.103",
+    "v1.108",
+    "v1.114",
+    "v1.130",
+    "v1.134",
+    "v1.135",
+    "v1.138",
+    "v1.139",
+    "v1.140",
+    "v1.141",
+    "v1.142",
+    "v1.143",
+    "v1.144",
+    "v1.147",
+    "v1.167",
+    "v1.174",
+    "v1.196",
+    "v1.219"
+   ]
+  },
+  {
+   "id": "roof_face_panel",
+   "name": "grey ceiling plate, bolted",
+   "kind": "code",
+   "anchor": "ceiling",
+   "size": [
+    1.2,
+    0.04,
+    1.2
+   ],
+   "group": "kit: ceiling",
+   "at": [],
+   "thing": "prop:shiplock_roof_face_panel",
+   "repeats": "across the room",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    0,
+    0,
+    1200,
+    270
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.8",
+    "v1.13",
+    "v1.14",
+    "v1.16",
+    "v1.18",
+    "v1.19",
+    "v1.38",
+    "v1.39",
+    "v1.41",
+    "v1.49",
+    "v1.52",
+    "v1.53",
+    "v1.62",
+    "v1.67",
+    "v1.69",
+    "v1.76",
+    "v1.83",
+    "v1.85",
+    "v1.87",
+    "v1.88",
+    "v1.89",
+    "v1.98",
+    "v1.99",
+    "v1.100",
+    "v1.117",
+    "v1.123",
+    "v1.124",
+    "v1.132",
+    "v1.136",
+    "v1.145",
+    "v1.146",
+    "v1.150",
+    "v1.152",
+    "v1.158",
+    "v1.161",
+    "v1.169",
+    "v1.171",
+    "v1.173",
+    "v1.184",
+    "v1.186",
+    "v1.187",
+    "v1.201",
+    "v1.207",
+    "v1.216"
+   ]
+  },
+  {
+   "id": "ring_floor_plate",
+   "name": "dark deck plate, bolted",
+   "kind": "code",
+   "anchor": "floor",
+   "size": [
+    1.2,
+    0.04,
+    1.2
+   ],
+   "group": "kit: floor",
+   "at": [],
+   "thing": "prop:shiplock_ring_floor_plate",
+   "repeats": "across the room",
+   "count": 1,
+   "view": "v1",
+   "box": [
+    0,
+    415,
+    1200,
+    693
+   ],
+   "made": "kit piece",
+   "box_from": [
+    "v1.7",
+    "v1.9",
+    "v1.11",
+    "v1.25",
+    "v1.29",
+    "v1.30",
+    "v1.31",
+    "v1.35",
+    "v1.36",
+    "v1.37",
+    "v1.43",
+    "v1.47",
+    "v1.51",
+    "v1.57",
+    "v1.60",
+    "v1.74",
+    "v1.77",
+    "v1.84",
+    "v1.91",
+    "v1.92",
+    "v1.102",
+    "v1.104",
+    "v1.106",
+    "v1.112",
+    "v1.121",
+    "v1.122",
+    "v1.125",
+    "v1.163",
+    "v1.182",
+    "v1.185",
+    "v1.191",
+    "v1.195",
+    "v1.197",
+    "v1.198",
+    "v1.200",
+    "v1.212",
+    "v1.213",
+    "v1.214",
+    "v1.217",
+    "v1.220",
+    "v1.223",
+    "v1.224",
+    "v1.225"
+   ]
+  }
+ ],
+ "concept_pick": {
+  "concept": "to draw: one concept picture of this room from the owner's interior references (cockpit and quarters) and this plan, before the partition; the ship plan v7, its size",
+  "picture": "{seeds}/scene/shiplock/views/shiplock.png",
+  "decided": "owner, 2026-10-01: the ship's design and its references; 2026-10-14 his 'ok' to the ship plan v7"
+ }
+}

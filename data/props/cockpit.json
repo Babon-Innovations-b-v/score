@@ -1,0 +1,97 @@
+{
+ "place": "cockpit",
+ "order": "prop-first",
+ "objects": {
+  "pilot_seat": {
+   "route": "prop",
+   "take": "pilot_seat-s1"
+  },
+  "control_stick": {
+   "route": "prop",
+   "take": "control_stick-s1"
+  },
+  "thrust_indicator": {
+   "route": "prop",
+   "take": "thrust_indicator-s1"
+  },
+  "centre_pedestal": {
+   "route": "prop",
+   "take": "centre_pedestal-s1"
+  },
+  "main_console": {
+   "route": "prop",
+   "take": "main_console-s1"
+  },
+  "side_console": {
+   "route": "prop",
+   "take": "side_console-s1"
+  },
+  "overhead_console": {
+   "route": "prop",
+   "take": "overhead_console-s1"
+  },
+  "overhead_vent": {
+   "route": "prop",
+   "take": "overhead_vent-s1"
+  },
+  "ceiling_equipment": {
+   "route": "prop",
+   "take": "ceiling_equipment-s1"
+  },
+  "corner_lamp": {
+   "route": "prop",
+   "take": "corner_lamp-s1"
+  }
+ },
+ "fallback": {},
+ "accepted": {
+  "chair_1": {
+   "model": "{home}/work/place/hub-round6/objects/chair_1.gltf",
+   "closeup": "{home}/work/pixal/chair-b.svviews/input.png"
+  },
+  "desklamp_1": {
+   "model": "{home}/work/place/hub-round6/objects/desklamp_1.gltf",
+   "closeup": "{home}/work/pixal/desklamp-r6.svviews/input.png"
+  },
+  "hammer_1": {
+   "model": "{home}/work/place/hub-round6/objects/hammer_1.gltf",
+   "closeup": "{home}/work/pixal/hammer-r6.svviews/input.png"
+  },
+  "headset_1": {
+   "model": "{home}/work/place/hub-round6/objects/headset_1.gltf",
+   "closeup": "{home}/work/pixal/headset-r6.svviews/input.png"
+  },
+  "microscope_1": {
+   "model": "{home}/work/place/hub-round6/objects/microscope_1.gltf",
+   "closeup": "{home}/work/pixal/microscope-r6.svviews/input.png"
+  },
+  "pliers_1": {
+   "model": "{home}/work/place/hub-round6/objects/pliers_1.gltf",
+   "closeup": "{home}/work/pixal/pliers-r6.svviews/input.png"
+  },
+  "pump_pliers_1": {
+   "model": "{home}/work/place/hub-round6/objects/pump_pliers_1.gltf",
+   "closeup": "{home}/work/pixal/pump_pliers-r6.svviews/input.png"
+  },
+  "telephone_1": {
+   "model": "{home}/work/place/hub-round6/objects/telephone_1.gltf",
+   "closeup": "{home}/work/pixal/telephone-r6.svviews/input.png"
+  },
+  "wrench_1": {
+   "model": "{home}/work/place/hub-round6/objects/wrench_1.gltf",
+   "closeup": "{home}/work/pixal/wrench-r6.svviews/input.png"
+  },
+  "wrench_2": {
+   "model": "{home}/work/place/hub-round6/objects/wrench_2.gltf",
+   "closeup": "{home}/work/pixal/wrench-r6.svviews/input.png"
+  },
+  "wrench_3": {
+   "model": "{home}/work/place/hub-round6/objects/wrench_3.gltf",
+   "closeup": "{home}/work/pixal/wrench-r6.svviews/input.png"
+  },
+  "wrench_4": {
+   "model": "{home}/work/place/hub-round6/objects/wrench_4.gltf",
+   "closeup": "{home}/work/pixal/wrench-r6.svviews/input.png"
+  }
+ }
+}
