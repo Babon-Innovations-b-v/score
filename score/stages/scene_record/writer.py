@@ -541,6 +541,8 @@ def record_of(place, plan, inputs):
     """The place's scene record from its plan and the world's records (module docstring)."""
     grounds = seats(inputs)
     seated = grounds.get(place)
+    if seated is None and plan["shell"] == "kit" and ground_free(place, inputs):
+        return ground_free_record(place, plan, inputs, grounds)
     if seated is None:
         raise ValueError(f"{place}: no seat on a made ground and no module of the base: its world body is unknown")
     if plan["shell"] == "kit":
@@ -569,6 +571,32 @@ def record_of(place, plan, inputs):
             "views": views(plan, eye), "places": places_of(place, plan, inputs, grounds),
             # A walkway tube's run, which its kit's bays are laid along (the assembly reads it).
             **({"tube_length": walls["length"]} if walls.get("shape") == "tube" else {})}
+
+
+def ground_free(place, inputs):
+    """The plan's reason when it is a ground-free interior (its `ground_free`: the ship's rooms, which stand in the
+    hangar's ship, not on a made ground; the overseer, 2026-10-14), else None."""
+    return read(pathlib.Path(inputs["plans"]) / f"{place}.json").get("ground_free")
+
+
+def ground_free_record(place, plan, inputs, grounds):
+    """The scene record of a ground-free interior: no seat, so nothing outside it and no body's sky over it; its kit
+    holds its walls and floors, its air and fill are the base's body's indoor ones (the body the base's modules
+    stand on, base.json `seat_of`), its views and door leaves its plan's, judged against its own walls."""
+    body = grounds[read(inputs["base"])["seat_of"]].ground
+    indoor = read(inputs["sky"])[body]["indoor"]
+    kit_path = pathlib.Path(inputs["kits"]) / f"{place}.json"
+    eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
+    found = [leaf for door in plan["doors"] if door["cut"] and door.get("leaves") for leaf in leaves(plan, door)]
+    return {"place": place,
+            "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan (data/plans/{place}.json), "
+                     f"a ground-free interior ({ground_free(place, inputs)}): no seat and nothing outside; its kit "
+                     f"holds its walls and floors, its air is the {body} base's indoor air from the world's sky "
+                     "record. Frame: the room's middle on its floor, x east, z south.",
+            "floor": plan["floor"], "inside": True, "ceiling": round(plan["floor_height"] + plan["walls"]["high"], 4),
+            "structure": [], "objects": kit_shell.objects(plan, read(kit_path) if kit_path.exists() else None),
+            "lights": [fill(plan, indoor)], "environment": environment(plan, indoor, body), "views": views(plan, eye),
+            "places": found + roof_leaves(plan)}
 
 
 def kit_record(place, plan, inputs, grounds):
