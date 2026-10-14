@@ -61,6 +61,7 @@ from typing import Callable
 from score import checks, contracts, review
 from score.adapters import models
 from score.graph import _code
+import score.store as score_store
 from score.store import file_hash, listing_hash, text_hash, tree_files, tree_listing
 
 GRAINS = ("world", "place")
@@ -222,12 +223,35 @@ def no_bytecode():
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 
+WHOLE_WALK = score_store.runtime_store.FolderStore.keys
+
+
+def scoped_keys(self, prefix):
+    """FolderStore.keys walking only the prefix's own folder: the store's own walks every file under the root
+    (millions of blobs) on each call, which held a world run at one core for hours, 25 rows in 3.5 h (2026-10-14: 261
+    of a status's 389 s). The same keys, sorted, as WHOLE_WALK gives."""
+    folder = self.root / prefix.rsplit("/", 1)[0] if "/" in prefix else self.root
+    if not folder.is_dir():
+        return []
+    found = (str(path.relative_to(self.root)) for path in folder.rglob("*")
+             if path.is_file() and not path.name.endswith(".partial"))
+    return sorted(key for key in found if key.startswith(prefix))
+
+
+def scoped(store):
+    """Every folder store in this process listed by scoped_keys (a stage's own Store.default() too: the neighbours'
+    record_of opens one), the store as given. Set here, in the runner, since the store's own module is in every
+    stage's code version and an edit there moves every key."""
+    score_store.runtime_store.FolderStore.keys = scoped_keys
+    return store
+
+
 class Runner:
     def __init__(self, stages, world, store, model_record=None):
         no_bytecode()
         self.stages = {stage.name: stage for stage in stages}
         self.world = world
-        self.store = store
+        self.store = scoped(store)
         self.model_record = model_record or models.record
         self.code_versions = {}
         self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
