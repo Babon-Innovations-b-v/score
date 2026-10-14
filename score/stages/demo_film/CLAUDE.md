@@ -4,10 +4,13 @@ The demo-film row (experimental, 2026-10-14): demo K9's walk-through film of one
 passes complete, with its own sound; paid and cleared by the runner like any paid row. `__init__.py`'s docstring has
 the make, the output and the gate.
 
-- **Only the places `data/definitions/demo_films.json` names have the row.** Add a place there once it passes complete
-  (group by group, the overseer's order); nothing films before. All 18 places come to about EUR 11.
+- **Only the places `data/definitions/demo_films.json` names have the row**, each with the scene record's camera
+  nearest its concept. Add a place there once it passes complete (group by group, as the coordinator names them);
+  nothing films before. All 18 places come to about EUR 11.
 - **The film is the place's own**: the neighbours output where the place shows others, else its assembly, never a seed;
-  one camera path (the owner's first picked viewpoint, else the scene record's), 1280x720, the look only (no ink).
+  one camera path starting at that camera, 1280x720, the look only (no ink). Its first frame is kept as `concept.png`,
+  demo K8's still beside the concept (no separate render); a standing shot starts 5 degrees off the camera's aim and a
+  walk's start may move up to 1.5 m to stand clear, which views.json records.
   People need no handling: the characters layer lays nobody today.
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame. Whether the film reads well is the creator's call.

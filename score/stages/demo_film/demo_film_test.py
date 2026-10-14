@@ -36,6 +36,13 @@ def test_only_the_named_places_have_the_row_and_it_declares_its_tools():
     assert found["tool tools/review/demo.py"] == "{repo}/tools/review/demo.py"
 
 
+def test_every_filmed_place_names_a_camera_its_scene_record_holds():
+    """The path starts at that camera, so the film's first frame is the still beside the concept (demo K8)."""
+    for place, camera in demo_film.record()["places"].items():
+        record = json.loads((REPO / "data/scene" / f"{place}.json").read_text())
+        assert camera in [view["name"] for view in record["views"]], (place, camera)
+
+
 def test_the_plan_asks_look_only_frames_at_its_size():
     demo, _ = demo_film.film_tools()
     root = folder()
