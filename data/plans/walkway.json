@@ -1,0 +1,133 @@
+{
+ "title": "WALKWAY (the corridor joining every compartment, cockpit to engine room), ship plan v7",
+ "shell": "kit",
+ "inside": true,
+ "ground_free": "the room stands in the ship, parked in the hangar, not on a made ground: its openings are judged against its own walls (as the cockpit)",
+ "kit": {
+  "nose_cut": 0.0,
+  "glazed": "none",
+  "why": "the ship plan v7: 1.2 m wide, 9.8 m long down the ship's middle (y 12.0 to 21.8); its short forward hall (y 12.0 to 12.8) is the cockpit door's landing, laid as the corridor's width"
+ },
+ "frame": {
+  "anchor": {
+   "plan": [
+    0.6,
+    4.9
+   ],
+   "place": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "why": "the room's own frame, its middle on its floor (x east, z south), the nose south as the ship stands in the hangar"
+ },
+ "w": 1.2,
+ "d": 9.8,
+ "corner": 0.0,
+ "height": "ceiling 2.4 m",
+ "doors": [
+  [
+   "S",
+   0.6,
+   0.9,
+   "FORWARD DOOR to the cockpit 0.9 x 2.0 m"
+  ],
+  [
+   "N",
+   0.6,
+   0.9,
+   "AFT DOOR to the engine room 0.9 x 2.0 m"
+  ],
+  [
+   "W",
+   6.0,
+   0.9,
+   "DOOR to the crew quarters 0.9 x 2.0 m"
+  ],
+  [
+   "W",
+   1.5,
+   0.9,
+   "DOOR to the storage room 0.9 x 2.0 m"
+  ],
+  [
+   "E",
+   7.5,
+   0.9,
+   "DOOR to the navigation room 0.9 x 2.0 m"
+  ],
+  [
+   "E",
+   3.0,
+   0.9,
+   "DOOR to the galley 0.9 x 2.0 m"
+  ]
+ ],
+ "leads": {
+  "E": {
+   "to": "sealed",
+   "why": "the neighbouring ship place is no place yet: the leaf stays shut until it is made, then the door leads there"
+  },
+  "N": {
+   "to": "sealed",
+   "why": "the neighbouring ship place is no place yet: the leaf stays shut until it is made, then the door leads there"
+  },
+  "S": {
+   "to": "sealed",
+   "why": "the neighbouring ship place is no place yet: the leaf stays shut until it is made, then the door leads there"
+  },
+  "W": {
+   "to": "sealed",
+   "why": "the neighbouring ship place is no place yet: the leaf stays shut until it is made, then the door leads there"
+  }
+ },
+ "items": [],
+ "rows": {},
+ "people": [],
+ "notes": [
+  "From the locked ship plan v7 (data/definitions/ship.json, the owner's 'ok' of 2026-10-14): ship y 12.0 to 21.8 m from the spike's tip, whole side, 1.2 to 1.2 m wide inside, 2.4 to 2.4 m clear.",
+  "For the game: the corridor: every compartment's door opens off it.",
+  "Shared made pieces (rows with `reuse`) are placed from the take the owning place makes (work/ship/rooms/shared.json).",
+  "The ship's shape is traced from a shuttle concept by PAUL (zana), found online (the ship plan's notes)."
+ ],
+ "concept": {
+  "pick": "to draw: one concept picture of this room from the owner's interior references (cockpit and quarters) and this plan, before the partition; the ship plan v7, its size",
+  "picture": "{seeds}/scene/walkway/views/walkway.png",
+  "read": "elements below are this plan's and the brief's words, to read again against the drawn concept"
+ },
+ "elements": [
+  {
+   "element": "a narrow corridor down the ship's middle, grey panelled walls and ceiling, dark deck",
+   "rows": [
+    "wall_lower_plain",
+    "wall_upper_plain",
+    "roof_face_panel",
+    "ring_floor_plate"
+   ]
+  },
+  {
+   "element": "white light strips down the ceiling, amber strips along the wall tops",
+   "rows": [
+    "ceiling_light_panel",
+    "edge_light_strip"
+   ]
+  },
+  {
+   "element": "steel frame ribs arching over the corridor between the doors",
+   "rows": [
+    "frame_rib"
+   ]
+  },
+  {
+   "element": "a steel grating down the middle of the deck",
+   "rows": [
+    "floor_grate"
+   ]
+  },
+  {
+   "element": "the rooms' doors in hexagonal orange and white frames off both sides",
+   "drop": "each door frame and leaf is its room's (the rooms' own rows); the corridor leaves the doorways clear"
+  }
+ ]
+}
