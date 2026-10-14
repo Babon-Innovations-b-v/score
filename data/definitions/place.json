@@ -3432,9 +3432,9 @@
 		},
 		"wear": {
 			"level": "worked",
-			"dirt": 0.3,
-			"cause": "a working shuttle's bridge: hands on the consoles, levers and seat arms, boots on the grate and the step; a sealed cabin, so no outside dust",
-			"picked": "2026-10-14, the agent's proposal from its causes (owner may change)"
+			"dirt": 0.2,
+			"cause": "the crew's cabin: bunks and lockers handled every day, kept tidy, soft padding; a sealed cabin, no outside dust",
+			"picked": "2026-10-15, the agent's pick from the room's use (owner may change)"
 		}
 	},
 	"navigation": {
@@ -3609,9 +3609,9 @@
 		},
 		"wear": {
 			"level": "worked",
-			"dirt": 0.3,
-			"cause": "a working shuttle's bridge: hands on the consoles, levers and seat arms, boots on the grate and the step; a sealed cabin, so no outside dust",
-			"picked": "2026-10-14, the agent's proposal from its causes (owner may change)"
+			"dirt": 0.2,
+			"cause": "an instrument room: hands on the table's rim and the consoles, little else touched; a sealed cabin, no outside dust",
+			"picked": "2026-10-15, the agent's pick from the room's use (owner may change)"
 		}
 	},
 	"galley": {
@@ -3786,9 +3786,9 @@
 		},
 		"wear": {
 			"level": "worked",
-			"dirt": 0.3,
-			"cause": "a working shuttle's bridge: hands on the consoles, levers and seat arms, boots on the grate and the step; a sealed cabin, so no outside dust",
-			"picked": "2026-10-14, the agent's proposal from its causes (owner may change)"
+			"dirt": 0.4,
+			"cause": "food made and eaten daily: grease and spills by the counter, seats folded up and down, the table's edge worn",
+			"picked": "2026-10-15, the agent's pick from the room's use (owner may change)"
 		}
 	},
 	"storage": {
@@ -3963,9 +3963,9 @@
 		},
 		"wear": {
 			"level": "worked",
-			"dirt": 0.3,
-			"cause": "a working shuttle's bridge: hands on the consoles, levers and seat arms, boots on the grate and the step; a sealed cabin, so no outside dust",
-			"picked": "2026-10-14, the agent's proposal from its causes (owner may change)"
+			"dirt": 0.4,
+			"cause": "cargo moved in and out: crates dragged across the deck, straps and rack edges scuffed",
+			"picked": "2026-10-15, the agent's pick from the room's use (owner may change)"
 		}
 	},
 	"engineroom": {
@@ -4139,10 +4139,10 @@
 			]
 		},
 		"wear": {
-			"level": "worked",
-			"dirt": 0.3,
-			"cause": "a working shuttle's bridge: hands on the consoles, levers and seat arms, boots on the grate and the step; a sealed cabin, so no outside dust",
-			"picked": "2026-10-14, the agent's proposal from its causes (owner may change)"
+			"level": "worn",
+			"dirt": 0.5,
+			"cause": "machinery run and repaired: grease and soot by the core and tanks, tools dropped, boots on the step",
+			"picked": "2026-10-15, the agent's pick from the room's use (owner may change)"
 		}
 	},
 	"shiplock": {
@@ -4316,10 +4316,10 @@
 			]
 		},
 		"wear": {
-			"level": "worked",
-			"dirt": 0.3,
-			"cause": "a working shuttle's bridge: hands on the consoles, levers and seat arms, boots on the grate and the step; a sealed cabin, so no outside dust",
-			"picked": "2026-10-14, the agent's proposal from its causes (owner may change)"
+			"level": "worn",
+			"dirt": 0.6,
+			"cause": "the one way in from outside: regolith tracked in on boots and suits, the hatch's seals and dogs worked every cycle",
+			"picked": "2026-10-15, the agent's pick from the room's use (owner may change)"
 		}
 	},
 	"walkway": {
