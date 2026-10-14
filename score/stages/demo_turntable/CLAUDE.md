@@ -8,6 +8,9 @@ world node, paid and cleared by the runner like any paid row (one Blender job on
 - **What is turned is world data** (`data/definitions/demo_turntables.json`): each object's models (the model file
   first, then its buffers and textures, all declared inputs) and the headings. A new model re-keys the node.
 - **It shows, it accepts nothing into a place.** Its pictures feed the paper's demos only; no stage reads its output.
+- **Never edit `tools/blender/inside/` for this row.** Terrain-look, effects-look, crops and physics declare that whole
+  folder, so an edit there moves their keys (2026-10-14: a margin edit to review_models.py did, and was put back).
+  `turntable_models.py` runs review_models.py with its frame widened instead.
 - **The gate measures, it does not judge looks.** `drawn` fails a model missing or blank at any heading.
 - Run: `python -m score run world1 --stage demo-turntables --detach`. Test: `demo_turntable_test.py` (no Blender, no
   spend).

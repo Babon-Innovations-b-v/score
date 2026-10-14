@@ -41,7 +41,6 @@ def test_every_model_at_every_heading_is_its_own_group():
                                                    "wheel--code--035", "wheel--code--215"]
     assert all(len(group["members"]) == 1 and group["members"][0]["name"] == group["name"] for group in groups)
     assert groups[2]["members"][0]["files"] == [{"path": "/m/c.gltf"}] and groups[3]["heading"] == 215
-    assert all(group["margin"] > 1 for group in groups)  # the whole model in frame
 
 
 def test_drawn_passes_every_picture_and_fails_a_missing_or_blank_one_by_name():
@@ -66,10 +65,16 @@ def test_drawn_passes_every_picture_and_fails_a_missing_or_blank_one_by_name():
 def test_the_row_declares_its_record_script_and_every_model_file():
     found = demo_turntable.files()
     assert found["turntables"] == "{data}/definitions/demo_turntables.json"
-    assert found["model script"] == "{repo}/tools/blender/inside/review_models.py"
+    assert found["model script"] == "{repo}/score/stages/demo_turntable/turntable_models.py"
+    assert found["drawer"] == "{repo}/tools/blender/inside/review_models.py"
     for item in demo_turntable.record()["objects"]:
         for what, patterns in item["models"].items():
             assert [found[f"{item['id']} {what} {number}"] for number in range(len(patterns))] == patterns
+
+
+def test_the_drawer_still_ends_with_the_call_the_wrapper_holds_back():
+    """turntable_models.py runs review_models.py without its last line, main(), to widen its frame first."""
+    assert (REPO / demo_turntable.DRAWER).read_text().rstrip().endswith("\nmain()")
 
 
 if __name__ == "__main__":
