@@ -191,6 +191,22 @@ def test_lines_clearing_at_once_never_both_spend_the_months_last_euros():
     assert answers == ["cleared"] + ["refused"] * 5, answers
 
 
+def test_the_judge_timeout_is_an_operational_setting_outside_every_key():
+    """120 s by default, SCORE_JUDGE_TIMEOUT read when the call is made; the models adapter's keyed record holds no
+    time limit (a limit decides whether an answer comes back, never what it says)."""
+    from score.adapters import models
+    saved = os.environ.pop(compute.JUDGE_TIMEOUT, None)
+    try:
+        assert compute.judge_timeout() == 120.0
+        os.environ[compute.JUDGE_TIMEOUT] = "90"
+        assert compute.judge_timeout() == 90.0
+    finally:
+        os.environ.pop(compute.JUDGE_TIMEOUT, None)
+        if saved is not None:
+            os.environ[compute.JUDGE_TIMEOUT] = saved
+    assert not any("timeout" in setting for setting in models.api_record("gemini-judge"))
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

@@ -51,6 +51,17 @@ TICKET = "SCORE_SPEND_TICKET"
 # The folder of the store the ticket's clearance is in, set beside the ticket (a trial store's, compare.py's).
 STORE = "SCORE_SPEND_STORE"
 OVERRIDE = "override"
+# How long a paid API's judge is waited on before an ask counts as timed out (SCORE_JUDGE_TIMEOUT seconds): an
+# operational setting like the card classes, outside every stage's key, since it decides only whether an answer
+# comes back, never what it says. 120 s since 2026-10-14 17:00, when Gemini 3.1 Pro's answers rose from a 9 s median
+# to about 50 s against the 60 s then kept in the keyed models adapter (49 read timeouts after 15:00).
+JUDGE_TIMEOUT = "SCORE_JUDGE_TIMEOUT"
+JUDGE_TIMEOUT_SECONDS = 120.0
+
+
+def judge_timeout():
+    """The seconds a judge's answer is waited on, read when the call is made."""
+    return float(os.environ.get(JUDGE_TIMEOUT, JUDGE_TIMEOUT_SECONDS))
 
 
 class Refused(Exception):
