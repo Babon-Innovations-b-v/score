@@ -23,6 +23,8 @@
   {"scene": "engineroom", "views": [{"id": "v1", "picture": "{seeds}/scene/engineroom/views/engineroom.png"}],
    "why": "the engine and power room (ship plan v7): its concept drawn by concept-views from its plan"},
   {"scene": "shiplock", "views": [{"id": "v1", "picture": "{seeds}/scene/shiplock/views/shiplock.png"}],
-   "why": "the ship's airlock (ship plan v7): its concept drawn by concept-views from its plan"}
+   "why": "the ship's airlock (ship plan v7): its concept drawn by concept-views from its plan"},
+  {"scene": "walkway", "views": [{"id": "v1", "picture": "{seeds}/scene/walkway/views/walkway.png"}],
+   "why": "the walkway (ship plan v7): its concept drawn by concept-views from its plan"}
  ]
 }
