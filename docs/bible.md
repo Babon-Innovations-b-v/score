@@ -287,7 +287,8 @@ is meant to fix, where it is marked, and what proves it.
   breath papers: 3,000 and 4,000 fine cards where the game had 40 and 220), the camp's and its grounds' dust devils
   (Spirit's Gusev films, Greeley's counts: one see-through column about 10 m across, not the game's 1.2 m specks)
   over the game's drift, and the launch's liquid oxygen venting before ignition (a fuelled Falcon 9 at night: the
-  steam at the rocket's base the concepts show). A fourth gate, `outside`, keeps open-sky emitters out of a record's
+  steam at the rocket's base the concepts show; on 2026-10-14 the owner kept the launch's accepted smoke, f83dbfab22df,
+  so its record went back to the content that made it, without the venting). A fourth gate, `outside`, keeps open-sky emitters out of a record's
   `interiors` (the camp's drift blew through its domes); `over_ground` measures over the planned ground, and
   reach and height are measured in the anchor emitter's own frame (a devil stands along the curved ground's up).
   Waiting on movers: wheel dust (the rovers stand), the hangar ship's exhaust (it never lifts), boot dust (nobody walks
