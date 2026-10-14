@@ -9,6 +9,14 @@
 			{
 				"id": "v1",
 				"picture": "WORK/scene/hangar/views/K01.png"
+			},
+			{
+				"id": "v2",
+				"picture": "WORK/scene/hangar/views/shuttle.png"
+			},
+			{
+				"id": "v3",
+				"picture": "WORK/scene/hangar/views/thrusters.png"
 			}
 		],
 		"dimensioned": [
@@ -1622,31 +1630,116 @@
 		},
 		{
 			"id": "ship",
-			"view": "v1",
+			"view": "v2",
 			"box": [
-				1016,
-				551,
-				1878,
-				985
+				27,
+				113,
+				1379,
+				562
 			],
-			"box_from": [
-				"v1.17",
-				"v1.13",
-				"v1.118",
-				"v1.180"
-			],
-			"name": "the crew's Mars shuttle: a long flat wedge-shaped hull of white panels over a dark grey lower hull, a cluster of dark cockpit windows on its upper deck, two round engine pods at the back, short swept fins and a nose spike, standing low on short landing legs",
+			"name": "the crew's Mars shuttle: a long flat wedge-shaped hull of white panels over a dark grey lower hull, a squared-off snout, a cluster of dark window panes on its upper deck, small swept fins, two ribbed engine tubes set into the stern either side of a dark airlock block, a ring on its starboard side as hull detail, standing low on short landing legs",
 			"kind": "generate",
 			"anchor": "floor",
 			"size": [
-				12.0,
+				9.02,
 				31.0,
-				6.0
+				5.43
 			],
 			"count": 1,
 			"machine": true,
-			"why": "the machine the hangar holds (owner's look, 2026-10-01: flat wedge shuttle, white panels on a dark hull; concept K01 shows it standing on its legs on the pad, not lifting); its box is the four partition proposals that cover its hull (once dropped as the game's ship); size from the plan's keep-out box 12 x 31 m and the cabin deck's 5.5 m with the hull round it; made by the prop route (score/stages/machines/ship_trial.py), no take yet",
-			"thing": "prop:hangar_ship"
+			"why": "the machine the hangar holds (owner's look, 2026-10-01: flat wedge shuttle, white panels on a dark hull; concept K01 shows it standing on its legs on the pad, not lifting); its box is the four partition proposals that cover its hull (once dropped as the game's ship); the locked ship plan v7 (data/definitions/ship.json, the owner's ok of 2026-10-14): 9.02 m wide, 31 m long, 5.43 m tall on its legs; boxed on the owner's shuttle reference (v2: a shuttle concept by PAUL (zana), found online); made by the prop route, its thrusters separate made pieces (the owner, 2026-10-14)",
+			"thing": "prop:hangar_ship",
+			"ground_box": true,
+			"box_from": [
+				"v2.1",
+				"v2.2"
+			]
+		},
+		{
+			"id": "main_engine",
+			"view": "v3",
+			"box": [
+				54,
+				0,
+				513,
+				274
+			],
+			"name": "main engine: a long ribbed dark grey tube with a round white nozzle housing at its back end",
+			"kind": "generate",
+			"anchor": "on:ship",
+			"size": [
+				1.0,
+				2.3,
+				1.0
+			],
+			"count": 2,
+			"machine": true,
+			"ground_box": true,
+			"parent": "ship",
+			"at": [],
+			"why": "a separate made piece set into the hull at its ship plan place (the owner, 2026-10-14; data/definitions/ship.json thrusters), boxed on the thruster sheet (v3)",
+			"thing": "prop:hangar_main_engine",
+			"box_from": [
+				"v3.1"
+			]
+		},
+		{
+			"id": "lift_thruster",
+			"view": "v3",
+			"box": [
+				556,
+				38,
+				867,
+				244
+			],
+			"name": "lift thruster: a round downward-facing nozzle with a louvred ring, set in a square dark grey belly plate",
+			"kind": "generate",
+			"anchor": "on:ship",
+			"size": [
+				1.0,
+				1.0,
+				0.4
+			],
+			"count": 4,
+			"machine": true,
+			"ground_box": true,
+			"parent": "ship",
+			"at": [],
+			"why": "a separate made piece set into the hull at its ship plan place (the owner, 2026-10-14; data/definitions/ship.json thrusters), boxed on the thruster sheet (v3)",
+			"thing": "prop:hangar_lift_thruster",
+			"box_from": [
+				"v3.8",
+				"v3.12",
+				"v3.26"
+			]
+		},
+		{
+			"id": "nose_thruster",
+			"view": "v3",
+			"box": [
+				957,
+				53,
+				1141,
+				244
+			],
+			"name": "nose thruster: a small square port with three short copper nozzles in a dark grey plate",
+			"kind": "generate",
+			"anchor": "on:ship",
+			"size": [
+				0.3,
+				0.2,
+				0.3
+			],
+			"count": 4,
+			"machine": true,
+			"ground_box": true,
+			"parent": "ship",
+			"at": [],
+			"why": "a separate made piece set into the hull at its ship plan place (the owner, 2026-10-14; data/definitions/ship.json thrusters), boxed on the thruster sheet (v3)",
+			"thing": "prop:hangar_nose_thruster",
+			"box_from": [
+				"v3.7"
+			]
 		}
 	]
 }
