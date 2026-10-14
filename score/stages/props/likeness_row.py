@@ -199,12 +199,20 @@ def judge_likeness(output, inputs, evidence):
                   object_faults(found, scored(json.loads(pathlib.Path(evidence).read_text()), least)))
 
 
+def stored_pairs(output):
+    """pairs.json's pairs, each picture read from the output's own pairs/ folder: the paths it holds point into the
+    folder the make ran in, removed once the output was stored (likeness@campgrounds, 2026-10-15: no likeness came
+    back, the cairn's model picture missing)."""
+    pairs = json.loads((output / "pairs.json").read_text())
+    return {row: [str(output / "pairs" / pathlib.Path(picture).name) for picture in pair]
+            for row, pair in pairs.items()}
+
+
 def gather_likeness(output, inputs, folder):
     """DINOv2's score of every pair on a rented machine (similar.py): the evidence file."""
     with prop_data.tools("props/cloud", "props"):
         import similar
-        similar.likeness(json.loads((output / "pairs.json").read_text()), folder / "likeness.json",
-                         "score likeness")
+        similar.likeness(stored_pairs(output), folder / "likeness.json", "score likeness")
     return folder / "likeness.json"
 
 
