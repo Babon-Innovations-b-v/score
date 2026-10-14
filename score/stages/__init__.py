@@ -18,6 +18,7 @@ concept. Cast (experimental) places each place's people and measures them agains
 and its movers. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import dataclasses
+import functools
 import json
 import pathlib
 
@@ -97,8 +98,37 @@ EFFECTS_LOOK = graph.Stage("effects-look", "place", effects_look.make, effects_l
                            euros=effects_look.EUROS, applies=lambda place: place in effects_look.LOOKED)
 # Experimental (PRD #6) until the owner reviews it: the place's plan in the store, and its scene record written from
 # it (score/stages/scene_record), for the places whose plan says where each door leads. No assembly reads it yet.
-PLAN = graph.Stage("plan", "place", scene_record.plan.make, scene_record.plan.PLACE_PLAN, scene_record.plan.CHECKS,
-                   files=scene_record.plan.files, applies=scene_record.written)
+def kit_laid(place):
+    """Whether the place's kit is laid (data/kit/<place>.json): a new place, made from its plan, has none until its
+    pieces are made."""
+    return (REPO / "data/kit" / f"{place}.json").exists()
+
+
+def kit_if_laid(files):
+    """The plan row's world files without `kit` for a place whose kit is not laid, so its plan runs before it.
+    Wrapped here, in the table, so the plan's code version and every laid place's key stay as they were."""
+    @functools.wraps(files)
+    def declared(place):
+        found = files(place)
+        return found if kit_laid(place) else {name: path for name, path in found.items() if name != "kit"}
+    return declared
+
+
+def plan_as_kit(function, position):
+    """A plan row function (make, or a judge) reading a place with no kit laid: its `kit` input (argument `position`)
+    is the plan itself, which lays no pieces and is named for the place, so the row reads a kit with nothing on it."""
+    @functools.wraps(function)
+    def read(*arguments):
+        arguments = list(arguments)
+        arguments[position] = {"kit": arguments[position]["plan"], **arguments[position]}
+        return function(*arguments)
+    return read
+
+
+PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scene_record.plan.PLACE_PLAN,
+                   tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
+                         for check in scene_record.plan.CHECKS),
+                   files=kit_if_laid(scene_record.plan.files), applies=scene_record.written)
 SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, scene_record.writer.SCENE_RECORD,
                            scene_record.gates.CHECKS, files=scene_record.writer.files,
                            after={"plan": ("place-plan", 2), "terrain": ("grounds", 1)},
@@ -293,10 +323,12 @@ def world1():
 
 
 def places(world):
-    """A world's places: one kit each in its data (none for a world without data, the images world)."""
+    """A world's places: each with a kit or a plan in its data (a new place has its plan before its kit is laid;
+    none for a world without data, the images world)."""
     if "data" not in world.roots:
         return []
-    return sorted(path.stem for path in (pathlib.Path(world.roots["data"]) / "kit").glob("*.json"))
+    data = pathlib.Path(world.roots["data"])
+    return sorted({path.stem for folder in ("kit", "plans") for path in (data / folder).glob("*.json")})
 
 
 WORLDS = {"world1": world1, "images": images.image_world}
