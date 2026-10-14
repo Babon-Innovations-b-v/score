@@ -68,6 +68,11 @@ KIND = "blender"
 # Settling and other physics: the processor machines, tried in turn as their stock moves.
 DEFAULT_CLASSES = ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb")
 ALWAYS_SHIPPED = ("tools/blender/inside",)
+# When no card of the classes asked is in stock (2026-10-14 17:00: every L4, L40S and H100 short in every zone, the
+# 32-core processor machines in stock), a Cycles job renders on the cores of one of these, about three times slower
+# (measured on the library bake: library_bake.PROCESSOR_SLOWER).
+PROCESSOR_FALLBACK = "cpu-32c-128gb"
+PROCESSOR_SLOWER = 3
 # A held machine (--serve): the chain's expected minutes for the owner's limits, and how long it waits for the next job.
 SERVE_MINUTES = 60
 IDLE_MINUTES = 10
@@ -87,22 +92,42 @@ def shipped(jobs):
     return sorted({*ALWAYS_SHIPPED, *(str(pathlib.PurePosixPath(job["script"]).parent) for job in jobs)})
 
 
-def plan(jobs):
-    """How many machines the jobs are spread over (capacity.machines_for), and how long they keep them."""
-    minutes = [float(job.get("minutes", 10)) for job in jobs]
+def plan(jobs, slower=1):
+    """How many machines the jobs are spread over (capacity.machines_for), and how long they keep them, each job's
+    minutes `slower` times its estimate (on the cores, PROCESSOR_SLOWER)."""
+    minutes = [float(job.get("minutes", 10)) * slower for job in jobs]
     count = capacity.machines_for(len(jobs), sum(minutes) / len(minutes), SETUP_MINUTES)
     return count, SETUP_MINUTES + max(max(minutes), sum(minutes) / count)
 
 
+def in_stock(classes):
+    """The offers of `classes` in stock now."""
+    return [offer for offer in batch.offers(list(classes)) if offer.stock_word != "shortage"]
+
+
+def offers_to_rent(classes):
+    """(the offers to rent, the processor class it fell back to or None): those of `classes` in stock; when only
+    card classes were asked and none is in stock, a processor machine of PROCESSOR_FALLBACK, where Cycles renders on
+    the cores (run_line: the card is the machine's class), said in the run's log."""
+    found = in_stock(classes)
+    if found or not all(provider.cards(name) for name in classes):
+        return found, None
+    fallback = in_stock([PROCESSOR_FALLBACK])
+    if fallback:
+        batch.say(f"no card of {', '.join(classes)} is in stock: Cycles renders on the cores of a {PROCESSOR_FALLBACK} "
+                  f"machine instead, its jobs allowed {PROCESSOR_SLOWER} times their minutes")
+    return fallback, PROCESSOR_FALLBACK if fallback else None
+
+
 def price(jobs, account, classes):
-    """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the minutes
-    allowed."""
-    found = [offer for offer in batch.offers(list(classes)) if offer.stock_word != "shortage"]
+    """Print the estimate and refuse what passes the owner's limits; the offers, the machines, the minutes allowed
+    and the processor class it fell back to (None on the classes asked)."""
+    found, fell_back = offers_to_rent(classes)
     if not found:
         raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend")
-    count, minutes = plan(jobs)
+    count, minutes = plan(jobs, PROCESSOR_SLOWER if fell_back else 1)
     what = f"{len(jobs)} Blender jobs on {count} machine{'s' if count > 1 else ''}"
-    return found, count, batch.priced(found, minutes, count, what, account)
+    return found, count, batch.priced(found, minutes, count, what, account), fell_back
 
 
 def send(log_folder, host, local):
@@ -393,7 +418,7 @@ def main():
         return
     account = cloud.account()
     batch.sweep(account)
-    found, count, allowed_minutes = price(jobs, account, classes)
+    found, count, allowed_minutes, fell_back = price(jobs, account, classes)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -420,6 +445,7 @@ def main():
             batch.delete_machine(machine)
         entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
                  "kind": KIND, "who": options.who, "jobs": [job.get("script", "a held machine") for job in jobs],
+                 "classes": list(classes), **({"fell_back_to": fell_back} if fell_back else {}),
                  **ledger.machines_record(run.machines, run.attempts, started),
                  "wall_minutes": (time.time() - started) / 60}
         ledger.record(entry)
