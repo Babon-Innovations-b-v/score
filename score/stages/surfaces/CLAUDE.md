@@ -112,7 +112,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   fails right blacks; compare a model's surfaces with each other instead).
 - **A base that slopes as one piece is brought down level** in the paint (`place_line.flattened_base`, after the legs):
   each footprint quadrant of the bottom quarter over 1% of the size up comes down its whole gap at its lowest point,
-  spread by inverse squared distance and faded over the band; over 15% is a model fault, refused. Wear and dirt stay
+  spread by inverse squared distance and faded over the band; over 15% is a model fault, refused. Then an underside
+  that is one sloping plane (`sloped_base`: 80% of its cells within 1% of the plane fitted to them, rising over 1%)
+  comes down by the plane's height, never past the lowest point: the quadrants miss a ramp whose low strip runs
+  through the middle (the square's guard hut, 2026-10-14: 14 cm across, it stood on a strip and tipped). Wear and dirt stay
   the room's one setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
   picture-derived look (tried 2026-10-13, reverted).
 - **The paint levels a take's feet before its bake** (`place_line.levelled_feet`, `tools/props/library/feet.py`):

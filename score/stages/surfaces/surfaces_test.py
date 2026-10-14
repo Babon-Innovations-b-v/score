@@ -596,6 +596,30 @@ def test_a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_
     level[:4, 1] = 0.0
     assert place_line.flattened_base(level, 0.25, 0.01, 0.15)[1]["flattened"] == []
 
+def test_a_base_sloping_as_one_plane_through_its_middle_is_brought_down_level():
+    """The square's guard hut: a slab base rising 8% of its size from one side to the other, each quadrant's lowest
+    point by the middle (flattened_base finds nothing); a level slab and a round bottom are left as they are."""
+    import numpy as np
+    import trimesh
+    from score.stages.surfaces import place_line
+    slab = trimesh.creation.box(bounds=((-1.0, 0.0, -1.0), (1.0, 2.0, 1.0))).subdivide().subdivide().subdivide()
+    slab.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 4, (0, 1, 0)))  # a diamond, as the hut's
+    hut = np.asarray(slab.vertices).copy()
+    bottom, over = hut[:, 1] < 1e-9, hut[:, 1] > 0.5
+    hut[bottom, 1] += 0.08 * (hut[bottom, 0] + 2 ** 0.5) / 2 ** 1.5  # 8 cm up at its far corner, x = 1.41
+    quadrants = place_line.flattened_base(hut, 0.5, 0.03, 0.4)[1]
+    assert max(quadrants["quadrants"]) < 0.05, quadrants  # the blind spot: each quadrant's lowest lies at x = 0
+    points, record = place_line.sloped_base(hut, 0.5, 0.17, 0.03, 0.4)
+    assert abs(record["rise"] - 0.08) < 0.01 and not record["refused"], record
+    assert np.abs(points[bottom, 1]).max() < 0.01 and np.allclose(points[over], hut[over]), "over the band: as made"
+    assert points[:, 1].min() >= hut[:, 1].min() - 1e-12, "nothing comes down past the lowest point"
+    assert place_line.sloped_base(hut, 0.5, 0.17, 0.03, 0.05)[1]["refused"] == [record["rise"]]
+    level = np.asarray(slab.vertices)
+    assert place_line.sloped_base(level, 0.5, 0.17, 0.03, 0.4)[1]["rise"] is None
+    ball = np.asarray(trimesh.creation.icosphere(4).vertices)
+    points, record = place_line.sloped_base(ball, 0.5, 0.17, 0.03, 0.4)
+    assert record["rise"] is None and np.array_equal(points, ball), record
+
 def test_only_a_place_nobody_walks_bakes_with_no_kick_wear():
     """The wreck's surface data says nobody walks it: its bake's specs say kicks 0. Every other place's data says
     nothing, so unwalked hands its specs back as given, the very same object (recipes.WALKED: kicked as before), and
