@@ -134,6 +134,28 @@ PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scen
 NO_GROUND = "no made ground seats this place: its outside cannot be judged"
 
 
+def seed_if_any(files):
+    """scene-record's world files without `seed record` for a place that never had an old record (the ship's places,
+    2026-10-15: the runner blocked on the missing file while `seed-matched` itself passes a place with none). Wrapped
+    here, in the table, so every place with a seed keeps its key."""
+    @functools.wraps(files)
+    def declared(place):
+        found = files(place)
+        return found if (REPO / "data/scene" / f"{place}.json").exists() else \
+            {name: path for name, path in found.items() if name != "seed record"}
+    return declared
+
+
+def seed_optional(judge):
+    """`seed-matched` reading a place with no seed record declared (seed_if_any): its seed path is the one that does
+    not exist, which the gate already passes as "the place had no old record"."""
+    @functools.wraps(judge)
+    def judged(output, inputs, evidence):
+        place = scene_record.writer.record_in(output)[0]
+        return judge(output, {"seed record": str(REPO / "data/scene" / f"{place}.json"), **inputs}, evidence)
+    return judged
+
+
 def ground_free(judge):
     """The openings gate for a ground-free interior (the overseer, 2026-10-14: the ship's rooms, which stand in the
     hangar's ship, not on a made ground): a place whose plan says `ground_free` and why is judged against its own
@@ -158,8 +180,10 @@ def ground_free(judge):
 
 SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, scene_record.writer.SCENE_RECORD,
                            tuple(dataclasses.replace(check, judge=ground_free(check.judge))
-                                 if check.name == "openings" else check for check in scene_record.gates.CHECKS),
-                           files=scene_record.writer.files,
+                                 if check.name == "openings" else
+                                 dataclasses.replace(check, judge=seed_optional(check.judge))
+                                 if check.name == "seed-matched" else check for check in scene_record.gates.CHECKS),
+                           files=seed_if_any(scene_record.writer.files),
                            after={"plan": ("place-plan", 2), "terrain": ("grounds", 1)},
                            applies=scene_record.written)
 # Experimental (design 5, 2026-10-12) until the owner reviews it: each place's cast placed and measured against its
