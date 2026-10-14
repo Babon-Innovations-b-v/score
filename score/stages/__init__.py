@@ -23,9 +23,9 @@ import json
 import pathlib
 
 from score import checks, contracts, graph
-from score.stages import (assembly, cast, complete, concept_people, crops, effects, gaps, images, light, machines,
-                          motion, people, people_takes, physics, props, scene_record, settling, sound, surfaces,
-                          terrain)
+from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, effects, gaps, images, light,
+                          machines, motion, people, people_takes, physics, props, scene_record, settling, sound,
+                          surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
 from score.stages.surfaces.surface_gates import guarded
@@ -283,7 +283,14 @@ def prop_fed(row):
     return dataclasses.replace(row, after={**row.after, **props.FEEDS})
 
 
-STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
+# Experimental (2026-10-14) until the owner reviews it: concept views drawn by Pro from a creator's reference and a
+# written request (data/definitions/concept_views.json), one world node, paid: the ship's top and side views first.
+CONCEPT_VIEWS = graph.Stage("concept-views", "world", concept_view.make, concept_view.CONTRACT, concept_view.CHECKS,
+                            files=concept_view.files, paid=True, euros=concept_view.euros())
+
+
+STAGES = (TERRAIN, CONCEPT_VIEWS, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK,
+          PHYSICS_LAYER,
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),

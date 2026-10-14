@@ -1,0 +1,11 @@
+{
+ "views": [
+  {
+   "id": "ship_top_side",
+   "reference": "{seeds}/scene/ship/reference-shuttle.png",
+   "shape": "landscape",
+   "why": "the owner's correction (2026-10-14, about 10:50): the ship plan's hull outline read as a rocket; his shuttle is a long flat wedge narrowing gradually to a sharp nose, with swept wings growing out of the body toward the back and the engines set into the flat stern. Its outline and engines are traced from this view. The reference is his shuttle picture cropped out of its screenshot.",
+   "wording": "The attached picture is a concept painting of a spaceship: a long, flat, wedge-shaped shuttle with off-white armour panels over a dark grey lower hull. Draw this exact same ship as a clean technical drawing on a plain white background, two orthographic views in one picture, both at the same scale with the nose pointing left: in the upper half, the ship seen from directly above (plan view); in the lower half, the same ship seen exactly from its side (side elevation), its nose and stern lined up with the view above. Keep its shape exactly as painted: the long flat wedge narrowing gradually to a sharp nose with its thin nose spike, the swept wings growing out of the body toward the back, the engines set into the flat stern, the round docking ring on its side, the small angular windows on its top deck. Flat even light, thin dark outlines, its own colours, no perspective, no shadows, no text, no labels, no dimensions, nothing else in the picture."
+  }
+ ]
+}
