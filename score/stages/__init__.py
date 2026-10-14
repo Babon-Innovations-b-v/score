@@ -129,8 +129,36 @@ PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scen
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
                    files=kit_if_laid(scene_record.plan.files), applies=scene_record.written)
+# The openings gate's finding for a place no made ground seats (scene_record/gates.py judge_openings).
+NO_GROUND = "no made ground seats this place: its outside cannot be judged"
+
+
+def ground_free(judge):
+    """The openings gate for a ground-free interior (the overseer, 2026-10-14: the ship's rooms, which stand in the
+    hangar's ship, not on a made ground): a place whose plan says `ground_free` and why is judged against its own
+    walls (every doorway onto a floor, no view ray out into nothing, every door's place past it), all still measured;
+    only the missing ground is not a fault. Wrapped here, in the table, so no other place's key or verdict moves;
+    it moves into gates.py the next time scene-record is made again for every place."""
+    @functools.wraps(judge)
+    def judged(output, inputs, evidence):
+        verdict = judge(output, inputs, evidence)
+        place = scene_record.gates.plan_of(inputs)["place"]
+        why = json.loads((pathlib.Path(inputs["plans"]) / f"{place}.json").read_text()).get("ground_free")
+        if not why or NO_GROUND not in verdict.findings:
+            return verdict
+        findings = tuple(finding for finding in verdict.findings if finding != NO_GROUND)
+        reason = "; ".join(findings[:3]) if findings else \
+            f"a ground-free interior ({why}): judged against its own walls, no doorway onto nothing, no view out " \
+            "into nothing, every door's place past it"
+        return dataclasses.replace(verdict, answer=checks.FAIL if findings else checks.PASS, reason=reason,
+                                   findings=findings)
+    return judged
+
+
 SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, scene_record.writer.SCENE_RECORD,
-                           scene_record.gates.CHECKS, files=scene_record.writer.files,
+                           tuple(dataclasses.replace(check, judge=ground_free(check.judge))
+                                 if check.name == "openings" else check for check in scene_record.gates.CHECKS),
+                           files=scene_record.writer.files,
                            after={"plan": ("place-plan", 2), "terrain": ("grounds", 1)},
                            applies=scene_record.written)
 # Experimental (design 5, 2026-10-12) until the owner reviews it: each place's cast placed and measured against its

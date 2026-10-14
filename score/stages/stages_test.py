@@ -7,6 +7,7 @@ The store is a folder of its own under $PROPS_HOME (never /tmp, never the framew
 Run: .venv/bin/python score/stages/stages_test.py
 """
 import dataclasses
+import inspect
 import json
 import pathlib
 import shutil
@@ -239,6 +240,39 @@ def test_the_plan_row_maps_a_place_with_no_kit():
         assert verdict.answer == checks.PASS, verdict.reason
     finally:
         shutil.rmtree(root)
+
+
+def openings_judged(plan, findings):
+    """The table's openings gate on a stand-in measure with these findings, for a place whose plan is `plan`."""
+    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
+    root = pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
+    try:
+        for part, record in (("plan/plan.json", {"place": "room"}), ("plans/room.json", plan)):
+            (root / part).parent.mkdir(parents=True, exist_ok=True)
+            (root / part).write_text(json.dumps(record))
+        measured = checks.Verdict("openings", checks.FAIL, "measured", {"void rays": len(findings) - 1}, {},
+                                  tuple(findings))
+        judge = stages.ground_free(lambda output, inputs, evidence: measured)
+        return judge(root, {"plan": str(root / "plan"), "plans": str(root / "plans")}, {})
+    finally:
+        shutil.rmtree(root)
+
+
+def test_a_ground_free_interior_is_judged_against_its_own_walls_only():
+    """A plan's `ground_free` (with why) lifts the missing ground alone; a view into nothing still fails, and a place
+    whose plan does not say it keeps the gate's verdict as it was."""
+    free = {"ground_free": "stands in the hangar's ship"}
+    assert openings_judged(free, [stages.NO_GROUND]).answer == checks.PASS
+    void = "3 of 90 view rays run out below the horizon into nothing"
+    assert openings_judged(free, [void, stages.NO_GROUND]).findings == (void,)
+    assert openings_judged(free, [void, stages.NO_GROUND]).answer == checks.FAIL
+    assert openings_judged({}, [stages.NO_GROUND]).answer == checks.FAIL
+    assert stages.NO_GROUND in inspect.getsource(stages.scene_record.gates.judge_openings)
+
+
+def test_the_scene_record_row_keeps_its_code_version():
+    plain = dataclasses.replace(stages.SCENE_RECORD, checks=stages.scene_record.gates.CHECKS)
+    assert code_after_editing(stages.SCENE_RECORD, "nothing") == code_after_editing(plain, "nothing")
 
 
 if __name__ == "__main__":
