@@ -2,22 +2,21 @@
 title: "SCORE: A Framework for Synthesizing Complete, Owned, Responsive Environments"
 author:
   - "J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands"
-date: "Working draft, 13 October 2026"
+date: "Working draft, 15 October 2026"
 abstract: |
   Games, films and robot training need 3D worlds that are complete, editable and owned by their makers; world models and one-shot generators give frames no engine opens, or one fused scene without separate objects or clear rights. Studios build worlds in stages, from concept art to review. SCORE keeps these stages and automates them with open vision foundation models, procedural tools and coding agents, while the creator chooses and reviews. Every stage is a node of one runner: its output is keyed on its inputs and code, judged by gates that answer pass, fail or unknown, and accepted only when nothing got worse, so a fault is fixed in its own stage and only what follows it runs again; paid steps are cleared against a budget read from the provider's bill. Every model allows commercial use of its output, so the creator stays the author. We describe the framework as built for its first world, the game world of 2099 with 18 places, and the measured gates of its surfaces, resting, light, motion, effects, sound and people. Code and paper are available at https://github.com/Babon-Innovations-b-v/score (MIT license).
 ---
 
 <!--
   Draft conventions (paper/CLAUDE.md).
-  - Final paper's structure. Settled content is written in full; wherever final content will go,
-    a gap box says what goes there and what it waits on.
+  - Final paper's structure. Settled content is written in full; what is not made is on the named-gaps
+    list, with what it waits on.
   - Main text: the three contributions only (the staged framework, its stages and gates, the evidence),
     about 4 to 5 pages plus references while gaps are open. The appendix holds only the evidence
     behind a claim the main text makes.
   - Every number is read from a file named in a comment beside it.
-  - Figures and tables follow the demo targets of 12 October 2026 (F1 to F11, T1, T2, the film): each is
-    rendered from a place's final OpenUSD stage after its one assembly and completion check, never from an
-    older render; until then it is a gap box.
+  - Only demos that were made are shown or described; an unmade one is on the named-gaps list (Table 3),
+    never a plan in the text.
   - The world step is one optional step; no result compares it with another model or judges it
     on its own, and its output is credited "Generated using World Labs".
 -->
@@ -25,12 +24,6 @@ abstract: |
 ```{=latex}
 \makeatletter\def\fps@figure{t}\makeatother
 ```
-
-::: gap
-**Gap: Figure 1, four worlds.** World 1's square, hub and Mars camp beside their concepts; worlds 2 to 4 as not started. It waits on those places' completion gates.
-:::
-
-<!-- Demo target F1. -->
 
 # Introduction
 
@@ -54,9 +47,15 @@ A world is a table of stages; world 1's has 95 rows. A **node** is one stage for
 
 **Keys.** A node is made only when its key has no finish record. The key hashes the stage and place, a code version, the contracts of its output and inputs, its parameters, a seed derived from the world's, the pinned model images, every world file it reads and the accepted output of every node it reads. The code version hashes every source file the stage imports, leaving out the runner and the renting code, which change what a run costs, not what it makes. A fault fixed in one stage moves only its key and those after it. Outputs are kept by content hash, never overwritten.
 
-**Gates and accepts.** Each gate answers pass, fail or unknown, with measures and a reason; missing evidence is unknown, and unknown blocks like fail. The runner accepts an output by itself when every gate passed and it is no worse than the one accepted before: no answer dropped, no measure moved the wrong way by a step a viewer could see, no gate missing. Later nodes read only accepted outputs. The creator keeps four commands, from his own terminal: reject an accepted output (it moves back to the one before, and every node that read it is stale), accept a worse one with his reason, waive one gate for one key, and override the runner for one paid run. None is needed for a run; a barrier keeps agents from them (a terminal, a store that refuses the creator's records from an agent's process, and a hook).
+**Gates and accepts.** Each gate answers pass, fail or unknown, with measures and a reason; missing evidence is unknown, and unknown blocks like fail. The runner accepts an output by itself when every gate passed and it is no worse than the one accepted before: no answer dropped, no measure moved the wrong way by a step a viewer could see, no gate missing. Later nodes read only accepted outputs. The creator keeps four commands, from his own terminal: reject an accepted output (it moves back to the one before, and every node that read it is stale), accept a worse one with his reason, waive one gate for one key, and override the runner for one paid run. When he accepts a worse output, his accept records what he allowed, and a later output no worse than the one he took is accepted with his accept named. None is needed for a run; a barrier keeps agents from them (a terminal, a store that refuses the creator's records from an agent's process, and a hook).
 
 **Spending and review.** A paid node is cleared only when every gate on its inputs passed and the month's ceiling has room for its estimate (Section 3.7); everything that rents a machine or calls a paid model refuses without that ticket, and buying again more than EUR 5 of accepted outputs needs a written reason. Each node's review page is built from the store alone, and the creator reviews a place in a USD viewer on the store's copy of its accepted assembly; nothing is rendered for review.
+
+**The creator steers: the ship.** Figure 1 shows the creator's control on one piece of world 1, the ship. His picks were found pictures of a shuttle, a one-deck cutaway, a cockpit and crew quarters; we do not show them. From them an agent planned the bridge alone (v1, a 4.6 by 4.6 m room of 27 pieces). He corrected the plan in words: a smaller cockpit, rooms the game needs, a long flat wedge rather than a rocket, a nose less pointed, and an outline measured from drawings rather than shaped from words. Each correction made a new plan, and he accepted the seventh. Every plan is ours and cost nothing; the two drawings the outline was traced from cost EUR 0.28 and are not shown. The ship's shape follows found artwork the creator chose to use: shuttle concept by PAUL (zana), found online.
+
+![The creator steers the ship's plan, in twelve steps: his picks, described in words (found pictures, not shown); plan v1 of the bridge alone; his corrections; v2 of the whole ship; his correction of the outline; v3 to v6; his two corrections of the nose; v7, which he accepted. All plans are ours. Shuttle concept by PAUL (zana), found online.](figures/fig-k7.jpg){width=88%}
+
+<!-- Figure 1: demo K7, paper/evidence/demos/K7.txt (steps, v1 4.6 x 4.6 m and 27 pieces, drawings EUR 0.28, plans EUR 0, his ok to v7); the locked plan v7 as world data: commit 5ea06fe7. Found pictures and every drawing made from them are kept out of the repository (overseer's decision, 2026-10-14). -->
 
 <!-- Keys: score/graph/__init__.py (own_parts, worked_out_key, node_seed, code, usable), score/graph/_code.py (source_files, FRAMEWORK). Contracts and store: score/contracts, score/store. Gates: score/checks (judge, missing_evidence, overall, blocks, regressions). Accepts and the creator's commands: score/review/__init__.py (accept_automatically, accept, reject, waive), score/review/__main__.py (terminal check), score/store OWNER_AREAS, .claude/hooks/accept_guard.py. Clearance: score/adapters/compute/__init__.py (clearance, month_refusal, require_cleared). Re-buys: score/graph/rebuy.py LIMIT = 5.0. Review in the viewer, no renders: commits f63212c, 4c5365e. -->
 
@@ -68,7 +67,7 @@ A world is a table of stages; world 1's has 95 rows. A **node** is one stage for
 
 <!-- Inventory rule: the owner's rule of 2026-10-08; issue #130, 2026-10-07T23:04. Plan and record: score/stages/scene_record (plan.py, gates.py: TOLERANCE = 0.05). Layer order: score/stages/assembly/__init__.py ORDER; layers gate: judge_layers; needs per place: data/checks/contents.json. -->
 
-**Models, generation first.** Every object goes the prop route first: Nano Banana Pro [@nanobananapro] draws its close-up from its crop of the concept, Pixal3D [@li2026pixal3d] builds it, the surface stage paints it, and a likeness gate compares its outline from eight sides with its close-up. Only an object whose checks fail is built by a code builder a coding agent writes, reversing the earlier parts check (the creator's choice, 12 October 2026). On 13 of the hub's objects both orders end the same (Table 1), but generation first draws a close-up of every object. Every close-up of eight thin and flat objects failed the shape check, so code builds carry them. The hatch wheel shows the gain: its code build's outline overlap was 0.45, a fail, and its generated model's 0.60. Most of world 1's models predate the change and enter as unverified seeds.
+**Models, generation first.** Every object goes the prop route first: Nano Banana Pro [@nanobananapro] draws its close-up from its crop of the concept, Pixal3D [@li2026pixal3d] builds it, the surface stage paints it, and a likeness gate compares its outline from eight sides with its close-up. Only an object whose checks fail is built by a code builder a coding agent writes, reversing the earlier parts check (the creator's choice, 12 October 2026). On 13 of the hub's objects both orders end the same (Table 1, Figure 2), but generation first draws a close-up of every object. Every close-up of eight thin and flat objects failed the shape check, so code builds carry them. The hatch wheel shows the gain: its code build's outline overlap was 0.45, a fail, and its generated model's 0.60. Most of world 1's models predate the change and enter as unverified seeds.
 
 **Table 1.** How 13 hub objects, chosen to cover the kinds, end in each order. Close-ups cost EUR 8.12 and the sample's prop route EUR 13.80, about EUR 2.20 an object; no take was baked (the run stopped at the keyboard's paint gate).
 
@@ -79,11 +78,10 @@ A world is a table of stages; world 1's has 95 rows. A **node** is one stage for
 
 <!-- paper/evidence/compare-hub/table.json (counts, euros, unit costs, rows: hatch_wheel outline 0.60 against code build 0.45; eight objects "every Pro take failed the shape check"; keyboard paint dE 33.1) and sample-measures.json; run by score/stages/props/compare.py, 2026-10-12. Prop route first: score/stages/props/CLAUDE.md (owner 2026-10-12); likeness.py (eight outlines, OUTLINE_LEAST = 0.50); unverified seeds: CONTEXT.md. -->
 
-::: gap
-**Gap: Figures 2 to 5.** (2) The stages on the hub, from concept to assembled room; (3) the greenhouse's review page; (4) the wreck with an edit that survives a regenerated base whose models were repainted; (5) four of Table 1's objects from close-up to final model. They wait on those places' assemblies and on renders of the sample's takes; the earlier hub figure predates the runner and is withdrawn, and the comparison recorded no agent hours.
-:::
 
-<!-- Demo targets F2, F10, F5 and F3. -->
+![Generation first on four hub objects. Columns: close-up, generated model, code build, final model. The hatch wheel's generated model passes its outline check at 0.60 where its code build fails at 0.45; the pliers pass at 0.81; every close-up of the screwdriver failed, so its code build carries it; the keyboard fails both ways (paint ΔE 33.1; code build too thin and out of proportion) and needs a new builder. Generated models are split into library surfaces, not baked.](figures/fig-k2.jpg){width=72%}
+
+<!-- Figure 2: demo K2, paper/evidence/demos/K2.txt; numbers from paper/evidence/compare-hub/table.json and sample-measures.json; renders EUR 0.19 (cloud ledger, tickets "demo-turntables"). -->
 
 # Stages and their gates
 
@@ -121,25 +119,25 @@ People are made like props: a FLUX.2 klein [@flux2klein] close-up in SOMA-X's bi
 
 ## Completion
 
-A place is complete when its gate passes on its final assembly: every row made or dropped with a reason, nothing unmade, no placeholder or resting fault, the creator's picks shown, every layer and shown place present, nothing from the source game. A hook stops an agent claiming otherwise: agents judging their own scenes agree with a measured geometry score only 45.8 percent of the time [@li2026lego].
+A place is complete when its gate passes on its final assembly: every row made or dropped with a reason, nothing unmade, no placeholder or resting fault, the creator's picks shown, every layer and shown place present, nothing from the source game. **Named gaps.** A fault the creator decides to ship with today is written down as a named gap: who decided, when, why, the objects and their measured faults. It moves only those objects' faults from the gate where they arise to the completion gate, which fails the place by name with the numbers; any other fault still stops the line, and the gate is never loosened. A cast's person with no accepted body is a named gap the same way. A hook stops an agent claiming a place is done while its gate fails: agents judging their own scenes agree with a measured geometry score only 45.8 percent of the time [@li2026lego].
 
-<!-- tools/usd/complete.py CHECKS; tools/usd/contents.py JUDGES (people, effects, motion, crops, likeness, painted, light, sound, neighbours, game, waiting); score/stages/complete; .claude/hooks/completion_guard.py. LEGO-Anything 45.8%: arXiv 2609.36380 Sec. 5.1. -->
-
-::: gap
-**Gap: Figures 6 to 10.** (6) The water tank painted, the tool board in picture against library colours; (7) the lit Earth, a swept room; (8) lift-off, a rover, a dust devil, an airlock; (9) the player walking, the crowd; (10) a room in a physics engine. They wait on assemblies; until the habitat's physics trial passes, responsiveness is that trial.
-:::
-
-<!-- Demo targets F4, F8, F7, F6 and F11. score/stages/physics, tools/usd/physics.py, data/physics/. score/stages/physics, tools/usd/physics.py, data/physics/. -->
+<!-- Named gaps: score/stages/gaps.py, data/checks/gaps/<place>.json (commits b529601e, 504e6333, de405faf, e3c64f45); people: commit d5a84e67. tools/usd/complete.py CHECKS; tools/usd/contents.py JUDGES (people, effects, motion, crops, likeness, painted, light, sound, neighbours, game, waiting); score/stages/complete; .claude/hooks/completion_guard.py. LEGO-Anything 45.8%: arXiv 2609.36380 Sec. 5.1. -->
 
 ## Budget and ledgers
 
 Machines and Google calls write ledger lines with their node's ticket; the month's spend is the higher of ledgers and bill, which caught misses: EUR 1,554 billed against EUR 1,387 in the cloud ledger on 12 October 2026, and EUR 549 billed by Google for a day the earlier ledger put at EUR 30. Over 13.8 hours of world 1's run the ledgers hold EUR 117.45 of machines and EUR 34.19 of Google calls, most for painting (EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and the light passes (EUR 10.17).
 
-<!-- tools/props/cloud/CLAUDE.md (bill EUR 1,554 vs ledger 1,387 on 2026-10-12; Google EUR 549 vs 30 on 2026-10-11; google_spend started and finished lines); score/adapters/compute month_refusal. Per stage: paper/evidence/cloud/stage-euros-2026-10-13.txt (ledger lines with a runner ticket, 2026-10-12T19:06Z to 2026-10-13T08:54Z). -->
+**Forecast.** Before a paid piece runs, its estimate is written down with the measured unit cost it rests on (the ledgers' medians per node, model or picture); after it, the ledger's actual. The projected total for the month is reported against a hard stop the creator sets. The record shows which estimates to trust: measured unit costs held (22 close-ups for the ship estimated at EUR 3.10 to 6.20, actual 3.50; seven box checks 1.75, actual 2.19), while the runner's flat table figure overstated work it could carry over (the prologue's surfaces and light, EUR 101.50 in the table, cost 0.86).
+
+<!-- paper/evidence/cloud/forecast-2026-10-14.txt (ESTIMATE vs ACTUAL rows: prologue surfaces+light, ship close-ups 22 made pieces, ship machines-boxes x7; the hard stop and the method in its first lines). tools/props/cloud/CLAUDE.md (bill EUR 1,554 vs ledger 1,387 on 2026-10-12; Google EUR 549 vs 30 on 2026-10-11; google_spend started and finished lines); score/adapters/compute month_refusal. Per stage: paper/evidence/cloud/stage-euros-2026-10-13.txt (ledger lines with a runner ticket, 2026-10-12T19:06Z to 2026-10-13T08:54Z). -->
 
 # Evidence
 
 Four worlds are planned; world 1's 18 places are judged once their layers stand accepted.
+
+**People.** Scored on what is drawn, no clip of any look is clean (Table 2). Takes in a wider A-pose crossed less at the bind and more in motion (10,610 visible crossings on the player's clips against 4,078), with no clip clean in either pose. People therefore ship as named gaps: the characters layer lays the people whose bodies stand accepted, and the completion gate fails every missing one by name.
+
+<!-- paper/evidence/characters/people-2026-10-13.txt section 9 (wider pose), commit 3ba8be83; issue #5; named people: commit d5a84e67. -->
 
 **Table 2.** People, 13 October (experimental, Section 3.5): usable clips of 19 per look by the gate as built, on drawn surfaces only, and as one piece on what cameras see. Faults and fixes: Appendix B.
 
@@ -155,11 +153,21 @@ Four worlds are planned; world 1's 18 places are judged once their layers stand 
 
 <!-- paper/evidence/characters/people-2026-10-13.txt (sections 1-9: gate verdicts per look and clip, bind tucks, visible-only re-score, one-piece bind, camera rule, offset clamp, fold weights and dual quaternions, AAOS joint ranges, wider-pose takes). Measured with numpy on the stored bodies; no runs. Issue #5. -->
 
-::: gap
-**Gap: Table 3 and the film.** Per place: rows, models made and coded, layers, faults before and after spending, time, euros, verdict; a walk through world 1. They wait on the completion gates.
-:::
 
-<!-- Demo targets T1 and the film; F9 is in Appendix F. -->
+**Table 3.** Named gaps on 15 October: what world 1 ships without, failed by name in the completion gate or left out of this paper.
+
+| Gap | Where | Why, and who decided | Next |
+|---|---|---|---|
+| People with no accepted body | every cast | no clip clean on what is drawn (Table 2); the creator, 13 Oct | a fix to the take's pose and binding |
+| The ship, code-built | hangar (12 pieces) | no made model yet; the creator, 14 Oct | the made ship, from the plan of Figure 1 |
+| Pieces that do not rest | wreck (5) | the settle drops models from before their bake; the overseer, 14 Oct | the settle fix |
+| A foot off the floor | camp grounds' crane, greenhouse's seed tray | the level rule uses 1 percent, not 3 cm; the overseer, 14 Oct | the same fix |
+| Paint or bake off the close-up | garage (4) | library surfaces held until next month; the overseer, 14 Oct | new library surfaces |
+| Results per place, film, place pictures | all | not made by this draft | after the completion gates |
+| Physics in an engine | one room | no engine adapter | an adapter |
+| Worlds 2 to 4 | | not started | |
+
+<!-- data/checks/gaps/{hangar,wreck,campgrounds,greenhouse,garage}.json (decided, reason, objects); people: commit d5a84e67; unmade demos: the demo shortlist of 14 Oct (K1, K3 to K6, K8, K9 not made by this draft). The overseer is the coding-agent session that guards the run under the creator's rules (CONTEXT.md). -->
 
 **Agent tools.** With them an agent used about half the output and cost on two of three places; on the third it left more faults; one run each (Appendix E).
 
@@ -304,11 +312,3 @@ The tools that check an agent's work were tested on three places of world 1: a r
 The tools made building cheaper more often than they made the scene better. On the workshop and the street, the arm with the tools used about half the agent's output and cost, and exported the stage once or twice instead of seven to nine times, because the triage named the few real faults among hundreds of alarms. On the workshop, 13 of its 18 faults were cleared by writing into the inventory what holds a piece up, which the creator still has to confirm. On the hangar the arm without the tools left fewer faults: the arm with them spent its time replacing five placeholder slabs and trying the drop test, which failed on a room with no ground mesh (fixed after the run), and the nine faults it left are models with stray parts below their feet. No agent claimed a place was complete, so the gate's hook never had to refuse a claim. No row carries an owner's pick, so the pick lock was not tested.
 
 <!-- Benchmark: paper/evidence/agent-tools-bench: analysis.json (written by the bench's analyse.py from each session's record and transcript), and per arm and place (on = with, off = without) measure-start.json, measure-end.json, measure-manual.json and session.json. Arms: without = score 672ddfd, with = ff44157 (both with ff44157's data for the three places); claude -p --model claude-opus-5-5, 2026-10-09. The street's start reads 11 and 12 because the two start measures read the inventory from different checkouts; the stage was the same. The workshop's 13 cleared by data: 11 tool-board tools set to hanging, two arm monitors fixed (session report). -->
-
-# World 1, place by place
-
-::: gap
-**Gap: Figure F1, every place of world 1.** For each of the 18 places (the flat, stairwell, street, square and launch; the hub, lab, greenhouse, workshop, airlock, walkway tube, habitat, garage, hangar, wreck and old station; the camp and its grounds), the concept beside the final stage rendered from the concept's own camera. It waits on each place's one assembly passing its completion gate.
-:::
-
-<!-- Demo target F9. -->

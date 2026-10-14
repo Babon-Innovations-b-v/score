@@ -1,0 +1,12 @@
+K2. Generation first on four hub objects: the hatch wheel's generated model passes its outline check at 0.60 where its code build fails at 0.45; the pliers pass at 0.81; every Pro close-up of the screwdriver failed, so its code build carries it; the keyboard fails both ways (paint dE 33.1, code build thin and proportion) and needs a new builder.
+
+Files:
+- board.png: rows hatch_wheel, pliers, screwdriver, keyboard; columns close-up, generated model, code build, final model (heading 35 degrees).
+- turntable-<object>-<generated|code>.png: each model at headings 35, 125, 215, 305 degrees, framed on its own.
+- make_board.py: builds both from the files below; nothing rendered by it.
+Number and verdict sources:
+- outlines 0.60, 0.45, 0.81, 0.90, 0.78 and every pass/fail, "thin and proportion", "dE 33.1", route ends: paper/evidence/compare-hub/table.json and sample-measures.json (repo).
+- screwdriver's failed take ("proportions off the row's box"), close-up sources (Nano Banana Pro, accepted earlier): closeups.json of the comparison's accepted closeup@hub output (PROPS_HOME/compare/hub/prop-first/store, output c4f13645...).
+- final column for prop-route objects: front.png of the comparison's accepted surfaces-parts@hub output (b6746521...); paint was not baked (table.json euros note; the run stopped at the keyboard's paint gate).
+- renders: world1 store, demo-turntables accepted output 13bb9639... (runner row; the same pictures came back byte for byte from turntable_models.py, commit efcc3d6), Workbench studio light on an L4.
+Spend: EUR 0.19 on the cloud ledger (tickets "demo-turntables ..."): three L4 runs, parked-hour and disk lines; the first run cut the thin tools off and was redone, the third checked the wrapper.
