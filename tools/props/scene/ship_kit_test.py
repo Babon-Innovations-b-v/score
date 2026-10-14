@@ -190,6 +190,27 @@ def test_a_tapered_room_s_upper_wall_plates_reach_the_ceiling():
         assert abs(y + piece["size"][1] - ship_kit.ceiling_at(TAPERED, z)) < 0.05, piece["at"]
 
 
+CORRIDOR = {"title": "A CORRIDOR", "w": 1.2, "d": 6.0, "height": "ceiling 2.4 m", "kit": {"nose_cut": 0.0},
+            "doors": [["W", 3.0, 0.9, "DOOR 0.9 x 2.0 m"], ["S", 0.6, 0.9, "DOOR 0.9 x 2.0 m"]]}
+
+
+def test_a_room_s_ruled_plain_rows_are_laid_from_its_plan():
+    rows = {"rows": [
+        row("edge_light_strip", [5.6, 0.06, 0.05], [], count=2, anchor="wall"),
+        row("ceiling_light_panel", [1.4, 0.2, 0.05], [], count=3, anchor="ceiling"),
+        row("frame_rib", [1.2, 0.12, 2.4], [], count=3, anchor="wall"),
+        row("floor_grate", [0.6, 0.04, 1.2], [], count=4, anchor="floor")]}
+    spots = {found["id"]: found["at"] for found in ship_kit.with_ruled_spots(CORRIDOR, rows)["rows"]}
+    assert len(spots["edge_light_strip"]) == 2 and {spot["facing"] for spot in spots["edge_light_strip"]} == {90, 270}
+    panels = spots["ceiling_light_panel"]
+    assert len(panels) == 3 and all(spot["size"][0] <= 1.0 for spot in panels)  # never wider than the corridor
+    assert all(abs(spot["z"]) < 3.0 for spot in panels + spots["floor_grate"])
+    ribs = spots["frame_rib"]
+    middle = [spot for spot in ribs if abs(spot["z"]) < 0.5]  # the rib at the west door: no bar in its doorway
+    assert not any(spot["x"] < -0.3 for spot in middle), middle
+    assert len(ribs) == 3 + 3 + 2  # a ceiling bar each, an east bar each, a west bar where no door is
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
