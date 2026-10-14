@@ -31,7 +31,7 @@ def test_only_the_named_objects_faults_move_and_any_other_still_stops_the_line()
     named = failed("resting", entry[0]["faults"])
     kept = gaps.moved(named, entry)
     assert kept.answer == checks.PASS and kept.findings == named.findings and kept.measures["moved"] == 7
-    other = failed("resting", [*entry[0]["faults"], "/wreck/Objects/small_panel_2: unstable 0.0451: moves 0.05 m"])
+    other = failed("resting", [*entry[0]["faults"], "/wreck/Objects/fragment_3: floats 0.04: nothing under it"])
     assert gaps.moved(other, entry) == other
     unknown = checks.Verdict("resting", checks.UNKNOWN, "no drop run")
     assert gaps.moved(unknown, entry) == unknown

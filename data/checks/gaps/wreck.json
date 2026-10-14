@@ -20,6 +20,21 @@
     "/wreck/Objects/forward_section_1: unstable 0.2525: moves 0.25 m and turns 7 degrees when dropped (SAGE: over 0.2 m or 8 degrees)",
     "/wreck/Objects/leg_strut_1: unstable 0.0947: moves 0.09 m and turns 10 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
    ]
+  },
+  {
+   "name": "wreck: two pieces unstable at rest",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "/wreck/Objects/access_cover_1",
+    "/wreck/Objects/small_panel_2"
+   ],
+   "reason": "fix next week with the settle fix: unstable at rest, the same cause family (settle drops pre-bake models)",
+   "decided": "overseer, 2026-10-14",
+   "faults": [
+    "/wreck/Objects/access_cover_1: unstable 0.0542: moves 0.05 m and turns 19 degrees when dropped (SAGE: over 0.2 m or 8 degrees)",
+    "/wreck/Objects/small_panel_2: unstable 0.0451: moves 0.05 m and turns 17 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
+   ]
   }
  ]
 }
