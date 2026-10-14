@@ -589,6 +589,21 @@ def test_an_output_is_kept_over_a_change_only_with_a_proof_naming_every_changed_
             assert carried["made by"]["commit"] == first and carried["from key"] == old["key"]
 
 
+def test_the_runners_store_lists_the_same_keys_walking_only_the_prefixs_folder():
+    """scoped_keys answers every prefix as the store's whole walk does (a whole area, a node's folder, a name begun but
+    not ended, one that is not there), its .partial files left out, and a runner puts it on every folder store."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    for key in ("accepts/clean@hangar/1.json", "accepts/clean@hangar/2.json", "accepts/clean@station/1.json",
+                "records/clean@hangar/k.json", "blobs/ab", "top.json", "accepts/clean@hangar/3.json.9.partial"):
+        (root / key).parent.mkdir(parents=True, exist_ok=True)
+        (root / key).write_text("{}")
+    store = graph.score_store.runtime_store.FolderStore(root)
+    for prefix in ("accepts/clean@hangar/", "accepts/", "accepts/clean@", "records/clean@hangar/k", "rejects/x/",
+                   "", "top", "nothing/here/"):
+        assert graph.scoped_keys(store, prefix) == graph.WHOLE_WALK(store, prefix), prefix
+    a_runner(a_world({"hangar": "a ship"}), Store.in_folder(tempfile.mkdtemp()))
+    assert graph.score_store.runtime_store.FolderStore.keys is graph.scoped_keys
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
