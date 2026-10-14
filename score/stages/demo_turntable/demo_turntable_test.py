@@ -41,6 +41,7 @@ def test_every_model_at_every_heading_is_its_own_group():
                                                    "wheel--code--035", "wheel--code--215"]
     assert all(len(group["members"]) == 1 and group["members"][0]["name"] == group["name"] for group in groups)
     assert groups[2]["members"][0]["files"] == [{"path": "/m/c.gltf"}] and groups[3]["heading"] == 215
+    assert all(group["margin"] > 1 for group in groups)  # the whole model in frame
 
 
 def test_drawn_passes_every_picture_and_fails_a_missing_or_blank_one_by_name():
