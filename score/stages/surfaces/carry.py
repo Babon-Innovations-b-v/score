@@ -27,7 +27,7 @@ from score import graph, review
 from score.graph import Blocked, _code
 from score.store import PROPS_HOME, file_hash, listing_hash, text_hash
 
-REASON = "same inputs, narrower key"
+REASON ="same inputs, narrower key"
 NARROWED = ("library", "places")
 SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
 TRACKED = {"library": "data/library", "places": "data/definitions/place.json"}
@@ -184,10 +184,34 @@ def listed(runner, row, place, write):
     return f"{'carried' if write else 'carries'}: {REASON} ({record['key'][:12]} -> {keyed['key'][:12]})"
 
 
-def proved(runner, places, reasons, skip, write):
+CODES_AT = """import json, sys
+sys.path.insert(0, ".")
+from score import graph, stages
+from score.graph import _code
+from score.store import file_hash, listing_hash
+print(json.dumps({row.name: listing_hash(_code.code_version(graph.code_functions(row), file_hash))
+                  for row in stages.STAGES}))"""
+
+
+def codes_at(commit):
+    """{row: its code version} as the stage table at `commit` works it out, in a checkout of its own (removed)."""
+    folder = COMMITS / f"tree-{commit}"
+    subprocess.run(["git", "-C", str(_code.REPO), "worktree", "add", "-q", "--detach", str(folder), commit],
+                   check=True)
+    try:
+        done = subprocess.run([sys.executable, "-c", CODES_AT], cwd=folder, capture_output=True, text=True,
+                              check=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})  # the tree stays clean
+        return json.loads(done.stdout.strip().splitlines()[-1])
+    finally:
+        subprocess.run(["git", "-C", str(_code.REPO), "worktree", "remove", str(folder)], check=True)
+
+
+def proved(runner, places, reasons, skip, write, since=None):
     """Every node in table order whose key moved only by repository files `reasons` names ({file: why its change
-    is a no-op}), never one of `skip`: its proof stored as evidence on its accepted output (graph.no_op_proof) and
-    the output kept under its new key by the runner's rule, so the nodes after it see the same input. Its line."""
+    is a no-op}), never one of `skip` and, given `since` ({row: its code at the commit the reasons speak from,
+    codes_at}), only one whose record was made from that code, so the reasons speak for every change since: its
+    proof stored as evidence on its accepted output (graph.no_op_proof) and the output kept under its new key by the
+    runner's rule, so the nodes after it see the same input. Its line."""
     with runner.still():
         for stage, place in runner.nodes(places):
             node = graph.node_name(stage, place)
@@ -208,6 +232,9 @@ def proved(runner, places, reasons, skip, write):
                 yield f"{node}: made again ({why})"
                 continue
             record, changed = found
+            if since is not None and record["code"] != since.get(stage.name):
+                yield f"{node}: made again (its record's code is not its code at the proof's commit)"
+                continue
             if write:
                 proof = {"from key": record["key"], "to key": keyed["key"],
                          "no-ops": {name: reasons[name] for name in changed}}
@@ -228,13 +255,16 @@ def main(argv=None):
     parser.add_argument("--no-op", action="append", default=[], metavar="FILE=WHY",
                         help="a repository file whose change is a no-op for every node but --skip ones, and why")
     parser.add_argument("--skip", action="append", default=[], metavar="NODE", help="a node the change does reach")
+    parser.add_argument("--since", help="the commit the --no-op reasons speak from: a record not made from the code "
+                                        "the row had there is made again")
     options = parser.parse_args(argv)
     write = options.write
     runner = stages.runner(world=stages.WORLDS["world1"]())
     places = stages.places(runner.world)
     if options.no_op:
         reasons = dict(entry.split("=", 1) for entry in options.no_op)
-        for line in proved(runner, places, reasons, set(options.skip), write):
+        since = codes_at(options.since) if options.since else None
+        for line in proved(runner, places, reasons, set(options.skip), write, since):
             print(line, flush=True)
         return
     for row in runner.stages.values():

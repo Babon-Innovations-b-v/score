@@ -141,3 +141,11 @@ def test_a_proof_carries_only_when_it_names_every_changed_file_for_these_code_ve
         assert carry.proof_fault(StubRunner(proof), row, record) == "its proof is for other code versions"
     finally:
         shutil.rmtree(folder)
+
+
+def test_a_proof_speaks_from_the_code_rows_had_at_its_commit():
+    """codes_at works the rows' code out at a commit: 46d5873 changed place_line.py alone, so the paint's code moved
+    from its parent and the maps' did not (a record carries only when made from the code at the proof's commit)."""
+    before, after = carry.codes_at("46d5873^"), carry.codes_at("46d5873")
+    assert before["surfaces-paint"] != after["surfaces-paint"]
+    assert before["surfaces-maps"] == after["surfaces-maps"]
