@@ -16,7 +16,7 @@ takes in place of the seed's. `__init__.py`'s docstring has the make and the gat
 - **The light is part of the effect.** A record's `lights` ride their prim like an emitter; `light` measures what the
   flame gives the pad against the place's own lamps, and the look's `lit` measures it in the pictures. A record whose
   effects light nothing (steam, fog, ice) says so in `no_light`, or `light` is unknown.
-- **Only `STAGED` places have the row** (the launch with its venting before ignition; the pump-downs, mist and
+- **Only `STAGED` places have the row** (the launch, its accepted smoke without venting, the owner's call of 2026-10-14; the pump-downs, mist and
   steam of the airlock, garage, hangar, greenhouse and habitat; the flat's cigarette smoke;
   the camp's and its grounds' Mars drift and dust devils), and `look.LOOKED` the paid look (the launch only) until the
   owner has seen the launch's stills. Other places keep their seed's effects layer; a place gets the row only when
