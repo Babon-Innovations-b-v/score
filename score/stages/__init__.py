@@ -276,6 +276,16 @@ def library_narrowed(row):
     return dataclasses.replace(row, files=files)
 
 
+def box_checked(files):
+    """props-inputs' world files with the box gate's decided boxes (WORK/partition/<scene>/boxes.json, which
+    machines-boxes writes), so a box check that passes later re-runs the inputs row (the cockpit, 2026-10-14: it read
+    the old failed boxes and stayed failed with its key unmoved). Wrapped here, in the table, so no row's code moves."""
+    @functools.wraps(files)
+    def declared(place):
+        return {**files(place), "decided boxes": "{seeds}/partition/" + f"{place}/boxes.json"}
+    return declared
+
+
 def prop_fed(row):
     """surfaces-inputs waiting on the prop route's Pixal3D row (props.FEEDS), whose takes its line paints. A place
     with no prop data reads without it (Runner.reads), so its key does not move."""
@@ -318,7 +328,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS,
           TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
-          props.INPUTS, props.CLOSEUP, props.PIXAL,
+          dataclasses.replace(props.INPUTS, files=box_checked(props.INPUTS.files)), props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
           props.CALIBRATION, props.LIKENESS,
           *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
