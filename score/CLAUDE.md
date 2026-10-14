@@ -117,8 +117,10 @@ Rules:
   written for of each stage it reads. A schema change is a new version, never an edit of the old one.
 - **A named gap moves a fault, never loosens a gate** (`stages/gaps.py`): an owner's dated decision in
   `data/checks/gaps/<place>.json` names the objects whose faults in one gate (`stages.GAP_GATES`: assembly's
-  placeholders and resting, surfaces-check's stands level) go down the line, and complete's `named gaps` fails each
-  by name with its measured faults; any other fault still stops the line. Write one only on the owner's decision.
+  placeholders and resting, surfaces-check's stands level, the paint's colour against the close-up) go down the
+  line, and complete's `named gaps` fails each
+  by name with its measured faults; any other fault still stops the line. The wrappers live in the table and unwrap
+  to each gate's own judge, so moving a verdict re-keys no paid row. Write one only on the owner's decision.
 - **A gate never passes on missing evidence.** A check that needs evidence names it (`Check.evidence`); a judge that
   cannot tell answers unknown. Unknown blocks like fail.
 - **Method choices live in the stage's code or in accepted world data**; a stage's parameters are its true inputs.

@@ -313,14 +313,28 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEM
 
 # The gates a named gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
-GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level",)}
+GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level",),
+             "surfaces-paint": ("colour against the close-up",)}
 
 
 def with_gap_files(files):
-    """A row's world files and its place's gaps file where it has one (gaps.files)."""
+    """A row's world files and its place's gaps file where it has one (gaps.files). It unwraps to the row's own files
+    and keeps their attributes (the paint's carry), so the row's code version is its own."""
     def found(place):
         return {**(files(place) if callable(files) else files), **gaps.files(place)}
+    found.__dict__.update(getattr(files, "__dict__", {}))
+    found.__wrapped__ = files
     return found
+
+
+def gap_moved(row, check):
+    """A gate of `row` with its place's named gaps moved (gaps.moved). Defined here, in the table, and unwrapping to
+    the gate's own judge, so no row's code version takes in gaps.py: moving a verdict changes no output, and a paid
+    row (the paint) is never bought again for it."""
+    def judged(output, inputs, evidence):
+        return gaps.moved(check.judge(output, inputs, evidence), gaps.entries(inputs, row, check.name))
+    judged.__wrapped__ = check.judge
+    return checks.Check(check.name, judged, check.evidence)
 
 
 def named_gaps(row):
@@ -330,7 +344,7 @@ def named_gaps(row):
     if row.name in GAP_GATES:
         moving = GAP_GATES[row.name]
         return dataclasses.replace(row, files=with_gap_files(row.files),
-                                   checks=tuple(gaps.gated(row.name, check) if check.name in moving else check
+                                   checks=tuple(gap_moved(row.name, check) if check.name in moving else check
                                                 for check in row.checks))
     if row.name == "complete":
         return dataclasses.replace(row, files=with_gap_files(row.files),

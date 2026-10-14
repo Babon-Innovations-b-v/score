@@ -49,14 +49,6 @@ def moved(verdict, gaps):
                           {**verdict.measures, "moved": len(verdict.findings)}, verdict.better, verdict.findings)
 
 
-def gated(row, check):
-    """A check of `row` with the named gaps of its place moved (moved), the gate's own judge otherwise unchanged."""
-    def judged(output, inputs, evidence):
-        return moved(check.judge(output, inputs, evidence), entries(inputs, row, check.name))
-    judged.__wrapped__ = check.judge
-    return checks.Check(check.name, judged, check.evidence)
-
-
 def judge_named(output, inputs, evidence):
     """The completion gate fails every named gap of the place by name, with the faults as measured when it was
     decided; passes when the place has none."""
