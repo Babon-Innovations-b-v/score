@@ -3108,10 +3108,10 @@
 		},
 		"game_only": "Kept in the game 2099 (JoeyKardolus/2099#130): the roof door's moving leaves and the bay's air cycle, the ship pad, ship bench and fuel point as game nodes (take-off refused under a shut roof), the ship itself."
 	},
-	"ship_bridge": {
+	"bridge": {
 		"name": "the ship's bridge",
 		"scenes": [
-			"ship_bridge"
+			"bridge"
 		],
 		"style": {
 			"version": 1,
