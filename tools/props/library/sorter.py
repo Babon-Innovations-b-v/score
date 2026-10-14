@@ -67,6 +67,10 @@ PLAIN = frozenset((
     # the street's blocks up close (2026-10-10): their roofs' decks and parapets with their coping, which were the
     # scene record's plain whitewash boxes
     "block_roof", "parapet",
+    # the ship's rooms (the overseer, 2026-10-14, by the paper's rule): the windows' plain frames and panes, plain
+    # light strips and panels, the floor grate, the frame ribs, and the command spot's dais with its step
+    "window_frame", "window_pane", "edge_light_strip", "dash_light_bar", "ceiling_light_panel", "floor_grate",
+    "frame_rib", "command_platform", "platform_step",
 ))
 
 
