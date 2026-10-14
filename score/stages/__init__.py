@@ -28,6 +28,7 @@ from score.stages import (assembly, cast, complete, concept_people, concept_view
                           scene_record, settling, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
+import score.stages.demo_film.stills as demo_stills
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 import score.stages.machines.boxes as machine_boxes
@@ -303,10 +304,14 @@ DEMO_FILM = graph.Stage("demo-film", "place", demo_film.make, demo_film.CONTRACT
 DEMO_FILM_EXTRA = dataclasses.replace(DEMO_FILM, name="demo-film-extra", make=demo_film.make_extra,
                                       contract=demo_film.EXTRA_CONTRACT, checks=demo_film.EXTRA_CHECKS,
                                       files=demo_film.extra_files, applies=demo_film.applies_extra)
+# Single pictures of a place's final stage for the paper's demos (data/definitions/demo_stills/<place>.json), paid.
+DEMO_STILLS = dataclasses.replace(DEMO_FILM, name="demo-stills", make=demo_stills.make, contract=demo_stills.CONTRACT,
+                                  checks=demo_stills.CHECKS, files=demo_stills.files, applies=demo_stills.applies,
+                                  euros=demo_stills.euros())
 
 
 STAGES = (TERRAIN, CONCEPT_VIEWS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, DEMO_FILM,
-          DEMO_FILM_EXTRA,
+          DEMO_FILM_EXTRA, DEMO_STILLS,
           TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
