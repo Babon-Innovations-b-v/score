@@ -43,6 +43,7 @@ INVENTORY = {"rows": [
     row("pilot_seat", [0.7, 0.8, 1.25], [{"x": -0.95, "y": 0.0, "z": 1.0, "facing": 180},
                                          {"x": 0.95, "y": 0.0, "z": 1.0, "facing": 180}], solid=True),
     row("main_console", [2.8, 0.65, 1.05], [{"x": 0.0, "y": 0.0, "z": 1.975, "facing": 0}], solid=True),
+    row("floor_grate", [1.2, 0.04, 0.6], [{"x": 0.0, "y": 0.0, "z": 0.2, "facing": 0}], lies="floor"),
 ]}
 CEILING = 2.5
 OUTLINE = [np.array(point) for point in ((-2.3, -2.3), (2.3, -2.3), (2.3, 1.4), (1.4, 2.3), (-1.4, 2.3), (-2.3, 1.4))]
@@ -126,11 +127,57 @@ def test_every_row_the_inventory_places_is_laid():
     assert counts[f"{ROOM}_pilot_seat"] == 2 and counts[f"{ROOM}_main_console"] == 1, counts
 
 
+def test_the_grate_lies_set_into_the_deck():
+    """The grate lies flat with its face flush with the deck's, and the deck plates under it are cut round it."""
+    pieces = laid()["pieces"]
+    grate = next(piece for piece in pieces if piece["kind"] == f"{ROOM}_floor_grate")
+    assert grate.get("set_in") and grate["z"] == [0.0, -1.0, 0.0], grate
+    cut = [piece for piece in pieces if piece["kind"] == f"{ROOM}_ring_floor_plate" and piece.get("openings")]
+    area = sum((high_x - low_x) * (high_y - low_y) for piece in cut for low_x, low_y, high_x, high_y in piece["openings"])
+    assert abs(area - (1.2 + 2 * 0.004) * (0.6 + 2 * 0.004)) < 1e-3, area
+
+
 def test_the_shell_s_plain_plates_are_built_in_code():
     routes = {kind: entry["route"] for kind, entry in sorter.sorted_kinds(laid()).items()}
     for own in ("wall_lower_plain", "wall_upper_plain", "ring_floor_plate", "roof_face_panel"):
         assert routes[f"{ROOM}_{own}"] == "code", own
     assert routes[f"{ROOM}_pilot_seat"] == "model"
+
+
+TAPERED = {"title": "COCKPIT", "w": 6.53, "d": 3.0, "height": "ceiling 2.43 m at the back",
+           "kit": {"front_wide": 5.69, "glazed": "roof", "ceiling_front": 1.82, "windows_from": 0.6},
+           "doors": [["N", 3.265, 0.9, "AFT DOOR 0.9 x 2.0 m"]]}
+TAPERED_INVENTORY = {"rows": [row("ring_floor_plate", [1.2, 0.04, 1.2], []), row("roof_face_panel", [1.2, 0.04, 1.2], [])]}
+
+
+def tapered_pieces(kind):
+    return [piece for piece in ship_kit.layout("cockpit", TAPERED, TAPERED_INVENTORY)["pieces"]
+            if piece["kind"] == f"cockpit_{kind}"]
+
+
+def test_a_tapered_room_s_floor_covers_its_outline():
+    covered = sum(piece["size"][0] * piece["size"][1] * (1 + piece["taper"]) / 2
+                  for piece in tapered_pieces("ring_floor_plate"))
+    assert abs(covered - (6.53 + 5.69) / 2 * 3.0) < 1e-3, covered
+
+
+def test_a_tapered_room_s_roof_slopes_under_its_ceiling_with_its_windows():
+    """The roof, its windows and ribs lie on the sloping ceiling (2.43 m at the back to 1.82 m at the front), inside the
+    walls; four lights, two either side of a rib in each of the two glazed rows, and a cross rib between the rows."""
+    assert len(tapered_pieces("window_pane")) == 4 and len(tapered_pieces("frame_rib")) == 3
+    for kind in ("roof_face_panel", "window_pane", "frame_rib"):
+        for piece in tapered_pieces(kind):
+            for corner in corners(piece):
+                ceiling = ship_kit.ceiling_at(TAPERED, corner[2])
+                assert abs(corner[1] - ceiling) < 0.25, (kind, corner, ceiling)
+                assert abs(corner[0]) <= ship_kit.half_at(TAPERED, corner[2]) + 0.1, (kind, corner)
+                assert abs(corner[2]) <= 1.5 + 0.1, (kind, corner)
+
+
+def test_a_tapered_room_s_upper_wall_plates_reach_the_ceiling():
+    for piece in tapered_pieces("wall_upper_plain"):
+        x, y, z = piece["at"]
+        assert abs(y + piece["size"][1] - ship_kit.ceiling_at(TAPERED, z)) < 0.05, piece["at"]
 
 
 if __name__ == "__main__":

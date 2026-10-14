@@ -19,7 +19,8 @@ What is laid, and from what:
 - the floor and the ceiling: deck plates and ceiling plates in a grid over the room's square part, the nose's strip
   between the cut corners in a grid, and each cut corner one triangle (`taper` 0);
 - the rows the inventory places by their spots (room_kit.placed_rows): the made pieces (seats, consoles, the door's
-  frame and leaf) and the code-built trims and lamps.
+  frame and leaf) and the code-built trims and lamps; a row that `lies` on the floor (the grate) laid flat and set
+  into the deck, its opening cut through the plates under it (room_kit.flat_rows, cut_openings).
 
 Code builds only what the sorter's allow-list names plain (tools/props/library/sorter.py PLAIN): the wall bands,
 deck and ceiling plates take its names (wall_lower_plain, wall_upper_plain, ring_floor_plate, roof_face_panel); any
@@ -43,6 +44,8 @@ CELL = room_kit.FLOOR_CELL
 LAP = room_kit.LAP
 PLATE_DEEP = 0.04  # a deck or ceiling plate's thickness when the inventory gives none
 WALL_DEEP = 0.06
+PILLAR = 0.15  # a roof window's rib between its lights
+SIDE_STRIP = 0.25  # the least plain roof left beside the roof windows, over the side consoles
 CEILING = re.compile(r"ceiling (\d+(?:\.\d+)?) m")
 DOOR_SIZE = re.compile(r"(\d+(?:\.\d+)?) x (\d+(?:\.\d+)?) m")
 UP = np.array([0.0, 1.0, 0.0])
@@ -57,9 +60,32 @@ def ceiling_of(plan):
     return float(found.group(1))
 
 
+def tapered(plan):
+    """Whether the room narrows straight toward its front (its kit block's `front_wide`, the cockpit) rather than
+    having its front corners cut."""
+    return "front_wide" in plan["kit"]
+
+
+def half_at(plan, z):
+    """A tapered room's inside half width at z (its back, north, at -d/2; its front at +d/2)."""
+    share = (z + plan["d"] / 2) / plan["d"]
+    return plan["w"] / 2 + (plan["kit"]["front_wide"] / 2 - plan["w"] / 2) * share
+
+
+def ceiling_at(plan, z):
+    """The ceiling's height at z: the height words' ceiling at the back, sloping to the kit block's `ceiling_front`."""
+    back = ceiling_of(plan)
+    front = plan["kit"].get("ceiling_front", back)
+    return back + (front - back) * (z + plan["d"] / 2) / plan["d"]
+
+
 def outline(plan):
     """The room's outline from above, (x, z) points in the room's frame, clockwise from the north-west corner: the
-    north wall, the east wall, the east cut, the front, the west cut, the west wall (a cut of 0 leaves a square)."""
+    north wall, the east wall, the east cut, the front, the west cut, the west wall (a cut of 0 leaves a square); a
+    tapered room's four walls, its front narrower."""
+    if tapered(plan):
+        back, front, half_d = plan["w"] / 2, plan["kit"]["front_wide"] / 2, plan["d"] / 2
+        return [np.array(point) for point in ((-back, -half_d), (back, -half_d), (front, half_d), (-front, half_d))]
     half_w, half_d, cut = plan["w"] / 2, plan["d"] / 2, plan["kit"]["nose_cut"]
     if cut <= 0:
         return [np.array(point) for point in ((-half_w, -half_d), (half_w, -half_d), (half_w, half_d),
@@ -84,7 +110,7 @@ def sides(plan):
         outward = np.array([along[1], -along[0]])  # clockwise from above (x east, z south): the outside is on the left
         name = WALL_NAMES[len(points)][index]
         found.append({"name": name, "start": start, "end": end, "outward": outward, "main": True,
-                      "glazed": name in GLAZED})
+                      "glazed": name in GLAZED and plan["kit"].get("glazed", "walls") == "walls"})
     return found
 
 
@@ -124,23 +150,45 @@ def band(room, kind, side, middle, run, bottom, tall):
                              (wide + LAP, tall, WALL_DEEP)) for index in range(count)]
 
 
+def band_to_ceiling(room, kind, side, middle, run, bottom, plan):
+    """A run of plain plates about PANEL wide along a wall, from `bottom` up to the ceiling over each plate's middle
+    (a sloping ceiling's height read at each plate)."""
+    count = max(1, round(run / PANEL))
+    wide = run / count
+    along = (side["end"] - side["start"]) / np.linalg.norm(side["end"] - side["start"])
+    found = []
+    for index in range(count):
+        across = middle - run / 2 + wide * (index + 0.5)
+        z = ((side["start"] + side["end"]) / 2 + along * across)[1]
+        found.append(room_kit.on_side(room, kind, side, across, bottom,
+                                      (wide + LAP, ceiling_at(plan, z) - bottom, WALL_DEEP)))
+    return found
+
+
 def walls(room, plan, ceiling):
     """Every wall's two bands of plain plates; a glazed wall's lower band to its sill and its header over its head; a
-    doorway's wall runs round it, with a header plate over the doorway."""
+    doorway's wall runs round it, with a header plate over the doorway. Under a sloping ceiling (a tapered room) each
+    upper plate reaches the ceiling over its own middle."""
     found = []
-    sill, head = plan["kit"]["sill"], plan["kit"]["head"]
     for side in sides(plan):
         length = float(np.linalg.norm(side["end"] - side["start"]))
         openings = doorways(plan, side)
         if side["glazed"]:
+            sill, head = plan["kit"]["sill"], plan["kit"]["head"]
             found += band(room, "wall_lower_plain", side, 0.0, length, 0.0, sill)
             found += band(room, "wall_upper_plain", side, 0.0, length, head, ceiling - head)
             continue
         for middle, run in runs(length, openings):
             found += band(room, "wall_lower_plain", side, middle, run, 0.0, room_kit.LOWER)
-            found += band(room, "wall_upper_plain", side, middle, run, room_kit.LOWER, ceiling - room_kit.LOWER)
+            if tapered(plan):
+                found += band_to_ceiling(room, "wall_upper_plain", side, middle, run, room_kit.LOWER, plan)
+            else:
+                found += band(room, "wall_upper_plain", side, middle, run, room_kit.LOWER, ceiling - room_kit.LOWER)
         for across, wide, tall in openings:
-            found += band(room, "wall_upper_plain", side, across, wide, tall, ceiling - tall)
+            if tapered(plan):
+                found += band_to_ceiling(room, "wall_upper_plain", side, across, wide, tall, plan)
+            else:
+                found += band(room, "wall_upper_plain", side, across, wide, tall, ceiling - tall)
     return found
 
 
@@ -148,10 +196,10 @@ def windows(room, plan):
     """On each glazed wall, a frame and a pane per light: the front wall split by its pillar into two, a cut corner
     one; each from sill to head, the pane set in its frame."""
     found = []
-    sill, head, pillar = plan["kit"]["sill"], plan["kit"]["head"], plan["kit"]["pillar"]
     for side in sides(plan):
         if not side["glazed"]:
             continue
+        sill, head, pillar = plan["kit"]["sill"], plan["kit"]["head"], plan["kit"]["pillar"]
         length = float(np.linalg.norm(side["end"] - side["start"]))
         lights = 2 if side["name"] == "front" else 1
         wide = (length - pillar * (lights + 1)) / lights
@@ -203,6 +251,69 @@ def deck(room, plan, kind, level, face, deep):
     return found
 
 
+def row_bounds(plan):
+    """A tapered room's rows from back to front, (z0, z1, glazed): plain rows behind the windows' back edge (the kit
+    block's `windows_from`, metres from the back wall), then the glazed rows to the front, each about CELL long."""
+    back, front = -plan["d"] / 2, plan["d"] / 2
+    edge = back + plan["kit"].get("windows_from", plan["d"]) if plan["kit"].get("glazed") == "roof" else front
+    found = []
+    for low, high, glazed in ((back, edge, False), (edge, front, True)):
+        count = max(1, round((high - low) / CELL)) if high - low > 1e-6 else 0
+        found += [(low + (high - low) * step / count, low + (high - low) * (step + 1) / count, glazed)
+                  for step in range(count)]
+    return found
+
+
+def slivers(room, kind, plan, z0, z1, foot, along, face, length, inner, deep):
+    """The two strips of a row between `inner` and the tapering walls: each a plate tapered from its back width to its
+    front width about its own middle (its outer edge off the wall by at most a quarter of the taper's step)."""
+    found = []
+    back, front = half_at(plan, z0) - inner, half_at(plan, z1) - inner
+    for sign in (-1.0, 1.0):
+        middle = sign * (inner + (back + front) / 4)
+        found.append(plate(room, kind, foot + np.array([middle, 0.0, 0.0]), along, face, (back, length, deep),
+                           taper=front / back))
+    return found
+
+
+def tapered_deck(room, plan, kind, deep, roof):
+    """A tapered room's floor (level) or roof (under its sloping ceiling, down-facing), row by row: each row's middle in
+    plates about CELL across, its tapering sides in slivers; a glazed roof row's middle is its window lights instead, two
+    across with a rib between, a cross rib where the glazed rows meet."""
+    found, glazed_rows = [], []
+    for z0, z1, glazed in row_bounds(plan):
+        level0 = ceiling_at(plan, z0) + deep / 2 if roof else -deep / 2
+        level1 = ceiling_at(plan, z1) + deep / 2 if roof else -deep / 2
+        run = np.array([0.0, level1 - level0, z1 - z0])
+        length = float(np.linalg.norm(run))
+        along = run / length
+        face = np.array([0.0, -(z1 - z0), level1 - level0]) / length if roof else UP
+        foot = np.array([0.0, level0, z0])
+        if roof and glazed:
+            glazed_rows.append((z0, z1, foot, along, face, length))
+            continue
+        inner = min(half_at(plan, z0), half_at(plan, z1))
+        count = max(1, round(2 * inner / CELL))
+        cell = 2 * inner / count
+        found += [plate(room, kind, foot + np.array([-inner + cell * (index + 0.5), 0.0, 0.0]), along, face,
+                        (cell, length, deep)) for index in range(count)]
+        found += slivers(room, kind, plan, z0, z1, foot, along, face, length, inner, deep)
+    if glazed_rows:
+        light = min(min(half_at(plan, z0), half_at(plan, z1)) for z0, z1, *_ in glazed_rows) - SIDE_STRIP
+        for z0, z1, foot, along, face, length in glazed_rows:
+            for sign in (-1.0, 1.0):
+                middle = foot + np.array([sign * (PILLAR / 2 + (light - PILLAR / 2) / 2), 0.0, 0.0])
+                found.append(plate(room, "window_frame", middle, along, face,
+                                   (light - PILLAR / 2 + PILLAR, length, 0.12)))
+                found.append(plate(room, "window_pane", middle, along, face, (light - PILLAR / 2, length, 0.04)))
+            found.append(plate(room, "frame_rib", foot, along, face, (PILLAR, length, 0.2)))
+            found += slivers(room, kind, plan, z0, z1, foot, along, face, length, light, deep)
+        for (_, _, _, _, _, _), (z0, _, foot, _, face, _) in zip(glazed_rows, glazed_rows[1:]):
+            found.append(plate(room, "frame_rib", foot + np.array([-light, 0.0, 0.0]), np.array([1.0, 0.0, 0.0]),
+                               face, (PILLAR, 2 * light, 0.2)))
+    return found
+
+
 def size_of(kinds, kind, fallback):
     return room_kit.size_of(kinds, kind)[2] if kind in kinds else fallback
 
@@ -214,9 +325,14 @@ def laid_out(room, plan, inventory):
     floor_deep = size_of(kinds, "ring_floor_plate", PLATE_DEEP)
     roof_deep = size_of(kinds, "roof_face_panel", PLATE_DEEP)
     found = walls(room, plan, ceiling) + windows(room, plan)
-    found += deck(room, plan, "ring_floor_plate", -floor_deep / 2, UP, floor_deep)
-    found += deck(room, plan, "roof_face_panel", ceiling + roof_deep / 2, DOWN, roof_deep)
-    return found + room_kit.placed_rows(room, None, kinds, inventory)
+    if tapered(plan):
+        found += tapered_deck(room, plan, "ring_floor_plate", floor_deep, roof=False)
+        found += tapered_deck(room, plan, "roof_face_panel", roof_deep, roof=True)
+    else:
+        found += deck(room, plan, "ring_floor_plate", -floor_deep / 2, UP, floor_deep)
+        found += deck(room, plan, "roof_face_panel", ceiling + roof_deep / 2, DOWN, roof_deep)
+    found += room_kit.placed_rows(room, None, kinds, inventory) + room_kit.flat_rows(room, inventory, kinds)
+    return room_kit.cut_openings(room, found)
 
 
 def layout(room, plan, inventory):
