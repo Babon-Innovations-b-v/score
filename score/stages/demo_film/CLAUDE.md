@@ -19,5 +19,8 @@ final stage once it passes complete, with its own sound; paid and cleared by the
   All 18 places come to about EUR 11.
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame. Whether a film reads well is the creator's call.
+- **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (the launch lifts off at 4 s
+  and the garage's rover drives out from 1 s, both inside the 8 s path); `stills.py` (the demo-stills row,
+  `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film starts by itself once its place
   passes complete in any world run). Test: `demo_film_test.py` (no Blender, no spend).
