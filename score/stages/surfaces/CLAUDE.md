@@ -83,7 +83,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   edit there re-keys every place's inputs.
 - **The check holds a bake against its surface dirtied as its place dirties it** (`bake_check.on_surface`: the
   stretch from the library colour toward the place's dirt colour, as far as its dirt amount; the wreck's whites
-  bake to L* 69 in regolith at 0.6 and pass, a wrong surface still fails).
+  bake to L* 69 in regolith at 0.6 and pass, a wrong surface still fails). A part's baked colour is its triangles'
+  area-weighted median on each of L*, a*, b* (`bake_check.area_median`), never the triangle at the median L*: lab's
+  junction_box_1 (2026-10-14) baked its crane yellow right on 56% of its area, and the grey panel triangle at the
+  same L* that L* alone picked failed it at dE 37.
 - **A standing model stands level** (`bake_check.judge_stance`, gate "stands level"): each footprint quadrant of its
   lowest quarter ends within 3 cm of its lowest point (the hangar's rack stood on a middle part, its legs 22 cm up;
   the paint's feet check, in shares of size, let it pass). A model its paint did not level (no floor or held row) or
