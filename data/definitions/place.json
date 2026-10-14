@@ -3108,6 +3108,158 @@
 		},
 		"game_only": "Kept in the game 2099 (JoeyKardolus/2099#130): the roof door's moving leaves and the bay's air cycle, the ship pad, ship bench and fuel point as game nodes (take-off refused under a shut roof), the ship itself."
 	},
+	"ship_bridge": {
+		"name": "the ship's bridge",
+		"scenes": [
+			"ship_bridge"
+		],
+		"style": {
+			"version": 1,
+			"text": "The bridge in the nose of the crew's Mars shuttle: a low, dark cockpit for a working crew, grounded and practical, worn by use, not sleek. Two chunky padded pilot seats side by side face a wide dark grey console of three screens glowing warm amber and orange, a throttle pedestal with levers between them, and angled side consoles with red-lit switches under the angled side windows; behind them a raised command spot with its own seat and a low console. Dark grey panelled walls and ceiling, heavy frame ribs between the windows and up the side walls, overhead vent and equipment boxes, a grated step between the seats. Lit low: warm amber light strips along the ceiling's edges and small orange lamps, cool cyan light panels over the windshield and a cyan bar along the console, real shadow between. The aft door is a hexagonal frame in orange-and-white panels, as through the rest of the ship.",
+			"from": "the owner's locked ship design of 2026-10-01: his cockpit reference for the bridge's look (dark grey panelled consoles, amber screens and light strips, cyan accents, chunky seats), his cutaway reference for its layout (a raised command spot behind the pilots, the walkway aft) and his quarters reference for the ship's door frames",
+			"picked": "2026-10-14 09:50, the owner's go for the ship as a world 1 place (the overseer's ship brief), on his design of 2026-10-01"
+		},
+		"plan": {
+			"world": "",
+			"seed": 0,
+			"shell": "kit"
+		},
+		"palette": {
+			"tokens": [
+				"cabin-panel",
+				"cabin-seam",
+				"deck",
+				"steel",
+				"rubber",
+				"clear-glass",
+				"cabin-light",
+				"screen-amber",
+				"screen-teal"
+			],
+			"accents": [
+				"ship-padding",
+				"hull",
+				"cabin-seat",
+				"beacon-stuck",
+				"ink-line"
+			],
+			"accents_are": "the door frame's orange padded half and white painted half, the seats' dark blue-grey covers, the side consoles' red-lit switches and the sticks' and levers' black anodised grips"
+		},
+		"materials": {
+			"dark_panel": {
+				"token": "cabin-panel",
+				"library": "dark_panel"
+			},
+			"hammertone_grey": {
+				"token": "cabin-seam",
+				"library": "hammertone_grey"
+			},
+			"hull_white_gloss": {
+				"token": "hull",
+				"library": "hull_white_gloss"
+			},
+			"vinyl_orange": {
+				"token": "ship-padding",
+				"library": "vinyl_orange"
+			},
+			"vinyl_seat": {
+				"token": "cabin-seat",
+				"library": "vinyl_seat"
+			},
+			"deck": {
+				"token": "deck",
+				"library": "deck"
+			},
+			"perforated_steel": {
+				"token": "steel",
+				"library": "perforated_steel"
+			},
+			"bare_steel": {
+				"token": "steel",
+				"library": "bare_steel"
+			},
+			"rubber": {
+				"token": "rubber",
+				"library": "rubber"
+			},
+			"anodized_black": {
+				"token": "ink-line",
+				"library": "anodized_black"
+			},
+			"clear_glass": {
+				"token": "clear-glass",
+				"library": "clear_glass"
+			},
+			"glass_frosted": {
+				"token": "cabin-light",
+				"library": "glass_frosted"
+			},
+			"screen_amber": {
+				"token": "ink-line",
+				"library": "screen_amber"
+			},
+			"screen_teal": {
+				"token": "screen-teal",
+				"library": "screen_teal"
+			},
+			"indicator_amber": {
+				"token": "screen-amber",
+				"library": "indicator_amber"
+			},
+			"led_red": {
+				"token": "beacon-stuck",
+				"library": "led_red"
+			},
+			"led_white": {
+				"token": "cabin-light",
+				"library": "led_white"
+			}
+		},
+		"light": {
+			"recorded": "2026-10-14: amber light strips along the ceiling's two edges, an orange lamp in each upper front corner, two cyan light panels over the windshield, a cyan bar along the main console, and the screens' glow",
+			"read_by": "the bridge's inventory rows (their light), until its kit is laid"
+		},
+		"pictures": {
+			"do": [
+				{
+					"picture": "WORK/references/ship-interior-cockpit-2026-10-01.png",
+					"said": "dark grey panelled consoles, warm amber and orange screens and light strips, cool cyan accents, chunky seats"
+				},
+				{
+					"picture": "WORK/references/ship-layout-cutaway-2026-10-01.png",
+					"said": "the bridge's layout: a raised command spot behind the pilots, the walkway aft"
+				},
+				{
+					"picture": "WORK/references/ship-interior-quarters-2026-10-01.png",
+					"said": "the ship's hexagonal door frames in orange-and-white panels, white ceiling light strips"
+				}
+			],
+			"dont": [
+				{
+					"picture": "",
+					"said": "the cockpit picture's teal colour grade over every surface: that is its light, the panels are dark grey"
+				},
+				{
+					"picture": "",
+					"said": "sleek glossy white sci-fi: the shuttle is grounded and practical"
+				},
+				{
+					"picture": "",
+					"said": "a starfield painted on the windows: parked, they look out on the hangar"
+				},
+				{
+					"picture": "",
+					"said": "the cutaway's ten-station warship bridge: two pilots and a command spot"
+				}
+			]
+		},
+		"wear": {
+			"level": "worked",
+			"dirt": 0.3,
+			"cause": "a working shuttle's bridge: hands on the consoles, levers and seat arms, boots on the grate and the step; a sealed cabin, so no outside dust",
+			"picked": "2026-10-14, the agent's proposal from its causes (owner may change)"
+		}
+	},
 	"people": {
 		"name": "the people",
 		"scenes": [],
