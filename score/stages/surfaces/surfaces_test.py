@@ -495,6 +495,22 @@ def test_a_bake_is_held_against_its_surface_dirtied_as_far_as_its_place_s_dirt()
     assert bake_check.on_surface(baked, white, None, 0.6) > bake_check.BAKE_DELTA_E
 
 
+def test_a_part_s_baked_colour_is_its_area_s_median_on_each_channel():
+    """Lab's junction_box_1, bake of 2026-10-14: 56% of its crane_yellow_paint's area baked yellow, 15% between, 29%
+    the grey panel at the same L*; a triangle picked by its L* alone was a grey one (dE 37 off the yellow), each
+    channel's own median is the yellow the bake wrote."""
+    import numpy as np
+    from score.stages.surfaces import bake_check
+    darker, between, grey, lighter = [62.0, 2.0, 38.0], [62.9, 0.5, 17.0], [63.5, -0.7, -4.4], [65.0, 2.0, 38.0]
+    colour = np.array([darker] * 28 + [between] * 15 + [grey] * 29 + [lighter] * 28)
+    areas = np.ones(len(colour))
+    order = np.argsort(colour[:, 0])  # the old pick: the triangle at the area's median L*
+    assert colour[order][np.searchsorted(np.cumsum(areas[order]), areas.sum() / 2)].tolist() == grey
+    middle = bake_check.area_median(colour, areas)
+    assert middle.tolist() == [63.5, 2.0, 38.0], middle
+    assert bake_check.area_median(colour, np.array([0.0] * 43 + [1.0] * 29 + [0.0] * 28)).tolist() == grey
+
+
 def test_a_triangle_under_a_texel_is_named_by_where_the_bake_wrote_its_texel():
     """The flat's bowl stack, bake of 2026-10-13: its glass rims' triangles lie under a texel each, so the texel the
     check samples for one was baked from the centre's point on a neighbour (enamel), and its glass failed at dE 66.6

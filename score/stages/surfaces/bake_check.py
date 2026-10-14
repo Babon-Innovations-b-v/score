@@ -216,9 +216,21 @@ def library_shades(spec):
     return [labels.lab(labels.srgb(np.array(spec[key]))[None])[0] for key in ("colour", "second") if key in spec]
 
 
+def area_median(colour, areas):
+    """Colours' area-weighted median, each of L*, a*, b* on its own: a triangle picked by its L* alone brought its own
+    a* and b* along, so a part whose colours share one L* took whichever lay in the middle (lab's junction_box_1,
+    bake of 2026-10-14: 56% of its crane_yellow_paint's area baked yellow, 29% the grey panel round it at the same L*
+    64, and the grey one picked failed it at dE 37)."""
+    import numpy as np
+    order = np.argsort(colour, axis=0)
+    weights = np.cumsum(areas[order], axis=0)
+    middles = (weights < weights[-1] / 2).sum(axis=0)
+    return colour[order[middles, range(colour.shape[1])], range(colour.shape[1])]
+
+
 def check_model(name, entry, labelled, made, materials, dirt=0.0):
-    """One baked model measured: per surface its parts' baked base colour (area-weighted median over its triangles'
-    texture at their middles' coordinates; glTF's v runs down the picture) against the surface's colour dirtied as the
+    """One baked model measured: per surface its parts' baked base colour (area_median over its triangles' texture
+    at their middles' coordinates; glTF's v runs down the picture) against the surface's colour dirtied as the
     place's dirt dirties it (on_surface), its blotch share, its maps and its triangles against the job's budget."""
     import numpy as np
     from PIL import Image
@@ -246,9 +258,7 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0):
              if each in materials and "dirt_colour" in materials[each] else None for each in names]
     for index in sorted(set(surface.tolist())):
         chosen = surface == index
-        order = np.argsort(colour[chosen, 0])
-        weights = np.cumsum(areas[chosen][order])
-        middle = colour[chosen][order][np.searchsorted(weights, weights[-1] / 2)]
+        middle = area_median(colour[chosen], areas[chosen])
         token = tokens[index]
         record["surfaces"][names[index]] = {
             "share": round(float(areas[chosen].sum() / areas.sum()), 4),
