@@ -318,7 +318,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEM
 
 # The gates a named gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
-GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level",),
+GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
              "surfaces-paint": ("colour against the close-up",)}
 
 

@@ -4,7 +4,8 @@ complete's report with its measured numbers, and any other fault still stops the
 
 data/checks/gaps/<place>.json: {"gaps": [{"name": what complete fails ("ship: no made model"), "row": the row whose
 gate it moves from ("assembly"), "check": that gate ("placeholders"), "objects": the faults' objects as the gate names
-them (each finding starts "<object>: "), "reason", "decided": who and when, "faults": the findings as measured when it
+them (each finding starts "<object>: "), "contains": a phrase each of its findings holds, when only one kind of the
+gate's faults moves (optional), "reason", "decided": who and when, "faults": the findings as measured when it
 was decided}]}. A place without a file has no gaps; the rows that read it declare it only where it exists.
 """
 import json
@@ -34,17 +35,22 @@ def object_of(finding):
     return finding.split(": ", 1)[0]
 
 
+def covers(entry, finding):
+    """True when a finding is the entry's: one of its objects, and of its kind when the entry says one (`contains`,
+    a phrase the finding holds: the bake check's order rule among its other faults)."""
+    return object_of(finding) in entry["objects"] and entry.get("contains", "") in finding
+
+
 def moved(verdict, gaps):
     """The gate's verdict with the faults of the named objects moved to the completion gate: a fail whose every
     finding is a named object's passes, its findings and measures kept and each named gap said; any other fault
     keeps the fail. Another answer is as given."""
-    named = {name for entry in gaps for name in entry["objects"]}
-    if verdict.answer != checks.FAIL or not verdict.findings or not named:
+    if verdict.answer != checks.FAIL or not verdict.findings or not gaps:
         return verdict
-    if any(object_of(finding) not in named for finding in verdict.findings):
+    if not all(any(covers(entry, finding) for entry in gaps) for finding in verdict.findings):
         return verdict
     said = "; ".join(f"{entry['name']} ({entry['decided']})" for entry in gaps
-                     if set(entry["objects"]) & {object_of(finding) for finding in verdict.findings})
+                     if any(covers(entry, finding) for finding in verdict.findings))
     return checks.Verdict(verdict.check, checks.PASS, f"{verdict.reason}; moved to complete as named gaps: {said}",
                           {**verdict.measures, "moved": len(verdict.findings)}, verdict.better, verdict.findings)
 

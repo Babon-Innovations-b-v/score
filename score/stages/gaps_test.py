@@ -45,6 +45,14 @@ def test_the_hangars_twelve_ship_meshes_move_from_placeholders():
     assert gaps.moved(failed("placeholders", [*entry[0]["faults"], stand_in]), entry).answer == checks.FAIL
 
 
+def test_an_entry_of_one_kind_moves_only_that_kind_of_fault_of_its_objects():
+    """The garage's order faults move from the bake check; a colour fault of the same model still fails it."""
+    entry = gaps.entries(recorded("garage"), "surfaces-check", "baked matches its surfaces")
+    assert gaps.moved(failed("baked matches its surfaces", entry[0]["faults"]), entry).answer == checks.PASS
+    colour = "fluid_shelves_1: crane_yellow_paint baked [70.1, 5.0, 60.2] against [74.0, 4.1, 70.3] (dE 36.4)"
+    assert gaps.moved(failed("baked matches its surfaces", [*entry[0]["faults"], colour]), entry).answer == checks.FAIL
+
+
 def test_complete_fails_each_named_gap_by_name_with_its_numbers():
     found = gaps.judge_named(None, recorded("campgrounds"), None)
     assert found.answer == checks.FAIL and "crane: a foot off the floor" in found.reason
@@ -59,6 +67,7 @@ def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gat
     assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("flat")
     assert "named gaps" in [check.name for check in ROWS["complete"].checks]
     for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
+                      ("surfaces-check", "baked matches its surfaces"),
                       ("surfaces-paint", "colour against the close-up")):
         check = next(check for check in ROWS[row].checks if check.name == gate)
         assert hasattr(check.judge, "__wrapped__"), (row, gate)
