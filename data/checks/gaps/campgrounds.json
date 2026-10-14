@@ -1,0 +1,17 @@
+{
+ "gaps": [
+  {
+   "name": "crane: a foot off the floor",
+   "row": "surfaces-check",
+   "check": "stands level",
+   "objects": [
+    "crane"
+   ],
+   "reason": "fix next week: paint level uses 1% not 3 cm",
+   "decided": "overseer, 2026-10-14",
+   "faults": [
+    "crane: a foot 3.2 cm off the floor while another touches (quadrant lows [0.0, 1.5, 3.2, 2.5] cm)"
+   ]
+  }
+ ]
+}

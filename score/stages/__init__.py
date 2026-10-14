@@ -21,8 +21,8 @@ import dataclasses
 import json
 import pathlib
 
-from score import contracts, graph
-from score.stages import (assembly, cast, complete, concept_people, crops, effects, images, light, machines,
+from score import checks, contracts, graph
+from score.stages import (assembly, cast, complete, concept_people, crops, effects, gaps, images, light, machines,
                           motion, people, people_takes, physics, props, scene_record, settling, sound, surfaces,
                           terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
@@ -234,6 +234,33 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRA
           *light.ROWS, *map(library_narrowed, crops.ROWS))
 
 
+# The gates a named gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
+# and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
+GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level",)}
+
+
+def with_gap_files(files):
+    """A row's world files and its place's gaps file where it has one (gaps.files)."""
+    def found(place):
+        return {**(files(place) if callable(files) else files), **gaps.files(place)}
+    return found
+
+
+def named_gaps(row):
+    """The rows the owner's named gaps reach (2026-10-14: the hangar's ship, the wreck's three pieces, the camp grounds'
+    crane ship today as named fails): a moving gate's faults on the named objects go down the line, and complete fails
+    each gap by name with its numbers. Set here, in the table."""
+    if row.name in GAP_GATES:
+        moving = GAP_GATES[row.name]
+        return dataclasses.replace(row, files=with_gap_files(row.files),
+                                   checks=tuple(gaps.gated(row.name, check) if check.name in moving else check
+                                                for check in row.checks))
+    if row.name == "complete":
+        return dataclasses.replace(row, files=with_gap_files(row.files),
+                                   checks=(*row.checks, checks.Check("named gaps", gaps.judge_named)))
+    return row
+
+
 def layered(row, names):
     """The assembly reading every layer stage of assembly.READS the table holds (`names`): a layer stage joins its
     reads the day it joins the table, and one not built yet is never silently stood in for by the seed's (the
@@ -254,7 +281,7 @@ def worn(row):
         place == coloured if coloured else place not in characters_layer.coloured_places()))
 
 
-STAGES = tuple(layered(worn(row), {stage.name for stage in STAGES}) for row in STAGES)
+STAGES = tuple(named_gaps(layered(worn(row), {stage.name for stage in STAGES})) for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 
