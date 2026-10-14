@@ -161,6 +161,16 @@ def test_a_tapered_room_s_floor_covers_its_outline():
     assert abs(covered - (6.53 + 5.69) / 2 * 3.0) < 1e-3, covered
 
 
+def test_a_room_widening_to_its_front_covers_its_outline():
+    """The engine room widens toward its front (6.02 m at the back, 7.43 m at the front): its first side strips start
+    at a point and are laid from their front, and the floor still covers the outline."""
+    widening = {**TAPERED, "w": 6.02, "d": 4.1, "kit": {"front_wide": 7.43, "glazed": "none", "ceiling_front": 3.2}}
+    pieces = [piece for piece in ship_kit.layout("engineroom", widening, TAPERED_INVENTORY)["pieces"]
+              if piece["kind"] == "engineroom_ring_floor_plate"]
+    covered = sum(piece["size"][0] * piece["size"][1] * (1 + piece["taper"]) / 2 for piece in pieces)
+    assert abs(covered - (6.02 + 7.43) / 2 * 4.1) < 1e-3, covered
+
+
 def test_a_tapered_room_s_roof_slopes_under_its_ceiling_with_its_windows():
     """The roof, its windows and ribs lie on the sloping ceiling (2.43 m at the back to 1.82 m at the front), inside the
     walls; four lights, two either side of a rib in each of the two glazed rows, and a cross rib between the rows."""

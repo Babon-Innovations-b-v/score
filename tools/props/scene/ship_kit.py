@@ -271,8 +271,13 @@ def slivers(room, kind, plan, z0, z1, foot, along, face, length, inner, deep):
     back, front = half_at(plan, z0) - inner, half_at(plan, z1) - inner
     for sign in (-1.0, 1.0):
         middle = sign * (inner + (back + front) / 4)
-        found.append(plate(room, kind, foot + np.array([middle, 0.0, 0.0]), along, face, (back, length, deep),
-                           taper=front / back))
+        if back > 1e-6:
+            found.append(plate(room, kind, foot + np.array([middle, 0.0, 0.0]), along, face, (back, length, deep),
+                               taper=front / back))
+        else:  # a room widening to its front (the engine room): its first strip starts at a point, laid from its front
+            far = foot + np.array([middle, 0.0, 0.0]) + np.asarray(along, dtype=float) * length
+            found.append(plate(room, kind, far, -np.asarray(along, dtype=float), face, (front, length, deep),
+                               taper=0.0))
     return found
 
 
