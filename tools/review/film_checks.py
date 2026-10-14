@@ -88,9 +88,9 @@ def stretches(video, seconds, skip_start):
     return black, [[start, ends[index] if index < len(ends) else seconds] for index, start in enumerate(starts)]
 
 
-def video_checks(video, least, most, skip_start=0.0):
+def video_checks(video, least, most, skip_start=0.0, size=SIZE):
     """The video's measures and what fails: {"video", "seconds", "size", "audio", "mean_db", "max_db", "black",
-    "frozen", "failures"}."""
+    "frozen", "failures"}; a size other than `size` (wide, tall) fails."""
     info = probe(video)
     streams = info.get("streams", [])
     seconds = float(info["format"]["duration"])
@@ -100,7 +100,7 @@ def video_checks(video, least, most, skip_start=0.0):
     if result["audio"]:
         result["mean_db"], result["max_db"] = loudness(video)
     result["black"], result["frozen"] = stretches(video, seconds, skip_start)
-    failures = [f"size {result['size']}"] if result["size"] != SIZE else []
+    failures = [f"size {result['size']}"] if result["size"] != list(size) else []
     if not result["audio"]:
         failures.append("no sound track")
     elif result["mean_db"] is None or result["mean_db"] < SILENT_DB:
