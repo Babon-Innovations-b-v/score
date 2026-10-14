@@ -3,13 +3,14 @@ its own sound; one place node, paid (its frames on the cheapest card through too
 the runner's clearance, drawn by tools/blender/inside/usd_views.py as tools/review/demo.py plans them). Only the places
 the world's record names have the row, so a place is filmed when it is added there, group by group.
 
-    data/definitions/demo_films.json   {"why", "places": [place, ...]}
+    data/definitions/demo_films.json   {"why", "places": {place: the scene record's camera nearest its concept}}
 
     make   the final stage (the neighbours output where the place shows others, else its assembly), copied into a tree
-           of its own; demo.py's plan with SHOTS camera path from the owner's picked viewpoint or the scene record's
-           cameras, SIZE frames, look only (no ink); the frames rendered; demo.py's cut with the stage's sound layer.
-           The output: film.mp4 and views.json (each frame's view, the moves, the planner's commit); the frames are
-           not kept.
+           of its own; demo.py's plan with SHOTS camera path starting at the place's concept camera (its first frame
+           that camera's view, unless the planner had to move its start clear or level it: views.json's moves say),
+           SIZE frames, look only (no ink); the frames rendered; demo.py's cut with the stage's sound layer.
+           The output: film.mp4, views.json (each frame's view, the moves, the planner's commit) and concept.png, the
+           first frame, the demo K8 still beside the concept; the other frames are not kept.
     gate   film    film_checks.video_checks on film.mp4 (SIZE, a sound track that is not silent, no black or frozen
                    stretch after the title card, a length within LEAST to MOST seconds) and clearance_checks on the
                    final stage (no eye nearer a mesh than the planner's clearance)
@@ -41,7 +42,7 @@ TOOLS = ("tools/review/demo.py", "tools/review/film_checks.py", "tools/review/re
 
 def record():
     """The world's filmed places (none when the world has no record)."""
-    return json.loads(RECORD.read_text()) if RECORD.exists() else {"places": []}
+    return json.loads(RECORD.read_text()) if RECORD.exists() else {"places": {}}
 
 
 def applies(place):
@@ -96,8 +97,10 @@ def make(inputs, out, seed, params):
     work = out / ".work"
     shutil.copytree(stage_folder, work / "stages" / place)
     subprocess.run(["chmod", "-R", "u+w", str(work / "stages")], check=True)
-    jobs = demo.plan(work, work / "stages", [place], jobs_each=JOBS, size=SIZE, ink=False, shots=SHOTS)
+    camera = json.loads(pathlib.Path(inputs["films"]).read_text())["places"][place]
+    jobs = demo.plan(work, work / "stages", [f"{place}={camera}"], jobs_each=JOBS, size=SIZE, ink=False, shots=SHOTS)
     render(jobs, out)
+    shutil.copy(work / "frames" / place / "shot0-000-look.png", out / "concept.png")
     demo.cut(work, [place])
     shutil.copy(work / "videos" / f"{place}.mp4", out / "film.mp4")
     planned = json.loads((work / "views" / f"{place}.json").read_text())
@@ -106,7 +109,8 @@ def make(inputs, out, seed, params):
 
 
 def film_faults(folder):
-    return [f"no {name}" for name in ("film.mp4", "views.json") if not (pathlib.Path(folder) / name).exists()]
+    return [f"no {name}" for name in ("film.mp4", "views.json", "concept.png")
+            if not (pathlib.Path(folder) / name).exists()]
 
 
 CONTRACT = contracts.Contract("demo-film", 1, film_faults, {"time": "second"})
