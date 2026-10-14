@@ -98,6 +98,9 @@ serve: skill `make-scene`, bible "How a scene is designed".
   from its plan alone (`w`, `d`, the ceiling in its height words, its doors, its `kit` block: the nose's cut corners,
   the windows' sill, head and pillar) and its inventory's spots: walls in two bands of plain plates round the wedge
   outline, a doorway left clear, the cut corners and the front glazed, the floor and ceiling in grids with a triangle in
-  each cut corner. Shell plates take the sorter's plain names; a room's name is one word (`bridge`), as the route's
+  each cut corner. A tapered room (the kit block's `front_wide`, `ceiling_front`, `glazed: roof`, `windows_from`:
+  the cockpit) narrows straight to its front under a sloping ceiling, its upper wall plates reaching the ceiling over
+  each plate, its floor and roof in rows with tapering slivers at the sides, its windows lights in the sloping roof.
+  Shell plates take the sorter's plain names; a room's name is one word (`bridge`), as the route's
   kinds are `<room>_<own>`. `ship_kit_test.py` checks it on a bridge-shaped room.
 - `camp_kit.py` lays the expedition camp habitat's kit on Mars (data/kit/camp.json via route.py) from the camp scripts' own numbers; `camp_kit_test.py` reads them back. `camp_shots.tscn` draws the habitat from cameras in its own frame (run with `--mars`, so the game's own check stays on Mars while it shoots).
