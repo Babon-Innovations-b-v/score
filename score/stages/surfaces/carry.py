@@ -206,16 +206,17 @@ def codes_at(commit):
         subprocess.run(["git", "-C", str(_code.REPO), "worktree", "remove", str(folder)], check=True)
 
 
-def proved(runner, places, reasons, skip, write, since=None):
+def proved(runner, places, reasons, skip, write, since=None, only=None):
     """Every node in table order whose key moved only by repository files `reasons` names ({file: why its change
-    is a no-op}), never one of `skip` and, given `since` ({row: its code at the commit the reasons speak from,
-    codes_at}), only one whose record was made from that code, so the reasons speak for every change since: its
+    is a no-op}), of `only` (node-name prefixes) when given, never one of `skip` and, given `since` ({row: its code
+    at the commit the reasons speak from, codes_at}), only one whose record was made from that code, so the reasons
+    speak for every change since: its
     proof stored as evidence on its accepted output (graph.no_op_proof) and the output kept under its new key by the
     runner's rule, so the nodes after it see the same input. Its line."""
     with runner.still():
         for stage, place in runner.nodes(places):
             node = graph.node_name(stage, place)
-            if runner.store.accepted(node) is None:
+            if only and not node.startswith(tuple(only)) or runner.store.accepted(node) is None:
                 continue
             try:
                 keyed = runner.key(stage, place)
@@ -255,6 +256,8 @@ def main(argv=None):
     parser.add_argument("--no-op", action="append", default=[], metavar="FILE=WHY",
                         help="a repository file whose change is a no-op for every node but --skip ones, and why")
     parser.add_argument("--skip", action="append", default=[], metavar="NODE", help="a node the change does reach")
+    parser.add_argument("--only", action="append", metavar="PREFIX", help="only the nodes whose name starts so (the "
+                                                                       "reasons speak for these rows alone)")
     parser.add_argument("--since", help="the commit the --no-op reasons speak from: a record not made from the code "
                                         "the row had there is made again")
     options = parser.parse_args(argv)
@@ -264,7 +267,7 @@ def main(argv=None):
     if options.no_op:
         reasons = dict(entry.split("=", 1) for entry in options.no_op)
         since = codes_at(options.since) if options.since else None
-        for line in proved(runner, places, reasons, set(options.skip), write, since):
+        for line in proved(runner, places, reasons, set(options.skip), write, since, options.only):
             print(line, flush=True)
         return
     for row in runner.stages.values():
