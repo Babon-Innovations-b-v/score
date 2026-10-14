@@ -1,0 +1,57 @@
+WORLD 1 SPEND FORECAST (hard stop EUR 510, owner 2026-10-14). Report the full projected total every time.
+Estimates only after scoping (plan + inventory). Each paid piece: estimate (with unit-cost source) before, actual (ledger) after.
+
+PROJECTED (2026-10-14 18:25, bill-based):
+  spent (bill est.)                                                    ~360
+  remaining ledger-priced: world groups ~10, demos+full video ~25, ship rest ~55-60
+    (surface line 22 models x1.9 ~42 + bakes/light/settle/assembly), hull ~12, walkway ~3  = ~105-110
+  x1.21 bill overhead                                                  = ~127-133
+  TOTAL                                                                = ~487-493 vs 510 (stop and report if heading past ~505)
+  NOTE: runner's flat 'EUR 20' pixal row figure is not real; ledger 0.18-0.49 a ship room node.
+
+ESTIMATE vs ACTUAL
+piece | estimate | source | actual | note
+concept-view ship top/side (x2) | 0.15 each | pro.py draw price | 0.28 | ok
+K2 turntables | ~1.2 | shortlist | 0.19 | over-estimate
+prologue surfaces+light 13 Oct | 101.5 table / ~5 measured | runner table vs cache check | 0.86 | table overstates ~100x when cached
+square repaint+rebake | 2.5 table | runner table | 0.70 |
+
+SHIP (ship agent)
+cockpit partition-proposals | 0.03 | ledger segment runs 2026-10-13: EUR 0.026 each (1 card, ~2 min) | 0.026 | ok
+
+DEMOS (demo agent)
+K7 ship plan board (v1-v7) | 0 | existing plans only | 0.00 | free; drawings' 0.28 already under concept-view
+K8 stills (concept beside place) | 0 | first frame of each K9 film (demo-film concept.png) | - | no separate render
+K9 film, per place (demo-film row) | 0.6 (row clears 1.0) | ledger blender-20261009-020545: 0.0030/frame at 720p x 192 + set-up | pending | 18 places ~11; none run yet
+K9 joined cut + checks | 0 | on the PC | - | after the places' films
+K9 ship films | unpriced | needs its own rows | - | Thursday; price when the rooms are planned
+ship room crew_quarters (scoped) | 6.55 (top 8.8) | 2 new made x 2.21 (close-up 0.14 google pro mean of 81; Pixal3D 0.17 and surface line 1.9 a take, cockpit agent's ledger measure) + light-passes 0.54 + settle 0.59 + surfaces-bake 1.00 (ledger.jsonl medians per place); no concept picture (owner's quarters reference); 4 shared pieces paid elsewhere | | 
+ship room navigation (scoped) | 6.69 (top 8.9) | 2 new made x 2.21 (pays the ship's wall_screen) + concept 0.14 + light 0.54 + settle 0.59 + bake 1.00 (same sources) | | 
+ship room galley (scoped) | 8.90 (top 12.2) | 3 new made x 2.21 + concept 0.14 + light 0.54 + settle 0.59 + bake 1.00 (same sources) | | 
+ship room storage (scoped) | 4.48 (top 5.6) | 1 new made x 2.21 (crates are the hangar's made parts_crate) + concept 0.14 + light 0.54 + settle 0.59 + bake 1.00 (same sources) | | 
+ship room engine_room (scoped) | 6.69 (top 8.9) | 2 new made x 2.21 (junction box, toolbox: the garage's made takes) + concept 0.14 + light 0.54 + settle 0.59 + bake 1.00 (same sources) | | 
+ship room ship_airlock (scoped) | 4.48 (top 5.6) | 1 new made x 2.21 + concept 0.14 + light 0.54 + settle 0.59 + bake 1.00 (same sources) | | 
+ship hull + thrusters (scoped) | 2.75 (top 5.0) | one prop-route model of the whole hull with its 10 thrusters: close-up 0.14 + Pixal3D 0.17 + surface line 1.9 + hangar light re-pass 0.54; top = one re-buy; risk: one 31 m take may lose thruster detail (then thrusters as own takes, +2.21 each design, 3 designs) | | 
+concept-views 5 ship rooms (navigation, galley, storage, engineroom, shiplock) | 0.70 | google-ledger pro 2K: EUR 0.14 a picture (the ship views, 0.140 and 0.141) | 0.705 | ok
+places run 09:25-12:27 (captain-c, older main) | world remainder est ~8 | ledger | 13.09 machines + 0.44 Google = 13.53 | repaints + bakes + sound; stopped at 12:27 to restart from newest main
+partition-proposals cockpit (3 views) + 6 rooms | 0.20 | ledger segment runs: EUR 0.026 a run (cockpit v1 actual 0.026), one card a scene | 0.249 | ok; the drawn rooms at full size gave 400-630 proposals each, redone at 1200 px
+partition-proposals again, rooms at 1200 px | 0.25 | the run before: 0.249 | 0.184 | ok
+ship machines-boxes x7 places (SAM 3 grounding of the made rows boxes) | 1.75 | ledger machines-boxes: 2.03 over 8 nodes = 0.25 a node, Gemini judge cents | 2.19 (3 runs: union boxes failed the judge twice, then boxed from one clear copy each; Gemini judge cents on top) | ok, over by 0.44
+ship close-ups 22 made pieces (cockpit 11, quarters 2, navigation 2, galley 3, storage 1, engineroom 2, shiplock 1) | 3.1-6.2 | pro.py 0.134 USD a picture, up to 2 a piece (paper Table 1: 0.15 a close-up) | 3.50 (25 Pro pictures for 21 pieces) | ok
+ship Pixal3D 22 models, 7 nodes | 3.7 | ledger pixal: 58.40 over 344 models = 0.17 a model; 0.47 a node measured | 1.94 so far over 5 room nodes (ledger a node: quarters 0.19, engineroom 0.22, shiplock 0.48, navigation 0.50, galley 0.55; the runner's EUR 20 a row is its flat table figure, not a price) | open: storage and the cockpit to come
+ship walkway (scoped: its own place 'walkway', code parts only, like the base's tube place: plain wall plates, floor grate, ceiling light strips and frame ribs; the room doors' frames stay each room's) | 2.6 (top 3.5) | concept 0.14 + proposals 0.03 + light 0.54 + settle 0.59 + bake 1.00 + assembly 0.12 + sound share ~0.2 (same sources as the rooms' lines) | | 
+ship hull + 3 thruster designs (rescoped 2026-10-14 ~15:00: thrusters as their own takes; hull its own one-word place 'shiphull', the owner's shuttle reference its concept view, the hangar laying it through its surface data's 'elsewhere' claim) | 10.3 (top 23) | proposals 0.03 + machines-boxes 0.3 + 4 close-ups x 0.14 (up to 2 each) + Pixal3D 4 x 0.17 + node 0.47 + surface line 4 x 1.9 (same sources as the rooms); top = the hangar's paint re-run if its claim re-keys it (~12.6, measured before by a dry status) | | 
+ship close-up redo x4 (overseer: control stick, pilot seat, fold-down seat, galley counter; reworded rows) + machines-boxes again for cockpit and galley (the words changed) | 1.6 | Pro 0.14 a picture, up to 2 each (8 x 0.14 = 1.1) + machines-boxes 0.25 a node x 2; the other 17 close-ups come from the Pro cache | 0.89 so far (machines-boxes 0.55 over 5 runs, Pro and judge 0.34); galley pair done; cockpit pair waiting on the box judge (Gemini timeouts on the stick's box) | open
+partition-proposals again: the cockpit's stick view v4 (a 4x cut of v2) so the box judge sees the stick alone | 0.25 (the row re-segments all 7 scenes, not only the stick: about 0.03 a scene) | the runs before: 0.249 and 0.184 | 0.234 | ok; every other scene's proposals came back the same, so no mapping moved
+ship pilot seat fix: concept view of one seat whole (concept-views; the 6 views before come from the Pro cache) + proposals on it + cockpit box check + close-up | 0.75 (view 0.14, proposals 0.25 (all 7 scenes re-segmented), box check 0.3, close-ups from cache but the seat and stick ~0.1) | ledger and google-ledger of today's runs | 1.0 so far (concept view 0.14 x 2, proposals 0.74 over 3 runs, Pro from the cache) | open: the cockpit's box check
+ship flight stick fix: the row resized to his six-grip 3D cross (0.45 x 0.45 x 0.6 m), box check and close-up again (shared with the seat's runs) | 0.3 | as above | | 
+old groups run 12:42-17:20 | ~? | ledger | see guard: run ended, spent 9.75  [exited with code 0] 
+ship close-up redo after the owner's page (control stick: one upright with a short crossbar in the dash; ceiling equipment: his overhead's vent module), with the pilot seat's retry | 0.9 | box check 0.3 + Pro up to 2 pictures each for 3 pieces 0.8 (0.14 a picture) | 0.53 (two box checks; the judge did not answer on the stick and the module either time) | open
+ship 6 rooms after the owner's yes: box check again (the approval re-keys it) + Pixal3D 12 models + surface line to paint, 12 takes | 27.4 (top 33) | machines-boxes 0.25-0.3 a node x 6 = 1.8; Pixal3D 0.17 a model + 0.47 a node = 4.9; surface line ~1.9 a take = 22.8 (ledger, the rooms' scope lines); L4 only (RENDER-S's P100 is not seen by the GPU image's driver, 2026-10-08) | about 16.7 (Scaleway 7.9: Pixal3D a node 0.19 to 0.55 plus storage's hung 137-min batch 1.83, turntables 2.4, SegviGen 0.63, paint 0.6, box checks 0.36, proposals 0.24; Google about 8.8, mostly finish maps) | 4 rooms painted (quarters, engineroom, shiplock, storage); galley and navigation fail the paint's colour gate
+groups run 17:14-18:48 | ~0 for turntables (claimed no keys move) | 8b40222 check said none | ~2.4 machines + 1.5 h lost re-rendering turntables in every place | key-move check read code versions only, not declared files (blender_cloud.py); fixing
+ship Pixal3D storage, stale 17:42 run | ~0.2 | ledger | 1.83 (137 min hung L4) | rule: confirm previous run ended before starting next
+light-passes x6 (greenhouse, habitat, hangar, lab, tube, workshop) code-changed | 12 table | runner | 0 (carried, 67c43be no-op outside old_station/wreck) |
+K1 hub board | ~0 (was 0.5) | hub film's first frame + existing files + store page (local) | - | no separate render
+K3 tank turntable + tool board still | ~0.1 + ~0.3 | demo-turntables actual 0.04/run; demo-stills set-up 0.2 + 0.07/still | pending |
+K4 wreck edit (3 stills) | ~0.3 | demo-stills | pending | needs an edit-layer route: see for-owner-0900.txt
+K5, K6 (strips) | 0 | frames of the old station, hub, launch and garage films | - | lift-off at 4 s, rover 1-7.5 s, inside the 8 s path

@@ -1,31 +1,34 @@
 {
   "inputs": {
     "paper/build/build.py": "c484217c7cdd373dc8488cf4422284369cba4b3a0965b5d8204df6d6d4a199f3",
+    "paper/figures/fig-k2.jpg": "b60e05e13b6d02d760ffef166301a4f912ca63672543c45ad29f969992742980",
+    "paper/figures/fig-k7.jpg": "431c994a85c93a94990ba7083a3817dc4962ac1e85f34c747e05fb8f7e8e61af",
     "paper/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
     "paper/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
     "paper/source/refs.bib": "b4285ea017fc6fda039275ea583325aa58c9666538e0fdbe6da1daef09677a83",
-    "paper/source/score.md": "1f7f4c607b56027162150818a421070d520fb1cd78f1f7cd5415665743baf0a7"
+    "paper/source/score.md": "530db625150d3ea099a9cf1d918643cf70e9f34d39fe652dfa17dded18f20b67"
   },
   "outputs": {
     "paper/arxiv/content/abstract.tex": "cb9c5ec81de344c80760c63163edd7fe3357837edc619745b7d62c4feb137b3f",
     "paper/arxiv/content/appendix.tex": "eb1dd500c9ffbc3a8fd205a9cfe49b07479506a8870ce4355153f26790afba0b",
     "paper/arxiv/content/check_details.tex": "70d6ffcceddf8ad482555880c2d2d3d96c5a2f07214b5a66c6a5395fe45d901f",
-    "paper/arxiv/content/evidence.tex": "31e40acff83c4e583aea909057705b028bf55f0df3b7310008966404be251e46",
+    "paper/arxiv/content/evidence.tex": "0c9853b7e7302e402a541a3c18789dd6883149081e50737c5de3cb8abe490cb3",
     "paper/arxiv/content/introduction.tex": "60417a1abd0b4bcccf454508897598e32fd86e5c5306aa63ec610c50b7b7a49e",
     "paper/arxiv/content/limitations_future_work_and_conclusion.tex": "c167890d97c4d9e89b1849581a6cc33dcdaf1a379b79c3734ba9164ea7608968",
     "paper/arxiv/content/models_and_licences.tex": "d86b2f7934fdcdda654f50ac6775c87f86e631d2c96c0896560c63892533e2fb",
-    "paper/arxiv/content/stages_and_their_gates.tex": "609ecc733ef481a83078d31f849e92c0f81d25b556811f0f88fd99e5163cb53f",
-    "paper/arxiv/content/teaser.tex": "baa1a138d5f2067e8f53cc1d52ba6948db8305907cf14c1833cc0abce5ad9627",
-    "paper/arxiv/content/the_framework.tex": "6dfd31ccc27a6f1365d9cef49064aca83f3e0b86a72c1cd6578842fdb0047f54",
+    "paper/arxiv/content/stages_and_their_gates.tex": "ba649ce46326e5d9e72180732685d16e763c2dedd3ca30565d10b5dd974186a4",
+    "paper/arxiv/content/teaser.tex": "753e27a968d63f802cb960c9f483f4ac15e77af55d192a669da72376a1c2987e",
+    "paper/arxiv/content/the_framework.tex": "2ce835feb816960b8e3d86e3c2db7951a45d4a5cadc633ee99902f61fb7a2558",
     "paper/arxiv/content/the_hub_in_six_rounds.tex": "d443a3043afc9e7e34b2c5376355481d09596724f3de968553bb7d8291e20fe2",
     "paper/arxiv/content/the_surface_library.tex": "ee1271d1866191aaed03b682557c71b24cd83faf3be13bf0fff7311b6472c353",
     "paper/arxiv/content/with_and_without_the_agent_tools.tex": "cc6047679893b674f4bdfac11d97d398338dd250ff597a8cf4376e3680204c04",
-    "paper/arxiv/content/world_1_place_by_place.tex": "71b3965e13ba02b3018c531be94ee3c392a56155059aa018eea6a5305161ef4a",
+    "paper/arxiv/figures/fig-k2.jpg": "b60e05e13b6d02d760ffef166301a4f912ca63672543c45ad29f969992742980",
+    "paper/arxiv/figures/fig-k7.jpg": "431c994a85c93a94990ba7083a3817dc4962ac1e85f34c747e05fb8f7e8e61af",
     "paper/arxiv/main.bbl": "70e9e32e5479324de3c789caa6b6c06755a81c6c2fafa1e7444d008cdc5cd1f0",
-    "paper/arxiv/main.pdf": "a85ae72189221d40dd961fba6e07c6aa402826a0a4ce804cdc5cc4d69785f3d5",
-    "paper/arxiv/main.tex": "ee19bcabd3ed41049dd11985d83dd428ee7254b45b37f06be57635295e649265",
+    "paper/arxiv/main.pdf": "6a244cf23ef5e0d82e59bead99f7cf2ddddd08f58fa9b345056adc0029f8eb4e",
+    "paper/arxiv/main.tex": "235f4dbbf1f1b2076a848fe33828f472ccb7373c45061ef8c2154b0d5271753d",
     "paper/arxiv/refs.bib": "b4285ea017fc6fda039275ea583325aa58c9666538e0fdbe6da1daef09677a83",
-    "paper/out/score.pdf": "566b57b4df88b276d2d9c6ff752e254f48e4e4e6ebd3a88a16fb1b365681da6e",
-    "paper/out/score.tex": "d77d1931aa9eb41cd526a2f4b063364528de042261526fe44b286dfd7f752be5"
+    "paper/out/score.pdf": "43fc5c3d13079b79cb8068c13d697a1a08de15d248341a3597aa61bb89115707",
+    "paper/out/score.tex": "aab21c9f3508634d7e264db74b5665e23aad820fbabdb78671f69a0afb959ca7"
   }
 }

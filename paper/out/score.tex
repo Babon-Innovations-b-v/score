@@ -50,6 +50,21 @@
 % Allow footnotes in longtable head/foot
 \IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
 \makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
 % definitions for citeproc citations
 \NewDocumentCommand\citeproctext{}{}
 \NewDocumentCommand\citeproc{mm}{%
@@ -106,7 +121,7 @@
 \title{SCORE: A Framework for Synthesizing Complete, Owned, Responsive
 Environments}
 \author{J.P. Kardolus, Babon Innovations B.V., Utrecht, The Netherlands}
-\date{Working draft, 13 October 2026}
+\date{Working draft, 15 October 2026}
 
 \begin{document}
 \maketitle
@@ -130,14 +145,6 @@ at https://github.com/Babon-Innovations-b-v/score (MIT license).
 \end{abstract}
 
 \makeatletter\def\fps@figure{t}\makeatother
-
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
-
-\textbf{Gap: Figure 1, four worlds.} World 1's square, hub and Mars camp
-beside their concepts; worlds 2 to 4 as not started. It waits on those
-places' completion gates.
-
-\end{minipage}}\end{center}
 
 \section{Introduction}\label{introduction}
 
@@ -212,8 +219,10 @@ gate missing. Later nodes read only accepted outputs. The creator keeps
 four commands, from his own terminal: reject an accepted output (it
 moves back to the one before, and every node that read it is stale),
 accept a worse one with his reason, waive one gate for one key, and
-override the runner for one paid run. None is needed for a run; a
-barrier keeps agents from them (a terminal, a store that refuses the
+override the runner for one paid run. When he accepts a worse output,
+his accept records what he allowed, and a later output no worse than the
+one he took is accepted with his accept named. None is needed for a run;
+a barrier keeps agents from them (a terminal, a store that refuses the
 creator's records from an agent's process, and a hook).
 
 \textbf{Spending and review.} A paid node is cleared only when every
@@ -224,6 +233,30 @@ accepted outputs needs a written reason. Each node's review page is
 built from the store alone, and the creator reviews a place in a USD
 viewer on the store's copy of its accepted assembly; nothing is rendered
 for review.
+
+\textbf{The creator steers: the ship.} Figure 1 shows the creator's
+control on one piece of world 1, the ship. His picks were found pictures
+of a shuttle, a one-deck cutaway, a cockpit and crew quarters; we do not
+show them. From them an agent planned the bridge alone (v1, a 4.6 by 4.6
+m room of 27 pieces). He corrected the plan in words: a smaller cockpit,
+rooms the game needs, a long flat wedge rather than a rocket, a nose
+less pointed, and an outline measured from drawings rather than shaped
+from words. Each correction made a new plan, and he accepted the
+seventh. Every plan is ours and cost nothing; the two drawings the
+outline was traced from cost EUR 0.28 and are not shown. The ship's
+shape follows found artwork the creator chose to use: shuttle concept by
+PAUL (zana), found online.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.88\linewidth,height=\textheight,keepaspectratio,alt={The creator steers the ship's plan, in twelve steps: his picks, described in words (found pictures, not shown); plan v1 of the bridge alone; his corrections; v2 of the whole ship; his correction of the outline; v3 to v6; his two corrections of the nose; v7, which he accepted. All plans are ours. Shuttle concept by PAUL (zana), found online.}]{figures/fig-k7.jpg}
+\caption{The creator steers the ship's plan, in twelve steps: his picks,
+described in words (found pictures, not shown); plan v1 of the bridge
+alone; his corrections; v2 of the whole ship; his correction of the
+outline; v3 to v6; his two corrections of the nose; v7, which he
+accepted. All plans are ours. Shuttle concept by PAUL (zana), found
+online.}
+\end{figure}
 
 \subsection{From concept to scene}\label{from-concept-to-scene}
 
@@ -256,11 +289,12 @@ likeness gate compares its outline from eight sides with its close-up.
 Only an object whose checks fail is built by a code builder a coding
 agent writes, reversing the earlier parts check (the creator's choice,
 12 October 2026). On 13 of the hub's objects both orders end the same
-(Table 1), but generation first draws a close-up of every object. Every
-close-up of eight thin and flat objects failed the shape check, so code
-builds carry them. The hatch wheel shows the gain: its code build's
-outline overlap was 0.45, a fail, and its generated model's 0.60. Most
-of world 1's models predate the change and enter as unverified seeds.
+(Table 1, Figure 2), but generation first draws a close-up of every
+object. Every close-up of eight thin and flat objects failed the shape
+check, so code builds carry them. The hatch wheel shows the gain: its
+code build's outline overlap was 0.45, a fail, and its generated model's
+0.60. Most of world 1's models predate the change and enter as
+unverified seeds.
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
@@ -286,17 +320,17 @@ Code first & 4 & 7 & 2 \\
 
 \endgroup
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
-
-\textbf{Gap: Figures 2 to 5.} (2) The stages on the hub, from concept to
-assembled room; (3) the greenhouse's review page; (4) the wreck with an
-edit that survives a regenerated base whose models were repainted; (5)
-four of Table 1's objects from close-up to final model. They wait on
-those places' assemblies and on renders of the sample's takes; the
-earlier hub figure predates the runner and is withdrawn, and the
-comparison recorded no agent hours.
-
-\end{minipage}}\end{center}
+\begin{figure}
+\centering
+\includegraphics[width=0.72\linewidth,height=\textheight,keepaspectratio,alt={Generation first on four hub objects. Columns: close-up, generated model, code build, final model. The hatch wheel's generated model passes its outline check at 0.60 where its code build fails at 0.45; the pliers pass at 0.81; every close-up of the screwdriver failed, so its code build carries it; the keyboard fails both ways (paint ΔE 33.1; code build too thin and out of proportion) and needs a new builder. Generated models are split into library surfaces, not baked.}]{figures/fig-k2.jpg}
+\caption{Generation first on four hub objects. Columns: close-up,
+generated model, code build, final model. The hatch wheel's generated
+model passes its outline check at 0.60 where its code build fails at
+0.45; the pliers pass at 0.81; every close-up of the screwdriver failed,
+so its code build carries it; the keyboard fails both ways (paint ΔE
+33.1; code build too thin and out of proportion) and needs a new
+builder. Generated models are split into library surfaces, not baked.}
+\end{figure}
 
 \section{Stages and their gates}\label{stages-and-their-gates}
 
@@ -389,20 +423,16 @@ crowd copy fills a tenth of a view's height.
 A place is complete when its gate passes on its final assembly: every
 row made or dropped with a reason, nothing unmade, no placeholder or
 resting fault, the creator's picks shown, every layer and shown place
-present, nothing from the source game. A hook stops an agent claiming
-otherwise: agents judging their own scenes agree with a measured
-geometry score only 45.8 percent of the time {[}15{]}.
-
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
-
-\textbf{Gap: Figures 6 to 10.} (6) The water tank painted, the tool
-board in picture against library colours; (7) the lit Earth, a swept
-room; (8) lift-off, a rover, a dust devil, an airlock; (9) the player
-walking, the crowd; (10) a room in a physics engine. They wait on
-assemblies; until the habitat's physics trial passes, responsiveness is
-that trial.
-
-\end{minipage}}\end{center}
+present, nothing from the source game. \textbf{Named gaps.} A fault the
+creator decides to ship with today is written down as a named gap: who
+decided, when, why, the objects and their measured faults. It moves only
+those objects' faults from the gate where they arise to the completion
+gate, which fails the place by name with the numbers; any other fault
+still stops the line, and the gate is never loosened. A cast's person
+with no accepted body is a named gap the same way. A hook stops an agent
+claiming a place is done while its gate fails: agents judging their own
+scenes agree with a measured geometry score only 45.8 percent of the
+time {[}15{]}.
 
 \subsection{Budget and ledgers}\label{budget-and-ledgers}
 
@@ -415,10 +445,27 @@ put at EUR 30. Over 13.8 hours of world 1's run the ledgers hold EUR
 37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and
 the light passes (EUR 10.17).
 
+\textbf{Forecast.} Before a paid piece runs, its estimate is written
+down with the measured unit cost it rests on (the ledgers' medians per
+node, model or picture); after it, the ledger's actual. The projected
+total for the month is reported against a hard stop the creator sets.
+The record shows which estimates to trust: measured unit costs held (22
+close-ups for the ship estimated at EUR 3.10 to 6.20, actual 3.50; seven
+box checks 1.75, actual 2.19), while the runner's flat table figure
+overstated work it could carry over (the prologue's surfaces and light,
+EUR 101.50 in the table, cost 0.86).
+
 \section{Evidence}\label{evidence}
 
 Four worlds are planned; world 1's 18 places are judged once their
 layers stand accepted.
+
+\textbf{People.} Scored on what is drawn, no clip of any look is clean
+(Table 2). Takes in a wider A-pose crossed less at the bind and more in
+motion (10,610 visible crossings on the player's clips against 4,078),
+with no clip clean in either pose. People therefore ship as named gaps:
+the characters layer lays the people whose bodies stand accepted, and
+the completion gate fails every missing one by name.
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
@@ -448,13 +495,53 @@ Kit, average man, wider pose (olive) & fail: shell & 0 & not run & 0 \\
 
 \endgroup
 
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
+\par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
-\textbf{Gap: Table 3 and the film.} Per place: rows, models made and
-coded, layers, faults before and after spending, time, euros, verdict; a
-walk through world 1. They wait on the completion gates.
+\textbf{Table 3.} Named gaps on 15 October: what world 1 ships without,
+failed by name in the completion gate or left out of this paper.
 
-\end{minipage}}\end{center}
+\begingroup\footnotesize\setlength{\tabcolsep}{3pt}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Gap
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Where
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Why, and who decided
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Next
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+People with no accepted body & every cast & no clip clean on what is
+drawn (Table 2); the creator, 13 Oct & a fix to the take's pose and
+binding \\
+The ship, code-built & hangar (12 pieces) & no made model yet; the
+creator, 14 Oct & the made ship, from the plan of Figure 1 \\
+Pieces that do not rest & wreck (5) & the settle drops models from
+before their bake; the overseer, 14 Oct & the settle fix \\
+A foot off the floor & camp grounds' crane, greenhouse's seed tray & the
+level rule uses 1 percent, not 3 cm; the overseer, 14 Oct & the same
+fix \\
+Paint or bake off the close-up & garage (4) & library surfaces held
+until next month; the overseer, 14 Oct & new library surfaces \\
+Results per place, film, place pictures & all & not made by this draft &
+after the completion gates \\
+Physics in an engine & one room & no engine adapter & an adapter \\
+Worlds 2 to 4 & & not started & \\
+\end{longtable}
+}
+
+\endgroup
 
 \textbf{Agent tools.} With them an agent used about half the output and
 cost on two of three places; on the third it left more faults; one run
@@ -1322,18 +1409,5 @@ with no ground mesh (fixed after the run), and the nine faults it left
 are models with stray parts below their feet. No agent claimed a place
 was complete, so the gate's hook never had to refuse a claim. No row
 carries an owner's pick, so the pick lock was not tested.
-
-\section{World 1, place by place}\label{world-1-place-by-place}
-
-\begin{center}\fbox{\begin{minipage}{0.94\linewidth}\setlength{\parskip}{4pt}\small
-
-\textbf{Gap: Figure F1, every place of world 1.} For each of the 18
-places (the flat, stairwell, street, square and launch; the hub, lab,
-greenhouse, workshop, airlock, walkway tube, habitat, garage, hangar,
-wreck and old station; the camp and its grounds), the concept beside the
-final stage rendered from the concept's own camera. It waits on each
-place's one assembly passing its completion gate.
-
-\end{minipage}}\end{center}
 
 \end{document}

@@ -1,0 +1,13 @@
+K7. The creator steers the ship plan: from a bridge-only v1 through his corrections (rooms for the game, a wedge not a rocket, a nose first too pointy, then measured from drawings) to v7, which he said ok to; EUR 0.28 of drawings in all; no bridge is built.
+
+Files:
+- board.png: twelve steps in order (references in words, v1, his corrections, v2, his outline correction, v3, v4, v5, his "too pointy", v6, his "measure it", v7 with his yes: plan from above, from the side, and our half of the stern comparison).
+- make_board.py: builds it from our own plans under PROPS_HOME/work/ship/; nothing rendered or drawn.
+Not shown (overseer's decision (a), 2026-10-14): his found reference pictures and every drawing made from one (the v3 to v7 drawn top and side views, the nose crops, v7's painting overlay and the drawing's half of its stern comparison). The references are described in words, credited "shuttle concept by PAUL (zana), found online". Keep them out of the repo and any public page.
+Number and step sources (all PROPS_HOME/work/ship/brief.txt, EVIDENCE LOG, REVISION and CORRECTION; reworded, not quoted):
+- v1: 4.6 x 4.6 m bridge, 27 pieces, EUR 0 (bridge/page/plan.png). v2: EUR 0 (page/plan-top.png).
+- v3: drawing EUR 0.14 by the concept-views row (commit 99ba7e1); v4: second drawing, EUR 0.28 in all (2026-10-14-v3, -v4/page/plan-top.png).
+- v5: widest at the docking ring, straight taper, EUR 0. v6: 2.5 m snout measured from his painting, EUR 0 (2026-10-14-v5, -v6/page/plan-top.png).
+- his corrections on v5 and v6: the log's "owner on v5" and "owner on v6" lines; the stern airlock and the side ring as hull detail: its last two lines.
+- v7: cockpit 1.8 to 2.4 m high, one stern airlock, engine tubes beside it, EUR 0 (2026-10-14-v7/page/plan-top.png, plan-side.png, right half of stern-compare.png; plain-line.txt, questions.txt); his ok: the log's "OWNER 'ok' to v7 (~12:10)" line.
+Spend for K7: EUR 0.
