@@ -1108,7 +1108,7 @@ def grab_bar(size, laid):
 # Degrees about the kit's x axis that bring the side the room sees round to the kit front (-z), by kind: a tray or
 # duct is seen on its +y side, the apex hub and a flood lamp from below (their -y side).
 FLOOR_SEEN_TURN = {"floor_socket": -90.0, "bay_mark": -90.0, "ceiling_cable_tray": -90.0, "ceiling_duct": -90.0, "roof_apex_hub": 90.0,
-                   "roof_light_fixture": 90.0, "light_ring": 90.0}
+                   "roof_light_fixture": 90.0, "light_ring": 90.0, "ceiling_light_panel": 90.0}
 FLOOR_PIPE_RADIUS = 0.038  # pipe_straight's: min(tall, deep) * 0.38 at 0.1
 # How far a wall pipe run's axis stands off the wall (hub_kit.PIPE_AXIS): a bracket's base plate and a valve's foot plate
 # are on the wall, their clamp and body on the run (step 0 of the modules round, 2026-10-07: at 20 cm the clamp's arm
@@ -6572,6 +6572,13 @@ for earth_room in EARTH_ROOMS:
 import pieces_earth  # noqa: E402
 
 BUILDERS.update(pieces_earth.BUILDERS)
+
+# The ship rooms' plain pieces (the ship as a world 1 place, 2026-10-14), in a module of their own like Earth's; every
+# name is new, so no other room's builder changes.
+import pieces_ship  # noqa: E402
+
+assert not set(pieces_ship.BUILDERS) & set(BUILDERS), "a ship builder would replace another room's"
+BUILDERS.update(pieces_ship.BUILDERS)
 
 
 def build(kind, size, laid, name):
