@@ -275,12 +275,15 @@ dropped with a reason).
 \textbf{The canonical scene.} Every place is one OpenUSD stage {[}23{]};
 each object, one per real-world object, carries its kind, transform,
 collision and each part's library surface. Its layers lie in a fixed
-order, the creator's edit layer on top, then people, sound, light,
-motion, effects, crops, machines, settle, ground and the generated base,
-so an edit survives a regenerated base. Each place is assembled once,
-from every layer's accepted output; its \texttt{layers} gate answers
-unknown while a needed layer has none, and an old output never stands
-in.
+order: a slot for the creator's edit layer on top, then people, sound,
+light, motion, effects, crops, machines, settle, ground and the
+generated base. The edit layer exists only as that slot, an empty layer
+the exporter makes once and never writes again; a test on a two-box
+place shows an edit there surviving a regenerated base, but the runner's
+assembly does not yet carry a creator's edit from one assembly to the
+next. Each place is assembled once, from every layer's accepted output;
+its \texttt{layers} gate answers unknown while a needed layer has none,
+and an old output never stands in.
 
 \textbf{Models, generation first.} Every object goes the prop route
 first: Nano Banana Pro {[}24{]} draws its close-up from its crop of the
@@ -536,6 +539,8 @@ Paint or bake off the close-up & garage (4) & library surfaces held
 until next month; the overseer, 14 Oct & new library surfaces \\
 Results per place, film, place pictures & all & not made by this draft &
 after the completion gates \\
+An edit that survives a regenerated base & all & no edit layer yet & an
+edit layer the assembly carries \\
 Physics in an engine & one room & no engine adapter & an adapter \\
 Worlds 2 to 4 & & not started & \\
 \end{longtable}
@@ -1099,16 +1104,15 @@ four, and 187 MB on disk, against 487 MB.
 \textbf{People results in detail (experimental, Section 3.5).} The body
 gates are joins, outline, likeness, triangles and shell. Nev's and
 Sefa's boot tuck bands lie 9 to 11 mm outside the trouser leg at the
-bind pose. Scored on drawn surfaces only, no clip of any look is usable:
-skin seams open and settled cloth crosses itself. Bound as one closed
-mesh, the player's limbs sink into chest and hips, 87 to 563 crossing
-points visible from the places' cameras and close views per clip, the
-armpit surface stretching between arm and chest. The boot tuck bands run
-through every clip of Nev and Sefa before any motion. Where hair or
-cloth meets the head or hand skin the two sides are weighted differently
-and open as the joints move (cloth seams never open), and the settled
-cloth crosses itself beyond the bind; openings over 10 cm on three looks
-are not yet confirmed by a render. Binding the take as one closed mesh
+bind pose, in every clip before any motion. Scored on drawn surfaces
+only, no clip of any look is usable: skin seams open and settled cloth
+crosses itself beyond the bind. Bound as one closed mesh, the player's
+limbs sink into chest and hips, 87 to 563 crossing points visible from
+the places' cameras and close views per clip, the armpit surface
+stretching between arm and chest. Where hair or cloth meets the head or
+hand skin the two sides are weighted differently and open as the joints
+move (cloth seams never open); openings over 10 cm on three looks are
+not yet confirmed by a render. Binding the take as one closed mesh
 removes the openings. Pushing points out of the look's own volume,
 limiting the offset from SOMA-X at the armpits and inner thighs,
 fold-centred weights and dual-quaternion skinning each left the visible
