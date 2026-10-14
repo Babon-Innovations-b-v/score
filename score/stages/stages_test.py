@@ -196,6 +196,51 @@ def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
     assert moved == {"surfaces-turntable", "surfaces-segvigen", "people-turntable", *crops}, moved
 
 
+def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
+    """A new place (the ship's bridge) has its plan before its kit is laid; the runner lists it with the laid ones."""
+    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
+    root = pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
+    try:
+        for part in ("kit/laid.json", "plans/laid.json", "plans/new.json"):
+            (root / part).parent.mkdir(parents=True, exist_ok=True)
+            (root / part).write_text("{}")
+        assert stages.places(graph.World("world1", 3, {"data": str(root)})) == ["laid", "new"]
+    finally:
+        shutil.rmtree(root)
+
+
+def test_the_plan_row_keeps_its_code_version_and_a_laid_place_s_files():
+    """The plan row reads a place with no kit through wrappers in the table, so no laid place's key moves."""
+    plain = graph.Stage("plan", "place", stages.scene_record.plan.make, stages.scene_record.plan.PLACE_PLAN,
+                        stages.scene_record.plan.CHECKS, files=stages.scene_record.plan.files)
+    assert code_after_editing(stages.PLAN, "nothing") == code_after_editing(plain, "nothing")
+    assert stages.PLAN.files("lab") == stages.scene_record.plan.files("lab")
+    declared = stages.kit_if_laid(lambda place: {"plan": f"{place}.plan", "kit": f"{place}.kit"})
+    assert declared("no_kit_laid") == {"plan": "no_kit_laid.plan"}
+
+
+def test_the_plan_row_maps_a_place_with_no_kit():
+    """With no kit laid, the plan row's make names the place by its plan and its `mapped` gate judges it."""
+    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
+    root = pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
+    try:
+        (root / "plans").mkdir()
+        (root / "out").mkdir()
+        plan = {"title": "NEW ROOM", "w": 3.0, "d": 3.0, "corner": 0.0, "height": "walls 2.5 m", "doors": [],
+                "items": [["DESK", 1.0, 1.0, 1.0, 0.6, "S", "item"]], "rows": {"DESK": ["desk"]}, "leads": {},
+                "elements": [{"element": "a desk", "rows": ["desk"]}, {"element": "a poster", "drop": "printed"}]}
+        (root / "plans/new_room.json").write_text(json.dumps(plan))
+        (root / "inventory.json").write_text(json.dumps({"rows": [{"id": "desk"}], "room": {"layout": {}}}))
+        inputs = {"plan": str(root / "plans/new_room.json"), "inventory": str(root / "inventory.json"),
+                  "plans": str(root / "plans"), "assets": str(REPO / "data/assets/world1.json")}
+        stages.PLAN.make(inputs, root / "out", 0, {})
+        assert json.loads((root / "out/plan.json").read_text())["place"] == "new_room"
+        verdict = stages.PLAN.checks[0].judge(root / "out", inputs, {})
+        assert verdict.answer == checks.PASS, verdict.reason
+    finally:
+        shutil.rmtree(root)
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
