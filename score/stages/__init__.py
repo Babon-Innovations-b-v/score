@@ -23,9 +23,9 @@ import json
 import pathlib
 
 from score import checks, contracts, graph
-from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, effects, gaps, images, light,
-                          machines, motion, people, people_takes, physics, props, scene_record, settling, sound,
-                          surfaces, terrain)
+from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_turntable, effects, gaps,
+                          images, light, machines, motion, people, people_takes, physics, props, scene_record, settling,
+                          sound, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
 from score.stages.surfaces.surface_gates import guarded
@@ -287,10 +287,15 @@ def prop_fed(row):
 # written request (data/definitions/concept_views.json), one world node, paid: the ship's top and side views first.
 CONCEPT_VIEWS = graph.Stage("concept-views", "world", concept_view.make, concept_view.CONTRACT, concept_view.CHECKS,
                             files=concept_view.files, paid=True, euros=concept_view.euros())
+# Experimental (2026-10-14): models that already exist turned round for the paper's demos
+# (data/definitions/demo_turntables.json), one world node, paid: demo K2's hub objects first.
+DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, demo_turntable.CONTRACT,
+                              demo_turntable.CHECKS, files=demo_turntable.files, paid=True,
+                              euros=demo_turntable.euros())
 
 
-STAGES = (TERRAIN, CONCEPT_VIEWS, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE, TERRAIN_LOOK, EFFECTS_LOOK,
-          PHYSICS_LAYER,
+STAGES = (TERRAIN, CONCEPT_VIEWS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS, COMPLETE,
+          TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           props.INPUTS, props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),

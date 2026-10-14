@@ -1,0 +1,44 @@
+{
+ "why": "The paper's demo K2 (generation first, Section 2.2 and Table 1): four of the hub comparison's objects, one for each way an object ends (paper/evidence/compare-hub/table.json), each model it has turned round, every model framed on its own. Shown models only; nothing here is accepted into world 1.",
+ "headings": [35, 125, 215, 305],
+ "objects": [
+  {
+   "id": "hatch_wheel",
+   "models": {
+    "generated": ["{seeds}/pixal/hatch_wheel-pf-final.glb"],
+    "code": ["{seeds}/place/hub-round6/objects/hatch_wheel_1.gltf",
+             "{seeds}/place/hub-round6/objects/hatch_wheel_1.bin",
+             "{seeds}/place/hub-round6/objects/textures/hub_fittings_2_base_color.webp",
+             "{seeds}/place/hub-round6/objects/textures/hub_fittings_2_metal_roughness.webp",
+             "{seeds}/place/hub-round6/objects/textures/hub_fittings_2_normal.webp"]
+   }
+  },
+  {
+   "id": "pliers",
+   "models": {
+    "generated": ["{seeds}/pixal/pliers-pf-final.glb"]
+   }
+  },
+  {
+   "id": "screwdriver",
+   "models": {
+    "code": ["{seeds}/place/hub-round6/objects/screwdriver_1.gltf",
+             "{seeds}/place/hub-round6/objects/screwdriver_1.bin",
+             "{seeds}/place/hub-round6/objects/textures/hub_furniture_4_base_color.webp",
+             "{seeds}/place/hub-round6/objects/textures/hub_furniture_4_metal_roughness.webp",
+             "{seeds}/place/hub-round6/objects/textures/hub_furniture_4_normal.webp"]
+   }
+  },
+  {
+   "id": "keyboard",
+   "models": {
+    "generated": ["{seeds}/pixal/keyboard-pf-final.glb"],
+    "code": ["{seeds}/place/hub-round6/objects/keyboard_1.gltf",
+             "{seeds}/place/hub-round6/objects/keyboard_1.bin",
+             "{seeds}/place/hub-round6/objects/textures/hub_furniture_4_base_color.webp",
+             "{seeds}/place/hub-round6/objects/textures/hub_furniture_4_metal_roughness.webp",
+             "{seeds}/place/hub-round6/objects/textures/hub_furniture_4_normal.webp"]
+   }
+  }
+ ]
+}
