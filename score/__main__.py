@@ -80,7 +80,12 @@ def publish(kind):
 
 def checked_buys(runner, places, whole, options):
     """Print the paid rows the run would buy; exit when its re-buys pass the limit with no reason. The run itself (not
-    the call that detaches it) writes a given reason to the cloud ledger."""
+    the call that detaches it) writes a given reason to the cloud ledger. A run missing an input it could never make
+    itself (Runner.missing_inputs) is refused first, each file named: free checks before paid."""
+    missing = runner.missing_inputs(runner.line_nodes(places, whole, options.stage))
+    if missing:
+        sys.exit("refused: these inputs are missing, so the rows that read them would stop the run after it paid for "
+                 "others:\n  " + "\n  ".join(missing))
     bought = rebuy.buys(runner, runner.line_nodes(places, whole, options.stage))
     print(rebuy.listing(bought), flush=True)
     refused = rebuy.refusal(bought, options.rebuy_reason)

@@ -694,6 +694,27 @@ class Runner:
                 if place is None or stage.applies is None or stage.applies(place):
                     yield stage, place
 
+    def missing_inputs(self, nodes):
+        """Every declared input a run could never make itself that is missing, of the `nodes` it plans: its world data
+        and repository files ({data}, {repo}) and its bake jobs, each as "node: input (path)". A run refuses on any,
+        before anything starts (the ship run of 2026-10-14 22:55 spent EUR 13.58 on machines, then stopped on missing
+        seed records). Files the run makes as it goes (the Pixal3D takes under {home}) are left to their rows."""
+        found = []
+        for stage, place in nodes:
+            try:
+                declared = self.files_of(stage, place)
+            except (OSError, KeyError, ValueError) as unreadable:  # its data names nothing it can list: say so
+                found.append(f"{node_name(stage, place)}: its world files cannot be listed ({unreadable})")
+                continue
+            for name, pattern in declared.items():
+                pattern = pattern[0] if isinstance(pattern, tuple) else pattern
+                if not (pattern.startswith(("{data}", "{repo}")) or name.startswith("bake job")):
+                    continue
+                path = self.file_path(stage, name, place)
+                if not path.exists():
+                    found.append(f"{node_name(stage, place)}: {name} ({path})")
+        return found
+
     def line_nodes(self, places, whole, only=None):
         """The nodes a drive runs: every one of `nodes` for the whole world, else the places' own and only the world
         nodes they read (directly or through another world node); `only` (stage names) keeps those stages' nodes and

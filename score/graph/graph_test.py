@@ -604,6 +604,19 @@ def test_the_runners_store_lists_the_same_keys_walking_only_the_prefixs_folder()
     a_runner(a_world({"hangar": "a ship"}), Store.in_folder(tempfile.mkdtemp()))
     assert graph.score_store.runtime_store.FolderStore.keys is graph.scoped_keys
 
+def test_a_run_names_every_world_file_it_could_never_make_before_it_starts():
+    """A planned row's missing {data} file is named (node, input, path) before anything runs; one made by the run
+    (under {home}) is left to its row; with every file there, nothing is named."""
+    world = a_world({"hangar": "a ship in a hall"})
+    made = graph.Stage("made", "place", make_seen, TEXT, (checks.Check("seen", judge_seen),),
+                       files={"take": "{home}/takes/{place}.glb"})
+    world = graph.World("toy", 7, {**world.roots, "home": str(pathlib.Path(tempfile.mkdtemp()))})
+    runner = a_runner(world, Store.in_folder(tempfile.mkdtemp()), (CLEAN, made))
+    assert runner.missing_inputs([(CLEAN, "station"), (made, "hangar")]) == \
+        [f"clean@station: brief ({pathlib.Path(world.roots['data']) / 'station/brief.txt'})"]
+    assert runner.missing_inputs([(CLEAN, "hangar")]) == []
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
