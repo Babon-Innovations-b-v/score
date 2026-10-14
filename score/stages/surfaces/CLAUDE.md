@@ -26,8 +26,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`inside/turntable.py` `cycles_fixed`), its PNGs kept without Blender's date and render-time text
   (`turntable_row.without_text`: the same pixels are the same file). On 2026-10-12 the making folder in `job.json` and card renders that
   differed run to run made one library change re-render every place and re-draw every view map (about EUR 50).
-  Before pushing a change that moves a paid row's key, list what it re-buys (`_code.source_files` and the
-  row's files); `score run` lists it again before it starts and refuses over EUR 5 without `--rebuy-reason`.
+  Before pushing a change, list the rows it moves with `python -m score.stages.moved <base> [<head>]` (code versions
+  and every declared file: a code-only check missed the turntables' declared `blender_cloud.py`, 2026-10-14);
+  `score run` lists the re-buys again before it starts and refuses over EUR 5 without `--rebuy-reason`.
 - **The paint and bake rows (and their crops and people twins) key only what they read of the library**
   (`library_reads.py`, set in the table by `score/stages/__init__.py` `library_narrowed`): their library places'
   materials and wear in place.json, the variants those name and the bake job's specs, with their recipes, families,
