@@ -1,0 +1,6 @@
+{
+ "place": "cockpit",
+ "from": "the place's concept, measured by score.stages.concept_people (accepted output 5129707084ce): SAM 3 asked for a person on cockpit.png (v1) and its five close views (v2 to v6) found no figure at all; the place's plan (data/plans/cockpit.json) keeps two spots at the main console for the brief's pilots and names nobody to stand on them",
+ "note": "Nobody is here: the concept (cockpit.png (v1) and its five close views (v2 to v6)) shows the two pilot seats empty, and no person. The owner's ship brief (2026-10-14) puts two pilots at the seats; the plan drops them as waiting on the people fix (its element 'two pilots at their seats'), so they are not cast until their looks are made.",
+ "people": []
+}
