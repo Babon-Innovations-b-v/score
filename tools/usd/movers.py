@@ -212,6 +212,10 @@ def write_path(stage, mover, rate, seconds, ground=None):
     turned = prim.CreateAttribute("xformOp:rotateY:path", Sdf.ValueTypeNames.Double)
     prim.CreateAttribute("xformOp:translate:rest", Sdf.ValueTypeNames.Double3).Set(Gf.Vec3d(*rest))
     prepend_ops(stage, prim_path, ["xformOp:translate:path", "xformOp:rotateY:path", "!invert!xformOp:translate:rest"])
+    # read without a time (the resting checks) it stands at rest: with samples alone the garage's rover read 0.9 m
+    # off its spot, in its lift (2026-10-15)
+    moved.Set(Gf.Vec3d(*rest))
+    turned.Set(0.0)
     for moment, spot, height, heading in zip(moments, spots, heights, headings):
         moved.Set(Gf.Vec3d(float(spot[0]), float(height), float(spot[1])), motion.code(moment, rate))
         turned.Set(float(heading - rest_heading), motion.code(moment, rate))

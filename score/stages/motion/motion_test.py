@@ -63,6 +63,20 @@ def test_the_launch_passes_its_gates():
     assert found["covered"].measures["moved"] == 4, found["covered"].measures
 
 
+def test_a_ferry_read_without_a_time_stands_at_its_rest():
+    from pxr import Sdf, Usd, UsdGeom
+    with tempfile.TemporaryDirectory() as folder:
+        inputs = place_inputs("launch", folder)
+        out = made(inputs, folder)
+        stage = motion.composed(out, inputs)
+        still = motion.composed(out, inputs)
+        still.MuteLayer(Sdf.Layer.FindOrOpen(str(out / "layers/motion.usda")).identifier)
+        for entry in launch_movers()["movers"]:
+            unset, rest = (np.asarray(UsdGeom.Xformable(found.GetPrimAtPath(entry["prim"])).ComputeLocalToWorldTransform(
+                Usd.TimeCode.Default())) for found in (stage, still))
+            assert np.allclose(unset, rest, atol=1e-6), (entry["name"], unset[3], rest[3])
+
+
 def test_a_lane_over_the_pad_fails_clear():
     record = launch_movers()
     lane = mover(record, "ferry_2")["path"]
