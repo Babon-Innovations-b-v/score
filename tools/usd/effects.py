@@ -230,11 +230,23 @@ def upright(up):
     return godot_basis([np.cross(up, level), up, level])
 
 
-def ground_emitter(entry, ground, wind):
+def ground_spot(placed, scene):
+    """(across, along, lift) of a `ground` placement: as given, or `[object, lift]` under the scene record's object of
+    that name (the launch's pad effects under the rocket, where the record the assembly lays stands it)."""
+    if isinstance(placed[0], str):
+        found = next((item for item in (scene or {}).get("objects", []) if item["name"] == placed[0]), None)
+        if found is None:
+            raise ValueError(f"{placed}: the scene record has no object {placed[0]} to stand under")
+        return float(found["at"][0]), float(found["at"][2]), float(placed[1])
+    across, along, lift = (float(value) for value in placed)
+    return across, along, lift
+
+
+def ground_emitter(entry, ground, wind, scene=None):
     """An emitter standing on the ground at (`across`, `along`), upright along the ground's up there; one that
     `travel`s wanders downwind at its speed for the rest of its life, stood on the ground again every TRAVEL_STEP
     seconds as the game stands its devils (its `path`: seconds, spot, turn)."""
-    across, along, lift = (float(value) for value in entry["placement"]["ground"])
+    across, along, lift = ground_spot(entry["placement"]["ground"], scene)
     point, up = on_ground(ground, across, along, lift)
     emitter = dict(entry, origin=point, basis=upright(up))
     travel = entry.get("travel")
@@ -352,7 +364,7 @@ def emitters_of(effects, ground, scene, motions=None):
         elif "cells" in placement:
             emitters += cell_emitters(entry, ground, wind)
         elif "ground" in placement:
-            emitters.append(ground_emitter(entry, ground, wind))
+            emitters.append(ground_emitter(entry, ground, wind, scene))
         elif "eye" in placement:
             emitters.append(eye_emitter(entry, scene))
         elif "structure" in placement:

@@ -158,6 +158,31 @@ def test_the_launch_s_effect_times_follow_its_motion_record_s_lift_off():
         raise AssertionError("a moment of a climb the motion record does not hold was read")
 
 
+def test_the_pad_effects_stand_under_the_rocket_where_the_scene_record_lays_it():
+    """Fault (2026-10-15): the pad effects stood at fixed numbers and the plume at data/scene's rocket, 3.4 m off the
+    rocket the assembly lays from the accepted scene record. Moved 25 m in a scene record, the rocket takes the pad
+    effects and the plume with it and the gates pass; a layer baked at the old spot fails `attached` against it."""
+    with tempfile.TemporaryDirectory() as folder:
+        scene = json.loads((REPO / "data/scene/launch.json").read_text())
+        rocket = next(item for item in scene["objects"] if item["name"] == "rocket")
+        rocket["at"] = [rocket["at"][0] + 20.0, rocket["at"][1], rocket["at"][2] + 15.0]
+        made = pathlib.Path(folder) / "scene-record"
+        (made / "record").mkdir(parents=True)
+        (made / "record/launch.json").write_text(json.dumps(scene))
+        inputs = {**launch_inputs(folder), "scene-record": made}
+        laid = effects.effect_layer.emitters_of(effects.record_of(inputs), None, effects.scene_of(inputs),
+                                                effects.motions_of(inputs))
+        pad = next(entry for entry in laid if entry["name"] == "pad_fire")
+        assert abs(pad["origin"][0] - rocket["at"][0]) < 1e-6 and abs(pad["origin"][2] - rocket["at"][2]) < 1e-6
+        found = answers(inputs, folder)
+        assert all(verdict.answer == checks.PASS for verdict in found.values()), {
+            name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
+        old = pathlib.Path(folder) / "old"
+        old.mkdir()
+        effects.make(launch_inputs(folder), old, 0, {})
+        attached = next(check for check in effects.CHECKS if check.name == "attached").judge(old, inputs, None)
+        assert attached.answer == checks.FAIL and "plume" in " ".join(attached.findings), attached
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
