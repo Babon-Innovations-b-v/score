@@ -1,6 +1,7 @@
 """Check the showcase's measured numbers and its figure on pieces made here: each surface's share of a model's parts is
 its share of their area, a film is shown by its first walking shot (else its second), and the figure lays one inked
-frame of every film in story order, its frame list beside it. The whole cut needs the films and their stills; no
+frame of every film in story order, its frame list beside it; the world video joins the store's films made here in the
+order given, stops on a missing one and, as a draft, names it. The whole cut needs the films and their stills; no
 Blender, no cloud.
 
 Run: .venv/bin/python tools/review/showcase_test.py   (make tests runs it with the framework's environment)
@@ -57,9 +58,34 @@ def check_figure(folder):
         assert sheet.size == (3 * showcase.TILE[0] + 16, 6 * showcase.TILE[1] + 40), sheet.size
 
 
+def store_film(path, shade):
+    """A film as the runner keeps it: 5.5 s at 1280x720 with a sound track."""
+    path.parent.mkdir(parents=True)
+    showcase.demo.ffmpeg("-f", "lavfi", "-i", f"color=c=0x{shade:02x}6464:s=1280x720:d=5.5:r=24", "-f", "lavfi", "-i",
+                         "sine=frequency=440:duration=5.5", "-c:a", "aac", "-shortest", *showcase.demo.encode(path))
+    return path
+
+
+def check_world(folder):
+    films = [("flat", "Flat", store_film(folder / "a/film.mp4", 40), "a"), ("stairwell", "Stairwell", None, None),
+             ("hull", "The ship", store_film(folder / "b/hull/film.mp4", 200), "b")]
+    try:
+        showcase.world(folder / "out", folder / "fig.jpg", films)
+        raise AssertionError("a missing film was cut")
+    except SystemExit as stop:
+        assert "stairwell" in str(stop), stop
+    showcase.world(folder / "out", folder / "fig.jpg", films, draft=True)
+    record = json.loads((folder / "out/world1.json").read_text())
+    assert [film["film"] for film in record["films"]] == ["flat", "hull"] and record["missing"] == ["stairwell"], record
+    assert abs(showcase.length(folder / "out/world1.mp4") - 10.5) < 0.2, showcase.length(folder / "out/world1.mp4")
+    with Image.open(folder / "fig.jpg") as sheet:
+        assert sheet.size == (3 * showcase.TILE[0] + 16, showcase.TILE[1]), sheet.size
+        assert sheet.getpixel((10, 10))[0] < sheet.getpixel((showcase.TILE[0] + 18, 10))[0]
+
+
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as temporary:
-        for check in (check_legend, check_figure):
+        for check in (check_legend, check_figure, check_world):
             place = pathlib.Path(temporary) / check.__name__
             place.mkdir()
             check(place)

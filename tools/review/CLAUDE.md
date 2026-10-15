@@ -57,7 +57,8 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   fails is not shown. Experimental: the films check only what they measure (a walk through a crowd passed them
   once), nobody has reviewed the round-three and round-four films, and they are cited nowhere; they come back as the
   evidence step, on places the owner accepted. `showcase.py` cuts the showcase and the
-  figure from the films. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
+  figure from the films; its `world` step cuts demo K9, the world 1 video and its figure, from the films the runner
+  accepted (demo-film@<place> in story order, the ship's hull film after the hangar's), `--draft` with those it has. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
 - **A place's review from the store** (`store_page.py`, no Blender, no cloud): one command per place copies the
   accepted `assembly@<place>` stage out of the framework's store, runs `../usd/complete.py check` and `done` on the
   copy, exports it for the viewer, and writes one self-contained page (every gate of the place's line, each painted
