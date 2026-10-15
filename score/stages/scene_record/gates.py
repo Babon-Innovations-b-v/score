@@ -476,14 +476,14 @@ def sealed_leaves(plan):
     """A ground-free room's doors that lead `sealed` (the plan: its leaf stays shut until the next place is made) as a
     shut leaf each, a box filling the doorway, so its views are judged against its own closed walls."""
     found = []
-    for door in plan["doors"]:
+    for number, door in enumerate(plan["doors"]):  # by number: two doors may share a side's name, or carry a level
         if door["leads"] != "sealed":
             continue
         normal = np.asarray(door["normal"], dtype=float)
         across = np.abs(np.array([normal[2], 0.0, normal[0]]))
         size = across * door["wide"] + np.abs(normal) * SEALED_LEAF + np.array([0.0, door["tall"], 0.0])
         centre = np.asarray(door["middle"], dtype=float) + np.array([0.0, door["level"] + door["tall"] / 2, 0.0])
-        found.append({"name": f"sealed_leaf_{door['name']}", "builder": "box", "centre": centre.tolist(),
+        found.append({"name": f"sealed_leaf_{number}", "builder": "box", "centre": centre.tolist(),
                       "size": size.tolist(), "surface": "kit_floor"})
     return found
 
