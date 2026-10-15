@@ -33,6 +33,7 @@ import score.stages.demo_film.stills as demo_stills
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 import score.stages.machines.boxes as machine_boxes
+import score.stages.complete.boxes as complete_boxes
 from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
 from score.stages.terrain import inputs as terrain_inputs, look
@@ -91,7 +92,13 @@ COMPLETE = graph.Stage("complete", "place", complete.make_manifest, contracts.PL
                        files=complete.files,
                        after={"assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1),
                               "surfaces-check": ("surfaces-check", 1), "likeness": ("props-likeness", 1),
-                              "characters-layer": ("characters-layer", 1)})
+                              "characters-layer": ("characters-layer", 1), "complete-boxes": ("complete-boxes", 1)})
+# The box gate's measure of the boxes no other row measures (complete/boxes.py), so complete's boxes check has a
+# verdict for every boxed row: a ship place's code rows and the rows it takes from another place's take
+# (2026-10-15). The old places' partitions were measured whole by hand; a ship place only, so none of theirs moves.
+COMPLETE_BOXES = graph.Stage("complete-boxes", "place", complete_boxes.make_boxes, complete_boxes.CONTRACT,
+                             complete_boxes.CHECKS, files=complete_boxes.files, paid=True, euros=complete_boxes.EUROS,
+                             applies=lambda place: ship_place(place) and complete_boxes.has_rows(place))
 # Experimental (PRD #6) until the owner reviews it: the proof place's before and after its made ground, rendered.
 TERRAIN_LOOK = graph.Stage("terrain-look", "place", look.make, look.LOOK, look.CHECKS, files=look.files,
                            after={"assembly": ("openusd-stage", 1)}, paid=True, euros=look.EUROS,
@@ -363,7 +370,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
           props.CALIBRATION, props.LIKENESS,
           *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
-          *light.ROWS, *map(library_narrowed, crops.ROWS))
+          *light.ROWS, *map(library_narrowed, crops.ROWS), COMPLETE_BOXES)
 
 
 # The gates a named gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
