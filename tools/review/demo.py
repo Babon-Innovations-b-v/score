@@ -180,12 +180,12 @@ def on_floor(goal, floor):
     return floor is None or bool(np.all(goal >= floor[0]) and np.all(goal <= floor[1]))
 
 
-def walk_path(scenes, eye, view, room, seed):
+def walk_path(scenes, eye, view, room, seed, seconds=SHOT_SECONDS):
     """A shot's walk from its start eye: a walkable path of eyes (camera_paths.leg), or None where none is. In a room
     (`room`: the scene record's `floor`, its (x, z) corners) the walk keeps to its floor: a stage may run a room's floor
-    on past its walls (a flat with no ground of its own stands on y = 0 everywhere)."""
+    on past its walls (a flat with no ground of its own stands on y = 0 everywhere). It walks for `seconds`."""
     floor = np.asarray(room, dtype=float) if room is not None else None
-    reach = (PACE_OUTSIDE if floor is None else PACE_INSIDE) * SHOT_SECONDS
+    reach = (PACE_OUTSIDE if floor is None else PACE_INSIDE) * seconds
     for goal in walk_goals(eye, view["aim"], reach):
         if np.linalg.norm(goal - eye[[0, 2]]) < SHORTEST_WALK or not on_floor(goal, floor):
             continue
@@ -238,7 +238,7 @@ def seen_from(scenes, eye, spot):
     return camera_paths.first_hits(scenes["still"], eye[None], (span / max(length, 1e-9))[None])[0] > length
 
 
-def shot_move(scenes, view, room, seed):
+def shot_move(scenes, view, room, seed, seconds=SHOT_SECONDS):
     """How a shot moves from its camera: {"camera", "move": "walk", "path"} where a walk is clear (in a room, on its
     `floor`), else {"camera", "move": "stand", "eye", "level"}: on the floor under the camera, its view held near level,
     or at the camera's own eye looking where it looks when it stands on no floor of the stage. Its start stands clear
@@ -251,7 +251,7 @@ def shot_move(scenes, view, room, seed):
         return None
     moved = round(float(np.linalg.norm((spot - (eye if floored else np.asarray(view["eye"])))[[0, 2]])), 3)
     found = {"camera": view["name"], "seed": seed, "moved": moved}
-    path = walk_path(scenes, spot, view, room, seed) if floored else None
+    path = walk_path(scenes, spot, view, room, seed, seconds) if floored else None
     if path is not None:
         return dict(found, move="walk", path=[[round(float(value), 4) for value in point] for point in path])
     return dict(found, move="stand", eye=[round(float(value), 4) for value in spot], level=floored)
@@ -286,11 +286,11 @@ def shot_frames(move, view, number, frames):
     return standing_frames(eye, aim, view, number, frames)
 
 
-def shot_times(number, time_rate, rate=RATE):
-    """The stage's time codes of a shot's frames at `rate` frames a second, the film's shots one after the other at
+def shot_times(number, time_rate, seconds=SHOT_SECONDS):
+    """The stage's time codes of a shot's frames, `seconds` long, the film's shots one after the other at
     consecutive moments."""
-    frames = round(SHOT_SECONDS * rate)
-    return [round((number * frames + index) * time_rate / rate) for index in range(frames)]
+    frames = round(seconds * RATE)
+    return [round((number * frames + index) * time_rate / RATE) for index in range(frames)]
 
 
 def people_over(stage, time_rate):
@@ -336,14 +336,14 @@ def chosen(given):
     return film, place or film, [name for name in names.split(",") if name]
 
 
-def film_shots(record, stage, scenes, cameras, earlier, rate=RATE):
+def film_shots(record, stage, scenes, cameras, earlier, seconds=SHOT_SECONDS):
     """A film's shots: an earlier take's where it stands clear (`earlier`, kept_shots) and its camera is the same,
     else a new move from the camera: the moves, and each shot's views at its moments of the stage's time with
-    whether it is new; `rate` frames a second."""
+    whether it is new; each shot `seconds` long."""
     time_rate = renders.stage_rate(stage)
     people_at = people_over(stage, time_rate)
     room = record.get("floor") if record.get("inside") else None
-    frames = round(SHOT_SECONDS * rate)
+    frames = round(seconds * RATE)
     moves, shots = [], []
     for view in cameras:
         number = len(moves)
@@ -351,13 +351,13 @@ def film_shots(record, stage, scenes, cameras, earlier, rate=RATE):
             moves.append(earlier[number][0])
             shots.append((earlier[number][1], False))
             continue
-        move = shot_move(camera_paths.with_people(scenes, people_at(number)), view, room, seed=number)
+        move = shot_move(camera_paths.with_people(scenes, people_at(number)), view, room, seed=number, seconds=seconds)
         if move is None:
             print(f"{view['name']}: no spot within {MOVE_MOST} m of the camera stands clear; the shot is left out")
             continue
         moves.append(move)
         timed = [dict(frame, frame=time) for frame, time in
-                 zip(shot_frames(move, view, number, frames), shot_times(number, time_rate, rate))]
+                 zip(shot_frames(move, view, number, frames), shot_times(number, time_rate, seconds))]
         shots.append((timed, True))
     return moves, shots
 
@@ -402,12 +402,12 @@ def film_jobs(out, film, stage, shown, views, kind, jobs_each, size=SIZE, ink=Tr
     return written
 
 
-def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots=SHOTS, rate=RATE):
+def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots=SHOTS, seconds=SHOT_SECONDS):
     """Each place's views and its cloud jobs (`jobs_each` a place for its new frames and as many for the ink lines of
     the frames it keeps from the earlier take in `keep`); the job files. The views file records every shot's move
     (its path or its spot, its seed, how far its start moved, the take it was kept from) and the planner's commit.
-    `size`, `ink`, `shots` (shots a film) and `rate` (frames a second, kept in the views file for the cut) set the
-    frames: the demo's default is SIZE with ink, SHOTS a film, RATE."""
+    `size`, `ink`, `shots` (shots a film) and `seconds` (a shot's length, kept in the views file for the cut) set the
+    frames: the demo's default is SIZE with ink, SHOTS a film, SHOT_SECONDS a shot."""
     (out / "views").mkdir(parents=True, exist_ok=True)
     (out / "jobs").mkdir(parents=True, exist_ok=True)
     written = []
@@ -423,12 +423,12 @@ def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots
             raise SystemExit(f"{place} has no scene record with cameras ({kept} or data/scene/{place}.json)")
         scenes = camera_paths.place_scenes(stage)
         moves, shots = film_shots(record, stage, scenes, film_cameras(place, record, names, count=shots),
-                                  kept_shots(keep, film, scenes, stage), rate)
+                                  kept_shots(keep, film, scenes, stage), seconds)
         views = [view for shot, _ in shots for view in shot]
         new = [view for shot, fresh in shots if fresh for view in shot]
         old = [view for shot, fresh in shots if not fresh for view in shot]
         (out / "views" / f"{film}.json").write_text(json.dumps(
-            {"size": list(size), "ink": ink, "rate": rate, "views": views, "moves": moves, "stage": str(stage),
+            {"size": list(size), "ink": ink, "seconds": seconds, "views": views, "moves": moves, "stage": str(stage),
              "planned_with": planned_with()},
             indent=1))
         if old and keep.resolve() != out.resolve():
@@ -509,7 +509,7 @@ def cut_place(out, place, title):
     ink), joined by cross-fades; its length in seconds."""
     frames = out / "frames" / place
     planned = json.loads((out / "views" / f"{place}.json").read_text())
-    views, ink, rate = planned["views"], planned.get("ink", True), planned.get("rate", RATE)
+    views, ink, length = planned["views"], planned.get("ink", True), planned.get("seconds", SHOT_SECONDS)
     missing = [view["name"] for view in views if not (frames / f"{view['name']}-look.png").exists()
                or ink and not any((frames / f"{view['name']}-{kind}.png").exists() for kind in ("ink", "lines"))]
     if missing:
@@ -528,13 +528,13 @@ def cut_place(out, place, title):
     ffmpeg("-loop", "1", "-t", TITLE_SECONDS, "-i", work / "title.png", *silence, *encode(work / "title.mp4"))
     clips, seconds = [work / "title.mp4"], [TITLE_SECONDS]
     for shot in shots:
-        ffmpeg("-framerate", rate, "-i", frames / f"{shot}-%03d-{'ink' if ink else 'look'}.png",
+        ffmpeg("-framerate", RATE, "-i", frames / f"{shot}-%03d-{'ink' if ink else 'look'}.png",
                *encode(work / f"{shot}.mp4"))
         if voiced:
-            renders.heard(stage, [view for view in views if shot_of(view) == shot], rate,
+            renders.heard(stage, [view for view in views if shot_of(view) == shot], RATE,
                           work / f"{shot}.mp4")
         clips.append(work / f"{shot}.mp4")
-        seconds.append(SHOT_SECONDS)
+        seconds.append(length)
     video = out / "videos" / f"{place}.mp4"
     video.parent.mkdir(parents=True, exist_ok=True)
     joined(clips, seconds, video)
