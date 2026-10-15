@@ -133,6 +133,31 @@ def test_shown_and_lit_read_their_measures():
         assert look.judge_lit(out, inputs, None).answer == checks.FAIL
 
 
+def test_the_launch_s_effect_times_follow_its_motion_record_s_lift_off():
+    """Fault (2026-10-15): the record's seconds were set for the game's lift-off at 4 s, so with the motion record's 6 s
+    the plume began 2 s early and the pad fire stopped at lift-off. Its seconds are now moments of the climb: moved
+    with the lift, a number stays as it is, and a moment with no climb to read it from is refused."""
+    record = json.loads((REPO / "data/effects/launch.json").read_text())
+    motions = json.loads((REPO / "data/motion/launch.json").read_text())
+    climb = motions["motions"][0]
+    lift_off = climb["start"] + climb["climb"]["lift"]
+    timed = {entry["name"]: entry for entry in effects.effect_layer.timed(record, motions)["effects"]}
+    assert timed["plume"]["once"][0] == lift_off and timed["pad_fire"]["once"][1] == lift_off + 3.4
+    assert timed["flame"]["starts"] == climb["start"]
+    later = json.loads(json.dumps(motions))
+    later["motions"][0]["climb"]["lift"] += 2.0
+    moved = {entry["name"]: entry for entry in effects.effect_layer.timed(record, later)["effects"]}
+    assert moved["plume"]["once"][0] == lift_off + 2.0 and moved["flame"]["starts"] == climb["start"]
+    plain = {"effects": [{"name": "fog", "once": [1.0, 5.0]}]}
+    assert effects.effect_layer.timed(plain, None)["effects"][0]["once"] == [1.0, 5.0]
+    try:
+        effects.effect_layer.timed(record, {"motions": []})
+    except ValueError as error:
+        assert "needs one climb" in str(error)
+    else:
+        raise AssertionError("a moment of a climb the motion record does not hold was read")
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
