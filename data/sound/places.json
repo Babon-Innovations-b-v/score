@@ -151,6 +151,54 @@
 				"suit_breathing_calm"
 			],
 			"from": "outside, no air carries a place's sound: only the suit's own are heard (data/sound/sounds.json `where`): suit_fans: 'the spacesuit's air fans, in the helmet'; suit_breathing_calm: 'the player's own breathing inside the helmet, at rest'"
+		},
+		"cockpit": {
+			"loops": [
+				"ship_inside"
+			],
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+		},
+		"quarters": {
+			"loops": [
+				"ship_inside"
+			],
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+		},
+		"navigation": {
+			"loops": [
+				"ship_inside"
+			],
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+		},
+		"galley": {
+			"loops": [
+				"ship_inside"
+			],
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+		},
+		"storage": {
+			"loops": [
+				"ship_inside"
+			],
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+		},
+		"engineroom": {
+			"loops": [
+				"ship_inside"
+			],
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+		},
+		"shiplock": {
+			"loops": [
+				"ship_inside"
+			],
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+		},
+		"walkway": {
+			"loops": [
+				"ship_inside"
+			],
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
 		}
 	}
 }
