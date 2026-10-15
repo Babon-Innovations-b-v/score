@@ -209,6 +209,18 @@ def test_a_room_s_ruled_plain_rows_are_laid_from_its_plan():
     middle = [spot for spot in ribs if abs(spot["z"]) < 0.5]  # the rib at the west door: no bar in its doorway
     assert not any(spot["x"] < -0.3 for spot in middle), middle
     assert len(ribs) == 3 + 3 + 2  # a ceiling bar each, an east bar each, a west bar where no door is
+    for spot in ribs:
+        if spot["x"]:  # a side bar stands up its wall to the ceiling, half in the wall's lining and half out
+            assert spot["size"][1] > 2.0 and spot["size"][2] == ship_kit.RIB_BAR, spot
+            assert abs(abs(spot["x"]) - (CORRIDOR["w"] / 2 - ship_kit.WALL_DEEP)) < 1e-9, spot
+
+
+def test_a_glazed_roof_s_frame_ribs_are_its_own_not_ruled():
+    """The cockpit's frame ribs are the ones between its roof's lights: no corridor bars across it or down its walls."""
+    ribbed = {"rows": TAPERED_INVENTORY["rows"] + [row("frame_rib", [0.15, 0.2, 1.4], [], count=3, anchor="ceiling")]}
+    pieces = [piece for piece in ship_kit.layout("cockpit", TAPERED, ribbed)["pieces"]
+              if piece["kind"] == "cockpit_frame_rib"]
+    assert len(pieces) == len(tapered_pieces("frame_rib")) == 3
 
 
 def test_a_raised_deck_and_its_step_face_are_laid():
