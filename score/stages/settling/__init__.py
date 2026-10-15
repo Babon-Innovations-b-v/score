@@ -22,12 +22,12 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
                        and lean of one stood upright for the paint aside); what is left is named, for the assembly's
                        own drop and triage to judge on the baked models
 
-Only the places in stages.SETTLED have the row; the assembly of any other place lays the seed's poses. The seed's
-models, not the surface stage's bakes, are dropped, so the row does not wait on the paint: a baked model keeps its
-shape but for the feet the paint levels, which the upright stand leaves room for.
+Only the places in stages.SETTLED have the row; the assembly of any other place lays the seed's poses. The surface
+stage's bakes are dropped, the very models the assembly lays (take_bakes, 2026-10-15): the seed's models, dropped so
+the row need not wait on the paint, rested otherwise than the repainted bakes laid under their poses (the hangar's
+control desk 2 degrees over, its keyboards on its sloping front).
 """
 import json
-import os
 import pathlib
 import shutil
 import sys
@@ -41,6 +41,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 import settle  # noqa: E402
 import triage  # noqa: E402
 from score.stages.settling import held as snapped  # noqa: E402
+from score.stages.assembly.grounded import grounded_seed  # noqa: E402
 
 LAYER = "layers/settle.usda"
 RECORD = "settle.json"
@@ -53,7 +54,6 @@ DROPS = PROPS_HOME / "store/cache/drops"
 SCRATCH = PROPS_HOME / "store/cache"
 # How far round an object, and over or under its bottom, another may lie and hold it up (metres; supports_of).
 SUPPORT_REACH = 0.1
-SEED_PARTS = ("layers", "inputs.json")
 # A rest the paint finishes: the faults the triage raises of an object stood upright on uneven feet.
 FOR_THE_PAINT = ("foot off", "leans", "tips")
 
@@ -64,6 +64,7 @@ def files(place):
     machine runs."""
     import stage_inputs
     found = {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json",
+             "surfaces": "{data}/surfaces/{place}.json",
              "inventory": "{data}/inventory/" + stage_inputs.inventory_path(place).name,
              "resting rules": "{data}/checks/resting.json",
              "drop script": "{repo}/tools/blender/inside/settle_stage.py"}  # run by path on the machine
@@ -81,37 +82,6 @@ def place_of(inputs):
 
 
 # --- the stage dropped -------------------------------------------------------------------------------------------
-
-def grounded_seed(inputs, folder):
-    """The seed's stage in `folder` with its accepted scene record written in and each kit piece at its kit spot, on
-    the place's made ground (the assembly's take_record and take_ground, so the settle starts from what the assembly
-    lays: the airlock's alcove, moved off its wall, met the seed's old hanging suit): its root and layers copied, its
-    assets linked (read, never written). The root's path."""
-    import score.stages.assembly.record as record  # this form: the code version hashes record.py alone
-    seed = pathlib.Path(inputs["seed"])
-    folder.mkdir(parents=True, exist_ok=True)
-    root = folder / f"{seed.name}.usda"
-    shutil.copy2(seed / root.name, root)
-    for part in SEED_PARTS:
-        source = seed / part
-        if source.is_dir():
-            shutil.copytree(source, folder / part)
-        elif source.exists():
-            shutil.copy2(source, folder / part)
-    shutil.copytree(seed / "assets", folder / "assets", copy_function=linked)
-    record.take_record({key: inputs[key] for key in ("kit", "scene", "scene-record") if key in inputs}, folder,
-                       seed.name)
-    record.take_ground(inputs["terrain"], seed.name, root)
-    return root
-
-
-def linked(source, target):
-    """A file linked where it can be (one disk), else copied."""
-    try:
-        os.link(source, target)
-    except OSError:
-        shutil.copy2(source, target)
-
 
 def make(inputs, out, seed, params):
     """Drop the place's loose objects on its made ground and lay where each comes to rest. The grounded seed is put

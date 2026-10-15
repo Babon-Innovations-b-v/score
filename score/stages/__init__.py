@@ -60,8 +60,10 @@ MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS
 SETTLED = ("airlock", "campgrounds", "garage", "greenhouse", "habitat", "hangar", "lab", "square", "workshop",
            "wreck")
 SETTLE = graph.Stage("settle", "place", settling.make, settling.SETTLE_LAYER, settling.CHECKS, files=settling.files,
-                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1)}, paid=True,
-                     euros=settling.EUROS,
+                     after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1),
+                            "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                     beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                     neighbours=assembly.claiming_places, paid=True, euros=settling.EUROS,
                      applies=lambda place: place in SETTLED)
 # The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
