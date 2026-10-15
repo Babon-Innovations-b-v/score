@@ -105,14 +105,15 @@ def newest_judgement(store, record):
 
 # --- accepts, rejects, waivers and spend yeses -----------------------------------------------------------------
 
-def accept_automatically(store, node, output):
+def accept_automatically(store, node, output, against=None):
     """The runner's accept of an output that passed, is no worse than the accepted one and that the owner has not
-    rejected; the accept, or None when one of those does not hold."""
+    rejected; the accept, or None when one of those does not hold. `against`: the accepted output's scorecard judged
+    now by today's gates (the runner's rejudged_accepted), compared in place of the one stored when it was judged."""
     if store.rejected(node, output):
         return None
     try:
         return accept(store, node, output, RUNNER, "accepted automatically: every gate passed and nothing got worse "
-                      "than the accepted output")
+                      "than the accepted output", against=against)
     except Refused:
         return within_owners_accept(store, node, output)
 
@@ -157,7 +158,7 @@ def reject(store, node, output, by, reason):
     return written
 
 
-def accept(store, node, output, by, reason="", worse_reason=None):
+def accept(store, node, output, by, reason="", worse_reason=None, against=None):
     """Move the node's accepted output to `output`: refused unless it passed and no score is worse, or the owner
     says why it may be worse. The accept, as written."""
     record = record_of(store, node, output)
@@ -167,7 +168,7 @@ def accept(store, node, output, by, reason="", worse_reason=None):
     if judgement is None or checks.standing(judgement["verdicts"], store.waivers(node, record["key"])) != checks.PASS:
         raise Refused(f"{node}'s output {output[:12]} answered {judgement['answer'] if judgement else 'nothing yet'}; "
                       "only a passing output can be accepted")
-    worse = worse_than_accepted(store, node, judgement)
+    worse = worse_than_accepted(store, node, judgement, against)
     if worse and not worse_reason:
         raise Refused(f"{node}'s output {output[:12]} is worse than the accepted one: {'; '.join(worse)}. "
                       "Accept it only with a written reason (--worse).")
@@ -178,9 +179,11 @@ def accept(store, node, output, by, reason="", worse_reason=None):
     return written
 
 
-def worse_than_accepted(store, node, judgement):
-    """How a judgement's scorecard is worse than the accepted output's, as lines; none when nothing is accepted."""
-    return regressions(judgement["verdicts"], accepted_card(store, node, judgement["output"]))
+def worse_than_accepted(store, node, judgement, against=None):
+    """How a judgement's scorecard is worse than the accepted output's (`against` when given: judged now), as lines;
+    none when nothing is accepted."""
+    card = accepted_card(store, node, judgement["output"])
+    return regressions(judgement["verdicts"], against if against is not None and card else card)
 
 
 def accepted_card(store, node, output):
