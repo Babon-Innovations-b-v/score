@@ -3,12 +3,15 @@
     .venv/bin/python tools/usd/complete.py check <place> [--stage <stage.usda> | --work-stage] [--only rows,...]
     .venv/bin/python tools/usd/complete.py done <place> [--stage <stage.usda> | --work-stage] [--review <folder>]
 
-The stage judged by default is the store copy of the place's accepted assembly (WORK/review-store/<place>/stage,
+The stage judged by default is the store copy of the place's accepted assembled stage (WORK/review-store/<place>/stage,
 made by tools/review/store_page.py); --work-stage judges the old export at WORK/usd/<place>.
 
 `check` runs the place's checks on its OpenUSD stage and writes each result beside the stage
 (`<stage folder>/checks/<check>.json`); `done` reads them and writes the place's manifest (`<stage folder>/manifest.json`)
-saying, requirement by requirement, whether the place is complete. It exits 0 only when every requirement passes. The
+saying, requirement by requirement, whether the place is complete, and its status (CONTEXT.md): "complete" when
+every requirement passes; "complete apart from named gaps (N)" when the named gaps requirement is the only one that
+does not, every gap listed with its numbers and who decided it (overseer, 2026-10-15); else "NOT complete". It exits 0
+on the first two. The
 Stop hook (.claude/hooks/completion_guard.py) runs `done` for each place a session worked on and refuses to let the
 session end on a claim that a place is done while its manifest says otherwise.
 
@@ -73,6 +76,12 @@ EXPERIMENTAL = {
              "that was then fixed; counted once the owner's scenery rule is set and it has",
 }
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
+# The verdict of a place whose only failing requirement is its named gaps (overseer, 2026-10-15): done passes for the
+# run and says so. NAMED_GAPS is that requirement's name, the runner's complete row's check (graph.GAPPED).
+GAPPED, NAMED_GAPS = "gapped", "named gaps"
+# What done says of each verdict (CONTEXT.md: complete, complete apart from named gaps, not complete).
+STATUS = {PASS: "complete", GAPPED: "complete apart from named gaps"}
+NOT_COMPLETE = "NOT complete"
 # What of a stage's folder is the stage: its root file, its layers and its assets (not the checks, the manifest, the
 # inputs record or a settle run kept beside it).
 STAGE_PARTS = ("layers", "assets")
@@ -375,6 +384,13 @@ def gap_moved(check, place, found):
     return moved.answer, moved.reason if moved is not verdict else None
 
 
+def gap_list(place):
+    """Every named gap of the place, as the runner's complete row reads them (gaps.entries)."""
+    sys.path.insert(0, str(REPO))
+    from score.stages import gaps
+    return gaps.entries(gap_inputs(place))
+
+
 def named_gaps_requirement(place):
     """The completion gate's own named gaps check (score/stages/gaps.py judge_named): every gap fails by name."""
     sys.path.insert(0, str(REPO))
@@ -430,7 +446,7 @@ def requirements(place, stage, review=None):
     found += [(check, *(recorded(*check_requirement(check, stage, current)) if check in EXPERIMENTAL
                         else check_requirement(check, stage, current, place))) for check in CHECKS]
     stale = [name for name, verdict, _ in found[1:] if verdict == UNKNOWN]
-    found.append(("named gaps", *named_gaps_requirement(place)))
+    found.append((NAMED_GAPS, *named_gaps_requirement(place)))
     found.append(("current", UNKNOWN if stale else PASS,
                   f"not current or unknown: {', '.join(stale)}" if stale else "every result is on this stage"))
     found.append(("review", *review_requirement(place, stage, review, current)))
@@ -440,17 +456,30 @@ def requirements(place, stage, review=None):
 
 
 def verdict_of(found):
-    """The place's verdict: pass when every requirement passes, fail when any fails, else unknown. An experimental
-    requirement passes once recorded on this stage (its faults shown, not counted)."""
+    """The place's verdict: pass when every requirement passes; gapped when the named gaps requirement is the only one
+    that does not; else fail when any fails, else unknown. An experimental requirement passes once recorded on this
+    stage (its faults shown, not counted)."""
     results = {requirement["result"] for requirement in found}
-    return PASS if results == {PASS} else FAIL if FAIL in results else UNKNOWN
+    others = {requirement["result"] for requirement in found if requirement["name"] != NAMED_GAPS}
+    if results == {PASS}:
+        return PASS
+    if others == {PASS}:
+        return GAPPED
+    return FAIL if FAIL in results else UNKNOWN
+
+
+def status_of(verdict):
+    """What done says of a verdict: complete, complete apart from named gaps, or NOT complete."""
+    return STATUS.get(verdict, NOT_COMPLETE)
 
 
 def manifest(place, stage, review=None):
     """The place's manifest, written beside its stage: every requirement and the verdict."""
     found = requirements(place, stage, review)
+    verdict = verdict_of(found)
     written = {"place": place, "stage": str(stage), "fingerprint": fingerprint(stage), "at": now(),
-               "verdict": verdict_of(found), "requirements": found}
+               "verdict": verdict, "status": status_of(verdict), "requirements": found,
+               "named_gaps": [{key: entry[key] for key in ("name", "decided", "faults")} for entry in gap_list(place)]}
     if pathlib.Path(stage).parent.is_dir():
         (pathlib.Path(stage).parent / "manifest.json").write_text(json.dumps(written, indent=1) + "\n")
     return written
@@ -466,6 +495,18 @@ def run_checks(place, stage, only=CHECKS):
         save(outcome, stage)
         found.append(outcome)
     return found
+
+
+def done_line(place, written):
+    """done's last words on the place: its status, and for one complete apart from named gaps every gap with its
+    numbers and who decided it."""
+    if written["verdict"] != GAPPED:
+        return f"{place}: {written['status']} ({written['verdict']})"
+    lines = [f"{place}: {written['status']} ({len(written['named_gaps'])})"]
+    for entry in written["named_gaps"]:
+        lines.append(f"  {entry['name']} (decided: {entry['decided']})")
+        lines += [f"    {fault}" for fault in entry["faults"]]
+    return "\n".join(lines)
 
 
 def main():
@@ -488,8 +529,8 @@ def main():
     for requirement in written["requirements"]:
         counted = " (experimental: its faults not counted)" if "experimental" in requirement else ""
         print(f"{requirement['name']:13} {requirement['result']:8} {requirement['why']}{counted}")
-    print(f"{options.place}: {'complete' if written['verdict'] == PASS else 'NOT complete'} ({written['verdict']})")
-    sys.exit(0 if written["verdict"] == PASS else 1)
+    print(done_line(options.place, written))
+    sys.exit(0 if written["verdict"] in STATUS else 1)
 
 
 if __name__ == "__main__":

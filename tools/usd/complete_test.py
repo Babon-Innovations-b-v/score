@@ -256,7 +256,44 @@ def a_named_gap_moves_only_the_faults_it_names():
         return problems
 
 
-CHECKS = (a_finished_place_passes, a_named_gap_moves_only_the_faults_it_names, a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
+def the_three_statuses():
+    """The overseer's decision (2026-10-15): done says "complete" for a place with no gaps, "complete apart from named
+    gaps (N)" when its named gaps are the only fail, listing every gap with its numbers and who decided it, and passes
+    the run for both; any other fail stays "NOT complete"."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = laid(folder)
+        checked_and_reviewed(stage, folder / "review")
+        saved = gaps.FOLDER
+        problems = []
+        try:
+            written = complete.manifest(resting_test.PLACE, stage, folder / "review")
+            if (written["verdict"], written["status"]) != (complete.PASS, "complete") or \
+                    complete.done_line(resting_test.PLACE, written) != f"{resting_test.PLACE}: complete (pass)":
+                problems.append(f"a place with no gaps is not plainly complete: {written['status']}")
+            gaps.FOLDER = folder / "data/checks/gaps"
+            gaps.FOLDER.mkdir(parents=True)
+            (gaps.FOLDER / f"{resting_test.PLACE}.json").write_text(json.dumps({"gaps": [
+                {"name": "no player", "row": "complete", "check": "people", "objects": ["player"], "reason": "a test",
+                 "decided": "the overseer, 2026-10-15", "faults": ["player: not on the stage (0 of 1 bodies)"]}]}))
+            complete.save(complete.result("people", complete.FAIL, stage, ["player: not on the stage"]), stage)
+            written = complete.manifest(resting_test.PLACE, stage, folder / "review")
+            said = complete.done_line(resting_test.PLACE, written)
+            if (written["verdict"], written["status"]) != (complete.GAPPED, "complete apart from named gaps") or \
+                    not said.startswith(f"{resting_test.PLACE}: complete apart from named gaps (1)") or \
+                    "the overseer, 2026-10-15" not in said or "0 of 1 bodies" not in said:
+                problems.append(f"a place failing only on its named gaps reads {written['verdict']}: {said}")
+            complete.save(complete.result("people", complete.FAIL, stage,
+                                          ["player: not on the stage", "guard: not on the stage"]), stage)
+            written = complete.manifest(resting_test.PLACE, stage, folder / "review")
+            if (written["verdict"], written["status"]) != (complete.FAIL, "NOT complete"):
+                problems.append(f"a fail no gap names reads {written['status']}")
+        finally:
+            gaps.FOLDER = saved
+        return problems
+
+
+CHECKS = (a_finished_place_passes, a_named_gap_moves_only_the_faults_it_names, the_three_statuses, a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
           a_check_that_cannot_run_is_unknown, a_part_answers_for_its_own_rows_only,

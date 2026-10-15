@@ -32,6 +32,11 @@ def main():
     # A part of another place has no entry of its own in place.json (KeyError 'gdoor', 2026-10-13): named with its host.
     assert store_page.place_name("gdoor") == "gdoor, part of the garage"
     assert store_page.place_name("garage") == "the garage"
+    # The completion gate's status in done's words (CONTEXT.md), the gaps counted.
+    assert ">complete<" in store_page.status_pill({"verdict": "pass", "status": "complete"})
+    assert ">complete apart from named gaps (2)<" in store_page.status_pill(
+        {"verdict": "gapped", "status": "complete apart from named gaps", "named_gaps": [{}, {}]})
+    assert ">NOT complete<" in store_page.status_pill({"verdict": "unknown", "status": "NOT complete"})
     print("store_page_test: pass")
 
 

@@ -148,6 +148,15 @@ def answer_pill(answer):
     return f'<span class="pill {"ok" if answer == "pass" else "bad"}">{escaped(answer)}</span>'
 
 
+def status_pill(found):
+    """complete.py's status of the place in its own words (CONTEXT.md): complete, complete apart from named gaps (N)
+    or NOT complete; a manifest from before the status says its verdict."""
+    status = found.get("status", found["verdict"])
+    kind = {"pass": "ok", "gapped": "gapped"}.get(found["verdict"], "bad")
+    count = f" ({len(found.get('named_gaps', []))})" if found["verdict"] == "gapped" else ""
+    return f'<span class="pill {kind}">{escaped(status + count)}</span>'
+
+
 def section(anchor, title, body):
     return f'<section id="{anchor}"><h2>{escaped(title)}</h2>{body}</section>'
 
@@ -177,6 +186,9 @@ def completion_section(stage):
     for requirement in found["requirements"]:
         result = stage.parent / "checks" / f"{requirement['name']}.json"
         faults = json.loads(result.read_text()).get("faults", []) if result.exists() else []
+        if requirement["name"] == "named gaps":  # each gap's numbers and who decided it, from the manifest
+            faults = [f"{gap['name']} (decided: {gap['decided']}): {fault}" for gap in found.get("named_gaps", [])
+                      for fault in gap["faults"]]
         faults = [fault if isinstance(fault, dict) else {"why": fault} for fault in faults]  # contents checks: text
         shown = "".join(f"<li><code>{escaped(fault.get('row') or '')}</code> {escaped(fault.get('why', fault))}</li>"
                         for fault in faults[:12])
@@ -184,7 +196,7 @@ def completion_section(stage):
         rows.append(f"<tr><td>{escaped(requirement['name'])}</td><td>{answer_pill(requirement['result'])}</td>"
                     f"<td>{escaped(requirement['why'])}<ul>{shown}{more}</ul></td></tr>")
     return section("complete", "Completion gate",
-                   f"<p>tools/usd/complete.py on this stage: {answer_pill(found['verdict'])} "
+                   f"<p>tools/usd/complete.py on this stage: {status_pill(found)} "
                    f"({escaped(found['at'])})</p>"
                    '<div class="scroll"><table><tr><th>Requirement</th><th>Result</th><th>Why and faults</th></tr>'
                    f"{''.join(rows)}</table></div>")
