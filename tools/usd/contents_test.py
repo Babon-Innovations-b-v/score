@@ -179,6 +179,13 @@ def likeness_and_paint_both_ways():
                                                               {**NONE, "likeness": likeness}), contents.FAIL),
                  ("an unrepainted generated model", judged("painted", path, inventory,
                                                            {**NONE, "surfaces-check": check}), contents.FAIL)]
+        kit = folder / "data/kit" / f"{PLACE}.json"
+        kit.parent.mkdir()
+        kit.write_text(json.dumps({"models": {"chair-b": {"route": "code"}}}))
+        cases.append(("a generated row's model the kit builds in code", judged("painted", path, inventory,
+                                                                             {**NONE, "surfaces-check": check}),
+                      contents.PASS))
+        kit.unlink()
         (likeness / "likeness.json").write_text(json.dumps({"objects": {"chair": {}}}))
         chair.CreateAttribute("score:repaint_of", Sdf.ValueTypeNames.String).Set("seed hash")
         stage.GetRootLayer().Save()

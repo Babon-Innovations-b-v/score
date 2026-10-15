@@ -369,9 +369,18 @@ def judge_likeness(stage, place, inventory, outputs):
     return outcome(faults, f"{len(generated)} generated rows held to their close-ups")
 
 
+def code_built(place):
+    """The models the place's kit (data/kit/<place>.json) lays by the code route: their builder paints them, never the
+    surface stage's bake, whatever their row's kind (the flat's pillow: a generated row the sorter routes to code)."""
+    kit = record("kit", place) or {}
+    return {name for name, about in kit.get("models", {}).items() if about.get("route") == "code"}
+
+
 def judge_painted(stage, place, inventory, outputs):
     """Every generated model on the stage repainted by the surface stage's bake, and the place's paint checked."""
-    models = model_prims(stage, place, generated_rows(inventory))
+    built = code_built(place)
+    models = [prim for prim in model_prims(stage, place, generated_rows(inventory))
+              if prim.GetAttribute("score:model").Get() not in built]
     if not models:
         return PASS, [], "no generated model on the stage"
     unpainted = sorted({prim.GetAttribute("score:model").Get() for prim in models
