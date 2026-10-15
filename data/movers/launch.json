@@ -1,6 +1,6 @@
 {
  "place": "launch",
- "about": "What moves at the launch besides the game's own climb of the rocket (data/motion/launch.json): the three harbour ferries, each round its own lane of the harbour. The layer holds 240 s: two rounds of the short lane and one of each long one.",
+ "about": "What moves at the launch besides the rocket's climb (data/motion/launch.json): the three harbour ferries, each round its own lane of the harbour. The layer holds 240 s: two rounds of the short lane and one of each long one.",
  "seconds": 240.0,
  "movers": [
   {
@@ -244,7 +244,7 @@
      1
     ]
    },
-   "from": "A round of the harbour of SCORE's own (the game stands its ferries still): a stadium-shaped lane in the harbour's water (data/scene/launch.json water.harbour, x -320 to -110), clear of the launch pad's apron (far_pad, x -297 to -239, z -103 to -23) and of the other ferries' lanes, at a harbour ferry's speed (data/checks/motion.json ferry); begun on the side of the lane nearest where the game stood it, heading as it stood. The model's forward is taken as its own +z, along its length (a harbour ferry is double-ended). Lane: x -170 to -125, z -222.5 to 222.5, 941 m a round."
+   "from": "A round of the harbour of SCORE's own: a stadium-shaped lane in the harbour's water (data/scene/launch.json water.harbour, x -320 to -110), clear of the launch pad's apron (far_pad, x -297 to -239, z -103 to -23) and of the other ferries' lanes, at a harbour ferry's speed (data/checks/motion.json ferry); begun on the side of the lane nearest where the place's kit lays it (data/kit/launch.json far_ferry pieces), heading as it lies there. The model's forward is taken as its own +z, along its length (a harbour ferry is double-ended). Lane: x -170 to -125, z -222.5 to 222.5, 941 m a round."
   },
   {
    "name": "ferry_2",
@@ -383,7 +383,7 @@
      1
     ]
    },
-   "from": "A round of the harbour of SCORE's own (the game stands its ferries still): a stadium-shaped lane in the harbour's water (data/scene/launch.json water.harbour, x -320 to -110), clear of the launch pad's apron (far_pad, x -297 to -239, z -103 to -23) and of the other ferries' lanes, at a harbour ferry's speed (data/checks/motion.json ferry); begun on the side of the lane nearest where the game stood it, heading as it stood. The model's forward is taken as its own +z, along its length (a harbour ferry is double-ended). Lane: x -275 to -215, z -310 to -117 (south of the pad), 455 m a round."
+   "from": "A round of the harbour of SCORE's own: a stadium-shaped lane in the harbour's water (data/scene/launch.json water.harbour, x -320 to -110), clear of the launch pad's apron (far_pad, x -297 to -239, z -103 to -23) and of the other ferries' lanes, at a harbour ferry's speed (data/checks/motion.json ferry); begun on the side of the lane nearest where the place's kit lays it (data/kit/launch.json far_ferry pieces), heading as it lies there. The model's forward is taken as its own +z, along its length (a harbour ferry is double-ended). Lane: x -275 to -215, z -310 to -117 (south of the pad), 455 m a round."
   },
   {
    "name": "ferry_3",
@@ -554,7 +554,7 @@
      1
     ]
    },
-   "from": "A round of the harbour of SCORE's own (the game stands its ferries still): a stadium-shaped lane in the harbour's water (data/scene/launch.json water.harbour, x -320 to -110), clear of the launch pad's apron (far_pad, x -297 to -239, z -103 to -23) and of the other ferries' lanes, at a harbour ferry's speed (data/checks/motion.json ferry); begun on the side of the lane nearest where the game stood it, heading as it stood. The model's forward is taken as its own +z, along its length (a harbour ferry is double-ended). Lane: x -290 to -240, z 15 to 285 (north of the pad), 597 m a round."
+   "from": "A round of the harbour of SCORE's own: a stadium-shaped lane in the harbour's water (data/scene/launch.json water.harbour, x -320 to -110), clear of the launch pad's apron (far_pad, x -297 to -239, z -103 to -23) and of the other ferries' lanes, at a harbour ferry's speed (data/checks/motion.json ferry); begun on the side of the lane nearest where the place's kit lays it (data/kit/launch.json far_ferry pieces), heading as it lies there. The model's forward is taken as its own +z, along its length (a harbour ferry is double-ended). Lane: x -290 to -240, z 15 to 285 (north of the pad), 597 m a round."
   }
  ],
  "still": {}
