@@ -469,6 +469,25 @@ def door_places(record, plan):
     return [item for item in record.get("places", []) if item["stage"] in leads]
 
 
+SEALED_LEAF = 0.05  # a shut leaf's thickness, for the rays
+
+
+def sealed_leaves(plan):
+    """A ground-free room's doors that lead `sealed` (the plan: its leaf stays shut until the next place is made) as a
+    shut leaf each, a box filling the doorway, so its views are judged against its own closed walls."""
+    found = []
+    for door in plan["doors"]:
+        if door["leads"] != "sealed":
+            continue
+        normal = np.asarray(door["normal"], dtype=float)
+        across = np.abs(np.array([normal[2], 0.0, normal[0]]))
+        size = across * door["wide"] + np.abs(normal) * SEALED_LEAF + np.array([0.0, door["tall"], 0.0])
+        centre = np.asarray(door["middle"], dtype=float) + np.array([0.0, door["level"] + door["tall"] / 2, 0.0])
+        found.append({"name": f"sealed_leaf_{door['name']}", "builder": "box", "centre": centre.tolist(),
+                      "size": size.tolist(), "surface": "kit_floor"})
+    return found
+
+
 def composed(output, inputs):
     """The record's shell and places over the made ground, in the place's frame (a kit shell's own floors with them):
     (stage, laid ground or None)."""
@@ -477,8 +496,10 @@ def composed(output, inputs):
     structure = record.get("structure", [])
     if plan_of(inputs)["shell"] == "kit":
         kit = json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text())
-        structure = structure + kit_shell.kit_floors(kit, every=bool(json.loads(
-            (pathlib.Path(inputs["plans"]) / f"{place}.json").read_text()).get("ground_free")))
+        ground_free = bool(json.loads((pathlib.Path(inputs["plans"]) / f"{place}.json").read_text()).get("ground_free"))
+        structure = structure + kit_shell.kit_floors(kit, every=ground_free)
+        if ground_free:
+            structure = structure + sealed_leaves(plan_of(inputs))
     for surface in {item["surface"] for item in structure if item.get("surface")}:
         UsdShade.Material.Define(stage, f"/{place}/Library/{surface}")  # bound only: rays see shapes, not paint
     outside.scene_records.write_structure(stage, place, structure, out=pathlib.Path(output))
