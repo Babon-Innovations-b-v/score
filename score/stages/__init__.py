@@ -370,8 +370,9 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
              "surfaces-paint": ("colour against the close-up",),
              # complete's own: the people the cast names and no accepted body of its look lays (the owner's rule: they
              # ship as named fails until the people work lands), a likeness no props file answers, a motion not built,
-             # a row no stage makes yet (the launch's two far towers)
-             "complete": ("people", "likeness", "motion", "rows")}
+             # a row no stage makes yet (the launch's two far towers), a layout still taken from the source game (the
+             # 18 places whose records cite it, overseer 2026-10-15)
+             "complete": ("people", "likeness", "motion", "rows", "game")}
 
 
 def with_gap_files(files, row=None):

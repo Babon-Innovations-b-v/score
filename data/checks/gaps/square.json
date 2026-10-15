@@ -151,6 +151,21 @@
     "banner: no motion of the records moves with it in its name",
     "lantern: no motion of the records moves with it in its name"
    ]
+  },
+  {
+   "name": "square: layout taken from the source game: 27 citations, 17 positions, kit in the game's frame: 4143 piece positions",
+   "row": "complete",
+   "check": "game",
+   "objects": [
+    "data/scene/square.json",
+    "data/characters/square.json"
+   ],
+   "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); its kit (data/kit/square.json) is laid in the game's frame; the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "data/scene/square.json: 26 entries take their numbers from the game (from), 17 positions placed from it",
+    "data/characters/square.json: 1 entries take their numbers from the game (from), 0 positions placed from it"
+   ]
   }
  ]
 }

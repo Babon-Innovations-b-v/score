@@ -87,6 +87,18 @@ def test_a_row_no_stage_makes_moves_from_complete_s_rows_check_by_its_row():
     assert gaps.moved(other, entry) == other
 
 
+def test_a_layout_from_the_game_moves_from_complete_s_game_check_by_its_record():
+    """The overseer, 2026-10-15: the 18 places whose records cite the source game ship as named gaps; the game
+    check's findings name their record, and another record citing the game (the scene-record output) still fails."""
+    entry = gaps.entries(recorded("launch"), "complete", "game")
+    assert entry and entry[0]["name"].startswith("launch: layout taken from the source game: 12 citations, 4 positions")
+    named = failed("game", entry[0]["faults"])
+    assert gaps.moved(named, entry).answer == checks.PASS
+    other = failed("game", [*named.findings, "scene-record output x/record/launch.json: 1 entries take their numbers "
+                                             "from the game (source), 1 positions placed from it"])
+    assert gaps.moved(other, entry) == other
+
+
 def test_complete_fails_each_named_gap_by_name_with_its_numbers():
     found = gaps.judge_named(None, recorded("campgrounds"), None)
     assert found.answer == checks.FAIL and "crane: a foot off the floor" in found.reason
@@ -96,16 +108,17 @@ def test_complete_fails_each_named_gap_by_name_with_its_numbers():
 
 def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gates():
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
-    assert places == ["campgrounds", "cockpit", "flat", "galley", "garage", "greenhouse", "hangar", "lab", "launch",
-                      "navigation", "square", "stairwell", "street", "wreck"], places
-    assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("hub")
-    assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("hub")
+    assert places == ["airlock", "camp", "campgrounds", "cockpit", "flat", "galley", "garage", "greenhouse", "habitat",
+                      "hangar", "hub", "lab", "launch", "navigation", "old_station", "square", "stairwell", "street",
+                      "tube", "workshop", "wreck"], places
+    assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("quarters")
+    assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("quarters")
     from score.graph import GAPPED
     assert GAPPED == "named gaps" and GAPPED in [check.name for check in ROWS["complete"].checks]
     for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
                       ("surfaces-check", "baked matches its surfaces"),
                       ("surfaces-paint", "colour against the close-up"), ("complete", "people"), ("complete", "likeness"),
-                      ("complete", "motion"), ("complete", "rows")):
+                      ("complete", "motion"), ("complete", "rows"), ("complete", "game")):
         check = next(check for check in ROWS[row].checks if check.name == gate)
         assert hasattr(check.judge, "__wrapped__"), (row, gate)
     assert hasattr(ROWS["surfaces-paint"].files, "carries") and hasattr(ROWS["surfaces-paint"].files, "wide")
