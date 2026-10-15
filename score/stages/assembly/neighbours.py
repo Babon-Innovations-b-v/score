@@ -4,8 +4,8 @@ view looks out onto the other place and not onto empty space. The record is the 
 scene.json: the accepted scene-record output where the place has one, else data/scene/<place>.json).
 
     make     copies the place's accepted assembly, then each neighbour's accepted assembly (read beside, as the runner
-             reads `after`: versioned and waited on) into places/<neighbour>/, and points the base layer's reference
-             (the seed's ../../<neighbour>/<neighbour>.usda) there. A neighbour is its assembly alone, without its
+             reads `after`: versioned and waited on) into places/<neighbour>/, and points each layer's reference (the
+             seed's base and the terrain's ground write ../../<neighbour>/<neighbour>.usda) there. A neighbour is its assembly alone, without its
              own neighbours: the showing place makes the shown one's Places inactive anyway (tools/usd/scene.py's
              write_places), and so two places that show each other read no cycle. A shown place no stage makes yet
              (the far city, far_city_stage.py's seed) is read from its seed folder, a declared world file.
@@ -65,13 +65,16 @@ def make(inputs, out, seed, params):
     """The place's assembly with each shown place's output copied in and its reference pointed at the copy."""
     from pxr import Sdf
     shutil.copytree(inputs["assembly"], out, dirs_exist_ok=True, copy_function=shutil.copyfile)
-    base = Sdf.Layer.FindOrOpen(str(out / "layers/base.usda"))
+    # The seed's base layer references its shown places, and the terrain's ground layer the ones the seed lacks.
+    layers = [Sdf.Layer.FindOrOpen(str(path)) for path in sorted((out / "layers").glob("*.usd*"))]
     entries = json.loads((out / RECORD).read_text()).get("places", [])
     for other in sorted({entry["stage"] for entry in entries} - {stage_file(out).stem}):
         source = inputs.get(f"assembly@{other}") or inputs[SEEN.format(other)]
         shutil.copytree(source, out / PLACES / other, copy_function=shutil.copyfile)
-        base.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda", f"../{PLACES}/{other}/{other}.usda")
-    base.Save()
+        for layer in layers:
+            layer.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda", f"../{PLACES}/{other}/{other}.usda")
+    for layer in layers:
+        layer.Save()
 
 
 def reference_faults(prim):
