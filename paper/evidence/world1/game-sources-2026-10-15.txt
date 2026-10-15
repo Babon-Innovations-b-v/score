@@ -1,0 +1,39 @@
+Game sources per place, 2026-10-15 (the fixed game check, contents.py at 976dfed8, run locally; no spend)
+Read: data/scene, the accepted scene-record output, the accepted assembly's scene.json, data/characters, effects, motion, movers, the sound table.
+Counts: entries whose `from` or `source` cites the game (2099, the game, a .gd or .tscn file); positions = at/centre/placed_at on those entries.
+
+Places that cite the game (18 of 28; all in data/, field `from`; every accepted scene-record output and assembled scene.json cites nothing):
+- airlock: data/scene/airlock.json: 10 from, 7 positions (at, centre, placed_at); data/motion/airlock.json: 15 from, 12 positions (at)
+- camp: data/scene/camp.json: 44 from, 40 positions (at, centre, placed_at); data/effects/camp.json: 6 from, 0 positions
+- campgrounds: data/scene/campgrounds.json: 8 from, 2 positions (at, centre); data/effects/campgrounds.json: 4 from, 0 positions
+- flat: data/scene/flat.json: 14 from, 6 positions (at, centre)
+- garage: data/scene/garage.json: 8 from, 4 positions (at, centre); data/motion/garage.json: 4 from, 1 positions (at); data/movers/garage.json: 1 from, 0 positions
+- greenhouse: data/scene/greenhouse.json: 129 from, 123 positions (at, centre); data/movers/greenhouse.json: 19 from, 0 positions
+- habitat: data/scene/habitat.json: 6 from, 2 positions (at, centre); data/movers/habitat.json: 12 from, 0 positions
+- hangar: data/scene/hangar.json: 13 from, 10 positions (at, centre); data/motion/hangar.json: 2 from, 0 positions; data/movers/hangar.json: 1 from, 0 positions
+- hub: data/scene/hub.json: 48 from, 44 positions (at, centre); data/movers/hub.json: 6 from, 0 positions
+- lab: data/scene/lab.json: 6 from, 2 positions (at, centre); data/movers/lab.json: 6 from, 0 positions
+- launch: data/scene/launch.json: 12 from, 4 positions (at, centre)
+- old_station: data/scene/old_station.json: 16 from, 10 positions (at)
+- square: data/scene/square.json: 26 from, 17 positions (at, centre); data/characters/square.json: 1 from, 0 positions
+- stairwell: data/scene/stairwell.json: 10 from, 9 positions (at, centre)
+- street: data/scene/street.json: 14 from, 7 positions (at, centre)
+- tube: data/scene/tube.json: 13 from, 5 positions (at, centre)
+- workshop: data/scene/workshop.json: 25 from, 21 positions (at, centre); data/motion/workshop.json: 1 from, 0 positions; data/movers/workshop.json: 9 from, 0 positions
+- wreck: data/scene/wreck.json: 18 from, 12 positions (at, centre)
+Total: 507 citing entries, 338 positions taken from the game.
+
+Clean: gdoor, hdoor, and the 8 ship places (cockpit, engineroom, galley, navigation, quarters, shiplock, storage, walkway).
+
+Separately, kits laid in the game's frame (data/kit/<place>.json `frame` names a game node; every piece position is in it):
+- camp: 248 pieces, frame: the CampHabitat node's own: deck at nought, a dome's degrees from +x towards +z
+- flat: 55 pieces, frame: the Earth block's: x across, z along the street, y up from the room's own floor
+- hub: 452 pieces, frame: the Habitat node's own: x east, z south, y up from the ring floor
+- launch: 63 pieces, frame: EarthSite's own: x across the block (the street +x, the square -x), z along the street (+z to the capsule), y up from the street
+- square: 4143 pieces, frame: EarthSite's own: x across the block (the street +x, the square -x), z along the street (+z to the capsule), y up from the street
+- stairwell: 118 pieces, frame: the Earth block's: x across, z along the street, y up from the room's own floor
+- street: 1353 pieces, frame: EarthSite's own: x across the block (the street +x, the square -x), z along the street (+z to the capsule), y up from the street
+Total: 7 kits, 6432 piece positions.
+Not counted: the module rooms (airlock, habitat, lab, workshop, greenhouse, garage, hangar, tube) are in their own room frame but laid from the game's shell numbers (room_kit.py: ModuleShell, ModuleFloors).
+
+Limit: the check sees cited numbers only. The accepted scene-record output for launch still lights the rocket at (-270, -60), the game's ROCKET_AT, with no citation; an uncited copy passes.
