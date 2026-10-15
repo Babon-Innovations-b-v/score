@@ -38,6 +38,84 @@
    "faults": [
     "galley.wall_lower_plain: judge: round tiny fragment of baseboard"
    ]
+  },
+  {
+   "name": "galley: edge light strip box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "edge_light_strip"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@galley 05f47b4ea25f judged its box \"ceiling section with light strip\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"edge_light_strip\", \"result\": \"fail\", \"why\": \"judge: round ceiling section with light strip\"}"
+   ]
+  },
+  {
+   "name": "galley: edge light strip box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "galley.edge_light_strip"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@galley 05f47b4ea25f judged its box \"ceiling section with light strip\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "galley.edge_light_strip: judge: round ceiling section with light strip"
+   ]
+  },
+  {
+   "name": "galley: wall upper plain box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@galley 05f47b4ea25f judged its box \"overhead cabinet door\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"wall_upper_plain\", \"result\": \"fail\", \"why\": \"judge: round overhead cabinet door\"}"
+   ]
+  },
+  {
+   "name": "galley: wall upper plain box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "galley.wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@galley 05f47b4ea25f judged its box \"overhead cabinet door\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "galley.wall_upper_plain: judge: round overhead cabinet door"
+   ]
+  },
+  {
+   "name": "galley: made pieces' boxes not passed (locker)",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "locker"
+   ],
+   "reason": "made pieces whose box disagrees with the concept; next month checks whether the box or the model is wrong",
+   "decided": "overseer, 2026-10-16",
+   "faults": [
+    "{\"row\": \"locker\", \"result\": \"fail\", \"why\": \"judge: round wall-mounted cabinet\"}"
+   ]
+  },
+  {
+   "name": "galley: made pieces' boxes not passed (locker) (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "galley.locker"
+   ],
+   "reason": "made pieces whose box disagrees with the concept; next month checks whether the box or the model is wrong",
+   "decided": "overseer, 2026-10-16",
+   "faults": [
+    "galley.locker: judge: round wall-mounted cabinet"
+   ]
   }
  ]
 }

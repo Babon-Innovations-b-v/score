@@ -1,0 +1,220 @@
+{
+ "gaps": [
+  {
+   "name": "engineroom: cable bundle box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "cable_bundle"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"ceiling section with pipes and lights\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"cable_bundle\", \"result\": \"fail\", \"why\": \"judge: round ceiling section with pipes and lights\"}"
+   ]
+  },
+  {
+   "name": "engineroom: cable bundle box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "engineroom.cable_bundle"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"ceiling section with pipes and lights\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "engineroom.cable_bundle: judge: round ceiling section with pipes and lights"
+   ]
+  },
+  {
+   "name": "engineroom: ceiling light panel box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "ceiling_light_panel"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"section of ceiling and upper wall\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"ceiling_light_panel\", \"result\": \"fail\", \"why\": \"judge: round section of ceiling and upper wall\"}"
+   ]
+  },
+  {
+   "name": "engineroom: ceiling light panel box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "engineroom.ceiling_light_panel"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"section of ceiling and upper wall\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "engineroom.ceiling_light_panel: judge: round section of ceiling and upper wall"
+   ]
+  },
+  {
+   "name": "engineroom: edge light strip box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "edge_light_strip"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"ceiling and upper walls\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"edge_light_strip\", \"result\": \"fail\", \"why\": \"judge: round ceiling and upper walls\"}"
+   ]
+  },
+  {
+   "name": "engineroom: edge light strip box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "engineroom.edge_light_strip"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"ceiling and upper walls\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "engineroom.edge_light_strip: judge: round ceiling and upper walls"
+   ]
+  },
+  {
+   "name": "engineroom: pit wall panel box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "pit_wall_panel"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"the steps\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"pit_wall_panel\", \"result\": \"fail\", \"why\": \"judge: round the steps\"}"
+   ]
+  },
+  {
+   "name": "engineroom: pit wall panel box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "engineroom.pit_wall_panel"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"the steps\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "engineroom.pit_wall_panel: judge: round the steps"
+   ]
+  },
+  {
+   "name": "engineroom: ring floor plate box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "ring_floor_plate"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"large section of the floor\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"ring_floor_plate\", \"result\": \"fail\", \"why\": \"judge: round large section of the floor\"}"
+   ]
+  },
+  {
+   "name": "engineroom: ring floor plate box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "engineroom.ring_floor_plate"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"large section of the floor\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "engineroom.ring_floor_plate: judge: round large section of the floor"
+   ]
+  },
+  {
+   "name": "engineroom: roof face panel box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "roof_face_panel"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"ceiling\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"roof_face_panel\", \"result\": \"fail\", \"why\": \"judge: round ceiling\"}"
+   ]
+  },
+  {
+   "name": "engineroom: roof face panel box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "engineroom.roof_face_panel"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"ceiling\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "engineroom.roof_face_panel: judge: round ceiling"
+   ]
+  },
+  {
+   "name": "engineroom: wall upper plain box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"door, steps, and machinery\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"wall_upper_plain\", \"result\": \"fail\", \"why\": \"judge: round door, steps, and machinery\"}"
+   ]
+  },
+  {
+   "name": "engineroom: wall upper plain box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "engineroom.wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@engineroom bc9919d05398 judged its box \"door, steps, and machinery\"",
+   "decided": "overseer, 2026-10-16 (box-judge fails against a concept drawn before the plan), until next month",
+   "faults": [
+    "engineroom.wall_upper_plain: judge: round door, steps, and machinery"
+   ]
+  },
+  {
+   "name": "engineroom: made pieces' boxes not passed (corner lamp, overhead vent, side console)",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "corner_lamp",
+    "overhead_vent",
+    "side_console"
+   ],
+   "reason": "made pieces whose box disagrees with the concept; next month checks whether the box or the model is wrong",
+   "decided": "overseer, 2026-10-16",
+   "faults": [
+    "{\"row\": \"corner_lamp\", \"result\": \"fail\", \"why\": \"judge: round top of door and lights\"}",
+    "{\"row\": \"overhead_vent\", \"result\": \"fail\", \"why\": \"judge: round a section of the ceiling\"}",
+    "{\"row\": \"side_console\", \"result\": \"fail\", \"why\": \"judge: round control desk\"}"
+   ]
+  },
+  {
+   "name": "engineroom: made pieces' boxes not passed (corner lamp, overhead vent, side console) (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "engineroom.corner_lamp",
+    "engineroom.overhead_vent",
+    "engineroom.side_console"
+   ],
+   "reason": "made pieces whose box disagrees with the concept; next month checks whether the box or the model is wrong",
+   "decided": "overseer, 2026-10-16",
+   "faults": [
+    "engineroom.corner_lamp: judge: round top of door and lights",
+    "engineroom.overhead_vent: judge: round a section of the ceiling",
+    "engineroom.side_console: judge: round control desk"
+   ]
+  }
+ ]
+}
