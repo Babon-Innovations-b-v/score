@@ -112,9 +112,9 @@
 		},
 		"street": {
 			"loops": [
-				"earth_flat"
+				"street_night"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and _earth_place: the flat plays on down to the car, nothing once the car door shuts",
+			"from": "the street's own room tone, street_night's brief (data/sound/sounds.json `where`, made by MOSS): the street's concept (K03), a closed-off street at night outside the flat's block, running down to the harbour; the state car's idle at the car",
 			"objects": [
 				{
 					"sound": "car_idle",
