@@ -392,17 +392,27 @@ def ruled_spots(plan, row):
             for side, letter in ((-1, "W"), (1, "E")):
                 if any(low <= z <= top for low, top in side_door_spans(plan, letter)):
                     continue
-                found.append({"x": side * (w / 2 - RIB_BAR / 4), "y": 0.0, "z": z, "facing": 270 if side > 0 else 90,
-                              "size": [RIB_BAR, RIB_BAR / 2, high]})
+                # up the wall to the ceiling, (wide, tall, deep) in the piece's frame, half in the wall's lining and
+                # half out as the ceiling bar is: laid (wide, deep, tall), the bar lay on the floor and ran out through
+                # the wall (2026-10-15: the walkway's eleven side bars)
+                found.append({"x": side * (w / 2 - WALL_DEEP), "y": 0.0, "z": z, "facing": 270 if side > 0 else 90,
+                              "size": [RIB_BAR, high, RIB_BAR]})
         return found
     raise ValueError(f"{kind}: no rule lays it")
 
 
+def by_rule(plan, row):
+    """Whether the plan lays a row by rule: a RULED row with no spots of its own, and not a glazed roof's frame ribs,
+    which tapered_deck lays between its lights (the cockpit's: ruled too, they ran corridor bars across its roof and
+    down its narrowing walls, 2026-10-15)."""
+    roof_ribs = row["id"] == "frame_rib" and plan["kit"].get("glazed") == "roof"
+    return row["id"] in RULED and not row.get("at") and not roof_ribs
+
+
 def with_ruled_spots(plan, inventory):
-    """The inventory with spots for every plain row the plan lays by rule and gives no spots (RULED); the cockpit's
-    rows carry their own spots and are laid as they are."""
-    rows = [dict(row, at=ruled_spots(plan, row)) if row["id"] in RULED and not row.get("at") else row
-            for row in inventory["rows"]]
+    """The inventory with spots for every plain row the plan lays by rule (by_rule); the cockpit's rows carry their
+    own spots and are laid as they are."""
+    rows = [dict(row, at=ruled_spots(plan, row)) if by_rule(plan, row) else row for row in inventory["rows"]]
     return dict(inventory, rows=rows)
 
 
