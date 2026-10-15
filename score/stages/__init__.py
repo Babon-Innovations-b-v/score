@@ -449,6 +449,24 @@ def ship_seeded(files):
 
 STAGES = tuple(named_gaps(layered(worn(row), {stage.name for stage in STAGES})) for row in STAGES)
 STAGES = tuple(dataclasses.replace(row, files=ship_seeded(row.files)) if row.files else row for row in STAGES)
+
+
+def ship_lit(applies):
+    """The light rows for a ship place too: it has no round-three seed, so light.applies (a usd-r3 stage and the
+    demo's views) leaves it out; its base stage is usd-ship/<place> (ship_seeded reads it as the seed) and its views
+    are its scene record's, written as the demo's views file (2026-10-15). Wrapped here, in the table, so no place
+    with a round-three seed moves."""
+    def lit(place):
+        if applies(place):
+            return True
+        return (place is not None and not (SEEDS_HOME / OLD_SEED / place).exists()
+                and (SEEDS_HOME / SHIP_SEED / place / f"{place}.usda").exists()
+                and (light.passes.DEMO / f"views/{place}.json").exists())
+    return functools.wraps(applies)(lit)
+
+
+STAGES = tuple(dataclasses.replace(row, applies=ship_lit(row.applies))
+               if row.name in ("light-layer", "light-passes", "light") and row.applies else row for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 
