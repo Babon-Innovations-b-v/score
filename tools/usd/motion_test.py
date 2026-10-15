@@ -124,11 +124,14 @@ def check_the_bay_doors(work):
 
 def check_the_launch_climbs(work):
     stage = Usd.Stage.Open(str(work / "launch/launch.usda"))
+    record = json.loads((motion.MOTIONS / "launch.json").read_text())["motions"][0]
+    released = record["start"] + record["climb"]["lift"]
     rest = at(stage, "/launch/Fixtures/rocket", 0.0)
-    close(at(stage, "/launch/Fixtures/rocket", 3.9)[1], rest[1], "standing through the engines' rumble")
-    close(at(stage, "/launch/Fixtures/rocket", 6.0)[1] - rest[1], 0.5 * (24.0 - 9.81) * 2.0 ** 2,
+    close(at(stage, "/launch/Fixtures/rocket", released - 0.1)[1], rest[1], "standing through the engines' build-up")
+    close(at(stage, "/launch/Fixtures/rocket", released + 2.0)[1] - rest[1],
+          0.5 * (record["climb"]["push"] - record["climb"]["pull"]) * 2.0 ** 2,
           "two seconds into the climb at its push less Earth's pull")
-    print("ok  the launch: 3 s of rumble from 1 s, then the climb")
+    print(f"ok  the launch: {record['climb']['lift']:g} s of build-up from {record['start']:g} s, then the climb")
 
 
 def check_the_robot_turns(work):
