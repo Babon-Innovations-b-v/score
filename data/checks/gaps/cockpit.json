@@ -9,7 +9,7 @@
     "control_stick-s1"
    ],
    "reason": "the library has no red or orange plastic and no dark bare steel near their measured colours; new library surfaces or not is the creator's choice (on his list)",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "overseer, 2026-10-15, confirmed by the creator 2026-10-15 (09:00: new library surfaces), until the new surfaces land",
    "faults": [
     "centre_pedestal-s1: Grey painted metal measured L*a*b* [45.3, 0.6, -2.3], hammertone_grey dE 3.9 (proposed: Grey painted metal (throttle pedestal between the pilot seat))",
     "centre_pedestal-s1: Red plastic measured L*a*b* [46.3, 32.8, 25.5], vinyl_orange dE 27.6 (proposed: Red plastic (throttle pedestal between the pilot seat))",
@@ -29,7 +29,7 @@
     "pilot_starboard (none named)"
    ],
    "reason": "the owner's brief puts two pilots at the seats; no pilot look is made (people with no accepted body ship as named fails, the owner's rule); next month's people work",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "overseer, 2026-10-15, confirmed by the creator 2026-10-15 (09:00)",
    "faults": [
     "pilot_port: in the cast, not on the stage",
     "pilot_starboard: in the cast, not on the stage",

@@ -9,7 +9,7 @@
     "data/effects/camp.json"
    ],
    "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); its kit (data/kit/camp.json) is laid in the game's frame; the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "the creator's decision, 2026-10-15 (his answer \"A\" at 09:00: named gaps now, the layouts rebuilt next month); written by the overseer, 2026-10-15",
    "faults": [
     "data/scene/camp.json: 44 entries take their numbers from the game (from), 40 positions placed from it",
     "data/effects/camp.json: 6 entries take their numbers from the game (from), 0 positions placed from it"
