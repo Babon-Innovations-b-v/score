@@ -53,6 +53,11 @@ MERGE_COLOUR = 12.0
 # is stretched down FOOT_MOST at most (a tenth: the water tank's shortest leg ends 6.4% of its size up); a foot further
 # up is a missing leg, a fault of the model, and fails the gate "feet in one plane" by name.
 FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
+# The band's most in metres, read through the tallest row that stands the take: the resting check's own feet band
+# (tools/usd/triage.py LOW_BAND). Wider, a tall shelf's bottom rail joins its legs into one foot and a short leg is
+# never levelled (2026-10-15: the garage's fluid shelves, 28 cm, kept a leg 3.7 cm up; the storage's cargo racks, 39 cm,
+# one 3.4 cm up; the resting check, 10 cm, failed both).
+FOOT_BAND_METRES = 0.1
 # A base that slopes as one piece (flattened_base): its bottom BASE_BAND of height, each footprint quadrant brought
 # down level when over FOOT_TOLERANCE of its size up, refused over BASE_MOST (the rack's legs: 7.4% of its size).
 BASE_BAND, BASE_MOST = 0.25, 0.15
@@ -160,14 +165,19 @@ def stands_on_feet(entry, inventory, rules_file):
     stick set in its console and the campgrounds' cairn read as standing and failed "feet in one plane" on their
     resting faces, the wreck's debris before them (2026-10-15). A word of a description is not a cable's or a cloth's
     class: the garage's control cabinet, "cables running up from its top", stands and is levelled."""
+    return bool(standing_rows(entry, inventory, rules_file))
+
+
+def standing_rows(entry, inventory, rules_file):
+    """The rows of the take's own place that stand its kind on feet the paint may level (stands_on_feet)."""
     rules = json.loads(pathlib.Path(rules_file).read_text())
     rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory and pathlib.Path(inventory).exists() \
         else []
     lying = set(rules["hanging"]) | {word for bedding in rules["may_bed"] if bedding["class"] == "ground debris"
                                      for word in bedding["words"]}
-    return any(row.get("thing") == f"prop:{entry['kind']}" and not row.get("fixed") and not row.get("leans")
-               and row.get("support") in (None, "floor") and row.get("anchor", "") in ("floor", "ground", "")
-               and not row_words(row) & lying for row in rows)
+    return [row for row in rows if row.get("thing") == f"prop:{entry['kind']}" and not row.get("fixed")
+            and not row.get("leans") and row.get("support") in (None, "floor")
+            and row.get("anchor", "") in ("floor", "ground", "") and not row_words(row) & lying]
 
 
 def row_words(row):
@@ -176,15 +186,16 @@ def row_words(row):
     return set("".join(letter if letter.isalnum() else " " for letter in text).split())
 
 
-def levelled_feet(vertices, faces):
+def levelled_feet(vertices, faces, tall=None):
     """A take's vertices on its finished model (+y up, its own frame) with its feet brought onto one level plane
-    (feet.level: FOOT_BAND of its height, FOOT_LINK of its footprint, FOOT_TOLERANCE and FOOT_MOST of its size), and
-    what was done, each gap as a share of its size."""
+    (feet.level: FOOT_BAND of its height, at most FOOT_BAND_METRES when `tall`, its standing height in metres, is
+    known; FOOT_LINK of its footprint, FOOT_TOLERANCE and FOOT_MOST of its size), and what was done, each gap as a
+    share of its size."""
     import feet
     height, diagonal = feet.model_scale(vertices)
     size = max(height, diagonal)
-    points, record = feet.level(vertices, faces, FOOT_BAND * height, FOOT_LINK * diagonal, FOOT_TOLERANCE * size,
-                                FOOT_MOST * size)
+    band = FOOT_BAND * height if not tall else min(FOOT_BAND, FOOT_BAND_METRES / tall) * height
+    points, record = feet.level(vertices, faces, band, FOOT_LINK * diagonal, FOOT_TOLERANCE * size, FOOT_MOST * size)
     points, base = flattened_base(points, BASE_BAND * height, FOOT_TOLERANCE * size, BASE_MOST * size)
     points, plane = sloped_base(points, BASE_BAND * height, BASE_CELL * diagonal, FOOT_TOLERANCE * size,
                                 BASE_MOST * size)
@@ -347,8 +358,10 @@ def paint_take(inputs, out, take, record, records):
     moved = mesh.copy()
     moved.apply_transform(matrix)
     levelled = {"skipped": "no floor or held row of its place lays its kind"}
-    if stands_on_feet(entry, inputs.get(f"inventory {entry['place']}"), inputs["resting rules"]):
-        moved.vertices, levelled = levelled_feet(moved.vertices, moved.faces)
+    standing = standing_rows(entry, inputs.get(f"inventory {entry['place']}"), inputs["resting rules"])
+    if standing:
+        tall = max((row["size"][2] for row in standing if len(row.get("size") or ()) == 3), default=None)
+        moved.vertices, levelled = levelled_feet(moved.vertices, moved.faces, tall)
     shares, _ = labels.write_parts(moved, face_labels, order, part_of, painted_parts, bounds, folder)
     kept, kept_labels, _, kept_parts = patchy.labelled_parts(folder)
     report = {"take": take, "method": record["method"], "kind": entry["kind"], "parts": records, "shares": shares,

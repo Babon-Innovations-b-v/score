@@ -407,6 +407,20 @@ def tank_mesh(ends, height=1.6):
     return np.asarray(mesh.vertices), np.asarray(mesh.faces)
 
 
+def test_a_tall_take_s_feet_are_found_in_the_resting_check_s_band():
+    """The garage's fluid shelves (2026-10-15): a shelf unit 1.0 tall in its own frame, 2.0 m standing, its bottom
+    shelf 0.06 up over four legs, one ending 0.02 up (4 cm). In 15% of its height the shelf joins the legs into one
+    foot and nothing is levelled; capped at 10 cm through its standing height (0.05 here) the four legs are its feet and
+    the short one is brought down."""
+    from score.stages.surfaces import place_line
+    vertices, faces = tank_mesh((0.0, 0.0, 0.0, 0.02), height=1.0)
+    vertices[vertices[:, 1] == 0.3, 1] = 0.06  # the body (and the legs' tops) down to a bottom shelf 0.06 up
+    _, wide = place_line.levelled_feet(vertices, faces)
+    assert wide["feet"] == 1 and not wide["levelled"], wide
+    _, capped = place_line.levelled_feet(vertices, faces, tall=2.0)
+    assert capped["feet"] == 4 and len(capped["levelled"]) == 1 and not capped["refused"], capped
+
+
 def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name():
     from score.stages.surfaces import place_line
     import feet
