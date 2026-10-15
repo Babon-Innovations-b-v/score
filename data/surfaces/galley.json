@@ -24,7 +24,7 @@
    "kind": "galley_galley_table",
    "object": "mess table: a dark grey top with an orange edge band on one steel pedestal bolted to the deck"
   },
-  "fold_down_seat-s1": {
+  "fold_down_seat-s2": {
    "places": [
     "galley"
    ],
@@ -41,7 +41,7 @@
   "models": {
    "galley_counter_1": "galley_counter-s1",
    "galley_table_1": "galley_table-s1",
-   "fold_down_seat_1": "fold_down_seat-s1"
+   "fold_down_seat_1": "fold_down_seat-s2"
   },
   "entries": {
    "galley_counter_1": {
