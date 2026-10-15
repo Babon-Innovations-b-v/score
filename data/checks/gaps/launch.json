@@ -1,0 +1,18 @@
+{
+ "gaps": [
+  {
+   "name": "launch: no props file, so no likeness",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "likeness"
+   ],
+   "unknown": "no accepted likeness@launch",
+   "reason": "no props file (data/props/launch.json); up to EUR 55 per place, outside world 1's budget",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "likeness: 2 generated rows and no accepted likeness@launch (the props rows run only with data/props/launch.json): none is held to its close-up"
+   ]
+  }
+ ]
+}
