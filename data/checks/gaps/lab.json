@@ -1,0 +1,21 @@
+{
+ "gaps": [
+  {
+   "name": "lab: the desk chairs' caster off the floor",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "/lab/Objects/desk_chair_1",
+    "/lab/Objects/desk_chair_2"
+   ],
+   "contains": "foot off",
+   "reason": "the baked chair has one caster above the others, so the chair stood level has a foot off the floor over 3 cm (like the camp grounds crane's); fix with the model's feet",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "measured": "the lab's resting triage on the settle fix's replayed layer (work/moon-faults-verify/judge-lab-fin.log, 2026-10-15): desk_chair_1 and desk_chair_2 foot off 0.04 m each",
+   "faults": [
+    "/lab/Objects/desk_chair_1: foot off 0.04: a foot 4.0 cm off what is under it while another touches (over 3 cm)",
+    "/lab/Objects/desk_chair_2: foot off 0.04: a foot 4.0 cm off what is under it while another touches (over 3 cm)"
+   ]
+  }
+ ]
+}

@@ -59,6 +59,7 @@ def test_a_gap_is_an_input_of_complete_and_of_the_row_it_names_alone():
     assert gaps.NAME in ROWS["complete"].files("street")
     for row in ("assembly", "surfaces-check", "surfaces-paint"):  # keyed whole since 2026-10-14, as before
         assert gaps.NAME in ROWS[row].files("hangar"), row
+    assert gaps.NAME in ROWS["assembly"].files("lab") and gaps.NAME not in ROWS["surfaces-paint"].files("lab")
 
 
 def test_the_hangars_twelve_ship_meshes_move_from_placeholders():
@@ -86,8 +87,8 @@ def test_complete_fails_each_named_gap_by_name_with_its_numbers():
 
 def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gates():
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
-    assert places == ["campgrounds", "galley", "garage", "greenhouse", "hangar", "launch", "navigation", "square", "street",
-                      "wreck"], places
+    assert places == ["campgrounds", "galley", "garage", "greenhouse", "hangar", "lab", "launch", "navigation", "square",
+                      "street", "wreck"], places
     assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("hub")
     assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("flat")
     from score.graph import GAPPED
