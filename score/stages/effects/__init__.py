@@ -96,12 +96,32 @@ def make(inputs, out, seed, params):
 # --- the composed stage -------------------------------------------------------------------------------------------
 
 def composed(output, inputs):
-    """The effects layer over the place's seed stage (its edit, stage layers and base), opened as one stage."""
+    """The effects layer over the place's seed stage (its edit, stage layers and base), with the place's motion record
+    written between them, opened as one stage. The seed's own motion layer is round three's (the launch's rocket at
+    the game's 3 s and 24 m/s/s): the riders and followers are judged against the motion the record gives, as the
+    assembly stacks it, not that one (effects-layer@launch, 2026-10-15: a plume 1735 m off a rocket the seed moved)."""
     from pxr import Sdf, Usd
     seed = pathlib.Path(inputs["seed"])
+    moving = Sdf.Layer.CreateAnonymous(".usda")
     root = Sdf.Layer.CreateAnonymous(".usda")
-    root.subLayerPaths = [str(pathlib.Path(output) / effect_layer.LAYER), str(seed / f"{seed.name}.usda")]
-    return Usd.Stage.Open(root)
+    root.subLayerPaths = [str(pathlib.Path(output) / effect_layer.LAYER), moving.identifier,
+                          str(seed / f"{seed.name}.usda")]
+    stage = Usd.Stage.Open(root)
+    motions = motions_of(inputs)
+    if motions:
+        written(stage, moving, motions, effect_layer.motion_record.stage_rate(seed.name, seed))
+    return stage
+
+
+def written(stage, layer, motions, rate):
+    """Every motion of the record written into `layer` of the stage, as the motion stage writes its layer."""
+    from pxr import Usd
+    motion_record = effect_layer.motion_record
+    stage.SetEditTarget(Usd.EditTarget(layer))
+    for motion in motions["motions"]:
+        if "adds" in motion and not stage.GetPrimAtPath(motion["prim"]):  # the seed's motion layer may hold it
+            motion_record.added(stage, motion)
+        motion_record.WRITERS[motion_record.kind_of(motion)](stage, motion, rate, motion_record.WRITTEN_SECONDS)
 
 
 def place_of(inputs):
