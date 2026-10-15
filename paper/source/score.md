@@ -131,6 +131,10 @@ Machines and Google calls write ledger lines with their node's ticket; the month
 
 <!-- paper/evidence/cloud/forecast-2026-10-14.txt (ESTIMATE vs ACTUAL rows: prologue surfaces+light, ship close-ups 22 made pieces, ship machines-boxes x7; the hard stop and the method in its first lines). tools/props/cloud/CLAUDE.md (bill EUR 1,554 vs ledger 1,387 on 2026-10-12; Google EUR 549 vs 30 on 2026-10-11; google_spend started and finished lines); score/adapters/compute month_refusal. Per stage: paper/evidence/cloud/stage-euros-2026-10-13.txt (ledger lines with a runner ticket, 2026-10-12T19:06Z to 2026-10-13T08:54Z). -->
 
+**Held and run, 15 October.** Before the night's runs the runner listed every stale node with its price. All people work was held for next month, EUR 89.50: 23 bodies (EUR 56.50, 6 to be made again after changes to the people maker, 17 not made yet), 12 takes (EUR 18), their maps, names, parts and paint (EUR 14) and one likeness calibration (EUR 1). Three review renders (EUR 14) were left out, as neither the completion gate nor the films read them. The place films, EUR 0.70 each, have not run.
+
+<!-- paper/evidence/cloud/to-run-2026-10-15.txt (its first lines: the overseer's holds of 2026-10-15; then one line per node: why stale, commits, the runner's price, the decision; 56 free, 32 carried); no demo-film ticket on the cloud ledger as of 2026-10-15 07:00. -->
+
 # Evidence
 
 Four worlds are planned; world 1's 28 places are judged once their layers stand accepted.
