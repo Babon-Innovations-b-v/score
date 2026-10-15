@@ -161,7 +161,10 @@ def write_model(model, bake, paint, out):
 
 
 def lay(layer, place, model, entry, matrix, sha256):
-    """One machine's prim in the layer: the model's asset referenced, its record's words, its placement."""
+    """One machine's prim in the layer: the model's asset referenced, its record's words, its placement; its row is
+    the record's inventory row (`row`), as every laid object's is, never the model's name: the garage's rover_idle sound
+    plays at row rover, and the completion gate counts rows (assembly@garage, 2026-10-15: the rover laid as row rover_1
+    left its sound playing at nothing)."""
     from pxr import Gf, Sdf
     objects = Sdf.CreatePrimInLayer(layer, f"/{place}/Objects")
     for path in (f"/{place}", f"/{place}/Objects"):
@@ -169,7 +172,7 @@ def lay(layer, place, model, entry, matrix, sha256):
     spec = Sdf.PrimSpec(objects, model, Sdf.SpecifierDef, "Xform")
     spec.referenceList.Prepend(Sdf.Reference(f"../assets/{model}.usdc"))
     values = {"score:kind": entry["kind"], "score:model": model, "score:model_sha256": sha256, "score:anchor": "floor",
-              "score:row": model, "score:machine": entry["take"], "score:on": entry["on"]}
+              "score:row": entry["row"], "score:machine": entry["take"], "score:on": entry["on"]}
     for name, value in values.items():
         Sdf.AttributeSpec(spec, name, Sdf.ValueTypeNames.String).default = value
     Sdf.AttributeSpec(spec, "score:fixed", Sdf.ValueTypeNames.Bool).default = False

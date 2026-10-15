@@ -15,7 +15,7 @@ from score import checks  # noqa: E402
 from score.store import PROPS_HOME  # noqa: E402
 
 SEED = PROPS_HOME / "work/usd-r3/garage"
-ENTRY = {"take": "kit5-rover-3", "kind": "garage_rover", "on": "rover_lift_1", "turn": "across"}
+ENTRY = {"row": "rover", "take": "kit5-rover-3", "kind": "garage_rover", "on": "rover_lift_1", "turn": "across"}
 
 
 def stand_in():
@@ -86,11 +86,17 @@ def test_layout_and_gates(work):
 
 
 def test_assembly_takes_it(work):
-    """The assembly holds the machines layer just over the base and carries the machine's asset."""
+    """The assembly holds the machines layer just over the base and carries the machine's asset; the machine stands
+    as its inventory row, where its sound plays (assembly@garage, 2026-10-15: laid as rover_1, rover_idle found
+    nothing)."""
     from pxr import Sdf
     from score.stages import assembly
     (work / "place/layers").mkdir(parents=True)
-    Sdf.Layer.CreateNew(str(work / "place/layers/base.usda")).Save()
+    base = Sdf.Layer.CreateNew(str(work / "place/layers/base.usda"))
+    Sdf.CreatePrimInLayer(base, "/garage/Objects")  # the seed's base defines the place and its objects
+    for path in ("/garage", "/garage/Objects"):
+        base.GetPrimAtPath(path).specifier = Sdf.SpecifierDef
+    base.Save()
     root = Sdf.Layer.CreateNew(str(work / "place/garage.usda"))
     root.subLayerPaths = ["./layers/edit.usda", assembly.BASE_LAYER]
     root.Save()
@@ -98,6 +104,11 @@ def test_assembly_takes_it(work):
     layers = list(Sdf.Layer.FindOrOpen(str(work / "place/garage.usda")).subLayerPaths)
     assert layers == ["./layers/edit.usda", "./layers/machines.usda", assembly.BASE_LAYER], layers
     assert (work / "place/assets/rover_1.usdc").exists() and (work / "place" / machines.LAYER).exists()
+    from pxr import Usd
+    from score.stages.assembly import sounds
+    stage = Usd.Stage.Open(str(work / "place/garage.usda"))
+    found = sounds.prims_by_name(stage, "garage")
+    assert [prim.GetName() for prim in found.get("rover", [])] == ["rover_1"], sorted(found)  # its sound's row
 
 
 def test_boxes_grounds_the_machine_rows(work):
