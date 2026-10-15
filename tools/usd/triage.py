@@ -13,7 +13,10 @@ asks each object the question its support asks:
               glowing part or screen (judged with its host); `fixed` (a building, a mast) when `"fixed": true`; `kit`
               (fixed in the kit's frame) when its row's group is one of the kit's shell groups or its kit kind's group
               is `hangs` or `floors`; `hanging` when its name says it hangs; `held` when it stands on another row
-              (`on:<row>`); `wall` and `ceiling` from its anchor; `floor` otherwise (data/checks/resting.json).
+              (`on:<row>`); `wall` and `ceiling` from its anchor; `floor` otherwise (data/checks/resting.json);
+              `mounted` for a machine's piece set into its host (score:mounted: the hangar ship's thrusters and
+              engines), whatever its row says: judged with its host, never as lying inside it, but for lying in
+              anything else as a loose piece is.
     floor, held  supported by the ground, the deck or the object under it: at least four points of its footing within
               TOLERANCE of a surface straight under them, and its weight inside what they span (SceneEval's support
               rule); else it floats or tips. Each of its feet (feet.py: its low points clustered) touches within
@@ -111,6 +114,8 @@ def words_of(row):
 def support_type(row, prim, data, kit_groups):
     """What holds an object up, from its inventory row and its kit kind's group (and the stage's score:fixed when the
     row is not found)."""
+    if prim.HasAttribute("score:mounted") and prim.GetAttribute("score:mounted").Get():
+        return "mounted"
     if row.get("support"):
         return row["support"]
     row_id = prim.GetAttribute("score:row").Get() if prim.HasAttribute("score:row") else ""
@@ -164,9 +169,13 @@ def object_entry(name, prim, rows, data, kit_groups):
     row = rows.get(prim.GetAttribute("score:row").Get(), {})
     model = prim.GetAttribute("score:model").Get() if prim.HasAttribute("score:model") else None
     world = trimesh.Trimesh(local @ matrix[:3, :3].T + matrix[:3, 3], triangles, process=False)
+    support = support_type(row, prim, data, kit_groups)
+    host = None
+    if support == "mounted":  # its host, a sibling under /<place>/Objects
+        host = str(pathlib.PurePosixPath(name).parent / prim.GetAttribute("score:on").Get())
     return {"name": name, "prim": prim, "row": row, "row_id": prim.GetAttribute("score:row").Get(), "model": model,
-            "local": local, "triangles": triangles, "matrix": matrix, "mesh": world,
-            "support": support_type(row, prim, data, kit_groups), "bed": bedding(row, data)}
+            "local": local, "triangles": triangles, "matrix": matrix, "mesh": world, "support": support,
+            "host": host, "bed": bedding(row, data)}
 
 
 def object_sizes(stage_path):
@@ -460,6 +469,8 @@ def standing_faults(entry, ground, surfaces, left_out, statics):
     found = standing(entry, ground, surfaces, left_out, statics)
     if support == "part":
         return [dict(item, why="a glowing part is judged with its host") for item in kit_faults(entry, found)]
+    if support == "mounted":
+        return [dict(item, why="a mounted piece is judged with its host") for item in kit_faults(entry, found)]
     if support == "kit":
         return kit_faults(entry, found)
     faults = held_up_faults(entry, found)
@@ -495,7 +506,9 @@ def overlap_faults(entries, statics, scene):
         one, other = entries.get(first), entries.get(second)
         if one is not None and other is not None and (second.startswith(first + "/") or first.startswith(second + "/")):
             continue
-        loose = [entry for entry in (one, other) if entry is not None and entry["support"] in LOOSE]
+        if (one or {}).get("host") == second or (other or {}).get("host") == first:  # set into its host, a part of it
+            continue
+        loose = [entry for entry in (one, other) if entry is not None and entry["support"] in LOOSE + ("mounted",)]
         joined = [entry for entry in (one, other) if entry is not None and entry["support"] == "kit"]
         if not loose and not joined:
             continue
