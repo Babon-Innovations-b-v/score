@@ -51,6 +51,16 @@ def test_a_named_unknown_moves_and_another_unknown_or_fault_stays():
                                                                "name"]), entry).answer == checks.FAIL
 
 
+def test_a_gap_is_an_input_of_complete_and_of_the_row_it_names_alone():
+    """The overseer, 2026-10-15: the street's gaps (complete's alone) made the paid paint at three places run again.
+    A gap is an input of complete and of the row it names alone (the lab's chairs: the assembly's, never the paint's)."""
+    for row in ("assembly", "surfaces-check", "surfaces-paint"):
+        assert gaps.NAME not in ROWS[row].files("street"), row
+    assert gaps.NAME in ROWS["complete"].files("street")
+    for row in ("assembly", "surfaces-check", "surfaces-paint"):  # keyed whole since 2026-10-14, as before
+        assert gaps.NAME in ROWS[row].files("hangar"), row
+
+
 def test_the_hangars_twelve_ship_meshes_move_from_placeholders():
     entry = gaps.entries(recorded("hangar"), "assembly", "placeholders")
     assert len(entry[0]["objects"]) == 12 and entry[0]["name"] == "ship: no made model"

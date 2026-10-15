@@ -373,11 +373,12 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
              "complete": ("people", "likeness", "motion")}
 
 
-def with_gap_files(files):
-    """A row's world files and its place's gaps file where it has one (gaps.files). It unwraps to the row's own files
-    and keeps their attributes (the paint's carry), so the row's code version is its own."""
+def with_gap_files(files, row=None):
+    """A row's world files and its place's gaps file where it names a gap of `row` (whole for complete, `row` None:
+    gaps.files). It unwraps to the row's own files and keeps their attributes (the paint's carry), so the row's code
+    version is its own."""
     def found(place):
-        return {**(files(place) if callable(files) else files), **gaps.files(place)}
+        return {**(files(place) if callable(files) else files), **gaps.files(place, row)}
     found.__dict__.update(getattr(files, "__dict__", {}))
     found.__wrapped__ = files
     return found
@@ -402,7 +403,8 @@ def named_gaps(row):
     moving = GAP_GATES.get(row.name, ())
     kept = tuple(gap_moved(row.name, check) if check.name in moving else check for check in row.checks)
     named = (checks.Check(graph.GAPPED, gaps.judge_named),) if row.name == "complete" else ()
-    return dataclasses.replace(row, files=with_gap_files(row.files), checks=(*kept, *named))
+    reads = None if row.name == "complete" else row.name
+    return dataclasses.replace(row, files=with_gap_files(row.files, reads), checks=(*kept, *named))
 
 
 def layered(row, names):

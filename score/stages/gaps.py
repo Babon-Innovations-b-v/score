@@ -19,9 +19,24 @@ FOLDER = REPO / "data/checks/gaps"
 NAME = "gaps"
 
 
-def files(place):
-    """{"gaps": its pattern} for a place with a gaps file, else nothing (no key of another place moves)."""
-    return {NAME: "{data}/checks/gaps/" + f"{place}.json"} if (FOLDER / f"{place}.json").exists() else {}
+# The places whose gaps file every gap row has keyed since 2026-10-14, the accepted paint among them: they keep it, so
+# no accepted output moves. shortcut: a judged-only input (in the judgement's state, not the key; a change to
+# score/graph) would let these read only their own gaps too.
+KEYED_WHOLE = ("campgrounds", "galley", "garage", "greenhouse", "hangar", "navigation", "wreck")
+
+
+def files(place, row=None):
+    """{"gaps": its pattern} for a place with a gaps file, else nothing (no key of another place moves): for the
+    completion gate (`row` None) always, as it fails every gap by name; for a row whose gate a gap may move from, only
+    where a gap of the file names that row, so a gap is never an input of a row it does not reach (the street's gaps
+    of complete re-keyed the paid paint at three places, overseer 2026-10-15); the KEYED_WHOLE places as before."""
+    path = FOLDER / f"{place}.json"
+    if not path.exists():
+        return {}
+    if row is not None and place not in KEYED_WHOLE and not any(
+            entry["row"] == row for entry in json.loads(path.read_text())["gaps"]):
+        return {}
+    return {NAME: "{data}/checks/gaps/" + f"{place}.json"}
 
 
 def entries(inputs, row=None, check=None):
