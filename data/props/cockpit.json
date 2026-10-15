@@ -11,8 +11,8 @@
    "take": "control_stick-s1"
   },
   "thrust_indicator": {
-   "route": "prop",
-   "take": "thrust_indicator-s1",
+   "route": "code",
+   "code_model": "{home}/work/ship/thrust_indicator-code/thrust_indicator_1.gltf",
    "note": "arm angle fitted to the close-up outline (0.427 square-on, 0.532 at 25°)"
   },
   "centre_pedestal": {
@@ -44,9 +44,7 @@
    "take": "corner_lamp-s1"
   }
  },
- "fallback": {
-  "thrust_indicator": "{home}/work/ship/thrust_indicator-code/thrust_indicator_1.gltf"
- },
+ "fallback": {},
  "accepted": {
   "chair_1": {
    "model": "{home}/work/place/hub-round6/objects/chair_1.gltf",
