@@ -6,9 +6,13 @@
    "take": "ship-s1",
    "kind": "hangar_ship",
    "on": "machine_bay_plate_1",
-   "turn": "along",
-   "nose": "-x",
-   "why": "The hangar holds the crew's shuttle on its pad (place.json, the ship plan v7 at the hangar's 31 m): laid along the pad, let down onto it. Its nose points -x in the place, read off the baked model laid along the pad (2026-10-15): the hull's -x end is the nose spike, 0.28 m across and 0.22 m tall, the +x end the stern, 2.81 by 2.65 m."
+   "turn": "z",
+   "nose": "-z",
+   "why": "The hangar holds the crew's shuttle on its pad (place.json, the ship plan v7 at the hangar's 31 m): laid along the hangar's 46 m (z; its square 7.2 m pad has no long side, and laid along x the 31 m hull lay 1.4 m in the 26 m hangar's walls), 1.6 m north of the pad's middle so its stern clears the south wall's lining by 10 cm (centred, it reached 24.44 m, the lining 22.94 m), let down onto the pad. Its nose points -z, read off the baked model laid so (2026-10-15): the hull's -z end is the nose spike, 0.28 m across, the +z end the stern, 2.81 m.",
+   "off": [
+    0.0,
+    -1.6
+   ]
   },
   "main_engine_1": {
    "row": "main_engine",
