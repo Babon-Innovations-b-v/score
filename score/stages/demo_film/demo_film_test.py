@@ -98,12 +98,12 @@ def look_only_film(root):
     demo, _ = demo_film.film_tools()
     frames = root / "frames/hall"
     frames.mkdir(parents=True)
-    count = round(demo.SHOT_SECONDS * demo.RATE)
+    count = round(demo.SHOT_SECONDS * demo_film.RATE)
     views = [{"name": f"shot0-{number:03d}"} for number in range(count)]
     for view in views:
         Image.new("RGB", SMALL, (90, 110, 130)).save(frames / f"{view['name']}-look.png")
     (root / "views").mkdir()
-    (root / "views/hall.json").write_text(json.dumps({"size": list(SMALL), "ink": False, "views": views}))
+    (root / "views/hall.json").write_text(json.dumps({"size": list(SMALL), "ink": False, "rate": demo_film.RATE, "views": views}))
     demo.cut(root, ["hall"])
     return root / "videos/hall.mp4"
 
