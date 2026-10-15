@@ -440,6 +440,25 @@ def test_a_take_on_two_feet_has_its_short_one_levelled():
     points, record = place_line.levelled_feet(np.asarray(mesh.vertices), np.asarray(mesh.faces), tall=2.0)
     assert record["feet"] == 2 and len(record["levelled"]) == 1 and not record["refused"], record
     assert abs(points[:, 1][np.asarray(mesh.vertices)[:, 2] > 0.2].min()) < 1e-9, "the short foot down on the floor"
+def test_a_tall_take_s_leg_ending_over_the_narrow_band_is_still_levelled():
+    """The hangar's access stair (2026-10-15): two legs ending 29 and 33 cm up, outside the 10 cm band, were left as
+    they were once the band was capped; levelled in the whole band after the narrow one, they come down."""
+    from score.stages.surfaces import place_line
+    vertices, faces = tank_mesh((0.0, 0.0, 0.12, 0.12), height=1.0)
+    _, record = place_line.levelled_feet(vertices, faces, tall=2.0)
+    assert len(record["levelled"]) == 2 and not record["refused"], record
+
+
+def test_a_take_another_place_lays_standing_is_levelled_by_its_rows():
+    """The hangar lays old_station's parts rack (its `elsewhere`, parts_rack_1 to parts_rack_4) on the floor; old
+    station lays none of its kind, so the rack was never levelled (2026-10-15). Its paint now counts the hangar's
+    standing rows: the claimed rack row, never another of the hangar's."""
+    from score.stages.surfaces import place_line
+    inputs = {"surfaces": surface_data.path("old_station"), "inventory hangar": REPO / "data/inventory/hangar.json",
+              "resting rules": REPO / "data/checks/resting.json"}
+    rows = place_line.claimed_rows("parts_rack-r1", inputs)
+    assert rows and {row["id"] for row in rows} == {"parts_rack"}, rows
+    assert place_line.claimed_rows("parts_rack-r1", dict(inputs, **{"inventory hangar": None})) == []
 
 
 def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name():

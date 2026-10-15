@@ -287,6 +287,10 @@ def paint_files(place):
     import stage_inputs  # tools/usd, on the path by the assembly stage's import: a place's inventory, or its kit's
     inventories = {f"inventory {entry['place']}": "{data}/inventory/" + stage_inputs.inventory_path(entry["place"]).name
                    for entry in surfaces.data.takes(place).values()}
+    claiming = {other for found in surfaces.place_line.claimants(place).values() for other, _ in found}
+    inventories.update({f"inventory {other}": "{data}/inventory/" + stage_inputs.inventory_path(other).name
+                        for other in claiming})  # a claimant's rows stand the take too (place_line.claimed_rows)
+    inventories.update({f"claimant {other}": surfaces.data.pattern(other) for other in claiming})
     return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json",
             "paint script": "{repo}/score/stages/surfaces/inside/paint_take.py"}  # run by path on the machine
 
