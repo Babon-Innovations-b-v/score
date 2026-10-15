@@ -10,9 +10,7 @@ hand (the old places' whole partitions), crops-boxes (crop rows) and machines-bo
 were never boxed by any of them, so complete could not tell.
 
     make   machines-boxes' own make (SAM 3 on one rented card, the judge where SAM 3 does not ground) on every other
-           boxed row, recorded where the box gate reads it; one make a view, as that make gives every job the
-           picture of its first row's view (the cockpit's machine rows lie on four views: a fault of machines-boxes
-           left for its own fix, which re-buys its accepted outputs)
+           boxed row, recorded where the box gate reads it
     gate   grounded: every such row's box grounded by SAM 3 or passed by the judge (machines-boxes' gate)
 """
 import json
@@ -22,8 +20,7 @@ from score import checks, contracts
 import score.stages.machines.boxes as machine_boxes
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-# One rented card a view (machines-boxes' estimate); the ship's places box such rows on two views at most.
-EUROS = 2 * machine_boxes.EUROS
+EUROS = machine_boxes.EUROS
 
 
 def other_rows(inventory):
@@ -51,25 +48,17 @@ def files(place):
 
 
 def make_boxes(inputs, out, seed, params):
-    """machines-boxes' make on the other boxed rows, view by view (a folder each), each row flagged as one it
-    measures; every view's grounding and decisions gathered into the output's own."""
+    """machines-boxes' make on the other boxed rows, each flagged as a row it measures (the inventory it reads is
+    written beside the output's files and removed after)."""
     inventory = json.loads(pathlib.Path(inputs["inventory"]).read_text())
-    rows = other_rows(inventory)
-    found = {"grounding.json": {}, "decided.json": {}}
-    for view in sorted({row["view"] for row in rows}):
-        folder = out / view
-        folder.mkdir()
-        listing = folder / ".rows.json"
-        listing.write_text(json.dumps(dict(inventory, rows=[dict(row, ground_box=True) for row in rows
-                                                            if row["view"] == view])))
-        try:
-            machine_boxes.make_boxes(dict(inputs, inventory=listing), folder, seed, params)
-        finally:
-            listing.unlink()
-        for name, gathered in found.items():
-            gathered.update(json.loads((folder / name).read_text()))
-    for name, gathered in found.items():
-        (out / name).write_text(json.dumps(gathered, indent=1))
+    wanted = {row["id"] for row in other_rows(inventory)}
+    listing = out / ".rows.json"
+    listing.write_text(json.dumps(dict(inventory, rows=[dict(row, ground_box=True) for row in inventory["rows"]
+                                                        if row["id"] in wanted])))
+    try:
+        machine_boxes.make_boxes(dict(inputs, inventory=listing), out, seed, params)
+    finally:
+        listing.unlink()
 
 
 CONTRACT = contracts.Contract("complete-boxes", 1, machine_boxes.boxes_faults)

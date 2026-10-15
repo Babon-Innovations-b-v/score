@@ -139,9 +139,12 @@ def test_boxes_grounds_the_machine_rows(work):
     recorded = []
     asked = []
 
+    pictures = {}
+
     def fake_mask(jobs, out, *rest):
         found = json.loads(pathlib.Path(jobs).read_text())
         asked.extend(row["key"] for job in found for row in job["rows"])
+        pictures.update({row["key"]: pathlib.Path(job["picture"]).name for job in found for row in job["rows"]})
         pathlib.Path(out).write_text(json.dumps({row["key"]: [{"box": [0, 0, 50, 50], "inside": 0.0, "fills": 0.0,
                                                                   "score": 0.9}]
                                                  for job in found for row in job["rows"]}))
@@ -152,13 +155,19 @@ def test_boxes_grounds_the_machine_rows(work):
         out = work / "boxes"
         out.mkdir()
         inputs = {"inventory": boxes.REPO / "data/inventory/hangar.json",
-                  "view v1": PROPS_HOME / "work/scene/hangar/views/K01.png"}
+                  **{f"view {view}": PROPS_HOME / f"work/scene/hangar/views/{name}.png"
+                     for view, name in (("v1", "K01"), ("v2", "shuttle"), ("v3", "thrusters"))}}
         boxes.make_boxes(inputs, out, 0, {})
     finally:
         box_masks_cloud.mask, box_check.record_results, boxes.judged = kept
     # the machine rows (the hull and its three thruster designs) and the ground_box one
     assert sorted(asked) == ["hangar.lattice_ring_rib", "hangar.lift_thruster", "hangar.main_engine",
                              "hangar.nose_thruster", "hangar.ship"], asked
+    # each row measured on its own view's picture (2026-10-15: every job got the first row's, the cockpit's console
+    # on the seat's picture), both ways: the girder on the hall, the hull on the shuttle, the thrusters on theirs
+    assert pictures == {"hangar.lattice_ring_rib": "K01.png", "hangar.ship": "shuttle.png",
+                        "hangar.main_engine": "thrusters.png", "hangar.lift_thruster": "thrusters.png",
+                        "hangar.nose_thruster": "thrusters.png"}, pictures
     verdict = boxes.judge_grounded(out, inputs, None)
     assert verdict.answer == checks.FAIL and "hangar.ship: unchecked (SAM 3: off)" in verdict.findings, verdict
     assert recorded and recorded[0]["hangar.ship"]["passes"] is None  # an ungrounded box is not recorded as passing
