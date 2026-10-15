@@ -147,6 +147,10 @@ def claimed_bakes(inputs, out):
     return found
 
 
+# How far a baked model's box may lie from the released file's it stands in for (metres): the same mesh, repainted.
+BOX_TOLERANCE = 0.01
+
+
 def take_bake(bake, paint, out, models=None):
     """The surface stage's baked models in place of the seed's: each model a place's bake made (or only `models` of
     it: {the name laid here: the name baked under}), written as the exporter writes an asset (tools/usd/export.
@@ -167,6 +171,7 @@ def take_bake(bake, paint, out, models=None):
         export.write_asset(model, renamed_model(bake / "made", baked_as, model, out / "renamed"),
                            {model: paint / "labelled" / entry["parts"]}, None, entry["base"], entry["size"], out,
                            variants, sounds)
+        lay_fixtures_baked(out / BASE_LAYER, model)
         stamp_baked_hash(out / BASE_LAYER, model, bake / "made" / f"{baked_as}.gltf")
     shutil.rmtree(out / "renamed", ignore_errors=True)
 
@@ -182,6 +187,34 @@ def renamed_model(made, baked_as, model, scratch):
     scratch.mkdir(parents=True, exist_ok=True)
     (scratch / f"{model}.gltf").write_text(json.dumps(document))
     return scratch
+
+
+def lay_fixtures_baked(base, model):
+    """Every object of the base layer laid from a world file of `model` (score:model the released file, its stem the
+    model's name: the launch's rocket, a plan object, laid the seed's paint until 2026-10-15) referencing the
+    assembly's baked asset of it instead and named by it, so stamp_baked_hash stamps it. The bake keeps the released
+    model's frame (the same mesh, repainted), so its placement stands; a baked box that differs from the laid one
+    fails here rather than stand the object wrong."""
+    from pxr import Sdf
+    layer = Sdf.Layer.FindOrOpen(str(base))
+    folder = pathlib.Path(base).parent
+    baked = f"../assets/{model}.usdc"
+    paths = []
+    layer.Traverse(Sdf.Path.absoluteRootPath, paths.append)
+    for path in paths:
+        spec = layer.GetPrimAtPath(path) if path.IsPrimPath() else None
+        named = spec.attributes["score:model"].default if spec and "score:model" in spec.attributes else None
+        if named is None or named == model or pathlib.PurePosixPath(named).stem != model:
+            continue
+        new_box = made_waiting.asset_bounds(folder / baked)
+        for laid in spec.referenceList.prependedItems:
+            old_box = made_waiting.asset_bounds(folder / laid.assetPath)
+            if any(abs(old_box[end][axis] - new_box[end][axis]) > BOX_TOLERANCE for end in (0, 1) for axis in range(3)):
+                raise ValueError(f"{path}: the baked {model} spans {new_box}, the laid {laid.assetPath} {old_box}: "
+                                 "the bake moved the model's frame")
+        spec.referenceList.prependedItems = [Sdf.Reference(baked)]
+        spec.attributes["score:model"].default = model
+    layer.Save()
 
 
 def stamp_baked_hash(base, model, gltf):
