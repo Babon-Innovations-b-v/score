@@ -84,10 +84,15 @@ def motions_of(inputs):
     return read_json(inputs["motion"]) if "motion" in inputs else None
 
 
+def record_of(inputs):
+    """The place's effects record, its seconds from the climb's moments as seconds of the stage (effects.timed)."""
+    return effect_layer.timed(read_json(inputs["record"]), motions_of(inputs))
+
+
 def make(inputs, out, seed, params):
     """The place's effects layer and its baked particles, from its records."""
     place = pathlib.Path(inputs["seed"]).name
-    record = read_json(inputs["record"])
+    record = read_json(inputs["record"])  # write_layer times it
     held = effect_layer.write_layer(place, record, out, effect_layer.place_ground(place), read_json(inputs["scene"]),
                                     motions_of(inputs))
     (out / "held.json").write_text(json.dumps({"place": place, "particles": held}, indent=1))
@@ -229,7 +234,7 @@ def newborn_miss(stage, place, entry, motions):
 
 def judge_attached(output, inputs, evidence):
     """Pass when everything on a moving prim moves with it and every following emitter lets out at its prim."""
-    stage, place, record = composed(output, inputs), place_of(inputs), read_json(inputs["record"])
+    stage, place, record = composed(output, inputs), place_of(inputs), record_of(inputs)
     motions = motions_of(inputs)
     faults, measures = [], {"drift": 0.0, "miss": 0.0, "carried": 0.0}
     riders = [(entry["name"], entry["placement"]["on"]) for entry in record["effects"] if "on" in entry["placement"]]
@@ -447,7 +452,7 @@ def measured(check, stage, place, record, rocket):
 
 def judge_footage(output, inputs, evidence):
     """Pass when every footage check of the record measures within its range."""
-    record = read_json(inputs["record"])
+    record = record_of(inputs)
     if "footage" not in record:
         return checks.Verdict("footage", checks.UNKNOWN, "the record names no footage to measure its effects on")
     stage, place = composed(output, inputs), place_of(inputs)
@@ -507,7 +512,7 @@ def unheld(stage, place, room):
 def judge_outside(output, inputs, evidence):
     """Pass when no particle of an emitter under the open sky shows inside the place's interiors (`interiors`:
     upright cylinders, each centred on the prim it names) over the first OUTSIDE_SPAN seconds."""
-    record = read_json(inputs["record"])
+    record = record_of(inputs)
     outdoor = under_sky(record)
     if not outdoor:
         return checks.Verdict("outside", checks.PASS, "no emitter stands under the open sky")
@@ -564,7 +569,7 @@ def judge_light(output, inputs, evidence):
     the engines light to just after lift-off; or when the record has no lights and says why its effects give none
     (`no_light`: steam, fog and ice light nothing)."""
     from pxr import UsdLux
-    record = read_json(inputs["record"])
+    record = record_of(inputs)
     if not record.get("lights") and record.get("no_light"):
         return checks.Verdict("light", checks.PASS, f"the record's effects give off no light: {record['no_light']}")
     if not record.get("lights"):

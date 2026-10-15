@@ -71,7 +71,8 @@ child, `/<place>/<prim>/<emitter>`, in the prim's own frame, so it moves with it
 lets each particle out where the prim has climbed to at its birth (the trail a rocket leaves). One that fills a
 `room` (`{"room": 0.15}`, metres in from its walls, floor and ceiling) is a box over the scene record's floor up to
 its ceiling (a pump-down's fog). An event's emitter
-(`once`: [first, last] seconds of the stage) is baked once over its own span at its own `samples` a second and held
+(`once`: [first, last] seconds of the stage; any second of the record may be given as a moment of the place's climb
+and seconds from it, `["ignition", s]` or `["lift-off", s]`, read off its motion record by `timed`) is baked once over its own span at its own `samples` a second and held
 dead before and after; a looped one that `starts` at a second of the stage is dead before it. A record's `lights` are
 UsdLux sphere lights on a prim (`on`, `offset`), their intensity (Blender's units, as scene.py writes lights) keyed
 over the stage's seconds (`intensity`: [[seconds, intensity], ...]), `score:game:shadows` as given: the flame's light.
@@ -303,6 +304,38 @@ def following_emitter(entry, scene, motions):
     rest = next(item for item in scene["objects"] if item["name"] == name)
     origin = np.asarray(rest["at"], dtype=float) + np.asarray(entry["placement"].get("offset", (0.0, 0.0, 0.0)))
     return dict(entry, origin=origin, basis=np.eye(3), climb=dict(motion["climb"], start=float(motion["start"])))
+
+
+# The moments of a place's climb an effect's second may be given from: the engines' start and the release.
+MOMENTS = {"ignition": lambda climb: float(climb["start"]),
+           "lift-off": lambda climb: float(climb["start"]) + float(climb["climb"]["lift"])}
+
+
+def second_of(value, motions):
+    """A record's second of the stage: a number as it is, `[moment, seconds]` that many seconds from the moment of the
+    place's climb (MOMENTS), so the effects keep to the motion record's timing."""
+    if not isinstance(value, list):
+        return float(value)
+    moment, offset = value
+    climbs = [motion for motion in (motions or {}).get("motions", []) if "climb" in motion]
+    if len(climbs) != 1 or moment not in MOMENTS:
+        raise ValueError(f"{value}: a second from {moment} needs one climb in the motion record, "
+                         f"and a moment of {', '.join(MOMENTS)}")
+    return MOMENTS[moment](climbs[0]) + float(offset)
+
+
+def timed(effects, motions):
+    """The record with every second given from a moment of the climb (an emitter's `once` and `starts`, a light's
+    `intensity` keys) as its second of the stage."""
+    found = json.loads(json.dumps(effects))
+    for entry in found["effects"]:
+        if "once" in entry:
+            entry["once"] = [second_of(value, motions) for value in entry["once"]]
+        if entry.get("starts") is not None:
+            entry["starts"] = second_of(entry["starts"], motions)
+    for light in found.get("lights", []):
+        light["intensity"] = [[second_of(seconds, motions), intensity] for seconds, intensity in light["intensity"]]
+    return found
 
 
 def emitters_of(effects, ground, scene, motions=None):
@@ -843,6 +876,7 @@ def variant_target(stage, root, variant):
 def write_layer(place, effects, out, ground=None, scene=None, motions=None):
     """The effects layer of the place's stage under `out`, rewritten whole; how many particles each emitter holds.
     `motions` is the place's motion record (data/motion), which a following emitter reads."""
+    effects = timed(effects, motions)
     if scene:
         scene_record.refuse_rejected(scene, [entry["name"] for entry in effects["effects"]], "the effects record")
     out = pathlib.Path(out)
