@@ -192,6 +192,24 @@ def footing_on_a_slope_is_read_over_the_ground():
     return problems + ([f"a block flat on level ground: {plain}"] if plain else [])
 
 
+
+def a_case_on_a_pallet_is_no_surface_under_the_pallet():
+    """Both ways: a case standing on an 8 cm pallet, its bottom within RAY_START over the pallet's low points, is no
+    surface under them (the campgrounds' pallets, 2026-10-15: read 10 cm up, their plane tipped 3 to 4 degrees), while
+    a point bedded 2 cm into a crate's top still finds that top."""
+    pallet = trimesh.creation.box(bounds=((-0.5, 0.0, -0.5), (0.5, 0.08, 0.5)))
+    case = trimesh.creation.box(bounds=((-0.3, 0.08, -0.3), (0.3, 0.5, 0.3)))
+    crate = trimesh.creation.box(bounds=((2.0, 0.0, -0.5), (3.0, 0.5, 0.5)))
+    surfaces = triage.Surfaces({"pallet": pallet, "case": case, "crate": crate})
+    under_pallet = surfaces.gaps_below(np.array([[0.0, 0.0, 0.0], [0.1, 0.01, 0.1]]), {0})
+    bedded = surfaces.gaps_below(np.array([[2.5, 0.48, 0.0]]), set())
+    problems = []
+    if np.isfinite(under_pallet).any():
+        problems.append(f"the case read under the pallet's low points: {under_pallet}")
+    if not np.isclose(bedded[0], -0.02, atol=1e-6):
+        problems.append(f"a point bedded 2 cm into the crate read {bedded[0]}")
+    return problems
+
 def the_collision_set():
     box = trimesh.creation.box((1.0, 1.0, 1.0))
     scene = collide.Scene()
@@ -244,7 +262,7 @@ def the_data_read_is_the_data_given():
                 if said.get(name) != want]
 
 
-CHECKS = (supports_and_guards, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
+CHECKS = (supports_and_guards, a_case_on_a_pallet_is_no_surface_under_the_pallet, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
           a_foot_off_the_floor_and_a_lean_fail, a_block_tipped_onto_one_edge_of_its_sole_leans, the_collision_set,
           occlusion_boundaries, the_data_read_is_the_data_given, footing_on_a_slope_is_read_over_the_ground)
 

@@ -205,6 +205,7 @@ class Surfaces:
         self.mesh = trimesh.util.concatenate(joined)
         self.rays = trimesh.ray.ray_triangle.RayMeshIntersector(self.mesh)
         self.cache = None
+        self.statics = set()  # owners whose surface over a point counts as it is (gaps_below)
 
     def hits_below(self, points):
         """Every surface straight under each point (rays down from RAY_START over it): (ray, owner, gap) arrays."""
@@ -215,11 +216,16 @@ class Surfaces:
 
     def gaps_below(self, points, left_out):
         """How far each point stands over the first surface straight under it that is not one of the left-out owners
-        (inf where nothing is under it)."""
+        (inf where nothing is under it). A surface over the point (a negative gap, within RAY_START) counts only when
+        the point lies inside what it bounds (its owner has a surface under the point too) or it is a static's (a
+        deck may be one sheet): the case standing on a campgrounds pallet, its bottom within RAY_START over the
+        pallet's low points, read as the pallet's support 10 cm up and tipped its plane 3 to 4 degrees (2026-10-15)."""
         if self.cache is None or self.cache[0] is not points:
             self.cache = (points, self.hits_below(points))
         rays, owners, gaps_found = self.cache[1]
-        keep = ~np.isin(owners, list(left_out))
+        held = rays * len(self.names) + owners
+        inside = np.isin(held, held[gaps_found >= 0])
+        keep = ~np.isin(owners, list(left_out)) & ((gaps_found >= 0) | inside | np.isin(owners, list(self.statics)))
         gaps = np.full(len(points), np.inf)
         np.minimum.at(gaps, rays[keep], gaps_found[keep])
         return gaps
@@ -592,6 +598,7 @@ def triage(stage_path, settled=None, rules_file=RULES, kit_file=None, inventory_
     for path, mesh in statics.items():
         scene.add(path, path, np.asarray(mesh.vertices), np.asarray(mesh.faces), np.eye(4))
     static_ids = {index[name] for name in statics}
+    surfaces.statics = static_ids
     faults = []
     for path, entry in entries.items():
         left_out = {number for name, number in index.items() if name == path or name.startswith(path + "/")}
