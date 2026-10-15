@@ -37,6 +37,20 @@ def test_only_the_named_objects_faults_move_and_any_other_still_stops_the_line()
     assert gaps.moved(unknown, entry) == unknown
 
 
+def test_a_named_unknown_moves_and_another_unknown_or_fault_stays():
+    """The overseer, 2026-10-15: the likeness no props file answers, the square's still cloth and its people."""
+    entry = gaps.entries(recorded("street"), "complete", "likeness")
+    unknown = checks.Verdict("likeness", checks.UNKNOWN, entry[0]["faults"][0].split(": ", 1)[1])
+    assert gaps.moved(unknown, entry).answer == checks.PASS
+    other = checks.Verdict("likeness", checks.UNKNOWN, "2 generated rows and no accepted likeness@launch")
+    assert gaps.moved(other, entry) == other
+    for check in ("people", "motion"):
+        entry = gaps.entries(recorded("square"), "complete", check)
+        assert gaps.moved(failed(check, entry[0]["faults"]), entry).answer == checks.PASS
+        assert gaps.moved(failed(check, [*entry[0]["faults"], "clock: no motion of the records moves with it in its "
+                                                               "name"]), entry).answer == checks.FAIL
+
+
 def test_the_hangars_twelve_ship_meshes_move_from_placeholders():
     entry = gaps.entries(recorded("hangar"), "assembly", "placeholders")
     assert len(entry[0]["objects"]) == 12 and entry[0]["name"] == "ship: no made model"
@@ -62,14 +76,16 @@ def test_complete_fails_each_named_gap_by_name_with_its_numbers():
 
 def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gates():
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
-    assert places == ["campgrounds", "galley", "garage", "greenhouse", "hangar", "navigation", "wreck"], places
+    assert places == ["campgrounds", "galley", "garage", "greenhouse", "hangar", "launch", "navigation", "square", "street",
+                      "wreck"], places
     assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("hub")
     assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("flat")
     from score.graph import GAPPED
     assert GAPPED == "named gaps" and GAPPED in [check.name for check in ROWS["complete"].checks]
     for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
                       ("surfaces-check", "baked matches its surfaces"),
-                      ("surfaces-paint", "colour against the close-up"), ("complete", "people")):
+                      ("surfaces-paint", "colour against the close-up"), ("complete", "people"), ("complete", "likeness"),
+                      ("complete", "motion")):
         check = next(check for check in ROWS[row].checks if check.name == gate)
         assert hasattr(check.judge, "__wrapped__"), (row, gate)
     assert hasattr(ROWS["surfaces-paint"].files, "carries") and hasattr(ROWS["surfaces-paint"].files, "wide")

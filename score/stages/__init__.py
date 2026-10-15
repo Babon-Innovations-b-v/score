@@ -369,8 +369,8 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
 GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
              "surfaces-paint": ("colour against the close-up",),
              # complete's own: the people the cast names and no accepted body of its look lays (the owner's rule: they
-             # ship as named fails until the people work lands)
-             "complete": ("people",)}
+             # ship as named fails until the people work lands), a likeness no props file answers, a motion not built
+             "complete": ("people", "likeness", "motion")}
 
 
 def with_gap_files(files):

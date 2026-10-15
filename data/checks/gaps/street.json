@@ -1,0 +1,37 @@
+{
+ "gaps": [
+  {
+   "name": "street: no props file, so no likeness",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "likeness"
+   ],
+   "unknown": "no accepted likeness@street",
+   "reason": "no props file (data/props/street.json); up to EUR 55 per place, outside world 1's budget",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "likeness: 2 generated rows and no accepted likeness@street (the props rows run only with data/props/street.json): none is held to its close-up"
+   ]
+  },
+  {
+   "name": "street: driver and guard not on the stage, no accepted body",
+   "row": "complete",
+   "check": "people",
+   "objects": [
+    "driver",
+    "driver (driver/driver-suit)",
+    "guard",
+    "guard (guard/guard-uniform)"
+   ],
+   "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule); next month's people work",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "driver: in the cast, not on the stage",
+    "guard: in the cast, not on the stage",
+    "driver (driver/driver-suit): not a made model: no accepted body of its look (people-dress-driver-driver-suit)",
+    "guard (guard/guard-uniform): not a made model: no accepted body of its look (people-dress-guard-guard-uniform)"
+   ]
+  }
+ ]
+}

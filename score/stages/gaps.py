@@ -5,7 +5,8 @@ complete's report with its measured numbers, and any other fault still stops the
 data/checks/gaps/<place>.json: {"gaps": [{"name": what complete fails ("ship: no made model"), "row": the row whose
 gate it moves from ("assembly"), "check": that gate ("placeholders"), "objects": the faults' objects as the gate names
 them (each finding starts "<object>: "), "contains": a phrase each of its findings holds, when only one kind of the
-gate's faults moves (optional), "reason", "decided": who and when, "faults": the findings as measured when it
+gate's faults moves (optional), "unknown": a phrase the gate's unknown answer holds, when the gap is a check that
+cannot answer (no likeness output: it has no findings) (optional), "reason", "decided": who and when, "faults": the findings as measured when it
 was decided}]}. A place without a file has no gaps; the rows that read it declare it only where it exists.
 """
 import json
@@ -44,7 +45,13 @@ def covers(entry, finding):
 def moved(verdict, gaps):
     """The gate's verdict with the faults of the named objects moved to the completion gate: a fail whose every
     finding is a named object's passes, its findings and measures kept and each named gap said; any other fault
-    keeps the fail. Another answer is as given."""
+    keeps the fail. An unknown whose reason holds an entry's `unknown` phrase passes the same way. Another answer is
+    as given."""
+    named = [entry for entry in gaps if entry.get("unknown") and entry["unknown"] in verdict.reason]
+    if verdict.answer == checks.UNKNOWN and named:
+        said = "; ".join(f"{entry['name']} ({entry['decided']})" for entry in named)
+        return checks.Verdict(verdict.check, checks.PASS, f"{verdict.reason}; moved to complete as named gaps: {said}",
+                              {**verdict.measures, "moved": 1}, verdict.better, verdict.findings)
     if verdict.answer != checks.FAIL or not verdict.findings or not gaps:
         return verdict
     if not all(any(covers(entry, finding) for entry in gaps) for finding in verdict.findings):
