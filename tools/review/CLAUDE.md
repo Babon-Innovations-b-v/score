@@ -60,7 +60,8 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   figure from the films; its `world` step cuts demo K9, the world 1 video and its figure, from the films the runner
   accepted (demo-film@<place> in story order, the ship's hull film after the hangar's), `--draft` with those it has. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
 - **A place's review from the store** (`store_page.py`, no Blender, no cloud): one command per place copies the
-  accepted `assembly@<place>` stage out of the framework's store, runs `../usd/complete.py check` and `done` on the
+  accepted assembled stage (`neighbours@<place>` where the place shows others, so the shown places resolve, else
+  `assembly@<place>`: what the runner's complete row judges) out of the framework's store, runs `../usd/complete.py check` and `done` on the
   copy, exports it for the viewer, and writes one self-contained page (every gate of the place's line, each painted
   take's close-up and parts front and back, the library surfaces waiting for the owner's review, the completion
   gate, `--audit`'s open items for the place). Use it for any place whose assembly the runner accepted;

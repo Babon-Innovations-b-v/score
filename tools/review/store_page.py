@@ -1,7 +1,8 @@
-"""A place's review from the framework's store, with no cloud rendering: the accepted assembly's stage copied out of
-the store, the completion gate's checks run on that copy, its web copy for the viewer (viewer/export.py), and one
-page holding every gate verdict of the place's line, each painted model's front and back beside its close-up, the
-library surfaces the place uses that wait for the owner's review, and the completion gate's results.
+"""A place's review from the framework's store, with no cloud rendering: the accepted assembled stage (its neighbours
+output where the place shows others, else its assembly) copied out of the store, the completion gate's checks run on
+that copy, its web copy for the viewer (viewer/export.py), and one page holding every gate verdict of the place's
+line, each painted model's front and back beside its close-up, the library surfaces the place uses that wait for the
+owner's review, and the completion gate's results.
 
     .venv/bin/python tools/review/store_page.py <place> [--world world1] [--audit <text file>] [--no-check]
         [--no-export]
@@ -51,11 +52,15 @@ def escaped(value):
 # --- the stage and its tools --------------------------------------------------------------------------------------
 
 def stage_copy(store, place, folder):
-    """The accepted assembly's stage, copied out of the store into `folder` (again only when the output moved), so
-    the completion gate can write its results beside it; (its .usda, the output's hash)."""
-    output = store.accepted(f"assembly@{place}")
+    """The place's accepted assembled stage (complete.py assembled_node: its neighbours output, the shown places copied
+    in and pointed at, where it shows others, else its assembly), copied out of the store into `folder` (again only
+    when the output moved), so the completion gate can write its results beside it; (its .usda, the output's hash)."""
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import complete
+    node = complete.assembled_node(place)
+    output = store.accepted(node)
     if output is None:
-        raise SystemExit(f"assembly@{place} has no accepted output")
+        raise SystemExit(f"{node} has no accepted output")
     marker = folder / "output.txt"
     if not (marker.exists() and marker.read_text() == output):
         shutil.rmtree(folder, ignore_errors=True)
