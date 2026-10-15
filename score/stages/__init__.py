@@ -513,6 +513,22 @@ def made_without_old_record(make):
     return functools.wraps(make)(made)
 
 
+def sounded_from_plan(files):
+    """The sound row's world files for a place with no old scene record (the ship's): its plan stands as `scene`. The
+    row reads only the place's name (the file's stem) and the objects and structure the record names, for where object
+    sounds may play; a ship place's plan names none, so its sounds play at its inventory rows alone (2026-10-15: the
+    runner refused the ship's run on the missing data/scene/<place>.json). A place with an old record reads it as
+    before; wrapped here, in the table, so no place's key moves."""
+    def declared(place):
+        found = files(place)
+        if place is None or has_old_record(place):
+            return found
+        return dict(found, scene="{data}/plans/" + f"{place}.json")
+    return functools.wraps(files)(declared)
+
+
+STAGES = tuple(dataclasses.replace(row, files=sounded_from_plan(row.files)) if row.name == "sound" else row
+               for row in STAGES)
 STAGES = tuple(dataclasses.replace(row, applies=ship_lit(row.applies), files=no_old_record(row.files),
                                    make=made_without_old_record(row.make))
                if row.name in ("light-layer", "light-passes", "light") and row.applies else row for row in STAGES)
