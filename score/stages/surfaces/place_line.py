@@ -153,22 +153,21 @@ def finished_frame(mesh, take):
 
 
 def stands_on_feet(entry, inventory, rules_file):
-    """Whether a row of the take's own place lays its kind loose on the floor or held on another row, as the resting
-    triage reads the same data (data/checks/resting.json): not fixed, not on a wall or ceiling, not hanging by its
-    words, not of a class that may bed in (cable, cloth, debris) by its id, what it is: a word of its description is
-    not its class (the garage's control cabinet, "cables running up from its top", was read as a cable and never
-    levelled, 2026-10-15). Only such a take has feet to level: a glove that hangs, a wall panel or a fragment thrown
-    on the ground is left as made, as is a row that says it `leans` (laid tilted on purpose, as the triage and the
-    settle read it: the wreck's debris, whose resting faces then failed "feet in one plane", 2026-10-15)."""
+    """Whether a row of the take's own place stands its kind on the floor or ground, on feet the paint may level: its
+    anchor the floor or the ground (never mounted on another object), not fixed, not hung (its support, or the resting
+    rules' hanging words in its id or name), not laid tilted on purpose (`leans`), and not a pile of ground debris
+    (the rules' ground debris words: a cairn of stones). Every other row's take is left as made: the cockpit's flight
+    stick set in its console and the campgrounds' cairn read as standing and failed "feet in one plane" on their
+    resting faces, the wreck's debris before them (2026-10-15). A word of a description is not a cable's or a cloth's
+    class: the garage's control cabinet, "cables running up from its top", stands and is levelled."""
     rules = json.loads(pathlib.Path(rules_file).read_text())
     rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory and pathlib.Path(inventory).exists() \
         else []
-    bedding_words = {word for bedding in rules["may_bed"] for word in bedding["words"]}
+    lying = set(rules["hanging"]) | {word for bedding in rules["may_bed"] if bedding["class"] == "ground debris"
+                                     for word in bedding["words"]}
     return any(row.get("thing") == f"prop:{entry['kind']}" and not row.get("fixed") and not row.get("leans")
-               and row.get("support") in (None, "floor", "held")
-               and (row.get("anchor", "") in ("floor", "ground", "") or row.get("anchor", "").startswith("on:"))
-               and not row_words(row) & set(rules["hanging"])
-               and not row_words({"id": row.get("id", "")}) & bedding_words for row in rows)
+               and row.get("support") in (None, "floor") and row.get("anchor", "") in ("floor", "ground", "")
+               and not row_words(row) & lying for row in rows)
 
 
 def row_words(row):
