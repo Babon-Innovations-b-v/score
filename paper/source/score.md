@@ -179,6 +179,7 @@ Four worlds are planned; world 1's 28 places are judged once their layers stand 
 | Paint or bake off the close-up | garage (4), galley (1), navigation (1) | library surfaces held until next month; overseer, 14 Oct | new library surfaces |
 | Place films: 4 s clips of 96 frames at 24 fps, each place complete except its named gaps | 18 places | not made by this draft | after the completion gates |
 | Results per place, place pictures, the full video | all | not made by this draft | after the place films |
+| Pictures of the stages on the hub with its review page, of shape and surface apart, of light, and of things that move | hub, greenhouse, old station, launch, garage | not made by 07:30 on 15 Oct | after those places' completion gates |
 | An edit that survives a regenerated base | all | no edit layer yet | an edit layer the assembly carries |
 | Physics in an engine | one room | no engine adapter | an adapter |
 | Worlds 2 to 4 | | not started | |
