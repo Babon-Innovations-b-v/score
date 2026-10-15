@@ -196,6 +196,9 @@ def levelled_feet(vertices, faces, tall=None):
     size = max(height, diagonal)
     band = FOOT_BAND * height if not tall else min(FOOT_BAND, FOOT_BAND_METRES / tall) * height
     points, record = feet.level(vertices, faces, band, FOOT_LINK * diagonal, FOOT_TOLERANCE * size, FOOT_MOST * size)
+    if record["feet"] == 2:
+        points, record = two_feet_level(points, faces, band, FOOT_LINK * diagonal, FOOT_TOLERANCE * size,
+                                        FOOT_MOST * size)
     points, base = flattened_base(points, BASE_BAND * height, FOOT_TOLERANCE * size, BASE_MOST * size)
     points, plane = sloped_base(points, BASE_BAND * height, BASE_CELL * diagonal, FOOT_TOLERANCE * size,
                                 BASE_MOST * size)
@@ -209,6 +212,30 @@ def levelled_feet(vertices, faces, tall=None):
     if rests["rise"] is not None:  # only a take whose resting face leans says so
         found["rests"] = round(rests["rise"] / size, 4)
     return points, found
+
+
+def two_feet_level(vertices, faces, band, link, tolerance, most):
+    """feet.level for a take on two feet, which feet.level leaves as they are (it levels three or more): the higher
+    foot brought down onto the level plane through the lower one, its points stretched over the band, refused over
+    `most` (the engine room's fuel tank stands on two cradle feet, one 5.9 cm up, and tipped onto it when dropped,
+    2026-10-15). Here, not in feet.py, which the resting check and the settle read too."""
+    import numpy as np
+    import feet
+    points = np.array(vertices, dtype=np.float64)
+    found = [(members[members < len(points)], low)
+             for members, low in feet.feet(feet.surface_points(points, faces), band, link)]
+    gaps = [round(height - found[0][1], 6) for _, height in found]
+    record = {"feet": len(found), "gaps": gaps, "levelled": [], "refused": []}
+    top = points[:, 1].min() + band
+    for (members, height), gap in zip(found, gaps):
+        if gap <= tolerance:
+            continue
+        if gap > most or not len(members):
+            record["refused"].append(gap)
+            continue
+        points[members, 1] -= gap * np.clip((top - points[members, 1]) / (top - height), 0.0, 1.0)
+        record["levelled"].append(gap)
+    return points, record
 
 
 def flattened_base(points, band, tolerance, most):
