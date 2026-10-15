@@ -518,12 +518,7 @@
   {
    "id": "door_leaf",
    "view": "v3",
-   "box": [
-    104,
-    206,
-    153,
-    262
-   ],
+   "box": null,
    "name": "sliding door leaf: a dark grey panel with a white band, closing the hexagonal frame",
    "kind": "code",
    "anchor": "wall",
@@ -548,9 +543,7 @@
     "hatch_door_frame",
     "door_leaf"
    ],
-   "box_from": [
-    "v3.22"
-   ]
+   "unseen": "the cockpit's own concepts (v1, v2, v4 to v6) show no door; v3 is the quarters' reference, its far doorway 49 x 56 px, on which the box judge passed it 2-0 in quarters and failed it 2-0 here (captain's decision, 2026-10-15)"
   },
   {
    "id": "dash_light_bar",
