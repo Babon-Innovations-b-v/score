@@ -13,6 +13,7 @@ is one of the place's surface data's takes, or the surface line would never pain
 import hashlib
 import json
 import pathlib
+import re
 import subprocess
 
 import score.stages.props.prop_data as prop_data
@@ -79,10 +80,18 @@ def finish_here(take, closeup, faces, out):
         raise RuntimeError(f"the finish of {take} failed (exit {done.returncode}); its log is finish.log")
 
 
+def seed_of(take):
+    """A take's Pixal3D seed, its name's `-s<n>` (a retake of the same close-up is another seed: the galley's
+    fold-down seat came out a floor block from seed 1, 2026-10-15); 1, pixal.py's own default, for any other name."""
+    found = re.search(r"-s(\d+)$", take)
+    return int(found.group(1)) if found else 1
+
+
 def batch_list(objects, closeups, surfaces, out):
-    """The batch's list, one take with no raw model a line with its close-up and its faces; its path, or None when
-    there is none."""
-    lines = [f"{entry['take']} {closeups / f'{row}.png'} --faces {faces_of(surfaces, entry['take'])}"
+    """The batch's list, one take with no raw model a line with its close-up, its faces and its seed; its path, or
+    None when there is none."""
+    lines = [f"{entry['take']} {closeups / f'{row}.png'} --faces {faces_of(surfaces, entry['take'])} "
+             f"--seed {seed_of(entry['take'])}"
              for row, entry in sorted(objects.items()) if not raw_made(entry["take"])]
     if not lines:
         return None

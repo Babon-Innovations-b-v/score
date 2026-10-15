@@ -12,7 +12,7 @@
   },
   "fold_down_seat": {
    "route": "prop",
-   "take": "fold_down_seat-s1"
+   "take": "fold_down_seat-s2"
   }
  },
  "fallback": {},

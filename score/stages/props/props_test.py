@@ -66,6 +66,25 @@ def test_a_new_take_s_bake_entry_stands_its_foot_at_its_lowest_laid_spot():
     assert compare.bake_entry("cockpit", {**lamp, "at": []}, {})["foot"] == 0.0
 
 
+def test_a_retake_asks_pixal3d_for_its_own_seed():
+    """Both ways (the galley's fold-down seat, a floor block from seed 1, 2026-10-15): a take `-s2` is asked with seed
+    2, while a `-s1` take is asked with pixal.py's own default, seed 1, as every batch before asked it."""
+    import score.stages.props.pixal_row as pixal_row
+    folder = PROPS_HOME / "store-tests/seeds"
+    folder.mkdir(parents=True, exist_ok=True)
+    surfaces = folder / "surfaces.json"
+    surfaces.write_text(json.dumps({"bake": {"models": {"seat_1": "seat-s2", "table_1": "table-s1"},
+                                             "entries": {"seat_1": {"faces": 9000}, "table_1": {"faces": 19000}}}}))
+    try:
+        listing = pixal_row.batch_list({"seat": {"take": "seat-s2"}, "table": {"take": "table-s1"}}, folder,
+                                       surfaces, folder)
+        lines = listing.read_text().splitlines()
+        assert lines[0].endswith("--faces 9000 --seed 2") and lines[1].endswith("--faces 19000 --seed 1"), lines
+        assert pixal_row.seed_of("cairn") == 1
+    finally:
+        shutil.rmtree(folder)
+
+
 def test_the_likeness_pairs_are_read_from_the_stored_output():
     """Fault (2026-10-15): likeness@campgrounds sent DINOv2 the paths pairs.json holds, into the folder its make ran
     in, removed once the output was stored. The pictures are read from the output's own pairs/ folder."""
