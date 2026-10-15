@@ -393,6 +393,12 @@ def test_one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view
     spots = list(bake_check.object_spots(desk, {"headset_1": {"size": [0.2, 0.2, 0.1]}}))
     assert [model for model, _, _ in spots] == ["headset_1"], "a model laid on a desk the kit does not size is found"
     assert [round(value, 6) for value in spots[0][1]] == [2.0, 0.5, -1.0], spots  # turned by the desk's yaw
+    machines = {"ship_1": {"on": "bay_plate_1"}, "engine_1": {"mounted": {"on": "ship_1", "at": [1, 2, 3]}},
+                "engine_2": {"model": "engine_1", "mounted": {"on": "ship_1", "at": [-1, 2, 3]}}}
+    spots = list(bake_check.machine_spots(machines, [{"model": "bay_plate_1", "at": [0.0, 0.0, 12.5]}],
+                                          {"ship_1": [9, 5, 31], "engine_1": [1, 1, 2]}))
+    assert [(model, spot) for model, spot, _ in spots] == [("ship_1", [0.0, 0.0, 12.5]), ("engine_1", [0.0, 0.0, 12.5]),
+                                                          ("engine_1", [0.0, 0.0, 12.5])], spots
 
 
 def tank_mesh(ends, height=1.6):
@@ -507,6 +513,20 @@ def test_a_bake_is_held_against_its_surface_dirtied_as_far_as_its_place_s_dirt()
     assert bake_check.on_surface(baked, white, regolith, 0.0) > bake_check.BAKE_DELTA_E
     assert bake_check.on_surface(np.array([40.0, 0, 0]), white, regolith, 0.6) > bake_check.BAKE_DELTA_E
     assert bake_check.on_surface(baked, white, None, 0.6) > bake_check.BAKE_DELTA_E
+
+
+def test_a_bake_is_held_against_its_surface_worn_as_far_as_its_place_s_wear():
+    """The engine room, worn 0.8, dirt 0.5: its power core's hazard trim baked a median [73.2, 2.2, 41.3], 20.1 off
+    its clean yellow and part worn to bare steel; worn as far as the place's wear it lies on its surface. Unworn, or
+    with no bare colour, it does not; a wrong surface (dark_panel) still fails."""
+    import numpy as np
+    from score.stages.surfaces import bake_check
+    yellow, bare, soot = np.array([80.5, 3.5, 78.8]), np.array([66.3, -1.1, -4.5]), np.array([13.2, 3.7, 5.9])
+    baked = np.array([73.2, 2.2, 41.3])
+    assert bake_check.on_surface(baked, yellow, soot, 0.5, bare, 0.8) < 6
+    assert bake_check.on_surface(baked, yellow, soot, 0.5, bare, 0.0) > bake_check.BAKE_DELTA_E
+    assert bake_check.on_surface(baked, yellow, soot, 0.5) > bake_check.BAKE_DELTA_E
+    assert bake_check.on_surface(baked, np.array([19.2, -0.7, -3.2]), soot, 0.5, bare, 0.8) > bake_check.BAKE_DELTA_E
 
 
 def test_a_part_s_baked_colour_is_its_area_s_median_on_each_channel():

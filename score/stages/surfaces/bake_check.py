@@ -82,6 +82,8 @@ PART_POINTS = 60000  # labelled points kept per model to name each baked triangl
 # nearer than the facade the bake's ray meets, so half of what the check called post_dark baked the facade and its
 # median failed at dE 45 while every triangle the bake's ray gave the post baked its library colour exactly.
 BAKE_REACH_SHARE, BAKE_REACH_LEAST = 0.03, 0.01
+# The wear stretch (on_surface) is tried at this many shares from clean to the place's wear, each dirtied exactly.
+WEAR_STEPS = 41
 
 
 def data_of(inputs):
@@ -228,10 +230,11 @@ def area_median(colour, areas):
     return colour[order[middles, range(colour.shape[1])], range(colour.shape[1])]
 
 
-def check_model(name, entry, labelled, made, materials, dirt=0.0):
+def check_model(name, entry, labelled, made, materials, dirt=0.0, wear=0.0):
     """One baked model measured: per surface its parts' baked base colour (area_median over its triangles' texture
-    at their middles' coordinates; glTF's v runs down the picture) against the surface's colour dirtied as the
-    place's dirt dirties it (on_surface), its blotch share, its maps and its triangles against the job's budget."""
+    at their middles' coordinates; glTF's v runs down the picture) against the surface's colour worn and dirtied as
+    the place's wear and dirt wear and dirty it (on_surface), its blotch share, its maps and its triangles against
+    the job's budget."""
     import numpy as np
     from PIL import Image
     import labels
@@ -256,6 +259,8 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0):
     tokens = [colours[0] if colours else None for colours in shades]
     dirty = [labels.lab(labels.srgb(np.array(materials[each]["dirt_colour"]))[None])[0]
              if each in materials and "dirt_colour" in materials[each] else None for each in names]
+    bare = [labels.lab(labels.srgb(np.array(materials[each]["bare"]))[None])[0]
+            if each in materials and "bare" in materials[each] else None for each in names]
     for index in sorted(set(surface.tolist())):
         chosen = surface == index
         middle = area_median(colour[chosen], areas[chosen])
@@ -264,24 +269,34 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0):
             "share": round(float(areas[chosen].sum() / areas.sum()), 4),
             "baked_lab": [round(float(value), 1) for value in middle],
             "surface_lab": None if token is None else [round(float(value), 1) for value in token],
-            "delta_e": None if token is None else round(on_surface(middle, token, dirty[index], dirt), 1),
+            "delta_e": None if token is None else round(on_surface(middle, token, dirty[index], dirt, bare[index],
+                                                                     wear), 1),
             "dirt_lab": None if dirty[index] is None else [round(float(value), 1) for value in dirty[index]],
             "near_black": round(blotch_share(colour, areas, chosen, reach, shades), 4),
             "family": materials.get(names[index], {}).get("family")}
     return record
 
 
-def on_surface(baked, clean, dirt_colour, dirt):
-    """How far (CIE76) a part's baked colour lies from its library colour dirtied toward the place's dirt colour, as
-    far as the place's dirt amount: the nearest point of that stretch (the bake dirties a surface up to its place's
-    dirt; wreck and old_station are dirt 0.6 in regolith: a white at L* 89.6 bakes to 69). A clean place, or a surface
-    with no dirt colour, is measured against its library colour alone."""
+def on_surface(baked, clean, dirt_colour, dirt, bare=None, wear=0.0):
+    """How far (CIE76) a part's baked colour lies from its library colour worn toward its recipe's `bare` (what its
+    edge wear lays open, as far as the place's wear) and then dirtied toward the place's dirt colour (as far as the
+    place's dirt): the nearest such colour (the bake wears and dirties a surface up to its place's settings; wreck and
+    old_station are dirt 0.6 in regolith: a white at L* 89.6 bakes to 69; the engine room is worn 0.8, and its power
+    core's thin hazard trim, 2026-10-15, baked 30% of its area bare steel and 32% part worn, its median dE 20.1 off
+    the clean yellow and 2.3 off the worn one). A new, clean place, or a surface with neither, is measured against its
+    library colour alone."""
     import numpy as np
-    if dirt_colour is None or dirt <= 0:
-        return float(np.linalg.norm(baked - clean))
-    toward = dirt_colour - clean
-    share = float(np.clip(np.dot(baked - clean, toward) / max(float(np.dot(toward, toward)), 1e-9), 0.0, dirt))
-    return float(np.linalg.norm(baked - (clean + share * toward)))
+    wears = np.linspace(0.0, wear, WEAR_STEPS) if bare is not None and wear > 0 else np.zeros(1)
+    nearest = np.inf
+    for share_worn in wears:
+        worn = clean + share_worn * (bare - clean) if bare is not None else clean
+        if dirt_colour is None or dirt <= 0:
+            nearest = min(nearest, float(np.linalg.norm(baked - worn)))
+            continue
+        toward = dirt_colour - worn
+        share = float(np.clip(np.dot(baked - worn, toward) / max(float(np.dot(toward, toward)), 1e-9), 0.0, dirt))
+        nearest = min(nearest, float(np.linalg.norm(baked - (worn + share * toward))))
+    return nearest
 
 
 def stance_lows(points):
@@ -326,9 +341,10 @@ def close_up_colours(labelled):
             for surface, colours in measured.items()}
 
 
-def seen_degrees(inputs):
+def seen_degrees(inputs, baked_sizes=None):
     """Each kit model's middle size in degrees of visual angle from the place's nearest view (its scene record's
-    eyes) to its nearest spot (the kit's pieces, in the record's frame): {model: degrees}; {} with no kit or view."""
+    eyes) to its nearest spot (the kit's pieces, the scene record's objects and the machines record's machines, in
+    the record's frame): {model: degrees}; {} with no kit or view. `baked_sizes`: {model: its bake entry's size}."""
     kit, scene = inputs.get("kit"), inputs.get("scene record")
     if kit is None or scene is None or not kit.exists() or not scene.exists():
         return {}
@@ -337,6 +353,10 @@ def seen_degrees(inputs):
     found = json.loads(kit.read_text())
     spots = [(piece["model"], piece["at"], piece["size"]) for piece in found.get("pieces", [])]
     spots += list(object_spots(record.get("objects", []), found.get("models", {})))
+    machines = inputs.get("machines")
+    if machines is not None and machines.exists():
+        spots += list(machine_spots(json.loads(machines.read_text())["machines"], found.get("pieces", []),
+                                    baked_sizes or {}))
     nearest = {}
     for model, spot, size in spots if eyes else []:
         near = min(math.dist(spot, eye) for eye in eyes)
@@ -361,6 +381,25 @@ def object_spots(objects, sizes, origin=(0.0, 0.0, 0.0), yaw=0.0):
         yield from object_spots(entry.get("children", []), sizes, spot, yaw + entry.get("yaw", 0.0))
 
 
+def machine_spots(machines, pieces, sizes):
+    """(model, spot, size) of each machine of the place's machines record (data/machines: the hangar's ship and its
+    thrusters) the bake sizes: one standing on a kit piece at that piece's spot (the machines stage centres it on its
+    support), one mounted on another at its host's spot.
+    shortcut: a mounted piece is seen at its host's middle, not its mount point (that needs the host's `nose`, which
+    the record may not have yet), so a long host's far-end piece reads nearer than it is; upgrade with
+    machines.mount_point once every host names its nose."""
+    at = {piece["model"]: piece["at"] for piece in pieces}
+
+    def spot_of(name):
+        entry = machines[name]
+        return spot_of(entry["mounted"]["on"]) if "mounted" in entry else at.get(entry["on"])
+
+    for name, entry in machines.items():
+        model, spot = entry.get("model", name), spot_of(name)
+        if spot is not None and model in sizes:
+            yield model, spot, sizes[model]
+
+
 def make_check(inputs, out, seed, params):
     prop_env.handover(__file__, "check", inputs, out)
 
@@ -370,15 +409,16 @@ def check_step(inputs, out):
     import library
     name = data_of(inputs)["library"]
     materials = {**library.by_library(name), **library.resolved(name)}
-    dirt = library.wear_of(name)[1]
+    wear, dirt = library.wear_of(name)
     rows = [row for key, path in inputs.items() if key.startswith("inventory ") and path.exists()
             for row in json.loads(path.read_text()).get("rows", [])]
     lying = [word for kind in json.loads(inputs["stance rules"].read_text())["lies"] for word in kind["words"]]
-    degrees = seen_degrees(inputs)
+    baked = json.loads((inputs["bake"] / "baked.json").read_text())
+    degrees = seen_degrees(inputs, {model: entry["size"] for model, entry in baked.items()})
     found = {}
-    for model, entry in json.loads((inputs["bake"] / "baked.json").read_text()).items():
+    for model, entry in baked.items():
         labelled = inputs["paint"] / "labelled" / entry["parts"]
-        found[model] = check_model(model, entry, labelled, inputs["bake"] / "made", materials, dirt)
+        found[model] = check_model(model, entry, labelled, inputs["bake"] / "made", materials, dirt, wear)
         found[model]["stands"] = stands(model, labelled, rows, lying)
         found[model]["seen_degrees"] = degrees.get(model)
     (out / "checks.json").write_text(json.dumps(found, indent=1))

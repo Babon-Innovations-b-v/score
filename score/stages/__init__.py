@@ -258,10 +258,11 @@ def bake_checked(row):
 
 def check_files(place):
     """The check's world files: the paint's (its line's, the inventories, the resting rules), the stance rules, and
-    the place's kit and scene record (each model's spots and the views, its view distance)."""
+    the place's kit, scene record and machines record (each model's spots and the views, its view distance)."""
     # A place the game never had (the ship's rooms) has no old scene record, and no kit until its shell is laid: the
     # check reads none then (bake_check.seen_degrees does without), as scene-record's seed (78243df1).
-    views = {"kit": REPO / "data/kit" / f"{place}.json", "scene record": REPO / "data/scene" / f"{place}.json"}
+    views = {"kit": REPO / "data/kit" / f"{place}.json", "scene record": REPO / "data/scene" / f"{place}.json",
+             "machines": REPO / "data/machines" / f"{place}.json"}
     return {**{name: pattern for name, pattern in paint_files(place).items() if name != "paint script"},
             "stance rules": "{data}/checks/stance.json",
             **{name: "{data}/" + path.relative_to(REPO / "data").as_posix() for name, path in views.items()
