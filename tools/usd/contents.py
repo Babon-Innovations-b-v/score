@@ -62,6 +62,7 @@ ASSEMBLED_SCENE = "scene.json"  # the record the assembly stage built the stage 
 WAITING = "score:waiting"  # the root prim's entries of that record laid nothing, waiting on their model
 SOUND_LAYER = "./layers/sound.usda"
 MADE_ROUTE = "prop"
+EFFECT_KIND = "score:effect:kind"  # what an effect is, on every emitter the effects layer lays (tools/usd/effects.py)
 GAME = re.compile(r"\b2099\b|\bthe game\b|\.gd\b|\.tscn\b", re.IGNORECASE)
 # A far-only look may fill at most this share of a view's frame height (a person HEIGHT tall, the frame ASPECT wide, the
 # view's fov vertical): the cast stage's own rule (score/stages/cast/spread.py, the captain's cut of 2026-10-13).
@@ -242,11 +243,15 @@ def far_faults(stage, place, cast, standing):
 # --- effects and motion ---------------------------------------------------------------------------------------------
 
 def effects_standing(stage, place):
-    """The names under /<place>/Effects in every variant of every variant set it has."""
+    """The names under /<place>/Effects in every variant of every variant set it has, and of every prim the effects
+    layer laid on an object of the place (its child with `score:effect:kind`: the launch's flame on its rocket)."""
+    from pxr import Usd
+    root = stage.GetPrimAtPath(f"/{place}")
+    laid = {prim.GetName() for prim in Usd.PrimRange(root) if prim.HasAttribute(EFFECT_KIND)} if root else set()
     scope = stage.GetPrimAtPath(f"/{place}/Effects")
     if not scope:
-        return set()
-    names = {child.GetName() for child in scope.GetChildren()}
+        return laid
+    names = laid | {child.GetName() for child in scope.GetChildren()}
     for set_name in scope.GetVariantSets().GetNames():
         variant_set = scope.GetVariantSet(set_name)
         chosen = variant_set.GetVariantSelection()
