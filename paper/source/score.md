@@ -22,7 +22,7 @@ abstract: |
 -->
 
 ```{=latex}
-\makeatletter\def\fps@figure{t}\makeatother
+\makeatletter\def\fps@figure{tp}\makeatother\renewcommand{\topfraction}{0.9}\renewcommand{\textfraction}{0.1}
 ```
 
 # Introduction
@@ -61,7 +61,7 @@ A world is a table of stages; world 1's has 95 rows. A **node** is one stage for
 
 ## From concept to scene
 
-**Inventory, plan and record.** A coding agent lists every visible element of the concept as an inventory row (kind, anchor, size, count) or drops it with a written reason; nothing is made or placed that is not a row. It draws a dimensioned plan, gated on `mapped` (every element a row, a door or a written drop; every door says where it leads). The scene record is written from the plan, inventory, made ground and sky, gated on `game-free` (the record cites nothing from the game the world came from), `plan-matched` (the shell within 5 cm of the plan), `openings` (every doorway onto a floor, no view into nothing) and `seed-matched` (every old entry matched or dropped with a reason). `game-free` sees cited numbers only. On world 1 the records cite nothing, but in 18 of its 28 places the data they are written from still take positions from the source game (Section 4).
+**Inventory, plan and record.** A coding agent lists every visible element of the concept as an inventory row (kind, anchor, size, count) or drops it with a written reason; nothing is made or placed that is not a row. It draws a dimensioned plan, gated on `mapped` (every element a row, a door or a written drop; every door says where it leads). The scene record is written from the plan, inventory, made ground and sky, gated on `game-free` (the record cites nothing from the game the world came from), `plan-matched` (the shell within 5 cm of the plan), `openings` (every doorway onto a floor, no view into nothing) and `seed-matched` (every old entry matched or dropped with a reason). The `game-free` gate sees cited numbers only. On world 1 the records cite nothing, but in 18 of its 28 places the data they are written from still take positions from the source game (Section 4).
 
 **The canonical scene.** Every place is one OpenUSD stage [@openusd]; each object, one per real-world object, carries its kind, transform, collision and each part's library surface. Its layers lie in a fixed order: a slot for the creator's edit layer on top, then people, sound, light, motion, effects, crops, machines, settle, ground and the generated base. The edit layer exists only as that slot, an empty layer the exporter makes once and never writes again; a test on a two-box place shows an edit there surviving a regenerated base, but the runner's assembly does not yet carry a creator's edit from one assembly to the next. Each place is assembled once, from every layer's accepted output; its `layers` gate answers unknown while a needed layer has none, and an old output never stands in.
 
@@ -167,7 +167,7 @@ Four worlds are planned; world 1's 28 places are judged once their layers stand 
 | Gap | Where | Why, and who decided | Next |
 |---|---|---|---|
 | Layouts from the source game | 18 of 28 places: 507 citations, 338 positions; 7 kits in the game's frame, 6,432 piece positions | the framework's own layout is proven only on the ship's 8 places and the 2 door kits; overseer, to confirm | layouts from plan and concept, to be priced |
-| People with no accepted body | every cast: the street's driver and guard, the square's leader, front row of 24 and crowd, the flat's 2 and the stairwell's 2 | no clip clean on what is drawn (Table 2); the creator's rule, 13 Oct; per place, overseer, to confirm | next month's people work |
+| People with no accepted body | every cast: the street's driver and guard, the square's leader, front row of 24 and crowd, two at the flat and two in the stairwell | no clip clean on what is drawn (Table 2); the creator's rule, 13 Oct; per place, overseer, to confirm | next month's people work |
 | Likeness not checked | the prologue: street, launch, square, flat, stairwell | no props file, so generated models are not held to their close-ups; up to EUR 55 a place, outside world 1's budget; overseer, to confirm | props files |
 | Cloth that stands still | the square's flags, banners and lanterns | cloth motion not built; overseer, to confirm | cloth motion |
 | Two far towers | launch: the housing slab and the pencil tower | no stage builds the far city; overseer, to confirm | new code and the launch's prop data, about EUR 20 |
