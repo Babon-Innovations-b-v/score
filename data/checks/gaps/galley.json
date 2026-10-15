@@ -25,6 +25,19 @@
    "faults": [
     "{\"row\": \"wall_lower_plain\", \"result\": \"fail\", \"why\": \"judge: round tiny fragment of baseboard\"}"
    ]
+  },
+  {
+   "name": "galley: wall lower plain box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "galley.wall_lower_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan: its one proposal (v1.242) is a 29 x 26 px fragment of baseboard; no proposal holds a lower wall plate",
+   "decided": "overseer, 2026-10-15 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "galley.wall_lower_plain: judge: round tiny fragment of baseboard"
+   ]
   }
  ]
 }
