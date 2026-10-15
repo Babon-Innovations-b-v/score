@@ -186,11 +186,12 @@ def kit_glow(sky):
 
 # --- objects and shown places -----------------------------------------------------------------------------------
 
-def kit_floors(kit):
-    """The kit's floor pieces (its kinds' group `floors`) as box entries round each piece (x across and z out
+def kit_floors(kit, every=False):
+    """The kit's floor pieces (its kinds' group `floors`), or with `every` all its pieces (a ground-free room's walls,
+    roof and shut leaves too: it is judged against its own walls), as box entries round each piece (x across and z out
     centred on its `at`, y up from it).
     shortcut: a box round the piece, exact for a piece square to the axes (every Earth floor), wider for a turned one."""
-    floors = {kind for kind, about in kit.get("kinds", {}).items() if about.get("group") == "floors"}
+    floors = {kind for kind, about in kit.get("kinds", {}).items() if every or about.get("group") == "floors"}
     found = []
     for number, piece in enumerate(piece for piece in kit.get("pieces", []) if piece["kind"] in floors):
         axes = np.array([piece[axis] for axis in ("x", "y", "z")], dtype=float)

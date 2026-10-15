@@ -476,7 +476,9 @@ def composed(output, inputs):
     stage = bare_stage(place)
     structure = record.get("structure", [])
     if plan_of(inputs)["shell"] == "kit":
-        structure = structure + kit_shell.kit_floors(json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text()))
+        kit = json.loads((pathlib.Path(inputs["kits"]) / f"{place}.json").read_text())
+        structure = structure + kit_shell.kit_floors(kit, every=bool(json.loads(
+            (pathlib.Path(inputs["plans"]) / f"{place}.json").read_text()).get("ground_free")))
     for surface in {item["surface"] for item in structure if item.get("surface")}:
         UsdShade.Material.Define(stage, f"/{place}/Library/{surface}")  # bound only: rays see shapes, not paint
     outside.scene_records.write_structure(stage, place, structure, out=pathlib.Path(output))
