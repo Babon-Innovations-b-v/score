@@ -242,12 +242,14 @@ def a_part_is_judged_on_its_host():
 
 
 def the_assembled_record_and_a_waiting_entry_both_ways():
-    """Light and neighbours judge the record beside the stage (the assembly's scene.json) over data/scene's; an
-    entry the assembly laid nothing for, waiting on its model, fails `waiting` by name."""
+    """Light and neighbours judge the record beside the stage (the assembly's scene.json) over data/scene's; game
+    judges every scene record (beside, data/scene's, the stored scene-record output's), a `source` as a `from`, and
+    counts the positions taken; an entry the assembly laid nothing for, waiting on its model, fails `waiting` by
+    name."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        world_data(folder, scene={"place": PLACE, "lights": [{"type": "omni", "from": "the game 2099's lamp.gd"}],
-                                  "places": []})
+        lamp = {"type": "omni", "from": "the game 2099's lamp.gd"}
+        data = world_data(folder, scene={"place": PLACE, "lights": [lamp], "places": []})
         path = bare_stage(folder)
         cases = [("data/scene's record, none beside", judged("neighbours", path), contents.PASS),
                  ("data/scene's record citing the game, none beside", judged("game", path), contents.FAIL),
@@ -259,8 +261,21 @@ def the_assembled_record_and_a_waiting_entry_both_ways():
             ["objects cairn: its model comes through the next batch"])
         stage.GetRootLayer().Save()
         cases += [("the assembled record's shown place missing", judged("neighbours", path), contents.FAIL),
-                  ("the assembled record free of the game", judged("game", path), contents.PASS),
+                  ("the assembled record free of the game, data/scene's citing it", judged("game", path),
+                   contents.FAIL),
                   ("the cairn waiting on its model", judged("waiting", path), contents.FAIL)]
+        (data / "scene" / f"{PLACE}.json").write_text(json.dumps({"place": PLACE, "lights": [], "places": []}))
+        cases.append(("every scene record free of the game", judged("game", path), contents.PASS))
+        made = folder / "scene-record-output"
+        (made / "record").mkdir(parents=True)
+        (made / "record" / f"{PLACE}.json").write_text(json.dumps({"objects": [
+            {"name": "rocket", "at": [-270, 0, -60], "source": "earth_site.gd:260 ROCKET_AT"},
+            {"name": "pad", "at": [0, 0, 0], "from": "the plan's pad"}]}))
+        stored = {**NONE, "scene-record": made}
+        verdict, faults, _ = contents.JUDGES["game"](Usd.Stage.Open(str(path)), PLACE, {"rows": []}, stored)
+        cases.append(("the stored scene-record output placing the rocket from the game", verdict, contents.FAIL))
+        if not (len(faults) == 1 and "1 entries take their numbers from the game (source), 1 positions" in faults[0]):
+            cases.append(("the stored output's fault counts", faults, "one source, one position"))
         return problems_of(cases)
 
 
