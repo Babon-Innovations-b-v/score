@@ -4,7 +4,8 @@ The ship-kit stage: a ship place's shell kit (its code-built pieces) baked with 
 one paid node `ship_kit@<place>` of its own runner (`python -m score.stages.ship_kits run <place>`).
 
 - **ship_kit.py writes the whole layout** from the place's plan and inventory; the stage keeps the code pieces only
-  (a prop-route row's pieces come from its own take); route.py plan makes the make_kit jobs; library_bake.py bakes them
+  (a prop-route row's pieces come from its own take, which the assembly lays where this layout puts them:
+  `assembly/ship_made.py`, from the bake of the place that paints the take); route.py plan makes the make_kit jobs; library_bake.py bakes them
   in the cloud. Nothing heavy runs on this PC.
 - **Gates are the late-bake stage's**: every planned model made, every slot a library surface.
 - **After it passes**, route.py `layout` and `install` put each kit in place (data/kit/<place>.json), all ship places in

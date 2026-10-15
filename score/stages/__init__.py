@@ -33,6 +33,7 @@ import score.stages.demo_film.stills as demo_stills
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 import score.stages.machines.boxes as machine_boxes
+from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
 from score.stages.terrain import inputs as terrain_inputs, look
 from score.store import PROPS_HOME, Store
@@ -434,6 +435,12 @@ SEEDS_HOME = PROPS_HOME / "work"
 OLD_SEED, SHIP_SEED = "usd-r3", "usd-ship"
 
 
+def ship_place(place):
+    """A place the game never had (the ship's rooms): no round-three seed, its base stage written from its kit."""
+    return (place is not None and not (SEEDS_HOME / OLD_SEED / place).exists()
+            and (SEEDS_HOME / SHIP_SEED / place).exists())
+
+
 def ship_seeded(files):
     """A row's world files with a ship place's base stage for its seed: the ship's places never had a round-three stage
     (usd-r3), so each one's is written from its installed kit by tools/usd/export.py into usd-ship/<place> (2026-10-15)
@@ -532,6 +539,71 @@ STAGES = tuple(dataclasses.replace(row, files=sounded_from_plan(row.files)) if r
 STAGES = tuple(dataclasses.replace(row, applies=ship_lit(row.applies), files=no_old_record(row.files),
                                    make=made_without_old_record(row.make))
                if row.name in ("light-layer", "light-passes", "light") and row.applies else row for row in STAGES)
+
+
+def ship_assembled(row):
+    """The assembly with a ship place's made pieces laid on its kit-built base (assembly/ship_made.py, 2026-10-15:
+    the base lays the kit's code pieces only, so its bake had no object to lay the bunks, lockers and consoles in),
+    each from the bake of the place that paints it, read beside; its plan, the kit layout's tools and ship_made.py
+    declared. A place with a round-three seed is assembled as before: wrapped here, in the table, so its key stays."""
+    files, neighbours, make = row.files, row.neighbours, row.make
+
+    def declared(place):
+        return {**files(place), **ship_made.files(place)} if ship_place(place) else files(place)
+
+    def beside(place):
+        return sorted({*neighbours(place), *ship_made.neighbours(place)}) if ship_place(place) else neighbours(place)
+
+    def made(inputs, out, seed, params):
+        place = pathlib.Path(inputs["seed"]).name
+        if not ship_place(place):
+            return make(inputs, out, seed, params)
+        claimed = set(neighbours(place))  # the made pieces' bakes are ship_made's, not the surface data's claims
+        make({name: path for name, path in inputs.items() if "@" not in name or name.split("@", 1)[1] in claimed},
+             out, seed, params)
+        laid, unlaid = ship_made.lay(inputs, out, place)
+        if not (laid or unlaid):  # a place with no made rows (the walkway) is its seed's assembly, byte for byte
+            return
+        origin = json.loads((out / "origin.json").read_text())
+        (out / "origin.json").write_text(json.dumps({**origin, "made pieces": laid, "made rows unlaid": unlaid},
+                                                    indent=1))
+    return dataclasses.replace(row, files=functools.wraps(files)(declared),
+                               neighbours=functools.wraps(neighbours)(beside), make=functools.wraps(make)(made))
+
+
+def ship_seen(row):
+    """surfaces-check with a view distance for a ship place's models (2026-10-15: every model's was none, so the
+    cockpit's pedestal, side console and ceiling equipment and the engine room's fuel tank were unknown): its views
+    the scene record's, as the demo's views file the light rows read (it has no data/scene record), and its made
+    models' spots where the ship kit lays them (its installed kit holds the code pieces only), laid beside the kit
+    for the check. A place with a round-three seed is checked as before: wrapped here, so its key stays."""
+    files, make = row.files, row.make
+
+    def declared(place):
+        if not ship_place(place):
+            return files(place)
+        laid = {name: pattern for name, pattern in ship_made.files(place).items() if not name.startswith("surfaces ")}
+        return {**files(place), **laid, "views": "{seeds}/demo/world1-r4/views/" + f"{place}.json"}
+
+    def made(inputs, out, seed, params):
+        place = json.loads(pathlib.Path(inputs["surfaces"]).read_text())["place"]
+        if not ship_place(place):
+            return make(inputs, out, seed, params)
+        inventory = json.loads(pathlib.Path(inputs[f"inventory {place}"]).read_text())
+        models = {row: model for row, (_, model) in ship_made.row_models(inventory, {place: inputs["surfaces"]}).items()}
+        kit = json.loads(pathlib.Path(inputs["kit"]).read_text())
+        made_pieces = ship_made.pieces(place, json.loads(pathlib.Path(inputs["plan"]).read_text()), inventory, models)
+        seen = out / ".seen-kit.json"
+        seen.write_text(json.dumps(dict(kit, pieces=kit["pieces"] + made_pieces)))
+        try:
+            return make(dict(inputs, kit=seen, **{"scene record": inputs["views"]}), out, seed, params)
+        finally:
+            seen.unlink()
+    return dataclasses.replace(row, files=functools.wraps(files)(declared), make=functools.wraps(make)(made))
+
+
+STAGES = tuple(ship_assembled(row) if row.name == "assembly" else ship_seen(row) if row.name == "surfaces-check"
+               else row for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 
