@@ -7,7 +7,8 @@ effects stages' (captain, 2026-10-12): they ride the machine's prim, /<place>/Ob
     make     each machine of the place's record (data/machines/<place>.json) written as the assembly writes a baked
              model (export.write_asset: the surface line's bake, its paint's labelled parts) under assets/, and laid
              in layers/machines.usda: turned across or along what it stands on (`turn`: its long side against the
-             support's long side), centred on the support's footprint and let down from `drop_from` metres over the
+             support's long side, or "x" or "z": along the place's axis), centred on the support's footprint (`off`
+             metres off it in x and z) and let down from `drop_from` metres over the
              ground to the first thing under it; placed.json holds each pose, the drop and the outline measure
     gates    outline        likeness.py's outline of the baked model from eight ways round against its take's
                             close-up (the prop route's likeness gate, its free half) at least OUTLINE_LEAST
@@ -121,10 +122,16 @@ def long_axis(extent):
 
 
 def turned(points, turn, support):
-    """The machine's points and yaw (degrees) turned about y so its long side lies across or along the support's.
+    """The machine's points and yaw (degrees) turned about y so its long side lies across or along the support's, or
+    along the place's own x or z (`turn` "x" or "z": a square support has no long side, and the hangar's 31 m ship
+    laid "along" its 7.2 m square pad lay across the 26 m hangar, 1.4 m in its walls, 2026-10-15).
     shortcut: the sides are read off world-axis boxes, so a support laid off the axes needs its own frame first."""
-    mine, theirs = long_axis(np.ptp(points, axis=0)), long_axis(np.ptp(support.vertices, axis=0))
-    yaw = 0.0 if (mine == theirs) == (turn == "along") else 90.0
+    mine = long_axis(np.ptp(points, axis=0))
+    if turn in ("x", "z"):
+        yaw = 0.0 if mine == "x?z".index(turn) else 90.0
+    else:
+        theirs = long_axis(np.ptp(support.vertices, axis=0))
+        yaw = 0.0 if (mine == theirs) == (turn == "along") else 90.0
     cosine, sine = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
     rotation = np.array([[cosine, 0.0, -sine], [0.0, 1.0, 0.0], [sine, 0.0, cosine]])  # row vectors, y up
     return points @ rotation, yaw, rotation
@@ -150,7 +157,8 @@ def pose(points, entry, stage, place):
     middle = (support.bounds[0] + support.bounds[1]) / 2
     ground = resting.ground_height(stage, place)
     centre = (spun.min(axis=0) + spun.max(axis=0)) / 2
-    move = np.array([middle[0] - centre[0], 0.0, middle[2] - centre[2]])
+    off = entry.get("off", (0.0, 0.0))  # metres off the support's middle in x and z: a machine longer than its room
+    move = np.array([middle[0] - centre[0] + off[0], 0.0, middle[2] - centre[2] + off[1]])
     move[1] = float(np.nanmax(ground((spun + move)[:, [0, 2]]))) + entry.get("drop_from", DROP_FROM) - spun[:, 1].min()
     placed = spun + move
     low, high = placed.min(axis=0), placed.max(axis=0)

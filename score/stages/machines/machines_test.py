@@ -112,6 +112,18 @@ def test_a_machine_stands_on_its_settled_support(work):
     assert old.answer == checks.FAIL and "rover_lift_1" in " ".join(old.findings), old
 
 
+def test_a_machine_lies_along_the_place_s_axis_its_record_names_and_off_its_support_s_middle():
+    """The hangar's ship (2026-10-15): its 7.2 m pad is square, so "along" the pad laid the 31 m hull across the 26 m
+    hangar. `turn` "x" or "z" lays its long side along the place's axis; `off` sets it off the support's middle."""
+    stage = machines.seed_stage(SEED)
+    points = np.asarray(stand_in().vertices)  # 3.03 m long along z
+    along_z, yaw_z, _ = machines.pose(points, dict(ENTRY, turn="z"), stage, "garage")
+    _, yaw_x, _ = machines.pose(points, dict(ENTRY, turn="x"), stage, "garage")
+    assert (yaw_z, yaw_x) == (0.0, 90.0), (yaw_z, yaw_x)
+    moved, _, _ = machines.pose(points, dict(ENTRY, turn="z", off=[0.0, -0.4]), stage, "garage")
+    assert abs(moved[3, 2] - along_z[3, 2] + 0.4) < 1e-6 and abs(moved[3, 0] - along_z[3, 0]) < 1e-6, (moved, along_z)
+
+
 def test_a_mounted_piece_goes_where_its_host_plan_puts_it():
     """A ship 31 m long laid along z with its nose at -z: a piece 2 m back from the tip, 1 m to starboard (+x when
     facing -z) and 0.5 m up sits there; a host with no nose refuses its pieces by name."""
@@ -207,6 +219,7 @@ def main():
     try:
         test_layout_and_gates(work)
         test_a_machine_stands_on_its_settled_support(work)
+        test_a_machine_lies_along_the_place_s_axis_its_record_names_and_off_its_support_s_middle()
         test_a_mounted_piece_goes_where_its_host_plan_puts_it()
         test_assembly_takes_it(work)
         test_boxes_grounds_the_machine_rows(work)
