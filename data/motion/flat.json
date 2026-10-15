@@ -1,14 +1,31 @@
 {
  "place": "flat",
- "about": "The balcony door as the game runs it at the start of the balcony beat: the director opens it as the black lifts off the player at the railing, and the glass leaf slides 1.4 m along the inside of the wall at the game's door speed (the doorway's width in 1.2 s), then stands open for the rest of the prologue. Played once from the stage's start; the scene record already stands the leaf open (its `moved`), so the slide starts 1.4 m back, shut. The game plays no sound with it. The flat's front door is an open doorway in the game and never moves. Frame: EarthSite's, 9 m down (data/scene/flat.json).",
+ "about": "The balcony door at the start of the balcony beat: it slides open along the inside of the wall by the doorway's width, then stands open. Played once from the stage's start; the scene record already stands the leaf open (its `moved`), so the slide starts 1.4 m back, shut. No sound plays with it. The flat's front door is an open doorway and never moves. Frame: the flat's, 9 m up (data/scene/flat.json).",
  "motions": [
   {
    "name": "balcony_door",
    "prim": "/flat/Objects/sliding_glass_leaf_1",
-   "start": 0.0, "length": 1.2, "loop": false,
-   "slide": {"by": [0.0, 0.0, 1.4], "speed": 1.1666666666666667, "starts": "shut", "rests": "open", "moves": [[0.0, "open"]]},
+   "start": 0.0,
+   "length": 4.59,
+   "loop": false,
+   "slide": {
+    "by": [
+     0.0,
+     0.0,
+     1.4
+    ],
+    "speed": 0.3048,
+    "starts": "shut",
+    "rests": "open",
+    "moves": [
+     [
+      0.0,
+      "open"
+     ]
+    ]
+   },
    "sounds": [],
-   "from": "game/prologue/earth_site/earth_site.gd:79-81 (BALCONY_DOORWAY 1.4 wide, BALCONY_DOOR_SECONDS 1.2), 446-456 (_process slides the leaf by move_toward at the doorway's width over those seconds; open_the_balcony_door wants BALCONY_SPOT.z + 1.4), 826-835 (the kit's leaf hung on the moving body); game/prologue/prologue/prologue.gd:255-262 (_enter_balcony opens it as the screen lifts over BALCONY_LIFT_SECONDS 2.0, :59)"
+   "from": "the slide the balcony doorway's width, 1.4 m (data/plans/flat.json doors: BALCONY DOOR (glass) 1.4 x 2.2 m); at 0.3048 m/s, 12 in. a second, the most a door that opens near people may move: ANSI/BHMA A156.38 (low energy power operated sliding doors) opens at 12 in./s at most, https://buildershardware.com/LinkClick.aspx?fileticket=RzVEAlFx4X4%3D&portalid=0, and ANSI/BHMA A156.10 closes a sliding leaf of up to 160 lb at 1 ft/s at most, https://www.automateddoorsolutions.com/wp-content/uploads/2018/08/ANSI-A156-10-2005.pdf; so 4.59 s"
   }
  ]
 }
