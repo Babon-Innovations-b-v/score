@@ -37,6 +37,9 @@ agent finishing while validations are stale). The requirements:
                   the places it shows, and no record citing the game. The runner's complete stage
                   (score/stages/complete) runs these same checks, and every one above but resting (the assembly's
                   gate judges it on its drop run), on the place's assembled stage: one gate, two ways in
+    named gaps    as the runner's complete row: a check's faults a dated decision in data/checks/gaps/<place>.json
+                  names (score/stages/gaps.py, a gate of GAP_GATES["complete"]) pass that check, said by name, and
+                  this requirement fails every named gap by name; any fault no gap names still fails its check
     current       every check result was made on this stage as it is now (the same fingerprint) and none is unknown
     review        the review page (tools/review/page.py) was built, and its scene rendered, from this stage as it is now
 
@@ -84,12 +87,21 @@ STORE_OUTPUT = "output.txt"
 # --- where things are ---------------------------------------------------------------------------------------------
 
 def stage_path(place, stage=None, work=False):
-    """The place's stage file: the one given; else the store copy of its accepted assembly
+    """The place's stage file: the one given; else the store copy of its accepted assembled stage
     (WORK/review-store/<place>/stage/<place>.usda, made by tools/review/store_page.py), the framework's one source;
     with `work`, the old export's (WORK/usd/<place>/<place>.usda)."""
     if stage:
         return pathlib.Path(stage)
     return STAGES / place / f"{place}.usda" if work else STORE_REVIEWS / place / "stage" / f"{place}.usda"
+
+
+def assembled_node(place):
+    """The node whose accepted output is the place's assembled stage, the one the runner's complete row judges
+    (score/stages/complete assembled_stage): neighbours@<place> where the place shows others, else assembly@<place>."""
+    sys.path.insert(0, str(REPO))
+    from score.stages.assembly import neighbours
+    return f"{'neighbours' if neighbours.applies(place) else 'assembly'}@{place}"
+
 
 
 # --- the fingerprint ----------------------------------------------------------------------------------------------
@@ -315,13 +327,14 @@ def stage_requirement(stage, place=None):
 
 
 def store_stage_requirement(place, output):
-    """Whether `output` is assembly@<place>'s accepted output on the key its inputs give now (the runner's)."""
+    """Whether `output` is the place's assembled node's accepted output on the key its inputs give now (the
+    runner's)."""
     sys.path.insert(0, str(REPO))
     from score import graph, stages
     runner = stages.runner()
-    node = f"assembly@{place}"
+    node = assembled_node(place)
     try:
-        key = runner.key(runner.stages["assembly"], place)["key"]
+        key = runner.key(runner.stages[node.partition("@")[0]], place)["key"]
     except graph.Blocked as block:
         return UNKNOWN, f"{node}'s current key cannot be worked out: {block}"
     record = runner.store.record(node, key)
@@ -334,13 +347,53 @@ def store_stage_requirement(place, output):
     return PASS, f"{node}'s accepted output on the current key ({key[:12]})"
 
 
-def check_requirement(check, stage, current):
-    """A check's requirement: its last result, unless it is missing or was made on another stage (unknown)."""
+def gap_inputs(place):
+    """The place's gaps file as the runner's complete row declares it (score/stages/gaps.py files, row None), its
+    pattern filled from the data folder the gaps live in: {"gaps": path}, or {} for a place without one."""
+    sys.path.insert(0, str(REPO))
+    from score.stages import gaps
+    return {name: pattern.format(place=place, data=gaps.FOLDER.parents[1])
+            for name, pattern in gaps.files(place).items()}
+
+
+def gap_moved(check, place, found):
+    """A check's saved result with the place's named gaps moved as the runner's complete row moves them
+    (score/stages gap_moved over score/stages/complete gate_check's verdict): (answer, why moved, or None). Only a
+    gate of GAP_GATES["complete"] moves, and only when every fault is a named gap's; anything else stands as saved."""
+    from score.stages import gaps
+    entries = gaps.entries(gap_inputs(place), "complete", check)
+    if not entries:
+        return found["result"], None
+    from score import checks, stages
+    if check not in stages.GAP_GATES["complete"]:
+        return found["result"], None
+    faults = found.get("faults", [])
+    why = found.get("note") or found["result"]
+    verdict = checks.Verdict(check, found["result"], f"{len(faults)} faults: {why}" if faults else why, {}, {},
+                             tuple(fault if isinstance(fault, str) else json.dumps(fault) for fault in faults))
+    moved = gaps.moved(verdict, entries)
+    return moved.answer, moved.reason if moved is not verdict else None
+
+
+def named_gaps_requirement(place):
+    """The completion gate's own named gaps check (score/stages/gaps.py judge_named): every gap fails by name."""
+    sys.path.insert(0, str(REPO))
+    from score.stages import gaps
+    verdict = gaps.judge_named(None, gap_inputs(place), None)
+    return verdict.answer, verdict.reason
+
+
+def check_requirement(check, stage, current, place=None):
+    """A check's requirement: its last result, unless it is missing or was made on another stage (unknown); a fault
+    of the place's named gaps moved as the runner's complete row moves it."""
     found = load(check, stage)
     if found is None:
         return UNKNOWN, "never run: complete.py check runs it"
     if found["fingerprint"] != current:
         return UNKNOWN, f"stale: made at {found['at']} on an earlier stage; run it again"
+    answer, moved = gap_moved(check, place or pathlib.Path(stage).stem, found)
+    if moved:
+        return answer, moved
     faults = found.get("faults", [])
     if found["result"] == FAIL:
         return FAIL, f"{len(faults)} faults" + (f" ({found['note']})" if found.get("note") else "")
@@ -375,8 +428,9 @@ def requirements(place, stage, review=None):
     current = fingerprint(stage)
     found = [("stage", *stage_requirement(stage, place))]
     found += [(check, *(recorded(*check_requirement(check, stage, current)) if check in EXPERIMENTAL
-                        else check_requirement(check, stage, current))) for check in CHECKS]
+                        else check_requirement(check, stage, current, place))) for check in CHECKS]
     stale = [name for name, verdict, _ in found[1:] if verdict == UNKNOWN]
+    found.append(("named gaps", *named_gaps_requirement(place)))
     found.append(("current", UNKNOWN if stale else PASS,
                   f"not current or unknown: {', '.join(stale)}" if stale else "every result is on this stage"))
     found.append(("review", *review_requirement(place, stage, review, current)))

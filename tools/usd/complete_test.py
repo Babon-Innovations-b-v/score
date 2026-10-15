@@ -27,6 +27,10 @@ import triage_test  # noqa: E402
 
 # The test's places have no stage outputs in the framework's store: the contents checks read none.
 complete.stored_outputs = lambda place: dict(contents_test.NONE)
+# Nor the world's named gaps (the test's place is named wreck, which has some): a test writes its own.
+sys.path.insert(0, str(HERE.parents[1]))
+from score.stages import gaps  # noqa: E402
+gaps.FOLDER = HERE / "no gaps folder"
 
 
 def laid(folder, rows=(("crate", "floor"), ("lamp", "floor"))):
@@ -217,7 +221,42 @@ def the_store_page_is_the_review_and_a_store_copy_is_judged_by_its_key():
         return problems
 
 
-CHECKS = (a_finished_place_passes, a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
+def a_named_gap_moves_only_the_faults_it_names():
+    """Fault (2026-10-15): complete.py read no named gaps while the runner's complete row did, so the store page failed
+    the stairwell on people, game and likeness faults the owner and the overseer had named. A gap moves only its own
+    named faults of a gate GAP_GATES["complete"] lists, and the named gaps requirement fails each by name."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = laid(folder)
+        saved = gaps.FOLDER
+        gaps.FOLDER = folder / "data/checks/gaps"
+        gaps.FOLDER.mkdir(parents=True)
+        named = {"row": "complete", "reason": "a test", "decided": "the test", "faults": ["player: not on the stage"]}
+        (gaps.FOLDER / f"{resting_test.PLACE}.json").write_text(json.dumps({"gaps": [
+            {**named, "name": "no player", "check": "people", "objects": ["player"]},
+            {**named, "name": "not a gap gate", "check": "painted", "objects": ["crate"]}]}))
+        problems = []
+        try:
+            def answer(check, faults):
+                complete.save(complete.result(check, complete.FAIL, stage, faults), stage)
+                return complete.check_requirement(check, stage, complete.fingerprint(stage), resting_test.PLACE)
+            moved = answer("people", ["player: not on the stage"])
+            if moved[0] != complete.PASS or "named gaps: no player" not in moved[1]:
+                problems.append(f"the named people fault did not move: {moved}")
+            if answer("people", ["player: not on the stage", "guard: not on the stage"])[0] != complete.FAIL:
+                problems.append("a fault no gap names passed with the named one")
+            if answer("painted", ["crate: not repainted"])[0] != complete.FAIL:
+                problems.append("a gap moved a check that is not one of complete's gap gates")
+            if complete.named_gaps_requirement(resting_test.PLACE)[0] != complete.FAIL:
+                problems.append("the named gaps requirement does not fail its gaps by name")
+            if complete.named_gaps_requirement("no such place")[0] != complete.PASS:
+                problems.append("a place with no gaps file fails on named gaps")
+        finally:
+            gaps.FOLDER = saved
+        return problems
+
+
+CHECKS = (a_finished_place_passes, a_named_gap_moves_only_the_faults_it_names, a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
           a_check_that_cannot_run_is_unknown, a_part_answers_for_its_own_rows_only,

@@ -73,7 +73,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
   every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, picks, boxes,
   every result current, the review page built and rendered from this stage, and the contents checks). Unknown blocks
-  like fail. Reach runs and shows on the manifest but is experimental (`EXPERIMENTAL`): its faults are not counted (it
+  like fail. It reads the place's named gaps (`data/checks/gaps/<place>.json`) as the runner's complete row does,
+  with `score/stages/gaps.py`'s own code: a check's faults a gap names pass that check, said by name, and the
+  `named gaps` requirement fails each gap by name; a fault no gap names still fails. Reach runs and shows on the manifest but is experimental (`EXPERIMENTAL`): its faults are not counted (it
   fails backdrop rows nobody walks to), only that it was recorded on this stage. The runner's complete stage
   (`score/stages/complete`) runs these same checks on the place's assembled stage: one gate, two ways in. The Stop
   and SubagentStop hooks (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it
