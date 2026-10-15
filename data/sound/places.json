@@ -108,7 +108,7 @@
 			"loops": [
 				"earth_flat"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and _earth_place: the flat plays on down the stairs (the stairwell cut it to silence in the first playthrough, 2026-10-01)"
+			"from": "the flat's own room tone heard down the stairs (earth_flat's brief, data/sound/sounds.json `where`: 'the small flat in a Chinese city on Earth, in the prologue'): the stairwell's plan leads its top landing's west door to the flat (data/plans/stairwell.json leads W@9), whose front door stands open (data/movers/flat.json still); the stairwell has no loop of its own"
 		},
 		"street": {
 			"loops": [
