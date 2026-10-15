@@ -65,6 +65,19 @@
    "faults": [
     "nose_thruster_1: crane_yellow_paint is 19.2 L* lighter than plastic_grey in its close-up but bakes 4.4 darker"
    ]
+  },
+  {
+   "name": "hangar: the hose reel not held to its close-up's outline",
+   "row": "likeness",
+   "check": "outline",
+   "objects": [
+    "hose_reel"
+   ],
+   "reason": "outline 0.484 vs 0.5; its only close-up is blurred by the pipe and lamp behind it; a clean close-up next month",
+   "decided": "overseer, 2026-10-15, until next month",
+   "faults": [
+    "hose_reel: outline 0.484 under 0.5 (code route)"
+   ]
   }
  ]
 }
