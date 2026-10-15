@@ -621,7 +621,9 @@ STRICT = {"on": False}  # the toy gate's code before (off) and after (on) it lea
 
 
 def judge_marks(output, inputs, evidence):
-    marks = (output / "clean.txt").read_text().split().count("X") if STRICT["on"] else 0
+    if STRICT.get("old schema") and (output / "clean.txt").read_text().startswith("A "):
+        raise KeyError("layers")  # today's gate reading a field the old output never wrote
+    marks =(output / "clean.txt").read_text().split().count("X") if STRICT["on"] else 0
     return checks.Verdict("marks", checks.PASS, f"{marks} marks", {"marks": marks}, {"marks": "lower"})
 
 
@@ -647,6 +649,19 @@ def test_the_accepted_output_is_judged_again_by_todays_gates_before_comparing():
     STRICT["on"] = False
     assert worse["clean@hangar"] == "made: pass", worse  # one more mark, measured alike: worse, not accepted
     assert store.accepted("clean@hangar") == accepted
+
+
+def test_a_gate_that_cannot_judge_the_accepted_output_again_compares_its_stored_verdict():
+    """assembly@lab's accepted output of 10-11 has no `layers` in its origin, which today's layers gate reads: the
+    runner compares that check's stored verdict instead of stopping."""
+    world, store = a_world({"hangar": "a x"}), Store.in_folder(tempfile.mkdtemp())
+    STRICT.update({"on": False, "old schema": False})
+    a_runner(world, store, (MARKS,)).run(["hangar"])
+    STRICT.update({"on": True, "old schema": True})
+    (world.roots["data"] / "hangar" / "brief.txt").write_text("b x")
+    found = a_runner(world, store, (MARKS,)).run(["hangar"])
+    STRICT.update({"on": False, "old schema": False})
+    assert found["clean@hangar"] == "made: pass", found  # its stored 0 marks against 1: worse, waits
 
 
 if __name__ == "__main__":
