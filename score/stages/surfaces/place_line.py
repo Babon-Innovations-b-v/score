@@ -58,6 +58,10 @@ FOOT_BAND, FOOT_TOLERANCE, FOOT_MOST, FOOT_LINK = 0.15, 0.01, 0.1, 0.03
 # never levelled (2026-10-15: the garage's fluid shelves, 28 cm, kept a leg 3.7 cm up; the storage's cargo racks, 39 cm,
 # one 3.4 cm up; the resting check, 10 cm, failed both).
 FOOT_BAND_METRES = 0.1
+# A foot counts as down within FOOT_TOLERANCE of the take's size, at most this many metres (the resting check's 3 cm,
+# read through the standing height as the band is): a hundredth of the hangar's 31 m ship let its landing legs end
+# 8 cm apart, and it stood on its rear ones and tipped (2026-10-15).
+FOOT_TOLERANCE_METRES = 0.03
 # A base that slopes as one piece (flattened_base): its bottom BASE_BAND of height, each footprint quadrant brought
 # down level when over FOOT_TOLERANCE of its size up, refused over BASE_MOST (the rack's legs: 7.4% of its size).
 BASE_BAND, BASE_MOST = 0.25, 0.15
@@ -72,6 +76,7 @@ BASE_CELL, BASE_ON_PLANE = 1 / 16, 0.8
 PAINT_CLASSES = "cpu-32c-128gb,cpu-32c-64gb,cpu-32c-256gb,cpu-16c-64gb"
 PAINT_MINUTES, PAINT_EUROS = 2, 0.5
 TAKE, RECORDS, HOME, CODE = "paint take", "paint records", "props home", "paint repo"
+CLAIMED = "paint claimed rows"  # {take: the rows other places stand it with}, worked out before the job (claimed_rows)
 PAINT_REPO = ("score", "tools/props", "data/library", "data/definitions", "design/tokens", "data/checks",
               "data/inventory")
 
@@ -170,14 +175,44 @@ def stands_on_feet(entry, inventory, rules_file):
 
 def standing_rows(entry, inventory, rules_file):
     """The rows of the take's own place that stand its kind on feet the paint may level (stands_on_feet)."""
-    rules = json.loads(pathlib.Path(rules_file).read_text())
     rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory and pathlib.Path(inventory).exists() \
         else []
+    return [row for row in rows if row.get("thing") == f"prop:{entry['kind']}" and stands(row, rules_file)]
+
+
+def stands(row, rules_file):
+    """Whether a row stands on the floor or ground on feet the paint may level (stands_on_feet's terms)."""
+    rules = json.loads(pathlib.Path(rules_file).read_text())
     lying = set(rules["hanging"]) | {word for bedding in rules["may_bed"] if bedding["class"] == "ground debris"
                                      for word in bedding["words"]}
-    return [row for row in rows if row.get("thing") == f"prop:{entry['kind']}" and not row.get("fixed")
-            and not row.get("leans") and row.get("support") in (None, "floor")
-            and row.get("anchor", "") in ("floor", "ground", "") and not row_words(row) & lying]
+    return (not row.get("fixed") and not row.get("leans") and row.get("support") in (None, "floor")
+            and row.get("anchor", "") in ("floor", "ground", "") and not row_words(row) & lying)
+
+
+def claimants(place):
+    """{take: [(the place that lays it, the model it lays)]} of each of the place's takes another place claims (that
+    place's `elsewhere`): the hangar lays old_station's parts_rack-r1 as parts_rack_1 to parts_rack_4. Here, not in
+    surface_data.py, whose every reader is a paid row."""
+    import surface_data
+    found = {}
+    for other in sorted(surface_data.FOLDER.glob("*.json")):
+        for model, claim in json.loads(other.read_text()).get("elsewhere", {}).items():
+            if claim["place"] == place:
+                found.setdefault(claim["take"], []).append((other.stem, model))
+    return found
+
+
+def claimed_rows(take, inputs):
+    """The rows of the other places that lay the take by their claim (claimants) and stand it on feet:
+    the hangar stands old_station's parts rack, whose own place lays none of its kind, so the rack was never levelled
+    and stood in the hangar with feet ending up to 5.6 cm apart (2026-10-15)."""
+    found = []
+    for place, model in claimants(data_of(inputs)["place"]).get(take, []):
+        inventory = inputs.get(f"inventory {place}")
+        rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory else []
+        row = model.rsplit("_", 1)[0]
+        found += [found_row for found_row in rows if found_row["id"] == row and stands(found_row, inputs["resting rules"])]
+    return found
 
 
 def row_words(row):
@@ -194,11 +229,18 @@ def levelled_feet(vertices, faces, tall=None):
     import feet
     height, diagonal = feet.model_scale(vertices)
     size = max(height, diagonal)
-    band = FOOT_BAND * height if not tall else min(FOOT_BAND, FOOT_BAND_METRES / tall) * height
-    points, record = feet.level(vertices, faces, band, FOOT_LINK * diagonal, FOOT_TOLERANCE * size, FOOT_MOST * size)
+    wide = FOOT_BAND * height
+    band = wide if not tall else min(FOOT_BAND, FOOT_BAND_METRES / tall) * height
+    down = FOOT_TOLERANCE * size if not tall else min(FOOT_TOLERANCE * size, FOOT_TOLERANCE_METRES / tall * height)
+    points, record = feet.level(vertices, faces, band, FOOT_LINK * diagonal, down, FOOT_MOST * size)
     if record["feet"] == 2:
-        points, record = two_feet_level(points, faces, band, FOOT_LINK * diagonal, FOOT_TOLERANCE * size,
-                                        FOOT_MOST * size)
+        points, record = two_feet_level(points, faces, band, FOOT_LINK * diagonal, down, FOOT_MOST * size)
+    if band < wide:  # then in the whole band too: a leg ending over the narrow band is still a short leg (the
+        # hangar's access stair, two legs 29 and 33 cm up, left unlevelled by the narrow band alone, 2026-10-15)
+        points, again = feet.level(points, faces, wide, FOOT_LINK * diagonal, down, FOOT_MOST * size)
+        found = max(record, again, key=lambda one: one["feet"])
+        record = {"feet": found["feet"], "gaps": found["gaps"], "levelled": record["levelled"] + again["levelled"],
+                  "refused": record["refused"] + again["refused"]}
     points, base = flattened_base(points, BASE_BAND * height, FOOT_TOLERANCE * size, BASE_MOST * size)
     points, plane = sloped_base(points, BASE_BAND * height, BASE_CELL * diagonal, FOOT_TOLERANCE * size,
                                 BASE_MOST * size)
@@ -386,6 +428,7 @@ def paint_take(inputs, out, take, record, records):
     moved.apply_transform(matrix)
     levelled = {"skipped": "no floor or held row of its place lays its kind"}
     standing = standing_rows(entry, inputs.get(f"inventory {entry['place']}"), inputs["resting rules"])
+    standing += json.loads(inputs[CLAIMED].read_text()).get(take, []) if CLAIMED in inputs else []
     if standing:
         tall = max((row["size"][2] for row in standing if len(row.get("size") or ()) == 3), default=None)
         moved.vertices, levelled = levelled_feet(moved.vertices, moved.faces, tall)
@@ -433,13 +476,16 @@ def paint_job(inputs, short, out, take, records):
     file the paint reads at its own path (the repository's code and data it imports and reads, the take's raw,
     finished and turned models, its parts); its labelled folder comes back."""
     listing, kept = out / f".paint-{take}.json", out / f".paint-{take}-records.json"
+    claimed = out / f".paint-{take}-claimed.json"
     kept.write_text(json.dumps(records))
+    claimed.write_text(json.dumps({take: claimed_rows(take, inputs)}))
     listing.write_text(json.dumps({**{name: str(path) for name, path in inputs.items()}, TAKE: take,
-                                   RECORDS: str(kept), HOME: str(prop_env.PROPS_HOME), CODE: str(REPO)}))
+                                   RECORDS: str(kept), CLAIMED: str(claimed), HOME: str(prop_env.PROPS_HOME),
+                                   CODE: str(REPO)}))
     pixal = prop_env.PROPS_HOME / "work/pixal"
     models = sorted({pixal / f"{take}.glb", pixal / f"{take}-final.glb", *pixal.glob(f"{take}-[0-9]*.glb")})
     inventories = [path for name, path in short.items() if name.startswith("inventory ")]
-    read = [listing, kept, short["surfaces"], short["parts"] / "parts.json", short["parts"] / take,
+    read = [listing, kept, claimed, short["surfaces"], short["parts"] / "parts.json", short["parts"] / take,
             short["resting rules"], *inventories, *models, *(REPO / folder for folder in PAINT_REPO)]
     job = out / f".paint-{take}-job.json"
     job.write_text(json.dumps({"script": "score/stages/surfaces/inside/paint_take.py", "args": [str(listing)],
