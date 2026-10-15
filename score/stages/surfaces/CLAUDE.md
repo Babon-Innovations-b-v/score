@@ -82,9 +82,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   signal; the registry proposals are written here first. `tools/props/heavy.py` refuses the step anywhere the
   cloud runner's mark (FARM_LOCAL_MODELS=1) is not set. prop_env.py is left alone: the method's rows import it, and an
   edit there re-keys every place's inputs.
-- **The check holds a bake against its surface dirtied as its place dirties it** (`bake_check.on_surface`: the
-  stretch from the library colour toward the place's dirt colour, as far as its dirt amount; the wreck's whites
-  bake to L* 69 in regolith at 0.6 and pass, a wrong surface still fails). A part's baked colour is its triangles'
+- **The check holds a bake against its surface worn and dirtied as its place wears and dirties it**
+  (`bake_check.on_surface`: the library colour worn toward its recipe's `bare` as far as the place's wear, then
+  toward the place's dirt colour as far as its dirt; the wreck's whites bake to L* 69 in regolith at 0.6 and pass,
+  the engine room's thin hazard trim, worn 0.8, baked a third bare steel and passes, a wrong surface still fails). A part's baked colour is its triangles'
   area-weighted median on each of L*, a*, b* (`bake_check.area_median`), never the triangle at the median L*: lab's
   junction_box_1 (2026-10-14) baked its crane yellow right on 56% of its area, and the grey panel triangle at the
   same L* that L* alone picked failed it at dE 37.
@@ -108,7 +109,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   label on black plastic passes), a black smudge along the border still fails. It also fails a model whose surfaces
   bake to one grey look its close-up does not have (`one_look_faults`: no two told apart at the place's view distance,
   by Stone, Szafir and Setlur's measured ND(50) for their size in degrees from the nearest view (`seen_degrees`, the
-  kit's spots and the scene record's eyes; owner, 2026-10-13: a fixed 12 failed the wreck's access cover on a step he
+  kit's spots, the scene record's objects, the machines record's machines and the scene record's eyes; owner, 2026-10-13: a fixed 12 failed the wreck's access cover on a step he
   sees), each near neutral, the close-up's over 24 apart; a model with no view distance is named; the greenhouse's water tank and crop crate, 2026-10-12: the check of bake against
   library alone passed them at dE 0), two opaque surfaces whose lightness order the bake reverses (`order_faults`:
   seen over 10 L* lighter, baked over 3 darker; the light moves L* but keeps the order), and a part baked over 32
