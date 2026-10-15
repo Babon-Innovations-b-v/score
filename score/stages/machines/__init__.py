@@ -24,11 +24,14 @@ prop route's likeness row blocks on it the same way); the outline alone does not
 import json
 import math
 import pathlib
+import shutil
 import sys
+import tempfile
 
 import numpy as np
 
 from score import checks, contracts
+from score.store import PROPS_HOME
 import score.stages.props.likeness as likeness
 import score.stages.props.likeness_row as likeness_row
 
@@ -38,6 +41,7 @@ import resting  # noqa: E402
 
 FOLDER = REPO / "data/machines"
 LAYER = "layers/machines.usda"
+SCRATCH = "scratch"  # the laid place, in the output's own folder while the make runs (laid_stage), then removed
 # The settle stage's layer in its output (settling.LAYER; not imported, so a settle edit moves no machines key).
 SETTLE_LAYER = "layers/settle.usda"
 # How far over the ground a machine is let down from when its record names none, in metres: above a lift's arms and
@@ -59,7 +63,10 @@ def files(place):
     """The place's machines record, its seed (the layout the machines are laid in), what the asset writer reads (the
     library, the surfaces' sounds, the design tokens) and each machine's close-up (its take's Pixal3D input)."""
     found = {"record": "{data}/machines/{place}.json", "seed": "{seeds}/usd-r3/{place}", "library": "{data}/library",
-             "sounds": "{data}/sound/surfaces.json", "tokens": "{repo}/design/tokens/tokens.json"}
+             "sounds": "{data}/sound/surfaces.json", "tokens": "{repo}/design/tokens/tokens.json",
+             "kit": "{data}/kit/{place}.json", "surfaces": "{data}/surfaces/{place}.json"}
+    if (REPO / "data/scene" / f"{place}.json").exists():  # the laid place's (grounded.py), as the settle reads them
+        found["scene"] = "{data}/scene/{place}.json"
     for model, entry in record_of(place)["machines"].items() if applies(place) else ():
         found[f"close-up {model}"] = "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
     return found
@@ -81,6 +88,26 @@ def seed_stage(seed, settled=None):
     if settled is None:
         return Usd.Stage.Open(str(seed / f"{seed.name}.usda"))
     return Usd.Stage.Open(layered([pathlib.Path(settled) / SETTLE_LAYER, seed / f"{seed.name}.usda"], seed.name))
+
+
+def laid_layers(inputs, folder):
+    """The layers of the place as the assembly lays it, strongest first: its accepted settle layer, then its seed
+    written in `folder` as the assembly lays it (grounded.py: its scene record, kit spots, bakes and made ground); the
+    raw seed where the place's ground is not read (the tests' toy). The hangar's ship, laid on the raw seed, landed on
+    the game's old ship that its structure still held and stood 48 cm up in the assembly, where the scene record lays
+    no such ship (2026-10-15)."""
+    seed = pathlib.Path(inputs["seed"])
+    settled = [pathlib.Path(inputs["settle"]) / SETTLE_LAYER] if "settle" in inputs else []
+    if "terrain" not in inputs:
+        return [*settled, seed / f"{seed.name}.usda"]
+    from score.stages.assembly.grounded import grounded_seed
+    return [*settled, grounded_seed(inputs, pathlib.Path(folder))]
+
+
+def laid_stage(inputs, folder):
+    """The place as the assembly lays it (laid_layers), opened as one stage."""
+    from pxr import Usd
+    return Usd.Stage.Open(layered(laid_layers(inputs, folder), pathlib.Path(inputs["seed"]).name))
 
 
 def layered(paths, place):
@@ -250,8 +277,8 @@ def make(inputs, out, seed, params):
     import stage_inputs
     record = read_json(inputs["record"])
     place = record["place"]
-    stage = seed_stage(inputs["seed"], inputs.get("settle"))
-    (out / "layers").mkdir(parents=True)
+    stage = laid_stage(inputs, out / SCRATCH)
+    (out / "layers").mkdir(parents=True, exist_ok=True)
     layer = Sdf.Layer.CreateNew(str(out / LAYER))
     placed, hosts, written = {}, {}, {}
     # Hosts first, so a mounted piece finds its host laid.
@@ -275,6 +302,8 @@ def make(inputs, out, seed, params):
                          **likeness.best_way(gltf, inputs[f"close-up {model}"])}
     layer.Save()
     (out / "placed.json").write_text(json.dumps({"place": place, "machines": placed}, indent=1) + "\n")
+    del stage
+    shutil.rmtree(out / SCRATCH, ignore_errors=True)
 
 
 def layer_faults(folder):
@@ -291,12 +320,11 @@ def placed_of(output):
     return read_json(pathlib.Path(output) / "placed.json")["machines"]
 
 
-def composed(output, inputs):
-    """The machines layer over the place's seed stage, opened as one stage."""
+def composed(output, inputs, folder):
+    """The machines layer over the place as the assembly lays it (laid_stage, written in `folder`), as one stage."""
     from pxr import Usd
-    seed = pathlib.Path(inputs["seed"])
-    settled = [pathlib.Path(inputs["settle"]) / SETTLE_LAYER] if "settle" in inputs else []
-    return Usd.Stage.Open(layered([pathlib.Path(output) / LAYER, *settled, seed / f"{seed.name}.usda"], seed.name))
+    return Usd.Stage.Open(layered([pathlib.Path(output) / LAYER, *laid_layers(inputs, folder)],
+                                  pathlib.Path(inputs["seed"]).name))
 
 
 def verdict(name, failing, total, measures):
@@ -357,7 +385,12 @@ def rested(stage, place, model):
 
 def judge_resting(output, inputs, evidence):
     """Every machine rests on what is under it and lies in nothing (resting.py, on the composed stage)."""
-    stage = composed(output, inputs)
+    with tempfile.TemporaryDirectory(prefix="machines-", dir=PROPS_HOME / "store/cache") as folder:
+        return resting_verdict(output, composed(output, inputs, pathlib.Path(folder)))
+
+
+def resting_verdict(output, stage):
+    """judge_resting's verdict on the composed stage."""
     place = stage.GetDefaultPrim().GetName()
     failing, gaps = [], []
     for model, entry in sorted(placed_of(output).items()):
@@ -378,6 +411,7 @@ def judge_resting(output, inputs, evidence):
 
 LAYER_CONTRACT = contracts.Contract("machines-layer", 1, layer_faults, {"length": "metre", "up axis": "Y"})
 AFTER = {"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
-         "surfaces-parts": ("surfaces-parts", 1), "settle": ("settle-layer", 1)}
+         "surfaces-parts": ("surfaces-parts", 1), "settle": ("settle-layer", 1),
+         "scene-record": ("scene-record", 1), "terrain": ("grounds", 1)}
 CHECKS = (checks.Check("outline", judge_outline), checks.Check("parts present", judge_parts),
           checks.Check("resting", judge_resting))
