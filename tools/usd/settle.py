@@ -249,20 +249,52 @@ def touching(stage, place, name, start, rested):
 def stacked_under(stage, place, loose):
     """{name: the loose objects it is stacked on}: each loose object whose top lies within STACK_REACH of another's
     bottom and whose footprint it overlaps (a crate laid on a crate, the hangar's parts_crate_4), which the drop lets
-    meet it. Loose objects otherwise pass through each other in the drop, so a stacked one fell to the floor."""
+    meet it. Loose objects otherwise pass through each other in the drop, so a stacked one fell to the floor. Each
+    pair is judged in the lower one's own upright frame, not the stage's: on the campgrounds' 4.8 degree slope the
+    stage's boxes put cargo case 1, 2 mm over pallet 2's deck, 11 cm under the pallet's top, and the drop let it
+    fall into the pallet (settle@campgrounds, 2026-10-15)."""
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
-    boxes = {}
+    corners = {}
     for name in loose:
-        box = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange()
-        boxes[name] = (np.asarray(box.GetMin()), np.asarray(box.GetMax()))
+        bound = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/{name}"))
+        low, high = (np.asarray(corner) for corner in (bound.GetRange().GetMin(), bound.GetRange().GetMax()))
+        local = np.array([[x, y, z, 1.0] for x in (low[0], high[0]) for y in (low[1], high[1])
+                          for z in (low[2], high[2])])
+        corners[name] = (local @ np.asarray(bound.GetMatrix()))[:, :3]  # USD's matrices act on row vectors
     found = {}
-    for name, (low, high) in boxes.items():
-        under = [other for other, (other_low, other_high) in boxes.items() if other != name
-                 and abs(other_high[1] - low[1]) <= STACK_REACH and other_low[1] < low[1]
-                 and np.all(np.minimum(high[[0, 2]], other_high[[0, 2]]) > np.maximum(low[[0, 2]], other_low[[0, 2]]))]
+    for name in loose:
+        under = []
+        for other in loose:
+            if other == name:
+                continue
+            frame = upright_frame(corners[other])
+            other_low, other_high = box_in(frame, corners[other])
+            low, high = box_in(frame, corners[name])
+            if abs(other_high[1] - low[1]) <= STACK_REACH and other_low[1] < low[1] and \
+                    np.all(np.minimum(high[[0, 2]], other_high[[0, 2]]) > np.maximum(low[[0, 2]], other_low[[0, 2]])):
+                under.append(other)
         if under:
             found[name] = sorted(under)
     return found
+
+
+def upright_frame(corners):
+    """The rotation (rows: its across, up and along in the stage's frame) of a box given by its 8 corners (in
+    stacked_under's order: x slowest, z fastest), its up the box's own axis nearest the stage's up."""
+    edges = [corners[4] - corners[0], corners[2] - corners[0], corners[1] - corners[0]]
+    axes = [edge / (np.linalg.norm(edge) or 1.0) for edge in edges]
+    up = max(range(3), key=lambda index: abs(axes[index][1]))
+    vertical = axes[up] * np.sign(axes[up][1])
+    longest = max((index for index in range(3) if index != up), key=lambda index: np.linalg.norm(edges[index]))
+    across = axes[longest] - vertical * float(axes[longest] @ vertical)
+    across /= np.linalg.norm(across)
+    return np.array([across, vertical, np.cross(across, vertical)])
+
+
+def box_in(frame, corners):
+    """The low and high corners of points (stage frame) in a frame's own axes (upright_frame), metres."""
+    turned = corners @ frame.T
+    return turned.min(axis=0), turned.max(axis=0)
 
 
 def drop_job(stage, place, inventory, upright, kit_path=None):
