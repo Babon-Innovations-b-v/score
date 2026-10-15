@@ -4576,6 +4576,23 @@
 				"poster": 0.949
 			},
 			"prints_off": []
+		},
+		"thrust_indicator": {
+			"closeup": "pixal/thrust_indicator-s1.svviews/input.png",
+			"parts": [
+				"hub",
+				"arm",
+				"lens",
+				"rib"
+			],
+			"built": {
+				"arm": 0.675,
+				"hub": 0.493,
+				"lens": 0.929,
+				"rib": 0.566
+			},
+			"prints_off": [],
+			"checked": "2026-10-15, the overseer's decision: built in code once its Pixal3D take failed likeness's outline (0.335 against 0.5; no pose of the take reached more than 0.517). The close-up shows a six-armed star with lit rods and ribbed heads; the build is the plus-shaped gauge the overseer named, with lit amber bars and ribbed heads, set in a dash slot. Its own outline, the likeness gate replayed free on the cockpit: 0.456 (best of eight ways), so it does not pass the outline either."
 		}
 	}
 }
