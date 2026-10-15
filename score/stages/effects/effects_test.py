@@ -183,6 +183,19 @@ def test_the_pad_effects_stand_under_the_rocket_where_the_scene_record_lays_it()
         attached = next(check for check in effects.CHECKS if check.name == "attached").judge(old, inputs, None)
         assert attached.answer == checks.FAIL and "plume" in " ".join(attached.findings), attached
 
+def test_a_place_without_a_rocket_builds_its_effects_over_its_scene_record_output():
+    """Fault (effects-layer@flat, 2026-10-15): with a scene-record output the flat's smoke, hung off data/scene's
+    balcony eye, found no such view in the output's record (StopIteration). Only object spots come from the output."""
+    with tempfile.TemporaryDirectory() as folder:
+        made = pathlib.Path(folder) / "scene-record"
+        (made / "record").mkdir(parents=True)
+        (made / "record/flat.json").write_text(json.dumps({"place": "flat", "views": [], "objects": []}))
+        inputs = {**launch_inputs(folder, place="flat"), "scene-record": made}
+        laid = effects.effect_layer.emitters_of(effects.record_of(inputs), None, effects.scene_of(inputs),
+                                                effects.motions_of(inputs))
+        assert {entry["name"] for entry in laid} >= {"wisp", "breath"}
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

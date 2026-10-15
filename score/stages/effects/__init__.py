@@ -85,11 +85,18 @@ def motions_of(inputs):
 
 
 def scene_of(inputs):
-    """The scene record the place's assembly lays: its accepted scene-record output's where it has the row (the
-    launch's rocket at the spot the plan puts it), else data/scene."""
-    if "scene-record" in inputs:
-        return read_json(pathlib.Path(inputs["scene-record"]) / "record" / f"{place_of(inputs)}.json")
-    return read_json(inputs["scene"])
+    """The place's scene record (data/scene: its views, structure and objects as the effects name them), each object
+    the accepted scene-record output also lays stood at that output's spot, as the assembly lays it (the launch's
+    rocket); data/scene alone where the place has no scene-record row. Only spots move: an effect hung off a view or
+    structure the new record names otherwise (the flat's balcony eye) keeps its own (effects-layer@flat, 2026-10-15)."""
+    scene = read_json(inputs["scene"])
+    if "scene-record" not in inputs:
+        return scene
+    laid = read_json(pathlib.Path(inputs["scene-record"]) / "record" / f"{place_of(inputs)}.json")
+    spots = {item["name"]: item["at"] for item in laid.get("objects", []) if "at" in item}
+    scene["objects"] = [dict(item, at=spots[item["name"]]) if item.get("name") in spots else item
+                        for item in scene.get("objects", [])]
+    return scene
 
 
 def record_of(inputs):
