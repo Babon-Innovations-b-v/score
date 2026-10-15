@@ -212,6 +212,7 @@ def place_free(laid, name, rectangle, seed=0, tries=TRIES):
         scene.add(other, other, other_mesh.vertices, other_mesh.faces, np.eye(4))
     surfaces = triage.Surfaces(meshes)
     statics = {number for number, other in enumerate(surfaces.names) if other not in laid["objects"]}
+    surfaces.statics = statics
     random = np.random.default_rng(seed)
     low, high = np.asarray(rectangle[:2], dtype=float), np.asarray(rectangle[2:], dtype=float)
     middle = mesh.bounds.mean(axis=0)[[0, 2]]
