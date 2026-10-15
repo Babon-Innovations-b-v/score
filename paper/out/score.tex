@@ -216,14 +216,14 @@ blocks like fail. The runner accepts an output by itself when every gate
 passed and it is no worse than the one accepted before: no answer
 dropped, no measure moved the wrong way by a step a viewer could see, no
 gate missing. Later nodes read only accepted outputs. The creator keeps
-four commands, from his own terminal: reject an accepted output (it
-moves back to the one before, and every node that read it is stale),
-accept a worse one with his reason, waive one gate for one key, and
-override the runner for one paid run. When he accepts a worse output,
-his accept records what he allowed, and a later output no worse than the
-one he took is accepted with his accept named. None is needed for a run;
-a barrier keeps agents from them (a terminal, a store that refuses the
-creator's records from an agent's process, and a hook).
+four commands, from the creator's own terminal: reject an accepted
+output (it moves back to the one before, and every node that read it is
+stale), accept a worse one with a reason, waive one gate for one key,
+and override the runner for one paid run. When the creator accepts a
+worse output, that accept records what was allowed, and a later output
+no worse than the one taken is accepted with that accept named. None is
+needed for a run; a barrier keeps agents from them (a terminal, a store
+that refuses the creator's records from an agent's process, and a hook).
 
 \textbf{Spending and review.} A paid node is cleared only when every
 gate on its inputs passed and the month's ceiling has room for its
@@ -235,27 +235,27 @@ viewer on the store's copy of its accepted assembly; nothing is rendered
 for review.
 
 \textbf{The creator steers: the ship.} Figure 1 shows the creator's
-control on one piece of world 1, the ship. His picks were found pictures
-of a shuttle, a one-deck cutaway, a cockpit and crew quarters; we do not
-show them. From them an agent planned the bridge alone (v1, a 4.6 by 4.6
-m room of 27 pieces). He corrected the plan in words: a smaller cockpit,
-rooms the game needs, a long flat wedge rather than a rocket, a nose
-less pointed, and an outline measured from drawings rather than shaped
-from words. Each correction made a new plan, and he accepted the
-seventh. Every plan is ours and cost nothing; the two drawings the
-outline was traced from cost EUR 0.28 and are not shown. The ship's
-shape follows found artwork the creator chose to use: shuttle concept by
-PAUL (zana), found online.
+control on one piece of world 1, the ship. The creator's picks were
+found pictures of a shuttle, a one-deck cutaway, a cockpit and crew
+quarters; we do not show them. From them an agent planned the bridge
+alone (v1, a 4.6 by 4.6 m room of 27 pieces). The creator corrected the
+plan in words: a smaller cockpit, rooms the game needs, a long flat
+wedge rather than a rocket, a nose less pointed, and an outline measured
+from drawings rather than shaped from words. Each correction made a new
+plan, and the creator accepted the seventh. Every plan is ours and cost
+nothing; the two drawings the outline was traced from cost EUR 0.28 and
+are not shown. The ship's shape follows found artwork the creator chose
+to use: shuttle concept by PAUL (zana), found online.
 
 \begin{figure}
 \centering
-\includegraphics[width=0.88\linewidth,height=\textheight,keepaspectratio,alt={The creator steers the ship's plan, in twelve steps: his picks, described in words (found pictures, not shown); plan v1 of the bridge alone; his corrections; v2 of the whole ship; his correction of the outline; v3 to v6; his two corrections of the nose; v7, which he accepted. All plans are ours. Shuttle concept by PAUL (zana), found online.}]{figures/fig-k7.jpg}
-\caption{The creator steers the ship's plan, in twelve steps: his picks,
-described in words (found pictures, not shown); plan v1 of the bridge
-alone; his corrections; v2 of the whole ship; his correction of the
-outline; v3 to v6; his two corrections of the nose; v7, which he
-accepted. All plans are ours. Shuttle concept by PAUL (zana), found
-online.}
+\includegraphics[width=0.88\linewidth,height=\textheight,keepaspectratio,alt={The creator steers the ship's plan, in twelve steps: the creator's picks, described in words (found pictures, not shown); plan v1 of the bridge alone; the creator's corrections; v2 of the whole ship; the creator's correction of the outline; v3 to v6; the creator's two corrections of the nose; v7, which the creator accepted. All plans are ours. Shuttle concept by PAUL (zana), found online.}]{figures/fig-k7.jpg}
+\caption{The creator steers the ship's plan, in twelve steps: the
+creator's picks, described in words (found pictures, not shown); plan v1
+of the bridge alone; the creator's corrections; v2 of the whole ship;
+the creator's correction of the outline; v3 to v6; the creator's two
+corrections of the nose; v7, which the creator accepted. All plans are
+ours. Shuttle concept by PAUL (zana), found online.}
 \end{figure}
 
 \subsection{From concept to scene}\label{from-concept-to-scene}
@@ -555,13 +555,14 @@ each (Appendix E).
 \section{Limitations, future work and
 conclusion}\label{limitations-future-work-and-conclusion}
 
-One creator judges; he accepted the hub before the runner. Closed models
-(Nano Banana Pro, Gemini 3.1 Pro) may change or go. Hard belts failed
-deep bends; light is live, measured on earlier layouts; objects are not
-interactive. Next: three worlds, an engine adapter, interaction, baked
-lamps, open models, locked parts, LEGO-Bench {[}15{]}. In short, SCORE
-keeps, keys and judges every stage's output, so a fault is fixed where
-it happens; completed places will show if it holds.
+One creator judges; the creator accepted the hub before the runner.
+Closed models (Nano Banana Pro, Gemini 3.1 Pro) may change or go. Hard
+belts failed deep bends; light is live, measured on earlier layouts;
+objects are not interactive. Next: three worlds, an engine adapter,
+interaction, baked lamps, open models, locked parts, LEGO-Bench
+{[}15{]}. In short, SCORE keeps, keys and judges every stage's output,
+so a fault is fixed where it happens; completed places will show if it
+holds.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -909,8 +910,8 @@ arXiv:2602.10116}, 2026.}
 The surface library, one model per real-world object and the
 straightness check came out of six rounds of work on the hub on 6 and 7
 October 2026, each answering the creator's verdict on the round before
-(Table A1). In the first two rounds, he chose between the old and the
-new method side by side from the same cameras.
+(Table A1). In the first two rounds, the creator chose between the old
+and the new method side by side from the same cameras.
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
@@ -1075,16 +1076,17 @@ four, and 187 MB on disk, against 487 MB.
   by any move. Tolerances decide only whether an output waits for the
   creator; a check that fails still fails.
 \item
-  \textbf{The creator's accept carried forward:} when he accepts a worse
-  output, his accept records what he allowed, each measure's value
-  before and after. A later output that passes every gate and is no
-  worse than the output he took, within the tolerances, is accepted by
-  the runner with his accept named; a move beyond it still waits for
-  him.
+  \textbf{The creator's accept carried forward:} when the creator
+  accepts a worse output, that accept records what was allowed, each
+  measure's value before and after. A later output that passes every
+  gate and is no worse than the output taken, within the tolerances, is
+  accepted by the runner with that accept named; a move beyond it still
+  waits for the creator.
 \item
-  \textbf{What the creator acts on:} he rejects, accepts or waives only
-  an output he has seen on its review page. This is his rule; the
-  commands do not yet check that the page was opened.
+  \textbf{What the creator acts on:} the creator rejects, accepts or
+  waives only an output already seen on its review page. This is the
+  creator's rule; the commands do not yet check that the page was
+  opened.
 \item
   \textbf{People seen by the cameras (experimental):} a clip's crossings
   of body through cloth are counted only where a camera that will show
@@ -1127,16 +1129,17 @@ American Academy of Orthopaedic Surgeons, except hip extension of 24 and
 
 \textbf{Decisions recorded in these checks.} Three people's gates are
 decisions of the captain, the agent session that runs world 1, taken on
-12 and 13 October 2026 under the creator's rules and open to his
-reversal. (1) The shell gate counts 99 percent of the soft points rather
-than every point, with the worst point recorded: the points beyond it
-were loose cloth edges (cuffs, hems, caps), which no part label names,
-so they could not be given a joint of their own by label. (2) A look
-seen only far away is judged on what is drawn far away, not on the near
-outfit it was made from. (3) The A-pose outline is judged against the
-finished take, not the raw model, so the take's own loss is not charged
-to the build. Earlier, the full-body cut (which looks get bodies in full
-and which only far ones) was set by the people's share of the budget.
+12 and 13 October 2026 under the creator's rules and open to the
+creator's reversal. (1) The shell gate counts 99 percent of the soft
+points rather than every point, with the worst point recorded: the
+points beyond it were loose cloth edges (cuffs, hems, caps), which no
+part label names, so they could not be given a joint of their own by
+label. (2) A look seen only far away is judged on what is drawn far
+away, not on the near outfit it was made from. (3) The A-pose outline is
+judged against the finished take, not the raw model, so the take's own
+loss is not charged to the build. Earlier, the full-body cut (which
+looks get bodies in full and which only far ones) was set by the
+people's share of the budget.
 
 \section{Models and licences}\label{models-and-licences}
 
