@@ -4,10 +4,11 @@
 	"counts": {
 		"engineroom_wall_lower_plain": 16,
 		"engineroom_wall_upper_plain": 18,
-		"engineroom_ring_floor_plate": 22,
+		"engineroom_ring_floor_plate": 32,
 		"engineroom_roof_face_panel": 22,
 		"engineroom_door_leaf": 2,
 		"engineroom_pipe_straight": 2,
+		"engineroom_pit_wall_panel": 6,
 		"engineroom_edge_light_strip": 2,
 		"engineroom_ceiling_light_panel": 2
 	},
@@ -18,6 +19,7 @@
 		"engineroom_pipe_straight": {
 			"group": "hangs"
 		},
+		"engineroom_pit_wall_panel": {},
 		"engineroom_edge_light_strip": {
 			"light": {
 				"strength": 0.1,
@@ -108,11 +110,19 @@
 			"glows": false,
 			"route": "code"
 		},
+		"ring_floor_plate_5": {
+			"glows": false,
+			"route": "code"
+		},
 		"door_leaf_1": {
 			"glows": false,
 			"route": "code"
 		},
 		"pipe_straight_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"pit_wall_panel_1": {
 			"glows": false,
 			"route": "code"
 		},
@@ -2517,6 +2527,316 @@
 			"model": "roof_face_panel_2"
 		},
 		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				-2.408,
+				0.38,
+				-2.05
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				-2.408,
+				0.38,
+				-0.85
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				-1.204,
+				0.38,
+				-2.05
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				-1.204,
+				0.38,
+				-0.85
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				0.0,
+				0.38,
+				-2.05
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				0.0,
+				0.38,
+				-0.85
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				1.204,
+				0.38,
+				-2.05
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				1.204,
+				0.38,
+				-0.85
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				2.408,
+				0.38,
+				-2.05
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "engineroom_ring_floor_plate",
+			"at": [
+				2.408,
+				0.38,
+				-0.85
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.204,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_5"
+		},
+		{
 			"kind": "engineroom_door_leaf",
 			"at": [
 				0.21,
@@ -2635,6 +2955,186 @@
 			],
 			"layer": 1,
 			"model": "pipe_straight_1"
+		},
+		{
+			"kind": "engineroom_pit_wall_panel",
+			"at": [
+				-2.5083,
+				0.0,
+				0.344
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0033,
+				0.06,
+				0.388
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "engineroom_pit_wall_panel",
+			"at": [
+				-1.505,
+				0.0,
+				0.344
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0033,
+				0.06,
+				0.388
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "engineroom_pit_wall_panel",
+			"at": [
+				-0.5017,
+				0.0,
+				0.344
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0033,
+				0.06,
+				0.388
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "engineroom_pit_wall_panel",
+			"at": [
+				0.5017,
+				0.0,
+				0.344
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0033,
+				0.06,
+				0.388
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "engineroom_pit_wall_panel",
+			"at": [
+				1.505,
+				0.0,
+				0.344
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0033,
+				0.06,
+				0.388
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
+		},
+		{
+			"kind": "engineroom_pit_wall_panel",
+			"at": [
+				2.5083,
+				0.0,
+				0.344
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0033,
+				0.06,
+				0.388
+			],
+			"layer": 1,
+			"model": "pit_wall_panel_1"
 		},
 		{
 			"kind": "engineroom_edge_light_strip",
