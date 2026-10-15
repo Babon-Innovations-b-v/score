@@ -1,7 +1,7 @@
 {
  "place": "cockpit",
  "from": "the owner's ship brief (2026-10-14: two pilots at the seats), stood at the plan's two people spots (data/plans/cockpit.json `people`, the pilot seats' middles, in the room's frame by the plan's anchor); the concept itself shows the seats empty (concept_people, accepted output 5129707084ce, found no figure on any of its six views)",
- "count_reason": "Written by an agent on 2026-10-15 on the overseer's decision, waiting for the creator's confirmation: the brief puts two pilots at the seats where the concept shows none (concept_people counts 0)",
+ "count_reason": "Written by an agent on 2026-10-15 on the overseer's decision, confirmed by the creator 2026-10-15 (09:00): the brief puts two pilots at the seats where the concept shows none (concept_people counts 0)",
  "people": [
   {
    "name": "pilot_port",
