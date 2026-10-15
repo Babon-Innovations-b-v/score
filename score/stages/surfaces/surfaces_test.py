@@ -529,6 +529,23 @@ def test_a_bake_is_held_against_its_surface_worn_as_far_as_its_place_s_wear():
     assert bake_check.on_surface(baked, np.array([19.2, -0.7, -3.2]), soot, 0.5, bare, 0.8) > bake_check.BAKE_DELTA_E
 
 
+def test_wear_passes_only_toward_the_surface_s_bare_colour_and_only_as_far_as_its_place_s_wear():
+    """Wear has causes (the paper, Appendix D: the room's wear setting from its use, laid on edges and kicks) and the
+    check allows only what those can lay: a yellow worn all the way to bare steel in a place worn 0.4 lies past its
+    wear; a yellow darkened toward black (no recipe's bare colour) fails however worn its place; a surface with no
+    bare colour has nothing to wear, and in a place with no wear nothing is worn."""
+    import numpy as np
+    from score.stages.surfaces import bake_check
+    yellow, bare = np.array([80.5, 3.5, 78.8]), np.array([66.3, -1.1, -4.5])
+    worn_through = bare.copy()
+    darkened = np.array([50.0, 3.5, 78.8])
+    assert bake_check.on_surface(worn_through, yellow, None, 0.0, bare, 0.4) > bake_check.BAKE_DELTA_E
+    assert bake_check.on_surface(darkened, yellow, None, 0.0, bare, 0.8) > bake_check.BAKE_DELTA_E
+    assert bake_check.on_surface(yellow + 0.6 * (bare - yellow), yellow, None, 0.0, None, 0.8) > bake_check.BAKE_DELTA_E
+    assert bake_check.on_surface(yellow + 0.6 * (bare - yellow), yellow, None, 0.0, bare, 0.0) > bake_check.BAKE_DELTA_E
+    assert bake_check.on_surface(yellow + 0.6 * (bare - yellow), yellow, None, 0.0, bare, 0.8) < 1
+
+
 def test_a_part_s_baked_colour_is_its_area_s_median_on_each_channel():
     """Lab's junction_box_1, bake of 2026-10-14: 56% of its crane_yellow_paint's area baked yellow, 15% between, 29%
     the grey panel at the same L*; a triangle picked by its L* alone was a grey one (dE 37 off the yellow), each
