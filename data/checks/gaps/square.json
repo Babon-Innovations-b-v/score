@@ -9,7 +9,7 @@
    ],
    "unknown": "no accepted likeness@square",
    "reason": "no props file (data/props/square.json); up to EUR 55 per place, outside world 1's budget",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "overseer, 2026-10-15, confirmed by the creator 2026-10-15 (09:00)",
    "faults": [
     "likeness: 3 generated rows and no accepted likeness@square (the props rows run only with data/props/square.json): none is held to its close-up"
    ]
@@ -73,7 +73,7 @@
     "leader (leader/state-suit)"
    ],
    "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule); next month's people work",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "overseer, 2026-10-15, confirmed by the creator 2026-10-15 (09:00)",
    "faults": [
     "leader: in the cast, not on the stage",
     "front_row_0: in the cast, not on the stage",
@@ -145,7 +145,7 @@
     "crowd_banner_N": 6
    },
    "reason": "cloth motion not built (no flag, banner or lantern kind in data/checks/motion.json, no cloth writer); next month",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "overseer, 2026-10-15, confirmed by the creator 2026-10-15 (09:00)",
    "faults": [
     "flag: no motion of the records moves with it in its name",
     "banner: no motion of the records moves with it in its name",
@@ -161,7 +161,7 @@
     "data/characters/square.json"
    ],
    "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); its kit (data/kit/square.json) is laid in the game's frame; the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "the creator's decision, 2026-10-15 (his answer \"A\" at 09:00: named gaps now, the layouts rebuilt next month); written by the overseer, 2026-10-15",
    "faults": [
     "data/scene/square.json: 26 entries take their numbers from the game (from), 17 positions placed from it",
     "data/characters/square.json: 1 entries take their numbers from the game (from), 0 positions placed from it"

@@ -10,7 +10,7 @@
    ],
    "contains": "foot off",
    "reason": "the baked chair has one caster above the others, so the chair stood level has a foot off the floor over 3 cm (like the camp grounds crane's); fix with the model's feet",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "overseer, 2026-10-15, confirmed by the creator 2026-10-15 (09:00)",
    "measured": "the lab's resting triage on the settle fix's replayed layer (work/moon-faults-verify/judge-lab-fin.log, 2026-10-15): desk_chair_1 and desk_chair_2 foot off 0.04 m each",
    "faults": [
     "/lab/Objects/desk_chair_1: foot off 0.04: a foot 4.0 cm off what is under it while another touches (over 3 cm)",
@@ -26,7 +26,7 @@
     "data/movers/lab.json"
    ],
    "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "the creator's decision, 2026-10-15 (his answer \"A\" at 09:00: named gaps now, the layouts rebuilt next month); written by the overseer, 2026-10-15",
    "faults": [
     "data/scene/lab.json: 6 entries take their numbers from the game (from), 2 positions placed from it",
     "data/movers/lab.json: 6 entries take their numbers from the game (from), 0 positions placed from it"

@@ -9,7 +9,7 @@
    ],
    "unknown": "no accepted likeness@flat",
    "reason": "no props file (data/props/flat.json); up to EUR 55 per place, outside world 1's budget",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "overseer, 2026-10-15, confirmed by the creator 2026-10-15 (09:00)",
    "faults": [
     "likeness: 13 generated rows and no accepted likeness@flat (the props rows run only with data/props/flat.json): none is held to its close-up"
    ]
@@ -25,7 +25,7 @@
     "youth (kit_m_avg/uniform-olive)"
    ],
    "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule); next month's people work",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "overseer, 2026-10-15, confirmed by the creator 2026-10-15 (09:00)",
    "faults": [
     "player: in the cast, not on the stage",
     "youth: in the cast, not on the stage",
@@ -41,7 +41,7 @@
     "data/scene/flat.json"
    ],
    "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); its kit (data/kit/flat.json) is laid in the game's frame; the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
-   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "decided": "the creator's decision, 2026-10-15 (his answer \"A\" at 09:00: named gaps now, the layouts rebuilt next month); written by the overseer, 2026-10-15",
    "faults": [
     "data/scene/flat.json: 14 entries take their numbers from the game (from), 6 positions placed from it"
    ]
