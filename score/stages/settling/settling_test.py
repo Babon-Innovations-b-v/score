@@ -99,8 +99,28 @@ def only_what_lies_on_the_object_resting_worse_is_kept_with_it():
     return [] if kept == ["case_1", "pallet_1"] else [f"kept {kept}, not the worse pallet and its own case"]
 
 
+
+def a_flush_pose_resting_worse_falls_back_to_the_drops_rest():
+    """Both ways (the wreck's probe lander, 2026-10-15): one stood flush on its slope that rests worse goes back to
+    where the drop left it, not to as laid; one flush that rests no worse keeps its flush pose; one resting worse with
+    no flush pose is left for kept_where_worse."""
+    eye, flush, dropped = np.eye(4), np.eye(4), np.eye(4)
+    flush[1, 3], dropped[0, 3] = 0.01, 0.02
+    fallback = {"before": eye, "after": dropped, "rested": True, "said": "turns 1 degrees and drifts 2 cm to rest"}
+    poses = {"lander_1": {"before": eye, "after": flush, "rested": True, "said": "stood flush", "fallback": fallback},
+             "lamp_1": {"before": eye, "after": flush, "rested": True, "said": "stood flush", "fallback": fallback},
+             "crate_1": {"before": eye, "after": dropped, "rested": True, "said": "turns 1 degrees"}}
+    found, back = settle.fallen_back(poses, {"lander_1", "crate_1"})
+    problems = []
+    if back != {"lander_1"} or found["lander_1"]["after"] is not dropped or not found["lander_1"]["rested"]:
+        problems.append(f"the lander did not fall back to the drop's rest: {back}, {found['lander_1']}")
+    if found["lamp_1"] is not poses["lamp_1"] or found["crate_1"] is not poses["crate_1"]:
+        problems.append("a flush pose resting no worse, or a worse one with no flush, was changed")
+    return problems
+
 CHECKS = (the_layer_lays_each_object_at_its_rest, the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
-          only_what_lies_on_the_object_resting_worse_is_kept_with_it)
+          only_what_lies_on_the_object_resting_worse_is_kept_with_it,
+          a_flush_pose_resting_worse_falls_back_to_the_drops_rest)
 
 
 if __name__ == "__main__":
