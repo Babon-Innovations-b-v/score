@@ -3213,6 +3213,22 @@
 			"led_white": {
 				"token": "cabin-light",
 				"library": "led_white"
+			},
+			"plastic_red": {
+				"token": "mars-dust",
+				"library": "plastic_red"
+			},
+			"plastic_orange": {
+				"token": "lips",
+				"library": "plastic_orange"
+			},
+			"steel_dark": {
+				"token": "steel-dark",
+				"library": "steel_dark"
+			},
+			"bakelite": {
+				"token": "surface-raised",
+				"library": "bakelite"
 			}
 		},
 		"light": {
