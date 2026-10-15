@@ -23,6 +23,9 @@ import dataclasses
 import json
 import pathlib
 
+import numpy as np
+from PIL import Image
+
 import score.stages.props.calibration_row as calibration_row
 import score.stages.props.likeness as likeness
 import score.stages.props.prop_data as prop_data
@@ -87,7 +90,35 @@ def model_checks(path, size, kind, square):
     return found
 
 
-def object_record(row, record, inputs, baked, parts, sizes, square):
+def shading(pixels):
+    """A close-up's backdrop colour at every pixel: a quadratic in x and y fitted to its border's pixels."""
+    tall, wide = pixels.shape[:2]
+    down, across = np.mgrid[0:tall, 0:wide] / max(tall, wide)
+    terms = np.stack([np.ones_like(across), across, down, across * across, across * down, down * down], axis=-1)
+    border = np.zeros((tall, wide), dtype=bool)
+    border[0], border[-1], border[:, 0], border[:, -1] = True, True, True, True
+    return terms @ np.linalg.lstsq(terms[border], pixels[border], rcond=None)[0]
+
+
+def cut_out(closeup, folder):
+    """The close-up with its object as alpha, which likeness.closeup_object reads before compare.closeup_mask: the
+    mask taken on the close-up with its backdrop's shading levelled out. compare.closeup_mask's one border colour
+    took a studio backdrop's darker corner for the object (engineroom's power core, 2026-10-15: border 176 to 229
+    grey, the corner joined the core's foot and its outline fell from 0.76 to 0.46). A close-up already cut out is
+    kept."""
+    picture = Image.open(closeup)
+    if picture.mode == "RGBA" and np.asarray(picture)[..., 3].min() < 128:
+        return closeup
+    pixels = np.asarray(picture.convert("RGB"), dtype=np.float64)
+    level = Image.fromarray(np.clip(pixels - shading(pixels) + 128, 0, 255).astype(np.uint8))
+    mask = likeness.candidate().closeup_mask(level)
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / closeup.name
+    Image.fromarray(np.dstack([pixels.astype(np.uint8), np.where(mask, 255, 0).astype(np.uint8)])).save(path)
+    return path
+
+
+def object_record(row, record, inputs, baked, parts, sizes, square, cuts):
     """One object's route, model, outline, checks and missing parts."""
     route = route_of(row, record)
     place = record["place"]
@@ -96,8 +127,9 @@ def object_record(row, record, inputs, baked, parts, sizes, square):
     closeup = inputs["closeup"] / "closeups" / f"{row}.png"
     if model is None or not pathlib.Path(model).exists() or not closeup.exists():
         return {**found, "missing": "no model" if closeup.exists() else "no close-up"}
+    closeup = cut_out(closeup, cuts)
     kind = f"{place}_{row}"
-    found.update(model=str(model), **likeness.best_way(model, closeup),
+    found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup),
                  **model_checks(model, sizes[row], kind, route == "prop" and kind in square))
     found["parts_missing"] = (finishes_missing(record["objects"][row]["take"], parts) if route == "prop"
                               else code_parts_missing(place, row))
@@ -113,9 +145,9 @@ def make_likeness(inputs, out, seed, params):
     prop = "surfaces-bake" in inputs
     baked = baked_models(inputs["surfaces-bake"]) if prop else {}
     parts = json.loads((inputs["surfaces-parts"] / "parts.json").read_text()) if prop else {"takes": {}}
-    found = {row: object_record(row, record, inputs, baked, parts, sizes, square) for row in sorted(record["objects"])}
-    pairs = {row: likeness.write_pair(entry["model"], inputs["closeup"] / "closeups" / f"{row}.png", entry["way"],
-                                      out / "pairs", row)
+    found = {row: object_record(row, record, inputs, baked, parts, sizes, square, out / "cut")
+             for row in sorted(record["objects"])}
+    pairs = {row: likeness.write_pair(entry["model"], entry["closeup"], entry["way"], out / "pairs", row)
              for row, entry in found.items() if "way" in entry}
     (out / "likeness.json").write_text(json.dumps({"objects": found}, indent=1))
     (out / "pairs.json").write_text(json.dumps(pairs, indent=1))
