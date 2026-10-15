@@ -253,14 +253,7 @@ def stacked_under(stage, place, loose):
     pair is judged in the lower one's own upright frame, not the stage's: on the campgrounds' 4.8 degree slope the
     stage's boxes put cargo case 1, 2 mm over pallet 2's deck, 11 cm under the pallet's top, and the drop let it
     fall into the pallet (settle@campgrounds, 2026-10-15)."""
-    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
-    corners = {}
-    for name in loose:
-        bound = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/{name}"))
-        low, high = (np.asarray(corner) for corner in (bound.GetRange().GetMin(), bound.GetRange().GetMax()))
-        local = np.array([[x, y, z, 1.0] for x in (low[0], high[0]) for y in (low[1], high[1])
-                          for z in (low[2], high[2])])
-        corners[name] = (local @ np.asarray(bound.GetMatrix()))[:, :3]  # USD's matrices act on row vectors
+    corners = {name: box_corners(stage, place, name) for name in loose}
     found = {}
     for name in loose:
         under = []
@@ -276,6 +269,27 @@ def stacked_under(stage, place, loose):
         if under:
             found[name] = sorted(under)
     return found
+
+
+def box_corners(stage, place, name):
+    """The 8 corners (stage frame; x slowest, z fastest) of an object's box in its own frame."""
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    bound = cache.ComputeWorldBound(stage.GetPrimAtPath(f"/{place}/Objects/{name}"))
+    low, high = (np.asarray(corner) for corner in (bound.GetRange().GetMin(), bound.GetRange().GetMax()))
+    local = np.array([[x, y, z, 1.0] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+    return (local @ np.asarray(bound.GetMatrix()))[:, :3]  # USD's matrices act on row vectors
+
+
+def stack_lift(stage, place, name, start, support):
+    """How far to lift an object stood at `start` (a motion from as laid) for its lowest point to begin its fall
+    SETTLE_DROP over its support's highest point, in the support's upright frame: the drop meets the support's convex
+    hull, and one begun inside it is thrown (the campgrounds' cargo case 1, begun 2.4 cm inside pallet 2's hull,
+    turned 179 degrees onto pallet 1 on the baked models, 2026-10-15)."""
+    frame = upright_frame(box_corners(stage, place, support))
+    points = object_points(stage, place, name)
+    lowest = float(((points @ start[:3, :3].T + start[:3, 3]) @ frame.T)[:, 1].min())
+    top = float((object_points(stage, place, support) @ frame.T)[:, 1].max())
+    return max(0.0, top + SETTLE_DROP - lowest)
 
 
 def upright_frame(corners):
@@ -313,6 +327,8 @@ def drop_job(stage, place, inventory, upright, kit_path=None):
             starts[name] = shift @ starts.get(name, np.eye(4))
             under[name] = [support]
         loose.update({name: start_lift(stage, place, name, start) for name, start in starts.items()})
+        loose.update({name: max(loose[name], stack_lift(stage, place, name, starts[name], supports[0]))
+                      for name, supports in under.items() if name in starts})
     return loose, ignore, starts, under
 
 
