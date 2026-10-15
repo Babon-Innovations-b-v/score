@@ -335,13 +335,14 @@ PARTITION_PROPOSALS = graph.Stage("partition-proposals", "world", proposals.make
 DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, demo_turntable.CONTRACT,
                               demo_turntable.CHECKS, files=demo_turntable.files, paid=True,
                               euros=demo_turntable.euros())
-# Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, only
-# for the places with a film record in data/definitions/demo_films/, paid.
+# Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, or
+# fails it only on its named gaps (gapped: the overseer, 2026-10-15), only for the places with a film record in
+# data/definitions/demo_films/, paid.
 DEMO_FILM = graph.Stage("demo-film", "place", demo_film.make, demo_film.CONTRACT, demo_film.CHECKS,
                         files=demo_film.files, after={"assembly": ("openusd-stage", 1),
                                                       "neighbours": ("openusd-stage", 1),
                                                       "complete": ("place-manifest", 1)},
-                        paid=True, euros=demo_film.EUROS, applies=demo_film.applies)
+                        paid=True, euros=demo_film.EUROS, applies=demo_film.applies, gapped=("complete",))
 # A place's other films (the ship's hull through the hangar), one node a place, so its own film's key never moves.
 DEMO_FILM_EXTRA = dataclasses.replace(DEMO_FILM, name="demo-film-extra", make=demo_film.make_extra,
                                       contract=demo_film.EXTRA_CONTRACT, checks=demo_film.EXTRA_CHECKS,
@@ -366,7 +367,10 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
 # The gates a named gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
 GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
-             "surfaces-paint": ("colour against the close-up",)}
+             "surfaces-paint": ("colour against the close-up",),
+             # complete's own: the people the cast names and no accepted body of its look lays (the owner's rule: they
+             # ship as named fails until the people work lands)
+             "complete": ("people",)}
 
 
 def with_gap_files(files):
@@ -393,15 +397,12 @@ def named_gaps(row):
     """The rows the owner's named gaps reach (2026-10-14: the hangar's ship, the wreck's three pieces, the camp grounds'
     crane ship today as named fails): a moving gate's faults on the named objects go down the line, and complete fails
     each gap by name with its numbers. Set here, in the table."""
-    if row.name in GAP_GATES:
-        moving = GAP_GATES[row.name]
-        return dataclasses.replace(row, files=with_gap_files(row.files),
-                                   checks=tuple(gap_moved(row.name, check) if check.name in moving else check
-                                                for check in row.checks))
-    if row.name == "complete":
-        return dataclasses.replace(row, files=with_gap_files(row.files),
-                                   checks=(*row.checks, checks.Check("named gaps", gaps.judge_named)))
-    return row
+    if row.name not in GAP_GATES and row.name != "complete":
+        return row
+    moving = GAP_GATES.get(row.name, ())
+    kept = tuple(gap_moved(row.name, check) if check.name in moving else check for check in row.checks)
+    named = (checks.Check(graph.GAPPED, gaps.judge_named),) if row.name == "complete" else ()
+    return dataclasses.replace(row, files=with_gap_files(row.files), checks=(*kept, *named))
 
 
 def layered(row, names):

@@ -1,7 +1,7 @@
 # score/stages/demo_film/
 
 The demo-film and demo-film-extra rows (experimental, 2026-10-14): demo K9's walk-through films of a place, from its
-final stage once it passes complete, with its own sound; paid and cleared by the runner like any paid row.
+final stage once it passes complete or fails it only on its named gaps (`gapped`, the overseer 2026-10-15), with its own sound; paid and cleared by the runner like any paid row.
 `__init__.py`'s docstring has the make, the output and the gate.
 
 - **One record a film**, `data/definitions/demo_films/<film>.json` (`place`, `camera`, `why`), so adding a film moves no
@@ -23,4 +23,4 @@ final stage once it passes complete, with its own sound; paid and cleared by the
   and the garage's rover drives out from 1 s, both inside the 8 s path); `stills.py` (the demo-stills row,
   `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film starts by itself once its place
-  passes complete in any world run). Test: `demo_film_test.py` (no Blender, no spend).
+  passes complete, or fails it only on its named gaps, in any world run). Test: `demo_film_test.py` (no Blender, no spend).
