@@ -122,14 +122,14 @@
    "at": [
     {
      "x": -0.95,
-     "y": 1.0,
-     "z": 0.888,
+     "y": 0.952,
+     "z": 1.06,
      "facing": 180
     },
     {
      "x": 0.95,
-     "y": 1.0,
-     "z": 0.888,
+     "y": 0.973,
+     "z": 1.06,
      "facing": 180
     }
    ],
@@ -138,7 +138,8 @@
    "drawn_from": "v6: the concept-views drawing of a normal stick like the pedestal's levers (the owner, 2026-10-14)",
    "box_from": [
     "v6.2"
-   ]
+   ],
+   "support": "fixed"
   },
   {
    "id": "thrust_indicator",
@@ -164,8 +165,8 @@
    "at": [
     {
      "x": 0.0,
-     "y": 0.75,
-     "z": 0.818,
+     "y": 0.955,
+     "z": 1.13,
      "facing": 180
     }
    ],
@@ -185,7 +186,8 @@
     "v4.24",
     "v4.25",
     "v4.26"
-   ]
+   ],
+   "support": "fixed"
   },
   {
    "id": "centre_pedestal",
@@ -450,15 +452,15 @@
    "group": "kit: light",
    "at": [
     {
-     "x": -2.45,
+     "x": -2.761,
      "y": 1.55,
-     "z": 1.25,
+     "z": 1.293,
      "facing": 90
     },
     {
-     "x": 2.45,
+     "x": 2.761,
      "y": 1.55,
-     "z": 1.25,
+     "z": 1.293,
      "facing": 270
     }
    ],
