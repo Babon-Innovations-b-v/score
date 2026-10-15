@@ -486,6 +486,12 @@ def ship_seeded(files):
 
 
 STAGES = tuple(named_gaps(layered(worn(row), {stage.name for stage in STAGES})) for row in STAGES)
+# A process's code versions read the import folders it holds at its first key (score/graph/_code.py search_folders).
+# `score run` and `score status` reach tools/characters/cast.py (a dress row's `applies`: cast_looks) before that, and
+# the file puts its folder on the path; a process that keys a node first did not, and read every node whose code
+# imports a tools/characters name as "code changed" (complete.py's stage requirement on the five prologue places:
+# cast@ blocked there and pass, accepted in status, 2026-10-15). Loaded with the table, so every process keys alike.
+characters_layer.loaded("cast")
 STAGES = tuple(dataclasses.replace(row, files=ship_seeded(row.files)) if row.files else row for row in STAGES)
 
 
