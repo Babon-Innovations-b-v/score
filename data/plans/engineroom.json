@@ -8,6 +8,10 @@
   "glazed": "none",
   "front_wide": 7.43,
   "ceiling_front": 3.2,
+  "step": {
+   "up": 0.4,
+   "at": 0.35
+  },
   "why": "the ship plan v7: 7.43 m wide inside at the front (y 21.8) narrowing to 6.02 m at the back (y 25.9); the deck steps up 0.4 m at y 23.5 (z 0.35), the ceiling falls with the hull"
  },
  "frame": {
