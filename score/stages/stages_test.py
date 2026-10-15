@@ -53,7 +53,7 @@ def scenario(root):
     store = Store.in_folder(root / "store")
     # The worked example's own stages: terrain (a world node) spends and has its own test beside its module, so a
     # terrain that made no ground for these places stands in for it.
-    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, stages.MACHINES, *NO_SURFACES, ASSEMBLY,
+    return world, store, lambda: graph.Runner((NO_GROUND, stages.EFFECTS, *NO_SURFACES, ASSEMBLY,
                                                stages.NEIGHBOURS,
                                                stages.COMPLETE), world, store)
 
@@ -72,12 +72,13 @@ def made(output, inputs, evidence):
 
 
 # The surface rows and the layer rows the assembly and complete read, and the likeness complete reads, applying to
-# neither place here (their own checks are beside their modules).
+# neither place here (their own checks are beside their modules): the machines layer too, since the hangar's machines
+# record lays the ship from its bake (2026-10-15), a surface row this example does not run.
 NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
                                 (checks.Check("made", made),), applies=lambda place: False)
                     for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
                                  "sound", "scene-record", "motion", "light", "crops-layer", "settle",
-                                 "characters-layer"))
+                                 "characters-layer", "machines-layer"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
