@@ -157,6 +157,41 @@ def a_block_tipped_onto_one_edge_of_its_sole_leans():
         return problems + ([f"its foot reads off: {said}"] if ("foot off", True) in said else [])
 
 
+def on_slope(degrees, tilted, flat_ground=False):
+    """The floor faults of a 2.6 m by 2.6 m block on ground sloping `degrees` along x (the campgrounds' reactor on its
+    6.6 degree slope), its up `tilted` degrees the same way, its lowest point on the ground; level ground with
+    `flat_ground`."""
+    rise = 0.0 if flat_ground else np.tan(np.radians(degrees))
+    mesh = trimesh.creation.box(bounds=((-1.3, 0.0, -1.3), (1.3, 1.5, 1.3)))
+    matrix = trimesh.transformations.rotation_matrix(np.radians(tilted), (0, 0, 1))
+    mesh.apply_transform(matrix)
+    mesh.apply_translation((0.0, -float((mesh.vertices[:, 1] - rise * mesh.vertices[:, 0]).min()), 0.0))
+    ground = lambda flat: rise * np.atleast_2d(flat)[:, 0]  # noqa: E731
+    far = trimesh.creation.box(bounds=((-9, -51, -9), (9, -50, 9)))  # the rays need a surface: one far under it
+    entry = {"name": "/slope/Objects/block_1", "row_id": "block", "model": "block", "support": "floor",
+             "bed": (0.0, None), "row": {}, "mesh": mesh, "matrix": matrix}
+    found = triage.standing(entry, ground, triage.Surfaces({"far": far}), set(), set())
+    return sorted({item["kind"] for item in triage.held_up_faults(entry, found)}), found
+
+
+def footing_on_a_slope_is_read_over_the_ground():
+    """Both ways on a 6.6 degree slope: a block flush on it (tilted with it) stands, its whole base touching (read
+    straight up, only its downhill strip did, its weight 0.8 m outside); one standing straight up on it rests on its
+    downhill edge and still fails. On level ground nothing is read over a plane."""
+    problems = []
+    flush, found = on_slope(6.6, 6.6)
+    if flush or found["outside"] > 0.0 or found["contacts"] < triage.CONTACTS_NEEDED:
+        problems.append(f"flush on the slope: {flush}, outside {found['outside']}, contacts {found['contacts']}")
+    upright, _ = on_slope(6.6, 0.0)
+    if not upright:
+        problems.append("standing straight up on the slope passed")
+    level = trimesh.creation.box(bounds=((-1.3, 0.0, -1.3), (1.3, 1.5, 1.3)))
+    if triage.ground_plane(level, lambda flat: np.zeros(len(np.atleast_2d(flat)))) is not None:
+        problems.append("level ground read as a plane")
+    plain, _ = on_slope(0.0, 0.0, flat_ground=True)
+    return problems + ([f"a block flat on level ground: {plain}"] if plain else [])
+
+
 def the_collision_set():
     box = trimesh.creation.box((1.0, 1.0, 1.0))
     scene = collide.Scene()
@@ -211,7 +246,7 @@ def the_data_read_is_the_data_given():
 
 CHECKS = (supports_and_guards, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
           a_foot_off_the_floor_and_a_lean_fail, a_block_tipped_onto_one_edge_of_its_sole_leans, the_collision_set,
-          occlusion_boundaries, the_data_read_is_the_data_given)
+          occlusion_boundaries, the_data_read_is_the_data_given, footing_on_a_slope_is_read_over_the_ground)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ from scipy.spatial.transform import Rotation
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import ground  # noqa: E402
+import resting  # noqa: E402
 import resting_test  # noqa: E402
 import settle  # noqa: E402
 
@@ -361,7 +362,48 @@ def a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most():
         return []
 
 
-CHECKS = (a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
+def a_piece_on_a_slope_rests_flush_on_it():
+    """Both ways: a crate laid 17 degrees over on the test's 5.7 degree slope (the campgrounds' crane) is stood flush
+    on the slope, its up along the ground's normal and its lowest point on the ground, heading kept; one on level
+    ground, and one whose row says it leans, are left to the drop."""
+    import triage
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        sloped = resting_test.sloping_ground(folder)
+        path = resting_test.laid_place(folder, [("crate", "box", (4, 0, 2)), ("ramp", "box", (-4, 0, 2))],
+                                       [("crate", "floor"), ("ramp", "floor")], sloped)
+        kit = json.loads((folder / "kit.json").read_text())
+        for piece in kit["pieces"]:
+            piece["tilt"] = 17.0
+        (folder / "kit.json").write_text(json.dumps(kit))
+        path = resting_test.export.export(PLACE, folder / "models", folder / "stage", kit_path=folder / "kit.json",
+                                          inventory_path=folder / "inventory.json", ground=sloped)
+        stage = Usd.Stage.Open(str(path))
+        ground_of = resting.ground_height(stage, PLACE)
+        rows = {"crate": {"id": "crate", "anchor": "floor"}, "ramp": {"id": "ramp", "anchor": "floor", "leans": "cut"}}
+        found = settle.flush_on_slope(stage, PLACE, "crate_1", rows, triage.rules(), ground_of)
+        problems = []
+        if found is None:
+            return ["the tipped crate on the slope was not stood flush"]
+        after = found[0] @ stage_matrix(path, "crate_1")
+        points = settle.object_points(stage, PLACE, "crate_1") @ found[0][:3, :3].T + found[0][:3, 3]
+        up = after[:3, 1] / np.linalg.norm(after[:3, 1])
+        plane = triage.ground_plane(resting_test.trimesh.PointCloud(points), ground_of)  # the ball curves it a little
+        normal = np.array([-plane[0], 1.0, -plane[1]]) / np.linalg.norm([plane[0], 1.0, plane[1]])
+        if np.degrees(np.arccos(min(1.0, abs(up @ normal)))) > 0.5:
+            problems.append(f"the crate's up stands {np.degrees(np.arccos(abs(up @ normal))):.1f} degrees off the slope")
+        if abs(np.nanmin(points[:, 1] - ground_of(points[:, [0, 2]]))) > 0.005:
+            problems.append("the flush crate does not meet the ground")
+        if settle.flush_on_slope(stage, PLACE, "ramp_1", rows, triage.rules(), ground_of) is not None:
+            problems.append("a row that leans was stood flush")
+        level = lambda flat: np.zeros(len(np.atleast_2d(flat)))  # noqa: E731
+        if settle.flush_on_slope(stage, PLACE, "crate_1", rows, triage.rules(), level) is not None:
+            problems.append("a crate on level ground was stood flush instead of dropped")
+        return problems
+
+
+CHECKS = (a_piece_on_a_slope_rests_flush_on_it, a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
           a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most,
           a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,

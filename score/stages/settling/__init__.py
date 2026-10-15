@@ -131,7 +131,8 @@ def make(inputs, out, seed, params):
                                         cache=DROPS)
         else:  # nothing loose to stand up, unstack or put right: no drop is bought, each rests as laid
             simulated = still(loose, out / DROP)
-        poses = settle.rest_poses(stage, place, inventory, simulated, starts)
+        poses = settle.rest_poses(stage, place, inventory, simulated, starts,
+                                  room="room" in read_json(inputs["kit"]))
         laid_over(root, seed, place, poses, scratch / "dropped.usda")
         poses = merged(poses, fixed_phase(root, found, place), seed, place)  # before the held: they lie on these
         poses = merged(poses, held_phase(root, scratch / "fixed.usda", inputs, inventory, poses, seed), seed, place)
@@ -139,7 +140,9 @@ def make(inputs, out, seed, params):
         rested = judged(root, inputs)
         poses = merged(poses, fixed_phase(root, rested, place, ("floor",)), seed, place)  # a hull's hollow on the drop
         worse = faulty(rested, place) - laid
-        poses = kept_where_worse(poses, worse | supports_of(Usd.Stage.Open(str(root)), place, worse), inventory)
+        rested_stage = Usd.Stage.Open(str(root))
+        poses = kept_where_worse(poses, worse | supports_of(rested_stage, place, worse), inventory,
+                                 lambda name: supports_of(rested_stage, place, {name}))
         write_layer(seed, place, moved(poses), out / LAYER)
         del stage, seed
     finally:
@@ -163,13 +166,16 @@ def faulty(found, place):
     return {name.split("/")[0] for name in names}
 
 
-def kept_where_worse(poses, worse, inventory):
+def kept_where_worse(poses, worse, inventory, resting_on):
     """Each object that rests worse than as laid (`worse`: names with a real fault now and none before: a model with
     a sloping base the drop tips over the triage's lean, a mouse snapped onto a desk's edge), and what is held on it,
-    kept as laid: the layer never makes an object rest worse."""
+    kept as laid: the layer never makes an object rest worse. Held on it is held on that very object
+    (`resting_on(name)`: the objects it rests on, supports_of), not on any of its row: one pallet resting worse kept
+    every case on all four of the campgrounds' pallets as laid, 5 degrees over on theirs (2026-10-15)."""
     held_on = {row["id"]: row.get("anchor", "").removeprefix("on:") for row in inventory["rows"]}
     rows = {name.rsplit("_", 1)[0] for name in worse}
-    kept = {name for name in poses if name in worse or held_on.get(name.rsplit("_", 1)[0]) in rows}
+    kept = {name for name in poses if name in worse
+            or (held_on.get(name.rsplit("_", 1)[0]) in rows and resting_on(name) & worse)}
     return {name: (dict(pose, after=pose["before"], rested=False,
                         said=f"kept as laid: {pose['said']} made it, or what lies on it, rest worse") if name in kept
                    else pose)
