@@ -158,22 +158,27 @@ Four worlds are planned; world 1's 28 places are judged once their layers stand 
 <!-- paper/evidence/characters/people-2026-10-13.txt (sections 1-9: gate verdicts per look and clip, bind tucks, visible-only re-score, one-piece bind, camera rule, offset clamp, fold weights and dual quaternions, AAOS joint ranges, wider-pose takes). Measured with numpy on the stored bodies; no runs. Issue #5. -->
 
 
-**Table 3.** Named gaps on 15 October: what world 1 ships without, failed by name in the completion gate or left out of this paper.
+**Table 3.** Named gaps on 15 October: what world 1 ships without, failed by name in the completion gate or left out of this paper. The overseer, the coding-agent session that guards the run under the creator's rules, decided the gaps marked "to confirm" on the night of 15 October; they wait for the creator's confirmation.
 
 | Gap | Where | Why, and who decided | Next |
 |---|---|---|---|
-| Layouts from the source game | 18 of 28 places: 507 citations, 338 positions; 7 kits in the game's frame, 6,432 piece positions | the framework's own layout is proven only on the ship's 8 places and the 2 door kits; the overseer, 15 Oct | layouts from plan and concept, to be priced |
-| People with no accepted body | every cast | no clip clean on what is drawn (Table 2); the creator, 13 Oct | a fix to the take's pose and binding |
+| Layouts from the source game | 18 of 28 places: 507 citations, 338 positions; 7 kits in the game's frame, 6,432 piece positions | the framework's own layout is proven only on the ship's 8 places and the 2 door kits; overseer, to confirm | layouts from plan and concept, to be priced |
+| People with no accepted body | every cast: the street's driver and guard, the square's leader, front row of 24 and crowd, the flat's 2 and the stairwell's 2 | no clip clean on what is drawn (Table 2); the creator's rule, 13 Oct; per place, overseer, to confirm | next month's people work |
+| Likeness not checked | the prologue: street, launch, square, flat, stairwell | no props file, so generated models are not held to their close-ups; up to EUR 55 a place, outside world 1's budget; overseer, to confirm | props files |
+| Cloth that stands still | the square's flags, banners and lanterns | cloth motion not built; overseer, to confirm | cloth motion |
+| Two far towers | launch: the housing slab and the pencil tower | no stage builds the far city; overseer, to confirm | new code and the launch's prop data, about EUR 20 |
+| Finishes no library surface fits | cockpit: the throttle pedestal and the flight stick (5 finishes; four lie ΔE 25.6 to 34.7 from the nearest surface) | no red or orange plastic and no dark bare steel in the library; overseer, to confirm | new library surfaces, the creator's choice |
+| A caster off the floor | lab: both desk chairs (4 cm) | the baked chair's caster sits above the others; overseer, to confirm | the model's feet |
+| A foot off the floor | camp grounds' crane, greenhouse's seed tray | the level rule uses 1 percent, not 3 cm; overseer, 14 Oct | the same fix |
 | The ship, code-built | hangar (12 pieces) | no made model yet; the creator, 14 Oct | the made ship, from the plan of Figure 1 |
-| Pieces that do not rest | wreck (5) | the settle drops models from before their bake; the overseer, 14 Oct | the settle fix |
-| A foot off the floor | camp grounds' crane, greenhouse's seed tray | the level rule uses 1 percent, not 3 cm; the overseer, 14 Oct | the same fix |
-| Paint or bake off the close-up | garage (4) | library surfaces held until next month; the overseer, 14 Oct | new library surfaces |
+| Pieces that do not rest | wreck (5) | the settle drops models from before their bake; overseer, 14 Oct | the settle fix |
+| Paint or bake off the close-up | garage (4), galley (1), navigation (1) | library surfaces held until next month; overseer, 14 Oct | new library surfaces |
 | Results per place, film, place pictures | all | not made by this draft | after the completion gates |
 | An edit that survives a regenerated base | all | no edit layer yet | an edit layer the assembly carries |
 | Physics in an engine | one room | no engine adapter | an adapter |
 | Worlds 2 to 4 | | not started | |
 
-<!-- data/checks/gaps/{hangar,wreck,campgrounds,greenhouse,garage}.json (decided, reason, objects); people: commit d5a84e67; unmade demos: the demo shortlist of 14 Oct (K1, K3 to K6, K8, K9 not made by this draft). The overseer is the coding-agent session that guards the run under the creator's rules (CONTEXT.md). -->
+<!-- data/checks/gaps/<place>.json (name, check, objects, reason, decided, faults): game at the 18 places (commit 4d4fb143); people at street (driver, guard), square (leader, front_row_0 to 23, crowd), flat (player, youth), stairwell (player, neighbour), commits 1f90a0fe, 7ea1e722, rule d5a84e67; likeness at street, launch, square, flat, stairwell (EUR 55 a place); square motion (flag, banner, lantern); launch rows far_city_housing_slab, far_city_pencil_tower (about EUR 20; commit 33cab74a); cockpit colour (5 finishes: dE 3.9, 27.6, 34.7, 32.5, 25.6 from the nearest surface; commit 46499641); lab resting (desk_chair_1, desk_chair_2, foot off 0.04; commit c8ccd504); campgrounds and greenhouse stands level; hangar placeholders (12, owner 2026-10-14 08:40); wreck resting (3 and 2); garage colour and bake (2 and 2), galley and navigation colour (1 each). The camp grounds' cargo case is no longer a gap (commit 4084affe). Unmade demos: the demo shortlist of 14 Oct (K1, K3 to K6, K8, K9 not made by this draft). -->
 
 **Agent tools.** With them an agent used about half the output and cost on two of three places; on the third it left more faults; one run each (Appendix E).
 
