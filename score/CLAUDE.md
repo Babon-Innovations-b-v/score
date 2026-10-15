@@ -80,7 +80,8 @@ stage as each stage is built; nothing moves before.
   `neighbours` (every shown place stands, resolves and has children). `complete` is the completion gate on what
   the place holds: `tools/usd/complete.py`'s own checks (all but resting, the assembly's gate) on the place's
   neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
-  (`stages/complete/complete_test.py` holds them equal).
+  (`stages/complete/complete_test.py` holds them equal). A ship place's assembly lays its made
+  pieces on its kit-built base (`stages/assembly/ship_made.py`, in the table).
   `settle` (experimental, paid, its overlay; only the places in `stages.SETTLED`) drops a place's loose objects
   on its made ground, snaps its held ones onto their holders and lays where each rests as a layer the assembly
   takes, gated on `rested` and `resting`. `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
