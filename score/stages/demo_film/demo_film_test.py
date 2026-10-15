@@ -62,7 +62,7 @@ def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alon
         assert "film hangar" not in demo_film.extra_files("hangar")
         made = []
         real_one = demo_film.film_one
-        demo_film.film_one = lambda stage, name, film, out, log: made.append((name, film["camera"], out.name))
+        demo_film.film_one = lambda stage, name, film, out, log, start: made.append((name, film["camera"], out.name))
         try:
             (root / "stage").mkdir()
             (root / "stage/hangar.usda").write_text("#usda 1.0\n")
@@ -141,6 +141,14 @@ def test_the_gate_fails_a_silent_still_film_by_name():
     finally:
         film_checks.clearance_checks, demo_film.SIZE = clearance, size
         shutil.rmtree(root)
+
+
+def test_a_film_starts_a_second_before_its_places_first_one_off_moment():
+    """The overseer, 2026-10-15: the launch's 4 s shot ended as the rocket lifted off (start 1 s + lift 3 s)."""
+    assert demo_film.motion_start({"motion": str(demo_film.REPO / "data/motion/launch.json")}) == 3.0
+    assert demo_film.motion_start({"motion": str(demo_film.REPO / "data/motion/garage.json")}) == 0.0  # loops only
+    assert demo_film.motion_start({}) == 0.0
+    assert "motion" in demo_film.files("launch")
 
 
 if __name__ == "__main__":

@@ -39,6 +39,9 @@ SECONDS = 4.0
 # The planned length: the title card and the shot joined by a half-second fade (demo.py TITLE_SECONDS, FADE_SECONDS),
 # 2 + 4 - 0.5 = 5.5 s, within half a second.
 LEAST, MOST = 5.0, 6.0
+# A film starts this long before the first one-off moment of its place's motion record (motion_start), so the moment
+# lands about a second into the shot (the launch's lift-off; overseer, 2026-10-15).
+LEAD = 1.0
 # Workbench and Cycles on a card; the cheapest first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
 CLASSES = "gpu-24gb,gpu-48gb"
 JOBS = 2
@@ -70,8 +73,11 @@ def applies_extra(place):
 
 
 def common_files(place):
-    """The place's scene record and picked viewpoints, and every tool file a film is made with."""
+    """The place's scene record, motion record where it has one and picked viewpoints, and every tool file a film is
+    made with."""
     found = {"scene": "{data}/scene/" + place + ".json", **{f"tool {path}": "{repo}/" + path for path in TOOLS}}
+    if (REPO / "data/motion" / f"{place}.json").exists():
+        found["motion"] = "{data}/motion/" + place + ".json"
     if (REPO / "data/review" / place / "viewpoints.json").exists():
         found["viewpoints"] = "{data}/review/" + place + "/viewpoints.json"
     return found
@@ -126,7 +132,18 @@ def render(jobs, out):
         raise RuntimeError(f"blender_cloud.py failed: {done.stderr[-2000:]}")
 
 
-def film_one(stage_folder, name, film, out, log_folder):
+def motion_start(inputs):
+    """The stage's second a film starts at: LEAD before the first one-off moment of the place's motion record (a
+    motion that does not loop: its start, or for a climb its lift-off), never before 0; 0 with no such motion."""
+    if "motion" not in inputs:
+        return 0.0
+    motions = json.loads(pathlib.Path(inputs["motion"]).read_text()).get("motions", [])
+    moments = [motion["start"] + motion.get("climb", {}).get("lift", 0.0) for motion in motions
+               if not motion.get("loop")]
+    return max(0.0, min(moments) - LEAD) if moments else 0.0
+
+
+def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     """One film of the place's final stage, its files written into `out` (module docstring)."""
     demo, _ = film_tools()
     place = place_of(stage_folder)
@@ -135,7 +152,7 @@ def film_one(stage_folder, name, film, out, log_folder):
     subprocess.run(["chmod", "-R", "u+w", str(work / "stages")], check=True)
     given = f"{place}={film['camera']}" if name == place else f"{name}@{place}={film['camera']}"
     jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE, ink=False, shots=SHOTS,
-                     seconds=SECONDS)
+                     seconds=SECONDS, start=start)
     render(jobs, log_folder)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(work / "frames" / name / "shot0-000-look.png", out / "concept.png")
@@ -150,14 +167,14 @@ def make(inputs, out, seed, params):
     """The place's own film, in the output's root."""
     stage_folder = final_stage(inputs)
     place = place_of(stage_folder)
-    film_one(stage_folder, place, named_films(inputs)[place], out, out)
+    film_one(stage_folder, place, named_films(inputs)[place], out, out, motion_start(inputs))
 
 
 def make_extra(inputs, out, seed, params):
     """Each of the place's other films, in a folder of its name."""
     stage_folder = final_stage(inputs)
     for name, film in sorted(named_films(inputs).items()):
-        film_one(stage_folder, name, film, out / name, out)
+        film_one(stage_folder, name, film, out / name, out, motion_start(inputs))
 
 
 def film_faults(folder):
