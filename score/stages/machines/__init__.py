@@ -196,6 +196,8 @@ def pose(points, entry, stage, place):
     return matrix, yaw, drop
 
 
+# How near a mounted piece is set to its host's hull (metres), and how many of its points look for it (onto).
+MOUNT_CLEAR, MOUNT_SAMPLES = 0.002, 2000
 NOSES = {"+x": (1.0, 0.0, 0.0), "-x": (-1.0, 0.0, 0.0), "+z": (0.0, 0.0, 1.0), "-z": (0.0, 0.0, -1.0)}
 
 
@@ -211,18 +213,45 @@ def mount_point(low, high, nose, at):
     return tip - forward * at[1] + np.cross(forward, up) * at[0] + up * at[2]
 
 
+def onto_way(onto, points, low, high, nose):
+    """The unit way a mounted piece moves onto its host's hull (`onto`): "up", or "in" (across, toward the host's
+    middle line)."""
+    if onto == "up":
+        return np.array([0.0, 1.0, 0.0])
+    if onto != "in":
+        raise ValueError(f"`onto` {onto!r}: up or in")
+    across = np.cross(np.array(NOSES[nose]), np.array([0.0, 1.0, 0.0]))
+    side = float((points.mean(axis=0) - (np.asarray(low) + np.asarray(high)) / 2) @ across)
+    return -np.sign(side) * across if side else across
+
+
+def gap_to(points, hull, way):
+    """How far a piece's points go along `way` before the first of them meets the hull, less MOUNT_CLEAR (0 where
+    it already meets it); refused where nothing of the hull lies that way."""
+    sample = points[np.linspace(0, len(points) - 1, min(len(points), MOUNT_SAMPLES)).astype(int)]
+    hits, rays, _ = hull.ray.intersects_location(sample, np.tile(way, (len(sample), 1)))
+    if not len(hits):
+        raise ValueError("a mounted piece has no hull of its host its `onto` way")
+    return max(0.0, float(((hits - sample[rays]) @ way).min()) - MOUNT_CLEAR)
+
+
 def mounted_pose(points, entry, hosts, record):
     """A mounted piece's placement (the hangar ship's thrusters, set into its hull): turned as its host is and its
-    middle at its mount point; never let down (its host holds it).
+    middle at its mount point, then moved its `onto` way until it meets the host's baked hull (the plan's mount
+    heights put the lift thrusters 0.15 to 1.07 m under the hull, judged floating 0.4 m up, 2026-10-15); never let
+    down (its host holds it).
     shortcut: the piece keeps its host's turn, so a take modelled off the ship's axes needs a `turn` of its own."""
     host = entry["mounted"]["on"]
     nose = record["machines"][host].get("nose")
     if nose not in NOSES:
         raise ValueError(f"{host}: its nose's direction in the place (`nose`: +x, -x, +z or -z) is not in the "
                          "machines record; read it off the placed host's baked model")
-    low, high, rotation, _ = hosts[host]
+    low, high, rotation, _, hull = hosts[host]
     spun = points @ rotation
     move = mount_point(low, high, nose, entry["mounted"]["at"]) - (spun.min(axis=0) + spun.max(axis=0)) / 2
+    if entry["mounted"].get("onto"):
+        way = onto_way(entry["mounted"]["onto"], spun + move, low, high, nose)
+        move = move + way * gap_to(spun + move, hull, way)
     matrix = np.eye(4)
     matrix[:3, :3], matrix[3, :3] = rotation, move
     return matrix
@@ -273,6 +302,7 @@ def lay(layer, place, model, entry, matrix, sha256):
 
 def make(inputs, out, seed, params):
     """Every machine of the place's record made into its asset and laid in the machines layer; placed.json."""
+    import trimesh
     from pxr import Sdf
     import stage_inputs
     record = read_json(inputs["record"])
@@ -288,13 +318,14 @@ def make(inputs, out, seed, params):
             written[asset] = write_model(asset, pathlib.Path(inputs["surfaces-bake"]),
                                          pathlib.Path(inputs["surfaces-paint"]), out)
         gltf = written[asset]
-        points, _ = likeness.gltf_mesh(gltf)
+        points, triangles = likeness.gltf_mesh(gltf)
         if "mounted" in entry:
             matrix, yaw, drop = mounted_pose(points, entry, hosts, record), None, 0.0
         else:
             matrix, yaw, drop = pose(points, entry, stage, place)
             laid = points @ matrix[:3, :3] + matrix[3, :3]
-            hosts[model] = (laid.min(axis=0), laid.max(axis=0), matrix[:3, :3], yaw)
+            hosts[model] = (laid.min(axis=0), laid.max(axis=0), matrix[:3, :3], yaw,
+                            trimesh.Trimesh(laid, np.asarray(triangles).reshape(-1, 3), process=False))
         lay(layer, place, model, entry, matrix, stage_inputs.model_hash(gltf))
         placed[model] = {"prim": f"/{place}/Objects/{model}", "take": entry["take"], "on": held_by(entry),
                          "asset": asset, "yaw": yaw, "at": matrix[3, :3].round(4).tolist(), "dropped": round(drop, 4),

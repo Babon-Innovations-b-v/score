@@ -55,7 +55,8 @@
      -2.2,
      10.5,
      0.6
-    ]
+    ],
+    "onto": "up"
    },
    "why": "the ship plan v7's lift thruster 1 (data/definitions/ship.json), set into the hull"
   },
@@ -70,7 +71,8 @@
      2.2,
      10.5,
      0.6
-    ]
+    ],
+    "onto": "up"
    },
    "why": "the ship plan v7's lift thruster 2 (data/definitions/ship.json), set into the hull"
   },
@@ -85,7 +87,8 @@
      -2.8,
      23.5,
      0.6
-    ]
+    ],
+    "onto": "up"
    },
    "why": "the ship plan v7's lift thruster 3 (data/definitions/ship.json), set into the hull"
   },
@@ -100,7 +103,8 @@
      2.8,
      23.5,
      0.6
-    ]
+    ],
+    "onto": "up"
    },
    "why": "the ship plan v7's lift thruster 4 (data/definitions/ship.json), set into the hull"
   },
@@ -130,7 +134,8 @@
      1.6,
      4.0,
      1.6
-    ]
+    ],
+    "onto": "in"
    },
    "why": "the ship plan v7's nose thruster 2 (data/definitions/ship.json), set into the hull"
   },
@@ -145,7 +150,8 @@
      0.0,
      4.0,
      1.2
-    ]
+    ],
+    "onto": "up"
    },
    "why": "the ship plan v7's nose thruster 3 (data/definitions/ship.json), set into the hull"
   },
