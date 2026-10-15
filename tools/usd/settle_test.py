@@ -403,7 +403,23 @@ def a_piece_on_a_slope_rests_flush_on_it():
         return problems
 
 
+def a_box_stacked_on_a_box_on_a_slope_meets_it():
+    """Two boxes tipped 8 degrees as on a slope, one laid on the other's top, are stacked; one laid 10 cm higher is
+    not: the stage's boxes put the upper's bottom 14 cm under the lower's top (the campgrounds' cargo case 1 on its
+    pallet, 2026-10-15)."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        top = Rotation.from_euler("yx", [-30.0, 8.0], degrees=True).apply([0.0, 1.0, 0.0])
+        path = tipped_place(folder, [("box", (8, 0, 0), 8.0), ("box", tuple([8, 0, 0] + top), 8.0),
+                                     ("box", (12, 0, 0), 8.0), ("box", tuple([12, 0.1, 0] + top), 8.0)])
+        stage = Usd.Stage.Open(str(path))
+        under = settle.stacked_under(stage, PLACE, ("box_1", "box_2", "box_3", "box_4"))
+        return [] if under == {"box_2": ["box_1"]} else [f"stacked: {under}"]
+
+
 CHECKS = (a_piece_on_a_slope_rests_flush_on_it, a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
+          a_box_stacked_on_a_box_on_a_slope_meets_it,
           a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most,
           a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
