@@ -391,6 +391,8 @@ def test_a_claimed_model_is_laid_under_this_place_s_name_from_the_name_its_place
         (folder / "bake/elsewhere.json").write_text(json.dumps({"parts_rack_1": {
             "take": "parts_rack-r1", "place": "old_station", "node": "surfaces-bake@old_station",
             "baked_as": "parts_rack"}}))
+        (folder / "old").mkdir()
+        (folder / "old/baked.json").write_text(json.dumps({"parts_rack": {"parts": "parts_rack-r1"}}))
         inputs = {"surfaces": folder / "surfaces.json", "surfaces-bake": folder / "bake",
                   "surfaces-bake@old_station": folder / "old", "surfaces-paint@old_station": folder / "paint"}
         [(bake, _, _, models)] = assembly.claimed_bakes(inputs, folder / "out")
@@ -400,6 +402,28 @@ def test_a_claimed_model_is_laid_under_this_place_s_name_from_the_name_its_place
         geometry = export.model_geometry(export.model_file(found, "parts_rack_1"))
         assert len(geometry["positions"]) == 3, geometry
         assert assembly.renamed_model(folder / "old/made", "parts_rack", "parts_rack", folder / "x") == folder / "old/made"
+
+
+def test_a_claimed_model_its_place_bakes_under_its_own_name_is_laid_from_its_own_bake():
+    """assembly@hub (2026-10-15): workshop bakes wrench_1 to wrench_4 from one take (wrench-r6), each its own size,
+    and the hub's elsewhere.json names wrench_1 as every wrench's baked_as; wrench_2 stood as wrench_1's bake and
+    lay_fixtures_baked stopped on the moved box. A model the claimed place bakes under its own name with the claimed
+    take is read under it."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        names = ("wrench_1", "wrench_2", "wrench_9")
+        elsewhere = {name: {"take": "wrench-r6", "place": "workshop"} for name in names}
+        (folder / "surfaces.json").write_text(json.dumps({"elsewhere": elsewhere}))
+        (folder / "bake").mkdir()
+        (folder / "bake/elsewhere.json").write_text(json.dumps(
+            {name: dict(claim, baked_as="wrench_1") for name, claim in elsewhere.items()}))
+        (folder / "workshop").mkdir()
+        (folder / "workshop/baked.json").write_text(json.dumps(
+            {"wrench_1": {"parts": "wrench-r6"}, "wrench_2": {"parts": "wrench-r6"}}))
+        inputs = {"surfaces": folder / "surfaces.json", "surfaces-bake": folder / "bake",
+                  "surfaces-bake@workshop": folder / "workshop", "surfaces-paint@workshop": folder / "paint"}
+        [(_, _, _, models)] = assembly.claimed_bakes(inputs, folder / "out")
+        assert models == {"wrench_1": "wrench_1", "wrench_2": "wrench_2", "wrench_9": "wrench_1"}, models
 
 
 def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot():
