@@ -7,8 +7,8 @@
    "kind": "hangar_ship",
    "on": "machine_bay_plate_1",
    "turn": "along",
-   "nose": null,
-   "why": "The hangar holds the crew's shuttle on its pad (place.json, the ship plan v7 at the hangar's 31 m): laid along the pad, let down onto it. Its nose's direction in the place is read off the baked model once it is made (`nose`: +x, -x, +z or -z); until then its thrusters refuse to lay, by name."
+   "nose": "-x",
+   "why": "The hangar holds the crew's shuttle on its pad (place.json, the ship plan v7 at the hangar's 31 m): laid along the pad, let down onto it. Its nose points -x in the place, read off the baked model laid along the pad (2026-10-15): the hull's -x end is the nose spike, 0.28 m across and 0.22 m tall, the +x end the stern, 2.81 by 2.65 m."
   },
   "main_engine_1": {
    "row": "main_engine",
