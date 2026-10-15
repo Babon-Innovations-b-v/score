@@ -15,8 +15,9 @@ final stage once it passes complete or fails it only on its named gaps (`gapped`
   render); a standing shot starts 5 degrees off the camera's aim and a walk's start may move up to 1.5 m to stand clear,
   which views.json records.
 - **The film is the place's own**: the neighbours output where the place shows others, else its assembly, never a seed;
-  one camera path, 1280x720, the look only (no ink). People need no handling: the characters layer lays nobody today.
-  All 18 places come to about EUR 11.
+  one camera path, 1280x720 at 12 frames a second (96 frames; each shown twice in the 24 fps cut), the look only (no
+  ink). People need no handling: the characters layer lays nobody today.
+  About EUR 0.7 a place (EUR 1.0 at 24 frames a second, the overseer cut it 2026-10-15).
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame. Whether a film reads well is the creator's call.
 - **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (the launch lifts off at 4 s
