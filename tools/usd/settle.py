@@ -33,6 +33,7 @@ import subprocess
 import sys
 
 import numpy as np
+import trimesh
 from pxr import Usd, UsdGeom
 from scipy.spatial.transform import Rotation
 
@@ -367,7 +368,8 @@ def rest_poses(stage, place, inventory, simulated, starts):
     for name, found in sorted(simulated["objects"].items()):
         before = laid_matrix(stage, place, name)
         entry = {"before": before, "after": np.asarray(found["motion"]) @ before,
-                 "middle": object_middle(stage, place, name), "uneven": uneven_feet(stage, place, name)}
+                 "middle": object_middle(stage, place, name), "uneven": uneven_feet(stage, place, name),
+                 "base lean": base_lean(stage, place, name)}
         turned, drift = correction(entry)
         said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
         piece = max(UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]).ComputeWorldBound(
@@ -461,20 +463,42 @@ def uneven_feet(stage, place, name):
     return found[-1] - found[0] if len(found) >= 3 else 0.0
 
 
+def base_lean(stage, place, name):
+    """How far (degrees) the face of an object's convex hull straight under its weight (resting.weight_at) leans from
+    its own up, in its own frame as laid: the tip its own shape gives it on a level floor, whatever its feet are joined
+    by. A wheeled chair's five casters are one foot to the clusters (its star base joins them), so uneven_feet read
+    the lab's old chair as even while its hull, one caster 2.4 cm up, leans 4.8 degrees: the drop's tip (2026-10-15)."""
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    points, triangles = resting.in_stage(prim.GetChild("geo"))
+    laid = laid_matrix(stage, place, name)
+    turn = laid[:3, :3] / np.cbrt(np.linalg.det(laid[:3, :3]))
+    own = trimesh.Trimesh((points - laid[:3, 3]) @ turn, np.asarray(triangles).reshape(-1, 3), process=False)
+    across, along = resting.weight_at(own)
+    hull = own.convex_hull
+    hits, _, faces = hull.ray.intersects_location([[across, own.bounds[1][1] + 1.0, along]], [[0.0, -1.0, 0.0]])
+    if not len(faces):
+        return 0.0
+    normal = hull.face_normals[faces[np.argmin(hits[:, 1])]]
+    return float(np.degrees(np.arccos(np.clip(-normal[1], -1.0, 1.0))))
+
+
 def tips_on_uneven_feet(found):
     """Whether a drop tipped an object over the triage's LEAN_MOST onto feet that do not lie in one plane in its own
-    frame (`uneven`: uneven_feet over the resting tolerance): the tip is the model's fault, not a rest pose, so it is
-    never written (the greenhouse's water tank, 2026-10-12: tipped 7.5 degrees onto three of its legs, written into
-    the kit, one foot left 7 cm up)."""
+    frame (`uneven`: uneven_feet over the resting tolerance, or `base lean`: base_lean over LEAN_MOST): the tip is the
+    model's fault, not a rest pose, so it is never written (the greenhouse's water tank, 2026-10-12: tipped 7.5 degrees
+    onto three of its legs, written into the kit, one foot left 7 cm up; the lab's desk chairs, 4.8 degrees onto a
+    raised caster, 2026-10-15)."""
     import triage
-    return found.get("uneven", 0.0) > resting.TOLERANCE and correction(found)[0] > triage.LEAN_MOST
+    uneven = found.get("uneven", 0.0) > resting.TOLERANCE or found.get("base lean", 0.0) > triage.LEAN_MOST
+    return uneven and correction(found)[0] > triage.LEAN_MOST
 
 
 def uneven_said(found):
     """The words an unrested mark adds for a tip onto uneven feet, '' for any other settle."""
     if not tips_on_uneven_feet(found):
         return ""
-    return f" onto feet ending up to {found['uneven'] * 100:.1f} cm apart in its own frame (level the model's feet)"
+    return (f" onto feet ending up to {found['uneven'] * 100:.1f} cm apart in its own frame, its base leaning "
+            f"{found.get('base lean', 0.0):.1f} degrees (level the model's feet)")
 
 
 def unstable(turned, drift):
@@ -623,7 +647,8 @@ def main():
             continue
         before = laid_matrix(stage, place, name)
         settled[name] = {"before": before, "after": np.asarray(found["motion"]) @ before,
-                         "middle": object_middle(stage, place, name), "uneven": uneven_feet(stage, place, name)}
+                         "middle": object_middle(stage, place, name), "uneven": uneven_feet(stage, place, name),
+                         "base lean": base_lean(stage, place, name)}
     if not arguments.dry_run:
         settled.update(carried_with(stage, place, json.loads(inventory_path.read_text()), settled))
     if arguments.dry_run:
