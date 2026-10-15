@@ -595,7 +595,7 @@
    "id": "edge_light_strip",
    "view": "v1",
    "box": [
-    0,
+    620,
     9,
     735,
     76
@@ -632,9 +632,7 @@
     "high": 0.03
    },
    "box_from": [
-    "v1.32",
-    "v1.48",
-    "v1.65"
+    "v1.32"
    ]
   },
   {
@@ -829,10 +827,10 @@
    "id": "wall_upper_plain",
    "view": "v1",
    "box": [
-    0,
-    58,
+    697,
+    128,
     735,
-    229
+    180
    ],
    "name": "dark grey upper wall plate, bolted",
    "kind": "code",
@@ -849,29 +847,16 @@
    "at": [],
    "repeats": "across the room",
    "box_from": [
-    "v1.35",
-    "v1.44",
-    "v1.49",
-    "v1.51",
-    "v1.52",
-    "v1.54",
-    "v1.56",
-    "v1.57",
-    "v1.59",
-    "v1.62",
-    "v1.63",
-    "v1.64",
-    "v1.70",
-    "v1.75"
+    "v1.35"
    ]
   },
   {
    "id": "roof_face_panel",
    "view": "v1",
    "box": [
-    172,
-    0,
-    449,
+    194,
+    55,
+    255,
     104
    ],
    "name": "dark grey ceiling plate, bolted, round the nose windows",
@@ -889,10 +874,7 @@
    "at": [],
    "repeats": "across the room",
    "box_from": [
-    "v1.31",
-    "v1.37",
-    "v1.66",
-    "v1.68"
+    "v1.31"
    ]
   },
   {
