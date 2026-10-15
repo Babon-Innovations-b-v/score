@@ -11,7 +11,6 @@ from scipy.spatial.transform import Rotation
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
-import ground as grounds  # noqa: E402
 import resting  # noqa: E402
 import settle  # noqa: E402
 import snap  # noqa: E402
@@ -56,8 +55,7 @@ def held_rests(stage_path, place, inventory, kit_path=None):
     names = [name for name in held_objects(stage, place, inventory)
              if not settle.lies_as_laid(rows.get(name.rsplit("_", 1)[0], {}), data)]
     kit = json.loads(pathlib.Path(kit_path or settle.KITS / f"{place}.json").read_text())
-    ground = grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))
-    starts = settle.upright_starts(stage, place, inventory, names, ground)
+    starts = settle.upright_starts(stage, place, inventory, names, settle.seat_ground(place, kit))
     laid = snap.read_place(stage_path)
     poses = {}
     for name in names:
