@@ -6,54 +6,54 @@
 				"habitat",
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): the hub is the habitat's room id drawn as the C12 room"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: habitat: 'the hub and the habitat's room tone: air handling, a far fan, the base breathing'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
 		},
 		"habitat": {
 			"loops": [
 				"habitat",
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43)"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: habitat: 'the hub and the habitat's room tone: air handling, a far fan, the base breathing'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
 		},
 		"greenhouse": {
 			"loops": [
 				"greenhouse",
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43)"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: greenhouse: 'the greenhouse on the Moon: grow lights, water pumps, fans over the plant beds'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
 		},
 		"workshop": {
 			"loops": [
 				"workshop",
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43)"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: workshop: 'the workshop where robots are built at the bench'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
 		},
 		"airlock": {
 			"loops": [
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): the airlock plays the base's hum alone"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
 		},
 		"tube": {
 			"loops": [
 				"link_tube",
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): the west and east corridors"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: link_tube: 'the glass link tubes between modules'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
 		},
 		"lab": {
 			"loops": [
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) names no lab, so the game plays nothing there; the base's hum is laid here as under every other room of the base (its brief: 'under every room of the base')"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
 		},
 		"garage": {
 			"loops": [
 				"garage",
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) has no garage yet ('There is no garage yet, so none is played'); the garage's own generated tone (its brief: 'the garage where the rover is kept') and the base's hum are laid here",
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: garage: 'the garage where the rover is kept (not built yet)'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'",
 			"objects": [
 				{
 					"sound": "rover_idle",
@@ -66,7 +66,7 @@
 			"loops": [
 				"base_hum"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) has no hangar; the base's hum is laid here as under every room of the base",
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'",
 			"objects": [
 				{
 					"sound": "ship_idle",
@@ -79,7 +79,7 @@
 			"loops": [
 				"camp_room"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and Hearing: inside the camp on Mars the game plays no place's loop (Mars inside is no base room)",
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: camp_room: 'the Mars camp's room tone: inside the prefabricated habitat'",
 			"added": "camp_room: world 1's checklist of 2026-10-12: the place had no such sound (no room tone at all)"
 		},
 		"wreck": {
@@ -88,7 +88,7 @@
 				"suit_fans",
 				"suit_breathing_calm"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): outside on the Moon there is no air and no place is heard, only the suit; SuitSounds (the game 2099's game/sound/suit/suit_sounds.gd:3-9, 27-48): out on the Moon or on Mars the suit's fans run and the player breathes, calm while walking"
+			"from": "outside, no air carries a place's sound: only the suit's own are heard (data/sound/sounds.json `where`): suit_fans: 'the spacesuit's air fans, in the helmet'; suit_breathing_calm: 'the player's own breathing inside the helmet, at rest'"
 		},
 		"old_station": {
 			"loops": [],
@@ -96,13 +96,13 @@
 				"suit_fans",
 				"suit_breathing_calm"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): outside on the Moon there is no air and no place is heard, only the suit; SuitSounds (the game 2099's game/sound/suit/suit_sounds.gd:3-9, 27-48): out on the Moon or on Mars the suit's fans run and the player breathes, calm while walking"
+			"from": "outside, no air carries a place's sound: only the suit's own are heard (data/sound/sounds.json `where`): suit_fans: 'the spacesuit's air fans, in the helmet'; suit_breathing_calm: 'the player's own breathing inside the helmet, at rest'"
 		},
 		"flat": {
 			"loops": [
 				"earth_flat"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) FLAT: the flat in the prologue and through the wait on Earth"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: earth_flat: 'the small flat in a Chinese city on Earth, in the prologue'"
 		},
 		"stairwell": {
 			"loops": [
@@ -128,7 +128,7 @@
 				"prologue_crowd",
 				"square_pa"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) BALCONY: the crowd in the square under the balcony",
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: prologue_crowd: 'the crowd in the square under the balcony in the prologue'; square_pa: 'the square's public address towers carrying the leader's speech, heard from the balcony'",
 			"objects": [
 				{
 					"sound": "leader_speech",
@@ -141,7 +141,7 @@
 			"loops": [
 				"launch_pad"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43) and _earth_place: nothing plays on the walk to the rocket; the rocket's own sounds come with its motion",
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: launch_pad: 'the launch view's air: the launch site at night before lift-off'",
 			"added": "launch_pad: world 1's checklist of 2026-10-12: the place had no such sound (no loop)"
 		},
 		"campgrounds": {
@@ -150,7 +150,7 @@
 				"suit_fans",
 				"suit_breathing_calm"
 			],
-			"from": "PlaceSounds.LOOPS (the game 2099's game/sound/places/place_sounds.gd:31-43): outside on Mars no place's loop plays; SuitSounds (the game 2099's game/sound/suit/suit_sounds.gd:3-9, 27-48): out on the Moon or on Mars the suit's fans run and the player breathes, calm while walking"
+			"from": "outside, no air carries a place's sound: only the suit's own are heard (data/sound/sounds.json `where`): suit_fans: 'the spacesuit's air fans, in the helmet'; suit_breathing_calm: 'the player's own breathing inside the helmet, at rest'"
 		}
 	}
 }
