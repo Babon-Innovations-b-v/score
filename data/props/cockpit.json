@@ -43,7 +43,9 @@
    "take": "corner_lamp-s1"
   }
  },
- "fallback": {},
+ "fallback": {
+  "thrust_indicator": "{home}/work/ship/thrust_indicator-code/thrust_indicator_1.gltf"
+ },
  "accepted": {
   "chair_1": {
    "model": "{home}/work/place/hub-round6/objects/chair_1.gltf",

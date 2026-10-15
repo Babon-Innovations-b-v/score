@@ -34,7 +34,7 @@ import model as model_check  # noqa: E402
 SIZES = {"window_frame": [1.2728, 1.0, 0.12], "window_pane": [1.0728, 0.9, 0.04], "dash_light_bar": [2.4, 0.04, 0.05],
          "ceiling_light_panel": [0.9, 0.06, 0.45], "edge_light_strip": [2.0, 0.05, 0.06],
          "frame_rib": [0.15, 1.4, 0.2], "floor_grate": [1.2, 0.6, 0.04], "command_platform": [1.6, 0.3, 1.2],
-         "platform_step": [0.8, 0.15, 0.3]}
+         "platform_step": [0.8, 0.15, 0.3], "thrust_indicator": [0.4, 0.4, 0.08]}
 
 
 def test_no_ship_builder_takes_another_room_s_name():

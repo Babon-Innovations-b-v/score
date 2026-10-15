@@ -151,7 +151,7 @@
     468
    ],
    "name": "thrust indicator: a plus-shaped gauge set in the dash, orange-lit bars along its four arms showing the thrust's direction, dark ribbed ends",
-   "kind": "generate",
+   "kind": "code",
    "anchor": "on:main_console",
    "size": [
     0.4,

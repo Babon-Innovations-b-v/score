@@ -157,8 +157,9 @@ EARTH_MODULES = ("earth_flat", "earth_stairwell", "pieces_earth")
 
 
 def builder_texts():
-    """pieces.py and Earth's rooms' builder modules beside it (the prologue build)."""
-    return [(HERE / "inside/pieces.py").read_text()] + [(HERE / f"inside/{name}.py").read_text() for name in EARTH_MODULES]
+    """pieces.py and the builder modules beside it: Earth's rooms' (the prologue build) and the ship's."""
+    return [(HERE / "inside/pieces.py").read_text()] + [(HERE / f"inside/{name}.py").read_text()
+                                                       for name in EARTH_MODULES + ("pieces_ship",)]
 
 
 def test_every_fitting_lists_its_close_up_and_parts_and_has_a_builder():
