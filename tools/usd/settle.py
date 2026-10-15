@@ -276,13 +276,19 @@ def drop_job(stage, place, inventory, upright, kit_path=None):
     starts, under = {}, stacked_under(stage, place, loose)
     if upright:
         kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
-        starts = upright_starts(stage, place, inventory, loose, grounds.place_ground(place, kit.get("on_seat",
-                                                                                                    [0.0, 0.0])))
+        starts = upright_starts(stage, place, inventory, loose, seat_ground(place, kit))
         for name, (support, shift) in onto_one_support(stage, place, under).items():
             starts[name] = shift @ starts.get(name, np.eye(4))
             under[name] = [support]
         loose.update({name: start_lift(stage, place, name, start) for name, start in starts.items()})
     return loose, ignore, starts, under
+
+
+def seat_ground(place, kit):
+    """The ground whose seat an object stands upright in (upright_starts): none in a kit room, whose pieces stand on
+    the room's own level floor in its frame (the greenhouse's water tank was stood upright in the terrain's seat under
+    its spot, 6 degrees off the floor plates it stands on, 2026-10-15), else the place's (kit: its `on_seat`)."""
+    return None if "room" in kit else grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0]))
 
 
 def onto_one_support(stage, place, under):
@@ -497,8 +503,9 @@ def uneven_said(found):
     """The words an unrested mark adds for a tip onto uneven feet, '' for any other settle."""
     if not tips_on_uneven_feet(found):
         return ""
-    return (f" onto feet ending up to {found['uneven'] * 100:.1f} cm apart in its own frame, its base leaning "
-            f"{found.get('base lean', 0.0):.1f} degrees (level the model's feet)")
+    if found.get("uneven", 0.0) > resting.TOLERANCE:
+        return f" onto feet ending up to {found['uneven'] * 100:.1f} cm apart in its own frame (level the model's feet)"
+    return f" onto a base leaning {found['base lean']:.1f} degrees in its own frame (level the model's feet)"
 
 
 def unstable(turned, drift):
