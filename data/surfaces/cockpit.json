@@ -173,7 +173,7 @@
     "cuts": [],
     "density": 1024,
     "decals": [],
-    "foot": 0.0,
+    "foot": 1.0,
     "faces": 5000
    },
    "thrust_indicator_1": {
@@ -197,7 +197,7 @@
     "cuts": [],
     "density": 1024,
     "decals": [],
-    "foot": 0.0,
+    "foot": 0.75,
     "faces": 5000
    },
    "centre_pedestal_1": {
@@ -293,7 +293,7 @@
     "cuts": [],
     "density": 1024,
     "decals": [],
-    "foot": 0.0,
+    "foot": 2.05,
     "faces": 19000
    },
    "overhead_vent_1": {
@@ -317,7 +317,7 @@
     "cuts": [],
     "density": 1024,
     "decals": [],
-    "foot": 0.0,
+    "foot": 2.15,
     "faces": 5000
    },
    "ceiling_equipment_1": {
@@ -341,7 +341,7 @@
     "cuts": [],
     "density": 1024,
     "decals": [],
-    "foot": 0.0,
+    "foot": 2.1,
     "faces": 19000
    },
    "corner_lamp_1": {
@@ -365,7 +365,7 @@
     "cuts": [],
     "density": 1024,
     "decals": [],
-    "foot": 0.0,
+    "foot": 1.55,
     "faces": 5000
    }
   }

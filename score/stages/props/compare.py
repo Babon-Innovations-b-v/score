@@ -148,14 +148,18 @@ def code_build_objects(place, objects, code_builds, closeups):
 
 def bake_entry(place, row, details):
     """A make_chunky entry for a new take, as route.py plans one: the kind's turn, its size in the kit frame (x wide, y
-    tall, z deep), its screens, cuts and decals, near density, its faces by size; foot 0 (laid on its floor)."""
+    tall, z deep), its screens, cuts and decals, near density, its faces by size; its foot as high as its lowest laid
+    spot stands (route.foot_of), so the kick wear reaches only what stands low. Foot 0 for every model made the ship's
+    lamp, gauges and ceiling pieces, laid 0.75 to 2.15 m up, wear bare in boot scuffs (corner lamp dark_panel baked
+    L* 51.7 against 19.2, 2026-10-15)."""
     with prop_data.tools("props/library", "props/gates", "props"):
         import route
     own = details.get(f"{place}_{row['id']}", {})
     size = [row["size"][0], row["size"][2], row["size"][1]]
+    foot = min((route.foot_of(spot["y"]) for spot in row.get("at", [])), default=0.0)
     return {"base": own.get("turn", [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]), "size": size,
             "screens": own.get("screens", []), "cuts": own.get("cuts", []), "density": route.NEAR,
-            "decals": own.get("decals", []), "foot": 0.0, "faces": route.faces_for(size)}
+            "decals": own.get("decals", []), "foot": foot, "faces": route.faces_for(size)}
 
 
 def surface_record(place, objects, rows, details):

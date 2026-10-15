@@ -57,6 +57,15 @@ def test_a_take_s_faces_come_from_the_bake_model_made_from_it_whatever_its_name(
         shutil.rmtree(folder)
 
 
+def test_a_new_take_s_bake_entry_stands_its_foot_at_its_lowest_laid_spot():
+    """Fault (2026-10-15): every ship model's entry said foot 0, so the kick wear scuffed the corner lamp laid 1.55 m
+    up bare. The foot is the lowest spot the row lays it at; a row laid nowhere stands on its floor."""
+    lamp = {"id": "corner_lamp", "size": [0.15, 0.08, 0.12],
+            "at": [{"x": -2.45, "y": 1.55, "z": 1.25}, {"x": 2.45, "y": 1.8, "z": 1.25}]}
+    assert compare.bake_entry("cockpit", lamp, {})["foot"] == 1.55
+    assert compare.bake_entry("cockpit", {**lamp, "at": []}, {})["foot"] == 0.0
+
+
 def test_the_likeness_pairs_are_read_from_the_stored_output():
     """Fault (2026-10-15): likeness@campgrounds sent DINOv2 the paths pairs.json holds, into the folder its make ran
     in, removed once the output was stored. The pictures are read from the output's own pairs/ folder."""

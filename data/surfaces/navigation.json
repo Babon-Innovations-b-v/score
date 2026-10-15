@@ -89,7 +89,7 @@
     "cuts": [],
     "density": 1024,
     "decals": [],
-    "foot": 0.0,
+    "foot": 1.5,
     "faces": 15390
    },
    "hatch_door_frame_1": {
