@@ -109,6 +109,48 @@ def test_a_baked_model_s_objects_carry_its_hash_and_keep_the_owner_s_pick():
         assert len(found) == 1 and "not the owner's pick" in found[0]["why"], found
 
 
+def a_cube_asset(path, size):
+    """An asset holding one cube `size` metres a side, its default prim named after the file."""
+    from pxr import Usd, UsdGeom
+    stage = Usd.Stage.CreateNew(str(path))
+    root = UsdGeom.Xform.Define(stage, f"/{path.stem}")
+    UsdGeom.Cube.Define(stage, f"/{path.stem}/cube").GetSizeAttr().Set(size)
+    stage.SetDefaultPrim(root.GetPrim())
+    stage.GetRootLayer().Save()
+
+
+def test_a_fixture_laid_from_a_released_file_takes_the_bake_of_its_model():
+    """Fault (complete@launch, 2026-10-15): the rocket, a plan object laid from the released
+    models/launch_rocket_solid/far_rocket_1.gltf, kept the seed's paint, as the bake's far_rocket_1 was matched only
+    by name. It now references the baked asset, named by its model; a bake that moved the frame fails."""
+    from pxr import Sdf, Usd, UsdGeom
+    with tempfile.TemporaryDirectory() as temporary:
+        out = pathlib.Path(temporary)
+        (out / "assets").mkdir()
+        (out / "layers").mkdir()
+        a_cube_asset(out / "assets/fixture_rocket.usdc", 2.0)
+        a_cube_asset(out / "assets/rocket.usdc", 2.0)
+        base = Usd.Stage.CreateNew(str(out / "layers/base.usda"))
+        prim = UsdGeom.Xform.Define(base, "/toy/Fixtures/rocket").GetPrim()
+        prim.GetReferences().AddReference("../assets/fixture_rocket.usdc")
+        prim.CreateAttribute("score:model", Sdf.ValueTypeNames.String).Set("models/rockets/rocket.gltf")
+        base.GetRootLayer().Save()
+        assembly.lay_fixtures_baked(out / assembly.BASE_LAYER, "rocket")
+        spec = Sdf.Layer.FindOrOpen(str(out / assembly.BASE_LAYER)).GetPrimAtPath("/toy/Fixtures/rocket")
+        assert [ref.assetPath for ref in spec.referenceList.prependedItems] == ["../assets/rocket.usdc"]
+        assert spec.attributes["score:model"].default == "rocket"
+        spec.referenceList.prependedItems = [Sdf.Reference("../assets/fixture_rocket.usdc")]
+        spec.attributes["score:model"].default = "models/rockets/rocket.gltf"
+        spec.layer.Save()
+        a_cube_asset(out / "assets/rocket.usdc", 3.0)
+        try:
+            assembly.lay_fixtures_baked(out / assembly.BASE_LAYER, "rocket")
+        except ValueError as error:
+            assert "moved the model's frame" in str(error)
+        else:
+            raise AssertionError("a bake that moved the frame was laid")
+
+
 TOY = "toy"
 
 
