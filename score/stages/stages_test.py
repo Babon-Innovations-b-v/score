@@ -37,6 +37,13 @@ def world_data_copy(root):
         source, target = REPO / "data" / part, root / part
         target.parent.mkdir(parents=True, exist_ok=True)
         (shutil.copytree if source.is_dir() else shutil.copy2)(source, target)
+    # No claiming place here (ASSEMBLY below): the hangar's surface data names no model another place's line paints,
+    # else the assembly reads the hangar's own surfaces-bake, a row this example does not run.
+    surfaces = root / "surfaces/hangar.json"
+    surfaces.write_text(json.dumps({**json.loads(surfaces.read_text()), "elsewhere": {}}, indent=1))
+    # The example's failing seed: without the owner's named gap for the hangar's ship (2026-10-14), its placeholders
+    # fail the assembly's own gate.
+    (root / "checks/gaps/hangar.json").write_text(json.dumps({"gaps": []}))
     return root
 
 
