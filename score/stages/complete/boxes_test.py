@@ -1,5 +1,5 @@
-"""The completion gate's evidence on a ship place, both ways (2026-10-15: complete@quarters and complete@walkway answered
-unknown on their boxes and their people).
+"""The completion gate's evidence on a ship place, both ways (2026-10-15: complete@quarters and complete@walkway
+answered unknown on their boxes and their people).
 
 complete-boxes measures every boxed row no other box row measures (a code row, a row taken from another place's take),
 view by view, and leaves the rows machines-boxes measures to it; it applies to the ship's places only. A ship place's
@@ -38,30 +38,24 @@ def test_the_rows_no_other_box_row_measures():
     assert row.applies("cockpit") and not row.applies("hub")
 
 
-def test_one_make_a_view():
-    """machines-boxes' make gives every job its first row's picture, so each view is made on its own: the cockpit's
-    door rows (v3) apart from its deck rows (v1), each flagged as a row that make measures, and the views' decisions
-    gathered into the output."""
+def test_the_other_rows_are_measured_as_machines_boxes_measures():
+    """The cockpit's other rows, on two views (its door rows on v3, its deck rows on v1), go to machines-boxes' make
+    in one listing, each flagged as a row it measures; the listing is not left in the output."""
     calls = []
 
     def make(inputs, out, seed, params):
-        rows = json.loads(pathlib.Path(inputs["inventory"]).read_text())["rows"]
-        calls.append({row["id"]: (row["view"], row["ground_box"]) for row in rows})
-        for name in ("grounding.json", "decided.json"):
-            (out / name).write_text(json.dumps({f"cockpit.{row['id']}": {"passes": True} for row in rows}))
+        listed = json.loads(pathlib.Path(inputs["inventory"]).read_text())["rows"]
+        calls.append({row["id"]: row["ground_box"] for row in listed})
     kept = machine_boxes.make_boxes
     machine_boxes.make_boxes = make
     try:
         with tempfile.TemporaryDirectory() as temporary:
-            out = pathlib.Path(temporary)
-            boxes.make_boxes({"inventory": REPO / "data/inventory/cockpit.json"}, out, 0, {})
-            decided = json.loads((out / "decided.json").read_text())
-            assert not list(out.glob("*/.rows.json")), "the flagged rows are the make's input, not its output"
+            boxes.make_boxes({"inventory": REPO / "data/inventory/cockpit.json"}, pathlib.Path(temporary), 0, {})
+            assert not list(pathlib.Path(temporary).iterdir()), "the flagged rows are the make's input, not its output"
     finally:
         machine_boxes.make_boxes = kept
-    assert [sorted({view for view, _ in call.values()}) for call in calls] == [["v1"], ["v3"]], calls
-    assert all(flagged for call in calls for _, flagged in call.values())
-    assert set(decided) == {f"cockpit.{row['id']}" for row in boxes.other_rows(inventory("cockpit"))}
+    assert len(calls) == 1 and set(calls[0]) == {row["id"] for row in boxes.other_rows(inventory("cockpit"))}
+    assert all(calls[0].values()) and "pilot_seat" not in calls[0]
 
 
 def an_empty_stage(place):

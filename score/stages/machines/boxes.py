@@ -87,8 +87,9 @@ def make_boxes(inputs, out, seed, params):
     wanted = {"plan": inventory["plan"], "rows": sam_rows(inventory)}
     if wanted["rows"]:
         jobs = box_check.mask_jobs(scene, wanted, box_check.view_sizes(wanted))
-        for job in jobs:  # the declared picture, not the work folder's path
-            job["picture"] = str(inputs[f"view {next(row['view'] for row in wanted['rows'])}"])
+        views = {str(box_check.picture_path(view["picture"])): view["id"] for view in inventory["plan"]["views"]}
+        for job in jobs:  # its own view's declared picture, not the work folder's path (each job one view)
+            job["picture"] = str(inputs[f"view {views[job['picture']]}"])
         (out / "jobs.json").write_text(json.dumps(jobs, indent=1))
         box_masks_cloud.mask(out / "jobs.json", out / "masks.json")
         measured = json.loads((out / "masks.json").read_text())

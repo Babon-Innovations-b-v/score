@@ -597,7 +597,8 @@ def ship_seen(row):
         if not ship_place(place):
             return make(inputs, out, seed, params)
         inventory = json.loads(pathlib.Path(inputs[f"inventory {place}"]).read_text())
-        models = {row: model for row, (_, model) in ship_made.row_models(inventory, {place: inputs["surfaces"]}).items()}
+        found = ship_made.row_models(inventory, {place: inputs["surfaces"]})
+        models = {row: model for row, (_, model) in found.items()}
         kit = json.loads(pathlib.Path(inputs["kit"]).read_text())
         made_pieces = ship_made.pieces(place, json.loads(pathlib.Path(inputs["plan"]).read_text()), inventory, models)
         seen = out / ".seen-kit.json"

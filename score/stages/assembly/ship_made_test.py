@@ -103,7 +103,8 @@ def checked_inputs(place, views):
         seen.update(degrees=bake_check.seen_degrees({name: pathlib.Path(path) for name, path in inputs.items()}))
     row = next(row for row in stages.STAGES if row.name == "surfaces-check")
     wrapped = stages.ship_seen(dataclasses.replace(row, make=make))
-    inputs = {"surfaces": DATA / "surfaces" / f"{place}.json", f"inventory {place}": DATA / "inventory" / f"{place}.json",
+    inputs = {"surfaces": DATA / "surfaces" / f"{place}.json",
+              f"inventory {place}": DATA / "inventory" / f"{place}.json",
               "kit": DATA / "kit" / f"{place}.json", "plan": DATA / "plans" / f"{place}.json", "views": views}
     with tempfile.TemporaryDirectory() as temporary:
         wrapped.make(inputs, pathlib.Path(temporary), 0, {})
