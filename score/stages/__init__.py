@@ -424,7 +424,28 @@ def worn(row):
         place == coloured if coloured else place not in characters_layer.coloured_places()))
 
 
+SEEDS_HOME = PROPS_HOME / "work"
+OLD_SEED, SHIP_SEED = "usd-r3", "usd-ship"
+
+
+def ship_seeded(files):
+    """A row's world files with a ship place's base stage for its seed: the ship's places never had a round-three stage
+    (usd-r3), so each one's is written from its installed kit by tools/usd/export.py into usd-ship/<place> (2026-10-15)
+    and read there. Kept out of usd-r3, which the terrain and scene-record rows declare whole, so no world key moves;
+    a place with a round-three seed reads it as before."""
+    def declared(place):
+        found = files(place) if callable(files) else files
+        if place is None or (SEEDS_HOME / OLD_SEED / place).exists() or not (SEEDS_HOME / SHIP_SEED / place).exists():
+            return found
+        old = (f"{{seeds}}/{OLD_SEED}/{{place}}", f"{{seeds}}/{OLD_SEED}/{place}")
+        return {name: f"{{seeds}}/{SHIP_SEED}/{place}" if path in old else path for name, path in found.items()}
+    if callable(files):
+        declared = functools.wraps(files)(declared)
+    return declared
+
+
 STAGES = tuple(named_gaps(layered(worn(row), {stage.name for stage in STAGES})) for row in STAGES)
+STAGES = tuple(dataclasses.replace(row, files=ship_seeded(row.files)) if row.files else row for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 
