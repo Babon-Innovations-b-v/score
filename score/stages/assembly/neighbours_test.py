@@ -24,19 +24,21 @@ from score.stages.assembly import neighbours  # noqa: E402
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
 
-def a_place(root, place, shows=()):
-    """A place's stage as the assembly leaves it: a root over layers/base.usda, its shown places referenced the
-    seed's way (../../<other>/<other>.usda)."""
+def a_place(root, place, shows=(), ground_shows=()):
+    """A place's stage as the assembly leaves it: a root over layers/ground.usdc (the terrain's, with the shown places
+    the seed lacks) and layers/base.usda, its shown places referenced the seed's way (../../<other>/<other>.usda)."""
     from pxr import Usd, UsdGeom
     folder = root / place
     (folder / "layers").mkdir(parents=True)
-    base = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
-    UsdGeom.Xform.Define(base, f"/{place}/Objects/crate_1")
-    for other in shows:
-        UsdGeom.Xform.Define(base, f"/{place}/Places/{other}").GetPrim().GetReferences().AddReference(
-            f"../../{other}/{other}.usda")
-    base.GetRootLayer().Save()
+    for layer, others in (("base.usda", shows), ("ground.usdc", ground_shows)):
+        base = Usd.Stage.CreateNew(str(folder / "layers" / layer))
+        UsdGeom.Xform.Define(base, f"/{place}/Objects/crate_1")
+        for other in others:
+            UsdGeom.Xform.Define(base, f"/{place}/Places/{other}").GetPrim().GetReferences().AddReference(
+                f"../../{other}/{other}.usda")
+        base.GetRootLayer().Save()
     stage = Usd.Stage.CreateNew(str(folder / f"{place}.usda"))
+    stage.GetRootLayer().subLayerPaths.append("./layers/ground.usdc")
     stage.GetRootLayer().subLayerPaths.append("./layers/base.usda")
     stage.SetDefaultPrim(stage.GetPrimAtPath(f"/{place}"))
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
@@ -73,6 +75,26 @@ def test_the_launch_shows_the_square_and_the_far_city_from_their_own_outputs():
         out = root / "out"
         out.mkdir()
         neighbours.make({**inputs, "assembly": root / "alone"}, out, 0, {})
+        shutil.rmtree(root / "kept")
+        verdict = judge(out)
+        assert verdict.answer == checks.PASS and verdict.measures["shown"] == 2, verdict
+    finally:
+        shutil.rmtree(root)
+
+
+def test_the_stairwell_shows_the_flat_its_terrain_added():
+    """Fault (2026-10-15): the stairwell's Places/flat, which its seed lacks and the terrain's ground layer adds,
+    kept its reference ../../flat/flat.usda: the stage pointed only the base layer's references at the copies."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        stairwell = a_place(root / "kept", "stairwell", ("street",), ("flat",))
+        (stairwell / assembly.RECORD).write_text(json.dumps({"places": [{"name": "street", "stage": "street"},
+                                                                        {"name": "flat", "stage": "flat"}]}))
+        inputs = {"assembly": stairwell, "assembly@street": a_place(root / "kept", "street"),
+                  "assembly@flat": a_place(root / "kept", "flat", ("stairwell",))}
+        out = root / "out"
+        out.mkdir()
+        neighbours.make(inputs, out, 0, {})
         shutil.rmtree(root / "kept")
         verdict = judge(out)
         assert verdict.answer == checks.PASS and verdict.measures["shown"] == 2, verdict
