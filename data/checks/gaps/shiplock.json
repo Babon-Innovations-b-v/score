@@ -1,0 +1,30 @@
+{
+ "gaps": [
+  {
+   "name": "shiplock: door leaf box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "door_leaf"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan: the concept's door is an orange padded leaf; the row is the kit's code-built dark grey leaf with a white band",
+   "decided": "overseer, 2026-10-15 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"door_leaf\", \"result\": \"fail\", \"why\": \"judge: round orange door\"}"
+   ]
+  },
+  {
+   "name": "shiplock: wall upper plain box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan: the concept's upper walls are orange padded panels; the row is the kit's code-built light grey bolted plate",
+   "decided": "overseer, 2026-10-15 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"wall_upper_plain\", \"result\": \"fail\", \"why\": \"judge: round upper half of the room\"}"
+   ]
+  }
+ ]
+}
