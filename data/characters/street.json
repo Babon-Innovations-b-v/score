@@ -1,22 +1,22 @@
 {
  "place": "street",
- "from": "the game 2099's EarthSite (game/prologue/earth_site/earth_site.gd _staff_the_launch), launch day, in EarthSite's own frame as the street's kit",
+ "from": "the street's concept (K03.png), measured by score.stages.concept_people (accepted 2026-10-12): two people standing (the driver by the state car, the guard at the block's street door); each stands at the plan's people spot for them (data/plans/street.json `people`, read off the concept), set on the first solid under it at the floor's level and clear of everything by the cast stage's own ground and body measures",
  "people": [
   {
    "name": "driver",
    "character": "driver",
-   "doing": "waiting",
+   "doing": "standing",
    "at": [
-    8.2,
-    0.0,
-    5.2
+    7.1,
+    0.14,
+    -1.6
    ],
    "facing_to": [
-    6.8,
-    0.0,
-    5.2
+    10.0,
+    0.14,
+    4.0
    ],
-   "why": "the driver waiting by the state car for the player",
+   "why": "the driver by the state car, at the plan's people spot that looks at the car (data/plans/street.json, read off the concept), on the pavement's paving (0.14 m, the cast stage's ground measure: gap 0.0, clear of every solid), facing the car's middle",
    "look": "driver_driver-suit"
   },
   {
