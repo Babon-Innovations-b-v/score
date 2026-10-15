@@ -48,6 +48,9 @@ def entries(inputs, row=None, check=None):
 
 
 def object_of(finding):
+    """The object a finding names: before its first ": ", or the `row` of a JSON finding (complete's rows check)."""
+    if finding.startswith("{"):
+        return json.loads(finding).get("row", "")
     return finding.split(": ", 1)[0]
 
 

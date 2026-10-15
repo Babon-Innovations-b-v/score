@@ -78,6 +78,15 @@ def test_an_entry_of_one_kind_moves_only_that_kind_of_fault_of_its_objects():
     assert gaps.moved(failed("baked matches its surfaces", [*entry[0]["faults"], colour]), entry).answer == checks.FAIL
 
 
+def test_a_row_no_stage_makes_moves_from_complete_s_rows_check_by_its_row():
+    """The rows check's findings are JSON ({"row", "why"}): its gap names the rows, and another row still fails."""
+    entry = gaps.entries(recorded("launch"), "complete", "rows")
+    named = failed("rows", entry[0]["faults"] + entry[1]["faults"])
+    assert gaps.moved(named, entry).answer == checks.PASS
+    other = failed("rows", [*named.findings, json.dumps({"row": "far_ferry", "why": "no object of this row"})])
+    assert gaps.moved(other, entry) == other
+
+
 def test_complete_fails_each_named_gap_by_name_with_its_numbers():
     found = gaps.judge_named(None, recorded("campgrounds"), None)
     assert found.answer == checks.FAIL and "crane: a foot off the floor" in found.reason
@@ -96,7 +105,7 @@ def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gat
     for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
                       ("surfaces-check", "baked matches its surfaces"),
                       ("surfaces-paint", "colour against the close-up"), ("complete", "people"), ("complete", "likeness"),
-                      ("complete", "motion")):
+                      ("complete", "motion"), ("complete", "rows")):
         check = next(check for check in ROWS[row].checks if check.name == gate)
         assert hasattr(check.judge, "__wrapped__"), (row, gate)
     assert hasattr(ROWS["surfaces-paint"].files, "carries") and hasattr(ROWS["surfaces-paint"].files, "wide")
