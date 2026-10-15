@@ -1,0 +1,3129 @@
+{
+	"room": "cockpit",
+	"frame": "the room's own: its middle on its floor, x east, z south, y up (the nose south)",
+	"counts": {
+		"cockpit_wall_lower_plain": 15,
+		"cockpit_wall_upper_plain": 16,
+		"cockpit_ring_floor_plate": 21,
+		"cockpit_roof_face_panel": 11,
+		"cockpit_window_frame": 4,
+		"cockpit_window_pane": 4,
+		"cockpit_frame_rib": 12,
+		"cockpit_door_leaf": 1,
+		"cockpit_dash_light_bar": 1,
+		"cockpit_edge_light_strip": 2,
+		"cockpit_ceiling_light_panel": 2,
+		"cockpit_floor_grate": 1
+	},
+	"kinds": {
+		"cockpit_door_leaf": {
+			"group": "hangs"
+		},
+		"cockpit_dash_light_bar": {
+			"light": {
+				"strength": 0.05,
+				"reach": 1.5,
+				"high": 0.02
+			},
+			"group": "hangs"
+		},
+		"cockpit_edge_light_strip": {
+			"light": {
+				"strength": 0.1,
+				"reach": 3.0,
+				"high": 0.03
+			},
+			"group": "hangs"
+		},
+		"cockpit_ceiling_light_panel": {
+			"light": {
+				"strength": 0.2,
+				"reach": 4.0,
+				"high": 0.05
+			},
+			"group": "hangs"
+		},
+		"cockpit_window_pane": {
+			"group": "hangs"
+		},
+		"cockpit_window_frame": {
+			"group": "hangs"
+		},
+		"cockpit_frame_rib": {
+			"group": "hangs"
+		},
+		"cockpit_floor_grate": {},
+		"cockpit_wall_lower_plain": {
+			"group": "hangs"
+		},
+		"cockpit_wall_upper_plain": {
+			"group": "hangs"
+		},
+		"cockpit_roof_face_panel": {
+			"group": "floors"
+		},
+		"cockpit_ring_floor_plate": {
+			"group": "floors"
+		}
+	},
+	"models": {
+		"wall_lower_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"window_frame_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"window_pane_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"frame_rib_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"frame_rib_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_leaf_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dash_light_bar_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"dash_light_bar_1_glow": {
+			"glows": true
+		},
+		"edge_light_strip_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"edge_light_strip_1_glow": {
+			"glows": true
+		},
+		"ceiling_light_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ceiling_light_panel_1_glow": {
+			"glows": true
+		},
+		"frame_rib_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"frame_rib_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"frame_rib_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"frame_rib_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"floor_grate_1": {
+			"glows": false,
+			"route": "code"
+		}
+	},
+	"pieces": [
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				-2.5613,
+				0.0,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4475,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				-1.1538,
+				0.0,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4475,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				-2.5613,
+				1.1,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4475,
+				1.33,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				-1.1538,
+				1.1,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4475,
+				1.33,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				1.1538,
+				0.0,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4475,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				2.5613,
+				0.0,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4475,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				1.1538,
+				1.1,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4475,
+				1.33,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				2.5613,
+				1.1,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.4475,
+				1.33,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				0.0,
+				2.0,
+				-1.47
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.94,
+				0.43,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				3.1653,
+				0.0,
+				-1.0042
+			],
+			"x": [
+				0.13865,
+				0.0,
+				-0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				3.0253,
+				0.0,
+				-0.0042
+			],
+			"x": [
+				0.13865,
+				0.0,
+				-0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				2.8853,
+				0.0,
+				0.9958
+			],
+			"x": [
+				0.13865,
+				0.0,
+				-0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				3.1653,
+				1.1,
+				-1.0042
+			],
+			"x": [
+				0.13865,
+				0.0,
+				-0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.2283,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				3.0253,
+				1.1,
+				-0.0042
+			],
+			"x": [
+				0.13865,
+				0.0,
+				-0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.025,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				2.8853,
+				1.1,
+				0.9958
+			],
+			"x": [
+				0.13865,
+				0.0,
+				-0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				0.8217,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_5"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				2.276,
+				0.0,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				1.138,
+				0.0,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				0.0,
+				0.0,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				-1.138,
+				0.0,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				-2.276,
+				0.0,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				2.276,
+				1.1,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				0.72,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_6"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				1.138,
+				1.1,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				0.72,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_6"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				0.0,
+				1.1,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				0.72,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_6"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				-1.138,
+				1.1,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				0.72,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_6"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				-2.276,
+				1.1,
+				1.47
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.178,
+				0.72,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_6"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				-2.8853,
+				0.0,
+				0.9958
+			],
+			"x": [
+				0.13865,
+				-0.0,
+				0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				-3.0253,
+				0.0,
+				-0.0042
+			],
+			"x": [
+				0.13865,
+				-0.0,
+				0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "cockpit_wall_lower_plain",
+			"at": [
+				-3.1653,
+				0.0,
+				-1.0042
+			],
+			"x": [
+				0.13865,
+				-0.0,
+				0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				-2.8853,
+				1.1,
+				0.9958
+			],
+			"x": [
+				0.13865,
+				-0.0,
+				0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				0.8217,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_5"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				-3.0253,
+				1.1,
+				-0.0042
+			],
+			"x": [
+				0.13865,
+				-0.0,
+				0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.025,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "cockpit_wall_upper_plain",
+			"at": [
+				-3.1653,
+				1.1,
+				-1.0042
+			],
+			"x": [
+				0.13865,
+				-0.0,
+				0.99034
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.99034,
+				-0.0,
+				0.13865
+			],
+			"size": [
+				1.0498,
+				1.2283,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-2.5448,
+				-0.02,
+				-1.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2724,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-1.2724,
+				-0.02,
+				-1.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2724,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-1.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2724,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.604,
+					0.346,
+					0.604,
+					0.6
+				]
+			],
+			"model": "ring_floor_plate_2"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				1.2724,
+				-0.02,
+				-1.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2724,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				2.5448,
+				-0.02,
+				-1.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2724,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-3.202,
+				-0.02,
+				-1.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.1319,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_3"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				3.202,
+				-0.02,
+				-1.5
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.1319,
+				0.6,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_3"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-2.4104,
+				-0.02,
+				-0.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2052,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-1.2052,
+				-0.02,
+				-0.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2052,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-0.546
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2052,
+				0.846,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.6026,
+					0.0,
+					0.6026,
+					0.354
+				]
+			],
+			"model": "ring_floor_plate_5"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				1.2052,
+				-0.02,
+				-0.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2052,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				2.4104,
+				-0.02,
+				-0.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2052,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_4"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-3.055,
+				-0.02,
+				-0.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.1674,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				3.055,
+				-0.02,
+				-0.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.1674,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-2.276,
+				-0.02,
+				0.3
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.138,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-1.138,
+				-0.02,
+				0.3
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.138,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				0.3
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.138,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				1.138,
+				-0.02,
+				0.3
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.138,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				2.276,
+				-0.02,
+				0.3
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.138,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_7"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				-2.887,
+				-0.02,
+				0.3
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.1674,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "cockpit_ring_floor_plate",
+			"at": [
+				2.887,
+				-0.02,
+				0.3
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				0.1674,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "ring_floor_plate_6"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				-2.5448,
+				2.45,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				1.2724,
+				0.6123,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				-1.2724,
+				2.45,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				1.2724,
+				0.6123,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				0.0,
+				2.45,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				1.2724,
+				0.6123,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				1.2724,
+				2.45,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				1.2724,
+				0.6123,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				2.5448,
+				2.45,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				1.2724,
+				0.6123,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				-3.202,
+				2.45,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.1309,
+				0.61,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				3.202,
+				2.45,
+				-1.5
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.1309,
+				0.61,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.0,
+			"model": "roof_face_panel_2"
+		},
+		{
+			"kind": "cockpit_window_frame",
+			"at": [
+				-1.335,
+				2.3246,
+				-0.9007
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				2.67,
+				1.2246,
+				0.127
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "window_frame_1"
+		},
+		{
+			"kind": "cockpit_window_pane",
+			"at": [
+				-1.335,
+				2.328,
+				-0.9
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				2.52,
+				1.2246,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "window_pane_1"
+		},
+		{
+			"kind": "cockpit_window_frame",
+			"at": [
+				1.335,
+				2.3246,
+				-0.9007
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				2.67,
+				1.2246,
+				0.127
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "window_frame_1"
+		},
+		{
+			"kind": "cockpit_window_pane",
+			"at": [
+				1.335,
+				2.328,
+				-0.9
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				2.52,
+				1.2246,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "window_pane_1"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				0.0,
+				2.3246,
+				-0.9007
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.15,
+				1.2246,
+				0.207
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				-2.846,
+				2.328,
+				-0.9
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.5855,
+				1.2246,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.7133105802047786,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				2.846,
+				2.328,
+				-0.9
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.5855,
+				1.2246,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.7133105802047786,
+			"model": "roof_face_panel_3"
+		},
+		{
+			"kind": "cockpit_window_frame",
+			"at": [
+				-1.335,
+				2.0806,
+				0.2993
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				2.67,
+				1.2246,
+				0.127
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "window_frame_1"
+		},
+		{
+			"kind": "cockpit_window_pane",
+			"at": [
+				-1.335,
+				2.084,
+				0.3
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				2.52,
+				1.2246,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "window_pane_1"
+		},
+		{
+			"kind": "cockpit_window_frame",
+			"at": [
+				1.335,
+				2.0806,
+				0.2993
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				2.67,
+				1.2246,
+				0.127
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "window_frame_1"
+		},
+		{
+			"kind": "cockpit_window_pane",
+			"at": [
+				1.335,
+				2.084,
+				0.3
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				2.52,
+				1.2246,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "window_pane_1"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				0.0,
+				2.0806,
+				0.2993
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.15,
+				1.2246,
+				0.207
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				-2.762,
+				2.084,
+				0.3
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.4175,
+				1.2246,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5980861244019137,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "cockpit_roof_face_panel",
+			"at": [
+				2.762,
+				2.084,
+				0.3
+			],
+			"x": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.4175,
+				1.2246,
+				0.04
+			],
+			"layer": 1,
+			"taper": 0.5980861244019137,
+			"model": "roof_face_panel_4"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				-2.595,
+				2.0806,
+				0.2993
+			],
+			"x": [
+				0.0,
+				-0.19926,
+				0.97995
+			],
+			"y": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				0.97995,
+				0.19926
+			],
+			"size": [
+				0.15,
+				5.19,
+				0.207
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "cockpit_door_leaf",
+			"at": [
+				-0.21,
+				0.0,
+				-1.485
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.32,
+				2.0,
+				0.11
+			],
+			"layer": 1,
+			"model": "door_leaf_1"
+		},
+		{
+			"kind": "cockpit_dash_light_bar",
+			"at": [
+				0.0,
+				1.02,
+				1.453
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				3.2,
+				0.04,
+				0.044
+			],
+			"layer": 1,
+			"model": "dash_light_bar_1"
+		},
+		{
+			"kind": "cockpit_dash_light_bar",
+			"at": [
+				0.0,
+				1.028,
+				1.428
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				3.18,
+				0.024,
+				0.006
+			],
+			"layer": 1,
+			"model": "dash_light_bar_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "cockpit_edge_light_strip",
+			"at": [
+				-2.903,
+				1.75,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.6,
+				0.05,
+				0.054
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1"
+		},
+		{
+			"kind": "cockpit_edge_light_strip",
+			"at": [
+				-2.873,
+				1.76,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				2.58,
+				0.03,
+				0.006
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "cockpit_edge_light_strip",
+			"at": [
+				2.903,
+				1.75,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.6,
+				0.05,
+				0.054
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1"
+		},
+		{
+			"kind": "cockpit_edge_light_strip",
+			"at": [
+				2.873,
+				1.76,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				2.58,
+				0.03,
+				0.006
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "cockpit_ceiling_light_panel",
+			"at": [
+				-1.65,
+				2.33,
+				-1.2
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.9,
+				0.06,
+				0.45
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "cockpit_ceiling_light_panel",
+			"at": [
+				-1.65,
+				2.33,
+				-1.2
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.8,
+				0.006,
+				0.35
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "cockpit_ceiling_light_panel",
+			"at": [
+				1.65,
+				2.33,
+				-1.2
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.9,
+				0.06,
+				0.45
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "cockpit_ceiling_light_panel",
+			"at": [
+				1.65,
+				2.33,
+				-1.2
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.8,
+				0.006,
+				0.35
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				0.0,
+				2.2683,
+				-1.0035
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				6.53,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_3"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				-3.2315,
+				-0.031,
+				-1.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.3353
+			],
+			"layer": 1,
+			"model": "frame_rib_4"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				3.2315,
+				-0.031,
+				-1.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.3353
+			],
+			"layer": 1,
+			"model": "frame_rib_4"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				0.0,
+				2.065,
+				-0.0035
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				6.53,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_3"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				-3.2315,
+				-0.031,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.132
+			],
+			"layer": 1,
+			"model": "frame_rib_5"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				3.2315,
+				-0.031,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.132
+			],
+			"layer": 1,
+			"model": "frame_rib_5"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				0.0,
+				1.8617,
+				0.9965
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				6.53,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_3"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				-3.2315,
+				-0.031,
+				1.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				1.9287
+			],
+			"layer": 1,
+			"model": "frame_rib_6"
+		},
+		{
+			"kind": "cockpit_frame_rib",
+			"at": [
+				3.2315,
+				-0.031,
+				1.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				1.9287
+			],
+			"layer": 1,
+			"model": "frame_rib_6"
+		},
+		{
+			"kind": "cockpit_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				-0.55
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				0.6,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		}
+	]
+}

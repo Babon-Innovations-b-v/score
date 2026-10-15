@@ -1,0 +1,3234 @@
+{
+	"room": "walkway",
+	"frame": "the room's own: its middle on its floor, x east, z south, y up (the nose south)",
+	"counts": {
+		"walkway_wall_lower_plain": 18,
+		"walkway_wall_upper_plain": 24,
+		"walkway_ring_floor_plate": 8,
+		"walkway_roof_face_panel": 8,
+		"walkway_frame_rib": 18,
+		"walkway_edge_light_strip": 2,
+		"walkway_ceiling_light_panel": 6,
+		"walkway_floor_grate": 8
+	},
+	"kinds": {
+		"walkway_frame_rib": {
+			"group": "hangs"
+		},
+		"walkway_floor_grate": {},
+		"walkway_edge_light_strip": {
+			"light": {
+				"strength": 0.1,
+				"reach": 3.0,
+				"high": 0.03
+			},
+			"group": "hangs"
+		},
+		"walkway_ceiling_light_panel": {
+			"light": {
+				"strength": 0.2,
+				"reach": 4.0,
+				"high": 0.05
+			},
+			"group": "hangs"
+		},
+		"walkway_wall_lower_plain": {
+			"group": "hangs"
+		},
+		"walkway_wall_upper_plain": {
+			"group": "hangs"
+		},
+		"walkway_roof_face_panel": {
+			"group": "floors"
+		},
+		"walkway_ring_floor_plate": {
+			"group": "floors"
+		}
+	},
+	"models": {
+		"wall_lower_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_5": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_6": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_7": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"frame_rib_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"frame_rib_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"edge_light_strip_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"edge_light_strip_1_glow": {
+			"glows": true
+		},
+		"ceiling_light_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ceiling_light_panel_1_glow": {
+			"glows": true
+		},
+		"floor_grate_1": {
+			"glows": false,
+			"route": "code"
+		}
+	},
+	"pieces": [
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.525,
+				0.0,
+				-4.87
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.19,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.525,
+				1.1,
+				-4.87
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.19,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.525,
+				0.0,
+				-4.87
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.19,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.525,
+				1.1,
+				-4.87
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.19,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.0,
+				2.0,
+				-4.87
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				0.94,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.57,
+				0.0,
+				-4.2625
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.57,
+				0.0,
+				-2.9875
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				1.1,
+				-4.2625
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				1.1,
+				-2.9875
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.57,
+				0.0,
+				-0.85
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.57,
+				0.0,
+				0.35
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.57,
+				0.0,
+				1.55
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				1.1,
+				-0.85
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				1.1,
+				0.35
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				1.1,
+				1.55
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.57,
+				0.0,
+				3.5125
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.965,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_4"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.57,
+				0.0,
+				4.4375
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.965,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_4"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				1.1,
+				3.5125
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.965,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_5"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				1.1,
+				4.4375
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.965,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_5"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				2.0,
+				2.6
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.94,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.57,
+				2.0,
+				-1.9
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.94,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				0.525,
+				0.0,
+				4.87
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.19,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.525,
+				1.1,
+				4.87
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.19,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.525,
+				0.0,
+				4.87
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.19,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.525,
+				1.1,
+				4.87
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.19,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				0.0,
+				2.0,
+				4.87
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.94,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.57,
+				0.0,
+				4.3417
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1567,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_5"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.57,
+				0.0,
+				3.225
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1567,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_5"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.57,
+				0.0,
+				2.1083
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1567,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_5"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				1.1,
+				4.3417
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1567,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_6"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				1.1,
+				3.225
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1567,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_6"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				1.1,
+				2.1083
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.1567,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_6"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.57,
+				0.0,
+				0.05
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.57,
+				0.0,
+				-1.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.57,
+				0.0,
+				-2.35
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				1.1,
+				0.05
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				1.1,
+				-1.15
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				1.1,
+				-2.35
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "walkway_wall_lower_plain",
+			"at": [
+				-0.57,
+				0.0,
+				-4.375
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.09,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_6"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				1.1,
+				-4.375
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.09,
+				1.3,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_7"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				2.0,
+				1.1
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.94,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "walkway_wall_upper_plain",
+			"at": [
+				-0.57,
+				2.0,
+				-3.4
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.94,
+				0.4,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "walkway_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-4.9
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.304,
+					0.0085,
+					0.304,
+					1.2165
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "walkway_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-3.675
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.304,
+					0.0085,
+					0.304,
+					1.2165
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "walkway_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-2.45
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.304,
+					0.0085,
+					0.304,
+					1.2165
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "walkway_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-1.225
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.304,
+					0.0085,
+					0.304,
+					1.2165
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "walkway_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				0.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.304,
+					0.0085,
+					0.304,
+					1.2165
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "walkway_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				1.225
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.304,
+					0.0085,
+					0.304,
+					1.2165
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "walkway_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				2.45
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.304,
+					0.0085,
+					0.304,
+					1.2165
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "walkway_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				3.675
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"openings": [
+				[
+					-0.304,
+					0.0085,
+					0.304,
+					1.2165
+				]
+			],
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "walkway_roof_face_panel",
+			"at": [
+				0.0,
+				2.42,
+				-4.9
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "walkway_roof_face_panel",
+			"at": [
+				0.0,
+				2.42,
+				-3.675
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "walkway_roof_face_panel",
+			"at": [
+				0.0,
+				2.42,
+				-2.45
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "walkway_roof_face_panel",
+			"at": [
+				0.0,
+				2.42,
+				-1.225
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "walkway_roof_face_panel",
+			"at": [
+				0.0,
+				2.42,
+				0.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "walkway_roof_face_panel",
+			"at": [
+				0.0,
+				2.42,
+				1.225
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "walkway_roof_face_panel",
+			"at": [
+				0.0,
+				2.42,
+				2.45
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "walkway_roof_face_panel",
+			"at": [
+				0.0,
+				2.42,
+				3.675
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.2,
+				1.225,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.0,
+				2.34,
+				-4.2035
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				-0.5665,
+				-0.031,
+				-4.2
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.5665,
+				-0.031,
+				-4.2
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.0,
+				2.34,
+				-2.8035
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				-0.5665,
+				-0.031,
+				-2.8
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.5665,
+				-0.031,
+				-2.8
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.0,
+				2.34,
+				-1.4035
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				-0.5665,
+				-0.031,
+				-1.4
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.0,
+				2.34,
+				-0.0035
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				-0.5665,
+				-0.031,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.5665,
+				-0.031,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.0,
+				2.34,
+				1.3965
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.5665,
+				-0.031,
+				1.4
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.0,
+				2.34,
+				2.7965
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				-0.5665,
+				-0.031,
+				2.8
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.0,
+				2.34,
+				4.1965
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.2,
+				0.12,
+				0.067
+			],
+			"layer": 1,
+			"model": "frame_rib_1"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				-0.5665,
+				-0.031,
+				4.2
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_frame_rib",
+			"at": [
+				0.5665,
+				-0.031,
+				4.2
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.12,
+				0.122,
+				2.407
+			],
+			"layer": 1,
+			"model": "frame_rib_2"
+		},
+		{
+			"kind": "walkway_edge_light_strip",
+			"at": [
+				-0.553,
+				2.25,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				9.4,
+				0.05,
+				0.054
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1"
+		},
+		{
+			"kind": "walkway_edge_light_strip",
+			"at": [
+				-0.523,
+				2.26,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				9.38,
+				0.03,
+				0.006
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "walkway_edge_light_strip",
+			"at": [
+				0.553,
+				2.25,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				9.4,
+				0.05,
+				0.054
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1"
+		},
+		{
+			"kind": "walkway_edge_light_strip",
+			"at": [
+				0.523,
+				2.26,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				9.38,
+				0.03,
+				0.006
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				-4.0833
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				-4.0833
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.9,
+				0.006,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				-2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				-2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.9,
+				0.006,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				-0.8167
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				-0.8167
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.9,
+				0.006,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				0.8167
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				0.8167
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.9,
+				0.006,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				2.45
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.9,
+				0.006,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				4.0833
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0,
+				0.2,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "walkway_ceiling_light_panel",
+			"at": [
+				0.0,
+				2.35,
+				4.0833
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				0.9,
+				0.006,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "walkway_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				-3.6875
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6,
+				1.2,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		},
+		{
+			"kind": "walkway_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				-2.4625
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6,
+				1.2,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		},
+		{
+			"kind": "walkway_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				-1.2375
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6,
+				1.2,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		},
+		{
+			"kind": "walkway_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				-0.0125
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6,
+				1.2,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		},
+		{
+			"kind": "walkway_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				1.2125
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6,
+				1.2,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		},
+		{
+			"kind": "walkway_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				2.4375
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6,
+				1.2,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		},
+		{
+			"kind": "walkway_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				3.6625
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6,
+				1.2,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		},
+		{
+			"kind": "walkway_floor_grate",
+			"at": [
+				0.0,
+				-0.018,
+				4.8875
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"z": [
+				0.0,
+				-1.0,
+				0.0
+			],
+			"size": [
+				0.6,
+				1.2,
+				0.044
+			],
+			"layer": 1,
+			"set_in": true,
+			"model": "floor_grate_1"
+		}
+	]
+}
