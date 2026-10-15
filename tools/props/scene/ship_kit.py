@@ -48,6 +48,9 @@ CELL = room_kit.FLOOR_CELL
 LAP = room_kit.LAP
 PLATE_DEEP = 0.04  # a deck or ceiling plate's thickness when the inventory gives none
 WALL_DEEP = 0.06
+# A set-in fitting's opening is cut to the fitting itself: the ship stands on no ground, so room_kit's 4 mm seam round a
+# floor grate looked into nothing (the cockpit's openings gate, 3 view rays, 2026-10-15).
+SET_IN_GAP = 0.0
 PILLAR = 0.15  # a roof window's rib between its lights
 SIDE_STRIP = 0.25  # the least plain roof left beside the roof windows, over the side consoles
 CEILING = re.compile(r"ceiling (\d+(?:\.\d+)?) m")
@@ -423,7 +426,7 @@ def laid_out(room, plan, inventory):
     found += raised_deck(room, plan, "ring_floor_plate", floor_deep)
     inventory = with_ruled_spots(plan, inventory)
     found += room_kit.placed_rows(room, None, kinds, inventory) + room_kit.flat_rows(room, inventory, kinds)
-    return room_kit.cut_openings(room, found)
+    return room_kit.cut_openings(room, found, gap=SET_IN_GAP)
 
 
 def layout(room, plan, inventory):

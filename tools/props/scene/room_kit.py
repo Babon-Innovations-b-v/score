@@ -415,9 +415,10 @@ def box_corners(laid):
                      for a in (-1, 1) for b in (0, 1) for c in (-1, 1)])
 
 
-def cut_openings(room, found):
+def cut_openings(room, found, gap=SET_IN_GAP):
     """Every set-in fitting's opening cut through each floor plate it lies over (the plate's `openings`: rectangles in
-    its own frame, x and y, low then high, clipped to the plate), the fitting's face flush with the plates' faces."""
+    its own frame, x and y, low then high, clipped to the plate), `gap` wider than the fitting all round, the
+    fitting's face flush with the plates' faces."""
     plates = [laid for laid in found if laid["kind"] == f"{room}_ring_floor_plate"]
     for fitting in (laid for laid in found if laid.get("set_in")):
         corners = box_corners(fitting)
@@ -426,7 +427,7 @@ def cut_openings(room, found):
             origin = np.asarray(plate["at"])
             axes = np.array([plate["x"], plate["y"]])
             local = (corners - origin) @ axes.T
-            low, high = local.min(axis=0) - SET_IN_GAP, local.max(axis=0) + SET_IN_GAP
+            low, high = local.min(axis=0) - gap, local.max(axis=0) + gap
             wide, tall, _ = plate["size"]
             low = np.maximum(low, [-wide / 2, 0.0])
             high = np.minimum(high, [wide / 2, tall])
