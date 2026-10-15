@@ -87,7 +87,7 @@ def remote_job(job, number):
         for entry in job["chunky"]:
             place = REMOTE / "in" / str(number) / entry["name"]
             sends.append((pathlib.Path(entry["parts"]), place))
-            moved["chunky"].append(dict(entry, parts=str(place)))
+            moved["chunky"].append(dict(entry, parts=str(place), stands=stands(pathlib.Path(entry["parts"]))))
     if "rows" in job:
         moved["rows"] = []
         for row_number, row in enumerate(job["rows"]):
@@ -100,6 +100,14 @@ def remote_job(job, number):
             sends.append((sorted(set(files)), place))
             moved["rows"].append(dict(row, models=[str(place / pathlib.Path(path).name) for path in row["models"]]))
     return moved, sends
+
+
+def stands(parts):
+    """Whether the paint levelled a labelled take's feet (its labels.json `feet` not skipped: a row of its place
+    stands it on the floor or ground), so make_chunky levels its cut-down copy's (levelled_feet). The labels are not
+    sent up (files_of)."""
+    labels = parts / "labels.json"
+    return labels.exists() and "skipped" not in json.loads(labels.read_text()).get("feet", {"skipped": "no report"})
 
 
 def files_of(local):

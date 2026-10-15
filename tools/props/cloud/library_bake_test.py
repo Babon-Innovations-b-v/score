@@ -21,6 +21,7 @@ def test_a_bake_keeps_the_machines_paths(tmp_path):
     found = library_bake.cluster_job(job, 3, True, tmp_path / "job3.json")
     written = json.loads((tmp_path / "job3.json").read_text())
     assert written["out"] == "/root/lib/out/3" and written["chunky"][0]["parts"] == "/root/lib/in/3/crate"
+    assert written["chunky"][0]["stands"] is False, "no feet report: its paint levelled nothing"
     assert written["picture"] == "/work/repo/data/library/x.png"
     places = {entry["path"] for entry in found["inputs"]}
     assert places == {"/root/lib/job3.json", "/root/lib/in/3/crate/part_0.glb"}
@@ -39,3 +40,12 @@ def test_a_failed_job_names_its_last_error(tmp_path):
                                                      "Blender quit\n")
     assert library_bake.last_error(tmp_path, 6) == "RuntimeError: Error: Cannot read '/gone/x.png'"
     assert library_bake.last_error(tmp_path, 7) == "never ran, or its log says no error"
+
+
+def test_a_piece_whose_paint_levelled_its_feet_stands_and_one_skipped_does_not(tmp_path):
+    """The hangar's ship (feet levelled in its paint) has its cut-down copy levelled up there (make_chunky
+    levelled_feet); a hung or mounted piece's paint skipped its feet and is left as made."""
+    (tmp_path / "labels.json").write_text(json.dumps({"feet": {"feet": 5, "levelled": [0.0116]}}))
+    assert library_bake.stands(tmp_path)
+    (tmp_path / "labels.json").write_text(json.dumps({"feet": {"skipped": "no floor or held row of its place"}}))
+    assert not library_bake.stands(tmp_path)

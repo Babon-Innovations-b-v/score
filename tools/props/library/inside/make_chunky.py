@@ -5,7 +5,8 @@ The job: {"out", "density", "wear", "dirt", "seed", "faces": the cut-down copy's
 "chunky": [{"name", "parts": folder of <library variant>.ply (labels.py), "base": the kind's turn (nine numbers),
 "size": its laid size, "screens": [{"at", "size", "variant"}], "cuts": [{"box": [x0, y0, x1, y1]} or
 {"circle": [x, y, radius]}], "density": optional,
-"foot": how high its foot stands over its floor (the kick wear), "decals": [{"at", "size", "variant", "turn"}]}]}.
+"foot": how high its foot stands over its floor (the kick wear), "decals": [{"at", "size", "variant", "turn"}],
+"stands": whether its paint levelled its feet (library_bake.py reads it from the labels; then levelled_feet)}]}.
 
 Per piece: its labelled parts are joined into the full-detail model, turned into the kit's frame and fitted to its
 laid size (so the game stretches nothing); a copy is closed into a solid (`solid_copy`: a Pixal3D model is a
@@ -60,6 +61,13 @@ VOXEL_FINEST = 0.0012
 # the wall. Thickening a noisy shell with even offset threw spikes tens of metres long (2026-10-06, a 0.6 m roof apex
 # came back 64 m tall and took 14 minutes), so the step thickens by the plain normal and checks its own box.
 DRIFT_SHARE = 0.03
+# A standing piece's cut-down copy is brought down level where the remesh and the cut moved its feet apart: each
+# footprint quadrant of its lowest LEVEL_BAND of height whose lowest point ends over LEVEL_GAP over the lowest comes
+# down its whole gap there, spread and faded as the paint's place_line.flattened_base does (the check's quadrants
+# and 3 cm: bake_check.STANCE_BAND, STANCE_GAP). The paint levels the full model, but the remesh's voxels (a 31 m ship
+# at 10 cm) and the cut move its feet: the hangar's ship, level in its paint, baked one front foot 22.2 cm up and
+# the other 5.8 (2026-10-15); a quadrant over LEVEL_MOST of the piece's size up is the model's fault, left as it is.
+LEVEL_BAND, LEVEL_GAP, LEVEL_MOST = 0.25, 0.03, 0.15
 # glTF (y up, -z forward), which labels.py wrote in, onto Blender's frame (z up).
 GLTF_TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
 
@@ -220,6 +228,7 @@ def make_piece(entry, job, out):
     low = solid_copy(whole, entry.get("faces", job["faces"]), entry["name"], entry["size"],
                      entry.get("wall", default_wall(entry["size"])))
     opened(low, entry.get("cuts", []), entry["size"])
+    levelled = levelled_feet(low, entry["size"]) if entry.get("stands") else None
     # Screens are seated on the solid copy, which stands about a voxel proud of the paper-thin model: seated on the
     # model they sank into it, and the model check read the overlap as a wall under 3 mm (2026-10-06).
     tree = BVHTree.FromObject(low, bpy.context.evaluated_depsgraph_get())
@@ -239,7 +248,7 @@ def make_piece(entry, job, out):
     report = atlas.export(low, out)
     report.update(side=atlas.side, high_triangles=len(whole.data.polygons), bounds=bounds(low), screens=screens,
                   decals=[decal["variant"] for decal in decals], decals_off=decals_off,
-                  cuts=len(entry.get("cuts", [])), capped_density=atlas.capped,
+                  cuts=len(entry.get("cuts", [])), capped_density=atlas.capped, levelled=levelled,
                   seconds=round(time.time() - began, 1))
     return report
 
@@ -302,6 +311,37 @@ def with_decals(whole, decals):
     whole.select_set(True)
     bpy.context.view_layer.objects.active = whole
     bpy.ops.object.join()
+
+
+def levelled_feet(copy, size):
+    """The cut-down copy's feet brought down level (LEVEL_BAND, LEVEL_GAP, LEVEL_MOST): each quadrant's gap brought
+    down, as a list (empty when none was over LEVEL_GAP or one was over LEVEL_MOST)."""
+    import numpy as np
+    flat = np.empty(len(copy.data.vertices) * 3)
+    copy.data.vertices.foreach_get("co", flat)
+    points = flat.reshape(-1, 3)  # Blender's frame: z up
+    low = points[:, 2].min()
+    band = LEVEL_BAND * (points[:, 2].max() - low)
+    base = points[points[:, 2] <= low + band]
+    middle = (base.min(axis=0) + base.max(axis=0)) / 2
+    gaps, places = [], []
+    for x_side in (base[:, 0] < middle[0], base[:, 0] >= middle[0]):
+        for y_side in (base[:, 1] < middle[1], base[:, 1] >= middle[1]):
+            chosen = base[x_side & y_side]
+            if len(chosen):
+                lowest = chosen[chosen[:, 2].argmin()]
+                gaps.append(lowest[2] - low)
+                places.append(lowest[:2])
+    gaps, places = np.array(gaps), np.array(places)
+    if gaps.max() <= LEVEL_GAP or gaps.max() > LEVEL_MOST * max(size):
+        return []
+    drops = np.where(gaps > LEVEL_GAP, gaps, 0.0)
+    weights = 1.0 / np.maximum(((points[:, None, :2] - places[None]) ** 2).sum(axis=2), 1e-12)
+    drop = (weights * drops).sum(axis=1) / weights.sum(axis=1)
+    points[:, 2] -= drop * np.clip((low + band - points[:, 2]) / np.maximum(band - drop, 1e-9), 0.0, 1.0)
+    copy.data.vertices.foreach_set("co", points.ravel())
+    copy.data.update()
+    return [round(float(gap), 4) for gap in drops if gap > 0]
 
 
 def held_to_box(copy, whole, size):
