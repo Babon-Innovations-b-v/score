@@ -427,6 +427,21 @@ def test_a_tall_take_s_feet_are_found_in_the_resting_check_s_band():
     assert capped["feet"] == 4 and len(capped["levelled"]) == 1 and not capped["refused"], capped
 
 
+def test_a_take_on_two_feet_has_its_short_one_levelled():
+    """The engine room's fuel tank (2026-10-15): an upright tank on two cradle feet, one 5.9 cm up, tipped onto it
+    when dropped; two feet are levelled as three are."""
+    import numpy as np
+    import trimesh
+    from score.stages.surfaces import place_line
+    body = trimesh.creation.box(bounds=((-0.4, 0.3, -0.4), (0.4, 2.0, 0.4)))
+    cradle = [trimesh.creation.box(bounds=((-0.5, end, along - 0.08), (0.5, 0.3, along + 0.08)))
+              for along, end in ((-0.3, 0.0), (0.3, 0.059))]
+    mesh = trimesh.util.concatenate([body, *cradle])
+    points, record = place_line.levelled_feet(np.asarray(mesh.vertices), np.asarray(mesh.faces), tall=2.0)
+    assert record["feet"] == 2 and len(record["levelled"]) == 1 and not record["refused"], record
+    assert abs(points[:, 1][np.asarray(mesh.vertices)[:, 2] > 0.2].min()) < 1e-9, "the short foot down on the floor"
+
+
 def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name():
     from score.stages.surfaces import place_line
     import feet
