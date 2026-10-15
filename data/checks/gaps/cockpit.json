@@ -17,6 +17,25 @@
     "control_stick-s1: orange plastic measured L*a*b* [45.8, 19.3, 26.3], vinyl_orange dE 32.5 (proposed: orange plastic (flight stick: an upright ergonomic hand ))",
     "control_stick-s1: black plastic measured L*a*b* [28.1, 0.0, 0.6], anodized_black dE 25.6 (proposed: black plastic (flight stick: an upright ergonomic hand ))"
    ]
+  },
+  {
+   "name": "cockpit: the two pilots not on the stage, no look made",
+   "row": "complete",
+   "check": "people",
+   "objects": [
+    "pilot_port",
+    "pilot_starboard",
+    "pilot_port (none named)",
+    "pilot_starboard (none named)"
+   ],
+   "reason": "the owner's brief puts two pilots at the seats; no pilot look is made (people with no accepted body ship as named fails, the owner's rule); next month's people work",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "pilot_port: in the cast, not on the stage",
+    "pilot_starboard: in the cast, not on the stage",
+    "pilot_port (none named): not a made model: the cast names no look",
+    "pilot_starboard (none named): not a made model: the cast names no look"
+   ]
   }
  ]
 }
