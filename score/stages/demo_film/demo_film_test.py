@@ -32,6 +32,7 @@ def test_only_the_named_places_have_the_row_and_it_declares_its_tools():
     assert all(demo_film.applies(place) for place in own) and not demo_film.applies("no such place")
     found = demo_film.files("hub")
     assert found["scene"] == "{data}/scene/hub.json"
+    assert "scene" not in demo_film.files("cockpit"), "a ship room has no seed record; its assembly's record is read"
     assert found["film hub"] == "{data}/definitions/demo_films/hub.json"
     assert not any(name.startswith("film ") and name != "film hub" for name in found)
     assert all((REPO / path).exists() for path in demo_film.TOOLS)
