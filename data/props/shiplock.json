@@ -3,8 +3,9 @@
  "order": "prop-first",
  "objects": {
   "outer_hatch": {
-   "route": "prop",
-   "take": "outer_hatch-s1"
+   "route": "code",
+   "code_model": "{home}/work/ship/outer_hatch-code/outer_hatch_1.gltf",
+   "note": "code build as drawn, outline 0.912 against the close-up; no fit needed"
   },
   "locker": {
    "route": "prop",

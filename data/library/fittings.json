@@ -4594,6 +4594,29 @@
 			},
 			"prints_off": [],
 			"checked": "2026-10-15, the overseer's decision: built in code once its Pixal3D take failed likeness's outline (0.335 against 0.5; no pose of the take reached more than 0.517). Built as its close-up shows it, a six-armed gauge, lit rods and ribbed heads, its level arms turned 25 degrees about the upright one (pieces_ship.TURN, picked on the outline every 5 degrees: 0.427 square on, 0.526 at 25). The likeness gate replayed free on the cockpit: outline 0.532 (best of eight ways), passes; a plus-shaped build reached 0.456 at best."
+		},
+		"outer_hatch": {
+			"closeup": "pixal/outer_hatch-s1.svviews/input.png",
+			"parts": [
+				"frame",
+				"stripe",
+				"door",
+				"dog",
+				"wheel",
+				"port",
+				"hinge"
+			],
+			"built": {
+				"dog": 1.0,
+				"door": 0.841,
+				"frame": 0.72,
+				"hinge": 0.982,
+				"port": 0.719,
+				"stripe": 0.325,
+				"wheel": 1.0
+			},
+			"prints_off": [],
+			"checked": "2026-10-16, the overseer's decision: built in code once its Pixal3D take failed likeness (0.313 against 0.3623, prop route). An octagonal hatch in a white frame, a hazard-striped band, the round steel door with four dogs, a hub wheel, a glass port and two hinges, as its close-up shows it; its proportions as first drawn (pieces_ship.HATCH_*), no fit needed: outline against the close-up 0.912 (best of eight ways)."
 		}
 	}
 }

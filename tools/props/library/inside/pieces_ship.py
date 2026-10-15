@@ -160,6 +160,59 @@ def thrust_indicator(size, laid):
     return parts
 
 
+# The outer hatch's proportions, read off its close-up: the octagon's cut corners (a share of its width), the white
+# frame's and the striped band's widths, and the round door's radius (a share of the half width).
+HATCH_CUT, HATCH_FRAME, HATCH_BAND, HATCH_DOOR = 0.3, 0.12, 0.06, 0.82
+
+
+def octagon(wide, tall, inset, cut):
+    """An octagon's corners (x, y) round a wide x tall box standing on y 0, `inset` in from its edges, its corners cut
+    `cut` each way."""
+    left, right, low, high = -wide / 2 + inset, wide / 2 - inset, inset, tall - inset
+    cut = max(cut - inset * 0.414, 0.0)
+    return [(left + cut, low), (right - cut, low), (right, low + cut), (right, high - cut), (right - cut, high),
+            (left + cut, high), (left, high - cut), (left, low + cut)]
+
+
+def outer_hatch(size, laid):
+    """The shiplock's outer pressure hatch as its close-up shows it (the overseer, 2026-10-16: built in code once its
+    Pixal3D take failed likeness, 0.313 against 0.3623): a thick white octagonal frame, inside it an octagonal band of
+    hazard stripes, the round steel door with four locking dogs, a hub wheel and a small round glass port, and two
+    hinges on its left."""
+    wide, tall, deep = size
+    front, back = -deep / 2, deep / 2
+    cut = HATCH_CUT * wide
+    frame, band = HATCH_FRAME * wide, HATCH_BAND * wide
+    parts = [shapes.prism(octagon(wide, tall, 0.0, cut), front + deep * 0.2, back, "hull_white_gloss", "frame"),
+             shapes.prism(octagon(wide, tall, frame, cut), front + deep * 0.15, front + deep * 0.2, "hazard_paint",
+                          "stripe"),
+             shapes.prism(octagon(wide, tall, frame + band, cut), front + deep * 0.12, front + deep * 0.15,
+                          "hammertone_grey", "recess")]
+    middle = (0.0, tall / 2)
+    radius = HATCH_DOOR * (wide / 2 - frame - band)
+    face = front + deep * 0.12
+    parts.append(shapes.cylinder((middle[0], middle[1], face), (middle[0], middle[1], face - 0.04), radius,
+                                 "bare_steel", 48, "door"))
+    parts.append(shapes.cylinder((middle[0], middle[1], face - 0.04), (middle[0], middle[1], face - 0.1),
+                                 radius * 0.22, "hammertone_grey", 24, "wheel"))
+    for angle in range(0, 360, 90):
+        x = middle[0] + math.cos(math.radians(angle)) * radius * 0.7
+        y = middle[1] + math.sin(math.radians(angle)) * radius * 0.7
+        parts.append(shapes.bevelled(shapes.box((x - 0.06, y - 0.06, face - 0.09), (x + 0.06, y + 0.06, face - 0.04),
+                                                "bare_steel", "dog"), 0.004))
+    port = (middle[0] + radius * 0.35, middle[1] + radius * 0.6)
+    parts.append(shapes.cylinder((port[0], port[1], face - 0.04), (port[0], port[1], face - 0.06), radius * 0.11,
+                                 "bare_steel", 24, "port"))
+    parts.append(shapes.cylinder((port[0], port[1], face - 0.06), (port[0], port[1], face - 0.065), radius * 0.08,
+                                 "clear_glass", 24, "glass"))
+    for y in (tall * 0.33, tall * 0.62):
+        x = -wide / 2 + frame * 0.6
+        parts.append(shapes.bevelled(shapes.box((x - 0.06, y - 0.08, front + deep * 0.05),
+                                                (x + 0.12, y + 0.08, front + deep * 0.2), "hammertone_grey", "hinge"),
+                                     0.004))
+    return parts
+
+
 BUILDERS = {name: value for name, value in globals().items() if callable(value) and name in (
     "window_frame", "window_pane", "edge_light_strip", "dash_light_bar", "ceiling_light_panel", "floor_grate",
-    "frame_rib", "command_platform", "platform_step", "thrust_indicator")}
+    "frame_rib", "command_platform", "platform_step", "thrust_indicator", "outer_hatch")}
