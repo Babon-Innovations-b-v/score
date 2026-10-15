@@ -1,0 +1,22 @@
+{
+ "gaps": [
+  {
+   "name": "cockpit: five finishes no library surface fits by colour (the throttle pedestal's grey paint, red plastic and dark metal, the flight stick's orange and black plastic)",
+   "row": "surfaces-paint",
+   "check": "colour against the close-up",
+   "objects": [
+    "centre_pedestal-s1",
+    "control_stick-s1"
+   ],
+   "reason": "the library has no red or orange plastic and no dark bare steel near their measured colours; new library surfaces or not is the creator's choice (on his list)",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "centre_pedestal-s1: Grey painted metal measured L*a*b* [45.3, 0.6, -2.3], hammertone_grey dE 3.9 (proposed: Grey painted metal (throttle pedestal between the pilot seat))",
+    "centre_pedestal-s1: Red plastic measured L*a*b* [46.3, 32.8, 25.5], vinyl_orange dE 27.6 (proposed: Red plastic (throttle pedestal between the pilot seat))",
+    "centre_pedestal-s1: Unpainted metal measured L*a*b* [32.0, 1.0, 0.6], perforated_steel dE 34.7 (proposed: Unpainted metal (throttle pedestal between the pilot seat))",
+    "control_stick-s1: orange plastic measured L*a*b* [45.8, 19.3, 26.3], vinyl_orange dE 32.5 (proposed: orange plastic (flight stick: an upright ergonomic hand ))",
+    "control_stick-s1: black plastic measured L*a*b* [28.1, 0.0, 0.6], anodized_black dE 25.6 (proposed: black plastic (flight stick: an upright ergonomic hand ))"
+   ]
+  }
+ ]
+}
