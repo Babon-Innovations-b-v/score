@@ -400,6 +400,8 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
 GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
              "surfaces-paint": ("colour against the close-up",),
+             # the hangar's ship standing on one leg (overseer 2026-10-15 23:10; no hangar film while it stands)
+             "machines-layer": ("resting",),
              # the ship rooms' box gate: a box on a plain code piece against a concept drawn before the plan (overseer
              # 2026-10-15; navigation's door leaf, the walkway's upper wall plate), as complete's boxes check below
              "complete-boxes": ("grounded",),

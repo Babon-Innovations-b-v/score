@@ -78,6 +78,41 @@
    "faults": [
     "hose_reel: outline 0.484 under 0.5 (code route)"
    ]
+  },
+  {
+   "name": "ship: tips on one leg (machines layer)",
+   "row": "machines-layer",
+   "check": "resting",
+   "objects": [
+    "ship_1"
+   ],
+   "reason": "the hangar's ship stands on one leg and its four lift thrusters float above their mounts in tonight's replay; the gap lets the hangar's assembly pass so its neighbours' rows can run, and the hangar is not filmed until the ship stands on all its legs with the thrusters seated, when this gap is removed and the hangar re-run alone",
+   "decided": "overseer, 2026-10-15 23:10 (no hangar film while this gap stands)",
+   "faults": [
+    "ship_1: tips: its weight is 587 cm outside what it stands on"
+   ]
+  },
+  {
+   "name": "ship: tips and its lift thrusters float (assembly)",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "/hangar/Objects/ship_1",
+    "/hangar/Objects/lift_thruster_1",
+    "/hangar/Objects/lift_thruster_2",
+    "/hangar/Objects/lift_thruster_3",
+    "/hangar/Objects/lift_thruster_4"
+   ],
+   "reason": "the hangar's ship stands on one leg and its four lift thrusters float above their mounts in tonight's replay; the gap lets the hangar's assembly pass so its neighbours' rows can run, and the hangar is not filmed until the ship stands on all its legs with the thrusters seated, when this gap is removed and the hangar re-run alone",
+   "decided": "overseer, 2026-10-15 23:10 (no hangar film while this gap stands)",
+   "faults": [
+    "/hangar/Objects/ship_1: foot off 0.0584: a foot 5.8 cm off what is under it while another touches (over 3 cm)",
+    "/hangar/Objects/ship_1: tips 5.867: its weight falls outside what it touches",
+    "/hangar/Objects/lift_thruster_1: floats 0.3952: nothing under it within the tolerance",
+    "/hangar/Objects/lift_thruster_2: floats 0.3952: nothing under it within the tolerance",
+    "/hangar/Objects/lift_thruster_3: floats 0.3952: nothing under it within the tolerance",
+    "/hangar/Objects/lift_thruster_4: floats 0.3952: nothing under it within the tolerance"
+   ]
   }
  ]
 }
