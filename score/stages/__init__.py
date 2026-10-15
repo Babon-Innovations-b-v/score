@@ -393,6 +393,9 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
 GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
              "surfaces-paint": ("colour against the close-up",),
+             # the ship rooms' box gate: a box on a plain code piece against a concept drawn before the plan (overseer
+             # 2026-10-15; navigation's door leaf, the walkway's upper wall plate), as complete's boxes check below
+             "complete-boxes": ("grounded",),
              # complete's own: the people the cast names and no accepted body of its look lays (the owner's rule: they
              # ship as named fails until the people work lands), a likeness no props file answers, a motion not built,
              # a row no stage makes yet (the launch's two far towers), a layout still taken from the source game (the

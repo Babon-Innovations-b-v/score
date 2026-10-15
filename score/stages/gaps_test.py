@@ -119,8 +119,10 @@ def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gat
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
     assert places == ["airlock", "camp", "campgrounds", "cockpit", "flat", "galley", "garage", "greenhouse", "habitat",
                       "hangar", "hub", "lab", "launch", "navigation", "old_station", "quarters", "shiplock", "square",
-                      "stairwell", "street", "tube", "workshop", "wreck"], places
+                      "stairwell", "street", "tube", "walkway", "workshop", "wreck"], places
     assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("storage")
+    # a gate given gaps after 2026-10-14 reads only a file naming it, the KEYED_WHOLE places too (galley's box gate)
+    assert gaps.NAME in ROWS["complete-boxes"].files("walkway") and gaps.NAME not in ROWS["complete-boxes"].files("galley")
     assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("storage")
     from score.graph import GAPPED
     assert GAPPED == "named gaps" and GAPPED in [check.name for check in ROWS["complete"].checks]
@@ -128,13 +130,13 @@ def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gat
                       ("surfaces-check", "baked matches its surfaces"),
                       ("surfaces-paint", "colour against the close-up"), ("complete", "people"), ("complete", "likeness"),
                       ("complete", "motion"), ("complete", "rows"), ("complete", "game"),
-                      ("complete", "boxes")):
+                      ("complete", "boxes"), ("complete-boxes", "grounded")):
         check = next(check for check in ROWS[row].checks if check.name == gate)
         assert hasattr(check.judge, "__wrapped__"), (row, gate)
     assert hasattr(ROWS["surfaces-paint"].files, "carries") and hasattr(ROWS["surfaces-paint"].files, "wide")
     from score import graph
     from score.graph import _code
-    hashing = {name for name in ("assembly", "surfaces-check", "surfaces-paint", "complete")
+    hashing = {name for name in ("assembly", "surfaces-check", "surfaces-paint", "complete-boxes", "complete")
                if _code.REPO / "score/stages/gaps.py" in _code.source_files(graph.code_functions(ROWS[name]))}
     assert hashing == {"complete"}, hashing  # moving a verdict re-makes nothing, the paid paint above all
     every = [entry for place in places for entry in json.loads((gaps.FOLDER / f"{place}.json").read_text())["gaps"]]
