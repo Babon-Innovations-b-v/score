@@ -21,9 +21,9 @@ own sound; paid and cleared by the runner like any paid row.
   About EUR 0.7 a place (EUR 1.0 for the 8 s path of 192 frames; the overseer's plan, 2026-10-15).
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame. Whether a film reads well is the creator's call.
-- **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (the garage's rover drives out
-  from 1 s, inside the 4 s path; the launch lifts off at 4 s, at the path's end, so its film shows the rocket before
-  lift-off); `stills.py` (the demo-stills row,
+- **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (a film starts a second before the
+  first one-off moment of its place's motion record, `motion_start`: the launch's from 3 s, so its lift-off at 4 s
+  lands 1 s into the shot; places whose motions loop start at 0); `stills.py` (the demo-stills row,
   `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film starts by itself once its place
   passes complete, or fails it only on its named gaps, in any world run). Test: `demo_film_test.py` (no Blender, no spend).

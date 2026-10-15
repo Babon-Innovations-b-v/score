@@ -286,17 +286,17 @@ def shot_frames(move, view, number, frames):
     return standing_frames(eye, aim, view, number, frames)
 
 
-def shot_times(number, time_rate, seconds=SHOT_SECONDS):
+def shot_times(number, time_rate, seconds=SHOT_SECONDS, start=0.0):
     """The stage's time codes of a shot's frames, `seconds` long, the film's shots one after the other at
-    consecutive moments."""
+    consecutive moments from the stage's `start` second."""
     frames = round(seconds * RATE)
-    return [round((number * frames + index) * time_rate / RATE) for index in range(frames)]
+    return [round((start + (number * frames + index) / RATE) * time_rate) for index in range(frames)]
 
 
-def people_over(stage, time_rate):
+def people_over(stage, time_rate, seconds=SHOT_SECONDS, start=0.0):
     """For a shot's number, the place's people's boxes at every PEOPLE_EVERY of its frames and its last."""
     def boxes(number):
-        times = shot_times(number, time_rate)
+        times = shot_times(number, time_rate, seconds, start)
         return camera_paths.people_boxes(stage, times[::PEOPLE_EVERY] + times[-1:])
     return boxes
 
@@ -336,12 +336,12 @@ def chosen(given):
     return film, place or film, [name for name in names.split(",") if name]
 
 
-def film_shots(record, stage, scenes, cameras, earlier, seconds=SHOT_SECONDS):
+def film_shots(record, stage, scenes, cameras, earlier, seconds=SHOT_SECONDS, start=0.0):
     """A film's shots: an earlier take's where it stands clear (`earlier`, kept_shots) and its camera is the same,
     else a new move from the camera: the moves, and each shot's views at its moments of the stage's time with
-    whether it is new; each shot `seconds` long."""
+    whether it is new; each shot `seconds` long, the first from the stage's `start` second."""
     time_rate = renders.stage_rate(stage)
-    people_at = people_over(stage, time_rate)
+    people_at = people_over(stage, time_rate, seconds, start)
     room = record.get("floor") if record.get("inside") else None
     frames = round(seconds * RATE)
     moves, shots = [], []
@@ -357,7 +357,7 @@ def film_shots(record, stage, scenes, cameras, earlier, seconds=SHOT_SECONDS):
             continue
         moves.append(move)
         timed = [dict(frame, frame=time) for frame, time in
-                 zip(shot_frames(move, view, number, frames), shot_times(number, time_rate, seconds))]
+                 zip(shot_frames(move, view, number, frames), shot_times(number, time_rate, seconds, start))]
         shots.append((timed, True))
     return moves, shots
 
@@ -402,12 +402,14 @@ def film_jobs(out, film, stage, shown, views, kind, jobs_each, size=SIZE, ink=Tr
     return written
 
 
-def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots=SHOTS, seconds=SHOT_SECONDS):
+def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots=SHOTS, seconds=SHOT_SECONDS,
+         start=0.0):
     """Each place's views and its cloud jobs (`jobs_each` a place for its new frames and as many for the ink lines of
     the frames it keeps from the earlier take in `keep`); the job files. The views file records every shot's move
     (its path or its spot, its seed, how far its start moved, the take it was kept from) and the planner's commit.
-    `size`, `ink`, `shots` (shots a film) and `seconds` (a shot's length, kept in the views file for the cut) set the
-    frames: the demo's default is SIZE with ink, SHOTS a film, SHOT_SECONDS a shot."""
+    `size`, `ink`, `shots` (shots a film), `seconds` (a shot's length, kept in the views file for the cut) and `start`
+    (the stage's second the film starts at) set the frames: the demo's default is SIZE with ink, SHOTS a film,
+    SHOT_SECONDS a shot, from the stage's start."""
     (out / "views").mkdir(parents=True, exist_ok=True)
     (out / "jobs").mkdir(parents=True, exist_ok=True)
     written = []
@@ -423,7 +425,7 @@ def plan(out, stages, places, jobs_each=1, keep=None, size=SIZE, ink=True, shots
             raise SystemExit(f"{place} has no scene record with cameras ({kept} or data/scene/{place}.json)")
         scenes = camera_paths.place_scenes(stage)
         moves, shots = film_shots(record, stage, scenes, film_cameras(place, record, names, count=shots),
-                                  kept_shots(keep, film, scenes, stage), seconds)
+                                  kept_shots(keep, film, scenes, stage), seconds, start)
         views = [view for shot, _ in shots for view in shot]
         new = [view for shot, fresh in shots if fresh for view in shot]
         old = [view for shot, fresh in shots if not fresh for view in shot]
