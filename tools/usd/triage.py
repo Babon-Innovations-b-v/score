@@ -527,7 +527,8 @@ def overlap_faults(entries, statics, scene):
 # --- the drop -----------------------------------------------------------------------------------------------------
 
 def drop_faults(entries, settled):
-    """SAGE's rule on a settle run's result: every loose object that moves or turns too far when dropped."""
+    """SAGE's rule on a settle run's result: every loose object that moves or turns too far when dropped; one the drop
+    found starting inside a static (dropped on the ground alone) is kept as a false alarm."""
     import settle
     faults = []
     for name, found in sorted(settled.get("objects", {}).items()):
@@ -540,7 +541,15 @@ def drop_faults(entries, settled):
         before = entry["matrix"]
         turned, moved = settle.correction({"before": before, "after": np.asarray(found["motion"]) @ before,
                                            "middle": entry["local"].mean(axis=0).tolist()})
-        if settle.unstable(turned, moved):
+        if settle.unstable(turned, moved) and found.get("inside"):
+            # dropped with what it starts in left out (the ground alone): its fall says nothing of its rest; how deep
+            # it lies in them is the overlap check's (the greenhouse's water tank, 8 mm into its floor plate, fell
+            # 2.3 m to the terrain under the room, 2026-10-15)
+            faults.append(fault(entry, "unstable", moved, False,
+                                f"dropped on the ground alone, as it starts in {', '.join(found['inside'])}: no "
+                                f"measure of its rest (the overlap check judges how deep it lies)",
+                                entry["mesh"].bounds.mean(axis=0)))
+        elif settle.unstable(turned, moved):
             faults.append(fault(entry, "unstable", moved, True,
                                 f"moves {moved:.2f} m and turns {turned:.0f} degrees when dropped (SAGE: over "
                                 f"{settle.SAGE_MOVE} m or {settle.SAGE_TURN:.0f} degrees)",

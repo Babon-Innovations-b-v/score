@@ -92,6 +92,12 @@ def a_long_drop_is_unstable_and_faults_group():
         problems = []
         if ("unstable", True) not in verdicts(found).get("crate_1", []):
             problems.append(f"a box that moves 0.5 m when dropped reads {verdicts(found).get('crate_1')}")
+        alone = triage.triage(stage, {"objects": {"crate_1": {"motion": moved.tolist(), "moving": 0.0,
+                                                               "inside": ["plate_1"]}}})
+        if ("unstable", False) not in verdicts(alone).get("crate_1", []) or \
+                ("unstable", True) in verdicts(alone).get("crate_1", []):
+            problems.append(f"a box dropped on the ground alone (it starts in a plate) reads "
+                            f"{verdicts(alone).get('crate_1')}")
         floats = [group for group in found["groups"] if group["kind"] == "floats"]
         if len(floats) != 1 or floats[0]["count"] != 2 or floats[0]["worst"]["object"].endswith("crate_2"):
             problems.append(f"the two floating boxes do not form one group, worst the higher: {floats}")
