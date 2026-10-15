@@ -30,6 +30,23 @@
     "fluid_shelves_1: crane_yellow_paint is 11.3 L* lighter than galvanized_steel in its close-up but bakes 4.7 darker",
     "parts_trolley_1: warning_paint is 13.3 L* lighter than wood_board in its close-up but bakes 15.1 darker"
    ]
+  },
+  {
+   "name": "garage: layout taken from the source game: 13 citations, 5 positions",
+   "row": "complete",
+   "check": "game",
+   "objects": [
+    "data/scene/garage.json",
+    "data/motion/garage.json",
+    "data/movers/garage.json"
+   ],
+   "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "data/scene/garage.json: 8 entries take their numbers from the game (from), 4 positions placed from it",
+    "data/motion/garage.json: 4 entries take their numbers from the game (from), 1 positions placed from it",
+    "data/movers/garage.json: 1 entries take their numbers from the game (from), 0 positions placed from it"
+   ]
   }
  ]
 }

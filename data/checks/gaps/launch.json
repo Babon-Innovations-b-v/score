@@ -39,6 +39,19 @@
    "faults": [
     "{\"row\": \"far_city_pencil_tower\", \"why\": \"no object of this row on the stage (generate) and no written drop reason (`dropped`)\"}"
    ]
+  },
+  {
+   "name": "launch: layout taken from the source game: 12 citations, 4 positions, kit in the game's frame: 63 piece positions",
+   "row": "complete",
+   "check": "game",
+   "objects": [
+    "data/scene/launch.json"
+   ],
+   "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); its kit (data/kit/launch.json) is laid in the game's frame; the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "data/scene/launch.json: 12 entries take their numbers from the game (from), 4 positions placed from it"
+   ]
   }
  ]
 }
