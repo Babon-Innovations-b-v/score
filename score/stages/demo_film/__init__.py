@@ -73,9 +73,13 @@ def applies_extra(place):
 
 
 def common_files(place):
-    """The place's scene record, motion record where it has one and picked viewpoints, and every tool file a film is
-    made with."""
-    found = {"scene": "{data}/scene/" + place + ".json", **{f"tool {path}": "{repo}/" + path for path in TOOLS}}
+    """The place's seed scene record, motion record and picked viewpoints where it has them, and every tool file a film
+    is made with. A ship room has no seed record (its record is its assembly's scene.json, which demo.plan reads
+    first), so it declares none, as stills.files (2026-10-16: demo-film@cockpit refused, data/scene/cockpit.json
+    missing)."""
+    found = {f"tool {path}": "{repo}/" + path for path in TOOLS}
+    if (REPO / "data/scene" / f"{place}.json").exists():
+        found["scene"] = "{data}/scene/" + place + ".json"
     if (REPO / "data/motion" / f"{place}.json").exists():
         found["motion"] = "{data}/motion/" + place + ".json"
     if (REPO / "data/review" / place / "viewpoints.json").exists():
