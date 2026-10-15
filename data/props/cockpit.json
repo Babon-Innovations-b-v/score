@@ -12,7 +12,8 @@
   },
   "thrust_indicator": {
    "route": "prop",
-   "take": "thrust_indicator-s1"
+   "take": "thrust_indicator-s1",
+   "note": "arm angle fitted to the close-up outline (0.427 square-on, 0.532 at 25°)"
   },
   "centre_pedestal": {
    "route": "prop",
