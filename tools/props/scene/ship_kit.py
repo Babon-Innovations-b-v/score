@@ -18,6 +18,10 @@ What is laid, and from what:
   corner one), from sill to head;
 - the floor and the ceiling: deck plates and ceiling plates in a grid over the room's square part, the nose's strip
   between the cut corners in a grid, and each cut corner one triangle (`taper` 0);
+- a kit block's `step` (the engine room): a raised deck at its `up` height from the back wall to `at`, and its face
+  (`pit_wall_panel`) across the room at that edge;
+- plain rows the plan lays by rule with no spots of their own (RULED: light strips, ceiling panels, grates, hand
+  rails, a corridor's frame ribs clear of its doors, a step's face), given spots from the plan;
 - the rows the inventory places by their spots (room_kit.placed_rows): the made pieces (seats, consoles, the door's
   frame and leaf) and the code-built trims and lamps; a row that `lies` on the floor (the grate) laid flat and set
   into the deck, its opening cut through the plates under it (room_kit.flat_rows, cut_openings).
@@ -251,6 +255,25 @@ def deck(room, plan, kind, level, face, deep):
     return found
 
 
+def raised_deck(room, plan, kind, deep):
+    """The kit block's `step` (the engine room's raised aft deck: `up` metres, from its back wall to `at` on z): deck
+    plates over it at its height, as wide as the room's back, laid over the room's own deck."""
+    step = plan["kit"].get("step")
+    if not step:
+        return []
+    half_w, half_d = plan["w"] / 2, plan["d"] / 2
+    return grid(room, kind, (-half_w, -half_d), (half_w, step["at"]), step["up"] - deep / 2, UP, deep)
+
+
+def step_faces(plan, row):
+    """The raised deck's face (`pit_wall_panel`): panels across the room at its front edge (`at`), facing the lower deck
+    (south), from the floor up to the step."""
+    step = plan["kit"]["step"]
+    count, wide = row.get("count", 1), plan["w"]
+    return [{"x": -wide / 2 + (index + 0.5) * wide / count, "y": 0.0, "z": step["at"], "facing": 180,
+             "size": [wide / count, row["size"][1], step["up"]]} for index in range(count)]
+
+
 def row_bounds(plan):
     """A tapered room's rows from back to front, (z0, z1, glazed): plain rows behind the windows' back edge (the kit
     block's `windows_from`, metres from the back wall), then the glazed rows to the front, each about CELL long."""
@@ -319,7 +342,7 @@ def tapered_deck(room, plan, kind, deep, roof):
     return found
 
 
-RULED = ("edge_light_strip", "ceiling_light_panel", "floor_grate", "frame_rib", "pipe_straight")
+RULED = ("edge_light_strip", "ceiling_light_panel", "floor_grate", "frame_rib", "pipe_straight", "pit_wall_panel")
 STRIP_IN = 0.05  # a wall-top light strip's or hand rail's middle off its wall
 STRIP_DOWN = 0.15  # a wall-top light strip under the ceiling
 RAIL_HIGH = 1.0  # a hand rail's height
@@ -356,6 +379,8 @@ def ruled_spots(plan, row):
                 for z in steps]
     if kind == "floor_grate":
         return [{"x": 0.0, "y": 0.0, "z": z, "facing": 0} for z in steps]
+    if kind == "pit_wall_panel":
+        return step_faces(plan, row)
     if kind == "frame_rib":
         found = []
         for z in steps:
@@ -395,6 +420,7 @@ def laid_out(room, plan, inventory):
     else:
         found += deck(room, plan, "ring_floor_plate", -floor_deep / 2, UP, floor_deep)
         found += deck(room, plan, "roof_face_panel", ceiling + roof_deep / 2, DOWN, roof_deep)
+    found += raised_deck(room, plan, "ring_floor_plate", floor_deep)
     inventory = with_ruled_spots(plan, inventory)
     found += room_kit.placed_rows(room, None, kinds, inventory) + room_kit.flat_rows(room, inventory, kinds)
     return room_kit.cut_openings(room, found)

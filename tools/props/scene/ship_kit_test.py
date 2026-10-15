@@ -211,6 +211,16 @@ def test_a_room_s_ruled_plain_rows_are_laid_from_its_plan():
     assert len(ribs) == 3 + 3 + 2  # a ceiling bar each, an east bar each, a west bar where no door is
 
 
+def test_a_raised_deck_and_its_step_face_are_laid():
+    plan = dict(CORRIDOR, kit={"nose_cut": 0.0, "step": {"up": 0.4, "at": 1.0}})
+    raised = ship_kit.raised_deck("corridor", plan, "ring_floor_plate", 0.04)
+    assert raised and all(abs(piece["at"][1] - 0.38) < 0.01 for piece in raised)  # its top at the step's height
+    assert min(piece["at"][2] for piece in raised) <= -2.9  # from the back wall
+    faces = ship_kit.ruled_spots(plan, {"id": "pit_wall_panel", "size": [1.2, 0.06, 0.4], "count": 2})
+    assert len(faces) == 2 and all(spot["z"] == 1.0 and spot["size"][2] == 0.4 for spot in faces)
+    assert abs(sum(spot["size"][0] for spot in faces) - 1.2) < 1e-9  # across the whole room
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
