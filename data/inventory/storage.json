@@ -49,16 +49,21 @@
    "group": "kit: furniture",
    "at": [
     {
-     "x": -1.25,
+     "x": -1.188,
      "y": 0.0,
      "z": 0.0,
      "facing": 90
     },
     {
-     "x": 0.35,
+     "x": 0.338,
      "y": 0.0,
-     "z": -1.2,
-     "facing": 180
+     "z": -1.138,
+     "facing": 180,
+     "size": [
+      2.3,
+      2.6,
+      0.6
+     ]
     }
    ],
    "thing": "prop:storage_cargo_rack",
