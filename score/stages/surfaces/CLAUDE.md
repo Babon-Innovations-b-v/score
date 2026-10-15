@@ -122,13 +122,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   through the middle (the square's guard hut, 2026-10-14: 14 cm across, it stood on a strip and tipped). Last, the face
   it rests on (`resting_base`: its convex hull's face under its weight) comes down level when it rises over 1% of its
   footprint's diagonal: the quadrants and cells miss a plinth rim under a level floor (the garage's control cabinet,
-  2026-10-15: 2.1 degrees over). A row is a cable, cloth or debris by its id, not a word of its description
-  (`stands_on_feet`: "cables running up from its top" left the cabinet unlevelled). Wear and dirt stay
+  2026-10-15: 2.1 degrees over). Wear and dirt stay
   the room's one setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
   picture-derived look (tried 2026-10-13, reverted).
 - **The paint levels a take's feet before its bake** (`place_line.levelled_feet`, `tools/props/library/feet.py`):
-  a take a row lays loose on the floor or held (`stands_on_feet`, from the inventory and the resting rules, declared
-  in the table) has its short legs stretched onto the level plane through its lowest foot, in its own frame; a foot
+  a take a row stands on the floor or ground (`stands_on_feet`, from the inventory and the resting rules, declared
+  in the table: never mounted on another object, fixed, hung, laid tilted on purpose (`leans`) or a pile of ground
+  debris; a word of a description, such as a cabinet's "cables", is no class) has its short legs stretched onto the level plane through its lowest foot, in its own frame; a foot
   over a tenth of its size up is a missing leg and fails the gate "feet in one plane" by name. Never level by
   tipping the model: its own up is the reference (the water tank's top lay level within 0.25 degrees).
 - **Painting is 3D parts plus the shared library, only.** A picture's colours never reach a model: a map's label

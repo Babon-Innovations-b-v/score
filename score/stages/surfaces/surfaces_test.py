@@ -641,7 +641,7 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     """Both ways (the garage's control cabinet, 2026-10-15: 1.5 m tall on a plinth rim whose underside rises across
     its footprint under its floor's level cells, resting 2.1 degrees over; the quadrants and the cells' plane passed it): the
     face it rests on comes down level; a cabinet on a level rim is left as made. And its row, "cables running up from
-    its top", lays it loose on the floor, while a row that is a cable by its id does not."""
+    its top", stands it on the floor, while a stick mounted on a console and a cairn of stones do not."""
     import numpy as np
     import trimesh
     from score.stages.surfaces import place_line
@@ -676,12 +676,16 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     folder = pathlib.Path(tempfile.mkdtemp())
     rows = [{"id": "control_cabinet", "anchor": "floor", "thing": "prop:garage_control_cabinet",
              "name": "a standing steel control cabinet, cables running up from its top"},
-            {"id": "cable_run", "anchor": "floor", "thing": "prop:garage_cable_run", "name": "a cable run"},
+            {"id": "control_stick", "anchor": "on:main_console", "thing": "prop:cockpit_control_stick",
+             "name": "flight stick set in the console"},
+            {"id": "cairn", "anchor": "floor", "thing": "prop:campgrounds_cairn",
+             "name": "cairn of flat stones stacked into a narrow tower"},
             {"id": "small_panel", "anchor": "floor", "thing": "prop:wreck_small_panel", "name": "small torn hull panel",
              "leans": "debris lying tilted on purpose"}]
     (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
     assert place_line.stands_on_feet({"kind": "garage_control_cabinet"}, folder / "inventory.json", rules)
-    assert not place_line.stands_on_feet({"kind": "garage_cable_run"}, folder / "inventory.json", rules)
+    for lying in ("cockpit_control_stick", "campgrounds_cairn"):  # mounted on another object; a pile of stones
+        assert not place_line.stands_on_feet({"kind": lying}, folder / "inventory.json", rules), lying
     assert not place_line.stands_on_feet({"kind": "wreck_small_panel"}, folder / "inventory.json", rules)
     shutil.rmtree(folder)
 
