@@ -117,8 +117,8 @@ def test_complete_fails_each_named_gap_by_name_with_its_numbers():
 
 def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gates():
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
-    assert places == ["airlock", "camp", "campgrounds", "cockpit", "flat", "galley", "garage", "greenhouse", "habitat",
-                      "hangar", "hub", "lab", "launch", "navigation", "old_station", "quarters", "shiplock", "square",
+    assert places == ["airlock", "camp", "campgrounds", "cockpit", "engineroom", "flat", "galley", "garage", "greenhouse",
+                      "habitat", "hangar", "hub", "lab", "launch", "navigation", "old_station", "quarters", "shiplock", "square",
                       "stairwell", "street", "tube", "walkway", "workshop", "wreck"], places
     assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("storage")
     # a gate given gaps after 2026-10-14 reads only a file naming it, the KEYED_WHOLE places too

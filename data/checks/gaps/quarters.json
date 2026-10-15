@@ -103,6 +103,32 @@
    "faults": [
     "quarters.roof_face_panel: judge: round ceiling section with lights and structures"
    ]
+  },
+  {
+   "name": "quarters: made pieces' boxes not passed (hatch door frame)",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "hatch_door_frame"
+   ],
+   "reason": "made pieces whose box disagrees with the concept; next month checks whether the box or the model is wrong",
+   "decided": "overseer, 2026-10-16",
+   "faults": [
+    "{\"row\": \"hatch_door_frame\", \"result\": \"fail\", \"why\": \"judge: round most of the room\"}"
+   ]
+  },
+  {
+   "name": "quarters: made pieces' boxes not passed (hatch door frame) (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "quarters.hatch_door_frame"
+   ],
+   "reason": "made pieces whose box disagrees with the concept; next month checks whether the box or the model is wrong",
+   "decided": "overseer, 2026-10-16",
+   "faults": [
+    "quarters.hatch_door_frame: judge: round most of the room"
+   ]
   }
  ]
 }
