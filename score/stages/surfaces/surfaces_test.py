@@ -676,10 +676,13 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     folder = pathlib.Path(tempfile.mkdtemp())
     rows = [{"id": "control_cabinet", "anchor": "floor", "thing": "prop:garage_control_cabinet",
              "name": "a standing steel control cabinet, cables running up from its top"},
-            {"id": "cable_run", "anchor": "floor", "thing": "prop:garage_cable_run", "name": "a cable run"}]
+            {"id": "cable_run", "anchor": "floor", "thing": "prop:garage_cable_run", "name": "a cable run"},
+            {"id": "small_panel", "anchor": "floor", "thing": "prop:wreck_small_panel", "name": "small torn hull panel",
+             "leans": "debris lying tilted on purpose"}]
     (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
     assert place_line.stands_on_feet({"kind": "garage_control_cabinet"}, folder / "inventory.json", rules)
     assert not place_line.stands_on_feet({"kind": "garage_cable_run"}, folder / "inventory.json", rules)
+    assert not place_line.stands_on_feet({"kind": "wreck_small_panel"}, folder / "inventory.json", rules)
     shutil.rmtree(folder)
 
 def test_only_a_place_nobody_walks_bakes_with_no_kick_wear():
