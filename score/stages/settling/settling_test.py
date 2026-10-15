@@ -15,7 +15,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/usd"))
 from pxr import Usd, UsdGeom  # noqa: E402
-from score import checks  # noqa: E402
+from score import checks, review  # noqa: E402
 from score.stages import assembly, settling as settle  # noqa: E402
 import resting_test  # noqa: E402
 
@@ -68,10 +68,19 @@ def the_drop_gate_fails_a_broken_drop_and_names_what_was_kept():
         (output / settle.RECORD).write_text(json.dumps({"place": PLACE, "overlaps": [], "objects": objects}))
         failed = settle.judge_rested(output, {}, None)
         problems = []
-        if passed.answer != checks.PASS or passed.measures["kept"] != 2:
-            problems.append(f"kept as laid and for the paint: {passed}")
+        if passed.answer != checks.PASS or passed.measures["kept"] != 1 or not any(
+                line.startswith("tank_1") for line in passed.findings):
+            problems.append(f"kept as laid counted, the one for the paint named only: {passed}")
         if failed.answer != checks.FAIL or failed.measures["broken"] != 1:
             problems.append(f"still moving: {failed}")
+        objects["rack_2"] = dict(objects["rack_1"])  # one more kept as laid is still worse on accept
+        objects.pop("box_1")
+        (output / settle.RECORD).write_text(json.dumps({"place": PLACE, "overlaps": [], "objects": objects}))
+        card = lambda verdict: {"rested": {"answer": verdict.answer, "measures": verdict.measures,
+                                           "better": verdict.better}}
+        more = settle.judge_rested(output, {}, None)
+        if not review.regressions(card(more), card(passed)):
+            problems.append("one more kept as laid was not worse than the accepted output")
         return problems
 
 

@@ -298,19 +298,25 @@ def layer_faults(folder):
 def judge_rested(output, inputs, evidence):
     """Fail when the drop broke: an object still moving at its end, or two at rest inside each other (a rest of at
     least one written). One that would not rest as laid keeps its pose (its fault stays where it was, for its layout
-    or its model) and one stood upright on uneven feet waits on the paint: both are named, neither fails the row."""
+    or its model; counted as `kept`, lower is better) and one stood upright on uneven feet waits on the paint (named,
+    not counted): neither fails the row."""
     record = read_json(pathlib.Path(output) / RECORD)
     faults = [f"{name}: {entry['said']}" for name, entry in sorted(record["objects"].items())
               if "still moving" in entry["said"]]
     faults += [f"{first} and {second} came to rest inside each other" for first, second in record["overlaps"]
                if any(record["objects"].get(name, {}).get("rested") for name in (first, second))]  # not both kept
-    kept = [f"{name}: {entry['said']}" for name, entry in sorted(record["objects"].items())
-            if not entry["rested"] and "still moving" not in entry["said"]]
+    unrested = [(name, entry) for name, entry in sorted(record["objects"].items())
+                if not entry["rested"] and "still moving" not in entry["said"]]
+    kept = [f"{name}: {entry['said']}" for name, entry in unrested if not for_the_paint(entry)]
+    for_paint = [f"{name}: {entry['said']}" for name, entry in unrested if for_the_paint(entry)]
     reason = (f"{len(faults)} drops broke" if faults else f"all {len(record['objects'])} rests found") + \
-        (f"; {len(kept)} kept as laid or stood upright for the paint" if kept else "")
+        (f"; {len(kept)} kept as laid" if kept else "") + \
+        (f"; {len(for_paint)} stood up for the paint" if for_paint else "")
+    # `kept` counts only what stays as laid: one stood up for the paint is a rest put right, named, not scored (the
+    # lab's chairs stood up off a raised caster read as 2 kept become 3, 2026-10-15)
     return checks.Verdict("rested", checks.FAIL if faults else checks.PASS, reason,
                           {"broken": len(faults), "kept": len(kept)}, {"broken": "lower", "kept": "lower"},
-                          tuple(faults) + tuple(kept))
+                          tuple(faults) + tuple(kept) + tuple(for_paint))
 
 
 def for_the_paint(entry):
