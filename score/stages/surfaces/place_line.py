@@ -155,16 +155,19 @@ def finished_frame(mesh, take):
 def stands_on_feet(entry, inventory, rules_file):
     """Whether a row of the take's own place lays its kind loose on the floor or held on another row, as the resting
     triage reads the same data (data/checks/resting.json): not fixed, not on a wall or ceiling, not hanging by its
-    words, not of a class that may bed in (cable, cloth, debris). Only such a take has feet to level: a glove that
-    hangs, a wall panel or a fragment thrown on the ground is left as made."""
+    words, not of a class that may bed in (cable, cloth, debris) by its id, what it is: a word of its description is
+    not its class (the garage's control cabinet, "cables running up from its top", was read as a cable and never
+    levelled, 2026-10-15). Only such a take has feet to level: a glove that hangs, a wall panel or a fragment thrown
+    on the ground is left as made."""
     rules = json.loads(pathlib.Path(rules_file).read_text())
     rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory and pathlib.Path(inventory).exists() \
         else []
-    loose_words = set(rules["hanging"]) | {word for bedding in rules["may_bed"] for word in bedding["words"]}
+    bedding_words = {word for bedding in rules["may_bed"] for word in bedding["words"]}
     return any(row.get("thing") == f"prop:{entry['kind']}" and not row.get("fixed")
                and row.get("support") in (None, "floor", "held")
                and (row.get("anchor", "") in ("floor", "ground", "") or row.get("anchor", "").startswith("on:"))
-               and not row_words(row) & loose_words for row in rows)
+               and not row_words(row) & set(rules["hanging"])
+               and not row_words({"id": row.get("id", "")}) & bedding_words for row in rows)
 
 
 def row_words(row):
@@ -185,12 +188,15 @@ def levelled_feet(vertices, faces):
     points, base = flattened_base(points, BASE_BAND * height, FOOT_TOLERANCE * size, BASE_MOST * size)
     points, plane = sloped_base(points, BASE_BAND * height, BASE_CELL * diagonal, FOOT_TOLERANCE * size,
                                 BASE_MOST * size)
-    record["refused"] = record["refused"] + base["refused"] + plane["refused"]
+    points, rests = resting_base(points, faces, BASE_BAND * height, FOOT_TOLERANCE * diagonal, BASE_MOST * size)
+    record["refused"] = record["refused"] + base["refused"] + plane["refused"] + rests["refused"]
     shares = {key: [round(gap / size, 4) for gap in record[key]] for key in ("gaps", "levelled", "refused")}
     found = {"feet": record["feet"], **shares, "base": [round(gap / size, 4) for gap in base["quadrants"]],
              "flattened": [round(gap / size, 4) for gap in base["flattened"]]}
     if plane["rise"] is not None:  # only a take whose base slopes as one plane says so: the others' reports as before
         found["sloped"] = round(plane["rise"] / size, 4)
+    if rests["rise"] is not None:  # only a take whose resting face leans says so
+        found["rests"] = round(rests["rise"] / size, 4)
     return points, found
 
 
@@ -261,6 +267,53 @@ def sloped_base(points, band, cell, tolerance, most):
         return points, record
     drop = np.clip(np.c_[points[:, 0], points[:, 2], np.ones(len(points))] @ fit - plane.min(), 0.0, rise)
     drop = np.minimum(drop, points[:, 1] - low)  # a point under the plane comes down to the lowest, never past it
+    fade = np.clip((low + band - points[:, 1]) / np.maximum(band - drop, 1e-9), 0.0, 1.0)
+    points[:, 1] -= drop * fade
+    return points, record
+
+
+def resting_base(points, faces, band, tolerance, most):
+    """A take's vertices with the face it rests on brought down level: the face of its convex hull straight under its
+    weight (the surface's middle, area-weighted, as the resting check weighs it) is the plane a level floor meets;
+    when it rises over `tolerance` across the base, every point of the bottom `band` comes down by that plane's height
+    over its lowest (never past the lowest point), faded over the band as flattened_base fades it. Never by tipping
+    the model. The quadrants and the cells' plane miss a base on a rim with an open middle: the garage's control
+    cabinet rested 2.1 degrees over on its plinth's rim, its middle 4 cm up (2026-10-15). A rise over `most` is a
+    fault of the model: nothing moves and it comes back refused. Returns (vertices, {"rise": the resting face's rise
+    across the base when it leans, else None; "refused": [...]})."""
+    import numpy as np
+    import trimesh
+    points = np.array(points, dtype=np.float64)
+    record = {"rise": None, "refused": []}
+    mesh = trimesh.Trimesh(points, np.asarray(faces).reshape(-1, 3), process=False)
+    if mesh.area <= 0:
+        return points, record
+    middle = (mesh.triangles_center * mesh.area_faces[:, None]).sum(axis=0) / mesh.area
+    hull = trimesh.convex.convex_hull(points)
+    hits, _, struck = hull.ray.intersects_location([[middle[0], points[:, 1].max() + 1.0, middle[2]]],
+                                                    [[0.0, -1.0, 0.0]])
+    if not len(struck):
+        return points, record
+    face = struck[np.argmin(hits[:, 1])]
+    normal, corner = hull.face_normals[face], hull.vertices[hull.faces[face][0]]
+    if normal[1] > -1e-6:  # no face under it that faces down
+        return points, record
+    low = points[:, 1].min()
+    base = points[:, 1] <= low + band
+
+    def height_at(found):
+        return corner[1] - (normal[0] * (found[:, 0] - corner[0]) + normal[2] * (found[:, 2] - corner[2])) / normal[1]
+
+    plane = height_at(points[base])
+    rise = float(plane.max() - plane.min())
+    if rise <= tolerance:
+        return points, record
+    record["rise"] = rise
+    if rise > most:
+        record["refused"] = [rise]
+        return points, record
+    drop = np.clip(height_at(points) - plane.min(), 0.0, rise)
+    drop = np.minimum(drop, points[:, 1] - low)  # never past the lowest point
     fade = np.clip((low + band - points[:, 1]) / np.maximum(band - drop, 1e-9), 0.0, 1.0)
     points[:, 1] -= drop * fade
     return points, record

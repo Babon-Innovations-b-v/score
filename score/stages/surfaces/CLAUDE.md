@@ -119,7 +119,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   spread by inverse squared distance and faded over the band; over 15% is a model fault, refused. Then an underside
   that is one sloping plane (`sloped_base`: 80% of its cells within 1% of the plane fitted to them, rising over 1%)
   comes down by the plane's height, never past the lowest point: the quadrants miss a ramp whose low strip runs
-  through the middle (the square's guard hut, 2026-10-14: 14 cm across, it stood on a strip and tipped). Wear and dirt stay
+  through the middle (the square's guard hut, 2026-10-14: 14 cm across, it stood on a strip and tipped). Last, the face
+  it rests on (`resting_base`: its convex hull's face under its weight) comes down level when it rises over 1% of its
+  footprint's diagonal: the quadrants and cells miss a plinth rim under a level floor (the garage's control cabinet,
+  2026-10-15: 2.1 degrees over). A row is a cable, cloth or debris by its id, not a word of its description
+  (`stands_on_feet`: "cables running up from its top" left the cabinet unlevelled). Wear and dirt stay
   the room's one setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
   picture-derived look (tried 2026-10-13, reverted).
 - **The paint levels a take's feet before its bake** (`place_line.levelled_feet`, `tools/props/library/feet.py`):

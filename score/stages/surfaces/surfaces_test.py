@@ -636,6 +636,52 @@ def test_a_base_sloping_as_one_plane_through_its_middle_is_brought_down_level():
     points, record = place_line.sloped_base(ball, 0.5, 0.17, 0.03, 0.4)
     assert record["rise"] is None and np.array_equal(points, ball), record
 
+
+def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
+    """Both ways (the garage's control cabinet, 2026-10-15: 1.5 m tall on a plinth rim whose underside rises across
+    its footprint under its floor's level cells, resting 2.1 degrees over; the quadrants and the cells' plane passed it): the
+    face it rests on comes down level; a cabinet on a level rim is left as made. And its row, "cables running up from
+    its top", lays it loose on the floor, while a row that is a cable by its id does not."""
+    import numpy as np
+    import trimesh
+    from score.stages.surfaces import place_line
+
+    def cabinet(rise):
+        body = trimesh.creation.box(bounds=((-0.3, 0.04, -0.25), (0.3, 1.5, 0.25)))  # its floor 4 cm up, level
+        rim = [trimesh.creation.box(bounds=low_high) for low_high in (
+            ((-0.3, 0.0, -0.25), (0.3, 0.08, -0.2)), ((-0.3, 0.0, 0.2), (0.3, 0.08, 0.25)),
+            ((-0.3, 0.0, -0.25), (-0.25, 0.08, 0.25)), ((0.25, 0.0, -0.25), (0.3, 0.08, 0.25)))]
+        body = body.subdivide().subdivide().subdivide().subdivide()  # its floor dense: cells off the rim's plane
+        mesh = trimesh.util.concatenate([body, *rim])
+        points = np.asarray(mesh.vertices).copy()
+        bottom = points[:, 1] < 1e-9
+        points[bottom, 1] = rise * (points[bottom, 0] + 0.3) / 0.6  # the rim's underside rises along x
+        return points, np.asarray(mesh.faces)
+
+    def resting_lean(points, faces):
+        mesh = trimesh.Trimesh(points, faces, process=False)
+        middle = (mesh.triangles_center * mesh.area_faces[:, None]).sum(axis=0) / mesh.area
+        hull = mesh.convex_hull
+        hits, _, struck = hull.ray.intersects_location([[middle[0], 3.0, middle[2]]], [[0.0, -1.0, 0.0]])
+        return np.degrees(np.arccos(-hull.face_normals[struck[np.argmin(hits[:, 1])]][1]))
+
+    points, faces = cabinet(0.012)  # 1.2 cm across 0.6 m: under the 1.5 cm a share of its height lets pass
+    assert resting_lean(points, faces) > 1.0
+    levelled, record = place_line.levelled_feet(points, faces)
+    assert record.get("rests") and resting_lean(levelled, faces) < 0.1, record
+    points, faces = cabinet(0.0)
+    level, record = place_line.levelled_feet(points, faces)
+    assert "rests" not in record and np.array_equal(level, points), record
+    rules = REPO / "data/checks/resting.json"
+    folder = pathlib.Path(tempfile.mkdtemp())
+    rows = [{"id": "control_cabinet", "anchor": "floor", "thing": "prop:garage_control_cabinet",
+             "name": "a standing steel control cabinet, cables running up from its top"},
+            {"id": "cable_run", "anchor": "floor", "thing": "prop:garage_cable_run", "name": "a cable run"}]
+    (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
+    assert place_line.stands_on_feet({"kind": "garage_control_cabinet"}, folder / "inventory.json", rules)
+    assert not place_line.stands_on_feet({"kind": "garage_cable_run"}, folder / "inventory.json", rules)
+    shutil.rmtree(folder)
+
 def test_only_a_place_nobody_walks_bakes_with_no_kick_wear():
     """The wreck's surface data says nobody walks it: its bake's specs say kicks 0. Every other place's data says
     nothing, so unwalked hands its specs back as given, the very same object (recipes.WALKED: kicked as before), and
