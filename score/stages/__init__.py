@@ -199,9 +199,25 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
 # concept's people (concept_people, in this table so the cast reads its accepted count) and its seed's geometry.
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
 DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
-CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
+def cast_place(place):
+    """A place with a cast row: its concept shows people (cast.PLACES), or its cast record names people its concept
+    does not show, for the record's count_reason (the cockpit's two pilots of the owner's brief, overseer
+    2026-10-15). In the table, so no other place's row moves."""
+    path = REPO / "data/characters" / f"{place}.json"
+    return place in cast.PLACES or (path.exists() and bool(json.loads(path.read_text()).get("people")))
+
+
+@functools.wraps(cast.files)
+def cast_files(place):
+    """cast.files, with a ship place's views (its scene record's, as the demo's views file) for its `scene`: it has no
+    old record (the cockpit, 2026-10-15). In the table, so no other place's key moves."""
+    found = cast.files(place)
+    return dict(found, scene="{seeds}/demo/world1-r4/views/" + f"{place}.json") if ship_place(place) else found
+
+
+CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast_files,
                    after={"concept_people": ("concept-people", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
-                   optional=DRESS_ROWS, applies=lambda place: place in cast.PLACES)
+                   optional=DRESS_ROWS, applies=cast_place)
 # Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
 # dressed body (score/stages/cast/layer.py), as a layer the assembly takes. Its dress rows are optional reads: a look
 # whose body is not usable is left out by name (the overseer's 14:00 rule: assemble with what passed; complete fails
@@ -209,7 +225,7 @@ CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cas
 CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, characters_layer.CONTRACT,
                          characters_layer.CHECKS, files=characters_layer.files,
                          after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
-                         optional=DRESS_ROWS, applies=lambda place: place in cast.PLACES)
+                         optional=DRESS_ROWS, applies=cast_place)
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no world file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,

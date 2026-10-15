@@ -3,7 +3,8 @@ answered unknown on their boxes and their people).
 
 complete-boxes measures every boxed row no other box row measures (a code row, a row taken from another place's take),
 view by view, and leaves the rows machines-boxes measures to it; it applies to the ship's places only. A ship place's
-cast record names nobody, so the people check passes on it, where a place with no record stays unknown.
+cast record names who is there (nobody, or the cockpit's two pilots of the brief), so the people check
+answers, where a place with no record stays unknown.
 
 Run: .venv/bin/python score/stages/complete/boxes_test.py
 """
@@ -66,13 +67,17 @@ def an_empty_stage(place):
 
 
 def test_a_ship_place_names_its_people():
-    """Both ways: every ship place's cast record names nobody, with its reason, and the people check passes on it; a
-    place with no record answers unknown."""
+    """Both ways: every ship place has a cast record; one naming nobody passes the people check, the cockpit's two
+    pilots of the owner's brief (no look made) fail it by name, and a place with no record answers unknown."""
     for place in SHIP:
         cast = contents.record("characters", place)
-        assert cast is not None and cast["people"] == [] and cast["note"], place
         answer, faults, _ = contents.judge_people(an_empty_stage(place), place, inventory(place), {})
-        assert answer == contents.PASS and not faults, (place, answer, faults)
+        if place == "cockpit":
+            assert cast.get("count_reason") and answer == contents.FAIL, (answer, faults)
+            assert faults == ["pilot_port: in the cast, not on the stage",
+                              "pilot_starboard: in the cast, not on the stage"], faults
+            continue
+        assert cast["people"] == [] and cast["note"] and answer == contents.PASS and not faults, (place, faults)
     answer, _, why = contents.judge_people(an_empty_stage("nowhere"), "nowhere", {"rows": []}, {})
     assert answer == contents.UNKNOWN and "no cast" in why
 
