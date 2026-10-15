@@ -1,6 +1,6 @@
 """Runs inside Blender: the ship rooms' plain pieces (the ship as a world 1 place, 2026-10-14, the bridge first), in the
 kit frame of pieces.py and shapes.py (wide along x, tall along y, deep along z, the front toward -z), each part naming
-its library variant. Only plain plates and trims (sorter.PLAIN, the overseer's list of 2026-10-14 by the paper's rule):
+its library variant. Plain plates and trims (sorter.PLAIN, the overseer's list of 2026-10-14 by the paper's rule):
 the windows' frames and panes, light strips and panels, the floor grate, the frame ribs and the command spot's dais and
 step. Glowing lenses are content plates, which make_kit splits off as the piece's glowing part. pieces.py takes
 BUILDERS in.
@@ -8,8 +8,11 @@ BUILDERS in.
 The bridge's surfaces (data/definitions/place.json `bridge`): dark_panel and hammertone_grey steel, clear_glass,
 perforated_steel, deck, bare_steel; indicator_amber and screen_teal for the lit strips, glass_frosted for a panel's lens.
 """
+import math
+
 import shapes
 import pieces
+from mathutils import Matrix
 
 EDGE = 0.004
 RIM = 0.05  # a window frame's or panel's border
@@ -116,43 +119,44 @@ def platform_step(size, laid):
 # The thrust indicator's proportions, shares of an arm's reach read off its close-up: the hub's and a rod's half width,
 # where the ribbed head starts, and the head's half width at its inner and outer end.
 HUB, ROD, HEAD_FROM, HEAD_NARROW, HEAD_WIDE = 0.09, 0.07, 0.48, 0.16, 0.21
+# How far its level arms are turned about its upright arm, degrees: the close-up sees none of them square on. Picked
+# on the likeness outline against the close-up, every 5 degrees from 0 to 45: 0.427 square, best 0.526 at 25.
+TURN = 25.0
 
 
 def thrust_indicator(size, laid):
-    """The cockpit's thrust indicator (the overseer, 2026-10-15: built in code once both its Pixal3D take's outlines
-    failed, 0.335 against 0.5): a plus-shaped gauge set in a slot of the dash, its face toward -z. A square hub, and on
-    each of its four arms a dark rod with an amber lit bar along its front, ending in a ribbed head of chevron-like
-    plates that widen outward, as the close-up's arms do. The slot, a shallow dark plate behind the hub, is the part
-    set into the console."""
+    """The cockpit's thrust indicator as its close-up shows it (the overseer, 2026-10-15: built in code once its
+    Pixal3D take failed likeness's outline, 0.335 against 0.5): a six-armed gauge, an arm along each way of each axis
+    from a square hub, each an amber lit rod round a dark core, ending in a ribbed head of plates that widen
+    outward, its level arms turned TURN about the upright one. The arm toward the back stands in the dash's slot."""
     wide, tall, deep = size
-    front, back = -deep / 2, deep / 2
-    middle = tall / 2
-    reach = min(wide, tall) / 2
+    middle = (0.0, tall / 2, 0.0)
+    reach = min(wide, tall, deep) / 2
     hub, rod, ribs = HUB * reach, ROD * reach, 5
     head_from = HEAD_FROM * reach
-    parts = [shapes.bevelled(shapes.box((-hub, middle - hub, back - deep * 0.25), (hub, middle + hub, back),
-                                        "dark_panel", "slot"), 0.003),
-             shapes.bevelled(shapes.box((-hub, middle - hub, front + deep * 0.15),
-                                        (hub, middle + hub, back - deep * 0.25), "hammertone_grey", "hub"), 0.003)]
-    for across, up in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        def spot(along, side, depth_from, depth_to):
-            """A box from the hub outward `along` (from, to) and `side` (half width) across the arm."""
-            (start, end), half = along, side
-            low = (min(across * start, across * end) if across else -half,
-                   middle + (min(up * start, up * end) if up else -half))
-            high = (max(across * start, across * end) if across else half,
-                    middle + (max(up * start, up * end) if up else half))
-            return (low[0], low[1], depth_from), (high[0], high[1], depth_to)
-        low, high = spot((hub, head_from), rod, front + deep * 0.3, back - deep * 0.3)
-        parts.append(shapes.box(low, high, "dark_panel", "arm"))
-        low, high = spot((hub, head_from), rod * 0.6, front + deep * 0.25, front + deep * 0.3)
-        parts.append(shapes.content_plate(low, high, "indicator_amber", "lens"))
-        step = (reach - head_from) / ribs
-        for index in range(ribs):
-            half = (HEAD_NARROW + (HEAD_WIDE - HEAD_NARROW) * index / (ribs - 1)) * reach
-            low, high = spot((head_from + step * index + 0.002, head_from + step * (index + 1) - 0.002), half,
-                             front + deep * 0.1, back - deep * 0.15)
-            parts.append(shapes.bevelled(shapes.box(low, high, "dark_panel", "rib"), 0.004))
+
+    def bar(axis, sign, start, end, half, name, material, edge=0.0):
+        """A box along one axis from the hub outward (`start` to `end`), `half` wide across it."""
+        low, high = [value - half for value in middle], [value + half for value in middle]
+        low[axis], high[axis] = middle[axis] + sign * start, middle[axis] + sign * end
+        low, high = [min(pair) for pair in zip(low, high)], [max(pair) for pair in zip(low, high)]
+        made = (shapes.content_plate if material == "indicator_amber" else shapes.box)(tuple(low), tuple(high),
+                                                                                      material, name)
+        return shapes.bevelled(made, edge) if edge else made
+
+    parts = [shapes.bevelled(shapes.box(tuple(value - hub for value in middle), tuple(value + hub for value in middle),
+                                        "hammertone_grey", "hub"), 0.003)]
+    step = (reach - head_from) / ribs
+    for axis in range(3):
+        for sign in (1, -1):
+            parts.append(bar(axis, sign, hub, head_from, rod * 0.8, "core", "dark_panel"))
+            parts.append(bar(axis, sign, hub, head_from, rod, "lens", "indicator_amber"))
+            for index in range(ribs):
+                half = (HEAD_NARROW + (HEAD_WIDE - HEAD_NARROW) * index / (ribs - 1)) * reach
+                parts.append(bar(axis, sign, head_from + step * index + 0.002, head_from + step * (index + 1) - 0.002,
+                                 half, "rib", "dark_panel", 0.004))
+    for part in parts:
+        part.data.transform(Matrix.Rotation(math.radians(TURN), 4, "Z"))  # Blender's z is the kit's up
     return parts
 
 
