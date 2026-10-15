@@ -35,6 +35,15 @@ from score.stages.surfaces.surface_gates import guarded, unknown, verdict
 LIKENESS_EUROS = 1.0
 
 
+def files(place):
+    """prop_data.likeness_files with each prop object's take's Pixal3D input (its close-up as Pixal3D cut it out,
+    object_record). Here, not in prop_data.py, whose edits move the paid prop rows' code versions."""
+    record = prop_data.record_at(prop_data.FOLDER / f"{place}.json") if prop_data.applies(place) else {"objects": {}}
+    return {**prop_data.likeness_files(place),
+            **{f"pixal input {row}": "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
+               for row, entry in record["objects"].items() if entry["route"] == "prop"}}
+
+
 def route_of(row, record):
     """Where an object's model comes from: "code" for a code object or a prop object moved to the fallback."""
     return "code" if record["objects"][row]["route"] == "code" or row in record.get("fallback", {}) else "prop"
@@ -105,7 +114,9 @@ def cut_out(closeup, folder):
     mask taken on the close-up with its backdrop's shading levelled out. compare.closeup_mask's one border colour
     took a studio backdrop's darker corner for the object (engineroom's power core, 2026-10-15: border 176 to 229
     grey, the corner joined the core's foot and its outline fell from 0.76 to 0.46). A close-up already cut out is
-    kept."""
+    kept. A prop object's take's Pixal3D input, the same close-up as Pixal3D cut it out, is taken before this
+    (object_record): on the galley's fold-down seat, 2026-10-15, white cushions on a white backdrop, this mask kept
+    11% of the picture, the frame without its cushions, and the outline fell to 0.26."""
     picture = Image.open(closeup)
     if picture.mode == "RGBA" and np.asarray(picture)[..., 3].min() < 128:
         return closeup
@@ -118,6 +129,23 @@ def cut_out(closeup, folder):
     return path
 
 
+def pixal_cut(path, folder, row):
+    """A prop object's close-up as its take's Pixal3D input cut it out, its object made one piece with its holes filled
+    as compare.closeup_mask makes every other cut (a rack's open frame stays one silhouette: storage's cargo rack, cut
+    so, passed at 0.68; its open lattice measured 0.43 on bars a pixel apart)."""
+    from scipy import ndimage
+    picture = np.asarray(Image.open(path).convert("RGBA"))
+    labels, count = ndimage.label(picture[..., 3] > 127)
+    if count == 0:
+        raise ValueError(f"{path}: Pixal3D's cut-out holds no object")
+    largest = np.argmax(ndimage.sum(np.ones_like(labels), labels, index=range(1, count + 1))) + 1
+    mask = ndimage.binary_fill_holes(labels == largest)
+    folder.mkdir(parents=True, exist_ok=True)
+    out = folder / f"{row}.png"
+    Image.fromarray(np.dstack([picture[..., :3], np.where(mask, 255, 0).astype(np.uint8)])).save(out)
+    return out
+
+
 def object_record(row, record, inputs, baked, parts, sizes, square, cuts):
     """One object's route, model, outline, checks and missing parts."""
     route = route_of(row, record)
@@ -127,7 +155,8 @@ def object_record(row, record, inputs, baked, parts, sizes, square, cuts):
     closeup = inputs["closeup"] / "closeups" / f"{row}.png"
     if model is None or not pathlib.Path(model).exists() or not closeup.exists():
         return {**found, "missing": "no model" if closeup.exists() else "no close-up"}
-    closeup = cut_out(closeup, cuts)
+    cut = inputs.get(f"pixal input {row}") if route == "prop" else None
+    closeup = pixal_cut(cut, cuts, row) if cut is not None and pathlib.Path(cut).exists() else cut_out(closeup, cuts)
     kind = f"{place}_{row}"
     found.update(model=str(model), closeup=str(closeup), **likeness.best_way(model, closeup),
                  **model_checks(model, sizes[row], kind, route == "prop" and kind in square))

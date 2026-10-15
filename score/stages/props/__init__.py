@@ -46,7 +46,7 @@ CALIBRATION = graph.Stage("likeness-calibration", "place", calibration_row.make_
                           applies=prop_data.calibration_applies)
 LIKENESS = graph.Stage("likeness", "place", likeness_row.make_likeness,
                        contract("props-likeness", likeness_row.likeness_faults), likeness_row.CHECKS,
-                       files=prop_data.likeness_files, gatherers=likeness_row.GATHERERS,
+                       files=likeness_row.files, gatherers=likeness_row.GATHERERS,
                        after={"likeness-calibration": ("likeness-calibration", 1),
                               "closeup": ("props-closeups", 1), "surfaces-bake": ("surfaces-bake", 1),
                               "surfaces-parts": ("surfaces-parts", 1), "surfaces-check": ("surfaces-check", 1)},

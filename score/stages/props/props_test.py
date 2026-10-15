@@ -169,6 +169,22 @@ def test_a_close_up_s_shaded_backdrop_is_not_its_object():
     shutil.rmtree(folder)
 
 
+def test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled():
+    """The galley's fold-down seat: white cushions on a white backdrop, which the colour cut lost; Pixal3D's own cut
+    keeps them. Its frame's holes are filled and a stray speck dropped, as every other cut."""
+    from PIL import Image
+    pixels = np.full((60, 80, 4), 240, dtype=np.uint8)
+    pixels[..., 3] = 0
+    pixels[10:50, 20:60, 3] = 255
+    pixels[20:40, 30:50, 3] = 0  # the frame's opening
+    pixels[2:4, 2:4, 3] = 255  # a speck
+    folder = pathlib.Path(tempfile.mkdtemp())
+    Image.fromarray(pixels).save(folder / "input.png")
+    found = likeness.closeup_object(likeness_row.pixal_cut(folder / "input.png", folder / "cut", "seat"))
+    assert int(found.sum()) == 40 * 40, found.sum()
+    shutil.rmtree(folder)
+
+
 def likeness_output(folder, objects):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "likeness.json").write_text(json.dumps({"objects": objects}))
