@@ -1331,6 +1331,21 @@
 			},
 			"bus": "ambience"
 		},
+		"street_night": {
+			"pick": {
+				"page": "world1",
+				"category": "room",
+				"where": "the street's air: a closed-off street between old blocks of flats at night, running down to the harbour, wet from rain",
+				"prompts": [
+					"Night ambience on a closed-off side street between old apartment blocks in a big Asian harbour city: a distant even rumble of traffic across the water, the hum of street lamps and air conditioners, a soft breeze off the harbour, constant and calm, no voices, no horns and no sirens.",
+					"Outdoor room tone of an empty wet city street late at night: far-off traffic wash echoing between concrete buildings, a faint electrical hum of a neon sign, steady and even, nothing close and nothing sudden."
+				],
+				"seeds": 4,
+				"seconds": 15,
+				"loop": true
+			},
+			"bus": "ambience"
+		},
 		"square_pa": {
 			"pick": {
 				"page": "world1",
