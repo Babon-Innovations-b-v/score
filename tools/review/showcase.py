@@ -6,6 +6,7 @@ stage, a review page or a film made on the cloud.
     .venv/bin/python tools/review/showcase.py cut <films out> --page <the wreck's review page> \
         --stage <the wreck's stage .usda> --concept <the concept picked>
     .venv/bin/python tools/review/showcase.py figure <films out> <figure .jpg>
+    .venv/bin/python tools/review/showcase.py world <out> [<figure .jpg>] [--draft]
 
 `cut` reads the films (<out>/videos/<film>.mp4 and their views) and the stills rendered for it on the cloud from the
 job files kept beside them (<out>/showcase/jobs/: the aft section's turntables by ../blender/inside/review_models.py
@@ -15,6 +16,12 @@ into <out>/showcase/models/out, and the stage before an edit, after it and after
 here: the inventory's rows (data/inventory/wreck.json), each surface's share of the aft section's parts by area, and
 the completion gate's own results (the stage's manifest.json). `figure` writes the figure and its frame list beside
 it (<figure>.json): the middle frame, with its ink, of each film's first walking shot (else its second).
+
+`world` is the world 1 video (demo K9): every place's own film as the runner accepted it (demo-film@<place>, its
+film.mp4 with its title card and sound) in story order, the ship's hull film through the hangar
+(demo-film-extra@hangar, its hull/) after the hangar's, joined by cross-fades into <out>/world1.mp4, with the figure of
+the middle frame of each film's shot (default <out>/fig-k9.jpg) and <out>/world1.json, each film's store output. It
+stops on any film the store does not hold; `--draft` cuts the ones it holds and names the rest.
 """
 import argparse
 import json
@@ -32,6 +39,9 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import demo  # noqa: E402  (its joined, encode, inked and SIZE; puts tools/usd on the path)
 import sound  # noqa: E402  (tools/usd)
+sys.path.insert(0, str(REPO))
+from score.stages import demo_film  # noqa: E402
+from score.store import Store  # noqa: E402
 
 W, H = demo.SIZE
 RATE = demo.RATE
@@ -61,6 +71,10 @@ PLACES = [("flat", "Prologue, Hong Kong 2099", "The flat", "Flat"),
           ("wreck", "The Moon", "The wreck", "Wreck"), ("old_station", "The Moon", "The old station", "Old station"),
           ("camp", "Mars", "The camp", "Mars camp"), ("campgrounds", "Mars", "The camp grounds", "Mars camp grounds")]
 PLACE_SECONDS = 5.5
+# The world video's other films, each after its place's own (the paper's K9: every place film and the ship).
+EXTRAS = {"hangar": [("hull", "The ship")]}
+# A store film's shown frame: the middle of its one shot, after the title card and its fade.
+FILM_MIDDLE = demo.TITLE_SECONDS - FADE + demo_film.SECONDS / 2
 
 
 def font(size, weight="Regular"):
@@ -371,34 +385,92 @@ def labelled(picture, text, face):
     return picture
 
 
-def figure(folder, out):
-    """One frame of each film in story order, COLUMNS a row, each with its place's name; the frames used beside it."""
+def sheet(tiles, out):
+    """The tiles, (name, title, picture path), COLUMNS a row, each with its title; their list beside it (<out>.json)."""
     face = ImageFont.truetype(LABEL_FONT, 22)
-    rows = -(-len(PLACES) // COLUMNS)
-    sheet = Image.new("RGB", (COLUMNS * TILE[0] + (COLUMNS - 1) * 8, rows * TILE[1] + (rows - 1) * 8), "white")
-    used = []
-    for number, (film, _, _, title) in enumerate(PLACES):
-        frames = folder / "frames" / film
-        path = demo.inked(frames, f"shot{shown_shot(folder, film)}-{round(demo.SHOT_SECONDS * RATE) // 2:03d}")
+    rows = -(-len(tiles) // COLUMNS)
+    picture = Image.new("RGB", (COLUMNS * TILE[0] + (COLUMNS - 1) * 8, rows * TILE[1] + (rows - 1) * 8), "white")
+    for number, (_, title, path) in enumerate(tiles):
         tile = Image.open(path).convert("RGB").resize(TILE, Image.LANCZOS)
         spot = ((number % COLUMNS) * (TILE[0] + 8), (number // COLUMNS) * (TILE[1] + 8))
-        sheet.paste(labelled(tile, title, face), spot)
-        used.append([film, title, str(path)])
-    sheet.save(out, quality=86)
-    pathlib.Path(out).with_suffix(".json").write_text(json.dumps(used, indent=1))
-    print(f"{out}: {len(used)} frames")
+        picture.paste(labelled(tile, title, face), spot)
+    picture.save(out, quality=86)
+    pathlib.Path(out).with_suffix(".json").write_text(json.dumps([[*map(str, tile)] for tile in tiles], indent=1))
+    print(f"{out}: {len(tiles)} frames")
+
+
+def figure(folder, out):
+    """One frame of each film in story order, COLUMNS a row, each with its place's name; the frames used beside it."""
+    tiles = []
+    for film, _, _, title in PLACES:
+        frames = folder / "frames" / film
+        tiles.append((film, title, demo.inked(
+            frames, f"shot{shown_shot(folder, film)}-{round(demo.SHOT_SECONDS * RATE) // 2:03d}")))
+    sheet(tiles, out)
+
+
+def store_films(store):
+    """Every film of the world video in its order: (name, title, its film.mp4 or None, its store output or None)."""
+    found = []
+    for place, *_, title in PLACES:
+        output = store.accepted(f"demo-film@{place}")
+        found.append((place, title, output and store.checkout(output) / "film.mp4", output))
+        for name, extra_title in EXTRAS.get(place, ()):
+            output = store.accepted(f"demo-film-extra@{place}")
+            path = output and store.checkout(output) / name / "film.mp4"
+            found.append((name, extra_title, path if path and path.exists() else None, output if path else None))
+    return found
+
+
+def length(video):
+    """A video's length in seconds (ffprobe)."""
+    return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                 str(video)], capture_output=True, text=True, check=True).stdout)
+
+
+def middle_frame(video, out):
+    """The middle frame of a store film's shot, as a picture."""
+    demo.ffmpeg("-ss", f"{FILM_MIDDLE:.3f}", "-i", video, "-frames:v", "1", out)
+    return out
+
+
+def world(folder, figure_out, films, draft=False):
+    """The world 1 video and its figure from the films given (store_films), in their order; stops on a missing one
+    unless a draft."""
+    missing = [name for name, _, path, _ in films if path is None]
+    if missing and not draft:
+        raise SystemExit(f"world: {len(missing)} of {len(films)} films not in the store: {', '.join(missing)}")
+    made = [film for film in films if film[2] is not None]
+    if not made:
+        raise SystemExit("world: no film in the store")
+    folder.mkdir(parents=True, exist_ok=True)
+    video = folder / "world1.mp4"
+    lengths = [length(path) for _, _, path, _ in made]
+    demo.joined([path for _, _, path, _ in made], lengths, video)
+    (folder / "frames").mkdir(exist_ok=True)
+    sheet([(name, title, middle_frame(path, folder / "frames" / f"{name}.png")) for name, title, path, _ in made],
+          figure_out)
+    (folder / "world1.json").write_text(json.dumps(
+        {"films": [{"film": name, "title": title, "output": output} for name, title, _, output in made],
+         "missing": missing}, indent=1))
+    print(f"{video}: {len(made)} of {len(films)} films, {sum(lengths) - FADE * (len(made) - 1):.1f} s"
+          + (f"; missing {', '.join(missing)}" if missing else ""))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("step", choices=["cut", "figure"])
-    parser.add_argument("folder", type=pathlib.Path, help="the films' out folder (demo.py's)")
-    parser.add_argument("figure", type=pathlib.Path, nargs="?", help="figure: the picture to write")
+    parser.add_argument("step", choices=["cut", "figure", "world"])
+    parser.add_argument("folder", type=pathlib.Path, help="the films' out folder (demo.py's); world: where it goes")
+    parser.add_argument("figure", type=pathlib.Path, nargs="?", help="figure, world: the picture to write")
+    parser.add_argument("--draft", action="store_true", help="world: cut the films the store holds, name the rest")
     parser.add_argument("--page", type=pathlib.Path, help="cut: the wreck's review page")
     parser.add_argument("--stage", type=pathlib.Path, help="cut: the wreck's stage")
     parser.add_argument("--concept", type=pathlib.Path, help="cut: the concept the owner picked")
     options = parser.parse_args()
-    if options.step == "figure":
+    if options.step == "world":
+        folder = options.folder.resolve()
+        world(folder, options.figure or folder / "fig-k9.jpg", store_films(Store.default()), options.draft)
+    elif options.step == "figure":
         if not options.figure:
             parser.error("figure needs the picture to write")
         figure(options.folder.resolve(), options.figure)
