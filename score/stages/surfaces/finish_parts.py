@@ -181,7 +181,8 @@ def segvigen_labels(mesh, part_of, votes):
 
 def cleaned(mesh, face_label, count):
     """The labels smoothed over the surface (labels.smoothed_parts, hardly across a crease) and every island under
-    ISLAND_LEAST of the area that borders others joined to the label it borders most."""
+    ISLAND_LEAST of the area that borders others joined to the label it borders most; a finish this would remove
+    entirely keeps its faces (kept_finishes)."""
     import numpy as np
     import labels
     votes = np.zeros((len(face_label), count))
@@ -190,19 +191,30 @@ def cleaned(mesh, face_label, count):
     saved = labels.PART_CRUMB
     labels.PART_CRUMB = ISLAND_LEAST
     try:
-        return labels.without_crumbs(mesh, smoothed)
+        return kept_finishes(face_label, labels.without_crumbs(mesh, smoothed))
     finally:
         labels.PART_CRUMB = saved
+
+
+def kept_finishes(before, after):
+    """`after` with each finish it lost entirely given back its faces of `before`. Smoothing and crumbs see no
+    finish: a finish of many small islands (the cargo rack's white label plates, 0.9% of its area in 483 islands; the
+    outer hatch's black stripes and glass) went into its neighbours whole, so no part owned it and merged_islands,
+    whose own rule gathers such a finish into one part, never saw it (ship rooms, 2026-10-15)."""
+    import numpy as np
+    lost = np.setdiff1d(np.unique(before), np.unique(after))
+    return np.where(np.isin(before, lost), before, after)
 
 
 def merged_islands(mesh, face_label):
     """Each face's part and finish once every island (one finish's faces joined by shared edges) under ISLAND_LEAST
     of the area, joined to the rest or loose (a loose bit shares no edge, so without_crumbs never reaches it), is
     taken in by its finish: into the larger island of its own finish nearest it in space; when its finish has no
-    larger island, its finish's small islands together are one part if they reach ISLAND_LEAST; else into the larger
-    island of any finish nearest it, its finish with it. Taken in by space alone, the crane trolley's black warning
-    stripes (each band a crumb) and the cut's yellow and rope crumbs went into its forged steel, the black finish
-    vanished and that part mixed (2026-10-12). With no larger island, the largest island takes the rest."""
+    larger island, its finish's small islands together are one part, however small: a finish the close-up lists is
+    no crumb (the outer hatch's porthole glass, 0.16% of its area, vanished into the steel, 2026-10-15). Taken in by
+    space alone, the crane trolley's black warning stripes (each band a crumb) and the cut's yellow and rope crumbs
+    went into its forged steel, the black finish vanished and that part mixed (2026-10-12). With no larger island,
+    the largest island takes the rest."""
     import numpy as np
     from scipy.spatial import cKDTree
     import patchy
@@ -218,11 +230,9 @@ def merged_islands(mesh, face_label):
     for finish in np.unique(face_label[~kept]):
         lost = np.flatnonzero(~kept & (face_label == finish))
         host = np.flatnonzero(hosts & (face_label == finish))
-        if not len(host) and mesh.area_faces[lost].sum() >= ISLAND_LEAST * mesh.area:
+        if not len(host):
             part_of[lost] = island[lost[0]]
             continue
-        if not len(host):
-            host = np.flatnonzero(hosts)
         nearest = host[cKDTree(middles[host]).query(middles[lost])[1]]
         part_of[lost], label[lost] = part_of[nearest], face_label[nearest]
     return np.unique(part_of, return_inverse=True)[1], label
