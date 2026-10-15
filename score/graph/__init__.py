@@ -69,6 +69,9 @@ WORLD_LINE = "world"
 LOG_TAIL = 40
 # Nodes the drive runs at once: most wait on a rented machine, the rest work on this PC's cores.
 JOBS = 8
+# The completion gate's check that fails a place's named gaps by name (score/stages/gaps.py): a stage's `gapped` reads
+# an output whose only blocking check is this one.
+GAPPED = "named gaps"
 # Each node runs in a forked process: its output (and its children's) goes to its own log, and the toy stages of the
 # tests need no import by name. The drive itself starts no threads, so forking it is safe.
 FORK = multiprocessing.get_context("fork")
@@ -119,6 +122,9 @@ class Stage:
     optional: names in `after` the node reads only while usable (passed, accepted, on its current key); one that is
     not is left out of its reads and its key, so the node runs with what has passed and runs again once it is (the
     characters layer's dress rows: a place lays the people whose look is accepted and names the rest, 2026-10-13).
+    gapped: names in `after` the node also reads when their only blocking check is GAPPED, the place's named gaps
+    (a dated decision): the output on its current key, which the runner never accepts as it fails, unless the owner
+    rejected it; any other fault still stops the node (demo-film on complete, the overseer, 2026-10-15).
     """
     name: str
     grain: str
@@ -136,6 +142,7 @@ class Stage:
     beside: dict = field(default_factory=dict)
     neighbours: Callable = None
     optional: tuple = ()
+    gapped: tuple = ()
 
     def __post_init__(self):
         if self.grain not in GRAINS:
@@ -146,6 +153,8 @@ class Stage:
             raise TypeError(f"stage {self.name}: after maps each earlier stage to the (schema, version) it expects")
         if set(self.optional) - set(self.after):
             raise ValueError(f"stage {self.name}: optional names a stage it does not read after")
+        if set(self.gapped) - set(self.after):
+            raise ValueError(f"stage {self.name}: gapped names a stage it does not read after")
 
 
 @dataclass(frozen=True)
@@ -337,9 +346,10 @@ class Runner:
             keys[name] = text_hash(pattern[1](path)) if isinstance(pattern, tuple) else source_hash(path)
         return keys
 
-    def usable(self, before, place, wanted):
+    def usable(self, before, place, wanted, gapped=False):
         """The output of an earlier node that passed its gates on its current evidence, that stands accepted, and
-        whose stamp is the (schema, version) wanted."""
+        whose stamp is the (schema, version) wanted; `gapped`: or that fails only on its named gaps (Stage.gapped)
+        and the owner did not reject."""
         stage = self.stages[before]
         node = node_name(stage, place)
         key = self.key(stage, place)["key"]
@@ -350,12 +360,15 @@ class Runner:
         if judgement is None:
             raise Blocked(f"{node} is not judged on its current evidence")
         waived = self.store.waivers(node, key)
-        if checks.blocks(checks.standing(judgement["verdicts"], waived)):
+        blocking = [name for name, verdict in judgement["verdicts"].items()
+                    if checks.blocks(verdict["answer"]) and name not in waived]
+        on_gaps = gapped and blocking == [GAPPED] and not self.store.rejected(node, record["output"])
+        if checks.blocks(checks.standing(judgement["verdicts"], waived)) and not on_gaps:
             reasons = "; ".join(f"{name}: {verdict['reason']}" for name, verdict in judgement["verdicts"].items()
                                 if checks.blocks(verdict["answer"]) and name not in waived)
             raise Blocked(f"{node} answered {judgement['answer']}: {reasons}")
         accepted = self.store.accepted(node)
-        if accepted != record["output"]:
+        if accepted != record["output"] and not on_gaps:
             raise Blocked(f"{node}'s output {record['output'][:12]} is not accepted"
                           + (f" (accepted: {accepted[:12]})" if accepted else ""))
         try:
@@ -381,7 +394,7 @@ class Runner:
     def worked_out_key(self, stage, place):
         """The node's key worked out from its inputs (`key`)."""
         parts = {**self.own_parts(stage, place),
-                 "after": {before: self.usable(before, place, wanted)
+                 "after": {before: self.usable(before, place, wanted, before in stage.gapped)
                            for before, wanted in self.reads(stage, place).items()}}
         beside = self.besides(stage, place)
         if beside:  # only a stage that reads beside has this part, so no other node's key moves
@@ -834,10 +847,11 @@ class Runner:
                 print(f"transient error, try {attempt + 2} of {RETRIES + 1} in {wait} s", flush=True)
                 time.sleep(wait)
 
-    def standing(self, stage, place):
-        """None when the node's current output passed and stands accepted; else why not."""
+    def standing(self, stage, place, gapped=False):
+        """None when the node's current output passed and stands accepted (`gapped`: or fails only on its named
+        gaps); else why not."""
         try:
-            self.usable(stage.name, place, (stage.contract.schema, stage.contract.version))
+            self.usable(stage.name, place, (stage.contract.schema, stage.contract.version), gapped)
         except Blocked as block:
             return str(block)
         return None
@@ -935,20 +949,22 @@ class Runner:
         order = {node_name(*node): index for index, node in enumerate(chosen)}
         waiting = list(chosen)
         done, stopped, stood, running = {}, {}, set(), {}
-        halted = {}  # {line: (table index, node)} of its earliest stopped node: nothing later on the line starts
+        on_gaps = set()  # stopped nodes that fail only on their named gaps: a stage's `gapped` reads them
+        halted = {}  # {line: [(table index, node)]} of its stopped nodes: nothing later on the line starts
         while waiting or running:
             for stage, place in list(waiting):
                 node, earlier = node_name(stage, place), self.earlier(stage, place)
-                waits = [stopped[before] for before in earlier if before in stopped]
-                stop = halted.get(place or WORLD_LINE)
-                if not waits and stop and stop[0] < order[node]:
-                    waits = [stop[1]]
+                passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}
+                waits = [stopped[before] for before in earlier if before in stopped and before not in passes]
+                if not waits:
+                    waits = [stop for index, stop in sorted(halted.get(place or WORLD_LINE, []))
+                             if index < order[node] and stop not in passes][:1]
                 if waits:
                     waiting.remove((stage, place))
                     stopped[node] = waits[0]
                     done[node] = f"not run: its line stopped at {waits[0]}"
                     say(f"{node}: {done[node]}")
-                elif stood.issuperset(earlier) and len(running) < jobs:
+                elif stood.union(passes).issuperset(earlier) and len(running) < jobs:
                     waiting.remove((stage, place))
                     running.update(self.start(stage, place))
             if not running:
@@ -961,8 +977,10 @@ class Runner:
                     stood.add(node)
                 else:
                     stopped[node] = node
-                    line = place or WORLD_LINE
-                    halted[line] = min(halted.get(line, (order[node], node)), (order[node], node))
+                    halted.setdefault(place or WORLD_LINE, []).append((order[node], node))
+                    with self.still():
+                        if self.standing(stage, place, gapped=True) is None:
+                            on_gaps.add(node)
                 say(f"{node}: {done[node]}")
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}

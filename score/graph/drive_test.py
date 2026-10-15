@@ -542,6 +542,52 @@ def test_a_make_that_writes_into_its_input_fails_and_stores_nothing():
     assert runner.store.records("writer@hangar") == []
 
 
+def judge_gapped(output, inputs, evidence):
+    return checks.Verdict(graph.GAPPED, checks.FAIL, "hangar: a named gap", findings=("hangar: no made model",))
+
+
+def judge_brief_fault(output, inputs, evidence):
+    faulty = "fault" in inputs["brief"].read_text()
+    return checks.Verdict("other", checks.FAIL if faulty else checks.PASS, "a fault no gap names" if faulty else "ok")
+
+
+def gapped_runner(brief):
+    """A completion gate that fails its named gap, and one ungapped fault when the brief says so; a film that reads it
+    gapped and a count that does not."""
+    data, world = a_world_of(["hangar"])
+    (data / "hangar" / "brief.txt").write_text(brief)
+    complete = graph.Stage("complete", "place", make_clean, TEXT,
+                           (checks.Check(graph.GAPPED, judge_gapped), checks.Check("other", judge_brief_fault)),
+                           files={"brief": "{data}/{place}/brief.txt"})
+    film = graph.Stage("film", "place", make_film, TEXT, MET, after={"complete": ("toy-text", 1)},
+                       gapped=("complete",))
+    count = graph.Stage("count", "place", make_film, TEXT, MET, after={"complete": ("toy-text", 1)})
+    return graph.Runner((complete, film, count), world, Store.in_folder(tempfile.mkdtemp()),
+                        model_record=lambda kind: {})
+
+
+def make_film(inputs, out, seed, params):
+    (out / "film.txt").write_text((inputs["complete"] / "clean.txt").read_text())
+
+
+def test_a_gapped_reader_runs_past_a_gate_that_fails_only_on_its_named_gaps():
+    """The overseer, 2026-10-15: demo-film runs on a place whose complete fails only on its named gaps; the gate
+    still fails by name, and a reader that does not read it gapped stops."""
+    runner = gapped_runner("a ship")
+    found = runner.drive(["hangar"], say=quiet)
+    assert found["complete@hangar"].startswith("made: fail; fault report"), found
+    assert found["film@hangar"] == "made: pass, accepted automatically", found
+    assert found["count@hangar"] == "not run: its line stopped at complete@hangar", found
+    assert runner.store.accepted("complete@hangar") is None
+
+
+def test_a_gapped_reader_stops_on_a_fault_no_gap_names():
+    runner = gapped_runner("a ship with a fault")
+    found = runner.drive(["hangar"], say=quiet)
+    assert found["film@hangar"] == "not run: its line stopped at complete@hangar", found
+    assert runner.run_node(runner.stages["film"], "hangar").startswith("blocked: complete@hangar answered fail")
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
