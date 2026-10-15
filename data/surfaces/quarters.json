@@ -41,7 +41,7 @@
     "cuts": [],
     "density": 1024,
     "decals": [],
-    "foot": 0.0,
+    "foot": 0.25,
     "faces": 19000
    }
   }
