@@ -131,7 +131,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   in the table: never mounted on another object, fixed, hung, laid tilted on purpose (`leans`) or a pile of ground
   debris; a word of a description, such as a cabinet's "cables", is no class) has its short legs stretched onto the level plane through its lowest foot, in its own frame; a foot
   over a tenth of its size up is a missing leg and fails the gate "feet in one plane" by name. Never level by
-  tipping the model: its own up is the reference (the water tank's top lay level within 0.25 degrees).
+  tipping the model: its own up is the reference (the water tank's top lay level within 0.25 degrees). The bake
+  levels such a take's cut-down copy again (`make_chunky.levelled_feet`, the take's `stands` from its labels through
+  `library_bake.stands`): the remesh's voxels and the cut move feet apart (the hangar's 31 m ship, level in its
+  paint, baked a front foot 22.2 cm up at 10 cm voxels), and the paint's 1% of size lets a 4 m piece keep 3.4 cm
+  (the campgrounds' ice drill); each quadrant over the check's 3 cm comes down as `flattened_base` brings it.
 - **Painting is 3D parts plus the shared library, only.** A picture's colours never reach a model: a map's label
   colours only name finishes, each part is painted from its finish's library surface.
 - **The finish registry is a store item** (`registry.py`; `registry/surfaces/` in the store): append-only, the new
