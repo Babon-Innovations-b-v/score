@@ -172,6 +172,7 @@ def completion_section(stage):
     for requirement in found["requirements"]:
         result = stage.parent / "checks" / f"{requirement['name']}.json"
         faults = json.loads(result.read_text()).get("faults", []) if result.exists() else []
+        faults = [fault if isinstance(fault, dict) else {"why": fault} for fault in faults]  # contents checks: text
         shown = "".join(f"<li><code>{escaped(fault.get('row') or '')}</code> {escaped(fault.get('why', fault))}</li>"
                         for fault in faults[:12])
         more = f'<li class="soft">and {len(faults) - 12} more</li>' if len(faults) > 12 else ""
