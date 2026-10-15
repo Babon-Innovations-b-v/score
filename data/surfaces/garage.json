@@ -230,5 +230,11 @@
     "wall": 0.0202
    }
   }
+ },
+ "elsewhere": {
+  "control_cabinet_1": {
+   "take": "control_cabinet-g2",
+   "place": "greenhouse"
+  }
  }
 }
