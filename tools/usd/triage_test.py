@@ -104,6 +104,27 @@ def a_long_drop_is_unstable_and_faults_group():
         return problems
 
 
+
+def a_drop_started_inside_is_judged_by_the_overlap():
+    """Both ways (the greenhouse's tank and seed bin, 2026-10-15): a box laid 5 cm into a fixed slab, dropped on the
+    ground alone, still fails, by the overlap check; one laid 1 cm in, within the tolerance, has no real fault."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = place_of(folder, [("slab", "box", (0, -1.0, 0)), ("crate", "box", (0, -0.05, 0)),
+                                  ("slab", "box", (3, -1.0, 0)), ("crate", "box", (3, -0.01, 0))],
+                         [row("slab", fixed=True), row("crate")])
+        fell = np.eye(4)
+        fell[1, 3] = -1.5
+        drop = {"objects": {name: {"motion": fell.tolist(), "moving": 0.0, "inside": [slab]}
+                            for name, slab in (("crate_1", "slab_1"), ("crate_2", "slab_2"))}}
+        said = verdicts(triage.triage(stage, drop))
+        problems = []
+        if ("overlaps", True) not in said.get("crate_1", []) or ("unstable", True) in said.get("crate_1", []):
+            problems.append(f"a box 5 cm into a slab, dropped on the ground alone, reads {said.get('crate_1')}")
+        if any(real for _, real in said.get("crate_2", [])):
+            problems.append(f"a box 1 cm into a slab reads {said.get('crate_2')}")
+        return problems
+
 def legged_tank(ends):
     """A 1.4 m tank on four legs at its corners, each leg ending `ends` metres up (the greenhouse's water tank,
     2026-10-12, as it lay after its drop: three feet on the floor, the fourth 7 cm up)."""
@@ -268,7 +289,7 @@ def the_data_read_is_the_data_given():
                 if said.get(name) != want]
 
 
-CHECKS = (supports_and_guards, a_case_on_a_pallet_is_no_surface_under_the_pallet, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
+CHECKS = (supports_and_guards, a_drop_started_inside_is_judged_by_the_overlap, a_case_on_a_pallet_is_no_surface_under_the_pallet, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
           a_foot_off_the_floor_and_a_lean_fail, a_block_tipped_onto_one_edge_of_its_sole_leans, the_collision_set,
           occlusion_boundaries, the_data_read_is_the_data_given, footing_on_a_slope_is_read_over_the_ground)
 
