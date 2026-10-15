@@ -12,6 +12,19 @@
    "faults": [
     "fold_down_seat-s2: black metal measured L*a*b* [42.5, 0.2, 0.4], anodized_black dE 40.0 (proposed: black metal (fold-down seat: a wall-mounted fold-down))"
    ]
+  },
+  {
+   "name": "galley: wall lower plain box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "wall_lower_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan: its one proposal (v1.242) is a 29 x 26 px fragment of baseboard; no proposal holds a lower wall plate",
+   "decided": "overseer, 2026-10-15 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"wall_lower_plain\", \"result\": \"fail\", \"why\": \"judge: round tiny fragment of baseboard\"}"
+   ]
   }
  ]
 }
