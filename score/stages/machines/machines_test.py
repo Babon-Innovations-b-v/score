@@ -85,6 +85,33 @@ def test_layout_and_gates(work):
     assert missing.answer == checks.FAIL and "black tyres" in missing.findings[0], missing
 
 
+def test_a_machine_stands_on_its_settled_support(work):
+    """assembly@garage (2026-10-15): the settle let the lift down 14 cm off its spot and the rover, laid on the seed's
+    lift, lay 8.8 cm inside the settled one. Over a settle layer that moves the lift 1.2 m east the rover is laid 1.2 m
+    east too, and the resting gate judges it on the settled lift: the rover laid on the seed's lift lies in it."""
+    from pxr import Gf, Sdf, UsdGeom
+    settled = work / "settled"
+    (settled / "layers").mkdir(parents=True)
+    layer = Sdf.Layer.CreateNew(str(settled / machines.SETTLE_LAYER))
+    seed = machines.seed_stage(SEED)  # held: a prim of a stage nothing holds expires at once
+    lift = UsdGeom.Xformable(seed.GetPrimAtPath("/garage/Objects/rover_lift_1")).GetLocalTransformation()
+    moved = lift * Gf.Matrix4d().SetTranslate(Gf.Vec3d(1.2, 0, 0))
+    spec = Sdf.CreatePrimInLayer(layer, "/garage/Objects/rover_lift_1")
+    spec.specifier = Sdf.SpecifierOver
+    Sdf.AttributeSpec(spec, "xformOp:transform", Sdf.ValueTypeNames.Matrix4d).default = moved
+    order = Sdf.AttributeSpec(spec, "xformOpOrder", Sdf.ValueTypeNames.TokenArray, variability=Sdf.VariabilityUniform)
+    order.default = ["xformOp:transform"]
+    layer.Save()
+    points = np.asarray(stand_in().vertices)
+    before, _, _ = machines.pose(points, ENTRY, machines.seed_stage(SEED), "garage")
+    after, _, _ = machines.pose(points, ENTRY, machines.seed_stage(SEED, settled), "garage")
+    assert abs(after[3, 0] - before[3, 0] - 1.2) < 0.01, (before[3], after[3])
+    inputs = {"seed": SEED, "settle": settled}
+    assert machines.judge_resting(output_with(work / "settled-laid", after), inputs, None).answer == checks.PASS
+    old = machines.judge_resting(output_with(work / "seed-laid", before), inputs, None)
+    assert old.answer == checks.FAIL and "rover_lift_1" in " ".join(old.findings), old
+
+
 def test_a_mounted_piece_goes_where_its_host_plan_puts_it():
     """A ship 31 m long laid along z with its nose at -z: a piece 2 m back from the tip, 1 m to starboard (+x when
     facing -z) and 0.5 m up sits there; a host with no nose refuses its pieces by name."""
@@ -179,6 +206,7 @@ def main():
     work.mkdir(parents=True)
     try:
         test_layout_and_gates(work)
+        test_a_machine_stands_on_its_settled_support(work)
         test_a_mounted_piece_goes_where_its_host_plan_puts_it()
         test_assembly_takes_it(work)
         test_boxes_grounds_the_machine_rows(work)

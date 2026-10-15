@@ -37,6 +37,8 @@ import resting  # noqa: E402
 
 FOLDER = REPO / "data/machines"
 LAYER = "layers/machines.usda"
+# The settle stage's layer in its output (settling.LAYER; not imported, so a settle edit moves no machines key).
+SETTLE_LAYER = "layers/settle.usda"
 # How far over the ground a machine is let down from when its record names none, in metres: above a lift's arms and
 # a pad's deck, under a lift's top beam.
 DROP_FROM = 0.5
@@ -68,10 +70,25 @@ def read_json(path):
 
 # --- the layout ---------------------------------------------------------------------------------------------------
 
-def seed_stage(seed):
+def seed_stage(seed, settled=None):
+    """The place's seed stage, with its accepted settle layer over it where the place is settled (`settled`, the
+    settle output): a machine stands on its support where the assembly stands it (assembly@garage, 2026-10-15: the
+    settle let the rover's lift down 14 cm off and 3 degrees round, and the rover laid on the seed's lift lay 8.8 cm
+    inside it)."""
     from pxr import Usd
     seed = pathlib.Path(seed)
-    return Usd.Stage.Open(str(seed / f"{seed.name}.usda"))
+    if settled is None:
+        return Usd.Stage.Open(str(seed / f"{seed.name}.usda"))
+    return Usd.Stage.Open(layered([pathlib.Path(settled) / SETTLE_LAYER, seed / f"{seed.name}.usda"], seed.name))
+
+
+def layered(paths, place):
+    """An anonymous root layer with `paths` as its sublayers, strongest first, its default prim the place."""
+    from pxr import Sdf
+    root = Sdf.Layer.CreateAnonymous(".usda")
+    root.subLayerPaths = [str(path) for path in paths]
+    root.defaultPrim = place
+    return root
 
 
 def drawn(prim):
@@ -225,7 +242,7 @@ def make(inputs, out, seed, params):
     import stage_inputs
     record = read_json(inputs["record"])
     place = record["place"]
-    stage = seed_stage(inputs["seed"])
+    stage = seed_stage(inputs["seed"], inputs.get("settle"))
     (out / "layers").mkdir(parents=True)
     layer = Sdf.Layer.CreateNew(str(out / LAYER))
     placed, hosts, written = {}, {}, {}
@@ -268,13 +285,10 @@ def placed_of(output):
 
 def composed(output, inputs):
     """The machines layer over the place's seed stage, opened as one stage."""
-    from pxr import Sdf, Usd
+    from pxr import Usd
     seed = pathlib.Path(inputs["seed"])
-    root = Sdf.Layer.CreateAnonymous(".usda")
-    root.subLayerPaths = [str(pathlib.Path(output) / LAYER), str(seed / f"{seed.name}.usda")]
-    stage = Usd.Stage.Open(root)
-    stage.SetDefaultPrim(stage.GetPrimAtPath(f"/{seed.name}"))
-    return stage
+    settled = [pathlib.Path(inputs["settle"]) / SETTLE_LAYER] if "settle" in inputs else []
+    return Usd.Stage.Open(layered([pathlib.Path(output) / LAYER, *settled, seed / f"{seed.name}.usda"], seed.name))
 
 
 def verdict(name, failing, total, measures):
@@ -356,6 +370,6 @@ def judge_resting(output, inputs, evidence):
 
 LAYER_CONTRACT = contracts.Contract("machines-layer", 1, layer_faults, {"length": "metre", "up axis": "Y"})
 AFTER = {"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
-         "surfaces-parts": ("surfaces-parts", 1)}
+         "surfaces-parts": ("surfaces-parts", 1), "settle": ("settle-layer", 1)}
 CHECKS = (checks.Check("outline", judge_outline), checks.Check("parts present", judge_parts),
           checks.Check("resting", judge_resting))
