@@ -131,11 +131,21 @@ def test_a_mounted_piece_goes_where_its_host_plan_puts_it():
     point = machines.mount_point(low, high, "-z", [1.0, 2.0, 0.5])
     assert np.allclose(point, [1.0, 0.7, -13.5]), point
     assert np.allclose(machines.mount_point(low, high, "+x", [1.0, 0.0, 0.0]), [4.0, 0.2, 1.0])  # facing +x, starboard is +z
-    hosts = {"ship_1": (np.array(low), np.array(high), np.eye(3), 0.0)}
+    hull = trimesh.creation.box(bounds=(low, high))
+    hosts = {"ship_1": (np.array(low), np.array(high), np.eye(3), 0.0, hull)}
     piece = {"mounted": {"on": "ship_1", "at": [1.0, 2.0, 0.5]}}
     matrix = machines.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), piece, hosts,
                                    {"machines": {"ship_1": {"nose": "-z"}}})
     assert np.allclose(matrix[3, :3], [1.0, 0.7, -13.5]), matrix
+    # under the hull's floor (0.2 up), moved up onto it; out past its side (x 4.0), moved in onto it
+    under = {"mounted": {"on": "ship_1", "at": [1.0, 2.0, -1.0], "onto": "up"}}
+    lifted = machines.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), under, hosts,
+                                   {"machines": {"ship_1": {"nose": "-z"}}})
+    assert abs(lifted[3, 1] + 0.5 - (0.2 - machines.MOUNT_CLEAR)) < 1e-6, lifted  # its top 2 mm under the floor
+    outside = {"mounted": {"on": "ship_1", "at": [5.0, 2.0, 1.0], "onto": "in"}}
+    pulled = machines.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), outside, hosts,
+                                   {"machines": {"ship_1": {"nose": "-z"}}})
+    assert abs(pulled[3, 0] - 0.5 - (4.0 + machines.MOUNT_CLEAR)) < 1e-6, pulled  # its inner side 2 mm off the side
     try:
         machines.mounted_pose(np.zeros((2, 3)), piece, hosts, {"machines": {"ship_1": {}}})
     except ValueError as refused:
