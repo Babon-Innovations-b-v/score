@@ -166,7 +166,7 @@ def test_a_loose_bit_joins_the_nearest_larger_island_of_its_own_finish():
     assert len(np.unique(part_of)) == 2 and (part_of[bit] == part_of[-1]).all() and (merged[bit] == 1).all()
 
 
-def test_a_finish_of_crumbs_only_keeps_them_as_one_part_when_they_add_up():
+def test_a_finish_of_crumbs_only_keeps_them_as_one_part_however_small():
     host = trimesh.creation.box(extents=(1, 1, 1))
     bands = []
     for number in range(4):  # thin stripes beside the box, each a crumb, together over ISLAND_LEAST
@@ -181,10 +181,22 @@ def test_a_finish_of_crumbs_only_keeps_them_as_one_part_when_they_add_up():
     part_of, merged = finish_parts.merged_islands(mesh, label)
     striped = slice(len(host.faces), None)
     assert len(np.unique(part_of)) == 2 and (merged[striped] == 1).all() and len(np.unique(part_of[striped])) == 1
-    one = trimesh.util.concatenate([host, bands[0]])  # one crumb alone still joins its neighbour with its finish
+    one = trimesh.util.concatenate([host, bands[0]])  # one crumb alone keeps its finish as a part of its own
     label = np.r_[np.zeros(len(host.faces)), np.ones(len(bands[0].faces))].astype(int)
     part_of, merged = finish_parts.merged_islands(one, label)
-    assert len(np.unique(part_of)) == 1 and (merged == 0).all()
+    assert len(np.unique(part_of)) == 2 and (merged[len(host.faces):] == 1).all()
+
+
+def test_cleaning_never_removes_a_finish_whole():
+    mesh = trimesh.creation.icosphere(subdivisions=4)
+    middles = mesh.triangles_center
+    label = np.zeros(len(mesh.faces), dtype=int)
+    dots = np.flatnonzero((middles[:, 1] > 0.9) | (middles[:, 0] > 0.97))[::3]  # scattered single faces of finish 1
+    label[dots] = 1
+    without = finish_parts.cleaned(mesh, label, 2)
+    assert (without[dots] == 1).all() and (without[label == 0] == 0).mean() > 0.99
+    kept = finish_parts.kept_finishes(np.array([0, 1, 2, 2]), np.array([0, 0, 0, 2]))
+    assert kept.tolist() == [0, 1, 0, 2]  # a finish left with any face stays as the cleaning left it
 
 
 def test_agreement_and_mixing_count_against_the_maps():
