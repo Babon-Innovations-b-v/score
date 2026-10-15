@@ -1,0 +1,30 @@
+{
+ "gaps": [
+  {
+   "name": "walkway: wall upper plain box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan: every wall in the concept is dark grey; the row is the kit's code-built light grey bolted plate",
+   "decided": "overseer, 2026-10-15 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"wall_upper_plain\", \"result\": \"fail\", \"why\": \"judge: round dark grey wall panels\"}"
+   ]
+  },
+  {
+   "name": "walkway: wall upper plain box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "walkway.wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan: every wall in the concept is dark grey; the row is the kit's code-built light grey bolted plate",
+   "decided": "overseer, 2026-10-15 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "walkway.wall_upper_plain: judge: round dark grey wall panels"
+   ]
+  }
+ ]
+}

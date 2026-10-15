@@ -23,6 +23,8 @@ NAME = "gaps"
 # no accepted output moves. shortcut: a judged-only input (in the judgement's state, not the key; a change to
 # score/graph) would let these read only their own gaps too.
 KEYED_WHOLE = ("campgrounds", "galley", "garage", "greenhouse", "hangar", "navigation", "wreck")
+# The rows that keyed those files whole: a gate given gaps later (complete-boxes) reads only the gaps naming it.
+KEYED_ROWS = ("assembly", "surfaces-check", "surfaces-paint")
 
 
 def files(place, row=None):
@@ -33,7 +35,7 @@ def files(place, row=None):
     path = FOLDER / f"{place}.json"
     if not path.exists():
         return {}
-    if row is not None and place not in KEYED_WHOLE and not any(
+    if row is not None and not (place in KEYED_WHOLE and row in KEYED_ROWS) and not any(
             entry["row"] == row for entry in json.loads(path.read_text())["gaps"]):
         return {}
     return {NAME: "{data}/checks/gaps/" + f"{place}.json"}
