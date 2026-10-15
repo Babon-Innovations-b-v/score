@@ -134,15 +134,17 @@ def claimed_bakes(inputs, out):
     """(bake, paint, out, models) of each place whose bake holds models this place lays (its surface data's
     `elsewhere`, read beside: surfaces-bake@<place>), models as {the name this place lays: the name that place bakes
     it under} (`baked_as` in this place's own bake's elsewhere.json: the hangar lays parts_rack_1, old_station bakes
-    the take as parts_rack)."""
+    the take as parts_rack), or the model's own name where that place bakes it under it with the claimed take (the
+    hub's wrench_2: workshop bakes wrench_1 to wrench_4 from one take, each its own size; baked_as names wrench_1)."""
     found = []
     elsewhere = json.loads(pathlib.Path(inputs["surfaces"]).read_text()).get("elsewhere", {})
     claims = json.loads((pathlib.Path(inputs["surfaces-bake"]) / "elsewhere.json").read_text()) if elsewhere else {}
     for name, path in inputs.items():
         if name.startswith("surfaces-bake@"):
             other = name.split("@", 1)[1]
-            models = {model: claims[model]["baked_as"] for model, claim in elsewhere.items()
-                      if claim["place"] == other}
+            baked = json.loads((pathlib.Path(path) / "baked.json").read_text())
+            models = {model: model if baked.get(model, {}).get("parts") == claim["take"] else claims[model]["baked_as"]
+                      for model, claim in elsewhere.items() if claim["place"] == other}
             found.append((pathlib.Path(path), pathlib.Path(inputs[f"surfaces-paint@{other}"]), out, models))
     return found
 
