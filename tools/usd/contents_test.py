@@ -111,6 +111,12 @@ def effects_and_motion_both_ways():
         path = bare_stage(folder)
         cases = [("an effect needed with no record", judged("effects", path), contents.FAIL),
                  ("a motion needed with no record", judged("motion", path), contents.FAIL)]
+        (data / "movers").mkdir()
+        (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": [], "still": {"door": " "}}))
+        cases.append(("a still entry with no reason", judged("motion", path), contents.FAIL))
+        (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": [], "still": {"door": "parked"}}))
+        cases.append(("a need written down as still, with why", judged("motion", path), contents.PASS))
+        (data / "movers" / f"{PLACE}.json").unlink()
         (data / "effects" / f"{PLACE}.json").write_text(json.dumps({"effects": [{"name": "kettle_steam"}]}))
         (data / "motion" / f"{PLACE}.json").write_text(json.dumps({"motions": [{"name": "door",
                                                                                  "prim": f"/{PLACE}/door"}]}))

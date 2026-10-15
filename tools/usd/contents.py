@@ -287,18 +287,22 @@ def moving(prim):
 
 
 def judge_motion(stage, place, inventory, outputs):
-    """Every motion and mover of the place's records moving on the stage, and every need of the place one of them."""
+    """Every motion and mover of the place's records moving on the stage, and every need of the place one of them or
+    covered: a thing of the moving kind its movers record writes down as rightly still, with why (`still`)."""
     wants = expected(place)
     if wants is None:
         return UNKNOWN, [], f"{EXPECTED} lists no expectations for {place}"
-    motions = (record("motion", place) or {}).get("motions", []) + (record("movers", place) or {}).get("movers", [])
+    movers = record("movers", place) or {}
+    motions = (record("motion", place) or {}).get("motions", []) + movers.get("movers", [])
     made = {motion["name"] for motion in motions
             if stage.GetPrimAtPath(motion["prim"]) and moving(stage.GetPrimAtPath(motion["prim"]))}
+    covered = {name.rsplit("/", 1)[-1] for name, why in movers.get("still", {}).items() if str(why).strip()}
     still = [f"{motion['name']}: {motion['prim']} does not move on the stage" for motion in motions
              if motion["name"] not in made]
     faults = still + [f"{need}: no motion of the records moves with it in its name"
-                      for need in unmet(wants.get("motion", []), made)]
-    return outcome(faults, f"{len(made)} motions move; needs met: {', '.join(wants.get('motion', [])) or 'none'}")
+                      for need in unmet(wants.get("motion", []), made | covered)]
+    return outcome(faults, f"{len(made)} motions move, {len(covered)} written down as still; needs met: "
+                           f"{', '.join(wants.get('motion', [])) or 'none'}")
 
 
 # --- crops ----------------------------------------------------------------------------------------------------------
