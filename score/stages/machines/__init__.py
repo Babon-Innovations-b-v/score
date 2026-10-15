@@ -295,6 +295,8 @@ def lay(layer, place, model, entry, matrix, sha256):
     for name, value in values.items():
         Sdf.AttributeSpec(spec, name, Sdf.ValueTypeNames.String).default = value
     Sdf.AttributeSpec(spec, "score:fixed", Sdf.ValueTypeNames.Bool).default = False
+    if "mounted" in entry:  # set into its host (score:on): the resting check judges it with its host (triage.py)
+        Sdf.AttributeSpec(spec, "score:mounted", Sdf.ValueTypeNames.Bool).default = True
     Sdf.AttributeSpec(spec, "xformOp:transform", Sdf.ValueTypeNames.Matrix4d).default = Gf.Matrix4d(matrix.tolist())
     Sdf.AttributeSpec(spec, "xformOpOrder", Sdf.ValueTypeNames.TokenArray, variability=Sdf.VariabilityUniform
                       ).default = ["xformOp:transform"]

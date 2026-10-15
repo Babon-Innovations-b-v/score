@@ -81,6 +81,31 @@ def overlaps_and_nudge():
         return problems
 
 
+def a_mounted_piece_is_judged_with_its_host():
+    """The hangar ship's engines and thrusters (2026-10-15), set into the hull, read as loose and the hull lying in
+    them. A piece the machines layer marks mounted (score:mounted, score:on its host) lies in its host as part of
+    it; in anything else it overlaps as a loose piece does."""
+    from pxr import Sdf, Usd
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = place_of(folder, [("hull", "box", (0, 0, 0)), ("engine", "box", (0.6, 0, 0)),
+                                  ("crate", "box", (3, 0, 0)), ("engine", "box", (3.6, 0, 0))],
+                         [row("hull"), row("engine", support="fixed"), row("crate")])
+        opened = Usd.Stage.Open(str(stage))
+        for name in ("engine_1", "engine_2"):
+            prim = opened.GetPrimAtPath(f"/{PLACE}/Objects/{name}")
+            prim.CreateAttribute("score:mounted", Sdf.ValueTypeNames.Bool).Set(True)
+            prim.CreateAttribute("score:on", Sdf.ValueTypeNames.String).Set("hull_1")
+        opened.GetRootLayer().Save()
+        said = verdicts(triage.triage(stage))
+        problems = []
+        if any(kind == "overlaps" and real for name in ("hull_1", "engine_1") for kind, real in said.get(name, [])):
+            problems.append(f"an engine set into its hull read {said.get('hull_1')} {said.get('engine_1')}")
+        if ("overlaps", True) not in said.get("engine_2", []):
+            problems.append(f"a mounted engine 40 cm inside a crate read {said.get('engine_2')}")
+        return problems
+
+
 def a_long_drop_is_unstable_and_faults_group():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
@@ -290,6 +315,7 @@ def the_data_read_is_the_data_given():
 
 
 CHECKS = (supports_and_guards, a_drop_started_inside_is_judged_by_the_overlap, a_case_on_a_pallet_is_no_surface_under_the_pallet, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
+          a_mounted_piece_is_judged_with_its_host,
           a_foot_off_the_floor_and_a_lean_fail, a_block_tipped_onto_one_edge_of_its_sole_leans, the_collision_set,
           occlusion_boundaries, the_data_read_is_the_data_given, footing_on_a_slope_is_read_over_the_ground)
 
