@@ -1,7 +1,8 @@
 # score/stages/demo_film/
 
 The demo-film and demo-film-extra rows (experimental, 2026-10-14): demo K9's walk-through films of a place, from its
-final stage once it passes complete or fails it only on its named gaps (`gapped`, the overseer 2026-10-15), with its own sound; paid and cleared by the runner like any paid row.
+final stage once it passes complete or fails it only on its named gaps (`gapped`, the overseer 2026-10-15), with its
+own sound; paid and cleared by the runner like any paid row.
 `__init__.py`'s docstring has the make, the output and the gate.
 
 - **One record a film**, `data/definitions/demo_films/<film>.json` (`place`, `camera`, `why`), so adding a film moves no
@@ -15,13 +16,14 @@ final stage once it passes complete or fails it only on its named gaps (`gapped`
   render); a standing shot starts 5 degrees off the camera's aim and a walk's start may move up to 1.5 m to stand clear,
   which views.json records.
 - **The film is the place's own**: the neighbours output where the place shows others, else its assembly, never a seed;
-  one camera path, 1280x720 at 12 frames a second (96 frames; each shown twice in the 24 fps cut), the look only (no
-  ink). People need no handling: the characters layer lays nobody today.
-  About EUR 0.7 a place (EUR 1.0 at 24 frames a second, the overseer cut it 2026-10-15).
+  one camera path of 4 s, 1280x720 at 24 frames a second (96 frames), the look only (no ink): a 5.5 s film with its
+  title card, which the length gate holds to. People need no handling: the characters layer lays nobody today.
+  About EUR 0.7 a place (EUR 1.0 for the 8 s path of 192 frames; the overseer's plan, 2026-10-15).
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame. Whether a film reads well is the creator's call.
-- **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (the launch lifts off at 4 s
-  and the garage's rover drives out from 1 s, both inside the 8 s path); `stills.py` (the demo-stills row,
+- **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (the garage's rover drives out
+  from 1 s, inside the 4 s path; the launch lifts off at 4 s, at the path's end, so its film shows the rocket before
+  lift-off); `stills.py` (the demo-stills row,
   `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film starts by itself once its place
   passes complete, or fails it only on its named gaps, in any world run). Test: `demo_film_test.py` (no Blender, no spend).

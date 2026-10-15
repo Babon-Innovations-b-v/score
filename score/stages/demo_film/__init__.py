@@ -12,7 +12,7 @@ that place. One file a film, so adding a film moves no other film's key; a place
     make   the final stage (the neighbours output where the place shows others, else its assembly), copied into a tree
            of its own; demo.py's plan with SHOTS camera path starting at the film's camera (its first frame that
            camera's view, unless the planner had to move its start clear or level it: views.json's moves say),
-           SIZE frames at RATE a second (each shown twice at demo.RATE), look only (no ink); the frames rendered;
+           SIZE frames over SECONDS at demo.RATE, look only (no ink); the frames rendered;
            demo.py's cut with the stage's sound layer. Per film:
            film.mp4, views.json (each frame's view, the moves, the planner's commit) and concept.png, the first frame
            (for the place's own film, demo K8's still beside the concept); the other frames are not kept. The own
@@ -33,16 +33,17 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 FILMS = REPO / "data/definitions/demo_films"
 SIZE = (1280, 720)
 SHOTS = 1
-# Frames a second rendered: half the demo's RATE (the cut shows each twice at RATE), so a film's frames cost half
-# (the overseer, 2026-10-15).
-RATE = 12
-# The title card and one 8 s shot joined by a half-second fade (demo.py TITLE_SECONDS, SHOT_SECONDS, FADE_SECONDS).
-LEAST, MOST = 9.0, 10.0
+# A place's shot: 4 s at demo.RATE (24), 96 frames, half the demo's SHOT_SECONDS, so a film's frames cost half (the
+# overseer's plan, 2026-10-15).
+SECONDS = 4.0
+# The planned length: the title card and the shot joined by a half-second fade (demo.py TITLE_SECONDS, FADE_SECONDS),
+# 2 + 4 - 0.5 = 5.5 s, within half a second.
+LEAST, MOST = 5.0, 6.0
 # Workbench and Cycles on a card; the cheapest first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
 CLASSES = "gpu-24gb,gpu-48gb"
 JOBS = 2
-# 96 frames (8 s at RATE) at EUR 0.0030 a frame at 720p, look only (ledger batch blender-20261009-020545-2401425: 5,292
-# frames, EUR 15.76), and a machine's set-up, rounded up (192 frames at 24 a second: EUR 1.0).
+# 96 frames (SECONDS at 24) at EUR 0.0030 a frame at 720p, look only (ledger batch blender-20261009-020545-2401425:
+# 5,292 frames, EUR 15.76), and a machine's set-up, rounded up (the 8 s shot's 192 frames: EUR 1.0).
 EUROS = 0.7
 TOOLS = ("tools/review/demo.py", "tools/review/film_checks.py", "tools/review/renders.py",
          "tools/review/viewer/viewpoints.py", "tools/usd/camera_paths.py", "tools/usd/scene.py", "tools/usd/sound.py",
@@ -133,7 +134,8 @@ def film_one(stage_folder, name, film, out, log_folder):
     shutil.copytree(stage_folder, work / "stages" / place)
     subprocess.run(["chmod", "-R", "u+w", str(work / "stages")], check=True)
     given = f"{place}={film['camera']}" if name == place else f"{name}@{place}={film['camera']}"
-    jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE, ink=False, shots=SHOTS, rate=RATE)
+    jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE, ink=False, shots=SHOTS,
+                     seconds=SECONDS)
     render(jobs, log_folder)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(work / "frames" / name / "shot0-000-look.png", out / "concept.png")
