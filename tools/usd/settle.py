@@ -378,35 +378,45 @@ def rest_poses(stage, place, inventory, simulated, starts, room=False):
     ground = None if room else resting.ground_height(stage, place)
     for name, found in sorted(simulated["objects"].items()):
         before = laid_matrix(stage, place, name)
-        entry = {"before": before, "after": np.asarray(found["motion"]) @ before,
-                 "middle": object_middle(stage, place, name), "uneven": uneven_feet(stage, place, name),
-                 "base lean": base_lean(stage, place, name)}
-        turned, drift = correction(entry)
-        said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
-        piece = max(UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]).ComputeWorldBound(
-            stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange().GetSize())
-        debris = piece <= DEBRIS_SIZE
         if found["inside"] or found["moving"] > STILL:
             why = (f"laid inside {', '.join(found['inside'])}" if found["inside"]
                    else f"still moving {found['moving']:.2f} m/s at the end")
             poses[name] = {"before": before, "after": before, "rested": False, "said": f"{why}; left as laid"}
-        elif ground is not None and (flush := flush_on_slope(stage, place, name, rows, data, ground)) is not None:
-            poses[name] = {"before": before, "after": flush[0] @ before, "rested": True, "said": flush[1]}
-        elif tips_on_uneven_feet(tip := {**entry, "before": starts.get(name, np.eye(4)) @ before}):
-            # the tip from where its drop started: an old settle's tip onto the same feet is no rest either
-            start = touching(stage, place, name, starts.get(name, np.eye(4)), np.asarray(found["motion"]))
-            poses[name] = {"before": before, "after": start @ before, "rested": False,
-                           "said": f"{said}{uneven_said(tip)}; stood upright on its lowest foot"}
-        elif (not debris and turned > TURN_MOST) or drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
-            poses[name] = {"before": before, "after": before, "rested": False,
-                           "said": f"would not rest as laid: {said}"}
+            continue
+        dropped = dropped_pose(stage, place, name, found, starts)
+        if ground is not None and (flush := flush_on_slope(stage, place, name, rows, data, ground)) is not None:
+            # the drop's own rest kept beside it: what the object falls back to when flush rests worse
+            poses[name] = {"before": before, "after": flush[0] @ before, "rested": True, "said": flush[1],
+                           "fallback": dropped}
         else:
-            poses[name] = {**entry, "rested": True, "said": said}
+            poses[name] = dropped
     written = {name: {key: pose[key] for key in ("before", "after")} | {"middle": object_middle(stage, place, name)}
                for name, pose in poses.items() if pose["after"] is not pose["before"]}
     for name, found in carried_with(stage, place, inventory, written).items():
         poses[name] = {**found, "rested": True, "said": "carried with what it lies on"}
     return poses
+
+
+def dropped_pose(stage, place, name, found, starts):
+    """Where the drop alone leaves one loose object that came to rest (rest_poses): stood upright on its lowest foot
+    after a tip onto uneven feet, kept as laid past the limits, else rested where the drop left it."""
+    before = laid_matrix(stage, place, name)
+    entry = {"before": before, "after": np.asarray(found["motion"]) @ before,
+             "middle": object_middle(stage, place, name), "uneven": uneven_feet(stage, place, name),
+             "base lean": base_lean(stage, place, name)}
+    turned, drift = correction(entry)
+    said = f"turns {turned:.0f} degrees and drifts {drift * 100:.0f} cm to rest"
+    piece = max(UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]).ComputeWorldBound(
+        stage.GetPrimAtPath(f"/{place}/Objects/{name}")).ComputeAlignedRange().GetSize())
+    debris = piece <= DEBRIS_SIZE
+    if tips_on_uneven_feet(tip := {**entry, "before": starts.get(name, np.eye(4)) @ before}):
+        # the tip from where its drop started: an old settle's tip onto the same feet is no rest either
+        start = touching(stage, place, name, starts.get(name, np.eye(4)), np.asarray(found["motion"]))
+        return {"before": before, "after": start @ before, "rested": False,
+                "said": f"{said}{uneven_said(tip)}; stood upright on its lowest foot"}
+    if (not debris and turned > TURN_MOST) or drift > (DEBRIS_DRIFT if debris else DRIFT_MOST):
+        return {"before": before, "after": before, "rested": False, "said": f"would not rest as laid: {said}"}
+    return {**entry, "rested": True, "said": said}
 
 
 def flush_on_slope(stage, place, name, rows, data, ground):

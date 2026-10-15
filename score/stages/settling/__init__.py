@@ -8,7 +8,8 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
              a tip onto uneven feet stood upright for the paint to level); then each fixed one the triage finds
              floating as laid let down onto what is under it (held.fixed_let_down); then each held object stood
              upright and snapped down onto its holder as it rests (held.held_rests); and each object that then rests
-             worse than as laid kept as laid with what it holds (kept_where_worse); all laid as layers/settle.usda
+             worse than as laid kept as laid with what it holds (kept_where_worse; one stood flush on its slope that
+             rests worse goes back to the drop's own rest first, judged again: fallen_back); all laid as layers/settle.usda
              (an over of each moved object's transform), with settle.json (each object's rest and what it did) and the drop's own
              record (drop/settle-job.json, drop/settled.json). A drop is bought only when something loose is to be
              stood up or unstacked or the triage finds a fault on it (free, first); a drop already paid for (the same
@@ -140,6 +141,10 @@ def make(inputs, out, seed, params):
         rested = judged(root, inputs)
         poses = merged(poses, fixed_phase(root, rested, place, ("floor",)), seed, place)  # a hull's hollow on the drop
         worse = faulty(rested, place) - laid
+        poses, fell_back = fallen_back(poses, worse)
+        if fell_back:  # each now at the drop's own rest, judged again
+            laid_over(root, seed, place, poses, scratch / "fallback.usda")
+            worse = faulty(judged(root, inputs), place) - laid
         rested_stage = Usd.Stage.Open(str(root))
         poses = kept_where_worse(poses, worse | supports_of(rested_stage, place, worse), inventory,
                                  lambda name: supports_of(rested_stage, place, {name}))
@@ -164,6 +169,16 @@ def faulty(found, place):
     after one what it made worse)."""
     names = {fault["object"].removeprefix(f"/{place}/Objects/") for fault in found["faults"] if fault["real"]}
     return {name.split("/")[0] for name in names}
+
+
+def fallen_back(poses, worse):
+    """Each object stood flush on the slope (settle.flush_on_slope) that rests worse so, put back at the drop's own
+    rest (its `fallback`), not kept as laid: the wreck's probe lander lost its 1 degree, 2 cm rest when its flush pose
+    rested worse (2026-10-15). (the poses, the names put back)."""
+    back = {name for name in worse if "fallback" in poses.get(name, {})}
+    return {name: (dict(pose["fallback"], said=f"{pose['said']} rested worse; the drop's rest: "
+                                               f"{pose['fallback']['said']}") if name in back else pose)
+            for name, pose in poses.items()}, back
 
 
 def kept_where_worse(poses, worse, inventory, resting_on):
