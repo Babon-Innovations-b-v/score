@@ -17,6 +17,7 @@ concept. Cast (experimental) places each place's people and measures them agains
 (concept_people) and its geometry. Motion (experimental) makes each place's motion layer from its game motions
 and its movers. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
+import contextlib
 import dataclasses
 import functools
 import json
@@ -467,7 +468,53 @@ def ship_lit(applies):
     return functools.wraps(applies)(lit)
 
 
-STAGES = tuple(dataclasses.replace(row, applies=ship_lit(row.applies))
+def has_old_record(place):
+    return place is not None and (REPO / "data" / "scene" / f"{place}.json").exists()
+
+
+@contextlib.contextmanager
+def shows_no_neighbours():
+    """The light stage's neighbours (the places a place's old scene record shows) answered as none while the block
+    runs: a place the game never had (the ship's) has no old record to read them from (2026-10-15: score status died
+    in light-passes for the cockpit on data/scene/cockpit.json)."""
+    kept = light.passes.neighbours, light.neighbours
+    light.passes.neighbours = light.neighbours = lambda place: []
+    try:
+        yield
+    finally:
+        light.passes.neighbours, light.neighbours = kept
+
+
+def no_old_record(files):
+    """A light row's world files for a place with no old scene record: no neighbours and no `scene` file (its record
+    is the scene-record row's output, which the row reads); a place with one declares them as before. Wrapped here, in
+    the table, so no place's key moves."""
+    def declared(place):
+        if has_old_record(place) or place is None:
+            return files(place)
+        with shows_no_neighbours():
+            found = files(place)
+        return {name: path for name, path in found.items() if name not in ("scene", f"scene {place}")}
+    return functools.wraps(files)(declared)
+
+
+def made_without_old_record(make):
+    """A light row's make for a place with no old scene record, showing no neighbours (shows_no_neighbours); a place
+    with one is made as before."""
+    def made(inputs, out, seed, params):
+        place = pathlib.Path(inputs["kit"]).stem
+        if has_old_record(place):
+            return make(inputs, out, seed, params)
+        # the place's record is its scene-record output's (light.passes.record_of reads it first); `scene` names it
+        # only so light.place_of finds the place
+        inputs = dict(inputs, scene=pathlib.Path(inputs["scene-record"]) / "record" / f"{place}.json")
+        with shows_no_neighbours():
+            return make(inputs, out, seed, params)
+    return functools.wraps(make)(made)
+
+
+STAGES = tuple(dataclasses.replace(row, applies=ship_lit(row.applies), files=no_old_record(row.files),
+                                   make=made_without_old_record(row.make))
                if row.name in ("light-layer", "light-passes", "light") and row.applies else row for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
