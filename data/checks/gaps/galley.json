@@ -5,12 +5,12 @@
    "row": "surfaces-paint",
    "check": "colour against the close-up",
    "objects": [
-    "fold_down_seat-s1"
+    "fold_down_seat-s2"
    ],
    "reason": "naming re-ask lacked the measured colour; fix 5d896d7e held until world 1 ships (overseer 2026-10-14)",
    "decided": "overseer, 2026-10-14",
    "faults": [
-    "fold_down_seat-s1: black metal measured L*a*b* [42.5, 0.2, 0.4], anodized_black dE 40.0 (proposed: black metal (fold-down seat: a wall-mounted fold-down))"
+    "fold_down_seat-s2: black metal measured L*a*b* [42.5, 0.2, 0.4], anodized_black dE 40.0 (proposed: black metal (fold-down seat: a wall-mounted fold-down))"
    ]
   }
  ]
