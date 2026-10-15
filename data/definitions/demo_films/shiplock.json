@@ -1,0 +1,5 @@
+{
+ "place": "shiplock",
+ "camera": "from-south-door",
+ "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. The ship's rooms have no game shots, so the camera is picked against the concept by eye: the concept's main piece is the round outer hatch (on a side wall there, on the north end wall in the plan), which from-south-door faces; from-north-door faces the inner door to the engine room."
+}
