@@ -2,17 +2,6 @@
  "place": "shiplock",
  "library": "shiplock",
  "takes": {
-  "outer_hatch-s1": {
-   "places": [
-    "shiplock"
-   ],
-   "library_places": [
-    "shiplock"
-   ],
-   "place": "shiplock",
-   "kind": "shiplock_outer_hatch",
-   "object": "outer pressure hatch: a heavy rounded-corner hatch in a thick white frame with orange and black warning stripes, four locking dogs and a wheel, a small round window"
-  },
   "locker-s1": {
    "places": [
     "shiplock"
@@ -28,34 +17,9 @@
  "bake": {
   "job": "{home}/work/place/shiplock-score1/run/job-chunky.json",
   "models": {
-   "outer_hatch_1": "outer_hatch-s1",
    "locker_1": "locker-s1"
   },
   "entries": {
-   "outer_hatch_1": {
-    "base": [
-     1.0,
-     0.0,
-     0.0,
-     0.0,
-     1.0,
-     0.0,
-     0.0,
-     0.0,
-     1.0
-    ],
-    "size": [
-     1.3,
-     1.9,
-     0.35
-    ],
-    "screens": [],
-    "cuts": [],
-    "density": 1024,
-    "decals": [],
-    "foot": 0.0,
-    "faces": 19000
-   },
    "locker_1": {
     "base": [
      1.0,

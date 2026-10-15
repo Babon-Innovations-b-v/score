@@ -40,7 +40,7 @@
   {
    "id": "outer_hatch",
    "name": "outer pressure hatch: a heavy rounded-corner hatch in a thick white frame with orange and black warning stripes, four locking dogs and a wheel, a small round window",
-   "kind": "generate",
+   "kind": "code",
    "anchor": "wall",
    "size": [
     1.3,
