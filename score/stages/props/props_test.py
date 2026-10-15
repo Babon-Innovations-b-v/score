@@ -9,6 +9,7 @@ import json
 import pathlib
 import shutil
 import sys
+import tempfile
 
 import numpy as np
 
@@ -154,6 +155,18 @@ def test_a_box_s_silhouette_matches_itself_and_not_a_rod():
     assert cube.sum() > 1000
     assert ring.outline(cube, cube) == 1.0
     assert ring.outline(cube, rod) < likeness.OUTLINE_LEAST
+
+
+def test_a_close_up_s_shaded_backdrop_is_not_its_object():
+    from PIL import Image
+    backdrop = np.clip(220 - np.add.outer(np.arange(60), np.arange(80)) * 0.9, 0, 255).astype(np.uint8)
+    pixels = backdrop[..., None].repeat(3, axis=2)  # darkening 120 toward one corner
+    pixels[10:50, 20:40] = (90, 60, 40)
+    folder = pathlib.Path(tempfile.mkdtemp())
+    Image.fromarray(pixels).save(folder / "crate.png")
+    found = likeness.closeup_object(likeness_row.cut_out(folder / "crate.png", folder / "cut"))
+    assert abs(int(found.sum()) - 40 * 20) < 40, found.sum()
+    shutil.rmtree(folder)
 
 
 def likeness_output(folder, objects):
