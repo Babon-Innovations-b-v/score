@@ -6,7 +6,7 @@
    "name": "balcony_door",
    "prim": "/flat/Objects/sliding_glass_leaf_1",
    "start": 0.0,
-   "length": 4.59,
+   "length": 4.6,
    "loop": false,
    "slide": {
     "by": [
@@ -25,7 +25,7 @@
     ]
    },
    "sounds": [],
-   "from": "the slide the balcony doorway's width, 1.4 m (data/plans/flat.json doors: BALCONY DOOR (glass) 1.4 x 2.2 m); at 0.3048 m/s, 12 in. a second, the most a door that opens near people may move: ANSI/BHMA A156.38 (low energy power operated sliding doors) opens at 12 in./s at most, https://buildershardware.com/LinkClick.aspx?fileticket=RzVEAlFx4X4%3D&portalid=0, and ANSI/BHMA A156.10 closes a sliding leaf of up to 160 lb at 1 ft/s at most, https://www.automateddoorsolutions.com/wp-content/uploads/2018/08/ANSI-A156-10-2005.pdf; so 4.59 s"
+   "from": "the slide the balcony doorway's width, 1.4 m (data/plans/flat.json doors: BALCONY DOOR (glass) 1.4 x 2.2 m); at 0.3048 m/s, 12 in. a second, the most a door that opens near people may move: ANSI/BHMA A156.38 (low energy power operated sliding doors) opens at 12 in./s at most, https://buildershardware.com/LinkClick.aspx?fileticket=RzVEAlFx4X4%3D&portalid=0, and ANSI/BHMA A156.10 closes a sliding leaf of up to 160 lb at 1 ft/s at most, https://www.automateddoorsolutions.com/wp-content/uploads/2018/08/ANSI-A156-10-2005.pdf; the slide takes 4.593 s, the round 4.6 s (rounded up, so the slide ends inside it)"
   }
  ]
 }

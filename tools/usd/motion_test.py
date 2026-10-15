@@ -147,12 +147,13 @@ def check_the_balcony_door(work):
     leaf = "/flat/Objects/sliding_glass_leaf_1"
     assert UsdGeom.Xformable(stage.GetPrimAtPath(leaf)).GetXformOpOrderAttr().Get()[-1] == "xformOp:transform", \
         "the kit piece's own transform kept under the slide"
-    close(at(stage, leaf, 0.0)[2], -3.5, "the leaf shut across the doorway (BALCONY_SPOT.z)")
-    close(at(stage, leaf, 0.6)[2], -2.8, "half way at the doorway's width in 1.2 s")
-    close(at(stage, leaf, 1.2)[2], -2.1, "open where the base stands it")
+    half = 0.7 / 0.3048  # half the 1.4 m doorway at the record's 0.3048 m/s
+    close(at(stage, leaf, 0.0)[2], -3.5, "the leaf shut across the doorway")
+    close(at(stage, leaf, half)[2], -2.8, "half way at the doorway's width at 0.3048 m/s")
+    close(at(stage, leaf, 4.6)[2], -2.1, "open where the base stands it")
     close(at(stage, leaf, 30.0)[2], -2.1, "and open from then on")
-    close(at(stage, leaf, 0.6)[0], -2.9363, "sliding along the wall, not across it")
-    print("ok  the flat: the balcony door slides open in the game's 1.2 s and stays open")
+    close(at(stage, leaf, half)[0], -2.9363, "sliding along the wall, not across it")
+    print("ok  the flat: the balcony door slides open at 0.3048 m/s and stays open")
 
 
 def check_the_layer_order_and_the_edit(work):
