@@ -84,6 +84,14 @@ def motions_of(inputs):
     return read_json(inputs["motion"]) if "motion" in inputs else None
 
 
+def scene_of(inputs):
+    """The scene record the place's assembly lays: its accepted scene-record output's where it has the row (the
+    launch's rocket at the spot the plan puts it), else data/scene."""
+    if "scene-record" in inputs:
+        return read_json(pathlib.Path(inputs["scene-record"]) / "record" / f"{place_of(inputs)}.json")
+    return read_json(inputs["scene"])
+
+
 def record_of(inputs):
     """The place's effects record, its seconds from the climb's moments as seconds of the stage (effects.timed)."""
     return effect_layer.timed(read_json(inputs["record"]), motions_of(inputs))
@@ -93,7 +101,7 @@ def make(inputs, out, seed, params):
     """The place's effects layer and its baked particles, from its records."""
     place = pathlib.Path(inputs["seed"]).name
     record = read_json(inputs["record"])  # write_layer times it
-    held = effect_layer.write_layer(place, record, out, effect_layer.place_ground(place), read_json(inputs["scene"]),
+    held = effect_layer.write_layer(place, record, out, effect_layer.place_ground(place), scene_of(inputs),
                                     motions_of(inputs))
     (out / "held.json").write_text(json.dumps({"place": place, "particles": held}, indent=1))
 
@@ -114,8 +122,23 @@ def composed(output, inputs):
     stage = Usd.Stage.Open(root)
     motions = motions_of(inputs)
     if motions:
+        stood(stage, moving, scene_of(inputs), motions, seed.name)
         written(stage, moving, motions, effect_layer.motion_record.stage_rate(seed.name, seed))
     return stage
+
+
+def stood(stage, layer, scene, motions, place):
+    """Each prim a motion moves that is an object of the scene record stood at the record's spot in `layer`, as the
+    assembly lays it (the seed's launch rocket stood 3.4 m off the record's, 2026-10-15)."""
+    from pxr import Gf, Usd
+    spots = {item["name"]: item["at"] for item in scene.get("objects", []) if "at" in item}
+    stage.SetEditTarget(Usd.EditTarget(layer))
+    for motion in motions["motions"]:
+        name = motion["prim"].rsplit("/", 1)[-1]
+        if name in spots and stage.GetPrimAtPath(motion["prim"]):
+            effect_layer.motion_record.translate_attribute(
+                stage, motion["prim"], effect_layer.motion_record.rest_translate(stage, motion["prim"])[1]
+            ).Set(Gf.Vec3d(*map(float, spots[name])))
 
 
 def written(stage, layer, motions, rate):
@@ -456,7 +479,7 @@ def judge_footage(output, inputs, evidence):
     if "footage" not in record:
         return checks.Verdict("footage", checks.UNKNOWN, "the record names no footage to measure its effects on")
     stage, place = composed(output, inputs), place_of(inputs)
-    rocket = rocket_of(record, read_json(inputs["scene"]), motions_of(inputs)) if "rocket" in record["footage"] else None
+    rocket = rocket_of(record, scene_of(inputs), motions_of(inputs)) if "rocket" in record["footage"] else None
     faults, measures, found = [], {}, []
     for check in record["footage"]["checks"]:
         value = measured(check, stage, place, record, rocket)
@@ -576,7 +599,7 @@ def judge_light(output, inputs, evidence):
         return checks.Verdict("light", checks.UNKNOWN, "the record gives the effects no light of their own and does "
                                                        "not say why (`no_light`)")
     stage, place = composed(output, inputs), place_of(inputs)
-    tall, rest, motion = rocket_of(record, read_json(inputs["scene"]), motions_of(inputs))
+    tall, rest, motion = rocket_of(record, scene_of(inputs), motions_of(inputs))
     flames = [f"/{place}/{light['on']}/{light['name']}" for light in record["lights"]]
     lamps = [str(prim.GetPath()) for prim in stage.Traverse()
              if prim.IsA(UsdLux.SphereLight) and str(prim.GetPath()) not in flames]

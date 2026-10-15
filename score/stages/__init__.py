@@ -47,7 +47,7 @@ TERRAIN = graph.Stage("terrain", "world", terrain.make, terrain.GROUNDS, terrain
 # Experimental (PRD #6) until the owner reviews it: each staged place's effects layer (effects.STAGED), which its
 # assembly takes.
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
-                      applies=lambda place: place in effects.STAGED)
+                      after={"scene-record": ("scene-record", 1)}, applies=lambda place: place in effects.STAGED)
 # Experimental (PRD #6) until the owner reviews it: each place's motion layer, the game's timed motions and the movers
 # SCORE gives the things that move there (data/movers), over its seed with its accepted scene record written in (the
 # seed alone where the place has no scene-record row); the final assembly takes it.
