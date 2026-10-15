@@ -317,6 +317,49 @@ def test_a_waiting_entry_whose_row_the_bake_made_is_laid_with_it_and_no_longer_n
         assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
 
 
+def a_baked_triangle(made, name):
+    """A one-triangle baked .gltf named `name` in `made`, its buffer beside it."""
+    import struct
+    made.mkdir(parents=True, exist_ok=True)
+    blob = (struct.pack("9f", 0, 0, 0, 1, 0, 0, 0, 1, 0) + struct.pack("9f", 0, 0, 1, 0, 0, 1, 0, 0, 1)
+            + struct.pack("6f", 0, 0, 1, 0, 0, 1) + struct.pack("3H", 0, 1, 2))
+    (made / f"{name}.bin").write_bytes(blob)
+    views = [(0, 36), (36, 36), (72, 24), (96, 6)]
+    kinds = [(5126, "VEC3"), (5126, "VEC3"), (5126, "VEC2"), (5123, "SCALAR")]
+    document = {"buffers": [{"uri": f"{name}.bin", "byteLength": len(blob)}],
+                "bufferViews": [{"buffer": 0, "byteOffset": start, "byteLength": length} for start, length in views],
+                "accessors": [{"bufferView": index, "componentType": component, "count": 3, "type": kind}
+                              for index, (component, kind) in enumerate(kinds)],
+                "nodes": [{"mesh": 0}],
+                "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2},
+                                            "indices": 3}]}]}
+    (made / f"{name}.gltf").write_text(json.dumps(document))
+
+
+def test_a_claimed_model_is_laid_under_this_place_s_name_from_the_name_its_place_bakes_it_under():
+    """The hangar (2026-10-15): it lays parts_rack_1, which old_station bakes as parts_rack (its take parts_rack-r1);
+    the assembly looked for parts_rack_1 in old_station's bake and stopped. The claim's baked name comes from the
+    hangar's own bake (elsewhere.json, baked_as), and the model is read from it under the hangar's name."""
+    import export
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        (folder / "surfaces.json").write_text(json.dumps(
+            {"elsewhere": {"parts_rack_1": {"take": "parts_rack-r1", "place": "old_station"}}}))
+        (folder / "bake").mkdir()
+        (folder / "bake/elsewhere.json").write_text(json.dumps({"parts_rack_1": {
+            "take": "parts_rack-r1", "place": "old_station", "node": "surfaces-bake@old_station",
+            "baked_as": "parts_rack"}}))
+        inputs = {"surfaces": folder / "surfaces.json", "surfaces-bake": folder / "bake",
+                  "surfaces-bake@old_station": folder / "old", "surfaces-paint@old_station": folder / "paint"}
+        [(bake, _, _, models)] = assembly.claimed_bakes(inputs, folder / "out")
+        assert bake == folder / "old" and models == {"parts_rack_1": "parts_rack"}, models
+        a_baked_triangle(folder / "old/made", "parts_rack")
+        found = assembly.renamed_model(folder / "old/made", "parts_rack", "parts_rack_1", folder / "out/renamed")
+        geometry = export.model_geometry(export.model_file(found, "parts_rack_1"))
+        assert len(geometry["positions"]) == 3, geometry
+        assert assembly.renamed_model(folder / "old/made", "parts_rack", "parts_rack", folder / "x") == folder / "old/made"
+
+
 def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot():
     """Fault (2026-10-12): the garage's fourth pressure gauge moved off the big door's leaf track in its kit, yet the
     assembly and the motion stage kept the seed's object where the old kit put it. relay_kit lays every piece at its

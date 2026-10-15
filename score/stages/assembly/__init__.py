@@ -132,35 +132,56 @@ def claiming_places(place):
 
 def claimed_bakes(inputs, out):
     """(bake, paint, out, models) of each place whose bake holds models this place lays (its surface data's
-    `elsewhere`, read beside: surfaces-bake@<place>), each model under the name both places give it."""
+    `elsewhere`, read beside: surfaces-bake@<place>), models as {the name this place lays: the name that place bakes
+    it under} (`baked_as` in this place's own bake's elsewhere.json: the hangar lays parts_rack_1, old_station bakes
+    the take as parts_rack)."""
     found = []
     elsewhere = json.loads(pathlib.Path(inputs["surfaces"]).read_text()).get("elsewhere", {})
+    claims = json.loads((pathlib.Path(inputs["surfaces-bake"]) / "elsewhere.json").read_text()) if elsewhere else {}
     for name, path in inputs.items():
         if name.startswith("surfaces-bake@"):
             other = name.split("@", 1)[1]
-            models = [model for model, claim in elsewhere.items() if claim["place"] == other]
+            models = {model: claims[model]["baked_as"] for model, claim in elsewhere.items()
+                      if claim["place"] == other}
             found.append((pathlib.Path(path), pathlib.Path(inputs[f"surfaces-paint@{other}"]), out, models))
     return found
 
 
 def take_bake(bake, paint, out, models=None):
     """The surface stage's baked models in place of the seed's: each model a place's bake made (or only `models` of
-    it), written as the exporter writes an asset (tools/usd/export.write_asset: drawn mesh, collision, a subset per
-    library surface from the paint's labelled parts) over the seed's assets/<model>.usdc and its maps."""
+    it: {the name laid here: the name baked under}), written as the exporter writes an asset (tools/usd/export.
+    write_asset: drawn mesh, collision, a subset per library surface from the paint's labelled parts) over the seed's
+    assets/<model>.usdc and its maps."""
     import export
     import library
     variants = library.variants(library.theme_library())
     sounds = json.loads(export.SOUNDS.read_text())
     baked = json.loads((bake / "baked.json").read_text())
-    missing = [model for model in models or () if model not in baked]
+    models = models if models is not None else {model: model for model in baked}
+    missing = [model for model, baked_as in models.items() if baked_as not in baked]
     if missing:
         raise FileNotFoundError(f"{bake}: its bake made none of {missing}, which this place lays by its claim")
-    for model in models if models is not None else baked:
-        entry = baked[model]
+    for model, baked_as in models.items():
+        entry = baked[baked_as]
         (out / "assets" / f"{model}.usdc").unlink(missing_ok=True)
-        export.write_asset(model, bake / "made", {model: paint / "labelled" / entry["parts"]}, None, entry["base"],
-                           entry["size"], out, variants, sounds)
-        stamp_baked_hash(out / BASE_LAYER, model, bake / "made" / f"{model}.gltf")
+        export.write_asset(model, renamed_model(bake / "made", baked_as, model, out / "renamed"),
+                           {model: paint / "labelled" / entry["parts"]}, None, entry["base"], entry["size"], out,
+                           variants, sounds)
+        stamp_baked_hash(out / BASE_LAYER, model, bake / "made" / f"{baked_as}.gltf")
+    shutil.rmtree(out / "renamed", ignore_errors=True)
+
+
+def renamed_model(made, baked_as, model, scratch):
+    """The folder holding `model`.gltf: the bake's own when it baked the model under that name, else `scratch` with
+    a copy of its .gltf under the laid name, its buffer and pictures pointing back into the bake's folder."""
+    if baked_as == model:
+        return made
+    document = json.loads((made / f"{baked_as}.gltf").read_text())
+    for entry in document["buffers"] + document.get("images", []):
+        entry["uri"] = str((made / entry["uri"]).resolve())
+    scratch.mkdir(parents=True, exist_ok=True)
+    (scratch / f"{model}.gltf").write_text(json.dumps(document))
+    return scratch
 
 
 def stamp_baked_hash(base, model, gltf):

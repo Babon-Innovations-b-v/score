@@ -2,6 +2,7 @@
  "place": "garage",
  "machines": {
   "rover_1": {
+   "row": "rover",
    "take": "kit5-rover-3",
    "kind": "garage_rover",
    "on": "rover_lift_1",
