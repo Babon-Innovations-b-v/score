@@ -68,6 +68,9 @@ OWN_SAMPLES = 4000
 # How far over an object's lowest point its footing is looked for (metres): a base tilted by the ground's slope or a
 # settle still touches with all its feet.
 LOW_BAND = 0.1
+# Ground sloping over FLAT_TILT degrees under an object standing on it is read as a plane (ground_plane): its footing
+# and feet are found by height over that plane, from GROUND_SPOTS by GROUND_SPOTS spots of the ground under it.
+FLAT_TILT, GROUND_SPOTS = 1.0, 5
 RAY_START = resting.RAY_START
 # An object's feet (feet.py): its low points clustered across and along, points under FOOT_LINK metres apart one
 # foot, a cluster of fewer than FOOT_POINTS points left out as noise. Each foot of a floor or held object must touch
@@ -224,22 +227,59 @@ class Surfaces:
 
 # --- judging one object -----------------------------------------------------------------------------------------
 
-def low_points(mesh):
-    """An object's points near its bottom (within LOW_BAND of its lowest), of its vertices and a sample of its
-    surface, at most LOW_POINTS of them spread over that band: its whole footing, not only its lowest corner."""
+def low_points(mesh, plane=None):
+    """An object's points near its bottom (within LOW_BAND of its lowest, its height read over `plane`: over_plane),
+    of its vertices and a sample of its surface, at most LOW_POINTS of them spread over that band: its whole footing,
+    not only its lowest corner."""
     points = np.vstack([np.asarray(mesh.vertices), mesh.sample(OWN_SAMPLES, seed=0)]) if mesh.area > 0 else \
         np.asarray(mesh.vertices)
-    low = points[points[:, 1] <= points[:, 1].min() + LOW_BAND]
+    height = over_plane(points, plane)
+    low = points[height <= height.min() + LOW_BAND]
     if len(low) > LOW_POINTS:
         low = low[np.random.default_rng(0).choice(len(low), LOW_POINTS, replace=False)]
     return low
+
+
+def over_plane(points, plane):
+    """Each point's height over `plane` ((a, b, c): y = a x + b z + c), or its own height with no plane."""
+    return points[:, 1] - plane_under(points, plane)
+
+
+def plane_under(points, plane):
+    """The plane's height under each point (0 with no plane)."""
+    if plane is None:
+        return np.zeros(len(points))
+    return plane[0] * points[:, 0] + plane[1] * points[:, 2] + plane[2]
+
+
+def ground_plane(mesh, ground, beneath=None):
+    """The plane of the ground under an object's footprint ((a, b, c): y = a x + b z + c, fitted to the ground's
+    height at GROUND_SPOTS by GROUND_SPOTS spots over it) when the object stands on the ground (its lowest point
+    within LOW_BAND of it) and the ground there slopes over FLAT_TILT; else None, and heights are read as they are.
+    Read straight up, the footing of an object on a slope is the strip on its downhill side: the campgrounds'
+    reactor, flush on a 6.6 degree slope, touched along one edge, its weight 0.8 m outside (2026-10-15). One standing
+    on something nearer under it than the ground (`beneath`: points to their gaps to the first surface under them, a
+    kit room's level floor plates over a sloping terrain) is read as it is."""
+    low, high = mesh.bounds
+    across, along = np.meshgrid(np.linspace(low[0], high[0], GROUND_SPOTS), np.linspace(low[2], high[2], GROUND_SPOTS))
+    spots = np.c_[across.ravel(), along.ravel()]
+    heights = ground(spots)
+    lowest = np.asarray(mesh.vertices)[np.argmin(np.asarray(mesh.vertices)[:, 1])]
+    under = ground(lowest[None, [0, 2]])[0]
+    if not np.all(np.isfinite(heights)) or not np.isfinite(under) or lowest[1] - under > LOW_BAND:
+        return None
+    if beneath is not None and beneath(lowest[None])[0] < lowest[1] - under - TOLERANCE:
+        return None
+    plane = np.linalg.lstsq(np.c_[spots, np.ones(len(spots))], heights, rcond=None)[0]
+    return plane if np.degrees(np.arctan(np.hypot(plane[0], plane[1]))) > FLAT_TILT else None
 
 
 def standing(entry, ground, surfaces, left_out, statics):
     """How a floor or held object stands: its gap (with and without the scene record's decks and fixtures), how many
     points touch, how far its weight falls outside them, how deep it lies under the ground, each foot's gap
     (feet_gaps) and how far its up axis leans from what it touches (lean)."""
-    points = low_points(entry["mesh"])
+    plane = ground_plane(entry["mesh"], ground, lambda found: surfaces.gaps_below(found, left_out))
+    points = low_points(entry["mesh"], plane)
     best = gaps_at(points, ground, surfaces, left_out)
     if best.min() > TOLERANCE:  # on rough ground a big piece touches far over its lowest point
         points, best = nearest_points(entry["mesh"], points, best, lambda found: gaps_at(found, ground, surfaces,
@@ -254,8 +294,8 @@ def standing(entry, ground, surfaces, left_out, statics):
             "contacts": int(touching.sum()),
             "outside": resting.outside_by(resting.weight_at(entry["mesh"]), points[touching][:, [0, 2]]),
             "depth": max(0.0, -float(np.nanmin(clearance[known]))) if known.any() else 0.0,
-            "lowest": points[np.argmin(points[:, 1])],
-            "feet": feet_gaps(entry["mesh"], lambda low: gaps_at(low, ground, surfaces, left_out)),
+            "lowest": points[np.argmin(over_plane(points, plane))],
+            "feet": feet_gaps(entry["mesh"], lambda low: gaps_at(low, ground, surfaces, left_out), plane),
             "lean": lean(entry["matrix"], points[touching], best[touching])}
 
 
@@ -303,17 +343,21 @@ def foot_clusters(vertices, triangles, band):
             if len(members) >= FOOT_POINTS]
 
 
-def feet_gaps(mesh, gaps_of):
-    """Each foot of an object (foot_clusters within LOW_BAND, in the stage's frame) as (its lowest point, its gap to
+def feet_gaps(mesh, gaps_of, plane=None):
+    """Each foot of an object (foot_clusters within LOW_BAND, in the stage's frame, heights read over `plane` when
+    given: over_plane) as (its lowest point, its gap to
     what is under it): the least gap of its sole (its points within TOLERANCE of its lowest, at most FOOT_SOLE of
     them spread over it, and its FOOT_LOWEST lowest; `gaps_of`: points to gaps). A foot touching anywhere along its
     sole is down: a crate's skid reaching a little past the crate it stands on was read off by its overhanging end
     alone (87 cm over the floor, 2026-10-13)."""
     found = []
-    for members, lowest in foot_clusters(mesh.vertices, mesh.faces, LOW_BAND):
+    vertices = np.array(mesh.vertices, dtype=np.float64)
+    vertices[:, 1] -= plane_under(vertices, plane)  # heights over the plane
+    for members, lowest in foot_clusters(vertices, mesh.faces, LOW_BAND):
         sole = members[members[:, 1] <= lowest + TOLERANCE]
         sole = sole[np.random.default_rng(0).choice(len(sole), min(len(sole), FOOT_SOLE), replace=False)]
         low = np.vstack([members[np.argsort(members[:, 1])[:FOOT_LOWEST]], sole])
+        low[:, 1] += plane_under(low, plane)  # back in the stage's frame
         gaps = gaps_of(low)
         found.append((low[np.argmin(gaps)], float(gaps.min())))
     return found

@@ -75,7 +75,23 @@ def the_drop_gate_fails_a_broken_drop_and_names_what_was_kept():
         return problems
 
 
-CHECKS = (the_layer_lays_each_object_at_its_rest, the_drop_gate_fails_a_broken_drop_and_names_what_was_kept)
+def only_what_lies_on_the_object_resting_worse_is_kept_with_it():
+    """Both ways: a case on the pallet that rests worse is kept as laid with it; a case of the same row on another
+    pallet of the same row is not (the campgrounds' open cases, 2026-10-15)."""
+    eye = np.eye(4)
+    moved = np.eye(4)
+    moved[1, 3] = 0.01
+    poses = {name: {"before": eye, "after": moved, "rested": True, "said": "moved"}
+             for name in ("pallet_1", "pallet_2", "case_1", "case_2")}
+    inventory = {"rows": [{"id": "pallet", "anchor": "floor"}, {"id": "case", "anchor": "on:pallet"}]}
+    under = {"case_1": {"pallet_1"}, "case_2": {"pallet_2"}}
+    found = settle.kept_where_worse(poses, {"pallet_1"}, inventory, lambda name: under.get(name, set()))
+    kept = sorted(name for name, pose in found.items() if not pose["rested"])
+    return [] if kept == ["case_1", "pallet_1"] else [f"kept {kept}, not the worse pallet and its own case"]
+
+
+CHECKS = (the_layer_lays_each_object_at_its_rest, the_drop_gate_fails_a_broken_drop_and_names_what_was_kept,
+          only_what_lies_on_the_object_resting_worse_is_kept_with_it)
 
 
 if __name__ == "__main__":

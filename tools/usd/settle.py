@@ -363,14 +363,19 @@ def drop_key(stage_path, job):
     return digest.hexdigest()
 
 
-def rest_poses(stage, place, inventory, simulated, starts):
+def rest_poses(stage, place, inventory, simulated, starts, room=False):
     """Where a drop leaves each loose object, as the rest layer lays it: {name: {"before", "after" (stage frame,
     column vectors), "rested": True when it came to rest by a small correction (write_layout's limits), "said": what it
     did}}, and what lies on a written one carried with it (carried_with). One laid inside a static, still moving, or
     that would turn or drift past the limits keeps its laid pose, not rested (its layout is put right instead). A tip
     onto uneven feet stands upright on its lowest foot (its start, let down to touch), not rested either: the model's
-    feet are the paint's to level (feet.py), and the assembly's own drop judges the levelled model."""
+    feet are the paint's to level (feet.py), and the assembly's own drop judges the levelled model. One that stands on
+    its feet on sloping ground rests flush on the slope (flush_on_slope), whatever the drop did; not in a kit `room`,
+    whose pieces stand on its own level floor plates, whatever the terrain under them does."""
+    import triage
     poses = {}
+    data, rows = triage.rules(), {row["id"]: row for row in inventory["rows"]}
+    ground = None if room else resting.ground_height(stage, place)
     for name, found in sorted(simulated["objects"].items()):
         before = laid_matrix(stage, place, name)
         entry = {"before": before, "after": np.asarray(found["motion"]) @ before,
@@ -385,6 +390,8 @@ def rest_poses(stage, place, inventory, simulated, starts):
             why = (f"laid inside {', '.join(found['inside'])}" if found["inside"]
                    else f"still moving {found['moving']:.2f} m/s at the end")
             poses[name] = {"before": before, "after": before, "rested": False, "said": f"{why}; left as laid"}
+        elif ground is not None and (flush := flush_on_slope(stage, place, name, rows, data, ground)) is not None:
+            poses[name] = {"before": before, "after": flush[0] @ before, "rested": True, "said": flush[1]}
         elif tips_on_uneven_feet(tip := {**entry, "before": starts.get(name, np.eye(4)) @ before}):
             # the tip from where its drop started: an old settle's tip onto the same feet is no rest either
             start = touching(stage, place, name, starts.get(name, np.eye(4)), np.asarray(found["motion"]))
@@ -400,6 +407,40 @@ def rest_poses(stage, place, inventory, simulated, starts):
     for name, found in carried_with(stage, place, inventory, written).items():
         poses[name] = {**found, "rested": True, "said": "carried with what it lies on"}
     return poses
+
+
+def flush_on_slope(stage, place, name, rows, data, ground):
+    """(the motion from as laid, stage frame, column vectors; what it did) that stands an object flush on the ground's
+    slope under it: its up turned onto the slope's normal about its middle, its heading kept, then let down (or up)
+    until its lowest point meets the ground. None for one that lies as laid (lies_as_laid) or stands on no sloping
+    ground (triage.ground_plane: off the ground, or the ground under it level). The drop drops the seed's model, whose
+    feet or base the paint levels before its bake: on the campgrounds' 5 to 6.6 degree slopes it tipped the crane
+    onto its seed's uneven feet (17 degrees, kept as laid) and left the reactor 1.7 degrees off the slope, a foot of
+    the baked model 6.5 cm up (2026-10-15). On the slope's plane every levelled foot touches."""
+    import triage
+    import trimesh
+    prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
+    if lies_as_laid(rows.get(prim.GetAttribute("score:row").Get(), {}), data):
+        return None
+    points = object_points(stage, place, name)
+    plane = triage.ground_plane(trimesh.PointCloud(points), ground)
+    if plane is None:
+        return None
+    normal = np.array([-plane[0], 1.0, -plane[1]]) / np.linalg.norm([plane[0], 1.0, plane[1]])
+    laid = laid_matrix(stage, place, name)
+    up = laid[:3, 1] / np.linalg.norm(laid[:3, 1])
+    turn = Rotation.align_vectors([normal], [up])[0].as_matrix()
+    middle = points.mean(axis=0)
+    motion = np.eye(4)
+    motion[:3, :3] = turn
+    motion[:3, 3] = middle - turn @ middle
+    moved = points @ turn.T + motion[:3, 3]
+    lift = float(np.nanmin(moved[:, 1] - ground(moved[:, [0, 2]])))
+    motion[1, 3] -= lift
+    tilt = math.degrees(math.atan(math.hypot(plane[0], plane[1])))
+    turned = math.degrees(Rotation.from_matrix(turn).magnitude())
+    return motion, (f"stood flush on the ground's {tilt:.1f} degree slope (turned {turned:.1f} degrees) and let "
+                    f"{'down' if lift > 0 else 'up'} {abs(lift) * 100:.1f} cm")
 
 
 def layout_pose(matrix, ground, scale):

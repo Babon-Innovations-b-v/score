@@ -100,6 +100,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   (`nearest_points`: a hull lying across a crater's rim touches 15 cm over its lowest point) (its own up over 3 degrees from the plane under what it touches); a row that says `leans`
   (laid tilted on purpose: the wreck's debris, captain 2026-10-12) is asked neither:
   the greenhouse's water tank stood 7.5 degrees tipped, a foot 7 cm up, and passed before (2026-10-12).
+  On ground sloping over 1 degree under an object standing on it (`ground_plane`) its footing and feet are read by
+  height over the ground's plane, not straight up (read straight up, the campgrounds' reactor flush on a 6.6 degree
+  slope touched along its downhill edge and tipped by 0.8 m, 2026-10-15); level ground and decks read as before.
 - `collide.py` is the collision queries (python-fcl and trimesh; one tree per model and scale): collision set,
   intersection test with an offset, distance, touches, raycast. ProcFunc's interface; its release has no such code yet.
 - `snap.py` is placement by snapping, for agents laying a place instead of hand coordinates (ProcFunc's idea, not in
@@ -165,6 +168,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   shallow bowl under a piece (a thrown sphere, a section's impact) so it rests where it was laid. A tip over 3 degrees
   onto feet that do not lie in one plane in the model's own frame (`uneven_feet`) is never written either: it is the
   model's fault (the surface stage's paint levels a take's feet), marked `unrested` with the feet's spread.
+  A loose piece standing on its feet on sloping ground rests flush on the slope (`flush_on_slope`: its up along the
+  ground's normal, heading kept, let down to touch), whatever the drop of the seed's model did: the paint levels the
+  bake's feet, so on the slope's plane every one touches (the campgrounds' crane, 17 degrees on its seed's feet).
   A drop that finds rest poses (`drop_job(upright=True)`: settle.py's write, the settle stage) starts each loose piece
   stood upright in its seat (`upright_starts`: an old settle's tip of up to 15 degrees is no pose to drop from; a row
   that `leans` or may bed in starts as laid), and a piece stacked on another loose one meets it (`stacked_under`: a
