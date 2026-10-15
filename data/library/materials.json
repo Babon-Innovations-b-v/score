@@ -722,6 +722,20 @@
 					"bump": 0.0002,
 					"bump_size": 0.002,
 					"said": "added 2026-10-12 for the people stage (#5): clothing, skin and hair are library surfaces as every prop's; owner to review"
+				},
+				"plastic_red": {
+					"recipe": "rubber",
+					"token": "mars-dust",
+					"roughness": 0.4,
+					"bump": 0.0001,
+					"said": "added 2026-10-15 for the cockpit's throttle pedestal: its red plastic (close-up L*a*b* [46.3, 32.8, 25.5]); the nearest cockpit surface, vinyl_orange, lay dE 27.6 off and no plastic of the library came nearer than red_plastic_light's 22.8. Made as red_plastic is (rubber recipe, roughness 0.4) on the nearest palette token, mars-dust, dE 9.4. Owner's yes, 2026-10-15"
+				},
+				"plastic_orange": {
+					"recipe": "rubber",
+					"token": "lips",
+					"roughness": 0.4,
+					"bump": 0.0001,
+					"said": "added 2026-10-15 for the cockpit's flight stick: its orange plastic accents (close-up L*a*b* [45.8, 19.3, 26.3]); the nearest cockpit surface, vinyl_orange, lay dE 32.5 off and no plastic of the library came nearer than 33.0. Made as red_plastic is on the nearest palette token, lips, dE 7.8. Owner's yes, 2026-10-15"
 				}
 			}
 		},
