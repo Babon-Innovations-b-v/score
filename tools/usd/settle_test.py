@@ -1,7 +1,7 @@
 """Check the settle's write-back and the levelled yard on places made here, without Blender: a pose an object came to
 rest in (tipped a little on a sloping planned ground) written into the layout as spot, lift and rotation, and exported
 again, stands exactly where it rested; a 3 m piece that would turn 40 degrees to rest keeps its laid pose and is
-marked, while 1 m debris may turn so; a tip onto uneven feet (the water tank's legs) is refused while a crate's is written; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop; a
+marked, while 1 m debris may turn so; a tip onto uneven feet (the water tank's legs, or a base the clusters read as one foot) is refused while a crate's is written; a kit room's piece (the game's kit) moves with its object, what lies on a settled piece moves with it, only floor pieces are dropped, not a kit's floor plate, and neither a glow nor what lies on a dropped piece (held, or a scene record's fixture) is a static of the drop; a
 levelled box of the plan is flat and eases back into the ground.
 
 Run: .venv/bin/python tools/usd/settle_test.py   (make tests runs it with the framework's environment)
@@ -135,6 +135,37 @@ def a_tip_onto_uneven_feet_is_refused():
             problems.append(f"the crate's 7.5 degree settle was not written: {crate}")
         return problems
 
+
+
+def a_tip_onto_a_base_joined_as_one_foot_is_refused():
+    """Both ways, as the lab's desk chairs (2026-10-15: five casters joined by a star base, one 2.4 cm up, read as one
+    even foot and their 4.8 degree tip written): a block whose base slopes 5 degrees is one foot to the clusters, yet
+    its tip onto that base is refused by the lean of its hull under its weight, while a crate's is written."""
+    import export_test
+    import triage_test
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        export_test.box_gltf(folder / "models", "wedge", triage_test.wedge(5.0))
+        path = resting_test.laid_place(folder, [("wedge", "wedge", (4, 0, 2)), ("crate", "box", (8, 0, 2))],
+                                       [("wedge", "floor"), ("crate", "floor")])
+        stage = Usd.Stage.Open(str(path))
+        settled = {}
+        for name in ("wedge_1", "crate_1"):
+            before = stage_matrix(path, name)
+            tipped = np.eye(4)
+            tipped[:3, :3] = Rotation.from_euler("x", 5.0, degrees=True).as_matrix()
+            tipped[:3, 3] = before[:3, 3] - tipped[:3, :3] @ before[:3, 3]
+            settled[name] = {"before": before, "after": tipped @ before, "middle": [0, 0.5, 0],
+                             "uneven": settle.uneven_feet(stage, PLACE, name),
+                             "base lean": settle.base_lean(stage, PLACE, name)}
+        problems = []
+        if settled["wedge_1"]["uneven"] > settle.resting.TOLERANCE or abs(settled["wedge_1"]["base lean"] - 5.0) > 0.1 \
+                or settled["crate_1"]["base lean"] > 0.1:
+            problems.append(f"measured {settled['wedge_1']} (wedge) and {settled['crate_1']} (crate)")
+        if not settle.tips_on_uneven_feet(settled["wedge_1"]) or settle.tips_on_uneven_feet(settled["crate_1"]):
+            problems.append("the wedge's tip onto its sloping base was written, or the crate's refused")
+        return problems
 
 def a_dent_is_a_shallow_bowl():
     with tempfile.TemporaryDirectory() as temporary:
@@ -335,7 +366,8 @@ CHECKS = (a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
           a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
           a_fixture_on_a_dropped_piece_is_no_static_of_the_drop, what_lies_on_a_settled_piece_moves_with_it, a_big_turn_is_marked_not_made,
-          a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl, a_tip_onto_uneven_feet_is_refused)
+          a_levelled_yard_is_flat_and_eases_out, a_dent_is_a_shallow_bowl, a_tip_onto_uneven_feet_is_refused,
+          a_tip_onto_a_base_joined_as_one_foot_is_refused)
 
 
 if __name__ == "__main__":
