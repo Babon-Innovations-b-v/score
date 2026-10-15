@@ -87,10 +87,10 @@ def test_complete_fails_each_named_gap_by_name_with_its_numbers():
 
 def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gates():
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
-    assert places == ["campgrounds", "galley", "garage", "greenhouse", "hangar", "lab", "launch", "navigation", "square",
-                      "street", "wreck"], places
+    assert places == ["campgrounds", "flat", "galley", "garage", "greenhouse", "hangar", "lab", "launch", "navigation",
+                      "square", "stairwell", "street", "wreck"], places
     assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("hub")
-    assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("flat")
+    assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("hub")
     from score.graph import GAPPED
     assert GAPPED == "named gaps" and GAPPED in [check.name for check in ROWS["complete"].checks]
     for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),

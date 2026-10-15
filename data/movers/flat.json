@@ -14,7 +14,7 @@
    "spin": {
     "speed": 720.0
    },
-   "from": "The ceiling fan at its middle speed, SCORE's own (the game stands it still): 120 rpm, 720 degrees a second (data/checks/motion.json ceiling_fan: a 52 in. fan's 69 to 170 rpm), about the upright line through its middle; 120 whole turns in the layer's 60 s, so the layer loops."
+   "from": "The ceiling fan at its middle speed: 120 rpm, 720 degrees a second (data/checks/motion.json ceiling_fan: a 52 in. fan's 69 to 170 rpm), about the upright line through its middle; 120 whole turns in the layer's 60 s, so the layer loops."
   }
  ],
  "still": {

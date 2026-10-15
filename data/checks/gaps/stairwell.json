@@ -1,0 +1,37 @@
+{
+ "gaps": [
+  {
+   "name": "stairwell: no props file, so no likeness",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "likeness"
+   ],
+   "unknown": "no accepted likeness@stairwell",
+   "reason": "no props file (data/props/stairwell.json); up to EUR 55 per place, outside world 1's budget",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "likeness: 1 generated rows and no accepted likeness@stairwell (the props rows run only with data/props/stairwell.json): none is held to its close-up"
+   ]
+  },
+  {
+   "name": "stairwell: player and neighbour not on the stage, no accepted body",
+   "row": "complete",
+   "check": "people",
+   "objects": [
+    "player",
+    "player (player/work)",
+    "neighbour",
+    "neighbour (kit_m_broad/uniform-olive)"
+   ],
+   "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule); next month's people work",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "player: in the cast, not on the stage",
+    "neighbour: in the cast, not on the stage",
+    "player (player/work): not a made model: no accepted body of its look (people-dress-player-work)",
+    "neighbour (kit_m_broad/uniform-olive): not a made model: no accepted body of its look (people-dress-kit_m_broad-uniform-olive)"
+   ]
+  }
+ ]
+}
