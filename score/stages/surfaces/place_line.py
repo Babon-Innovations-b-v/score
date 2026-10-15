@@ -158,12 +158,13 @@ def stands_on_feet(entry, inventory, rules_file):
     words, not of a class that may bed in (cable, cloth, debris) by its id, what it is: a word of its description is
     not its class (the garage's control cabinet, "cables running up from its top", was read as a cable and never
     levelled, 2026-10-15). Only such a take has feet to level: a glove that hangs, a wall panel or a fragment thrown
-    on the ground is left as made."""
+    on the ground is left as made, as is a row that says it `leans` (laid tilted on purpose, as the triage and the
+    settle read it: the wreck's debris, whose resting faces then failed "feet in one plane", 2026-10-15)."""
     rules = json.loads(pathlib.Path(rules_file).read_text())
     rows = json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory and pathlib.Path(inventory).exists() \
         else []
     bedding_words = {word for bedding in rules["may_bed"] for word in bedding["words"]}
-    return any(row.get("thing") == f"prop:{entry['kind']}" and not row.get("fixed")
+    return any(row.get("thing") == f"prop:{entry['kind']}" and not row.get("fixed") and not row.get("leans")
                and row.get("support") in (None, "floor", "held")
                and (row.get("anchor", "") in ("floor", "ground", "") or row.get("anchor", "").startswith("on:"))
                and not row_words(row) & set(rules["hanging"])
