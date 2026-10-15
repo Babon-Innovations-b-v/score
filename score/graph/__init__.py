@@ -585,8 +585,17 @@ class Runner:
             return None
         output = self.store.checkout(accepted)
         inputs = self.input_paths(stage, place, record)
-        return checks.scorecard([checks.judge(check, output, inputs, self.store.evidence_file(check.name, accepted))
-                                 for check in stage.checks])
+        stored = review.newest_judgement(self.store, record)
+        card = {}
+        for check in stage.checks:
+            try:
+                card.update(checks.scorecard([checks.judge(check, output, inputs,
+                                                           self.store.evidence_file(check.name, accepted))]))
+            except Exception as error:  # a gate newer than the output's own schema: its stored verdict stands
+                if stored and check.name in stored["verdicts"]:
+                    card[check.name] = {**stored["verdicts"][check.name],
+                                        "not judged again": f"{type(error).__name__}: {error}"}
+        return card
 
     def bytecode_proof(self, stage, place, keyed):
         """{file name: its recorded hash, its sources' hash at the record's commit and now} when the node's accepted
