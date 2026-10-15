@@ -17,6 +17,12 @@
   "nose_thruster": {
    "route": "prop",
    "take": "nose_thruster-s1"
+  },
+  "hose_reel": {
+   "route": "code",
+   "code_model": "{home}/work/ship/hose_reel-code/hose_reel_1.gltf",
+   "closeup": "{home}/work/place/airlock-score1/run/closeups/hose_reel.png",
+   "note": "stand fitted to the close-up outline (0.484; the close-up's cut-out keeps the pipe and lamp behind it)"
   }
  },
  "fallback": {},
