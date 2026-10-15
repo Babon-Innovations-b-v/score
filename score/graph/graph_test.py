@@ -617,6 +617,38 @@ def test_a_run_names_every_world_file_it_could_never_make_before_it_starts():
     assert runner.missing_inputs([(CLEAN, "hangar")]) == []
 
 
+STRICT = {"on": False}  # the toy gate's code before (off) and after (on) it learned to see a fault
+
+
+def judge_marks(output, inputs, evidence):
+    marks = (output / "clean.txt").read_text().split().count("X") if STRICT["on"] else 0
+    return checks.Verdict("marks", checks.PASS, f"{marks} marks", {"marks": marks}, {"marks": "lower"})
+
+
+MARKS = graph.Stage("clean", "place", make_clean, TEXT, (checks.Check("marks", judge_marks),),
+                    files={"brief": "{data}/{place}/brief.txt"})
+
+
+def test_the_accepted_output_is_judged_again_by_todays_gates_before_comparing():
+    """Both ways (assembly@lab, 2026-10-15: its accepted output was judged before the triage asked each foot, so the
+    chairs' caster read as two new faults): a fault the old gate could not see, on both outputs alike, does not block
+    the runner's accept; a real new fault still does."""
+    world, store = a_world({"hangar": "a x"}), Store.in_folder(tempfile.mkdtemp())
+    STRICT["on"] = False
+    first = a_runner(world, store, (MARKS,)).run(["hangar"])
+    assert first["clean@hangar"] == "made: pass, accepted automatically", first
+    STRICT["on"] = True  # today's gate sees the mark the accepted output had all along
+    (world.roots["data"] / "hangar" / "brief.txt").write_text("b x")
+    seen = a_runner(world, store, (MARKS,)).run(["hangar"])
+    assert seen["clean@hangar"] == "made: pass, accepted automatically", seen
+    (world.roots["data"] / "hangar" / "brief.txt").write_text("c x x")
+    accepted = store.accepted("clean@hangar")
+    worse = a_runner(world, store, (MARKS,)).run(["hangar"])
+    STRICT["on"] = False
+    assert worse["clean@hangar"] == "made: pass", worse  # one more mark, measured alike: worse, not accepted
+    assert store.accepted("clean@hangar") == accepted
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

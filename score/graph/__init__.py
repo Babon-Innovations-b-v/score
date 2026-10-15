@@ -568,8 +568,25 @@ class Runner:
         newer = self.newer_accepted(node, keyed["key"])
         if newer:
             return f"{done}, not accepted: {newer}"
-        accepted = review.accept_automatically(self.store, node, record["output"])
+        judged = review.newest_judgement(self.store, record)
+        against = self.rejudged_accepted(stage, place) if judged and judged["answer"] == checks.PASS else None
+        accepted = review.accept_automatically(self.store, node, record["output"], against)
         return f"{done}, accepted automatically" if accepted else done
+
+    def rejudged_accepted(self, stage, place):
+        """The accepted output's scorecard judged now, by today's gates on today's world files (its named gaps among
+        them, so a gap moves the same faults on both sides), not kept: what a new output is compared with, so both
+        are measured alike (assembly@lab, 2026-10-15: its accepted output was judged on 10-11 before the triage asked
+        each foot, so the chairs' caster read as two new faults). None when nothing is accepted."""
+        node = node_name(stage, place)
+        accepted = self.store.accepted(node)
+        record = review.record_of(self.store, node, accepted) if accepted else None
+        if record is None:
+            return None
+        output = self.store.checkout(accepted)
+        inputs = self.input_paths(stage, place, record)
+        return checks.scorecard([checks.judge(check, output, inputs, self.store.evidence_file(check.name, accepted))
+                                 for check in stage.checks])
 
     def bytecode_proof(self, stage, place, keyed):
         """{file name: its recorded hash, its sources' hash at the record's commit and now} when the node's accepted
