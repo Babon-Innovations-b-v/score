@@ -1,0 +1,2238 @@
+{
+	"room": "galley",
+	"frame": "the room's own: its middle on its floor, x east, z south, y up (the nose south)",
+	"counts": {
+		"galley_wall_lower_plain": 15,
+		"galley_wall_upper_plain": 16,
+		"galley_ring_floor_plate": 15,
+		"galley_roof_face_panel": 15,
+		"galley_door_leaf": 1,
+		"galley_edge_light_strip": 2,
+		"galley_ceiling_light_panel": 2
+	},
+	"kinds": {
+		"galley_door_leaf": {
+			"group": "hangs"
+		},
+		"galley_edge_light_strip": {
+			"light": {
+				"strength": 0.1,
+				"reach": 3.0,
+				"high": 0.03
+			},
+			"group": "hangs"
+		},
+		"galley_ceiling_light_panel": {
+			"light": {
+				"strength": 0.2,
+				"reach": 4.0,
+				"high": 0.05
+			},
+			"group": "hangs"
+		},
+		"galley_wall_lower_plain": {
+			"group": "hangs"
+		},
+		"galley_wall_upper_plain": {
+			"group": "hangs"
+		},
+		"galley_roof_face_panel": {
+			"group": "floors"
+		},
+		"galley_ring_floor_plate": {
+			"group": "floors"
+		}
+	},
+	"models": {
+		"wall_lower_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_2": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_lower_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_3": {
+			"glows": false,
+			"route": "code"
+		},
+		"wall_upper_plain_4": {
+			"glows": false,
+			"route": "code"
+		},
+		"ring_floor_plate_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"roof_face_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"door_leaf_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"edge_light_strip_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"edge_light_strip_1_glow": {
+			"glows": true
+		},
+		"ceiling_light_panel_1": {
+			"glows": false,
+			"route": "code"
+		},
+		"ceiling_light_panel_1_glow": {
+			"glows": true
+		}
+	},
+	"pieces": [
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				-1.0333,
+				0.0,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0733,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				0.0,
+				0.0,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0733,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				1.0333,
+				0.0,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0733,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				-1.0333,
+				1.1,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0733,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				0.0,
+				1.1,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0733,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				1.0333,
+				1.1,
+				-2.97
+			],
+			"x": [
+				-1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				-1.0
+			],
+			"size": [
+				1.0733,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				1.52,
+				0.0,
+				-2.4
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				1.52,
+				0.0,
+				-1.2
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				1.52,
+				0.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				1.52,
+				0.0,
+				1.2
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				1.52,
+				0.0,
+				2.4
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_2"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				1.52,
+				1.1,
+				-2.4
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				1.52,
+				1.1,
+				-1.2
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				1.52,
+				1.1,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				1.52,
+				1.1,
+				1.2
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				1.52,
+				1.1,
+				2.4
+			],
+			"x": [
+				0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.24,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_2"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				1.0333,
+				0.0,
+				2.97
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0733,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				0.0,
+				0.0,
+				2.97
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0733,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				-1.0333,
+				0.0,
+				2.97
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0733,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_1"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				1.0333,
+				1.1,
+				2.97
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0733,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				0.0,
+				1.1,
+				2.97
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0733,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				-1.0333,
+				1.1,
+				2.97
+			],
+			"x": [
+				1.0,
+				0.0,
+				-0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.0733,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_1"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				-1.52,
+				0.0,
+				2.3625
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				-1.52,
+				0.0,
+				1.0875
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				-1.52,
+				1.1,
+				2.3625
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				-1.52,
+				1.1,
+				1.0875
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				-1.52,
+				0.0,
+				-1.0875
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "galley_wall_lower_plain",
+			"at": [
+				-1.52,
+				0.0,
+				-2.3625
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				1.1,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_lower_plain_3"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				-1.52,
+				1.1,
+				-1.0875
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				-1.52,
+				1.1,
+				-2.3625
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				1.315,
+				2.02,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_3"
+		},
+		{
+			"kind": "galley_wall_upper_plain",
+			"at": [
+				-1.52,
+				2.0,
+				0.0
+			],
+			"x": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				0.94,
+				1.12,
+				0.06
+			],
+			"layer": 1,
+			"model": "wall_upper_plain_4"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				-1.0333,
+				-0.02,
+				-3.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				-1.0333,
+				-0.02,
+				-1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				-1.0333,
+				-0.02,
+				-0.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				-1.0333,
+				-0.02,
+				0.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				-1.0333,
+				-0.02,
+				1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-3.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				-0.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				0.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				0.0,
+				-0.02,
+				1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				1.0333,
+				-0.02,
+				-3.0
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				1.0333,
+				-0.02,
+				-1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				1.0333,
+				-0.02,
+				-0.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				1.0333,
+				-0.02,
+				0.6
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_ring_floor_plate",
+			"at": [
+				1.0333,
+				-0.02,
+				1.8
+			],
+			"x": [
+				1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				-0.0,
+				-1.0,
+				-0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "ring_floor_plate_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				-1.0333,
+				3.14,
+				-3.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				-1.0333,
+				3.14,
+				-1.8
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				-1.0333,
+				3.14,
+				-0.6
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				-1.0333,
+				3.14,
+				0.6
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				-1.0333,
+				3.14,
+				1.8
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				0.0,
+				3.14,
+				-3.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				0.0,
+				3.14,
+				-1.8
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				0.0,
+				3.14,
+				-0.6
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				0.0,
+				3.14,
+				0.6
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				0.0,
+				3.14,
+				1.8
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				1.0333,
+				3.14,
+				-3.0
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				1.0333,
+				3.14,
+				-1.8
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				1.0333,
+				3.14,
+				-0.6
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				1.0333,
+				3.14,
+				0.6
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_roof_face_panel",
+			"at": [
+				1.0333,
+				3.14,
+				1.8
+			],
+			"x": [
+				-1.0,
+				0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				0.0,
+				1.0
+			],
+			"z": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"size": [
+				1.0333,
+				1.2,
+				0.04
+			],
+			"layer": 1,
+			"taper": 1.0,
+			"model": "roof_face_panel_1"
+		},
+		{
+			"kind": "galley_door_leaf",
+			"at": [
+				-1.535,
+				0.0,
+				0.21
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				1.32,
+				2.0,
+				0.11
+			],
+			"layer": 1,
+			"model": "door_leaf_1"
+		},
+		{
+			"kind": "galley_edge_light_strip",
+			"at": [
+				-1.503,
+				2.97,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				5.6,
+				0.05,
+				0.054
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1"
+		},
+		{
+			"kind": "galley_edge_light_strip",
+			"at": [
+				-1.473,
+				2.98,
+				0.0
+			],
+			"x": [
+				0.0,
+				-0.0,
+				1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-1.0,
+				-0.0,
+				0.0
+			],
+			"size": [
+				5.58,
+				0.03,
+				0.006
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "galley_edge_light_strip",
+			"at": [
+				1.503,
+				2.97,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				5.6,
+				0.05,
+				0.054
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1"
+		},
+		{
+			"kind": "galley_edge_light_strip",
+			"at": [
+				1.473,
+				2.98,
+				0.0
+			],
+			"x": [
+				-0.0,
+				0.0,
+				-1.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				1.0,
+				-0.0,
+				-0.0
+			],
+			"size": [
+				5.58,
+				0.03,
+				0.006
+			],
+			"layer": 1,
+			"model": "edge_light_strip_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "galley_ceiling_light_panel",
+			"at": [
+				0.0,
+				3.07,
+				-1.5
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.4,
+				0.2,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "galley_ceiling_light_panel",
+			"at": [
+				0.0,
+				3.07,
+				-1.5
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.3,
+				0.006,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		},
+		{
+			"kind": "galley_ceiling_light_panel",
+			"at": [
+				0.0,
+				3.07,
+				1.5
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.4,
+				0.2,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1"
+		},
+		{
+			"kind": "galley_ceiling_light_panel",
+			"at": [
+				0.0,
+				3.07,
+				1.5
+			],
+			"x": [
+				1.0,
+				-0.0,
+				0.0
+			],
+			"y": [
+				0.0,
+				1.0,
+				0.0
+			],
+			"z": [
+				-0.0,
+				-0.0,
+				1.0
+			],
+			"size": [
+				1.3,
+				0.006,
+				0.05
+			],
+			"layer": 1,
+			"model": "ceiling_light_panel_1_glow",
+			"part": "glow"
+		}
+	]
+}
