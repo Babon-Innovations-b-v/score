@@ -12,6 +12,20 @@
    "faults": [
     "crane: a foot 3.2 cm off the floor while another touches (quadrant lows [0.0, 1.5, 3.2, 2.5] cm)"
    ]
+  },
+  {
+   "name": "cargo case 1: laid in the ground inside pallet 2",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "cargo_case_1",
+    "cargo_pallet_2"
+   ],
+   "reason": "an old settle's carry (008a6e31) laid the plan's closed case on a pallet on the ground inside pallet 2, its bottom at the pallet's feet; snap.py's drop puts it 12.7 cm up, 2 mm over the pallet, but the spot is in data/inventory/campgrounds.json, which pixal (EUR 20), sound, machines-boxes and paint key whole: outside world 1's budget until those rows key only what they read",
+   "decided": "overseer, 2026-10-15, waiting for the creator's confirmation",
+   "faults": [
+    "cargo_case_1: lies 9.5 to 10 cm inside cargo_pallet_2 (pallet 2's low points 9.5 cm under the case: the moon-faults settle replay, 2026-10-15)"
+   ]
   }
  ]
 }
