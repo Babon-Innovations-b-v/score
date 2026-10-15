@@ -30,14 +30,16 @@ blocks like fail.
                 (data/sound/places.json) names stands under /<place>/Sound/Room
     neighbours  every place the scene record shows stands under /<place>/Places, its references resolve to files,
                 and it has children
-    game        no record the place is made from (its scene record, cast, effects, motions, movers, room tones)
-                cites the game 2099 as where its numbers come from (`from`: the game, 2099, a .gd or .tscn file)
+    game        no record the place is made from (its scene records: the one beside the stage, data/scene's and the
+                accepted scene-record output's; its cast, effects, motions, movers, room tones) cites the game 2099
+                as where its numbers come from (a `from` or `source`: the game, 2099, a .gd or .tscn file); each
+                fault counts the citing fields and the positions (at, centre, position, placed_at) so taken
     waiting     no entry of the scene record waits on its model (the assembly lays nothing for one and names it on
                 the root prim, score:waiting): each such entry fails as a gap
 
-Light, neighbours and game read the scene record the stage was assembled from (scene.json beside its root, which the
+Light and neighbours read the scene record the stage was assembled from (scene.json beside its root, which the
 assembly stage writes: the accepted scene-record output, else the seed's), and data/scene/<place>.json for a stage
-with none beside it.
+with none beside it. Game reads every one of them, so a record the stage was not built from still fails it.
 
 A place that is a part of another (contents.json `part_of`: the garage's and the hangar's door leaves) is judged
 on people, light, sound and neighbours on its host's stage, which shows it; its own stage on the rest.
@@ -71,7 +73,7 @@ HEIGHT = 1.7
 ASPECT = 16 / 9
 FULL_LOOKS = "people/bodies.json"
 # The stage outputs a check reads: {name: the accepted output's folder, or None when there is none}.
-OUTPUTS = ("likeness", "surfaces-check", "characters-layer")
+OUTPUTS = ("likeness", "surfaces-check", "characters-layer", "scene-record")
 
 
 # --- the place's records --------------------------------------------------------------------------------------------
@@ -445,28 +447,59 @@ def judge_neighbours(stage, place, inventory, outputs):
 
 # --- nothing cites the game -----------------------------------------------------------------------------------------
 
-def game_sources(found, where=""):
-    """Each `from` in a record (at any depth) that cites the game: [(where, text)]."""
+SOURCES = ("from", "source")  # the fields a record names where an entry's numbers come from
+POSITIONS = ("at", "centre", "position", "placed_at")  # the fields that place an entry
+
+
+def entries(found, where=""):
+    """Every dict in a record, at any depth: [(where, entry)]."""
     if isinstance(found, dict):
-        cited = [(where or "the record", found["from"])] if isinstance(found.get("from"), str) and \
-            GAME.search(found["from"]) else []
-        return cited + [hit for key, value in found.items() if key != "from"
-                        for hit in game_sources(value, f"{where}.{key}" if where else key)]
+        return [(where or "the record", found)] + [hit for key, value in found.items()
+                                                   for hit in entries(value, f"{where}.{key}" if where else key)]
     if isinstance(found, list):
-        return [hit for number, value in enumerate(found) for hit in game_sources(value, f"{where}[{number}]")]
+        return [hit for number, value in enumerate(found) for hit in entries(value, f"{where}[{number}]")]
     return []
 
 
-def judge_game(stage, place, inventory, outputs):
-    """No record the place is made from cites the game as its source: its scene record the one the stage was
-    assembled from (assembled_scene), the rest from data."""
+def cited_fields(entry):
+    """The entry's source fields (SOURCES) that cite the game."""
+    return [field for field in SOURCES if isinstance(entry.get(field), str) and GAME.search(entry[field])]
+
+
+def game_sources(found):
+    """Each source field in a record (at any depth) that cites the game: [(where, field, text)]."""
+    return [(where, field, entry[field]) for where, entry in entries(found) for field in cited_fields(entry)]
+
+
+def game_positions(found):
+    """Each position of an entry whose source cites the game: [(where, field)]."""
+    return [(where, field) for where, entry in entries(found) if cited_fields(entry)
+            for field in POSITIONS if field in entry]
+
+
+def game_records(stage, place, outputs):
+    """{name: record} of every record the place is made from that the game check reads (None where there is none)."""
     beside = pathlib.Path(stage.GetRootLayer().realPath).parent / ASSEMBLED_SCENE
-    records = {(str(beside) if beside.exists() else f"data/scene/{place}.json"): assembled_scene(stage, place)}
+    made = pathlib.Path(outputs["scene-record"]) / "record" / f"{place}.json" if outputs.get("scene-record") else None
+    records = {str(beside): json.loads(beside.read_text()) if beside.exists() else None,
+               f"data/scene/{place}.json": record("scene", place),
+               f"scene-record output {made}": json.loads(made.read_text()) if made and made.exists() else None}
     records.update({f"data/{kind}/{place}.json": record(kind, place)
                     for kind in ("characters", "effects", "motion", "movers")})
     records["data/sound/places.json"] = json.loads((DATA / "sound/places.json").read_text())["places"].get(place)
-    counts = {name: len(game_sources(found)) for name, found in records.items() if found}
-    faults = [f"{name}: {count} entries take their numbers from the game" for name, count in counts.items() if count]
+    return records
+
+
+def judge_game(stage, place, inventory, outputs):
+    """No record the place is made from cites the game as its source: every scene record of it (game_records), the
+    rest from data. A fault counts the citing fields and the positions they place."""
+    faults = []
+    for name, found in game_records(stage, place, outputs).items():
+        sources = game_sources(found) if found else []
+        if sources:
+            fields = ", ".join(sorted({field for _, field, _ in sources}))
+            faults.append(f"{name}: {len(sources)} entries take their numbers from the game ({fields}), "
+                          f"{len(game_positions(found))} positions placed from it")
     return outcome(faults, "no record cites the game")
 
 
