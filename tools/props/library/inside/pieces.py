@@ -3074,16 +3074,24 @@ def suit_alcove(size, laid):
     return parts
 
 
+# The hose reel's drum, a share of the most its box holds, and how far its stand's feet reach forward, a share of the
+# drum's radius: fitted to its close-up's outline (hose_reel's docstring; data/props/hangar.json says the fit).
+REEL_DRUM, REEL_SPREAD = 1.0, 1.0
+
+
 def hose_reel(size, laid):
-    """A wall hose reel, as its close-up shows it: the air hose wound on a drum between two round flanges on an
-    axle, a hub nut and a crank on one flange, two arms out from a wall bracket to the axle's ends, and the hose's end
-    hanging down with its fitting."""
+    """A hose reel as its close-up shows it, on a flat stand: the hose wound on a drum between two round flanges on an
+    axle, a hub nut and a crank on one flange, and on each side two flat legs from the axle down to a flat foot along
+    the floor, front and back, with a tab at the back for a wall, so it stands on its feet (overseer, 2026-10-15: the
+    wall reel built before stood on its hose's end and tipped 35 degrees when dropped, assembly@hangar); the hose's end
+    hangs down to the floor with its fitting."""
     wide, tall, deep = size
     back = deep / 2
-    radius = min(tall / 2 - 0.02, deep / 2 - 0.02)
+    radius = min(tall / 2 - 0.02, deep / 2 - 0.02) * REEL_DRUM
     axis_y, axis_z = tall - radius - 0.01, 0.0
-    flange_x = wide / 2 - 0.065
-    arm_x = wide / 2 - 0.03
+    front = axis_z - radius * REEL_SPREAD
+    flange_x = wide / 2 - 0.1
+    arm_x = wide / 2 - 0.035
     parts = []
     for side in (-1, 1):
         x = side * flange_x
@@ -3095,23 +3103,23 @@ def hose_reel(size, laid):
         x0 = -flange_x + 0.006 + pitch * at
         parts.append(shapes.bevelled(shapes.ring((x0 + 0.001, axis_y, axis_z), (x0 + pitch - 0.001, axis_y, axis_z),
                                                  radius * 0.72, radius * 0.4, "rubber", 32, "hose"), 0.004))
-    hose_x = flange_x - 0.04
-    parts.append(shapes.cylinder((hose_x, axis_y - radius * 0.66, axis_z - 0.03), (hose_x, 0.07, axis_z - 0.06),
+    hose_x = -flange_x + 0.04
+    parts.append(shapes.cylinder((hose_x, axis_y - radius * 0.66, axis_z - 0.03), (hose_x, 0.07, front),
                                  0.011, "rubber", 12, "hose"))
-    parts.append(shapes.cylinder((hose_x, 0.07, axis_z - 0.06), (hose_x, 0.0, axis_z - 0.06), 0.014, "bare_steel", 6,
+    parts.append(shapes.cylinder((hose_x, 0.07, front), (hose_x, 0.0, front), 0.014, "bare_steel", 6,
                                  "nozzle"))
-    parts.append(shapes.cylinder((-arm_x, axis_y, axis_z), (arm_x, axis_y, axis_z), 0.02,
+    parts.append(shapes.cylinder((-wide / 2, axis_y, axis_z), (wide / 2, axis_y, axis_z), 0.02,
                                  "bare_steel", 16, "axle"))
     for side in (-1, 1):
         x = side * arm_x
-        parts.append(shapes.cylinder((x + side * 0.01, axis_y, axis_z), (x + side * 0.025, axis_y, axis_z), 0.026,
-                                     "bare_steel", 6,
-                                     "hub"))
-        parts.append(shapes.bevelled(shapes.box((x - 0.01, axis_y - 0.02, axis_z), (x + 0.01, axis_y + 0.02,
-                                                                                     back - 0.012), "dark_panel",
-                                                "arm"), 0.002))
-        parts.append(shapes.bevelled(shapes.box((x - 0.035, axis_y - 0.09, back - 0.012), (x + 0.035, axis_y + 0.09,
-                                                                                            back), "dark_panel",
+        parts.append(shapes.cylinder((x + side * 0.01, axis_y, axis_z), (x + side * 0.02, axis_y, axis_z), 0.026,
+                                     "bare_steel", 6, "hub"))
+        for end in (front + 0.02, back - 0.02):
+            parts.append(shapes.bevelled(shapes.cylinder((x, axis_y, axis_z), (x, 0.012, end), 0.018, "dark_panel", 8,
+                                                         "arm"), 0.002))
+        parts.append(shapes.bevelled(shapes.box((x - 0.035, 0.0, front), (x + 0.035, 0.012, back), "dark_panel",
+                                                "foot"), 0.002))
+        parts.append(shapes.bevelled(shapes.box((x - 0.035, 0.0, back - 0.012), (x + 0.035, 0.1, back), "dark_panel",
                                                 "bracket"), 0.002))
     crank_x = flange_x + 0.012
     parts.append(shapes.bevelled(shapes.box((crank_x, axis_y - 0.012, axis_z - radius * 0.8),
