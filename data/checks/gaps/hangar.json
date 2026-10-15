@@ -51,6 +51,20 @@
     "data/motion/hangar.json: 2 entries take their numbers from the game (from), 0 positions placed from it",
     "data/movers/hangar.json: 1 entries take their numbers from the game (from), 0 positions placed from it"
    ]
+  },
+  {
+   "name": "hangar: the nose thruster bakes out of its close-up's light-dark order",
+   "row": "surfaces-check",
+   "check": "baked matches its surfaces",
+   "objects": [
+    "nose_thruster_1"
+   ],
+   "contains": " in its close-up but bakes ",
+   "reason": "the library's crane_yellow_paint lies only 0.2 L* over plastic_grey, and the hangar's dirt bakes it 4.6 darker, so a thruster its close-up shows 19.2 L* lighter bakes 4.4 darker; held until the narrower order rule next month",
+   "decided": "overseer, 2026-10-15, until the narrower order rule next month",
+   "faults": [
+    "nose_thruster_1: crane_yellow_paint is 19.2 L* lighter than plastic_grey in its close-up but bakes 4.4 darker"
+   ]
   }
  ]
 }
