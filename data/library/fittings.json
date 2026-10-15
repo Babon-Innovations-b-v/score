@@ -1449,7 +1449,7 @@
 			"prints_off": []
 		},
 		"hose_reel": {
-			"closeup": "modules-r6/pics/hose_reel.png",
+			"closeup": "place/airlock-score1/run/closeups/hose_reel.png",
 			"parts": [
 				"flange",
 				"hose",
@@ -1458,19 +1458,22 @@
 				"hub",
 				"arm",
 				"bracket",
-				"crank"
+				"crank",
+				"foot"
 			],
 			"built": {
-				"arm": 0.597,
-				"axle": 0.192,
-				"bracket": 0.823,
-				"crank": 0.671,
-				"flange": 0.654,
-				"hose": 0.291,
-				"hub": 0.661,
+				"arm": 0.793,
+				"axle": 0.184,
+				"bracket": 0.86,
+				"crank": 0.69,
+				"flange": 0.628,
+				"foot": 0.794,
+				"hose": 0.328,
+				"hub": 0.278,
 				"nozzle": 0.932
 			},
-			"prints_off": []
+			"prints_off": [],
+			"checked": "2026-10-15, the overseer's decision: built again on a flat stand (two legs and a flat foot each side) after the wall reel tipped 35 degrees when dropped in the hangar (assembly@hangar); it stands, its centre of mass inside its feet. Its close-up is the airlock's (the hangar's reel laid there again). Outline against it, best of eight ways: 0.484 (REEL_DRUM 1.0, REEL_SPREAD 1.0; 0.4918 with the axle hidden, 0.4384 with a smaller drum, 0.5001 only with feet reaching past the row's box), under likeness's 0.5: the close-up's cut-out keeps the blurred pipe and lamp behind the reel."
 		},
 		"suit_bench": {
 			"closeup": "modules1/closeups/airlock/suit_bench.png",
