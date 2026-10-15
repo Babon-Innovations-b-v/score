@@ -1,6 +1,6 @@
 {
  "place": "habitat",
- "about": "The physics trial of the crew habitat (F11, experimental): a tool case dropped onto the mess table and a storage case onto the floor, the north hatch's leaf opened by its hinge's motor (a powered hatch), a stool pushed across the floor. The habitat is on the Moon. Its models carry no labelled parts, so every one takes `material`. Points are in the stage's frame (metres, y up); `at` is a drop's [x, z]; a push is a kinematic box (an unseen hand) moved in a straight line between its seconds.",
+ "about": "The physics trial of the crew habitat (F11, experimental): a tool case dropped onto the mess table and a storage case onto the floor, the north hatch's leaf opened by its hinge's motor (a powered hatch), a stool pushed across the floor. The habitat is on the Moon. Its models carry no labelled parts, so every one takes `material`. Points are in the stage's frame (metres, y up); `at` is a drop's [x, z]; a push is a kinematic box (an unseen hand) moved in a straight line between its seconds. The stool's hand meets its base and foot ring (2 to 22 cm up): set on its column (20 to 40 cm) it knocked the stool over, and on its side the stool's round hull rolled on to the trial's end (2026-10-15).",
  "body": "moon",
  "material": "steel",
  "seconds": 8.0,
@@ -14,7 +14,7 @@
    "drive": {"speed": 60.0, "torque": 2000.0, "start": 0.5, "end": 2.5}}
  ],
  "pushes": [
-  {"name": "push_stool", "size": [0.15, 0.2, 0.3], "from": [-2.3, 0.3, 1.2], "to": [-1.2, 0.3, 1.2], "start": 0.5, "end": 1.5}
+  {"name": "push_stool", "size": [0.15, 0.2, 0.3], "from": [-2.3, 0.12, 1.2], "to": [-1.2, 0.12, 1.2], "start": 0.5, "end": 1.5}
  ],
  "moved": ["stool_2"],
  "views": [
