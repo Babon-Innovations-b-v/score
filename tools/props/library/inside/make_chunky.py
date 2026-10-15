@@ -73,6 +73,7 @@ def full_model(parts_folder, name):
         part = bpy.context.selected_objects[0]
         part.data.materials.clear()
         part.data.materials.append(shapes.slot(path.stem))
+        laid_flat(part)
         found.append(part)
     whole = shapes.joined(found, f"{name}_full")
     # The parts come as loose triangles; welded, the cut-down copy unwraps into whole islands, and wound outward,
@@ -84,6 +85,24 @@ def full_model(parts_folder, name):
     welded.to_mesh(whole.data)
     welded.free()
     return whole
+
+
+def laid_flat(part):
+    """The part's `content` UV map (a screen's or a print's picture reads it, recipes.picture_on): its points laid on
+    the plane of its two longest sides, filling 0 to 1, the glTF up axis (y) as the picture's up when it is one of
+    them, turned so the picture reads from the side its faces look to. A new UV map lays every face on the whole
+    picture: navigation's wall screen baked its readout once a triangle, as amber speckle (2026-10-15)."""
+    points = [vertex.co for vertex in part.data.vertices]
+    low = [min(point[axis] for point in points) for axis in range(3)]
+    span = [max(point[axis] for point in points) - low[axis] for axis in range(3)]
+    across, up = sorted(sorted(range(3), key=lambda axis: -span[axis])[:2], key=lambda axis: axis == 1)
+    facing = 3 - across - up
+    mirrored = sum(face.normal[facing] * face.area for face in part.data.polygons) < 0
+    layer = part.data.uv_layers.new(name="content")
+    for loop in part.data.loops:
+        point = points[loop.vertex_index]
+        u = (point[across] - low[across]) / max(span[across], 1e-9)
+        layer.data[loop.index].uv = (1 - u if mirrored else u, (point[up] - low[up]) / max(span[up], 1e-9))
 
 
 def into_kit_frame(whole, base, size):
