@@ -12,6 +12,58 @@
    "faults": [
     "/storage/Objects/parts_crate_2: unstable 0.1566: moves 0.16 m and turns 8 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
    ]
+  },
+  {
+   "name": "storage: ring floor plate box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "ring_floor_plate"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@storage judged its box 0 of 2 for the row, seeing \"section of floor\" (run 2026-10-16 09:05)",
+   "decided": "overseer, 2026-10-16 14:20 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"ring_floor_plate\", \"result\": \"fail\", \"why\": \"judge: round section of floor\"}"
+   ]
+  },
+  {
+   "name": "storage: ring floor plate box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "storage.ring_floor_plate"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@storage judged its box 0 of 2 for the row, seeing \"section of floor\" (run 2026-10-16 09:05)",
+   "decided": "overseer, 2026-10-16 14:20 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "storage.ring_floor_plate: judge: round section of floor"
+   ]
+  },
+  {
+   "name": "storage: wall upper plain box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@storage judged its box 0 of 2 for the row, seeing \"dark grey wall panel\" (run 2026-10-16 09:05)",
+   "decided": "overseer, 2026-10-16 14:20 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"wall_upper_plain\", \"result\": \"fail\", \"why\": \"judge: round dark grey wall panel\"}"
+   ]
+  },
+  {
+   "name": "storage: wall upper plain box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "storage.wall_upper_plain"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@storage judged its box 0 of 2 for the row, seeing \"dark grey wall panel\" (run 2026-10-16 09:05)",
+   "decided": "overseer, 2026-10-16 14:20 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "storage.wall_upper_plain: judge: round dark grey wall panel"
+   ]
   }
  ]
 }

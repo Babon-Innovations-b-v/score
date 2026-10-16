@@ -122,7 +122,7 @@ def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gat
                       "stairwell", "storage", "street", "tube", "walkway", "workshop", "wreck"], places
     assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("gdoor")
     # a gate given gaps after 2026-10-14 reads only a file naming it, the KEYED_WHOLE places too
-    assert gaps.NAME in ROWS["complete-boxes"].files("walkway") and gaps.NAME not in ROWS["complete-boxes"].files("storage")
+    assert gaps.NAME in ROWS["complete-boxes"].files("walkway") and gaps.NAME not in ROWS["complete-boxes"].files("hangar")
     assert gaps.files("galley", "complete-boxes") and not gaps.files("hangar", "complete-boxes")
     assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("gdoor")
     from score.graph import GAPPED

@@ -114,6 +114,32 @@
    "faults": [
     "cockpit.wall_upper_plain: judge: round spaceship cockpit dashboard and windows"
    ]
+  },
+  {
+   "name": "cockpit: hatch door frame box not passed",
+   "row": "complete",
+   "check": "boxes",
+   "objects": [
+    "hatch_door_frame"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@cockpit judged its box 0 of 2 for the row, seeing \"ceiling panels and lights\" (run 2026-10-16 09:05)",
+   "decided": "overseer, 2026-10-16 14:20 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "{\"row\": \"hatch_door_frame\", \"result\": \"fail\", \"why\": \"judge: round ceiling panels and lights\"}"
+   ]
+  },
+  {
+   "name": "cockpit: hatch door frame box not passed (the box gate)",
+   "row": "complete-boxes",
+   "check": "grounded",
+   "objects": [
+    "cockpit.hatch_door_frame"
+   ],
+   "reason": "a plain code piece against a concept drawn before the plan; complete-boxes@cockpit judged its box 0 of 2 for the row, seeing \"ceiling panels and lights\" (run 2026-10-16 09:05)",
+   "decided": "overseer, 2026-10-16 14:20 (plain code pieces against a concept drawn before the plan), until next month",
+   "faults": [
+    "cockpit.hatch_door_frame: judge: round ceiling panels and lights"
+   ]
   }
  ]
 }
