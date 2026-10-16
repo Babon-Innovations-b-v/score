@@ -12,6 +12,25 @@
    "faults": [
     "data/scene/tube.json: 13 entries take their numbers from the game (from), 5 positions placed from it"
    ]
+  },
+  {
+   "name": "tube: player and sitter not on the stage, no accepted body",
+   "row": "complete",
+   "check": "people",
+   "objects": [
+    "player",
+    "sitter",
+    "player (player/work)",
+    "sitter (kit_m_avg/uniform-olive)"
+   ],
+   "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule, as at the cockpit and the flat, data/checks/gaps/cockpit.json and flat.json); next month's people work",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "player: in the cast, not on the stage",
+    "sitter: in the cast, not on the stage",
+    "player (player/work): not a made model: no accepted body of its look (people-dress-player-work-in-tube)",
+    "sitter (kit_m_avg/uniform-olive): not a made model: no accepted body of its look (people-dress-kit_m_avg-uniform-olive-in-tube)"
+   ]
   }
  ]
 }

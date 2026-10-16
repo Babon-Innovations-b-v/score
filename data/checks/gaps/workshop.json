@@ -16,6 +16,43 @@
     "data/motion/workshop.json: 1 entries take their numbers from the game (from), 0 positions placed from it",
     "data/movers/workshop.json: 9 entries take their numbers from the game (from), 0 positions placed from it"
    ]
+  },
+  {
+   "name": "workshop: bram, nev and sefa not on the stage, no accepted body",
+   "row": "complete",
+   "check": "people",
+   "objects": [
+    "bram",
+    "sefa",
+    "nev",
+    "bram (bram/work)",
+    "sefa (sefa/work)",
+    "nev (nev/work)"
+   ],
+   "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule, as at the cockpit and the flat, data/checks/gaps/cockpit.json and flat.json); next month's people work",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "bram: in the cast, not on the stage",
+    "sefa: in the cast, not on the stage",
+    "nev: in the cast, not on the stage",
+    "bram (bram/work): not a made model: no accepted body of its look (people-dress-bram-work)",
+    "sefa (sefa/work): not a made model: no accepted body of its look (people-dress-sefa-work)",
+    "nev (nev/work): not a made model: no accepted body of its look (people-dress-nev-work)"
+   ]
+  },
+  {
+   "name": "workshop: no props file, so no likeness",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "likeness"
+   ],
+   "unknown": "no accepted likeness@workshop",
+   "reason": "no props file (data/props/workshop.json), as at the flat (data/checks/gaps/flat.json); up to EUR 55 per place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "likeness: 5 generated rows and no accepted likeness@workshop (the props rows run only with data/props/workshop.json): none is held to its close-up"
+   ]
   }
  ]
 }

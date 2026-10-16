@@ -47,6 +47,39 @@
     "data/motion/garage.json: 4 entries take their numbers from the game (from), 1 positions placed from it",
     "data/movers/garage.json: 1 entries take their numbers from the game (from), 0 positions placed from it"
    ]
+  },
+  {
+   "name": "garage: bram and sefa not on the stage, no accepted body",
+   "row": "complete",
+   "check": "people",
+   "objects": [
+    "bram",
+    "sefa",
+    "bram (bram/work)",
+    "sefa (sefa/work)"
+   ],
+   "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule, as at the cockpit and the flat, data/checks/gaps/cockpit.json and flat.json); next month's people work",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "bram: in the cast, not on the stage",
+    "sefa: in the cast, not on the stage",
+    "bram (bram/work): not a made model: no accepted body of its look (people-dress-bram-work)",
+    "sefa (sefa/work): not a made model: no accepted body of its look (people-dress-sefa-work)"
+   ]
+  },
+  {
+   "name": "garage: no props file, so no likeness",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "likeness"
+   ],
+   "unknown": "no accepted likeness@garage",
+   "reason": "no props file (data/props/garage.json), as at the flat (data/checks/gaps/flat.json); up to EUR 55 per place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "likeness: 20 generated rows and no accepted likeness@garage (the props rows run only with data/props/garage.json): none is held to its close-up"
+   ]
   }
  ]
 }

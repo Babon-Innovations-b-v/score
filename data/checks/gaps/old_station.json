@@ -12,6 +12,20 @@
    "faults": [
     "data/scene/old_station.json: 16 entries take their numbers from the game (from), 10 positions placed from it"
    ]
+  },
+  {
+   "name": "old_station: no props file, so no likeness",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "likeness"
+   ],
+   "unknown": "no accepted likeness@old_station",
+   "reason": "no props file (data/props/old_station.json), as at the flat (data/checks/gaps/flat.json); up to EUR 55 per place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "likeness: 14 generated rows and no accepted likeness@old_station (the props rows run only with data/props/old_station.json): none is held to its close-up"
+   ]
   }
  ]
 }

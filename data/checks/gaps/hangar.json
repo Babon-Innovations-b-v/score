@@ -108,6 +108,66 @@
     "/hangar/Objects/parts_shelving_2: foot off 0.0637: a foot 6.4 cm off what is under it while another touches (over 3 cm)",
     "/hangar/Objects/parts_shelving_1: unstable 0.2196: moves 0.22 m and turns 23 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
    ]
+  },
+  {
+   "name": "hangar: bram, nev and sefa not on the stage, no accepted body",
+   "row": "complete",
+   "check": "people",
+   "objects": [
+    "bram",
+    "sefa",
+    "nev",
+    "bram (bram/work)",
+    "sefa (sefa/work)",
+    "nev (nev/work)"
+   ],
+   "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule, as at the cockpit and the flat, data/checks/gaps/cockpit.json and flat.json); next month's people work",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "bram: in the cast, not on the stage",
+    "sefa: in the cast, not on the stage",
+    "nev: in the cast, not on the stage",
+    "bram (bram/work): not a made model: no accepted body of its look (people-dress-bram-work)",
+    "sefa (sefa/work): not a made model: no accepted body of its look (people-dress-sefa-work)",
+    "nev (nev/work): not a made model: no accepted body of its look (people-dress-nev-work)"
+   ]
+  },
+  {
+   "name": "hangar: the rows its props file does not list not held to their close-ups",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "access_stair",
+    "bay_panel",
+    "bracket_beacon",
+    "control_desk",
+    "crane_trolley",
+    "floodlight",
+    "fuel_pump",
+    "monitor_desk",
+    "parts_crate",
+    "parts_rack",
+    "parts_shelving",
+    "pressure_gauge",
+    "ship_bench"
+   ],
+   "reason": "data/props/hangar.json lists only the ship and its thrusters, so no likeness output holds these rows, as for storage's parts crate (data/checks/gaps/storage.json); up to EUR 55 per place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "access_stair: generated, not held to its close-up by likeness@hangar",
+    "bay_panel: generated, not held to its close-up by likeness@hangar",
+    "bracket_beacon: generated, not held to its close-up by likeness@hangar",
+    "control_desk: generated, not held to its close-up by likeness@hangar",
+    "crane_trolley: generated, not held to its close-up by likeness@hangar",
+    "floodlight: generated, not held to its close-up by likeness@hangar",
+    "fuel_pump: generated, not held to its close-up by likeness@hangar",
+    "monitor_desk: generated, not held to its close-up by likeness@hangar",
+    "parts_crate: generated, not held to its close-up by likeness@hangar",
+    "parts_rack: generated, not held to its close-up by likeness@hangar",
+    "parts_shelving: generated, not held to its close-up by likeness@hangar",
+    "pressure_gauge: generated, not held to its close-up by likeness@hangar",
+    "ship_bench: generated, not held to its close-up by likeness@hangar"
+   ]
   }
  ]
 }

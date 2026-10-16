@@ -304,7 +304,9 @@ def judge_motion(stage, place, inventory, outputs):
     if wants is None:
         return UNKNOWN, [], f"{EXPECTED} lists no expectations for {place}"
     movers = record("movers", place) or {}
-    motions = (record("motion", place) or {}).get("motions", []) + movers.get("movers", [])
+    names = movers.get("renamed", {})  # the game's prims as the scene record names them, as the motion layer writes them
+    motions = [dict(motion, prim=names.get(motion["prim"], motion["prim"]))
+               for motion in (record("motion", place) or {}).get("motions", [])] + movers.get("movers", [])
     made = {motion["name"] for motion in motions
             if stage.GetPrimAtPath(motion["prim"]) and moving(stage.GetPrimAtPath(motion["prim"]))}
     covered = {name.rsplit("/", 1)[-1] for name, why in movers.get("still", {}).items() if str(why).strip()}
@@ -423,17 +425,18 @@ LAID_FROM_BAKE = "; laid by the assembly with the surface line's baked "
 
 def repainted(prim, from_bake=frozenset()):
     """Whether an object carries the bake's paint: repainted over its seed's (score:repaint_of), laid from the bake
-    (a waiting entry's score:from), or a ship place's made piece (`from_bake`, made_pieces)."""
+    (a waiting entry's score:from), a ship place's made piece (`from_bake`, made_pieces), or a machine the machines
+    layer lays from its take's bake (score:machine: the garage's rover, the hangar's ship and its thrusters)."""
     said = prim.GetAttribute("score:from").Get() if prim.HasAttribute("score:from") else ""
     return (prim.HasAttribute("score:repaint_of") or LAID_FROM_BAKE in (said or "")
-            or prim.GetAttribute("score:model").Get() in from_bake)
+            or prim.HasAttribute("score:machine") or prim.GetAttribute("score:model").Get() in from_bake)
 
 
 def judge_painted(stage, place, inventory, outputs):
     """Every generated model on the stage repainted by the surface stage's bake, and the place's paint checked."""
     built = code_built(place)
-    models = [prim for prim in model_prims(stage, place, generated_rows(inventory))
-              if prim.GetAttribute("score:model").Get() not in built]
+    models = [prim for prim in model_prims(stage, place, generated_rows(inventory))  # a kit file's stem is its name
+              if pathlib.PurePosixPath(prim.GetAttribute("score:model").Get()).stem not in built]
     if not models:
         return PASS, [], "no generated model on the stage"
     from_bake = set(made_pieces(stage).values())
