@@ -75,7 +75,9 @@ def gate_check(name):
     """complete.py's check `name` as this stage's gate, on the assembled stage."""
     def judge(output, inputs, evidence):
         stage = assembled_stage(inputs)
-        found = complete.run_check(name, stage.stem, stage, {read: inputs.get(read) for read in contents.OUTPUTS})
+        read = {**{read: inputs.get(read) for read in contents.OUTPUTS},
+                **{node: path for node, path in inputs.items() if node.startswith(contents.LIKENESS_BESIDE)}}
+        found = complete.run_check(name, stage.stem, stage, read)
         answer, why = found["result"], found["note"] or found["result"]
         if name in complete.EXPERIMENTAL:
             answer, why = complete.recorded(answer, why)
