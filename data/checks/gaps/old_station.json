@@ -26,6 +26,19 @@
    "faults": [
     "likeness: 14 generated rows and no accepted likeness@old_station (the props rows run only with data/props/old_station.json): none is held to its close-up"
    ]
+  },
+  {
+   "name": "old_station: the owner's cable run pick replaced",
+   "row": "complete",
+   "check": "picks",
+   "objects": [
+    "cable_run"
+   ],
+   "reason": "concept C4 shows no cables; the row was dropped on 2026-10-13 (4ab17e06), so the owner's pick of 2026-10-07 has no object; written as a gap rather than a pick_replaced field because any inventory change re-keys every place's assembly",
+   "decided": "overseer, on the owner's explicit delegation (\"just choose urself\"), 2026-10-16 evening",
+   "faults": [
+    "{\"row\": \"cable_run\", \"object\": null, \"why\": \"the owner picked cable_run_1p28 (da1cd98a2c9d), cable_run_2p33 (1466630055ed), cable_run_3 (329f40a9a88d), cable_run_3p85 (5da4f81d471a), cable_run_4p79 (7f59c0babe81), cable_run_5p55 (eea3a8c47159), cable_run_7 (c05e6e819a1f), and no object of this row is on the stage (something else stands in its place, or it was dropped)\"}"
+   ]
   }
  ]
 }
