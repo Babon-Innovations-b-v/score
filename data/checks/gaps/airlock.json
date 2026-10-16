@@ -14,6 +14,35 @@
     "data/scene/airlock.json: 10 entries take their numbers from the game (from), 7 positions placed from it",
     "data/motion/airlock.json: 15 entries take their numbers from the game (from), 12 positions placed from it"
    ]
+  },
+  {
+   "name": "airlock: bram not on the stage, no accepted body",
+   "row": "complete",
+   "check": "people",
+   "objects": [
+    "bram",
+    "bram (bram/work)"
+   ],
+   "reason": "no accepted body of their looks: people with no accepted body ship as named fails (the owner's rule, as at the cockpit and the flat, data/checks/gaps/cockpit.json and flat.json); next month's people work",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "bram: in the cast, not on the stage",
+    "bram (bram/work): not a made model: no accepted body of its look (people-dress-bram-work-in-airlock)"
+   ]
+  },
+  {
+   "name": "airlock: no props file, so no likeness",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "likeness"
+   ],
+   "unknown": "no accepted likeness@airlock",
+   "reason": "no props file (data/props/airlock.json), as at the flat (data/checks/gaps/flat.json); up to EUR 55 per place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "likeness: 13 generated rows and no accepted likeness@airlock (the props rows run only with data/props/airlock.json): none is held to its close-up"
+   ]
   }
  ]
 }

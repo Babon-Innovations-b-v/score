@@ -116,6 +116,21 @@ def effects_and_motion_both_ways():
         cases.append(("a still entry with no reason", judged("motion", path), contents.FAIL))
         (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": [], "still": {"door": "parked"}}))
         cases.append(("a need written down as still, with why", judged("motion", path), contents.PASS))
+        (data / "motion" / f"{PLACE}.json").write_text(json.dumps({"motions": [{"name": "door",
+                                                                                 "prim": f"/{PLACE}/game_door"}]}))
+        (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": [], "renamed": {
+            f"/{PLACE}/game_door": f"/{PLACE}/door_leaf_1"}}))
+        stage = Usd.Stage.Open(str(path))
+        leaf = UsdGeom.Xform.Define(stage, f"/{PLACE}/door_leaf_1").AddTranslateOp()
+        leaf.Set(Gf.Vec3d(0, 0, 0), 0)
+        leaf.Set(Gf.Vec3d(1, 0, 0), 24)
+        stage.GetRootLayer().Save()
+        cases.append(("a game motion's prim moving under the name the movers record renames it to",
+                      judged("motion", path), contents.PASS))
+        (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": []}))
+        cases.append(("the same motion without the rename", judged("motion", path), contents.FAIL))
+        stage.RemovePrim(f"/{PLACE}/door_leaf_1")
+        stage.GetRootLayer().Save()
         (data / "movers" / f"{PLACE}.json").unlink()
         (data / "effects" / f"{PLACE}.json").write_text(json.dumps({"effects": [{"name": "kettle_steam"}]}))
         (data / "motion" / f"{PLACE}.json").write_text(json.dumps({"motions": [{"name": "door",
@@ -193,7 +208,22 @@ def likeness_and_paint_both_ways():
         cases.append(("a generated row's model the kit builds in code", judged("painted", path, inventory,
                                                                              {**NONE, "surfaces-check": check}),
                       contents.PASS))
+        chair.GetAttribute("score:model").Set("models/testplace_kit/chair-b.gltf")
+        stage.GetRootLayer().Save()
+        cases.append(("the kit's code-built model laid as its file", judged("painted", path, inventory,
+                                                                          {**NONE, "surfaces-check": check}),
+                      contents.PASS))
         kit.unlink()
+        cases.append(("that file with no code route in the kit", judged("painted", path, inventory,
+                                                                       {**NONE, "surfaces-check": check}),
+                      contents.FAIL))
+        chair.GetAttribute("score:model").Set("chair-b")
+        chair.CreateAttribute("score:machine", Sdf.ValueTypeNames.String).Set("chair-s1")
+        stage.GetRootLayer().Save()
+        cases.append(("a machine the machines layer lays from its take's bake", judged(
+            "painted", path, inventory, {**NONE, "surfaces-check": check}), contents.PASS))
+        chair.RemoveProperty("score:machine")
+        stage.GetRootLayer().Save()
         chair.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(
             f"plan item{contents.LAID_FROM_BAKE}chair")
         stage.GetRootLayer().Save()
