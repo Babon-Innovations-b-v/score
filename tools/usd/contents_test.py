@@ -200,6 +200,20 @@ def likeness_and_paint_both_ways():
         cases.append(("a waiting entry laid from the bake", judged("painted", path, inventory,
                                                                  {**NONE, "surfaces-check": check}), contents.PASS))
         chair.RemoveProperty("score:from")
+        stage.GetRootLayer().Save()
+        origin = path.parent / contents.ASSEMBLY_ORIGIN
+        origin.write_text(json.dumps({"made pieces": {"chair": "chair-b"}}))
+        cases.append(("a ship place's made piece laid from the bake", judged("painted", path, inventory,
+                                                                           {**NONE, "surfaces-check": check}),
+                      contents.PASS))
+        owner = folder / "owner"
+        owner.mkdir()
+        (owner / "likeness.json").write_text(json.dumps({"objects": {"chair": {}}}))
+        cases.append(("a made piece held by its painting place's likeness", judged(
+            "likeness", path, inventory, {**NONE, "likeness": likeness, "likeness@owner": owner}), contents.PASS))
+        origin.unlink()
+        cases.append(("a painting place's likeness for a row not laid from its bake", judged(
+            "likeness", path, inventory, {**NONE, "likeness": likeness, "likeness@owner": owner}), contents.FAIL))
         (likeness / "likeness.json").write_text(json.dumps({"objects": {"chair": {}}}))
         chair.CreateAttribute("score:repaint_of", Sdf.ValueTypeNames.String).Set("seed hash")
         stage.GetRootLayer().Save()

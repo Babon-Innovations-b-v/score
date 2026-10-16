@@ -33,6 +33,7 @@ import score.stages.demo_film.stills as demo_stills
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 import score.stages.machines.boxes as machine_boxes
+import score.stages.props.prop_data as prop_data
 import score.stages.complete.boxes as complete_boxes
 from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
@@ -644,8 +645,18 @@ def ship_seen(row):
     return dataclasses.replace(row, files=functools.wraps(files)(declared), make=functools.wraps(make)(made))
 
 
+def ship_completed(row):
+    """complete reading, for a ship place, the likeness output of each other place whose bake lays one of its made
+    pieces (2026-10-16: the galley's lockers are the shiplock's take, held to their close-up by likeness@shiplock, and
+    the gate read only likeness@galley), each where that place has props rows; read beside, so no other place's key
+    moves (a place with no such neighbour has no beside part)."""
+    def beside(place):
+        return [other for other in ship_made.neighbours(place) if prop_data.applies(other)] if ship_place(place) else []
+    return dataclasses.replace(row, beside={"likeness": ("props-likeness", 1)}, neighbours=beside)
+
+
 STAGES = tuple(ship_assembled(row) if row.name == "assembly" else ship_seen(row) if row.name == "surfaces-check"
-               else row for row in STAGES)
+               else ship_completed(row) if row.name == "complete" else row for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 
 

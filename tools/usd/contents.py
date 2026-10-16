@@ -20,9 +20,11 @@ blocks like fail.
     crops       where crops apply: the share of soil tiles (meshes said `soil`) with a plant of the crops layer
                 (/<place>/Crops, a point instancer a kind) over them, at least the place's planted share
     likeness    every generated row's object (inventory kind `generate`) held to its close-up: the place's accepted
-                likeness output (the props rows) names it; none for a place with generated models is unknown
+                likeness output (the props rows) names it, or a ship place's made piece the likeness of the place
+                whose bake laid it (read beside); none for a place with generated models is unknown
     painted     every generated row's object on the stage repainted by the surface stage's bake (score:repaint_of,
-                stamped by the assembly, or laid by it straight from the bake: the grounds' cairn) and the place's surfaces-check accepted (a code row's model is painted by
+                stamped by the assembly, or laid by it straight from the bake: the grounds' cairn, a ship place's made
+                pieces by its origin.json) and the place's surfaces-check accepted (a code row's model is painted by
                 its builder with the library's surfaces). The palette gate joins once it lands (#8)
     light       the light layer (layers/light.usda, the per-lamp baked layers of the owner's light plan) is held by
                 the stage's root, and every lamp of the scene record stands under /<place>/Lights
@@ -363,6 +365,32 @@ def laid_rows(stage, place):
             and not str(prim.GetPath()).startswith(f"/{place}/Places/")}
 
 
+# The assembly's record beside a stage (origin.json): a ship place's "made pieces" ({row: model}) are laid straight from
+# their painting place's bake (score/stages/assembly/ship_made.py) on a kit base with no seed paint to repaint.
+ASSEMBLY_ORIGIN = "origin.json"
+
+
+def made_pieces(stage):
+    """{row: model} the assembly laid straight from a bake (its origin's made pieces); none without the record."""
+    beside = pathlib.Path(stage.GetRootLayer().realPath).parent / ASSEMBLY_ORIGIN
+    return json.loads(beside.read_text()).get("made pieces", {}) if beside.exists() else {}
+
+
+# A ship place's made pieces' painting places' likeness outputs, read beside it (likeness@<place>).
+LIKENESS_BESIDE = "likeness@"
+
+
+def held_beside(stage, outputs):
+    """The rows of a ship place's made pieces (its origin's, laid from another place's bake) that place's likeness
+    output, read beside, holds to their close-up."""
+    made = made_pieces(stage)
+    held = set()
+    for node, path in outputs.items():
+        if node.startswith(LIKENESS_BESIDE) and path is not None:
+            held |= set(json.loads((pathlib.Path(path) / "likeness.json").read_text())["objects"])
+    return held & set(made)
+
+
 def judge_likeness(stage, place, inventory, outputs):
     """Every generated row's object held to its close-up by the place's accepted likeness output."""
     generated = sorted(generated_rows(inventory) & laid_rows(stage, place))
@@ -371,7 +399,8 @@ def judge_likeness(stage, place, inventory, outputs):
     if outputs.get("likeness") is None:
         return UNKNOWN, [], (f"{len(generated)} generated rows and no accepted likeness@{place} (the props rows run "
                              f"only with data/props/{place}.json): none is held to its close-up")
-    held = json.loads((pathlib.Path(outputs["likeness"]) / "likeness.json").read_text())["objects"]
+    held = set(json.loads((pathlib.Path(outputs["likeness"]) / "likeness.json").read_text())["objects"])
+    held |= held_beside(stage, outputs)
     faults = [f"{row}: generated, not held to its close-up by likeness@{place}" for row in generated if row not in held]
     return outcome(faults, f"{len(generated)} generated rows held to their close-ups")
 
@@ -388,10 +417,16 @@ def code_built(place):
 LAID_FROM_BAKE = "; laid by the assembly with the surface line's baked "
 
 
-def repainted(prim):
-    """Whether an object carries the bake's paint: repainted over its seed's (score:repaint_of), or laid from the bake."""
+
+
+
+
+def repainted(prim, from_bake=frozenset()):
+    """Whether an object carries the bake's paint: repainted over its seed's (score:repaint_of), laid from the bake
+    (a waiting entry's score:from), or a ship place's made piece (`from_bake`, made_pieces)."""
     said = prim.GetAttribute("score:from").Get() if prim.HasAttribute("score:from") else ""
-    return prim.HasAttribute("score:repaint_of") or LAID_FROM_BAKE in (said or "")
+    return (prim.HasAttribute("score:repaint_of") or LAID_FROM_BAKE in (said or "")
+            or prim.GetAttribute("score:model").Get() in from_bake)
 
 
 def judge_painted(stage, place, inventory, outputs):
@@ -401,8 +436,9 @@ def judge_painted(stage, place, inventory, outputs):
               if prim.GetAttribute("score:model").Get() not in built]
     if not models:
         return PASS, [], "no generated model on the stage"
+    from_bake = set(made_pieces(stage).values())
     unpainted = sorted({prim.GetAttribute("score:model").Get() for prim in models
-                        if not repainted(prim)})
+                        if not repainted(prim, from_bake)})
     faults = [f"{model}: laid as the seed painted it, not repainted by the surface stage's bake" for model in unpainted]
     unknown = None if outputs.get("surfaces-check") else f"no accepted surfaces-check@{place}: its paint is unchecked"
     return outcome(faults, f"{len(models)} objects of generated models, each repainted and checked", unknown)
