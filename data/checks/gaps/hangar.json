@@ -168,6 +168,19 @@
     "pressure_gauge: generated, not held to its close-up by likeness@hangar",
     "ship_bench: generated, not held to its close-up by likeness@hangar"
    ]
+  },
+  {
+   "name": "hangar: no ship exhaust",
+   "row": "complete",
+   "check": "effects",
+   "objects": [
+    "ship_exhaust"
+   ],
+   "reason": "no effect of the hangar's record is ship exhaust; on the effects follow-up list",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "ship_exhaust: no effect of the record stands on the stage with it in its name"
+   ]
   }
  ]
 }

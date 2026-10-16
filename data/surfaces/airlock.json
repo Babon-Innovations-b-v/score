@@ -29,11 +29,11 @@
   "job": "{home}/score-coordinator/old-session/tmp/modules-r6/work/airlock/job-chunky.json",
   "models": {
    "dust_vacuum_1": "dust_vacuum-air1",
-   "fixture_hanging_suit": "fa_hanging_suit"
+   "hanging_suit": "fa_hanging_suit"
   },
   "entries": {
-   "fixture_hanging_suit": {
-    "name": "fixture_hanging_suit",
+   "hanging_suit": {
+    "name": "hanging_suit",
     "base": [
      1.0,
      0.0,

@@ -3,5 +3,7 @@
  "about": "Nothing of a moving kind stands at the wreck.",
  "seconds": 60.0,
  "movers": [],
- "still": {}
+ "still": {
+  "drone": "The thrower drone never flies in the source game (data/checks/contents.json: motion N, the drone never flies (G)), and none stands at the wreck, so nothing of it moves. The overseer's decision, 2026-10-16."
+ }
 }

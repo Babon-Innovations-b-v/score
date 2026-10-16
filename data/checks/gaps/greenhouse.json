@@ -64,6 +64,19 @@
    "faults": [
     "likeness: 12 generated rows and no accepted likeness@greenhouse (the props rows run only with data/props/greenhouse.json): none is held to its close-up"
    ]
+  },
+  {
+   "name": "greenhouse: no spray",
+   "row": "complete",
+   "check": "effects",
+   "objects": [
+    "spray"
+   ],
+   "reason": "no effect of the greenhouse's record is spray; on the effects follow-up list",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "spray: no effect of the record stands on the stage with it in its name"
+   ]
   }
  ]
 }

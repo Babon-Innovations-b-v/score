@@ -292,6 +292,10 @@
   "parts_rack_1": {
    "take": "parts_rack-r1",
    "place": "old_station"
+  },
+  "pressure_gauge_1": {
+   "take": "pressure_gauge-g1",
+   "place": "garage"
   }
  }
 }

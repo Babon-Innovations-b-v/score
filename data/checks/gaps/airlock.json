@@ -43,6 +43,19 @@
    "faults": [
     "likeness: 13 generated rows and no accepted likeness@airlock (the props rows run only with data/props/airlock.json): none is held to its close-up"
    ]
+  },
+  {
+   "name": "airlock: no dust when the outer door opens",
+   "row": "complete",
+   "check": "effects",
+   "objects": [
+    "dust"
+   ],
+   "reason": "no effect of the airlock's record is dust; on the effects follow-up list",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "dust: no effect of the record stands on the stage with it in its name"
+   ]
   }
  ]
 }

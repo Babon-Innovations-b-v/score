@@ -80,6 +80,34 @@
    "faults": [
     "likeness: 20 generated rows and no accepted likeness@garage (the props rows run only with data/props/garage.json): none is held to its close-up"
    ]
+  },
+  {
+   "name": "garage: the junction box and task lamp laid as the seed painted them",
+   "row": "complete",
+   "check": "painted",
+   "objects": [
+    "junction_box_1",
+    "task_lamp_1"
+   ],
+   "reason": "the lab bakes both from the same model, but the garage lays them at another size (the junction box 0.40 x 0.50 x 0.15 m here against 0.16 x 0.33 x 0.26 m in the lab; the task lamp scaled 1.54 x 1.61 x 0.67 here, 1 there), so a claim of the lab's bake would change their size; no take of its own; next month's work",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "junction_box_1: laid as the seed painted it, not repainted by the surface stage's bake",
+    "task_lamp_1: laid as the seed painted it, not repainted by the surface stage's bake"
+   ]
+  },
+  {
+   "name": "garage: no wheel dust",
+   "row": "complete",
+   "check": "effects",
+   "objects": [
+    "wheel_dust"
+   ],
+   "reason": "no effect of the garage's record is wheel dust (the rover drives out with none); on the effects follow-up list",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "wheel_dust: no effect of the record stands on the stage with it in its name"
+   ]
   }
  ]
 }
