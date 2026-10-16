@@ -64,6 +64,19 @@
    "faults": [
     "storage.wall_upper_plain: judge: round dark grey wall panel"
    ]
+  },
+  {
+   "name": "storage: the parts crate not held to its close-up (the hangar's take, its props file lists no crate)",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "parts_crate"
+   ],
+   "reason": "the crate is laid from the hangar's bake, and data/props/hangar.json lists only the ship and its thrusters, so no likeness output holds it; up to EUR 55 per place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "parts_crate: generated, not held to its close-up by likeness@storage"
+   ]
   }
  ]
 }
