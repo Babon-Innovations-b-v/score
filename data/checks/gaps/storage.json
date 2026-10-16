@@ -1,0 +1,17 @@
+{
+ "gaps": [
+  {
+   "name": "storage: the upper parts crate slides on the lower one's lid",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "/storage/Objects/parts_crate_2"
+   ],
+   "reason": "the crate model's lid (the hangar's take crate-h1) sits 1.3 degrees off its base, so the crate stacked on it slides when dropped; a new take next month",
+   "decided": "overseer, 2026-10-16 07:10",
+   "faults": [
+    "/storage/Objects/parts_crate_2: unstable 0.1566: moves 0.16 m and turns 8 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
+   ]
+  }
+ ]
+}

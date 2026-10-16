@@ -78,6 +78,22 @@
    "faults": [
     "hose_reel: outline 0.484 under 0.5 (code route)"
    ]
+  },
+  {
+   "name": "hangar: the parts shelving stands on a leg the paint never levelled",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "/hangar/Objects/parts_shelving_1",
+    "/hangar/Objects/parts_shelving_2"
+   ],
+   "reason": "the paint finds a take's feet in the model's own frame, before the bake stretches it unevenly to its row's size (x2.0 deep, x2.34 tall, x2.6 wide on the parts shelving), so one leg 5.4 cm up joins the lowest foot there and is never levelled; the paint-method fix (feet found in metres) is next month",
+   "decided": "overseer, 2026-10-16 07:10",
+   "faults": [
+    "/hangar/Objects/parts_shelving_1: foot off 0.0633: a foot 6.3 cm off what is under it while another touches (over 3 cm)",
+    "/hangar/Objects/parts_shelving_2: foot off 0.0637: a foot 6.4 cm off what is under it while another touches (over 3 cm)",
+    "/hangar/Objects/parts_shelving_1: unstable 0.2196: moves 0.22 m and turns 23 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
+   ]
   }
  ]
 }
