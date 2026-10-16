@@ -235,6 +235,10 @@
   "control_cabinet_1": {
    "take": "control_cabinet-g2",
    "place": "greenhouse"
+  },
+  "bay_panel_1": {
+   "take": "bay_panel-h1",
+   "place": "hangar"
   }
  }
 }

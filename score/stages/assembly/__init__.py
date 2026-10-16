@@ -110,6 +110,7 @@ def make_from_seed(inputs, out, seed, params):
     for name, (_, layer, assets) in LAYERS.items():
         if name in inputs:
             take_layer(pathlib.Path(inputs[name]), out / root.name, layer, assets)
+    motion_over_light(out)
     if "surfaces-bake" in inputs:
         bake = pathlib.Path(inputs["surfaces-bake"])
         take_bake(bake, pathlib.Path(inputs["surfaces-paint"]), out)
@@ -145,6 +146,26 @@ def take_layer(made, root, layer, assets):
         stage_root.timeCodesPerSecond = taken.timeCodesPerSecond
         stage_root.framesPerSecond = taken.framesPerSecond
         stage_root.Save()
+
+
+def motion_over_light(out):
+    """The light layer's own value left out of every attribute the motion layer animates: the light layer stands over
+    the motion layer (record.ORDER), so its plain value hid the motion's keyframes (the airlock's cycle light, the
+    garage's big door beacon, 2026-10-16). Nothing else of either layer changes."""
+    from pxr import Sdf
+    motion, light = out / LAYERS["motion"][1], out / LAYERS["light"][1]
+    if not (motion.exists() and light.exists()):
+        return
+    animated, lights = Sdf.Layer.FindOrOpen(str(motion)), Sdf.Layer.FindOrOpen(str(light))
+    paths = []
+    animated.Traverse(Sdf.Path.absoluteRootPath, paths.append)
+    hidden = [lights.GetAttributeAtPath(path) for path in paths if path.IsPropertyPath()
+              and animated.GetAttributeAtPath(path) and animated.ListTimeSamplesForPath(path)
+              and lights.GetAttributeAtPath(path)]
+    for spec in hidden:
+        spec.owner.RemoveProperty(spec)
+    if hidden:
+        lights.Save()
 
 
 def stage_file(output):
