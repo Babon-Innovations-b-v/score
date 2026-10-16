@@ -134,6 +134,14 @@ def effects_and_motion_both_ways():
                   ("the motion moving", judged("motion", path), contents.PASS),
                   ("a place the expectations do not list", judged("effects", path, place="elsewhere"),
                    contents.UNKNOWN)]
+        stage.RemovePrim(f"/{PLACE}/Effects/kettle_steam")
+        UsdGeom.Xform.Define(stage, f"/{PLACE}/Effects/kettle_steam_0_1")
+        stage.GetRootLayer().Save()
+        cases.append(("the effect standing as its cells", judged("effects", path), contents.PASS))
+        stage.RemovePrim(f"/{PLACE}/Effects/kettle_steam_0_1")
+        UsdGeom.Xform.Define(stage, f"/{PLACE}/Effects/kettle_steam_big")
+        stage.GetRootLayer().Save()
+        cases.append(("only another entry's name beginning with it", judged("effects", path), contents.FAIL))
         return problems_of(cases)
 
 
@@ -186,6 +194,12 @@ def likeness_and_paint_both_ways():
                                                                              {**NONE, "surfaces-check": check}),
                       contents.PASS))
         kit.unlink()
+        chair.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(
+            f"plan item{contents.LAID_FROM_BAKE}chair")
+        stage.GetRootLayer().Save()
+        cases.append(("a waiting entry laid from the bake", judged("painted", path, inventory,
+                                                                 {**NONE, "surfaces-check": check}), contents.PASS))
+        chair.RemoveProperty("score:from")
         (likeness / "likeness.json").write_text(json.dumps({"objects": {"chair": {}}}))
         chair.CreateAttribute("score:repaint_of", Sdf.ValueTypeNames.String).Set("seed hash")
         stage.GetRootLayer().Save()
