@@ -66,27 +66,26 @@ PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 
 # --- what the walker walks to -------------------------------------------------------------------------------------
 
-def own_places(place):
-    """The names under /<place>/Places that are the place's own pieces rather than another place it shows: each the
-    stage of a kit that belongs to it (the kit's `place`: the garage's big door leaves are its kit gdoor)."""
-    record = record_of(place)
-    kits = {entry["stage"]: REPO / "data/kit" / f"{entry['stage']}.json" for entry in record.get("places", [])}
-    return {entry["name"] for entry in record.get("places", [])
-            if kits[entry["stage"]].exists() and json.loads(kits[entry["stage"]].read_text()).get("place") == place}
+def own_kits(place):
+    """The kits that belong to the place (a kit's `place`: the garage's big door leaves are its kit gdoor): a stage
+    under /<place>/Places showing one of them (its `score:place`) is the place's own piece, not another place it shows.
+    Read from the stage's prim, never the scene record's names: the scene record stage names the leaves itself
+    (south_door_leaf_1, where data/scene/garage.json says big_door_west)."""
+    return {kit.stem for kit in (REPO / "data/kit").glob("*.json") if json.loads(kit.read_text()).get("place") == place}
 
 
 def row_targets(stage_path, place):
     """Each row's objects on the stage: {row: [(prim path, x low, z low, x high, z high, y low, y high)]}, the box of
     every visible mesh under each prim that carries `score:row`, the other places the stage shows (`Places`, with rows
-    of their own) left out but its own pieces laid as places (own_places: the garage's door leaves) kept."""
+    of their own) left out but its own pieces laid as places (own_kits: the garage's door leaves) kept."""
     from pxr import Usd, UsdGeom
     stage = Usd.Stage.Open(str(stage_path))
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     found = {}
-    own = own_places(place)
+    own = own_kits(place)
     walk = iter(Usd.PrimRange(stage.GetPrimAtPath(f"/{place}")))
     for prim in walk:
-        if str(prim.GetParent().GetPath()) == f"/{place}/Places" and prim.GetName() not in own:
+        if str(prim.GetParent().GetPath()) == f"/{place}/Places" and prim.GetAttribute("score:place").Get() not in own:
             walk.PruneChildren()
             continue
         if not prim.HasAttribute("score:row"):
