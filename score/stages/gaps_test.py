@@ -119,12 +119,12 @@ def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gat
     places = sorted(path.stem for path in gaps.FOLDER.glob("*.json"))
     assert places == ["airlock", "camp", "campgrounds", "cockpit", "engineroom", "flat", "galley", "garage", "greenhouse",
                       "habitat", "hangar", "hub", "lab", "launch", "navigation", "old_station", "quarters", "shiplock", "square",
-                      "stairwell", "street", "tube", "walkway", "workshop", "wreck"], places
-    assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("storage")
+                      "stairwell", "storage", "street", "tube", "walkway", "workshop", "wreck"], places
+    assert gaps.NAME in ROWS["assembly"].files("hangar") and gaps.NAME not in ROWS["assembly"].files("gdoor")
     # a gate given gaps after 2026-10-14 reads only a file naming it, the KEYED_WHOLE places too
     assert gaps.NAME in ROWS["complete-boxes"].files("walkway") and gaps.NAME not in ROWS["complete-boxes"].files("storage")
     assert gaps.files("galley", "complete-boxes") and not gaps.files("hangar", "complete-boxes")
-    assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("storage")
+    assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("gdoor")
     from score.graph import GAPPED
     assert GAPPED == "named gaps" and GAPPED in [check.name for check in ROWS["complete"].checks]
     for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
