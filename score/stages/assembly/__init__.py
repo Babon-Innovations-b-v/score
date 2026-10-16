@@ -110,7 +110,6 @@ def make_from_seed(inputs, out, seed, params):
     for name, (_, layer, assets) in LAYERS.items():
         if name in inputs:
             take_layer(pathlib.Path(inputs[name]), out / root.name, layer, assets)
-    motion_over_light(out)
     if "surfaces-bake" in inputs:
         bake = pathlib.Path(inputs["surfaces-bake"])
         take_bake(bake, pathlib.Path(inputs["surfaces-paint"]), out)
@@ -120,6 +119,7 @@ def make_from_seed(inputs, out, seed, params):
         take_bake(*claimed)
     take_ground(inputs["terrain"], folder.name, out / root.name)
     unplaced = sounds.take(pathlib.Path(inputs["sound"]), out / root.name, inputs) if "sound" in inputs else []
+    motion_over_light(out / root.name)  # last: no hold after it sorts its layer under the light's
     taken = {name: pathlib.Path(inputs[name]).name for name in READS if name in inputs}
     (out / "origin.json").write_text(json.dumps({"seed": True, "from": str(folder), "note": SEED_NOTE,
                                                  "record": record, "layers": taken, "unplaced sounds": unplaced},
@@ -148,24 +148,39 @@ def take_layer(made, root, layer, assets):
         stage_root.Save()
 
 
-def motion_over_light(out):
-    """The light layer's own value left out of every attribute the motion layer animates: the light layer stands over
-    the motion layer (record.ORDER), so its plain value hid the motion's keyframes (the airlock's cycle light, the
-    garage's big door beacon, 2026-10-16). Nothing else of either layer changes."""
+# The layer the assembly writes of the motion's keys a light layer's plain value would hide, held just over the light.
+MOTION_KEYS = "layers/motion_keys.usda"
+
+
+def motion_over_light(root):
+    """Every attribute the motion layer keys and the light layer also sets, its keys written again in a layer of the
+    assembly's own (MOTION_KEYS) held just over the light layer: the light layer stands over the motion layer
+    (record.ORDER), so its plain value hid the motion's keys (the airlock's cycle light, the garage's big door beacon,
+    2026-10-16). Both taken layers stay as they came (the store's files are read-only and never edited)."""
     from pxr import Sdf
+    out = root.parent
     motion, light = out / LAYERS["motion"][1], out / LAYERS["light"][1]
     if not (motion.exists() and light.exists()):
         return
     animated, lights = Sdf.Layer.FindOrOpen(str(motion)), Sdf.Layer.FindOrOpen(str(light))
     paths = []
     animated.Traverse(Sdf.Path.absoluteRootPath, paths.append)
-    hidden = [lights.GetAttributeAtPath(path) for path in paths if path.IsPropertyPath()
-              and animated.GetAttributeAtPath(path) and animated.ListTimeSamplesForPath(path)
-              and lights.GetAttributeAtPath(path)]
-    for spec in hidden:
-        spec.owner.RemoveProperty(spec)
-    if hidden:
-        lights.Save()
+    hidden = [path for path in paths if path.IsPropertyPath() and animated.GetAttributeAtPath(path)
+              and animated.ListTimeSamplesForPath(path) and lights.GetAttributeAtPath(path)]
+    if not hidden:
+        return
+    keys = Sdf.Layer.CreateNew(str(out / MOTION_KEYS))
+    for path in hidden:
+        spec = Sdf.AttributeSpec(Sdf.CreatePrimInLayer(keys, path.GetPrimPath()), path.name,
+                                 animated.GetAttributeAtPath(path).typeName)
+        for time in animated.ListTimeSamplesForPath(path):
+            keys.SetTimeSample(spec.path, time, animated.QueryTimeSample(path, time))
+    keys.Save()
+    stage_root = Sdf.Layer.FindOrOpen(str(root))
+    held = list(stage_root.subLayerPaths)
+    held.insert(held.index(f"./{LAYERS['light'][1]}"), f"./{MOTION_KEYS}")
+    stage_root.subLayerPaths = held
+    stage_root.Save()
 
 
 def stage_file(output):
