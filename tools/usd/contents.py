@@ -14,7 +14,7 @@ blocks like fail.
                 height in any of the record's views, as the cast stage measures it (score/stages/cast/spread.py).
                 No cast: unknown
     effects     every need the place has (data/checks/contents.json) is an entry of its effects record that stands
-                under /<place>/Effects (in any variant)
+                under /<place>/Effects (in any variant), under its name or as its cells (`<name>_<row>_<column>`)
     motion      every motion of its records (data/motion, and data/movers: what SCORE moves that the game left
                 standing) moves on the stage (time samples), and every need is one of them
     crops       where crops apply: the share of soil tiles (meshes said `soil`) with a plant of the crops layer
@@ -22,7 +22,7 @@ blocks like fail.
     likeness    every generated row's object (inventory kind `generate`) held to its close-up: the place's accepted
                 likeness output (the props rows) names it; none for a place with generated models is unknown
     painted     every generated row's object on the stage repainted by the surface stage's bake (score:repaint_of,
-                stamped by the assembly) and the place's surfaces-check accepted (a code row's model is painted by
+                stamped by the assembly, or laid by it straight from the bake: the grounds' cairn) and the place's surfaces-check accepted (a code row's model is painted by
                 its builder with the library's surfaces). The palette gate joins once it lands (#8)
     light       the light layer (layers/light.usda, the per-lamp baked layers of the owner's light plan) is held by
                 the stage's root, and every lamp of the scene record stands under /<place>/Lights
@@ -264,6 +264,13 @@ def effects_standing(stage, place):
     return names
 
 
+def stands(entry, standing):
+    """Whether a record entry stands: under its own name, or as the cells a drift is laid on (effects.py names each
+    `<entry>_<row>_<column>`: the camp's drift_0_0 to drift_4_4)."""
+    cell = re.compile(rf"{re.escape(entry)}_\d+_\d+")
+    return entry in standing or any(cell.fullmatch(name) for name in standing)
+
+
 def unmet(needs, names):
     """The needs no name has in it."""
     return [need for need in needs if not any(need in name for name in names)]
@@ -276,7 +283,7 @@ def judge_effects(stage, place, inventory, outputs):
         return UNKNOWN, [], f"{EXPECTED} lists no expectations for {place}"
     effects = record("effects", place) or {}
     standing = effects_standing(stage, place)
-    made = {entry["name"] for entry in effects.get("effects", [])} & standing
+    made = {entry["name"] for entry in effects.get("effects", []) if stands(entry["name"], standing)}
     faults = [f"{need}: no effect of the record stands on the stage with it in its name" + (
         "" if effects else f" (no effects record, data/effects/{place}.json)")
         for need in unmet(wants.get("effects", []), made)]
@@ -376,6 +383,17 @@ def code_built(place):
     return {name for name, about in kit.get("models", {}).items() if about.get("route") == "code"}
 
 
+# The mark the assembly writes on a waiting record entry it lays straight from the surface line's bake
+# (score/stages/assembly/made_waiting.py, score:from): no seed paint was ever laid, so nothing is left to repaint.
+LAID_FROM_BAKE = "; laid by the assembly with the surface line's baked "
+
+
+def repainted(prim):
+    """Whether an object carries the bake's paint: repainted over its seed's (score:repaint_of), or laid from the bake."""
+    said = prim.GetAttribute("score:from").Get() if prim.HasAttribute("score:from") else ""
+    return prim.HasAttribute("score:repaint_of") or LAID_FROM_BAKE in (said or "")
+
+
 def judge_painted(stage, place, inventory, outputs):
     """Every generated model on the stage repainted by the surface stage's bake, and the place's paint checked."""
     built = code_built(place)
@@ -384,7 +402,7 @@ def judge_painted(stage, place, inventory, outputs):
     if not models:
         return PASS, [], "no generated model on the stage"
     unpainted = sorted({prim.GetAttribute("score:model").Get() for prim in models
-                        if not prim.HasAttribute("score:repaint_of")})
+                        if not repainted(prim)})
     faults = [f"{model}: laid as the seed painted it, not repainted by the surface stage's bake" for model in unpainted]
     unknown = None if outputs.get("surfaces-check") else f"no accepted surfaces-check@{place}: its paint is unchecked"
     return outcome(faults, f"{len(models)} objects of generated models, each repainted and checked", unknown)
