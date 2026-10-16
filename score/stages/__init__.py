@@ -272,6 +272,18 @@ def check_files(place):
                if path.exists()}}
 
 
+def crops_check_files(place):
+    """The crops twin's check files: its line's naming files and the stance rules check_step reads, as check_files
+    gives the place's surfaces-check. Set here, in the table, so the crops line's paid rows (whose file maps are in
+    crops/line.py) do not move."""
+    return {**crops.line.naming_files(place), "stance rules": "{data}/checks/stance.json"}
+
+
+def crops_bake_checked(row):
+    """crops-surfaces-check with the stance rules among its files (crops_check_files)."""
+    return dataclasses.replace(row, files=crops_check_files) if row.name == "crops-surfaces-check" else row
+
+
 def feet_checked(row):
     """surfaces-paint with the gate "feet in one plane" beside its own (place_line.judge_feet: a take's short legs are
     stretched down before its bake, a missing leg fails by name). Set here, as bake_checked is, so the turntable's and
@@ -394,7 +406,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
           props.CALIBRATION, props.LIKENESS,
           *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
-          *light.ROWS, *map(library_narrowed, crops.ROWS), COMPLETE_BOXES)
+          *light.ROWS, *map(library_narrowed, map(crops_bake_checked, crops.ROWS)), COMPLETE_BOXES)
 
 
 # The gates a named gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
