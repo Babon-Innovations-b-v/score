@@ -423,7 +423,7 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
              # before the plan (the ship's rooms, overseer 2026-10-15), a generated model with no clean take to paint
              # (the camp's canister and sample props, overseer 2026-10-16), an effect no record holds yet (the Moon
              # places' dust, wheel dust, spray and ship exhaust on the effects follow-up list, overseer 2026-10-16)
-             "complete": ("people", "likeness", "motion", "rows", "game", "boxes", "painted", "effects")}
+             "complete": ("people", "likeness", "motion", "rows", "game", "boxes", "painted", "effects", "picks")}
 
 
 def with_gap_files(files, row=None):
