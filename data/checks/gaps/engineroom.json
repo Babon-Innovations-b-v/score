@@ -215,6 +215,32 @@
     "engineroom.overhead_vent: judge: round a section of the ceiling",
     "engineroom.side_console: judge: round control desk"
    ]
+  },
+  {
+   "name": "engineroom: the junction box not held to its close-up (the lab's take, its place has no props file)",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "junction_box"
+   ],
+   "reason": "the junction box is laid from the lab's bake, and the lab has no props file (data/props/lab.json does not exist), so no likeness output holds it; up to EUR 55 per place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "junction_box: generated, not held to its close-up by likeness@engineroom"
+   ]
+  },
+  {
+   "name": "engineroom: the toolbox not held to its close-up (the garage's take, its place has no props file)",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "toolbox"
+   ],
+   "reason": "the toolbox is laid from the garage's bake, and the garage has no props file (data/props/garage.json does not exist), so no likeness output holds it; up to EUR 55 per place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "toolbox: generated, not held to its close-up by likeness@engineroom"
+   ]
   }
  ]
 }
