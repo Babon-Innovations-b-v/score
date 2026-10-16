@@ -283,6 +283,27 @@ def test_the_scene_record_row_keeps_its_code_version():
     assert code_after_editing(stages.SCENE_RECORD, "nothing") == code_after_editing(plain, "nothing")
 
 
+def inputs_read(function):
+    """The constant keys a function reads as inputs["<key>"]."""
+    import ast
+    tree = ast.parse(inspect.getsource(function))
+    return {node.slice.value for node in ast.walk(tree) if isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name) and node.value.id == "inputs" and isinstance(node.slice, ast.Constant)}
+
+
+def test_the_crops_check_reads_every_input_check_step_reads():
+    """crops-surfaces-check hands check_step every key it reads (its stance rules were missing, 2026-10-16: KeyError
+    at greenhouse), each crops-<row> under its stage's name (crops/renamed.py) and shortened as the prop environment
+    hands them over (prop_env.short), as the place's surfaces-check does."""
+    from score.stages.crops import renamed
+    bake_check, prop_env = sys.modules["bake_check"], sys.modules["prop_env"]
+    read = inputs_read(bake_check.check_step) | inputs_read(bake_check.data_of)
+    for name, place in (("crops-surfaces-check", "greenhouse"), ("surfaces-check", "greenhouse")):
+        row = next(row for row in stages.STAGES if row.name == name)
+        handed = prop_env.short(renamed.as_theirs({**row.files(place), **dict.fromkeys(row.after, ".")}))
+        assert read <= set(handed), (name, read - set(handed))
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
