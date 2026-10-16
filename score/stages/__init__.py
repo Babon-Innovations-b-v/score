@@ -407,8 +407,9 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
              # ship as named fails until the people work lands), a likeness no props file answers, a motion not built,
              # a row no stage makes yet (the launch's two far towers), a layout still taken from the source game (the
              # 18 places whose records cite it, overseer 2026-10-15), a box on a plain code piece against a concept drawn
-             # before the plan (the ship's rooms, overseer 2026-10-15)
-             "complete": ("people", "likeness", "motion", "rows", "game", "boxes")}
+             # before the plan (the ship's rooms, overseer 2026-10-15), a generated model with no clean take to paint
+             # (the camp's canister and sample props, overseer 2026-10-16)
+             "complete": ("people", "likeness", "motion", "rows", "game", "boxes", "painted")}
 
 
 def with_gap_files(files, row=None):

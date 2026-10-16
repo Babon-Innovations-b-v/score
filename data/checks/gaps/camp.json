@@ -51,6 +51,46 @@
    "faults": [
     "likeness: 12 generated rows and no accepted likeness@camp (the props rows run only with data/props/camp.json): none is held to its close-up"
    ]
+  },
+  {
+   "name": "camp: the airlock and link kit pieces not on the stage",
+   "row": "complete",
+   "check": "rows",
+   "objects": [
+    "airlock_tube",
+    "airlock_end",
+    "airlock_lamp",
+    "airlock_cycle_lamp",
+    "link_tube"
+   ],
+   "reason": "camp's seed stage (usd-r3/camp, exported 2026-10-10) predates the kit's airlock and link pieces (2026-10-11, late_bake@camp's models); installing a new seed over usd-r3 re-keys the terrain and scene-record rows of every place, which declare usd-r3 whole; per-place seed keys next month; the new seed, rows passing, is archived at ~/.farm-factory-props/archive/usd-r3-camp-2026-10-16-airlock",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "{\"row\": \"airlock_tube\", \"why\": \"no object of this row on the stage (kit piece) and no written drop reason (`dropped`)\"}",
+    "{\"row\": \"airlock_end\", \"why\": \"no object of this row on the stage (kit piece) and no written drop reason (`dropped`)\"}",
+    "{\"row\": \"airlock_lamp\", \"why\": \"no object of this row on the stage (kit piece) and no written drop reason (`dropped`)\"}",
+    "{\"row\": \"airlock_cycle_lamp\", \"why\": \"no object of this row on the stage (kit piece) and no written drop reason (`dropped`)\"}",
+    "{\"row\": \"link_tube\", \"why\": \"no object of this row on the stage (kit piece) and no written drop reason (`dropped`)\"}"
+   ]
+  },
+  {
+   "name": "camp: canister and sample props with no clean take to paint",
+   "row": "complete",
+   "check": "painted",
+   "objects": [
+    "canister_1",
+    "sample_case_1",
+    "sample_jar_1",
+    "sample_tray_1"
+   ],
+   "reason": "each take is painted by one place only: sample_case's take (sample_case-g1) is the campgrounds'; sample_jar's and sample_tray's (sample_jar-lab1, sample_tray-lab1) are the lab's, its models at other sizes than the camp's; the canister has no take, and the lab's record of sample_jar-lab1 carries the camp canister's words and kind, which looks mis-labelled",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "canister_1: laid as the seed painted it, not repainted by the surface stage's bake",
+    "sample_case_1: laid as the seed painted it, not repainted by the surface stage's bake",
+    "sample_jar_1: laid as the seed painted it, not repainted by the surface stage's bake",
+    "sample_tray_1: laid as the seed painted it, not repainted by the surface stage's bake"
+   ]
   }
  ]
 }
