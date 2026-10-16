@@ -418,8 +418,30 @@ def a_box_stacked_on_a_box_on_a_slope_meets_it():
         return [] if under == {"box_2": ["box_1"]} else [f"stacked: {under}"]
 
 
+def a_stacked_box_begun_inside_its_support_starts_over_it():
+    """Both ways, on the 8 degree slope: a box laid 3 cm into the box under it begins its drop lifted to 2 cm over
+    that box's top (SETTLE_DROP), not inside its hull, which the drop throws it out of (the campgrounds' cargo case 1
+    turned 179 degrees onto the next pallet, 2026-10-15); one laid 10 cm over it is not lifted."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        resting_test.made_models(folder)
+        up = Rotation.from_euler("yx", [-30.0, 8.0], degrees=True).apply([0.0, 1.0, 0.0])
+        path = tipped_place(folder, [("box", (8, 0, 0), 8.0), ("box", tuple([8, 0, 0] + 0.97 * up), 8.0),
+                                     ("box", (12, 0, 0), 8.0), ("box", tuple([12, 0, 0] + 1.1 * up), 8.0)])
+        stage = Usd.Stage.Open(str(path))
+        inside = settle.stack_lift(stage, PLACE, "box_2", np.eye(4), "box_1")
+        over = settle.stack_lift(stage, PLACE, "box_4", np.eye(4), "box_3")
+        problems = []
+        if abs(inside - (0.03 + settle.SETTLE_DROP)) > 0.002:
+            problems.append(f"box_2, 3 cm inside box_1, lifted {inside:.3f} m, not {0.03 + settle.SETTLE_DROP} m")
+        if over != 0.0:
+            problems.append(f"box_4, 10 cm over box_3, lifted {over:.3f} m")
+        return problems
+
+
 CHECKS = (a_piece_on_a_slope_rests_flush_on_it, a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
           a_box_stacked_on_a_box_on_a_slope_meets_it,
+          a_stacked_box_begun_inside_its_support_starts_over_it,
           a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most,
           a_settled_pose_round_trips_through_the_layout, a_kit_room_piece_moves_with_its_object, only_floor_pieces_are_dropped, a_glowing_part_is_no_static_of_the_drop,
           what_lies_on_a_dropped_piece_is_no_static_of_the_drop,
