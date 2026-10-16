@@ -188,9 +188,10 @@ def test_a_named_gaps_objects_leave_the_comparison_and_any_other_object_still_bl
         return {"resting": {"answer": "pass", "measures": {"objects": objects}, "better": {"objects": "lower"},
                             "findings": findings}}
     old = resting(2, ["/wreck/Objects/leg_strut_1: floats 0.0469: nothing under it",
-                      "/wreck/Objects/leg_foot_1: tips 0.2474: its weight falls outside", "/wreck/Objects/crate_1: sunk 0.03: below"])
+                      "/wreck/Objects/leg_foot_1: tips 0.2474: its weight falls outside",
+                      "/wreck/Objects/crate_1: sunk 0.03: below"])
     named = ["/wreck/Objects/leg_strut_1: tips 0.4439: its weight falls outside",
-             "/wreck/Objects/forward_section_1: unstable 0.3228: moves", "/wreck/Objects/crate_1: sunk 0.05: below"]
+             "/wreck/Objects/forward_section_1: unstable 0.3228: moves", "/wreck/Objects/crate_1: sunk 0.03: below"]
     saved = review.accepted_card
     review.accepted_card = lambda store, node, output: old
     try:
@@ -199,6 +200,9 @@ def test_a_named_gaps_objects_leave_the_comparison_and_any_other_object_still_bl
         judged = {"output": "new", "verdicts": resting(3, named + ["/wreck/Objects/hull_plate_1: tips 0.3: outside"])}
         assert review.worse_than_accepted(None, "assembly@wreck", judged) == [
             "resting: objects 2 became 3 (lower is better; worse from 1)"]
+        grown = [finding.replace("crate_1: sunk 0.03", "crate_1: sunk 0.09") for finding in named]
+        judged = {"output": "new", "verdicts": resting(3, grown)}  # an existing fault outside the gaps grows
+        assert review.worse_than_accepted(None, "assembly@wreck", judged) != []
         judged = {"output": "new", "verdicts": resting(3, named)}  # no gap reaches this node's gate
         assert review.worse_than_accepted(None, "assembly@hub", judged) != []
     finally:

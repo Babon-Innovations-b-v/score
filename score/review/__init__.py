@@ -206,16 +206,30 @@ def named_gaps_of(node, check):
 def gap_excused(node, check, new, old):
     """True when the check's regression is its named gaps' alone: every fault of the new verdict that no named gap
     of the check covers (gaps.covers: one of its objects, of its kind) was on the accepted one too, by object and
-    kind. A gap leaves out only its objects' faults it names; any other object at a new fault still blocks."""
+    kind, and grew by less than the comparison's own tolerance (measure_worse, a fault's size lower is better). A
+    gap leaves out only its objects' faults it names; any other object at a new or a grown fault still blocks."""
     from score.stages import gaps
     entries = named_gaps_of(node, check)
     if not entries:
         return False
 
     def outside(verdict):
-        return {fault_kind(finding) for finding in verdict.get("findings") or ()
-                if not any(gaps.covers(entry, finding) for entry in entries)}
-    return outside(new) <= outside(old)
+        found = {}
+        for finding in verdict.get("findings") or ():
+            if not any(gaps.covers(entry, finding) for entry in entries):
+                kind, size = fault_kind(finding), fault_size(finding)
+                found[kind] = size if kind not in found else max(found[kind], size, key=lambda value: value or 0)
+        return found
+    before = outside(old)
+    return all(kind in before and not grew(kind[1], size, before[kind]) for kind, size in outside(new).items())
+
+
+def grew(kind, size, before):
+    """Whether a fault's size grew past the comparison's tolerance (measure_worse); one with no number grows only
+    from none to one."""
+    if size is None or before is None:
+        return size is not None and before is None
+    return measure_worse(kind, "lower", size, before)
 
 
 def fault_kind(finding):
@@ -224,6 +238,15 @@ def fault_kind(finding):
     from score.stages import gaps
     rest = finding.split(": ", 1)[1] if ": " in finding else ""
     return gaps.object_of(finding), rest.split(" ", 1)[0]
+
+
+def fault_size(finding):
+    """The number after a finding's fault word ("...: tips 0.36: ..." gives 0.36), or None."""
+    words = (finding.split(": ", 1)[1] if ": " in finding else "").split(" ")
+    try:
+        return float(words[1].rstrip(":")) if len(words) > 1 else None
+    except ValueError:
+        return None
 
 
 def accepted_card(store, node, output):
