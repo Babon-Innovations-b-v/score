@@ -51,6 +51,7 @@
   "ship_9": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
   "ship_10": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
   "ship_legs": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_legs_2": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about)."
+  "ship_legs_2": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
+  "ship_1": "The crew's shuttle, the made hull the machines layer lays on its pad (data/machines/hangar.json): parked in the hangar; the game flies it out only when the player flies it (data/motion/hangar.json's about)."
  }
 }
