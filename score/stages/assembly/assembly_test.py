@@ -452,10 +452,14 @@ def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot():
 
 def test_a_light_the_motion_layer_animates_plays_its_keyframes():
     """A lamp whose strength the motion layer keys and the light layer sets plays the motion's keys on the assembled
-    stage (the airlock's cycle light); a lamp the motion leaves alone keeps the light layer's strength."""
-    from pxr import Sdf, Usd, UsdLux
+    stage (the airlock's cycle light); a lamp the motion leaves alone keeps the light layer's strength. Both layers
+    come in read-only, as a store checkout holds them, and neither file changes (assembly@airlock, 2026-10-16: the
+    edit of the taken light layer was refused, and the store's files are never edited)."""
+    import hashlib
+    from pxr import Usd, UsdLux
     with tempfile.TemporaryDirectory() as temporary:
         root = a_toy(pathlib.Path(temporary) / "out")
+        sums = {}
         for name, keyed in (("light", False), ("motion", True)):
             made = pathlib.Path(temporary) / name
             (made / "layers").mkdir(parents=True)
@@ -470,15 +474,21 @@ def test_a_light_the_motion_layer_animates_plays_its_keyframes():
                 else:
                     strength.Set(20.0)
             stage.GetRootLayer().Save()
+            (made / f"layers/{name}.usda").chmod(0o444)  # as a store checkout holds it
             assembly.take_layer(made, root, f"layers/{name}.usda", None)
+            sums[name] = hashlib.sha256((made / f"layers/{name}.usda").read_bytes()).hexdigest()
         before = Usd.Stage.Open(str(root))
-        assert before.GetPrimAtPath(f"/{TOY}/Lights/cycle").GetAttribute("inputs:intensity").GetNumTimeSamples() == 0  # the light layer's plain value hides the keys until the fix
-        assembly.motion_over_light(root.parent)
-        Sdf.Layer.FindOrOpen(str(root.parent / "layers/light.usda")).Reload()
+        assert before.GetPrimAtPath(f"/{TOY}/Lights/cycle").GetAttribute("inputs:intensity").GetNumTimeSamples() == 0
+        assembly.motion_over_light(root)
         stage = Usd.Stage.Open(str(root))
         cycle = stage.GetPrimAtPath(f"/{TOY}/Lights/cycle").GetAttribute("inputs:intensity")
         assert cycle.GetNumTimeSamples() == 2 and cycle.Get(12) == 50.0, cycle.Get(12)
         assert stage.GetPrimAtPath(f"/{TOY}/Lights/steady").GetAttribute("inputs:intensity").Get() == 20.0
+        for name, digest in sums.items():
+            for folder in (pathlib.Path(temporary) / name, root.parent):
+                assert hashlib.sha256((folder / f"layers/{name}.usda").read_bytes()).hexdigest() == digest, (name, folder)
+        held = list(stage.GetRootLayer().subLayerPaths)
+        assert held.index("./layers/motion_keys.usda") + 1 == held.index("./layers/light.usda"), held
 
 
 if __name__ == "__main__":
