@@ -6,6 +6,7 @@ The job: {"out", "density", "wear", "dirt", "seed", "faces": the cut-down copy's
 "size": its laid size, "screens": [{"at", "size", "variant"}], "cuts": [{"box": [x0, y0, x1, y1]} or
 {"circle": [x, y, radius]}], "density": optional,
 "foot": how high its foot stands over its floor (the kick wear), "decals": [{"at", "size", "variant", "turn"}],
+"per_face": optional, every face packed as its own island (bake.packed_per_face: foliage),
 "stands": whether its paint levelled its feet (library_bake.py reads it from the labels; then levelled_feet)}]}.
 
 Per piece: its labelled parts are joined into the full-detail model, turned into the kit's frame and fitted to its
@@ -241,7 +242,7 @@ def make_piece(entry, job, out):
     decals = [decal for decal in decals if decal["surface"] is not None]
     with_decals(whole, decals)
     atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), job["specs"], one_piece=True,
-                        backs_hidden=False)
+                        backs_hidden=False, per_face=entry.get("per_face", False))
     atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
                     max(max(entry["size"]) * REACH_SHARE, REACH_LEAST), entry.get("foot"))
     atlas.finish()
