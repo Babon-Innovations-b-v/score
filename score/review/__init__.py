@@ -183,7 +183,47 @@ def worse_than_accepted(store, node, judgement, against=None):
     """How a judgement's scorecard is worse than the accepted output's (`against` when given: judged now), as lines;
     none when nothing is accepted."""
     card = accepted_card(store, node, judgement["output"])
-    return regressions(judgement["verdicts"], against if against is not None and card else card)
+    card = against if against is not None and card else card
+    excused = {name for name, old in card.items()
+               if name in judgement["verdicts"] and gap_excused(node, name, judgement["verdicts"][name], old)}
+    return [line for line in regressions(judgement["verdicts"], card) if line.split(": ", 1)[0] not in excused]
+
+
+def named_gaps_of(node, check):
+    """The named gaps of a node's gate, read as the gate's own wrapper reads them (score/stages/gaps.py files and
+    entries, only a gate GAP_GATES lets a gap move from): the got-worse comparison is one more gate those gaps move
+    their objects' faults from (the paper's rule; overseer 2026-10-16)."""
+    from score import stages
+    from score.stages import gaps
+    row, _, place = node.partition("@")
+    if not place or check not in stages.GAP_GATES.get(row, ()):
+        return []
+    declared = gaps.files(place, row)
+    return gaps.entries({name: pattern.format(place=place, data=gaps.FOLDER.parents[1])
+                         for name, pattern in declared.items()}, row, check)
+
+
+def gap_excused(node, check, new, old):
+    """True when the check's regression is its named gaps' alone: every fault of the new verdict that no named gap
+    of the check covers (gaps.covers: one of its objects, of its kind) was on the accepted one too, by object and
+    kind. A gap leaves out only its objects' faults it names; any other object at a new fault still blocks."""
+    from score.stages import gaps
+    entries = named_gaps_of(node, check)
+    if not entries:
+        return False
+
+    def outside(verdict):
+        return {fault_kind(finding) for finding in verdict.get("findings") or ()
+                if not any(gaps.covers(entry, finding) for entry in entries)}
+    return outside(new) <= outside(old)
+
+
+def fault_kind(finding):
+    """A finding's object and the first word of its fault ("/wreck/Objects/leg_foot_1: tips 0.36: ..." gives
+    (object, "tips")): the same fault however its number moved."""
+    from score.stages import gaps
+    rest = finding.split(": ", 1)[1] if ": " in finding else ""
+    return gaps.object_of(finding), rest.split(" ", 1)[0]
 
 
 def accepted_card(store, node, output):

@@ -180,6 +180,31 @@ def test_the_waive_command_refuses_without_the_owners_terminal():
                            env={**os.environ, "PROPS_HOME": tempfile.mkdtemp()})
     assert found.returncode != 0 and "only the owner" in found.stderr, found.stderr
 
+def test_a_named_gaps_objects_leave_the_comparison_and_any_other_object_still_blocks():
+    """The got-worse comparison is a gate a named gap moves its objects' faults from (overseer 2026-10-16;
+    assembly@wreck: resting objects 2 became 3, all three in "wreck: three pieces do not rest"). With the world's own
+    wreck gaps: the gap's objects at new faults pass; another object at a new fault still reads worse."""
+    def resting(objects, findings):
+        return {"resting": {"answer": "pass", "measures": {"objects": objects}, "better": {"objects": "lower"},
+                            "findings": findings}}
+    old = resting(2, ["/wreck/Objects/leg_strut_1: floats 0.0469: nothing under it",
+                      "/wreck/Objects/leg_foot_1: tips 0.2474: its weight falls outside", "/wreck/Objects/crate_1: sunk 0.03: below"])
+    named = ["/wreck/Objects/leg_strut_1: tips 0.4439: its weight falls outside",
+             "/wreck/Objects/forward_section_1: unstable 0.3228: moves", "/wreck/Objects/crate_1: sunk 0.05: below"]
+    saved = review.accepted_card
+    review.accepted_card = lambda store, node, output: old
+    try:
+        judged = {"output": "new", "verdicts": resting(3, named)}
+        assert review.worse_than_accepted(None, "assembly@wreck", judged) == []
+        judged = {"output": "new", "verdicts": resting(3, named + ["/wreck/Objects/hull_plate_1: tips 0.3: outside"])}
+        assert review.worse_than_accepted(None, "assembly@wreck", judged) == [
+            "resting: objects 2 became 3 (lower is better; worse from 1)"]
+        judged = {"output": "new", "verdicts": resting(3, named)}  # no gap reaches this node's gate
+        assert review.worse_than_accepted(None, "assembly@hub", judged) != []
+    finally:
+        review.accepted_card = saved
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):
