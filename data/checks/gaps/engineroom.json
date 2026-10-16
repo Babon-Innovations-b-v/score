@@ -241,6 +241,19 @@
    "faults": [
     "toolbox: generated, not held to its close-up by likeness@engineroom"
    ]
+  },
+  {
+   "name": "engineroom: the cable bundle not on the stage",
+   "row": "complete",
+   "check": "rows",
+   "objects": [
+    "cable_bundle"
+   ],
+   "reason": "the cable bundle isn't laid (no kit rule since b31e05bd); the kit rule comes next month; not added now so the 5 accepted ship-room films stay",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "{\"row\": \"cable_bundle\", \"why\": \"no object of this row on the stage (kit piece) and no written drop reason (`dropped`)\"}"
+   ]
   }
  ]
 }
