@@ -53,6 +53,41 @@
     "/campgrounds/Objects/cargo_case_1: unstable 0.3519: moves 0.35 m and turns 6 degrees when dropped (SAGE: over 0.2 m or 8 degrees)",
     "/campgrounds/Objects/crane_1: unstable 0.3623: moves 0.36 m and turns 19 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
    ]
+  },
+  {
+   "name": "campgrounds: 12 generated rows with no props entry, so no likeness",
+   "row": "complete",
+   "check": "likeness",
+   "objects": [
+    "cargo_case",
+    "cargo_case_open",
+    "cargo_pallet",
+    "coiled_cable",
+    "crane",
+    "drift",
+    "ice_drill",
+    "lander",
+    "mast_cabinet",
+    "power_unit",
+    "reactor",
+    "sample_case"
+   ],
+   "reason": "data/props/campgrounds.json names only the cairn, so likeness@campgrounds holds only it; the other 12 rows' close-ups and likeness run are up to EUR 55 for the place, outside world 1's budget",
+   "decided": "the overseer's decision, 2026-10-16",
+   "faults": [
+    "cargo_case: generated, not held to its close-up by likeness@campgrounds",
+    "cargo_case_open: generated, not held to its close-up by likeness@campgrounds",
+    "cargo_pallet: generated, not held to its close-up by likeness@campgrounds",
+    "coiled_cable: generated, not held to its close-up by likeness@campgrounds",
+    "crane: generated, not held to its close-up by likeness@campgrounds",
+    "drift: generated, not held to its close-up by likeness@campgrounds",
+    "ice_drill: generated, not held to its close-up by likeness@campgrounds",
+    "lander: generated, not held to its close-up by likeness@campgrounds",
+    "mast_cabinet: generated, not held to its close-up by likeness@campgrounds",
+    "power_unit: generated, not held to its close-up by likeness@campgrounds",
+    "reactor: generated, not held to its close-up by likeness@campgrounds",
+    "sample_case: generated, not held to its close-up by likeness@campgrounds"
+   ]
   }
  ]
 }
