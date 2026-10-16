@@ -80,6 +80,20 @@
    ]
   },
   {
+   "name": "hangar: the hose reel's old model tips",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "/hangar/Objects/hose_reel_1"
+   ],
+   "reason": "old model tips 99°; next month a clean close-up, then paint and lay the code build",
+   "decided": "overseer, 2026-10-16 08:15",
+   "faults": [
+    "/hangar/Objects/hose_reel_1: tips 0.3339: its weight falls outside what it touches",
+    "/hangar/Objects/hose_reel_1: unstable 0.9756: moves 0.98 m and turns 99 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
+   ]
+  },
+  {
    "name": "hangar: the parts shelving stands on a leg the paint never levelled",
    "row": "assembly",
    "check": "resting",
