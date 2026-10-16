@@ -44,6 +44,11 @@ SHARP_FROM = 1024
 # The library families whose parts are drawn sharp.
 SHARP_FAMILIES = ("print", "screen")
 MARGIN_PIXELS = 3
+# A per-face packed piece's gap round each face, in normal-map pixels (packed_per_face). Measured on the greenhouse
+# crops' cut-down copies (2026-10-16): smart_project split the herb's into 2,913 islands of one or two triangles, and
+# pack_islands' MARGIN_PIXELS round each left them 1% of the square, every face under a colour texel (72% baked
+# black); packed face by face with this gap the herb filled 60% and every face held a texel (lettuce 98%, greens 100%).
+FACE_MARGIN_PIXELS = 0.5
 
 
 def hidden_faces(item):
@@ -143,6 +148,20 @@ def packed_together(items, side, sharp=(), backs_hidden=True):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
+def packed_per_face(items, side):
+    """Every face its own island, packed tight into the one square with FACE_MARGIN_PIXELS round each (Blender's
+    lightmap pack): for a foliage piece, whose islands under smart_project are single triangles."""
+    bpy.ops.object.select_all(action="DESELECT")
+    for item in items:
+        item.select_set(True)
+    bpy.context.view_layer.objects.active = items[0]
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.lightmap_pack(PREF_CONTEXT="ALL_FACES", PREF_PACK_IN_ONE=True, PREF_NEW_UVLAYER=False,
+                             PREF_MARGIN_DIV=100.0 * FACE_MARGIN_PIXELS / side)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
 def new_picture(name, side, colour_data):
     picture = bpy.data.images.new(name, side, side, alpha=False, float_buffer=False)
     picture.colorspace_settings.name = "sRGB" if colour_data else "Non-Color"
@@ -188,13 +207,14 @@ CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
 class Atlas:
     """One shared picture set for a list of pieces: their UVs packed together at one texel density."""
 
-    def __init__(self, name, items, density, specs=None, one_piece=False, backs_hidden=True):
+    def __init__(self, name, items, density, specs=None, one_piece=False, backs_hidden=True, per_face=False):
         """`one_piece`: the set is a single generated piece, which cannot be split: past the cap it takes the density
         that fits and says so (`self.capped`, which make_chunky reports); a shared set too, up to CAP_SLACK past the cap;
         further past, it stops. `backs_hidden`: the faces facing the kit's back are shrunk (shrink_hidden); a generated
         piece passes False: shrunk face by face, its small remeshed triangles fell under a texel and baked black, and a
         chair, a desk or a lander shows its back (job paint, 2026-10-08: every generated piece's back was 35 to 100%
-        black)."""
+        black). `per_face`: every face packed as its own island (packed_per_face; a piece's data asks it, `per_face`
+        in its bake entry), its faces neither shrunk nor sharpened."""
         self.name = name
         sharp = {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES} \
             if density >= SHARP_FROM else set()
@@ -214,7 +234,10 @@ class Atlas:
                              f"the {LARGEST} cap (density {density * LARGEST / wanted:.0f}); split the job "
                              "(route.py splits shared sets by their pieces' boxes)")
         self.side = int(max(SMALLEST, 2 ** math.ceil(math.log2(wanted))))
-        packed_together(items, self.side, sharp, backs_hidden)
+        if per_face:
+            packed_per_face(items, self.side)
+        else:
+            packed_together(items, self.side, sharp, backs_hidden)
         half = max(SMALLEST // 2, self.side // 2)
         self.pictures = {channel: new_picture(f"{name}_{channel}", half, colour) for channel, colour in CHANNELS}
         self.pictures["normal"] = new_picture(f"{name}_normal", self.side, False)

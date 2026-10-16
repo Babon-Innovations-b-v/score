@@ -148,6 +148,25 @@ def test_look_counts_a_plant_the_kind_of_its_bed():
     assert seen["herb"]["seen"] == 1 and seen["greens"]["seen"] == 0, seen
 
 
+def test_the_foliage_bakes_pack_face_by_face():
+    """The leafy crops' bake entries ask make_chunky for per-face packing (bake.packed_per_face: smart_project split
+    the herb into 2,913 one-triangle islands, 1% of its square, 72% baked black, 2026-10-16), and the bake's job hands
+    it on; the potato, a solid, keeps the island packing."""
+    sys.path.append(str(crop_data.REPO / "score/stages/surfaces"))
+    import place_line
+    from score.store import PROPS_HOME
+    surfaces = crop_data.FOLDER / "greenhouse-surfaces.json"
+    job = pathlib.Path(json.loads(surfaces.read_text())["bake"]["job"].replace("{home}", str(PROPS_HOME)))
+    if not job.exists():
+        print(f"skipped: no bake job at {job}")
+        return
+    labelled = {take: pathlib.Path("/labelled") / take for take in json.loads(surfaces.read_text())["takes"]}
+    _, chunky = place_line.bake_entries({"surfaces": surfaces, "bake job": job}, labelled)
+    per_face = {entry["name"]: entry.get("per_face", False) for entry in chunky}
+    assert per_face == {"crop_lettuce_1": True, "crop_potato_1": False, "crop_herb_1": True,
+                        "crop_greens_1": True}, per_face
+
+
 if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_"):

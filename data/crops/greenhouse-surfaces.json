@@ -21,10 +21,10 @@
    "crop_greens_1": "crop_greens-c1"
   },
   "entries": {
-   "crop_lettuce_1": {"name": "crop_lettuce_1", "base": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], "size": [0.3, 0.2, 0.3], "screens": [], "cuts": [], "decals": [], "density": 512, "foot": 0.06, "faces": 6000},
+   "crop_lettuce_1": {"name": "crop_lettuce_1", "base": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], "size": [0.3, 0.2, 0.3], "screens": [], "cuts": [], "decals": [], "density": 512, "foot": 0.06, "faces": 6000, "per_face": true},
    "crop_potato_1": {"name": "crop_potato_1", "base": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], "size": [0.13, 0.07, 0.09], "screens": [], "cuts": [], "decals": [], "density": 512, "foot": 0.06, "faces": 3000},
-   "crop_herb_1": {"name": "crop_herb_1", "base": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], "size": [0.25, 0.5, 0.25], "screens": [], "cuts": [], "decals": [], "density": 512, "foot": 0.06, "faces": 6000},
-   "crop_greens_1": {"name": "crop_greens_1", "base": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], "size": [0.4, 0.35, 0.4], "screens": [], "cuts": [], "decals": [], "density": 512, "foot": 0.06, "faces": 6000}
+   "crop_herb_1": {"name": "crop_herb_1", "base": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], "size": [0.25, 0.5, 0.25], "screens": [], "cuts": [], "decals": [], "density": 512, "foot": 0.06, "faces": 6000, "per_face": true},
+   "crop_greens_1": {"name": "crop_greens_1", "base": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], "size": [0.4, 0.35, 0.4], "screens": [], "cuts": [], "decals": [], "density": 512, "foot": 0.06, "faces": 6000, "per_face": true}
   }
  }
 }
