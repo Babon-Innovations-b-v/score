@@ -54,7 +54,7 @@ TAKES = ("wreck-base", "wreck-edited", "wreck-regenerated")
 EDIT_VIEW = "edit"
 # The figure: its tiles' size, how many a row, and its labels' font.
 TILE = (640, 360)
-COLUMNS = 3
+COLUMNS = 4
 LABEL_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 # Story order (the handoff's), each film's caption (the part of the world, then the place) and its label in the figure.
@@ -69,6 +69,11 @@ PLACES = [("flat", "Prologue, Hong Kong 2099", "The flat", "Flat"),
           ("tube", "The Moon base", "The walkway tube", "Walkway tube"),
           ("garage", "The Moon base", "The garage", "Garage"), ("hangar", "The Moon base", "The hangar", "Hangar"),
           ("wreck", "The Moon", "The wreck", "Wreck"), ("old_station", "The Moon", "The old station", "Old station"),
+          ("shiplock", "The ship", "The ship's lock", "Ship's lock"), ("walkway", "The ship", "The walkway", "Walkway"),
+          ("cockpit", "The ship", "The cockpit", "Cockpit"), ("navigation", "The ship", "Navigation", "Navigation"),
+          ("galley", "The ship", "The galley", "Galley"), ("quarters", "The ship", "The quarters", "Quarters"),
+          ("storage", "The ship", "The storage room", "Storage"),
+          ("engineroom", "The ship", "The engine room", "Engine room"),
           ("camp", "Mars", "The camp", "Mars camp"), ("campgrounds", "Mars", "The camp grounds", "Mars camp grounds")]
 PLACE_SECONDS = 5.5
 # The world video's other films, each after its place's own (the paper's K9: every place film and the ship).

@@ -55,7 +55,7 @@ def check_figure(folder):
     assert all(path.endswith("-ink.png") and pathlib.Path(path).exists() for _, _, path in used), used
     assert used[-1][1] == "Mars camp grounds", used[-1]
     with Image.open(folder / "figure.jpg") as sheet:
-        assert sheet.size == (3 * showcase.TILE[0] + 16, 6 * showcase.TILE[1] + 40), sheet.size
+        assert sheet.size == (4 * showcase.TILE[0] + 24, 7 * showcase.TILE[1] + 48), sheet.size
 
 
 def store_film(path, shade):
@@ -79,7 +79,7 @@ def check_world(folder):
     assert [film["film"] for film in record["films"]] == ["flat", "hull"] and record["missing"] == ["stairwell"], record
     assert abs(showcase.length(folder / "out/world1.mp4") - 10.5) < 0.2, showcase.length(folder / "out/world1.mp4")
     with Image.open(folder / "fig.jpg") as sheet:
-        assert sheet.size == (3 * showcase.TILE[0] + 16, showcase.TILE[1]), sheet.size
+        assert sheet.size == (4 * showcase.TILE[0] + 24, showcase.TILE[1]), sheet.size
         assert sheet.getpixel((10, 10))[0] < sheet.getpixel((showcase.TILE[0] + 18, 10))[0]
 
 
