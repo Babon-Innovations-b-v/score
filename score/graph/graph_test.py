@@ -4,8 +4,10 @@ store of its own.
 
 Run: .venv/bin/python score/graph/graph_test.py
 """
+import contextlib
 import dataclasses
 import functools
+import importlib
 import json
 import os
 import pathlib
@@ -19,7 +21,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
 compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
-from score.graph import _code  # noqa: E402
+from score.graph import _code, rebuy  # noqa: E402
 from score.store import Store, tree_hash  # noqa: E402
 
 MADE = []
@@ -587,6 +589,74 @@ def test_an_output_is_kept_over_a_change_only_with_a_proof_naming_every_changed_
             carried = store.record("noted@hangar", keyed["key"])["carried"]
             assert carried["reason"] == graph.NO_OP_REASON and carried["no-ops"] == no_ops
             assert carried["made by"]["commit"] == first and carried["from key"] == old["key"]
+
+
+STAGE_SOURCE = """import {helper}
+
+
+def make(inputs, out, seed, params):
+    (out / "made.txt").write_text({helper}.WORD + inputs["seeds"].read_text())
+"""
+
+
+@contextlib.contextmanager
+def a_repo_of_its_own(case):
+    """A temporary git repository, committed, holding a stage module that imports a helper (`narrow_a<case>` and
+    `narrow_h<case>`), taken as the repository while the block runs; yields (its folder, the stage module)."""
+    repo = pathlib.Path(tempfile.mkdtemp(prefix="narrow_repo_")).resolve()
+    helper = f"narrow_h{case}"
+    (repo / f"{helper}.py").write_text('WORD = "kept "\n')
+    (repo / f"narrow_a{case}.py").write_text(STAGE_SOURCE.format(helper=helper))
+    (repo / ".gitignore").write_text("__pycache__/\n")  # as this repository's: an import's bytecode is no change
+    for command in (["init", "-q"], ["add", "."], ["-c", "user.name=test", "-c", "user.email=test@test", "commit",
+                                                   "-qm", "a stage and its helper"]):
+        subprocess.run(["git", "-C", str(repo), *command], check=True)
+    saved = _code.REPO, _code.OUTSIDE, _code.FRAMEWORK, _code.search_folders
+    _code.REPO, _code.OUTSIDE, _code.FRAMEWORK = repo, (repo / ".git",), set(_code.FRAMEWORK)
+    _code.search_folders = lambda: (repo,)
+    sys.path.insert(0, str(repo))
+    try:
+        yield repo, importlib.import_module(f"narrow_a{case}")
+    finally:
+        sys.path.remove(str(repo))
+        _code.REPO, _code.OUTSIDE, _code.FRAMEWORK, _code.search_folders = saved
+
+
+def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_made_again():
+    """A stage A that imports a helper H, made and accepted: H moved into FRAMEWORK moves A's key and the runner
+    keeps A's accepted output, no proof file and no make (rebuy counts no buy); with A's own file also edited, or its
+    declared {seeds} file outside the repository changed, it makes A again."""
+    for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False)):
+        seeds = pathlib.Path(tempfile.mkdtemp())
+        (seeds / "hangar.txt").write_text("a seed")
+        world = graph.World("toy", 7, {"seeds": str(seeds)})
+        store = Store.in_folder(tempfile.mkdtemp())
+        with a_repo_of_its_own(case) as (repo, module):
+            stage = graph.Stage("narrow", "place", module.make, TEXT, (checks.Check("seen", judge_seen),),
+                                files={"seeds": "{seeds}/{place}.txt"})
+            first = a_runner(world, store, (stage,)).run(["hangar"])["narrow@hangar"]
+            assert first == "made: pass, accepted automatically", first
+            old = store.records("narrow@hangar")[0]
+            _code.FRAMEWORK.add(repo / f"narrow_h{case}.py")
+            if change == "own file":
+                (repo / f"narrow_a{case}.py").write_text(STAGE_SOURCE.format(helper=f"narrow_h{case}") + "# read\n")
+            if change == "seeds":
+                (seeds / "hangar.txt").write_text("another seed")
+            runner = a_runner(world, store, (stage,))
+            keyed = runner.key(stage, "hangar")
+            assert keyed["key"] != old["key"] and store.record("narrow@hangar", keyed["key"]) is None
+            assert (rebuy.to_make(runner, stage, "hangar", [], {}) is None) == kept, change
+            done = runner.run(["hangar"])["narrow@hangar"]
+            assert done.startswith("fresh" if kept else "made: pass"), (change, done)
+            record = store.record("narrow@hangar", keyed["key"])
+            if kept:
+                assert record["output"] == old["output"] and record["code"] == keyed["code"]
+                assert record["carried"] == {"reason": graph.NARROWING_REASON, "from key": old["key"],
+                                             "to key": keyed["key"],
+                                             "made by": {"commit": old["commit"], "code": old["code"]}}
+                assert store.judgement("narrow@hangar", keyed["key"], runner.evidence_state(stage, old["output"]))
+            else:
+                assert "carried" not in record
 
 
 def test_the_runners_store_lists_the_same_keys_walking_only_the_prefixs_folder():
