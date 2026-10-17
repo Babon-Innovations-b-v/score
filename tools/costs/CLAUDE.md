@@ -20,6 +20,8 @@ in the test.
 - **`reconcile-day` is the alarm, `reconcile` the paper's.** `reconcile-day <day>` builds Scaleway's day from the
   reads `today` saves and exits 1 when a line the ledgers hold (machines; disks and addresses) is more than 5% of the
   ledgered bill off, naming the provider; storage and the rest are reported apart, never in the gap. A provider with
-  no bill fails unless `--skip` names it (Google needs its day in a bill file: no bill reader yet). Nothing runs it on
+  no bill fails unless `--skip` names it (Google needs its day in a bill file: no bill reader yet), and so does one
+  whose ledger file is missing ("no ledger at <path>", never read as an empty ledger). Nothing runs it on
   a schedule yet. A gap means spend outside the ledgers, fixed in the client that made it (`paid_calls_test.py`
-  lists the allowed ones), never by editing a row.
+  lists the allowed ones), never by editing a row. The paper's commands (`reconcile`, `tables`, `types`) leave the
+  order lines (`ledger.ORDER_LINES`: started, refused, cluster orders) out; they are not batches.

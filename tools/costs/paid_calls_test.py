@@ -3,8 +3,11 @@ google_spend.generate, a Scaleway machine, disk, address or cluster pool through
 cluster set-up drive. Any other module that calls Gemini directly or orders one of those fails here (2026-10-17: a
 Google day billed about EUR 520 the ledger never held, and 21% of the bill was in no ledger row).
 
-Read from each tracked Python file's syntax tree (its imports, its string constants, and the scw words a call is
-given), and from the lines of each shell script; vendor/ is third-party and left out.
+Read from each tracked Python file's syntax tree (its imports, its strings joined with + and f-strings, and the scw
+words a call is given, read through variables, joined and starred lists, .append and .extend), and from the lines of
+each shell script; vendor/ is third-party and left out. A word it cannot read (a function's parameter) between a
+product and "create" still counts as an order. It does not follow words across modules, through other functions'
+return values, or built with % or .format.
 
 Run: python3 tools/costs/paid_calls_test.py
 """
@@ -16,16 +19,25 @@ import sys
 import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-# The files that may make a paid call, and why. A new one is added only when it writes its ledger line first.
+# The files that may make a paid call: (why, the top-level functions and constants it may be in). A paid call
+# anywhere else in the file fails as in any other. A new one is added only when it writes its ledger line first.
 ALLOWED = {
-    "tools/props/cloud/google_spend.py": "the Gemini client: a started line before every call",
-    "tools/props/cloud/google_spend_test.py": "the Gemini client's own lint names Google's hosts and clients",
-    "tools/props/cloud/backends/scaleway.py": "the machine backend: create writes the started line before its "
-                                              "order, under batch.rent; disks and addresses go to the ledger at "
-                                              "delete",
-    "tools/cloud/k8s/clusters/scaleway.py": "the cluster set-up: ledger.order_started before each cluster and pool "
-                                            "order; the nodes come to the ledger as the submitter's run rows",
-    "tools/costs/paid_calls_test.py": "this lint and its fixtures",
+    "tools/props/cloud/google_spend.py": ("the Gemini client: a started line before every call", {"URL", "post"}),
+    "tools/props/cloud/google_spend_test.py": ("the Gemini client's own lint names Google's hosts and clients",
+                                               {"test_no_module_calls_google_another_way"}),
+    "tools/props/cloud/backends/scaleway.py": (
+        "the machine backend: create writes the started line before its order, under batch.rent, and the machine's "
+        "disks and addresses go to the ledger at its delete. Known gap: quarantine_bad_address's fresh address is "
+        "the machine's and ledgered at its delete, but the bad address it detaches stays in the project for good, "
+        "billed by the hour with no ledger line (reconcile-day shows it in disks and addresses)",
+        {"create", "quarantine_bad_address"}),
+    "tools/cloud/k8s/clusters/scaleway.py": ("the cluster set-up: ledger.order_started before each cluster and pool "
+                                             "order; the nodes come to the ledger as the submitter's run rows",
+                                             {"create_cluster", "ensure_pools"}),
+    "tools/costs/paid_calls_test.py": ("this lint's pattern and its fixtures",
+                                       {"PAID_TEXT", "test_a_module_calling_gemini_directly_fails",
+                                        "test_a_module_ordering_a_scaleway_machine_or_disk_fails",
+                                        "test_an_address_built_in_an_f_string_fails"}),
 }
 GEMINI_MODULES = ("google.genai", "google.generativeai", "google.cloud.aiplatform", "vertexai")
 GEMINI_NAMES = {"genai", "generativeai"}
@@ -37,6 +49,7 @@ SCALEWAY_SDK = ("scaleway.instance", "scaleway.block", "scaleway.k8s", "scaleway
 # scw's words that order something billed: (product, resource) followed by "create".
 SCW_PAID = {("instance", "server"), ("instance", "volume"), ("instance", "ip"), ("block", "volume"),
             ("k8s", "pool"), ("k8s", "cluster")}
+SCW_PRODUCTS = {product for product, _ in SCW_PAID}
 
 
 def imported_paid_modules(tree):
@@ -64,27 +77,59 @@ def string_text(node):
     return None
 
 
+def joined_text(node, strings):
+    """The text a string expression stands for: strings joined with +, an f-string, a variable set to one string
+    (`strings`), each part it cannot read as "{}"; None when no part of it is a string."""
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = joined_text(node.left, strings), joined_text(node.right, strings)
+        return None if left is None and right is None else (left or "{}") + (right or "{}")
+    if isinstance(node, ast.JoinedStr):
+        return "".join(part.value if isinstance(part, ast.Constant)
+                       else strings.get(part.value.id, "{}") if isinstance(part.value, ast.Name) else "{}"
+                       for part in node.values)
+    if isinstance(node, ast.Name):
+        return strings.get(node.id)
+    return string_text(node)
+
+
 def paid_strings(tree):
-    """(line, what) for each string or f-string that names a paid host, key header or order."""
+    """(line, what) for each string, f-string or joined string that names a paid host, key header or order."""
+    strings = {name: words[0] for name, words in assigned_words(tree).items()
+               if len(words) == 1 and isinstance(words[0], str)}
     found = []
     for node in ast.walk(tree):
-        text = string_text(node)
+        if not isinstance(node, (ast.Constant, ast.JoinedStr, ast.BinOp)):
+            continue
+        text = joined_text(node, strings)
         if text is not None and PAID_TEXT.search(text):
             found.append((node.lineno, f"names {PAID_TEXT.search(text).group(0)!r}"))
     return found
 
 
+def grown_list(node):
+    """(variable, method, its argument) when `node` is `variable.append(x)` or `variable.extend(x)`; else None."""
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+            and node.func.attr in ("append", "extend") and len(node.args) == 1):
+        return node.func.value.id, node.func.attr, node.args[0]
+    return None
+
+
 def assigned_words(tree):
-    """{variable: its words} for each variable a module sets (or adds to) with a list of words, in source order, the
-    last setting kept."""
+    """{variable: its words} for each variable a module sets, adds to, or grows (.append, .extend) with words, in
+    source order, the last setting kept."""
     assigned = {}
-    settings = sorted((node for node in ast.walk(tree) if isinstance(node, (ast.Assign, ast.AugAssign))),
+    settings = sorted((node for node in ast.walk(tree)
+                       if isinstance(node, (ast.Assign, ast.AugAssign)) or grown_list(node)),
                       key=lambda node: (node.lineno, node.col_offset))
     for node in settings:
         if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
             assigned[node.targets[0].id] = sequence_words(node.value, assigned)
         elif isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Add) and isinstance(node.target, ast.Name):
             assigned[node.target.id] = assigned.get(node.target.id, [None]) + sequence_words(node.value, assigned)
+        elif isinstance(node, ast.Call):
+            name, method, argument = grown_list(node)
+            added = sequence_words(argument, assigned) if method == "extend" else [string_text(argument)]
+            assigned[name] = assigned.get(name, [None]) + added
     return assigned
 
 
@@ -103,9 +148,11 @@ def sequence_words(node, assigned):
 
 
 def orders_in(words):
-    """The scw orders of billed resources ("instance server create") in a run of words."""
-    return [" ".join(words[index:index + 3]) for index in range(len(words) - 2)
-            if tuple(words[index:index + 2]) in SCW_PAID and words[index + 2] == "create"]
+    """The scw orders of billed resources ("instance server create") in a run of words; a word that cannot be read
+    (None, as a function's parameter) between a product and "create" counts as an order."""
+    return [" ".join(str(word) for word in words[index:index + 3]) for index in range(len(words) - 2)
+            if words[index + 2] == "create" and (tuple(words[index:index + 2]) in SCW_PAID
+                                                 or (words[index] in SCW_PRODUCTS and words[index + 1] is None))]
 
 
 def scw_orders(tree):
@@ -144,6 +191,28 @@ def paid_calls(path):
     """(line, what) for each paid call in one file."""
     text = path.read_text(errors="replace")
     return python_paid_calls(text) if path.suffix == ".py" else shell_paid_calls(text)
+
+
+def top_level_spans(tree):
+    """(name, first line, last line) of each top-level function, class and constant of a module."""
+    spans = []
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            spans.append((node.name, node.lineno, node.end_lineno))
+        elif isinstance(node, ast.Assign):
+            spans += [(target.id, node.lineno, node.end_lineno) for target in node.targets
+                      if isinstance(target, ast.Name)]
+    return spans
+
+
+def outside_allowed(path, names):
+    """(line, what) for each paid call in one file outside its top-level functions and constants named in `names`."""
+    found = paid_calls(path)
+    if path.suffix != ".py" or not names:
+        return found
+    spans = [(first, last) for name, first, last in top_level_spans(ast.parse(path.read_text(errors="replace")))
+             if name in names]
+    return [(line, what) for line, what in found if not any(first <= line <= last for first, last in spans)]
 
 
 def tracked_sources():
@@ -204,6 +273,50 @@ def test_an_address_built_in_an_f_string_fails():
     assert [line for line, _ in paid_calls(path)] == [2, 3, 4], paid_calls(path)
 
 
+def test_an_order_grown_by_append_or_extend_fails():
+    """Fault (review of C1, 2026-10-17): a list grown with .append or .extend was read only as first set, so an order
+    finished by one came back clean."""
+    path = fixture('import subprocess\n'
+                   'cmd = ["scw", "instance", "server"]\n'
+                   'cmd.append("create")\n'
+                   'subprocess.run(cmd)\n'
+                   'disk = ["scw", "block"]\n'
+                   'disk.extend(["volume", "create"])\n'
+                   'subprocess.run(disk)\n')
+    assert [line for line, _ in paid_calls(path)] == [4, 7], paid_calls(path)
+
+
+def test_an_order_whose_resource_is_a_parameter_fails():
+    """Fault (review of C1, 2026-10-17): a word given as a function's parameter cannot be read, so
+    `scw("instance", what, "create")` came back clean. A product's create with an unread word between still orders."""
+    path = fixture('def order(what):\n'
+                   '    scw("instance", what, "create")\n'
+                   'def look(what):\n'
+                   '    scw("instance", what, "list")\n')
+    assert [line for line, _ in paid_calls(path)] == [2], paid_calls(path)
+
+
+def test_an_address_joined_from_strings_fails():
+    """Fault (review of C1, 2026-10-17): only one string at a time was matched, so an order's address joined from a
+    base and a path (with + or inside an f-string) came back clean."""
+    path = fixture('import requests\n'
+                   'API = "https://api.scaleway.com/instance/v1"\n'
+                   'requests.post(API + f"/zones/{zone}/servers")\n'
+                   'requests.post(f"{API}/zones/{zone}/ips")\n'
+                   'requests.get(API + f"/zones/{zone}/servers/{server}/action")\n')
+    assert [line for line, _ in paid_calls(path)] == [3, 4], paid_calls(path)
+
+
+def test_an_allowed_file_may_order_only_in_its_named_parts():
+    """Fault (review of C1, 2026-10-17): ALLOWED covered whole files, so a paid call added anywhere in the backend or
+    in this file passed. A call in an allowed file passes only inside the top-level functions or constants named."""
+    path = fixture('def create():\n'
+                   '    scw("instance", "server", "create")\n'
+                   'def later():\n'
+                   '    scw("instance", "ip", "create")\n')
+    assert [line for line, _ in outside_allowed(path, {"create"})] == [4], outside_allowed(path, {"create"})
+
+
 def test_reading_and_deleting_are_not_paid_calls():
     path = fixture('scw("instance", "server", "get", "id")\nscw("instance", "server", "delete", "id")\n'
                    'assert command[:4] == ["scw", "instance", "server", "create"]\n'
@@ -213,8 +326,8 @@ def test_reading_and_deleting_are_not_paid_calls():
 
 
 def test_the_repository_makes_paid_calls_only_through_the_ledgered_clients():
-    found = {path: calls for path in tracked_sources() if path not in ALLOWED
-             for calls in [paid_calls(REPO / path)] if calls}
+    found = {path: calls for path in tracked_sources()
+             for calls in [outside_allowed(REPO / path, ALLOWED.get(path, ("", set()))[1])] if calls}
     assert not found, ("call Gemini through google_spend.generate and rent through batch.rent, not directly: "
                        f"{found}")
 

@@ -106,7 +106,8 @@ def test_no_module_calls_google_another_way():
     direct = re.compile(r"generativelanguage\.googleapis|x-goog-api-key|google\.genai|from google import genai|"
                         r"google\.generativeai|google\.cloud\.aiplatform|vertexai")
     allowed = {"tools/props/cloud/google_spend.py", "tools/props/cloud/google_spend_test.py",
-               "tools/costs/paid_calls_test.py"}  # the paid-calls lint's fixtures name Google's hosts
+               "tools/costs/paid_calls_test.py"}  # the paid-calls lint's fixtures name Google's hosts; that lint
+    # checks its own file outside its named pattern and fixtures (its ALLOWED)
     found = [path for path in tracked if not path.startswith("vendor/") and path not in allowed
              and (repo / path).is_file() and direct.search((repo / path).read_text(errors="replace"))]
     assert not found, f"call Google through google_spend.generate, not directly: {found}"
