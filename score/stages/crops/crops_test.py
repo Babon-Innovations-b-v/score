@@ -119,6 +119,39 @@ def test_layer_gates():
         assert layer.judge_on_beds(folder, inputs, None).answer == "fail"
 
 
+def test_layer_says_what_made_its_crops():
+    """Each kind's prototype says what made it (score:kind), so the made-only check passes the laid crop meshes;
+    without the mark it fails them, as it did on complete@greenhouse of 2026-10-17."""
+    from pxr import Sdf, Usd, UsdGeom
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        (folder / "assets").mkdir()
+        (folder / "layers").mkdir()
+        assets = {}
+        for kind, entry in RECORD["kinds"].items():
+            model = layer.model_of(entry)
+            asset = Usd.Stage.CreateNew(str(folder / "assets" / f"{model}.usdc"))
+            asset.SetDefaultPrim(UsdGeom.Xform.Define(asset, f"/{model}").GetPrim())
+            UsdGeom.Mesh.Define(asset, f"/{model}/geo")
+            asset.GetRootLayer().Save()
+            assets[kind] = {"model": model, "lowest": 0.0}
+        spot = {"at": [0.0, 0.0, 0.0], "turn": 0.0, "size": 1.0}
+        layer.write_layer("greenhouse", RECORD, assets, [dict(spot, kind=kind) for kind in RECORD["kinds"]],
+                          folder / layer.LAYER)
+        stage = Usd.Stage.CreateInMemory()
+        stage.GetRootLayer().subLayerPaths.append(str(folder / layer.LAYER))
+        stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/greenhouse").GetPrim())
+        with crop_data.tools("usd"):
+            import made_only
+        assert made_only.unmade_meshes(stage) == [], made_only.unmade_meshes(stage)
+        stage.SetEditTarget(Usd.EditTarget(Sdf.Layer.Find(str(folder / layer.LAYER))))
+        for kind in RECORD["kinds"]:
+            prototype = stage.GetPrimAtPath(f"/greenhouse/Crops/{kind}/Prototypes/{assets[kind]['model']}")
+            assert prototype.GetChild("geo").IsValid(), kind
+            prototype.RemoveProperty("score:kind")
+        assert len(made_only.unmade_meshes(stage)) == len(RECORD["kinds"])
+
+
 def test_look_finds_the_floor_again():
     """A point of the beds' top drawn by a look camera (the effects look's projection) is taken back onto it."""
     import score.stages.effects.look as effects_look
