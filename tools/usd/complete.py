@@ -226,7 +226,10 @@ def placeholders_check(place, stage):
 
 def resting_check(place, stage):
     """The resting triage's real faults (triage.py): each a fault the false-alarm guards kept, with the last settle
-    run's drop (SAGE's rule) when one lies beside the stage (settle/settled.json, newer than the stage)."""
+    run's drop (SAGE's rule) when one lies beside the stage (settle/settled.json, newer than the stage). A store copy
+    is judged as the runner judges it: by its assembly's own resting gate (assembly_resting)."""
+    if (pathlib.Path(stage).parent / STORE_OUTPUT).exists():
+        return assembly_resting(place, stage)
     import triage
     settled_file = pathlib.Path(stage).parent / "settle/settled.json"
     fresh = settled_file.exists() and settled_file.stat().st_mtime_ns >= pathlib.Path(stage).stat().st_mtime_ns
@@ -235,6 +238,24 @@ def resting_check(place, stage):
     note = (f"{found['real_objects']} objects with real faults, {found['false_objects']} false alarms"
             + ("" if fresh else "; no drop run on this stage (settle.py --dry-run)"))
     return result("resting", FAIL if real else PASS, stage, real, note)
+
+
+def assembly_resting(place, stage):
+    """The resting requirement of a store copy as the runner has it: its complete row leaves resting to the assembly's
+    gate, judged on the drop run the assembly gathered with the place's named gaps moved, so this is that gate's
+    verdict on the accepted assembly@<place> output (its newest judgement in the store)."""
+    sys.path.insert(0, str(REPO))
+    from score import review
+    from score.store import Store
+    store, node = Store.default(), f"assembly@{place}"
+    output = store.accepted(node)
+    record = review.record_of(store, node, output) if output else None
+    judgement = review.newest_judgement(store, record) if record else None
+    verdict = (judgement or {}).get("verdicts", {}).get("resting")
+    if verdict is None:
+        return result("resting", UNKNOWN, stage, note=f"no judged resting gate on {node}'s chosen output")
+    return result("resting", verdict["answer"], stage, list(verdict.get("findings") or ()),
+                  f"{node}'s resting gate on its drop run ({output[:12]}): {verdict['reason']}")
 
 
 def picks_check(place, stage):
@@ -276,7 +297,17 @@ def stored_outputs(place):
     from score.store import Store
     store = Store.default()
     accepted = {name: store.accepted(f"{name}@{place}") for name in contents.OUTPUTS}
+    accepted.update({node: store.accepted(node) for node in complete_besides(place)})
     return {name: store.checkout(output) if output else None for name, output in accepted.items()}
+
+
+def complete_besides(place):
+    """The other places' nodes the runner's complete row reads beside for the place (its `beside` over its
+    `neighbours`: a ship place's likeness@<the place whose bake lays its made piece>, 7caacee2), by node name."""
+    from score import stages
+    row = next(row for row in stages.STAGES if row.name == "complete")
+    others = row.neighbours(place) if row.neighbours else []
+    return [f"{before}@{other}" for other in others for before in row.beside]
 
 
 def contents_check(check, place, stage, outputs=None):

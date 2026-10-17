@@ -18,6 +18,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "tools/review"))
 import complete  # noqa: E402
+sys.path.insert(0, str(HERE.parents[1]))
+from score import checks  # noqa: E402
 import contents  # noqa: E402
 import contents_test  # noqa: E402
 import made_only  # noqa: E402
@@ -234,7 +236,7 @@ def a_named_gap_moves_only_the_faults_it_names():
         named = {"row": "complete", "reason": "a test", "decided": "the test", "faults": ["player: not on the stage"]}
         (gaps.FOLDER / f"{resting_test.PLACE}.json").write_text(json.dumps({"gaps": [
             {**named, "name": "no player", "check": "people", "objects": ["player"]},
-            {**named, "name": "not a gap gate", "check": "painted", "objects": ["crate"]}]}))
+            {**named, "name": "not a gap gate", "check": "light", "objects": ["crate"]}]}))
         problems = []
         try:
             def answer(check, faults):
@@ -245,7 +247,7 @@ def a_named_gap_moves_only_the_faults_it_names():
                 problems.append(f"the named people fault did not move: {moved}")
             if answer("people", ["player: not on the stage", "guard: not on the stage"])[0] != complete.FAIL:
                 problems.append("a fault no gap names passed with the named one")
-            if answer("painted", ["crate: not repainted"])[0] != complete.FAIL:
+            if answer("light", ["crate: no lamp"])[0] != complete.FAIL:
                 problems.append("a gap moved a check that is not one of complete's gap gates")
             if complete.named_gaps_requirement(resting_test.PLACE)[0] != complete.FAIL:
                 problems.append("the named gaps requirement does not fail its gaps by name")
@@ -293,7 +295,64 @@ def the_three_statuses():
         return problems
 
 
-CHECKS = (a_finished_place_passes, a_named_gap_moves_only_the_faults_it_names, the_three_statuses, a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
+def judge_resting_toy(output, inputs, evidence):
+    faulty = (output / "faults.txt").read_text().strip()
+    return checks.Verdict("resting", checks.FAIL if faulty == "other" else checks.PASS, f"toy resting: {faulty}",
+                          {"objects": 1}, {"objects": "lower"}, ("/hangar/Objects/crate_1: tips 0.3: outside",))
+
+
+def make_toy(inputs, out, seed, params):
+    (out / "faults.txt").write_text(inputs["faults"].read_text())
+
+
+def a_store_copy_takes_resting_from_its_assembly_gate():
+    """2026-10-17: complete.py judged a store copy's resting by its own triage with no drop run (campgrounds: 6 faults,
+    "no drop run on this stage"), while the runner's complete row leaves resting to the assembly's gate, judged on
+    its gathered drop run with the named gaps moved. A store copy's resting is now that gate's verdict on the
+    runner's chosen assembly output: its pass with the faults shown; with no chosen output (its gate failed), unknown."""
+    from score import contracts, graph
+    from score.store import Store
+    toy = graph.Stage("assembly", "place", make_toy, contracts.Contract("toy", 1, lambda folder: []),
+                      (checks.Check("resting", judge_resting_toy),), files={"faults": "{data}/{place}.txt"})
+    problems = []
+    saved = Store.default
+    try:
+        for said, wanted in (("named", complete.PASS), ("other", complete.UNKNOWN)):
+            data, store = pathlib.Path(tempfile.mkdtemp()), Store.in_folder(tempfile.mkdtemp())
+            (data / "hangar.txt").write_text(said)
+            graph.Runner([toy], graph.World("toy", 1, {"data": data}), store).run(["hangar"])
+            Store.default = staticmethod(lambda store=store: store)
+            stage = data / "copy" / "hangar.usda"
+            stage.parent.mkdir()
+            stage.write_text("#usda 1.0\n")
+            (stage.parent / complete.STORE_OUTPUT).write_text("abc")
+            found = complete.resting_check("hangar", stage)
+            shown = found["faults"] == ["/hangar/Objects/crate_1: tips 0.3: outside"] and \
+                "assembly@hangar's resting gate" in found["note"]
+            if found["result"] != wanted or (wanted == complete.PASS and not shown):
+                problems.append(f"a store copy's resting is not its assembly gate's ({said}): {found}")
+    finally:
+        Store.default = saved
+    return problems
+
+
+def a_ship_place_reads_the_runners_beside_likeness():
+    """2026-10-17: the runner's complete row reads, for a ship place, the likeness of each place whose bake lays its
+    made pieces (7caacee2); complete.py read only the place's own. Its stored outputs now name the same nodes."""
+    sys.path.insert(0, str(HERE.parents[1]))
+    from score import stages
+    runner = stages.runner()
+    problems = []
+    for place in ("cockpit", "shiplock", "engineroom", "galley"):
+        wanted = sorted(runner.besides(runner.stages["complete"], place))
+        if sorted(complete.complete_besides(place)) != wanted:
+            problems.append(f"{place}: complete.py reads {complete.complete_besides(place)} beside, the runner {wanted}")
+    return problems
+
+
+CHECKS = (a_finished_place_passes, a_named_gap_moves_only_the_faults_it_names, the_three_statuses,
+          a_store_copy_takes_resting_from_its_assembly_gate, a_ship_place_reads_the_runners_beside_likeness,
+          a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason,
           an_edit_after_the_checks_makes_them_stale, a_mesh_from_nowhere_fails_made_only,
           a_check_that_cannot_run_is_unknown, a_part_answers_for_its_own_rows_only,
