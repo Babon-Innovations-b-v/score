@@ -93,7 +93,7 @@ def check_world(folder):
     for number in range(4):
         Image.new("RGB", (300, 200), (60 * number, 90, 90)).save(folder / f"{number}.png")
     assets = folder / "assets.json"
-    assets.write_text(json.dumps({"places": {"flat": {"concept": str(folder / "0.png"), "plan": str(folder / "1.png"),
+    assets.write_text(json.dumps({"opening": [str(folder / "0.png"), str(folder / "1.png")], "places": {"flat": {"concept": str(folder / "0.png"), "plan": str(folder / "1.png"),
                                                       "pieces": [str(folder / "2.png"), str(folder / "3.png")]}}}))
     showcase.ENDING = folder / "ending"
     try:
@@ -105,7 +105,8 @@ def check_world(folder):
     record = json.loads((folder / "out/world1.json").read_text())
     assert [film["film"] for film in record["films"]] == ["flat", "hull"] and record["missing"] == ["stairwell"], record
     assert record["films"][0]["stages"] == ["Concept", "Plan", "Pieces"] and record["films"][1]["stages"] == []
-    parts = showcase.timeline([("flat", 3), ("hull", 0)], 0, [])
+    opening = showcase.OPENING_TITLE + 2 * showcase.OPENING_EACH - showcase.FADE
+    parts = showcase.timeline([("flat", 3), ("hull", 0)], opening, [])
     expected = sum(seconds for _, seconds in parts) - showcase.FADE * (len(parts) - 1)
     measured = showcase.length(folder / "out/world1.mp4")
     assert abs(measured - expected) < 0.2, (measured, expected)
