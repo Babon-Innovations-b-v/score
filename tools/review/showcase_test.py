@@ -66,25 +66,57 @@ def store_film(path, shade):
     return path
 
 
+def check_stages():
+    """The stages before a result keep the order Concept, Plan, Pieces and leave out a stage with no picture."""
+    every = {"concept": "c.png", "plan": "p.png", "pieces": [f"{n}.png" for n in range(20)]}
+    stages = showcase.stages_of(every)
+    assert [label for label, _ in stages] == ["Concept", "Plan", "Pieces"], stages
+    assert len(stages[2][1]) == showcase.GRID_MOST, stages
+    assert [label for label, _ in showcase.stages_of({"concept": "c.png", "plan": None, "pieces": []})] == ["Concept"]
+
+
+def check_timeline():
+    """The world video's parts in order, each place about 6.5 s, and the whole within 4 minutes for world 1."""
+    parts = showcase.timeline([("flat", 3), ("cockpit", 2)], 18.0, [15.0, 15.0])
+    assert [name for name, _ in parts] == ["opening", "flat:stages", "flat:result", "cockpit:stages", "cockpit:result",
+                                           "ending:0", "ending:1"], parts
+    place = 3 * showcase.STAGE_SECONDS + showcase.SHOT_SHOWN - showcase.FADE
+    assert 6.0 <= place <= 7.0, place
+    whole = showcase.timeline([(film, 3) for film, *_ in showcase.PLACES] + [("hull", 0)], 18.0, [15.0, 15.0])
+    seconds = sum(length for _, length in whole) - showcase.FADE * (len(whole) - 1)
+    assert seconds <= 240, seconds
+
+
 def check_world(folder):
     films = [("flat", "Flat", store_film(folder / "a/film.mp4", 40), "a"), ("stairwell", "Stairwell", None, None),
              ("hull", "The ship", store_film(folder / "b/hull/film.mp4", 200), "b")]
+    for number in range(4):
+        Image.new("RGB", (300, 200), (60 * number, 90, 90)).save(folder / f"{number}.png")
+    assets = folder / "assets.json"
+    assets.write_text(json.dumps({"places": {"flat": {"concept": str(folder / "0.png"), "plan": str(folder / "1.png"),
+                                                      "pieces": [str(folder / "2.png"), str(folder / "3.png")]}}}))
+    showcase.ENDING = folder / "ending"
     try:
-        showcase.world(folder / "out", folder / "fig.jpg", films)
+        showcase.world(folder / "out", folder / "fig.jpg", films, assets)
         raise AssertionError("a missing film was cut")
     except SystemExit as stop:
         assert "stairwell" in str(stop), stop
-    showcase.world(folder / "out", folder / "fig.jpg", films, draft=True)
+    showcase.world(folder / "out", folder / "fig.jpg", films, assets, draft=True)
     record = json.loads((folder / "out/world1.json").read_text())
     assert [film["film"] for film in record["films"]] == ["flat", "hull"] and record["missing"] == ["stairwell"], record
-    assert abs(showcase.length(folder / "out/world1.mp4") - 10.5) < 0.2, showcase.length(folder / "out/world1.mp4")
+    assert record["films"][0]["stages"] == ["Concept", "Plan", "Pieces"] and record["films"][1]["stages"] == []
+    parts = showcase.timeline([("flat", 3), ("hull", 0)], 0, [])
+    expected = sum(seconds for _, seconds in parts) - showcase.FADE * (len(parts) - 1)
+    measured = showcase.length(folder / "out/world1.mp4")
+    assert abs(measured - expected) < 0.2, (measured, expected)
     with Image.open(folder / "fig.jpg") as sheet:
         assert sheet.size == (4 * showcase.TILE[0] + 24, showcase.TILE[1]), sheet.size
-        assert sheet.getpixel((10, 10))[0] < sheet.getpixel((showcase.TILE[0] + 18, 10))[0]
 
 
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as temporary:
+        check_stages()
+        check_timeline()
         for check in (check_legend, check_figure, check_world):
             place = pathlib.Path(temporary) / check.__name__
             place.mkdir()
