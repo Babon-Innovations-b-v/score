@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
@@ -592,21 +593,38 @@ def test_an_output_is_kept_over_a_change_only_with_a_proof_naming_every_changed_
 
 
 STAGE_SOURCE = """import {helper}
+import {other}
 
 
 def make(inputs, out, seed, params):
-    (out / "made.txt").write_text({helper}.WORD + inputs["seeds"].read_text())
+    (out / "made.txt").write_text({helper}.WORD + {other}.WORD + inputs["seeds"].read_text())
 """
+
+
+OTHER_SOURCE = """def make(inputs, out, seed, params):
+    (out / "made.txt").write_text("TOTALLY DIFFERENT " + inputs["seeds"].read_text())
+"""
+
+
+def stage_source(case):
+    """narrow_a<case>'s source: a make reading both helpers."""
+    return STAGE_SOURCE.format(helper=f"narrow_h{case}", other=f"narrow_g{case}")
 
 
 @contextlib.contextmanager
 def a_repo_of_its_own(case):
-    """A temporary git repository, committed, holding a stage module that imports a helper (`narrow_a<case>` and
-    `narrow_h<case>`), taken as the repository while the block runs; yields (its folder, the stage module)."""
+    """A temporary git repository, committed, holding a stage module that imports two helpers (`narrow_a<case>`
+    imports `narrow_h<case>`, which imports `narrow_j<case>`, and `narrow_g<case>`), another module with a make of its
+    own (`narrow_b<case>`) and a FRAMEWORK of none, taken as the repository while the block runs; yields (its folder,
+    the stage module)."""
     repo = pathlib.Path(tempfile.mkdtemp(prefix="narrow_repo_")).resolve()
-    helper = f"narrow_h{case}"
-    (repo / f"{helper}.py").write_text('WORD = "kept "\n')
-    (repo / f"narrow_a{case}.py").write_text(STAGE_SOURCE.format(helper=helper))
+    (repo / f"narrow_h{case}.py").write_text(f'import narrow_j{case}\nWORD = "kept " + narrow_j{case}.WORD\n')
+    (repo / f"narrow_j{case}.py").write_text('WORD = "joined "\n')
+    (repo / f"narrow_g{case}.py").write_text('WORD = "also "\n')
+    (repo / f"narrow_a{case}.py").write_text(stage_source(case))
+    (repo / f"narrow_b{case}.py").write_text(OTHER_SOURCE)
+    (repo / "score" / "graph").mkdir(parents=True)  # where the repository declares its FRAMEWORK, none at first
+    (repo / "score" / "graph" / "_code.py").write_text("FRAMEWORK = {REPO / name for name in ()}\n")
     (repo / ".gitignore").write_text("__pycache__/\n")  # as this repository's: an import's bytecode is no change
     for command in (["init", "-q"], ["add", "."], ["-c", "user.name=test", "-c", "user.email=test@test", "commit",
                                                    "-qm", "a stage and its helper"]):
@@ -624,9 +642,13 @@ def a_repo_of_its_own(case):
 
 def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_made_again():
     """A stage A that imports a helper H, made and accepted: H moved into FRAMEWORK moves A's key and the runner
-    keeps A's accepted output, no proof file and no make (rebuy counts no buy); with A's own file also edited, or its
-    declared {seeds} file outside the repository changed, it makes A again."""
-    for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False)):
+    keeps A's accepted output, no proof file and no make (rebuy counts no buy); with A's own file also edited, its
+    declared {seeds} file outside the repository changed, its make wired to another function in a file unchanged
+    since (B), another Python, H itself edited or a file read only through H (J) edited, it makes A again. A second
+    narrowing after the first (the other helper G moved too) is kept as well, still naming what made it."""
+    for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
+                               (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
+                               (6, "read through helper edited", False), (7, "second narrowing", True)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.World("toy", 7, {"seeds": str(seeds)})
@@ -639,14 +661,26 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
             old = store.records("narrow@hangar")[0]
             _code.FRAMEWORK.add(repo / f"narrow_h{case}.py")
             if change == "own file":
-                (repo / f"narrow_a{case}.py").write_text(STAGE_SOURCE.format(helper=f"narrow_h{case}") + "# read\n")
+                (repo / f"narrow_a{case}.py").write_text(stage_source(case) + "# read\n")
+            if change == "helper edited":
+                (repo / f"narrow_h{case}.py").write_text('WORD = "another word "\n')
+            if change == "read through helper edited":
+                (repo / f"narrow_j{case}.py").write_text('WORD = "another word "\n')
             if change == "seeds":
                 (seeds / "hangar.txt").write_text("another seed")
-            runner = a_runner(world, store, (stage,))
-            keyed = runner.key(stage, "hangar")
-            assert keyed["key"] != old["key"] and store.record("narrow@hangar", keyed["key"]) is None
-            assert (rebuy.to_make(runner, stage, "hangar", [], {}) is None) == kept, change
-            done = runner.run(["hangar"])["narrow@hangar"]
+            if change == "make swapped":
+                stage = dataclasses.replace(stage, make=importlib.import_module(f"narrow_b{case}").make)
+            python = _code.sys
+            if change == "python":
+                _code.sys = types.SimpleNamespace(version_info=types.SimpleNamespace(major=3, minor=99), path=sys.path)
+            try:
+                runner = a_runner(world, store, (stage,))
+                keyed = runner.key(stage, "hangar")
+                assert keyed["key"] != old["key"] and store.record("narrow@hangar", keyed["key"]) is None
+                assert (rebuy.to_make(runner, stage, "hangar", [], {}) is None) == kept, change
+                done = runner.run(["hangar"])["narrow@hangar"]
+            finally:
+                _code.sys = python
             assert done.startswith("fresh" if kept else "made: pass"), (change, done)
             record = store.record("narrow@hangar", keyed["key"])
             if kept:
@@ -655,6 +689,15 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
                                              "to key": keyed["key"],
                                              "made by": {"commit": old["commit"], "code": old["code"]}}
                 assert store.judgement("narrow@hangar", keyed["key"], runner.evidence_state(stage, old["output"]))
+                if change == "second narrowing":
+                    _code.FRAMEWORK.add(repo / f"narrow_g{case}.py")
+                    runner = a_runner(world, store, (stage,))
+                    again = runner.key(stage, "hangar")
+                    assert again["key"] != keyed["key"]
+                    assert runner.run(["hangar"])["narrow@hangar"].startswith("fresh")
+                    assert store.record("narrow@hangar", again["key"])["carried"] == {
+                        "reason": graph.NARROWING_REASON, "from key": keyed["key"], "to key": again["key"],
+                        "made by": {"commit": old["commit"], "code": old["code"]}}
             else:
                 assert "carried" not in record
 
