@@ -105,17 +105,36 @@ class Prim:
         return self.path.rsplit("/", 1)[1]
 
 
+def blender_tree(*paths):
+    """Point clouds at Blender's rebuilt paths (names as Blender gave them), parents shared by name."""
+    made, clouds = {}, []
+    for path in paths:
+        parent = None
+        names = path.strip("/").split("/")
+        for depth, name in enumerate(names):
+            at = "/".join(names[:depth + 1])
+            if at not in made:
+                made[at] = Item(name, parent, "POINTCLOUD" if depth == len(names) - 1 else "EMPTY")
+            parent = made[at]
+        clouds.append(parent)
+    return clouds
+
+
 def check_effect_clouds():
-    hub, places = Item("hub", kind="EMPTY"), Item("places", Item("hub", kind="EMPTY"), "EMPTY")
-    own = Item("pump_fog_points", Item("pump_fog", hub, "EMPTY"), "POINTCLOUD")
-    neighbour = Item("pump_fog_points.001", Item("pump_fog.001", Item("airlock", places, "EMPTY"), "EMPTY"), "POINTCLOUD")
-    clouds = [neighbour, own]
-    check("an effect finds its own cloud by path", usd_views.effect_cloud(Prim("/hub/pump_fog/pump_fog_points"), clouds)
-          is own)
-    check("a neighbour's effect of the same name finds the neighbour's cloud",
-          usd_views.effect_cloud(Prim("/hub/places/airlock/pump_fog/pump_fog_points"), clouds) is neighbour)
+    # the hangar's film stage as Blender 4.2 brought it in, 2026-10-18 (one-child Xforms folded into their child)
+    clouds = blender_tree("/hangar/Places/airlock/Fixtures.001/door_vent_points", "/hangar/Places/door_vent_points.001",
+                          "/hangar/Places/garage/Effects.002/pump_fog_points",
+                          "/hangar/Places/airlock/Effects.001/pump_fog_points.001",
+                          "/hangar/Effects.004/pump_fog_points.002")
+    found = {path: usd_views.effect_cloud(Prim(path), clouds).name for path in (
+        "/hangar/Places/airlock/Fixtures/door_vent/door_vent_points", "/hangar/Places/door_vent/door_vent_points",
+        "/hangar/Places/airlock/Effects/pump_fog/pump_fog_points", "/hangar/Places/garage/Effects/pump_fog/pump_fog_points",
+        "/hangar/Effects/pump_fog/pump_fog_points")}
+    check("each effect finds its own place's cloud", list(found.values()) == [
+        "door_vent_points", "door_vent_points.001", "pump_fog_points.001", "pump_fog_points", "pump_fog_points.002"])
     check("a unique name still finds its cloud off the path",
-          usd_views.effect_cloud(Prim("/hub/Effects/pump_fog_points"), [own]) is own)
+          usd_views.effect_cloud(Prim("/camp/Effects/dust/dust_points"), blender_tree("/other/dust_points")).name
+          == "dust_points")
 
 
 check_smoothstep()

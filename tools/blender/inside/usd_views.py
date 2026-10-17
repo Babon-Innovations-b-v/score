@@ -931,14 +931,25 @@ def prim_path(item):
 
 
 def effect_cloud(prim, clouds):
-    """The point cloud Blender brought an effect prim in as: the one at its prim path, else the one cloud of its name
-    (a stage with its neighbours' places holds one effect name several times, 2026-10-17)."""
-    at_path = [cloud for cloud in clouds if prim_path(cloud) == str(prim.GetPath())]
+    """The point cloud Blender brought an effect prim in as. Blender folds an Xform with one child into that child,
+    so a cloud's rebuilt path is its prim's path with some names left out: of the clouds of the prim's name, the one
+    whose path keeps the most of the prim's path, in order (a stage holding its neighbours' places holds one effect
+    name several times, 2026-10-17); the one cloud of its name when no path fits."""
+    wanted = str(prim.GetPath()).strip("/").split("/")
     named = [cloud for cloud in clouds if SUFFIX.sub("", cloud.name) == prim.GetName()]
-    chosen = at_path or (named if len(named) == 1 else [])
+    kept = {id(cloud): kept_names(prim_path(cloud).strip("/").split("/"), wanted) for cloud in named}
+    most = max(kept.values(), default=0)
+    chosen = [cloud for cloud in named if most and kept[id(cloud)] == most] or (named if len(named) == 1 else [])
     if len(chosen) != 1:
-        raise RuntimeError(f"Blender brought in {len(at_path)} clouds at {prim.GetPath()} and {len(named)} of its name")
+        raise RuntimeError(f"Blender brought in {len(named)} clouds named {prim.GetName()}, {len(chosen)} fit "
+                           f"{prim.GetPath()}")
     return chosen[0]
+
+
+def kept_names(names, wanted):
+    """How many names a rebuilt path keeps of the wanted path when it is that path with names left out, else 0."""
+    left = iter(wanted)
+    return len(names) if all(name in left for name in names) else 0
 
 
 def draw_effects(effects, frame):
