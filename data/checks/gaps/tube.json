@@ -45,7 +45,8 @@
    "faults": [
     "{\"row\": \"small_readout\", \"result\": \"unknown\", \"why\": \"no object of this row on the stage\"}",
     "{\"row\": \"conduit_box\", \"result\": \"unknown\", \"why\": \"no object of this row on the stage\"}"
-   ]
+   ],
+   "unknown": "walker's floor 6.2 m2"
   }
  ]
 }
