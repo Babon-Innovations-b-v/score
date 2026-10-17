@@ -575,10 +575,14 @@ def test_a_gapped_reader_runs_past_a_gate_that_fails_only_on_its_named_gaps():
     still fails by name, and a reader that does not read it gapped stops."""
     runner = gapped_runner("a ship")
     found = runner.drive(["hangar"], say=quiet)
-    assert found["complete@hangar"].startswith("made: fail; fault report"), found
+    assert found["complete@hangar"].startswith("made: fail, accepted automatically; fault report"), found
     assert found["film@hangar"] == "made: pass, accepted automatically", found
     assert found["count@hangar"] == "not run: its line stopped at complete@hangar", found
-    assert runner.store.accepted("complete@hangar") is None
+    # Taken by the runner as complete apart from named gaps (overseer, 2026-10-17), its status recorded and shown.
+    output = runner.store.accepted("complete@hangar")
+    assert output and runner.store.accepts("complete@hangar")[-1]["status"] == "complete apart from named gaps (1)"
+    assert runner.status(["hangar"])["complete@hangar"] == "complete apart from named gaps (1), accepted"
+    assert "stale" not in runner.status(["hangar"])["film@hangar"]
 
 
 def test_a_gapped_reader_stops_on_a_fault_no_gap_names():
@@ -586,6 +590,7 @@ def test_a_gapped_reader_stops_on_a_fault_no_gap_names():
     found = runner.drive(["hangar"], say=quiet)
     assert found["film@hangar"] == "not run: its line stopped at complete@hangar", found
     assert runner.run_node(runner.stages["film"], "hangar").startswith("blocked: complete@hangar answered fail")
+    assert runner.store.accepted("complete@hangar") is None  # a fail no gap names is never taken
 
 
 if __name__ == "__main__":

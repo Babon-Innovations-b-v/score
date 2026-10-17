@@ -28,6 +28,11 @@ import json
 from score import checks
 from score.store import RUNNER
 
+# The completion gate's check that fails a place's named gaps by name (score/stages/gaps.py). An output whose only
+# blocking check is this one is complete apart from named gaps (CONTEXT.md): a stage's `gapped` reads it, and the
+# runner takes it automatically with that status (overseer, 2026-10-17); any other fail is never taken so.
+GAPPED = "named gaps"
+
 STYLE = """
 :root { --ground: #fbfaf7; --ink: #1d1d1b; --soft: #6b6a66; --line: #dddad2; --pass: #1f7a3a; --fail: #b3261e;
         --unknown: #8a5a00; color-scheme: light; }
@@ -105,15 +110,30 @@ def newest_judgement(store, record):
 
 # --- accepts, rejects, waivers and spend yeses -----------------------------------------------------------------
 
+def fails_only_on_gaps(verdicts, waived):
+    """Whether the only check of a scorecard that blocks (a waived one aside) is GAPPED, the named gaps check."""
+    return [name for name, verdict in verdicts.items()
+            if checks.blocks(verdict["answer"]) and name not in waived] == [GAPPED]
+
+
+def gapped_status(verdicts, waived):
+    """"complete apart from named gaps (N)" for a scorecard that fails only on its named gaps, else None."""
+    if not fails_only_on_gaps(verdicts, waived):
+        return None
+    gapped = verdicts[GAPPED]
+    return f"complete apart from named gaps ({gapped['measures'].get('gaps', len(gapped.get('findings') or ()))})"
+
+
 def accept_automatically(store, node, output, against=None):
-    """The runner's accept of an output that passed, is no worse than the accepted one and that the owner has not
-    rejected; the accept, or None when one of those does not hold. `against`: the accepted output's scorecard judged
-    now by today's gates (the runner's rejudged_accepted), compared in place of the one stored when it was judged."""
+    """The runner's accept of an output that passed (or fails only on its named gaps: complete apart from named
+    gaps, its status recorded), is no worse than the accepted one and that the owner has not rejected; the accept,
+    or None when one of those does not hold. `against`: the accepted output's scorecard judged now by today's gates
+    (the runner's rejudged_accepted), compared in place of the one stored when it was judged."""
     if store.rejected(node, output):
         return None
     try:
         return accept(store, node, output, RUNNER, "accepted automatically: every gate passed and nothing got worse "
-                      "than the accepted output", against=against)
+                      "than the accepted output", against=against, on_gaps=True)
     except Refused:
         return within_owners_accept(store, node, output)
 
@@ -158,14 +178,17 @@ def reject(store, node, output, by, reason):
     return written
 
 
-def accept(store, node, output, by, reason="", worse_reason=None, against=None):
-    """Move the node's accepted output to `output`: refused unless it passed and no score is worse, or the owner
-    says why it may be worse. The accept, as written."""
+def accept(store, node, output, by, reason="", worse_reason=None, against=None, on_gaps=False):
+    """Move the node's accepted output to `output`: refused unless it passed (`on_gaps`, the runner's: or fails only
+    on its named gaps, recorded with that status) and no score is worse, or the owner says why it may be worse. The
+    accept, as written."""
     record = record_of(store, node, output)
     if record is None:
         raise Refused(f"{node} has no output {output}")
     judgement = newest_judgement(store, record)
-    if judgement is None or checks.standing(judgement["verdicts"], store.waivers(node, record["key"])) != checks.PASS:
+    waived = store.waivers(node, record["key"])
+    status = gapped_status(judgement["verdicts"], waived) if on_gaps and judgement else None
+    if judgement is None or (checks.standing(judgement["verdicts"], waived) != checks.PASS and status is None):
         raise Refused(f"{node}'s output {output[:12]} answered {judgement['answer'] if judgement else 'nothing yet'}; "
                       "only a passing output can be accepted")
     worse = worse_than_accepted(store, node, judgement, against)
@@ -173,7 +196,7 @@ def accept(store, node, output, by, reason="", worse_reason=None, against=None):
         raise Refused(f"{node}'s output {output[:12]} is worse than the accepted one: {'; '.join(worse)}. "
                       "Accept it only with a written reason (--worse).")
     written = {"node": node, "output": output, "key": record["key"], "by": by, "at": now(), "reason": reason,
-               "worse": worse, "worse_reason": worse_reason,
+               **({"status": status} if status else {}), "worse": worse, "worse_reason": worse_reason,
                "allowed": allowed_moves(judgement["verdicts"], accepted_card(store, node, output)) if worse else {}}
     store.write_accept(node, written)
     return written
