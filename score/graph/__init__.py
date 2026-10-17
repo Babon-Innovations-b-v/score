@@ -69,9 +69,8 @@ WORLD_LINE = "world"
 LOG_TAIL = 40
 # Nodes the drive runs at once: most wait on a rented machine, the rest work on this PC's cores.
 JOBS = 8
-# The completion gate's check that fails a place's named gaps by name (score/stages/gaps.py): a stage's `gapped` reads
-# an output whose only blocking check is this one.
-GAPPED = "named gaps"
+# The completion gate's check that fails a place's named gaps by name (score/review GAPPED).
+GAPPED = review.GAPPED
 # Each node runs in a forked process: its output (and its children's) goes to its own log, and the toy stages of the
 # tests need no import by name. The drive itself starts no threads, so forking it is safe.
 FORK = multiprocessing.get_context("fork")
@@ -360,9 +359,8 @@ class Runner:
         if judgement is None:
             raise Blocked(f"{node} is not judged on its current evidence")
         waived = self.store.waivers(node, key)
-        blocking = [name for name, verdict in judgement["verdicts"].items()
-                    if checks.blocks(verdict["answer"]) and name not in waived]
-        on_gaps = gapped and blocking == [GAPPED] and not self.store.rejected(node, record["output"])
+        on_gaps = gapped and review.fails_only_on_gaps(judgement["verdicts"], waived) and \
+            not self.store.rejected(node, record["output"])
         if checks.blocks(checks.standing(judgement["verdicts"], waived)) and not on_gaps:
             reasons = "; ".join(f"{name}: {verdict['reason']}" for name, verdict in judgement["verdicts"].items()
                                 if checks.blocks(verdict["answer"]) and name not in waived)
@@ -569,7 +567,8 @@ class Runner:
         if newer:
             return f"{done}, not accepted: {newer}"
         judged = review.newest_judgement(self.store, record)
-        against = self.rejudged_accepted(stage, place) if judged and judged["answer"] == checks.PASS else None
+        against = self.rejudged_accepted(stage, place) if judged and (judged["answer"] == checks.PASS or (
+            review.fails_only_on_gaps(judged["verdicts"], self.store.waivers(node, keyed["key"])))) else None
         accepted = review.accept_automatically(self.store, node, record["output"], against)
         return f"{done}, accepted automatically" if accepted else done
 
@@ -1064,7 +1063,8 @@ class Runner:
             return "to judge: its evidence changed"
         accepted = self.store.accepted(node) == record["output"]
         waived = sorted(self.store.waivers(node, keyed["key"]))
-        return (f"{judgement['answer']}{', waived: ' + ', '.join(waived) if waived else ''}, "
+        answer = review.gapped_status(judgement["verdicts"], waived) or judgement["answer"]
+        return (f"{answer}{', waived: ' + ', '.join(waived) if waived else ''}, "
                 f"{'accepted' if accepted else 'not accepted'}")
 
     def status(self, places):
