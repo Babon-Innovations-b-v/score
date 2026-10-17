@@ -89,7 +89,7 @@ STAGE_FADE = 0.25
 GRID_MOST = 16
 SHOT_SHOWN = demo_film.SECONDS - FADE
 OPENING_TITLE = 3.0
-OPENING_EACH = 2.5
+OPENING_EACH = 0.7
 ENDING = WORK / "k9-ending"
 # A store film's shown frame: the middle of its one shot, after the title card and its fade.
 FILM_MIDDLE = demo.TITLE_SECONDS - FADE + demo_film.SECONDS / 2
@@ -571,28 +571,44 @@ def ending_clip(clip, out):
     return seconds
 
 
+def strip_clip(pictures, out):
+    """The pictures in quick turn, OPENING_EACH each, every one fading into the next over STAGE_FADE, under one
+    label; silent."""
+    stills = [fitted(Image.open(path), 1.0) for path in pictures]
+    label = label_layer("Concepts", "One for every place")
+    each = round(OPENING_EACH * RATE)
+    blend_frames = round(STAGE_FADE * RATE)
+
+    def frame(number, count):
+        index, inside = divmod(number, each)
+        picture = stills[index]
+        if index + 1 < len(stills) and inside >= each - blend_frames:
+            picture = Image.blend(picture, stills[index + 1], (inside - each + blend_frames + 1) / (blend_frames + 1))
+        return np.asarray(Image.alpha_composite(picture.convert("RGBA"), label).convert("RGB"))
+
+    write_frames(frame, OPENING_EACH * len(pictures), out)
+
+
 def opening_clip(pictures, out):
-    """The opening: the world's title, then the creator's own references and picks, each still with its caption,
-    with a silent sound track. `pictures`: [(path, caption)]."""
+    """The opening: the world's title, then every place's concept in a quick strip (strip_clip), with a silent sound
+    track; its length. `pictures`: the concepts' paths."""
     parts = pathlib.Path(out).parent / "opening"
     parts.mkdir(exist_ok=True)
-    clips = [parts / "title.mp4"]
+    title, strip = parts / "title.mp4", parts / "strip.mp4"
     card(["World 1: 2099", "from the creator's picks to a walkable world"], [(64, "Medium"), (34, "Light")],
-         OPENING_TITLE, clips[0], pictures[0][0])
-    for number, (path, caption) in enumerate(pictures):
-        clips.append(parts / f"{number:02d}.mp4")
-        still_clip(Image.open(path), OPENING_EACH, clips[-1], lines=["The creator's picks", caption])
-    seconds = OPENING_TITLE + OPENING_EACH * len(pictures) - FADE * len(pictures)
+         OPENING_TITLE, title, pictures[0])
+    strip_clip(pictures, strip)
+    lengths = [OPENING_TITLE, OPENING_EACH * len(pictures)]
     joined = parts / "joined.mp4"
-    demo.joined(clips, [OPENING_TITLE] + [OPENING_EACH] * len(pictures), joined)
-    silence_under(joined, seconds, out)
-    return seconds
+    demo.joined([title, strip], lengths, joined)
+    silence_under(joined, sum(lengths) - FADE, out)
+    return sum(lengths) - FADE
 
 
 def world(folder, figure_out, films, assets, draft=False):
-    """The world 1 video (demo K9) and its figure: the opening from the creator's picks, then per place in story
-    order its concept, plan and pieces and its accepted film's shot, then the ending's clips where they exist; the
-    films from store_films, the pictures from `assets` (a JSON file: {"opening": [{"path", "caption"}],
+    """The world 1 video (demo K9) and its figure: the opening (the title, then every place's concept), then per place
+    in story order its concept, plan and pieces and its accepted film's shot, then the ending's clips where they exist; the
+    films from store_films, the pictures from `assets` (a JSON file: {"opening": [concept paths],
     "places": {film: {"concept", "plan", "pieces"}}}). Stops on a missing film unless a draft."""
     missing = [name for name, _, path, _ in films if path is None]
     if missing and not draft:
@@ -604,7 +620,7 @@ def world(folder, figure_out, films, assets, draft=False):
     parts = folder / "parts"
     parts.mkdir(parents=True, exist_ok=True)
     clips, lengths, shown = [], [], []
-    opening = [(entry["path"], entry["caption"]) for entry in chosen.get("opening", [])]
+    opening = chosen.get("opening", [])
     if opening:
         clips.append(parts / "opening.mp4")
         lengths.append(opening_clip(opening, clips[-1]))
