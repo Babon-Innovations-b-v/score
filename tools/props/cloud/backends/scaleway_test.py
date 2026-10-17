@@ -182,7 +182,9 @@ def created_with(address, failing=(), owner=OURS):
     """create() on a mocked Scaleway whose new machine got `address`; failing: the `ip` commands that fail. (its
     answer, the scw calls, the machines deleted)."""
     import subprocess
+    import tempfile
     import types
+    import ledger
     calls, deleted = [], []
 
     def fake_scw(*arguments):
@@ -192,15 +194,16 @@ def created_with(address, failing=(), owner=OURS):
         return {"ip": {"id": arguments[3], "project": owner}} if arguments[:3] == ("instance", "ip", "get") else {}
 
     server = {"id": "srv-1", "public_ips": [{"id": "ip-1", "address": address, "family": "inet"}]}
-    kept = scaleway.scw, scaleway.delete, subprocess.run
+    kept = scaleway.scw, scaleway.delete, subprocess.run, ledger.LEDGER
     scaleway.scw, scaleway.delete = fake_scw, lambda server_id, zone: deleted.append(server_id) or True
+    ledger.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"  # create's started line, never the real ledger
     subprocess.run = lambda *arguments, **options: types.SimpleNamespace(returncode=0, stdout=json.dumps(server),
                                                                           stderr="")
-    offer = types.SimpleNamespace(type="POP2-32C-128G", zone="pl-waw-2", machine_class="cpu-32c-128gb")
+    offer = types.SimpleNamespace(type="POP2-32C-128G", zone="pl-waw-2", machine_class="cpu-32c-128gb", price=0.02)
     try:
         answer = scaleway.create(OURS, offer, "blender-1", [], 60)
     finally:
-        scaleway.scw, scaleway.delete, subprocess.run = kept
+        scaleway.scw, scaleway.delete, subprocess.run, ledger.LEDGER = kept
     return answer, calls, deleted
 
 

@@ -216,6 +216,44 @@ def test_nothing_is_rented_outside_a_cleared_run():
     assert ordered == []
 
 
+def test_a_rent_writes_its_started_line_before_the_order_is_sent():
+    """Fault (2026-10-17, C1): the ledger had a run's row only at its end, so a machine of a run that died first was
+    on the bill and nowhere in the ledger. The started line names the run and its ticket before the order goes."""
+    import time
+    import types
+    import provider
+    from score.adapters import compute
+
+    seen = []
+
+    def fake_scw(command, **options):
+        """The backend's scw call: what the ledger held when the order went, then a refusal."""
+        seen.append((command, ledger.entries()))
+        return types.SimpleNamespace(returncode=1, stdout="", stderr="out of quota")
+    kept = (batch.cloud.subprocess, batch.month_spent, batch.compute.require_cleared, ledger.LEDGER,
+            os.environ.get(compute.TICKET))
+    ledger.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"
+    os.environ[compute.TICKET] = "run-7 surfaces-paint"
+    batch.cloud.subprocess = types.SimpleNamespace(run=fake_scw)
+    batch.month_spent = lambda account: 0.0
+    batch.compute.require_cleared = lambda what: None
+    fleet = types.SimpleNamespace(folder=pathlib.Path(tempfile.mkdtemp()) / "pixal-run-7",
+                                  deadline=time.time() + 60, attempts=[])
+    offer = provider.Offer(0.01, 0, "L4", "zone-a", 0.01, "gpu-24gb", 0, "available")
+    try:
+        assert batch.rent(fleet, None, offer, 3) is None
+    finally:
+        batch.cloud.subprocess, batch.month_spent, batch.compute.require_cleared, ledger.LEDGER = kept[:4]
+        os.environ.pop(compute.TICKET)
+        if kept[4] is not None:
+            os.environ[compute.TICKET] = kept[4]
+    [(command, [line])] = seen
+    assert command[:4] == ["scw", "instance", "server", "create"]
+    assert line["state"] == "started" and line["kind"] == ledger.RENT_STARTED and line["euros"] == 0.0
+    assert line["run"] == "pixal-run-7" and line["name"] == "pixal-run-7-3"
+    assert line["ticket"] == "run-7 surfaces-paint" and line["type"] == "L4" and line["zone"] == "zone-a"
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

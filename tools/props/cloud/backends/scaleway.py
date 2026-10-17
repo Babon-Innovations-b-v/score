@@ -228,9 +228,15 @@ def allow_key(project, name, public_key):
 
 def create(project, offer, name, tags, disk_gb):
     """Rent and start one machine of `offer`: (its id, None), or (None, Scaleway's reason) when refused,
-    as when the zone is out of stock or the quota is used up."""
+    as when the zone is out of stock or the quota is used up. The ledger's started line (ledger.rent_started, its run
+    read from batch.rent's `<run>-<number>` name) is written before the order is sent. It is written here, not in
+    batch.rent: the pixal rows declare batch.py (Stage.files), and an edit there re-keys them in every place."""
     machine_type, zone = offer.type, offer.zone
     image = IMAGES["gpu" if cards(offer.machine_class) else "cpu"]
+    import ledger
+
+    ledger.rent_started(name.rsplit("-", 1)[0], name, {"type": machine_type, "zone": zone,
+                                                       "class": offer.machine_class, "price": offer.price})
     done = subprocess.run(
         ["scw", "instance", "server", "create", f"project-id={project}", f"zone={zone}",
          f"type={machine_type}", f"image={image}", f"name={name}", "ip=ipv4",

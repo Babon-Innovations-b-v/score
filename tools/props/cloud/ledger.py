@@ -20,6 +20,9 @@ BATCH_EUROS = 60.0
 # The month's ceiling (owner, 2026-10-08: the cloud credits cover about €3,000 a month): SCORE_MONTH_EUROS, else
 # €3,000 (owner, 2026-10-11). Checked before every machine is rented (batch.rent); a run stops rather than pass it.
 MONTH_EUROS = float(os.environ.get("SCORE_MONTH_EUROS", "3000"))
+# The kind of the line written before each machine is ordered (rent_started, from the backend's create under
+# batch.rent); its run's own row comes at the end.
+RENT_STARTED = "rent-started"
 
 
 def origin():
@@ -34,6 +37,15 @@ def record(entry):
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
     with LEDGER.open("a") as ledger:
         ledger.write(json.dumps({**origin(), **entry}) + "\n")
+
+
+def rent_started(run, name, offer):
+    """Write that machine `name` of `run` is about to be ordered from `offer` ({type, zone, class, price}), before the
+    order is sent: a machine whose run dies before its end-of-run row still shows, with the run's ticket (origin).
+    Nothing is billed yet, so it holds no euros."""
+    record({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "batch": f"rent-{name}",
+            "kind": RENT_STARTED, "state": "started", "run": run, "name": name, **offer,
+            "machines": [], "attempts": [], "machine_minutes": 0.0, "euros": 0.0})
 
 
 def entries():

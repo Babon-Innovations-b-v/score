@@ -171,6 +171,12 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   started and never finished counts at its estimate (Oct 11: Google billed EUR 549, this ledger, then written only
   after a call came back, held EUR 30). Nothing calls generativelanguage.googleapis.com any other way:
   `google_spend_test.py` fails on any tracked file that does.
+- **Paid calls only through the ledgered clients** (2026-10-17): `tools/costs/paid_calls_test.py` reads every tracked
+  file's syntax tree and fails on a Gemini host, key header or client, or an scw order of a machine, disk, address or
+  cluster pool, outside its `ALLOWED` files. Every order `batch.rent` makes writes a `rent-started` line first (its
+  run, name, offer and ticket, no euros; `ledger.rent_started`, called in the backend's `create` because the pixal
+  rows declare `batch.py` and an edit there re-keys them), so a machine whose run dies before its end-of-run row
+  still shows.
 - **The surface judge asks Gemini, not rented cards** (`gemini_judge.py`, 2026-10-11): judge.py's question list and
   answer files, asked of the models adapter's `gemini-judge` (Gemini 3.1 Pro, temperature 0, the answer an enum of
   the question's codes plus `unknown`), through google_spend with `cache=True`; the key is the secret
