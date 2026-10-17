@@ -22,7 +22,9 @@ a process of its own and at most --jobs at once (default score.graph.JOBS; --job
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
 the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a plain fault report
 (faults/<node>.txt beside the store) to point an agent or the owner at; the other lines go on. It exits 1 when any line
-stopped. --detach returns at once with the log's path: the run goes on in a session of its own
+stopped. Every score.graph.HEARTBEAT seconds it prints a heartbeat line (rows done, running and queued, the paid runs
+open, the euros the ledger holds since it started), and it always ends with an `exit: <status>` line, on an error or a
+stopping signal too. --detach returns at once with the log's path: the run goes on in a session of its own
 (tools/props/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
 (`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line; a run stopped by
 SIGTERM, SIGINT or SIGHUP says `score run: stopped by signal N`, then `detached: stopped by signal N exit=128+N ...`.
@@ -600,6 +602,20 @@ def stop_on_term(signal_number, frame):
     sys.exit(f"stopped by signal {signal_number}")
 
 
+def run_gauges(runner, started):
+    """The run's gauges for its heartbeat lines, read from files alone (no cloud call): the paid runs cleared and still
+    open (each holds a rented machine or is about to), and the euros the cloud ledger holds for batches started since
+    `started`."""
+    from score.adapters import compute
+
+    def gauges():
+        books = compute.ledger()
+        euros = sum(batch["euros"] for batch in books.entries() if batch["started"] >= started)
+        held = compute.open_reservations(compute.covering_store(runner.store).cache.parent / "reservations.json")
+        return f"paid runs open {len(held)}, EUR {euros:.2f} in the ledger since the run started"
+    return gauges
+
+
 def main(argv=None):
     options = parse(argv)
     if options.command == "images":
@@ -629,8 +645,9 @@ def main(argv=None):
         detach(sys.argv)
         return
     if options.command == "run":
+        started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # the ledger's own time format
         as_run(runner, lambda: runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs,
-                                            whole=whole, only=options.stage))
+                                            whole=whole, only=options.stage, gauges=run_gauges(runner, started)))
     lines = runner.lines(places, whole, options.stage)
     if getattr(options, "json", False):
         print(json.dumps(status_json(options.world, lines)))
