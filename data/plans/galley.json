@@ -105,7 +105,12 @@
    "overhead_vent"
   ]
  },
- "people": [],
+ "people": [
+  [
+   0.4,
+   0.4
+  ]
+ ],
  "notes": [
   "From the locked ship plan v7 (data/definitions/ship.json, the owner's 'ok' of 2026-10-14): ship y 15.8 to 21.8 m from the spike's tip, starboard side, 3.27 to 3.11 m wide inside, 3.12 to 3.2 m clear.",
   "For the game: food: eat and prepare meals (counter, food stores, a table with fold-down seats).",

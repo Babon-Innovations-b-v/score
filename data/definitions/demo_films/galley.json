@@ -1,5 +1,5 @@
 {
  "place": "galley",
- "camera": "from-west-door",
- "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. Its scene record has one camera."
+ "camera": "spot-1",
+ "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. Its door camera (from-west-door) showed only the near wall 1.4 to 1.55 m off, so its plan has a standing spot in its north-west corner, looking down the room's 6 m length past the counter, lockers and table, and the film starts at the spot-1 camera the scene record writes from it (the overseer, 2026-10-17)."
 }

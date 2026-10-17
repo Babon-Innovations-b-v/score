@@ -104,7 +104,14 @@
    "overhead_vent"
   ]
  },
- "people": [],
+ "people": [
+  [
+   2.75,
+   2.6,
+   0.0,
+   "CARGO RACK 2"
+  ]
+ ],
  "notes": [
   "From the locked ship plan v7 (data/definitions/ship.json, the owner's 'ok' of 2026-10-14): ship y 18.8 to 21.8 m from the spike's tip, port side, 3.48 to 3.11 m wide inside, 3.51 to 3.2 m clear.",
   "For the game: storage: cargo racks and crates for the base's supplies and parts.",
