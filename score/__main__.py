@@ -30,10 +30,13 @@ Wait for that line with the Monitor tool, never a poll loop.
 
 A run and everything it starts end together (2026-10-17: orphaned cloud machines and boxes billed by the started hour
 after runs were stopped): `run` names itself SCORE_RUN_ID (every node, batch and cloud tool it starts inherits it; their
-machines count against one cap for the whole run, tools/props/cloud/capacity.py) and leads a process group of its own.
-Stopped by SIGTERM, SIGINT or SIGHUP, it sends SIGTERM to that whole group (each batch deletes its machines through its
-own delete path), waits STOP_GRACE_SECONDS, sends SIGKILL to whatever is left, then releases the run's spend
-reservations. A node process whose runner is gone sends the group SIGTERM itself (score.graph).
+machines count against one cap for the whole run, tools/props/cloud/capacity.py) and leads a process group of its own
+(a later stage of a shell pipeline takes the terminal along, so Ctrl-C still reaches it). Stopped by SIGTERM, SIGINT or
+SIGHUP, it sends SIGTERM to that whole group unless the signal already reached it (Ctrl-C, a closed terminal, `kill --
+-<pgid>`: a batch stops deleting at its second signal), so each batch deletes its machines through its own delete path
+once. After STOP_GRACE_SECONDS it sends SIGKILL to what is left except the cloud tools and the nodes they write to,
+whose deletes and parks may take minutes. However the run ends it releases its spend reservations. A node process
+whose runner is gone sends the group SIGTERM itself, once for the whole group (score.graph).
 
 Before it starts, `run` lists every paid row it would buy with its estimate (score/graph/rebuy.py; a Google ask its
 cache answers at EUR 0) and refuses, before detaching, when buying again rows that already have an accepted output
@@ -69,8 +72,15 @@ from score.store import Store  # noqa: E402
 DETACH = "--detach"
 RUN_ID = "SCORE_RUN_ID"
 RUN_PID = "SCORE_RUN_PID"
-# How long a stopped run's process group has to end after SIGTERM before what is left gets SIGKILL.
+# How long a stopped run's process group has to end after SIGTERM before what is left gets SIGKILL, cloud tools and
+# the nodes they write to spared (cloud_side).
 STOP_GRACE_SECONDS = 30
+# How long a stopped run looks for a node showing the same stop (the signal went to the whole group: Ctrl-C, a closed
+# terminal, `kill -- -<pgid>`) before it sends the group SIGTERM itself.
+GROUP_STOP_SECONDS = 1
+# A process running anything from here is a cloud tool: it deletes its machines on its own stop path, which may take
+# minutes (park.park's remote clean-up, one machine after another), and is never sent SIGKILL by a stopped run.
+CLOUD_TOOLS = REPO / "tools/props/cloud"
 
 
 ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
@@ -160,15 +170,46 @@ def become_run():
     """Make this process a run: the leader of a process group of its own (a shell with job control already made it
     one), its id in SCORE_RUN_ID and its pid in SCORE_RUN_PID for every process it starts; the run id."""
     if os.getpgrp() != os.getpid():
-        os.setpgid(0, 0)
+        lead_group()
     os.environ[RUN_PID] = str(os.getpid())
     os.environ[RUN_ID] = f"{socket.gethostname()}-{os.getpid()}-{int(time.time())}"
     return os.environ[RUN_ID]
 
 
-def group_members(group):
-    """The live processes of a process group other than this one (zombies left out), read from /proc."""
-    members = []
+def lead_group():
+    """Lead a process group of its own. A later stage of a shell pipeline (`... | score run`) was in the pipeline's
+    group, the one holding the terminal: its new group takes the terminal over, so Ctrl-C still reaches the run."""
+    terminal = controlling_terminal()
+    held = terminal is not None and os.tcgetpgrp(terminal) == os.getpgrp()
+    os.setpgid(0, 0)
+    if held:
+        take_terminal(terminal)
+    if terminal is not None:
+        os.close(terminal)
+
+
+def controlling_terminal():
+    """A descriptor of this process's controlling terminal; None when it has none (a detached run, a test)."""
+    try:
+        return os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
+    except OSError:
+        return None
+
+
+def take_terminal(terminal):
+    """Make this process's group the terminal's foreground group (SIGTTOU, sent to a background group asking this,
+    ignored meanwhile)."""
+    before = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+    try:
+        os.tcsetpgrp(terminal, os.getpgrp())
+    finally:
+        signal.signal(signal.SIGTTOU, before)
+
+
+def group_parents(group):
+    """Each live process of a process group other than this one (zombies left out) with its parent's pid, read from
+    /proc."""
+    members = {}
     for entry in pathlib.Path("/proc").iterdir():
         if not entry.name.isdigit() or int(entry.name) == os.getpid():
             continue
@@ -177,25 +218,69 @@ def group_members(group):
         except OSError:  # gone while being read
             continue
         if fields[0] != "Z" and int(fields[2]) == group:
-            members.append(int(entry.name))
+            members[int(entry.name)] = int(fields[1])
     return members
 
 
-def end_group(grace=STOP_GRACE_SECONDS):
-    """SIGTERM to every other process of this run's group, then SIGKILL to those still there after `grace` seconds;
-    the pids that needed SIGKILL. Only a group this process leads is signalled."""
+def group_members(group):
+    """The live processes of a process group other than this one."""
+    return list(group_parents(group))
+
+
+def stop_shown(group, wait=None):
+    """Whether one of this run's node processes (its children in `group`) shows a stop within `wait` seconds
+    (GROUP_STOP_SECONDS): the stopping signal went to the whole group."""
+    deadline = time.time() + (GROUP_STOP_SECONDS if wait is None else wait)
+    while True:
+        nodes = [member for member, parent in group_parents(group).items() if parent == os.getpid()]
+        if any(map(stopped.shows_stop, nodes)):
+            return True
+        if time.time() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
+def cloud_side(group):
+    """The processes of `group` running a cloud tool (CLOUD_TOOLS), with every process of the group above one (a node
+    holding its output's pipe)."""
+    parents = group_parents(group)
+    spared = set()
+    for member in parents:
+        if runs_cloud_tool(member):
+            while member in parents and member not in spared:
+                spared.add(member)
+                member = parents[member]
+    return spared
+
+
+def runs_cloud_tool(pid):
+    """Whether a process's command line names a file or folder under CLOUD_TOOLS; False when it is gone."""
+    try:
+        words = pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().decode(errors="replace").split("\0")
+    except OSError:
+        return False
+    return any(word.startswith(str(CLOUD_TOOLS)) for word in words)
+
+
+def end_group():
+    """End the other processes of the run's group: SIGTERM to each, unless the stopping signal already reached them
+    (stop_shown) or a node's watch sent it (one SIGTERM at most: a batch stops deleting at its second signal), then,
+    after STOP_GRACE_SECONDS, SIGKILL to those left but the cloud side (cloud_side). The pids sent SIGKILL and those
+    spared. Only a group this process leads is signalled."""
     group = os.getpgrp()
     if group != os.getpid():
-        return []
-    for member in group_members(group):
-        signal_quietly(member, signal.SIGTERM)
-    deadline = time.time() + grace
+        return [], []
+    if not stop_shown(group) and stopped.claim_stop(stopped.stop_mark(os.getpid())):
+        for member in group_members(group):
+            signal_quietly(member, signal.SIGTERM)
+    deadline = time.time() + STOP_GRACE_SECONDS
     while group_members(group) and time.time() < deadline:
         time.sleep(0.2)
-    left = group_members(group)
+    spared = cloud_side(group)
+    left = [member for member in group_members(group) if member not in spared]
     for member in left:
         signal_quietly(member, signal.SIGKILL)
-    return left
+    return left, sorted(spared)
 
 
 def signal_quietly(pid, number):
@@ -207,22 +292,36 @@ def signal_quietly(pid, number):
 
 
 def release_run(runner, run_id):
-    """End the spend reservations this run's nodes held (a node ended by a signal never released its own) and its
-    machine counts for the run-wide cap."""
+    """End the spend reservations this run's nodes held (a node ended by a signal never released its own), its
+    machine counts for the run-wide cap and its stop mark."""
     from score.adapters import compute
     compute.release_run(runner.store.cache.parent / "reservations.json", run_id)
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    sys.path.insert(0, str(CLOUD_TOOLS))
     import capacity
     capacity.forget_run(run_id)
+    stopped.stop_mark(os.getpid()).unlink(missing_ok=True)
 
 
-def stop_run(runner, run_id, number):
-    """A stopping signal's end of a run: say so, end its process group, release what it held."""
+def stop_run(number):
+    """A stopping signal's end of a run: say so and end its process group (end_group)."""
     print(f"score run: stopped by signal {number}", flush=True)
-    killed = end_group()
+    killed, spared = end_group()
     if killed:
         print(f"score run: SIGKILL to {len(killed)} processes still there after {STOP_GRACE_SECONDS} s", flush=True)
-    release_run(runner, run_id)
+    if spared:
+        print(f"score run: {len(spared)} processes of cloud tools and the nodes they write to still ending their "
+              f"machines after {STOP_GRACE_SECONDS} s, left to end on their own", flush=True)
+
+
+def as_run(runner, drive):
+    """Call `drive()` as a run (become_run; a stopping signal ends its group, stop_run); what the run held is released
+    however the drive ends: returned, raised or stopped."""
+    run_id = become_run()
+    stopped.stop_on_signals(stop_run)
+    try:
+        drive()
+    finally:
+        release_run(runner, run_id)
 
 
 def checked_buys(runner, places, whole, options):
@@ -448,11 +547,8 @@ def main(argv=None):
         detach(sys.argv)
         return
     if options.command == "run":
-        run_id = become_run()
-        stopped.stop_on_signals(lambda number: stop_run(runner, run_id, number))
-        runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
-                     only=options.stage)
-        release_run(runner, run_id)
+        as_run(runner, lambda: runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs,
+                                            whole=whole, only=options.stage))
     lines = runner.lines(places, whole, options.stage)
     if getattr(options, "json", False):
         print(json.dumps(status_json(options.world, lines)))

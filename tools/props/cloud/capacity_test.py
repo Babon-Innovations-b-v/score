@@ -268,6 +268,29 @@ assert capacity.RUNS.parent == park.PARKED.parent
     assert done.returncode == 0, done.stderr[-2000:]
 
 
+def test_a_run_at_its_cap_says_so_once_rather_than_out_of_stock():
+    """Review of C7 (2026-10-17): a batch held back by the run-wide cap logged only "no machine of ... in stock;
+    asking again" (batch.claim's line), the wrong reason."""
+    home = pathlib.Path(tempfile.mkdtemp(prefix="run-cap-said-"))
+    check = """
+import sys
+sys.path.insert(0, sys.argv[1])
+import capacity
+assert capacity.reserve_run_slot(1)
+assert not capacity.reserve_run_slot(2)
+assert not capacity.reserve_run_slot(2)
+assert capacity.reserve_run_slot(0)
+assert not capacity.reserve_run_slot(2)
+"""
+    done = subprocess.run([sys.executable, "-c", check, str(pathlib.Path(capacity.__file__).parent)],
+                          env={**os.environ, "PROPS_HOME": str(home), "PROPS_WORK": str(home / "work"),
+                               "SCORE_RUN_ID": "test-run", "SCORE_MAX_MACHINES": "all=2"},
+                          capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr[-2000:]
+    said = [line for line in done.stderr.splitlines() if "cap" in line]
+    assert len(said) == 2 and "the run holds its cap of 2 machines" in said[0], done.stderr  # once each time it fills
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

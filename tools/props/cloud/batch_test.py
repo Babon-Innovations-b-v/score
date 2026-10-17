@@ -360,6 +360,55 @@ def test_a_batch_whose_runner_dies_deletes_its_machines():
     assert deletes.exists() and deletes.read_text().split() == ["fake-machine"], "the batch's machine was left"
 
 
+# A runner leading its process group, with four node processes (score.graph's watch_runner, each its own poll) that
+# take SIGTERM without ending, and a process that writes a line for every SIGTERM it gets; "ready" once all are in.
+COUNTED_RUNNER = """
+import os, pathlib, signal, subprocess, sys, threading, time
+sys.path.insert(0, sys.argv[1])
+from score import graph
+folder = pathlib.Path(sys.argv[2])
+os.setpgid(0, 0)
+runner = os.getpid()
+counter = subprocess.Popen([sys.executable, "-c", "import pathlib, signal, sys, time; "
+                            "signal.signal(signal.SIGTERM, lambda *_: pathlib.Path(sys.argv[1]).open('a').write('x')); "
+                            "pathlib.Path(sys.argv[2]).write_text('ready'); time.sleep(30)",
+                            str(folder / "signals.txt"), str(folder / "counter-ready")])
+for node in range(4):
+    if os.fork() == 0:
+        signal.signal(signal.SIGTERM, lambda *_: None)
+        threading.Thread(target=graph.watch_runner, args=(runner, 0.05), daemon=True).start()
+        time.sleep(10)
+        os._exit(0)
+while not (folder / "counter-ready").exists():
+    time.sleep(0.05)
+(folder / "ready").write_text("ready")
+time.sleep(120)
+"""
+
+
+def test_a_dead_runners_group_is_sent_one_stop_however_many_nodes_see_it():
+    """Review of C7 (2026-10-17): every node's watch could send the group its own SIGTERM within one poll, and a batch
+    already deleting stops deleting at its second signal."""
+    import contextlib
+    import signal
+    import subprocess
+    import time
+
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="one-stop-"))
+    runner = subprocess.Popen([sys.executable, "-c", COUNTED_RUNNER, str(pathlib.Path(__file__).resolve().parents[3]),
+                               str(folder)])
+    deadline = time.time() + 60
+    while not (folder / "ready").exists() and time.time() < deadline:
+        time.sleep(0.1)
+    runner.send_signal(signal.SIGKILL)
+    runner.wait()
+    time.sleep(2)  # every watch has seen its runner gone by now
+    signals = (folder / "signals.txt").read_text() if (folder / "signals.txt").exists() else ""
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(runner.pid, signal.SIGKILL)
+    assert signals == "x", f"the group was sent {len(signals)} stops"
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
