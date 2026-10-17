@@ -184,6 +184,9 @@ def node_seed(world_seed, stage, place):
 
 BYTECODE_REASON = "same sources, bytecode left out of the key"
 NO_OP_REASON = "same result: every change since it was made is proved a no-op for it"
+NARROWING_REASON = "same reads: every file its key reads today reads as it did when it was made"
+# The key parts a narrowing carry needs the same: all but the code version and the declared files' hashes.
+NARROWING_SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
 
 
 def bytecode(relative):
@@ -572,6 +575,8 @@ class Runner:
             record = stage.files.carried(self, stage, place, keyed)
         if record is None:  # its accepted output, kept when only bytecode moved its key (#67)
             record = self.kept_over_bytecode(stage, place, keyed)
+        if record is None:  # its accepted output, kept when every file its key reads today reads as it did then
+            record = self.kept_by_narrowing(stage, place, keyed)
         if record is None:  # its accepted output, kept when a stored proof says every change is a no-op for it
             record = self.kept_by_proof(stage, place, keyed)
         made = record is None
@@ -726,6 +731,51 @@ class Runner:
                            "made by": {"commit": record["commit"], "code": record["code"]},
                            "proof": self.store.evidence_key(proved["check"], record["output"]),
                            "no-ops": {name: proved["proof"]["no-ops"][name] for name in proved["changed"]}}}
+        try:
+            self.store.write_record(node, keyed["key"], new)
+        except FileExistsError:  # another run kept it first
+            return self.store.record(node, keyed["key"])
+        for judgement in self.store.judgements(node, record["key"]):
+            self.store.write_judgement(node, keyed["key"], judgement["evidence"],
+                                       {**judgement, "key": keyed["key"], "carried": new["carried"]})
+        return new
+
+    def narrowing_proof(self, stage, place, keyed):
+        """The node's accepted output's record when its key moved but every file the key reads today reads as it did
+        when that output was made: a record of a committed tree, every key part but code and files the same, each
+        source file of today's code version in the record's commit and unchanged since (_code.unchanged_since), and
+        each declared file hashing as recorded (a repository one: or as git rebuilds it at that commit). A key that
+        only got narrower (a module moved into FRAMEWORK, an import dropped by a file that was itself not read) is
+        kept so, with no proof file. None otherwise."""
+        node = node_name(stage, place)
+        accepted = self.store.accepted(node)
+        record = review.record_of(self.store, node, accepted) if accepted else None
+        if record is None or record.get("uncommitted", True) or not record.get("commit"):
+            return None
+        if any(record.get(part) != keyed.get(part) for part in NARROWING_SAME):
+            return None
+        if set(record["files"]) != set(keyed["files"]):
+            return None
+        for name in sorted(name for name in keyed["files"] if record["files"][name] != keyed["files"][name]):
+            path = self.file_path(stage, name, place).resolve()
+            if isinstance(self.files_of(stage, place)[name], tuple) or not path.is_relative_to(_code.REPO):
+                return None
+            if _code.source_hash_at(record["commit"], path.relative_to(_code.REPO).as_posix()) != keyed["files"][name]:
+                return None
+        sources = [path.relative_to(_code.REPO).as_posix() for path in _code.source_files(code_functions(stage))]
+        return record if _code.unchanged_since(record["commit"], sources) else None
+
+    def kept_by_narrowing(self, stage, place, keyed):
+        """The node's accepted output stored under `keyed` when every file its key reads today reads as it did when
+        that output was made (narrowing_proof): its record and judgements copied, the record naming the reason, both
+        keys and the commit and code that made it. Its new record, or None (the runner then makes the node)."""
+        record = self.narrowing_proof(stage, place, keyed)
+        if record is None:
+            return None
+        node = node_name(stage, place)
+        new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"],
+               "carried": {"reason": NARROWING_REASON, "from key": record["key"], "to key": keyed["key"],
+                           "made by": {"commit": record["commit"], "code": record["code"]}}}
         try:
             self.store.write_record(node, keyed["key"], new)
         except FileExistsError:  # another run kept it first

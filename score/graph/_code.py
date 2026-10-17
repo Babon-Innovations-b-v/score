@@ -121,6 +121,17 @@ def changed_since(commit, relatives):
     return sorted(found.stdout.split()) if found.returncode == 0 else None
 
 
+def unchanged_since(commit, relatives):
+    """True when every repository file in `relatives` is in `commit`'s tree and reads now as it did there (changes
+    not committed included); False for one git does not hold at that commit (a new file, never committed, that a
+    plain diff passes over) or for a commit git does not know."""
+    listed = subprocess.run(["git", "-C", str(REPO), "ls-tree", "-r", "-z", "--name-only", commit, "--", *relatives],
+                            capture_output=True, text=True)
+    if listed.returncode or set(relatives) - set(filter(None, listed.stdout.split("\0"))):
+        return False
+    return changed_since(commit, relatives) == []
+
+
 def source_hash_at(commit, relative):
     """The key hash (graph.source_hash) a repository file or folder had at `commit`, from git's own objects (None
     for a commit git does not know): the
