@@ -42,6 +42,7 @@ import pathlib
 import shutil
 import statistics
 import sys
+import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -116,6 +117,8 @@ RUN_MACHINES = 20
 # Each `score run`'s machine counts, a folder per run (SCORE_RUN_ID) holding a file per process that rents.
 RUNS = ledger.LEDGER.parent / "runs"
 RUN_ID = "SCORE_RUN_ID"
+# Whether this process's last ask for a machine was held back by its run's cap (say_at_cap): one item when it was.
+AT_CAP = []
 # A ledger entry written before entries named their kind was a Pixal3D batch.
 OLD_KIND = "pixal"
 # Where `report` writes its table; the summary line it prints names this path.
@@ -266,9 +269,21 @@ def reserve_run_slot(live):
     if not run:
         return True
     with run_locked(run) as folder:
-        room = held_elsewhere(folder, run) + live < run_cap()
+        elsewhere = held_elsewhere(folder, run)
+        room = elsewhere + live < run_cap()
         write_count(folder, live + 1 if room else live)
+    say_at_cap(not room, elsewhere, live)
     return room
+
+
+def say_at_cap(at_cap, elsewhere, live):
+    """Say once, each time the run's cap fills, that it is the cap holding this process back: the batch's own wait line
+    after it ("no machine of ... in stock; asking again") names stock, the wrong reason."""
+    if at_cap and not AT_CAP:
+        print(f"[cloud] {time.strftime('%H:%M:%S')} the run holds its cap of {run_cap()} machines ({elsewhere} in its "
+              f"other processes and parked, {live} here): waiting for one to end, not for stock", file=sys.stderr,
+              flush=True)
+    AT_CAP[:] = [True] if at_cap else []
 
 
 def machine_left():

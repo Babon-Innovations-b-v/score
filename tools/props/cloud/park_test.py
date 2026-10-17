@@ -303,14 +303,15 @@ def test_the_reaper_deletes_what_a_gone_run_left_and_skips_another_projects_mach
 
 def test_a_run_at_its_cap_leaves_another_runs_parked_machine_listed():
     fresh()
-    os.environ["SCORE_RUN_ID"] = "park-test-run"
+    os.environ["SCORE_RUN_ID"] = "another-park-test-run"
     os.environ["SCORE_MAX_MACHINES"] = "all=1"
     try:
-        batch.delete_machine(machine(20, unit_minutes=1, server_id="c9"))  # parked under this run: counted
-        assert park.json.loads((park.PARKED / "c9.json").read_text())["run"] == "park-test-run"
+        batch.delete_machine(machine(20, unit_minutes=1, server_id="c9"))  # parked by another run
+        assert park.json.loads((park.PARKED / "c9.json").read_text())["run"] == "another-park-test-run"
+        os.environ["SCORE_RUN_ID"] = "park-test-run"
         held = run_of("at-cap")
         held.machines.append({"id": "busy", "zone": "zone-a", "class": "gpu-24gb", "deleted": None})
-        assert park.adopt(held, CARD_OFFERS, 1, KIND, 60) is None  # one held + the parked one would pass the cap
+        assert park.adopt(held, CARD_OFFERS, 1, KIND, 60) is None  # this run holds its cap of one: none taken
         assert (park.PARKED / "c9.json").exists()
         held.machines[0]["deleted"] = time.time()
         assert park.adopt(held, CARD_OFFERS, 1, KIND, 60)["id"] == "c9"  # parked to live: the count stays one

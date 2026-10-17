@@ -62,7 +62,7 @@ from typing import Callable
 
 from score import checks, contracts, review
 from score.adapters import models
-from score.graph import _code
+from score.graph import _code, stopped
 import score.store as score_store
 from score.store import file_hash, listing_hash, text_hash, tree_files, tree_listing
 
@@ -218,17 +218,17 @@ def source_hash(path):
 def watch_runner(runner_pid, every=None):
     """In a node's process: once its runner (`runner_pid`, its parent) is gone, SIGTERM to the runner's whole process
     group when the runner led one (`score run`: each batch in it deletes its machines), else to this process alone.
-    Checked every RUNNER_POLL_SECONDS; never returns while the runner lives."""
+    The group gets one SIGTERM, never a second (a batch stops deleting at its second signal): none when this node
+    already shows a stop (the group was signalled), and only from the one process that makes the runner's stop mark
+    (stopped.claim_stop; the runner makes it when it sent the group its stop). Checked every RUNNER_POLL_SECONDS;
+    never returns while the runner lives."""
+    mark = stopped.stop_mark(runner_pid)
     while os.getppid() == runner_pid:
         time.sleep(every or RUNNER_POLL_SECONDS)
-    try:
-        group_led = os.getpgrp() == runner_pid
-    except OSError:
-        group_led = False
-    if group_led:
-        os.killpg(runner_pid, signal.SIGTERM)
-    else:
+    if os.getpgrp() != runner_pid:
         os.kill(os.getpid(), signal.SIGTERM)
+    elif not stopped.shows_stop(os.getpid()) and stopped.claim_stop(mark):
+        os.killpg(runner_pid, signal.SIGTERM)
 
 
 def node_name(stage, place):

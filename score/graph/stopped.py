@@ -10,6 +10,8 @@ import os
 import pathlib
 import signal
 import sys
+import tempfile
+import threading
 import time
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -20,13 +22,13 @@ FORWARD_WAIT_SECONDS = 40
 
 def stop_on_signals(say):
     """On SIGTERM, SIGINT or SIGHUP: say(the signal's number) once, then exit 128 + it (a running subprocess.run kills
-    its command on the way out). A process forked from this one (a node's) takes the signal's default instead."""
+    its command on the way out). A process forked from this one (a node's) ends after its children instead
+    (end_after_children)."""
     owner = os.getpid()
 
     def stop(number, frame):
         if os.getpid() != owner:
-            signal.signal(number, signal.SIG_DFL)
-            os.kill(os.getpid(), number)
+            end_after_children(number)
             return
         for each in STOPPING:
             signal.signal(each, signal.SIG_IGN)
@@ -34,6 +36,57 @@ def stop_on_signals(say):
         sys.exit(128 + number)
     for number in STOPPING:
         signal.signal(number, stop)
+
+
+def end_after_children(number):
+    """A forked process's (a node's) stop: it ignores every further stopping signal (shows_stop) and exits 128 +
+    `number` once the children it has now have ended, its main thread going on meanwhile. A cloud batch it started
+    deletes its machines on the same signal and writes about each to this process's pipe; this process ending first
+    broke that pipe and the batch's delete loop with it (2026-10-17)."""
+    for each in STOPPING:
+        signal.signal(each, signal.SIG_IGN)
+    threading.Thread(target=exit_after, args=(children(), 128 + number), daemon=True).start()
+
+
+def exit_after(waited, code):
+    """Exit with `code` once none of `waited` is alive; a child started since gets SIGTERM first."""
+    while set(waited) & set(children()):
+        time.sleep(0.2)
+    for child in children():
+        try:
+            os.kill(child, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    os._exit(code)
+
+
+def shows_stop(pid):
+    """Whether a process ignores every stopping signal, as a stopped node does (end_after_children); False when it is
+    gone."""
+    try:
+        status = pathlib.Path(f"/proc/{pid}/status").read_text()
+    except OSError:
+        return False
+    ignored = int(next(line.split()[1] for line in status.splitlines() if line.startswith("SigIgn:")), 16)
+    wanted = sum(1 << (number - 1) for number in STOPPING)
+    return ignored & wanted == wanted
+
+
+def stop_mark(runner_pid):
+    """The file whose making sends a runner's process group its one stop: named for the runner's pid and its start
+    time, so a later process with the same pid has a mark of its own. Read while the runner lives."""
+    started = pathlib.Path(f"/proc/{runner_pid}/stat").read_text().rpartition(")")[2].split()[19]
+    return pathlib.Path(tempfile.gettempdir()) / f"score-stop-{runner_pid}-{started}"
+
+
+def claim_stop(mark):
+    """Make the stop mark; True for the one process that made it, False for every other (a runner's group is sent
+    SIGTERM once: a batch stops deleting at its second signal)."""
+    try:
+        os.close(os.open(mark, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+    except FileExistsError:
+        return False
+    return True
 
 
 def children():
