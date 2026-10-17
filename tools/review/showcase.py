@@ -129,6 +129,19 @@ def fitted(picture, scale):
     return frame
 
 
+def credited(picture, credit):
+    """A frame with its maker's credit small at the bottom right (World Labs' terms ask "Generated using World Labs"
+    wherever its output is shown); unchanged when `credit` is None."""
+    if not credit:
+        return picture
+    draw = ImageDraw.Draw(picture)
+    small = font(22, "Medium")
+    width = draw.textlength(credit, font=small)
+    draw.rounded_rectangle((W - width - 72, H - 76, W - 32, H - 32), radius=8, fill=(0, 0, 0))
+    draw.text((W - width - 52, H - 68), credit, font=small, fill=(240, 240, 236))
+    return picture
+
+
 def write_frames(frames, seconds, out):
     """Frames (a function of the frame number giving an RGB picture) piped to ffmpeg as a silent clip."""
     count = round(seconds * RATE)
@@ -522,10 +535,11 @@ def stage_frame(label, pictures, share):
     return pictures[0].transform((W, H), Image.EXTENT, (crop[0], crop[1], W - crop[0], H - crop[1]), Image.BICUBIC)
 
 
-def stages_clip(stages, title, out):
-    """A place's stages (stages_of) in turn, STAGE_SECONDS each, each fading into the next, with their labels; with a
-    silent sound track so it joins the films."""
-    loaded = [(label, [square(path) for path in paths] if label == "Pieces" else [fitted(Image.open(paths[0]), 0.9)])
+def stages_clip(stages, title, out, credits):
+    """A place's stages (stages_of) in turn, STAGE_SECONDS each, each fading into the next, with their labels and any
+    picture's credit (`credits` {path: text}); with a silent sound track so it joins the films."""
+    loaded = [(label, [square(path) for path in paths] if label == "Pieces"
+               else [credited(fitted(Image.open(paths[0]), 0.9), credits.get(str(paths[0])))])
               for label, paths in stages]
     labels = [label_layer(label, title) for label, _ in stages]
     each = round(STAGE_SECONDS * RATE)
@@ -571,10 +585,10 @@ def ending_clip(clip, out):
     return seconds
 
 
-def strip_clip(pictures, out):
+def strip_clip(pictures, out, credits):
     """The pictures in quick turn, OPENING_EACH each, every one fading into the next over STAGE_FADE, under one
-    label; silent."""
-    stills = [fitted(Image.open(path), 1.0) for path in pictures]
+    label and with any picture's credit (`credits` {path: text}); silent."""
+    stills = [credited(fitted(Image.open(path), 1.0), credits.get(str(path))) for path in pictures]
     label = label_layer("Concepts", "One for every place")
     each = round(OPENING_EACH * RATE)
     blend_frames = round(STAGE_FADE * RATE)
@@ -589,15 +603,15 @@ def strip_clip(pictures, out):
     write_frames(frame, OPENING_EACH * len(pictures), out)
 
 
-def opening_clip(pictures, out):
+def opening_clip(pictures, out, credits):
     """The opening: the world's title, then every place's concept in a quick strip (strip_clip), with a silent sound
-    track; its length. `pictures`: the concepts' paths."""
+    track; its length. `pictures`: the concepts' paths, `credits` {path: credit text}."""
     parts = pathlib.Path(out).parent / "opening"
     parts.mkdir(exist_ok=True)
     title, strip = parts / "title.mp4", parts / "strip.mp4"
     card(["World 1: 2099", "from the creator's picks to a walkable world"], [(64, "Medium"), (34, "Light")],
          OPENING_TITLE, title, pictures[0])
-    strip_clip(pictures, strip)
+    strip_clip(pictures, strip, credits)
     lengths = [OPENING_TITLE, OPENING_EACH * len(pictures)]
     joined = parts / "joined.mp4"
     demo.joined([title, strip], lengths, joined)
@@ -609,7 +623,7 @@ def world(folder, figure_out, films, assets, draft=False):
     """The world 1 video (demo K9) and its figure: the opening (the title, then every place's concept), then per place
     in story order its concept, plan and pieces and its accepted film's shot, then the ending's clips where they exist; the
     films from store_films, the pictures from `assets` (a JSON file: {"opening": [concept paths],
-    "places": {film: {"concept", "plan", "pieces"}}}). Stops on a missing film unless a draft."""
+    "places": {film: {"concept", "plan", "pieces"}}, "credits": {path: credit shown on it}}). Stops on a missing film unless a draft."""
     missing = [name for name, _, path, _ in films if path is None]
     if missing and not draft:
         raise SystemExit(f"world: {len(missing)} of {len(films)} films not in the store: {', '.join(missing)}")
@@ -623,12 +637,12 @@ def world(folder, figure_out, films, assets, draft=False):
     opening = chosen.get("opening", [])
     if opening:
         clips.append(parts / "opening.mp4")
-        lengths.append(opening_clip(opening, clips[-1]))
+        lengths.append(opening_clip(opening, clips[-1], chosen.get("credits", {})))
     for name, title, path, output in made:
         stages = stages_of(chosen.get("places", {}).get(name, {}))
         if stages:
             clips.append(parts / f"{name}-stages.mp4")
-            stages_clip(stages, title, clips[-1])
+            stages_clip(stages, title, clips[-1], chosen.get("credits", {}))
             lengths.append(len(stages) * STAGE_SECONDS)
         clips.append(parts / f"{name}-result.mp4")
         result_clip(path, title, clips[-1])

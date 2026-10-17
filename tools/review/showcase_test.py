@@ -75,6 +75,14 @@ def check_stages():
     assert [label for label, _ in showcase.stages_of({"concept": "c.png", "plan": None, "pieces": []})] == ["Concept"]
 
 
+def check_credit():
+    """A credited picture carries its credit at the bottom right; an uncredited one is left as it was."""
+    plain = Image.new("RGB", (showcase.W, showcase.H), (200, 200, 200))
+    assert np.array_equal(np.asarray(showcase.credited(plain.copy(), None)), np.asarray(plain))
+    marked = np.asarray(showcase.credited(plain.copy(), "Generated using World Labs"))
+    assert (marked[-60, -60] != 200).any() and (marked[60, 60] == 200).all()
+
+
 def check_timeline():
     """The world video's parts in order, each place about 6.5 s, and the whole within 4 minutes for world 1."""
     parts = showcase.timeline([("flat", 3), ("cockpit", 2)], 18.0, [15.0, 15.0])
@@ -94,7 +102,8 @@ def check_world(folder):
         Image.new("RGB", (300, 200), (60 * number, 90, 90)).save(folder / f"{number}.png")
     assets = folder / "assets.json"
     assets.write_text(json.dumps({"opening": [str(folder / "0.png"), str(folder / "1.png")], "places": {"flat": {"concept": str(folder / "0.png"), "plan": str(folder / "1.png"),
-                                                      "pieces": [str(folder / "2.png"), str(folder / "3.png")]}}}))
+                                                      "pieces": [str(folder / "2.png"), str(folder / "3.png")]}},
+                                  "credits": {str(folder / "0.png"): "Generated using World Labs"}}))
     showcase.ENDING = folder / "ending"
     try:
         showcase.world(folder / "out", folder / "fig.jpg", films, assets)
@@ -117,6 +126,7 @@ def check_world(folder):
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as temporary:
         check_stages()
+        check_credit()
         check_timeline()
         for check in (check_legend, check_figure, check_world):
             place = pathlib.Path(temporary) / check.__name__
