@@ -22,6 +22,10 @@ in the test.
   ledgered bill off, naming the provider; storage and the rest are reported apart, never in the gap. A provider with
   no bill fails unless `--skip` names it (Google needs its day in a bill file: no bill reader yet), and so does one
   whose ledger file is missing ("no ledger at <path>", never read as an empty ledger). Nothing runs it on
-  a schedule yet. A gap means spend outside the ledgers, fixed in the client that made it (`paid_calls_test.py`
+  a schedule yet. Two known lines it alarms on that no ledger row holds yet: block snapshots (`/storage/block/snapshot`
+  files under disks and addresses) and machines kept running for good (as dev1_m and play2_pico in the saved reads)
+  count under machines; until they are ledgered or split out, its gap includes spend the owner already knows about.
+  The default ledger (`~/.farm-factory-props/cloud/ledger.jsonl`) is not on every box, so any figure quoted from it
+  names its `--ledger`. A gap means spend outside the ledgers, fixed in the client that made it (`paid_calls_test.py`
   lists the allowed ones), never by editing a row. The paper's commands (`reconcile`, `tables`, `types`) leave the
   order lines (`ledger.ORDER_LINES`: started, refused, cluster orders) out; they are not batches.

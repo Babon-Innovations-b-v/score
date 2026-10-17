@@ -3,11 +3,16 @@ google_spend.generate, a Scaleway machine, disk, address or cluster pool through
 cluster set-up drive. Any other module that calls Gemini directly or orders one of those fails here (2026-10-17: a
 Google day billed about EUR 520 the ledger never held, and 21% of the bill was in no ledger row).
 
-Read from each tracked Python file's syntax tree (its imports, its strings joined with + and f-strings, and the scw
-words a call is given, read through variables, joined and starred lists, .append and .extend), and from the lines of
-each shell script; vendor/ is third-party and left out. A word it cannot read (a function's parameter) between a
-product and "create" still counts as an order. It does not follow words across modules, through other functions'
-return values, or built with % or .format.
+Read from each tracked Python file's syntax tree (its imports, by statement or by importlib.import_module or
+__import__ given a string; its strings joined with + and f-strings; and the scw words a call is given, read through
+variables, joined and starred lists, .append, .extend and .insert), and from the lines of every other runnable file
+(shell and other scripts, Makefiles, Dockerfiles, manifests, a #! file with no suffix), a line ending in a backslash
+joined with the next; vendor/ is third-party, and docs and data run nothing, so both are left out. A variable is
+read as the function it is in set it, in source order, and every setting or growing of one is checked too, so an
+order built in one branch counts. A word it cannot read (a function's parameter) between a product and "create"
+still counts as an order. It does not follow words across modules, through other functions' return values, through
+attributes (self.cmd), lists indexed or sliced, an .insert at an index it cannot read (read as the end), or built
+with % or .format.
 
 Run: python3 tools/costs/paid_calls_test.py
 """
@@ -37,7 +42,9 @@ ALLOWED = {
     "tools/costs/paid_calls_test.py": ("this lint's pattern and its fixtures",
                                        {"PAID_TEXT", "test_a_module_calling_gemini_directly_fails",
                                         "test_a_module_ordering_a_scaleway_machine_or_disk_fails",
-                                        "test_an_address_built_in_an_f_string_fails"}),
+                                        "test_an_address_built_in_an_f_string_fails",
+                                        "test_a_shell_order_broken_over_lines_fails",
+                                        "test_runnable_files_beyond_python_and_shell_are_read"}),
 }
 GEMINI_MODULES = ("google.genai", "google.generativeai", "google.cloud.aiplatform", "vertexai")
 GEMINI_NAMES = {"genai", "generativeai"}
@@ -46,26 +53,48 @@ PAID_TEXT = re.compile(r"generativelanguage\.googleapis\.com|aiplatform\.googlea
                        r"api\.scaleway\.com/k8s/v1[a-z0-9]*/regions/[^/\s]+/clusters(/[^/\s]+/pools)?/?$|"
                        r"scw\s+(instance\s+(server|volume|ip)|block\s+volume|k8s\s+(pool|cluster))\s+create")
 SCALEWAY_SDK = ("scaleway.instance", "scaleway.block", "scaleway.k8s", "scaleway_core")
+DYNAMIC_IMPORTS = {"import_module", "__import__"}
 # scw's words that order something billed: (product, resource) followed by "create".
 SCW_PAID = {("instance", "server"), ("instance", "volume"), ("instance", "ip"), ("block", "volume"),
             ("k8s", "pool"), ("k8s", "cluster")}
 SCW_PRODUCTS = {product for product, _ in SCW_PAID}
+FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+# The list methods that grow a list of words, by how many arguments each takes.
+GROW_ARGUMENTS = {"append": 1, "extend": 1, "insert": 2}
+RUNNABLE_SUFFIXES = {".py", ".sh", ".bash", ".lua", ".yaml", ".yml", ".js", ".mjs", ".ts", ".toml"}
+RUNNABLE_NAMES = {"Makefile", "Dockerfile"}
+
+
+def paid_module(name):
+    """Whether a module's dotted name is one of Google's Gemini clients or Scaleway's SDK."""
+    return (name.startswith(GEMINI_MODULES + SCALEWAY_SDK)
+            or (name.startswith("google.") and name.split(".")[-1] in GEMINI_NAMES))
 
 
 def imported_paid_modules(tree):
-    """(line, what) for each import of Google's Gemini clients or Scaleway's SDK."""
+    """(line, what) for each import of Google's Gemini clients or Scaleway's SDK, by an import statement or by
+    importlib.import_module or __import__ given the module's name as a string."""
     found = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             names = [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom) and node.module:
             names = [node.module] + [f"{node.module}.{alias.name}" for alias in node.names]
+        elif isinstance(node, ast.Call) and called_name(node) in DYNAMIC_IMPORTS and node.args:
+            names = [name for name in [string_text(node.args[0])] if name]
         else:
             continue
-        found += [(node.lineno, f"imports {name}") for name in names
-                  if name.startswith(GEMINI_MODULES + SCALEWAY_SDK)
-                  or (name.startswith("google.") and name.split(".")[-1] in GEMINI_NAMES)]
+        found += [(node.lineno, f"imports {name}") for name in names if paid_module(name)]
     return found
+
+
+def called_name(node):
+    """The name a call calls: `f` for f(...) and for x.f(...); None for anything else."""
+    if isinstance(node.func, ast.Name):
+        return node.func.id
+    if isinstance(node.func, ast.Attribute):
+        return node.func.attr
+    return None
 
 
 def string_text(node):
@@ -77,60 +106,122 @@ def string_text(node):
     return None
 
 
-def joined_text(node, strings):
+def variable_string(assigned, name):
+    """The one string a variable holds in `assigned`; None when it holds anything else."""
+    words = assigned.get(name)
+    return words[0] if words and len(words) == 1 and isinstance(words[0], str) else None
+
+
+def joined_text(node, assigned):
     """The text a string expression stands for: strings joined with +, an f-string, a variable set to one string
-    (`strings`), each part it cannot read as "{}"; None when no part of it is a string."""
+    (in `assigned`), each part it cannot read as "{}"; None when no part of it is a string."""
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        left, right = joined_text(node.left, strings), joined_text(node.right, strings)
+        left, right = joined_text(node.left, assigned), joined_text(node.right, assigned)
         return None if left is None and right is None else (left or "{}") + (right or "{}")
     if isinstance(node, ast.JoinedStr):
         return "".join(part.value if isinstance(part, ast.Constant)
-                       else strings.get(part.value.id, "{}") if isinstance(part.value, ast.Name) else "{}"
-                       for part in node.values)
+                       else variable_string(assigned, part.value.id) or "{}" if isinstance(part.value, ast.Name)
+                       else "{}" for part in node.values)
     if isinstance(node, ast.Name):
-        return strings.get(node.id)
+        return variable_string(assigned, node.id)
     return string_text(node)
 
 
 def paid_strings(tree):
     """(line, what) for each string, f-string or joined string that names a paid host, key header or order."""
-    strings = {name: words[0] for name, words in assigned_words(tree).items()
-               if len(words) == 1 and isinstance(words[0], str)}
+    states = variable_states(tree)
     found = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.Constant, ast.JoinedStr, ast.BinOp)):
             continue
-        text = joined_text(node, strings)
+        text = joined_text(node, states.get(id(node), {}))
         if text is not None and PAID_TEXT.search(text):
             found.append((node.lineno, f"names {PAID_TEXT.search(text).group(0)!r}"))
     return found
 
 
 def grown_list(node):
-    """(variable, method, its argument) when `node` is `variable.append(x)` or `variable.extend(x)`; else None."""
+    """(variable, method, its arguments) when `node` is `variable.append(x)`, `variable.extend(x)` or
+    `variable.insert(i, x)`; else None."""
     if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
-            and node.func.attr in ("append", "extend") and len(node.args) == 1):
-        return node.func.value.id, node.func.attr, node.args[0]
+            and len(node.args) == GROW_ARGUMENTS.get(node.func.attr)):
+        return node.func.value.id, node.func.attr, node.args
     return None
 
 
-def assigned_words(tree):
-    """{variable: its words} for each variable a module sets, adds to, or grows (.append, .extend) with words, in
-    source order, the last setting kept."""
-    assigned = {}
-    settings = sorted((node for node in ast.walk(tree)
-                       if isinstance(node, (ast.Assign, ast.AugAssign)) or grown_list(node)),
-                      key=lambda node: (node.lineno, node.col_offset))
-    for node in settings:
-        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            assigned[node.targets[0].id] = sequence_words(node.value, assigned)
-        elif isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Add) and isinstance(node.target, ast.Name):
-            assigned[node.target.id] = assigned.get(node.target.id, [None]) + sequence_words(node.value, assigned)
-        elif isinstance(node, ast.Call):
-            name, method, argument = grown_list(node)
-            added = sequence_words(argument, assigned) if method == "extend" else [string_text(argument)]
-            assigned[name] = assigned.get(name, [None]) + added
-    return assigned
+def inserted(words, index_node, word):
+    """`words` with `word` put in at the index `index_node` reads as (an int constant); at the end when it cannot be
+    read."""
+    index = index_node.value if isinstance(index_node, ast.Constant) and type(index_node.value) is int else len(words)
+    return words[:index] + [word] + words[index:]
+
+
+def setting(node, assigned):
+    """(variable, its words after) when `node` sets, adds to or grows (.append, .extend, .insert) a variable, read
+    from `assigned`, the words its variables hold just before; None for any other node."""
+    if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+        return node.targets[0].id, sequence_words(node.value, assigned)
+    if isinstance(node, ast.AnnAssign) and node.value is not None and isinstance(node.target, ast.Name):
+        return node.target.id, sequence_words(node.value, assigned)
+    if isinstance(node, ast.AugAssign) and isinstance(node.op, ast.Add) and isinstance(node.target, ast.Name):
+        return node.target.id, assigned.get(node.target.id, [None]) + sequence_words(node.value, assigned)
+    grown = grown_list(node)
+    if grown is None:
+        return None
+    name, method, arguments = grown
+    before = assigned.get(name, [None])
+    if method == "extend":
+        return name, before + sequence_words(arguments[0], assigned)
+    if method == "insert":
+        return name, inserted(before, arguments[0], string_text(arguments[1]))
+    return name, before + [string_text(arguments[0])]
+
+
+def scope_members(scope):
+    """The nodes a module or function holds itself; a function inside it is a scope of its own, so its body is left
+    out (the function's own node stays in)."""
+    members, stack = [], list(ast.iter_child_nodes(scope))
+    while stack:
+        node = stack.pop()
+        members.append(node)
+        if not isinstance(node, FUNCTIONS):
+            stack.extend(ast.iter_child_nodes(node))
+    return members
+
+
+def scopes(tree):
+    """(scope, the scope around it) for the module (None around it) and each function in it, outer before inner."""
+    found, waiting = [], [(tree, None)]
+    while waiting:
+        scope, outer = waiting.pop(0)
+        found.append((scope, outer))
+        waiting += [(node, scope) for node in scope_members(scope) if isinstance(node, FUNCTIONS)]
+    return found
+
+
+def variable_states(tree):
+    """{id(node): {variable: its words}} for each node, as the node's own function (or the module) had set its
+    variables just before it in source order, starting from the words the scope around it left; a setting takes
+    effect where it ends. So a name two functions both use is read from the function the node is in (review of C1,
+    2026-10-17: one module-wide table read one function's call with another's words)."""
+    states, left = {}, {None: {}}
+    for scope, outer in scopes(tree):
+        assigned = left[outer]
+        events = []
+        for node in scope_members(scope):
+            if not hasattr(node, "lineno"):
+                continue
+            events.append(((node.lineno, node.col_offset, 1), node))
+            events.append(((node.end_lineno, node.end_col_offset, 0), node))
+        for (_, _, reading), node in sorted(events, key=lambda event: event[0]):
+            if reading:
+                states[id(node)] = assigned
+                continue
+            changed = setting(node, states[id(node)])
+            if changed is not None:
+                assigned = {**assigned, changed[0]: changed[1]}
+        left[scope] = assigned
+    return states
 
 
 def sequence_words(node, assigned):
@@ -156,22 +247,26 @@ def orders_in(words):
 
 
 def scw_orders(tree):
-    """(line, what) for each call given, or list built with, scw words that order a billed resource: the words read
-    through variables, joined and starred lists (sequence_words)."""
-    assigned = assigned_words(tree)
+    """(line, what) for each call given, list built with, or variable set or grown to scw words that order a billed
+    resource: the words read through variables (as the node's own function set them), joined and starred lists,
+    .append, .extend and .insert (sequence_words, setting)."""
+    states = variable_states(tree)
     compared = {id(side) for node in ast.walk(tree) if isinstance(node, ast.Compare)
                 for side in [node.left, *node.comparators]}
     found = set()
     for node in ast.walk(tree):
-        if id(node) in compared:  # a test's check of what was ordered (`command[:4] == [...]`) orders nothing
+        if id(node) in compared or id(node) not in states:  # a test's check (`command[:4] == [...]`) orders nothing
             continue
+        assigned = states[id(node)]
+        changed = setting(node, assigned)
         if isinstance(node, ast.Call):
             words = [word for argument in node.args for word in sequence_words(argument, assigned)]
         elif isinstance(node, (ast.List, ast.Tuple)) or (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add)):
             words = sequence_words(node, assigned)
         else:
-            continue
-        found |= {(node.lineno, f"orders scw {order}") for order in orders_in(words)}
+            words = []
+        for run in (words, changed[1] if changed else []):
+            found |= {(node.lineno, f"orders scw {order}") for order in orders_in(run)}
     return sorted(found)
 
 
@@ -181,10 +276,24 @@ def python_paid_calls(text):
     return sorted(set(imported_paid_modules(tree) + paid_strings(tree) + scw_orders(tree)))
 
 
+def logical_lines(text):
+    """(first line number, text) for each line of a script, a line ending in a backslash joined with the next."""
+    lines, start, held = [], None, []
+    for number, line in enumerate(text.splitlines(), 1):
+        start = number if start is None else start
+        if line.rstrip().endswith("\\"):
+            held.append(line.rstrip()[:-1])
+            continue
+        lines.append((start, " ".join(held + [line])))
+        start, held = None, []
+    return lines + ([(start, " ".join(held))] if held else [])
+
+
 def shell_paid_calls(text):
-    """(line, what) for each line of a shell script that names a paid host or order."""
+    """(line, what) for each line of a script (a shell script, Makefile, Dockerfile, manifest) that names a paid host
+    or order, a command broken over lines with a backslash read as one."""
     return [(number, f"names {PAID_TEXT.search(line).group(0)!r}")
-            for number, line in enumerate(text.splitlines(), 1) if PAID_TEXT.search(line)]
+            for number, line in logical_lines(text) if PAID_TEXT.search(line)]
 
 
 def paid_calls(path):
@@ -215,11 +324,20 @@ def outside_allowed(path, names):
     return [(line, what) for line, what in found if not any(first <= line <= last for first, last in spans)]
 
 
+def runnable(path):
+    """Whether a tracked file is code that can run: Python, a shell or other script, a Makefile, a Dockerfile, a
+    manifest, or a file with no suffix that starts with #!. Text that runs nothing (docs, data, json) is left out."""
+    if path.suffix in RUNNABLE_SUFFIXES or path.name in RUNNABLE_NAMES:
+        return True
+    return path.suffix == "" and path.read_bytes()[:2] == b"#!"
+
+
 def tracked_sources():
-    """The repository's tracked Python and shell files outside vendor/, repository-relative."""
-    listed = subprocess.run(["git", "-C", str(REPO), "ls-files", "*.py", "*.sh"], capture_output=True, text=True,
-                            check=True).stdout.split()
-    return [path for path in listed if not path.startswith("vendor/") and (REPO / path).is_file()]
+    """The repository's tracked runnable files outside vendor/, repository-relative."""
+    listed = subprocess.run(["git", "-C", str(REPO), "ls-files"], capture_output=True, text=True,
+                            check=True).stdout.splitlines()
+    return [path for path in listed
+            if not path.startswith("vendor/") and (REPO / path).is_file() and runnable(REPO / path)]
 
 
 def fixture(source):
@@ -283,7 +401,78 @@ def test_an_order_grown_by_append_or_extend_fails():
                    'disk = ["scw", "block"]\n'
                    'disk.extend(["volume", "create"])\n'
                    'subprocess.run(disk)\n')
-    assert [line for line, _ in paid_calls(path)] == [4, 7], paid_calls(path)
+    assert [line for line, _ in paid_calls(path)] == [3, 4, 6, 7], paid_calls(path)
+
+
+def test_a_name_two_functions_use_is_read_in_each_functions_own_words():
+    """Fault (review of C1, 2026-10-17): variables were one module-wide table with only the last setting by line
+    kept, so a call in an earlier function read a later function's words and its order came back clean."""
+    path = fixture('import subprocess\n'
+                   'def a():\n'
+                   '    cmd = ["scw", "instance", "server"]\n'
+                   '    subprocess.run(cmd + ["create"])\n'
+                   'def b():\n'
+                   '    cmd = ["ls"]\n'
+                   '    subprocess.run(cmd)\n'
+                   'def c():\n'
+                   '    api = "https://api.scaleway.com/instance/v1/zones/fr-par-2"\n'
+                   '    requests.post(api + "/servers")\n'
+                   'def d():\n'
+                   '    api = "https://example.org"\n')
+    assert [line for line, _ in paid_calls(path)] == [4, 10], paid_calls(path)
+
+
+def test_an_order_grown_in_one_branch_fails():
+    """A list grown to an order in one branch and to something else after it still orders: the growing line itself
+    is checked, not only the words left at the call."""
+    path = fixture('import subprocess\n'
+                   'def a(new):\n'
+                   '    cmd = ["scw", "instance", "server"]\n'
+                   '    if new:\n'
+                   '        cmd.append("create")\n'
+                   '    else:\n'
+                   '        cmd = ["scw", "instance", "server", "list"]\n'
+                   '    subprocess.run(cmd)\n')
+    assert [line for line, _ in paid_calls(path)] == [5], paid_calls(path)
+
+
+def test_an_order_put_together_with_insert_fails():
+    """Fault (review of C1, 2026-10-17): .insert was not read, so `cmd.insert(1, "instance")` building an order passed."""
+    path = fixture('import subprocess\n'
+                   'cmd = ["scw", "server", "create"]\n'
+                   'cmd.insert(1, "instance")\n'
+                   'subprocess.run(cmd)\n')
+    assert [line for line, _ in paid_calls(path)] == [3, 4], paid_calls(path)
+
+
+def test_googles_client_loaded_by_name_fails():
+    """Fault (review of C1, 2026-10-17): only import statements were read, so importlib.import_module("google.genai")
+    passed."""
+    path = fixture('import importlib\n'
+                   'genai = importlib.import_module("google.genai")\n'
+                   'scaleway = __import__("scaleway.instance")\n'
+                   'json = importlib.import_module("json")\n')
+    assert [line for line, _ in paid_calls(path)] == [2, 3], paid_calls(path)
+
+
+def test_a_shell_order_broken_over_lines_fails():
+    """Fault (review of C1, 2026-10-17): shell was matched one line at a time, so `scw instance server \\` with
+    `create` on the next line passed."""
+    path = pathlib.Path(tempfile.mkdtemp()) / "rent.sh"
+    path.write_text('#!/bin/bash\nscw instance server \\\n  create type=L4-1-24G\nscw instance server list\n')
+    assert [line for line, _ in paid_calls(path)] == [2], paid_calls(path)
+
+
+def test_runnable_files_beyond_python_and_shell_are_read():
+    """Fault (review of C1, 2026-10-17): only *.py and *.sh were scanned, so an order in a Makefile, Dockerfile,
+    manifest or a #! script with no suffix passed. Docs and data are left out: they run nothing."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    names = {"Makefile": "rent:\n\tscw instance server create\n", "job.yaml": "args: [scw k8s pool create]\n",
+             "hook": "#!/bin/sh\nscw block volume create\n", "notes.md": "scw instance server create\n"}
+    for name, text in names.items():
+        (folder / name).write_text(text)
+    assert sorted(name for name in names if runnable(folder / name)) == ["Makefile", "hook", "job.yaml"]
+    assert [line for line, _ in paid_calls(folder / "Makefile")] == [2]
 
 
 def test_an_order_whose_resource_is_a_parameter_fails():
