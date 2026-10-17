@@ -17,14 +17,10 @@ tools/usd/annotate.py turns them into per-object masks and occlusion boundaries.
 """
 import json
 import pathlib
-import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import usd_views  # noqa: E402
-
-SUFFIX = re.compile(r"\.\d{3}$")
-
 
 def arguments():
     given = sys.argv[sys.argv.index("--") + 1:]
@@ -33,13 +29,7 @@ def arguments():
     return pathlib.Path(given[0]), json.loads(pathlib.Path(given[1]).read_text()), pathlib.Path(given[2])
 
 
-def prim_path(item):
-    """An imported object's prim path, rebuilt from its parents' names (Blender adds .001 to names it has seen)."""
-    names = []
-    while item is not None:
-        names.append(SUFFIX.sub("", item.name))
-        item = item.parent
-    return "/" + "/".join(reversed(names))
+prim_path = usd_views.prim_path
 
 
 def owner(item):

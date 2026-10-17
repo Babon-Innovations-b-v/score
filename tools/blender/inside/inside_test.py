@@ -94,11 +94,36 @@ def check_numbering():
     check("each mesh carries its owner's id", [item.pass_index for item in (*parts, ground, place)] == [1, 1, 2, 0])
 
 
+class Prim:
+    def __init__(self, path):
+        self.path = path
+
+    def GetPath(self):
+        return self.path
+
+    def GetName(self):
+        return self.path.rsplit("/", 1)[1]
+
+
+def check_effect_clouds():
+    hub, places = Item("hub", kind="EMPTY"), Item("places", Item("hub", kind="EMPTY"), "EMPTY")
+    own = Item("pump_fog_points", Item("pump_fog", hub, "EMPTY"), "POINTCLOUD")
+    neighbour = Item("pump_fog_points.001", Item("pump_fog.001", Item("airlock", places, "EMPTY"), "EMPTY"), "POINTCLOUD")
+    clouds = [neighbour, own]
+    check("an effect finds its own cloud by path", usd_views.effect_cloud(Prim("/hub/pump_fog/pump_fog_points"), clouds)
+          is own)
+    check("a neighbour's effect of the same name finds the neighbour's cloud",
+          usd_views.effect_cloud(Prim("/hub/places/airlock/pump_fog/pump_fog_points"), clouds) is neighbour)
+    check("a unique name still finds its cloud off the path",
+          usd_views.effect_cloud(Prim("/hub/Effects/pump_fog_points"), [own]) is own)
+
+
 check_smoothstep()
 check_at_offset()
 check_shape_normals()
 check_ink_lines()
 check_numbering()
+check_effect_clouds()
 if _failures:
     sys.exit(f"{len(_failures)} failed")
 print("ok")

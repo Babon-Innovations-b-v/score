@@ -50,6 +50,7 @@ import json
 import math
 import os
 import pathlib
+import re
 import sys
 
 import bpy
@@ -900,14 +901,12 @@ def effect_points(stage, objects):
     frame by frame (draw_effects), its own reader taken off. Each comes as (point cloud, Points prim, its stage)."""
     from pxr import Usd, UsdGeom
     opened = Usd.Stage.Open(str(stage))
-    clouds = {item.name: item for item in objects if item.type == "POINTCLOUD"}
+    clouds = [item for item in objects if item.type == "POINTCLOUD"]
     found = []
     for prim in opened.Traverse():
         if not prim.IsA(UsdGeom.Points) or prim.GetAttribute("score:kind").Get() != "effect":
             continue
-        cloud = clouds.get(prim.GetName())
-        if cloud is None:
-            raise RuntimeError(f"Blender did not bring in the effect {prim.GetPath()}")
+        cloud = effect_cloud(prim, clouds)
         for modifier in [modifier for modifier in cloud.modifiers if modifier.type == "MESH_SEQUENCE_CACHE"]:
             cloud.modifiers.remove(modifier)
         emitter = prim.GetParent()
@@ -917,6 +916,29 @@ def effect_points(stage, objects):
                                                     UsdGeom.PrimvarsAPI(prim).GetPrimvar("displayColor").Get()[0]))
         found.append((cloud, UsdGeom.Points(prim), opened))  # the stage kept open while its prims are read
     return found
+
+
+SUFFIX = re.compile(r"\.\d{3}$")
+
+
+def prim_path(item):
+    """An imported object's prim path, rebuilt from its parents' names (Blender adds .001 to names it has seen)."""
+    names = []
+    while item is not None:
+        names.append(SUFFIX.sub("", item.name))
+        item = item.parent
+    return "/" + "/".join(reversed(names))
+
+
+def effect_cloud(prim, clouds):
+    """The point cloud Blender brought an effect prim in as: the one at its prim path, else the one cloud of its name
+    (a stage with its neighbours' places holds one effect name several times, 2026-10-17)."""
+    at_path = [cloud for cloud in clouds if prim_path(cloud) == str(prim.GetPath())]
+    named = [cloud for cloud in clouds if SUFFIX.sub("", cloud.name) == prim.GetName()]
+    chosen = at_path or (named if len(named) == 1 else [])
+    if len(chosen) != 1:
+        raise RuntimeError(f"Blender brought in {len(at_path)} clouds at {prim.GetPath()} and {len(named)} of its name")
+    return chosen[0]
 
 
 def draw_effects(effects, frame):
