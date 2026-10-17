@@ -189,6 +189,12 @@ NARROWING_REASON = "same reads: every file its key reads today reads as it did w
 NARROWING_SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
 
 
+def made_by(record):
+    """The commit and code version that made a record's output: what it carried when it was kept over a key move
+    (its carried "made by"), its own otherwise."""
+    return record.get("carried", {}).get("made by") or {"commit": record["commit"], "code": record["code"]}
+
+
 def bytecode(relative):
     """True for Python's bytecode (a __pycache__ folder's file or a .pyc): each checkout writes its own beside the
     sources it runs, so a key that hashed it moved with the worktree a run came from (#67, 2026-10-13)."""
@@ -741,17 +747,22 @@ class Runner:
         return new
 
     def narrowing_proof(self, stage, place, keyed):
-        """The node's accepted output's record when its key moved but every file the key reads today reads as it did
-        when that output was made: a record of a committed tree, every key part but code and files the same, each
-        source file of today's code version in the record's commit and unchanged since (_code.unchanged_since), and
-        each declared file hashing as recorded (a repository one: or as git rebuilds it at that commit). A key that
-        only got narrower (a module moved into FRAMEWORK, an import dropped by a file that was itself not read) is
-        kept so, with no proof file. None otherwise."""
+        """The node's accepted output's record when its key only got narrower: a record of a committed tree, every
+        key part but code and files the same, the code version rebuilt from git at the record's commit (today's
+        start files followed with that commit's FRAMEWORK, after this Python's version) equal to the record's, today's
+        code version a part of it (each file today reads, the Python version too, read as it was then), and each
+        declared file hashing as recorded (a repository one: or as git rebuilds it at that commit). A module moved
+        into FRAMEWORK, or an import dropped by a file that was itself not read, is kept so, with no proof file; a
+        make, check or file map wired to another function, or another Python, is not. Each file the key no longer reads
+        (the moved module, and what was read only through it) must be gone from the tree or read as it did then, so a
+        module moved and edited in one change is made again. A record kept so before is judged against what made it
+        (its carried "made by"), so plumbing moved over several commits keeps it each time. None otherwise."""
         node = node_name(stage, place)
         accepted = self.store.accepted(node)
         record = review.record_of(self.store, node, accepted) if accepted else None
         if record is None or record.get("uncommitted", True) or not record.get("commit"):
             return None
+        made = made_by(record)
         if any(record.get(part) != keyed.get(part) for part in NARROWING_SAME):
             return None
         if set(record["files"]) != set(keyed["files"]):
@@ -760,10 +771,15 @@ class Runner:
             path = self.file_path(stage, name, place).resolve()
             if isinstance(self.files_of(stage, place)[name], tuple) or not path.is_relative_to(_code.REPO):
                 return None
-            if _code.source_hash_at(record["commit"], path.relative_to(_code.REPO).as_posix()) != keyed["files"][name]:
+            if _code.source_hash_at(made["commit"], path.relative_to(_code.REPO).as_posix()) != keyed["files"][name]:
                 return None
-        sources = [path.relative_to(_code.REPO).as_posix() for path in _code.source_files(code_functions(stage))]
-        return record if _code.unchanged_since(record["commit"], sources) else None
+        then = _code.code_version_at(made["commit"], code_functions(stage))
+        if then is None or listing_hash(then) != made["code"]:
+            return None
+        now = _code.code_version(code_functions(stage), file_hash)
+        if not set(now) <= set(then):
+            return None
+        return record if _code.unchanged_or_gone(set(then) - set(now), file_hash) else None
 
     def kept_by_narrowing(self, stage, place, keyed):
         """The node's accepted output stored under `keyed` when every file its key reads today reads as it did when
@@ -775,7 +791,7 @@ class Runner:
         node = node_name(stage, place)
         new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"],
                "carried": {"reason": NARROWING_REASON, "from key": record["key"], "to key": keyed["key"],
-                           "made by": {"commit": record["commit"], "code": record["code"]}}}
+                           "made by": made_by(record)}}
         try:
             self.store.write_record(node, keyed["key"], new)
         except FileExistsError:  # another run kept it first

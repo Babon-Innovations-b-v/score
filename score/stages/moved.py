@@ -8,8 +8,10 @@ new file in the working tree and a file a row starts declaring (the gap files of
     .venv/bin/python -m score.stages.moved <base> [<head>]     # head: a commit, default the working tree
     .venv/bin/python -m score.stages.moved <base> <head> --json   # the same as one JSON object (the cockpit prices it)
 
-Prints each moved row (paid marked), why, and for a declared file the places it moves in. With --json, every moved
-row as {paid, code, files: {path: [places]}, places: [every place the row is declared at, "None" for a world row]}.
+Prints each moved row (paid marked), why, and for a declared file the places it moves in, then a warning for each
+file the change moves into FRAMEWORK and edits too (the rows that read it are made again, not kept). With --json,
+every moved row as {paid, code, files: {path: [places]}, places: [every place the row is declared at, "None" for a
+world row]}.
 """
 import argparse
 import json
@@ -18,6 +20,8 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+
+from score.graph import _code
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 SNAPSHOT = """import json, pathlib, sys
@@ -90,6 +94,22 @@ def moved(base, head=None):
     return found
 
 
+def edited_into_framework(base, head=None):
+    """The repository files the change from `base` to `head` (default: the working tree) moves into FRAMEWORK and
+    edits too. A plain move keeps the outputs of the rows that read it (graph's narrowing carry); an edit in the same
+    change makes them again (they may be paid), so each is named."""
+    before = _code.framework_at(base)
+    after = _code.FRAMEWORK if head is None else _code.framework_at(head)
+    if before is None or after is None:  # a tree that declares no FRAMEWORK: nothing moved into one
+        return []
+    paths = sorted(path.relative_to(_code.REPO).as_posix() for path in after - before)
+    if not paths:
+        return []
+    found = subprocess.run(["git", "-C", str(_code.REPO), "diff", "--name-only", base, *([head] if head else []), "--",
+                            *paths], capture_output=True, text=True, check=True)
+    return sorted(found.stdout.split())
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("base")
@@ -105,6 +125,9 @@ def main(argv=None):
                                                    sorted(row["files"].items())]
         print(f"{name}{' (paid)' if row['paid'] else ''}: {', '.join(why)}")
     print(f"{len(found)} rows moved, {sum(row['paid'] for row in found.values())} of them paid")
+    for path in edited_into_framework(options.base, options.head):
+        print(f"warning: {path} moves into FRAMEWORK and is edited in the same change: the rows that read it are "
+              f"made again")
 
 
 if __name__ == "__main__":
