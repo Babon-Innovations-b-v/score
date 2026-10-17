@@ -9,7 +9,8 @@
              kept, not a density in plants a square metre), on a grid of the bed's cells, each moved within its
              cell, turned and sized by the node's seed; layers/crops.usda holds /<place>/Crops/<kind>, a
              PointInstancer whose prototype references the kind's asset and carries the kind's inventory row
-             (`score:row`, which the completion gate counts as laid). spots.json keeps every plant (kind, bed,
+             (`score:row`, which the completion gate counts as laid) and says what made it (`score:kind` KIND, which
+             the made-only check reads). spots.json keeps every plant (kind, bed,
              spot, turn, size) and each kind's model width and spacing in metres.
     gates    on beds    every plant stands on its bed, its centre at least EDGE inside the bed's edge, and every
                         bed carries plants
@@ -34,6 +35,7 @@ EDGE = 0.03
 JITTER = 0.25
 SIZE_SPREAD = 0.12
 LAID_WITHIN = 0.25
+KIND = "crop"
 
 
 def beds_of(scene, prefix):
@@ -139,6 +141,9 @@ def write_layer(place, record, assets, spots, path):
         instancer = UsdGeom.PointInstancer.Define(stage, f"/{place}/Crops/{kind}")
         prototype = UsdGeom.Xform.Define(stage, f"/{place}/Crops/{kind}/Prototypes/{model}")
         prototype.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(entry["row"])
+        # what made it, as the made-only check reads it; a kind, not score:model, so the place's painted check (its
+        # seed-repaint rule) does not take the crops' own line's bake for a seed's paint
+        prototype.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(KIND)
         prototype.GetPrim().GetReferences().AddReference(f"../assets/{model}.usdc")
         instancer.GetPrototypesRel().AddTarget(prototype.GetPath())
         own = [spot for spot in spots if spot["kind"] == kind]
