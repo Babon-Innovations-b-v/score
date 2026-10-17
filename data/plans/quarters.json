@@ -117,7 +117,12 @@
    "overhead_vent"
   ]
  },
- "people": [],
+ "people": [
+  [
+   1.5,
+   1.5
+  ]
+ ],
  "notes": [
   "From the locked ship plan v7 (data/definitions/ship.json, the owner's 'ok' of 2026-10-14): ship y 12.8 to 18.8 m from the spike's tip, port side, 2.81 to 3.48 m wide inside, 2.58 to 3.51 m clear.",
   "For the game: sleep: four bunks; save and skip time.",

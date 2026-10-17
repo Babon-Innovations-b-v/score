@@ -104,7 +104,12 @@
    "overhead_vent"
   ]
  },
- "people": [],
+ "people": [
+  [
+   0.35,
+   1.0
+  ]
+ ],
  "notes": [
   "From the locked ship plan v7 (data/definitions/ship.json, the owner's 'ok' of 2026-10-14): ship y 12.8 to 15.8 m from the spike's tip, starboard side, 2.81 to 3.27 m wide inside, 2.58 to 3.12 m clear.",
   "For the game: navigation systems: the star map and route plotting between the Moon and Mars.",
