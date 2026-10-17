@@ -39,6 +39,8 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import demo  # noqa: E402  (its joined, encode, inked and SIZE; puts tools/usd on the path)
 import sound  # noqa: E402  (tools/usd)
+sys.path.insert(0, str(REPO / "tools/props"))
+from paths import WORK  # noqa: E402
 sys.path.insert(0, str(REPO))
 from score.stages import demo_film  # noqa: E402
 from score.store import Store  # noqa: E402
@@ -78,6 +80,17 @@ PLACES = [("flat", "Prologue, Hong Kong 2099", "The flat", "Flat"),
 PLACE_SECONDS = 5.5
 # The world video's other films, each after its place's own (the paper's K9: every place film and the ship).
 EXTRAS = {"hangar": [("hull", "The ship")]}
+# The world video's parts (the owner's cut of 17 Oct, at most 4 min): each stage before a place's result (Concept,
+# Plan, Pieces) STAGE_SECONDS, fading into the next over STAGE_FADE; the pieces' grid at most GRID_MOST close-ups;
+# the result SHOT_SHOWN of the film's shot (from the title card's end to the film's end); the opening's title and each
+# of its pictures; the ending's clips, made elsewhere, appended when they exist.
+STAGE_SECONDS = 1.0
+STAGE_FADE = 0.25
+GRID_MOST = 16
+SHOT_SHOWN = demo_film.SECONDS - FADE
+OPENING_TITLE = 3.0
+OPENING_EACH = 2.5
+ENDING = WORK / "k9-ending"
 # A store film's shown frame: the middle of its one shot, after the title card and its fade.
 FILM_MIDDLE = demo.TITLE_SECONDS - FADE + demo_film.SECONDS / 2
 
@@ -439,26 +452,183 @@ def middle_frame(video, out):
     return out
 
 
-def world(folder, figure_out, films, draft=False):
-    """The world 1 video and its figure from the films given (store_films), in their order; stops on a missing one
-    unless a draft."""
+def stages_of(pictures):
+    """A place's stages before its result, in order, each (label, its pictures); a stage with no picture is left
+    out. `pictures`: {"concept": path or None, "plan": path or None, "pieces": [paths]}."""
+    found = [("Concept", [pictures.get("concept")]), ("Plan", [pictures.get("plan")]),
+             ("Pieces", list(pictures.get("pieces") or [])[:GRID_MOST])]
+    return [(label, paths) for label, paths in found if paths and all(paths)]
+
+
+def timeline(stage_counts, opening, ending):
+    """The world video's parts and lengths in order: the opening, each place's stages then its result, the ending;
+    `stage_counts` [(film, number of stages)], `opening` its length, `ending` [its clips' lengths]. Every part after
+    the first starts FADE before the one before it ends."""
+    parts = [("opening", opening)] if opening else []
+    for film, count in stage_counts:
+        if count:
+            parts.append((f"{film}:stages", count * STAGE_SECONDS))
+        parts.append((f"{film}:result", SHOT_SHOWN))
+    parts += [(f"ending:{number}", seconds) for number, seconds in enumerate(ending)]
+    return parts
+
+
+def label_layer(stage, title):
+    """The small label top left: the stage, then the place."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    small, large = font(24, "Medium"), font(32, "Medium")
+    width = max(draw.textlength(stage.upper(), font=small), draw.textlength(title, font=large))
+    draw.rounded_rectangle((32, 28, 32 + width + 40, 124), radius=10, fill=(0, 0, 0, 150))
+    draw.text((52, 40), stage.upper(), font=small, fill=(214, 206, 186, 255))
+    draw.text((52, 72), title, font=large, fill=(240, 240, 236, 255))
+    return layer
+
+
+def grid(pictures, share):
+    """The pieces as a grid on black, each tile fading and growing in at its turn over `share` (0 to 1)."""
+    columns = math.ceil(math.sqrt(len(pictures) * W / H))
+    rows = math.ceil(len(pictures) / columns)
+    cell = min((W - 160) / columns, (H - 200) / rows)
+    left, top = (W - cell * columns) / 2, 150 + (H - 170 - cell * rows) / 2
+    frame = Image.new("RGB", (W, H), (0, 0, 0))
+    for number, picture in enumerate(pictures):
+        start = 0.6 * number / max(len(pictures), 1)
+        shown = min(1.0, max(0.0, (share - start) / 0.25))
+        if shown <= 0:
+            continue
+        size = max(1, round((cell - 10) * (0.85 + 0.15 * shown)))
+        tile = picture.resize((size, size), Image.LANCZOS)
+        tile = Image.blend(Image.new("RGB", tile.size, (0, 0, 0)), tile, shown)
+        spot = (left + (number % columns) * cell + (cell - size) / 2, top + (number // columns) * cell + (cell - size) / 2)
+        frame.paste(tile, (round(spot[0]), round(spot[1])))
+    return frame
+
+
+def square(path):
+    """A close-up cropped square at its centre."""
+    picture = Image.open(path).convert("RGB")
+    side = min(picture.size)
+    return picture.crop(((picture.width - side) // 2, (picture.height - side) // 2,
+                         (picture.width + side) // 2, (picture.height + side) // 2))
+
+
+def stage_frame(label, pictures, share):
+    """One stage's look at `share` of its time: a still slowly closing in, or the pieces' grid building up."""
+    if label == "Pieces":
+        return grid(pictures, share)
+    grow = 1.0 + 0.04 * share
+    crop = (W * (1 - 1 / grow) / 2, H * (1 - 1 / grow) / 2)
+    return pictures[0].transform((W, H), Image.EXTENT, (crop[0], crop[1], W - crop[0], H - crop[1]), Image.BICUBIC)
+
+
+def stages_clip(stages, title, out):
+    """A place's stages (stages_of) in turn, STAGE_SECONDS each, each fading into the next, with their labels; with a
+    silent sound track so it joins the films."""
+    loaded = [(label, [square(path) for path in paths] if label == "Pieces" else [fitted(Image.open(paths[0]), 0.9)])
+              for label, paths in stages]
+    labels = [label_layer(label, title) for label, _ in stages]
+    each = round(STAGE_SECONDS * RATE)
+    blend_frames = round(STAGE_FADE * RATE)
+
+    def look(index, number):
+        label, pictures = loaded[index]
+        return Image.alpha_composite(stage_frame(label, pictures, number / each).convert("RGBA"), labels[index])
+
+    def frame(number, count):
+        index, inside = divmod(number, each)
+        picture = look(index, inside)
+        if index + 1 < len(loaded) and inside >= each - blend_frames:
+            picture = Image.blend(picture, look(index + 1, 0), (inside - each + blend_frames + 1) / (blend_frames + 1))
+        return np.asarray(picture.convert("RGB"))
+
+    silent = pathlib.Path(out).with_suffix(".silent.mp4")
+    write_frames(frame, len(stages) * STAGE_SECONDS, silent)
+    silence_under(silent, len(stages) * STAGE_SECONDS, out)
+    silent.unlink()
+
+
+def result_clip(film, title, out):
+    """A place's film without its title card: SHOT_SHOWN of its shot from the card's end, with its Result label."""
+    layer = pathlib.Path(out).with_suffix(".label.png")
+    label_layer("Result", title).save(layer)
+    graph = f"[0:v]scale={W}:{H}[f];[1:v]format=rgba[l];[f][l]overlay=format=auto[v]"
+    demo.ffmpeg("-ss", f"{demo.TITLE_SECONDS:.3f}", "-t", SHOT_SHOWN, "-i", film, "-loop", "1", "-t", SHOT_SHOWN,
+                "-i", layer, "-filter_complex", graph, "-map", "[v]", "-map", "0:a", "-c:a", "aac", "-b:a", "160k",
+                *demo.encode(out))
+    layer.unlink()
+
+
+def ending_clip(clip, out):
+    """An ending clip made elsewhere, brought to the video's size and rate with a sound track (silence when it has
+    none); its length."""
+    seconds = length(clip)
+    sound = [] if demo.has_sound(clip) else ["-f", "lavfi", "-t", seconds, "-i",
+                                             f"anullsrc=r={demo.SAMPLE_RATE}:cl=stereo"]
+    demo.ffmpeg("-i", clip, *sound, "-vf", f"scale={W}:{H}:force_original_aspect_ratio=decrease,"
+                 f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2", "-map", "0:v", "-map", "1:a" if sound else "0:a", "-c:a", "aac",
+                 "-ar", demo.SAMPLE_RATE, "-shortest", *demo.encode(out))
+    return seconds
+
+
+def opening_clip(pictures, out):
+    """The opening: the world's title, then the creator's own references and picks, each still with its caption,
+    with a silent sound track. `pictures`: [(path, caption)]."""
+    parts = pathlib.Path(out).parent / "opening"
+    parts.mkdir(exist_ok=True)
+    clips = [parts / "title.mp4"]
+    card(["World 1: 2099", "from the creator's picks to a walkable world"], [(64, "Medium"), (34, "Light")],
+         OPENING_TITLE, clips[0], pictures[0][0])
+    for number, (path, caption) in enumerate(pictures):
+        clips.append(parts / f"{number:02d}.mp4")
+        still_clip(Image.open(path), OPENING_EACH, clips[-1], lines=["The creator's picks", caption])
+    seconds = OPENING_TITLE + OPENING_EACH * len(pictures) - FADE * len(pictures)
+    joined = parts / "joined.mp4"
+    demo.joined(clips, [OPENING_TITLE] + [OPENING_EACH] * len(pictures), joined)
+    silence_under(joined, seconds, out)
+    return seconds
+
+
+def world(folder, figure_out, films, assets, draft=False):
+    """The world 1 video (demo K9) and its figure: the opening from the creator's picks, then per place in story
+    order its concept, plan and pieces and its accepted film's shot, then the ending's clips where they exist; the
+    films from store_films, the pictures from `assets` (a JSON file: {"opening": [{"path", "caption"}],
+    "places": {film: {"concept", "plan", "pieces"}}}). Stops on a missing film unless a draft."""
     missing = [name for name, _, path, _ in films if path is None]
     if missing and not draft:
         raise SystemExit(f"world: {len(missing)} of {len(films)} films not in the store: {', '.join(missing)}")
     made = [film for film in films if film[2] is not None]
     if not made:
         raise SystemExit("world: no film in the store")
-    folder.mkdir(parents=True, exist_ok=True)
+    chosen = json.loads(pathlib.Path(assets).read_text())
+    parts = folder / "parts"
+    parts.mkdir(parents=True, exist_ok=True)
+    clips, lengths, shown = [], [], []
+    opening = [(entry["path"], entry["caption"]) for entry in chosen.get("opening", [])]
+    if opening:
+        clips.append(parts / "opening.mp4")
+        lengths.append(opening_clip(opening, clips[-1]))
+    for name, title, path, output in made:
+        stages = stages_of(chosen.get("places", {}).get(name, {}))
+        if stages:
+            clips.append(parts / f"{name}-stages.mp4")
+            stages_clip(stages, title, clips[-1])
+            lengths.append(len(stages) * STAGE_SECONDS)
+        clips.append(parts / f"{name}-result.mp4")
+        result_clip(path, title, clips[-1])
+        lengths.append(SHOT_SHOWN)
+        shown.append({"film": name, "title": title, "output": output, "stages": [label for label, _ in stages]})
+    for ending in sorted(ENDING.glob("*.mp4")):
+        clips.append(parts / f"ending-{ending.name}")
+        lengths.append(ending_clip(ending, clips[-1]))
     video = folder / "world1.mp4"
-    lengths = [length(path) for _, _, path, _ in made]
-    demo.joined([path for _, _, path, _ in made], lengths, video)
+    demo.joined(clips, lengths, video)
     (folder / "frames").mkdir(exist_ok=True)
     sheet([(name, title, middle_frame(path, folder / "frames" / f"{name}.png")) for name, title, path, _ in made],
           figure_out)
-    (folder / "world1.json").write_text(json.dumps(
-        {"films": [{"film": name, "title": title, "output": output} for name, title, _, output in made],
-         "missing": missing}, indent=1))
-    print(f"{video}: {len(made)} of {len(films)} films, {sum(lengths) - FADE * (len(made) - 1):.1f} s"
+    (folder / "world1.json").write_text(json.dumps({"films": shown, "missing": missing, "ending": [
+        str(clip) for clip in sorted(ENDING.glob("*.mp4"))]}, indent=1))
+    print(f"{video}: {len(made)} of {len(films)} films, {length(video):.1f} s"
           + (f"; missing {', '.join(missing)}" if missing else ""))
 
 
@@ -468,13 +638,17 @@ def main():
     parser.add_argument("folder", type=pathlib.Path, help="the films' out folder (demo.py's); world: where it goes")
     parser.add_argument("figure", type=pathlib.Path, nargs="?", help="figure, world: the picture to write")
     parser.add_argument("--draft", action="store_true", help="world: cut the films the store holds, name the rest")
+    parser.add_argument("--assets", type=pathlib.Path, help="world: the pictures shown before each film (JSON)")
     parser.add_argument("--page", type=pathlib.Path, help="cut: the wreck's review page")
     parser.add_argument("--stage", type=pathlib.Path, help="cut: the wreck's stage")
     parser.add_argument("--concept", type=pathlib.Path, help="cut: the concept the owner picked")
     options = parser.parse_args()
     if options.step == "world":
         folder = options.folder.resolve()
-        world(folder, options.figure or folder / "fig-k9.jpg", store_films(Store.default()), options.draft)
+        if not options.assets:
+            parser.error("world needs --assets")
+        world(folder, options.figure or folder / "fig-k9.jpg", store_films(Store.default()), options.assets,
+              options.draft)
     elif options.step == "figure":
         if not options.figure:
             parser.error("figure needs the picture to write")
