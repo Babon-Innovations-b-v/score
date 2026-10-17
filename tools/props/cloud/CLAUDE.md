@@ -173,10 +173,13 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `google_spend_test.py` fails on any tracked file that does.
 - **Paid calls only through the ledgered clients** (2026-10-17): `tools/costs/paid_calls_test.py` reads every tracked
   file's syntax tree and fails on a Gemini host, key header or client, or an scw order of a machine, disk, address or
-  cluster pool (words read through variables, joined and starred lists, `.append` and `.extend`; strings joined with
-  `+` and f-strings; an unread word, as a parameter, between a product and `create` counts), outside the functions
-  and constants its `ALLOWED` names in each allowed file. It does not follow words across modules, through other
-  functions' return values, or built with `%` or `.format`. Known gap: the bad address `quarantine_bad_address`
+  cluster pool (words read through variables as their own function set them, joined and starred lists, `.append`,
+  `.extend` and `.insert`, each setting checked; strings joined with `+` and f-strings; an unread word, as a
+  parameter, between a product and `create` counts; a client loaded by `importlib.import_module` or `__import__`
+  too), and every other runnable file (scripts, Makefiles, Dockerfiles, manifests) line by line with backslash
+  lines joined, outside the functions and constants its `ALLOWED` names in each allowed file. It does not follow
+  words across modules, through other functions' return values, through attributes, indexed or sliced lists, or
+  built with `%` or `.format`; docs and data are not read. Known gap: the bad address `quarantine_bad_address`
   detaches stays in the project for good, billed by the hour with no ledger line; reconcile-day shows it in disks
   and addresses.
   Every order `batch.rent` makes writes a `rent-started` line first (its run, name, offer, deadline and ticket, no
