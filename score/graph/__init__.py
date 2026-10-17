@@ -217,17 +217,17 @@ def source_hash(path):
 
 def watch_runner(runner_pid, every=None):
     """In a node's process: once its runner (`runner_pid`, its parent) is gone, SIGTERM to the runner's whole process
-    group when the runner led one (`score run`: each batch in it deletes its machines), else to this process alone.
-    The group gets one SIGTERM, never a second (a batch stops deleting at its second signal): none when this node
-    already shows a stop (the group was signalled), and only from the one process that makes the runner's stop mark
-    (stopped.claim_stop; the runner makes it when it sent the group its stop). Checked every RUNNER_POLL_SECONDS;
-    never returns while the runner lives."""
+    group when the runner led one (`score run`: each batch in it deletes its machines). A runner that led no group (any
+    runner but `score run`) installed no stop handler for its nodes, so its node lives on as before and its batch ends
+    its own way: a node ended here broke the pipe its batch writes to, and the batch's delete loop with it (review of
+    C7, 2026-10-17). The group gets one SIGTERM, never a second (a batch stops deleting at its second signal): none
+    when this node already shows a stop (the group was signalled), and only from the one process that makes the
+    runner's stop mark (stopped.claim_stop; the runner makes it when it passed its stop on). Checked every
+    RUNNER_POLL_SECONDS; never returns while the runner lives."""
     mark = stopped.stop_mark(runner_pid)
     while os.getppid() == runner_pid:
         time.sleep(every or RUNNER_POLL_SECONDS)
-    if os.getpgrp() != runner_pid:
-        os.kill(os.getpid(), signal.SIGTERM)
-    elif not stopped.shows_stop(os.getpid()) and stopped.claim_stop(mark):
+    if os.getpgrp() == runner_pid and not stopped.shows_stop(os.getpid()) and stopped.claim_stop(mark):
         os.killpg(runner_pid, signal.SIGTERM)
 
 

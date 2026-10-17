@@ -105,15 +105,20 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   with a clean-up in `park.CLEANUPS` and a set-up script that skips a machine it already set up (a mark named for the
   script's text, written last).
 - **A run's machines end with the run** (2026-10-17, after orphaned machines and boxes billed by the started hour):
-  `score run` names itself SCORE_RUN_ID and leads a process group of its own; stopped by a signal it sends the group
-  SIGTERM once (each batch deletes its machines through `delete_machine`; none when the signal already reached the
-  group, since `batch.stop_on_signals` leaves its delete loop at a second signal), SIGKILL after 30 s to all but the
-  cloud tools and the nodes they write to, and however it ends it releases the run's spend reservations
-  (`compute.release_run`). A stopped node waits for its children before it exits, so a batch's output pipe stays
-  open while it deletes. A node process whose runner died sends the group SIGTERM itself, one node for the whole group
-  (`graph.watch_runner`). Under a run, `run_cap` counts the whole run's machines, parked ones included
-  (`capacity.reserve_run_slot`, a count per process in `cloud/runs/<run>/` under a lock), and `park.adopt` counts a
-  taken machine the same way. Not yet done, because `batch.py` and `blender_cloud.py` are declared inputs of the pixal
+  `score run` names itself SCORE_RUN_ID and leads a process group of its own (taking the terminal along and giving it
+  back at its end); stopped by a signal it passes the stop on once (`stopped.PASS_ON` to its nodes, each sending
+  SIGTERM to its children; each batch deletes its machines through `delete_machine`; none when the signal already
+  reached the group, since `batch.stop_on_signals` leaves its delete loop at a second signal), SIGKILL after 30 s to
+  all but the cloud tools and the nodes they write to, and however it ends it releases the run's spend reservations
+  (`compute.release_run`), once those cloud tools have ended. A stopped node waits for its children before it exits,
+  so a batch's output pipe stays open while it deletes. A node process whose runner died sends the group SIGTERM
+  itself, one node for the whole group (`graph.watch_runner`); a runner that leads no group (every runner but `score
+  run`) leaves its nodes alone, as before. Under a run, `run_cap` counts the whole run's machines from what bills:
+  each live machine's watchdog (the run's id in its environment), each parked machine's record, and for
+  `capacity.RESERVE_SECONDS` a process's written count of machines it is renting (`capacity.reserve_run_slot`, a count
+  per process in `cloud/runs/<run>/` under a lock), so a slot whose offer gave no machine frees itself; `park.adopt`
+  counts a taken machine the same way. Left open: a run's orphan process (its node gone) that had the group's stop is
+  sent a second one when no node shows the stop within 1 s. Not yet done, because `batch.py` and `blender_cloud.py` are declared inputs of the pixal
   and turntable rows and an edit there re-keys them: run-id tags on fresh machines and a getppid check inside those
   two tools. So a node that dies while its runner lives (killed alone, out of memory) leaves its batch running with
   nothing to stop it; `batch_test`'s acceptance case covers only the runner dying. `park.reap` (a gone run's pid or a heartbeat over 15 min, each item's own project checked) is checked
