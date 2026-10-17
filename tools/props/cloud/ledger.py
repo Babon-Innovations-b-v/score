@@ -23,6 +23,13 @@ MONTH_EUROS = float(os.environ.get("SCORE_MONTH_EUROS", "3000"))
 # The kind of the line written before each machine is ordered (rent_started, from the backend's create under
 # batch.rent); its run's own row comes at the end.
 RENT_STARTED = "rent-started"
+# The kind of the line written when an order is refused (rent_refused, from the backend's create): it closes its
+# started line, so a refused order is told apart from a machine left running.
+RENT_REFUSED = "rent-refused"
+# The kinds of line that are not a run's own row.
+ORDER_LINES = ("rent-started", "rent-refused", "order-started")
+# The kind of the line written before a cluster or a node pool is ordered (order_started, from the cluster set-up).
+ORDER_STARTED = "order-started"
 
 
 def origin():
@@ -39,12 +46,51 @@ def record(entry):
         ledger.write(json.dumps({**origin(), **entry}) + "\n")
 
 
-def rent_started(run, name, offer):
+def rent_started(run, name, offer, deadline):
     """Write that machine `name` of `run` is about to be ordered from `offer` ({type, zone, class, price}), before the
     order is sent: a machine whose run dies before its end-of-run row still shows, with the run's ticket (origin).
-    Nothing is billed yet, so it holds no euros."""
+    Nothing is billed yet, so it holds no euros; until it is closed it counts in month_total at its price up to
+    `deadline` (epoch seconds; its watchdog deletes it then), or None when unknown."""
     record({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "batch": f"rent-{name}",
-            "kind": RENT_STARTED, "state": "started", "run": run, "name": name, **offer,
+            "kind": RENT_STARTED, "state": "started", "run": run, "name": name, **offer, "deadline": deadline,
+            "machines": [], "attempts": [], "machine_minutes": 0.0, "euros": 0.0})
+
+
+def rent_refused(name, reason):
+    """Write that the order of machine `name` was refused (`reason`, the provider's words), closing its started line."""
+    record({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "batch": f"rent-{name}",
+            "kind": RENT_REFUSED, "state": "refused", "name": name, "reason": reason,
+            "machines": [], "attempts": [], "machine_minutes": 0.0, "euros": 0.0})
+
+
+def open_rents(batches, now):
+    """The started lines of machines still open at `now`: no row of their run, no disk-and-address row of their
+    machine (written at its delete) and no refused line of their order."""
+    runs = {batch.get("batch") for batch in batches if batch.get("kind") not in ORDER_LINES}
+    closed = {batch.get("name") for batch in batches if batch.get("kind") in ("disk-and-address", RENT_REFUSED)}
+    return [batch for batch in batches if batch.get("kind") == RENT_STARTED and batch.get("run") not in runs
+            and batch.get("name") not in closed and moment(batch["started"]) <= now]
+
+
+def open_euros(line, now):
+    """What an open started line's machine has cost by `now`: its price from the order until now or its deadline
+    (else BATCH_HOURS after the order, the longest a batch runs), billed by the minute."""
+    began = moment(line["started"])
+    ends = line.get("deadline") or began + BATCH_HOURS * 3600
+    return cost(max(0.0, min(now, ends) - began) / 60, line.get("price") or 0.0)
+
+
+def moment(text):
+    """A ledger time (ISO 8601, Z) as epoch seconds."""
+    return datetime.datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp()
+
+
+def order_started(what, name, details):
+    """Write that `what` (a cluster, a node pool) named `name` is about to be ordered, with `details` ({type, zone}),
+    before the order is sent. Its nodes are billed as machines and come to the ledger as their runs' rows; the line
+    shows the order itself, so nothing is made outside the ledger. It holds no euros."""
+    record({"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "batch": f"order-{what}-{name}",
+            "kind": ORDER_STARTED, "state": "started", "what": what, "name": name, **details,
             "machines": [], "attempts": [], "machine_minutes": 0.0, "euros": 0.0})
 
 
@@ -55,9 +101,12 @@ def entries():
     return [json.loads(line) for line in LEDGER.read_text().splitlines() if line.strip()]
 
 
-def month_total(month, batches):
-    """What the batches started in `month` (YYYY-MM) cost, in euros."""
-    return sum(batch["euros"] for batch in batches if batch["started"].startswith(month))
+def month_total(month, batches, now=None):
+    """What the batches started in `month` (YYYY-MM) cost, in euros, a machine still open (open_rents) at what it has
+    cost by `now` (default: the time now): the guard counts machines running and not yet in a run's row."""
+    now = time.time() if now is None else now
+    return (sum(batch["euros"] for batch in batches if batch["started"].startswith(month))
+            + sum(open_euros(line, now) for line in open_rents(batches, now) if line["started"].startswith(month)))
 
 
 def this_month():

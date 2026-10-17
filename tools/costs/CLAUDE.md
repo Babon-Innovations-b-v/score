@@ -17,6 +17,9 @@ in the test.
   framework (engine runs, images and proofs, method experiments, benchmarks and comparisons named in `who`) is R&D,
   the rest production. The route's own batches carry no mark when they were reruns while the method changed, so
   production is an upper bound.
-- **`reconcile-day` is the alarm, `reconcile` the paper's.** `reconcile-day <day> <day-bill.json>` exits 1 when a
-  provider's day in the ledgers is more than 5% off its bill, and names it; a gap there means spend outside the
-  ledgers, fixed in the client that made it (`paid_calls_test.py` lists the allowed ones), never by editing a row.
+- **`reconcile-day` is the alarm, `reconcile` the paper's.** `reconcile-day <day>` builds Scaleway's day from the
+  reads `today` saves and exits 1 when a line the ledgers hold (machines; disks and addresses) is more than 5% of the
+  ledgered bill off, naming the provider; storage and the rest are reported apart, never in the gap. A provider with
+  no bill fails unless `--skip` names it (Google needs its day in a bill file: no bill reader yet). Nothing runs it on
+  a schedule yet. A gap means spend outside the ledgers, fixed in the client that made it (`paid_calls_test.py`
+  lists the allowed ones), never by editing a row.

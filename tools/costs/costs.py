@@ -6,7 +6,7 @@
     python3 tools/costs/costs.py types <ledger.jsonl> <rows> <before>         # cost by machine type, an earlier window
     python3 tools/costs/costs.py today          # the provider's own bill: today (UTC) and month to date, by product
     python3 tools/costs/costs.py today --since 2026-10-12T18:25Z   # and spend since then split by track
-    python3 tools/costs/costs.py reconcile-day <YYYY-MM-DD> <day-bill.json> [--ledger L] [--google-ledger G]
+    python3 tools/costs/costs.py reconcile-day <YYYY-MM-DD> [<day-bill.json>] [--skip google] [--ledger L] [--google-ledger G]
 
 `today` reads the provider's consumption (Scaleway's month-to-date bill of the project, lagging by hours), keeps it as
 a snapshot (`~/.farm-factory-props/cloud/bills/<read>.json`) and takes today as the month so far less the last
@@ -25,11 +25,16 @@ against the ledger's. Each command prints one line; the tables go to the file.
 
 `reconcile-day` is the alarm for spend outside the ledgers (2026-10-17: a Google day billed about EUR 520 the ledger
 never held, and 21% of Scaleway's bill was in no ledger row). It sets one day's bill, per provider, against what the
-ledgers hold for that day, and exits 1 when a provider's two differ by more than DAY_TOLERANCE of its bill, naming
-it. The day's bill is a file {"scaleway": [{"sku", "euros"}], "google": [{"sku", "euros"}]} (a provider left out is
-not checked); Scaleway's lines are split into machines, disks, addresses, storage and other, so the gap shows where
-it is. The cloud ledger's day is its rows started that UTC day (disk-and-address rows apart), Google's its lines of
-that Amsterdam day, a call started and never finished at its estimate.
+ledgers hold for it, line by line, and exits 1 when a line the ledgers hold is further from its bill than
+DAY_TOLERANCE of the provider's ledgered bill, naming the provider. Scaleway's day is built from the snapshots `today`
+saves (the last read of the day less the last read before it, so `today` must have run on both days), its ledger rows
+taken over the same window, each run's euros spread over its hours and a machine still running (an open
+`rent-started` line) at its price; a day bill file {"scaleway": [{"sku", "euros"}], "google": [{"sku", "euros"}]}
+overrides that with the calendar day (UTC). Google's day comes only from that file (no Google bill reader yet), set
+against its ledger's lines of that Amsterdam day. A provider with no bill fails unless `--skip` leaves it out.
+Machines are compared with the run rows and the disks and addresses with the rows the backend writes at delete;
+storage and the rest (registry, secrets, clusters) have no ledger rows and are reported apart, never in the gap. The
+bill lags by hours, so check a day once the next day's reads are in.
 """
 import argparse
 import collections
@@ -40,6 +45,7 @@ import pathlib
 import re
 import statistics
 import sys
+import time
 
 HOME = str(pathlib.Path.home())
 # Local roots in the ledger's folders and jobs, and what the public copy writes instead.
@@ -86,9 +92,11 @@ CLOUD_TOOLS = pathlib.Path(__file__).resolve().parents[1] / "props"
 # How far a provider's day in the ledgers may sit from its bill, as a share of the bill, before reconcile-day fails.
 DAY_TOLERANCE = 0.05
 # reconcile-day's lines of a Scaleway bill, by the start of their sku; the rest are "other" (clusters, secrets).
-BILL_LINES = (("/instance/server/", "machines"), ("/storage/block", "disks"), ("/instance/volume", "disks"),
-              ("/network/ipam", "addresses"), ("/storage/obj", "storage"), ("/offer/deducted/storage", "storage"),
-              ("/tools/registry", "storage"))
+BILL_LINES = (("/instance/server/", "machines"), ("/storage/block", "disks and addresses"),
+              ("/instance/volume", "disks and addresses"), ("/network/ipam", "disks and addresses"),
+              ("/storage/obj", "storage"), ("/offer/deducted/storage", "storage"), ("/tools/registry", "storage"))
+# The lines of each provider's bill that the ledgers hold; the others are reported apart and never in the gap.
+LEDGERED = {"scaleway": ("machines", "disks and addresses"), "google": ("calls",)}
 # Which products of the bill `today` names apart, by the start of their sku; the rest are "other".
 PRODUCTS = (("/instance/server/l40s", "L40S"), ("/instance/server/l4", "L4"), ("/instance/server/h100", "H100"),
             ("/instance/server/pop2", "POP2"), ("/instance/server/", "machines"), ("/storage/block", "disks"),
@@ -570,6 +578,10 @@ def today(since=None):
         print(since_text(lines, folder, moment_since, tracks))
 
 
+class NoBill(Exception):
+    """A provider's day bill cannot be had; its message says why."""
+
+
 def bill_line_of(sku):
     """The reconcile-day line a Scaleway bill line's sku falls in."""
     return next((name for start, name in BILL_LINES if sku.startswith(start)), "other")
@@ -583,13 +595,86 @@ def scaleway_bill_lines(lines):
     return euros
 
 
-def cloud_day_lines(rows, day):
-    """The cloud ledger's euros for rows started on `day` (YYYY-MM-DD, UTC): its disk-and-address rows apart from the
-    machines."""
+def google_bill_lines(lines):
+    """A Google day bill's euros, as one line of calls."""
+    return collections.Counter({"calls": sum(line["euros"] for line in lines)})
+
+
+def saved_reads(folder, month):
+    """The snapshots `today` saved in `folder` for `month` (YYYY-MM): (their read time, their lines), oldest first."""
+    reads = [json.loads(path.read_text()) for path in sorted(pathlib.Path(folder).glob(f"{month}-*.json"))]
+    return sorted((moment(read["read"]), read["lines"]) for read in reads)
+
+
+def lines_grown(start_lines, end_lines):
+    """The bill lines of what grew from one read to a later one, per sku."""
+    euros = collections.Counter()
+    for line in end_lines:
+        euros[line.get("sku") or ""] += line["euros"]
+    for line in start_lines:
+        euros[line.get("sku") or ""] -= line["euros"]
+    return [{"sku": sku, "euros": value} for sku, value in euros.items()]
+
+
+def snapshot_day_bill(folder, day):
+    """Scaleway's bill of `day` (YYYY-MM-DD, UTC) from the saved reads: (its lines, the window's start and end, epoch
+    seconds): the last read of the day less the last read before it (none on the month's first day). NoBill without
+    those reads."""
+    day_start = moment(day)
+    reads = saved_reads(folder, day[:7])
+    before = [read for read in reads if read[0] < day_start]
+    during = [read for read in reads if day_start <= read[0] < day_start + 86400]
+    if not during:
+        raise NoBill(f"no read of the bill saved on {day} (`costs.py today` saves one)")
+    if before:
+        start, start_lines = before[-1]
+    elif day.endswith("-01"):
+        start, start_lines = day_start, []
+    else:
+        raise NoBill(f"no read of the bill saved before {day} began, so its day cannot be told from the month")
+    end, end_lines = during[-1]
+    return lines_grown(start_lines, end_lines), start, end
+
+
+def overlap_share(began, ended, start, end):
+    """The share of the span [began, ended] inside [start, end); a span of no length is wholly in or out."""
+    if ended <= began:
+        return 1.0 if start <= began < end else 0.0
+    return max(0.0, min(ended, end) - max(began, start)) / (ended - began)
+
+
+def row_span(row):
+    """A run row's hours as (began, ended), epoch seconds: from its start for its wall minutes (else its longest
+    machine's)."""
+    began = moment(row["started"])
+    minutes = row.get("wall_minutes") or max((machine.get("minutes", 0) for machine in row.get("machines") or []),
+                                             default=0)
+    return began, began + minutes * 60
+
+
+def cloud_ledger():
+    """The cloud ledger module (tools/props/cloud/ledger.py), its folders put on the path."""
+    for folder in (CLOUD_TOOLS, CLOUD_TOOLS / "cloud"):
+        if str(folder) not in sys.path:
+            sys.path.append(str(folder))
+    import ledger
+
+    return ledger
+
+
+def cloud_window_lines(rows, start, end, now):
+    """The cloud ledger's euros inside [start, end): each run row's euros by the share of its hours inside, a
+    disk-and-address row (written at delete) at its time, and a machine still open (ledger.open_rents) at its price
+    over its hours inside, up to `now`."""
+    ledger = cloud_ledger()
     euros = collections.Counter()
     for row in rows:
-        if row.get("started", "").startswith(day):
-            euros["disks and addresses" if row.get("kind") == "disk-and-address" else "machines"] += row.get("euros", 0)
+        if row.get("kind") in ledger.ORDER_LINES or not row.get("started"):
+            continue
+        line = "disks and addresses" if row.get("kind") == "disk-and-address" else "machines"
+        euros[line] += row.get("euros", 0) * overlap_share(*row_span(row), start, end)
+    for line in ledger.open_rents(rows, min(now, end)):
+        euros["machines"] += ledger.open_euros(line, min(now, end)) - ledger.open_euros(line, start)
     return euros
 
 
@@ -599,32 +684,39 @@ def google_day_lines(lines, day, price_of):
     return collections.Counter({"calls": sum(tracks.values())})
 
 
-def gap(bill_euros, ledger_euros):
-    """How far the ledgers sit from the bill, as a share of the bill (any ledger euros against a bill of none: 1)."""
-    if bill_euros == 0:
-        return 0.0 if ledger_euros == 0 else 1.0
-    return abs(bill_euros - ledger_euros) / bill_euros
+def provider_report(provider_name, bill, ledger_lines):
+    """One provider's day: its bill and ledger lines, the gap of each line the ledgers hold (as a share of the
+    provider's ledgered bill) and the bill's lines no ledger holds."""
+    ledgered = LEDGERED[provider_name]
+    ledgered_bill = sum(bill[name] for name in ledgered)
+    gaps = {name: gap_share(bill[name], ledger_lines[name], ledgered_bill) for name in ledgered}
+    unledgered = collections.Counter({name: euros for name, euros in bill.items() if name not in ledgered})
+    return {"provider": provider_name, "bill": bill, "ledger": ledger_lines, "gaps": gaps, "unledgered": unledgered}
 
 
-def reconcile_day(day_bill, cloud_rows, google_lines, day, price_of):
-    """Per provider in the day's bill: its bill and ledger lines and the gap between their totals."""
-    held = {"scaleway": cloud_day_lines(cloud_rows, day), "google": google_day_lines(google_lines, day, price_of)}
-    billed = {"scaleway": scaleway_bill_lines,
-              "google": lambda lines: collections.Counter({"calls": sum(line["euros"] for line in lines)})}
-    reports = []
-    for provider_name, lines in day_bill.items():
-        bill, ledger_lines = billed[provider_name](lines), held[provider_name]
-        reports.append({"provider": provider_name, "bill": bill, "ledger": ledger_lines,
-                        "gap": gap(sum(bill.values()), sum(ledger_lines.values()))})
-    return reports
+def gap_share(bill_euros, ledger_euros, scale):
+    """How far a line's ledgers sit from its bill, as a share of `scale` (any gap against a scale of none: 1)."""
+    if scale == 0:
+        return 0.0 if round(abs(bill_euros - ledger_euros), 2) == 0 else 1.0
+    return abs(bill_euros - ledger_euros) / scale
 
 
 def day_report_line(report):
     """One provider's reconcile-day result as one line, its provider named first."""
-    bill, ledger_lines = sum(report["bill"].values()), sum(report["ledger"].values())
-    verdict = f"over the {DAY_TOLERANCE:.0%} allowed" if report["gap"] > DAY_TOLERANCE else "within"
-    return (f"{report['provider']}: bill EUR {bill:.2f} ({products_text(report['bill']) or 'nothing'}), ledgers EUR "
-            f"{ledger_lines:.2f} ({products_text(report['ledger']) or 'nothing'}), {report['gap']:.1%} apart, {verdict}")
+    if "missing" in report:
+        return f"{report['provider']}: no bill ({report['missing']}); --skip {report['provider']} leaves it out"
+    over = any(share > DAY_TOLERANCE for share in report["gaps"].values())
+    compared = "; ".join(f"{name}: bill {report['bill'][name]:.2f}, ledgers {report['ledger'][name]:.2f}, "
+                         f"{share:.1%} apart" for name, share in report["gaps"].items())
+    verdict = f"over the {DAY_TOLERANCE:.0%} allowed" if over else "within"
+    apart = products_text(report["unledgered"])
+    return (f"{report['provider']}: {compared}; {verdict}"
+            + (f"; not in any ledger: {apart}" if apart else ""))
+
+
+def failed(report):
+    """True when a provider's day has no bill or a ledgered line is over DAY_TOLERANCE."""
+    return "missing" in report or any(share > DAY_TOLERANCE for share in report["gaps"].values())
 
 
 def ledger_lines_of(path):
@@ -633,20 +725,46 @@ def ledger_lines_of(path):
     return read_rows(path) if path.exists() else []
 
 
-def day_check(day, bill_path, ledger_path, google_ledger_path):
-    """Print reconcile-day's line per provider; the exit code: 1 when any provider is over DAY_TOLERANCE."""
-    for folder in (CLOUD_TOOLS, CLOUD_TOOLS / "cloud"):
-        if str(folder) not in sys.path:
-            sys.path.append(str(folder))
-    import google_spend
-    import ledger
+def scaleway_day(day_bill, day, bills, cloud_rows, now):
+    """Scaleway's report of `day`: from the day bill file when it has Scaleway (the calendar day, UTC), else from
+    the saved reads in `bills`; NoBill when neither has it."""
+    if "scaleway" in day_bill:
+        lines, start, end = day_bill["scaleway"], moment(day), moment(day) + 86400
+    else:
+        lines, start, end = snapshot_day_bill(bills, day)
+    return provider_report("scaleway", scaleway_bill_lines(lines), cloud_window_lines(cloud_rows, start, end, now))
 
-    reports = reconcile_day(json.loads(pathlib.Path(bill_path).read_text()),
-                            ledger_lines_of(ledger_path or ledger.LEDGER),
-                            ledger_lines_of(google_ledger_path or google_spend.LEDGER), day, google_spend.estimate)
+
+def google_day(day_bill, day, google_lines, price_of):
+    """Google's report of `day`: from the day bill file only; NoBill without it."""
+    if "google" not in day_bill:
+        raise NoBill("no Google bill reader yet; give its day in the bill file")
+    return provider_report("google", google_bill_lines(day_bill["google"]), google_day_lines(google_lines, day, price_of))
+
+
+def day_check(day, bill_path, skip, paths):
+    """Print reconcile-day's line per provider not in `skip`; the exit code: 1 when a provider has no bill or is over
+    DAY_TOLERANCE. `paths`: the cloud ledger, the Google ledger and the bills folder, each None for its default."""
+    ledger = cloud_ledger()
+    import google_spend  # on the path cloud_ledger set
+
+    ledger_path, google_path, bills = paths
+    day_bill = json.loads(pathlib.Path(bill_path).read_text()) if bill_path else {}
+    reports = []
+    for provider_name, report_of in (
+            ("scaleway", lambda: scaleway_day(day_bill, day, bills or bills_folder(),
+                                              ledger_lines_of(ledger_path or ledger.LEDGER), time.time())),
+            ("google", lambda: google_day(day_bill, day, ledger_lines_of(google_path or google_spend.LEDGER),
+                                          google_spend.estimate))):
+        if provider_name in skip:
+            continue
+        try:
+            reports.append(report_of())
+        except NoBill as missing:
+            reports.append({"provider": provider_name, "missing": str(missing)})
     for report in reports:
         print(day_report_line(report))
-    return 1 if any(report["gap"] > DAY_TOLERANCE for report in reports) else 0
+    return 1 if any(failed(report) for report in reports) else 0
 
 
 def main():
@@ -675,12 +793,15 @@ def main():
     today_command.add_argument("--since", help="also split the spend since this time (ISO 8601, UTC) by track")
     day_command = commands.add_parser("reconcile-day")
     day_command.add_argument("day")
-    day_command.add_argument("bill")
+    day_command.add_argument("bill", nargs="?", help="the day's bill per provider; Scaleway's defaults to the reads")
+    day_command.add_argument("--skip", action="append", default=[], choices=sorted(LEDGERED),
+                             help="leave a provider out on purpose (else one with no bill fails)")
     day_command.add_argument("--ledger", help="the cloud ledger, by default the runner's")
     day_command.add_argument("--google-ledger", help="the Google ledger, by default google_spend's")
+    day_command.add_argument("--bills", help="the saved reads of the bill, by default today's folder")
     args = parser.parse_args()
     if args.command == "reconcile-day":
-        sys.exit(day_check(args.day, args.bill, args.ledger, args.google_ledger))
+        sys.exit(day_check(args.day, args.bill, set(args.skip), (args.ledger, args.google_ledger, args.bills)))
     if args.command == "today":
         today(args.since)
         return

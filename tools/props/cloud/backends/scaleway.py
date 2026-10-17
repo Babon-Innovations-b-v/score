@@ -229,14 +229,16 @@ def allow_key(project, name, public_key):
 def create(project, offer, name, tags, disk_gb):
     """Rent and start one machine of `offer`: (its id, None), or (None, Scaleway's reason) when refused,
     as when the zone is out of stock or the quota is used up. The ledger's started line (ledger.rent_started, its run
-    read from batch.rent's `<run>-<number>` name) is written before the order is sent. It is written here, not in
+    read from batch.rent's `<run>-<number>` name, its deadline from the `deadline=` tag) is written before the order is
+    sent, and a refused order writes its refused line (ledger.rent_refused). It is written here, not in
     batch.rent: the pixal rows declare batch.py (Stage.files), and an edit there re-keys them in every place."""
     machine_type, zone = offer.type, offer.zone
     image = IMAGES["gpu" if cards(offer.machine_class) else "cpu"]
     import ledger
 
+    deadline = next((float(tag.split("=", 1)[1]) for tag in tags if tag.startswith("deadline=")), None)
     ledger.rent_started(name.rsplit("-", 1)[0], name, {"type": machine_type, "zone": zone,
-                                                       "class": offer.machine_class, "price": offer.price})
+                                                       "class": offer.machine_class, "price": offer.price}, deadline)
     done = subprocess.run(
         ["scw", "instance", "server", "create", f"project-id={project}", f"zone={zone}",
          f"type={machine_type}", f"image={image}", f"name={name}", "ip=ipv4",
@@ -244,13 +246,14 @@ def create(project, offer, name, tags, disk_gb):
          *[f"tags.{index}={tag}" for index, tag in enumerate([TAG, *tags])], "-o", "json"],
         capture_output=True, text=True)
     if done.returncode != 0:
+        ledger.rent_refused(name, done.stderr.strip()[:300])
         return None, done.stderr.strip()[:300]
     server = json.loads(done.stdout)
     server_id = server["id"]
     try:
         quarantine_bad_address(project, server, zone)
     except Exception as error:  # noqa: BLE001 - a machine left on a bad address is deleted, the next offer tried
-        delete(server_id, zone)
+        delete(server_id, zone)  # its disk-and-address row closes the started line
         return None, f"its address could not be swapped off a quarantined one ({error}); deleted"[:300]
     return server_id, None
 
