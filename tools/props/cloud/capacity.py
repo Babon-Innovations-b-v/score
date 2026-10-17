@@ -26,7 +26,11 @@ setup takes (one machine for a small batch), and `next_offer` holds a run to its
 `run_cap` in all; SCORE_MAX_MACHINES overrides the backend's quotas). Under a `score run` (SCORE_RUN_ID) `run_cap`
 holds for the whole run, not each process (2026-10-17: every --jobs node and parallel batch held its own cap): each
 process that rents writes how many machines it holds into the run's folder in RUNS, and an offer is given only while
-those counts, of processes still alive, and the machines parked by the run (park.py) leave room, all under one lock.
+the run's machines elsewhere leave room, all under one lock. Those are counted from what bills: every live machine
+has its watchdog process (batch.start_watchdog, the run's id in its environment) until it is deleted or parked, and a
+parked machine its record (park.py). A process's written count stands in for its machines only for RESERVE_SECONDS
+after it wrote it, the time a rent takes to start a watchdog: a slot given for an offer that then gave no machine
+(out of stock, refused, never answered) is free again after that, never held for the rest of the batch.
 
 A big card runs several jobs of a kind at once where its memory allows (`runs_at_once`): Pixal3D runs three at once
 on 24 GB (measured 2026-09-29), so a card runs three for every 24 GB it has.
@@ -117,6 +121,10 @@ RUN_MACHINES = 20
 # Each `score run`'s machine counts, a folder per run (SCORE_RUN_ID) holding a file per process that rents.
 RUNS = ledger.LEDGER.parent / "runs"
 RUN_ID = "SCORE_RUN_ID"
+# How long a process's written count of the run's machines stands for machines it is renting: batch.rent's order and
+# its START_CHECK_SECONDS stock check before the machine's watchdog starts, with a wide margin. A rent slower than this
+# lets the run pass its cap by one machine meanwhile.
+RESERVE_SECONDS = 120
 # Whether this process's last ask for a machine was held back by its run's cap (say_at_cap): one item when it was.
 AT_CAP = []
 # A ledger entry written before entries named their kind was a Pixal3D batch.
@@ -241,24 +249,57 @@ def run_locked(run):
 
 
 def held_elsewhere(folder, run):
-    """Machines the run holds outside this process: the counts of its other processes still alive, and its parked
-    machines (park.py's records name the run that parked them)."""
-    import batch
+    """Machines the run holds outside this process: those of its other processes (renting_elsewhere, with every
+    watchdog of the run not this process's) and its parked machines (park.py's records name the run that parked
+    them)."""
     import park
-    held = 0
-    for path in folder.glob("*.json"):
-        count = json.loads(path.read_text())
-        if count["pid"] != os.getpid() and batch.process_alive(count["pid"]):
-            held += count["machines"]
+    watchdogs = run_watchdogs(run)
+    held = renting_elsewhere(folder, watchdogs) + sum(parent != os.getpid() for parent in watchdogs.values())
     with park.locked():
         held += sum(json.loads(path.read_text()).get("run") == run for path in park.PARKED.glob("*.json"))
     return held
 
 
+def renting_elsewhere(folder, watchdogs):
+    """The machines the run's other live processes are renting and have no watchdog yet: what each wrote within
+    RESERVE_SECONDS past the watchdogs it has (`watchdogs`, {pid: its parent}); none after that."""
+    import batch
+    renting = 0
+    for path in folder.glob("*.json"):
+        count = json.loads(path.read_text())
+        if count["pid"] == os.getpid() or not batch.process_alive(count["pid"]):
+            continue
+        if time.time() - count["at"] < RESERVE_SECONDS:
+            renting += max(0, count["machines"] - sum(parent == count["pid"] for parent in watchdogs.values()))
+    return renting
+
+
+def run_watchdogs(run):
+    """The run's machine watchdogs on this PC (batch.start_watchdog's processes with the run's id in their
+    environment), each with its parent's pid: one for every machine of the run not deleted or parked."""
+    found = {}
+    for entry in pathlib.Path("/proc").iterdir():
+        if entry.name.isdigit() and watchdog_of(entry, run):
+            with contextlib.suppress(OSError):  # gone while being read
+                found[int(entry.name)] = int((entry / "stat").read_text().rpartition(")")[2].split()[1])
+    return found
+
+
+def watchdog_of(entry, run):
+    """Whether the process at /proc `entry` is a machine's watchdog (batch.py --watchdog) started under `run`."""
+    try:
+        words = (entry / "cmdline").read_bytes().split(b"\0")
+        if b"--watchdog" not in words or not any(word.endswith(b"batch.py") for word in words):
+            return False
+        return f"{RUN_ID}={run}".encode() in (entry / "environ").read_bytes().split(b"\0")
+    except OSError:  # gone while being read, or another user's
+        return False
+
+
 def write_count(folder, machines):
-    """This process's count of the run's machines, written whole."""
+    """This process's count of the run's machines and when it was written, written whole."""
     partial = folder / f"{os.getpid()}.partial"
-    partial.write_text(json.dumps({"pid": os.getpid(), "machines": machines}))
+    partial.write_text(json.dumps({"pid": os.getpid(), "machines": machines, "at": time.time()}))
     partial.replace(folder / f"{os.getpid()}.json")
 
 
@@ -284,18 +325,6 @@ def say_at_cap(at_cap, elsewhere, live):
               f"other processes and parked, {live} here): waiting for one to end, not for stock", file=sys.stderr,
               flush=True)
     AT_CAP[:] = [True] if at_cap else []
-
-
-def machine_left():
-    """One machine fewer for this process in its run's count: deleted or parked (a parked one is counted by its
-    record)."""
-    run = os.environ.get(RUN_ID)
-    if not run:
-        return
-    with run_locked(run) as folder:
-        path = folder / f"{os.getpid()}.json"
-        if path.exists():
-            write_count(folder, max(0, json.loads(path.read_text())["machines"] - 1))
 
 
 def forget_run(run):

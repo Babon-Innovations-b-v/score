@@ -169,13 +169,6 @@ def record_of(machine, until, token, now):
 
 
 def park(machine):
-    """A machine its process is done with (batch.delete_machine): off its process's count of the run's machines
-    (capacity.machine_left; parked, its record counts it), then parked when it is worth it; True if parked."""
-    capacity.machine_left()
-    return parked(machine)
-
-
-def parked(machine):
     """Park the machine instead of deleting it, when it is worth it; True if parked. Anything that goes wrong on the
     way leaves it to the caller's delete."""
     now = time.time()

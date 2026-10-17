@@ -360,6 +360,67 @@ def test_a_batch_whose_runner_dies_deletes_its_machines():
     assert deletes.exists() and deletes.read_text().split() == ["fake-machine"], "the batch's machine was left"
 
 
+# A batch holding three fake machines that works for argv[4] seconds, says so on its output, then deletes each
+# through batch.delete_machine as batch.run's end does.
+WORKING_BATCH = """
+import pathlib, sys, time
+sys.path.insert(0, sys.argv[1])
+import batch
+from provider import cloud
+deletes, folder = pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])
+cloud.delete = lambda server_id, zone: bool(deletes.open("a").write(server_id + "\\n"))
+batch.stop_on_signals()
+machines = [{"id": f"machine-{number}", "zone": "zone-a", "deleted": None, "watchdog": 999999999,
+             "folder": folder / f"machine-{number}", "created": time.time(), "kind": None, "healthy": False}
+            for number in range(3)]
+try:
+    (folder / "ready").write_text("ready")
+    time.sleep(float(sys.argv[4]))
+    batch.say("working on")
+finally:
+    for machine in machines:
+        batch.delete_machine(machine)
+"""
+# A runner that is not a group leader (compare.py, a trial, any runner but `score run`) with one node process
+# (score.graph's watch_runner) that runs the batch, its output piped to the node as a stage's subprocess.run does.
+FOLLOWER_RUNNER = """
+import os, subprocess, sys, threading, time
+sys.path.insert(0, sys.argv[1])
+from score import graph
+runner = os.getpid()
+if os.fork() == 0:
+    threading.Thread(target=graph.watch_runner, args=(runner, 0.2), daemon=True).start()
+    subprocess.run([sys.executable, "-c", sys.argv[2], *sys.argv[3:]], capture_output=True)
+    os._exit(0)
+time.sleep(120)
+"""
+
+
+def test_a_node_of_a_runner_that_leads_no_group_outlives_it_so_its_batch_deletes_every_machine():
+    """Review of C7 (2026-10-17): the node of a runner leading no group sent itself SIGTERM when the runner died, which
+    no handler of its own caught; the batch writing to it then hit a broken pipe and deleted one machine of three."""
+    import signal
+    import subprocess
+    import time
+
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="follower-batch-"))
+    deletes = folder / "deletes.txt"
+    environment = {**os.environ, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work")}
+    environment.pop("SCORE_RUN_ID", None)
+    runner = subprocess.Popen([sys.executable, "-c", FOLLOWER_RUNNER, str(pathlib.Path(__file__).resolve().parents[3]),
+                               WORKING_BATCH, str(pathlib.Path(__file__).resolve().parent), str(deletes), str(folder),
+                               "2"], env=environment)
+    deadline = time.time() + 60
+    while not (folder / "ready").exists() and time.time() < deadline:
+        time.sleep(0.1)
+    assert (folder / "ready").exists(), "the fake batch never started"
+    runner.send_signal(signal.SIGKILL)
+    runner.wait()
+    while len(deletes.read_text().split() if deletes.exists() else []) < 3 and time.time() < deadline:
+        time.sleep(0.1)
+    assert deletes.read_text().split() == ["machine-0", "machine-1", "machine-2"], deletes.read_text()
+
+
 # A runner leading its process group, with four node processes (score.graph's watch_runner, each its own poll) that
 # take SIGTERM without ending, and a process that writes a line for every SIGTERM it gets; "ready" once all are in.
 COUNTED_RUNNER = """

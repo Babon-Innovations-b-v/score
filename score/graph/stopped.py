@@ -18,12 +18,18 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 STOPPING = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 # How long a detached run's command has to end after its signal is passed on: score run's own grace and a margin.
 FORWARD_WAIT_SECONDS = 40
+# What a stopped `score run` sends its own nodes when the stop reached it alone (score/__main__.py): a node that has
+# not had a stop of its own passes SIGTERM on to its children and ends after them (pass_stop_on). A real-time signal,
+# numbered above every stopping one: Python runs pending handlers in signal number order, so a node whose main thread
+# was busy when the whole group was signalled handles that stop first, and passes nothing on (a batch stops deleting
+# at its second signal).
+PASS_ON = signal.SIGRTMIN
 
 
 def stop_on_signals(say):
     """On SIGTERM, SIGINT or SIGHUP: say(the signal's number) once, then exit 128 + it (a running subprocess.run kills
     its command on the way out). A process forked from this one (a node's) ends after its children instead
-    (end_after_children)."""
+    (end_after_children), and passes on a stop its run sends it with PASS_ON (pass_stop_on)."""
     owner = os.getpid()
 
     def stop(number, frame):
@@ -34,8 +40,26 @@ def stop_on_signals(say):
             signal.signal(each, signal.SIG_IGN)
         say(number)
         sys.exit(128 + number)
+
+    def passed_on(number, frame):
+        if os.getpid() != owner:
+            pass_stop_on()
     for number in STOPPING:
         signal.signal(number, stop)
+    signal.signal(PASS_ON, passed_on)
+
+
+def pass_stop_on():
+    """A forked process's (a node's) stop sent by its run alone (PASS_ON): SIGTERM to each of its children, then its end
+    after them (end_after_children). Nothing when it is already stopping: the stop reached its children too."""
+    if signal.getsignal(signal.SIGTERM) == signal.SIG_IGN:
+        return
+    for child in children():
+        try:
+            os.kill(child, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    end_after_children(signal.SIGTERM)
 
 
 def end_after_children(number):
@@ -70,6 +94,17 @@ def shows_stop(pid):
     ignored = int(next(line.split()[1] for line in status.splitlines() if line.startswith("SigIgn:")), 16)
     wanted = sum(1 << (number - 1) for number in STOPPING)
     return ignored & wanted == wanted
+
+
+def catches_pass_on(pid):
+    """Whether a process has a handler for PASS_ON (a node forked from a run that called stop_on_signals); False when it
+    is gone."""
+    try:
+        status = pathlib.Path(f"/proc/{pid}/status").read_text()
+    except OSError:
+        return False
+    caught = int(next(line.split()[1] for line in status.splitlines() if line.startswith("SigCgt:")), 16)
+    return bool(caught & 1 << (PASS_ON - 1))
 
 
 def stop_mark(runner_pid):

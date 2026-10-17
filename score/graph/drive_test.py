@@ -418,7 +418,7 @@ sys.path.insert(0, sys.argv[1])
 from score import __main__ as command
 from score.adapters import compute
 folder = pathlib.Path(sys.argv[2])
-runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache"))
+runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache", is_framework_store=lambda: True))
 
 
 def drive():
@@ -525,16 +525,19 @@ finally:
 # A `score run` in miniature whose one node runs SLOW_BATCH (argv[5]) from tools/props/cloud, its output piped to the
 # node as a stage's subprocess.run does; the run's grace is argv[3] seconds, each delete argv[4].
 GROUP_RUN = """
-import os, pathlib, subprocess, sys, threading, time, types
+import json, os, pathlib, subprocess, sys, threading, time, types
 sys.path.insert(0, sys.argv[1])
 from score import __main__ as command, graph
+from score.adapters import compute
 folder, cloud = pathlib.Path(sys.argv[2]), str(pathlib.Path(sys.argv[1]) / "tools/props/cloud")
 command.STOP_GRACE_SECONDS = float(sys.argv[3])
-runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache"))
+runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache", is_framework_store=lambda: True))
 
 
 def drive():
     leader = os.getpid()
+    (folder / "reservations.json").write_text(json.dumps({compute.graph.now(): {"euros": 2.0,
+                                                                                 "run": os.environ[command.RUN_ID]}}))
     if os.fork() == 0:  # a node, as Runner.start forks one
         threading.Thread(target=graph.watch_runner, args=(leader, 0.2), daemon=True).start()
         done = subprocess.run([sys.executable, "-c", sys.argv[5], cloud, str(folder), sys.argv[4]],
@@ -593,6 +596,75 @@ def test_a_stopped_run_never_kills_a_cloud_batch_still_deleting_after_its_grace(
     assert "SIGKILL" not in output, output
 
 
+def test_a_stopped_run_holds_its_reservations_until_its_cloud_tools_have_ended():
+    """Review of C7 (2026-10-17): a stopped run released its spend reservations and its machine counts as it exited,
+    while the cloud tools it spared were still deleting machines that billed."""
+    run, folder = group_run(1, 1.5)
+    run.send_signal(signal.SIGTERM)  # the run alone: it passes its stop on itself
+    run.wait(timeout=60)
+    deletes = folder / "deletes.txt"
+    still = deletes.read_text().split() if deletes.exists() else []
+    assert len(still) < 3, still  # the run ended before its batch had deleted everything
+    held = json.loads((folder / "reservations.json").read_text())
+    assert len(held) == 1, held  # the run's reservation stays while its machines are being deleted
+    deadline = time.time() + 30
+    while time.time() < deadline and json.loads((folder / "reservations.json").read_text()):
+        time.sleep(0.1)
+    assert deletes.read_text().split() == ["machine-0", "machine-1", "machine-2"]
+    assert json.loads((folder / "reservations.json").read_text()) == {}  # released once the batch had ended
+    assert not list(folder.rglob("runs/*")), list(folder.rglob("runs/*"))
+
+
+# GROUP_RUN with a node whose main thread runs no handler for argv[6] seconds after the batch starts (long C code: its
+# signals wait, as the run's own window passes).
+STUCK_GROUP_RUN = """
+import os, pathlib, signal, subprocess, sys, threading, time, types
+sys.path.insert(0, sys.argv[1])
+from score import __main__ as command, graph
+folder, cloud = pathlib.Path(sys.argv[2]), str(pathlib.Path(sys.argv[1]) / "tools/props/cloud")
+command.STOP_GRACE_SECONDS = float(sys.argv[3])
+runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache", is_framework_store=lambda: True))
+
+
+def drive():
+    leader = os.getpid()
+    if os.fork() == 0:
+        threading.Thread(target=graph.watch_runner, args=(leader, 0.2), daemon=True).start()
+        batch = subprocess.Popen([sys.executable, "-c", sys.argv[5], cloud, str(folder), sys.argv[4]],
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        while not (folder / "ready").exists():
+            time.sleep(0.05)
+        every = set(signal.Signals)
+        signal.pthread_sigmask(signal.SIG_BLOCK, every)
+        time.sleep(float(sys.argv[6]))
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, every)
+        output, _ = batch.communicate()
+        (folder / "batch.log").write_text(output)
+        os._exit(0)
+    time.sleep(120)
+
+
+command.as_run(runner, drive)
+"""
+
+
+def test_a_group_stop_reaches_a_batch_once_while_its_node_is_busy_in_long_code():
+    """Review of C7 (2026-10-17): a node whose main thread ran no handler within the run's 1 s window showed no stop, so
+    the run sent its own SIGTERM to the whole group as well, a batch's second signal, and the batch left its deletes."""
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="stuck-group-run-"))
+    environment = {**os.environ, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work")}
+    run = subprocess.Popen([sys.executable, "-c", STUCK_GROUP_RUN, str(pathlib.Path(__file__).resolve().parents[2]),
+                            str(folder), "30", "0.8", SLOW_BATCH, "3"], env=environment,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+    deadline = time.time() + 60
+    while not (folder / "ready").exists() and time.time() < deadline:
+        time.sleep(0.05)
+    time.sleep(0.5)  # the node's main thread is in its stretch now
+    os.killpg(run.pid, signal.SIGTERM)
+    deleted, output = deleted_by(folder, run)
+    assert deleted == ["machine-0", "machine-1", "machine-2"], (deleted, output)
+
+
 # A shell pipeline's later stage (`... | score run`): its process group is the pipeline's, led by the first stage, and
 # holds the terminal. Run in a session of its own, a pseudo-terminal its controlling terminal.
 PIPELINE_RUN = """
@@ -626,6 +698,47 @@ def test_a_run_late_in_a_shell_pipeline_keeps_the_terminal_so_ctrl_c_reaches_it(
     foreground group, so Ctrl-C no longer reached the run."""
     done = subprocess.run([sys.executable, "-c", PIPELINE_RUN, str(pathlib.Path(__file__).resolve().parents[2])],
                           capture_output=True, text=True, timeout=60, start_new_session=True)
+    assert done.returncode == 0, (done.returncode, done.stderr)
+
+
+# The same pipeline's later stage as a whole run (score/__main__'s as_run) whose drive returns: the terminal must go
+# back to the group that held it, or a script's later read from it stops on SIGTTIN and Ctrl-C reaches nothing.
+PIPELINE_RUN_ENDS = """
+import fcntl, os, pathlib, signal, sys, tempfile, termios, time, types
+sys.path.insert(0, sys.argv[1])
+from score import __main__ as command
+_, terminal = os.openpty()
+fcntl.ioctl(terminal, termios.TIOCSCTTY, 0)
+first = os.fork()
+if first == 0:
+    time.sleep(30)
+    os._exit(0)
+os.setpgid(first, first)
+signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+os.tcsetpgrp(terminal, first)
+later = os.fork()
+if later == 0:
+    while os.getpgrp() != first:
+        time.sleep(0.01)
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="pipeline-run-"))
+    runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache", is_framework_store=lambda: True))
+    held = []
+    command.as_run(runner, lambda: held.append(os.tcgetpgrp(terminal) == os.getpid()))
+    os._exit(0 if held == [True] and os.tcgetpgrp(terminal) == first else 3)
+os.setpgid(later, first)
+_, status = os.waitpid(later, 0)
+os.kill(first, signal.SIGKILL)
+sys.exit(os.waitstatus_to_exitcode(status))
+"""
+
+
+def test_a_run_late_in_a_shell_pipeline_gives_the_terminal_back_when_it_ends():
+    """Review of C7 (2026-10-17): a run that took the terminal for its own group never gave it back, leaving a dead
+    group in the foreground."""
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="pipeline-ends-"))
+    done = subprocess.run([sys.executable, "-c", PIPELINE_RUN_ENDS, str(pathlib.Path(__file__).resolve().parents[2])],
+                          capture_output=True, text=True, timeout=60, start_new_session=True,
+                          env={**os.environ, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work")})
     assert done.returncode == 0, (done.returncode, done.stderr)
 
 

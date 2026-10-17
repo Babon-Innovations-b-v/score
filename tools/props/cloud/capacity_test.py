@@ -225,8 +225,7 @@ while time.time() < until:
     live = [machine for machine in machines if not machine["deleted"]]
     if live and random.random() < 0.3:
         live[0]["deleted"] = time.time()
-        together(-1)  # off the count first: a machine is held until the run's count lets it go
-        capacity.machine_left()
+        together(-1)  # off the count first: the process's count lets it go at its next ask
     time.sleep(random.random() * 0.02)
 """
 
@@ -289,6 +288,67 @@ assert not capacity.reserve_run_slot(2)
     assert done.returncode == 0, done.stderr[-2000:]
     said = [line for line in done.stderr.splitlines() if "cap" in line]
     assert len(said) == 2 and "the run holds its cap of 2 machines" in said[0], done.stderr  # once each time it fills
+
+
+# A batch process of a `score run` that is given a slot (next_offer chose an offer) and then either rents nothing (the
+# offer was out of stock, refused or never answered; argv[3] "fails") or rents a machine, whose watchdog it starts as
+# batch.rent does ("rents"); it says "ready" and lives on.
+SLOT_TAKER = """
+import pathlib, subprocess, sys, time
+sys.path.insert(0, sys.argv[1])
+import capacity
+folder = pathlib.Path(sys.argv[2])
+assert capacity.reserve_run_slot(0)
+if sys.argv[3] == "rents":
+    subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", str(pathlib.Path(sys.argv[1]) / "batch.py"),
+                      "--watchdog", "machine-1", "zone-a", "0"])
+(folder / "ready").write_text("ready")
+time.sleep(60)
+"""
+# Another process of the same run asking for a slot at once, and again once a slot given argv[2] seconds ago has
+# lapsed with no machine behind it; it prints the two answers.
+SLOT_ASKER = """
+import sys, time
+sys.path.insert(0, sys.argv[1])
+import capacity
+capacity.RESERVE_SECONDS = float(sys.argv[2])
+first = capacity.reserve_run_slot(0)
+time.sleep(float(sys.argv[2]) + 1.5)
+print(first, capacity.reserve_run_slot(0))
+"""
+
+
+def slot_answers(taker):
+    """What a second process of a run with a cap of one is told, at once and after the slot lapsed, while a first
+    process holds the slot it was given and did `taker` with it."""
+    import time
+
+    home = pathlib.Path(tempfile.mkdtemp(prefix="run-slot-"))
+    here = str(pathlib.Path(capacity.__file__).parent)
+    environment = {**os.environ, "PROPS_HOME": str(home), "PROPS_WORK": str(home / "work"),
+                   "SCORE_RUN_ID": "test-run", "SCORE_MAX_MACHINES": "all=1"}
+    first = subprocess.Popen([sys.executable, "-c", SLOT_TAKER, here, str(home), taker], env=environment,
+                             start_new_session=True)
+    try:
+        deadline = time.time() + 60
+        while not (home / "ready").exists() and time.time() < deadline:
+            time.sleep(0.05)
+        asked = subprocess.run([sys.executable, "-c", SLOT_ASKER, here, "1"], env=environment, capture_output=True,
+                               text=True, timeout=60)
+        assert asked.returncode == 0, asked.stderr[-2000:]
+        return asked.stdout.split()
+    finally:
+        os.killpg(first.pid, 9)
+
+
+def test_a_slot_whose_rent_gave_no_machine_is_freed_for_the_runs_other_processes():
+    """Review of C7 (2026-10-17): a slot counted for an offer that then gave no machine stayed counted for the rest of
+    the batch, holding the run's other processes back for a machine that did not exist."""
+    assert slot_answers("fails") == ["False", "True"]
+
+
+def test_a_slot_whose_rent_gave_a_machine_stays_counted():
+    assert slot_answers("rents") == ["False", "False"]
 
 
 if __name__ == "__main__":
