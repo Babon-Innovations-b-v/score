@@ -73,6 +73,9 @@ LOG_TAIL = 40
 JOBS = 8
 # How often a node's process checks that its runner is still there (watch_runner).
 RUNNER_POLL_SECONDS = 2
+# A drive says a heartbeat line (rows done, running and queued, and the run's gauges) every HEARTBEAT seconds, so a run
+# that is alive says so and a quiet log means a dead run (2026-10-16: runs failed or sat idle for hours unseen).
+HEARTBEAT = 120
 # The completion gate's check that fails a place's named gaps by name (score/review GAPPED).
 GAPPED = review.GAPPED
 # Each node runs in a forked process: its output (and its children's) goes to its own log, and the toy stages of the
@@ -283,6 +286,17 @@ def scoped_keys(self, prefix):
     return sorted(key for key in found if key.startswith(prefix))
 
 
+def listed_once(keys):
+    """keys(prefix), each prefix listed once: a pass that writes nothing reads one listing per prefix."""
+    listings = {}
+
+    def listing(prefix):
+        if prefix not in listings:
+            listings[prefix] = keys(prefix)
+        return list(listings[prefix])
+    return listing
+
+
 def scoped(store):
     """Every folder store in this process listed by scoped_keys (a stage's own Store.default() too: the neighbours'
     record_of opens one), the store as given. Set here, in the runner, since the store's own module is in every
@@ -303,6 +317,20 @@ def making_in(folder):
             os.environ.pop(MAKING, None)
         else:
             os.environ[MAKING] = before
+
+
+def heartbeat_line(done, running, queued, gauges=None):
+    """The drive's heartbeat: rows done, running and queued, then what `gauges()` says when given."""
+    line = f"heartbeat {now()}: rows done {done}, running {running}, queued {queued}"
+    return f"{line}; {gauges()}" if gauges else line
+
+
+def raised_status(error):
+    """A drive's exit status from what it raised: a signal's stop (exit code 128 + its number) named as such."""
+    if isinstance(error, SystemExit):
+        code = error.code if isinstance(error.code, int) else 1
+        return f"stopped by signal {code - 128}, exit {code}" if code > 128 else f"exited, exit {code}"
+    return f"error: {type(error).__name__}: {error}"
 
 
 class Runner:
@@ -337,15 +365,15 @@ class Runner:
 
     @contextlib.contextmanager
     def still(self):
-        """A pass that writes nothing to the store (status, lines, a finished node's verdict): its listing is walked
-        once, not once a lookup (one walk reads the whole store: 0.8 s at 35,000 objects, 2026-10-12), and each
-        node's key and staleness are worked out once, not once a path through the nodes that read it (both recurse
-        through every node a node reads; a run's closing status took longer than its run)."""
+        """A pass that writes nothing to the store (status, lines, a finished node's verdict): each prefix it looks up
+        is listed once, not once a lookup, and only the run's own nodes' prefixes are listed, never the whole store (a
+        walk of the whole store per finished node held world runs at their end and slowed every run beside them,
+        2026-10-16); each node's key and staleness are worked out once, not once a path through the nodes that read it
+        (both recurse through every node a node reads; a run's closing status took longer than its run)."""
         if self.remembered is not None:
             yield
             return
-        listing = self.store.objects.keys("")
-        self.store.objects.keys = lambda prefix: [key for key in listing if key.startswith(prefix)]
+        self.store.objects.keys = listed_once(self.store.objects.keys)
         self.remembered = {}
         try:
             yield
@@ -1080,7 +1108,22 @@ class Runner:
             report.unlink()
         return did, True
 
-    def drive(self, places, say=print, jobs=JOBS, whole=True, only=None):
+    def drive(self, places, say=print, jobs=JOBS, whole=True, only=None, gauges=None):
+        """drive_lines, ending with one exit line said in every case: when it ends, raises, or is stopped by a signal
+        (stopped.stop_on_signals raises SystemExit); {node: what it did}. `gauges()`, when given, is text the heartbeat
+        lines carry (the euros so far, the paid runs open)."""
+        status = "ended without a status"
+        try:
+            found = self.drive_lines(places, say, jobs, whole, only, gauges)
+            status = f"ok, {len(found)} rows ended"
+            return found
+        except BaseException as error:  # noqa: BLE001 - said, then raised again as it was
+            status = raised_status(error)
+            raise
+        finally:
+            say(f"exit: {status}")
+
+    def drive_lines(self, places, say=print, jobs=JOBS, whole=True, only=None, gauges=None):
         """Run every line to its end with no one in the loop, the lines side by side: each node starts in a process of
         its own the moment every node it reads stands accepted, at most `jobs` at once, so a line waiting on a cloud
         step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
@@ -1093,6 +1136,7 @@ class Runner:
         done, stopped, stood, running = {}, {}, set(), {}
         on_gaps = set()  # stopped nodes that fail only on their named gaps: a stage's `gapped` reads them
         halted = {}  # {line: [(table index, node)]} of its stopped nodes: nothing later on the line starts
+        beat_at = time.monotonic() + HEARTBEAT
         while waiting or running:
             for stage, place in list(waiting):
                 node, earlier = node_name(stage, place), self.earlier(stage, place)
@@ -1111,7 +1155,10 @@ class Runner:
                     running.update(self.start(stage, place))
             if not running:
                 break
-            for finished in FORK_WAIT(list(running)):
+            if time.monotonic() >= beat_at:
+                say(heartbeat_line(len(done), len(running), len(waiting), gauges))
+                beat_at = time.monotonic() + HEARTBEAT
+            for finished in FORK_WAIT(list(running), timeout=max(0.0, beat_at - time.monotonic())):
                 stage, place, process = running.pop(finished)
                 node = node_name(stage, place)
                 done[node], stands = self.conclude(stage, place, self.outcome(finished, process))

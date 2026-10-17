@@ -355,9 +355,10 @@ def test_a_node_that_leaves_a_thread_running_does_not_hold_up_the_drive():
         signal.alarm(0)
 
 
-def test_status_walks_the_store_once_and_works_out_each_key_once():
+def test_status_lists_each_prefix_once_and_works_out_each_key_once():
     """Fault (2026-10-12): a run's closing status walked the whole store for every lookup and worked out each key once
-    a path through the nodes reading it; `score status` on world 1 took over five minutes."""
+    a path through the nodes reading it; `score status` on world 1 took over five minutes. Fault (2026-10-16): the
+    fix walked the whole store once a pass, once per finished node, which held runs at their end."""
     runner = a_runner({"hangar": "a ship", "station": "a hub"})
     runner.drive(PLACES, say=quiet)
     walks, keys = [], []
@@ -370,7 +371,8 @@ def test_status_walks_the_store_once_and_works_out_each_key_once():
         assert "accepted" in runner.status(PLACES)["count@hangar"]
     finally:
         store_class.keys, graph.Runner.worked_out_key = walk, work_out
-    assert walks == ["", ""], walks  # one walk a pass
+    assert walks and "" not in walks, walks  # never the whole store
+    assert len(walks) == 2 * len(set(walks)), walks  # each prefix once a pass
     assert sorted(keys) == sorted(2 * [(stage, place) for stage in ("clean", "count") for place in PLACES]), keys
     assert runner.remembered is None and "keys" not in vars(runner.store.objects)
 
@@ -740,6 +742,97 @@ def test_a_run_late_in_a_shell_pipeline_gives_the_terminal_back_when_it_ends():
                           capture_output=True, text=True, timeout=60, start_new_session=True,
                           env={**os.environ, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work")})
     assert done.returncode == 0, (done.returncode, done.stderr)
+
+
+def test_conclude_lists_only_the_runs_own_prefixes_in_a_large_store():
+    """A store of 50,000 unrelated keys: a finished node's verdict lists only its run's nodes' prefixes, within 1 s."""
+    runner = a_runner({"hangar": "a ship", "station": "a hub"})
+    runner.drive(PLACES, say=quiet)
+    root = runner.store.objects.root
+    for area in ("records", "judgements", "accepts"):
+        for folder in range(250):
+            unrelated = root / area / f"elsewhere{folder}@far"
+            unrelated.mkdir(parents=True)
+            for index in range(67):
+                (unrelated / f"{index}.json").write_text("{}")
+    store_class, walk, walks = type(runner.store.objects), type(runner.store.objects).keys, []
+    store_class.keys = lambda self, prefix: walks.append(prefix) or walk(self, prefix)
+    try:
+        started = time.monotonic()
+        assert runner.conclude(runner.stages["count"], "hangar", "made") == ("made", True)
+        took = time.monotonic() - started
+    finally:
+        store_class.keys = walk
+    assert took < 1.0, took
+    nodes = {f"{stage}@{place}" for stage in ("clean", "count") for place in PLACES}
+    assert walks and all(prefix.split("/")[1] in nodes for prefix in walks), walks
+
+
+def slow_runner(seconds):
+    """A one-node run whose make takes `seconds`."""
+    def make_slowly(inputs, out, seed, params):
+        time.sleep(seconds)
+        (out / "made.txt").write_text("made")
+    world = a_world_of(["hangar"])[1]
+    return graph.Runner((graph.Stage("slow", "place", make_slowly, TEXT, MET),), world,
+                        Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+
+
+@contextlib.contextmanager
+def heartbeat_every(seconds):
+    before, graph.HEARTBEAT = graph.HEARTBEAT, seconds
+    try:
+        yield
+    finally:
+        graph.HEARTBEAT = before
+
+
+def test_a_long_node_has_heartbeats_before_it_ends_and_an_exit_line_last():
+    """Fault (2026-10-16): runs failed or sat idle quietly, and outside watchers stopped live ones. The 2-minute beat
+    and 3-minute node scaled down to 0.3 s and 1.5 s."""
+    said = []
+    with heartbeat_every(0.3):
+        found = slow_runner(1.5).drive(["hangar"], say=said.append, gauges=lambda: "EUR 0.00 so far")
+    assert found == {"slow@hangar": "made: pass, accepted automatically"}, found
+    ended = said.index("slow@hangar: made: pass, accepted automatically")
+    beats = [line for line in said[:ended] if line.startswith("heartbeat ")]
+    assert len(beats) >= 3, said
+    assert beats[0].endswith(": rows done 0, running 1, queued 0; EUR 0.00 so far"), beats
+    assert said[-1] == "exit: ok, 1 rows ended", said
+
+
+def test_a_drive_that_raises_ends_with_an_exit_line():
+    def broken():
+        raise RuntimeError("the ledger is unreadable")
+    said = []
+    with heartbeat_every(0.2):
+        try:
+            slow_runner(1).drive(["hangar"], say=said.append, gauges=broken)
+            raise AssertionError("the drive did not raise")
+        except RuntimeError:
+            pass
+    assert said[-1] == "exit: error: RuntimeError: the ledger is unreadable", said
+
+
+def test_a_drive_stopped_by_sigterm_ends_with_an_exit_line():
+    from score.graph import stopped
+    said = pathlib.Path(tempfile.mkdtemp()) / "said.txt"
+
+    def say(line):
+        with said.open("a") as lines:
+            lines.write(line + "\n")
+
+    def driving():
+        stopped.stop_on_signals(lambda number: say(f"score run: stopped by signal {number}"))
+        slow_runner(5).drive(["hangar"], say=say)
+    process = graph.FORK.Process(target=driving)
+    process.start()
+    time.sleep(1)
+    os.kill(process.pid, signal.SIGTERM)
+    process.join(30)
+    lines = said.read_text().splitlines()
+    assert process.exitcode == 143, process.exitcode
+    assert lines[-2:] == ["score run: stopped by signal 15", "exit: stopped by signal 15, exit 143"], lines
 
 
 # --- runs side by side on one store ----------------------------------------------------------------------------------
