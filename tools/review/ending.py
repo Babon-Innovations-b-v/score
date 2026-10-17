@@ -6,6 +6,10 @@ and `ready`, what world 1 delivers for score_lib (not built yet), a card per cou
 
     .venv/bin/python tools/review/ending.py layers <out.mp4> [--place garage]
     .venv/bin/python tools/review/ending.py ready <counts.json> <out.mp4>
+    .venv/bin/python tools/review/ending.py layers3d <frames folder> <diagram.mp4> <out.mp4> [--place garage]
+
+`layers3d` is `layers` in real geometry: the frames layers_lift.py rendered (on a rented card) with each layer's label
+drawn beside its plate as it lifts, then the diagram clip's last TAIL seconds as the summary.
 """
 import argparse
 import json
@@ -364,6 +368,59 @@ def ready_clip(counts_file, out):
     write_frames(frames, seconds, out)
 
 
+TAIL = 2.0  # seconds of the diagram clip after the geometry
+
+
+def lifted_labels(folder, place):
+    """The rendered frames of layers_lift.py with the title and each lifting layer's name and prim count drawn on."""
+    parts = [json.loads(path.read_text()) for path in sorted(folder.glob("labels_*.json"))]
+    layers = parts[0]["layers"]
+    frames = {item["frame"]: item["layers"] for part in parts for item in part["frames"]}
+    seconds = parts[0]["seconds"]
+    title, label, small = face(34), face(19), face(14)
+
+    def frame(number, count):
+        picture = Image.open(folder / f"frame_{number:04d}.png").convert("RGB")
+        draw = ImageDraw.Draw(picture)
+        draw.text((60, 46), "Built in layers", font=title, fill=INK)
+        draw.text((60, 92), f"{place}: the accepted assembly's own layer stack, {len(layers)} layers, as geometry",
+                  font=small, fill=DIM)
+        floor_y = H
+        for layer, spot in zip(layers, frames[number]):
+            if spot["lift"] <= 0 or not 0 <= spot["at"][1] <= H:  # the camera holds a window of the stack
+                continue
+            colour, name = LAYERS.get(layer["name"], ((170, 170, 170), layer["name"]))
+            # one label above the last: lifting layers sit close on screen while the gap opens
+            label_y = min(spot["at"][1], floor_y - 44)
+            floor_y = label_y
+            if label_y < 140:  # under the title
+                continue
+            left = min(spot["at"][0] + 24, W - 260)
+            draw.text((left, label_y - 20), name, font=label, fill=toward(colour, spot["lift"]))
+            draw.text((left, label_y + 2), f"layers/{layer['name']}  {layer['prims']} prims", font=small,
+                      fill=toward(DIM, spot["lift"]))
+        return faded(picture, number / RATE, seconds)
+
+    return frame, seconds
+
+
+def with_tail(clip, diagram, out):
+    """The clip followed by the diagram's last TAIL seconds."""
+    length = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                   str(diagram)], capture_output=True, text=True, check=True).stdout)
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(clip), "-ss",
+                    f"{length - TAIL:.3f}", "-i", str(diagram), "-filter_complex",
+                    f"[1:v]fps={RATE},scale={W}:{H},setsar=1[tail];[0:v]setsar=1[head];[head][tail]concat=n=2:v=1[v]",
+                    "-map", "[v]", *demo.encode(out)[:-1], str(out)], check=True)
+
+
+def layers3d_clip(folder, diagram, out, place):
+    frame, seconds = lifted_labels(folder, place)
+    head = out.with_name(out.stem + "-geometry.mp4")
+    write_frames(frame, seconds, head)
+    with_tail(head, diagram, out)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     steps = parser.add_subparsers(dest="step", required=True)
@@ -373,8 +430,16 @@ def main():
     ready = steps.add_parser("ready")
     ready.add_argument("counts", type=pathlib.Path)
     ready.add_argument("out", type=pathlib.Path)
+    lifted = steps.add_parser("layers3d")
+    lifted.add_argument("frames", type=pathlib.Path)
+    lifted.add_argument("diagram", type=pathlib.Path)
+    lifted.add_argument("out", type=pathlib.Path)
+    lifted.add_argument("--place", default="garage")
     arguments = parser.parse_args()
-    if arguments.step == "layers":
+    if arguments.step == "layers3d":
+        layers3d_clip(arguments.frames, arguments.diagram, arguments.out, arguments.place)
+        print(f"layers3d: {arguments.out}")
+    elif arguments.step == "layers":
         stack, counts = layers_clip(arguments.out, arguments.place)
         print(f"layers: {arguments.out} ({len(stack)} layers; {len(counts)} places)")
     else:

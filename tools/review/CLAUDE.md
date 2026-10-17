@@ -61,7 +61,10 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   accepted (demo-film@<place> in story order, the ship's hull film after the hangar's), `--draft` with those it has.
   `ending.py` makes K9's two closing clips locally (no Blender, no cloud): one place's accepted assembly as its layer
   stack lifting off with every place's layer count, and "ready for score_lib" from a counts file counted from the
-  store (score_lib is not built; never say it is); `ending_test.py` checks the layer and prim counts. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
+  store (score_lib is not built; never say it is); `ending_test.py` checks the layer and prim counts. `layers3d` is
+  the layer stack in real geometry: `layers_lift.py` renders it in Blender on a rented card (each layer a copy of the
+  prims it specifies on its own plate, lifting apart under a slow orbit; the roof and haze left out), and `ending.py
+  layers3d` draws the labels on and appends the diagram's last 2 s. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
 - **A place's review from the store** (`store_page.py`, no Blender, no cloud): one command per place copies the
   accepted assembled stage (`neighbours@<place>` where the place shows others, so the shown places resolve, else
   `assembly@<place>`: what the runner's complete row judges) out of the framework's store, runs `../usd/complete.py check` and `done` on the
