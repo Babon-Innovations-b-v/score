@@ -153,25 +153,33 @@ def spend_since_splits_by_track():
     return [] if dict(tracks) == expected else [f"tracks {dict(tracks)}"]
 
 
-def run_day_check(day_bill, cloud_rows, google_lines):
-    """Run `reconcile-day 2026-10-11` on files written here; (its exit code, its output)."""
+def run_day_check(day_bill, cloud_rows, google_lines, snapshots=(), skip=()):
+    """Run `reconcile-day 2026-10-11` on files written here: the day bill when given (else none), the ledgers, and
+    a bills folder holding `snapshots` ({"read", "lines"} each); (its exit code, its output)."""
     import json
     import subprocess
     import tempfile
 
     folder = pathlib.Path(tempfile.mkdtemp())
-    (folder / "bill.json").write_text(json.dumps(day_bill))
+    bills = folder / "bills"
+    bills.mkdir()
+    for snapshot in snapshots:
+        (bills / f"{snapshot['read'][:13]}{snapshot['read'][14:16]}Z.json").write_text(json.dumps(snapshot))
     (folder / "ledger.jsonl").write_text("".join(json.dumps(row) + "\n" for row in cloud_rows))
     (folder / "google.jsonl").write_text("".join(json.dumps(line) + "\n" for line in google_lines))
-    done = subprocess.run([sys.executable, str(HERE / "costs.py"), "reconcile-day", "2026-10-11",
-                           str(folder / "bill.json"), "--ledger", str(folder / "ledger.jsonl"),
-                           "--google-ledger", str(folder / "google.jsonl")], capture_output=True, text=True)
+    command = [sys.executable, str(HERE / "costs.py"), "reconcile-day", "2026-10-11", "--ledger",
+               str(folder / "ledger.jsonl"), "--google-ledger", str(folder / "google.jsonl"), "--bills", str(bills),
+               *[part for provider in skip for part in ("--skip", provider)]]
+    if day_bill is not None:
+        (folder / "bill.json").write_text(json.dumps(day_bill))
+        command.insert(4, str(folder / "bill.json"))
+    done = subprocess.run(command, capture_output=True, text=True)
     return done.returncode, done.stdout + done.stderr
 
 
 def a_day_eleven_percent_off_its_bill_fails_and_names_the_provider():
     """A Google day billed EUR 100 with EUR 89 in the ledger (11% off, over 5%) exits non-zero and says google; the
-    Scaleway day beside it, within 5%, says within, its disks and addresses as their own lines."""
+    Scaleway day beside it, within 5%, says within, its disks and addresses one line against the ledger's."""
     day_bill = {"google": [{"sku": "gemini-3-pro-image", "euros": 100.0}],
                 "scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 50.0},
                              {"sku": "/storage/block/volume-low-latency-5k/fr-par-2", "euros": 3.0},
@@ -190,20 +198,92 @@ def a_day_eleven_percent_off_its_bill_fails_and_names_the_provider():
     if code == 0:
         problems.append(f"exit 0 on an 11% gap: {output}")
     google = [line for line in output.splitlines() if line.startswith("google:")]
-    if not google or "11.0% apart, over" not in google[0]:
+    if not google or "calls: bill 100.00, ledgers 89.00, 11.0% apart; over" not in google[0]:
         problems.append(f"google not named as over: {output}")
     scaleway = [line for line in output.splitlines() if line.startswith("scaleway:")]
-    if not scaleway or "within" not in scaleway[0] or "disks 3.00" not in scaleway[0] \
-            or "addresses 2.00" not in scaleway[0] or "disks and addresses 4.50" not in scaleway[0]:
+    if not scaleway or "within" not in scaleway[0] or "over" in scaleway[0] \
+            or "disks and addresses: bill 5.00, ledgers 4.50" not in scaleway[0]:
         problems.append(f"scaleway line: {output}")
     return problems
 
 
 def a_day_within_five_percent_passes():
-    """A bill of EUR 100 against EUR 96 in the ledgers exits 0."""
+    """A bill of EUR 100 against EUR 96 in the ledgers exits 0, Google left out on purpose."""
     code, output = run_day_check({"scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 100.0}]},
-                                 [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 96.0}], [])
+                                 [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 96.0}], [],
+                                 skip=["google"])
     return [] if code == 0 and "within" in output else [f"exit {code}: {output}"]
+
+
+def an_empty_or_partial_bill_fails():
+    """Fault (review of C1, 2026-10-17): a bill of {} or one without a provider exited 0, so an empty bill read as
+    all clear. A provider with no bill fails and is named, unless left out with --skip."""
+    problems = []
+    code, output = run_day_check({}, [], [])
+    if code == 0 or "google: no bill" not in output or "scaleway: no bill" not in output:
+        problems.append(f"an empty bill: exit {code}: {output}")
+    code, output = run_day_check({"google": [{"sku": "m", "euros": 1.0}]}, [],
+                                 [{"day": "2026-10-11", "call": "a", "state": "finished", "model": "m", "euros": 1.0}])
+    if code == 0 or "scaleway: no bill" not in output:
+        problems.append(f"a bill without scaleway: exit {code}: {output}")
+    return problems
+
+
+def snapshot(read, machines, storage=0.0):
+    """One saved read of the month's Scaleway bill: its machines and object storage so far."""
+    return {"read": read, "lines": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": machines},
+                                    {"sku": "/storage/obj/usage/fr-par", "euros": storage}]}
+
+
+def the_scaleway_day_comes_from_the_saved_reads():
+    """Fault (review of C1, 2026-10-17): nothing built the day's bill, so the alarm needed a hand-made file. With no
+    file, the Scaleway day is the last read of the day less the last read before it, and the ledger is taken over
+    the same window."""
+    reads = [snapshot("2026-10-10T23:00:00+00:00", 100.0), snapshot("2026-10-11T12:00:00+00:00", 120.0),
+             snapshot("2026-10-11T23:30:00+00:00", 150.0, storage=10.0)]
+    rows = [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "wall_minutes": 60, "euros": 50.0}]
+    code, output = run_day_check(None, rows, [], snapshots=reads, skip=["google"])
+    problems = []
+    if code != 0 or "machines: bill 50.00, ledgers 50.00" not in output:
+        problems.append(f"exit {code}: {output}")
+    if "not in any ledger: storage 10.00" not in output:
+        problems.append(f"storage not reported apart: {output}")
+    code, output = run_day_check(None, rows, [], snapshots=reads[1:], skip=["google"])
+    if code == 0 or "scaleway: no bill" not in output:
+        problems.append(f"no read before the day: exit {code}: {output}")
+    return problems
+
+
+def a_run_across_midnight_counts_its_share_of_the_day():
+    """Fault (review of C1, 2026-10-17): a run was counted whole on the day it started, so one crossing midnight
+    alarmed on both days. Its euros are spread over its hours: 3 of its 4 hours fall in the window."""
+    reads = [snapshot("2026-10-10T23:00:00+00:00", 0.0), snapshot("2026-10-11T23:30:00+00:00", 30.0)]
+    rows = [{"started": "2026-10-10T22:00:00Z", "kind": "pixal", "wall_minutes": 240, "euros": 40.0}]
+    code, output = run_day_check(None, rows, [], snapshots=reads, skip=["google"])
+    return [] if code == 0 and "machines: bill 30.00, ledgers 30.00" in output else [f"exit {code}: {output}"]
+
+
+def storage_and_other_lines_never_alarm():
+    """Fault (review of C1, 2026-10-17): storage, registry, secrets and cluster lines have no ledger rows, yet the
+    totals were compared, so a heavy storage day alarmed. They are reported apart and kept out of the gap."""
+    day_bill = {"scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 20.0},
+                             {"sku": "/storage/obj/usage/fr-par", "euros": 40.0},
+                             {"sku": "/paas/secret_manager/access/fr-par", "euros": 5.0}]}
+    code, output = run_day_check(day_bill, [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 20.0}],
+                                 [], skip=["google"])
+    if code != 0 or "not in any ledger: storage 40.00, other 5.00" not in output:
+        return [f"exit {code}: {output}"]
+    return []
+
+
+def a_machine_still_running_counts_at_its_price():
+    """Fault (review of C1, 2026-10-17): a run still going has no row yet, so its day alarmed. Its started line counts
+    at its price up to its deadline: 60 minutes at EUR 0.10."""
+    line = {"started": "2026-10-11T10:00:00Z", "batch": "rent-pixal-9-1", "kind": "rent-started", "run": "pixal-9",
+            "name": "pixal-9-1", "price": 0.1, "deadline": costs.moment("2026-10-11T11:00:00Z"), "euros": 0.0}
+    code, output = run_day_check({"scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 6.0}]}, [line],
+                                 [], skip=["google"])
+    return [] if code == 0 and "machines: bill 6.00, ledgers 6.00" in output else [f"exit {code}: {output}"]
 
 
 def main():
@@ -213,7 +293,10 @@ def main():
               processor_machines_are_priced_again_by_the_started_hour,
               rnd_and_production_cover_the_ledger, euros_beyond_the_machines_are_not_split,
               today_is_the_bill_less_the_last_read_before_the_day, spend_since_splits_by_track,
-              a_day_eleven_percent_off_its_bill_fails_and_names_the_provider, a_day_within_five_percent_passes]
+              a_day_eleven_percent_off_its_bill_fails_and_names_the_provider, a_day_within_five_percent_passes,
+              an_empty_or_partial_bill_fails, the_scaleway_day_comes_from_the_saved_reads,
+              a_run_across_midnight_counts_its_share_of_the_day, storage_and_other_lines_never_alarm,
+              a_machine_still_running_counts_at_its_price]
     problems = [f"{check.__name__}: {problem}" for check in checks for problem in check()]
     for problem in problems:
         print(problem)
