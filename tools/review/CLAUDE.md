@@ -58,7 +58,10 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   once), nobody has reviewed the round-three and round-four films, and they are cited nowhere; they come back as the
   evidence step, on places the owner accepted. `showcase.py` cuts the showcase and the
   figure from the films; its `world` step cuts demo K9, the world 1 video and its figure, from the films the runner
-  accepted (demo-film@<place> in story order, the ship's hull film after the hangar's), `--draft` with those it has. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
+  accepted (demo-film@<place> in story order, the ship's hull film after the hangar's), `--draft` with those it has.
+  `ending.py` makes K9's two closing clips locally (no Blender, no cloud): one place's accepted assembly as its layer
+  stack lifting off with every place's layer count, and "ready for score_lib" from a counts file counted from the
+  store (score_lib is not built; never say it is); `ending_test.py` checks the layer and prim counts. `demo_test.py`, `film_checks_test.py` and `showcase_test.py` check them without Blender.
 - **A place's review from the store** (`store_page.py`, no Blender, no cloud): one command per place copies the
   accepted assembled stage (`neighbours@<place>` where the place shows others, so the shown places resolve, else
   `assembly@<place>`: what the runner's complete row judges) out of the framework's store, runs `../usd/complete.py check` and `done` on the
