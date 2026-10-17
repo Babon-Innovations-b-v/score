@@ -154,8 +154,9 @@ def spend_since_splits_by_track():
 
 
 def run_day_check(day_bill, cloud_rows, google_lines, snapshots=(), skip=()):
-    """Run `reconcile-day 2026-10-11` on files written here: the day bill when given (else none), the ledgers, and
-    a bills folder holding `snapshots` ({"read", "lines"} each); (its exit code, its output)."""
+    """Run `reconcile-day 2026-10-11` on files written here: the day bill when given (else none), the ledgers (a
+    ledger given as None is named but never written), and a bills folder holding `snapshots` ({"read", "lines"}
+    each); (its exit code, its output)."""
     import json
     import subprocess
     import tempfile
@@ -165,8 +166,10 @@ def run_day_check(day_bill, cloud_rows, google_lines, snapshots=(), skip=()):
     bills.mkdir()
     for snapshot in snapshots:
         (bills / f"{snapshot['read'][:13]}{snapshot['read'][14:16]}Z.json").write_text(json.dumps(snapshot))
-    (folder / "ledger.jsonl").write_text("".join(json.dumps(row) + "\n" for row in cloud_rows))
-    (folder / "google.jsonl").write_text("".join(json.dumps(line) + "\n" for line in google_lines))
+    if cloud_rows is not None:
+        (folder / "ledger.jsonl").write_text("".join(json.dumps(row) + "\n" for row in cloud_rows))
+    if google_lines is not None:
+        (folder / "google.jsonl").write_text("".join(json.dumps(line) + "\n" for line in google_lines))
     command = [sys.executable, str(HERE / "costs.py"), "reconcile-day", "2026-10-11", "--ledger",
                str(folder / "ledger.jsonl"), "--google-ledger", str(folder / "google.jsonl"), "--bills", str(bills),
                *[part for provider in skip for part in ("--skip", provider)]]
@@ -286,6 +289,50 @@ def a_machine_still_running_counts_at_its_price():
     return [] if code == 0 and "machines: bill 6.00, ledgers 6.00" in output else [f"exit {code}: {output}"]
 
 
+def a_missing_ledger_fails_as_missing():
+    """Fault (review of C1, 2026-10-17): a ledger path that does not exist read as an empty ledger, so the day printed
+    'ledgers 0.00', 84-94% apart, and blamed spend outside the ledger when the ledger file itself was missing. A
+    missing ledger fails as missing and names its path."""
+    problems = []
+    day_bill = {"scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 20.0}],
+                "google": [{"sku": "m", "euros": 1.0}]}
+    code, output = run_day_check(day_bill, None, [], skip=["google"])
+    if code == 0 or "scaleway: no ledger at " not in output or "ledgers 0.00" in output:
+        problems.append(f"no cloud ledger: exit {code}: {output}")
+    code, output = run_day_check(day_bill, [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 20.0}],
+                                 None)
+    if code == 0 or "google: no ledger at " not in output or "scaleway: machines" not in output:
+        problems.append(f"no Google ledger: exit {code}: {output}")
+    return problems
+
+
+ORDER_ROWS = [
+    {"started": "2026-10-04T09:00:00Z", "batch": "rent-pixal-2-1", "kind": "rent-started", "state": "started",
+     "run": "pixal-2", "name": "pixal-2-1", "type": "L4-1-24G", "price": 0.75, "deadline": None, "machines": [],
+     "attempts": [], "machine_minutes": 0.0, "euros": 0.0},
+    {"started": "2026-10-04T09:00:01Z", "batch": "rent-pixal-2-1", "kind": "rent-refused", "state": "refused",
+     "name": "pixal-2-1", "reason": "out of stock", "machines": [], "attempts": [], "machine_minutes": 0.0,
+     "euros": 0.0},
+    {"started": "2026-10-11T09:00:00Z", "batch": "order-pool-p", "kind": "order-started", "state": "started",
+     "what": "pool", "name": "p", "machines": [], "attempts": [], "machine_minutes": 0.0, "euros": 0.0}]
+
+
+def order_lines_stay_out_of_the_paper():
+    """Fault (review of C1, 2026-10-17): the started, refused and order lines are not batches, yet reconcile counted
+    them in its rows, tables in its header and its per-kind table (a 0-euro rent-started group) and types_before as
+    'not recorded'. The paper's commands give the same answer with them as without."""
+    problems = []
+    with_orders = ROWS + ORDER_ROWS
+    if costs.reconcile(with_orders, BILL, READ) != costs.reconcile(ROWS, BILL, READ):
+        problems.append("reconcile changed by order lines")
+    reconciliation = costs.reconcile(ROWS, BILL, READ)
+    if costs.tables(with_orders, reconciliation, BILL) != costs.tables(ROWS, reconciliation, BILL):
+        problems.append("tables changed by order lines")
+    if costs.types_before(with_orders, "2026-10-06") != costs.types_before(ROWS, "2026-10-06"):
+        problems.append("types_before changed by order lines")
+    return problems
+
+
 def main():
     """Run every check; exit 1 on any problem."""
     checks = [local_roots_leave_the_copy, a_row_without_kind_is_tagged_pixal, the_bill_is_the_ledger_and_what_it_misses,
@@ -296,7 +343,8 @@ def main():
               a_day_eleven_percent_off_its_bill_fails_and_names_the_provider, a_day_within_five_percent_passes,
               an_empty_or_partial_bill_fails, the_scaleway_day_comes_from_the_saved_reads,
               a_run_across_midnight_counts_its_share_of_the_day, storage_and_other_lines_never_alarm,
-              a_machine_still_running_counts_at_its_price]
+              a_machine_still_running_counts_at_its_price, a_missing_ledger_fails_as_missing,
+              order_lines_stay_out_of_the_paper]
     problems = [f"{check.__name__}: {problem}" for check in checks for problem in check()]
     for problem in problems:
         print(problem)
