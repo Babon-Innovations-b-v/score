@@ -31,6 +31,21 @@
     "player (player/work): not a made model: no accepted body of its look (people-dress-player-work-in-tube)",
     "sitter (kit_m_avg/uniform-olive): not a made model: no accepted body of its look (people-dress-kit_m_avg-uniform-olive-in-tube)"
    ]
+  },
+  {
+   "name": "tube: readout and conduit box not laid in a 3-bay tube",
+   "row": "complete",
+   "check": "reach",
+   "objects": [
+    "small_readout",
+    "conduit_box"
+   ],
+   "reason": "the kit lays its readout and conduit box every 6th bay, as the game does; a 3-bay tube gets none; every-3rd-bay next month",
+   "decided": "overseer, 2026-10-17 17:40, until next month",
+   "faults": [
+    "{\"row\": \"small_readout\", \"result\": \"unknown\", \"why\": \"no object of this row on the stage\"}",
+    "{\"row\": \"conduit_box\", \"result\": \"unknown\", \"why\": \"no object of this row on the stage\"}"
+   ]
   }
  ]
 }
