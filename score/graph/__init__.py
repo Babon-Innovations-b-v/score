@@ -51,7 +51,9 @@ import os
 import pathlib
 import platform
 import shutil
+import signal
 import sys
+import threading
 import time
 import traceback
 import urllib.error
@@ -69,6 +71,8 @@ WORLD_LINE = "world"
 LOG_TAIL = 40
 # Nodes the drive runs at once: most wait on a rented machine, the rest work on this PC's cores.
 JOBS = 8
+# How often a node's process checks that its runner is still there (watch_runner).
+RUNNER_POLL_SECONDS = 2
 # The completion gate's check that fails a place's named gaps by name (score/review GAPPED).
 GAPPED = review.GAPPED
 # Each node runs in a forked process: its output (and its children's) goes to its own log, and the toy stages of the
@@ -209,6 +213,22 @@ def bytecode(relative):
 def source_hash(path):
     """An environment file's or folder's hash as a key part: the store's tree hash of it, its bytecode left out."""
     return listing_hash({name: file_hash(found) for name, found in tree_files(path).items() if not bytecode(name)})
+
+
+def watch_runner(runner_pid, every=None):
+    """In a node's process: once its runner (`runner_pid`, its parent) is gone, SIGTERM to the runner's whole process
+    group when the runner led one (`score run`: each batch in it deletes its machines), else to this process alone.
+    Checked every RUNNER_POLL_SECONDS; never returns while the runner lives."""
+    while os.getppid() == runner_pid:
+        time.sleep(every or RUNNER_POLL_SECONDS)
+    try:
+        group_led = os.getpgrp() == runner_pid
+    except OSError:
+        group_led = False
+    if group_led:
+        os.killpg(runner_pid, signal.SIGTERM)
+    else:
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 def node_name(stage, place):
@@ -1021,15 +1041,17 @@ class Runner:
         receiving, sending = FORK.Pipe(duplex=False)
         sys.stdout.flush()
         sys.stderr.flush()
-        process = FORK.Process(target=self.node_process, args=(stage, place, sending), name=node_name(stage, place))
+        process = FORK.Process(target=self.node_process, args=(stage, place, sending, os.getpid()),
+                               name=node_name(stage, place))
         process.start()
         sending.close()
         return {receiving: (stage, place, process)}
 
-    def node_process(self, stage, place, sending):
+    def node_process(self, stage, place, sending, runner_pid):
         """In the node's own process: drive it, send back what it did and end the process at once: a thread its make
         left running (a library's pool, a read that never returns) would otherwise hold the process at its exit, and
-        the drive's join with it, after the node is done."""
+        the drive's join with it, after the node is done. Its runner's death ends it (watch_runner)."""
+        threading.Thread(target=watch_runner, args=(runner_pid,), daemon=True).start()
         sending.send(self.drive_node(stage, place))
         sending.close()
         sys.stdout.flush()

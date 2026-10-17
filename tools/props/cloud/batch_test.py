@@ -304,6 +304,62 @@ def test_a_rent_writes_its_started_line_before_the_order_is_sent():
     assert line["ticket"] == "run-7 surfaces-paint" and line["type"] == "L4" and line["zone"] == "zone-a"
 
 
+# A batch holding one fake machine, deleted through batch.delete_machine as batch.run's end does; it says "ready".
+FAKE_BATCH = """
+import pathlib, sys, time
+sys.path.insert(0, sys.argv[1])
+import batch
+from provider import cloud
+deletes, folder = pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])
+cloud.delete = lambda server_id, zone: bool(deletes.open("a").write(server_id + "\\n"))
+batch.stop_on_signals()
+machine = {"id": "fake-machine", "zone": "zone-a", "deleted": None, "watchdog": 999999999, "folder": folder,
+           "created": time.time(), "kind": None, "healthy": False}
+try:
+    (folder / "ready").write_text("ready")
+    time.sleep(120)
+finally:
+    batch.delete_machine(machine)
+"""
+# A runner leading its process group with one node process (score.graph's watch_runner) that runs the fake batch.
+RUNNER = """
+import os, subprocess, sys, threading, time
+sys.path.insert(0, sys.argv[1])
+from score import graph
+os.setpgid(0, 0)
+runner = os.getpid()
+if os.fork() == 0:
+    threading.Thread(target=graph.watch_runner, args=(runner, 0.2), daemon=True).start()
+    subprocess.run([sys.executable, "-c", sys.argv[2], *sys.argv[3:]])
+    os._exit(0)
+time.sleep(120)
+"""
+
+
+def test_a_batch_whose_runner_dies_deletes_its_machines():
+    """Fault (2026-10-17): a `score run` killed outright left its batches renting with no one to stop them."""
+    import signal
+    import subprocess
+    import time
+
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="orphan-batch-"))
+    deletes = folder / "deletes.txt"
+    environment = {**os.environ, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work")}
+    environment.pop("SCORE_RUN_ID", None)
+    runner = subprocess.Popen([sys.executable, "-c", RUNNER, str(pathlib.Path(__file__).resolve().parents[3]),
+                               FAKE_BATCH, str(pathlib.Path(__file__).resolve().parent), str(deletes), str(folder)],
+                              env=environment)
+    deadline = time.time() + 60
+    while not (folder / "ready").exists() and time.time() < deadline:
+        time.sleep(0.1)
+    assert (folder / "ready").exists(), "the fake batch never started"
+    runner.send_signal(signal.SIGKILL)  # no stop handler runs: only the node's watch can end the batch
+    runner.wait()
+    while not deletes.exists() and time.time() < deadline:
+        time.sleep(0.1)
+    assert deletes.exists() and deletes.read_text().split() == ["fake-machine"], "the batch's machine was left"
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

@@ -28,6 +28,13 @@ stopped. --detach returns at once with the log's path: the run goes on in a sess
 SIGTERM, SIGINT or SIGHUP says `score run: stopped by signal N`, then `detached: stopped by signal N exit=128+N ...`.
 Wait for that line with the Monitor tool, never a poll loop.
 
+A run and everything it starts end together (2026-10-17: orphaned cloud machines and boxes billed by the started hour
+after runs were stopped): `run` names itself SCORE_RUN_ID (every node, batch and cloud tool it starts inherits it; their
+machines count against one cap for the whole run, tools/props/cloud/capacity.py) and leads a process group of its own.
+Stopped by SIGTERM, SIGINT or SIGHUP, it sends SIGTERM to that whole group (each batch deletes its machines through its
+own delete path), waits STOP_GRACE_SECONDS, sends SIGKILL to whatever is left, then releases the run's spend
+reservations. A node process whose runner is gone sends the group SIGTERM itself (score.graph).
+
 Before it starts, `run` lists every paid row it would buy with its estimate (score/graph/rebuy.py; a Google ask its
 cache answers at EUR 0) and refuses, before detaching, when buying again rows that already have an accepted output
 would cost over EUR 5, unless given --rebuy-reason, which goes into the run's log and the cloud ledger.
@@ -43,10 +50,13 @@ worked out every moved row counts as the push's. The hook runs only once the own
 import argparse
 import datetime
 import json
+import os
 import pathlib
 import signal
+import socket
 import subprocess
 import sys
+import time
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -57,6 +67,10 @@ from score.stages import moved  # noqa: E402
 from score.store import Store  # noqa: E402
 
 DETACH = "--detach"
+RUN_ID = "SCORE_RUN_ID"
+RUN_PID = "SCORE_RUN_PID"
+# How long a stopped run's process group has to end after SIGTERM before what is left gets SIGKILL.
+STOP_GRACE_SECONDS = 30
 
 
 ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
@@ -140,6 +154,75 @@ def buy_check(runner, places, whole, only, reason):
     return {"missing": [], "buys": bought, "refusal": rebuy.refusal(bought, reason),
             "to_run": {node: state for node, state in states.items() if state.startswith("to run")},
             "blocked": {node: state for node, state in states.items() if state.startswith("blocked")}}
+
+
+def become_run():
+    """Make this process a run: the leader of a process group of its own (a shell with job control already made it
+    one), its id in SCORE_RUN_ID and its pid in SCORE_RUN_PID for every process it starts; the run id."""
+    if os.getpgrp() != os.getpid():
+        os.setpgid(0, 0)
+    os.environ[RUN_PID] = str(os.getpid())
+    os.environ[RUN_ID] = f"{socket.gethostname()}-{os.getpid()}-{int(time.time())}"
+    return os.environ[RUN_ID]
+
+
+def group_members(group):
+    """The live processes of a process group other than this one (zombies left out), read from /proc."""
+    members = []
+    for entry in pathlib.Path("/proc").iterdir():
+        if not entry.name.isdigit() or int(entry.name) == os.getpid():
+            continue
+        try:
+            fields = (entry / "stat").read_text().rpartition(")")[2].split()
+        except OSError:  # gone while being read
+            continue
+        if fields[0] != "Z" and int(fields[2]) == group:
+            members.append(int(entry.name))
+    return members
+
+
+def end_group(grace=STOP_GRACE_SECONDS):
+    """SIGTERM to every other process of this run's group, then SIGKILL to those still there after `grace` seconds;
+    the pids that needed SIGKILL. Only a group this process leads is signalled."""
+    group = os.getpgrp()
+    if group != os.getpid():
+        return []
+    for member in group_members(group):
+        signal_quietly(member, signal.SIGTERM)
+    deadline = time.time() + grace
+    while group_members(group) and time.time() < deadline:
+        time.sleep(0.2)
+    left = group_members(group)
+    for member in left:
+        signal_quietly(member, signal.SIGKILL)
+    return left
+
+
+def signal_quietly(pid, number):
+    """Send a signal to a process that may have ended meanwhile."""
+    try:
+        os.kill(pid, number)
+    except ProcessLookupError:
+        pass
+
+
+def release_run(runner, run_id):
+    """End the spend reservations this run's nodes held (a node ended by a signal never released its own) and its
+    machine counts for the run-wide cap."""
+    from score.adapters import compute
+    compute.release_run(runner.store.cache.parent / "reservations.json", run_id)
+    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    import capacity
+    capacity.forget_run(run_id)
+
+
+def stop_run(runner, run_id, number):
+    """A stopping signal's end of a run: say so, end its process group, release what it held."""
+    print(f"score run: stopped by signal {number}", flush=True)
+    killed = end_group()
+    if killed:
+        print(f"score run: SIGKILL to {len(killed)} processes still there after {STOP_GRACE_SECONDS} s", flush=True)
+    release_run(runner, run_id)
 
 
 def checked_buys(runner, places, whole, options):
@@ -365,9 +448,11 @@ def main(argv=None):
         detach(sys.argv)
         return
     if options.command == "run":
-        stopped.stop_on_signals(lambda number: print(f"score run: stopped by signal {number}", flush=True))
+        run_id = become_run()
+        stopped.stop_on_signals(lambda number: stop_run(runner, run_id, number))
         runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
                      only=options.stage)
+        release_run(runner, run_id)
     lines = runner.lines(places, whole, options.stage)
     if getattr(options, "json", False):
         print(json.dumps(status_json(options.world, lines)))

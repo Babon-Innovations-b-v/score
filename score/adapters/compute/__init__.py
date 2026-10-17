@@ -62,6 +62,8 @@ TICKET = "SCORE_SPEND_TICKET"
 PER_UNIT = REPO / "data/costs/per-unit.json"
 # The folder of the store the ticket's clearance is in, set beside the ticket (a trial store's, compare.py's).
 STORE = "SCORE_SPEND_STORE"
+# The `score run` a clearance was made under (score/__main__.py): its reservations end with it, even when stopped.
+RUN_ID = "SCORE_RUN_ID"
 OVERRIDE = "override"
 # How long a paid API's judge is waited on before an ask counts as timed out (SCORE_JUDGE_TIMEOUT seconds): an
 # operational setting like the card classes, outside every stage's key, since it decides only whether an answer
@@ -335,7 +337,7 @@ def clearance(runner, node, euros):
                    "high_minutes": forecast["high_minutes"], "measured": forecast["measured"], "estimate": euros,
                    "by": RUNNER, "at": graph.now()}
         runner.store.write_clearance(node, ticket["key"], cleared)
-        keep_reservations(reservations, {**held, cleared["at"]: cleared})
+        keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": os.environ.get(RUN_ID)}})
     return {**ticket, "clearance": cleared, "reservations": str(reservations),
             "store": str(runner.store.cache.parent)}
 
@@ -357,6 +359,18 @@ def release(ticket):
         held = open_reservations(reservations)
         held.pop(ticket["clearance"]["at"], None)
         keep_reservations(reservations, held)
+
+
+def release_run(reservations, run_id):
+    """End every reservation a run's nodes still hold (`score run` stopped by a signal: its nodes never reached their
+    own release); how many were ended. No run id ends none."""
+    if not run_id:
+        return 0
+    with clearing(pathlib.Path(reservations)):
+        held = open_reservations(pathlib.Path(reservations))
+        kept = {at: reserved for at, reserved in held.items() if reserved.get("run") != run_id}
+        keep_reservations(pathlib.Path(reservations), kept)
+    return len(held) - len(kept)
 
 
 def submit(runner, node, job_store, run, job, spec):

@@ -271,6 +271,54 @@ def test_a_sweep_leaves_a_parked_machine_alone_until_its_time():
     assert batch.is_leftover(batch.run_tags(999999999, until), time.time())  # its expirer gone
 
 
+class FakeMachines:
+    """A backend's machine listing (each item's own project_id) and its deletes, recorded."""
+
+    def __init__(self, items):
+        self.items, self.deleted = items, []
+
+    def machines(self, project):
+        return self.items  # a listing filter that silently did not apply: every project's machines
+
+    def delete(self, server_id, zone):
+        self.deleted.append(server_id)
+        return True
+
+
+def test_the_reaper_deletes_what_a_gone_run_left_and_skips_another_projects_machine():
+    now, host = time.time(), "this-pc"
+    gone = "pid=999999999"
+    backend = FakeMachines([
+        {"id": "gone-run", "zone": "zone-a", "project_id": "farm-factory", "tags": [f"host={host}", gone]},
+        {"id": "quiet", "zone": "zone-a", "project_id": "farm-factory",
+         "tags": ["host=elsewhere", gone, f"heartbeat={now - 16 * 60:.0f}"]},
+        {"id": "running", "zone": "zone-a", "project_id": "farm-factory",
+         "tags": [f"host={host}", f"run_pid={os.getpid()}", gone, f"heartbeat={now - 60:.0f}"]},
+        {"id": "other-project", "zone": "zone-a", "project_id": "another-company",
+         "tags": [f"host={host}", gone, f"heartbeat={now - 99 * 60:.0f}"]},
+    ])
+    assert park.reap(backend, "farm-factory", host, now) == ["gone-run", "quiet"]
+    assert backend.deleted == ["gone-run", "quiet"]
+
+
+def test_a_run_at_its_cap_leaves_another_runs_parked_machine_listed():
+    fresh()
+    os.environ["SCORE_RUN_ID"] = "park-test-run"
+    os.environ["SCORE_MAX_MACHINES"] = "all=1"
+    try:
+        batch.delete_machine(machine(20, unit_minutes=1, server_id="c9"))  # parked under this run: counted
+        assert park.json.loads((park.PARKED / "c9.json").read_text())["run"] == "park-test-run"
+        held = run_of("at-cap")
+        held.machines.append({"id": "busy", "zone": "zone-a", "class": "gpu-24gb", "deleted": None})
+        assert park.adopt(held, CARD_OFFERS, 1, KIND, 60) is None  # one held + the parked one would pass the cap
+        assert (park.PARKED / "c9.json").exists()
+        held.machines[0]["deleted"] = time.time()
+        assert park.adopt(held, CARD_OFFERS, 1, KIND, 60)["id"] == "c9"  # parked to live: the count stays one
+    finally:
+        os.environ.pop("SCORE_RUN_ID")
+        os.environ.pop("SCORE_MAX_MACHINES")
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
