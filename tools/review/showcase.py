@@ -382,17 +382,17 @@ def cut(folder, page, stage, concept):
 
 
 def labelled(picture, text, face):
-    """A tile with its name low on the left on a black band."""
+    """A tile with its name low on the left on a black band, large enough to read at a quarter of a page's width."""
     draw = ImageDraw.Draw(picture)
     width = draw.textlength(text, font=face)
-    draw.rectangle([0, picture.height - 34, width + 16, picture.height], fill=(0, 0, 0))
-    draw.text((8, picture.height - 30), text, font=face, fill=(240, 240, 240))
+    draw.rectangle([0, picture.height - 52, width + 16, picture.height], fill=(0, 0, 0))
+    draw.text((8, picture.height - 47), text, font=face, fill=(240, 240, 240))
     return picture
 
 
 def sheet(tiles, out):
     """The tiles, (name, title, picture path), COLUMNS a row, each with its title; their list beside it (<out>.json)."""
-    face = ImageFont.truetype(LABEL_FONT, 22)
+    face = ImageFont.truetype(LABEL_FONT, 36)
     rows = -(-len(tiles) // COLUMNS)
     picture = Image.new("RGB", (COLUMNS * TILE[0] + (COLUMNS - 1) * 8, rows * TILE[1] + (rows - 1) * 8), "white")
     for number, (_, title, path) in enumerate(tiles):
