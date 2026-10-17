@@ -787,7 +787,7 @@ def heartbeat_every(seconds):
         graph.HEARTBEAT = before
 
 
-def test_a_long_node_has_heartbeats_before_it_ends_and_an_exit_line_last():
+def test_a_long_node_has_heartbeats_before_it_ends():
     """Fault (2026-10-16): runs failed or sat idle quietly, and outside watchers stopped live ones. The 2-minute beat
     and 3-minute node scaled down to 0.3 s and 1.5 s."""
     said = []
@@ -798,33 +798,82 @@ def test_a_long_node_has_heartbeats_before_it_ends_and_an_exit_line_last():
     beats = [line for line in said[:ended] if line.startswith("heartbeat ")]
     assert len(beats) >= 3, said
     assert beats[0].endswith(": rows done 0, running 1, queued 0; EUR 0.00 so far"), beats
-    assert said[-1] == "exit: ok, 1 rows ended", said
 
 
-def test_a_drive_that_raises_ends_with_an_exit_line():
-    def broken():
-        raise RuntimeError("the ledger is unreadable")
+def test_a_gauge_that_fails_is_said_in_its_beat_and_the_drive_goes_on():
+    """Review (C8): a gauge that raised (a ledger line half written by another worktree's batch) ended the drive with
+    its nodes still running."""
     said = []
     with heartbeat_every(0.2):
+        found = slow_runner(1).drive(["hangar"], say=said.append, gauges=lambda: 1 / 0)
+    assert found == {"slow@hangar": "made: pass, accepted automatically"}, found
+    beats = [line for line in said if line.startswith("heartbeat ")]
+    assert beats and beats[0].endswith("; gauges unreadable: ZeroDivisionError: division by zero"), said
+
+
+def test_a_stages_own_drive_says_no_heartbeat_or_exit_line():
+    """Review (C8): stage code drives too (compare.py); its output carries no beats and no `exit:` a watcher reads as
+    the run's end."""
+    said = []
+    with heartbeat_every(0.1):
+        slow_runner(0.6).drive(["hangar"], say=said.append)
+    assert not [line for line in said if line.startswith(("heartbeat ", "exit:"))], said
+
+
+def run_options(stage=None):
+    import argparse
+    return argparse.Namespace(jobs=graph.JOBS, stage=stage, command="run")
+
+
+def run_printing(runner, places, whole=False):
+    """score run's drive, closing status and exit line on `runner`; (what it printed as lines, the lines)."""
+    from score import __main__ as command
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        lines = command.run_with_exit_line(runner, places, whole, run_options())
+    return printed.getvalue().splitlines(), lines
+
+
+def test_a_run_ends_with_its_exit_line_after_its_line_states():
+    """Review (C8): the exit line came before the closing status, the pass that can hang."""
+    printed, lines = run_printing(slow_runner(0.2), ["hangar"])
+    assert printed[-2:] == ["hangar: done", "exit: ok, 1 of 1 lines done, 1 rows ran"], printed
+    assert lines["hangar"][0] == "done"
+
+
+def test_a_run_whose_line_stopped_says_stopped_in_its_exit_line():
+    """Review (C8): `exit: ok` was said for a run main then ended with 1, its not-run rows counted as ended."""
+    printed, lines = run_printing(a_runner({"hangar": "explode", "station": "a hub"}), list(PLACES))
+    assert printed[-1] == "exit: stopped, 1 of 2 lines done, 1 stopped, 3 rows ran, 1 not run", printed
+    assert lines["hangar"][0].startswith("stopped at clean@hangar")
+
+
+def test_a_run_that_raises_ends_with_an_exit_line():
+    runner = slow_runner(0.2)
+
+    def broken(*arguments):
+        raise RuntimeError("the store is unreadable")
+    runner.lines = broken
+    from score import __main__ as command
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
         try:
-            slow_runner(1).drive(["hangar"], say=said.append, gauges=broken)
-            raise AssertionError("the drive did not raise")
+            command.run_with_exit_line(runner, ["hangar"], False, run_options())
+            raise AssertionError("the run did not raise")
         except RuntimeError:
             pass
-    assert said[-1] == "exit: error: RuntimeError: the ledger is unreadable", said
+    assert printed.getvalue().splitlines()[-1] == "exit: error: RuntimeError: the store is unreadable", printed
 
 
-def test_a_drive_stopped_by_sigterm_ends_with_an_exit_line():
+def test_a_run_stopped_by_sigterm_ends_with_an_exit_line():
+    from score import __main__ as command
     from score.graph import stopped
     said = pathlib.Path(tempfile.mkdtemp()) / "said.txt"
 
-    def say(line):
-        with said.open("a") as lines:
-            lines.write(line + "\n")
-
     def driving():
-        stopped.stop_on_signals(lambda number: say(f"score run: stopped by signal {number}"))
-        slow_runner(5).drive(["hangar"], say=say)
+        sys.stdout = said.open("a", buffering=1)
+        stopped.stop_on_signals(lambda number: print(f"score run: stopped by signal {number}", flush=True))
+        command.run_with_exit_line(slow_runner(5), ["hangar"], False, run_options())
     process = graph.FORK.Process(target=driving)
     process.start()
     time.sleep(1)
@@ -833,6 +882,27 @@ def test_a_drive_stopped_by_sigterm_ends_with_an_exit_line():
     lines = said.read_text().splitlines()
     assert process.exitcode == 143, process.exitcode
     assert lines[-2:] == ["score run: stopped by signal 15", "exit: stopped by signal 15, exit 143"], lines
+
+
+def test_the_run_gauges_count_only_this_runs_rows():
+    """Review (C8): the gauges summed every batch any worktree recorded and counted every open paid run in the store."""
+    from score import __main__ as command
+    books = compute.ledger()
+    runner = slow_runner(0)
+    here = books.origin()["worktree"]
+    rows = [{"worktree": here, "ticket": "slow@hangar k1", "started": "2026-10-17T10:00:00Z", "euros": 2.5},
+            {"worktree": here, "ticket": "other@far k2", "started": "2026-10-17T10:00:00Z", "euros": 7.0},
+            {"worktree": "elsewhere", "ticket": "slow@hangar k3", "started": "2026-10-17T10:00:00Z", "euros": 9.0},
+            {"worktree": here, "ticket": "slow@hangar k4", "started": "2026-10-17T08:00:00Z", "euros": 4.0}]
+    before, books.entries = books.entries, lambda: rows
+    held = {graph.now(): {"node": "slow@hangar"}}
+    held[graph.now()] = {"node": "other@far"}
+    (runner.store.cache.parent / "reservations.json").write_text(json.dumps(held))
+    try:
+        said = command.run_gauges(runner, ["hangar"], False, None, "2026-10-17T09:00:00Z")()
+    finally:
+        books.entries = before
+    assert said == "this run's rows: paid runs open 1, EUR 2.50 in the ledger since the run started", said
 
 
 # --- runs side by side on one store ----------------------------------------------------------------------------------
