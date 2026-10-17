@@ -319,18 +319,18 @@ def making_in(folder):
             os.environ[MAKING] = before
 
 
-def heartbeat_line(done, running, queued, gauges=None):
-    """The drive's heartbeat: rows done, running and queued, then what `gauges()` says when given."""
-    line = f"heartbeat {now()}: rows done {done}, running {running}, queued {queued}"
-    return f"{line}; {gauges()}" if gauges else line
+def heartbeat_line(done, running, queued, gauges):
+    """The drive's heartbeat: rows done, running and queued, then what `gauges()` says."""
+    return f"heartbeat {now()}: rows done {done}, running {running}, queued {queued}; {read_gauges(gauges)}"
 
 
-def raised_status(error):
-    """A drive's exit status from what it raised: a signal's stop (exit code 128 + its number) named as such."""
-    if isinstance(error, SystemExit):
-        code = error.code if isinstance(error.code, int) else 1
-        return f"stopped by signal {code - 128}, exit {code}" if code > 128 else f"exited, exit {code}"
-    return f"error: {type(error).__name__}: {error}"
+def read_gauges(gauges):
+    """What `gauges()` says, or why it could not be read: a gauge reads files other runs write (the shared ledger, the
+    reservations), and one it cannot read never ends a drive whose nodes are still running."""
+    try:
+        return gauges()
+    except Exception as error:  # noqa: BLE001 - said in the beat; the drive goes on
+        return f"gauges unreadable: {type(error).__name__}: {error}"
 
 
 class Runner:
@@ -1109,27 +1109,14 @@ class Runner:
         return did, True
 
     def drive(self, places, say=print, jobs=JOBS, whole=True, only=None, gauges=None):
-        """drive_lines, ending with one exit line said in every case: when it ends, raises, or is stopped by a signal
-        (stopped.stop_on_signals raises SystemExit); {node: what it did}. `gauges()`, when given, is text the heartbeat
-        lines carry (the euros so far, the paid runs open)."""
-        status = "ended without a status"
-        try:
-            found = self.drive_lines(places, say, jobs, whole, only, gauges)
-            status = f"ok, {len(found)} rows ended"
-            return found
-        except BaseException as error:  # noqa: BLE001 - said, then raised again as it was
-            status = raised_status(error)
-            raise
-        finally:
-            say(f"exit: {status}")
-
-    def drive_lines(self, places, say=print, jobs=JOBS, whole=True, only=None, gauges=None):
         """Run every line to its end with no one in the loop, the lines side by side: each node starts in a process of
         its own the moment every node it reads stands accepted, at most `jobs` at once, so a line waiting on a cloud
         step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
         own line and leaves a fault report; {node: what it did}, in table order. `whole` False drives the places'
-        lines alone, with only the environment nodes they read; `only` (stage names) those stages and the ones they read."""
+        lines alone, with only the environment nodes they read; `only` (stage names) those stages and the ones they read.
+        `gauges`, given by score run alone (a stage's own drive says no beats), is called every HEARTBEAT seconds for
+        the text a heartbeat line carries (the run's euros so far, its paid runs open)."""
         chosen = self.line_nodes(places, whole, only)
         order = {node_name(*node): index for index, node in enumerate(chosen)}
         waiting = list(chosen)
@@ -1155,10 +1142,11 @@ class Runner:
                     running.update(self.start(stage, place))
             if not running:
                 break
-            if time.monotonic() >= beat_at:
+            if gauges and time.monotonic() >= beat_at:
                 say(heartbeat_line(len(done), len(running), len(waiting), gauges))
                 beat_at = time.monotonic() + HEARTBEAT
-            for finished in FORK_WAIT(list(running), timeout=max(0.0, beat_at - time.monotonic())):
+            beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None  # no beats: wait for a node alone
+            for finished in FORK_WAIT(list(running), timeout=beat_in):
                 stage, place, process = running.pop(finished)
                 node = node_name(stage, place)
                 done[node], stands = self.conclude(stage, place, self.outcome(finished, process))

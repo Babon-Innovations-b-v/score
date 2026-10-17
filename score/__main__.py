@@ -22,9 +22,11 @@ a process of its own and at most --jobs at once (default score.graph.JOBS; --job
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
 the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a plain fault report
 (faults/<node>.txt beside the store) to point an agent or the owner at; the other lines go on. It exits 1 when any line
-stopped. Every score.graph.HEARTBEAT seconds it prints a heartbeat line (rows done, running and queued, the paid runs
-open, the euros the ledger holds since it started), and it always ends with an `exit: <status>` line, on an error or a
-stopping signal too. --detach returns at once with the log's path: the run goes on in a session of its own
+stopped. Every score.graph.HEARTBEAT seconds it prints a heartbeat line (rows done, running and queued, then this run's
+rows' paid runs open and the euros the ledger holds for them since it started), and it always ends with one `exit:
+<status>` line, after the lines' closing states and on an error or a stopping signal too: `exit: ok, ...` only when
+every line is done, else `exit: stopped, N of M lines done, ...` (exit code 1), `exit: error: ...` or `exit: stopped by
+signal N, exit 128+N`. --detach returns at once with the log's path: the run goes on in a session of its own
 (tools/props/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
 (`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line; a run stopped by
 SIGTERM, SIGINT or SIGHUP says `score run: stopped by signal N`, then `detached: stopped by signal N exit=128+N ...`.
@@ -602,18 +604,73 @@ def stop_on_term(signal_number, frame):
     sys.exit(f"stopped by signal {signal_number}")
 
 
-def run_gauges(runner, started):
-    """The run's gauges for its heartbeat lines, read from files alone (no cloud call): the paid runs cleared and still
-    open (each holds a rented machine or is about to), and the euros the cloud ledger holds for batches started since
-    `started`."""
+def run_gauges(runner, places, whole, only, started):
+    """The run's gauges for its heartbeat lines, read from files alone (no cloud call) and scoped to this run's rows:
+    their paid runs cleared and still open (each holds a rented machine or is about to), and the euros the cloud ledger
+    holds for batches this checkout ran for them since `started` (a row's batch carries its spend ticket, `<node>
+    <key>`)."""
     from score.adapters import compute
+    nodes = {graph.node_name(*node) for node in runner.line_nodes(places, whole, only)}
 
     def gauges():
         books = compute.ledger()
-        euros = sum(batch["euros"] for batch in books.entries() if batch["started"] >= started)
+        here = books.origin()["worktree"]
+        euros = sum(batch["euros"] for batch in books.entries() if batch.get("worktree") == here
+                    and (batch.get("ticket") or "").partition(" ")[0] in nodes and batch["started"] >= started)
         held = compute.open_reservations(compute.covering_store(runner.store).cache.parent / "reservations.json")
-        return f"paid runs open {len(held)}, EUR {euros:.2f} in the ledger since the run started"
+        mine = [at for at, cleared in held.items() if cleared.get("node") in nodes]
+        return f"this run's rows: paid runs open {len(mine)}, EUR {euros:.2f} in the ledger since the run started"
     return gauges
+
+
+def closing_lines(runner, places, whole, options):
+    """Each line's state printed (with each node's under `status`); {line: (its state, {node: state})}."""
+    lines = runner.lines(places, whole, options.stage)
+    for line, (state, nodes) in lines.items():
+        print(f"{line}: {state}")
+        if options.command == "status":
+            print("\n".join(f"  {node}: {node_state}" for node, node_state in nodes.items()))
+    return lines
+
+
+def exit_status(found, lines):
+    """A finished run's exit status: ok only when every line is done (main exits 0 then), else stopped; with how many
+    rows ran and how many were not run because their line stopped."""
+    done = sum(state == "done" for state, _ in lines.values())
+    not_run = sum(did.startswith("not run:") for did in found.values())
+    rows = f"{len(found) - not_run} rows ran" + (f", {not_run} not run" if not_run else "")
+    if done == len(lines):
+        return f"ok, {done} of {len(lines)} lines done, {rows}"
+    return f"stopped, {done} of {len(lines)} lines done, {len(lines) - done} stopped, {rows}"
+
+
+def raised_status(error):
+    """A run's exit status from what it raised: a signal's stop (exit code 128 + its number) named as such."""
+    if isinstance(error, SystemExit):
+        code = error.code if isinstance(error.code, int) else 1
+        return f"stopped by signal {code - 128}, exit {code}" if code > 128 else f"exited, exit {code}"
+    return f"error: {type(error).__name__}: {error}"
+
+
+def run_with_exit_line(runner, places, whole, options):
+    """Drive the lines as a run (as_run), then print their closing states, then one `exit: <status>` line, the run's
+    last, said in every case: when it ends, raises, or is stopped by a signal (stopped.stop_on_signals raises
+    SystemExit); the lines."""
+    status = "ended without a status"
+    try:
+        started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # the ledger's own time format
+        found = {}
+        as_run(runner, lambda: found.update(runner.drive(
+            places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole, only=options.stage,
+            gauges=run_gauges(runner, places, whole, options.stage, started))))
+        lines = closing_lines(runner, places, whole, options)
+        status = exit_status(found, lines)
+        return lines
+    except BaseException as error:  # noqa: BLE001 - said, then raised again as it was
+        status = raised_status(error)
+        raise
+    finally:
+        print(f"exit: {status}", flush=True)
 
 
 def main(argv=None):
@@ -644,22 +701,17 @@ def main(argv=None):
     if getattr(options, "detach", False):
         detach(sys.argv)
         return
-    if options.command == "run":
-        started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # the ledger's own time format
-        as_run(runner, lambda: runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs,
-                                            whole=whole, only=options.stage, gauges=run_gauges(runner, started)))
-    lines = runner.lines(places, whole, options.stage)
-    if getattr(options, "json", False):
-        print(json.dumps(status_json(options.world, lines)))
+    if options.command == "status":
+        if getattr(options, "json", False):
+            print(json.dumps(status_json(options.world, runner.lines(places, whole, options.stage))))
+            return
+        closing_lines(runner, places, whole, options)
+        if whole and stages.library.WORLD_ROW in runner.stages:
+            print(stages.library.completion_line(runner.world.name,
+                                                 stages.library.world_completion(runner, places)))
         return
-    for line, (state, nodes) in lines.items():
-        print(f"{line}: {state}")
-        if options.command == "status":
-            print("\n".join(f"  {node}: {node_state}" for node, node_state in nodes.items()))
-    if options.command == "status" and whole and stages.library.WORLD_ROW in runner.stages:
-        print(stages.library.completion_line(runner.world.name,
-                                             stages.library.world_completion(runner, places)))
-    if options.command == "run" and any(state != "done" for state, _ in lines.values()):
+    lines = run_with_exit_line(runner, places, whole, options)
+    if any(state != "done" for state, _ in lines.values()):
         sys.exit(1)
 
 
