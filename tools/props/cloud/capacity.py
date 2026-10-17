@@ -23,16 +23,23 @@ runs a share on each card.
 Every kind spreads a batch over many machines at once (`spread.py`, 2026-10-08, once the provider granted quotas
 for 20 H100, 50 L4 and 10 L40S machines): `machines_for` sizes the fleet so each machine works about as long as its
 setup takes (one machine for a small batch), and `next_offer` holds a run to its caps (`max_machines` a class,
-`run_cap` in all; SCORE_MAX_MACHINES overrides the backend's quotas).
+`run_cap` in all; SCORE_MAX_MACHINES overrides the backend's quotas). Under a `score run` (SCORE_RUN_ID) `run_cap`
+holds for the whole run, not each process (2026-10-17: every --jobs node and parallel batch held its own cap): each
+process that rents writes how many machines it holds into the run's folder in RUNS, and an offer is given only while
+those counts, of processes still alive, and the machines parked by the run (park.py) leave room, all under one lock.
 
 A big card runs several jobs of a kind at once where its memory allows (`runs_at_once`): Pixal3D runs three at once
 on 24 GB (measured 2026-09-29), so a card runs three for every 24 GB it has.
 """
 import argparse
 import collections
+import contextlib
+import fcntl
+import json
 import math
 import os
 import pathlib
+import shutil
 import statistics
 import sys
 
@@ -106,6 +113,9 @@ LATE_MINUTES = 5
 # class together, RUN_MACHINES. SCORE_MAX_MACHINES overrides any of them, e.g. "gpu-80gb=20,gpu-24gb=50,all=30".
 OTHER_MACHINES = 5
 RUN_MACHINES = 20
+# Each `score run`'s machine counts, a folder per run (SCORE_RUN_ID) holding a file per process that rents.
+RUNS = ledger.LEDGER.parent / "runs"
+RUN_ID = "SCORE_RUN_ID"
 # A ledger entry written before entries named their kind was a Pixal3D batch.
 OLD_KIND = "pixal"
 # Where `report` writes its table; the summary line it prints names this path.
@@ -207,8 +217,76 @@ def next_offer(offers, rented, kind=None):
     if not offers or len(live) >= run_cap():
         return None
     in_zone = collections.Counter(machine["zone"] for machine in live)
-    return min(offers, key=lambda offer: (offer.stock_word == "shortage", speed_rank(offer.machine_class, kind),
-                                          offer.stock, offer.order, in_zone[offer.zone], offer.per_card))
+    chosen = min(offers, key=lambda offer: (offer.stock_word == "shortage", speed_rank(offer.machine_class, kind),
+                                            offer.stock, offer.order, in_zone[offer.zone], offer.per_card))
+    return chosen if reserve_run_slot(len(live)) else None
+
+
+# The run-wide cap: one count of machines for every process of a `score run`.
+
+@contextlib.contextmanager
+def run_locked(run):
+    """The run's machine counts, held by this process alone."""
+    folder = RUNS / run
+    folder.mkdir(parents=True, exist_ok=True)
+    with (folder / "lock").open("w") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield folder
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def held_elsewhere(folder, run):
+    """Machines the run holds outside this process: the counts of its other processes still alive, and its parked
+    machines (park.py's records name the run that parked them)."""
+    import batch
+    import park
+    held = 0
+    for path in folder.glob("*.json"):
+        count = json.loads(path.read_text())
+        if count["pid"] != os.getpid() and batch.process_alive(count["pid"]):
+            held += count["machines"]
+    with park.locked():
+        held += sum(json.loads(path.read_text()).get("run") == run for path in park.PARKED.glob("*.json"))
+    return held
+
+
+def write_count(folder, machines):
+    """This process's count of the run's machines, written whole."""
+    partial = folder / f"{os.getpid()}.partial"
+    partial.write_text(json.dumps({"pid": os.getpid(), "machines": machines}))
+    partial.replace(folder / f"{os.getpid()}.json")
+
+
+def reserve_run_slot(live):
+    """Count one more machine for this process, which holds `live` (those being rented included), when its run has
+    room under run_cap; True if counted. Outside a `score run` there is no run-wide count: always True."""
+    run = os.environ.get(RUN_ID)
+    if not run:
+        return True
+    with run_locked(run) as folder:
+        room = held_elsewhere(folder, run) + live < run_cap()
+        write_count(folder, live + 1 if room else live)
+    return room
+
+
+def machine_left():
+    """One machine fewer for this process in its run's count: deleted or parked (a parked one is counted by its
+    record)."""
+    run = os.environ.get(RUN_ID)
+    if not run:
+        return
+    with run_locked(run) as folder:
+        path = folder / f"{os.getpid()}.json"
+        if path.exists():
+            write_count(folder, max(0, json.loads(path.read_text())["machines"] - 1))
+
+
+def forget_run(run):
+    """Remove a finished run's machine counts."""
+    if run and (RUNS / run).exists():
+        shutil.rmtree(RUNS / run)
 
 
 # The report.

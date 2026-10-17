@@ -13,6 +13,7 @@ import json
 import os
 import pathlib
 import signal
+import subprocess
 import sys
 import tempfile
 import threading
@@ -407,6 +408,69 @@ def test_a_detached_run_stopped_by_a_signal_still_ends_with_its_line():
         time.sleep(0.1)
     lines = log.read_text().splitlines()
     assert lines[-1].startswith("detached: stopped by signal 15 exit=143 ") and f"log={log}" in lines[-1], lines
+
+
+# A `score run` in miniature: it becomes a run and installs its stop handler as score/__main__ does, forks a node that
+# waits, and starts a fake batch that stops on SIGTERM and one that ignores it; it writes its run id and every pid.
+STOPPED_RUN = """
+import json, os, pathlib, signal, subprocess, sys, time, types
+sys.path.insert(0, sys.argv[1])
+from score import __main__ as command
+from score.adapters import compute
+from score.graph import stopped
+folder = pathlib.Path(sys.argv[2])
+run_id = command.become_run()
+runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache"))
+(folder / "reservations.json").write_text(json.dumps({compute.graph.now(): {"euros": 2.0, "run": run_id},
+                                                      "2099-01-01T00:00:00+00:00": {"euros": 1.0, "run": "other"}}))
+stopped.stop_on_signals(lambda number: command.stop_run(runner, run_id, number))
+pids = []
+node = os.fork()
+if node == 0:
+    time.sleep(120)
+    os._exit(0)
+pids.append(node)
+batch = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+stubborn = subprocess.Popen([sys.executable, "-c", "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+                             "open(__import__('sys').argv[1], 'w').write('ready'); time.sleep(120)",
+                             str(folder / "stubborn-ready")])
+pids += [batch.pid, stubborn.pid]
+while not (folder / "stubborn-ready").exists():
+    time.sleep(0.05)
+(folder / "pids.json").write_text(json.dumps({"run": run_id, "pids": pids}))
+time.sleep(120)
+"""
+
+
+def alive(pid):
+    """Whether a process is there and not a zombie."""
+    try:
+        return pathlib.Path(f"/proc/{pid}/stat").read_text().rpartition(")")[2].split()[0] != "Z"
+    except OSError:
+        return False
+
+
+def test_a_stopped_run_ends_every_process_it_started_and_releases_its_reservations():
+    """Fault (2026-10-17): runs stopped from outside left their nodes and batches running, renting on."""
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="stopped-run-"))
+    environment = {**os.environ, "PROPS_HOME": str(folder), "PROPS_WORK": str(folder / "work")}
+    run = subprocess.Popen([sys.executable, "-c", STOPPED_RUN, str(pathlib.Path(__file__).resolve().parents[2]),
+                            str(folder)], env=environment, stdout=subprocess.PIPE, text=True, start_new_session=True)
+    deadline = time.time() + 60
+    while not (folder / "pids.json").exists() and time.time() < deadline:
+        time.sleep(0.1)
+    started = json.loads((folder / "pids.json").read_text())
+    assert all(map(alive, started["pids"])), started
+    stopped_at = time.time()
+    run.send_signal(signal.SIGTERM)  # to the run's pid alone, not its group
+    output, _ = run.communicate(timeout=60)
+    while any(map(alive, started["pids"])) and time.time() < stopped_at + 35:
+        time.sleep(0.2)
+    assert not any(map(alive, started["pids"])), [pid for pid in started["pids"] if alive(pid)]
+    assert run.returncode == 143 and "score run: stopped by signal 15" in output, (run.returncode, output)
+    assert "SIGKILL to 1 processes" in output, output  # the one that ignored SIGTERM, after the grace
+    held = json.loads((folder / "reservations.json").read_text())
+    assert [reserved["run"] for reserved in held.values()] == ["other"], held
 
 
 # --- runs side by side on one store ----------------------------------------------------------------------------------

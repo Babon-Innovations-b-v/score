@@ -2,11 +2,15 @@
 without renting anything."""
 import contextlib
 import io
+import json
+import os
 import pathlib
+import subprocess
 import sys
 import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+os.environ.pop("SCORE_RUN_ID", None)  # these checks hold one process's caps; the run-wide one has its own processes
 
 import batch  # noqa: E402
 import capacity  # noqa: E402
@@ -194,6 +198,74 @@ def test_a_batch_leaves_out_cards_the_limits_cannot_hold():
     kept = batch.affordable(found, minutes=180, cards=20, spent=0)
     assert [item.machine_class for item in kept] == ["gpu-24gb"]
     assert batch.affordable(found, minutes=30, cards=2, spent=0) == found
+
+
+# Two batch processes of one `score run`: each rents fake machines as fast as next_offer gives offers and lets some go,
+# writing how many the two hold together into one file.
+RENTER = """
+import fcntl, json, os, pathlib, random, sys, time
+sys.path.insert(0, sys.argv[1])
+import capacity, provider
+held = pathlib.Path(sys.argv[2])
+offers = [provider.Offer(0.01, 2, "gpu-24gb-type0", "zone-a", 0.01, "gpu-24gb", 0, "available")]
+
+def together(change):
+    with held.open("r+") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        counts = json.loads(handle.read() or '{"now": 0, "most": 0}')
+        counts["now"] += change
+        counts["most"] = max(counts["most"], counts["now"])
+        handle.seek(0), handle.truncate(), handle.write(json.dumps(counts))
+
+machines, until = [], time.time() + 4
+while time.time() < until:
+    if capacity.next_offer(offers, machines, "pixal") is not None:
+        machines.append({"zone": "zone-a", "class": "gpu-24gb", "deleted": None})
+        together(1)
+    live = [machine for machine in machines if not machine["deleted"]]
+    if live and random.random() < 0.3:
+        live[0]["deleted"] = time.time()
+        together(-1)  # off the count first: a machine is held until the run's count lets it go
+        capacity.machine_left()
+    time.sleep(random.random() * 0.02)
+"""
+
+
+def test_two_batches_of_one_run_hold_the_runs_cap_together():
+    """Fault (2026-10-17): every --jobs node and parallel batch held run_cap machines of its own."""
+    home = pathlib.Path(tempfile.mkdtemp(prefix="run-cap-"))
+    held = home / "held.json"
+    held.write_text("")
+    environment = {**os.environ, "PROPS_HOME": str(home), "PROPS_WORK": str(home / "work"),
+                   "SCORE_RUN_ID": "test-run", "SCORE_MAX_MACHINES": "all=4"}
+    renters = [subprocess.Popen([sys.executable, "-c", RENTER, str(pathlib.Path(capacity.__file__).parent), str(held)],
+                                env=environment) for _ in range(2)]
+    assert [renter.wait(timeout=120) for renter in renters] == [0, 0]
+    counts = json.loads(held.read_text())
+    assert counts["most"] == 4, counts  # the cap was reached, never passed: 8 without the run-wide count
+
+
+def test_a_run_counts_its_parked_machines_and_forgets_its_counts_at_its_end():
+    home = pathlib.Path(tempfile.mkdtemp(prefix="run-parked-"))
+    check = """
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+import capacity, park
+park.PARKED.mkdir(parents=True, exist_ok=True)
+for number, run in enumerate(("test-run", "test-run", "another-run")):
+    (park.PARKED / f"m{number}.json").write_text(json.dumps({"id": f"m{number}", "run": run}))
+assert capacity.reserve_run_slot(1)          # 2 parked + 1 held < 4: counted, 2 held
+assert not capacity.reserve_run_slot(2)      # 2 parked + 2 held: the cap
+assert (capacity.RUNS / "test-run").exists()
+capacity.forget_run("test-run")
+assert not (capacity.RUNS / "test-run").exists()
+assert capacity.RUNS.parent == park.PARKED.parent
+"""
+    done = subprocess.run([sys.executable, "-c", check, str(pathlib.Path(capacity.__file__).parent)],
+                          env={**os.environ, "PROPS_HOME": str(home), "PROPS_WORK": str(home / "work"),
+                               "SCORE_RUN_ID": "test-run", "SCORE_MAX_MACHINES": "all=4"},
+                          capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr[-2000:]
 
 
 if __name__ == "__main__":

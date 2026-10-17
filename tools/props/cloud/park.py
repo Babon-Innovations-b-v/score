@@ -31,6 +31,13 @@ stopped by a signal.
 A run that takes a parked machine is charged in the ledger only for what it adds past what was already charged
 (ledger.machine_row, `adopted` and `paid_minutes`): the run that parked an hourly machine was charged its whole hour,
 the one that parked a card its minutes until then. Taking one is renting: it needs a cleared run like `batch.rent`.
+
+Under a `score run` (SCORE_RUN_ID) a parked machine's record names its run, so it stays in the run's count for the
+run-wide cap (capacity.reserve_run_slot) until it is taken or gone, and taking one counts it for the taker's run first.
+
+`reap` deletes the machines a run left behind: its run's process gone on this PC, or its heartbeat older than
+batch.QUIET_MINUTES, each machine's own project checked first. It is built and checked against a fake backend only
+(2026-10-17): no backend lists machines with their project yet, so no run calls it.
 """
 import contextlib
 import fcntl
@@ -44,6 +51,7 @@ import time
 import uuid
 
 import batch
+import capacity
 import ledger
 from provider import cloud
 
@@ -156,10 +164,18 @@ def record_of(machine, until, token, now):
     """What the next run needs to take the machine: who it is, what it costs and has been paid, when it must go."""
     keys = ("id", "zone", "type", "class", "cards", "price", "unit_minutes", "created", "host", "kind", "disk_gb")
     return {**{key: machine.get(key) for key in keys}, "token": token, "until": until, "parked_at": now,
-            "paid_minutes": (paid_until(machine, now) - machine["created"]) / 60}
+            "paid_minutes": (paid_until(machine, now) - machine["created"]) / 60,
+            "run": os.environ.get(capacity.RUN_ID)}
 
 
 def park(machine):
+    """A machine its process is done with (batch.delete_machine): off its process's count of the run's machines
+    (capacity.machine_left; parked, its record counts it), then parked when it is worth it; True if parked."""
+    capacity.machine_left()
+    return parked(machine)
+
+
+def parked(machine):
     """Park the machine instead of deleting it, when it is worth it; True if parked. Anything that goes wrong on the
     way leaves it to the caller's delete."""
     now = time.time()
@@ -236,6 +252,9 @@ def adopt(run, offers, number, kind, disk_gb):
         record = take(kind, places, disk_gb, now)
         if record is None:
             return None
+        if not capacity.reserve_run_slot(len(live_of(run))):  # the run holds its cap: the record goes back
+            put_back(record)
+            return None
         machine = taken_machine(run, record, number, now)
         machine["kind"] = kind  # another kind's machine is this run's kind now: its clean-up and parking are this kind's
         try:
@@ -251,6 +270,40 @@ def adopt(run, offers, number, kind, disk_gb):
         batch.say(f"took the parked {machine['type']} in {machine['zone']} ({machine['folder'].name}), "
                   f"{(record['until'] - now) / 60:.0f} min left before it had to go")
         return machine
+
+
+def live_of(run):
+    """The run's machines not deleted, and those it is renting now."""
+    return [machine for machine in run.machines if not machine.get("deleted")] + list(getattr(run, "pending", []))
+
+
+def put_back(record):
+    """List a taken record as parked again."""
+    with locked():
+        (PARKED / f"{record['id']}.json").write_text(json.dumps(record))
+
+
+def reapable(tags, now, host):
+    """Whether a machine's tags say its run is over: its run's process (run_pid, else pid) gone on this PC `host`, or
+    its heartbeat (epoch seconds) older than batch.QUIET_MINUTES."""
+    pid = batch.tag_value(tags, "run_pid") or batch.tag_value(tags, "pid")
+    if batch.tag_value(tags, "host") == host and pid and not batch.process_alive(int(pid)):
+        return True
+    beat = batch.tag_value(tags, "heartbeat")
+    return beat is not None and now - float(beat) > batch.QUIET_MINUTES * 60
+
+
+def reap(backend, project, host, now):
+    """Delete every machine of `project` its run left behind (reapable), each one's own project_id compared first,
+    never trusted from the listing's filter; the ids deleted. `backend.machines(project)` lists dicts with id, zone,
+    project_id and tags."""
+    deleted = []
+    for item in backend.machines(project):
+        if item.get("project_id") != project or not reapable(item.get("tags") or [], now, host):
+            continue
+        if backend.delete(item["id"], item["zone"]):
+            deleted.append(item["id"])
+    return deleted
 
 
 def expire(server_id, zone, token, until):

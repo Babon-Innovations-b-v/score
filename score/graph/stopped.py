@@ -14,6 +14,8 @@ import time
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 STOPPING = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
+# How long a detached run's command has to end after its signal is passed on: score run's own grace and a margin.
+FORWARD_WAIT_SECONDS = 40
 
 
 def stop_on_signals(say):
@@ -34,6 +36,33 @@ def stop_on_signals(say):
         signal.signal(number, stop)
 
 
+def children():
+    """This process's live child processes (zombies left out), read from /proc."""
+    found = []
+    for entry in pathlib.Path("/proc").iterdir():
+        try:
+            fields = (entry / "stat").read_text().rpartition(")")[2].split() if entry.name.isdigit() else ()
+        except OSError:  # gone while being read
+            continue
+        if fields and fields[0] != "Z" and int(fields[1]) == os.getpid():
+            found.append(int(entry.name))
+    return found
+
+
+def forward(number, wait=FORWARD_WAIT_SECONDS):
+    """Send the stopping signal on to this process's children and wait up to `wait` seconds for them to end: `score
+    run` leads a process group of its own, so a signal to the detached session no longer reaches it, and without this
+    the exit below would SIGKILL it before it ended its own group and released what it held."""
+    for child in children():
+        try:
+            os.kill(child, number)
+        except ProcessLookupError:
+            pass
+    deadline = time.time() + wait
+    while children() and time.time() < deadline:
+        time.sleep(0.2)
+
+
 def detached_run(log, outputs, command):
     """detached.run (the command's output to the log, one result line at the end), its result line also on a stopping
     signal: `detached: stopped by signal N exit=128+N minutes=... log=... outputs=...`; the exit code."""
@@ -42,6 +71,7 @@ def detached_run(log, outputs, command):
     started = time.time()
 
     def say(number):
+        forward(number)
         line = detached.result_line(128 + number, (time.time() - started) / 60, log, outputs)
         print(line.replace("detached: failed", f"detached: stopped by signal {number}", 1), flush=True)
     stop_on_signals(say)
