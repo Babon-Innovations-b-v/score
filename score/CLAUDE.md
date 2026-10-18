@@ -72,7 +72,10 @@ stage as each stage is built; nothing moves before.
   ticket for a node whose inputs passed and stand accepted, when the month's ceiling has room for the estimate over
   the ledger and every open reservation, cleared under one lock so two lines never both spend the last euros; kept
   in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point; the forecast a
-  node is cleared at is its stage's measured runs, else its estimate; `guard.py`: the environment's stop line, the owner's
+  node is cleared at is its stage's measured runs, else its stage's measured per-unit high times the units its
+  accepted output made (`unit_price`, `data/costs/per-unit.json` from `tools/costs/per_unit.py`), else its estimate;
+  `run_price` (`score price`, the cockpit's) the same, and a node with neither has no price: its estimate is kept
+  apart as `guess_euros`, never shown as a price (owner, 2026-10-18); `guard.py`: the environment's stop line, the owner's
   money figure, refuses a paid job before it starts when its forecast with the environment's spend since its first line and
   every run in flight would pass it (one outbox line, free work goes on; in the framework's store an environment with no
   line is refused), and never stops a started job except a runaway past twice its forecast minutes), `engines`

@@ -265,15 +265,22 @@ def spend_now(chosen):
     return float(spend.spent), float(spend.reserved)
 
 
+def cleared_high(totals):
+    """What the runner clears the basket at: its measured high and, for every node not measured yet, its stage's
+    estimate (the runner's clearance reserves that guess, so the stop line must hold it)."""
+    return round(totals["high_euros"] + totals.get("guessed_euros", 0.0), 2)
+
+
 def write_line(record, chosen):
-    """The owner's money yes: the environment's stop line at the spend so far, what is in flight and the basket's high."""
+    """The owner's money yes: the environment's stop line at the spend so far, what is in flight and the basket's high
+    (cleared_high: the guessed nodes' estimates with it)."""
     from score.review import web
     spent, reserved = spend_now(chosen)
-    euros = round(spent + reserved + record.totals["high_euros"], 2)
+    euros = round(spent + reserved + cleared_high(record.totals), 2)
     branches = ", ".join(item["branch"] for item in record.items)
     line = web.stop(state.source().store, WORLD, euros, f"checkout {record.pk}: {branches}", by=record.by)
     record.stop_line = {"euros": line["euros"], "before": line["before"], "at": line["at"], "spent": spent,
-                        "reserved": reserved, "high": record.totals["high_euros"]}
+                        "reserved": reserved, "high": cleared_high(record.totals)}
     record.save()
 
 
@@ -283,15 +290,16 @@ def room_refusals(record, chosen):
     if None in (spend.ceiling, spend.spent, spend.reserved):
         return f"the runner reads no stop line: {spend.note or 'the spend could not be read'}"
     room = round(spend.ceiling - spend.spent - spend.reserved, 2)
-    if record.totals["high_euros"] > room:
-        return f"cannot finish under the stop: high EUR {record.totals['high_euros']:.2f}, room EUR {room:.2f}"
+    if cleared_high(record.totals) > room:
+        return f"cannot finish under the stop: high EUR {cleared_high(record.totals):.2f}, room EUR {room:.2f}"
     return ""
 
 
 def plan_body(record, group, planned):
     return {"groups": [guard.group_body(group, planned)], "buys": planned.buys, "jobs": guard.DEFAULT_JOBS,
             "nodes": nodes_of(record), "checkout": record.pk,
-            "money": {"high": record.totals["high_euros"], "likely": record.totals["likely_euros"]},
+            "money": {"high": record.totals["high_euros"], "likely": record.totals["likely_euros"],
+                      "guessed": record.totals.get("guessed_euros", 0.0)},
             "time": {"likely_minutes": record.totals["likely_minutes"],
                      "high_minutes": record.totals["high_minutes"]}, "rebuys": 0.0}
 

@@ -137,8 +137,8 @@ def test_score_run_refuses_before_it_starts_and_records_a_given_reason():
 
 
 def test_score_plan_prices_each_buy_and_the_run_on_the_runners_numbers():
-    """`score plan --json` keeps each buy's estimate and adds its price as `score price` gives it (unmeasured: the
-    estimate for likely and high, no minutes), and the run's sums; with every row's minutes measured, the run's time
+    """`score plan --json` keeps each buy's estimate and adds its price as `score price` gives it (unmeasured: no
+    price, the estimate kept apart as the guess, no minutes), and the run's sums, the guesses apart; with every row's minutes measured, the run's time
     is its longest row or its minutes over --jobs, whichever is longer (C3)."""
     import argparse
     from score import __main__ as command
@@ -148,14 +148,16 @@ def test_score_plan_prices_each_buy_and_the_run_on_the_runners_numbers():
     (runner.world.roots["data"] / "hangar.txt").write_text("a bigger hall")
     options = argparse.Namespace(stage=None, rebuy_reason=None, jobs=2)
     planned = command.plan_json(runner, ["hangar"], True, options)
-    assert [(buy["node"], buy["euros"], buy["price"]["likely_euros"], buy["price"]["high_euros"])
-            for buy in planned["buys"]] == [("render@hangar", 4.0, 4.0, 4.0), ("bake@hangar", 3.0, 3.0, 3.0)]
-    assert planned["price"] == {"likely_euros": 7.0, "high_euros": 7.0, "likely_minutes": None, "high_minutes": None,
-                                "measured": 0, "rows": 2, "jobs": 2}
+    assert [(buy["node"], buy["euros"], buy["price"]["likely_euros"], buy["price"]["high_euros"],
+             buy["price"]["guess_euros"]) for buy in planned["buys"]] == [("render@hangar", 4.0, None, None, 4.0),
+                                                                          ("bake@hangar", 3.0, None, None, 3.0)]
+    assert planned["price"] == {"likely_euros": 0.0, "high_euros": 0.0, "guessed_euros": 7.0, "guessed": 2,
+                                "likely_minutes": None, "high_minutes": None, "measured": 0, "rows": 2, "jobs": 2}
     timed = [{"likely_euros": 1.0, "high_euros": 2.0, "likely_minutes": minutes, "high_minutes": 2 * minutes,
               "runs": 3} for minutes in (10.0, 20.0, 30.0)]
-    assert command.plan_price(timed, 2) == {"likely_euros": 3.0, "high_euros": 6.0, "likely_minutes": 30.0,
-                                            "high_minutes": 60.0, "measured": 3, "rows": 3, "jobs": 2}
+    assert command.plan_price(timed, 2) == {"likely_euros": 3.0, "high_euros": 6.0, "guessed_euros": 0, "guessed": 0,
+                                            "likely_minutes": 30.0, "high_minutes": 60.0, "measured": 3, "rows": 3,
+                                            "jobs": 2}
     assert command.plan_price(timed, 1)["likely_minutes"] == 60.0
 
 

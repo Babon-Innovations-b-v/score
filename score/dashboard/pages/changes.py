@@ -82,8 +82,10 @@ def labels(stages):
 
 
 def price_words(price, paid):
-    """{likely, high, measured, words} of a proposal's price, or {words} when it is not worked out (also when it
-    names paid steps but no paid job the runner could price)."""
+    """{likely, high, measured, guessed, words} of a proposal's price, or {words} when it is not worked out (also when
+    it names paid steps but no paid job the runner could price). Likely and high are the measured jobs' only; the
+    jobs not measured yet are said apart with their stages' guess, never as a price (high None when none is
+    measured)."""
     if not price:
         return {"words": "price not worked out yet"}
     if "error" in price:
@@ -91,11 +93,17 @@ def price_words(price, paid):
     sums = price["totals"]
     if paid and not sums["nodes"]:
         return {"words": "not priced: the proposal names no paid job the runner can price"}
-    unmeasured = len(sums.get("unmeasured", []))
-    return {"likely": sums["likely_euros"], "high": sums["high_euros"], "nodes": sums["nodes"],
-            "measured": unmeasured == 0,
-            "words": "measured from earlier runs" if unmeasured == 0 else
-                     f"{unmeasured} of {sums['nodes']} jobs never ran before: their price is the stage's estimate"}
+    unmeasured, guessed = len(sums.get("unmeasured", [])), sums.get("guessed_euros", 0.0)
+    if unmeasured == 0:
+        return {"likely": sums["likely_euros"], "high": sums["high_euros"], "nodes": sums["nodes"], "measured": True,
+                "guessed": 0.0, "words": "measured from earlier runs"}
+    apart = (f"{unmeasured} of {sums['nodes']} jobs not measured yet: their stages guess EUR {guessed:.2f}, "
+             "which is not a price")
+    if unmeasured == sums["nodes"]:
+        return {"likely": None, "high": None, "nodes": sums["nodes"], "measured": False, "guessed": guessed,
+                "words": apart}
+    return {"likely": sums["likely_euros"], "high": sums["high_euros"], "nodes": sums["nodes"], "measured": False,
+            "guessed": guessed, "words": f"the measured jobs only; {apart}"}
 
 
 def place_part(record, source):
@@ -116,8 +124,9 @@ def place_part(record, source):
 
 
 def paid_total(found):
-    """The fix's likely and high euros, each paid node once over its places and the rest its branch makes again (what
-    the checkout buys); None while any place is unpriced."""
+    """The fix's likely and high euros of its measured jobs and the guess of those not measured yet (apart, never a
+    price), each paid node once over its places and the rest its branch makes again (what the checkout buys); None
+    while any place is unpriced."""
     prices = {}
     for record in found:
         price = record.get("price") or {}
@@ -125,8 +134,11 @@ def paid_total(found):
             return None
         for listed in (price["nodes"], price.get("branch_nodes") or {}):
             prices.update({node: value for node, value in listed.items() if "error" not in value})
-    return {"likely": round(sum(value["likely_euros"] for value in prices.values()), 2),
-            "high": round(sum(value["high_euros"] for value in prices.values()), 2), "jobs": len(prices)}
+    measured = [value for value in prices.values() if value["likely_euros"] is not None]
+    guessed = [value.get("guess_euros") or 0.0 for value in prices.values() if value["likely_euros"] is None]
+    return {"likely": round(sum(value["likely_euros"] for value in measured), 2),
+            "high": round(sum(value["high_euros"] for value in measured), 2), "jobs": len(prices),
+            "guessed": round(sum(guessed), 2), "guessed_jobs": len(guessed)}
 
 
 def answer_words(choice):
@@ -167,12 +179,15 @@ def fix_cards(root, source):
 
 
 def bought_total(cards):
-    """The sum of the fixes he chose to buy: {likely, high, count}, high None while one is unpriced."""
+    """The sum of the fixes he chose to buy: {likely, high, count, guessed, guessed_jobs}, high None while one is
+    unpriced; `guessed` the stages' guess for the jobs not measured yet, said apart from the price."""
     bought = [card for card in cards if card["choice"] and card["choice"]["choice"] == "buy"]
     priced = all(card["total"] for card in bought)
-    return {"count": len(bought),
-            "likely": round(sum(card["total"]["likely"] for card in bought), 2) if priced else None,
-            "high": round(sum(card["total"]["high"] for card in bought), 2) if priced else None}
+
+    def summed(key):
+        return round(sum(card["total"].get(key, 0) for card in bought), 2) if priced else None
+    return {"count": len(bought), "likely": summed("likely"), "high": summed("high"), "guessed": summed("guessed"),
+            "guessed_jobs": summed("guessed_jobs")}
 
 
 def bought_fixes(cards):

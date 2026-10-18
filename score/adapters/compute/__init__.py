@@ -43,6 +43,7 @@ clearance given earlier, and every clearance names its node, key, estimate and t
 """
 import contextlib
 import datetime
+import fnmatch
 import json
 import os
 import pathlib
@@ -57,6 +58,8 @@ sys.path.insert(0, str(REPO / "tools/cloud/runtime"))
 import submit as job_contract  # noqa: E402
 
 TICKET = "SCORE_SPEND_TICKET"
+# Each paid stage's measured cost of one unit of its work, with the ledger lines it rests on (tools/costs/per_unit.py).
+PER_UNIT = REPO / "data/costs/per-unit.json"
 # The folder of the store the ticket's clearance is in, set beside the ticket (a trial store's, compare.py's).
 STORE = "SCORE_SPEND_STORE"
 OVERRIDE = "override"
@@ -118,39 +121,108 @@ def month_refusal(euros, reserved=0.0):
     return None
 
 
-def run_forecast(node, euros):
+def per_unit(stage):
+    """The measured per-unit numbers of `stage` (PER_UNIT, written by tools/costs/per_unit.py), or None."""
+    for entry in json.loads(PER_UNIT.read_text())["stages"].values():
+        if stage == entry["stage"] or stage in entry["also"]:
+            return entry
+    return None
+
+
+def take_files(listing, ending):
+    """The output's own files ending in `ending` at its top level, its contract left out (one a take)."""
+    return [name for name in listing if "/" not in name and name.endswith(ending) and name != "contract.json"]
+
+
+def map_attempts(record):
+    """The map pictures drawn for one take: every attempt of its front and of each view."""
+    return len(record["front"]["attempts"]) + sum(len(view["attempts"]) for view in record.get("views", {}).values())
+
+
+def named_again(record):
+    """The finishes of one take that were asked for their surface again (one call each)."""
+    return sum(1 for finish in record["finishes"] if str(finish.get("by", "")).startswith("named again"))
+
+
+def counted_units(store, output, count):
+    """The units `output` made by its stage's count rule (PER_UNIT's `count`), or None when the rule finds nothing
+    to count in it."""
+    listing = store.listing(output)
+    rule, value = next(iter(count.items()))
+    if rule == "one":
+        return 1
+    if rule == "files":
+        return sum(1 for name in listing if fnmatch.fnmatch(name, value))
+    if rule == "take_files":
+        return len(take_files(listing, value))
+    if rule == "json_keys":
+        return len(store.read_file(output, value)) if value in listing else None
+    if rule == "json_field":
+        return store.read_file(output, value[0]).get(value[1]) if value[0] in listing else None
+    if rule == "map_attempts":
+        return sum(map_attempts(store.read_file(output, name)) for name in listing if name.endswith("/" + value))
+    if rule == "named_again":
+        return sum(named_again(store.read_file(output, name)) for name in take_files(listing, value))
+    raise ValueError(f"unknown count rule {rule!r} in {PER_UNIT}")
+
+
+def unit_price(node, store):
+    """A paid node priced per unit: its stage's measured per-unit euros (PER_UNIT) times the units its accepted
+    output made ({likely_euros, high_euros, unit, units, unit_likely_euros, unit_high_euros, runs}), or None when the
+    stage has no measured unit, the node has no accepted output to count, or the count finds nothing. The units are
+    the last accepted make's: a fix that adds objects makes more."""
+    entry = per_unit(node.partition("@")[0])
+    output = store.accepted(node) if entry and store is not None else None
+    units = counted_units(store, output, entry["count"]) if output else None
+    if units is None:
+        return None
+    return {"likely_euros": round(entry["likely_euros"] * units, 4), "high_euros": round(entry["high_euros"] * units, 4),
+            "unit": entry["unit"], "units": units, "unit_likely_euros": entry["likely_euros"],
+            "unit_high_euros": entry["high_euros"], "runs": entry["runs"]}
+
+
+def run_forecast(node, euros, store=None):
     """A paid node's run forecast ({euros, minutes, high_minutes, measured}): its stage's measured runs in the cloud
-    ledger at their high euros, likely and high minutes (tools/props/cloud/preflight.py), else the stage's own estimate `euros` with no
-    minutes; Refused with neither. The runner's numbers, never an agent's: the owner, 2026-10-18."""
+    ledger at their high euros, likely and high minutes (tools/props/cloud/preflight.py), else its measured per-unit
+    high times its units (unit_price, on `store`) with no minutes, else the stage's own estimate `euros` with no
+    minutes; Refused with none. The runner's numbers, never an agent's: the owner, 2026-10-18."""
     books = ledger()
     import preflight  # beside ledger.py
     run = preflight.node_run(books.entries(), node.partition("@")[0])
     if run:
         return {"euros": round(run["high_euros"], 4), "minutes": round(run["minutes"], 2),
                 "high_minutes": round(run["high_minutes"], 2), "measured": run["runs"]}
+    unit = unit_price(node, store)
+    if unit:
+        return {"euros": unit["high_euros"], "minutes": None, "high_minutes": None, "measured": unit["runs"]}
     if euros is None:
         raise Refused(f"{node}: a paid run needs its estimate in euros, or measured runs of its stage in the ledger, "
                       "before the runner can clear it")
     return {"euros": euros, "minutes": None, "high_minutes": None, "measured": 0}
 
 
-def run_price(node, euros):
+def run_price(node, euros, store=None):
     """A paid node's price as the creator cockpit shows it, on the runner's own numbers (tools/props/cloud/preflight.py):
-    {likely_euros, high_euros, likely_minutes, high_minutes, cards, runs}. Measured: its stage's runs in the cloud
-    ledger, likely their median and high their HIGH quantile (high_euros is what its clearance reserves), and the cards
-    a whole run of it is sized on; unmeasured: the stage's own estimate `euros` for both, no minutes, runs 0."""
+    {likely_euros, high_euros, likely_minutes, high_minutes, cards, runs, basis}. Measured runs: its stage's runs in
+    the cloud ledger, likely their median and high their HIGH quantile (high_euros is what its clearance reserves),
+    and the cards a whole run of it is sized on. Else measured per unit (unit_price on `store`, basis "per unit"). Else
+    not measured yet: no price (likely and high None), the stage's own estimate kept apart as `guess_euros`, runs 0;
+    a guess is never shown as a price (the owner, 2026-10-18)."""
     books = ledger()
     import capacity  # beside ledger.py
     import preflight
     entries, stage = books.entries(), node.partition("@")[0]
     run = preflight.node_run(entries, stage)
     cards = preflight.run_cards(entries, stage, capacity.run_cap())
-    if run is None:
-        return {"likely_euros": euros, "high_euros": euros, "likely_minutes": None, "high_minutes": None,
-                "cards": cards, "runs": 0}
-    return {"likely_euros": round(run["euros"], 4), "high_euros": round(run["high_euros"], 4),
-            "likely_minutes": round(run["minutes"], 2), "high_minutes": round(run["high_minutes"], 2),
-            "cards": cards, "runs": run["runs"]}
+    if run is not None:
+        return {"likely_euros": round(run["euros"], 4), "high_euros": round(run["high_euros"], 4),
+                "likely_minutes": round(run["minutes"], 2), "high_minutes": round(run["high_minutes"], 2),
+                "cards": cards, "runs": run["runs"], "basis": "measured runs"}
+    unit = unit_price(node, store)
+    if unit is not None:
+        return {**unit, "likely_minutes": None, "high_minutes": None, "cards": cards, "basis": "per unit"}
+    return {"likely_euros": None, "high_euros": None, "guess_euros": euros, "likely_minutes": None,
+            "high_minutes": None, "cards": cards, "runs": 0, "basis": "not measured yet"}
 
 
 def books_now():
@@ -246,7 +318,7 @@ def clearance(runner, node, euros):
     inputs passed and stand accepted) and the month's ceiling has room for its forecast (run_forecast: measured, else
     the stage's estimate `euros`) over the ledger and every open reservation; the clearance kept in the store and its
     forecast reserved, under the clearing lock. Else Refused."""
-    forecast = run_forecast(node, euros)
+    forecast = run_forecast(node, euros, runner.store)
     try:
         ticket = runner.ticket(node)
     except graph.Blocked as block:
