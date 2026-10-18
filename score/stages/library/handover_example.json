@@ -1,0 +1,33 @@
+{
+ "backend": "command",
+ "command": ["score-lib", "--root", "/library", "handover", "--world", "world1", "--place", "garage", "--seed", "3",
+             "--commit", "0123456789abcdef0123456789abcdef01234567", "--store", "/store/objects", "--repo", "/score",
+             "--out", "/out"],
+ "commit": "0123456789abcdef0123456789abcdef01234567",
+ "covered": [
+  {"entries": ["layer/garage_assembly@3"], "exception": null, "node": "assembly@garage",
+   "output": "1111111111111111111111111111111111111111111111111111111111111111", "why": ""},
+  {"entries": [], "exception": null, "node": "likeness@garage",
+   "output": "2222222222222222222222222222222222222222222222222222222222222222", "why": "no exporter takes likeness outputs"}
+ ],
+ "entries": [
+  {"address": "model/rover@2", "copy": {"role": "gltf", "sha256": "3333333333333333333333333333333333333333333333333333333333333333"},
+   "copy_why": "", "kind": "model", "node": "pixal@garage",
+   "output": "4444444444444444444444444444444444444444444444444444444444444444",
+   "quality": {"measures": {"likeness": 0.9}, "score": 0.9}, "quality_why": "", "source": "", "state": "draft",
+   "status": "new"},
+  {"address": "surface/brushed_steel@1", "copy": null, "copy_why": "", "kind": "surface", "node": null, "output": null,
+   "quality": null, "quality_why": "no quality command in this library yet", "source": "data/library at 0123456",
+   "state": "locked", "status": "unchanged"}
+ ],
+ "library": "5555555555555555555555555555555555555555",
+ "place": "garage",
+ "refused": [
+  {"id": "old_crate", "kind": "model", "node": "pixal@garage",
+   "output": "6666666666666666666666666666666666666666666666666666666666666666", "reason": "no take file in the output"}
+ ],
+ "saved": {"committed": "7777777777777777777777777777777777777777", "pushed": true, "why": ""},
+ "schema": "library-handover",
+ "version": 1,
+ "world": "world1"
+}

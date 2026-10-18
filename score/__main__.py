@@ -244,6 +244,9 @@ def main(argv=None):
         print(f"{line}: {state}")
         if options.command == "status":
             print("\n".join(f"  {node}: {node_state}" for node, node_state in nodes.items()))
+    if options.command == "status" and whole and stages.library.WORLD_ROW in runner.stages:
+        print(stages.library.completion_line(runner.world.name,
+                                             stages.library.world_completion(runner, places)))
     if options.command == "run" and any(state != "done" for state, _ in lines.values()):
         sys.exit(1)
 

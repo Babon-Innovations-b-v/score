@@ -120,6 +120,17 @@ its overlay) traces every bound material, referenced model or file, emitter, lig
 place's accepted assembly to a library entry, by content hash or by a recorded provenance attribute, and the
 cockpit lists what does not trace as the place's problems.
 
+**The library handover** (`score/stages/library`, its overlay): two free rows at the end of the stage table hand every
+accepted output of a world to the creator's library, so what is in a world is in the library by construction.
+`library@<place>` reads every place row of its line (the showcase renders, demo films and looks, only once they
+stand) and `library-world` every world row; each runs the library's own handover command once (configured by
+`SCORE_LIB_*` environment variables, else `$PROPS_HOME/library.env`; score never imports the library's code) and keeps
+the report it writes, `handover.json` (contract `library-handover` v1). Its gate fails when no library is configured
+(unless the owner named the world in `data/checks/library-free.json`), when an output read is not covered by an entry
+or a written exception, when the library refused or did not commit, and answers unknown on a missing 3D copy or
+quality score. A place is complete when its library node stands accepted, the world when every one does (`python -m
+score status` prints that line); `complete@<place>` keeps its meaning and its key, so no paid row moves.
+
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's
 Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next task.

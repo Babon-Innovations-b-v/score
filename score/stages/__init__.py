@@ -25,8 +25,8 @@ import pathlib
 
 from score import checks, contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
-                          effects, gaps, images, light, machines, motion, people, people_takes, physics, props,
-                          proposals, scene_record, settling, sound, surfaces, terrain)
+                          effects, gaps, images, library, light, machines, motion, people, people_takes, physics,
+                          props, proposals, scene_record, settling, sound, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
@@ -671,6 +671,10 @@ def ship_completed(row):
 STAGES = tuple(ship_assembled(row) if row.name == "assembly" else ship_seen(row) if row.name == "surfaces-check"
                else ship_completed(row) if row.name == "complete" else row for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
+# The library rows (score/stages/library), appended last: library@<place> hands every accepted output of its place's
+# line to the creator's library, library-world the world's own; nothing reads them, so they re-key no other row. A place
+# is complete once its library node stands accepted, the world once every one does (library.world_completion).
+STAGES = (*STAGES, *library.rows(STAGES, REPO / "data"))
 
 
 def world1():
