@@ -64,10 +64,10 @@
       <figure class="fx-new"><div class="fx-side"><div class="frame wide"><img class="pic" src="{{ pair.after }}" alt="{{ pair.name }}" loading="lazy"></div>{% if place.now %}<span class="fx-tag after">After</span>{% endif %}</div><figcaption class="small">{{ pair.name|capfirst }}</figcaption></figure>
       {% endfor %}
     </div>
-    {% else %}
+    {% elif not place.media %}
     <div class="banner">No pictures of this fix yet{% if place.failed %}: drawing them failed{% endif %}{% if place.blocked %}; it could not be put together: {{ place.blocked|truncatechars:200 }}{% endif %}.</div>
     {% endif %}
-    {% for item in place.media %}{% if item.kind == "film" %}<video class="fix-film" controls preload="none" src="/proposal/{{ card.branch }}/{{ place.place }}/{{ item.file }}"></video>{% elif item.kind == "sound" %}<audio controls preload="none" src="/proposal/{{ card.branch }}/{{ place.place }}/{{ item.file }}"></audio>{% endif %}{% endfor %}
+    {% for item in place.media %}{% if item.kind == "film" %}<video class="fix-film" controls preload="metadata" src="/proposal/{{ card.branch }}/{{ place.place }}/{{ item.file }}"></video>{% elif item.kind == "sound" %}<audio controls preload="none" src="/proposal/{{ card.branch }}/{{ place.place }}/{{ item.file }}"></audio>{% endif %}{% endfor %}
 
     <div class="fx-parts">
       <div class="fx-part">
