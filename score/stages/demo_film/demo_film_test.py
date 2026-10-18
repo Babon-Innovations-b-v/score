@@ -180,3 +180,8 @@ def test_a_film_record_leaves_out_the_prims_it_names_in_its_copy_only():
     assert Usd.Stage.Open(str(path)).GetPrimAtPath("/room/Places/tube/Outside").IsActive()
     demo_film.leave_out(path, {"camera": "spot-1", "leave_out": ["/room/Places/tube/Outside"]})
     assert not Usd.Stage.Open(str(path)).GetPrimAtPath("/room/Places/tube/Outside").IsActive()
+
+
+def test_a_film_record_may_name_its_own_start():
+    assert demo_film.film_start({"camera": "spot-1", "start": 6}, {}) == 6.0
+    assert demo_film.film_start({"camera": "spot-1"}, {}) == 0.0, "no motion record: the stage's start"

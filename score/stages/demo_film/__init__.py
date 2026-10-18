@@ -147,6 +147,12 @@ def motion_start(inputs):
     return max(0.0, min(moments) - LEAD) if moments else 0.0
 
 
+def film_start(film, inputs):
+    """The second the film starts at: its record's own `start` where it names one (the airlock's 6 s, after its pump's
+    fog clears: inside that fog a frame took 47 s to 17 min, 2026-10-18), else motion_start's."""
+    return float(film["start"]) if "start" in film else motion_start(inputs)
+
+
 def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     """One film of the place's final stage, its files written into `out` (module docstring)."""
     demo, _ = film_tools()
@@ -198,14 +204,15 @@ def make(inputs, out, seed, params):
     """The place's own film, in the output's root."""
     stage_folder = final_stage(inputs)
     place = place_of(stage_folder)
-    film_one(stage_folder, place, named_films(inputs)[place], out, out, motion_start(inputs))
+    film = named_films(inputs)[place]
+    film_one(stage_folder, place, film, out, out, film_start(film, inputs))
 
 
 def make_extra(inputs, out, seed, params):
     """Each of the place's other films, in a folder of its name."""
     stage_folder = final_stage(inputs)
     for name, film in sorted(named_films(inputs).items()):
-        film_one(stage_folder, name, film, out / name, out, motion_start(inputs))
+        film_one(stage_folder, name, film, out / name, out, film_start(film, inputs))
 
 
 def film_faults(folder):
