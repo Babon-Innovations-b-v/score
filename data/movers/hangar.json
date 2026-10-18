@@ -30,7 +30,7 @@
      ]
     ]
    },
-   "from": "The bridge crane's trolley, SCORE's own (the game stands it still): run 12 m west along the crane rails (lattice_ring_rib_3 and _4, x -12.6 to 12.6) and back at 0.3 m/s (data/checks/motion.json crane_trolley: ABUS's 20 m/min fast speed is 0.33), over two of the roof's rounds."
+   "from": "The bridge crane's trolley, SCORE's own (the game stands it still): run 12 m west along the crane rails (lattice_ring_rib_3 and _4, x -15.6 to 15.6 in the hangar sized to the ship, 2026-10-18) and back at 0.3 m/s (data/checks/motion.json crane_trolley: ABUS's 20 m/min fast speed is 0.33), over two of the roof's rounds."
   }
  ],
  "still": {
@@ -40,18 +40,6 @@
   "hatch_wheel_2": "The hall is an airlock pumped down for all but about 1 s of its 43 s round (data/motion/hangar.json); its pressure hatches to the tubes stay shut while it cycles.",
   "hatch_window_1": "The hall is an airlock pumped down for all but about 1 s of its 43 s round (data/motion/hangar.json); its pressure hatches to the tubes stay shut while it cycles.",
   "hatch_window_2": "The hall is an airlock pumped down for all but about 1 s of its 43 s round (data/motion/hangar.json); its pressure hatches to the tubes stay shut while it cycles.",
-  "ship": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_2": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_3": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_4": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_5": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_6": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_7": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_8": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_9": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_10": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_legs": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_legs_2": "The code-built stand-in ship (the machines stage makes and places its model): the game flies it out only when the player flies it (data/motion/hangar.json's about).",
-  "ship_1": "The crew's shuttle, the made hull the machines layer lays on its pad (data/machines/hangar.json): parked in the hangar; the game flies it out only when the player flies it (data/motion/hangar.json's about)."
+  "ship_1": "The ship, built in code on its pads (the kit's row ship): the game flies it out only when the player flies it (data/motion/hangar.json's about)."
  }
 }

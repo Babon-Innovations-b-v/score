@@ -99,6 +99,36 @@ def test_the_installed_garage_header_is_as_tall_as_its_posts_are_wide_and_clear_
     assert corners[:, 1].min() >= big["high"] - 1e-3
 
 
+def test_the_hangar_s_ship_stands_under_its_roof_door_with_its_engines_and_thrusters_on_it():
+    """The ship built in code from the plan v7 stands wholly under the roof's opening (it lifts straight out), clear
+    of the walls, and every engine and thruster laid on it lies within its hull's box (2026-10-18: the hangar sized to
+    the ship, not the ship to the hangar)."""
+    layout = INVENTORIES["hangar"]["room"]["layout"]
+    hull = next(laid for laid in LAID["hangar"] if laid["kind"] == "hangar_ship")
+    corners = room_kit.box_corners(hull)
+    low, high = corners.min(axis=0), corners.max(axis=0)
+    opening = np.asarray(layout["opening"]) / 2
+    assert np.all(np.abs(corners[:, [0, 2]]) <= opening), (low, high, "the ship reaches past the roof's opening")
+    assert abs(low[1]) < 1e-3, "the ship stands on its feet on the floor"
+    assert hull["shows"]["hull"]["length"] == hull["size"][2], "the hull is laid at the plan's built length"
+    mounted = [laid for laid in LAID["hangar"]
+               if laid["kind"] in ("hangar_main_engine", "hangar_lift_thruster", "hangar_nose_thruster")]
+    assert len(mounted) == 10, len(mounted)
+    for laid in mounted:
+        assert np.all(room_kit.box_corners(laid) >= low - 0.5) and np.all(room_kit.box_corners(laid) <= high + 0.5), \
+            (laid["kind"], laid["at"])
+
+
+def test_the_hangar_s_pads_lie_under_the_ship_s_legs():
+    hull = next(laid for laid in LAID["hangar"] if laid["kind"] == "hangar_ship")
+    pads = [laid for laid in LAID["hangar"] if laid["kind"] == "hangar_machine_bay_plate"]
+    nose = np.asarray(hull["at"]) - np.asarray(hull["z"]) * hull["size"][2] / 2
+    for leg in hull["shows"]["hull"]["legs"]:
+        foot = nose + np.asarray(hull["z"]) * leg["y"] + np.asarray(hull["x"]) * leg["x"]
+        assert any(np.all(np.abs(foot[[0, 2]] - room_kit.box_corners(pad)[:, [0, 2]].mean(axis=0)) < 3.6)
+                   for pad in pads), (leg, "a leg with no pad under it")
+
+
 def test_every_kind_laid_is_a_row_of_the_inventory():
     for room in ROOMS:
         rows = {f"{room}_{row['id']}" for row in INVENTORIES[room]["rows"]}
