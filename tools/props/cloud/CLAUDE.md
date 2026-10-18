@@ -58,6 +58,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   runner's own rule. A unit is one job as the stage splits them: the ledger names jobs, not frames. The runner's
   clearance reserves a paid node at its stage's measured runs (`preflight.node_run`: the high euros, the likely
   minutes) rather than the stage's hand-written estimate.
+- **A batch of props is priced per prop from measured units before it is bought** (`prop_batch.py`, owner 2026-10-18):
+  the upgraded route's paid steps (close-up, image-to-3D, finish pick, bake) each as one batch over every prop still in
+  it, a free check before each, kept steps and unchanged props never paid again; `price` reads the ledgers (the repo's
+  evidence copy with the live one, since the live ledger was reset on 2026-10-17) and says an unmeasured step rather
+  than guess. Its cloud makers are the route branch's; it is imported by no stage, so it re-keys nothing.
 - **A stopped run keeps its finished jobs under its key** (`kept.py`, owner 2026-10-18): `kept.keep(job)` after a job
   ends well copies its outputs to `kept/<node>/<key>/` beside the store (the runner names the make's folder,
   SCORE_MAKING, and drops the folder once the node's output is stored), and `kept.missing(jobs)` puts every kept job
