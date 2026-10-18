@@ -234,7 +234,7 @@ def build(source, out, made_at, cap_mb, spend, repo):
         found = source.file(picture["sha"])
         if found:
             filler.picture(found[1], picture["sha"], HERO_SIDE, f"{what}: {picture['name']} large")
-    web3d_copies(source, filler, ("{place}.glb",))
+    web3d_copies(source, filler, ("{place}.glb", "{place}-around.glb"))
     library.export_pictures(shelf, shelved, filler, HERO_SIDE)
     library.export_three_d(shelf, shelved, filler)
     manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo), "format": versions.FORMAT,
