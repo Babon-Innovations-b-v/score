@@ -32,10 +32,12 @@ import library  # noqa: E402
 
 DETAILS = REPO / "data/library/details.json"
 INVENTORIES = REPO / "data/inventory"
-# Texels a metre a generated piece is baked at (the normal map's): near the walker's hands, and the cap a big one is
-# held to by the bake (one 4096 picture a piece).
+# Texels a metre a generated piece is baked at (the normal map's): near the walker's hands, held to one LARGEST
+# picture a piece down to KIT_DENSITY, the density the place's code-built kit is baked at (code_jobs); a piece too
+# big for one picture there is split into several maps by the bake (inside/bake.py SPLIT_DENSITY), not held lower.
 DENSITY = 1024
 LARGEST = 4096
+KIT_DENSITY = 512
 # Triangle budgets by what a piece is (the first world's asset budgets), and the fewest a piece is cut to.
 LANDMARK = ("hab_lander", "first_module", "lab_module", "solar_mast", "solar_mast_dead", "comms_mast",
             "aft_section", "forward_section")
@@ -158,7 +160,7 @@ def code_jobs(planned, made, place, wear, dirt, specs):
         piece = {"name": name, "kind": entry["builder"], "size": entry["size"], "laid": {}, "foot": 0.0}
         sets.setdefault(name if entry["builder"] == "pipe_straight" else "code", []).append(piece)
     return {f"kit-{name}": {"script": "make_kit.py", "out": str(made), "report": f"report-kit-{name}.json",
-                            "atlas": f"{place}_{name}", "density": 512, "wear": wear, "dirt": dirt, "seed": 3,
+                            "atlas": f"{place}_{name}", "density": KIT_DENSITY, "wear": wear, "dirt": dirt, "seed": 3,
                             "specs": specs, "pieces": pieces}
             for name, pieces in sets.items()}
 
@@ -168,7 +170,7 @@ def chunky_entry(name, entry, own, work, take):
     wall = 0.005 if name in THIN_WALLED else round(max(0.005, max(entry["size"]) / WALL_SHARE), 4)
     return {"name": name, "parts": str(work / "parts" / f"{name}-{take}"), "base": own["turn"], "size": entry["size"],
             "screens": own.get("screens", []), "cuts": own.get("cuts", []),
-            "density": min(DENSITY, LARGEST // max(1, int(np.ceil(max(entry["size"]))))),
+            "density": max(KIT_DENSITY, min(DENSITY, LARGEST // max(1, int(np.ceil(max(entry["size"])))))),
             "decals": own.get("decals", []), "foot": 0.0, "faces": entry["faces"], "wall": wall}
 
 

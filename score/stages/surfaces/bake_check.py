@@ -91,24 +91,19 @@ def data_of(inputs):
 
 
 def gltf_model(gltf):
-    """A baked .gltf's one primitive (positions, texture coordinates in glTF's own convention, triangles) and its
-    maps by role, read as tools/usd/export.py reads them but without OpenUSD (the prop environment has none)."""
-    import glb_file
-    document = json.loads(gltf.read_text())
-    blob = (gltf.parent / document["buffers"][0]["uri"]).read_bytes()
-    views = [blob[view.get("byteOffset", 0):view.get("byteOffset", 0) + view["byteLength"]]
-             for view in document["bufferViews"]]
-    primitive = document["meshes"][0]["primitives"][0]
-    geometry = {"positions": glb_file.accessor_array(document, views, primitive["attributes"]["POSITION"]),
-                "uvs": glb_file.accessor_array(document, views, primitive["attributes"]["TEXCOORD_0"]),
-                "triangles": glb_file.accessor_array(document, views, primitive["indices"]).reshape(-1, 3)}
-    material = document["materials"][primitive["material"]]
-    references = {"base_color": material["pbrMetallicRoughness"].get("baseColorTexture"),
-                  "metal_roughness": material["pbrMetallicRoughness"].get("metallicRoughnessTexture"),
-                  "normal": material.get("normalTexture")}
-    maps = {role: gltf.parent / document["images"][document["textures"][reference["index"]]["source"]]["uri"]
-            for role, reference in references.items() if reference is not None}
-    return geometry, maps
+    """A baked .gltf's mesh over all its maps (positions, texture coordinates in glTF's own convention, triangles,
+    each triangle's map) and each map's pictures by role, read as tools/usd/export.py reads them (baked_gltf) but
+    without OpenUSD (the prop environment has none)."""
+    import baked_gltf
+    document, views = baked_gltf.read(gltf)
+    return baked_gltf.geometry(document, views), baked_gltf.maps(document, gltf)
+
+
+def map_roles(maps):
+    """The roles every map has (base_color, metal_roughness, normal), and those some map lacks."""
+    every = [set(pictures) for pictures in maps]
+    held = set.intersection(*every) if every else set()
+    return sorted(held), [role for role in ("base_color", "metal_roughness", "normal") if role not in held]
 
 
 def laid_parts(labelled, entry):
@@ -140,15 +135,32 @@ def ray_surfaces(geometry, laid, codes, size, sampled=None):
     return np.where(hit >= 0, codes[np.maximum(hit, 0)], -1)
 
 
-def sampled_points(geometry, rows, columns, width, height):
-    """Where on the baked mesh each triangle's sampled texel (rows, columns) was baked: the bake writes a texel by its
-    centre's point, which lies on whichever triangle covers it in the texture layout, often not the triangle sampled
-    (the flat's bowl stack, bake of 2026-10-13: 1,543 of its 4,995 triangles, its glass rims under a texel each); a
-    centre on no triangle (the bake's padding round each island) keeps the sampled triangle's middle. Returns (points,
-    the triangle each lies on)."""
+def sampled_points(geometry, rows, columns, sizes):
+    """Where on the baked mesh each triangle's sampled texel (rows, columns of its map's picture, `sizes` its width
+    and height) was baked: the bake writes a texel by its centre's point, which lies on whichever triangle of the same
+    map covers it in the texture layout, often not the triangle sampled (the flat's bowl stack, bake of 2026-10-13:
+    1,543 of its 4,995 triangles, its glass rims under a texel each); a centre on no triangle (the bake's padding round
+    each island) keeps the sampled triangle's middle. Returns (points, the triangle each lies on)."""
     import numpy as np
     corners = geometry["positions"][geometry["triangles"]]
-    pixel = (geometry["uvs"][geometry["triangles"]] % 1.0) * [width, height]
+    points = corners.mean(axis=1)
+    owners = np.arange(len(corners))
+    for number in np.unique(geometry["maps"]):
+        chosen = np.flatnonzero(geometry["maps"] == number)
+        width, height = sizes[chosen[0]]
+        owner, weights = texel_owners(geometry["uvs"][geometry["triangles"][chosen]] % 1.0, width, height)
+        found = owner[rows[chosen], columns[chosen]]
+        owners[chosen] = np.where(found >= 0, chosen[np.maximum(found, 0)], chosen)
+        bary = np.where((found >= 0)[:, None], weights[rows[chosen], columns[chosen]], 1 / 3)
+        points[chosen] = np.einsum("ij,ijk->ik", bary, corners[owners[chosen]])
+    return points, owners
+
+
+def texel_owners(uvs, width, height):
+    """Which of a map's triangles (`uvs`: each triangle's three texture coordinates) covers each texel's centre of a
+    `width` by `height` picture, -1 for none, and the centre's barycentric weights on it."""
+    import numpy as np
+    pixel = uvs * [width, height]
     owner = np.full((height, width), -1)
     weights = np.zeros((height, width, 3))
     for triangle, (first, second, third) in enumerate(pixel):
@@ -165,10 +177,7 @@ def sampled_points(geometry, rows, columns, width, height):
         owner[rows_here[inside], columns_here[inside]] = triangle
         weights[rows_here[inside], columns_here[inside]] = np.stack(
             [1 - local[inside].sum(axis=1), local[inside, 0], local[inside, 1]], axis=1)
-    found = owner[rows, columns]
-    owners = np.where(found >= 0, found, np.arange(len(corners)))
-    bary = np.where((found >= 0)[:, None], weights[rows, columns], 1 / 3)
-    return np.einsum("ij,ijk->ik", bary, corners[owners]), owners
+    return owner, weights
 
 
 def baked_surfaces(geometry, labelled, entry, sampled=None):
@@ -236,25 +245,21 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0, wear=0.0):
     the place's wear and dirt wear and dirty it (on_surface), its blotch share, its maps and its triangles against
     the job's budget."""
     import numpy as np
-    from PIL import Image
     import labels
+    import baked_gltf
     geometry, maps = gltf_model(made / f"{name}.gltf")
+    roles, missing = map_roles(maps)
     record = {"triangles": int(len(geometry["triangles"])), "budget": int(entry["faces"]),
-              "maps": sorted(maps), "surfaces": {}, "close_up": close_up_colours(labelled)}
+              "maps": roles, "surfaces": {}, "close_up": close_up_colours(labelled)}
     record["stance_lows"] = stance_lows(geometry["positions"])
-    record["missing_maps"] = [role for role in ("base_color", "metal_roughness", "normal") if role not in maps]
+    record["missing_maps"] = missing
     if "base_color" in record["missing_maps"]:
         return record
-    picture = np.asarray(Image.open(maps["base_color"]).convert("RGB"), dtype=np.float64) / 255
-    height, width = picture.shape[:2]
-    uv = geometry["uvs"][geometry["triangles"]].mean(axis=1) % 1.0
-    columns = np.clip((uv[:, 0] * width).astype(int), 0, width - 1)
-    rows = np.clip((uv[:, 1] * height).astype(int), 0, height - 1)
-    colour = labels.lab(picture[rows, columns])
+    picture_colours, rows, columns, sizes = baked_gltf.base_colours(geometry, maps)
+    colour = labels.lab(picture_colours)
     corners = geometry["positions"][geometry["triangles"]]
     areas = 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
-    names, surface, reach = baked_surfaces(geometry, labelled, entry,
-                                           sampled_points(geometry, rows, columns, width, height))
+    names, surface, reach = baked_surfaces(geometry, labelled, entry, sampled_points(geometry, rows, columns, sizes))
     shades = [library_shades(materials[each]) if each in materials else [] for each in names]
     tokens = [colours[0] if colours else None for colours in shades]
     dirty = [labels.lab(labels.srgb(np.array(materials[each]["dirt_colour"]))[None])[0]

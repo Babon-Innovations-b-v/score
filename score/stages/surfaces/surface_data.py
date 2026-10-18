@@ -66,6 +66,15 @@ def line_files(place):
             "tokens": "{repo}/design/tokens/tokens.json"}
 
 
+def parts_files(place):
+    """The parts row's world files: line_files, the place's kit (where it has one) and the code its kit surfaces are
+    read from (kit_surfaces.py and the builders' modules), so a finish takes the room's own kit surface."""
+    kit = {"kit": "{data}/kit/" + place + ".json"} if (REPO / "data/kit" / f"{place}.json").exists() else {}
+    builders = {f"kit builders {name}": "{repo}/tools/props/library/inside/" + name
+                for name in ("pieces.py", "pieces_earth.py", "pieces_ship.py", "shapes.py")}
+    return {**line_files(place), **kit, **builders, "kit surfaces": "{repo}/tools/props/library/kit_surfaces.py"}
+
+
 def bake_files(place):
     """The bake row's world files: the place's data, its bake jobs (a place whose data names none blocks here, before
     anything is cleared), the data of each place that claims a model it lays, the bake's code and the library."""

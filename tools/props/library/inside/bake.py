@@ -7,6 +7,10 @@ metal, normal), several pieces into one shared set of pictures, and write each p
     atlas.bake_from(high, low, specs, wear, dirt, seed, reach)         # a generated piece, from its full model
     atlas.finish(); atlas.export(piece, folder)
 
+A generated piece too big for one picture set at its density (`split`) is cut into several maps instead of capped: its
+faces fall into blocks of near-equal area, each block its own picture set and its own material on the piece, all at
+SPLIT_DENSITY, the room kit's density. The .gltf then holds one primitive per map.
+
 Texture memory (the owner, round two: share textures between pieces, size them per piece): the pieces of one job
 share one picture set instead of one set each, and each face gets the texels its place needs: a face the room never
 sees (a back against the wall, the top of a roof panel) is packed at a twentieth of the density. Base colour and
@@ -28,6 +32,13 @@ from mathutils import Vector
 import recipes
 
 LARGEST = 4096
+# A generated piece past one LARGEST picture set at its density is split into maps (`split`), each a LARGEST set at most,
+# baked at the room kit's density (route.FAR and place_route's code jobs, 512 texels a metre of normal map; the kit
+# measured 152 to 567 colour texels a metre near the films' cameras, the audit of 2026-10-18, against 52 to 89 on the
+# capped ship, wreck, lander and old station modules). The ship (854 m2) takes 22 maps; MOST_MAPS holds the memory a
+# piece's bake and the game's textures take, and past it the piece takes the density that fits and says so.
+SPLIT_DENSITY = 512
+MOST_MAPS = 32
 # A shared set a little past the cap (round six: a set planned by its boxes held 9.8 m2, 1% over) takes the density
 # that fits and reports it, as a single piece does; further past, it stops.
 CAP_SLACK = 1.15
@@ -95,12 +106,57 @@ def visible_area(items, sharp=(), backs_hidden=True):
 
 
 def visible_area_of(item, sharp=(), backs_hidden=True):
-    """The area of the faces the room sees, a sharp part's at its larger share (the hidden set found once: per face it
-    made a 40k-face generated piece take 12 minutes, 2026-10-06)."""
+    """The area of the faces the room sees, a sharp part's at its larger share."""
+    return float(face_weights(item, sharp, backs_hidden).sum())
+
+
+def face_weights(item, sharp=(), backs_hidden=True):
+    """Each face's share of the picture set as area: its area, a sharp part's at its larger share, a hidden face's 0
+    (the hidden set found once: per face it made a 40k-face generated piece take 12 minutes, 2026-10-06)."""
     hidden = hidden_faces(item) if backs_hidden else set()
     sharp_slots = sharp_slots_of(item, sharp)
-    return sum(face.area * (SHARP_SCALE ** 2 if face.material_index in sharp_slots else 1.0)
-               for face in item.data.polygons if face.index not in hidden)
+    return np.array([0.0 if face.index in hidden else
+                     face.area * (SHARP_SCALE ** 2 if face.material_index in sharp_slots else 1.0)
+                     for face in item.data.polygons])
+
+
+def blocks(middles, weights, chosen, count):
+    """The faces `chosen` (their numbers) cut into `count` blocks of near-equal weight: the longest side of their box
+    cut where the weight on each side is in proportion to the blocks it gets, then each side again. A block is a
+    piece of the model in space, so a map holds whole neighbourhoods and its seams are few."""
+    if count == 1 or len(chosen) <= 1:
+        return [chosen]
+    first = count // 2
+    points = middles[chosen]
+    axis = int(np.argmax(points.max(axis=0) - points.min(axis=0)))
+    order = chosen[np.argsort(points[:, axis], kind="stable")]
+    running = np.cumsum(weights[order])
+    cut = int(np.searchsorted(running, running[-1] * first / count)) + 1
+    cut = min(max(cut, 1), len(order) - 1)
+    return blocks(middles, weights, order[:cut], first) + blocks(middles, weights, order[cut:], count - first)
+
+
+def split_into_maps(item, weights, count):
+    """The piece's faces cut into `count` maps (blocks), each face's map as its material slot."""
+    middles = np.array([face.center[:] for face in item.data.polygons])
+    tile = np.zeros(len(middles), dtype=np.int32)
+    for number, faces in enumerate(blocks(middles, weights, np.arange(len(middles)), count)):
+        tile[faces] = number
+    item.data.polygons.foreach_set("material_index", tile)
+    item.data.update()
+    return tile
+
+
+def maps_needed(wanted):
+    """How many LARGEST picture sets a piece wanting a `wanted` pixel side takes when split."""
+    return math.ceil((wanted / LARGEST) ** 2)
+
+
+def sharp_slots(specs, density):
+    """The library names whose parts a set at `density` draws sharp: those of SHARP_FAMILIES, from SHARP_FROM up."""
+    if density < SHARP_FROM:
+        return set()
+    return {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES}
 
 
 def sharp_slots_of(item, sharp):
@@ -162,6 +218,37 @@ def packed_per_face(items, side):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
+def select_map(item, tile, number):
+    """Only the faces of map `number` selected, in edit mode, their UVs too."""
+    selected = (tile == number)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    item.data.polygons.foreach_set("select", selected)
+    item.data.update()
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.uv.select_all(action="SELECT")
+
+
+def packed_maps(item, tile, count, side, sharp=(), per_face=False):
+    """A split piece's islands at one texel density over all its maps, each map's packed into its own square:
+    evened over the whole piece first, so every map holds the same density; `per_face` as packed_per_face."""
+    select_for_bake([item], item)
+    if not per_face:
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.select_all(action="SELECT")
+        bpy.ops.uv.average_islands_scale()
+        bpy.ops.object.mode_set(mode="OBJECT")
+        sharpen(item, sharp)
+    for number in range(count):
+        select_map(item, tile, number)
+        if per_face:
+            bpy.ops.uv.lightmap_pack(PREF_CONTEXT="SEL_FACES", PREF_PACK_IN_ONE=True, PREF_NEW_UVLAYER=False,
+                                     PREF_MARGIN_DIV=100.0 * FACE_MARGIN_PIXELS / side)
+        else:
+            bpy.ops.uv.pack_islands(rotate=True, margin=2 * MARGIN_PIXELS / side)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
 def new_picture(name, side, colour_data):
     picture = bpy.data.images.new(name, side, side, alpha=False, float_buffer=False)
     picture.colorspace_settings.name = "sRGB" if colour_data else "Non-Color"
@@ -205,28 +292,37 @@ CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
 
 
 class Atlas:
-    """One shared picture set for a list of pieces: their UVs packed together at one texel density."""
+    """One shared picture set for a list of pieces: their UVs packed together at one texel density; a split piece's
+    several sets (`sets`, one a map)."""
 
-    def __init__(self, name, items, density, specs=None, one_piece=False, backs_hidden=True, per_face=False):
-        """`one_piece`: the set is a single generated piece, which cannot be split: past the cap it takes the density
-        that fits and says so (`self.capped`, which make_chunky reports); a shared set too, up to CAP_SLACK past the cap;
-        further past, it stops. `backs_hidden`: the faces facing the kit's back are shrunk (shrink_hidden); a generated
-        piece passes False: shrunk face by face, its small remeshed triangles fell under a texel and baked black, and a
-        chair, a desk or a lander shows its back (job paint, 2026-10-08: every generated piece's back was 35 to 100%
-        black). `per_face`: every face packed as its own island (packed_per_face; a piece's data asks it, `per_face`
-        in its bake entry), its faces neither shrunk nor sharpened."""
+    def __init__(self, name, items, density, specs=None, one_piece=False, backs_hidden=True, per_face=False,
+                 split=False):
+        """`one_piece`: the set is a single piece; past the cap it takes the density that fits and says so
+        (`self.capped`, which make_chunky reports); a shared set too, up to CAP_SLACK past the cap; further past, it
+        stops. `split`: a single generated piece past the cap is cut into maps at SPLIT_DENSITY instead (up to
+        MOST_MAPS; past them it is capped as above). `backs_hidden`: the faces facing the kit's back are shrunk
+        (shrink_hidden); a generated piece passes False: shrunk face by face, its small remeshed triangles fell under
+        a texel and baked black, and a chair, a desk or a lander shows its back (job paint, 2026-10-08: every
+        generated piece's back was 35 to 100% black). `per_face`: every face packed as its own island
+        (packed_per_face; a piece's data asks it, `per_face` in its bake entry), its faces neither shrunk nor
+        sharpened."""
         self.name = name
-        sharp = {slot for slot, spec in (specs or {}).items() if spec.get("family") in SHARP_FAMILIES} \
-            if density >= SHARP_FROM else set()
         for item in items:
             unwrap(item)
+        sharp = sharp_slots(specs, density)
         area = visible_area(items, sharp, backs_hidden)
         wanted = math.sqrt(area / UV_FILL) * density
         self.capped = None
-        if wanted > LARGEST and (one_piece or wanted <= LARGEST * CAP_SLACK):
-            self.capped = round(density * LARGEST / wanted)
-            print(f"CAPPED {name}: {area:.1f} m2 holds {self.capped} texels a metre of the {density} asked", flush=True)
-            wanted = LARGEST
+        self.maps = 1
+        if wanted > LARGEST and split and one_piece:
+            density = SPLIT_DENSITY
+            sharp = sharp_slots(specs, density)
+            weights = face_weights(items[0], sharp, backs_hidden)
+            wanted = math.sqrt(weights.sum() / UV_FILL) * density
+            self.maps = min(MOST_MAPS, maps_needed(wanted))
+            wanted = self.held(wanted / math.sqrt(self.maps), density, weights.sum())
+        elif wanted > LARGEST and (one_piece or wanted <= LARGEST * CAP_SLACK):
+            wanted = self.held(wanted, density, area)
         elif wanted > LARGEST:
             # Capped silently, round three's furniture got about 200 texels a metre for the 512 its colour asked
             # (the detail-loss diagnosis, 2026-10-07): a job that cannot hold its density stops and says so.
@@ -234,15 +330,50 @@ class Atlas:
                              f"the {LARGEST} cap (density {density * LARGEST / wanted:.0f}); split the job "
                              "(route.py splits shared sets by their pieces' boxes)")
         self.side = int(max(SMALLEST, 2 ** math.ceil(math.log2(wanted))))
-        if per_face:
+        if self.maps > 1:
+            self.tile = split_into_maps(items[0], weights, self.maps)
+            packed_maps(items[0], self.tile, self.maps, self.side, sharp, per_face)
+            print(f"SPLIT {name}: {weights.sum():.1f} m2 into {self.maps} maps of {self.side} at {density} texels a "
+                  f"metre", flush=True)
+        elif per_face:
             packed_per_face(items, self.side)
         else:
             packed_together(items, self.side, sharp, backs_hidden)
         half = max(SMALLEST // 2, self.side // 2)
-        self.pictures = {channel: new_picture(f"{name}_{channel}", half, colour) for channel, colour in CHANNELS}
-        self.pictures["normal"] = new_picture(f"{name}_normal", self.side, False)
-        self.first = {channel: True for channel in self.pictures}
-        self.metal_roughness = None
+        self.sets = [self.picture_set(self.map_name(number), half) for number in range(self.maps)]
+        self.first = {channel: True for channel in self.sets[0]}
+        self.metal_roughness = [None] * self.maps
+
+    def held(self, wanted, density, area):
+        """A side past LARGEST held to it: the density that fits (`self.capped`), reported."""
+        if wanted <= LARGEST:
+            return wanted
+        self.capped = round(density * LARGEST / wanted)
+        print(f"CAPPED {self.name}: {area:.1f} m2 holds {self.capped} texels a metre of the {density} asked over "
+              f"{self.maps} maps", flush=True)
+        return LARGEST
+
+    def laid_maps(self, item):
+        """A split piece's faces given their maps' material slots again (clearing a mesh's materials sets every face's
+        slot back to the first)."""
+        if self.maps > 1:
+            item.data.polygons.foreach_set("material_index", self.tile)
+            item.data.update()
+
+    def map_name(self, number):
+        """A map's picture names' stem: the piece's own name for a single set, `<name>_map<n>` for a split piece's."""
+        return self.name if self.maps == 1 else f"{self.name}_map{number + 1}"
+
+    def picture_set(self, stem, half):
+        """One map's pictures: base colour, roughness and metal at `half` a side, the normal map at the full side."""
+        pictures = {channel: new_picture(f"{stem}_{channel}", half, colour) for channel, colour in CHANNELS}
+        pictures["normal"] = new_picture(f"{stem}_normal", self.side, False)
+        return pictures
+
+    @property
+    def pictures(self):
+        """The first map's pictures (a code-built piece's set, which is never split)."""
+        return self.sets[0]
 
     def _bake(self, channel, kind, **across):
         bpy.ops.object.bake(type=kind, margin=MARGIN_PIXELS, use_clear=self.first[channel], normal_space="TANGENT",
@@ -264,56 +395,68 @@ class Atlas:
 
     def bake_from(self, high, low, specs, wear, dirt, seed, reach, foot=None):
         """A generated piece: its library materials worked out on the full-detail model `high` (so wear follows its
-        real edges) and baked onto `low`'s place in the shared pictures."""
+        real edges) and baked onto `low`'s place in the shared pictures, each map's faces into its own set (Blender
+        bakes a face into its material's active picture)."""
         found_by_slot = [recipes.channels(specs[name], wear, dirt, seed, foot) for name in slot_names(high)]
-        target = bpy.data.materials.get("bake_target") or bpy.data.materials.new("bake_target")
-        target.use_nodes = True
+        targets = []
+        for number in range(self.maps):
+            target_name = "bake_target" if self.maps == 1 else f"bake_target_{number + 1}"
+            target = bpy.data.materials.get(target_name) or bpy.data.materials.new(target_name)
+            target.use_nodes = True
+            targets.append(target)
         low.data.materials.clear()
-        low.data.materials.append(target)
+        for target in targets:
+            low.data.materials.append(target)
+        self.laid_maps(low)
         select_for_bake([high, low], low)
         across = {"use_selected_to_active": True, "cage_extrusion": reach, "max_ray_distance": reach * 2}
         for channel, _ in CHANNELS:
             for index, material in enumerate(channel_materials(found_by_slot, channel)):
                 high.data.materials[index] = material
-            with_target(target, self.pictures[channel])
+            for target, pictures in zip(targets, self.sets):
+                with_target(target, pictures[channel])
             self._bake(channel, "EMIT", **across)
         for index, material in enumerate(shaded_materials(found_by_slot)):
             high.data.materials[index] = material
-        with_target(target, self.pictures["normal"])
+        for target, pictures in zip(targets, self.sets):
+            with_target(target, pictures["normal"])
         self._bake("normal", "NORMAL", **across)
 
     def finish(self):
-        """glTF's metal-roughness picture from the baked roughness and metal: roughness in green, metal in blue."""
-        side = self.pictures["roughness"].size[0]
-        rough = np.array(self.pictures["roughness"].pixels[:], dtype=np.float32).reshape(side, side, 4)
-        shine = np.array(self.pictures["metallic"].pixels[:], dtype=np.float32).reshape(side, side, 4)
-        both = np.ones((side, side, 4), dtype=np.float32)
-        both[..., 1] = rough[..., 0]
-        both[..., 2] = shine[..., 0]
-        self.metal_roughness = new_picture(f"{self.name}_metal_roughness", side, False)
-        self.metal_roughness.pixels.foreach_set(both.ravel())
+        """glTF's metal-roughness picture of each map from its baked roughness and metal: roughness in green, metal
+        in blue."""
+        for number, pictures in enumerate(self.sets):
+            side = pictures["roughness"].size[0]
+            rough = np.array(pictures["roughness"].pixels[:], dtype=np.float32).reshape(side, side, 4)
+            shine = np.array(pictures["metallic"].pixels[:], dtype=np.float32).reshape(side, side, 4)
+            both = np.ones((side, side, 4), dtype=np.float32)
+            both[..., 1] = rough[..., 0]
+            both[..., 2] = shine[..., 0]
+            self.metal_roughness[number] = new_picture(f"{self.map_name(number)}_metal_roughness", side, False)
+            self.metal_roughness[number].pixels.foreach_set(both.ravel())
 
-    def game_material(self):
-        """The material the pieces carry: the shared pictures on one principled surface, wired the way the glTF
+    def game_material(self, number=0):
+        """The material a map's faces carry: its pictures on one principled surface, wired the way the glTF
         exporter reads them."""
-        material = bpy.data.materials.get(f"{self.name}_game")
+        stem = self.map_name(number)
+        material = bpy.data.materials.get(f"{stem}_game")
         if material is not None:
             return material
-        material = bpy.data.materials.new(f"{self.name}_game")
+        material = bpy.data.materials.new(f"{stem}_game")
         material.use_nodes = True
         nodes, links = material.node_tree.nodes, material.node_tree.links
         surface = next(node for node in nodes if node.type == "BSDF_PRINCIPLED")
         colour = nodes.new("ShaderNodeTexImage")
-        colour.image = self.pictures["base_color"]
+        colour.image = self.sets[number]["base_color"]
         links.new(colour.outputs["Color"], surface.inputs["Base Color"])
         packed_node = nodes.new("ShaderNodeTexImage")
-        packed_node.image = self.metal_roughness
+        packed_node.image = self.metal_roughness[number]
         split = nodes.new("ShaderNodeSeparateColor")
         links.new(packed_node.outputs["Color"], split.inputs["Color"])
         links.new(split.outputs["Green"], surface.inputs["Roughness"])
         links.new(split.outputs["Blue"], surface.inputs["Metallic"])
         bumps = nodes.new("ShaderNodeTexImage")
-        bumps.image = self.pictures["normal"]
+        bumps.image = self.sets[number]["normal"]
         mapped = nodes.new("ShaderNodeNormalMap")
         mapped.uv_map = "bake"
         links.new(bumps.outputs["Color"], mapped.inputs["Color"])
@@ -322,9 +465,11 @@ class Atlas:
 
     def export(self, item, folder):
         """The piece as `<folder>/<name>.gltf` with its .bin, the shared pictures written once beside them in
-        `textures/`; only its `bake` UV map goes with it."""
+        `textures/` (a split piece: one material and one primitive a map); only its `bake` UV map goes with it."""
         item.data.materials.clear()
-        item.data.materials.append(self.game_material())
+        for number in range(self.maps):
+            item.data.materials.append(self.game_material(number))
+        self.laid_maps(item)
         for name in [layer.name for layer in item.data.uv_layers if layer.name != "bake"]:
             layer = item.data.uv_layers.get(name)
             if layer is not None and not name.startswith("."):
@@ -334,4 +479,5 @@ class Atlas:
         bpy.ops.export_scene.gltf(filepath=str(folder / f"{item.name}.gltf"), export_format="GLTF_SEPARATE",
                                   export_texture_dir="textures", use_selection=True, export_apply=True,
                                   export_yup=True, export_image_format="AUTO", export_materials="EXPORT")
-        return {"triangles": sum(len(face.vertices) - 2 for face in item.data.polygons)}
+        found = {"triangles": sum(len(face.vertices) - 2 for face in item.data.polygons)}
+        return dict(found, maps=self.maps) if self.maps > 1 else found
