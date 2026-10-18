@@ -75,13 +75,14 @@ ORDER_L, ORDER_BAKED = 10.0, 3.0
 SEEN_THROUGH = ("glass", "screen", "light", "water")
 PART_POINTS = 60000  # labelled points kept per model to name each baked triangle (export.PART_POINTS)
 # The bake names a baked triangle's colour by a ray (make_chunky's bake_from: Blender's selected-to-active, its cage
-# BAKE_REACH_SHARE of the piece's largest side out, at least BAKE_REACH_LEAST, as make_chunky's REACH_SHARE and
-# REACH_LEAST), so the check names its surface the same way: from its middle that far out along its normal, inward,
+# BAKE_REACH_VOXELS of its solid copy's voxels out (BAKE_VOXEL_SHARE of the piece's largest side, no finer than
+# BAKE_VOXEL_FINEST), at least BAKE_REACH_LEAST, as make_chunky's bake_reach), so the check names its surface the same way: from its middle that far out along its normal, inward,
 # the first labelled face hit. The nearest labelled point named the wrong part: the bake's cut-down copy stands a wall
 # proud of the model (0.6 m on far_city's 140 m pencil tower, 2026-10-13), and from there a thin post's side lies
 # nearer than the facade the bake's ray meets, so half of what the check called post_dark baked the facade and its
 # median failed at dE 45 while every triangle the bake's ray gave the post baked its library colour exactly.
-BAKE_REACH_SHARE, BAKE_REACH_LEAST = 0.03, 0.01
+BAKE_REACH_VOXELS, BAKE_REACH_LEAST = 4, 0.01
+BAKE_VOXEL_SHARE, BAKE_VOXEL_FINEST = 1 / 300, 0.0012
 # The wear stretch (on_surface) is tried at this many shares from clean to the place's wear, each dirtied exactly.
 WEAR_STEPS = 41
 
@@ -111,23 +112,27 @@ def gltf_model(gltf):
     return geometry, maps
 
 
-def laid_parts(labelled, entry):
+def laid_parts(labelled, entry, laid_folder=None):
     """A labelled take's parts (one .ply per surface) as one mesh laid into the kit frame as make_chunky lays them
-    (stored_parts.kit_frame): (surface names, the mesh, each vertex's surface index, each face's surface index)."""
+    (stored_parts.kit_frame): (surface names, the mesh, each vertex's surface index, each face's surface index). A model
+    the bake built over a body (make_chunky.make_bodied) is laid as the bake made it: its `laid_folder` (`<model>.parts`
+    beside the made model) holds its surfaces' faces already in the kit frame, the body's and the details it kept."""
     import numpy as np
     import trimesh
     import stored_parts
-    paths = sorted(labelled.glob("*.ply"))
+    bodied = laid_folder is not None and laid_folder.is_dir()
+    paths = sorted((laid_folder if bodied else labelled).glob("*.ply"))
     meshes = [trimesh.load(path, process=False) for path in paths]
     joined = trimesh.util.concatenate(meshes)
-    laid = stored_parts.kit_frame(np.asarray(joined.vertices), np.array(entry["base"]).reshape(3, 3), entry["size"])
+    laid = np.asarray(joined.vertices) if bodied else stored_parts.kit_frame(
+        np.asarray(joined.vertices), np.array(entry["base"]).reshape(3, 3), entry["size"])
     vertex_codes = np.concatenate([np.full(len(mesh.vertices), code) for code, mesh in enumerate(meshes)])
     codes = np.concatenate([np.full(len(mesh.faces), code) for code, mesh in enumerate(meshes)])
     return [path.stem for path in paths], trimesh.Trimesh(laid, joined.faces, process=False), vertex_codes, codes
 
 
 def ray_surfaces(geometry, laid, codes, size, sampled=None):
-    """Each baked triangle's surface index as the bake's ray finds it (BAKE_REACH_SHARE): the first laid face hit from
+    """Each baked triangle's surface index as the bake's ray finds it (BAKE_REACH_VOXELS): the first laid face hit from
     its sampled point (`sampled`: (points, triangles they lie on), else each triangle's middle) that far out along its
     triangle's normal, inward; -1 where the ray meets nothing."""
     import numpy as np
@@ -135,7 +140,7 @@ def ray_surfaces(geometry, laid, codes, size, sampled=None):
     normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
     normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
     points, owners = sampled if sampled is not None else (corners.mean(axis=1), np.arange(len(corners)))
-    reach = max(max(size) * BAKE_REACH_SHARE, BAKE_REACH_LEAST)
+    reach = max(BAKE_REACH_VOXELS * max(BAKE_VOXEL_FINEST, max(size) * BAKE_VOXEL_SHARE), BAKE_REACH_LEAST)
     hit = laid.ray.intersects_first(points + normals[owners] * reach, -normals[owners])
     return np.where(hit >= 0, codes[np.maximum(hit, 0)], -1)
 
@@ -171,14 +176,14 @@ def sampled_points(geometry, rows, columns, width, height):
     return np.einsum("ij,ijk->ik", bary, corners[owners]), owners
 
 
-def baked_surfaces(geometry, labelled, entry, sampled=None):
+def baked_surfaces(geometry, labelled, entry, sampled=None, laid_folder=None):
     """Each baked triangle's surface and the surfaces within its reach, the labelled parts laid in the kit frame
     (laid_parts): (surface names, each triangle's surface index (the bake's ray from its sampled point, ray_surfaces
     and sampled_points; the part whose nearest point lies under its middle where the ray meets nothing), reach (triangles x surfaces: its own, its corners' and
     every part with a point within its furthest corner from its middle))."""
     import numpy as np
     from scipy.spatial import cKDTree
-    names, laid, vertex_codes, codes = laid_parts(labelled, entry)
+    names, laid, vertex_codes, codes = laid_parts(labelled, entry, laid_folder)
     kept = np.concatenate([np.flatnonzero(vertex_codes == code)[::max(1, (vertex_codes == code).sum() // PART_POINTS)]
                            for code in range(len(names))])
     tree, point_codes = cKDTree(laid.vertices[kept]), vertex_codes[kept]
@@ -254,7 +259,8 @@ def check_model(name, entry, labelled, made, materials, dirt=0.0, wear=0.0):
     corners = geometry["positions"][geometry["triangles"]]
     areas = 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
     names, surface, reach = baked_surfaces(geometry, labelled, entry,
-                                           sampled_points(geometry, rows, columns, width, height))
+                                           sampled_points(geometry, rows, columns, width, height),
+                                           made / f"{name}.parts")
     shades = [library_shades(materials[each]) if each in materials else [] for each in names]
     tokens = [colours[0] if colours else None for colours in shades]
     dirty = [labels.lab(labels.srgb(np.array(materials[each]["dirt_colour"]))[None])[0]

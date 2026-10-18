@@ -49,6 +49,17 @@ MARGIN_PIXELS = 3
 # pack_islands' MARGIN_PIXELS round each left them 1% of the square, every face under a colour texel (72% baked
 # black); packed face by face with this gap the herb filled 60% and every face held a texel (lettuce 98%, greens 100%).
 FACE_MARGIN_PIXELS = 0.5
+# A generated piece's full model is lumpy (Pixal3D), and its lumps came through as relief: baked into the normal map
+# and read as edges by the wear's bevel test and as cavities by the dirt (the materials audit, 2026-10-18: blotches
+# on the consoles, ragged wear). Only the finishes whose own surface is lumpy keep the model's normals (cast metal,
+# rubber, fabric); every other finish is shaded by the model's normals smoothed over SMOOTH_REACH, so it takes the
+# recipe's own relief over the model's shape, and its wear and dirt read that shape, not its lumps.
+OWN_LUMPS = ("cast_metal", "rubber", "quilted")
+SMOOTH_REACH = 0.03
+# Neighbouring faces whose smoothed normals part by SMOOTH_CREASE or more do not smooth into each other: a real edge
+# stays sharp, so its wear stays on it.
+SMOOTH_CREASE = math.radians(35.0)
+SMOOTH_ROUNDS_MOST = 200
 
 
 def hidden_faces(item):
@@ -201,6 +212,76 @@ def select_for_bake(selected, active):
     bpy.context.view_layer.objects.active = active
 
 
+def face_pairs(mesh):
+    """The pairs of faces that share an edge (an edge of exactly two faces), as two index arrays."""
+    loop_edges = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get("edge_index", loop_edges)
+    totals = np.empty(len(mesh.polygons), dtype=np.int64)
+    mesh.polygons.foreach_get("loop_total", totals)
+    loop_faces = np.repeat(np.arange(len(mesh.polygons)), totals)
+    order = np.argsort(loop_edges, kind="stable")
+    counts = np.bincount(loop_edges, minlength=len(mesh.edges))
+    starts = np.cumsum(counts) - counts
+    shared = shared_edges(mesh)
+    return loop_faces[order][starts[shared]], loop_faces[order][starts[shared] + 1]
+
+
+def shared_edges(mesh):
+    """The edges of exactly two faces, in edge order (face_pairs lists their faces in the same order)."""
+    loop_edges = np.empty(len(mesh.loops), dtype=np.int64)
+    mesh.loops.foreach_get("edge_index", loop_edges)
+    return np.flatnonzero(np.bincount(loop_edges, minlength=len(mesh.edges)) == 2)
+
+
+def smoothing_rounds(areas):
+    """How many rounds of smoothing between neighbours spread a face's normal about SMOOTH_REACH: a round reaches
+    about one face further, and the reach grows with the square root of the rounds."""
+    spacing = math.sqrt(float(areas.mean()))
+    return int(min(SMOOTH_ROUNDS_MOST, max(1, round((SMOOTH_REACH / max(spacing, 1e-9)) ** 2))))
+
+
+def smoothed_normals(normals, areas, pairs, rounds):
+    """Face normals smoothed between edge neighbours, each round every face taking the area-weighted mean of itself
+    and its neighbours, a neighbour weighing less as their normals part and nothing from SMOOTH_CREASE on."""
+    first, second = pairs
+    floor = math.cos(SMOOTH_CREASE)
+    current = normals.copy()
+    for _ in range(rounds):
+        agree = np.einsum("ij,ij->i", current[first], current[second])
+        weight = np.clip((agree - floor) / (1.0 - floor), 0.0, 1.0) ** 2
+        total = current * areas[:, None]
+        for axis in range(3):
+            total[:, axis] += np.bincount(first, weights=current[second, axis] * areas[second] * weight,
+                                          minlength=len(current))
+            total[:, axis] += np.bincount(second, weights=current[first, axis] * areas[first] * weight,
+                                          minlength=len(current))
+        current = total / np.maximum(np.linalg.norm(total, axis=1, keepdims=True), 1e-12)
+    return current
+
+
+def smoothly_shaded(high, specs):
+    """The full model shaded by its normals smoothed over SMOOTH_REACH (smoothed_normals), as custom normals, on every
+    face but those of a finish whose own surface is lumpy (OWN_LUMPS), which stay flat. Blender keeps one custom normal
+    for the corners a smooth vertex joins, so the face normals given become a smooth field over the vertices."""
+    mesh = high.data
+    count = len(mesh.polygons)
+    normals = np.empty(count * 3)
+    mesh.polygons.foreach_get("normal", normals)
+    normals = normals.reshape(count, 3)
+    areas = np.empty(count)
+    mesh.polygons.foreach_get("area", areas)
+    slots = np.empty(count, dtype=np.int64)
+    mesh.polygons.foreach_get("material_index", slots)
+    lumpy = np.array([specs[name].get("recipe") in OWN_LUMPS for name in slot_names(high)] or [False])
+    smoothed = smoothed_normals(normals, areas, face_pairs(mesh), smoothing_rounds(areas))
+    shading = np.where(lumpy[slots][:, None], normals, smoothed)
+    totals = np.empty(count, dtype=np.int64)
+    mesh.polygons.foreach_get("loop_total", totals)
+    mesh.polygons.foreach_set("use_smooth", ~lumpy[slots])  # a lumpy finish's faces stay flat, each its own normal
+    mesh.normals_split_custom_set(np.repeat(shading, totals, axis=0).tolist())
+    mesh.update()
+
+
 CHANNELS = (("base_color", True), ("roughness", False), ("metallic", False))
 
 
@@ -264,7 +345,8 @@ class Atlas:
 
     def bake_from(self, high, low, specs, wear, dirt, seed, reach, foot=None):
         """A generated piece: its library materials worked out on the full-detail model `high` (so wear follows its
-        real edges) and baked onto `low`'s place in the shared pictures."""
+        real edges, its lumps smoothed: smoothly_shaded) and baked onto `low`'s place in the shared pictures."""
+        smoothly_shaded(high, specs)
         found_by_slot = [recipes.channels(specs[name], wear, dirt, seed, foot) for name in slot_names(high)]
         target = bpy.data.materials.get("bake_target") or bpy.data.materials.new("bake_target")
         target.use_nodes = True

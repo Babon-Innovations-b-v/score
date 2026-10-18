@@ -6581,6 +6581,13 @@ import pieces_earth  # noqa: E402
 
 BUILDERS.update(pieces_earth.BUILDERS)
 
+# The code-built bodies of big objects seen up close (PRD #10, 2026-10-18): the bake lays each under the details it
+# keeps of its object's take (make_chunky.py, bodies.py), in a module of their own; every name is new.
+import pieces_bodies  # noqa: E402
+
+assert not set(pieces_bodies.BUILDERS) & set(BUILDERS), "a body builder would replace another room's"
+BUILDERS.update(pieces_bodies.BUILDERS)
+
 # The ship rooms' plain pieces (the ship as a world 1 place, 2026-10-14), in a module of their own like Earth's; every
 # name is new, so no other room's builder changes.
 import pieces_ship  # noqa: E402
