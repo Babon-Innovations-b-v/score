@@ -522,6 +522,9 @@ def test_the_repository_makes_paid_calls_only_through_the_ledgered_clients():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, check in list(globals().items()):
         if name.startswith("test_"):
             check()
