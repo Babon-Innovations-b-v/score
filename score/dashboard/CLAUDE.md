@@ -2,7 +2,7 @@
 
 SCORE's dashboard: one ASGI app (`site/asgi.py`): Django renders the pages, sign-in and admin; FastAPI serves a typed
 JSON API under `/api` and the file routes (`/files`, `/thumbs`, `/web`, `/healthz`); one sign-in for both. Commands in
-`__main__.py` (`serve`, `owner`, `export`, `sync`, `check`). The world shown: world -> environment engine -> style
+`__main__.py` (`serve`, `owner`, `export`, `sync`, `check`, `web3d`: a place's 3D web copy for the viewer at `/view/<place>`). The world shown: world -> environment engine -> style
 (a look in `data/definitions/place.json`) -> environment (place) with its OpenUSD index -> layer -> step (node),
 grouped in `state/groups.py` from the stage table; no new framework level.
 

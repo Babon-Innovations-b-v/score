@@ -4,18 +4,28 @@
 <p class="small"><a href="/">World</a>{% if detail.place %} / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a>{% else %} / world steps{% endif %} / {{ detail.label }}</p>
 <h1>{{ detail.label|capfirst }}{% if detail.place %} <span class="soft">at {{ detail.place }}</span>{% endif %} {% if detail.paid %}<span class="paid">paid</span>{% endif %}</h1>
 <p class="soft">{{ detail.state_words }}{% if detail.record.minutes is not None %}; made {{ detail.record.finished|slice:":16" }} in {{ detail.record.minutes|floatformat:1 }} min{% endif %}{% if detail.record.carried %}; carried over ({{ detail.record.carried.reason }}){% endif %}{% if snapshot_state %}. Freshness ({{ snapshot_at|slice:":16" }}): {{ snapshot_state }}{% endif %}</p>
+{% if detail.mark %}<p><span class="mark {{ detail.mark|slice:":8"|slugify }}">{{ detail.mark|capfirst }}</span></p>{% endif %}
 {% if detail.fault %}<div class="banner bad"><b>Stopped:</b> {{ detail.fault_why }}<details class="ids"><summary>fault report</summary><pre>{{ detail.fault }}</pre></details></div>{% endif %}
+
+<h2>Output beside what it was made from</h2>
+<div class="beside">
+  {% for read in detail.inputs %}<figure><a href="{{ read.url }}">{% if read.thumb %}<img src="{{ read.thumb }}" alt="{{ read.label }}" loading="lazy">{% else %}<div class="noimg">no picture</div>{% endif %}</a><figcaption>reads: {{ read.label }}</figcaption></figure>{% endfor %}
+  {% if detail.reference %}<figure><a href="{{ detail.reference.url }}"><img src="{{ detail.reference.thumb_url }}" alt="concept" loading="lazy"></a><figcaption>reference: the concept</figcaption></figure>{% endif %}
+  <span class="arrow" aria-hidden="true">&rarr;</span>
+  <figure class="out">{% if output_picture %}<a href="{{ output_picture.url }}"><img src="{{ output_picture.thumb_url }}" alt="this step's output" loading="lazy"></a>{% else %}<div class="noimg">{% if detail.files %}no picture in the output{% else %}nothing stored yet{% endif %}</div>{% endif %}<figcaption>this step's output{% if detail.accepted %}, accepted{% endif %}</figcaption></figure>
+</div>
+{% if not detail.inputs and not detail.reference %}<p class="small soft">This step reads nothing that is pictured.</p>{% endif %}
 
 <div class="columns">
 <div>
   <h2>Accepted output</h2>
-  {% if detail.files %}{% include "pages/sheet.html" with files=detail.files %}{% else %}<p class="soft">Nothing stored yet.</p>{% endif %}
+  {% if detail.files %}{% include "pages/sheet.html" with files=detail.files fps=film_fps %}{% else %}<p class="soft">Nothing stored yet.</p>{% endif %}
   {% with others=detail.files %}{% if others %}<h3>Files</h3><ul class="small">{% for file in others %}{% if file.kind == "usd" or file.kind == "gltf" or file.kind == "other" %}<li><a href="{{ file.url }}">{{ file.name }}</a> <span class="soft">{{ file.bytes|filesizeformat }}</span></li>{% endif %}{% endfor %}</ul>{% endif %}{% endwith %}
 
   {% if detail.waiting %}
   <h2>Waiting output</h2>
   <p class="soft">Made {{ detail.waiting.at|slice:":16" }}, answered <span class="{{ detail.waiting.answer }}">{{ detail.waiting.answer|default:"nothing yet" }}</span>.{% if detail.waiting_worse %} Worse than the accepted one: {{ detail.waiting_worse|join:"; " }}{% endif %}</p>
-  {% include "pages/sheet.html" with files=detail.waiting_files %}
+  {% include "pages/sheet.html" with files=detail.waiting_files fps=film_fps %}
   <h3>Its gates</h3>
   {% include "pages/gates.html" with gates=detail.waiting_judgement %}
   {% endif %}
@@ -63,6 +73,11 @@
 
   <h2>Advance</h2>
   <div class="panel">
+    {% if detail.accepted %}
+    {% if detail.mark|slice:":8" == "advanced" %}<p class="small" style="margin-top:0">{{ detail.mark|capfirst }}: the paid steps reading this output may be launched.</p>
+    {% else %}<form method="post" action="advance/">{% csrf_token %}<input type="hidden" name="output" value="{{ detail.accepted.output }}"><button class="primary">I looked: advance this output</button></form>
+    <div class="small soft" style="margin:6px 0 10px">Paid steps that read it stay refused until it is advanced.</div>{% endif %}
+    {% else %}<p class="small soft" style="margin-top:0">Nothing accepted to advance yet.</p>{% endif %}
     <form class="inline" method="post" action="queue/">{% csrf_token %}<input type="hidden" name="which" value="this"><button {% if queued %}disabled{% endif %}>{% if queued %}In the basket{% else %}Queue this step{% endif %}</button></form>
     {% if next_steps %}<form class="inline" method="post" action="queue/">{% csrf_token %}<input type="hidden" name="which" value="next"><button>Queue the next steps</button></form>{% endif %}
     <div class="small soft" style="margin-top:6px">Nothing runs until the basket's plan is confirmed.</div>

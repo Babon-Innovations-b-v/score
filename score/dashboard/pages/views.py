@@ -8,13 +8,14 @@ from django.contrib.auth.decorators import login_not_required
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
 from score.dashboard.pages import actions, seen
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, SyncRequest, is_owner
-from score.dashboard.state import costs
+from score.dashboard.state import costs, groups
 
 def everywhere(request):
     """What every page shows: the mode, when the store (or export) was read, and what this user may do."""
@@ -86,12 +87,25 @@ def step_page(request, stage, place=None):
     if shown and is_owner(request.user):
         seen.looked(request.user.username, detail.node, shown.output)
     detail.mark = seen.mark(detail.node, shown.output) if shown else None
+    films = any(file.kind == "film" for file in [*detail.files, *detail.waiting_files])
     return render(request, "pages/step.html", {
+        "film_fps": film_fps(source, place) if films else None,
+        "output_picture": next((file for file in detail.files if file.kind == "image"), None),
         "detail": detail, "requests": ChangeRequest.objects.filter(node=detail.node)[:10],
         "sync_requests": SyncRequest.objects.filter(payload__node=detail.node)[:10],
         "queued": BasketItem.objects.filter(place=place or "", stage=stage).exists(),
         "next_steps": detail.readers, "snapshot_state": snapshot.get("nodes", {}).get(detail.node),
         "snapshot_at": snapshot.get("made_at")})
+
+
+def film_fps(source, place):
+    """The frames a second of a place's films (its stage's own), or None for the world or an unknown place."""
+    if not place:
+        return None
+    if hasattr(source, "film_fps"):
+        return source.film_fps(place)
+    detail = source.place_detail(place)
+    return detail.film_fps if detail else None
 
 
 def step_url(place, stage):
@@ -225,8 +239,19 @@ def viewer(request, place):
     if place not in source.places():
         raise Http404(place)
     detail = source.place_detail(place)
-    makers = {layer.name: layer.made_by_step for layer in detail.usd_index.layers}
-    return render(request, "pages/view3d.html", {"place": place, "detail": detail, "makers": makers})
+    return render(request, "pages/view3d.html", {"detail": detail, "viewer": {
+        "place": place, "layers": layer_makers(detail.usd_index.layers),
+        "order": [layer.name for layer in detail.usd_index.layers]}})
+
+
+def layer_makers(layers):
+    """{layer name: {label, url}} of the step that made each OpenUSD layer, in words and a link (no node ids)."""
+    found = {}
+    for layer in layers:
+        if layer.made_by_step:
+            stage, _, at = layer.made_by_step.partition("@")
+            found[layer.name] = {"label": groups.label(stage), "url": step_url(at or None, stage)}
+    return found
 
 
 def picks(request, place):
@@ -245,7 +270,7 @@ def picks(request, place):
 def refresh(request):
     state.source().refresh()
     messages.success(request, "the store was read again")
-    return redirect(request.POST.get("back") or "/")
+    return redirect(back_of(request))
 
 
 @require_POST
@@ -254,7 +279,15 @@ def freshness(request):
     if not is_owner(request.user):
         return HttpResponseForbidden("only the owner starts the freshness snapshot")
     messages.info(request, actions.start_snapshot())
-    return redirect(request.POST.get("back") or "/")
+    return redirect(back_of(request))
+
+
+def back_of(request):
+    """The page to go back to after a POST: the form's `back` when it is a path on this site, else the board."""
+    back = request.POST.get("back") or "/"
+    allowed = url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()},
+                                              require_https=request.is_secure())
+    return back if allowed and back.startswith("/") and not back.startswith("//") else "/"
 
 
 @login_not_required

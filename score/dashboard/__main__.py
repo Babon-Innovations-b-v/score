@@ -5,6 +5,7 @@
     .venv/bin/python -m score.dashboard export --out DIR  # the state export, into DIR
     .venv/bin/python -m score.dashboard sync              # store side: push the export, pull and apply requests
     .venv/bin/python -m score.dashboard check             # Django's checks of the settings
+    .venv/bin/python -m score.dashboard web3d <place>     # a place's fresh 3D web copy (web3d/convert.py), free
 """
 import argparse
 import os
@@ -21,6 +22,10 @@ def parse(argv):
     commands.add_parser("export").add_argument("--out", required=True)
     commands.add_parser("sync")
     commands.add_parser("check")
+    web3d = commands.add_parser("web3d", help="a place's fresh 3D web copy from its accepted OpenUSD stage")
+    web3d.add_argument("place")
+    web3d.add_argument("--store", help="the store folder (default $PROPS_HOME/store)")
+    web3d.add_argument("--out", help="default SCORE_WEB_COPIES, where the viewer reads it")
     return parser.parse_args(argv)
 
 
@@ -92,6 +97,15 @@ def check():
     call_command("check")
 
 
+def web3d(place, store, out):
+    """Make the place's web copy into the folder this dashboard serves it from (SCORE_WEB_COPIES)."""
+    from django.conf import settings
+
+    from score.dashboard.web3d import convert
+    convert.main([place, "--store", store or str(settings.SCORE_PROPS_HOME / "store"),
+                  "--out", out or str(settings.SCORE_WEB_COPIES)])
+
+
 def main(argv=None):
     import django
     django.setup()
@@ -104,6 +118,8 @@ def main(argv=None):
         export(options.out)
     elif options.command == "sync":
         sync()
+    elif options.command == "web3d":
+        web3d(options.place, options.store, options.out)
     else:
         check()
 
