@@ -156,49 +156,141 @@
 			"loops": [
 				"ship_inside"
 			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
+			"objects": [
+				{
+					"sound": "console_hum",
+					"on": "main_console"
+				},
+				{
+					"sound": "console_hum",
+					"on": "overhead_console"
+				},
+				{
+					"sound": "vent_air",
+					"on": "overhead_vent"
+				}
+			],
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the consoles' cooling fans and the cabin vent"
 		},
 		"quarters": {
 			"loops": [
 				"ship_inside"
 			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
+			"objects": [
+				{
+					"sound": "vent_air",
+					"on": "overhead_vent"
+				}
+			],
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the vent alone, the quietest room"
 		},
 		"navigation": {
 			"loops": [
 				"ship_inside"
 			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
+			"objects": [
+				{
+					"sound": "console_hum",
+					"on": "nav_table"
+				},
+				{
+					"sound": "console_hum",
+					"on": "side_console"
+				},
+				{
+					"sound": "vent_air",
+					"on": "overhead_vent"
+				}
+			],
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the chart table's and the side console's fans and the vent"
 		},
 		"galley": {
 			"loops": [
 				"ship_inside"
 			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
+			"objects": [
+				{
+					"sound": "glovebox_hum",
+					"on": "galley_counter"
+				},
+				{
+					"sound": "vent_air",
+					"on": "overhead_vent"
+				}
+			],
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the counter's cooler and air pump (glovebox_hum, a small pump and filter fan) and the vent"
 		},
 		"storage": {
 			"loops": [
 				"ship_inside"
 			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
+			"objects": [
+				{
+					"sound": "junction_hum",
+					"on": "ceiling_equipment"
+				},
+				{
+					"sound": "vent_air",
+					"on": "overhead_vent"
+				}
+			],
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the power gear in the ceiling (junction_hum) and the vent"
 		},
 		"engineroom": {
 			"loops": [
 				"ship_inside"
 			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
+			"objects": [
+				{
+					"sound": "base_hum",
+					"on": "power_core"
+				},
+				{
+					"sound": "junction_hum",
+					"on": "junction_box"
+				},
+				{
+					"sound": "vent_air",
+					"on": "overhead_vent"
+				}
+			],
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the power core's deep drone (base_hum: a power plant heard through steel), the junction box and the vent"
 		},
 		"shiplock": {
 			"loops": [
 				"ship_inside"
 			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
+			"objects": [
+				{
+					"sound": "vent_air",
+					"on": "overhead_vent"
+				},
+				{
+					"sound": "lamp_buzz",
+					"on": "ceiling_light_panel"
+				}
+			],
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the vent and the light panel's buzz"
 		},
 		"walkway": {
 			"loops": [
 				"ship_inside"
 			],
-			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)"
+			"from": "the ship's room tone: ship_inside's own brief (data/sound/sounds.json `where`) names the ship's cabin: 'inside the ship's cabin in flight' (the ship stands parked tonight; a standby take is the owner's call)",
+			"objects": [
+				{
+					"sound": "lamp_buzz",
+					"on": "ceiling_light_panel"
+				}
+			],
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the light panels' buzz"
 		}
 	}
 }

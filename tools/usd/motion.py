@@ -20,7 +20,10 @@ A motion record:
                                              the game's speed in metres a second, toward each end at its moment in
                                              the round, as the game's move_toward moves it; `rests` "open" when the
                                              base stands it open instead (shut is then `by` metres back)
-      | "light": {"on": [[from, to], ...]}  a light: at its full intensity between each pair, dark the rest
+      | "light": {"on": [[from, to], ...], "fade"}
+                                             a light: at its full intensity between each pair, dark the rest; with
+                                             `fade` seconds it comes up and goes down over that long from each end
+                                             instead of switching
       | "climb": {"lift", "push", "pull"}   a rocket: standing until `lift`, then rising straight up at its engine's
                                              push less the world's pull (metres a second a second)
       | "turn": {"speed"}                    a turntable: turning about the prim's own up from where the base turns
@@ -37,7 +40,8 @@ A motion record:
 
 A looping motion's samples are written round after round up to `seconds` (WRITTEN_SECONDS by default); a round must
 end where it starts, so the rounds join. A sample is written only where the motion changes: a slide's ends of travel,
-a light's switching (two samples a hair apart, so it switches rather than fades), a climb every time code, a turn at
+a light's switching (two samples a hair apart, so it switches rather than fades; a fade every time code over it), a
+climb every time code, a turn at
 its start and its end (a steady turn is a straight line in its angle). Where the
 creator's edit layer sets a moving prim's own value, the edit wins and the prim stands still: the edit is stronger.
 """
@@ -203,10 +207,23 @@ def write_light(stage, motion, rate, seconds):
     full = float(UsdLux.SphereLight(prim).GetIntensityAttr().Get())
     attribute = stage.OverridePrim(motion["prim"]).CreateAttribute("inputs:intensity", Sdf.ValueTypeNames.Float)
     switches = light_switches(motion, seconds)
+    fade = float(motion["light"].get("fade", 0.0))
     attribute.Set(full * switches[0][1], 0.0)
-    for moment, on in switches[1:]:  # held until a hair before the switch, so it switches rather than fades
-        attribute.Set(full * (1.0 - on), code(moment, rate) - SWITCH)
-        attribute.Set(full * on, code(moment, rate))
+    for moment, on in switches[1:]:
+        for at, share in switch_keys(moment, on, fade, rate):
+            attribute.Set(full * share, at)
+
+
+def switch_keys(moment, on, fade, rate):
+    """A light's samples at one switch, (time code, share of its full intensity): held until a hair before the switch,
+    so it switches rather than fades; or, with `fade` seconds, from the switch a sample every time code from the old
+    share to the new, since a film's renderer holds each sample until the next (usd_views.py's switched). The airlock's
+    warning light switched on in one frame and turned the whole room yellow (the world 1 film diagnosis, M2,
+    2026-10-18)."""
+    if fade <= 0.0:
+        return [(code(moment, rate) - SWITCH, 1.0 - on), (code(moment, rate), on)]
+    ticks = max(1, int(round(fade * rate)))
+    return [(code(moment, rate) + tick, (1.0 - on) + (2.0 * on - 1.0) * tick / ticks) for tick in range(ticks + 1)]
 
 
 def write_climb(stage, motion, rate, seconds):

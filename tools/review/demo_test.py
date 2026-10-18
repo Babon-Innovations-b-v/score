@@ -2,7 +2,8 @@
 at a roof is left out, the cameras kept are spread over the record's list; on two rooms made here
 (tools/usd/camera_paths_test.py) a shot whose camera looks through the wall into the other room walks towards it only as
 far as is clear, at eye height, every step clear, and keeps looking that way; a view held near level; a walk in a room
-keeps to its recorded floor; a camera held far over every floor stands at its own eye; a standing shot turns in place;
+keeps to its recorded floor, glides at one speed between its eased ends and rounds its corners; a camera held far over
+every floor, or one that says stand, stands; a standing shot turns in place;
 the frames run at consecutive moments of the stage's time; a shot starts where it keeps the clearance from walls and
 people, or is left out; an earlier take's clear shots are kept; and a frame's ink lines drawn alone are laid over its
 look. No Blender, no cloud.
@@ -107,6 +108,36 @@ def check_stand():
     assert np.sign(other[0]["aim"][0]) == -np.sign(frames[0]["aim"][0]), "shots turn the other way in turn"
 
 
+def check_glide():
+    """A shot's camera speeds up and slows down only over EASE_SECONDS at its ends and glides at one speed between,
+    from 0 to 1, never going back: no surge in the middle of the shot."""
+    shares = demo.eased(96)
+    speeds = np.diff(shares) * demo.RATE
+    middle = speeds[round(demo.EASE_SECONDS * demo.RATE) + 1:-round(demo.EASE_SECONDS * demo.RATE) - 1]
+    assert shares[0] == 0.0 and abs(shares[-1] - 1.0) < 1e-9 and (np.diff(shares) >= 0).all(), shares
+    assert np.ptp(middle) < 1e-9, "the walk's speed changes between its eased ends"
+    assert speeds.max() < 1.2 / (95 / demo.RATE), "its top speed over 1.2 times its mean (the cosine's was 1.57)"
+
+
+def check_rounded(scenes):
+    """A walk's corner is rounded where the curve stays walkable, so the walk never turns in one frame; its ends stay."""
+    path = [np.array([1.0, 1.6, 2.0]), np.array([2.0, 1.6, -1.5]), np.array([3.0, 1.6, 2.0])]
+    rounded = demo.rounded_corners(scenes, path)
+    ways = np.diff(np.array(rounded), axis=0)
+    ways = ways[:, [0, 2]] / np.linalg.norm(ways[:, [0, 2]], axis=1)[:, None]
+    turns = np.degrees(np.arccos(np.clip((ways[1:] * ways[:-1]).sum(axis=1), -1.0, 1.0)))
+    assert len(rounded) == demo.ROUND_STEPS + 3 and turns.max() < 60.0, turns  # 148 degrees at once unrounded
+    assert np.allclose(rounded[0], path[0]) and np.allclose(rounded[-1], path[-1])
+    assert camera_paths.edges_walkable(scenes, np.array(rounded[:-1]), np.array(rounded[1:]),
+                                       camera_paths.CLEARANCE).all()
+
+
+def check_stand_spot(scenes):
+    """A camera that says `stand` stands where a walk would be clear (a small room the walk would cross into a wall)."""
+    view = dict(camera("held", [-3.0, 1.6, 2.0], [-3.0, 1.2, -2.0]), stand=True)
+    assert demo.shot_move(scenes, view, None, seed=0)["move"] == "stand"
+
+
 def check_level():
     eye = np.array([0.0, 1.6, 0.0])
     for aim, most in (([0.0, 9.0, -2.0], demo.LOOK_UP), ([0.0, -9.0, -2.0], -demo.LOOK_DOWN), ([0.0, 1.4, -4.0], None)):
@@ -194,7 +225,7 @@ if __name__ == "__main__":
     import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
-    for check in (check_cameras, check_picked, check_stand, check_level, check_names, check_inked):
+    for check in (check_cameras, check_picked, check_stand, check_glide, check_level, check_names, check_inked):
         check()
     with tempfile.TemporaryDirectory() as temporary:
         stage = camera_paths_test.rooms_stage(pathlib.Path(temporary))
@@ -202,6 +233,8 @@ if __name__ == "__main__":
         check_walk(rooms)
         check_floor(rooms)
         check_held(rooms)
+        check_rounded(rooms)
+        check_stand_spot(rooms)
         check_clear_start(rooms)
         check_kept(stage, rooms, *check_time(stage, rooms))
         check_people(stage, rooms)

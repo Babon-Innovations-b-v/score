@@ -1,8 +1,8 @@
 """The motion stage's make and gates on the proof place's own records and seed (the launch: three ferries and the
 game's rocket): the records pass all five gates; a ferry's lane laid over the pad fails `clear`, a round driven too
 fast fails `speeds`, a round that no longer fits the layer's seconds fails `loops`, a lane run up onto the land fails
-`grounded`, and a ferry left out of the record fails `covered`. The hub's hatches swing open on their hinges and back
-within their kind's speeds.
+`grounded`, and a ferry left out of the record fails `covered`. A hub hatch swings open on its hinge and back within
+its kind's speeds (the hub's own record keeps its hatches shut while nobody passes, so the swing is given here).
 
 Run: .venv/bin/python score/stages/motion/motion_test.py   (needs the launch's and hub's round-three seeds in the work
 folder)
@@ -127,9 +127,24 @@ def test_a_ferry_left_standing_fails_covered():
     assert found["covered"].findings == ("/launch/Objects/far_ferry_3 (ferry)",), found["covered"].findings
 
 
-def test_the_hub_s_hatches_swing_open_and_back():
+def swinging_hatch():
+    """The hub's movers record with its first hatch (leaf, wheel and window) swung 90 degrees into the room at 30
+    degrees a second, opening at 4 s and shutting at 15 s of a 60 s round, as the record held it until 2026-10-18."""
+    record = json.loads((REPO / "data/movers/hub.json").read_text())
+    swing = {"about": "Objects/hatch_hinge_1", "angle": -90.0, "speed": 30.0, "starts": "shut",
+             "moves": [[4.0, "open"], [15.0, "shut"]]}
+    parts = ("leaf", "wheel", "window")
+    record["movers"] = [{"name": f"hatch_door_{part}_1", "prim": f"/hub/Objects/hatch_{part}_1", "kind": "hatch",
+                         "on": "rail", "start": 0.0, "length": 60.0, "loop": True, "swing": swing,
+                         "from": "motion_test: a hatch opened by someone passing through"} for part in parts]
+    record["still"] = {name: why for name, why in record["still"].items()
+                       if name not in {f"hatch_{part}_1" for part in parts}}
+    return record
+
+
+def test_a_hub_hatch_swings_open_and_back():
     with tempfile.TemporaryDirectory() as folder:
-        inputs = place_inputs("hub", folder)
+        inputs = place_inputs("hub", folder, swinging_hatch())
         out = made(inputs, folder)
         stage = motion.composed(out, inputs)
         record = json.loads(inputs["movers"].read_text())

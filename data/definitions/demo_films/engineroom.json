@@ -1,5 +1,32 @@
 {
  "place": "engineroom",
- "camera": "from-south-door",
- "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. The ship's rooms have no game shots, so the camera is picked against the concept by eye: the concept looks aft at the raised deck, the power core and the aft door, the record's from-south-door view (from-north-door-at-0.4 stands on the deck looking forward)."
+ "camera": "film-corner",
+ "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. The ship's rooms have no game shots, so the camera is picked against the concept by eye: the concept looks aft at the raised deck, the power core and the aft door, the record's from-south-door view (from-north-door-at-0.4 stands on the deck looking forward). From 2026-10-18 its spots are its own, across its floor (shares of it, so they keep their place when the ship's rooms are built at 1.5 times), each a standing shot at 90 degrees, picked from eight corner and wall spots rendered locally: from the south-east corner over the power core to the fuel tank and the hatch, then from the west wall along the room; from from-south-door the walk ended a hand from the north hatch, a white door filling the frame (the world 1 film diagnosis, 2026-10-18).",
+ "across": {
+  "eye": [
+   0.88,
+   0.88
+  ],
+  "aim": [
+   0.12,
+   0.12
+  ]
+ },
+ "fov": 90.0,
+ "stand": true,
+ "then": {
+  "camera": "film-across",
+  "across": {
+   "eye": [
+    0.1,
+    0.5
+   ],
+   "aim": [
+    0.9,
+    0.5
+   ]
+  },
+  "fov": 90.0,
+  "stand": true
+ }
 }

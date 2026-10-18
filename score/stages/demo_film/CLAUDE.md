@@ -16,13 +16,18 @@ own sound; paid and cleared by the runner like any paid row.
   render); a standing shot starts 5 degrees off the camera's aim and a walk's start may move up to 1.5 m to stand clear,
   which views.json records.
 - **The film is the place's own**: the neighbours output where the place shows others, else its assembly, never a seed;
-  one camera path of 4 s, 1280x720 at 24 frames a second (96 frames), the look only (no ink): a 5.5 s film with its
-  title card, which the length gate holds to. People need no handling: the characters layer lays nobody today.
-  About EUR 0.7 a place (EUR 1.0 for the 8 s path of 192 frames; the overseer's plan, 2026-10-15).
+  two shots of 4 s each (SHOTS, the finish plan of 2026-10-18: a place on screen about 7 s unbroken), 1280x720 at 24
+  frames a second (192 frames), the look only (no ink): a 9 s film with its title card, which the length gate holds
+  to (planned_seconds for the shots its views hold). The second shot is the record's `then` (a record camera's name
+  or a spot of its own), else the record camera standing furthest from the first. A spot of its own is `eye` and
+  `aim`, or `across` the record's floor as shares of it (the ship's rooms: the spot keeps its place when a room is
+  built at another size), with `fov` and `stand` (a small room's shot stands and turns rather than walking into a
+  wall). The planner keeps clear of people and movers (camera_paths), glides at one speed between eased ends and
+  rounds its corners (demo.py). About EUR 3.2 a place (twice a measured 96-frame film).
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame. Whether a film reads well is the creator's call.
 - **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (a film starts a second before the
-  first one-off moment of its place's motion record, `motion_start`: the launch's from 3 s, so its lift-off at 4 s
+  first one-off moment of its place's motion record, `motion_start`: the launch's from 5 s, so its lift-off at 6 s
   lands 1 s into the shot; places whose motions loop start at 0); `stills.py` (the demo-stills row,
   `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film starts by itself once its place

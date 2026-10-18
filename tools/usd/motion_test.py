@@ -105,8 +105,11 @@ def check_the_airlock_cycles_as_the_game_does(work):
     close(lit(stage, light, 3.0), full, "the light lit while the pump runs")
     close(lit(stage, light, 7.0), 0.0, "the light dark with the chamber empty")
     close(lit(stage, light, 10.0), full, "the light lit while the tanks fill")
-    close(lit(stage, light, 6.0 - 0.01), full, "a switch, not a fade")
-    print("ok  the airlock: doors at 2.8 m in 0.93 s, the light lit for the pump's and the tanks' 5 s each")
+    close(lit(stage, light, 6.0 - 0.01), full, "lit until its span ends")
+    close(lit(stage, light, 8.0 + 0.375), full / 2.0, "half way up half way through its 0.75 s fade")
+    close(lit(stage, light, 8.0 + 0.75), full, "full at the end of its fade")
+    close(lit(stage, light, 13.0 + 0.375), full / 2.0, "half way down half way through its fade")
+    print("ok  the airlock: doors at 2.8 m in 0.93 s, the light faded up for the pump's and the tanks' 5 s each")
 
 
 def check_the_bay_doors(work):

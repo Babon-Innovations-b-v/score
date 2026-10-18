@@ -124,15 +124,16 @@ against the place's recorded game shots; the script Blender runs is `../blender/
 - `camera_paths.py` is a review walkthrough camera's path: RRT* at eye height (1.6 m over the first surface under each
   point: ground, Structure, Fixtures or an object such as a kit room's floor plate, never a person; a step rising or
   dropping more than a stair's 0.6 m is not taken) from a start to a goal or round a loop of waypoints, an edge valid
-  only when every point of it, its ends too, keeps the clearance (0.25 m) from the meshes and the place's people (a
-  ball swept along it in FCL; the people as solid boxes where they stand at the moments asked for, so one who walks is
-  followed), seeded, cut short where straight edges are clear, and laid out as the review walk's views (renders.py's
+  only when every point of it, its ends too, keeps the clearance (0.25 m) from the meshes, the place's people and its
+  movers (a ball swept along it in FCL; the people and what the motion layer moves, a rover or a hatch's leaf, as
+  solid boxes where they stand at the moments asked for, so one who walks or drives is followed: the garage's rover
+  drove through a film's camera planned on the stage at rest, 2026-10-18), seeded, cut short where straight edges are clear, and laid out as the review walk's views (renders.py's
   format: `walk-NNN`, eye, aim, up, fov, look_only). FCL drops a triangle with no area from its tree: it takes any
   eye to touch one. `clearances` measures an eye's distance from the meshes and the people; the demo's film checks
   use it on every frame. renders.py does not read it; a caller hands the views to `renders.render_stage` and
   `walk_video`. The demo's place films (`../review/demo.py`) walk every shot with its `leg` (a clear straight edge,
   else RRT*). `camera_paths_test.py` checks a path between two rooms goes through the doorway only, a walking person
-  is followed, and the clearance is measured on every side.
+  and a moving thing are followed, and the clearance is measured on every side.
 - `reach.py` is the gate's reach check, the automatic playtest (owner, 2026-10-05; the interact press waits for
   interactable assets): the cast check's walker (body radius, knee, head) on a Recast-style heightfield of the stage
   (spans from upward faces, cleared overhead, eroded by the body, joined by climbable steps), its floor the part the
@@ -226,7 +227,15 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   `data/sound/places.json`, objects' own sounds from their inventory rows, motions' sounds from `data/motion`, and
   a bank of surface sounds each library surface points at) and copies the files into `assets/sound/`. Levels come
   from `data/sound/catalogue.json` with `sounds.json` over it. It never writes the base. `soundtrack` mixes what a
-  camera hears; the review's walk and the demo's videos use it.
+  camera hears; nothing calls it since 2026-10-18 (`hearing.py` replaced it; it goes the next time sound.py changes
+  for its own sake, since sound.py is in the assembly's, settle's and motion's code and an edit runs them again).
+- **What a camera hears** (`hearing.py`, the review's walk and the demo's films): **every track is mixed at one gain**
+  (MIX_GAIN_DB, a soft limit under the ceiling), never brought to a loudness of its own (until 2026-10-18 each shot was
+  pressed to -24 dBFS, so the lift-off played as loud as a cabin). A placed sound plays at its level within Godot's
+  10 m unit size (its `near` in sounds.json where it names one), a shown place's room tone is not heard from the place
+  showing it, outside only what the boots feel carries, and the walker's footsteps come from the floor under the eye.
+  `bed` is what the camera hears standing before a shot: the film's title card and the showcase's cards carry it, so
+  no card is silent. Keep the mix out of sound.py for the reason above.
 - **The motion stage** (`motion.py`) writes `layers/motion.usda` only: time samples on prims the base already has (a
   door's translate, a light's intensity, a turntable's rotateY; a kit piece keeps its own transform under the slide's
   outermost translate), as overs, from `data/motion/<place>.json` (each motion's prim, its cycle:

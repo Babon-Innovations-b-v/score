@@ -91,6 +91,34 @@ def test_a_low_match_fails_likeness_and_a_fetched_pick_fails_no_freesound():
         assert gates.judge_no_freesound(out, inputs, None).answer == checks.FAIL
 
 
+def test_moving_things_sound_off_their_own_moves():
+    """A hatch's latch plays as it starts to open (the lab's; the hub's stand shut, so make no sound) and its bolts as it is shut tight (its swing's angle over its speed
+    later), in the stage's seconds; the garage's big doors, silent in the game's record, start and stop in their own
+    round, at the leaves the place renamed them to, round by round; the rover's drive loops over its drive; the ship
+    rooms hear their own machines; and movers.py's rounds are the assembly's (tools/usd/sound.rounds_of)."""
+    lab = sound.uses_of("lab", inputs_for("lab", None))
+    hatch = [(use["sound"], use["at"]) for use in lab if use["on"] == "/lab/Objects/hatch_leaf_1"]
+    assert hatch == [("hatch_open", 4.0), ("airlock_hatch_seal_clunk", 18.0)], hatch
+    hub = sound.uses_of("hub", inputs_for("hub", None))
+    assert not [use for use in hub if "hatch" in str(use.get("on"))], "the hub's hatches stand shut, so stay silent"
+    garage = sound.uses_of("garage", inputs_for("garage", None))
+    door = sorted((use["sound"], use["at"]) for use in garage if use["on"] == "/garage/Places/south_door_leaf_1")
+    assert door[:4] == [("lift_start", 1.0), ("lift_start", 5.0), ("lift_start", 18.0), ("lift_start", 22.0)], door
+    drive = [(use["at"], use["loops_until"]) for use in garage if use["sound"] == "rover_motor"]
+    assert drive == [(1.0, 7.5)], drive
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import sound as layer  # noqa: E402  (tools/usd: the assembly's rounds, which movers.py repeats)
+    from score.stages.sound import movers
+    for motion in ({"start": 1.0}, {"start": 0.0, "length": 14.0, "loop": True},
+                   {"start": 0.0, "length": 86.0, "loop": True}):
+        assert movers.rounds_of(motion) == layer.rounds_of(motion), motion
+    assert movers.SOUND_SPAN_SECONDS == layer.SOUND_SPAN_SECONDS
+    rooms = {place: sorted(use["sound"] for use in sound.uses_of(place, inputs_for(place, None))
+                           if use["role"] in ("room", "object"))
+             for place in ("cockpit", "galley", "engineroom", "quarters")}
+    assert len({tuple(found) for found in rooms.values()}) == len(rooms), rooms
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
