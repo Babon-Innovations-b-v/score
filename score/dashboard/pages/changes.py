@@ -4,9 +4,12 @@ batch and its price at the runner's numbers, the owner's question with the recom
 the owner's buy or not now. Read from the proposals' records (proposals/records.py) here or in the export.
 
 A buy or a not now is the owner's only: local, it is applied at once (a buy puts the branch in the checkout's basket
-at the commit he saw); hosted, it is kept here and queued for the store's machine (a SyncRequest of kind
-"proposal", sync/applying.py), which applies it the same way on its next pass."""
+at the commit he saw, priced); hosted, it is kept here and queued for the store's machine (a SyncRequest of kind
+"proposal", sync/applying.py), which applies it the same way on its next pass. His one checkout of what he bought
+(checkout/flow.py: land, plan, stop line, one batch) starts here too: local at once, hosted queued as a SyncRequest
+of kind "checkout" with the fixes he saw, run by the store's machine only when its basket holds exactly those."""
 import re
+import uuid
 
 from django.conf import settings
 from django.contrib import messages
@@ -158,11 +161,57 @@ def bought_total(cards):
             "high": round(sum(card["total"]["high"] for card in bought), 2) if priced else None}
 
 
+def bought_fixes(cards):
+    """[{branch, commit}] of the fixes he chose to buy, as he saw them."""
+    return [{"branch": card["branch"], "commit": card["commit"]} for card in cards
+            if card["choice"] and card["choice"]["choice"] == "buy"]
+
+
+def last_checkout():
+    """What became of his last checkout, in words, or "": the store's report hosted, the Checkout row local."""
+    if actions.hosted():
+        queued = SyncRequest.objects.filter(kind="checkout").first()
+        if queued is None:
+            return ""
+        if queued.state in ("waiting", "picked_up"):
+            return "Your checkout waits for the store's machine (every few minutes)."
+        return f"Your checkout: {queued.state}. {queued.detail}"
+    from score.dashboard.pages.models import Checkout
+    found = Checkout.objects.order_by("-pk").first()
+    return f"Checkout {found.pk}: {found.state}. {found.detail}" if found else ""
+
+
 def changes_page(request):
     cards = fix_cards(proposals_root(), state.source())
     return render(request, "pages/changes.html", {
         "cards": cards, "bought": bought_total(cards),
-        "waiting": [card for card in cards if card["choice"] is None]})
+        "waiting": [card for card in cards if card["choice"] is None],
+        "checkout_key": uuid.uuid4().hex, "last_checkout": last_checkout()})
+
+
+def checked_out(user, key, fixes):
+    """His one checkout of the fixes he bought: hosted queued for the store's machine, local started here; words."""
+    if not fixes:
+        return "refused: choose Buy on at least one fix first"
+    if actions.hosted():
+        SyncRequest.objects.create(kind="checkout", user=user.username, payload={"key": key, "fixes": fixes})
+        return "Checkout sent: the store's machine lands the fixes and starts the batch on its next sync"
+    from score.dashboard.checkout import flow
+    return flow.start(user, key, True)[1]
+
+
+@require_POST
+def checkout(request):
+    """The owner's checkout of every fix he chose to buy (owner only, CSRF by Django, "I buy these" ticked)."""
+    if not is_owner(request.user):
+        return HttpResponseForbidden("only the owner checks out")
+    key = request.POST.get("key", "")
+    if not re.fullmatch(r"[0-9a-f]{32}", key) or request.POST.get("confirm") != "yes":
+        messages.error(request, "refused: tick \"I buy these fixes\" first")
+        return redirect("/changes/#checkout")
+    said = checked_out(request.user, key, bought_fixes(fix_cards(proposals_root(), state.source())))
+    (messages.error if said.startswith("refused") else messages.success)(request, said)
+    return redirect("/changes/#checkout")
 
 
 def chosen(user, branch, commit, choice):
@@ -187,12 +236,30 @@ def carried_out(branch, commit, choice):
     elif choice == "buy":
         BasketBranch.objects.update_or_create(branch=branch, defaults={
             "head": commit, "preview_hash": now["preview_hash"], "added_by": settings.SCORE_OWNER})
-        said = f"{branch} is in the checkout's basket"
+        price = priced_now(branch)
+        said = f"{branch} is in the checkout's basket" + (
+            f", priced: at most EUR {price.body['totals']['high_euros']:.2f}" if price.state == "ready" else
+            f"; pricing it failed: {price.error[-300:]}")
     else:
         BasketBranch.objects.filter(branch=branch).delete()
         said = f"{branch} is not in the basket"
     ProposalChoice.objects.filter(branch=branch).update(applied=said)
     return said
+
+
+def priced_now(branch):
+    """The checkout's price of the branch at its commit now (checkout/pricing.py), worked out here and now when it
+    has none: the BranchPrice row."""
+    from score.dashboard.checkout import git, pricing
+    from score.dashboard.pages.models import BranchPrice
+    repo = settings.SCORE_REPO
+    commit = git.head(repo, branch)
+    record, _ = BranchPrice.objects.get_or_create(branch=branch, head=commit, base=git.base(repo, commit))
+    if record.state != "ready":
+        record.state, record.error = "working", ""
+        record.save()
+        pricing.work_out(record, repo)
+    return record
 
 
 @require_POST

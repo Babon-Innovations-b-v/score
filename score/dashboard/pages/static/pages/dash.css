@@ -589,3 +589,6 @@ button.chip { font-size: 13px; background: transparent; } .chip.on { border-colo
   .parts { grid-template-columns: 1fr; }
   .choose { width: 100%; } .choose button { flex: 1; }
 }
+.checkout-form { display: grid; gap: 10px; margin-top: 12px; }
+.checkout-form .tick { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.last-checkout { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
