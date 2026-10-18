@@ -4,8 +4,9 @@
                  dated decision, each row {world, why, who, when})
     handed       every accepted output the node read (reads.json) is covered, with entries or a written exception
     refused      the library refused nothing
-    traced       the library-finish check (score/stages/complete/library, `untraced`) finds nothing in the place's
-                 assembled stage that is not a library entry or a written exception; unknown until that module is in
+    traced       the library-finish check (score/stages/complete/library, wrapped in traced.py) finds nothing in the
+                 place's assembled stage that is not a library entry or a written exception; every finish a library
+                 surface (unknown with no library folder to trace to)
     copies       every model, layer, place and character entry has its 3D copy (unknown, naming each, otherwise)
     quality      every entry has its quality score (unknown, naming each, otherwise)
     saved        the library committed the handover (a failed push alone passes: the cockpit shows it)
@@ -16,7 +17,7 @@ import json
 import pathlib
 
 from score import checks
-from score.stages.library import handover
+from score.stages.library import backend, handover
 
 COPIED_KINDS = ("model", "layer", "place", "character")
 SHOWN = 12  # findings named in a reason
@@ -103,15 +104,6 @@ def judge_refused(output, inputs, evidence):
     return verdict("refused", found, checks.FAIL, "the library refused nothing")
 
 
-def finish_rule():
-    """The library-finish check's entry point (`untraced`), or None while that module is not in this repository."""
-    try:
-        import score.stages.complete.library as finish
-    except ImportError:
-        return None
-    return getattr(finish, "untraced", None)
-
-
 def judge_traced(output, inputs, evidence):
     free = free_pass("traced", inputs)
     if free:
@@ -119,18 +111,19 @@ def judge_traced(output, inputs, evidence):
     if "assembly" not in inputs and "neighbours" not in inputs:
         return checks.Verdict("traced", checks.PASS, "no assembled place here: each place's own library node traces "
                                                      "its stage")
-    untraced = finish_rule()
-    if untraced is None:
-        return checks.Verdict("traced", checks.UNKNOWN, "the library-finish check (score/stages/complete/library, "
-                                                        "untraced) is not in this repository yet")
+    root = backend.settings().get("SCORE_LIB_ROOT")
+    if not root:
+        return checks.Verdict("traced", checks.UNKNOWN, "no library folder to trace to (SCORE_LIB_ROOT)")
     from score.stages.assembly import stage_file
-    report = handover.report(output)
-    stage = stage_file(pathlib.Path(inputs.get("neighbours") or inputs["assembly"]))
-    exceptions = (declared(inputs, "exceptions") or {}).get("exceptions", [])
-    found = [fault if isinstance(fault, str) else json.dumps(fault, sort_keys=True)
-             for fault in untraced(stage, report["place"], report["entries"], exceptions)]
-    return verdict("traced", found, checks.FAIL, "everything in the place and every finish is a library entry or "
-                                                 "a written exception")
+    from score.stages.library import traced
+    assembled = pathlib.Path(inputs.get("neighbours") or inputs["assembly"])
+    try:
+        context = traced.context_of(pathlib.Path(inputs["place record"]).stem, root, inputs.get("exceptions"),
+                                    traced.store_of(assembled), pathlib.Path(inputs["world record"]).parents[1])
+    except ValueError as refused:  # exceptions.Refused: a half-written exception refuses the whole file
+        return checks.Verdict("traced", checks.FAIL, f"data/checks/library-exceptions.json refuses: {refused}")
+    return verdict("traced", traced.untraced(stage_file(assembled), context), checks.FAIL,
+                   "everything in the place and every finish is a library entry or a written exception")
 
 
 def judge_copies(output, inputs, evidence):
