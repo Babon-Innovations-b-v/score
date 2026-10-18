@@ -22,7 +22,7 @@ env:
 tests: env
 	@failed=""; log=$$(mktemp); for test in $(TESTS); do \
 		runner="$(PYTHON)"; \
-		if grep -q '^def test_' $$test && ! grep -q '__main__' $$test; then \
+		if grep -q '^def test_' $$test && ! grep -q '^if __name__' $$test; then \
 			runner="$(PYTHON) -m pytest -q -p no:cacheprovider"; fi; \
 		if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(SANDBOX) $$runner $$test > $$log 2>&1; then \
 			echo "ok    $$test"; \
