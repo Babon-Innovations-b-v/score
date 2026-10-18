@@ -2,8 +2,7 @@
 
 The machines stage (experimental, PRD #6): `machines-layer@<place>` lays each machine of `data/machines/<place>.json`
 (the garage's rover today) in the place as `layers/machines.usda` plus its asset, which the assembly takes
-(`assembly.take_layer`). `__init__.py`'s docstring has the make and the gates; `ship_trial.py` the ship's prop-route
-trial in a world of its own.
+(`assembly.take_layer`). `__init__.py`'s docstring has the make and the gates.
 
 - **Made models only.** A machine is a prop-route take the place's surface line paints and bakes (its take listed in
   `data/surfaces/<place>.json`, which this stage never edits: ask the overseer). Code lays it out: turned across or along
