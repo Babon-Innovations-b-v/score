@@ -10,6 +10,8 @@
   {% else %}<span class="button big disabled" title="no 3D web copy of this place yet">Open in 3D: not made yet</span>{% endif %}
 </div>
 
+{% for item in changes %}{% include "pages/compare.html" %}{% endfor %}
+{% if not changes %}
 <section class="hero">
   <figure class="hero-film">
     {% if detail.film %}<video src="{{ detail.film.url }}" controls preload="metadata" playsinline data-fps="{{ detail.film_fps|stringformat:"g" }}" class="film"{% if detail.hero %} poster="{{ detail.hero.url }}"{% endif %}></video>
@@ -21,6 +23,7 @@
     <figcaption>a still</figcaption>
   </figure>
 </section>
+{% endif %}
 
 <section>
   <h2>How it was made</h2>
@@ -30,17 +33,18 @@
       <div class="segment-name">{{ segment.name }}</div>
       <div class="segment-tiles">
         {% for step in segment.tiles %}
-        {% if step.url %}<a class="step-tile" href="{{ step.url }}">{% else %}<div class="step-tile">{% endif %}
-          <div class="frame">{% include "pages/pic.html" with src=step.thumb name=step.label %}</div>
-          <div class="step-foot"><i class="mark {{ step.state|slugify }}{% if step.unseen %} unseen{% endif %}"></i><span class="step-name">{{ step.label }}</span></div>
+        <div class="step-tile">
+          {% if step.full %}<button type="button" class="frame zoom" data-full="{{ step.full }}" data-caption="{{ step.label }}" aria-label="open {{ step.label }} large">{% include "pages/pic.html" with src=step.thumb name=step.label %}</button>
+          {% else %}<div class="frame">{% include "pages/pic.html" with src=step.thumb name=step.label %}</div>{% endif %}
+          <a class="step-foot" {% if step.url %}href="{{ step.url }}"{% endif %}><i class="mark {{ step.state|slugify }}{% if step.unseen %} unseen{% endif %}"></i><span class="step-name">{{ step.label }}</span></a>
           <div class="step-words">{{ step.words }}{% if step.unseen %}, new{% endif %}</div>
-        {% if step.url %}</a>{% else %}</div>{% endif %}
+        </div>
         {% endfor %}
       </div>
     </div>
     {% endfor %}
   </div>
-  <p class="legend small"><span><i class="mark accepted"></i>done</span><span><i class="mark waiting"></i>to review</span><span><i class="mark stopped"></i>stopped</span><span><i class="mark not-run"></i>not run</span><span><i class="mark accepted unseen"></i>not seen by you</span></p>
+  <p class="legend small"><span class="soft">a picture opens large; a name opens its step</span><span><i class="mark accepted"></i>done</span><span><i class="mark waiting"></i>to review</span><span><i class="mark stopped"></i>stopped</span><span><i class="mark not-run"></i>not run</span><span><i class="mark accepted unseen"></i>not seen by you</span></p>
 </section>
 
 <section>
@@ -49,15 +53,15 @@
   <div class="problems">
     {% for problem in problems %}
     {% if problem.url %}<a class="problem" href="{{ problem.url }}">{% else %}<div class="problem">{% endif %}
-      <div class="frame">{% include "pages/pic.html" with src=problem.picture name=problem.name %}</div>
-      <div class="problem-body"><span class="kind {{ problem.kind|slugify }}">{{ problem.kind }}</span><p>{{ problem.sentence }}</p></div>
+      <div class="frame">{% include "pages/pic.html" with src=problem.picture name=problem.name bare=True %}</div>
+      <div class="problem-body"><span class="kind {% if problem.kind == 'stopped' %}stopped{% else %}known-gap{% endif %}">{{ problem.kind }}</span><p>{{ problem.sentence }}</p></div>
     {% if problem.url %}</a>{% else %}</div>{% endif %}
     {% endfor %}
   </div>
   {% else %}<p class="soft">None found by the checks.</p>{% endif %}
 </section>
 
-<details class="ids fold"><summary>details</summary>
+<details class="ids"><summary>details</summary>
   <div class="fold-body">
   <p class="soft">{{ detail.status|capfirst }}.</p>
   {% if problems %}<h3>Problems in full</h3><ul>{% for problem in problems %}<li>{{ problem.full }}</li>{% endfor %}</ul>{% endif %}

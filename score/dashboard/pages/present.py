@@ -155,8 +155,15 @@ def look_of_place(world, place):
 
 # --- the place page ----------------------------------------------------------------------------------------------
 
+def full_picture(thumb):
+    """The full picture behind a thumbnail URL (/thumbs/<sha>.jpg is /files/<sha>), or None."""
+    if not thumb or not thumb.startswith("/thumbs/"):
+        return None
+    return "/files/" + thumb.removeprefix("/thumbs/").removesuffix(".jpg")
+
+
 def step_tile(step, url):
-    return {"label": step.label, "url": url, "thumb": step.thumb, "state": step.state,
+    return {"label": step.label, "url": url, "thumb": step.thumb, "full": full_picture(step.thumb), "state": step.state,
             "words": STATE_WORDS.get(step.state, step.state), "unseen": step.mark == seen.NOT_SEEN,
             "paid": step.paid}
 
@@ -164,6 +171,7 @@ def step_tile(step, url):
 def picture_tile(label, picture, words):
     """A tile of a picture the chain starts from (the look's reference, the concept): no step page of its own."""
     return {"label": label, "url": picture.url if picture else None, "thumb": picture.thumb_url if picture else None,
+            "full": picture.url if picture else None,
             "state": "accepted" if picture else "not run", "words": words if picture else "none yet",
             "unseen": False, "paid": False}
 
@@ -193,11 +201,15 @@ def sentence(text):
     return text[:1].upper() + text[1:]
 
 
-def gap_problem(gap, place, picture):
-    """A named gap as a picture and one sentence: what was left out, on purpose."""
+KNOWN_GAP = "known gap, not fixed yet"
+NO_PICTURE = "no picture of this yet"
+
+
+def gap_problem(gap, place):
+    """A named gap as one sentence: a known problem not fixed yet. It has no picture of its own yet, and the page says
+    so rather than repeat the place's film frame."""
     name = gap.removeprefix(f"{place}: ").removeprefix(f"{place}:")
-    return {"sentence": sentence(first_clause(name)), "kind": "left out on purpose", "name": "left out",
-            "picture": picture,
+    return {"sentence": sentence(first_clause(name)), "kind": KNOWN_GAP, "name": NO_PICTURE, "picture": None,
             "url": None, "full": gap}
 
 
@@ -209,32 +221,87 @@ def fault_problem(fault, steps, step_url, place):
     if short.lower().startswith(label.lower()):
         short = short[len(label):].strip()
     words = f"{label} stopped" + (f" ({short})" if short else "")
-    return {"sentence": sentence(words), "kind": "stopped", "name": label, "picture": step.thumb if step else None,
+    return {"sentence": sentence(words), "kind": "stopped", "name": NO_PICTURE, "picture": step.thumb if step else None,
             "url": step_url(place, step.stage) if step else None, "full": fault}
 
 
 def problems(detail, step_url):
     """Every stopped step and every named gap of a place: [{sentence, kind, picture, url, full}]."""
     steps = [step for layer in detail.layers for step in layer.steps]
-    still = detail.hero.thumb_url if detail.hero else None
     return ([fault_problem(fault, steps, step_url, detail.place) for fault in detail.faults]
-            + [gap_problem(gap, detail.place, still) for gap in detail.gaps])
+            + [gap_problem(gap, detail.place) for gap in detail.gaps])
+
+
+# --- changes to buy ----------------------------------------------------------------------------------------------
+# A change to buy: a fix branch's proposed version of a place, previewed (stills, draft films, a 3D copy beside the
+# current one), with what it fixes in one sentence and its forecast price and time. The owner adds it to the basket and
+# checks the basket out; then it runs, and its result shows the real cost against the forecast. Read from the source's
+# `changes()` when the data side has it; until then there are none and nothing is shown.
+# Fields read: id, place, fixes, stills, films, web3d_base, likely, high, minutes_likely, minutes_high, state
+# (offered, in basket, running, done, failed), progress (0 to 1), euros (the real cost), minutes (the real time), gates
+# ({pass, fail}), basket_url.
+CHANGE_STATES = ("offered", "in basket", "running", "done", "failed")
+
+
+def minutes_words(minutes):
+    if minutes is None:
+        return None
+    return f"{minutes:.0f} min" if minutes < 90 else f"{minutes / 60:.1f} h"
+
+
+def change(item):
+    """One change to buy as the pages show it."""
+    ident = field(item, "id")
+    progress = field(item, "progress")
+    return {"id": ident, "place": field(item, "place"), "fixes": field(item, "fixes") or "a proposed change",
+            "stills": field(item, "stills") or [], "films": field(item, "films") or [],
+            "web3d_base": field(item, "web3d_base"), "state": field(item, "state") or "offered",
+            "likely": field(item, "likely"), "high": field(item, "high"),
+            "time_likely": minutes_words(field(item, "minutes_likely")),
+            "time_high": minutes_words(field(item, "minutes_high")),
+            "progress": round(100 * progress) if progress is not None else None,
+            "euros": field(item, "euros"), "took": minutes_words(field(item, "minutes")),
+            "gates": field(item, "gates") or {},
+            "basket_url": field(item, "basket_url") or f"/api/changes/{ident}/basket"}
+
+
+def changes(source, place=None):
+    """The changes of the world (of one place when given), [] while the source has none."""
+    reader = getattr(source, "changes", None)
+    found = [change(item) for item in (reader() if reader else []) or []]
+    return [item for item in found if place is None or item["place"] == place]
+
+
+def basket_of(found):
+    """The changes in the basket and their sums: {items, likely, high, time_high}; None when it is empty."""
+    chosen = [item for item in found if item["state"] == "in basket"]
+    if not chosen:
+        return None
+    priced = all(item["likely"] is not None and item["high"] is not None for item in chosen)
+    return {"items": chosen, "likely": round(sum(item["likely"] for item in chosen), 2) if priced else None,
+            "high": round(sum(item["high"] for item in chosen), 2) if priced else None}
 
 
 # --- money -------------------------------------------------------------------------------------------------------
 
-def money(spend, planned):
-    """The world's money: one line per source, the total only when every source is known (never a part as the
-    total), against the stop. {stop, total, share, sources: [{name, euros, note}], planned}."""
-    listed = field(spend, "sources") or []
-    sources = [{"name": field(item, "name") or "a source", "euros": field(item, "euros"),
-                "note": field(item, "note") or ""} for item in listed]
-    known = bool(sources) and all(item["euros"] is not None for item in sources)
-    total = round(sum(item["euros"] for item in sources), 2) if known else None
-    stop = field(spend, "stop") or field(spend, "ceiling")
-    share = min(100.0, 100.0 * total / stop) if total is not None and stop else None
-    likely = (planned or {}).get("likely")
-    return {"stop": stop, "total": total, "share": share, "sources": sources,
-            "note": field(spend, "note") or "", "likely": likely,
-            "likely_share": min(100.0 - (share or 0), 100.0 * likely / stop) if likely and stop and share is not None
-            else None}
+STOP_LINE = '.venv/bin/python -m score.review stop {world} <euros> --reason "what it is for"'
+
+
+def share(part, whole):
+    return min(100.0, 100.0 * part / whole) if part is not None and whole else None
+
+
+def money(view, planned):
+    """The money card from the month's MoneyView (state/money.py): the month's total ("at least" while a line is
+    partial or missing, "not known yet" when no line has a number), a line per source, and the world against its
+    stop, or the terminal line that sets one."""
+    known = [line for line in view.lines if line.euros is not None]
+    spent = view.world_spent or 0.0
+    flight = view.in_flight or 0.0
+    return {"month": view.month, "total": view.total.euros if known else None, "whole": view.total.whole,
+            "gaps": view.total.gaps, "lines": view.lines, "world": view.world or "this world",
+            "stop": view.stop, "spent": view.world_spent, "in_flight": view.in_flight,
+            "spent_share": share(spent, view.stop), "flight_share": share(flight, view.stop),
+            "room": round(view.stop - spent - flight, 2) if view.stop else None,
+            "stop_line": STOP_LINE.format(world=view.world or "<world>"),
+            "likely": (planned or {}).get("likely"), "credit_note": view.credit_note}

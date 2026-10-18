@@ -1,0 +1,12 @@
+{% comment %}A change on the board: now and proposed side by side, what it fixes, its price, its state. `item` the change.{% endcomment %}
+<div class="tile change-tile">
+  <a class="two-up" href="/place/{{ item.place }}/#change-{{ item.id }}">
+    <div class="frame">{% include "pages/pic.html" with src=item.current.thumb_url name="now" %}<span class="corner">now</span></div>
+    <div class="frame">{% with still=item.stills.0 %}{% include "pages/pic.html" with src=still.thumb_url name="proposed" %}{% endwith %}<span class="corner new">proposed</span></div>
+  </a>
+  <div class="change-body">
+    <a class="tile-name" href="/place/{{ item.place }}/#change-{{ item.id }}">{{ item.name }}</a>
+    <p class="fixes">{{ item.fixes|capfirst }}</p>
+    {% include "pages/change_state.html" %}
+  </div>
+</div>
