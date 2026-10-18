@@ -62,7 +62,12 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   the upgraded route's paid steps (close-up, image-to-3D, finish pick, bake) each as one batch over every prop still in
   it, a free check before each, kept steps and unchanged props never paid again; `price` reads the ledgers (the repo's
   evidence copy with the live one, since the live ledger was reset on 2026-10-17) and says an unmeasured step rather
-  than guess. Its cloud makers are the route branch's; it is imported by no stage, so it re-keys nothing.
+  than guess. It is imported by no stage, so it re-keys nothing. `prop_batch.py run <props.json> --yes` (the
+  props environment's python; the trial's props are `data/props/batches/trial.json`) prints the price, then makes
+  the batch through `prop_makers.py`'s real runners (Pro close-ups and the finish list through google_spend from the
+  PC, `batch.py` for Pixal3D, `library_bake.py` make_chunky jobs for the bake), refused without `--yes` and outside
+  a cleared run or the owner's override; one warm batch per step, not one machine per prop (the steps' images
+  differ, the finish stays here), and a prop naming no `parts` for its bake stops before anything is paid.
 - **A stopped run keeps its finished jobs under its key** (`kept.py`, owner 2026-10-18): `kept.keep(job)` after a job
   ends well copies its outputs to `kept/<node>/<key>/` beside the store (the runner names the make's folder,
   SCORE_MAKING, and drops the folder once the node's output is stored), and `kept.missing(jobs)` puts every kept job
