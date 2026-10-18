@@ -214,18 +214,47 @@ def test_missing_copy_is_unknown():
     assert "accepted" not in did[f"library@{PLACE}"], did
 
 
-def test_traced_waits_on_the_finish_rule():
-    if library_checks.finish_rule() is not None:
-        print("skipped: traced: the library-finish check is in the repository; its own tests hold it")
-        return
-    output = HOME / "traced"
+def fixture_inputs(name, fixture):
+    """The traced check's inputs over the library-finish check's fixture stage (data/checks/library/<fixture>), laid
+    as a place named "fixture" with an assembly of that one stage."""
+    root = HOME / name
+    data = world_data(root)
+    (data / "kit/fixture.json").write_text("{}")
+    assembled = root / "assembly"
+    assembled.mkdir()
+    (assembled / "fixture.usda").write_text((REPO / "data/checks/library" / fixture).read_text())
+    output = root / "output"
     output.mkdir()
-    handover.write(output / handover.REPORT, json.load(open(HERE / "handover_example.json")))
-    data = world_data(HOME / "traced-world")
-    inputs = {"world record": data / "definitions/world.json", "library free": data / "checks/library-free.json",
-              "assembly": output}
+    handover.write(output / handover.REPORT, json.loads((HERE / "handover_example.json").read_text()))
+    return output, {"world record": data / "definitions/world.json", "library free": data / "checks/library-free.json",
+                    "place record": data / "kit/fixture.json", "assembly": assembled}
+
+
+def fixture_library(name):
+    """A library folder holding the entries the good fixture names (the library-finish check's own test's)."""
+    root = HOME / name / "library"
+    for kind, entry_id in (("surface", "bare_steel"), ("surface", "deck"), ("model", "crate_1"), ("kit", "fixture"),
+                           ("light", "lamp"), ("sound", "hum")):
+        folder = root / "entries" / kind / entry_id / "1"
+        folder.mkdir(parents=True)
+        (folder / "entry.json").write_text(json.dumps({"address": f"{kind}/{entry_id}@1", "kind": kind,
+                                                       "id": entry_id, "version": 1, "state": "draft", "files": {},
+                                                       "provenance": {}}))
+    os.environ["SCORE_LIB_ROOT"] = str(root)
+
+
+def test_traced():
+    no_library()
+    output, inputs = fixture_inputs("traced-none", "good.usda")
     found = library_checks.judge_traced(output, inputs, None)
-    assert found.answer == checks.UNKNOWN and "not in this repository" in found.reason, found
+    assert found.answer == checks.UNKNOWN and "SCORE_LIB_ROOT" in found.reason, found
+    fixture_library("traced-good")
+    found = library_checks.judge_traced(output, inputs, None)
+    assert found.answer == checks.PASS, found
+    output, inputs = fixture_inputs("traced-bad", "bad.usda")
+    found = library_checks.judge_traced(output, inputs, None)
+    assert found.answer == checks.FAIL and "photo_of_a_crate.png" in found.reason, found
+    no_library()
 
 
 def test_example_is_on_the_contract():

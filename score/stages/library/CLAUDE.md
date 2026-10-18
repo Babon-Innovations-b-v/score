@@ -14,9 +14,9 @@ is in a world shows up in the library by construction, never by an agent's hand.
   and never fold their gate into `complete`: demo-film (paid) reads complete.
 - **The report's shape is a contract both ways.** A change is a new version (`handover.VERSION`), never an edit;
   `handover_example.json` holds one full report, and the library repository keeps its own copy of the shape.
-- **`traced`** calls the library-finish check's `untraced(stage_file, place, entries, exceptions)` from
-  `score/stages/complete/library`; it answers unknown until that module is in. If it lands under another name, wrap it
-  in `checks.py`, never edit it here.
+- **`traced`** wraps the library-finish check (`score/stages/complete/library`, its overlay) in `traced.py`, taken
+  as it landed: the place's assembled stage traced against the library folder after the handover and the store's
+  accepted bakes, read only. A change of that check's rules is made there, never here.
 - **A library-free world** is an owner's dated decision in `data/checks/library-free.json`; write one only on his
   word.
 - `library_test.py` drives the runner over a toy table with a fake library command.
