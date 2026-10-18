@@ -168,3 +168,15 @@ def test_a_film_record_with_its_own_spot_adds_it_to_the_records_copy():
     views = {view["name"]: view for view in json.loads(record.read_text())["views"]}
     assert views["bed"] == {"name": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5], "fov": 75}
     assert "spot-1" in views
+
+
+def test_a_film_record_leaves_out_the_prims_it_names_in_its_copy_only():
+    from pxr import Usd, UsdGeom
+    path = folder() / "room.usda"
+    stage = Usd.Stage.CreateNew(str(path))
+    UsdGeom.Xform.Define(stage, "/room/Places/tube/Outside/near")
+    stage.GetRootLayer().Save()
+    demo_film.leave_out(path, {"camera": "spot-1"})
+    assert Usd.Stage.Open(str(path)).GetPrimAtPath("/room/Places/tube/Outside").IsActive()
+    demo_film.leave_out(path, {"camera": "spot-1", "leave_out": ["/room/Places/tube/Outside"]})
+    assert not Usd.Stage.Open(str(path)).GetPrimAtPath("/room/Places/tube/Outside").IsActive()

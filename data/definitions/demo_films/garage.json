@@ -1,5 +1,8 @@
 {
  "place": "garage",
  "camera": "from-south-door",
- "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept (picked by laying the concept beside every camera's game shot; the garage and the hangar have none, so theirs is the room's widest view), so its first frame is demo K8's still. It waits on the place's complete. The place is planned, so its film plans from its assembled record's cameras, which hold no from-big-door: from-south-door, at from-big-door's eye, its aim 1.0 m off and 1 degree (the nearest by eye and aim)."
+ "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept (picked by laying the concept beside every camera's game shot; the garage and the hangar have none, so theirs is the room's widest view), so its first frame is demo K8's still. It waits on the place's complete. The place is planned, so its film plans from its assembled record's cameras, which hold no from-big-door: from-south-door, at from-big-door's eye, its aim 1.0 m off and 1 degree (the nearest by eye and aim). From 2026-10-18 its leave_out: the joined tube's own outside ground (tools/usd/scene.py write_places leaves a shown place's Outside active) stands up to 1.0 m inside the room; left out of the film's copy of the stage until the stage itself leaves it out.",
+ "leave_out": [
+  "/garage/Places/lab_tube/Outside"
+ ]
 }

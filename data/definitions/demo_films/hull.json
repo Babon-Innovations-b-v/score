@@ -1,5 +1,8 @@
 {
  "place": "hangar",
  "camera": "spot-1",
- "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. The ship's hull through the hangar (demo-film-extra@hangar), once the hull has landed: laid along the hangar's 46 m, nose -z (b7381a84). Its camera is the hangar record's ship view, 6 m off the hull's starboard side by its stern, looking forward along it. The place is planned, so its film plans from its assembled record's cameras, which hold no ship: spot-1, 4.7 m from ship's eye, its aim 9.2 m off and 30 degrees (the nearest by eye and aim)."
+ "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. The ship's hull through the hangar (demo-film-extra@hangar), once the hull has landed: laid along the hangar's 46 m, nose -z (b7381a84). Its camera is the hangar record's ship view, 6 m off the hull's starboard side by its stern, looking forward along it. The place is planned, so its film plans from its assembled record's cameras, which hold no ship: spot-1, 4.7 m from ship's eye, its aim 9.2 m off and 30 degrees (the nearest by eye and aim). From 2026-10-18 its leave_out: the joined tube's own outside ground (tools/usd/scene.py write_places leaves a shown place's Outside active) stands up to 1.6 m inside the room; left out of the film's copy of the stage until the stage itself leaves it out.",
+ "leave_out": [
+  "/hangar/Places/habitat_tube/Outside"
+ ]
 }
