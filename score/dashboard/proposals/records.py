@@ -4,9 +4,9 @@ export (hosted mode), so both sides read it with these functions. Plain files on
     <root>/index.json                          [each proposal's summary (SUMMARY), newest first]
     <root>/<branch>/<place>/proposal.json      the proposal
     <root>/<branch>/<place>/web3d/<place>.json, <place>-light.glb, <place>.glb    its 3D web copy (web3d/convert.py)
-    <root>/<branch>/<place>/stills/<view>.jpg  small stills from the scene record's cameras
-    <root>/<branch>/<place>/before/<view>.jpg  the same cameras on the place as it stands now (finish.py)
-    <root>/<branch>/<place>/media/<name>       draft films and sounds the branch made
+    <root>/<branch>/<place>/stills/<view>.jpg  small stills of the proposal's drawing (drawing.py: the branch's cameras)
+    <root>/<branch>/<place>/before/<view>.jpg  the same drawing on the place as it stands now (finish.py)
+    <root>/<branch>/<place>/media/<name>       draft films and sounds the branch made, and the moments' clip
 """
 import json
 import pathlib
@@ -97,6 +97,15 @@ def amend(root, branch, place, fields):
     partial.replace(path)
     write_index(root)
     return found
+
+
+def held(proposal):
+    """The plain reason a proposal is held out of the basket, or None when its after was measured against its
+    before at its commit and shows its change (finish.py, compare.py); one not measured yet is held until it is."""
+    found = proposal.get("difference") or {}
+    if found.get("commit") != proposal.get("commit"):
+        return "Its after and before pictures are not measured against each other yet."
+    return found.get("held")
 
 
 def file_path(root, branch, place, name):

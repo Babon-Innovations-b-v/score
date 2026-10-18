@@ -235,7 +235,8 @@ def library_sweep():
 
 
 def priced_proposals(chosen):
-    """Price the proposals made since the last pass (no Blender here); [(branch, place)] of those priced."""
+    """Price the proposals made since the last pass and measure their after against their before (no Blender
+    here); [(branch, place)] of those done."""
     from score.dashboard.proposals import finish
     return finish.finish_all(settings.SCORE_HOME / "proposals", settings.SCORE_PROPS_HOME / "store", False, chosen)
 

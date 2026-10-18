@@ -105,7 +105,7 @@ def place_part(record, source):
     same_camera = any(pair["before"] for pair in shown)
     return {"place": record["place"], "name": record["place"].replace("_", " "), "pairs": shown,
             "same_camera": same_camera, "now": None if same_camera else place_hero(source, record["place"]),
-            "failed": after_failed,
+            "failed": after_failed, "held": records.held(record),
             "media": [item for item in record.get("media") or [] if "file" in item],
             "free": labels(record.get("made") or []), "paid": labels(paid_stages(record)),
             "price": price_words(record.get("price"), record.get("needs_paid_batch")), "has_3d": record.get("has_3d"),
@@ -151,7 +151,7 @@ def fix_card(branch, found, source, choice):
             "questions": [place for place in places if place["question"]],
             "choice": None if choice is None or stale else {"said": CHOICES.get(choice.choice, choice.choice),
                                                              "choice": choice.choice, "applied": answer_words(choice)},
-            "stale": stale}
+            "stale": stale, "held": all(place["held"] for place in places)}
 
 
 def fix_cards(root, source):
@@ -196,9 +196,10 @@ def last_checkout():
 
 
 def changes_page(request):
-    cards = fix_cards(proposals_root(), state.source())
+    found = fix_cards(proposals_root(), state.source())
+    cards = [card for card in found if not card["held"]]
     return render(request, "pages/changes.html", {
-        "cards": cards, "bought": bought_total(cards),
+        "cards": cards, "held": [card for card in found if card["held"]], "bought": bought_total(cards),
         "waiting": [card for card in cards if card["choice"] is None],
         "checkout_key": uuid.uuid4().hex, "last_checkout": last_checkout()})
 
@@ -239,13 +240,26 @@ def chosen(user, branch, commit, choice):
     return carried_out(branch, commit, choice)
 
 
+def held_fix(branch):
+    """The plain reason a fix is held out of the basket (every place of its proposals shows no change its before
+    does not), or "" when it may be bought."""
+    found = [records.read(proposals_root(), summary["branch"], summary["place"])
+             for summary in records.listing(proposals_root()) if summary["branch"] == branch]
+    reasons = [records.held(record) for record in found if record]
+    return reasons[0] if reasons and all(reasons) else ""
+
+
 def carried_out(branch, commit, choice):
     """On the store's machine: a buy puts the branch in the checkout's basket at the commit he saw, a not now takes
-    it out; refused when the branch moved since. The words are kept on his answer."""
+    it out; refused when the branch moved since, or when its pictures show no change (held). The words are kept on
+    his answer."""
     from score.dashboard.checkout import flow
     from score.dashboard.pages.models import BasketBranch
+    held = held_fix(branch) if choice == "buy" else ""
     now = flow.offer(branch)
-    if choice == "buy" and now["head"] != commit:
+    if held:
+        said = f"refused: {branch} is held out of the basket: {held}"
+    elif choice == "buy" and now["head"] != commit:
         said = f"refused: {branch} has a newer commit than the pictures you saw; its proposal is made again first"
     elif choice == "buy":
         BasketBranch.objects.update_or_create(branch=branch, defaults={
