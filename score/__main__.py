@@ -1,12 +1,12 @@
-"""SCORE's one command: the runner drives a world's lines to their end, with no agent in the loop.
+"""SCORE's one command: the runner drives an environment's lines to their end, with no agent in the loop.
 
-    .venv/bin/python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
-    .venv/bin/python -m score status [<world>] [--place P ...] [--stage S ...]                   # every line's state
+    .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
+    .venv/bin/python -m score status [<environment>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
-    .venv/bin/python -m score plan <world> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
+    .venv/bin/python -m score plan <environment> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
     .venv/bin/python -m score spend --json            # this month's spend, open reservations and the ceiling
-    .venv/bin/python -m score price <world> --node N [--node N ...] --json   # each paid node's likely and high price
-    .venv/bin/python -m score moved [--pre-push]      # the paid rows this tree would buy again, every world
+    .venv/bin/python -m score price <environment> --node N [--node N ...] --json   # each paid node's likely and high price
+    .venv/bin/python -m score moved [--pre-push]      # the paid rows this tree would buy again, every environment
 
 `status --json` prints the same lines as one JSON object. `plan` works out what `run` would do with the same arguments,
 running nothing: the missing inputs, the nodes it would make and why, the paid rows it would buy with their estimates
@@ -16,7 +16,7 @@ and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard)
 its run is sized on, from the stage's measured runs in the cloud ledger (the numbers its clearance reserves), else
 its estimate (the cockpit prices a fix branch's moved paid rows with it).
 
-`run` drives the lines side by side (with --place, those places' lines and only the world nodes they read), each node in
+`run` drives the lines side by side (with --place, those places' lines and only the whole-environment nodes they read), each node in
 a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time); with
 --stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone). It starts
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
@@ -32,8 +32,8 @@ Before it starts, `run` lists every paid row it would buy with its estimate (sco
 cache answers at EUR 0) and refuses, before detaching, when buying again rows that already have an accepted output
 would cost over EUR 5, unless given --rebuy-reason, which goes into the run's log and the cloud ledger.
 
-`moved` lists, read-only, every paid row with an accepted output this working tree would buy again over every world's
-places, each with its price and why, and the total (score/stages/moved.py); it exits 3 above EUR 0. With --pre-push
+`moved` lists, read-only, every paid row with an accepted output this working tree would buy again over every
+environment's places, each with its price and why, and the total (score/stages/moved.py); it exits 3 above EUR 0. With --pre-push
 (.githooks/pre-push-moved, the push lines on stdin, run in a checkout of the commit pushed to main) it refuses the paid
 rows that commit would buy again and main's commit would not, unless a pushed commit's "Moved-rows: <node> ...:
 <reason>" trailer names each; rows main already buys again print as a warning, and when main's commit cannot be
@@ -59,27 +59,32 @@ from score.store import Store  # noqa: E402
 DETACH = "--detach"
 
 
+ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
+
+
 def parse(argv):
     parser = argparse.ArgumentParser(prog="score", description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("run")
-    run.add_argument("world", choices=sorted(stages.WORLDS))
+    run.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     run.add_argument(DETACH, action="store_true", help="progress to a log, one result line at the end")
     run.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once (default %(default)s)")
     run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
     status = commands.add_parser("status")
-    status.add_argument("world", nargs="?", default="world1", choices=sorted(stages.WORLDS))
+    status.add_argument("world", metavar="environment", nargs="?", default="world1", choices=sorted(stages.WORLDS),
+                        help=ENVIRONMENT_HELP)
     status.add_argument("--json", action="store_true", help="the lines as one JSON object")
     plan = commands.add_parser("plan")
-    plan.add_argument("world", choices=sorted(stages.WORLDS))
+    plan.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     plan.add_argument("--rebuy-reason", help="the reason a run would be given")
     plan.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once, as for run (default %(default)s)")
     plan.add_argument("--json", action="store_true", help="the plan as one JSON object (the only form)")
     spend = commands.add_parser("spend")
     spend.add_argument("--json", action="store_true", help="the month's spend as one JSON object (the only form)")
-    spend.add_argument("--world", default="world1", help="the world whose stop line and spend since it are read")
+    spend.add_argument("--world", default="world1", metavar="ENVIRONMENT",
+                       help="the environment whose stop line and spend since it are read (its id, world1)")
     price = commands.add_parser("price")
-    price.add_argument("world", choices=sorted(stages.WORLDS))
+    price.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     price.add_argument("--node", action="append", required=True, help="a paid node (repeat it)")
     price.add_argument("--json", action="store_true", help="the prices as one JSON object (the only form)")
     images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)

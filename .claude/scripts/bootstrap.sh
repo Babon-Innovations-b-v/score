@@ -77,7 +77,7 @@ use_repo_hooks() {
 
 # --- 4. The framework's Python, from uv.lock -------------------------------
 # `.venv` is the repo's own (`make env`). The cloud machine runner (blender_cloud.py's CLOUD_PYTHON) and
-# the animal route still call the first world's per-box interpreter, PROPS_HOME's env/bin/python (default
+# the animal route still call the first environment's per-box interpreter, PROPS_HOME's env/bin/python (default
 # ~/.farm-factory-props, as tools/props/paths.py reads it): build that path from the same lock when it is
 # missing, so a fresh box runs them with nothing copied over.
 build_python() {
