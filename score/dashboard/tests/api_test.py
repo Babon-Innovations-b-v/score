@@ -91,3 +91,15 @@ def test_files_are_served_only_when_listed(world):
     assert client.get(picture["thumb_url"]).headers["content-type"] == "image/jpeg"
     assert client.get("/files/" + "f" * 64).status_code == 404
     assert client.get("/files/../etc").status_code == 404
+
+
+def test_an_advance_through_the_api(world):
+    from score.dashboard.pages import seen
+    output = world.outputs["assembly@alpha"]
+    client = api()
+    answer = client.post("/api/advances", json={"node": "assembly@alpha", "output": output})
+    assert answer.status_code == 200 and answer.json()["said"].startswith("advanced"), answer.text
+    assert seen.advanced("assembly@alpha", output)
+    assert client.post("/api/advances", json={"node": "nothing@alpha", "output": output}).status_code == 404
+    assert client.post("/api/advances", json={"node": "assembly@alpha", "output": ""}).status_code == 409
+    assert api("guest").post("/api/advances", json={"node": "assembly@alpha", "output": output}).status_code == 403

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ detail.place|capfirst }} in 3D</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/pages/dash.css">
+{% if detail.web3d %}
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"
+} }
+</script>
+{% endif %}
+</head>
+<body class="view3d">
+<aside class="view3d-panel">
+  <p class="small"><a href="/">World</a> / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a> / 3D</p>
+  <h1>{{ detail.place|capfirst }} in 3D</h1>
+  {% if detail.web3d %}
+  <p class="small soft">Made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage than the place's current one{% endif %}.</p>
+  <p id="status" class="small" role="status">Loading the preview...</p>
+
+  <h2>Move</h2>
+  <label><input type="radio" name="move" value="orbit" checked> Orbit: drag, wheel</label>
+  <label><input type="radio" name="move" value="walk"> Walk: click, then W A S D and the mouse (Esc frees it)</label>
+  <label><input type="checkbox" id="hold" checked> Eyes 1.6 m over the floor while walking</label>
+  <div class="views" id="views"></div>
+
+  <h2>A click</h2>
+  <label><input type="radio" name="tool" value="name" checked> Names the part</label>
+  <label><input type="radio" name="tool" value="measure"> Measures between two clicks</label>
+  <label><input type="radio" name="tool" value="person"> Stands the person there</label>
+  <label><input type="checkbox" id="person" checked> A person 1.8 m tall, for scale</label>
+  <div id="picked" class="panel small">Click a surface.</div>
+
+  <h2>Layers</h2>
+  <div id="layers" class="small soft">The layers show once the copy is loaded.</div>
+  {{ viewer|json_script:"view3d-data" }}
+  <script type="module" src="/static/pages/view3d.js"></script>
+  {% else %}
+  <div class="panel">No 3D web copy of this place yet. It is made on the store's machine, for free, from the accepted
+    OpenUSD stage.</div>
+  {% endif %}
+</aside>
+<div id="stage" class="view3d-stage"><div id="measure-label" class="measure-label" hidden></div></div>
+</body>
+</html>

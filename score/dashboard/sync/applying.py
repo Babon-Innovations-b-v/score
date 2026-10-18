@@ -1,13 +1,14 @@
 """The store's machine applies a hosted request locally: a change request into the inbox, the owner's decision
-through score.review.web.decide (only when its user is the local SCORE_OWNER), a launch basket planned and checked
-with the same guard as a local launch plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend."""
+through score.review.web.decide and the owner's advance into this machine's marks (each only when its user is the
+local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
+marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend."""
 import dataclasses
 
 from django.conf import settings
 from django.utils import timezone
 
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions
+from score.dashboard.pages import actions, seen
 from score.dashboard.pages.models import Launch, Plan
 
 
@@ -32,22 +33,43 @@ def apply_change(item):
     return Applied("done", f"recorded locally as change request {change.pk}")
 
 
+def from_owner(item):
+    return bool(settings.SCORE_OWNER) and item["user"] == settings.SCORE_OWNER
+
+
+def place_and_stage(node):
+    stage, _, place = node.partition("@")
+    return (place or None), stage
+
+
 def apply_decision(item):
     payload = item["payload"]
-    if not settings.SCORE_OWNER or item["user"] != settings.SCORE_OWNER:
+    if not from_owner(item):
         return Applied("refused", f"{item['user']} is not this store's owner")
-    place, stage = (payload["node"].split("@", 1)[1], payload["node"].split("@", 1)[0]) if "@" in payload["node"] \
-        else (None, payload["node"])
+    place, stage = place_and_stage(payload["node"])
     said = actions.decide(item["user"], place, stage, payload["output"], payload["decision"],
                           payload.get("reason", ""), payload.get("worse_reason") or "")
     return Applied("done" if said.startswith(("accepted", "rejected")) else "refused", said)
 
 
-def launch_refusals(item, plan, items):
-    """The guard's refusals of a hosted launch, checked on the store's machine, plus the sync cap."""
+def apply_advance(item):
+    """The owner's advance, recorded in this machine's marks, which its launches are checked against."""
     payload = item["payload"]
-    found = guard.refusals(plan, item["user"] == settings.SCORE_OWNER and bool(settings.SCORE_OWNER),
-                           guard.basket_hash(items), actions.running_launch(), True, payload.get("rebuy_reason"))
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    place, stage = place_and_stage(payload["node"])
+    said = actions.advance(item["user"], place, stage, payload.get("output", ""))
+    return Applied("done" if said.startswith("advanced") else "refused", said)
+
+
+def launch_refusals(item, plan, items, source):
+    """The guard's refusals of a hosted launch, checked on the store's machine (nothing advances unseen: the paid
+    steps whose reads the owner has not advanced here are refused), plus the sync cap."""
+    payload = item["payload"]
+    unseen = seen.unseen_reads(plan.body.get("buys", []), source.reads_of, source.accepted_output) \
+        if plan.state == "ready" else []
+    found = guard.refusals(plan, from_owner(item), guard.basket_hash(items), actions.running_launch(), True,
+                           payload.get("rebuy_reason"), unseen)
     found = [why for why in found if not why.startswith("this dashboard is hosted")]
     cap = settings.SCORE_SYNC_MAX_EUROS
     if cap and plan.state == "ready" and plan.body["money"]["high"] > cap:
@@ -67,7 +89,7 @@ def apply_launch(item, source, chosen=None):
     plan.refresh_from_db()
     if plan.state != "ready":
         return Applied("refused", f"the plan could not be worked out: {plan.error}")
-    refused = launch_refusals(item, plan, items)
+    refused = launch_refusals(item, plan, items, source)
     if refused:
         return Applied("refused", "; ".join(refused))
     record = Launch.objects.create(plan=plan, by=item["user"], jobs=plan.body["jobs"],
@@ -86,6 +108,8 @@ def apply(item, source, chosen=None):
         return apply_change(item)
     if kind == "decision":
         return apply_decision(item)
+    if kind == "advance":
+        return apply_advance(item)
     if kind == "launch":
         return apply_launch(item, source, chosen)
     return Applied("refused", f"unknown request kind {kind!r}")

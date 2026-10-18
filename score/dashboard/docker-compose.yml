@@ -1,6 +1,12 @@
 # The dashboard's services (score/dashboard). Run from the repository root with an env file kept outside the repo
 # (copied from deploy/example.env):
 #   docker compose -f score/dashboard/docker-compose.yml --env-file <env file> --profile hosted up -d
+#
+# Hosted: Caddy runs in this file, on the `edge` network beside the dashboard, at one fixed address, and the dashboard
+# trusts only that address to send Remote-User (SCORE_TRUSTED_PROXIES is set here, never in the env file). The
+# dashboard publishes no port on the host: a port published to the host is reached through the docker bridge's
+# gateway, so trusting that gateway would trust every process on the server. Caddy's config is
+# deploy/Caddyfile.example filled in, with `hosted:8780` as the dashboard's address.
 services:
   hosted:
     profiles: ["hosted"]
@@ -9,9 +15,22 @@ services:
     environment:
       SCORE_DASHBOARD_MODE: hosted
       SCORE_STORE_WRITABLE: "0"
+      SCORE_TRUSTED_PROXIES: ${SCORE_CADDY_ADDRESS:-172.30.80.2}
     volumes: ["dashboard-data:/data"]
-    ports: ["127.0.0.1:8780:8780"]
+    networks: [edge]
     mem_limit: 256m
+    restart: unless-stopped
+
+  caddy:
+    profiles: ["hosted"]
+    image: caddy:2.8.4
+    volumes:
+      - "${SCORE_CADDYFILE:?set SCORE_CADDYFILE to the filled-in Caddyfile}:/etc/caddy/Caddyfile:ro"
+      - "caddy-data:/data"
+    ports: ["80:80", "443:443"]
+    networks:
+      edge: {ipv4_address: "${SCORE_CADDY_ADDRESS:-172.30.80.2}"}
+    depends_on: [hosted]
     restart: unless-stopped
 
   local:
@@ -30,5 +49,11 @@ services:
     mem_limit: 1g
     restart: unless-stopped
 
+networks:
+  edge:
+    ipam:
+      config: [{subnet: "${SCORE_EDGE_SUBNET:-172.30.80.0/29}"}]
+
 volumes:
   dashboard-data:
+  caddy-data:

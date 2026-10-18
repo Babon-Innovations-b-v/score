@@ -44,6 +44,11 @@ class DecisionIn(BaseModel):
     worse_reason: str | None = None
 
 
+class AdvanceIn(BaseModel):
+    node: str
+    output: str
+
+
 class Said(BaseModel):
     said: str
 
@@ -162,6 +167,17 @@ def decision(body: DecisionIn, user=Depends(owner_only)):
     said = actions.decide(user.username, place, stage, body.output, body.decision, body.reason,
                           body.worse_reason or "")
     if said.startswith(("refused", "decisions are off")):
+        raise HTTPException(409, said)
+    return Said(said=said)
+
+
+@api.post("/advances", response_model=Said)
+def advance(body: AdvanceIn, user=Depends(owner_only)):
+    """The owner's advance of a step's output: the paid steps reading it may be launched."""
+    place, stage = split_node(body.node)
+    step(place, stage)
+    said = actions.advance(user.username, place, stage, body.output)
+    if not said.startswith("advanced"):
         raise HTTPException(409, said)
     return Said(said=said)
 

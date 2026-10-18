@@ -1,4 +1,4 @@
 {% with images=files %}
 <div class="sheet">{% for file in images %}{% if file.kind == "image" %}<figure><a href="{{ file.url }}"><img src="{{ file.thumb_url }}" alt="{{ file.name }}" loading="lazy"></a><figcaption>{{ file.name }}</figcaption></figure>{% endif %}{% endfor %}</div>
-{% for file in images %}{% if file.kind == "film" %}<video src="{{ file.url }}" controls preload="metadata" style="width:100%;max-width:720px;border-radius:8px;margin-top:8px"></video>{% endif %}{% endfor %}
+{% for file in images %}{% if file.kind == "film" %}<video src="{{ file.url }}" controls preload="metadata"{% if fps %} data-fps="{{ fps|stringformat:"g" }}"{% endif %} class="film"></video>{% endif %}{% endfor %}
 {% endwith %}

@@ -1,4 +1,5 @@
-# TEMPLATE. Replace every <...>; never commit the real values.
+# TEMPLATE. Replace every <...>; never commit the real values. Caddy runs in docker-compose.yml beside the
+# dashboard (service `hosted`), on the same network.
 <dashboard.example.org> {
 	# Strip any sign-in headers the browser sent; only forward_auth may set them.
 	request_header -Remote-User
@@ -8,11 +9,11 @@
 
 	# The store's machine pushes the export and pulls requests with its token: no single sign-on here.
 	handle /api/sync/* {
-		reverse_proxy <score-dashboard-address>:8780
+		reverse_proxy hosted:8780
 	}
 
 	handle {
 		import <forward-auth-snippet>
-		reverse_proxy <score-dashboard-address>:8780
+		reverse_proxy hosted:8780
 	}
 }

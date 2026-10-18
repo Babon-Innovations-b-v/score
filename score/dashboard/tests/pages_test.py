@@ -8,7 +8,7 @@ from django.test import Client
 
 pytestmark = pytest.mark.django_db
 PAGES = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/place/beta/step/assembly/",
-         "/world/step/terrain/", "/basket/", "/runs/", "/requests/", "/picks/alpha"]
+         "/world/step/terrain/", "/basket/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
 POSTS = ["/place/alpha/step/closeup/request/", "/place/alpha/step/closeup/decide/", "/place/alpha/step/closeup/queue/",
          "/basket/change/", "/refresh/", "/freshness/"]
 NODE = re.compile(r"\b[a-z][a-z-]+@(alpha|beta)\b")
@@ -116,3 +116,50 @@ def test_queue_this_step_and_the_next(world):
     assert ("alpha", "plan") in queued and ("alpha", "assembly") in queued
     html = client.get("/basket/").content.decode()
     assert "Alpha" in html and "Work out the plan" in html
+
+
+def test_back_after_a_post_stays_on_this_site(world):
+    client = signed_in()
+    for back in ("https://evil.example/", "//evil.example/", "javascript:alert(1)"):
+        answer = client.post("/refresh/", {"back": back})
+        assert answer.status_code == 302 and answer["Location"] == "/", back
+    assert client.post("/refresh/", {"back": "/place/alpha/"})["Location"] == "/place/alpha/"
+
+
+def test_the_step_page_shows_its_output_beside_what_it_read(world):
+    html = signed_in().get("/place/alpha/step/demo-film/").content.decode()
+    assert "Output beside what it was made from" in html
+    assert "reads: OpenUSD stage" in html and "reads: completion" in html and "this step's output" in html
+    assert 'data-fps="24"' in html  # the film's frame scrubber
+
+
+def test_the_place_page_says_what_is_not_done_and_scrubs_its_film(world):
+    html = signed_in().get("/place/beta/").content.decode()
+    assert "Not done for this place" in html and "beta: no lamp model" in html
+    assert 'data-fps="24"' in html
+
+
+def test_the_3d_viewer_without_a_copy_says_so(world):
+    html = signed_in().get("/view/alpha").content.decode()
+    assert "No 3D web copy of this place yet" in html and "view3d.js" not in html
+    assert signed_in("other").get("/view/nowhere").status_code == 404
+
+
+def test_the_3d_viewer_loads_a_places_copy_with_its_layer_makers(world):
+    import json
+    folder = world.root / "web" / "alpha"
+    folder.mkdir(parents=True)
+    (folder / "alpha.json").write_text(json.dumps({
+        "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
+        "objects": [{"name": "Lamp", "layer": "light", "low": [0, 0, 0], "high": [1, 1, 1]}], "bytes": 10,
+        "light_bytes": 5, "triangles": 12}))
+    client = signed_in()
+    html = client.get("/view/alpha").content.decode()
+    assert "/static/pages/view3d.js" in html and "importmap" in html
+    given = json.loads(re.search(r'<script id="view3d-data" type="application/json">(.*?)</script>', html,
+                                 re.S).group(1))
+    assert given["place"] == "alpha" and given["layers"]["light"] == {"label": "light sweep",
+                                                                      "url": "/place/alpha/step/light/"}
+    assert "edit" in given["order"] and "edit" not in given["layers"]  # the owner's own edits: no step made them
+    assert NODE.search(outside_details(html)) is None
+    assert 'href="/view/alpha"' in client.get("/place/alpha/").content.decode()

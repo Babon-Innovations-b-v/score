@@ -5,10 +5,11 @@
 <h1>{{ detail.place|capfirst }}</h1>
 <p class="soft">{{ detail.status }}</p>
 {% for fault in detail.faults %}<div class="banner bad">{{ fault }}</div>{% endfor %}
+{% if detail.skipped %}<div class="banner"><b>Not done for this place:</b><ul class="skipped">{% for entry in detail.skipped %}<li>{{ entry }}</li>{% endfor %}</ul></div>{% endif %}
 
 <div class="pair">
   <figure style="margin:0">{% if detail.hero %}<a href="{{ detail.hero.url }}"><img src="{{ detail.hero.url }}" alt="concept of {{ detail.place }}"></a><figcaption class="small soft">concept the film was made against</figcaption>{% else %}<div class="panel soft">no concept picture stored</div>{% endif %}</figure>
-  <figure style="margin:0">{% if detail.film %}<video src="{{ detail.film.url }}" controls preload="metadata"></video><figcaption class="small soft">accepted film</figcaption>{% else %}<div class="panel soft">no accepted film</div>{% endif %}</figure>
+  <figure style="margin:0">{% if detail.film %}<video src="{{ detail.film.url }}" controls preload="metadata" data-fps="{{ detail.film_fps|stringformat:"g" }}" class="film"></video><figcaption class="small soft">accepted film</figcaption>{% else %}<div class="panel soft">no accepted film</div>{% endif %}</figure>
 </div>
 
 <h2>OpenUSD index</h2>
@@ -18,9 +19,8 @@
   <div class="chips" style="margin-top:8px">{% for layer in detail.usd_index.layers %}<span class="chip{% if not layer.present %} missing{% endif %}" title="{{ layer.path }}{% if layer.made_by_step %} made by {{ layer.made_by_step }}{% endif %}">{{ layer.name }}{% if layer.present %} {{ layer.bytes|filesizeformat }}{% else %} missing{% endif %}</span>{% endfor %}</div>
   {% else %}<div class="soft">No accepted OpenUSD stage yet.</div>{% endif %}
   <p class="small" style="margin-bottom:0">
-  {% if detail.web_copy and not hosted %}<a href="/view/{{ detail.place }}">Open in 3D</a> <span class="soft">(3D copy made {{ detail.web_copy }}; it may predate the accepted stage of {{ detail.usd_index.accepted_at|slice:":10" }})</span>
-  {% elif hosted %}<span class="soft">The 3D copy is local only: the layers above and the pictures below are what this page holds.</span>
-  {% else %}<span class="soft">No 3D web copy of this place: the layers above and the renders below are what there is.</span>{% endif %}
+  {% if detail.web3d %}<a class="button" href="/view/{{ detail.place }}">Open in 3D</a> <span class="soft">(made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage than the one above{% endif %})</span>
+  {% else %}<span class="soft">No 3D web copy of this place yet: the layers above and the pictures below are what this page holds.</span>{% endif %}
   </p>
 </div>
 
@@ -36,6 +36,7 @@
       {% if step.thumb %}<img src="{{ step.thumb }}" alt="{{ step.label }}" loading="lazy">{% else %}<div class="noimg">no picture</div>{% endif %}
       <div class="body"><span class="label">{{ step.label }}</span> {% if step.paid %}<span class="paid">paid</span>{% endif %}
         <div class="soft">{{ step.state_words }}</div>
+        {% if step.mark %}<div class="mark {{ step.mark|slice:":8"|slugify }}">{{ step.mark }}</div>{% endif %}
         <div class="soft">gates: <span class="pass">{{ step.gates.passed }} pass</span>{% if step.gates.fail %}, <span class="fail">{{ step.gates.fail }} fail</span>{% endif %}{% if step.gates.unknown %}, <span class="unknown">{{ step.gates.unknown }} unknown</span>{% endif %}</div>
       </div>
     </a>
