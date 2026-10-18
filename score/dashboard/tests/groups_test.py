@@ -1,5 +1,5 @@
 """The groups the pages show: each place's style by the look rule, each stage's layer by the stage table's reads,
-and the places from the world's own data, never a hand list."""
+and the places from the environment's own data, never a hand list."""
 import types
 
 from score import stages
@@ -36,7 +36,7 @@ def test_the_layer_walks_readers_forward_to_the_assembly():
     assert found["closeup"] == found["surfaces-bake"] == "pieces"
     assert found["surfaces-check"] == "pieces"  # read by no assembly input: what it reads
     assert found["assembly"] == found["complete"] == found["demo-film"] == groups.STAGE_AND_FILMS
-    assert "terrain" not in found  # a world stage is on the world line
+    assert "terrain" not in found  # an environment stage is on the environment line
 
 
 def test_the_real_table_maps_every_place_stage_to_a_known_layer():

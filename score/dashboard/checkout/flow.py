@@ -1,6 +1,6 @@
 """The basket and the owner's one checkout. His signed-in checkout is his money yes for the basket: refused before
 anything happens when any reason below holds; then, in order, the chosen branches land on main (a conflict refuses
-before anything is pushed), the run's own plan is checked to buy only what was priced, the world's stop line is
+before anything is pushed), the run's own plan is checked to buy only what was priced, the environment's stop line is
 written at the spend so far plus the basket's high total (score.review.web.stop, refused in an agent's process), the
 runner's own spend reading must show room for it, and ONE batch launches through the compute backend, whose runner
 clears every paid node again. Nothing here stops a run once started.
@@ -255,7 +255,7 @@ def plan_refusals(record, planned):
 
 
 def spend_now(chosen):
-    """(spent, reserved) since the world's first stop line, nothing for a world with none; RuntimeError when the
+    """(spent, reserved) since the environment's first stop line, nothing for an environment with none; RuntimeError when the
     runner could not read them (a line too low would refuse the batch, one too high would let more through)."""
     spend = chosen.spend()
     if spend.ceiling is None:
@@ -266,7 +266,7 @@ def spend_now(chosen):
 
 
 def write_line(record, chosen):
-    """The owner's money yes: the world's stop line at the spend so far, what is in flight and the basket's high."""
+    """The owner's money yes: the environment's stop line at the spend so far, what is in flight and the basket's high."""
     from score.review import web
     spent, reserved = spend_now(chosen)
     euros = round(spent + reserved + record.totals["high_euros"], 2)

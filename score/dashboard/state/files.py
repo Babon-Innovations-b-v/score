@@ -1,4 +1,4 @@
-"""Files the dashboard may serve: only a sha it saw in a listing it read (or a picture it named from the world's
+"""Files the dashboard may serve: only a sha it saw in a listing it read (or a picture it named from the environment's
 data), opened read-only, its content type from its listed name; images get a cached JPEG thumbnail."""
 import mimetypes
 import pathlib

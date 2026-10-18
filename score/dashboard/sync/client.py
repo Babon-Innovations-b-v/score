@@ -224,7 +224,7 @@ def pushed_words(remote, source, chosen):
 
 
 def library_sweep():
-    """The world compared with its library (score.stages.library.sweep, free, seconds), its findings written where
+    """The environment compared with its library (score.stages.library.sweep, free, seconds), its findings written where
     the place pages read their problems; its words. A sweep that fails is said in the pass's words, and the pass goes
     on: the export still goes out."""
     from score.stages.library import sweep

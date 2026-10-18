@@ -2,7 +2,7 @@
 
     SCORE_DASHBOARD_HOME=$(mktemp -d) .venv/bin/python -m score.dashboard.tests.real_store_smoke [--shots DIR]
 
-It renders the world board, every place page, every accepted step page of the hangar and of the world line, the
+It renders the environment board, every place page, every accepted step page of the hangar and of the environment line, the
 basket, the hangar's viewer and every /api read, each as a signed-in owner of a throwaway account in the dashboard's
 temp home; checks each answers 200, the index builds under 2 s and each place page under 2 s; and snapshots the
 store's areas and data/ before and after: they must be the same. Then it exports into a temp folder and renders the
