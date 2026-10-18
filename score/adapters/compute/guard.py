@@ -57,6 +57,8 @@ def set_line(store, world, euros, reason, by, at, baseline):
         raise PermissionError(f"{AREA}/{world}: only the owner sets a world's stop line, from his own terminal; an "
                               "agent's process cannot write it")
     latest = current(store, world)  # carries the first line's baseline on
+    if latest is None and baseline is None:
+        raise ValueError(f"{world}: a world's first stop line needs the spend it counts from")
     record = {"world": world, "euros": float(euros), "reason": reason, "by": by, "at": at,
               "baseline": latest["baseline"] if latest else baseline, "before": latest["euros"] if latest else None}
     store.write_once(f"{AREA}/{world}/{stamp_key(at)}.json", record)
