@@ -15,7 +15,7 @@ pytestmark = pytest.mark.django_db
 KNOWN = {"bare_steel": ((140, 145, 150), 0.5, 0.8), "rubber": ((30, 30, 30), 0.9, 0.0)}
 PLAN = {"place": "alpha", "title": "ALPHA", "walls": {"wide": 8}, "floor": [[-4, -6], [4, 6]],
         "items": [{"name": "BENCH", "box": [-3, -5, -1, -3]}, {"name": "RACK", "box": [1, 2, 3, 5]}],
-        "doors": [{"name": "S", "middle": [0, 0, 6]}], "standing": [{"at": [0, 0]}]}
+        "doors": [{"name": "S", "middle": [0, 0, 6]}], "standing": [{"at": [0, 0]}, [1, 1], [2, 0, 2]]}  # both shapes
 
 
 def written(folder, name, data):
