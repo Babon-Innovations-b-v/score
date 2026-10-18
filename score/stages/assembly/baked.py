@@ -65,12 +65,25 @@ def take_bake(bake, paint, out, models=None):
     for model, baked_as in models.items():
         entry = baked[baked_as]
         (out / "assets" / f"{model}.usdc").unlink(missing_ok=True)
-        export.write_asset(model, renamed_model(bake / "made", baked_as, model, out / "renamed"),
-                           {model: paint / "labelled" / entry["parts"]}, None, entry["base"], entry["size"], out,
-                           variants, sounds)
+        parts, turn, size = laid_parts(bake / "made", baked_as, paint / "labelled" / entry["parts"], entry)
+        export.write_asset(model, renamed_model(bake / "made", baked_as, model, out / "renamed"), {model: parts},
+                           None, turn, size, out, variants, sounds)
         lay_fixtures_baked(out / BASE_LAYER, model)
         stamp_baked_hash(out / BASE_LAYER, model, bake / "made" / f"{baked_as}.gltf")
     shutil.rmtree(out / "renamed", ignore_errors=True)
+
+
+def laid_parts(made, baked_as, labelled, entry):
+    """What names a baked model's surfaces, as (parts folder, turn, size) for export.write_asset: the take's labelled
+    parts laid with its bake entry's turn and size; for a model the bake built over a body (make_chunky.make_bodied)
+    the parts it laid itself beside the model (`<model>.parts`, already in the kit frame: no turn, its own box)."""
+    import numpy as np
+    import trimesh
+    laid = made / f"{baked_as}.parts"
+    if not laid.is_dir():
+        return labelled, entry["base"], entry["size"]
+    points = np.vstack([trimesh.load(path, process=False).vertices for path in sorted(laid.glob("*.ply"))])
+    return laid, [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], (points.max(axis=0) - points.min(axis=0)).tolist()
 
 
 def renamed_model(made, baked_as, model, scratch):
