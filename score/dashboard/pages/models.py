@@ -33,6 +33,20 @@ class BasketItem(models.Model):
         constraints = [models.UniqueConstraint(fields=["place", "stage"], name="one_basket_item_a_step")]
 
 
+class RefineItem(models.Model):
+    """One library entry the owner chose to have made better: its address and the refine option (empty: as its
+    scoring suggests). Not priced or launched yet: no refine step exists to buy."""
+
+    address = models.CharField(max_length=200)
+    option = models.CharField(max_length=100, blank=True)
+    added_by = models.CharField(max_length=150)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["address", "option"]
+        constraints = [models.UniqueConstraint(fields=["address", "option"], name="one_refine_item_an_option")]
+
+
 class Plan(models.Model):
     """A worked-out plan of the basket: the runner's plan per group, the money and time against the stop."""
 

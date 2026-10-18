@@ -40,6 +40,17 @@
 </div></section>
 {% empty %}<p class="soft">Nothing queued. Queue steps from a step's page.</p>{% endfor %}
 
+{% if refine %}
+<h2>Library entries to refine</h2>
+<p class="small soft">Not priced yet: no refine step exists to buy, so these wait here with their choice.</p>
+<div class="refine-cards">{% for card in refine %}<div class="tile refine-card">
+  <a class="frame" href="{{ card.url|default:'/library/' }}">{% include "pages/pic.html" with src=card.thumb name=card.title %}</a>
+  <div class="refine-body"><a class="tile-name" href="{{ card.url|default:'/library/' }}">{{ card.title }}</a>
+    <span class="small soft">{{ card.option }}</span>{% if card.score is not None %} <span class="score-badge">{{ card.score }}</span>{% endif %}
+    {% if owner %}<form class="inline" method="post" action="/basket/change/">{% csrf_token %}<input type="hidden" name="what" value="remove_refine"><input type="hidden" name="item" value="{{ card.pk }}"><button class="quiet">remove</button></form>{% endif %}</div>
+</div>{% endfor %}</div>
+{% endif %}
+
 {% if items and owner %}
 <form method="post" action="/basket/change/" class="panel">{% csrf_token %}<input type="hidden" name="what" value="plan">
   <label class="small">Steps at once <input type="number" name="jobs" value="8" min="1" max="32" style="width:6em"></label>

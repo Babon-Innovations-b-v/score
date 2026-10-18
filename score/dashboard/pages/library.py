@@ -1,70 +1,28 @@
-"""The Library pages: the library's entries as a picture grid by kind with search and filters, an entry's own page,
-its 3D view, the owner's lock and withdraw (pages/library_actions.py), and the strip of a place's entries."""
-from urllib.parse import urlencode
+"""The Library pages: the explorer (a tree of kinds and categories, the entries of the chosen one, the chosen entry
+with its 3D view first) drawn in the browser from /api/library (api/library_api.py), an entry's full-screen 3D view,
+and the strip of a place's entries on the place page. What the API answers is made here."""
+from urllib.parse import quote
 
-from django.contrib import messages
-from django.http import Http404, HttpResponseForbidden
-from django.shortcuts import redirect, render
-from django.views.decorators.http import require_POST
+from django.http import Http404
+from django.shortcuts import render
 
 from score.dashboard import state
 from score.dashboard.pages import actions, library_actions
-from score.dashboard.pages.models import is_owner
 from score.dashboard.state import library as lib
 
-GROUP_SHOWN = 12  # tiles a kind shows on the overview
-PAGE_SHOWN = 120  # tiles one kind's page shows
 STRIP_SHOWN = 12
+WEB_COPY_KINDS = ("model", "kit", "character")  # the kinds whose web GLB copies are being made for the viewer
+SORTS = ("name", "score_low", "score_high")
+BANDS = {"low": (0, 50), "mid": (50, 80), "high": (80, 101)}  # a score's band, its percent from and below
 
 
-def tile(entry, asked):
-    """What one grid tile shows."""
-    return {"entry": entry, "url": lib.entry_url(entry), "asked": asked.get(entry.address),
-            "thumb": f"/library-files/thumbs/{entry.picture}.jpg" if entry.picture else None}
+def thumb_url(entry):
+    return f"/library-files/thumbs/{entry.picture}.jpg" if entry.picture else None
 
 
-def chosen_filters(request):
-    """The page's filters from its query: kind, place, state, words."""
-    found = {name: request.GET.get(name, "").strip() for name in ("kind", "place", "state", "q")}
-    found["kind"] = found["kind"] if found["kind"] in dict(lib.KINDS) else ""
-    found["state"] = found["state"] if found["state"] in lib.STATES else ""
-    return found
-
-
-def query_with(filters, **changed):
-    """The query string of these filters with some changed (empty ones left out)."""
-    merged = {**filters, **changed}
-    return urlencode({name: value for name, value in merged.items() if value})
-
-
-def kind_groups(found, filters, asked):
-    """The overview: each kind with its first tiles and how many there are."""
-    groups = []
-    for kind, label in lib.KINDS:
-        of_kind = [entry for entry in found if entry.kind == kind]
-        if of_kind:
-            groups.append({"kind": kind, "label": label, "total": len(of_kind),
-                           "tiles": [tile(entry, asked) for entry in of_kind[:GROUP_SHOWN]],
-                           "all_url": "?" + query_with(filters, kind=kind)})
-    return groups
-
-
-def one_kind(found, filters, asked, page):
-    """One kind's page of tiles, with the links to the pages before and after."""
-    start = (page - 1) * PAGE_SHOWN
-    shown = found[start:start + PAGE_SHOWN]
-    return [{"kind": filters["kind"], "label": lib.kind_label(filters["kind"]), "total": len(found),
-             "tiles": [tile(entry, asked) for entry in shown],
-             "before": "?" + query_with(filters, page=str(page - 1)) if page > 1 else None,
-             "after": "?" + query_with(filters, page=str(page + 1)) if start + PAGE_SHOWN < len(found) else None,
-             "first": start + 1, "last": start + len(shown)}]
-
-
-def page_number(request):
-    try:
-        return max(1, int(request.GET.get("page", "1")))
-    except ValueError:
-        return 1
+def tile(entry):
+    """What one tile of a place's strip shows."""
+    return {"entry": entry, "url": lib.entry_url(entry), "thumb": thumb_url(entry)}
 
 
 def missing_words():
@@ -73,23 +31,82 @@ def missing_words():
     return "No library is set for this cockpit: set SCORE_LIB_ROOT to the library's folder."
 
 
+def first_view(request):
+    """Where the explorer opens: the folder, entry, place and words in the page's query."""
+    return {name: request.GET.get(name, "").strip() for name in ("node", "entry", "place", "q")}
+
+
 def library_page(request):
     shown = lib.library()
     if shown is None or not shown.entries():
         return render(request, "pages/library.html", {"missing": missing_words()})
     every = shown.entries()
-    filters = chosen_filters(request)
-    found = lib.filtered(every, filters["kind"], filters["place"], filters["state"], filters["q"])
-    asked = library_actions.waiting()
-    groups = (one_kind(found, filters, asked, page_number(request)) if filters["kind"]
-              else kind_groups(found, filters, asked))
-    counts = {kind: sum(1 for entry in every if entry.kind == kind) for kind, _ in lib.KINDS}
     return render(request, "pages/library.html", {
-        "groups": groups, "filters": filters, "found": len(found), "total": len(every),
-        "kinds": [(kind, label, counts[kind]) for kind, label in lib.KINDS if counts[kind]],
-        "places": lib.places_of(every), "states": lib.STATES,
-        "locked": sum(1 for entry in every if entry.state == "locked"), "back": request.get_full_path()})
+        "total": len(every), "locked": sum(1 for entry in every if entry.state == "locked"),
+        "first_view": first_view(request)})
 
+
+# --- the tree and a folder's entries ---------------------------------------------------------------------------
+
+def tree_of(shown):
+    """The explorer's tree, the places entries came from, and the totals."""
+    every = shown.entries()
+    return {"tree": shown.folders()["tree"], "places": lib.places_of(every), "states": list(lib.STATES),
+            "total": len(every), "locked": sum(1 for entry in every if entry.state == "locked")}
+
+
+def in_band(entry, band):
+    """True when an entry's score is in the band (low, mid, high), or it has none and the band is "none"."""
+    percent = lib.percent(entry.score)
+    if band == "none":
+        return percent is None
+    low, below = BANDS[band]
+    return percent is not None and low <= percent < below
+
+
+def sorted_by(entries, sort):
+    """By name, or by score worst or best first (the unscored last either way)."""
+    if sort == "name":
+        return sorted(entries, key=lambda entry: (entry.title.lower(), entry.version))
+    worst_first = sort == "score_low"
+    return sorted(entries, key=lambda entry: (entry.score is None,
+                                              (lib.percent(entry.score) or 0) * (1 if worst_first else -1),
+                                              entry.title.lower()))
+
+
+def band_counts(entries):
+    return {band: sum(1 for entry in entries if in_band(entry, band)) for band in (*BANDS, "none")}
+
+
+def row(entry, asked):
+    """One entry as the folder's list shows it."""
+    return {"address": entry.address, "title": entry.title, "kind": entry.kind, "state": entry.state,
+            "thumb": thumb_url(entry), "score": lib.percent(entry.score), "place": entry.place,
+            "has3d": bool(model_file(entry)), "waits3d": entry.kind in WEB_COPY_KINDS and not model_file(entry),
+            "refine": entry.refine_options, "asked": asked.get(entry.address)}
+
+
+def folder_entries(shown, node, place="", entry_state="", words=""):
+    """The entries of one folder (the whole library for none) that pass the filters; None for an unknown folder."""
+    members = shown.folders()["members"].get(node) if node else shown.entries()
+    return None if members is None else lib.filtered(members, place=place, state=entry_state, words=words)
+
+
+def folder_list(shown, node, filters):
+    """A folder's rows, sorted and narrowed to a score band, with how many each band holds; None for no folder."""
+    found = folder_entries(shown, node, filters["place"], filters["state"], filters["q"])
+    if found is None:
+        return None
+    counts = band_counts(found)
+    if filters["band"] in (*BANDS, "none"):
+        found = [entry for entry in found if in_band(entry, filters["band"])]
+    asked = library_actions.waiting()
+    sort = filters["sort"] if filters["sort"] in SORTS else "name"
+    return {"node": node, "count": len(found), "bands": counts, "sort": sort,
+            "entries": [row(entry, asked) for entry in sorted_by(found, sort)]}
+
+
+# --- one entry -------------------------------------------------------------------------------------------------
 
 def step_link(node):
     """{label, url} of the step that made an entry, the url only when the cockpit holds that step."""
@@ -106,19 +123,70 @@ def place_link(place):
     return {"label": place.replace("_", " "), "url": f"/place/{place}/" if place in state.source().places() else None}
 
 
-def three_d(entry):
-    """Where the entry opens in 3D: a place's own web copy, or the entry's GLB here; None when it cannot."""
+def model_file(entry):
+    """The GLB the viewer opens for an entry: its web copy, else its own GLB, when this cockpit holds it."""
+    shown = lib.library()
+    return next((each for each in (entry.web3d, entry.glb) if each and shown.file_path(each.sha)), None)
+
+
+def place_copy(entry):
+    """A place entry's own 3D web copy in the cockpit's viewer, or None."""
     source = state.source()
     if entry.kind == "place" and entry.entry_id in source.places() and source.web3d(entry.entry_id):
         return f"/view/{entry.entry_id}"
-    if entry.glb and lib.library().file_path(entry.glb.sha):
-        return lib.entry_url(entry) + "3d/"
     return None
 
 
+def three_d(entry):
+    """What the entry's 3D view opens: its GLB, a surface's finish, a place's copy; or that a copy is on its way."""
+    found = model_file(entry)
+    if found:
+        return {"model": f"/library-files/files/{found.sha}", "bytes": found.bytes,
+                "web_copy": found is entry.web3d, "full": lib.viewer_url(entry)}
+    if entry.kind == "surface" and entry.finish and "colour" in entry.finish:
+        printed = entry.finish.get("print")
+        shown_print = printed and lib.library().file_path(printed["sha"])
+        return {"finish": {name: value for name, value in entry.finish.items() if name != "print"},
+                "print": f"/library-files/files/{printed['sha']}" if shown_print else None}
+    if place_copy(entry):
+        return {"place": place_copy(entry)}
+    return {"waiting": True} if entry.kind in WEB_COPY_KINDS else None
+
+
 def requirement_links(entry, shown):
-    return [{"address": address, "url": lib.entry_url(shown.entry(address)) if shown.entry(address) else None,
-             "title": shown.entry(address).title if shown.entry(address) else address} for address in entry.requires]
+    return [{"address": address, "title": shown.entry(address).title if shown.entry(address) else address,
+             "known": shown.entry(address) is not None} for address in entry.requires]
+
+
+def versions_of(entry, shown):
+    return [{"address": other.address, "version": other.version, "state": other.state}
+            for other in shown.entries() if other.kind == entry.kind and other.entry_id == entry.entry_id]
+
+
+def takes_of(entry, shown):
+    return [{"name": take.name.rsplit("/", 1)[-1], "url": f"/library-files/files/{take.sha}"}
+            for take in entry.takes if shown.file_path(take.sha)]
+
+
+def quality_of(entry):
+    """The entry's score, its parts (each as a percent) and its refine options."""
+    return {"score": lib.percent(entry.score), "refine": entry.refine_options,
+            "parts": [{"name": part["name"].replace("_", " "), "score": lib.percent(part["value"]), "how": part["how"]}
+                      for part in entry.score_parts]}
+
+
+def entry_detail(shown, entry):
+    """Everything the explorer's entry panel shows."""
+    return {"address": entry.address, "title": entry.title, "kind": entry.kind,
+            "kind_label": lib.kind_label(entry.kind), "state": entry.state, "locked": entry.locked,
+            "sentence": lib.sentence(entry),
+            "picture": f"/library-files/pictures/{entry.picture}.jpg" if entry.picture else None,
+            "three_d": three_d(entry), "takes": takes_of(entry, shown), "world": entry.world,
+            "place": place_link(entry.place), "step": step_link(entry.node), "source": entry.source,
+            "seen_in": [place_link(place) for place in entry.seen_in], "requires": requirement_links(entry, shown),
+            "versions": versions_of(entry, shown), "quality": quality_of(entry),
+            "asked": library_actions.waiting().get(entry.address),
+            "ids": {"node": entry.node, "commit": entry.commit, "tags": entry.tags}}
 
 
 def found_entry(kind, entry_id, version):
@@ -129,40 +197,33 @@ def found_entry(kind, entry_id, version):
     return shown, entry
 
 
-def entry_page(request, kind, entry_id, version):
-    shown, entry = found_entry(kind, entry_id, version)
-    others = [other for other in shown.entries() if other.kind == kind and other.entry_id == entry_id]
-    return render(request, "pages/library_entry.html", {
-        "entry": entry, "sentence": lib.sentence(entry), "kind_label": lib.kind_label(kind),
-        "picture": f"/library-files/pictures/{entry.picture}.jpg" if entry.picture else None,
-        "takes": [{"name": take.name.rsplit("/", 1)[-1], "url": f"/library-files/files/{take.sha}"}
-                  for take in entry.takes if shown.file_path(take.sha)],
-        "open3d": three_d(entry), "step": step_link(entry.node), "place": place_link(entry.place),
-        "seen_in": [place_link(place) for place in entry.seen_in], "requires": requirement_links(entry, shown),
-        "versions": [{"version": other.version, "state": other.state, "url": lib.entry_url(other)} for other in others],
-        "asked": library_actions.waiting().get(entry.address), "back": request.get_full_path()})
-
-
 def entry_viewer(request, kind, entry_id, version):
-    """An entry's GLB in the cockpit's 3D viewer."""
-    shown, entry = found_entry(kind, entry_id, version)
-    if not entry.glb or not shown.file_path(entry.glb.sha):
+    """An entry's GLB full screen in the cockpit's 3D viewer, with its measuring tools."""
+    _, entry = found_entry(kind, entry_id, version)
+    found = model_file(entry)
+    if found is None:
         raise Http404("this entry has no 3D file here")
-    return render(request, "pages/library_view3d.html", {"entry": entry, "viewer": {
-        "place": entry.glb.sha, "base": "/library-files/view/", "layers": {}, "order": []}})
+    return render(request, "pages/library_view3d.html", {"entry": entry, "bytes": found.bytes, "back": quote(
+        entry.address), "viewer": {"place": found.sha, "base": "/library-files/view/", "layers": {}, "order": []}})
 
 
-@require_POST
-def ask(request):
-    """The owner's lock or withdraw of the chosen entries."""
-    if not is_owner(request.user):
-        return HttpResponseForbidden("only the owner locks or withdraws library entries")
-    said = library_actions.ask(request.user.username, request.POST.get("action", ""),
-                               request.POST.getlist("address"), actions.hosted())
-    (messages.error if said.startswith(("refused", "nothing")) else messages.success)(request, said)
-    back = request.POST.get("back", "")
-    return redirect(back if back.startswith("/library/") and not back.startswith("//") else "/library/")
+# --- the basket's refine items --------------------------------------------------------------------------------
 
+def refine_cards(items):
+    """The basket's refine items with each entry's picture and name, and the option in words."""
+    shown = lib.library()
+    cards = []
+    for item in items:
+        found = shown.entry(item.address) if shown else None
+        options = {choice["id"]: choice["label"] for choice in (found.refine_options if found else [])}
+        cards.append({"pk": item.pk, "address": item.address, "title": found.title if found else item.address,
+                      "thumb": thumb_url(found) if found else None, "url": lib.entry_url(found) if found else None,
+                      "option": options.get(item.option, item.option) or "as its scoring suggests",
+                      "score": lib.percent(found.score) if found else None})
+    return cards
+
+
+# --- the place page's strip ------------------------------------------------------------------------------------
 
 def strip_of(place):
     """The place page's "In the library" strip: its entries' first tiles and how many there are, or None."""
@@ -174,5 +235,5 @@ def strip_of(place):
         return None
     counts = [(kind, sum(1 for entry in found if entry.kind == kind)) for kind, _ in lib.KINDS]
     return {"total": len(found), "kinds": [lib.counted_kind(kind, count) for kind, count in counts if count],
-            "tiles": [tile(entry, {}) for entry in lib.kinds_mixed(found)[:STRIP_SHOWN]],
+            "tiles": [tile(entry) for entry in lib.kinds_mixed(found)[:STRIP_SHOWN]],
             "url": f"/library/?place={place}"}

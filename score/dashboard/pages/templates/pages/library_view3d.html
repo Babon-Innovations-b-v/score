@@ -16,9 +16,9 @@
 </head>
 <body class="view3d">
 <aside class="view3d-panel">
-  <p class="small"><a href="/library/">Library</a> / <a href="/library/{{ entry.kind }}/{{ entry.entry_id }}/{{ entry.version }}/">{{ entry.title }}</a> / 3D</p>
+  <p class="small"><a href="/library/">Library</a> / <a href="/library/?entry={{ back }}">{{ entry.title }}</a> / 3D</p>
   <h1>{{ entry.title }} in 3D</h1>
-  <p id="status" class="small" role="status">Loading {{ entry.glb.bytes|filesizeformat }}...</p>
+  <p id="status" class="small" role="status">Loading {{ bytes|filesizeformat }}...</p>
 
   <h2>Move</h2>
   <label><input type="radio" name="move" value="orbit" checked> Orbit: drag, wheel</label>

@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 from score.dashboard import state
 from score.dashboard.launch import guard
 from score.dashboard.pages import actions, library, present, seen
-from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, SyncRequest, is_owner
+from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.state import costs, groups
 from score.dashboard.state import money as month_money
 
@@ -26,7 +26,12 @@ def everywhere(request):
             "export_age": source.age_words() if hasattr(source, "age_words") else None,
             "owner": is_owner(request.user), "decisions_on": actions.decisions_on(),
             "decisions_off_why": actions.decisions_off_why(), "proxy_mode": settings.SCORE_PROXY_MODE,
-            "basket_count": BasketItem.objects.count() if request.user.is_authenticated else 0}
+            "basket_count": basket_count() if request.user.is_authenticated else 0}
+
+
+def basket_count():
+    """What the basket holds: steps queued by hand and library entries to refine."""
+    return BasketItem.objects.count() + RefineItem.objects.count()
 
 
 def money_bar(spent, reserved, likely, high, ceiling):
@@ -207,7 +212,8 @@ def basket(request):
     chosen = present.basket_of(present.changes(source))
     return render(request, "pages/basket.html", {
         "chosen": chosen, "money": present.money(month_money.view(actions.spend()), None),
-        "items": actions.basket_cards(items), "plan": plan, "plan_current": bool(plan and plan.basket_hash == current),
+        "items": actions.basket_cards(items), "refine": library.refine_cards(RefineItem.objects.all()),
+        "plan": plan, "plan_current": bool(plan and plan.basket_hash == current),
         "bar": money_bar(money.get("spent"), money.get("reserved"), money.get("likely"), money.get("high"),
                          money.get("ceiling")),
         "likely_time": costs.hours(body.get("time", {}).get("likely_minutes")),
@@ -223,6 +229,8 @@ def basket_change(request):
     what = request.POST.get("what")
     if what == "remove":
         BasketItem.objects.filter(pk=request.POST.get("item")).delete()
+    elif what == "remove_refine":
+        RefineItem.objects.filter(pk=request.POST.get("item")).delete()
     elif what == "empty":
         BasketItem.objects.all().delete()
     elif what == "plan":

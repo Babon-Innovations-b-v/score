@@ -1,7 +1,8 @@
-"""The Library pages read a tiny library folder (entries, an index, a blob folder): the grid by kind with its filters,
-an entry's page (where it came from, its takes, its 3D view), the place page's strip, the owner's lock and withdraw
-(queued when hosted, applied with the library's own command, committed and pushed, refused for anyone else and in an
-agent's process), and the library in the state export, read back by a hosted cockpit."""
+"""The Library explorer reads a tiny library folder (entries, an index, a blob folder): one page with the tree of kinds
+and categories, a folder's entries sorted and banded by score, an entry with its 3D view first (its web copy, a
+surface's finish, or "on its way"), the place page's strip, the owner's lock and withdraw (queued when hosted, applied
+with the library's own command, committed and pushed, refused for anyone else and in an agent's process), refine items
+into the basket, and the library in the state export, read back by a hosted cockpit."""
 import hashlib
 import json
 import struct
@@ -14,13 +15,21 @@ from django.test import Client, override_settings
 from fastapi.testclient import TestClient
 
 from score.dashboard.pages import actions, library_actions
-from score.dashboard.pages.models import SyncRequest
+from score.dashboard.pages.models import RefineItem, SyncRequest
 from score.dashboard.state import library as lib
+from score.dashboard.state.library_tree import folders
 from score.dashboard.state.models import Spend
 from score.dashboard.sync import applying, building
 from score.dashboard.tests import fixture
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(transaction=True)
+ORIGIN = "http://127.0.0.1:8780"
+MATERIAL = b"""#usda 1.0
+def Material "steel" { def Shader "surface" {
+    color3f inputs:diffuseColor = (0.5, 0.25, 0.125)
+    float inputs:metallic = 1
+    float inputs:roughness = 0.35
+} }"""
 MADE = "2026-10-18T12:00:00+00:00"
 # The library's own lock and withdraw, as small as the test needs: the entry's state, and the index rewritten.
 FAKE_COMMAND = """
@@ -79,8 +88,16 @@ def entry(root, blobs, kind, entry_id, state="draft", place="alpha", node="close
 def shelf(tmp_path):
     """A tiny library in a git folder with a bare remote, and its blob folder."""
     root, blobs = tmp_path / "lib", tmp_path / "blobs"
-    entry(root, blobs, "model", "lamp_post.alpha")
-    entry(root, blobs, "model", "crate", state="locked", place="beta", node="assembly@beta")
+    entry(root, blobs, "model", "lamp_post.alpha", files={"web/lamp_post.glb": ("web3d", glb())},
+          web3d={"file": "web/lamp_post.glb"}, score=42, score_parts=[{"name": "shape", "value": 30, "how": "edges"},
+                                             {"name": "likeness", "value": None, "how": "needs a paid judge"}],
+          refine_options=["remesh", {"id": "repaint", "label": "paint it again"}])
+    entry(root, blobs, "model", "crate", state="locked", place="beta", node="assembly@beta", score=0.91,
+          score_parts={"finish": 0.6})
+    entry(root, blobs, "model", "wrench", tags={"model": ["prop"]})
+    entry(root, blobs, "surface", "brushed_steel.alpha", node=None,
+          tags={"family": ["steel"], "recipe": ["bare_metal"]},
+          files={"material.usda": ("usd", MATERIAL)})
     entry(root, blobs, "sound", "hum.alpha", files={"audio/hum_1.ogg": ("audio", b"OggS one"),
                                                    "audio/hum_2.ogg": ("audio", b"OggS two")})
     entry(root, blobs, "character", "walker", place=None, node="people-walker",
@@ -111,64 +128,113 @@ def signed_in(name="joey"):
     return client
 
 
-def files_client():
+def api(name="joey"):
+    """A FastAPI test client with a signed-in session and its CSRF cookie and header (the page's own fetch)."""
     from score.dashboard.site.asgi import app
-    client = TestClient(app, base_url="http://127.0.0.1:8780", client=("127.0.0.1", 50000))
-    for cookie in signed_in().cookies.values():
+    pages = signed_in(name)
+    pages.get("/library/")  # sets the csrftoken cookie
+    client = TestClient(app, base_url=ORIGIN, client=("127.0.0.1", 50000))
+    for cookie in pages.cookies.values():
         client.cookies.set(cookie.key, cookie.value)
+    client.headers.update({"X-CSRFToken": pages.cookies["csrftoken"].value, "Origin": ORIGIN})
     return client
 
 
-def test_the_grid_shows_every_kind_with_pictures_and_one_mit_note(world, shelf):
+def node_of(tree, node_id):
+    """A tree node by id, searched depth first."""
+    for node in tree:
+        if node["id"] == node_id:
+            return node
+        found = node_of(node["children"], node_id)
+        if found:
+            return found
+    return None
+
+
+def test_the_explorer_is_one_page_with_its_three_panes_and_one_mit_note(world, shelf):
     html = signed_in().get("/library/").content.decode()
-    for label in ("Models", "Sound", "Characters", "Places"):
-        assert f"<h2>{label}</h2>" in html
-    assert html.count("/library-files/thumbs/") == 5
-    assert html.count(">MIT<") == 1 and "commercial" not in html.lower() and "licence" not in html.lower().replace(
-        'class="licence-note"', "")
-    assert 'name="address"' in html and 'value="lock"' in html  # the owner's choice and buttons
+    for pane in ('id="lib-tree"', 'id="lib-grid"', 'id="lib-entry"', '"importmap"', "/static/pages/library.js"):
+        assert pane in html
+    assert html.count(">MIT<") == 1 and "commercial" not in html.lower()
+    assert "7 entries, 1 locked" in html
 
 
-def test_the_filters_narrow_the_grid(world, shelf):
-    client = signed_in()
-    assert client.get("/library/?kind=model").content.decode().count("/library-files/thumbs/") == 2
-    assert client.get("/library/?place=beta").content.decode().count("/library-files/thumbs/") == 1
-    assert client.get("/library/?state=locked").content.decode().count("/library-files/thumbs/") == 1
-    assert client.get("/library/?q=lamp").content.decode().count("/library-files/thumbs/") == 1
-    assert "Nothing matches" in client.get("/library/?q=nothing+like+it").content.decode()
+def test_the_tree_holds_each_kind_and_its_categories_with_counts(world, shelf):
+    found = api().get("/api/library/tree").json()
+    assert [node["label"] for node in found["tree"]] == ["Models", "Surfaces", "Sound", "Characters", "Places"]
+    models = node_of(found["tree"], "model")
+    assert models["count"] == 3 and [(node["label"], node["count"]) for node in models["children"]] == [
+        ("Pieces", 2), ("Props", 1)]
+    assert found["owner"] is True and found["places"] == ["alpha", "beta"] and found["total"] == 7
 
 
-def test_a_visitor_has_no_owner_buttons(world, shelf):
-    html = signed_in("guest").get("/library/").content.decode()
-    assert 'name="address"' not in html and 'value="lock"' not in html
-    assert signed_in("guest2").post("/library/ask/", {"action": "lock", "address": "model/lamp_post.alpha@1"}
-                                    ).status_code == 403
+def named(count, stem, place="alpha"):
+    return [lib.LibraryEntry(address=f"model/{stem}_{rank}.{place}@1", kind="model", entry_id=f"{stem}_{rank}.{place}",
+                             version=1, title=stem, state="draft", place=place, tags={"model": ["piece"]})
+            for rank in range(count)]
 
 
-def test_an_entry_page_says_what_it_is_and_where_it_came_from(world, shelf):
-    html = signed_in().get("/library/model/lamp_post.alpha/1/").content.decode()
-    assert "A model, made for alpha." in html
-    assert 'href="/place/alpha/step/closeup/"' in html and 'href="/place/alpha/"' in html and "world1" in html
-    assert "/library-files/pictures/" in html and "Lock: approve as final" in html
-    assert "licence" not in html.lower() and "MIT" not in html
+def test_a_large_folder_is_split_by_name_words_then_by_place_and_small_groups_go_to_other():
+    entries = [*named(30, "wall_upper_plain"), *named(20, "wall_upper_plain", "beta"), *named(4, "wall_lower"),
+               *named(1, "lamp"), *named(1, "crate")]
+    made = folders(entries)
+    wall = node_of(made["tree"], "model/wall")
+    assert [child["id"] for child in wall["children"]] == ["model/wall/wall_lower", "model/wall/wall_upper"]
+    upper = node_of(made["tree"], "model/wall/wall_upper")
+    assert [(child["label"], child["count"]) for child in upper["children"]] == [("from alpha", 30), ("from beta", 20)]
+    assert node_of(made["tree"], "model/other")["count"] == 2
+    assert len(made["members"]["model/wall/wall_upper/@beta"]) == 20
 
 
-def test_a_sound_plays_and_a_model_with_a_glb_opens_in_3d(world, shelf):
-    client = signed_in()
-    sound = client.get("/library/sound/hum.alpha/1/").content.decode()
-    assert sound.count("<audio") == 2 and "/library-files/files/" in sound
-    walker = client.get("/library/character/walker/1/").content.decode()
-    assert 'href="/library/character/walker/1/3d/"' in walker
-    viewer = client.get("/library/character/walker/1/3d/").content.decode()
-    assert '"base": "/library-files/view/"' in viewer
-    place = client.get("/library/place/alpha/1/").content.decode()
-    assert "Lamp post" in place  # what it needs, by name
-    assert client.get("/library/model/crate/1/3d/").status_code == 404
+def test_a_folder_lists_its_entries_sorted_and_banded_by_score(world, shelf):
+    client = api()
+    pieces = client.get("/api/library/list", params={"node": "model/piece", "sort": "score_low"}).json()
+    assert [row["title"] for row in pieces["entries"]] == ["Lamp post", "Crate"]
+    assert [row["score"] for row in pieces["entries"]] == [42, 91]
+    assert pieces["bands"] == {"low": 1, "mid": 0, "high": 1, "none": 0}
+    best = client.get("/api/library/list", params={"node": "model", "sort": "score_high"}).json()
+    assert [row["title"] for row in best["entries"]] == ["Crate", "Lamp post", "Wrench"]  # the unscored last
+    assert [row["title"] for row in client.get("/api/library/list", params={"node": "model", "band": "none"}
+                                               ).json()["entries"]] == ["Wrench"]
+    assert client.get("/api/library/list", params={"q": "lamp"}).json()["count"] == 1
+    assert client.get("/api/library/list", params={"node": "model", "place": "beta"}).json()["count"] == 1
+    assert client.get("/api/library/list", params={"node": "nowhere"}).status_code == 404
 
 
-@pytest.mark.django_db(transaction=True)
-def test_the_file_routes_serve_only_listed_files(world, shelf):
-    web = files_client()
+def test_an_entry_opens_on_its_web_copy_or_says_the_copy_is_on_its_way(world, shelf):
+    client = api()
+    lamp = client.get("/api/library/entry", params={"address": "model/lamp_post.alpha@1"}).json()
+    copy = lib.library().entry("model/lamp_post.alpha@1").web3d
+    assert lamp["three_d"]["model"] == f"/library-files/files/{copy.sha}" and lamp["three_d"]["web_copy"] is True
+    assert lamp["quality"] == {"score": 42, "parts": [{"name": "shape", "score": 30, "how": "edges"},
+                                                      {"name": "likeness", "score": None, "how": "needs a paid judge"}],
+                               "refine": [{"id": "remesh", "label": "remesh"},
+                                          {"id": "repaint", "label": "paint it again"}]}
+    assert client.get(lamp["three_d"]["model"]).headers["content-type"] == "model/gltf-binary"
+    crate = client.get("/api/library/entry", params={"address": "model/crate@1"}).json()
+    assert crate["three_d"] == {"waiting": True}
+    assert crate["quality"]["score"] == 91 and crate["quality"]["parts"] == [{"name": "finish", "score": 60, "how": ""}]
+    rows = {row["title"]: row for row in client.get("/api/library/list", params={"node": "model"}).json()["entries"]}
+    assert rows["Lamp post"]["has3d"] and rows["Crate"]["waits3d"] and not rows["Crate"]["has3d"]
+    walker = client.get("/api/library/entry", params={"address": "character/walker@1"}).json()
+    assert walker["three_d"]["web_copy"] is False and walker["three_d"]["full"] == "/library/character/walker/1/3d/"
+
+
+def test_a_surface_shows_its_own_finish_and_a_sound_its_takes(world, shelf):
+    client = api()
+    steel = client.get("/api/library/entry", params={"address": "surface/brushed_steel.alpha@1"}).json()
+    assert steel["three_d"] == {"finish": {"colour": [0.5, 0.25, 0.125], "metallic": 1.0, "roughness": 0.35},
+                                "print": None}
+    hum = client.get("/api/library/entry", params={"address": "sound/hum.alpha@1"}).json()
+    assert len(hum["takes"]) == 2 and hum["three_d"] is None
+    place = client.get("/api/library/entry", params={"address": "place/alpha@1"}).json()
+    assert place["requires"] == [{"address": "model/lamp_post.alpha@1", "title": "Lamp post", "known": True}]
+    assert place["step"] == {"label": "assembly", "url": "/place/alpha/step/assembly/"}
+    assert client.get("/api/library/entry", params={"address": "model/nothing@1"}).status_code == 404
+
+
+def test_the_full_screen_viewer_and_the_file_routes_serve_only_listed_files(world, shelf):
+    web = api()
     found = lib.library().entry("character/walker@1")
     assert web.get(f"/library-files/thumbs/{found.picture}.jpg").headers["content-type"] == "image/jpeg"
     assert web.get(f"/library-files/view/{found.glb.sha}.json").json()["triangles"] == 1
@@ -176,23 +242,45 @@ def test_the_file_routes_serve_only_listed_files(world, shelf):
     assert web.get(f"/library-files/view/{found.glb.sha}-light.glb").status_code == 404
     assert web.get(f"/library-files/files/{'0' * 64}").status_code == 404
     assert web.get(f"/library-files/thumbs/{'0' * 64}.jpg").headers["content-type"].startswith("image/svg")
+    viewer = signed_in("guest").get("/library/model/lamp_post.alpha/1/3d/").content.decode()
+    assert '"base": "/library-files/view/"' in viewer
+    assert lib.library().entry("model/lamp_post.alpha@1").web3d.sha in viewer
+    assert signed_in("guest2").get("/library/model/crate/1/3d/").status_code == 404
+
+
+def test_the_owner_adds_refine_items_to_the_basket_and_a_visitor_cannot(world, shelf):
+    client = api()
+    said = client.post("/api/library/refine", json={"addresses": ["model/lamp_post.alpha@1", "model/crate@1"]}).json()
+    assert said["added"] == 2 and said["in_basket"] == 2
+    assert client.post("/api/library/refine", json={"addresses": ["model/lamp_post.alpha@1"], "option": "repaint"}
+                       ).json()["added"] == 1
+    refused = client.post("/api/library/refine", json={"addresses": ["model/crate@1"], "option": "repaint"})
+    assert refused.status_code == 400 and "no refine option" in refused.json()["detail"]
+    assert client.post("/api/library/refine", json={"addresses": ["model/crate@1"]}).json()["added"] == 0  # already in
+    assert sorted(RefineItem.objects.values_list("address", "option")) == [
+        ("model/crate@1", ""), ("model/lamp_post.alpha@1", ""), ("model/lamp_post.alpha@1", "repaint")]
+    basket = signed_in("joey2").get("/basket/").content.decode()
+    assert "Library entries to refine" in basket and "paint it again" in basket and "Not priced yet" in basket
+    assert api("guest").post("/api/library/refine", json={"addresses": ["model/crate@1"]}).status_code == 403
 
 
 def test_the_place_page_shows_its_library_strip(world, shelf):
     html = signed_in().get("/place/alpha/").content.decode()
     assert "In the library" in html and 'href="/library/?place=alpha"' in html
-    assert html.count("/library-files/thumbs/") == 3  # the lamp post, the hum and the place itself
+    assert html.count("/library-files/thumbs/") == 5  # the lamp post, the wrench, the steel, the hum and the place
+    assert 'href="/library/?entry=model/lamp_post.alpha%401"' in html
 
 
 def test_the_owner_locks_a_selection_committed_and_pushed(world, shelf):
-    client = signed_in()
-    answer = client.post("/library/ask/", {"action": "lock", "address": ["model/lamp_post.alpha@1", "sound/hum.alpha@1"],
-                                           "back": "/library/?kind=model"}, follow=True)
-    assert "locked 2 entries" in answer.content.decode()
+    answer = api().post("/api/library/ask", json={"action": "lock",
+                                                  "addresses": ["model/lamp_post.alpha@1", "sound/hum.alpha@1"]})
+    assert "locked 2 entries" in answer.json()["said"]
     assert lib.library().entry("model/lamp_post.alpha@1").state == "locked"
     remote = subprocess.run(["git", "-C", str(shelf.parent / "remote.git"), "log", "-1", "--format=%s"],
                             capture_output=True, text=True).stdout
     assert remote.startswith("lock: 2 entries, the owner's decision on the cockpit")
+    assert api("guest").post("/api/library/ask", json={"action": "lock", "addresses": ["model/crate@1"]}
+                             ).status_code == 403
 
 
 def test_a_lock_of_a_locked_entry_or_by_an_agent_is_refused(world, shelf, monkeypatch):
@@ -216,18 +304,24 @@ def test_hosted_a_lock_is_queued_and_applied_by_the_owners_sync_only(world, shel
     assert lib.library().entry("model/crate@1").state == "withdrawn"
 
 
-def test_the_export_carries_the_library_to_a_hosted_cockpit(world, shelf, tmp_path):
+def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(world, shelf, tmp_path):
     spend = Spend(spent=1.0, reserved=0.0, ceiling=250.0)
     first = building.build(world.source, tmp_path / "home/export/one", MADE, 50, spend, world.root)
     again = building.build(world.source, tmp_path / "home/export/two", MADE, 50, spend, world.root)
     assert first["written"] == again["written"] and "library/entries.json" in first["written"]
     pictures = {entry.picture for entry in lib.library().entries()}
     assert all(f"files/{sha}-360.jpg" in first["written"] for sha in pictures)
-    assert sum(path.startswith("library/files/") for path in first["written"]) == 2  # the two takes
+    assert sum(path.startswith("library/files/") for path in first["written"]) == 3  # the two takes, the web copy
     (tmp_path / "home/export/current").symlink_to("one")
     with override_settings(SCORE_MODE="hosted", SCORE_HOME=tmp_path / "home", SCORE_LIB_ROOT=None):
         hosted = lib.library()
-        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 5
+        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 7
         assert hosted.picture_path(next(iter(pictures)), 360) is not None
-        html = signed_in().get("/library/sound/hum.alpha/1/").content.decode()
-        assert html.count("<audio") == 2 and "3d/" not in html
+        client = api("joey3")
+        assert len(client.get("/api/library/entry", params={"address": "sound/hum.alpha@1"}).json()["takes"]) == 2
+        lamp = client.get("/api/library/entry", params={"address": "model/lamp_post.alpha@1"}).json()
+        assert lamp["three_d"]["web_copy"] is True and client.get(lamp["three_d"]["model"]).status_code == 200
+        steel = client.get("/api/library/entry", params={"address": "surface/brushed_steel.alpha@1"}).json()
+        assert steel["three_d"]["finish"]["metallic"] == 1.0
+        assert client.get("/api/library/entry", params={"address": "character/walker@1"}).json()["three_d"] == {
+            "waiting": True}  # its raw GLB is not sent
