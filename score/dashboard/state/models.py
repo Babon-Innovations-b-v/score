@@ -213,6 +213,16 @@ class StoppedStep(BaseModel):
     picture_is: str = ""
 
 
+class CheckFinding(BaseModel):
+    """What a standalone check (one not a gate of any step: the library check, score/stages/complete/library) found
+    in a place, with its picture."""
+    check: str
+    rule: str
+    prim: str | None = None
+    sentence: str
+    picture: FileRef | None = None
+
+
 class PlaceDetail(BaseModel):
     place: str
     status: str
@@ -223,6 +233,7 @@ class PlaceDetail(BaseModel):
     layers: list[LayerGroup] = []
     faults: list[StoppedStep] = []
     gaps: list[NamedGap] = []
+    checks: list[CheckFinding] = []  # the standalone checks' findings on the outputs they judged
     concept: FileRef | None = None
     skipped: list[str] = []  # loud: steps of the chain not done for this place, and named gaps
     film_fps: float = 24.0

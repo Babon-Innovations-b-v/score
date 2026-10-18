@@ -15,15 +15,18 @@ from score import review, stages
 from score.dashboard.state import gaps as named, groups, plain
 from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
 from score.dashboard.state.index import Fresh, answer_keys
-from score.dashboard.state.models import (EngineGroup, GateCounts, GateVerdict, InputPicture, LayerGroup,
-                                          PlaceCard, PlaceDetail, Spend, StepCard, StepDetail, StoppedStep, StyleGroup,
-                                          Taken, UsdIndex, UsdLayer, WorldState)
+from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, InputPicture,
+                                          LayerGroup, PlaceCard, PlaceDetail, Spend, StepCard, StepDetail,
+                                          StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
 from score.store import Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SUBLAYER = re.compile(r"@\./(layers/[^@]+)@")
 FPS = re.compile(r"framesPerSecond = ([0-9.]+)")
 LOG_LINES = 40
+# Where standalone checks write each place's findings, in the work folder: checks/<check>/<place>/findings.json
+# ({"outputs": {node: the output judged}, "findings": [{"rule", "prim", "sentence", "picture"}]}).
+CHECKS = "checks"
 HISTORY = 6
 # Which stage makes each sublayer of a place's OpenUSD stage (score/stages/assembly/record.py ORDER).
 LAYER_MAKERS = {"edit": None, "characters": "characters-layer", "sound": "sound", "light": "light",
@@ -410,6 +413,20 @@ class LocalSource:
         """The place's named gaps, each with its step and a picture of what it names (state/gaps.py)."""
         return self.remembered(("gaps", place), lambda: named.named_gaps(self, place))
 
+    def check_findings(self, place):
+        """Every standalone check's findings of the place, each with its picture; a check's are left out once an
+        output it judged is no longer the accepted one (it is run again on the new one)."""
+        found = []
+        for path in sorted((self.props_home / "work" / CHECKS).glob(f"*/{place}/findings.json")):
+            written, check = json.loads(path.read_text()), path.parts[-3]
+            if any(self.accepted_output(node) != output for node, output in written.get("outputs", {}).items()):
+                continue
+            found += [CheckFinding(check=check, rule=item["rule"], prim=item.get("prim"), sentence=item["sentence"],
+                                   picture=self.work_picture(f"WORK/{CHECKS}/{check}/{place}/{item['picture']}")
+                                   if item.get("picture") else None)
+                      for item in written.get("findings", [])]
+        return found
+
     def faults(self, place):
         """Each step of the place whose fault report is newer than its accept: its cause, in one plain sentence,
         its page and a picture of what it is about."""
@@ -478,7 +495,8 @@ class LocalSource:
         return PlaceDetail(place=place, status=self.place_status(place), look=look, hero=self.hero(place),
                            film=self.film(place), usd_index=self.usd_index(place),
                            layers=self.layer_groups(place, with_thumbs=True), faults=self.faults(place),
-                           gaps=self.gaps(place), concept=self.concept(place), skipped=self.skipped(place),
+                           gaps=self.gaps(place), checks=self.check_findings(place), concept=self.concept(place),
+                           skipped=self.skipped(place),
                            film_fps=self.film_fps(place), web3d=self.web3d(place))
 
     def reads_of(self, node):

@@ -196,3 +196,28 @@ def test_the_3d_viewer_loads_a_places_copy_with_its_layer_makers(world):
     assert "edit" in given["order"] and "edit" not in given["layers"]  # the owner's own edits: no step made them
     assert NODE.search(outside_details(html)) is None
     assert 'href="/view/alpha"' in client.get("/place/alpha/").content.decode()
+
+
+def a_check_finding(world, judged):
+    """The library check's findings.json for beta over the output `judged` of its assembly, with one marked picture."""
+    import json
+    from score.dashboard.tests import fixture
+    folder = world.root / "props/work/checks/library/beta"
+    (folder / "marks").mkdir(parents=True, exist_ok=True)
+    (folder / "marks/beta-0.png").write_bytes(fixture.picture((200, 60, 40)))
+    (folder / "findings.json").write_text(json.dumps({"place": "beta", "outputs": {"assembly@beta": judged},
+        "findings": [{"rule": "finish not from the library", "prim": "/beta/Objects/crate_1",
+                      "sentence": "3 models (crate) finish not from the library: a picture's own texture",
+                      "picture": "marks/beta-0.png"}]}))
+
+
+def test_the_place_page_lists_a_standalone_checks_findings_as_problems(world):
+    a_check_finding(world, world.outputs["assembly@beta"])
+    html = signed_in().get("/place/beta/").content.decode()
+    assert "3 models (crate) finish not from the library" in html and "library check" in html
+
+
+def test_a_check_finding_on_an_assembly_no_longer_accepted_is_not_listed(world):
+    a_check_finding(world, "0" * 64)
+    html = signed_in().get("/place/beta/").content.decode()
+    assert "finish not from the library" not in html

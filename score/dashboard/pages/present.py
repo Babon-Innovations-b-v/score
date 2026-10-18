@@ -223,10 +223,20 @@ def fault_problem(fault):
             "url": fault.step_url, "full": f"{fault.label}: {fault.why}"}
 
 
+def check_problem(finding):
+    """A standalone check's finding as one plain sentence and its picture: what it found, and the prim it is on."""
+    picture = finding.picture
+    return {"sentence": sentence(finding.sentence), "kind": f"{finding.check} check",
+            "name": picture.name if picture else NO_PICTURE, "picture": picture.thumb_url if picture else None,
+            "url": None, "full": f"{finding.rule}: {finding.prim}" if finding.prim else finding.rule}
+
+
 def problems(detail):
-    """Every stopped step and every named gap of a place: [{sentence, kind, picture, url, full}]."""
+    """Every stopped step, every named gap and every standalone check's finding of a place: [{sentence, kind,
+    picture, url, full}]."""
     return ([fault_problem(fault) for fault in detail.faults]
-            + [gap_problem(gap, detail.place) for gap in detail.gaps])
+            + [gap_problem(gap, detail.place) for gap in detail.gaps]
+            + [check_problem(finding) for finding in detail.checks])
 
 
 # --- changes to buy ----------------------------------------------------------------------------------------------

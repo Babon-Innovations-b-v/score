@@ -9,6 +9,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`state/`** where the pages read from. `local.py` reads the store beside it, read-only, through `index.py` (the
   small areas walked once with os.scandir, every folder store of that root answering `keys` from it, rebuilt when
   older than 60 s); `exported.py` reads a pushed state export; both give the pydantic models of `models.py`.
+  A place's problems are its stopped steps, its named gaps and every standalone check's findings
+  (`WORK/checks/<check>/<place>/findings.json`, `check_findings`, read while the outputs it judged stay accepted).
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` prices a plan from measured
   runs only; `gaps.py` gives each named gap its step and a picture of what it names (local source only), `plain.py`
   says each problem in one plain sentence.
