@@ -117,6 +117,18 @@ def test_a_prop_with_no_parts_stops_before_anything_is_paid():
     assert not ok and "names no parts" in why, why
     assert prop_makers.parts_named(PROPS[0]) == (True, "")
     assert prop_makers.parts_named(dict(PROPS[0], parts=None, keep=["bake"])) == (True, "")
+    assert prop_makers.parts_named(dict(PROPS[0], parts=None, body="ship-s1")) == (True, "")
+
+
+def test_a_bodied_prop_s_parts_are_written_before_its_bake_and_a_refusal_stops_it():
+    with tempfile.TemporaryDirectory() as temp:
+        folder = pathlib.Path(temp)
+        in_sandbox(folder)
+        bodied = dict(PROPS[0], parts=None, body="ship-s1")
+        assert prop_makers.parts_folder(bodied) == folder / "work/body-parts" / bodied["take"]
+        written = []
+        prop_makers.write_body_parts = lambda prop: (written.append(prop["name"]) or False, "lies 0.3 off")
+        assert prop_makers.check_parts(bodied) == (False, "lies 0.3 off") and written == [bodied["name"]]
 
 
 def test_run_is_refused_without_yes_after_its_price():
@@ -132,7 +144,7 @@ def test_run_is_refused_without_yes_after_its_price():
 
 
 if __name__ == "__main__":
-    for name, function in list(globals().items()):
-        if name.startswith("test_"):
-            function()
-    print("prop_makers: 5 checks passed")
+    checks = [function for name, function in list(globals().items()) if name.startswith("test_")]
+    for function in checks:
+        function()
+    print(f"prop_makers: {len(checks)} checks passed")
