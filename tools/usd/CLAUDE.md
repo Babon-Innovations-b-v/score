@@ -4,6 +4,13 @@ The framework's canonical scene: one OpenUSD stage per place (PRD #1, first task
 load. `export.py` is the way in (its docstring has the layout of a stage); `views.py` is the Blender adapter's check
 against the place's recorded game shots; the script Blender runs is `../blender/inside/usd_views.py`.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Two layers, one rule.** The base layer (`layers/base.usda`) and the assets are the framework's: rewritten whole
   on every export. The edit layer (`layers/edit.usda`) is the creator's: made empty once, never written by the
   framework again. Edits survive only because objects keep their names (`<row>_<n>`, the layout's order); never

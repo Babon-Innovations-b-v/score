@@ -85,7 +85,9 @@ stage as each stage is built; nothing moves before.
   `neighbours` (every shown place stands, resolves and has children). `complete` is the completion gate on what
   the place holds: `tools/usd/complete.py`'s own checks (all but resting, the assembly's gate) on the place's
   neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
-  (`stages/complete/complete_test.py` holds them equal). A ship place's assembly lays its made
+  (`stages/complete/complete_test.py` holds them equal). The library check (`stages/complete/library`, its overlay) is
+  not one of its gates: a standalone check of the accepted assembly against the library, its findings the cockpit's
+  problems. A ship place's assembly lays its made
   pieces on its kit-built base (`stages/assembly/ship_made.py`, in the table). `complete-boxes` (paid, the ship's
   places) measures the boxes no other row measures (code rows, rows taken from another place's take), so complete's
   box check has a verdict for each.
@@ -111,6 +113,13 @@ stage as each stage is built; nothing moves before.
 
 Rules:
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Agents never walk a line by hand.** Start it with `python -m score run <world> [--place P] --detach`: it
   returns at once with its log's path, and the run goes on in a session of its own until every line is done or
   stopped, then writes one result line (`detached: ok|failed exit=N ...`) as the log's last line. Wait for that line

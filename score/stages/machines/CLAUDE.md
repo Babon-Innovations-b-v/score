@@ -4,6 +4,13 @@ The machines stage (experimental, PRD #6): `machines-layer@<place>` lays each ma
 (the garage's rover today) in the place as `layers/machines.usda` plus its asset, which the assembly takes
 (`assembly.take_layer`). `__init__.py`'s docstring has the make and the gates.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Made models only.** A machine is a prop-route take the place's surface line paints and bakes (its take listed in
   `data/surfaces/<place>.json`, which this stage never edits: ask the overseer). Code lays it out: turned across or along
   its support, centred on it, let down onto the first thing under it. Never move a machine by hand to pass `resting`:

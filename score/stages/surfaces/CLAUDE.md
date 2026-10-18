@@ -4,6 +4,13 @@ The surface stage (R4, the paper's core contribution: shape and surface apart, e
 library), step 1 of PRD #6, as rows of world 1's stage table (`__init__.py`, `ROWS`). Bible: `architecture/components`
 and `architecture/experimental`; method: the paper's Methods, "Shape and surface apart".
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **One line per place, run by the runner**: `python -m score run world1 --place <place> --detach` (score's overlay:
   never walk the rows by hand). Every row is place grain (`surfaces-inputs@greenhouse` ... `surfaces-check@greenhouse`);
   no place waits on another.

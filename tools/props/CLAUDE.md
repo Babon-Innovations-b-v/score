@@ -4,6 +4,13 @@ The prop tool chain: a picture made from a sentence, a model made from the pictu
 that brings it into a place. The heavy runtime lives outside the repo, under `~/.farm-factory-props`
 (`paths.py` says where). Bible: `workflow/bootstrap` (the runtime); the checks a prop must pass are `gates/`.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **No model runs on this PC.** The owner, 2026-10-03: "My GPU is only for game tests; do all
   model stuff in batches in the cloud." The same day WSL died twice of running out of memory,
   six model processes of 6 to 7 GB loaded at once by three sessions. Every step that loads a

@@ -4,6 +4,13 @@ The theme's material library and the robust route's piece making (job robust-exp
 are kept apart: models and code give shape only; every part names a library variant, a ProcFunc recipe coloured
 from palette tokens, baked to the maps the game draws. Bible: `architecture/components`.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Experimental until the surface stage proves it** (docs/bible.md, `architecture/experimental`): everything in the
   painting after round four (the two-way split fit, round five's 3D split, paint by the model's own parts with
   `--face-parts` and `finish_masks.py`, the patchy rule), the surface check's dark rule (5c66c2e: a region the

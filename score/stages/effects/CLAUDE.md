@@ -4,6 +4,13 @@ The effects stage (the paper's Methods, "The canonical scene": effects; experime
 (`data/effects/<place>.json`) made into its OpenUSD effects layer by `tools/usd/effects.py`, which the assembly stage
 takes in place of the seed's. `__init__.py`'s docstring has the make and the gates; `look.py` the paid look.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Real footage first** (the owner's rule). An effect the game never drew is modelled on real footage: its record's
   `footage` block lists the sources (photographs, what was measured on each) and the checks, each a measure of the
   baked particles at a moment with the range read off the footage: the launch's after lift-off in the rocket's

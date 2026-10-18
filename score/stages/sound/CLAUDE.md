@@ -6,6 +6,13 @@ the place's sound layer data, `sound.json` and its files under `files/`, which t
 OpenUSD stage (`tools/usd/sound.py`'s layout). `__init__.py`'s docstring has the make and the gates; `gates.py` the
 gates; `takes.py` the paid part.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Every source has a sound.** A place's sources are its room tones, what the suit lets through, its `objects`
   (`data/sound/places.json`), its inventory rows' `sound`, its motions' `sounds` and the whole surface bank
   (`data/sound/surfaces.json`). A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its

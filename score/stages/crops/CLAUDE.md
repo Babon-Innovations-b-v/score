@@ -4,6 +4,13 @@ The crops stage (experimental, PRD #6, design D of 2026-10-12): the crop kinds a
 prop and grown on its beds as the concept grows them, as a layer of point instancers the assembly takes
 (its `LAYERS`). `__init__.py`'s docstring lists the rows; each module's docstring has its make and gates.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Measured on the concept, never by eye.** `crops-concept` asks SAM 3 for each kind's nouns on the concept's 2x
   tiles; the kinds and their nouns are world data (`data/crops/<place>.json`), in precedence order (a plant two
   kinds' nouns find is the earlier kind's). A kind SAM 3 cannot count is changed in the data with a written reason
