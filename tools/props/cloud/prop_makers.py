@@ -17,10 +17,12 @@ up there is measured (cloud overlay); the finish pick, a Google ask, sits betwee
 and a Pixal3D card is not parked for another kind (pixal is not in park.CLEANUPS). So each step is one warm batch for
 all its props, never one rent per place, and a bake card is parked for the next claim of its kind as park.py does.
 
-Limit, parts: the bake (make_chunky) bakes a prop's labelled parts folder (<library surface>.ply), which only the
-surface line's maps, SegviGen and paint make today, from the take they were made on. A re-made take needs its parts
-written again (a code body over the kept detail: route work, branch prop-route), so a prop names its `parts` folder
-and the first free check stops a prop that names none before anything is paid for it.
+Parts: the bake (make_chunky) bakes a prop's labelled parts folder (<library surface>.ply). A prop that names its
+`parts` bakes that folder. A bodied prop (`body`: its take in bodies.BODIES) has its re-made take's parts written,
+free, before its bake (../library/body_parts.py): each face of the new raw model takes the surface of the nearest face
+of the accepted take (the place's accepted surfaces-paint output), so the body brings its own parts from code and
+the kept details keep their finishes; the surface line's maps, SegviGen and paint are not made again. A prop with
+neither stops at the first free check before anything is paid for it.
 
 Checks, free, before each paid step: the box gate and the parts named (before the close-up), the close-up's measured
 shape check (before image-to-3d), the new raw model's proportions against the accepted take's (gates/model.py's
@@ -63,11 +65,38 @@ def bake_entry(prop):
     """(the place's bake job, the prop's make_chunky entry with its parts folder): the model the place's data bakes
     from the prop's take, by place_line.bake_entries."""
     import place_line
-    job, chunky = place_line.bake_entries(bake_inputs(prop["place"]),
-                                          {prop["name"]: prop_batch.resolved(prop.get("parts") or "")})
+    job, chunky = place_line.bake_entries(bake_inputs(prop["place"]), {prop["name"]: parts_folder(prop) or ""})
     if not chunky:
         raise KeyError(f"{prop['place']}'s surface data bakes no model from {prop['name']}")
     return job, chunky[0]
+
+
+def parts_folder(prop):
+    """The parts folder a prop's bake reads: its own `parts`, else a bodied prop's re-made take's written parts
+    (WORK/body-parts/<take>), else None."""
+    if prop.get("parts"):
+        return prop_batch.resolved(prop["parts"])
+    return WORK / "body-parts" / prop["take"] if prop.get("body") else None
+
+
+def accepted_labelled(prop):
+    """The accepted labelled take of a bodied prop: its place's accepted surfaces-paint output, checked out."""
+    from score.store import Store
+    store = Store.default()
+    return store.checkout(store.accepted(f"surfaces-paint@{prop['place']}")) / "labelled" / prop["body"]
+
+
+def write_body_parts(prop):
+    """A bodied prop's re-made take's parts (body_parts.write, free, no model loaded), at its bake entry's laid size
+    and turn; (ok, why)."""
+    import body_parts
+    _, entry = bake_entry(prop)
+    try:
+        body_parts.write(prop["take"], accepted_labelled(prop), prop["body"], entry["size"], entry["base"],
+                         parts_folder(prop))
+    except SystemExit as refusal:
+        return False, str(refusal)
+    return True, ""
 
 
 def take_made(take):
@@ -235,11 +264,11 @@ def makers_for(out, who):
 # --- the free checks -------------------------------------------------------------------------------------------------
 
 def parts_named(prop):
-    """(ok, why): a prop that makes the bake names the parts folder it bakes."""
-    if not prop_batch.makes_step(prop, prop_batch.STEPS[-1]) or prop.get("parts"):
+    """(ok, why): a prop that makes the bake names the parts folder it bakes, or the body its parts are written for."""
+    if not prop_batch.makes_step(prop, prop_batch.STEPS[-1]) or prop.get("parts") or prop.get("body"):
         return True, ""
-    return False, ("names no parts for its bake: a re-made take needs its parts written again (a code body over the "
-                   "kept detail, route work), or today's maps, SegviGen and paint")
+    return False, ("names no parts and no body for its bake: a re-made take needs a code body (bodies.BODIES) or "
+                   "today's maps, SegviGen and paint")
 
 
 def check_inputs(prop):
@@ -278,10 +307,15 @@ def check_raw_model(prop):
 
 
 def check_parts(prop):
-    """Before the bake: the parts folder holds parts, each a library surface the bake knows."""
+    """Before the bake: a bodied prop's parts written first (write_body_parts, free); then the parts folder holds
+    parts, each a library surface the bake knows."""
     import place_line
-    folder = prop_batch.resolved(prop.get("parts") or "")
-    if not prop.get("parts") or not list(folder.glob("*.ply")):
+    if prop.get("body") and not prop.get("parts"):
+        ok, why = write_body_parts(prop)
+        if not ok:
+            return False, why
+    folder = parts_folder(prop)
+    if folder is None or not list(folder.glob("*.ply")):
         return False, f"no parts at {folder}"
     data = json.loads(bake_inputs(prop["place"])["surfaces"].read_text())
     job, _ = bake_entry(prop)
