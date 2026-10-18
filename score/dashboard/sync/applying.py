@@ -1,7 +1,8 @@
 """The store's machine applies a hosted request locally: a change request into the inbox, the owner's decision
 through score.review.web.decide and the owner's advance into this machine's marks (each only when its user is the
 local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
-marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend."""
+marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
+owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py)."""
 import dataclasses
 
 from django.conf import settings
@@ -110,6 +111,21 @@ def apply_library(item):
     return Applied("refused" if said.startswith("refused") else "done", said)
 
 
+def apply_proposal(item):
+    """The owner's buy or not now of a fix branch, kept here and carried out into the checkout's basket."""
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    from score.dashboard.pages import changes
+    from score.dashboard.pages.models import ProposalChoice
+    payload = item["payload"]
+    if payload.get("choice") not in changes.CHOICES:
+        return Applied("refused", f"{payload.get('choice')!r} is neither buy nor not now")
+    ProposalChoice.objects.update_or_create(branch=payload["branch"], defaults={
+        "commit": payload["commit"], "choice": payload["choice"], "by": item["user"], "applied": ""})
+    said = changes.carried_out(payload["branch"], payload["commit"], payload["choice"])
+    return Applied("refused" if said.startswith("refused") else "done", said)
+
+
 def apply(item, source, chosen=None):
     """Apply one hosted request; Applied."""
     kind = item["kind"]
@@ -123,4 +139,6 @@ def apply(item, source, chosen=None):
         return apply_launch(item, source, chosen)
     if kind == "library":
         return apply_library(item)
+    if kind == "proposal":
+        return apply_proposal(item)
     return Applied("refused", f"unknown request kind {kind!r}")

@@ -7,6 +7,8 @@
                                _world.json the world's steps
     <out>/files/<sha>-1280.jpg hero pictures; <sha>-360.jpg thumbnails (newest 8 a node); <sha>.mp4 accepted films
     <out>/web3d/<place>/       each place's fresh 3D copy (web3d/convert.py): sidecar and preview, then the whole one
+    <out>/proposals/           every fix branch's proposal (proposals/exporting.py): records, stills and light copies
+                               right after the heroes, the whole 3D copies after the places' own
     <out>/library/            the creator's library when SCORE_LIB_ROOT is set (state/library.py): entries.json, a
                               sound's first takes in files/; its pictures go in <out>/files/ like the steps' (thumbnails
                               after the steps' own, large ones last), then its web 3D copies and prints in files/
@@ -28,6 +30,7 @@ import pathlib
 import shutil
 import subprocess
 
+from score.dashboard.proposals import exporting as proposals
 from score.dashboard.state import library, sliders, versions
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 from score.dashboard.state.models import PlaceDetail, StepDetail
@@ -212,6 +215,7 @@ def build(source, out, made_at, cap_mb, spend, repo):
         bundles.append(bundle)
     for hero in heroes(world):
         filler.picture(source.file(hero.sha)[1], hero.sha, HERO_SIDE, f"picture {hero.name}")
+    proposals.in_export(source.home / "proposals", filler, wholes=False)  # the basket's items, pictures and all
     for picture in place_pictures(bundles):
         filler.picture(source.file(picture["sha"])[1], picture["sha"], HERO_SIDE, f"picture {picture['name']}")
     for found in check_pictures(bundles):
@@ -235,6 +239,7 @@ def build(source, out, made_at, cap_mb, spend, repo):
         if found:
             filler.picture(found[1], picture["sha"], HERO_SIDE, f"{what}: {picture['name']} large")
     web3d_copies(source, filler, ("{place}.glb", "{place}-around.glb"))
+    proposals.in_export(source.home / "proposals", filler, wholes=True)
     library.export_pictures(shelf, shelved, filler, HERO_SIDE)
     library.export_three_d(shelf, shelved, filler)
     manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo), "format": versions.FORMAT,

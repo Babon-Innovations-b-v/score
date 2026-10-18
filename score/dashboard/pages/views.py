@@ -13,10 +13,13 @@ from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, breakdown, library, present, seen
-from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
+from score.dashboard.pages import actions, breakdown, changes, library, present, seen
+from score.dashboard.pages.models import (BasketItem, ChangeRequest, Launch, Plan, ProposalChoice, RefineItem,
+                                          SyncRequest, is_owner)
+from score.dashboard.proposals import records
 from score.dashboard.state import costs, groups, sliders
 from score.dashboard.state import money as month_money
+
 
 def everywhere(request):
     """What every page shows: the mode, when the store (or export) was read, and what this user may do."""
@@ -26,7 +29,14 @@ def everywhere(request):
             "export_age": source.age_words() if hasattr(source, "age_words") else None,
             "owner": is_owner(request.user), "decisions_on": actions.decisions_on(),
             "decisions_off_why": actions.decisions_off_why(), "proxy_mode": settings.SCORE_PROXY_MODE,
-            "basket_count": basket_count() if request.user.is_authenticated else 0}
+            "basket_count": basket_count() if request.user.is_authenticated else 0,
+            "changes_count": changes_count() if request.user.is_authenticated else 0}
+
+
+def changes_count():
+    """How many fixes wait on Changes to buy for the owner's answer."""
+    answered = set(ProposalChoice.objects.values_list("branch", flat=True))
+    return len({item["branch"] for item in records.listing(changes.proposals_root())} - answered)
 
 
 def basket_count():
@@ -292,8 +302,10 @@ def viewer(request, place):
     if place not in source.places():
         raise Http404(place)
     detail = source.place_detail(place)
-    proposed = next((item for item in present.changes(source, place) if item["web3d_base"]), None)
-    showing = "proposed" if proposed and request.GET.get("version") == "proposed" else "current"
+    proposed = branch_proposal(place, request.GET.get("proposal")) or next(
+        ({**item, "query": "version=proposed"} for item in present.changes(source, place) if item["web3d_base"]), None)
+    asked = request.GET.get("version") == "proposed" or bool(request.GET.get("proposal"))
+    showing = "proposed" if proposed and asked else "current"
     base = proposed["web3d_base"] if showing == "proposed" else f"/web/{place}/"
     only = only_layer(request.GET.get("only"), detail.usd_index.layers)
     film_view = detail.film_view if request.GET.get("at") == "film" else None
@@ -304,6 +316,18 @@ def viewer(request, place):
                                                             "order": [layer.name for layer in detail.usd_index.layers],
                                                             "only": [only, ONLY_WITH] if only else None,
                                                             "at": film_view}})
+
+
+def branch_proposal(place, branch):
+    """A fix branch's proposal for the place as the viewer's proposed version (Changes to buy's show in 3D), or None
+    when the branch has none with a 3D copy."""
+    if not branch or not records.NAME.match(branch):
+        return None
+    found = records.read(changes.proposals_root(), branch, place)
+    if not found or not found.get("has_3d"):
+        return None
+    return {"web3d_base": f"/proposal/{branch}/{place}/web3d/", "fixes": changes.plain_sentence(found),
+            "query": f"proposal={branch}"}
 
 
 ONLY_WITH = "base"  # the layer kept on beside the one shown alone, for context

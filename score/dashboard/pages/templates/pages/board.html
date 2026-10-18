@@ -2,6 +2,7 @@
 {% block title %}World{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{{ world.world|capfirst }}</h1></div>
+{% if changes_count %}<a class="basket-bar" href="/changes/"><span><b>{{ changes_count }}</b> fix{{ changes_count|pluralize:"es" }} wait for you on Changes to buy</span><span>see each one before and after</span></a>{% endif %}
 {% if offered or bought %}
 <section class="changes" aria-label="changes to buy">
   {% if offered %}

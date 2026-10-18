@@ -15,6 +15,7 @@
   {% if user.is_authenticated %}
   <nav>
     <a href="/"{% if request.path == "/" %} class="here"{% endif %}>World</a>
+    <a href="/changes/"{% if request.path == "/changes/" %} class="here"{% endif %}>Changes to buy{% if changes_count %} <span class="count">{{ changes_count }}</span>{% endif %}</a>
     <a href="/basket/"{% if request.path == "/basket/" %} class="here"{% endif %}>Basket{% if basket_count %} <span class="count">{{ basket_count }}</span>{% endif %}</a>
     <a href="/runs/"{% if request.path == "/runs/" %} class="here"{% endif %}>Runs</a>
     <a href="/requests/"{% if request.path == "/requests/" %} class="here"{% endif %}>Requests</a>
