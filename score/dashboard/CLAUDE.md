@@ -33,6 +33,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`sync/`** hosted mode: `building.py` the export, `endpoints.py` the hosted side (token only), `client.py` and
   `applying.py` the store side's pass. The store's machine always calls out. The export goes content-addressed: only
   the files the hosted side lacks, thumbnails first, one 2 MiB gzip chunk a request, then a commit swaps it in whole.
+  Each pass first runs the library sweep (`score.stages.library.sweep`, the world against its library), so its
+  problems are in the export by construction; a failed sweep is said in the pass's words and the pass goes on.
 - **`proposals/`** each fix branch's proposal for a place (its own overlay): the place assembled free from the branch
   over the store's accepted outputs, its 3D copy, stills and draft media, in `$SCORE_DASHBOARD_HOME/proposals/`; the
   export carries them through `proposals/exporting.py`, the API at `/api/proposals` and `/proposal/<branch>/<place>/`.

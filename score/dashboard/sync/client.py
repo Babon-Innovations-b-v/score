@@ -222,10 +222,22 @@ def pushed_words(remote, source, chosen):
             f"{pushed['to_come']} still to come")
 
 
+def library_sweep():
+    """The world compared with its library (score.stages.library.sweep, free, seconds), its findings written where
+    the place pages read their problems; its words. A sweep that fails is said in the pass's words, and the pass goes
+    on: the export still goes out."""
+    from score.stages.library import sweep
+    try:
+        return sweep.run()
+    except Exception as error:  # reported in the pass's line, never swallowed
+        return f"library sweep failed: {type(error).__name__}: {error}"
+
+
 def sync_pass(remote, source, chosen=None):
     """One pass; what it did, in words."""
     chosen = chosen or guard.backend()
+    swept = library_sweep()
     pushed = pushed_words(remote, source, chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended"
+    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}"
