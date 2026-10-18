@@ -40,6 +40,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import ledger  # noqa: E402
+import preflight  # noqa: E402
 import provider  # noqa: E402
 
 # The order offers are tried in: the cheapest card per job first (owner, 2026-10-12); a kind's own in KIND_ORDER.
@@ -159,7 +160,12 @@ def machines_for(units, unit_minutes, setup_minutes, slots=1):
     """How many machines a batch of `units` jobs of about `unit_minutes` each is spread over, when a machine runs
     `slots` at once: enough that each works about as long as its setup takes, or one job's time when a job is longer,
     so the batch ends in about the setup and one job's time without renting machines that would spend most of their
-    time setting up. One for a small batch; never more than there are jobs to share, nor than run_cap."""
+    time setting up. One for a small batch; never more than there are jobs to share, nor than run_cap. Under a
+    runner's ticket whose stage the ledger has measured, the same rule on its measured numbers (preflight.py), the
+    caller's own minutes left aside: no runner's guess picks a card count (owner, 2026-10-18)."""
+    flight = preflight.for_ticket(units, ledger.entries, run_cap(), slots)
+    if flight:
+        return flight["cards"]
     if units <= 0:
         return 1
     span = max(setup_minutes, unit_minutes)
