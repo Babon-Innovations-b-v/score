@@ -530,8 +530,9 @@ def test_a_worktree_hook_uses_the_main_checkouts_python():
 
 
 if __name__ == "__main__":  # the push gate's tests; the two on real commits run under pytest
+    import pathlib
     import runpy
-    runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, check in list(globals().items()):
         if name.startswith("test_") and name not in ("test_8b402226_moves_the_turntables_by_the_file_they_declare",
                                                      "test_1f90a0fe_moves_the_rows_its_new_gap_files_reach"):
