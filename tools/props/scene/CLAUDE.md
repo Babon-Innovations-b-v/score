@@ -73,11 +73,11 @@ serve: skill `make-scene`, bible "How a scene is designed".
   a rounded module room from its inventory's `room.layout` (the shell's own outline, its dome's rings, the floor's
   cross and corner fans, door spots, the rows' spots; the habitat and the airlock, modules batch one), and
   `tube_kit.py` for one bay and one end of a walkway tube, which the game lays along any tube (`TubeKit`).
-  `room_kit_test.py` checks them. `greenhouse_kit.py` is room_kit's room with what only the greenhouse has (world 1's
+  `room_kit_test.py` checks them. `greenhouse_kit.py` is room_kit's room with what only the greenhouse has (environment 1's
   place job, 2026-10-07): a glass dome on a frame of ribs instead of plates, the floor's rises (SteppedFloor's dais,
   steps and ledges) surfaced, the robot station's pieces on PlotField's spots and the grow-light gantry over the plot;
   `greenhouse_kit_test.py` reads the game's own numbers (SteppedFloor, PlotField, main.tscn) and holds it to them.
-- `ship_kit.py <room> <out.json>` lays a ship room's kit (the ship as a world 1 place, 2026-10-14; the bridge first)
+- `ship_kit.py <room> <out.json>` lays a ship room's kit (the ship as an environment 1 place, 2026-10-14; the bridge first)
   from its plan alone (`w`, `d`, the ceiling in its height words, its doors, its `kit` block: the nose's cut corners,
   the windows' sill, head and pillar) and its inventory's spots: walls in two bands of plain plates round the wedge
   outline, a doorway left clear, the cut corners and the front glazed, the floor and ceiling in grids with a triangle in

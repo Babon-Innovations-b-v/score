@@ -1,8 +1,8 @@
 # score/stages/library/
 
 The library rows (`__init__.py`'s docstring has the make, `checks.py`'s the gate, `handover.py`'s the report's
-shape): `library@<place>` and `library-world` hand every accepted output of a world to the creator's library, so what
-is in a world shows up in the library by construction, never by an agent's hand.
+shape): `library@<place>` and `library-world` hand every accepted output of an environment to the creator's library, so what
+is in an environment shows up in the library by construction, never by an agent's hand.
 
 - **score never imports the library.** It runs the library's own command (`backend.py`, the template
   `SCORE_LIB_HANDOVER`) and reads only the report it writes, `handover.json`. No provider, host or company name in
@@ -17,7 +17,7 @@ is in a world shows up in the library by construction, never by an agent's hand.
 - **`traced`** wraps the library-finish check (`score/stages/complete/library`, its overlay) in `traced.py`, taken
   as it landed: the place's assembled stage traced against the library folder after the handover and the store's
   accepted bakes, read only. A change of that check's rules is made there, never here.
-- **A library-free world** is an owner's dated decision in `data/checks/library-free.json`; write one only on his
+- **A library-free environment** is an owner's dated decision in `data/checks/library-free.json`; write one only on his
   word.
 - **The invariant** (`invariant.py`, pure; `sweep.py` gathers and writes): each library node's accepted handover
   against the library's entries and the store's accepted outputs, one plain problem a mismatch (not handed, not in

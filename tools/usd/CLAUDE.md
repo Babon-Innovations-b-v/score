@@ -90,7 +90,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   Export writes `inputs.json` (what the stage was made from, each model by hash); keep it, the gate reads it.
 - `contents.py` is the gate's contents checks (its docstring has each): people against the cast (every look a made
   model of the people prop route, never SOMA's mesh in drapes), effects and motions against the needs in
-  `data/checks/contents.json` (from the world 1 checklist), crop density where crops apply, every generated row held
+  `data/checks/contents.json` (from the environment 1 checklist), crop density where crops apply, every generated row held
   to its close-up (likeness@<place>) and repainted (surfaces-check@<place>), the light and sound layers, the shown
   places, and no record citing the game. A place `contents.json` does not list is unknown; one listed `part_of`
   another (the garage's and hangar's door leaves, gdoor and hdoor) is judged on people, light, sound and neighbours
@@ -194,7 +194,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   (a pose round-trips through the layout and the export) and the levelled yard, without Blender.
 - **The scene record** (`data/scene/<place>.json`, read by `scene.py`) is what the game drew in its own code and no kit
   piece covers: room shells and the building round a room, stairs and stepped floors, the gameplay objects it places
-  from code (a world's own model file, `glb_asset.py`), the ground past the place and Mars's or the Moon's ball, the
+  from code (an environment's own model file, `glb_asset.py`), the ground past the place and Mars's or the Moon's ball, the
   water, the far backdrop, other places seen from this one (their own stages referenced), every light (UsdLux, the
   game's numbers kept as `score:game:*`), the sky and the exposure, and the cameras the place is judged from with the
   game's shot from each. Its geometry comes only from the code builders in `builders.py` (plain numbers in, meshes
@@ -210,7 +210,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   pi, a distant light's strength its intensity times 4), from the game's energies by `scene.SUN_PER_ENERGY` and
   `OMNI_PER_ENERGY`, and a lamp's energy matched halfway out to its range for its own fall-off (`reach_matched`); change those, never a record's energies, when the brightness check against the game's shots says
   the scene is too dark or too bright.
-- A record names a file by its name in the world's release (`models/...`, tools/assets/world.py) or by its path in
+- A record names a file by its name in the environment's release (`models/...`, tools/assets/world.py) or by its path in
   git (`data/...`); `export.py` resolves both (`--assets <folder>` reads another copy of the release), never a file of
   the game's checkout. A walkway tube's kit is laid along the
   record's `tube_length` as the game's TubeKit lays it. `scene_test.py` checks the builders, the lights' units and

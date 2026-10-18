@@ -3,7 +3,7 @@
 The container path for every model step (job cloud-k8s, 2026-10-09): one pinned image per job kind, weights from a
 cache instead of a fresh download on every machine, and a job spec that Kubernetes or a hand with docker runs the
 same way. The machine runners in `tools/props/cloud/` stay the default; this path is chosen by `SCORE_CLOUD=k8s`.
-**Experimental: not used for world 1** (no world was built through it; 06cf411's image pins are read only by this
+**Experimental: not used for environment 1** (no environment was built through it; 06cf411's image pins are read only by this
 path); it proves itself when a stage's paid node runs through it end to end. `k8s/submitter.py` and the cluster's
 `up` (`k8s/clusters/scaleway.py`) refuse outside a cleared run, as the machine path does
 (`score.adapters.compute.require_cleared`).

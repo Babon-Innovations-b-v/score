@@ -17,17 +17,17 @@ gates; `takes.py` the paid part.
   (`data/sound/places.json`), its inventory rows' `sound`, its motions' `sounds` and the whole surface bank
   (`data/sound/surfaces.json`). A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
-- **A sound picked already is taken as it is** (the world's release, its credit off `data/sound/licences.json`, its CLAP
+- **A sound picked already is taken as it is** (the environment's release, its credit off `data/sound/licences.json`, its CLAP
   score `chosen.clap` measured when it was made); only one whose files are off its category's loudness is levelled
-  here, its volume moved so it plays as loud as before. Only briefs no world file answers are made, MOSS on one rented
+  here, its volume moved so it plays as loud as before. Only briefs no environment file answers are made, MOSS on one rented
   card in the moss image (`takes.py`, through `tools/cloud/images/prove.py`), chosen by the picker's rule.
 - **Takes are kept in `~/.cache/farm-factory/sound-picker/moss/stage/`** named by sound, the hash of prompt, length and
   weights, and seed, with their CLAP scores: the same brief is never paid for twice. Change a prompt to get new takes.
-- **Unit cost** (world 1, 2026-10-12, ledger): one L4 a place, about 4 min from order to first take, about 28 s a
-  take of 10 to 15 s; EUR 0.09 to 0.13 a place for one brief (8 takes), EUR 0.72 for world 1's 7 new sounds (56 takes).
+- **Unit cost** (environment 1, 2026-10-12, ledger): one L4 a place, about 4 min from order to first take, about 28 s a
+  take of 10 to 15 s; EUR 0.09 to 0.13 a place for one brief (8 takes), EUR 0.72 for environment 1's 7 new sounds (56 takes).
 - **The owner's recordings stay** (2026-10-06: the breathing, the sliding doors and the steel footsteps were better
   than the generated takes). `no freesound` passes them by their `chosen.by` owner with his decision and lists them;
   any other Freesound file fails it. Replacing them is his call, not the stage's.
 - **Never lower `gates.CLAP_FLOOR` to pass a sound**: write a better prompt (what it is, its size, material and
-  place, and what is not in it). The floor is the tenth percentile of the world's 55 MOSS picks.
+  place, and what is not in it). The floor is the tenth percentile of the environment's 55 MOSS picks.
 - `sound_test.py` runs the make and the gates on the hub and the airlock (nothing rented) and breaks each gate once.
