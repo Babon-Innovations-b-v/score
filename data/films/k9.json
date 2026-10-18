@@ -4,13 +4,13 @@
  "film": "k9",
  "title": "World 1: 2099",
  "world": "world1",
- "target_seconds": 150,
+ "target_seconds": 240,
  "size": [
   1280,
   720
  ],
  "rate": 24,
- "why": "World 1's demo film (paper demo K9), a sales trailer for the world. Improved from the 18 Oct cut: the framework's chain shown once, on the hangar, then the hangar opened up (exploded, one part isolated, its layers lifted apart, concept against result) and the places given the rest of the time, every place's accepted film in story order, the four set pieces walked longer.",
+ "why": "World 1's demo film (paper demo K9), a sales trailer for the world. The 18 Oct cut gave each place 3.5 s, far too fast (the owner); here every place gets 7 s of its finished state, its film rendered again where the accepted 4 s film is too short. The framework's chain is shown once, on the hangar, then the hangar opened up (exploded, one part isolated, its layers lifted apart, concept against result), then every place in story order.",
  "defaults": {},
  "segments": [
   {
@@ -173,8 +173,7 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The square",
-   "line": "Prologue",
-   "seconds": 7.0
+   "line": "Prologue"
   },
   {
    "cut": "walk-through",
@@ -184,8 +183,7 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The launch view",
-   "line": "Prologue",
-   "seconds": 7.0
+   "line": "Prologue"
   },
   {
    "cut": "walk-through",
@@ -215,8 +213,7 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The greenhouse",
-   "line": "The Moon base",
-   "seconds": 7.0
+   "line": "The Moon base"
   },
   {
    "cut": "walk-through",
@@ -316,8 +313,7 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The cockpit",
-   "line": "The ship",
-   "seconds": 7.0
+   "line": "The ship"
   },
   {
    "cut": "walk-through",
@@ -388,17 +384,6 @@
    "sound": "place",
    "text": "The camp grounds",
    "line": "Mars"
-  },
-  {
-   "cut": "layer-focus",
-   "shows": {
-    "place": "hub",
-    "layer": "light"
-   },
-   "transition": "cross-fade",
-   "sound": "bed",
-   "text": "Light is its own layer",
-   "line": "change it without touching a piece"
   },
   {
    "cut": "title",
