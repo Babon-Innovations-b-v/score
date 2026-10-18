@@ -1,0 +1,8 @@
+<p><b>{{ launch.state }}</b>{% if launch.result %}: {{ launch.result }}{% endif %}</p>
+{% for handle in launch.handles %}
+<div class="panel"><code>{{ handle.command|join:" " }}</code>
+  <div class="small soft">{{ handle.state|default:"" }}{% if handle.log %}, log {{ handle.log }}{% endif %}</div>
+  {% if handle.refused %}<pre>{{ handle.refused }}</pre>{% endif %}
+  {% if handle.log_tail %}<pre>{{ handle.log_tail }}</pre>{% endif %}
+</div>
+{% endfor %}

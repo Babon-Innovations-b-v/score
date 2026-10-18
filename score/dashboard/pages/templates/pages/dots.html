@@ -1,0 +1,1 @@
+<div class="dots" title="green accepted, amber waiting, red stopped, grey not run">{% for layer in layers %}{% for step in layer.steps %}<span class="dot {{ step.state|slugify }}" title="{{ step.label }}: {{ step.state_words }}"></span>{% endfor %}<span class="sep"></span>{% endfor %}</div>

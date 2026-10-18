@@ -1,0 +1,10 @@
+{% extends "pages/base.html" %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+<h1>Runs</h1>
+{% for launch in launches %}
+<div class="panel"><a href="/runs/{{ launch.pk }}/">{{ launch.at|date:"Y-m-d H:i" }}</a> by {{ launch.by }}: <b>{{ launch.state }}</b>
+  <div class="small soft">{% for handle in launch.handles %}{{ handle.places|join:", "|default:"world" }}: {{ handle.stages|join:", " }}{% if not forloop.last %}; {% endif %}{% endfor %}</div></div>
+{% empty %}<p class="soft">No launch from this dashboard yet.</p>{% endfor %}
+{% if queued %}<h2>Queued from the hosted dashboard</h2>{% for item in queued %}<div class="small">{{ item.created|date:"Y-m-d H:i" }} {{ item.user }}: {{ item.state }}{% if item.detail %}: {{ item.detail }}{% endif %}</div>{% endfor %}{% endif %}
+{% endblock %}

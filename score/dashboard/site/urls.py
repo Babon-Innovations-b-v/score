@@ -1,0 +1,34 @@
+"""The dashboard's page URLs (Django). /api, /files, /thumbs, /web, /static and /healthz are the ASGI app's
+(site/asgi.py)."""
+from django.conf import settings
+from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from django.urls import path
+
+from score.dashboard.pages import views
+
+STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide/", views.step_decide),
+               ("queue/", views.step_queue), ("advance/", views.step_advance)]
+
+urlpatterns = [
+    path("", views.board),
+    path("place/<slug:place>/", views.place_page),
+    *[path(f"place/<slug:place>/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
+    *[path(f"world/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
+    path("basket/", views.basket),
+    path("basket/change/", views.basket_change),
+    path("basket/confirm/<int:plan_id>/", views.confirm),
+    path("runs/", views.runs),
+    path("runs/<int:run_id>/", views.run_page),
+    path("requests/", views.requests_page),
+    path("view/<slug:place>", views.viewer),
+    path("picks/<slug:place>", views.picks),
+    path("refresh/", views.refresh),
+    path("freshness/", views.freshness),
+    path("admin/", admin.site.urls),
+]
+if settings.SCORE_PROXY_MODE:
+    urlpatterns.append(path("login/", views.login_closed))
+else:
+    urlpatterns += [path("login/", auth_views.LoginView.as_view(template_name="pages/login.html")),
+                    path("logout/", auth_views.LogoutView.as_view())]

@@ -1,0 +1,11 @@
+{% extends "pages/base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<h1>Sign in</h1>
+<form method="post" class="panel" style="max-width:360px">{% csrf_token %}
+  {% if form.errors %}<div class="banner bad">That name and password do not match.</div>{% endif %}
+  <label>Name <input type="text" name="username" autofocus required></label>
+  <label>Password <input type="password" name="password" required></label>
+  <p style="margin:8px 0 0"><button class="primary">Sign in</button></p>
+</form>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "pages/base.html" %}
+{% block title %}World board{% endblock %}
+{% block content %}
+<h1>{{ world.world }}</h1>
+{% include "pages/money.html" with bar=bar ceiling=world.spend.ceiling note=world.spend.note %}
+{% if planned %}<p class="small soft">The basket's plan: likely EUR {{ planned.likely|floatformat:2 }}, high EUR {{ planned.high|floatformat:2 }}.</p>{% endif %}
+
+<h2>World steps</h2>
+<div class="world-line">{% for step in world.world_line %}<a href="/world/step/{{ step.stage }}/" class="dot {{ step.state|slugify }}" title="{{ step.label }}: {{ step.state_words }}"></a>{% endfor %}</div>
+
+{% for engine in world.engines %}
+<h2>Engine: {{ engine.name }}</h2>
+{% for style in engine.styles %}
+<section class="style">
+  <div class="style-head">
+    {% if style.picture %}<img src="{{ style.picture.thumb_url }}" alt="reference picture of the {{ style.label }} look">{% endif %}
+    <div>
+      <h3>{{ style.label|capfirst }}</h3>
+      {% if style.said %}<div class="soft small">{{ style.said }}</div>{% endif %}
+      {% if style.palette %}<div class="swatches">{% for colour in style.palette %}<i style="background: {{ colour }}" title="{{ colour }}"></i>{% endfor %}</div>{% endif %}
+    </div>
+  </div>
+  <div class="cards">
+    {% for card in style.places %}
+    <a class="card" href="/place/{{ card.place }}/">
+      {% if card.hero %}<img class="hero" src="{{ card.hero.thumb_url }}" alt="{{ card.place }}" loading="lazy">{% else %}<div class="nohero">no picture stored yet</div>{% endif %}
+      <div class="body">
+        <span class="name">{{ card.place }}</span> {% if card.place in queued_places %}<span class="badge">in basket</span>{% endif %}
+        <div class="small soft">{{ card.status }}</div>
+        {% include "pages/dots.html" with layers=card.layers %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endfor %}
+{% endblock %}

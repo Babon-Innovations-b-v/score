@@ -1,0 +1,8 @@
+{% extends "pages/base.html" %}
+{% block title %}Run {{ launch.pk }}{% endblock %}
+{% block content %}
+<p class="small"><a href="/runs/">Runs</a> / {{ launch.at|date:"Y-m-d H:i" }}</p>
+<h1>Run by {{ launch.by }}</h1>
+<p class="small soft">The dashboard never stops a run: paid work is never killed halfway.</p>
+<div data-refresh="/runs/{{ launch.pk }}/?part=tail" data-every="10">{% include "pages/run_tail.html" %}</div>
+{% endblock %}
