@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Handoff to the overseer
 
-A session that ends side by side with others finishes its shift cleanly, then reports to the **overseer** (`CONTEXT.md`) so the coordinating session knows what changed without reading the transcript. Close first, so the report carries the final state.
+A session started beside the overseer (the one coordinating session; there is no captain any more) finishes its shift cleanly, then reports to the **overseer** (`CONTEXT.md`) so it knows what changed without reading the transcript. Close first, so the report carries the final state.
 
 ## Steps
 

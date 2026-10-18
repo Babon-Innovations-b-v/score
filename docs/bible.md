@@ -494,33 +494,38 @@ unpredictable.
   `PreToolUse`, and the memory commit-and-push on `Stop`.
 - **GitHub issues** hold the durable backlog. Anything that must survive the chat lives there.
 
-**Session roles.** Four levels, each with its own job and rules (owner, 2026-10-12; terms in
-`CONTEXT.md`).
+**Session roles.** One coordinating session, the overseer, runs the work directly with many
+parallel agents; the owner reviews and buys changes in the creator cockpit (score.babon.eu). The
+captain, a second session that ran one effort under the overseer, was retired on 2026-10-18 (owner:
+it did not work); records that cite "the captain" name decisions taken in that role, and they
+stand. Terms in `CONTEXT.md`.
 
-- **Overseer.** Guards drift and builds nothing. Holds the paper, the owner's vision, the distilled
-  owner prompts and every standing rule. Checks each captain on a schedule (every 3 hours on long
-  runs): the commits, a plain status asked of the captain, the cloud machines. Corrects briefly and
-  cites the rule or paper section; never steers by taste. Reports to the owner in plain words: what
-  changed in the result, what drifted, what it did. Keeps the full handover current, so a new
-  captain or overseer starts knowing everything.
-- **Captain.** Runs one effort. Plans it as stages from the paper; proves each stage on one place
-  before fanning out; lets measured checks decide, never its own look; keeps code that paid steps
-  hash frozen during a fan-out; decides spend within the rules; never ships half-done work to main,
-  pages, the paper or films. Briefs agents, checks what they return against the brief and merges
-  it. Starts in its own repository, so the repository's hooks, tools and memory reach every agent.
-  Answers the overseer's check-ins plainly, including what is half-done or blocked.
+- **Overseer.** The one coordinating session. Plans each effort as stages from the paper; proves
+  each stage on one place before fanning out; splits the work across parallel agents, briefs each
+  one, checks what it returns against the brief and merges it. Starts in this repository, so its
+  hooks, tools and memory reach every agent. Guards drift: holds the paper, the owner's vision, the
+  distilled owner prompts and every standing rule, and checks every result against them; corrects
+  briefly and cites the rule or paper section, never steers by taste. Lets measured checks decide,
+  never its own look; keeps code that paid steps hash frozen during a fan-out; never ships half-done
+  work to main, pages, the paper or films. Spends nothing without the owner, and approves nothing
+  on an agent's word (only the owner rejects, accepts by hand, waives or overrides). Reports to the
+  owner in plain words: what changed in the result, what drifted, what it did. Keeps the full
+  handover current, so a new overseer starts knowing everything.
 - **Agent.** One job, one written brief, its own worktree. Tests what it touched, pushes when its
   checks pass, reports what changed in the result with a before and after, and stops. Waits in the
   background, never in a sleep loop. Takes on no scope beyond its brief.
 - **Sub-agent.** One narrow step for its parent agent. Returns data, not prose; reads only what the
   step needs; never pushes to main on its own, reports to the owner or widens its step.
 
+**One agent, one job.** Work is split across parallel agents by default: each independent job gets
+its own agent with its own brief, and jobs run side by side unless one needs another's result.
+
 **Sub-agents.** Independent steps go to sub-agents, and a sub-agent may split its own work over
 sub-agents again (owner, 2026-10-09; heavy work runs in the cloud, so the old local-load cap is
 gone). The parent writes each brief (task, scope, the rules that apply, where the result goes),
 checks what comes back against the brief, and merges it; a sub-agent's word is never taken as
 done. Each agent is short and scoped: one job, a clean context, and it ends when the job ends.
-Waits run in the background, never as an idle agent. The coordinator watches every agent's age
+Waits run in the background, never as an idle agent. The overseer watches every agent's age
 and tokens and restarts, splits or stops a stale one without being asked (an agent alive for hours
 or at hundreds of thousands of tokens on a small job is stale). Checked 2026-10-10: a session's
 sub-agent spawned its own sub-agent and got its answer back; a sub-agent started by a workflow
