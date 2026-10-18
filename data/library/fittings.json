@@ -4617,6 +4617,78 @@
 			},
 			"prints_off": [],
 			"checked": "2026-10-16, the overseer's decision: built in code once its Pixal3D take failed likeness (0.313 against 0.3623, prop route). An octagonal hatch in a white frame, a hazard-striped band, the round steel door with four dogs, a hub wheel, a glass port and two hinges, as its close-up shows it; its proportions as first drawn (pieces_ship.HATCH_*), no fit needed: outline against the close-up 0.912 (best of eight ways)."
+		},
+		"ship": {
+			"closeup": "pixal/ship-s1.svviews/input.png",
+			"parts": [
+				"panel",
+				"window",
+				"fin",
+				"spike",
+				"leg",
+				"foot",
+				"ring",
+				"hatch"
+			],
+			"built": {
+				"fin": 0.665,
+				"foot": 0.486,
+				"hatch": 0.427,
+				"hull": 0.081,
+				"leg": 0.605,
+				"panel": 0.452,
+				"ring": 0.567,
+				"spike": 0.686,
+				"window": 0.329
+			},
+			"prints_off": [],
+			"checked": "2026-10-18, PRD #10: built in code from the owner's locked plan v7 (data/definitions/ship.json at 46 m; tools/props/library/inside/ship_outline.py, pieces_hull.py), not from a picture: the prop route's take of the found reference never read the plan's numbers (nose too pointy, fins short, three leg pairs, paint split on the picture's colour edge). Parts as its close-up shows them; `built` from a local build at its laid size (pieces.parts_seen), before the paid bake writes them back"
+		},
+		"main_engine": {
+			"closeup": "pixal/main_engine-s1.svviews/input.png",
+			"parts": [
+				"cowling",
+				"rib",
+				"lip",
+				"nozzle"
+			],
+			"built": {
+				"cowling": 0.486,
+				"lip": 0.505,
+				"nozzle": 0.232,
+				"rib": 0.349
+			},
+			"prints_off": [],
+			"checked": "2026-10-18, PRD #10: built in code from the owner's locked plan v7 (data/definitions/ship.json at 46 m; tools/props/library/inside/ship_outline.py, pieces_hull.py), not from a picture: the prop route's take of the found reference never read the plan's numbers (nose too pointy, fins short, three leg pairs, paint split on the picture's colour edge). Parts as its close-up shows them; `built` from a local build at its laid size (pieces.parts_seen), before the paid bake writes them back"
+		},
+		"lift_thruster": {
+			"closeup": "pixal/lift_thruster-s1.svviews/input.png",
+			"parts": [
+				"plate",
+				"nozzle",
+				"louvre"
+			],
+			"built": {
+				"louvre": 0.441,
+				"nozzle": 0.603,
+				"plate": 0.679,
+				"throat": 0.0
+			},
+			"prints_off": [],
+			"checked": "2026-10-18, PRD #10: built in code from the owner's locked plan v7 (data/definitions/ship.json at 46 m; tools/props/library/inside/ship_outline.py, pieces_hull.py), not from a picture: the prop route's take of the found reference never read the plan's numbers (nose too pointy, fins short, three leg pairs, paint split on the picture's colour edge). Parts as its close-up shows them; `built` from a local build at its laid size (pieces.parts_seen), before the paid bake writes them back"
+		},
+		"nose_thruster": {
+			"closeup": "pixal/nose_thruster-s1.svviews/input.png",
+			"parts": [
+				"plate",
+				"nozzle"
+			],
+			"built": {
+				"nozzle": 0.914,
+				"plate": 0.855
+			},
+			"prints_off": [],
+			"checked": "2026-10-18, PRD #10: built in code from the owner's locked plan v7 (data/definitions/ship.json at 46 m; tools/props/library/inside/ship_outline.py, pieces_hull.py), not from a picture: the prop route's take of the found reference never read the plan's numbers (nose too pointy, fins short, three leg pairs, paint split on the picture's colour edge). Parts as its close-up shows them; `built` from a local build at its laid size (pieces.parts_seen), before the paid bake writes them back"
 		}
 	}
 }
