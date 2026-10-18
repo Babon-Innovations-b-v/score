@@ -3,6 +3,9 @@ per prop priced before and measured after, from the ledgers' own numbers.
 
     python3 tools/props/cloud/prop_batch.py price <props.json> [--previous <manifest.json>] [--ledger <file> ...]
         [--out <plan.json>]                       # free: likely and high euros per step and per prop, one line out
+    ~/.farm-factory-props/env/bin/python tools/props/cloud/prop_batch.py run <props.json> --yes [--folder <dir>]
+        # paid: prints the price as above, then makes the batch through the real runners (prop_makers.py); refused
+        # without --yes and outside a cleared run or the owner's override (SCORE_SPEND_TICKET)
 
 props.json is a list of {"name": <take>, "place": <place>, "picture": <path or null>, "body": <body or null>,
 "keep": [<step>, ...]}; a kept step (a close-up that stands, say) is neither made nor paid again for that prop.
@@ -23,7 +26,7 @@ The live ledger was reset on 2026-10-17, so the repo's evidence copy (paper/evid
 it by default, and any older copy can be added with --ledger.
 
 `run` drives the batch with the makers and checks it is given (a maker makes one step for a list of props as one
-batch; the cloud makers are the route branch's); `measured_costs` splits each paid batch's ledger euros over the
+batch; `run` the command gives it prop_makers.py's, the real runners); `measured_costs` splits each paid batch's ledger euros over the
 props it made, by each job's seconds where the line names them, else evenly.
 
 Not imported by any stage, so a change here re-keys no row.
@@ -132,11 +135,17 @@ def call_numbers(google_lines, caller):
     return {"calls": len(euros), "euros": statistics.median(euros), "high_euros": preflight.quantile(euros, preflight.HIGH)}
 
 
+def resolved(pattern):
+    """A data file's path as a path: {home} (the props home), {data} and {repo} filled in, ~ expanded."""
+    text = str(pattern).replace("{home}", str(HOME)).replace("{data}", str(REPO / "data")).replace("{repo}", str(REPO))
+    return pathlib.Path(text).expanduser()
+
+
 def file_hash(path):
     """A file's sha256, or None for no path or a missing file."""
-    if not path or not pathlib.Path(path).expanduser().is_file():
+    if not path or not resolved(path).is_file():
         return None
-    return hashlib.sha256(pathlib.Path(path).expanduser().read_bytes()).hexdigest()
+    return hashlib.sha256(resolved(path).read_bytes()).hexdigest()
 
 
 def prop_key(prop):
@@ -277,23 +286,50 @@ def measured_costs(manifest, lines, google_lines=()):
     return found
 
 
+def previous_manifest(path, folder):
+    """The manifest a batch keeps from: the one named, else the batch folder's own from its last run, else None."""
+    found = pathlib.Path(path) if path else folder / "manifest.json"
+    return json.loads(found.read_text()) if path or found.exists() else None
+
+
+def run_paid(props, previous, folder, yes):
+    """The batch through the real makers (prop_makers.py), only with the owner's yes (--yes) and a cleared run or his
+    override (SCORE_SPEND_TICKET); refused before any check or rent otherwise."""
+    if not yes:
+        raise SystemExit("not run: nothing is paid without --yes, the owner's yes to the price above")
+    sys.path.insert(0, str(REPO))
+    from score.adapters import compute
+    compute.require_cleared("a prop batch")
+    import prop_makers
+    manifest = run(props, prop_makers.makers_for(folder, f"prop-batch {folder.name}"), prop_makers.checks_for(folder),
+                   folder, previous)
+    done = sum(record.get("status") == "done" or record.get("kept", False) for record in manifest["props"].values())
+    print(f"{done} of {len(props)} props done; records and manifest in {folder}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("command", choices=("price",))
+    parser.add_argument("command", choices=("price", "run"))
     parser.add_argument("props")
     parser.add_argument("--previous")
     parser.add_argument("--ledger", action="append", default=[])
     parser.add_argument("--out")
+    parser.add_argument("--folder", type=pathlib.Path, help="the batch's folder (default: prop-batches/<props file "
+                        "name> in the props home); its manifest is the previous one unless --previous names another")
+    parser.add_argument("--yes", action="store_true", help="run: the owner said yes to the price printed")
     args = parser.parse_args()
     props = json.loads(pathlib.Path(args.props).read_text())
-    previous = json.loads(pathlib.Path(args.previous).read_text()) if args.previous else None
+    folder = args.folder or HOME / "prop-batches" / pathlib.Path(args.props).stem
+    previous = previous_manifest(args.previous, folder)
     lines = cloud_lines([EVIDENCE_LEDGER, HOME / "cloud" / "ledger.jsonl", *args.ledger])
     plan = price(props, lines, read_lines(GOOGLE_LEDGER), previous)
     if args.out:
         write_json(pathlib.Path(args.out), plan)
     print(f"{len(plan['making'])} of {plan['props']} props to make, EUR {plan['likely']} likely, {plan['high']} high "
           f"(per prop {plan['per_prop']['likely']} / {plan['per_prop']['high']}); unmeasured: "
-          f"{', '.join(plan['unmeasured']) or 'none'}" + (f"; wrote {args.out}" if args.out else ""))
+          f"{', '.join(plan['unmeasured']) or 'none'}" + (f"; wrote {args.out}" if args.out else ""), flush=True)
+    if args.command == "run":
+        run_paid(props, previous, folder, args.yes)
 
 
 if __name__ == "__main__":
