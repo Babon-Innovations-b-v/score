@@ -49,7 +49,12 @@ stage as each stage is built; nothing moves before.
   pinned models and every input, a declared folder's bytecode left out (`graph.source_hash`: each checkout writes its
   own __pycache__, #67; an accepted output whose key moved only by it is kept under the new key when its record is
   of a committed tree and the folder's sources at that commit, from git, hash as now: `Runner.kept_over_bytecode`,
-  "same sources, bytecode left out of the key", the proof in its record). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
+  "same sources, bytecode left out of the key", the proof in its record; one whose key only got narrower, a module
+  moved into FRAMEWORK unedited say, is kept too: `Runner.kept_by_narrowing`, its record's code version rebuilt
+  from git at its commit and every file read today read as then, a rewired stage, another Python or a dropped file
+  edited or deleted made again). `python -m score moved` lists the paid rows a tree would buy again;
+  `.githooks/pre-push-moved` refuses a push that moves one without a `Moved-rows:` reason (off until the owner
+  sets `git config score.movedCheck true` and calls it from his pre-push). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
   accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
