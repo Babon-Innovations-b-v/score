@@ -155,6 +155,7 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     shutil.copytree(stage_folder, work / "stages" / place)
     subprocess.run(["chmod", "-R", "u+w", str(work / "stages")], check=True)
     own_camera(work / "stages" / place / "scene.json", film)
+    leave_out(work / "stages" / place / f"{place}.usda", film)
     given = f"{place}={film['camera']}" if name == place else f"{name}@{place}={film['camera']}"
     jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE, ink=False, shots=SHOTS,
                      seconds=SECONDS, start=start)
@@ -178,6 +179,19 @@ def own_camera(record_path, film):
     record["views"] = [view for view in record.get("views", []) if view["name"] != film["camera"]] + [
         {"name": film["camera"], "eye": film["eye"], "aim": film["aim"], "fov": film.get("fov", 75)}]
     record_path.write_text(json.dumps(record, indent=1))
+
+
+def leave_out(stage_path, film):
+    """The prims a film record's `leave_out` names, made inactive in the film's copy of the stage: a joined tube's own
+    outside ground showing up inside the room it joins (tools/usd/scene.py write_places leaves a shown place's
+    Outside active; it covered the greenhouse's crop bed, 2026-10-18), until the stage itself leaves it out."""
+    if not film.get("leave_out"):
+        return
+    from pxr import Usd
+    stage = Usd.Stage.Open(str(stage_path))
+    for path in film["leave_out"]:
+        stage.OverridePrim(path).SetActive(False)
+    stage.GetRootLayer().Save()
 
 
 def make(inputs, out, seed, params):
