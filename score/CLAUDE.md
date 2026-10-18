@@ -65,7 +65,11 @@ stage as each stage is built; nothing moves before.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's ceiling has room for the estimate over
   the ledger and every open reservation, cleared under one lock so two lines never both spend the last euros; kept
-  in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point), `engines`
+  in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point; the forecast a
+  node is cleared at is its stage's measured runs, else its estimate; `guard.py`: the world's stop line, the owner's
+  money figure, refuses a paid job before it starts when its forecast with the world's spend since its first line and
+  every run in flight would pass it (one outbox line, free work goes on; in the framework's store a world with no
+  line is refused), and never stops a started job except a runaway past twice its forecast minutes), `engines`
   (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on world 1's round-three stages as unverified seeds (placeholder and resting gates) and
