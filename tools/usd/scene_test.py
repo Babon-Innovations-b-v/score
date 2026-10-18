@@ -336,6 +336,29 @@ def check_stretched_fixture(folder):
     assert np.allclose(np.asarray(box.GetSize()), [1.44, 1.44, 4.0], atol=1e-4), box
 
 
+def check_metal_map(folder):
+    """A world model's metal-roughness map is drawn, its factors as the map's scale: metallicFactor 1.0 over a map
+    that is mostly not metal is not pure metal (the street's state car drew black)."""
+    import glb_asset
+    world = folder / "metal"
+    world.mkdir()
+    box = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
+    uv = np.zeros((len(box.vertices), 2))
+    box.visual = trimesh.visual.TextureVisuals(uv=uv, material=trimesh.visual.material.PBRMaterial(
+        baseColorTexture=Image.new("RGB", (2, 2), (200, 30, 30)), metallicFactor=1.0, roughnessFactor=0.5,
+        metallicRoughnessTexture=Image.new("RGB", (2, 2), (0, 160, 20))))
+    box.export(world / "car.glb")
+    glb_asset.asset(world / "car.glb", world / "car.usdc", world / "textures")
+    stage = Usd.Stage.Open(str(world / "car.usdc"))
+    shader = next(UsdShade.Shader(prim) for prim in stage.Traverse()
+                  if prim.GetName() == "surface" and prim.GetTypeName() == "Shader")
+    metal = shader.GetInput("metallic").GetConnectedSources()[0][0]
+    texture = UsdShade.Shader(metal.source.GetPrim())
+    assert metal.sourceName == "b" and shader.GetInput("roughness").GetConnectedSources()[0][0].sourceName == "g"
+    assert tuple(texture.GetInput("scale").Get()) == (1.0, 0.5, 1.0, 1.0)
+    assert (world / "textures").is_dir() and any("metal_roughness" in path.name for path in (world / "textures").iterdir())
+
+
 def check_ring_and_placing(folder):
     """A flattened ring keeps its hole and outside and its squashed height; a piece built in its own frame is turned and
     moved by its placing; a place is shown turned by its whole rotation and stretched along its run."""
@@ -631,6 +654,7 @@ def main():
         check_moon(pathlib.Path(folder))
         check_night_glow(pathlib.Path(folder))
         check_stretched_fixture(pathlib.Path(folder))
+        check_metal_map(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:
         check_sky(pathlib.Path(folder))
     with tempfile.TemporaryDirectory() as folder:

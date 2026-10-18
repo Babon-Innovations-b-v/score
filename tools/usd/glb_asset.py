@@ -32,6 +32,38 @@ def texture_file(picture, textures, name):
     return f"./textures/{target.name}"
 
 
+def metal_and_roughness(stage, path, shader, material, textures, name):
+    """The surface's roughness and metal: from the file's metal-roughness map where it has one (glTF packs roughness
+    in green and metal in blue, each times its factor), else its factors. A map left out drew the factors alone, and
+    a model with metallicFactor 1.0 over a mostly plain map rendered as pure metal: the street's state car, black."""
+    roughness = getattr(material, "roughnessFactor", None)
+    roughness = float(roughness) if roughness is not None else 0.7
+    metal = float(getattr(material, "metallicFactor", None) or 0.0)
+    picture = getattr(material, "metallicRoughnessTexture", None)
+    if picture is None:
+        shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(roughness)
+        shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(metal)
+        return
+    metal = float(getattr(material, "metallicFactor", None) if getattr(material, "metallicFactor", None) is not None
+                  else 1.0)  # glTF's default factor is 1 when the map is there
+    reader = UsdShade.Shader.Get(stage, f"{path}/uv")
+    if not reader:
+        reader = UsdShade.Shader.Define(stage, f"{path}/uv")
+        reader.CreateIdAttr("UsdPrimvarReader_float2")
+        reader.CreateInput("varname", Sdf.ValueTypeNames.String).Set("st")
+    texture = UsdShade.Shader.Define(stage, f"{path}/metal_roughness")
+    texture.CreateIdAttr("UsdUVTexture")
+    texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(texture_file(picture, textures, f"{name}_metal_roughness"))
+    texture.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
+        reader.GetOutput("result") or reader.CreateOutput("result", Sdf.ValueTypeNames.Float2))
+    texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set("raw")
+    texture.CreateInput("scale", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(1.0, roughness, metal, 1.0))
+    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).ConnectToSource(
+        texture.CreateOutput("g", Sdf.ValueTypeNames.Float))
+    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).ConnectToSource(
+        texture.CreateOutput("b", Sdf.ValueTypeNames.Float))
+
+
 def preview_material(stage, path, material, textures, name, glows=False):
     """A UsdPreviewSurface from a trimesh PBR material: base colour (texture or factor), roughness, metal, emission
     (its own, or its base colour when the model is a glowing part: `glows`)."""
@@ -59,11 +91,7 @@ def preview_material(stage, path, material, textures, name, glows=False):
         factor = getattr(material, "baseColorFactor", None)
         colour = flat_rgb(factor if factor is not None else getattr(material, "main_color", None), (0.6, 0.6, 0.6))
         shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*colour))
-    shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(
-        float(getattr(material, "roughnessFactor", None) if getattr(material, "roughnessFactor", None) is not None
-              else 0.7))
-    shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(
-        float(getattr(material, "metallicFactor", None) or 0.0))
+    metal_and_roughness(stage, path, shader, material, textures, name)
     emission = flat_rgb(getattr(material, "emissiveFactor", None), (0.0, 0.0, 0.0))
     if max(emission) > 0.0:
         shader.CreateInput("emissiveColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*emission))
