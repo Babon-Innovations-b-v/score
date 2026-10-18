@@ -1,6 +1,7 @@
 """Check the place's OpenUSD stage on a place made here of two boxes: a creator's edit in the edit layer (an object
 moved, a part given another library surface) survives a regenerated base; parts become subsets by surface; the
-stage is in metres with y up and every object has a static collider; a kit room's pieces stand in their own frames
+stage is in metres with y up and every object has a static collider; a model baked into several maps draws each
+part on each map with that map's pictures; a kit room's pieces stand in their own frames
 as the game lays them, a glowing part named apart from its host, its parts read from its bake job.
 
 Run: .venv/bin/python tools/usd/export_test.py   (make tests runs it with the framework's environment)
@@ -54,6 +55,52 @@ def box_gltf(folder, name="box", shape=None):
         "textures": [{"extensions": {"EXT_texture_webp": {"source": index}}} for index in range(3)],
         "images": [{"uri": f"textures/{name}_{role}.webp"} for role in ("base_color", "metal_roughness", "normal")],
         "accessors": accessor,
+        "bufferViews": [{"buffer": 0, "byteOffset": int(offsets[index]), "byteLength": len(blob)}
+                        for index, blob in enumerate(blobs)],
+        "buffers": [{"uri": f"{name}.bin", "byteLength": int(offsets[-1])}],
+    }
+    (folder / f"{name}.gltf").write_text(json.dumps(document))
+
+
+def split_box_gltf(folder, name="box"):
+    """The 1 m box as a model split into two maps (inside/bake.py's Atlas `split`): its faces left of its middle the
+    first map's, the rest the second's, each map one primitive with a material and pictures of its own."""
+    box = trimesh.creation.box(extents=(1.0, 1.0, 1.0))
+    box.apply_translation((0.0, 0.5, 0.0))
+    left = box.triangles_center[:, 0] < 0
+    blobs, accessors, primitives = [], [], []
+    for number, chosen in enumerate((left, ~left)):
+        part = box.submesh([np.flatnonzero(chosen)], append=True)
+        part.unmerge_vertices()
+        positions = np.asarray(part.vertices, dtype=np.float32)
+        arrays = [(positions, "VEC3", 5126), (np.asarray(part.vertex_normals, dtype=np.float32), "VEC3", 5126),
+                  ((positions[:, [0, 2]] + 0.5).astype(np.float32), "VEC2", 5126),
+                  (np.asarray(part.faces, dtype=np.uint32).reshape(-1), "SCALAR", 5125)]
+        for values, kind, component in arrays:
+            accessors.append({"bufferView": len(blobs), "componentType": component, "count": len(values),
+                              "type": kind, **({"min": values.min(axis=0).tolist(), "max": values.max(axis=0).tolist()}
+                                              if values is positions else {})})
+            blobs.append(values.tobytes())
+        first = len(accessors) - 4
+        primitives.append({"attributes": {"POSITION": first, "NORMAL": first + 1, "TEXCOORD_0": first + 2},
+                           "indices": first + 3, "material": number})
+    (folder / "textures").mkdir(exist_ok=True)
+    roles = ("base_color", "metal_roughness", "normal")
+    for number in (1, 2):
+        for role in roles:
+            Image.new("RGB", (8, 8), (40 * number, 120, 60)).save(folder / f"textures/{name}_map{number}_{role}.png")
+    offsets = np.cumsum([0] + [len(blob) for blob in blobs])
+    (folder / f"{name}.bin").write_bytes(b"".join(blobs))
+    document = {
+        "asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": name}],
+        "meshes": [{"primitives": primitives}],
+        "materials": [{"name": f"{name}_map{number}_game", "normalTexture": {"index": base + 2},
+                       "pbrMetallicRoughness": {"baseColorTexture": {"index": base},
+                                                "metallicRoughnessTexture": {"index": base + 1}}}
+                      for number, base in ((1, 0), (2, 3))],
+        "textures": [{"source": index} for index in range(6)],
+        "images": [{"uri": f"textures/{name}_map{number}_{role}.png"} for number in (1, 2) for role in roles],
+        "accessors": accessors,
         "bufferViews": [{"buffer": 0, "byteOffset": int(offsets[index]), "byteLength": len(blob)}
                         for index, blob in enumerate(blobs)],
         "buffers": [{"uri": f"{name}.bin", "byteLength": int(offsets[-1])}],
@@ -151,6 +198,41 @@ def parts_become_subsets_by_surface():
         sound = stage.GetPrimAtPath(f"/{PLACE}/Objects/box_2/geo/{TOP}").GetAttribute("score:sound:impact").Get()
         if not sound:
             problems.append("the top part has no impact sound")
+        return problems
+
+
+def a_split_model_draws_each_map_with_its_own_pictures():
+    """A model baked into two maps: every face of a part on the map it was baked to, a subset a surface and map
+    (`<surface>_map<n>`) bound to that map's pictures, the subsets covering every face once, each saying its surface."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        (folder / "models").mkdir()
+        split_box_gltf(folder / "models")
+        labelled_parts(folder / "parts")
+        stage = Usd.Stage.Open(str(exported(folder, (2.0, 0.0, 0.0))))
+        mesh = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Objects/box_1/geo"))
+        points = np.asarray(mesh.GetPointsAttr().Get())
+        triangles = np.asarray(mesh.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+        subsets = {subset.GetPrim().GetName(): subset for subset in UsdGeom.Subset.GetAllGeomSubsets(mesh)}
+        wanted = {f"{surface}_map{number}" for surface in (TOP, BOTTOM) for number in (1, 2)}
+        if set(subsets) != wanted:
+            return [f"the split box's parts are {sorted(subsets)}, not {sorted(wanted)}"]
+        problems = []
+        covered = np.concatenate([np.asarray(subset.GetIndicesAttr().Get()) for subset in subsets.values()])
+        if sorted(covered.tolist()) != list(range(len(triangles))):
+            problems.append("the parts do not cover every face exactly once")
+        across = points[triangles].mean(axis=1)[:, 0]
+        for name, subset in subsets.items():
+            number = int(name[-1])
+            faces = np.asarray(subset.GetIndicesAttr().Get())
+            if not ((across[faces] < 0) if number == 1 else (across[faces] > 0)).all():
+                problems.append(f"{name} holds faces of the other map")
+            material = UsdShade.MaterialBindingAPI(subset.GetPrim()).ComputeBoundMaterial()[0]
+            picture = UsdShade.Shader(material.GetPrim().GetChild("base_color")).GetInput("file").Get().path
+            if f"box_map{number}_base_color" not in picture:
+                problems.append(f"{name} is drawn with {picture}")
+            if subset.GetPrim().GetAttribute("score:surface").Get() != name.rsplit("_map", 1)[0]:
+                problems.append(f"{name} does not say its surface")
         return problems
 
 
@@ -344,7 +426,8 @@ def a_door_kit_s_kinds_are_its_room_s_rows():
     return [] if found == wanted else [f"the rows are {found}, not {wanted}"]
 
 
-CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface, stored_takes_paint_like_their_labels,
+CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface,
+          a_split_model_draws_each_map_with_its_own_pictures, stored_takes_paint_like_their_labels,
           the_stage_is_in_metres_with_static_colliders, a_child_moves_with_the_object_it_stands_on,
           the_parts_are_found_where_the_run_recorded_them, a_kit_room_s_pieces_stand_in_their_frames,
           a_model_laid_later_is_found_in_a_further_folder, a_reused_row_reads_its_stored_take,

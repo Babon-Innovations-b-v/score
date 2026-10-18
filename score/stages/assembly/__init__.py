@@ -5,7 +5,8 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
     make     copies the seed's stage (<place>.usda, layers/, assets/, inputs.json) into the output; old check results
              and manifests beside it are agent verdicts and stay out. Then, each from its accepted output:
              record   the scene-record row's record (experimental) written over the base's old record prims
-                      (RECORD_ROOTS) with tools/usd/scene.py's writer; a place without the row keeps the seed's
+                      (RECORD_ROOTS) with tools/usd/scene.py's writer, its room shell drawn with the place's library
+                      tiles (surface-tiles) where it has them; a place without the row keeps the seed's
                       record, said unverified; an entry marked `waiting` lays nothing and is named on the root prim
                       (score:waiting) for complete. The record built from is written beside the stage (scene.json), the
                       one the neighbours stage reads
@@ -79,7 +80,7 @@ LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets
           "settle": (("settle-layer", 1), "layers/settle.usda", None),
           "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters")}
 # Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
-READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1),
+READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1), "surface-tiles": ("surface-tiles", 1),
          **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}
 # What each need of data/checks/contents.json asks of the place's layers, and the layers every place it lists (not a
 # part of another) needs whatever its needs: contents.py's light and sound checks judge every such place.

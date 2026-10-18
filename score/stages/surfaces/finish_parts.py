@@ -405,12 +405,13 @@ OWN_COLOUR = ("glass", "screen", "light", "print")
 ORDER_L, ORDER_LIBRARY, ORDER_KEPT = 10.0, 3.0, 0.0
 
 
-def checked_finishes(entry, finishes, measured):
+def checked_finishes(entry, finishes, measured, kit=()):
     """Each finish with its surface checked against the close-up's colour: the listed surface when it lies within
     COLOUR_DELTA_E of the measured colour, else the nearest surface of the same family (library `family`) the take's
     library places allow, when within it; else the listed one kept, a new surface tinted to the measured colour
     proposed, and the finish marked off its colour (the paint's gate fails it). A see-through finish of a surface
-    that is not glass, glow or light keeps its surface (coloured_cover)."""
+    that is not glass, glow or light keeps its surface (coloured_cover). A finish that fits takes the room's own kit
+    surface where one of its family fits too (`kit`, kit_taken)."""
     import numpy as np
     every = take_surfaces(entry)
     found = []
@@ -441,8 +442,26 @@ def checked_finishes(entry, finishes, measured):
                     "why": f"no {listed.get('family')} surface lies within dE {COLOUR_DELTA_E:.0f} of the close-up's "
                            f"colour (nearest {nearest}, dE {nearest_apart:.1f})",
                     "lab": [round(float(value), 1) for value in colour]})
-        found.append(record)
+        found.append(kit_taken(record, colour, every, kit))
     return in_close_up_order(entry, found, every)
+
+
+def kit_taken(record, colour, every, kit):
+    """A finish that fits by colour given the room's own kit surface (`kit`: kit_surfaces.surfaces) where one of its
+    surface's family lies within COLOUR_DELTA_E of the close-up's colour, the nearest such; as it was otherwise, and
+    always for glass, glow, light and print, judged by their own colour (the materials audit, 2026-10-18: the hangar's
+    ship took painted_grey_light, 165 L* grey, beside kit walls of painted_panel)."""
+    import numpy as np
+    family = every.get(record["surface"], {}).get("family")
+    if (record.get("by") not in ("the list", "nearest of its family by colour") or record["surface"] in kit
+            or family in OWN_COLOUR):
+        return record
+    fits = sorted((float(np.linalg.norm(library_lab(every[name]) - colour)), name) for name in kit
+                  if name in every and every[name].get("family") == family and "colour" in every[name])
+    if not fits or fits[0][0] > COLOUR_DELTA_E:
+        return record
+    return dict(record, surface=fits[0][1], delta_e=round(fits[0][0], 1), by="the room's kit surface by colour",
+                kit_over=record["surface"])
 
 
 def coloured_cover(finish, every):
@@ -628,8 +647,10 @@ def parts_take(inputs, take, entry, out):
     part_of, face_label, per_map = laid(mesh, take, inputs, len(listed), within)
     front = behind_left_out(taken_in(front, within), see_through_cover(mesh, take, face_label, listed, every), listed,
                             every)
+    import kit_surfaces
     finishes = checked_finishes(entry, listed,
-                                measured_colours(take, front, [every.get(finish["surface"]) for finish in listed]))
+                                measured_colours(take, front, [every.get(finish["surface"]) for finish in listed]),
+                                kit_surfaces.surfaces(pathlib.Path(inputs["surfaces"]).stem))
     for number, cover in within.items():
         finishes[number]["seen_within"] = listed[cover]["finish"]
     rows = part_rows(mesh, part_of, face_label, finishes)

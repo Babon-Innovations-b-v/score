@@ -659,27 +659,6 @@ def judge_baked(output, inputs, evidence):
 
 # --- check ---------------------------------------------------------------------------------------------------------
 
-def gltf_model(gltf):
-    """A baked .gltf's one primitive (positions, texture coordinates in glTF's own convention, triangles) and its
-    maps by role, read as tools/usd/export.py reads them but without OpenUSD (the prop environment has none)."""
-    import glb_file
-    document = json.loads(gltf.read_text())
-    blob = (gltf.parent / document["buffers"][0]["uri"]).read_bytes()
-    views = [blob[view.get("byteOffset", 0):view.get("byteOffset", 0) + view["byteLength"]]
-             for view in document["bufferViews"]]
-    primitive = document["meshes"][0]["primitives"][0]
-    geometry = {"positions": glb_file.accessor_array(document, views, primitive["attributes"]["POSITION"]),
-                "uvs": glb_file.accessor_array(document, views, primitive["attributes"]["TEXCOORD_0"]),
-                "triangles": glb_file.accessor_array(document, views, primitive["indices"]).reshape(-1, 3)}
-    material = document["materials"][primitive["material"]]
-    references = {"base_color": material["pbrMetallicRoughness"].get("baseColorTexture"),
-                  "metal_roughness": material["pbrMetallicRoughness"].get("metallicRoughnessTexture"),
-                  "normal": material.get("normalTexture")}
-    maps = {role: gltf.parent / document["images"][document["textures"][reference["index"]]["source"]]["uri"]
-            for role, reference in references.items() if reference is not None}
-    return geometry, maps
-
-
 def baked_surfaces(geometry, labelled, entry):
     """Each baked triangle's surface (the labelled part, one .ply per surface, whose nearest point lies under the
     triangle's middle, the parts laid into the kit frame as make_chunky lays them, stored_parts.kit_frame) and
@@ -707,20 +686,17 @@ def check_model(name, entry, labelled, made, materials):
     texture at their middles' coordinates; glTF's v runs down the picture) against the surface's colour, its
     near-black share, its maps and its triangles against the job's budget."""
     import numpy as np
-    from PIL import Image
     import labels
+    import baked_gltf
+    from bake_check import gltf_model, map_roles
     geometry, maps = gltf_model(made / f"{name}.gltf")
+    roles, missing = map_roles(maps)
     record = {"triangles": int(len(geometry["triangles"])), "budget": int(entry["faces"]),
-              "maps": sorted(maps), "surfaces": {}}
-    record["missing_maps"] = [role for role in ("base_color", "metal_roughness", "normal") if role not in maps]
+              "maps": roles, "surfaces": {}}
+    record["missing_maps"] = missing
     if "base_color" in record["missing_maps"]:
         return record
-    picture = np.asarray(Image.open(maps["base_color"]).convert("RGB"), dtype=np.float64) / 255
-    height, width = picture.shape[:2]
-    uv = geometry["uvs"][geometry["triangles"]].mean(axis=1) % 1.0
-    columns = np.clip((uv[:, 0] * width).astype(int), 0, width - 1)
-    rows = np.clip((uv[:, 1] * height).astype(int), 0, height - 1)
-    colour = labels.lab(picture[rows, columns])
+    colour = labels.lab(baked_gltf.base_colours(geometry, maps)[0])
     corners = geometry["positions"][geometry["triangles"]]
     areas = 0.5 * np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
     surface, interior = baked_surfaces(geometry, labelled, entry)

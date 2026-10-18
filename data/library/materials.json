@@ -1006,9 +1006,13 @@
 					"weave": 0.01
 				},
 				"solar_cell": {
-					"recipe": "glass",
+					"recipe": "tiles",
 					"token": "solar-panel",
-					"roughness": 0.18
+					"second": "hull-trim",
+					"roughness": 0.18,
+					"pitch": 0.156,
+					"grout": 0.004,
+					"bump": 0.0003
 				}
 			}
 		},

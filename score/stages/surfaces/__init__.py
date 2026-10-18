@@ -68,7 +68,7 @@ METHOD = (
         segvigen_row.judge_segvigen, row_files.segvigen_files, ("surfaces-maps",), paid=True,
         euros=segvigen_row.SEGVIGEN_EUROS),
     graph.Stage("surfaces-parts", "place", finish_parts.make_parts, PARTS,
-                (guarded("parts", finish_parts.judge_parts),), files=data.line_files,
+                (guarded("parts", finish_parts.judge_parts),), files=data.parts_files,
                 after=reads("surfaces-inputs", "surfaces-turntable", "surfaces-maps", "surfaces-names",
                             "surfaces-segvigen"),
                 applies=data.paints))

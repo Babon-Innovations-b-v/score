@@ -16,7 +16,8 @@ paper-thin shell, under 1 mm, which the model check fails), cut down to `faces` 
 full model onto it, which keeps the full model's shape relief in the normal map without its photo colour, never the
 picture's (round four's picture layer brought each piece its own rust and stains). Its print comes as decals, each
 placed by rule on a clear flat area (clear_spot) and joined into the full model before the bake. A screen is laid as a glowing piece of its own, so the report gives the depth of the front where each
-stands. Writes <out>/<name>.gltf with its own pictures in textures/, and report.json.
+stands. Writes <out>/<name>.gltf with its own pictures in textures/ (a piece too big for one picture set at its
+density: several maps, bake.Atlas `split`), and report.json.
 """
 import json
 import math
@@ -242,7 +243,7 @@ def make_piece(entry, job, out):
     decals = [decal for decal in decals if decal["surface"] is not None]
     with_decals(whole, decals)
     atlas = bake.Atlas(entry["name"], [low], entry.get("density", job["density"]), job["specs"], one_piece=True,
-                        backs_hidden=False, per_face=entry.get("per_face", False))
+                        backs_hidden=False, per_face=entry.get("per_face", False), split=True)
     atlas.bake_from(whole, low, job["specs"], job["wear"], job["dirt"], job["seed"],
                     max(max(entry["size"]) * REACH_SHARE, REACH_LEAST), entry.get("foot"))
     atlas.finish()
