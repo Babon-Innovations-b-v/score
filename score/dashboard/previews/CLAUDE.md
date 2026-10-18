@@ -21,8 +21,8 @@ Rules:
   (`tests/hosted_light_test.py` fails on `score.dashboard.previews` or matplotlib in a hosted process). Previews
   reach the hosted cockpit as exported pictures, never as code.
 - **Pick by file, never by stage name.** A new kind of output gets a drawer keyed on what its files hold.
-- **Made once, kept.** `<home>/previews/<VERSION>/<output>.png`, one at a time, one thread. Raise `VERSION` when a
-  drawer changes, so every kept picture is drawn again. Served and exported under `preview.png` with
+- **Made once, kept.** `<home>/previews/<VERSION>/<output>.png`, one at a time, one thread. `VERSION` carries the
+  drawers' code version (`state/versions.py`), so a change to any drawer draws every kept picture again. Served and exported under `preview.png` with
   `preview_id(output)`, 64 hex, so `/files` and `/thumbs` serve it like any listed picture.
 - **Never write the store**, never name a provider (`tests/no_provider_test.py`), never move a paid row: nothing
   here is in a stage's code key (`python -m score.stages.moved origin/main`).
