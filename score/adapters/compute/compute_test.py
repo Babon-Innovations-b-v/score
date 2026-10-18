@@ -227,6 +227,31 @@ def test_the_judge_timeout_is_an_operational_setting_outside_every_key():
     assert not any("timeout" in setting for setting in models.api_record("gemini-judge"))
 
 
+
+def run_line(number, euros, minutes):
+    """One paid run of the render stage on one card with two jobs."""
+    machine = {"cards": 1, "minutes": minutes, "euros": euros, "unit_seconds": [60, 60], "setup_minutes": 1.0}
+    return {"ticket": f"render@place{number} {number}", "kind": "blender", "batch": f"blender-{number}",
+            "machines": [machine], "euros": euros, "wall_minutes": minutes}
+
+
+def test_a_paid_node_is_priced_on_its_stages_measured_runs_else_its_estimate():
+    """The cockpit's price is the runner's: likely the median run, high what the clearance reserves, cards from
+    the run's sizing; an unmeasured stage stands at its estimate, both ways, with no minutes."""
+    saved = BOOKS.entries
+    try:
+        BOOKS.entries = lambda: [run_line(number, euros, minutes)
+                                 for number, (euros, minutes) in enumerate([(1.0, 10), (2.0, 20), (3.0, 30)])]
+        price = compute.run_price("render@hangar", 9.0)
+        assert price["likely_euros"] == 2.0 and price["likely_minutes"] == 20 and price["runs"] == 3
+        assert price["high_euros"] == compute.run_forecast("render@hangar", 9.0)["euros"] > 2.0
+        assert price["cards"] == 2  # two 1-minute jobs a run on a 1-minute set-up: a card each
+        BOOKS.entries = lambda: []
+        assert compute.run_price("render@hangar", 9.0) == {"likely_euros": 9.0, "high_euros": 9.0, "likely_minutes": None,
+                                                           "high_minutes": None, "cards": None, "runs": 0}
+    finally:
+        BOOKS.entries = saved
+
 if __name__ == "__main__":
     import pathlib
     import runpy

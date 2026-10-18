@@ -63,3 +63,31 @@ def test_a_worse_output_needs_the_worse_reason():
 def test_an_unknown_decision_is_refused():
     store, _, output = review_test.made(1)
     assert "one of accept, reject" in refusal(lambda: web.decide(store, NODE, output, "waive", by="joey"))
+
+
+def test_the_signed_in_checkout_writes_the_worlds_stop_line_never_in_an_agents_process():
+    """C22 from the cockpit: his checkout is his money yes; the line is the guard's own, a first line counts from the
+    books given; an empty name or the runner's is refused, and an agent's process writes nothing."""
+    import os
+    from score.adapters.compute import guard
+    from score.store import AGENT_MARKERS
+    store, _, _ = review_test.made(1)
+    books = {"month": "2026-10", "bill": 50.0, "ledger": 40.0, "google": 0.0}
+    saved = {name: os.environ.pop(name) for name in AGENT_MARKERS if name in os.environ}
+    try:
+        assert "signed-in owner's own name" in refusal(
+            lambda: web.stop(store, "toy", 9.0, "films", by="runner", books=lambda: books))
+        line = web.stop(store, "toy", 9.0, "checkout 1: fix-sound", by="joey", books=lambda: books)
+        assert line["by"] == "joey" and line["baseline"] == books and guard.current(store, "toy")["euros"] == 9.0
+        raised = web.stop(store, "toy", 12.0, "checkout 2", by="joey", books=lambda: {})
+        assert raised["before"] == 9.0 and raised["baseline"] == books
+        os.environ[AGENT_MARKERS[0]] = "1"
+        try:
+            web.stop(store, "toy", 99.0, "an agent's", by="joey", books=lambda: books)
+            raise AssertionError("an agent's process wrote a stop line")
+        except PermissionError:
+            pass
+        assert guard.current(store, "toy")["euros"] == 12.0
+    finally:
+        os.environ.pop(AGENT_MARKERS[0], None)
+        os.environ.update(saved)

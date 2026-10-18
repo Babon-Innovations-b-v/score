@@ -5,11 +5,14 @@
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
     .venv/bin/python -m score plan <world> [--place P ...] [--stage S ...] [--rebuy-reason R] --json
     .venv/bin/python -m score spend --json            # this month's spend, open reservations and the ceiling
+    .venv/bin/python -m score price <world> --node N [--node N ...] --json   # each paid node's likely and high price
 
 `status --json` prints the same lines as one JSON object. `plan` works out what `run` would do with the same arguments,
 running nothing: the missing inputs, the nodes it would make and why, the paid rows it would buy with their estimates
 and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard). `spend` reads the month's spend as
-the runner's clearance counts it.
+the runner's clearance counts it. `price` gives each paid node its likely and high euros and minutes and the cards
+its run is sized on, from the stage's measured runs in the cloud ledger (the numbers its clearance reserves), else
+its estimate (the cockpit prices a fix branch's moved paid rows with it).
 
 `run` drives the lines side by side (with --place, those places' lines and only the world nodes they read), each node in
 a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time); with
@@ -62,6 +65,10 @@ def parse(argv):
     spend = commands.add_parser("spend")
     spend.add_argument("--json", action="store_true", help="the month's spend as one JSON object (the only form)")
     spend.add_argument("--world", default="world1", help="the world whose stop line and spend since it are read")
+    price = commands.add_parser("price")
+    price.add_argument("world", choices=sorted(stages.WORLDS))
+    price.add_argument("--node", action="append", required=True, help="a paid node (repeat it)")
+    price.add_argument("--json", action="store_true", help="the prices as one JSON object (the only form)")
     images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)
     images.add_parser("publish").add_argument("kind", choices=stages.images.proved_kinds())
     for command in (run, status, plan):
@@ -185,6 +192,19 @@ def cost_lines(books, read_at):
              "read_at": read_at}]
 
 
+def price_json(world, nodes):
+    """{world, nodes: {node: price}}: each paid node at compute.run_price on its stage's estimate; a node that is not
+    a paid row of the stage table says so instead."""
+    from score.adapters import compute
+    rows = {row.name: row for row in stages.STAGES}
+    found = {}
+    for node in nodes:
+        row = rows.get(node.partition("@")[0])
+        found[node] = (compute.run_price(node, float(row.euros or 0)) if row is not None and row.paid
+                       else {"error": f"{node} is not a paid row of the stage table"})
+    return {"world": world, "nodes": found}
+
+
 def status_json(world, lines):
     """The lines of `status` as one JSON object: {world, made_at, lines: {line: {state, nodes: {node: state}}}}."""
     return {"world": world, "made_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
@@ -198,6 +218,9 @@ def main(argv=None):
         return
     if options.command == "spend":
         print(json.dumps(spend_json(options.world)))
+        return
+    if options.command == "price":
+        print(json.dumps(price_json(options.world, options.node)))
         return
     runner = stages.runner(world=stages.WORLDS[options.world]())
     places, whole = options.place or stages.places(runner.world), not options.place
