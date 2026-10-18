@@ -17,11 +17,15 @@ here: the inventory's rows (data/inventory/wreck.json), each surface's share of 
 the completion gate's own results (the stage's manifest.json). `figure` writes the figure and its frame list beside
 it (<figure>.json): the middle frame, with its ink, of each film's first walking shot (else its second).
 
-`world` is the world 1 video (demo K9): every place's own film as the runner accepted it (demo-film@<place>, its
-film.mp4 with its title card and sound) in story order, the ship's hull film through the hangar
-(demo-film-extra@hangar, its hull/) after the hangar's, joined by cross-fades into <out>/world1.mp4, with the figure of
-the middle frame of each film's shot (default <out>/fig-k9.jpg) and <out>/world1.json, each film's store output. It
-stops on any film the store does not hold; `--draft` cuts the ones it holds and names the rest.
+`world` is the world 1 video (demo K9): the world's title, then the framework's chain shown once on one hero place
+(references and style, concept, plan, pieces: one card each with a large title, a progress bar of the chain and at most
+CHAIN_MOST cards, each held STEP_SECONDS and pushed in over the one before; then the hero's own film as the chain's last
+step, the place), then every other place's own film as the runner accepted it (demo-film@<place>, PLACE_MOST at most
+from its title card's end, with its sound and caption) in story order, the ship's hull film through the hangar
+(demo-film-extra@hangar, its hull/) after the hangar's, then the ending's clips, joined by cross-fades into
+<out>/world1.mp4. The cards and the ending stand on a bed of the nearest film's own sound, so the sound never drops.
+With it the figure of the middle frame of each film's shot (default <out>/fig-k9.jpg) and <out>/world1.json, each
+film's store output. It stops on any film the store does not hold; `--draft` cuts the ones it holds and names the rest.
 """
 import argparse
 import json
@@ -80,16 +84,33 @@ PLACES = [("flat", "Prologue, Hong Kong 2099", "The flat", "Flat"),
 PLACE_SECONDS = 5.5
 # The world video's other films, each after its place's own (the paper's K9: every place film and the ship).
 EXTRAS = {"hangar": [("hull", "The ship")]}
-# The world video's parts (the owner's cut of 17 Oct, at most 4 min): each stage before a place's result (Concept,
-# Plan, Pieces) STAGE_SECONDS, fading into the next over STAGE_FADE; the pieces' grid at most GRID_MOST close-ups;
-# the result SHOT_SHOWN of the film's shot (from the title card's end to the film's end); the opening's title and each
-# of its pictures; the ending's clips, made elsewhere, appended when they exist.
-STAGE_SECONDS = 1.0
-STAGE_FADE = 0.25
-GRID_MOST = 16
-SHOT_SHOWN = demo_film.SECONDS - FADE
-OPENING_TITLE = 3.0
-OPENING_EACH = 0.7
+# The world video (the owner's cut of 18 Oct, at most WORLD_MOST): the finished places get most of the time, and the
+# framework's chain is shown once, on one hero place. The chain's steps in order, the last one the hero's own film; each
+# step's pictures held STEP_SECONDS on a card (one picture large, several side by side), at most CHAIN_MOST cards, each
+# pushed in over MOVE_SECONDS; the opening's title OPENING_SECONDS; each place's film from its title card's end, at most
+# PLACE_MOST of it; under the cards and the ending a bed of the nearest film's own sound, looped with BED_SEAM
+# cross-fades, so the sound never drops between parts.
+CHAIN = ("References and style", "Concept", "Plan", "Pieces", "Place")
+STEP_SECONDS = 6.0
+MOVE_SECONDS = 0.9
+CHAIN_MOST = 8
+OPENING_SECONDS = 4.5
+PLACE_MOST = 7.0
+WORLD_MOST = 240.0
+BED_SEAM = 1.0
+BED_RISE = 1.5
+BED_FALL = 4.0
+# A card's layout: the chain's bar at the top, the step's title and line under it, the pictures below.
+MARGIN = 96
+BAR_TOP = 56
+TITLE_TOP = 128
+LINE_TOP = 232
+PICTURES_BOX = (MARGIN, 318, W - MARGIN, H - 56)
+BOARD_COLUMNS = 3
+BACK = (17, 18, 21)
+INK = (236, 236, 232)
+DIM_INK = (120, 122, 128)
+ACCENT = (232, 170, 90)
 ENDING = WORK / "k9-ending"
 # The ending's clips in order (that folder also keeps the parts layers3d joined into the first).
 ENDING_CLIPS = ("built-in-layers.mp4", "ready-for-score-lib.mp4")
@@ -467,112 +488,243 @@ def middle_frame(video, out):
     return out
 
 
-def stages_of(pictures):
-    """A place's stages before its result, in order, each (label, its pictures); a stage with no picture is left
-    out. `pictures`: {"concept": path or None, "plan": path or None, "pieces": [paths]}."""
-    found = [("Concept", [pictures.get("concept")]), ("Plan", [pictures.get("plan")]),
-             ("Pieces", list(pictures.get("pieces") or [])[:GRID_MOST])]
-    return [(label, paths) for label, paths in found if paths and all(paths)]
+def chain_cards(chosen):
+    """The chain's cards from the assets, in order: [(step, line, [picture paths])]. Stops on a step the chain does not
+    have (the last step, the place, is the hero's film, never a card), on steps out of the chain's order, and on more
+    than CHAIN_MOST cards."""
+    cards = [(entry["step"], entry.get("line", ""), list(entry["pictures"])) for entry in chosen.get("steps", [])]
+    order = [CHAIN.index(step) if step in CHAIN[:-1] else -1 for step, _, _ in cards]
+    if -1 in order or order != sorted(order):
+        raise SystemExit(f"world: the chain's steps must come from {', '.join(CHAIN[:-1])} in that order: "
+                         f"{[step for step, _, _ in cards]}")
+    if len(cards) > CHAIN_MOST:
+        raise SystemExit(f"world: {len(cards)} chain cards, at most {CHAIN_MOST}")
+    return cards
 
 
-def timeline(stage_counts, opening, ending):
-    """The world video's parts and lengths in order: the opening, each place's stages then its result, the ending;
-    `stage_counts` [(film, number of stages)], `opening` its length, `ending` [its clips' lengths]. Every part after
-    the first starts FADE before the one before it ends."""
-    parts = [("opening", opening)] if opening else []
-    for film, count in stage_counts:
-        if count:
-            parts.append((f"{film}:stages", count * STAGE_SECONDS))
-        parts.append((f"{film}:result", SHOT_SHOWN))
-    parts += [(f"ending:{number}", seconds) for number, seconds in enumerate(ending)]
-    return parts
+def board(paths):
+    """The card's pictures laid on the card's dark ground inside PICTURES_BOX: one picture as large as fits, several
+    side by side, at most BOARD_COLUMNS a row, each fitted whole into its cell."""
+    wide, tall = PICTURES_BOX[2] - PICTURES_BOX[0], PICTURES_BOX[3] - PICTURES_BOX[1]
+    columns = min(len(paths), BOARD_COLUMNS)
+    rows = math.ceil(len(paths) / columns)
+    gap = 24
+    cell = ((wide - gap * (columns - 1)) / columns, (tall - gap * (rows - 1)) / rows)
+    laid = Image.new("RGB", (wide, tall), BACK)
+    for number, path in enumerate(paths):
+        picture = Image.open(path).convert("RGB")
+        ratio = min(cell[0] / picture.width, cell[1] / picture.height)
+        size = (round(picture.width * ratio), round(picture.height * ratio))
+        column, row = number % columns, number // columns
+        spot = (column * (cell[0] + gap) + (cell[0] - size[0]) / 2, row * (cell[1] + gap) + (cell[1] - size[1]) / 2)
+        laid.paste(picture.resize(size, Image.LANCZOS), (round(spot[0]), round(spot[1])))
+    return laid
 
 
-def label_layer(stage, title):
-    """The small label top left: the stage, then the place."""
+def words_layer(step, line):
+    """The step's title, large, and its one line under it, on the left under the chain's bar."""
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
-    small, large = font(24, "Medium"), font(32, "Medium")
-    width = max(draw.textlength(stage.upper(), font=small), draw.textlength(title, font=large))
-    draw.rounded_rectangle((32, 28, 32 + width + 40, 124), radius=10, fill=(0, 0, 0, 150))
-    draw.text((52, 40), stage.upper(), font=small, fill=(214, 206, 186, 255))
-    draw.text((52, 72), title, font=large, fill=(240, 240, 236, 255))
+    draw.text((MARGIN, TITLE_TOP), step, font=font(84, "SemiBold"), fill=INK + (255,))
+    draw.text((MARGIN, LINE_TOP), line, font=font(40, "Light"), fill=(206, 204, 196, 255))
     return layer
 
 
-def grid(pictures, share):
-    """The pieces as a grid on black, each tile fading and growing in at its turn over `share` (0 to 1)."""
-    columns = math.ceil(math.sqrt(len(pictures) * W / H))
-    rows = math.ceil(len(pictures) / columns)
-    cell = min((W - 160) / columns, (H - 200) / rows)
-    left, top = (W - cell * columns) / 2, 150 + (H - 170 - cell * rows) / 2
-    frame = Image.new("RGB", (W, H), (0, 0, 0))
-    for number, picture in enumerate(pictures):
-        start = 0.6 * number / max(len(pictures), 1)
-        shown = min(1.0, max(0.0, (share - start) / 0.25))
-        if shown <= 0:
-            continue
-        size = max(1, round((cell - 10) * (0.85 + 0.15 * shown)))
-        tile = picture.resize((size, size), Image.LANCZOS)
-        tile = Image.blend(Image.new("RGB", tile.size, (0, 0, 0)), tile, shown)
-        spot = (left + (number % columns) * cell + (cell - size) / 2, top + (number // columns) * cell + (cell - size) / 2)
-        frame.paste(tile, (round(spot[0]), round(spot[1])))
-    return frame
+def bar_layer(current, share):
+    """The chain's progress bar: every step's name over its track, the steps before `current` filled, `current` filled
+    to `share` (0 to 1) and lit, the steps after it dim."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    face = font(30, "Medium")
+    gap = 24
+    each = (W - 2 * MARGIN - gap * (len(CHAIN) - 1)) / len(CHAIN)
+    for number, step in enumerate(CHAIN):
+        left = MARGIN + number * (each + gap)
+        filled = 1.0 if number < current else share if number == current else 0.0
+        colour = INK if number == current else (176, 176, 172) if number < current else DIM_INK
+        draw.text((left, BAR_TOP), f"{number + 1}  {step}", font=face, fill=colour + (255,))
+        draw.rectangle((left, BAR_TOP + 46, left + each, BAR_TOP + 52), fill=(58, 60, 66, 255))
+        if filled > 0:
+            draw.rectangle((left, BAR_TOP + 46, left + each * filled, BAR_TOP + 52), fill=ACCENT + (255,))
+    return layer
 
 
-def square(path):
-    """A close-up cropped square at its centre."""
-    picture = Image.open(path).convert("RGB")
-    side = min(picture.size)
-    return picture.crop(((picture.width - side) // 2, (picture.height - side) // 2,
-                         (picture.width + side) // 2, (picture.height + side) // 2))
+def faded(layer, share):
+    """An RGBA layer with its opacity scaled by `share` (0 to 1)."""
+    if share >= 1.0:
+        return layer
+    shown = layer.copy()
+    shown.putalpha(layer.getchannel("A").point(lambda alpha: round(alpha * share)))
+    return shown
 
 
-def stage_frame(label, pictures, share):
-    """One stage's look at `share` of its time: a still slowly closing in, or the pieces' grid building up."""
-    if label == "Pieces":
-        return grid(pictures, share)
-    grow = 1.0 + 0.04 * share
+def eased(share):
+    """0 to 1, slow at both ends."""
+    share = min(1.0, max(0.0, share))
+    return 0.5 - 0.5 * math.cos(math.pi * share)
+
+
+def credit_layer(credit):
+    """The credit a card's picture carries (credited's), alone on a clear layer."""
+    return credited(Image.new("RGBA", (W, H), (0, 0, 0, 0)), credit)
+
+
+def placed(canvas, laid, shift, grow, share):
+    """A card's board laid into its box on `canvas`, moved `shift` pixels sideways, grown by `grow` about its middle and
+    shown at `share` opacity."""
+    size = (round(laid.width * grow), round(laid.height * grow))
+    picture = laid.resize(size, Image.BICUBIC).convert("RGBA")
+    picture.putalpha(round(255 * share))
+    left = PICTURES_BOX[0] + (laid.width - size[0]) / 2 + shift
+    top = PICTURES_BOX[1] + (laid.height - size[1]) / 2
+    canvas.alpha_composite(picture, (round(left), round(top)))
+
+
+def opening_look(picture, share):
+    """The opening at `share` of its time: the title over the opening picture, closing in slowly."""
+    grow = 1.0 + 0.05 * eased(share)
     crop = (W * (1 - 1 / grow) / 2, H * (1 - 1 / grow) / 2)
-    return pictures[0].transform((W, H), Image.EXTENT, (crop[0], crop[1], W - crop[0], H - crop[1]), Image.BICUBIC)
+    return picture.transform((W, H), Image.EXTENT, (crop[0], crop[1], W - crop[0], H - crop[1]), Image.BICUBIC)
 
 
-def stages_clip(stages, title, out, credits):
-    """A place's stages (stages_of) in turn, STAGE_SECONDS each, each fading into the next, with their labels and any
-    picture's credit (`credits` {path: text}); with a silent sound track so it joins the films."""
-    loaded = [(label, [square(path) for path in paths] if label == "Pieces"
-               else [credited(fitted(Image.open(paths[0]), 0.9), credits.get(str(paths[0])))])
-              for label, paths in stages]
-    labels = [label_layer(label, title) for label, _ in stages]
-    each = round(STAGE_SECONDS * RATE)
-    blend_frames = round(STAGE_FADE * RATE)
+def title_still(behind):
+    """The world's title over its picture (backdrop's blur and dim)."""
+    picture = backdrop(behind)
+    draw = ImageDraw.Draw(picture)
+    lines = [("World 1: 2099", font(96, "Medium")), ("From the creator's picks to a walkable world", font(44, "Light"))]
+    y = H / 2 - 90
+    for line, face in lines:
+        draw.text(((W - draw.textlength(line, font=face)) / 2, y), line, font=face, fill=INK)
+        y += 130
+    return picture
 
-    def look(index, number):
-        label, pictures = loaded[index]
-        return Image.alpha_composite(stage_frame(label, pictures, number / each).convert("RGBA"), labels[index])
+
+def card_look(cards, number, local):
+    """Chain card `number`, `local` seconds into its time, on its own: its board closing in, its words, its credit and
+    the bar; while it moves in, the card before it moves out to the left and fades first, and the words change over
+    one after the other, never laid over each other (the opening fades under the first card instead)."""
+    laids, words, credits, steps = cards
+    move = eased(local / MOVE_SECONDS)
+    canvas = Image.new("RGBA", (W, H), BACK + (255,))
+    push = W * 0.3
+    leaving, coming = (1 - min(1.0, move / 0.6), max(0.0, (move - 0.4) / 0.6)) if number else (0.0, 1.0)
+    if leaving > 0:
+        placed(canvas, laids[number - 1], -push * move, 1.03, leaving)
+        canvas.alpha_composite(faded(words[number - 1], max(0.0, 1 - 2 * move)))
+    placed(canvas, laids[number], push * (1 - move), 1.0 + 0.03 * eased(local / STEP_SECONDS), coming)
+    canvas.alpha_composite(faded(words[number], max(0.0, 2 * move - 1) if number else 1.0))
+    canvas.alpha_composite(faded(credits[number], coming))
+    step = CHAIN.index(steps[number])
+    same = [index for index, name in enumerate(steps) if name == steps[number]]
+    share = (same.index(number) + local / STEP_SECONDS) / len(same)
+    canvas.alpha_composite(bar_layer(step, share))
+    return canvas.convert("RGB")
+
+
+def chain_clip(opening, cards, credits, out):
+    """The opening's title (OPENING_SECONDS), then the chain's cards (chain_cards), STEP_SECONDS each, each pushed in
+    over the one before, as one silent clip; its length."""
+    title = title_still(opening)
+    loaded = ([board(paths) for _, _, paths in cards], [words_layer(step, line) for step, line, _ in cards],
+              [credit_layer(next((credits[str(path)] for path in paths if str(path) in credits), None))
+               for _, _, paths in cards], [step for step, _, _ in cards])
+    seconds = OPENING_SECONDS + STEP_SECONDS * len(cards)
 
     def frame(number, count):
-        index, inside = divmod(number, each)
-        picture = look(index, inside)
-        if index + 1 < len(loaded) and inside >= each - blend_frames:
-            picture = Image.blend(picture, look(index + 1, 0), (inside - each + blend_frames + 1) / (blend_frames + 1))
-        return np.asarray(picture.convert("RGB"))
+        moment = number / RATE
+        if moment < OPENING_SECONDS:
+            return np.asarray(opening_look(title, moment / OPENING_SECONDS))
+        card, local = divmod(moment - OPENING_SECONDS, STEP_SECONDS)
+        look = card_look(loaded, int(card), local)
+        if card == 0 and local < MOVE_SECONDS:
+            look = Image.blend(opening_look(title, 1.0), look, eased(local / MOVE_SECONDS))
+        return np.asarray(look)
 
-    silent = pathlib.Path(out).with_suffix(".silent.mp4")
-    write_frames(frame, len(stages) * STAGE_SECONDS, silent)
-    silence_under(silent, len(stages) * STAGE_SECONDS, out)
-    silent.unlink()
+    write_frames(frame, seconds, out)
+    return seconds
 
 
-def result_clip(film, title, out):
-    """A place's film without its title card: SHOT_SHOWN of its shot from the card's end, with its Result label."""
-    layer = pathlib.Path(out).with_suffix(".label.png")
-    label_layer("Result", title).save(layer)
-    graph = f"[0:v]scale={W}:{H}[f];[1:v]format=rgba[l];[f][l]overlay=format=auto[v]"
-    demo.ffmpeg("-ss", f"{demo.TITLE_SECONDS:.3f}", "-t", SHOT_SHOWN, "-i", film, "-loop", "1", "-t", SHOT_SHOWN,
-                "-i", layer, "-filter_complex", graph, "-map", "[v]", "-map", "0:a", "-c:a", "aac", "-b:a", "160k",
-                *demo.encode(out))
-    layer.unlink()
+def hero_layer(line):
+    """The hero's film as the chain's last step: a dark band at the top, the bar with every step done, the step's
+    title and line."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    band = np.zeros((H, W, 4), dtype=np.uint8)
+    rows = np.clip(1 - np.arange(H) / (H * 0.36), 0, 1) ** 1.3
+    band[..., 3] = (rows[:, None] * 215).astype(np.uint8)
+    layer = Image.alpha_composite(layer, Image.fromarray(band, "RGBA"))
+    layer = Image.alpha_composite(layer, bar_layer(len(CHAIN) - 1, 1.0))
+    return Image.alpha_composite(layer, words_layer(CHAIN[-1], line))
+
+
+def shown_seconds(film):
+    """How much of a store film is shown: from its title card's end, at most PLACE_MOST."""
+    return min(length(film) - demo.TITLE_SECONDS, PLACE_MOST)
+
+
+def result_clip(film, seconds, layer, out, fades=True):
+    """`seconds` of a place's film from its title card's end, with its own sound, under `layer` (an RGBA picture), the
+    layer fading in and out when `fades` (a place's caption), else held throughout (the hero's chain layer)."""
+    still = pathlib.Path(out).with_suffix(".layer.png")
+    layer.save(still)
+    shown = (f"fade=t=in:st=0.3:d=0.6:alpha=1,fade=t=out:st={seconds - 0.9:.3f}:d=0.6:alpha=1," if fades else "")
+    graph = f"[0:v]scale={W}:{H}[f];[1:v]format=rgba,{shown}null[l];[f][l]overlay=format=auto[v]"
+    demo.ffmpeg("-ss", f"{demo.TITLE_SECONDS:.3f}", "-t", f"{seconds:.3f}", "-i", film, "-loop", "1", "-t",
+                f"{seconds:.3f}", "-i", still, "-filter_complex", graph, "-map", "[v]", "-map", "0:a", "-c:a", "aac",
+                "-b:a", "160k", *demo.encode(out))
+    still.unlink()
+
+
+def bed_track(film, seconds, out, rise=0.0, fall=0.0):
+    """A sound bed `seconds` long from a film's own sound after its title card, looped with BED_SEAM cross-fades so no
+    seam clicks, rising over `rise` seconds at its start and falling over `fall` at its end."""
+    piece = length(film) - demo.TITLE_SECONDS
+    copies = max(1, math.ceil((seconds - BED_SEAM) / (piece - BED_SEAM)) + 1)
+    inputs = [part for _ in range(copies) for part in ("-ss", f"{demo.TITLE_SECONDS:.3f}", "-i", film)]
+    chain, previous = [], "[0:a]"
+    for number in range(1, copies):
+        chain.append(f"{previous}[{number}:a]acrossfade=d={BED_SEAM}[b{number}]")
+        previous = f"[b{number}]"
+    shaped = f"atrim=0:{seconds:.3f},asetpts=N/SR/TB"
+    if rise:
+        shaped += f",afade=t=in:d={rise}"
+    if fall:
+        shaped += f",afade=t=out:st={max(0.0, seconds - fall):.3f}:d={fall}"
+    chain.append(f"{previous}{shaped}[bed]")
+    demo.ffmpeg(*inputs, "-filter_complex", ";".join(chain), "-map", "[bed]", "-c:a", "aac", "-b:a", "160k",
+                "-ar", demo.SAMPLE_RATE, out)
+
+
+def ending_part(endings, film, parts):
+    """The ending's clips joined into one, under a bed of `film`'s sound falling away to silence; its length."""
+    clips = [parts / f"ending-{ending.name}" for ending in endings]
+    lengths = [ending_clip(ending, clip) for ending, clip in zip(endings, clips)]
+    seconds = sum(lengths) - FADE * (len(lengths) - 1)
+    picture, bed, out = parts / "ending-picture.mp4", parts / "ending-bed.m4a", parts / "ending.mp4"
+    demo.joined(clips, lengths, picture)
+    bed_track(film, seconds, bed, fall=BED_FALL)
+    sound.with_sound(picture, bed, out)
+    return out, seconds
+
+
+def timeline(cards, shown, ending):
+    """The world video's parts and lengths in order: the opening with the chain's `cards` (a number), each film's
+    shown length (`shown` [(film, seconds)]), then the ending's length (0: none). Every part after the first starts
+    FADE before the one before it ends."""
+    parts = [("chain", OPENING_SECONDS + STEP_SECONDS * cards)] + list(shown)
+    return parts + ([("ending", ending)] if ending else [])
+
+
+def total(parts):
+    """The length of the parts joined by cross-fades."""
+    return sum(seconds for _, seconds in parts) - FADE * (len(parts) - 1)
+
+
+def captions():
+    """Each film's caption, [part of the world, the place]: the places', and every extra film's under its place's part."""
+    found = {film: [part, place] for film, part, place, _ in PLACES}
+    for place, extras in EXTRAS.items():
+        found.update({name: [found[place][0], title] for name, title in extras})
+    return found
 
 
 def ending_clip(clip, out):
@@ -585,40 +737,6 @@ def ending_clip(clip, out):
                  f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2", "-map", "0:v", "-map", "1:a" if sound else "0:a", "-c:a", "aac",
                  "-ar", demo.SAMPLE_RATE, "-shortest", *demo.encode(out))
     return seconds
-
-
-def strip_clip(pictures, out, credits):
-    """The pictures in quick turn, OPENING_EACH each, every one fading into the next over STAGE_FADE, under one
-    label and with any picture's credit (`credits` {path: text}); silent."""
-    stills = [credited(fitted(Image.open(path), 1.0), credits.get(str(path))) for path in pictures]
-    label = label_layer("Concepts", "One for every place")
-    each = round(OPENING_EACH * RATE)
-    blend_frames = round(STAGE_FADE * RATE)
-
-    def frame(number, count):
-        index, inside = divmod(number, each)
-        picture = stills[index]
-        if index + 1 < len(stills) and inside >= each - blend_frames:
-            picture = Image.blend(picture, stills[index + 1], (inside - each + blend_frames + 1) / (blend_frames + 1))
-        return np.asarray(Image.alpha_composite(picture.convert("RGBA"), label).convert("RGB"))
-
-    write_frames(frame, OPENING_EACH * len(pictures), out)
-
-
-def opening_clip(pictures, out, credits):
-    """The opening: the world's title, then every place's concept in a quick strip (strip_clip), with a silent sound
-    track; its length. `pictures`: the concepts' paths, `credits` {path: credit text}."""
-    parts = pathlib.Path(out).parent / "opening"
-    parts.mkdir(exist_ok=True)
-    title, strip = parts / "title.mp4", parts / "strip.mp4"
-    card(["World 1: 2099", "from the creator's picks to a walkable world"], [(64, "Medium"), (34, "Light")],
-         OPENING_TITLE, title, pictures[0])
-    strip_clip(pictures, strip, credits)
-    lengths = [OPENING_TITLE, OPENING_EACH * len(pictures)]
-    joined = parts / "joined.mp4"
-    demo.joined([title, strip], lengths, joined)
-    silence_under(joined, sum(lengths) - FADE, out)
-    return sum(lengths) - FADE
 
 
 # Clips one ffmpeg graph joins at most: 57 cross-faded in one graph left ffmpeg stalled with 12.7 GB held, 2026-10-18.
@@ -665,10 +783,11 @@ def joined_apart(clips, lengths, out, parts):
 
 
 def world(folder, figure_out, films, assets, draft=False):
-    """The world 1 video (demo K9) and its figure: the opening (the title, then every place's concept), then per place
-    in story order its concept, plan and pieces and its accepted film's shot, then the ending's clips where they exist; the
-    films from store_films, the pictures from `assets` (a JSON file: {"opening": [concept paths],
-    "places": {film: {"concept", "plan", "pieces"}}, "credits": {path: credit shown on it}}). Stops on a missing film unless a draft."""
+    """The world 1 video (demo K9) and its figure: the opening's title, the framework's chain shown once on the hero
+    place (chain_clip, then the hero's own film as its last step), every other place's accepted film in story order
+    with its caption, then the ending's clips where they exist, the sound never dropping between them; the films from
+    store_films, the pictures from `assets` (a JSON file: {"hero": film, "hero_line", "opening": picture, "steps":
+    [{"step", "line", "pictures"}], "credits": {path: credit shown on it}}). Stops on a missing film unless a draft."""
     missing = [name for name, _, path, _ in films if path is None]
     if missing and not draft:
         raise SystemExit(f"world: {len(missing)} of {len(films)} films not in the store: {', '.join(missing)}")
@@ -676,33 +795,39 @@ def world(folder, figure_out, films, assets, draft=False):
     if not made:
         raise SystemExit("world: no film in the store")
     chosen = json.loads(pathlib.Path(assets).read_text())
+    cards = chain_cards(chosen)
+    hero = chosen["hero"]
+    made.sort(key=lambda film: film[0] != hero)
     parts = folder / "parts"
     parts.mkdir(parents=True, exist_ok=True)
-    clips, lengths, shown = [], [], []
-    opening = chosen.get("opening", [])
-    if opening:
-        clips.append(parts / "opening.mp4")
-        lengths.append(opening_clip(opening, clips[-1], chosen.get("credits", {})))
+    silent, chain = parts / "chain-picture.mp4", parts / "chain.mp4"
+    chain_seconds = chain_clip(chosen["opening"], cards, chosen.get("credits", {}), silent)
+    bed_track(made[0][2], chain_seconds, parts / "chain-bed.m4a", rise=BED_RISE)
+    sound.with_sound(silent, parts / "chain-bed.m4a", chain)
+    clips, lengths, shown = [chain], [chain_seconds], []
+    named = captions()
     for name, title, path, output in made:
-        stages = stages_of(chosen.get("places", {}).get(name, {}))
-        if stages:
-            clips.append(parts / f"{name}-stages.mp4")
-            stages_clip(stages, title, clips[-1], chosen.get("credits", {}))
-            lengths.append(len(stages) * STAGE_SECONDS)
+        seconds = shown_seconds(path)
         clips.append(parts / f"{name}-result.mp4")
-        result_clip(path, title, clips[-1])
-        lengths.append(SHOT_SHOWN)
-        shown.append({"film": name, "title": title, "output": output, "stages": [label for label, _ in stages]})
+        if name == hero:
+            result_clip(path, seconds, hero_layer(chosen.get("hero_line", "")), clips[-1], fades=False)
+        else:
+            result_clip(path, seconds, caption_layer(named.get(name, [title])), clips[-1])
+        lengths.append(seconds)
+        shown.append({"film": name, "title": title, "output": output, "seconds": round(seconds, 2)})
     endings = [ENDING / name for name in ENDING_CLIPS if (ENDING / name).exists()]
-    for ending in endings:
-        clips.append(parts / f"ending-{ending.name}")
-        lengths.append(ending_clip(ending, clips[-1]))
+    if endings:
+        ending, seconds = ending_part(endings, made[-1][2], parts)
+        clips.append(ending)
+        lengths.append(seconds)
     video = folder / "world1.mp4"
     joined_in_groups(clips, lengths, video, parts)
     (folder / "frames").mkdir(exist_ok=True)
     sheet([(name, title, middle_frame(path, folder / "frames" / f"{name}.png")) for name, title, path, _ in made],
           figure_out)
-    (folder / "world1.json").write_text(json.dumps({"films": shown, "missing": missing, "ending": [str(clip) for clip in endings]}, indent=1))
+    record = {"hero": hero, "steps": [step for step, _, _ in cards], "films": shown, "missing": missing,
+              "ending": [str(clip) for clip in endings]}
+    (folder / "world1.json").write_text(json.dumps(record, indent=1))
     print(f"{video}: {len(made)} of {len(films)} films, {length(video):.1f} s"
           + (f"; missing {', '.join(missing)}" if missing else ""))
 

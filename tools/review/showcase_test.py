@@ -1,13 +1,15 @@
 """Check the showcase's measured numbers and its figure on pieces made here: each surface's share of a model's parts is
 its share of their area, a film is shown by its first walking shot (else its second), and the figure lays one inked
-frame of every film in story order, its frame list beside it; the world video joins the store's films made here in the
-order given, stops on a missing one and, as a draft, names it. The whole cut needs the films and their stills; no
+frame of every film in story order, its frame list beside it; the world video shows the framework's chain once, then
+the hero's film and the store's other films made here in the order given, stops on a missing one and, as a draft,
+names it; world 1's timeline stays within its cap. The whole cut needs the films and their stills; no
 Blender, no cloud.
 
 Run: .venv/bin/python tools/review/showcase_test.py   (make tests runs it with the framework's environment)
 """
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 
@@ -66,13 +68,21 @@ def store_film(path, shade):
     return path
 
 
-def check_stages():
-    """The stages before a result keep the order Concept, Plan, Pieces and leave out a stage with no picture."""
-    every = {"concept": "c.png", "plan": "p.png", "pieces": [f"{n}.png" for n in range(20)]}
-    stages = showcase.stages_of(every)
-    assert [label for label, _ in stages] == ["Concept", "Plan", "Pieces"], stages
-    assert len(stages[2][1]) == showcase.GRID_MOST, stages
-    assert [label for label, _ in showcase.stages_of({"concept": "c.png", "plan": None, "pieces": []})] == ["Concept"]
+def check_chain():
+    """The chain's cards keep its order (a step may take two cards), and a step it does not have, steps out of order or
+    more than CHAIN_MOST cards stop the cut."""
+    steps = [{"step": "References and style", "pictures": ["r.png"]}, {"step": "Concept", "pictures": ["c.png"]},
+             {"step": "Plan", "pictures": ["p.png"]}, {"step": "Pieces", "pictures": ["a.png", "b.png"]},
+             {"step": "Pieces", "pictures": ["d.png"]}]
+    cards = showcase.chain_cards({"steps": steps})
+    assert [step for step, _, _ in cards] == ["References and style", "Concept", "Plan", "Pieces", "Pieces"], cards
+    for wrong in ([steps[2], steps[1]], [{"step": "Place", "pictures": ["f.png"]}],
+                  [steps[0]] * (showcase.CHAIN_MOST + 1)):
+        try:
+            showcase.chain_cards({"steps": wrong})
+            raise AssertionError(f"cut with {wrong}")
+        except SystemExit:
+            pass
 
 
 def check_credit():
@@ -84,41 +94,45 @@ def check_credit():
 
 
 def check_timeline():
-    """The world video's parts in order, each place about 6.5 s, and the whole within 4 minutes for world 1."""
-    parts = showcase.timeline([("flat", 3), ("cockpit", 2)], 18.0, [15.0, 15.0])
-    assert [name for name, _ in parts] == ["opening", "flat:stages", "flat:result", "cockpit:stages", "cockpit:result",
-                                           "ending:0", "ending:1"], parts
-    place = 3 * showcase.STAGE_SECONDS + showcase.SHOT_SHOWN - showcase.FADE
-    assert 6.0 <= place <= 7.0, place
-    whole = showcase.timeline([(film, 3) for film, *_ in showcase.PLACES] + [("hull", 0)], 18.0, [15.0, 15.0])
-    seconds = sum(length for _, length in whole) - showcase.FADE * (len(whole) - 1)
-    assert seconds <= 240, seconds
+    """World 1 as cut on 18 Oct (four chain cards, 27 films, the two ending clips joined): every place PLACE_MOST, the
+    places most of the time, and the whole within WORLD_MOST."""
+    shown = [(film, showcase.PLACE_MOST) for film, *_ in showcase.PLACES] + [("hull", showcase.PLACE_MOST)]
+    parts = showcase.timeline(4, shown, 14.0 + 20.0 - showcase.FADE)
+    assert [name for name, _ in parts][:2] == ["chain", "flat"] and parts[-1][0] == "ending", parts
+    whole = showcase.total(parts)
+    assert whole <= showcase.WORLD_MOST, whole
+    assert sum(seconds for _, seconds in shown) / whole > 0.75, whole
 
 
 def check_world(folder):
-    films = [("flat", "Flat", store_film(folder / "a/film.mp4", 40), "a"), ("stairwell", "Stairwell", None, None),
-             ("hull", "The ship", store_film(folder / "b/hull/film.mp4", 200), "b")]
+    """The hero's film comes right after the chain whatever its story place, a missing film stops the cut but not a
+    draft, the video is as long as its timeline, and its sound never drops below a whisper."""
+    films = [("stairwell", "Stairwell", store_film(folder / "a/film.mp4", 40), "a"), ("street", "Street", None, None),
+             ("flat", "Flat", store_film(folder / "b/film.mp4", 200), "b")]
     for number in range(4):
         Image.new("RGB", (300, 200), (60 * number, 90, 90)).save(folder / f"{number}.png")
+    steps = [{"step": "Concept", "line": "a concept", "pictures": [str(folder / "0.png")]},
+             {"step": "Pieces", "line": "pieces", "pictures": [str(folder / "2.png"), str(folder / "3.png")]}]
     assets = folder / "assets.json"
-    assets.write_text(json.dumps({"opening": [str(folder / "0.png"), str(folder / "1.png")], "places": {"flat": {"concept": str(folder / "0.png"), "plan": str(folder / "1.png"),
-                                                      "pieces": [str(folder / "2.png"), str(folder / "3.png")]}},
+    assets.write_text(json.dumps({"hero": "flat", "opening": str(folder / "1.png"), "steps": steps,
                                   "credits": {str(folder / "0.png"): "Generated using World Labs"}}))
     showcase.ENDING = folder / "ending"
     try:
         showcase.world(folder / "out", folder / "fig.jpg", films, assets)
         raise AssertionError("a missing film was cut")
     except SystemExit as stop:
-        assert "stairwell" in str(stop), stop
+        assert "street" in str(stop), stop
     showcase.world(folder / "out", folder / "fig.jpg", films, assets, draft=True)
     record = json.loads((folder / "out/world1.json").read_text())
-    assert [film["film"] for film in record["films"]] == ["flat", "hull"] and record["missing"] == ["stairwell"], record
-    assert record["films"][0]["stages"] == ["Concept", "Plan", "Pieces"] and record["films"][1]["stages"] == []
-    opening = showcase.OPENING_TITLE + 2 * showcase.OPENING_EACH - showcase.FADE
-    parts = showcase.timeline([("flat", 3), ("hull", 0)], opening, [])
-    expected = sum(seconds for _, seconds in parts) - showcase.FADE * (len(parts) - 1)
+    assert [film["film"] for film in record["films"]] == ["flat", "stairwell"] and record["missing"] == ["street"]
+    assert record["steps"] == ["Concept", "Pieces"], record
+    shown = [(film["film"], 5.5 - showcase.demo.TITLE_SECONDS) for film in record["films"]]
+    expected = showcase.total(showcase.timeline(2, shown, 0))
     measured = showcase.length(folder / "out/world1.mp4")
     assert abs(measured - expected) < 0.2, (measured, expected)
+    quiet = subprocess.run(["ffmpeg", "-v", "info", "-i", str(folder / "out/world1.mp4"), "-ss", "0.5", "-af",
+                            "silencedetect=n=-60dB:d=0.3", "-f", "null", "-"], capture_output=True, text=True).stderr
+    assert "silence_start" not in quiet, quiet
     with Image.open(folder / "fig.jpg") as sheet:
         assert sheet.size == (4 * showcase.TILE[0] + 24, showcase.TILE[1]), sheet.size
 
@@ -128,7 +142,7 @@ if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     with tempfile.TemporaryDirectory() as temporary:
-        check_stages()
+        check_chain()
         check_credit()
         check_timeline()
         for check in (check_legend, check_figure, check_world):
