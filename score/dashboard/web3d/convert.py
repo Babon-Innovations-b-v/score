@@ -39,7 +39,9 @@ from score.dashboard.web3d import facts, meshes
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 EXPORT = REPO / "tools/review/viewer/export.py"
-FULL_TEXTURE = 1024
+# The whole copies of every place must fit the hosted export's cap with the rest of the cockpit (600 MB on the
+# hosted site): at 1024 px the workshop's and the wreck's were left out of it (2026-10-18).
+FULL_TEXTURE = 768
 AROUND_TEXTURE = 512
 LIGHT_TEXTURE = 256
 WEBP_QUALITY = 82
@@ -187,14 +189,15 @@ def packed(export, documents, work, partial, place):
     return sizes
 
 
-def stage_facts(export, stage, moment, elsewhere):
-    """The sidecar's facts of the stage beyond its meshes: lights, sky, layers, effects, motion, sounds and the
-    places it shows."""
-    doubled = meshes.own_outside(stage) - {"near"}
+def stage_facts(export, stage, moment, elsewhere, effects_at=None):
+    """The sidecar's facts of the stage beyond its meshes: lights, sky, haze, layers, effects (at the time code
+    `effects_at`, else where each shows most), motion, sounds and the places it shows."""
+    doubled = meshes.own_outside(stage)
     return {"shows": facts.shown_places(stage, elsewhere, doubled, moment),
             "lights": facts.lamps(export, stage, moment), "sky": export.sky(stage, moment), "glow": facts.glow(stage),
-            "stage_layers": facts.stage_layers(stage), "effects": facts.effects(stage),
-            "motion": facts.motion(export, stage, moment), "sounds": facts.sounds(stage)}
+            "hazes": facts.hazes(stage, moment), "stage_layers": facts.stage_layers(stage),
+            "effects": facts.effects(stage, effects_at), "motion": facts.motion(export, stage, moment),
+            "sounds": facts.sounds(stage)}
 
 
 def objects(boxes, layers):
@@ -228,7 +231,9 @@ def write_copies(place, stage_folder, out_root, origin, views, elsewhere=()):
         boxes, triangles, left_out, instancers = meshes.write_meshes(export, stage, documents, moment, elsewhere)
         sizes = packed(export, documents, work, partial, place)
         layers = node_layers(stage, export, moment)
-        described = stage_facts(export, stage, moment, elsewhere)
+        # The effects as the film's first shot starts, where the viewer opens (the launch's plume at lift-off).
+        effects_at = next((view["frame"] for view in views if view.get("frame") is not None), None)
+        described = stage_facts(export, stage, moment, elsewhere, effects_at)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     sidecar = {"place": place, **origin,
@@ -237,7 +242,7 @@ def write_copies(place, stage_folder, out_root, origin, views, elsewhere=()):
                "objects": objects(boxes, layers),
                **sizes, "packed_with": f"{export.GLTFPACK} -cc -kn -km -vpf, pictures WebP at most {FULL_TEXTURE} px",
                "seconds": round(time.monotonic() - started, 1)}
-    (partial / f"{place}.json").write_text(json.dumps(sidecar))
+    (partial / f"{place}.json").write_text(json.dumps(sidecar, separators=(",", ":")))
     shutil.rmtree(folder, ignore_errors=True)
     partial.rename(folder)
     return sidecar

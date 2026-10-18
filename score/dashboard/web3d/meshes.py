@@ -6,8 +6,10 @@ the city's five places are each sent once and never simplified. A point instance
 prototypes written once and its instances listed, so the viewer draws them as instanced meshes; every other shape
 the exporter cannot write is counted in `left_out`.
 
-A shown place's Outside ring (its far ground, horizon and water, the same city laid round its own seat) is left out
-where the place has its own of the same name: the film draws both, one over the other a few hundred metres apart.
+A shown place's Outside ring (its near and far ground, horizon and water, the same land laid round its own seat) is
+left out where the place has its own of the same name: drawn twice, the far city stood a few hundred metres apart
+from itself, a shown place's near ground flickered through the place's own (the campgrounds' and the camp's) and
+stood up through the hangar's floor (a tube's, 1.5 m high in it, 2026-10-18), none of which the films show.
 """
 import numpy as np
 
@@ -28,17 +30,16 @@ def own_outside(stage):
 
 
 def doubled_outside(prim, kept):
-    """Whether a prim is a shown place's Outside part that the place's own Outside already has (other than its near
-    ground, which is cut round that place alone)."""
+    """Whether a prim is a shown place's Outside part that the place's own Outside already has."""
     parts = prim.GetPath().pathString.split("/")
-    return (facts.shown_place(prim) is not None and len(parts) > 5 and parts[4] == OUTSIDE
-            and parts[5] in kept and parts[5] != "near")
+    return facts.shown_place(prim) is not None and len(parts) > 5 and parts[4] == OUTSIDE and parts[5] in kept
 
 
 def left_to_its_copy(prim, elsewhere):
-    """Whether a prim is a shown place's root whose own web copy the viewer loads instead."""
+    """Whether a prim is a shown place's root whose place's web copy the viewer loads instead (the tube's copy for
+    each tube seated round the hub: written into every module's own around copy, they were most of its bytes)."""
     parts = prim.GetPath().pathString.split("/")
-    return len(parts) == 4 and facts.shown_place(prim) in elsewhere
+    return len(parts) == 4 and facts.shown_place(prim) is not None and facts.copied_place(prim) in elsewhere
 
 
 def instance_matrices(instancer, root, time):

@@ -31,6 +31,13 @@ def shown_place(prim):
     return parts[3] if len(parts) > 3 and parts[2] == "Places" else None
 
 
+def copied_place(root):
+    """The place a shown place's root stands for (its score:place: the hangar's habitat_tube is the tube seated
+    again), else its own name."""
+    attribute = root.GetAttribute("score:place")
+    return (attribute.Get() if attribute and attribute.HasValue() else None) or root.GetName()
+
+
 def layer_of(prim):
     """The layer the viewer lists a prim under: "place <other>" for another place the scene shows, else the layer of
     the place's stage that defines it (or its nearest ancestor that one defines), the weakest sublayer spec that is a
@@ -58,15 +65,15 @@ def switched_off(root):
 
 
 def shown_places(stage, elsewhere, doubled, time):
-    """The other places the stage shows: [{place, copy (whether the viewer loads its own web copy), seat (its root's
-    place in the world, 16 numbers row by row), hidden (what of that copy the showing stage leaves out: its
-    switched-off prims and its Outside parts in `doubled`)}]."""
+    """The other places the stage shows: [{place, of (the place whose web copy stands there), copy (whether the viewer
+    loads that copy), seat (its root's place in the world, 16 numbers row by row), hidden (what of that copy the
+    showing stage leaves out: its switched-off prims and its Outside parts in `doubled`)}]."""
     from pxr import UsdGeom
     places = stage.GetDefaultPrim().GetChild("Places")
     found = []
     for root in places.GetChildren() if places.IsValid() else []:
         seat = np.array(UsdGeom.Xformable(root).ComputeLocalToWorldTransform(time))
-        found.append({"place": root.GetName(), "copy": root.GetName() in elsewhere,
+        found.append({"place": root.GetName(), "of": copied_place(root), "copy": copied_place(root) in elsewhere,
                       "seat": np.round(seat, 5).ravel().tolist(),
                       "hidden": [*switched_off(root), *(f"Outside/{name}" for name in sorted(doubled))]})
     return found
@@ -99,19 +106,46 @@ def glow(stage):
     return {key: float(dome.GetAttribute(f"score:glow_{key}").Get() or 0.0) for key in ("threshold", "intensity")}
 
 
+def hazes(stage, time):
+    """The place's own haze bodies (score:kind "haze", tools/usd/scene.py), which the films fill with fog lit by the
+    lamps and the sun only: [{colour (linear, what it scatters), density (a metre), reach (how far from the eye it is
+    worked out, metres; 0 for all the way), low, high (its box)}]."""
+    from pxr import UsdGeom
+    boxes = UsdGeom.BBoxCache(time, [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
+    found = []
+    for prim in stage.Traverse():
+        kind = prim.GetAttribute("score:kind")
+        if shown_place(prim) or not (kind and kind.Get() == "haze" and prim.HasAttribute("score:haze_density")):
+            continue
+        box = boxes.ComputeWorldBound(prim).ComputeAlignedRange()
+        reach = prim.GetAttribute("score:haze_reach")
+        found.append({"colour": [float(part) for part in prim.GetAttribute("score:haze_colour").Get(time)],
+                      "density": float(prim.GetAttribute("score:haze_density").Get(time)),
+                      "reach": float(reach.Get(time) or 0.0) if reach and reach.HasValue() else 0.0,
+                      "low": [float(part) for part in box.GetMin()], "high": [float(part) for part in box.GetMax()]})
+    return found
+
+
 def sounds(stage):
     """How many sounds the stage places (UsdMedia SpatialAudio prims)."""
     return sum(1 for prim in stage.Traverse() if prim.GetTypeName() == "SpatialAudio")
 
 
 def fullest_time(points):
-    """The time code at which an effect's points are most (of at most LOOKED_AT samples spread over its time), None
-    when they are not sampled."""
+    """The time code at which an effect shows most (of at most LOOKED_AT samples spread over its time): its points'
+    summed displayOpacity, else their count (a vent's points are most when they have all faded out); None when they
+    are not sampled."""
+    from pxr import UsdGeom
     codes = points.GetPointsAttr().GetTimeSamples()
     if not codes:
         return None
     codes = codes[::max(1, len(codes) // LOOKED_AT)]
-    return max(codes, key=lambda code: len(points.GetPointsAttr().Get(code) or []))
+    primvar = UsdGeom.PrimvarsAPI(points).GetPrimvar("displayOpacity")
+
+    def shown(code):
+        opacity = primvar.Get(code) if primvar else None
+        return float(np.sum(opacity)) if opacity is not None else len(points.GetPointsAttr().Get(code) or [])
+    return max(codes, key=shown)
 
 
 def packed_points(placed):
@@ -130,13 +164,13 @@ def point_size(points, time, effect):
     return round(mean if mean > 0 else float(effect.GetAttribute("score:effect:size").Get() or 0.05), 4)
 
 
-def effect_entry(prim):
-    """One effect's points where they are most, in the stage's frame, at most EFFECT_POINTS of them: name, layer,
-    colour (linear, times its brightness), opacity, size (metres across) and points (packed_points); None when it
-    has none."""
+def effect_entry(prim, code=None):
+    """One effect's points at the time code `code` (else where they show most), in the stage's frame, at most
+    EFFECT_POINTS of them: name, layer, colour (linear, times its brightness), opacity, its look and near fade, size
+    (metres across) and points (packed_points); None when it has none then."""
     from pxr import Usd, UsdGeom
     points = UsdGeom.Points(prim)
-    code = fullest_time(points)
+    code = fullest_time(points) if code is None else code
     time = Usd.TimeCode(code) if code is not None else Usd.TimeCode.Default()
     found = np.asarray(points.GetPointsAttr().Get(time) or [], dtype=np.float64)
     if not len(found):
@@ -147,20 +181,33 @@ def effect_entry(prim):
     effect = prim.GetParent()
     colour = effect.GetAttribute("score:effect:colour").Get() or (1.0, 1.0, 1.0)
     brightness = float(effect.GetAttribute("score:effect:brightness").Get() or 1.0)
+    near_fade = effect.GetAttribute("score:effect:near_fade").Get()
     return {"name": str(prim.GetPath().MakeRelativePath(prim.GetStage().GetDefaultPrim().GetPath())),
             "layer": "effects" if not shown_place(prim) else layer_of(prim),
             "colour": [round(float(part) * brightness, 4) for part in colour],
-            "opacity": float(effect.GetAttribute("score:effect:opacity").Get() or 1.0),
+            "opacity": point_opacity(points, time, effect), "look": prim.GetAttribute("score:effect:look").Get(),
+            "near_fade": [float(part) for part in near_fade] if near_fade else None,
             "size": point_size(points, time, effect), "points": packed_points(placed[:, :3])}
 
 
-def effects(stage):
-    """Every visible effect's points of the stage (effect_entry)."""
+def point_opacity(points, time, effect):
+    """How thick an effect's points are where they are most, as the films draw each (their displayOpacity's mean),
+    else the effect's own opacity."""
+    from pxr import UsdGeom
+    primvar = UsdGeom.PrimvarsAPI(points).GetPrimvar("displayOpacity")
+    values = primvar.Get(time) if primvar else None
+    if values is not None and len(values):
+        return round(float(np.mean(values)), 5)
+    return float(effect.GetAttribute("score:effect:opacity").Get() or 1.0)
+
+
+def effects(stage, code=None):
+    """Every visible effect's points of the stage at the time code `code` (effect_entry)."""
     from pxr import Usd, UsdGeom
     found = []
     for prim in Usd.PrimRange(stage.GetDefaultPrim()):
         if prim.IsA(UsdGeom.Points) and UsdGeom.Imageable(prim).ComputeVisibility() != UsdGeom.Tokens.invisible:
-            entry = effect_entry(prim)
+            entry = effect_entry(prim, code)
             if entry:
                 found.append(entry)
     return found
@@ -249,5 +296,5 @@ def film_cameras(store_root, output):
         return []
     views = json.loads((store_root / "objects" / "blobs" / listing["views.json"]).read_text())["views"]
     return [{"name": f"film {view['name'].split('-')[0].replace('shot', 'shot ')}", "eye": view["eye"],
-             "aim": view["aim"], "fov": float(view.get("fov", 75.0))}
+             "aim": view["aim"], "fov": float(view.get("fov", 75.0)), "frame": view.get("frame")}
             for view in views if view["name"].endswith("-000")]
