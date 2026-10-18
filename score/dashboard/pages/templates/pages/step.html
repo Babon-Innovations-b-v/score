@@ -72,10 +72,9 @@
 </section>
 
 {% if output_picture %}
-<section>
-  <h2>Everything it made</h2>
-  {% include "pages/sheet.html" with files=detail.files fps=film_fps no_films=True %}
-</section>
+<details class="fold made"{% if detail.files|length <= 16 %} open{% endif %}><summary>Everything it made ({{ detail.files|length }} files)</summary>
+  <div class="fold-body">{% include "pages/sheet.html" with files=detail.files fps=film_fps no_films=True %}</div>
+</details>
 {% endif %}
 
 {% if detail.waiting %}
