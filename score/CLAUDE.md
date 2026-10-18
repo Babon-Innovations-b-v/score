@@ -72,6 +72,8 @@ stage as each stage is built; nothing moves before.
   every run in flight would pass it (one outbox line, free work goes on; in the framework's store a world with no
   line is refused), and never stops a started job except a runaway past twice its forecast minutes), `engines`
   (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
+  `vendored` (the table of every tool in `vendor/`: where it is called, or why it is left out; its test fails on a
+  tool vendored and forgotten).
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on world 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. `terrain` (one world node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
