@@ -18,12 +18,14 @@ FILM_SHOT_FROM = 2.0
 FILM_SHOT_SECONDS = 3.5
 SHORTEST, LONGEST = 0.5, 60.0
 MOST_SEGMENTS = 200
-TARGET_SECONDS = 180
+TARGET_SECONDS = 240
+WALK_SECONDS = 7.0
 
 # Each cut type: its words, its default length, what it must name besides what it shows, and its usual transition
-# and sound. A walk-through is 3.5 s by default because that is the shot every accepted film already holds.
+# and sound. A walk-through is WALK_SECONDS: 3.5 s a place read far too fast (the owner, 2026-10-18), so a place gets
+# 7 s of its finished state, rendered again where its accepted 4 s film is too short.
 CUTS = {
-    "walk-through": {"label": "Walk-through", "seconds": FILM_SHOT_SECONDS, "needs": ("place",),
+    "walk-through": {"label": "Walk-through", "seconds": WALK_SECONDS, "needs": ("place",),
                      "transition": "cross-fade", "sound": "place",
                      "words": "the camera's path through the place"},
     "orbit": {"label": "Orbit", "seconds": 6.0, "needs": ("place",), "transition": "cross-fade", "sound": "bed",

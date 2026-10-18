@@ -36,8 +36,8 @@ def test_the_clock_overlaps_cross_fades_and_pushes_only():
                      {"cut": "step-card", "shows": {"place": "alpha", "step": "plan"}, "transition": "push",
                       "seconds": 2},
                      {"cut": "text", "transition": "cut"}])
-    assert script.timeline(film) == [(0.0, 4.0), (3.5, 3.5), (6.5, 2.0), (8.5, 3.0)]
-    assert script.total_seconds(film) == 11.5
+    assert script.timeline(film) == [(0.0, 4.0), (3.5, 7.0), (10.0, 2.0), (12.0, 3.0)]
+    assert script.total_seconds(film) == 15.0
     film["defaults"] = {"walk-through": 5.0}
     assert script.total_seconds(film) == 13.0
 
@@ -55,26 +55,31 @@ def test_a_script_says_what_is_wrong_in_words():
     assert script.faults({**film, "film": "Bad Name"}) and script.faults({"format": "other"})
 
 
-def test_render_items_reuse_films_and_price_new_frames_from_measured_frames_only():
+def test_render_items_reuse_films_and_price_film_frames_per_place_from_measured_runs():
     media = {"alpha": {"film": {"url": "/files/a"}, "hero": {"url": "/files/h"}, "extras": {}},
-             "beta": {"film": None, "hero": None, "extras": {}}}
+             "beta": {"film": None, "hero": None, "extras": {}},
+             "hub": {"film": {"url": "/files/b"}, "hero": None, "extras": {}}}
     film = a_script([{"cut": "title"},
+                     {"cut": "walk-through", "shows": {"place": "alpha"}, "seconds": 3.5},
                      {"cut": "walk-through", "shows": {"place": "alpha"}},
-                     {"cut": "walk-through", "shows": {"place": "alpha"}, "seconds": 7},
                      {"cut": "walk-through", "shows": {"place": "beta"}},
                      {"cut": "hero-still", "shows": {"place": "alpha"}},
                      {"cut": "exploded", "shows": {"place": "alpha"}},
-                     {"cut": "step-card", "shows": {"place": "alpha", "step": "plan"}}])
+                     {"cut": "step-card", "shows": {"place": "alpha", "step": "plan"}},
+                     {"cut": "walk-through", "shows": {"place": "hub"}},
+                     {"cut": "hero-still", "shows": {"place": "alpha"}, "camera": "wide"}])
     items = render.items(film, media)
-    assert [item["how"] for item in items] == ["free", "reuse", "new", "basket", "reuse", "new", "free"]
-    per_frame = render.MEASURED["look"]["euros"]
-    assert items[2]["frames"] == 168 and items[2]["euros"] == round(168 * per_frame, 2)
+    assert [item["how"] for item in items] == ["free", "reuse", "new", "basket", "reuse", "new", "free", "new", "new"]
+    assert items[2]["frames"] == 168 and items[2]["kind"] == "film"
+    assert items[2]["euros"] == round(168 * render.MEASURED["film"]["euros"], 2)  # no runs of its own: the median
+    assert items[7]["euros"] == round(168 * render.FILM_FRAME_EUROS["hub"], 2)  # the hub's own runs
+    assert items[8]["kind"] == "look" and items[8]["euros"] == round(render.MEASURED["look"]["euros"], 2)
     assert items[3]["node"] == "demo-film@beta" and items[3]["frames"] == render.FILM_FRAMES
     assert items[5]["frames"] == 144 and items[5]["euros"] is None  # an exploded view was never rendered on a card
     totals = render.totals(items)
     assert totals["unmeasured"] == ["exploded"] and totals["unmeasured_frames"] == 144
     assert totals["basket"] == ["demo-film@beta"] and totals["reused"] == 2 and totals["free"] == 2
-    assert totals["euros"] == round(items[2]["euros"] + items[3]["euros"], 2)
+    assert totals["euros"] == round(sum(items[number]["euros"] for number in (2, 3, 7, 8)), 2)
 
 
 def test_the_film_shot_matches_the_demo_film_rows():
@@ -90,6 +95,10 @@ def test_world1_starter_is_sound_and_gives_the_places_the_time():
     lengths = dict(zip(range(len(film["segments"])), script.timeline(film)))
     walks = sum(lengths[index][1] for index, segment in enumerate(film["segments"]) if segment["cut"] == "walk-through")
     assert walks > script.total_seconds(film) / 2
+    places = [segment["shows"]["place"] for segment in film["segments"]
+              if segment["cut"] == "walk-through" and not segment["shows"].get("film")]
+    assert len(places) == len(set(places)) and all(script.seconds_of(film, segment) >= 7
+                                                   for segment in film["segments"] if segment["cut"] == "walk-through")
     cards = [segment for segment in film["segments"] if segment["cut"] == "step-card"]
     assert [card["shows"]["step"] for card in cards] == list(script.STEPS)  # the chain once
     assert len({card["shows"]["place"] for card in cards}) == 1
@@ -100,7 +109,7 @@ def test_the_film_pages_render_with_the_preview_data(world, tmp_path, monkeypatc
     monkeypatch.setattr(settings, "SCORE_REPO", tmp_path / "repo")
     script.save(settings.SCORE_HOME, a_script([
         {"cut": "title", "text": "A trailer"},
-        {"cut": "walk-through", "shows": {"place": "alpha"}, "text": "Alpha"},
+        {"cut": "walk-through", "shows": {"place": "alpha"}, "text": "Alpha", "seconds": 3.5},
         {"cut": "layer-split", "shows": {"place": "alpha"}}]))
     client = signed_in()
     listing = client.get("/film/").content.decode()

@@ -13,6 +13,7 @@ Rules:
   starter, changed by a commit, never by the page. No stage reads either, so no key moves; a stage that reads one
   later declares it on purpose.
 - **Free preview, priced renders.** The preview uses only what exists (the web copies, accepted films, step
-  pictures). A render item is priced only from `render.MEASURED`; a kind never rendered on a card reads "not measured
+  pictures). A render item is priced only from measured runs (`render.MEASURED`, film frames per place in
+  `render.FILM_FRAME_EUROS`, read from the cloud ledgers; stills as look frames); a kind never rendered on a card reads "not measured
   yet". The basket takes only rows that exist (demo-film@<place>); nothing here plans, launches or calls a cloud.
 - Tests: `score/dashboard/tests/films_test.py` (the fixture world, temp homes).
