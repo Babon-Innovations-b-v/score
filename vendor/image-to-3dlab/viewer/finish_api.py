@@ -29,9 +29,9 @@ from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
-from image_to_3dlab import processes  # noqa: E402
-from image_to_3dlab import blender as blender_lookup  # noqa: E402
-from image_to_3dlab.host import APPLE, host_platform  # noqa: E402
+from image_to_3dlab import blender as blender_lookup
+from image_to_3dlab import processes
+from image_to_3dlab.host import APPLE, host_platform
 
 OUTPUT_ROOT = REPO / "output" / "finish"
 # Where generation runs (and their records) live, for matching an uploaded model to the run
@@ -69,12 +69,14 @@ SETTING_BOUNDS: dict[str, tuple[float, float]] = {
 }
 
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "faces": 40000, "atlas": 2048, "angle": 89.0, "voxel": 0.004,
+    "faces": 20000, "atlas": 2048, "angle": 89.0, "voxel": 0.004,
     "metallic": 0.25, "roughness": 0.65, "ior": 1.45,
     "paint_seed": 0, "paint_res": 512, "paint_steps": 15, "paint_tex": 4096,
     "texture_size": 2048, "skip_paint": True, "skip_compress": False, "skip_bake": False,
-    "skip_photo": False,
+    "skip_photo": False, "keep_mesh": False, "skip_edge_fade": False, "skip_nudge": False,
 }
+
+BOOL_SETTINGS = {"skip_paint", "skip_compress", "skip_bake", "skip_photo", "keep_mesh", "skip_edge_fade", "skip_nudge"}
 
 INTEGER_SETTINGS = {
     "faces", "atlas", "paint_seed", "paint_res", "paint_steps", "paint_tex", "texture_size",
@@ -123,7 +125,7 @@ def normalise_settings(raw: dict[str, Any]) -> dict[str, Any]:
     for key, value in raw.items():
         if key not in DEFAULT_SETTINGS:
             continue
-        if key in {"skip_paint", "skip_compress", "skip_bake", "skip_photo"}:
+        if key in BOOL_SETTINGS:
             settings[key] = bool(value)
             continue
         try:
@@ -134,6 +136,9 @@ def normalise_settings(raw: dict[str, Any]) -> dict[str, Any]:
         if not low <= number <= high:
             raise ValueError(f"{key} must be within {low}..{high}, got {number}")
         settings[key] = int(number) if key in INTEGER_SETTINGS else number
+    if settings["keep_mesh"]:
+        # full detail: nothing is simplified, so there is nothing to repaint or bake onto
+        settings.update(skip_paint=True, skip_bake=True)
     return settings
 
 
@@ -142,7 +147,8 @@ REPAINT_NOTE = ("Repaint runs on Apple Silicon only for now. Here Pixel Match st
 
 
 def capabilities(platform: str | None = None, find=blender_lookup.find_blender,
-                 version=blender_lookup.blender_version) -> dict[str, Any]:
+                 version=blender_lookup.blender_version,
+                 installable=blender_lookup.can_install) -> dict[str, Any]:
     """What Finish can do on this machine, for the page to say before anyone clicks."""
     repaint = (platform or host_platform()) == APPLE
     found = find()
@@ -155,6 +161,8 @@ def capabilities(platform: str | None = None, find=blender_lookup.find_blender,
         "blender_problem": (blender_lookup.missing_help() if found is None
                             else blender_lookup.version_problem(found_version)),
         "ready": found is not None,
+        # Setup's Blender card offers Install Blender (scripts/bootstrap_blender.py).
+        "blender_installable": found is None and installable(),
     }
 
 
@@ -186,6 +194,8 @@ def build_command(
         str(job.asset_path), str(job.image_path), str(job.result_glb),
         *(["--steps-dir", str(job.steps_dir)] if job.steps_dir is not None else []),
         *(["--views", str(job.views_dir)] if uses_photo(job, settings) else []),
+        *(["--native-dump", str(job.dump_path)]
+          if job.dump_path.is_file() and not settings.get("keep_mesh") else []),
         "--faces", str(settings["faces"]),
         "--atlas", str(settings["atlas"]),
         "--angle", str(settings["angle"]),
@@ -205,14 +215,39 @@ def build_command(
         command.append("--skip-compress")
     if settings["skip_bake"]:
         command.append("--skip-bake")
+    if settings.get("keep_mesh"):
+        command.append("--keep-mesh")
+    if settings.get("skip_edge_fade"):
+        command.append("--no-edge-fade")
+    if settings.get("skip_nudge"):
+        command.append("--no-nudge")
     if resume:
         command.append("--resume")
     return command
 
 
-def uses_photo(job: "FinishJob", settings: dict[str, Any]) -> bool:
+def needed_inputs(job: FinishJob, settings: dict[str, Any]) -> list[Path]:
+    """The input files a run cannot do without. The picture only feeds Pixel Match and the
+    repaint, so a run with both off (one started without a picture) needs only the model."""
+    if settings.get("skip_photo", False) and settings.get("skip_paint", True):
+        return [job.asset_path]
+    return [job.asset_path, job.image_path]
+
+
+def uses_photo(job: FinishJob, settings: dict[str, Any]) -> bool:
     """Whether this run gets the photo stage: a camera was found and it was not turned off."""
     return not settings.get("skip_photo", False) and (job.views_dir / "transforms.json").is_file()
+
+
+def photo_note(job: FinishJob, settings: dict[str, Any]) -> str | None:
+    """Why Pixel Match did not run, when it was asked for and could not: None otherwise.
+
+    Said at the start and again on the finished result, because a ticked box with no stage
+    and a one-second start-up line read as Pixel Match having run."""
+    if settings.get("skip_photo", False) or uses_photo(job, settings):
+        return None
+    return ("Pixel Match skipped: no saved camera for this model. It works on Pixal3D "
+            "models generated in this lab, which keep their camera beside the .glb.")
 
 
 def find_source_views(asset: bytes, root: Path = GENERATED_ROOT) -> Path | None:
@@ -223,24 +258,54 @@ def find_source_views(asset: bytes, root: Path = GENERATED_ROOT) -> Path | None:
     beside the GLB as `<output>.svviews/`. Anything else (another generator, a model from
     elsewhere, an edited file) has no match and simply gets no photo stage.
     """
+    for record_path, record in _matching_runs(asset, root):
+        views = Path((record.get("output") or {}).get("path", "")).with_suffix(".svviews")
+        if not (views / "transforms.json").is_file():
+            views = record_path.with_suffix(".svviews")
+        if (views / "transforms.json").is_file():
+            return views
+    return None
+
+
+def find_source_dump(asset: bytes, root: Path = GENERATED_ROOT) -> Path | None:
+    """Pixal3D's saved clean-up input for the run that produced `asset`, or None.
+
+    Matched by content like the camera, and found whether or not Pixel Match runs: the
+    Pixal3D Finish route needs the dump, not the pictures. Runs from before the dump was
+    saved, and builds without the patch, have none and take the classic route.
+    """
+    for record_path, record in _matching_runs(asset, root):
+        name = record.get("post_dump")
+        if not name:
+            continue
+        for folder in (Path((record.get("output") or {}).get("path", "")).parent,
+                       record_path.parent):
+            if (folder / name).is_file():
+                return folder / name
+    return None
+
+
+def _matching_runs(asset: bytes, root: Path):
+    """(record path, record) for each Pixal3D run whose output has `asset`'s sha256."""
     digest = hashlib.sha256(asset).hexdigest()
     if not root.is_dir():
-        return None
+        return
     for record_path in root.rglob("*.json"):
         if record_path.stat().st_size > 20000:
             continue
         record = _read_json(record_path)
         if not isinstance(record, dict) or record.get("backend") != "pixal3d":
             continue
-        output = record.get("output") or {}
-        if output.get("sha256") != digest:
-            continue
-        views = Path(output.get("path", "")).with_suffix(".svviews")
-        if not (views / "transforms.json").is_file():
-            views = record_path.with_suffix(".svviews")
-        if (views / "transforms.json").is_file():
-            return views
-    return None
+        if (record.get("output") or {}).get("sha256") == digest:
+            yield record_path, record
+
+
+def link_or_copy(source: Path, target: Path) -> None:
+    """A hard link where the filesystem allows one (a dump is 200-450 MB), else a copy."""
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
 
 
 def stage_bands(stages: list[str]) -> dict[str, tuple[float, float]]:
@@ -355,13 +420,14 @@ def faces_label(faces: int) -> str:
     return f"{faces / 1000:g}k"
 
 
-def final_name(directory_name: str, faces: int) -> str:
-    """The finished model's file name: the asset, then its face count (`vanguard_5k.glb`).
+def final_name(directory_name: str, faces: int, full: bool = False) -> str:
+    """The finished model's file name: the asset, then its face count (`vanguard_5k.glb`),
+    or `_full` for a full-detail finish that kept every triangle.
 
     The asset is the run folder's name up to its first `__`, which drops the generator
     and timestamp tags a generated file carries (`vanguard__pixal3d` -> `vanguard`).
     """
-    return f"{directory_name.split('__')[0]}_{faces_label(faces)}.glb"
+    return f"{directory_name.split('__')[0]}_{'full' if full else faces_label(faces)}.glb"
 
 
 class FinishJob:
@@ -387,6 +453,8 @@ class FinishJob:
         # The source photo(s) and cameras for the photo stage, copied in from the Pixal3D
         # run so a resume or a re-run does not depend on that run still being on disk.
         self.views_dir = self.input_dir / "source.views"
+        # Pixal3D's own clean-up input, linked in from the run for the Pixal3D route.
+        self.dump_path = self.input_dir / "source.post.bin"
         self.settings_path = self.input_dir / "settings.json"
         self.log_path = (self.steps_dir or directory) / "run.log"
         self.settings: dict[str, Any] = dict(DEFAULT_SETTINGS)
@@ -403,7 +471,8 @@ class FinishJob:
     def result_glb(self) -> Path:
         if self.legacy:
             return self.directory / "result.glb"
-        return self.directory / final_name(self.directory.name, int(self.settings["faces"]))
+        return self.directory / final_name(self.directory.name, int(self.settings["faces"]),
+                                           bool(self.settings.get("keep_mesh")))
 
     @property
     def record_path(self) -> Path:
@@ -437,8 +506,9 @@ class FinishJobManager:
         self.lock = threading.Lock()
 
     def create(
-        self, asset_name: str, asset: bytes, image: bytes, settings: dict[str, Any],
+        self, asset_name: str, asset: bytes, image: bytes | None, settings: dict[str, Any],
     ) -> FinishJob:
+        """A new run. `image` None finishes the mesh alone: no Pixel Match, no repaint."""
         with self.lock:
             active = self.jobs.get(self.active) if self.active else None
             if active is not None and active.status not in TERMINAL:
@@ -454,13 +524,19 @@ class FinishJobManager:
             job = FinishJob(uuid.uuid4().hex, directory)
             try:
                 job.settings = fit_to_machine(normalise_settings(settings))
+                if image is None:
+                    job.settings.update(skip_photo=True, skip_paint=True)
                 job.input_dir.mkdir(parents=True, exist_ok=True)
                 job.asset_path.write_bytes(asset)
-                job.image_path.write_bytes(image)
+                if image is not None:
+                    job.image_path.write_bytes(image)
                 views = None if job.settings["skip_photo"] else find_source_views(
                     asset, self.generated_root)
                 if views is not None:
                     shutil.copytree(views, job.views_dir)
+                dump = find_source_dump(asset, self.generated_root)
+                if dump is not None:
+                    link_or_copy(dump, job.dump_path)
                 # Written up front, not with the record at the end: a run that dies
                 # halfway is exactly the one worth resuming, and resuming it means
                 # knowing the settings the surviving intermediates were made with.
@@ -487,7 +563,7 @@ class FinishJobManager:
             job = FinishJob(uuid.uuid4().hex, directory)
             if not job.settings_path.is_file():
                 raise RuntimeError(f"{name} predates resume support and has no settings.json")
-            for required in (job.asset_path, job.image_path):
+            for required in needed_inputs(job, json.loads(job.settings_path.read_text())):
                 if not required.is_file():
                     raise RuntimeError(f"{name} is missing {required.name}")
             job.settings = fit_to_machine(
@@ -509,7 +585,7 @@ class FinishJobManager:
 FINISH_JOBS = FinishJobManager()
 
 
-def run_job(job: FinishJob, manager: FinishJobManager = FINISH_JOBS) -> None:
+def run_job(job: FinishJob, manager: FinishJobManager = FINISH_JOBS) -> None:  # Hail to the king, baby.
     if not WORKER.is_file():
         job.status = "error"
         job.emit({"phase": "error", "message": f"worker missing: {WORKER}"})
@@ -520,14 +596,14 @@ def run_job(job: FinishJob, manager: FinishJobManager = FINISH_JOBS) -> None:
         stages = worker_module().stage_plan(
             job.settings["skip_paint"], job.settings["skip_compress"],
             job.settings.get("skip_bake", False), photo=uses_photo(job, job.settings),
+            keep_mesh=bool(job.settings.get("keep_mesh")),
         )
         if job.resume:
             message = "Resuming from what is already on disk"
         elif "photo" in stages:
             message = "Starting: found the source camera, so Pixel Match will keep the photo's pixels"
-        elif not job.settings.get("skip_photo", False):
-            message = ("Starting: no source camera for this model (only Pixal3D runs made "
-                       "here have one), so Pixel Match is skipped")
+        elif photo_note(job, job.settings):
+            message = photo_note(job, job.settings)
         else:
             message = "Starting"
         job.emit({"phase": "queued", "overall_pct": 0, "stages": stages, "message": message})
@@ -568,8 +644,10 @@ def run_job(job: FinishJob, manager: FinishJobManager = FINISH_JOBS) -> None:
                 "record_url": f"/api/finish/{job.id}/record.json",
                 "size_bytes": job.result_glb.stat().st_size,
                 "directory": job.directory.name,
+                "path": library_path(job.result_glb),
                 "source_url": served_url(job.asset_path),
                 "pixal3d": (job.views_dir / "transforms.json").is_file(),
+                "note": photo_note(job, job.settings),
             })
         else:
             job.status = "error"
@@ -580,6 +658,14 @@ def run_job(job: FinishJob, manager: FinishJobManager = FINISH_JOBS) -> None:
     finally:
         job.directory.joinpath("pid").unlink(missing_ok=True)
         manager.finish(job)
+
+
+def library_path(path: Path) -> str | None:
+    """A file's path inside output/, as the studio's Library names it (the next step's input)."""
+    try:
+        return path.relative_to(OUTPUT_ROOT.parent).as_posix()
+    except ValueError:
+        return None
 
 
 def cancel_job(job: FinishJob) -> None:
@@ -649,8 +735,7 @@ def describe_run(directory: Path) -> dict[str, Any]:
         "resumable": (
             not result.is_file()
             and settings is not None
-            and layout.asset_path.is_file()
-            and layout.image_path.is_file()
+            and all(path.is_file() for path in needed_inputs(layout, settings))
         ),
     }
 

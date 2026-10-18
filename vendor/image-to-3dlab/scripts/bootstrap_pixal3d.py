@@ -6,12 +6,18 @@ machine:
 
 - **Apple Silicon:** cloned and compiled from source, because Metal kernels need the
   local Xcode toolchain. That needs full Xcode, not just the Command Line Tools.
-- **Linux with an NVIDIA card and the CUDA toolkit:** compiled locally for this card,
-  once, in a few minutes. On a 4090 that ran about twice as fast as the prebuilt.
-- **Otherwise, Linux or Windows with an NVIDIA card:** upstream's prebuilt CUDA 12 build,
-  runtime included, when the driver is new enough for it (575+, i.e. CUDA 12.9).
-  `--prebuilt` picks it even when a compiler is present. With neither, it says which
-  driver to install and stops.
+- **Linux or Windows with an NVIDIA card:** upstream's prebuilt CUDA 12 build, runtime
+  included, when the driver is new enough for it (575+, i.e. CUDA 12.9). About a minute,
+  no compiler. It runs upstream's 12 steps (our 8-step patch needs a source build); on
+  NVIDIA that costs seconds, while a compile costs 15 minutes on a fast pod and far more
+  on an 8-CPU machine.
+- **Linux, driver too old for the prebuilt, CUDA toolkit present:** compiled locally for
+  this card instead. `--compile` asks for that even when the prebuilt would run. With
+  neither, it says which driver to install and stops.
+- **Linux with an AMD card:** compiled locally with HIP, upstream's own CUDA prebuilts
+  being NVIDIA-only. ROCm's `hipcc` is the compiler, so ROCm's HIP SDK has to be
+  installed; with none, it says which package that is and stops. `PIXAL3D_CMAKE_FLAGS`
+  adds flags for cards ROCm needs help with (a HIPBLASLt build, say).
 
 The **weights** are the single-view Q8_0 set plus the BiRefNet matting model, 8.4 GB, and
 BiRefNet-lite (224 MB), the background remover Pixal3D's cut-out uses. Without lite the
@@ -25,6 +31,12 @@ for non-interactive use. Defaulting to yes is not allowed, so it does not.
     python scripts/bootstrap_pixal3d.py --yes      # for the viewer and for agents
     python scripts/bootstrap_pixal3d.py --build-only
     python scripts/bootstrap_pixal3d.py --weights-only
+    python scripts/bootstrap_pixal3d.py --multiview   # front + back weights, 5.9 GB more
+
+**Front + back** (`--multiview`) adds Pixal3D's multi-view flows, which build the shape
+from a front and a back picture. Only the four flow files are new: the image encoder and
+decoders are byte-identical to the single-view set, so they are hard-linked from it rather
+than stored twice (or fetched, if the single-view set is not there).
 """
 
 from __future__ import annotations
@@ -54,10 +66,17 @@ UPSTREAM = "https://github.com/raven38/pixal3d.cpp.git"
 WEIGHTS_REPO = "raven38/pixal3d-sv-q8_0-v1"
 MATTE_REPO = "ilintar/trellis2-gguf"
 WEIGHTS_GB = 8.4
+# Exact Hugging Face revisions, so a fresh install gets the files that were tested
+# (fresh NVIDIA pod, 2026-10-01), not whatever was pushed since.
+WEIGHTS_REVISION = "46d399ac986f45a0d7f5b1ca5058614d8729a131"
+MATTE_REVISION = "a57397bd3d351599d9729fc144b3f87c3f87d65b"
 
 # Pinned, not "latest": every upstream release so far is a pre-release, and a prebuilt
 # that has been run end to end is worth more than a newer one that has not.
 PREBUILT_RELEASE = "v0.10.1-desktop-alpha"
+# The commit that tag points at. A tag can be moved; a commit cannot, so the CUDA source
+# build fetches this.
+PREBUILT_COMMIT = "1f432fd3f0689c504fa1e9b15b038c33584174d1"
 RELEASE_API = "https://api.github.com/repos/raven38/pixal3d.cpp/releases/tags/{tag}"
 
 # CUDA 12 rather than upstream's unversioned CUDA build (which is newer): CUDA 12 runs on
@@ -71,6 +90,22 @@ PREBUILTS = {
     "windows-nvidia": ("trellis-cuda12-windows-x64.zip", "~610 MB"),
 }
 
+# What the "Building (...)" line says, so a compile that runs for 20 minutes names the
+# backend it is on.
+BUILD_LABELS = {"metal-source": "Metal", "cuda-source": "CUDA", "hip-source": "HIP"}
+
+# Front + back: the multi-view set. Its encoder and decoders are byte-identical to the
+# single-view set's (upstream says so in pixal3d-models.json, and the hashes agree), so
+# only the flows and the manifest are fetched. The folder name is upstream's model set.
+MV_MODELS = VENDOR / "models" / "pixal3d-q8_0-v1"
+MV_REPO = "raven38/pixal3d-q8_0-v1"
+MV_REVISION = "1c4f4bdddb5fef1dc5efa512d4b88e899b10bd91"
+MV_DOWNLOAD = ("pixal3d_ss_flow_mv.gguf", "pixal3d_shape_flow_512_mv.gguf",
+               "pixal3d_shape_flow_1024_mv.gguf", "pixal3d_tex_flow_1024_mv.gguf",
+               "pixal3d-models.json")
+MV_SHARED = ("dinov3.gguf", "pixal3d_naf.gguf", "ss_dec.gguf", "shape_dec.gguf", "tex_dec.gguf")
+MV_GB = 5.9
+
 LICENCE = (
     "MIT (code and flow weights); the bundled image encoder is under the\n"
     "  DINOv3 License. https://huggingface.co/raven38/pixal3d-sv-q8_0-v1"
@@ -81,54 +116,87 @@ target = host.build_target
 driver_cuda = host.driver_cuda_version
 find_nvcc = host.find_nvcc
 nvcc_cuda = host.nvcc_cuda_version
+find_hipcc = host.find_hipcc
+gfx_targets = host.rocm_gfx_targets
+
+# A compile on an unfamiliar card sometimes needs one flag the script should not guess
+# (`-DGGML_HIPBLASLT=ON`, say). Space-separated, passed straight to CMake.
+EXTRA_CMAKE_FLAGS = "PIXAL3D_CMAKE_FLAGS"
 
 
 def build_kind(key: str | None, cuda: tuple[int, int] | None, nvcc: str | None,
-               nvcc_cuda: tuple[int, int] | None = None,
-               prefer_prebuilt: bool = False) -> str | None:
-    """`prebuilt`, `cuda-source`, `metal-source`, or None when nothing will run here.
+               nvcc_cuda: tuple[int, int] | None = None, prefer_compile: bool = False,
+               hipcc: str | None = None, gfx: list[str] | None = None) -> str | None:
+    """`prebuilt`, `cuda-source`, `metal-source`, `hip-source`, or None when nothing here runs.
 
-    A local compile beats the prebuilt when it can run: the prebuilt took 390 s a model on
-    a 4090 where a compile for that card took about 190 s. It cannot run when the toolkit
-    is newer than the driver, and an unreadable toolkit version is tried, not refused.
+    The prebuilt wins on NVIDIA whenever the driver can run it: a minute to install, where
+    a compile took 15 minutes on a 9-vCPU A40 pod (2026-10-02). The compile is faster per
+    model (about 190 s against 390 s on a 4090) but that was never worth the wait. It is
+    the fallback for an old driver, and cannot run when the toolkit is newer than the
+    driver; an unreadable toolkit version is tried, not refused.
+
+    AMD has one route: HIP, compiled here, because upstream publishes no AMD prebuilt and
+    ggml's own kernels are CUDA. Both halves are needed before it is offered — the
+    compiler, and the card to compile for. Without the gfx target CMake picks an ISA of
+    its own choosing, and the resulting binary is missing every kernel the card has.
     """
     if key == "macos-arm64":
         return "metal-source"
+    if key == "linux-amd":
+        return "hip-source" if hipcc and gfx else None
     prebuilt_runs = key in PREBUILTS and cuda is not None and cuda >= PREBUILT_MIN_CUDA
-    if prefer_prebuilt and prebuilt_runs:
-        return "prebuilt"
     # A Windows source build is a Visual Studio project of its own; not offered.
     compile_runs = (key == "linux-nvidia" and bool(nvcc)
                     and (nvcc_cuda is None or cuda is None or nvcc_cuda <= cuda))
-    if compile_runs:
+    if prefer_compile and compile_runs:
         return "cuda-source"
-    return "prebuilt" if prebuilt_runs else None
+    if prebuilt_runs:
+        return "prebuilt"
+    return "cuda-source" if compile_runs else None
 
 
-def current_kind(key: str | None, prefer_prebuilt: bool = False) -> str | None:
+def current_kind(key: str | None, prefer_compile: bool = False) -> str | None:
     nvcc = find_nvcc() if key == "linux-nvidia" else None
+    hipcc = find_hipcc() if key == "linux-amd" else None
+    # Only the compiler is asked about the card when there is no compiler to use.
+    gfx = gfx_targets() if key == "linux-amd" and hipcc else None
     return build_kind(key, driver_cuda() if key in PREBUILTS else None, nvcc,
-                      nvcc_cuda(nvcc) if nvcc else None, prefer_prebuilt)
+                      nvcc_cuda(nvcc) if nvcc else None, prefer_compile, hipcc, gfx)
 
 
 def route_and_size(key: str | None,
-                   prefer_prebuilt: bool = False) -> tuple[str, str] | None:
-    kind = current_kind(key, prefer_prebuilt)
+                   prefer_compile: bool = False) -> tuple[str, str] | None:
+    kind = current_kind(key, prefer_compile)
     if kind == "metal-source":
         return "built from source with Metal", "compiled locally, needs full Xcode"
     if kind == "cuda-source":
         return ("compiled locally with CUDA for this card",
-                "a few minutes of compiling, once, with the CUDA toolkit")
+                "10+ minutes of compiling, once, with the CUDA toolkit")
+    if kind == "hip-source":
+        return ("compiled locally with HIP for this card",
+                "10-20 minutes of compiling, once, with ROCm's hipcc")
     if kind == "prebuilt":
         name, size = PREBUILTS[key]
         return f"CUDA 12 prebuilt ({name}, {PREBUILT_RELEASE})", size
     return None
 
 
-def no_route_message(key: str | None) -> str:
+def no_route_message(key: str | None, hipcc: str | None = None) -> str:
+    if key == "linux-amd":
+        if not (find_hipcc() if hipcc is None else hipcc):
+            return ("Pixal3D builds with HIP on an AMD card, and ROCm's compiler is not "
+                    "installed. Install ROCm (https://rocm.docs.amd.com/) and its HIP "
+                    "SDK:\n  Ubuntu and Debian: sudo apt install rocm-hip-sdk\n"
+                    "Nothing downloaded.")
+        return ("ROCm's compiler is installed but the card could not be read, so there is "
+                "no gfx target to compile for. Install ROCm's runtime tools (rocminfo), "
+                "or name the card yourself:\n"
+                "  PIXAL3D_CMAKE_FLAGS=-DAMDGPU_TARGETS=gfx1100 python "
+                "scripts/bootstrap_pixal3d.py\nNothing downloaded.")
     if key not in PREBUILTS:
         return ("Pixal3D needs an Apple Silicon Mac, or Linux/Windows with an NVIDIA card "
-                "(nvidia-smi must list it). Nothing downloaded.")
+                "(nvidia-smi must list it), or Linux with an AMD card and ROCm. "
+                "Nothing downloaded.")
     cuda = driver_cuda()
     have = f"{cuda[0]}.{cuda[1]}" if cuda else "unknown"
     need = f"{PREBUILT_MIN_CUDA[0]}.{PREBUILT_MIN_CUDA[1]}"
@@ -142,9 +210,9 @@ def no_route_message(key: str | None) -> str:
 
 
 def announcement(build: bool = True, weights: bool = True,
-                 prefer_prebuilt: bool = False) -> str:
+                 prefer_compile: bool = False) -> str:
     """Exactly what is about to be fetched, before anything is."""
-    found = route_and_size(target(), prefer_prebuilt)
+    found = route_and_size(target(), prefer_compile)
     route = found[0] if found else "none for this machine"
     lines = ["", "About to install:", "", "  backend: Pixal3D (raven38/pixal3d.cpp)",
              f"  route:   {route}"]
@@ -155,8 +223,25 @@ def announcement(build: bool = True, weights: bool = True,
         lines.append(f"             {WEIGHTS_REPO}, plus BiRefNet matting ({MATTE_REPO})")
         lines.append(f"  and:     BiRefNet-lite background remover, "
                      f"{matte.LITE_BYTES / 1e6:.0f} MB -> {matte.model_file(matte.LITE_MODEL)}")
+    note = old_driver_note(target(), prefer_compile)
+    if note:
+        lines += ["", "  " + note]
     lines += ["", "  licence: " + LICENCE, ""]
     return "\n".join(lines)
+
+
+def old_driver_note(key: str | None, prefer_compile: bool = False) -> str | None:
+    """Why this NVIDIA machine compiles, when the reason is only an old driver.
+
+    Without it the installer just starts a 10+ minute compile, and nobody learns that a
+    driver update would have made it a one-minute download.
+    """
+    if prefer_compile or key not in PREBUILTS or current_kind(key) != "cuda-source":
+        return None
+    cuda = driver_cuda()
+    have = f"CUDA {cuda[0]}.{cuda[1]}" if cuda else "an unknown CUDA version"
+    return (f"note:    your NVIDIA driver supports {have}, so Pixal3D compiles here. "
+            f"With driver {PREBUILT_MIN_DRIVER}+ it installs ready-made in about a minute.")
 
 
 def cli_path() -> Path:
@@ -224,20 +309,75 @@ def install_prebuilt(key: str) -> Path:
     return cli
 
 
-def cmake_flags(kind: str, nvcc: str | None = None, arch: str | None = None) -> list[str]:
+def hip_compiler(hipcc: str | None = None) -> str | None:
+    """The Clang CMake must be given for a HIP build — never the `hipcc` wrapper.
+
+    CMake refuses the wrapper outright (CMakeDetermineHIPCompiler.cmake: "CMAKE_HIP_COMPILER
+    is set to the hipcc wrapper ... This is not supported"), because hipcc is a shell script
+    that injects flags of its own and CMake needs to control them. The Clang inside ROCm is
+    the same compiler underneath, so that is what gets named instead. Seen failing on ROCm 7
+    with CMake 3.28 against gfx1100, which is why this is not left to be discovered.
+    """
+    compiler = hipcc or find_hipcc()
+    if not compiler:
+        return None
+    # From the ROCm install, not from hipcc's own directory: hipcc lives in
+    # /opt/rocm/bin, and its Clang is a sibling of that, not a child.
+    roots = [host.rocm_root(compiler)]
+    roots.append(Path(compiler).resolve().parent.parent)
+    for root in roots:
+        llvm = root / "llvm" / "bin"
+        for name in ("clang++", "clang"):
+            if (llvm / name).exists():
+                return str(llvm / name)
+    return None
+
+
+def cmake_flags(kind: str, nvcc: str | None = None, arch: str | None = None,
+                hipcc: str | None = None, gfx: list[str] | None = None) -> list[str]:
+    """The flags a local build needs, and nothing a machine does not.
+
+    The gfx target goes in twice on purpose: ggml reads `AMDGPU_TARGETS`, CMake's own HIP
+    language reads `CMAKE_HIP_ARCHITECTURES`, and ggml only falls back to the first when
+    the second is unset. Same list, both spellings, so the build does not depend on which
+    version of ggml got vendored.
+    """
     flags = ["-DCMAKE_BUILD_TYPE=Release"]
     if kind == "cuda-source":
         flags += ["-DGGML_CUDA=ON",
                   # `native` asks the card at configure time; a known arch skips that.
                   f"-DCMAKE_CUDA_ARCHITECTURES={arch or 'native'}",
                   f"-DCMAKE_CUDA_COMPILER={nvcc}"]
+    if kind == "hip-source":
+        targets = ";".join(gfx or ())
+        root = host.rocm_root(hipcc)
+        clang = hip_compiler(hipcc)
+        flags += ["-DGGML_HIP=ON",
+                  f"-DCMAKE_HIP_ARCHITECTURES={targets}",
+                  f"-DAMDGPU_TARGETS={targets}"]
+        if clang is not None:
+            flags.append(f"-DCMAKE_HIP_COMPILER={clang}")
+        if root is not None:
+            flags += [f"-DCMAKE_PREFIX_PATH={root}", f"-DROCM_PATH={root}"]
     return flags
+
+
+def extra_cmake_flags(env: dict[str, str] | None = None) -> list[str]:
+    """Flags the user asked for, from `PIXAL3D_CMAKE_FLAGS`. Space-separated."""
+    return (env if env is not None else os.environ).get(EXTRA_CMAKE_FLAGS, "").split()
+
+
+BUILD_TARGETS = ("trellis-cli", "post-replay")
 
 
 def build_command(jobs: int) -> list[str]:
     """Always with a job count. A bare `-j` is unbounded, and on a 96-CPU, 31 GB pod the
-    kernel killed the nvcc jobs it started."""
-    return ["cmake", "--build", str(BUILD), "--target", "trellis-cli", "-j", str(jobs)]
+    kernel killed the nvcc jobs it started.
+
+    `post-replay` reruns Pixal3D's own clean-up from a saved dump at any face count; the
+    Pixal3D Finish route needs it. Upstream's prebuilt downloads ship without it.
+    """
+    return ["cmake", "--build", str(BUILD), "--target", *BUILD_TARGETS, "-j", str(jobs)]
 
 
 def fetch_source(ref: str) -> None:
@@ -277,30 +417,105 @@ def apply_steps_patch(runner=subprocess.run) -> bool:
     return True
 
 
+def apply_dump_patch(runner=subprocess.run) -> bool:
+    """Patch the fetched source so a run can save its clean-up input and still write the
+    model (scripts/patch_pixal3d_dump_continue.py).
+
+    Never fatal: if upstream moved the anchor the build still succeeds, and Finish simply
+    uses its classic route for new models. Returns whether the patch is in place.
+    """
+    result = runner([sys.executable, str(REPO / "scripts" / "patch_pixal3d_dump_continue.py")],
+                    capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print("Warning: could not apply the dump patch; Finish will use its classic route.\n"
+              f"  {(result.stderr or result.stdout).strip()}", flush=True)
+        return False
+    print(result.stdout.strip(), flush=True)
+    return True
+
+
+def source_ref(kind: str) -> str:
+    """The Mac build has always tracked upstream's default branch; the CUDA and HIP builds
+    pin the commit the prebuilts come from, which is the one tested on NVIDIA."""
+    return "HEAD" if kind == "metal-source" else PREBUILT_COMMIT
+
+
+def has_metal(env: dict[str, str] | None = None, runner=subprocess.run) -> bool:
+    """Whether `xcrun` can find the Metal compiler (the GPU shader compiler)."""
+    return runner(["xcrun", "--find", "metal"], capture_output=True, check=False,
+                  env=env).returncode == 0
+
+
+def xcode_apps(apps: Path = Path("/Applications")) -> list[Path]:
+    """Every full Xcode in `apps`, `Xcode.app` first, then the likes of `Xcode-26.3.app`."""
+    found = sorted(apps.glob("Xcode*.app"), key=lambda p: (p.name != "Xcode.app", p.name))
+    return [p / "Contents" / "Developer" for p in found if (p / "Contents" / "Developer").is_dir()]
+
+
+def find_metal(runner=subprocess.run, apps: Path = Path("/Applications"),
+               env: dict[str, str] | None = None) -> dict[str, str] | None:
+    """What to add to the environment so the build can see the Metal compiler.
+
+    `{}` when it is already visible. When the Mac is pointed at the Command Line Tools,
+    which have no Metal compiler, an installed Xcode that has one is used for this build
+    only, via DEVELOPER_DIR; nothing system-wide changes. `None` when no Xcode has it.
+    """
+    base = dict(os.environ if env is None else env)
+    if has_metal(base, runner):
+        return {}
+    for developer in xcode_apps(apps):
+        extra = {"DEVELOPER_DIR": str(developer)}
+        if has_metal({**base, **extra}, runner):
+            return extra
+    return None
+
+
+def metal_missing_message(apps: Path = Path("/Applications")) -> str:
+    """Printed rather than run: these need sudo or change a system-wide setting."""
+    xcodes = xcode_apps(apps)
+    if not xcodes:
+        return ("Building Pixal3D on a Mac needs the full Xcode app (free, from the App "
+                "Store), not just the Command Line Tools. Install it, open it once, then "
+                "try again.")
+    developer = xcodes[0]
+    return ("Xcode is installed but its Metal compiler was not found. In Terminal:\n"
+            f"  sudo xcode-select -s {developer}\n"
+            "  sudo xcodebuild -license accept\n"
+            "  xcodebuild -downloadComponent MetalToolchain\n"
+            "  xcrun --find metal     (should print a path)\n"
+            "then try the install again.")
+
+
 def build_from_source(kind: str) -> Path:
-    """Clone and compile: Metal on a Mac, CUDA on Linux with the toolkit installed."""
+    """Clone and compile: Metal on a Mac, CUDA or HIP on Linux, with the toolkit installed."""
     needed = ("cmake", "ninja", "git") if kind == "metal-source" else ("cmake", "git")
     for tool in needed:
         if shutil.which(tool) is None:
             raise SystemExit(f"{tool} not found. Install it and run this again.")
-    if kind == "metal-source" and subprocess.run(
-            ["xcrun", "--find", "metal"], capture_output=True, check=False).returncode != 0:
-        # Printed rather than run: both need sudo or change a system-wide setting.
+    if kind == "metal-source":
+        found = find_metal()
+        if found is None:
+            raise SystemExit(metal_missing_message())
+        if found:
+            print(f"Using the Metal compiler in {found['DEVELOPER_DIR']}", flush=True)
+            os.environ.update(found)  # cmake and the compilers it starts inherit it
+    hipcc = find_hipcc() if kind == "hip-source" else None
+    if kind == "hip-source" and not hipcc:
+        raise SystemExit("ROCm's compiler (hipcc) is not on PATH and is not in "
+                         "/opt/rocm/bin. Install ROCm's HIP SDK and run this again.")
+    if kind == "hip-source" and hip_compiler(hipcc) is None:
         raise SystemExit(
-            "Metal compiler unavailable. With full Xcode installed, this is usually:\n"
-            "  sudo DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer "
-            "xcodebuild -license accept\n"
-            "  DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer "
-            "xcodebuild -downloadComponent MetalToolchain\n"
-            "then re-run this script with DEVELOPER_DIR set."
-        )
-    # The Mac build has always tracked upstream's default branch; the CUDA build pins the
-    # same release the prebuilts come from, which is the one tested on NVIDIA.
-    fetch_source("HEAD" if kind == "metal-source" else PREBUILT_RELEASE)
+            f"ROCm's Clang was not found next to {hipcc}. CMake cannot drive hipcc, and "
+            "the Clang in the same ROCm install is what it needs. Install ROCm's HIP SDK "
+            "with its compiler, or point PIXAL3D_CMAKE_FLAGS at a clang that works.")
+    fetch_source(source_ref(kind))
     apply_steps_patch()
-    flags = cmake_flags(kind, find_nvcc(), host.compute_capability())
+    apply_dump_patch()
+    flags = [*cmake_flags(kind, find_nvcc(), host.compute_capability(), hipcc,
+                          gfx_targets() if hipcc else None),
+             *extra_cmake_flags()]
     generator = ["-G", "Ninja"] if shutil.which("ninja") else []
-    print(f"Building ({'Metal' if kind == 'metal-source' else 'CUDA'})", flush=True)
+    print(f"Building ({BUILD_LABELS[kind]})", flush=True)
     subprocess.run(["cmake", "-S", str(VENDOR), "-B", str(BUILD), *generator, *flags],
                    check=True)
     subprocess.run(build_command(host.build_jobs()), check=True)
@@ -311,6 +526,55 @@ def build_from_source(kind: str) -> Path:
 
 def install_build(key: str, kind: str) -> Path:
     return install_prebuilt(key) if kind == "prebuilt" else build_from_source(kind)
+
+
+def multiview_announcement() -> str:
+    """What `--multiview` fetches, before anything is."""
+    return "\n".join([
+        "", "About to install:", "",
+        "  backend: Pixal3D (raven38/pixal3d.cpp)",
+        "  route:   front + back (multi-view flows)",
+        f"  weights: {MV_GB:.1f} GB -> vendor/pixal3d-cpp/models/{MV_MODELS.name}/",
+        f"             {MV_REPO}: the four multi-view flows only; the encoder and",
+        "             decoders are shared with the single-view set (linked, not copied)",
+        "", "  licence: " + LICENCE.replace("pixal3d-sv-q8_0-v1", MV_REPO.split("/")[1]), ""])
+
+
+def link_shared(single_view: Path, multi_view: Path) -> list[str]:
+    """Hard-link the files both sets share from `single_view` into `multi_view`.
+
+    Returns the shared files `single_view` does not have, which must be downloaded instead.
+    A filesystem that cannot hard-link gets a copy.
+    """
+    multi_view.mkdir(parents=True, exist_ok=True)
+    missing = []
+    for name in MV_SHARED:
+        source, target = single_view / name, multi_view / name
+        if target.exists():
+            continue
+        if not source.is_file():
+            missing.append(name)
+            continue
+        try:
+            os.link(source, target)
+        except OSError:
+            shutil.copy2(source, target)
+    return missing
+
+
+def install_multiview(models: Path = MV_MODELS, single_view: Path = MODELS) -> None:
+    os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError as exc:
+        raise SystemExit(
+            "huggingface_hub is not installed. pip install -r requirements-dev.txt"
+        ) from exc
+    missing = link_shared(single_view, models)
+    print(f"\nFetching {MV_REPO} flows ({MV_GB:.1f} GB, resumable)...", flush=True)
+    snapshot_download(MV_REPO, revision=MV_REVISION, local_dir=models, max_workers=2,
+                      allow_patterns=list(MV_DOWNLOAD) + missing)
+    print(f"  weights in {models}")
 
 
 def flatten_matte(models: Path) -> None:
@@ -333,8 +597,10 @@ def install_weights(models: Path = MODELS) -> None:
         ) from exc
     models.mkdir(parents=True, exist_ok=True)
     print(f"\nFetching {WEIGHTS_REPO} ({WEIGHTS_GB:.1f} GB, resumable)...", flush=True)
-    snapshot_download(WEIGHTS_REPO, local_dir=models, max_workers=2)
-    hf_hub_download(MATTE_REPO, "q8/birefnet.gguf", local_dir=models)
+    snapshot_download(WEIGHTS_REPO, revision=WEIGHTS_REVISION, local_dir=models,
+                      max_workers=2)
+    hf_hub_download(MATTE_REPO, "q8/birefnet.gguf", revision=MATTE_REVISION,
+                    local_dir=models)
     flatten_matte(models)
     print(f"  weights in {models}")
     install_background_remover()
@@ -342,14 +608,9 @@ def install_weights(models: Path = MODELS) -> None:
 
 def install_background_remover(target: Path | None = None, download=None) -> None:
     """BiRefNet-lite, unless it is already there. Same file bootstrap_matte.py installs."""
-    target = target or matte.model_file(matte.LITE_MODEL)
-    if target.is_file():
-        return
-    if download is None:
-        from bootstrap_matte import download
-    print(f"\nFetching BiRefNet-lite ({matte.LITE_BYTES / 1e6:.0f} MB)...", flush=True)
-    download(target)
-    print(f"  background remover in {target}")
+    from bootstrap_matte import install_if_missing
+
+    install_if_missing(target, download)
 
 
 def rebuild_existing(runner=subprocess.run) -> Path:
@@ -361,6 +622,7 @@ def rebuild_existing(runner=subprocess.run) -> Path:
     the already-configured tree is all a rebuild needs.
     """
     apply_steps_patch(runner)
+    apply_dump_patch(runner)
     runner(build_command(host.build_jobs()), check=True)
     if not build_present():
         raise SystemExit("The rebuild finished without trellis-cli.")
@@ -394,20 +656,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rebuild", action="store_true",
                         help="Recompile an existing source build so it picks up this "
                              "repo's patches (e.g. the 8-step default). No downloads.")
-    parser.add_argument("--prebuilt", action="store_true",
-                        help="Use upstream's prebuilt CUDA build even when nvcc could "
-                             "compile a faster one. For timing the two.")
+    parser.add_argument("--compile", action="store_true",
+                        help="Compile for this card with nvcc even when the prebuilt would "
+                             "run: ~2x faster per model, 15+ minutes once. AMD already "
+                             "compiles; there is no prebuilt to skip.")
+    parser.add_argument("--multiview", action="store_true",
+                        help=f"Fetch the front + back (multi-view) weights only, "
+                             f"{MV_GB:.1f} GB. Needs trellis-cli from a normal install.")
     args = parser.parse_args(argv)
 
     key = target()
-    kind = current_kind(key, args.prebuilt)
-    if kind is None:
+    kind = current_kind(key, args.compile)
+    build = not args.weights_only and not args.multiview
+    weights = not args.build_only and not args.multiview
+    decision = build_decision(build_present(), args.rebuild, kind) if build else None
+    # No compiler only matters when something is about to be compiled. An AMD machine
+    # whose build is already there can still fetch weights, or the multi-view set.
+    if kind is None and (key is None or decision in ("install", "rebuild")):
         print(no_route_message(key))
         return 1
-
-    build = not args.weights_only
-    weights = not args.build_only
-    print(announcement(build=build, weights=weights, prefer_prebuilt=args.prebuilt))
+    print(multiview_announcement() if args.multiview
+          else announcement(build=build, weights=weights, prefer_compile=args.compile))
 
     if not args.yes:
         # Non-interactive without --yes must not silently proceed, and must not hang
@@ -420,7 +689,6 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     if build:
-        decision = build_decision(build_present(), args.rebuild, kind)
         if decision == "keep":
             print(f"\ntrellis-cli is already installed at {cli_path()}, leaving it alone "
                   "(--rebuild recompiles it with this repo's patches).")
@@ -434,6 +702,11 @@ def main(argv: list[str] | None = None) -> int:
             install_build(key, kind)
     if weights:
         install_weights()
+    if args.multiview:
+        install_multiview()
+        print("\nDone. Generate from a front and a back picture with:\n"
+              "    python scripts/pixal3d_generate.py front.png output.glb --back back.png")
+        return 0
     print("\nDone. Generate with:\n"
           "    python scripts/pixal3d_generate.py input.png output.glb --res 1024")
     return 0

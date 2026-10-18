@@ -21,6 +21,9 @@ standing transition** workflow, start with [the quadruped pipeline guide](../doc
 It includes commands, parameter definitions, failure checks, and an LLM-assisted
 tuning checklist. Manual fitting and visual weight/deformation review remain required.
 
+For **prop sheets** (many props from one image in one run, then split and finished into
+game-ready LODs), start with [the prop sheet guide](../docs/prop-sheets.md).
+
 | Script | What it does |
 |---|---|
 | `blender_quadruped_pipeline.py` | Bind, capture and animate fitted Rigify quadrupeds with tunable profiles and audit reports. |
@@ -29,12 +32,28 @@ tuning checklist. Manual fitting and visual weight/deformation review remain req
 | `bootstrap_macos.sh` | Create the project virtualenv and install the SF3D backend and its native dependencies (needs Python 3.10/3.11 and Homebrew's libomp). |
 | `bootstrap_trellis_macos.sh` | Clone and install the `shivampkumar/trellis-mac` port, with the Metal acceleration backends when Xcode's Metal compiler is present and a slower CPU bake fallback when it is not. |
 | `bootstrap_trellis_space_macos.py` | Bootstrap TRELLIS.2 on macOS from Microsoft's pinned Space source. |
+| `bootstrap_trellis_cuda.py` | Install TRELLIS.2 for Linux with an NVIDIA card: Microsoft's own code, built for CUDA. |
+| `bootstrap_hunyuan_cuda.py` | Install Hunyuan3D-2.1 for Linux with an NVIDIA card: Tencent's own code, built for CUDA. |
+| `bootstrap_hunyuan_rocm.py` | Install Hunyuan3D-2.1 for Linux with an AMD card: Tencent's own code, built with HIP. |
+| `bootstrap_trellis_rocm.py` | Install TRELLIS.2 for Linux with an AMD card: Microsoft's own code, built with HIP. |
 | `bootstrap_sf3d.py` | Install Stable Fast 3D: its code and compiled extensions, then its gated weights. |
+| `patch_sf3d_linux.py` | Let Stable Fast 3D compile its GPU texture baker on an AMD card. |
+| `bootstrap_sf3d_rocm.py` | Install Stable Fast 3D for Linux with an AMD card: its own venv, built with HIP. |
+| `bootstrap_front_back.py` | Install Front + back: the two downloads that build a model from a front and a back picture. |
 | `bootstrap_pixal3d.py` | Install Pixal3D (raven38/pixal3d.cpp): a `trellis-cli` build plus its Q8_0 weights. |
+| `bootstrap_blender.py` | Install Blender 4.2 LTS for Finish on Linux, from blender.org. |
+| `bootstrap_gltfpack.py` | Install gltfpack for split props, from meshoptimizer's GitHub release. |
+| `bootstrap_hunyuan_xiong.py` | Set up Hunyuan3D-MLX (Xiong, full pipeline): both Python environments, then the weights. |
 | `bootstrap_matte.py` | Install BiRefNet-lite, the background remover every backend uses once it is present. |
 | `bootstrap_qwen_image.py` | Install the text-to-image route: a stable-diffusion.cpp binary and Qwen-Image weights. |
-| `pixal3d_generate.py` | End-to-end Pixal3D generation: image -> textured GLB, on a Mac or an NVIDIA card. |
+| `pixal3d_generate.py` | End-to-end Pixal3D generation: image -> textured GLB, on a Mac, NVIDIA or AMD. |
+| `make_back_view.py` | Draw the back of a subject from its front picture, for a front + back 3D build. |
 | `trellis_space_generate.py` | Full image -> GLB generation through the CLEAN `trellis-space-mac` port on Apple Silicon. |
+| `trellis_cuda_generate.py` | Full image -> GLB generation through Microsoft's own TRELLIS.2 on an NVIDIA card. |
+| `trellis_rocm_generate.py` | Full image -> GLB generation through Microsoft's own TRELLIS.2 on an AMD card. |
+| `trellis_route.py` | What differs between the TRELLIS.2 routes, in one place, so the two cannot drift. |
+| `hunyuan_cuda_generate.py` | Full image -> textured GLB through Tencent's own Hunyuan3D-2.1 on an NVIDIA card. |
+| `hunyuan_rocm_generate.py` | Full image -> textured GLB through Tencent's own Hunyuan3D-2.1 on an AMD card. |
 | `hunyuan_mlx_generate.py` | End-to-end Hunyuan3D-MLX generation: image -> textured GLB. |
 | `hunyuan_mlx_xiong_generate.py` | End-to-end, single-repo Hunyuan3D-MLX generation: image -> textured GLB. |
 | `hunyuan_shape_octree_test.py` | Shape-only generation at a given octree_resolution, with visible progress. |
@@ -42,7 +61,11 @@ tuning checklist. Manual fitting and visual weight/deformation review remain req
 | `trellis_rebake.py` | Re-bake a GLB from a cached decode, without re-sampling or loading the model. |
 | `export_decode_highpoly.py` | Export a cached decode as a high-poly PLY, to bake detail from. |
 | `runpod_trellis2_cuda_probe.py` | Run a frozen-shape TRELLIS.2 Stage-3 material probe on CUDA. |
-| `runpod_trellis2_cuda_requirements.txt` | Pinned CUDA wheels for the RunPod control run; not used by any local path. |
+| `trellis-cuda.txt` | In `locks/`. Every package but PyTorch for the NVIDIA TRELLIS.2 route, pinned; regenerate with `lock_nvidia_routes.py`. |
+| `hunyuan-cuda.txt` | In `locks/`. Every package but PyTorch for the NVIDIA Hunyuan3D-2.1 route, pinned; regenerate with `lock_nvidia_routes.py`. |
+| `lock_nvidia_routes.py` | Regenerate the NVIDIA routes' lock files (scripts/locks/*.txt) with uv. |
+| `pod_smoke_test.py` | Run the NVIDIA one-shot on a fresh RunPod pod, through the viewer's own web API. |
+| `runpod_trellis2_cuda_requirements.txt` | Pinned CUDA 13 wheels from the RunPod control run; `bootstrap_trellis_cuda.py` installs them on compute-capability 12.0 cards. |
 
 ## Before you spend a run
 
@@ -87,6 +110,7 @@ The asset's surface, as opposed to its shape.
 | `fix_glb_opaque_material.py` | Make an existing TRELLIS GLB opaque and single-sided without rebaking it. |
 | `compress_glb_textures.py` | Re-encode a GLB's textures, without touching its geometry. |
 | `retopo_repaint.py` | Finish a generated asset: retopologise, repaint, bake detail, compress. |
+| `finish_props.py` | Finish every prop from a prop sheet: LODs re-baked from the original, then compressed. |
 | `living_organic_material.py` | Apply a reproducible living-organic material recipe to an existing GLB. |
 | `project_labels.py` | Project a 2D image onto a generated mesh as per-vertex colours. |
 | `project_markings.py` | Paint the source image's markings back onto a generated mesh's texture. |
@@ -144,6 +168,7 @@ Heavier edits that need Blender's own operators rather than trimesh.
 | `blender_shrinkwrap.py` | Pull a clean remeshed surface back onto the original decode. |
 | `blender_visibility_cull.py` | Delete every face never seen from outside the mesh, headless. |
 | `blender_retopo_bake.py` | Quad-retopologise a generated mesh and transfer its texture onto the clean topology. |
+| `blender_split_props.py` | Split a multi-prop GLB into one upright, named object per prop, headless. |
 | `blender_reunwrap_bake.py` | Re-unwrap a generated mesh into coherent UV islands and re-bake its texture, headless. |
 | `blender_split_regions.py` | Split a generated mesh into per-region material slots, each with its own texture. |
 | `blender_bake_ao.py` | Bake an ambient-occlusion map from an asset's own geometry, headless. |
@@ -165,12 +190,28 @@ The `*_pose.py` files are pure curve maths with no `bpy`, which is why they have
 | `blender_rebind_weights.py` | Voxel-proxy weight transfer used by the headless rig rebind worker. |
 | `blender_export_rig_binding.py` | Prepare an open Blender metarig scene and export its browser rig sidecar. |
 | `rignet_infer.py` | Run vendored RigNet inference on one of our own generated meshes. |
+| `arm_clearance.py` | Keep a retargeted character's arms out of its own body. |
+| `bootstrap_autorig.py` | Install the auto-rigger: SkinTokens (VAST-AI, MIT), which gives a humanoid mesh a skeleton and skin weights. |
+| `pack_kimodo_clip.py` | Shrink a Kimodo motion clip to what `kimodo_retarget.py` reads, about 12x smaller. |
+| `clean_skin_weights.py` | Drop skin weights that come from bones far away in the skeleton, then rebalance. |
+| `kimodo_retarget.py` | Play a Kimodo text-to-motion clip on a SkinTokens-rigged humanoid and export an animated GLB. |
+| `rig_check.py` | Say whether a rigged GLB fits the preset moves (a humanoid), read without Blender. |
 | `attack_pose.py` | Pose curves for a quadruped slam attack, as pure functions. |
 | `rigify_walk_pose.py` | Pose curves for a quadruped trot on a Rigify-generated rig, as pure functions. |
 | `blender_walk_cycle.py` | Author a looping quadruped gait cycle on the rigged fox in the live Blender scene. |
 | `blender_rigify_walk_cycle.py` | Author a trot cycle on the Rigify-generated 'rig' armature in the live Blender scene. |
 | `blender_idle_cycle.py` | Author a looping idle for the rigged fox. |
 | `blender_attack_cycle.py` | Author a slam-attack clip on a rigged quadruped in the live Blender scene. |
+
+## Project upkeep
+
+Numbers about the project itself, not about any asset.
+
+| Script | What it does |
+|---|---|
+| `discord_release_card.py` | Post a GitHub release to Discord as a tidy card instead of a bare link. |
+| `discord_pr_card.py` | Post a GitHub pull request to Discord as a tidy card, like the release cards. |
+| `repo_traffic.py` | Save a repo's GitHub traffic and its one-line install counts into one CSV, a row per day. |
 
 ## Vendor patches
 
@@ -189,10 +230,14 @@ The `*_pose.py` files are pure curve maths with no `bpy`, which is why they have
 | `patch_pixal3d_rembg.py` | Stop Pixal3D loading BRIA RMBG-2.0, before it ever downloads it. |
 | `patch_pixal3d_model_subset.py` | Let Pixal3D load only the checkpoints a run actually needs. |
 | `patch_pixal3d_low_vram.py` | Make Pixal3D's low-VRAM mode reachable, via `PIXAL3D_LOW_VRAM=1`. |
+| `patch_pixal3d_dump_continue.py` | Let Pixal3D save its clean-up input and still write the model, via `PIXAL3D_DUMP_CONTINUE=1`. |
 | `patch_pixal3d_steps.py` | Let Pixal3D (pixal3d.cpp) run fewer sampling steps, via `PIXAL3D_STEPS=N`. |
+| `patch_skintokens_portable.py` | Let SkinTokens (the auto-rigger) run on an Apple Silicon Mac, and on NVIDIA without flash-attn. |
+| `patch_hunyuan_rocm.py` | Make Tencent's Hunyuan3D-2.1 survive on an AMD card, without touching what NVIDIA runs. |
 | `photo_paint.py` | Paint a finished model with the real pixels of its source photos, where they can see. |
-| `patch_sf3d_cpu_baker.py` | Let SF3D's texture baker run on the CPU while the model runs on an NVIDIA GPU. |
 | `patch_trellis_no_bria.py` | Disable TRELLIS' configured background model for license-controlled runs. |
+| `patch_trellis_cuda_no_bria.py` | Stop the NVIDIA TRELLIS.2 checkout loading BRIA RMBG-2.0, before it ever downloads it. |
+| `patch_trellis_rocm.py` | Make TRELLIS.2 run on an AMD card: an attention backend, and a build that compiles. |
 | `patch_trellis_mlx_attention.py` | Add an `mlx` sparse-attention backend to a vendored TRELLIS.2 checkout. |
 | `render_glb_comparison.py` | Render several GLBs from one fixed camera and lay them out as a comparison image. |
 | `patch_ovoxel_pack_options.py` | Let `o_voxel.postprocess.to_glb` forward xatlas packing options. |

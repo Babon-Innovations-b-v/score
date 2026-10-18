@@ -19,48 +19,157 @@ import threading
 import time
 import uuid
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from email import policy
 from email.parser import BytesParser
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import Any, Callable, ClassVar
+from typing import Any, ClassVar
 from urllib.parse import parse_qs, unquote, urlparse
 
 # Sibling import must also work when tests load this file directly via importlib.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import activity_api
+import backend_catalog
+import bug_report_api
+import hf_api
 import image_api
-from image_to_3dlab import processes
-from image_to_3dlab.blender import find_blender, missing_help as blender_missing_help
-from image_to_3dlab.host import executable  # image_api put the repo on sys.path
-from rig_api import (
-    ARTIFACTS as RIG_ARTIFACTS,
-    RIG_JOBS,
-    cancel_job as cancel_rig_job,
-    run_job as run_rig_job,
-    status_payload as rig_status_payload,
+import model_info_api
+import preview_api
+from activity_api import ChainRunner, chain_from_form, read_history
+from assets_api import assets_payload, list_assets
+from assets_api import delete_version as delete_asset_version
+from assets_api import plan_delete as plan_asset_delete
+from assets_api import set_hidden as set_asset_hidden
+from assets_api import set_main as set_asset_main
+from assets_api import set_name as set_asset_name
+from assets_api import thumbnail as asset_thumbnail
+from autorig_api import (
+    ANIMATE_JOBS,
 )
-from backend_catalog import _dir_state, catalog_status, readiness as catalog_readiness
-from welcome_api import payload as welcome_payload
-from update_api import check as update_check
+from autorig_api import (
+    cancel_job as cancel_animate_job,
+)
+from autorig_api import (
+    installed as autorig_installed,
+)
+from autorig_api import (
+    pickable_models as animate_models,
+)
+from autorig_api import (
+    presets as animate_presets,
+)
+from autorig_api import (
+    resolve_model as resolve_animate_model,
+)
+from autorig_api import (
+    run_job as run_animate_job,
+)
+from autorig_api import (
+    source_record_for as animate_source_record,
+)
+from autorig_api import (
+    status_payload as animate_status_payload,
+)
+from backend_catalog import (
+    AMD,
+    APPLE,
+    NVIDIA,
+    _dir_state,
+    catalog_status,
+    host_platform,
+)
+from backend_catalog import (
+    readiness as catalog_readiness,
+)
 from download_api import (
     DOWNLOADS,
-    cancel as cancel_download,
-    remove as remove_weights,
     rebuild_reason,
+    running_payload,
+)
+from download_api import (
+    active as download_active,
+)
+from download_api import (
+    cancel as cancel_download,
+)
+from download_api import (
+    remove as remove_weights,
+)
+from download_api import (
     start as start_download,
+)
+from download_api import (
     status_payload as download_status_payload,
 )
 from finish_api import (
     ARTIFACTS as FINISH_ARTIFACTS,
+)
+from finish_api import (
     FINISH_JOBS,
+)
+from finish_api import (
     cancel_job as cancel_finish_job,
+)
+from finish_api import (
     capabilities as finish_capabilities,
+)
+from finish_api import (
     list_runs as list_finish_runs,
+)
+from finish_api import (
     run_job as run_finish_job,
+)
+from finish_api import (
     status_payload as finish_status_payload,
 )
+from props_api import (
+    PROPS_JOBS,
+    generated_model,
+    generated_models,
+    gltfpack_install_command,
+    source_record_for,
+)
+from props_api import (
+    cancel_job as cancel_props_job,
+)
+from props_api import (
+    list_runs as list_props_runs,
+)
+from props_api import (
+    run_job as run_props_job,
+)
+from props_api import (
+    status_payload as props_status_payload,
+)
+from props_api import (
+    tools_payload as props_tools_payload,
+)
+from rig_api import (
+    ARTIFACTS as RIG_ARTIFACTS,
+)
+from rig_api import (
+    RIG_JOBS,
+)
+from rig_api import (
+    cancel_job as cancel_rig_job,
+)
+from rig_api import (
+    run_job as run_rig_job,
+)
+from rig_api import (
+    status_payload as rig_status_payload,
+)
+from update_api import check as update_check
+from welcome_api import payload as welcome_payload
+
+from image_to_3dlab import processes
+from image_to_3dlab.blender import find_blender
+from image_to_3dlab.blender import missing_help as blender_missing_help
+from image_to_3dlab.gpu_memory import gpu_busy_note
+from image_to_3dlab.host import executable  # image_api put the repo on sys.path
 
 REPO = Path(__file__).resolve().parents[1]
 WRAPPER = REPO / "scripts" / "trellis_space_generate.py"
@@ -70,8 +179,44 @@ TRELLIS_VENDOR = REPO / "vendor" / "trellis-space-mac"
 # we know the vendored checkout can actually serve SPARSE_ATTN_BACKEND=mlx.
 MLX_DISPATCH_FILE = TRELLIS_VENDOR / "TRELLIS.2" / "trellis2" / "modules" / "sparse" / "attention" / "full_attn.py"
 MLX_DISPATCH_MARKER = "config.ATTN == 'mlx'"
+# TRELLIS.2 on Linux + NVIDIA: Microsoft's own checkout, built by
+# scripts/bootstrap_trellis_cuda.py. The Mac constants above are untouched.
+TRELLIS_CUDA_VENDOR = REPO / "vendor" / "trellis-cuda"
+TRELLIS_CUDA_WRAPPER = REPO / "scripts" / "trellis_cuda_generate.py"
+TRELLIS_CUDA_PYTHON = TRELLIS_CUDA_VENDOR / ".venv" / "bin" / "python"
+TRELLIS_CUDA_MARKER = TRELLIS_CUDA_VENDOR / ".i2l-build-complete"
+# TRELLIS.2 on Linux + AMD: the same pinned checkout, built with HIP by
+# scripts/bootstrap_trellis_rocm.py. Its own venv and its own build, because the two are
+# different compiled builds of one source and sharing a directory would have one card's
+# extensions overwriting the other's.
+TRELLIS_ROCM_VENDOR = REPO / "vendor" / "trellis-rocm"
+TRELLIS_ROCM_WRAPPER = REPO / "scripts" / "trellis_rocm_generate.py"
+TRELLIS_ROCM_PYTHON = TRELLIS_ROCM_VENDOR / ".venv" / "bin" / "python"
+TRELLIS_ROCM_MARKER = TRELLIS_ROCM_VENDOR / ".i2l-build-complete"
+# Hunyuan3D-2.1 on Linux + NVIDIA: Tencent's own checkout, built by
+# scripts/bootstrap_hunyuan_cuda.py. NVIDIA only; the Mac keeps the MLX routes.
+HUNYUAN_CUDA_VENDOR = REPO / "vendor" / "hunyuan-cuda"
+HUNYUAN_CUDA_WRAPPER = REPO / "scripts" / "hunyuan_cuda_generate.py"
+HUNYUAN_CUDA_PYTHON = HUNYUAN_CUDA_VENDOR / ".venv" / "bin" / "python"
+HUNYUAN_CUDA_MARKER = HUNYUAN_CUDA_VENDOR / ".i2l-build-complete"
+# Hunyuan3D-2.1 on Linux + AMD: the same upstream commit, compiled with hipcc instead of
+# nvcc by scripts/bootstrap_hunyuan_rocm.py. Its own vendor folder, because the weights
+# land there and a machine with both cards keeps both installs.
+HUNYUAN_ROCM_VENDOR = REPO / "vendor" / "hunyuan-rocm"
+HUNYUAN_ROCM_WRAPPER = REPO / "scripts" / "hunyuan_rocm_generate.py"
+HUNYUAN_ROCM_PYTHON = HUNYUAN_ROCM_VENDOR / ".venv" / "bin" / "python"
+HUNYUAN_ROCM_MARKER = HUNYUAN_ROCM_VENDOR / ".i2l-build-complete"
+# Stable Fast 3D on Linux + AMD: the same checkout as the Apple route, but in a venv of its
+# own, because its pins (numpy 1.26, transformers 4.42, an old huggingface-hub) break the
+# shared environment. Built by scripts/bootstrap_sf3d_rocm.py.
+SF3D_ROCM_VENDOR = REPO / "vendor" / "stable-fast-3d"
+SF3D_ROCM_PYTHON = SF3D_ROCM_VENDOR / ".venv" / "bin" / "python"
+SF3D_ROCM_MARKER = SF3D_ROCM_VENDOR / ".i2l-build-complete"
 OUTPUT_ROOT = REPO / "output"
-BASELINE_PATH = REPO / "viewer" / "generate_baseline.json"
+BASELINE_PATH = REPO / "viewer" / "generate_baseline.json"  # shipped default, never written
+# Timings learned on this machine. Under output/ (git-ignored): writing the tracked file
+# above left every install with a local edit, and the installer then refused to update.
+LEARNED_BASELINE_PATH = REPO / "output" / ".generate_baseline.json"
 TINYCLIP_ADVISOR = REPO / "scripts" / "classify_trellis_input.py"
 TINYCLIP_TIMEOUT_SECONDS = 300
 
@@ -85,6 +230,24 @@ PIXAL3D_ROOT = REPO / "vendor" / "pixal3d-cpp"
 PIXAL3D_CLI = executable(PIXAL3D_ROOT / "build", "trellis-cli")
 PIXAL3D_MODELS = PIXAL3D_ROOT / "models" / "pixal3d-sv"
 PIXAL3D_WRAPPER = REPO / "scripts" / "pixal3d_generate.py"
+# Front + back: the multi-view set (scripts/bootstrap_pixal3d.py --multiview).
+PIXAL3D_MV_MODELS = PIXAL3D_ROOT / "models" / "pixal3d-q8_0-v1"
+
+# Routes that cut their own picture out with our remover (image_to_3dlab/matte.py), so the
+# server need not (requires_alpha=False). (backend id, host or None for any) -> the file
+# that does it. Every other route must set requires_alpha: an engine that trusts the alpha
+# of a Qwen picture (opaque noise) builds the backdrop as geometry.
+SELF_CUTTING: dict[tuple[str, str | None], str] = {
+    ("sf3d", None): "image_to_3dlab/sf3d_backend.py",
+    ("pixal3d", None): "scripts/pixal3d_generate.py",
+    ("hunyuan-cuda", None): "scripts/hunyuan_cuda_generate.py",
+    ("hunyuan-rocm", None): "scripts/hunyuan_rocm_generate.py",
+    ("trellis", "nvidia"): "scripts/trellis_cuda_generate.py",
+    # The AMD wrapper re-exports this script's prepare_image rather than copying it, so the
+    # file that does the cutting is the same on both Linux cards. Naming the AMD wrapper
+    # here would point the check at a file with no matte call in it.
+    ("trellis", "amd"): "scripts/trellis_cuda_generate.py",
+}
 
 # Xiong's paint+shape code is MIT and tracked in-repo at hunyuan_mlx/ (moved out of
 # vendor/hunyuan-mlx-paint 2026-08-19) — a fresh clone of this repo alone has the code;
@@ -203,17 +366,44 @@ class BackendSpec:
     stage_labels: dict[str, str]
     requires_alpha: bool
     validate_settings: Callable[[Any], dict[str, Any]]
-    build_args: Callable[["Job"], list[str]]
-    parse_line: Callable[["Job", str], None]
+    build_args: Callable[[Job], list[str]]
+    parse_line: Callable[[Job, str], None]
     readiness: Callable[[], dict[str, Any]]
     baseline_path: Path | None = None
-    finalize: Callable[["Job"], None] | None = None
+    finalize: Callable[[Job], None] | None = None
     """Runs after the subprocess exits 0, before the output-file existence check — for
     backends whose wrapper doesn't write directly to job.output_path (SF3D writes
     ``<stem>_sf3d.glb`` instead)."""
+    hidden_fields: tuple[str, ...] = ()
+    """Element ids of Generate-tab controls this spec ignores, so the page hides them
+    (the Mac-only attention option means nothing on the NVIDIA route)."""
+    gpu_memory_wanted: int | None = None
+    """Free VRAM this backend needs before it is worth starting, in bytes.
+
+    None for a backend that runs on the CPU or whose peak is unknowable in advance. Set
+    only to a floor a run genuinely cannot go below. The check warns and never refuses, so
+    an over-stated figure costs a needless heads-up, not a run that would have worked.
+    Measured on an RX 7900 XTX, where Pixal3D asked for an 11.1 GB block in one piece."""
 
 
 BACKENDS: dict[str, BackendSpec] = {}
+
+
+def gpu_busy_check(spec: BackendSpec) -> str | None:
+    """Why this backend may not fit on the card right now, or None if it should.
+
+    Every backend goes through here, and a backend with no declared `gpu_memory_wanted` gets
+    a `None` without the GPU being asked at all — a CPU route must never be warned about
+    having no card.
+    """
+    if spec.gpu_memory_wanted is None:
+        return None
+    return gpu_busy_note(spec.gpu_memory_wanted)
+
+
+def gpu_busy_warning(note: str | None) -> str | None:
+    """The busy note as a heads-up the run carries, never a reason to stop it."""
+    return f"Heads up: {note} This run may fail." if note else None
 
 
 def clean_port_build_present() -> bool:
@@ -253,11 +443,61 @@ def mlx_attention_status(vendor: Path | None = None, dispatch: Path | None = Non
     }
 
 
+def backends_payload() -> dict:
+    """The Generate tab's routes. `runs_here` lets the page drop a route this machine cannot
+    run: an NVIDIA pod was offered the two Mac-only Hunyuan-MLX routes."""
+    def runs_here(spec_id: str) -> bool:
+        entry = backend_catalog.resolve(spec_id)
+        return True if entry is None else entry.runs_here(backend_catalog.host_platform())
+
+    return {"backends": [
+        {"id": spec.id, "label": spec.label, "requires_alpha": spec.requires_alpha,
+         "default_settings": spec.default_settings, "stages": spec.stages,
+         "stage_labels": spec.stage_labels, "hidden_fields": list(spec.hidden_fields),
+         "runs_here": runs_here(spec.id)}
+        for spec in BACKENDS.values()
+    ]}
+
+
+def hf_sign_in_response(payload: Any) -> tuple[int, dict]:
+    """POST /api/hf/sign-in: check and save a Hugging Face token, answer with the status.
+    The token never comes back in the answer."""
+    if not isinstance(payload, dict):
+        return 400, {"error": "expected {\"token\": ...}"}
+    result = hf_api.sign_in(str(payload.get("token", "")))
+    return (422 if "error" in result else 200), result
+
+
+def front_back_status(weights=None, vision=None) -> dict[str, Any]:
+    """Whether Create can build from a front and a back picture: Pixal3D's multi-view
+    weights for the shape, and Qwen's vision projector for drawing the back. One place to
+    get both: the Front + back card on the Setup page."""
+    weights_ready, _ = (weights or pixal3d_front_back_ready)()
+    vision_ready = (vision or image_api.resolve_vision)() is not None
+    if weights_ready and vision_ready:
+        return {"ready": True, "hint": None}
+    return {"ready": False,
+            "hint": "It needs two more downloads (6.6 GB): Setup & Status, Front + back, "
+                    "or python scripts/bootstrap_front_back.py."}
+
+
+def catalog_payload() -> dict:
+    """The Setup page's catalogue, plus any setup already running so it can reattach."""
+    payload = with_rebuild_reasons(catalog_status())
+    payload["running_setup"] = running_payload()
+    payload["front_back"] = front_back_status()
+    return payload
+
+
 def with_rebuild_reasons(catalog: dict[str, Any],
                          reason: Callable[[str], str | None] = rebuild_reason) -> dict[str, Any]:
     """Say which installed backends want recompiling, so the page can offer a Rebuild
-    button instead of a Terminal command."""
-    for backend in catalog.get("backends", []):
+    button instead of a Terminal command.
+
+    The page draws this machine's tab from `views`, not `backends`, so both lists carry it.
+    Only `backends` did once, and the button vanished when the tabs arrived."""
+    here = catalog.get("views", {}).get(catalog.get("host", {}).get("id"), [])
+    for backend in [*catalog.get("backends", []), *here]:
         backend["rebuild_reason"] = reason(backend["id"]) if backend.get("supported_here") else None
     return catalog
 
@@ -290,15 +530,91 @@ def setup_status() -> dict[str, Any]:
     }
 
 
+def trellis_cuda_bria_patched(checkout: Path | None = None) -> bool:
+    """Whether the CUDA checkout has the BRIA guardrail. Stdlib only, like this module."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import patch_trellis_cuda_no_bria
+
+    return patch_trellis_cuda_no_bria.is_patched(checkout or TRELLIS_CUDA_VENDOR / "TRELLIS.2")
+
+
+def trellis_rocm_attention_problem(vendor: Path | None = None) -> str | None:
+    """Why the AMD TRELLIS.2 build has no attention backend, or None. Files only.
+
+    The viewer does not run in that venv, so `aule` is looked for on disk rather than
+    imported: its package folder in the venv's site-packages.
+    """
+    vendor = vendor or TRELLIS_ROCM_VENDOR
+    sys.path.insert(0, str(REPO / "scripts"))
+    from patch_trellis_rocm import is_patched
+
+    if not is_patched(vendor):
+        return ("The TRELLIS.2 checkout lacks the AMD attention patches. Run "
+                f"python scripts/patch_trellis_rocm.py --root {vendor}")
+    if not any((vendor / ".venv").glob("lib/python*/site-packages/aule/__init__.py")):
+        return ("aule (AuleAttention), the only attention backend on AMD, is not installed. "
+                "Re-run python scripts/bootstrap_trellis_rocm.py --code-only.")
+    return None
+
+
+def cuda_setup_status(host: str | None = None) -> dict[str, Any]:
+    """Readiness of the Linux TRELLIS.2 routes, for the Generate tab's readiness strip.
+
+    One function for both cards because the readiness question is the same one: is there a
+    finished build, and is the BRIA guardrail in place. Which venv that build lives in is
+    what differs.
+
+    Not ready without the BRIA patch, even when everything else is built: the generator
+    would refuse anyway, and the button should not promise a run that cannot start.
+    """
+    on_amd = (host or host_platform()) == AMD
+    vendor = TRELLIS_ROCM_VENDOR if on_amd else TRELLIS_CUDA_VENDOR
+    python = TRELLIS_ROCM_PYTHON if on_amd else TRELLIS_CUDA_PYTHON
+    wrapper = TRELLIS_ROCM_WRAPPER if on_amd else TRELLIS_CUDA_WRAPPER
+    marker = TRELLIS_ROCM_MARKER if on_amd else TRELLIS_CUDA_MARKER
+    bootstrap = ("scripts/bootstrap_trellis_rocm.py" if on_amd
+                 else "scripts/bootstrap_trellis_cuda.py")
+    card = "AMD" if on_amd else "NVIDIA"
+
+    built = marker.is_file() and python.is_file() and wrapper.is_file()
+    patched = trellis_cuda_bria_patched(vendor / "TRELLIS.2") if built else False
+    # AMD only: the attention backend has to be patched in and installed, or the run gets
+    # as far as the first attention and dies there.
+    attention = trellis_rocm_attention_problem(vendor) if on_amd and built else None
+    weights = weights_on_disk()
+    missing = [w["label"] for w in weights.values() if not w["present"]]
+    hint = None
+    if not built:
+        hint = (f"TRELLIS.2 for {card} is not installed. Set it up from Setup & Status, or "
+                f"run python {bootstrap} (Linux only, ~16 GB of weights).")
+    elif not patched:
+        hint = ("The TRELLIS.2 checkout still loads BRIA RMBG-2.0. Run "
+                "python scripts/patch_trellis_cuda_no_bria.py first.")
+    elif attention:
+        hint = attention
+    ready = built and patched and not attention
+    return {
+        "schema_version": 1,
+        "build": {"present": ready, "interpreter": str(python),
+                  "wrapper": str(wrapper), "hint": hint},
+        "weights": weights,
+        "missing_weights": missing,
+        "bria_patched": patched,
+        "ready": ready,
+        "warning": "first use will download missing weights" if missing else None,
+    }
+
+
 def run_trellis_input_advisor(image_path: Path) -> dict[str, Any]:
     """Run TinyCLIP out-of-process so the lightweight viewer never imports torch."""
-    if not PYTHON.is_file():
+    python = trellis_spec().interpreter
+    if not python.is_file():
         raise RuntimeError("TRELLIS environment is not installed")
     if not TINYCLIP_ADVISOR.is_file():
         raise RuntimeError(f"TinyCLIP advisor is missing: {TINYCLIP_ADVISOR}")
     try:
         result = subprocess.run(
-            [str(PYTHON), str(TINYCLIP_ADVISOR), str(image_path)],
+            [str(python), str(TINYCLIP_ADVISOR), str(image_path)],
             cwd=REPO,
             env=_job_env(),
             check=True,
@@ -347,8 +663,15 @@ class SetupRun:
             self.condition.notify_all()
 
 
-def setup_available() -> tuple[bool, str | None]:
-    """Whether the setup runner can start: uv on PATH and the bootstrap script present."""
+def setup_available(host: str | None = None) -> tuple[bool, str | None]:
+    """Whether the setup runner can start: uv on PATH and the bootstrap script present.
+
+    This older runner only knows the Mac bootstrap; anywhere else, Setup & Status runs the
+    right installer for the machine.
+    """
+    if (host or host_platform()) != APPLE:
+        return False, ("this setup runs the Mac port; on this machine use Setup & Status "
+                       "> TRELLIS.2 > Set up")
     if shutil.which("uv") is None:
         return False, "uv is not installed — install it first (https://docs.astral.sh/uv/)"
     bootstrap = REPO / "scripts" / "bootstrap_trellis_space_macos.py"
@@ -357,12 +680,42 @@ def setup_available() -> tuple[bool, str | None]:
     return True, None
 
 
-def _start_setup_run(run_id: str) -> SetupRun:
-    """Spawn the bootstrap and stream its output into the run's events (SSE)."""
+def blender_install_command() -> list[str]:
+    return [sys.executable, str(REPO / "scripts" / "bootstrap_blender.py"), "--yes"]
+
+
+def blender_install_refusal(caps: dict[str, Any], generating: bool,
+                            setting_up: bool) -> tuple[int, str] | None:
+    """Why Setup's Install Blender cannot start now, or None when it can."""
+    if generating:
+        return 409, "a generation is running; wait for it to finish"
+    if setting_up:
+        return 409, "another setup is running; wait for it to finish"
+    if not caps.get("blender_installable"):
+        return 409, ("Blender is already found, or this machine needs the app from "
+                     "https://www.blender.org/download/")
+    return None
+
+
+def gltfpack_install_refusal(tools: dict[str, Any], generating: bool,
+                             setting_up: bool) -> tuple[int, str] | None:
+    """Why Setup's Install gltfpack cannot start now, or None when it can."""
+    if generating:
+        return 409, "a generation is running; wait for it to finish"
+    if setting_up:
+        return 409, "another setup is running; wait for it to finish"
+    if not tools.get("gltfpack_installable"):
+        return 409, ("gltfpack is already found, or there is no build for this machine at "
+                     "https://github.com/zeux/meshoptimizer/releases")
+    return None
+
+
+def _start_setup_run(run_id: str, command: list[str] | None = None) -> SetupRun:
+    """Spawn a setup script and stream its output into the run's events (SSE)."""
     run = SetupRun(run_id)
     bootstrap = REPO / "scripts" / "bootstrap_trellis_space_macos.py"
     proc = subprocess.Popen(
-        [sys.executable, str(bootstrap)],
+        command or [sys.executable, str(bootstrap)],
         cwd=str(REPO),
         env=_job_env(),
         stdout=subprocess.PIPE,
@@ -396,7 +749,6 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "seed": 0,
     "decimation_target": 300_000,
     "texture_size": 2048,
-    "allow_rembg": False,
     "sparse_attn_backend": "sdpa",
 }
 VALID_RESOLUTIONS = {"512", "1024", "1536"}
@@ -474,7 +826,8 @@ def validate_settings(raw: Any) -> dict[str, Any]:
         raw = {}
     if not isinstance(raw, dict):
         raise ValueError("settings must be a JSON object")
-    settings = {**DEFAULT_SETTINGS, **raw}
+    # allow_rembg (BRIA) is gone: the server cuts pictures out itself. Old clients may send it.
+    settings = {**DEFAULT_SETTINGS, **{k: v for k, v in raw.items() if k != "allow_rembg"}}
     if str(settings["resolution"]) not in VALID_RESOLUTIONS:
         raise ValueError("resolution must be one of 512, 1024, or 1536")
     try:
@@ -487,8 +840,6 @@ def validate_settings(raw: Any) -> dict[str, Any]:
         raise ValueError("decimation_target must be positive")
     if settings["texture_size"] not in VALID_TEXTURES:
         raise ValueError("texture_size must be one of 1024, 2048, 3072, or 4096")
-    if not isinstance(settings["allow_rembg"], bool):
-        raise ValueError("allow_rembg must be a boolean")
     if settings["sparse_attn_backend"] not in VALID_SPARSE_ATTN:
         raise ValueError("sparse_attn_backend must be one of sdpa, mlx, or mlx-fp16")
     settings["resolution"] = str(settings["resolution"])
@@ -524,8 +875,38 @@ def image_has_transparent_alpha(path: Path) -> bool:
             return image.getextrema()[3][0] < 255
     except Exception:
         # A missing/undecodable alpha is deliberately conservative: the wrapper will refuse it
-        # unless the user explicitly opts into BRIA rembg.
+        # and the server cuts it out with our own remover.
         return False
+
+
+def needs_cut(path: Path) -> bool:
+    """Whether an upload must be cut out before the Mac TRELLIS port sees it: no real
+    transparency, or an alpha channel that never cut the subject out (Qwen-Image writes
+    RGBA with opaque alpha, so its pictures look cut out by mode and are not)."""
+    if not image_has_transparent_alpha(path):
+        return True
+    border = image_border_opaque_fraction(path)
+    return border is not None and border > UNCUT_BORDER_LIMIT
+
+
+def matte_upload(image_path: Path) -> tuple[Path, str]:
+    """Cut an upload out with our own remover; returns (the cut-out PNG, the remover's name).
+
+    The Mac TRELLIS port needs a transparent picture, and upstream's remover is BRIA
+    RMBG-2.0, which this repo never loads. Its venv has no rembg, so the server cuts here.
+    The original stays beside it as original.<ext>.
+    """
+    from PIL import Image
+
+    from image_to_3dlab.matte import cut_out
+
+    original = image_path.with_name(f"original{image_path.suffix}")
+    image_path.replace(original)
+    with Image.open(original) as opened:
+        cut, model = cut_out(opened.convert("RGB"))
+    destination = image_path.with_name("input.png")
+    cut.save(destination)
+    return destination, model
 
 
 def image_border_opaque_fraction(path: Path) -> float | None:
@@ -560,37 +941,30 @@ def image_border_opaque_fraction(path: Path) -> float | None:
         return None
 
 
-def uncut_image_error(border_fraction: float) -> str:
-    """Browser-facing text for an image whose alpha never cut the subject out."""
-    return (
-        f"This image has an alpha channel, but {border_fraction:.0%} of its outer border is "
-        "still opaque, so the subject was never cut out of its background. Generating from it "
-        "would rebuild the background as 3D geometry, "
-        "ending in a slab behind the subject. Re-export it with a transparent background."
-    )
+def _read_seconds(path: Path) -> dict[str, float]:
+    try:
+        data = json.loads(path.read_text())
+        seconds = data.get("seconds", data.get("stages", {}))
+        return {str(k): float(v) for k, v in seconds.items() if v is not None}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {}
 
 
 def _baseline() -> dict[str, float]:
-    try:
-        data = json.loads(BASELINE_PATH.read_text())
-        seconds = data.get("seconds", data.get("stages", {}))
-        return {str(k): float(v) for k, v in seconds.items() if v is not None}
-    except (OSError, ValueError, TypeError):
-        return {}
+    """Stage durations for the ETA: the shipped defaults, overlaid by this machine's own."""
+    return {**_read_seconds(BASELINE_PATH), **_read_seconds(LEARNED_BASELINE_PATH)}
 
 
 def _update_baseline(job: Job) -> None:
     """Learn real stage durations after a successful job for the next ETA estimate."""
     if not job.stage_durations:
         return
-    try:
-        data = json.loads(BASELINE_PATH.read_text())
-    except (OSError, ValueError, TypeError):
-        data = {"schema_version": 1}
-    seconds = data.setdefault("seconds", {})
+    seconds = _read_seconds(LEARNED_BASELINE_PATH)
     seconds.update({name: round(value, 1) for name, value in job.stage_durations.items()})
-    data["source"] = "learned from completed clean-port Generate jobs"
-    BASELINE_PATH.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    data = {"schema_version": 1, "seconds": seconds,
+            "source": "learned from completed Generate jobs on this machine"}
+    LEARNED_BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    LEARNED_BASELINE_PATH.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
 
 
 def _slugify(value: str) -> str:
@@ -857,11 +1231,16 @@ def _trellis_parse_line(job: Job, line: str) -> None:
 
 
 def _cleanup_debug_files(job: Job) -> None:
-    """Debug mode off (the default): keep only the primary .glb. Deletes the manifest,
-    textures, intermediate meshes, resume caches, and run.log -- everything a run writes
+    """Debug mode off (the default): keep the .glb and what travels with it. Deletes
+    textures, intermediate meshes, resume caches and run.log -- everything a run writes
     that exists purely to diagnose a run, not to use the asset."""
-    # The licence record travels with the file (AGENTS.md), so it is never "debug".
-    keep = {job.output_path, job.output_path.with_suffix(".provenance.json")}
+    # The licence record travels with the file (AGENTS.md), so it is never "debug". For
+    # Pixal3D that record is <name>.json, and <name>.svviews/ is the camera Finish's Pixel
+    # Match needs: deleting them shipped Pixal3D models with no provenance at all.
+    out = job.output_path
+    # <name>.post.bin is Pixal3D's clean-up input, which the Pixal3D Finish route reruns.
+    keep = {out, out.with_suffix(".provenance.json"), out.with_suffix(".json"),
+            out.with_suffix(".svviews"), out.with_suffix(".post.bin")}
     for path in job.directory.iterdir():
         if path in keep:
             continue
@@ -916,6 +1295,24 @@ def _terminate_active_job() -> None:
     rig_job = RIG_JOBS.get(RIG_JOBS.active) if RIG_JOBS.active else None
     if rig_job is not None and rig_job.process is not None and rig_job.process.poll() is None:
         _killpg_if_alive(rig_job.process.pid)
+    props_job = PROPS_JOBS.get(PROPS_JOBS.active) if PROPS_JOBS.active else None
+    if props_job is not None and props_job.process is not None and props_job.process.poll() is None:
+        _killpg_if_alive(props_job.process.pid)
+    finish_job = FINISH_JOBS.get(FINISH_JOBS.active) if FINISH_JOBS.active else None
+    if finish_job is not None and finish_job.process is not None and finish_job.process.poll() is None:
+        _killpg_if_alive(finish_job.process.pid)
+
+
+def _animate_running() -> bool:
+    """Whether the Animate tab is rigging (SkinTokens holds ~8 GB) or retargeting."""
+    return ANIMATE_JOBS.busy()
+
+
+def _props_baking() -> bool:
+    """Whether a prop-sheet job is running. Its Blender bakes share unified memory with a
+    generation or a finishing repaint, so neither of those starts while it runs."""
+    job = PROPS_JOBS.get(PROPS_JOBS.active) if PROPS_JOBS.active else None
+    return job is not None and job.status not in {"done", "error", "cancelled"}
 
 
 def _reconcile_orphaned_jobs(output_root: Path) -> list[str]:
@@ -934,6 +1331,8 @@ def _reconcile_orphaned_jobs(output_root: Path) -> list[str]:
     Returns the touched job-folder names, for a one-line startup banner."""
     touched = []
     for pid_file in sorted(output_root.rglob("pid")):
+        if not pid_file.is_file():
+            continue    # a folder that happens to be called pid (a prop, say), not a job's
         directory = pid_file.parent
         try:
             pid, owner = processes.parse_pid_record(pid_file.read_text())
@@ -963,6 +1362,25 @@ def _reconcile_orphaned_jobs(output_root: Path) -> list[str]:
 _LOG_NOISE = re.compile(r"^(\[rss |Sampling |Loading |Pipeline loaded|\s*$)|\|\s*\d+/\d+ \[")
 
 
+def out_of_memory_reason(log_lines) -> str | None:
+    """What a run that died of GPU memory shortage should be told, or None if it did not.
+
+    ggml announces the shortage and then dies the way C++ dies: `std::terminate`, a signal,
+    and -- because the binary links a crash handler -- forty lines of GDB backtrace. The one
+    line that explains anything is near the top of that, and `failure_reason` reads from the
+    bottom, so the user got "trellis-cli exited with code -6" (which is the wrapper restating
+    the signal, not a cause) and the actual sentence about the card was never shown.
+    """
+    for line in reversed(list(log_lines)):
+        text = line.rstrip()
+        if "out of memory" in text and ("allocat" in text or "Malloc" in text):
+            return (
+                f"{text} The GPU did not have enough free memory. Another program using "
+                f"the card is the usual cause -- Close it and run this again."
+            )
+    return None
+
+
 def failure_reason(log_lines, limit: int = 6) -> str | None:
     """The generator's own last words, or None if it said nothing but progress.
 
@@ -981,6 +1399,11 @@ def failure_reason(log_lines, limit: int = 6) -> str | None:
         reason.append(text)
         if len(reason) >= limit:
             break
+    # A shortage of GPU memory has a cause and a remedy, and neither is in the trailing
+    # block: ggml aborts, so the last words are a backtrace and the wrapper's exit code.
+    shortage = out_of_memory_reason(log_lines)
+    if shortage:
+        return shortage
     return "\n".join(reversed(reason)) or None
 
 
@@ -988,7 +1411,7 @@ def _run_job(job: Job) -> None:
     spec = BACKENDS[job.backend_id]
     args = [str(spec.interpreter), str(spec.wrapper), *spec.build_args(job)]
     env = _job_env()
-    if job.backend_id == "trellis":
+    if job.backend_id == "trellis" and spec.wrapper == WRAPPER:
         env.update(attention_backend_spec(job.settings["sparse_attn_backend"])[1])
     try:
         job.status = "running"
@@ -1064,11 +1487,26 @@ def _trellis_build_args(job: Job) -> list[str]:
         "--texture-size", str(job.settings["texture_size"]),
         "--sparse-attn-backend", attention_backend_spec(job.settings["sparse_attn_backend"])[0],
     ]
-    if job.settings["allow_rembg"]:
-        args.append("--allow-rembg")
+    if job.settings.get("matted_with"):
+        args += ["--matted-with", job.settings["matted_with"]]
     if not job.debug:
         # Skip the multi-hundred-MB resume caches entirely rather than write-then-delete.
         args += ["--no-save-latents", "--no-save-decode"]
+    return args
+
+
+def _trellis_cuda_build_args(job: Job) -> list[str]:
+    """The CUDA generator takes the same settings, minus the Mac-only ones: attention is
+    flash-attn, and the cut-out is always our own remover, never BRIA."""
+    args = [
+        str(job.image_path), str(job.output_path),
+        "--resolution", job.settings["resolution"],
+        "--seed", str(job.settings["seed"]),
+        "--decimation-target", str(job.settings["decimation_target"]),
+        "--texture-size", str(job.settings["texture_size"]),
+    ]
+    if not job.debug:
+        args.append("--no-save-latents")
     return args
 
 
@@ -1147,7 +1585,42 @@ def _sf3d_parse_line(job: Job, line: str) -> None:
         job.emit({"phase": "running", "message": stripped[:200]})
 
 
-def _sf3d_readiness() -> dict[str, Any]:
+def _sf3d_weights() -> list[dict[str, Any]]:
+    """SF3D's weights as the Setup card counts them, so the two screens agree."""
+    import backend_catalog
+
+    return backend_catalog.BY_ID["sf3d"].describe(AMD)["weights"]
+
+
+def _sf3d_readiness(host: str | None = None) -> dict[str, Any]:
+    """Is SF3D usable here. The two installs are not interchangeable.
+
+    On a Mac the proof is the checkout, because SF3D is installed into this interpreter.
+    On AMD it is the venv and its build marker: the checkout alone would also be true on a
+    Mac, and a shared source file says nothing about whether anything was compiled for the
+    card -- which for this route is exactly the thing that goes wrong silently.
+    """
+    if (host or host_platform()) == AMD:
+        present = SF3D_ROCM_MARKER.is_file() and SF3D_ROCM_PYTHON.is_file()
+        # The weights too: a code-only install (or one stopped by the gated licence) would
+        # otherwise start a run, and SF3D would fetch ~4.9 GB that nobody agreed to.
+        weights = {w["label"]: {"label": w["label"], "present": w["present"],
+                                "human": w["human_present"]} for w in _sf3d_weights()}
+        missing = [label for label, w in weights.items() if not w["present"]]
+        hint = None
+        if not present:
+            hint = ("Stable Fast 3D for AMD is not installed. Run "
+                    "scripts/bootstrap_sf3d_rocm.py (Linux with ROCm, ~4.9 GB of weights).")
+        elif missing:
+            hint = ("Stable Fast 3D weights are missing: " + "; ".join(missing) + ". Press "
+                    "Download on its Setup card, or run python scripts/bootstrap_sf3d_rocm.py "
+                    "--weights-only.")
+        return {
+            "schema_version": 1,
+            "build": {"present": present, "interpreter": str(SF3D_ROCM_PYTHON), "hint": hint},
+            "weights": weights, "missing_weights": missing,
+            "ready": present and not missing, "warning": None,
+        }
     present = (SF3D_REPO_DEFAULT / "sf3d" / "system.py").is_file()
     return {
         "schema_version": 1,
@@ -1485,7 +1958,8 @@ def _pixal3d_validate_settings(raw: Any) -> dict[str, Any]:
         raw = {}
     if not isinstance(raw, dict):
         raise ValueError("settings must be a JSON object")
-    settings = {**PIXAL3D_DEFAULT_SETTINGS, **raw}
+    # "back_name" is the server's own record of a saved back picture: never the client's.
+    settings = {**PIXAL3D_DEFAULT_SETTINGS, **{k: v for k, v in raw.items() if k != "back_name"}}
     try:
         settings["res"] = int(settings["res"])
         settings["seed"] = int(settings["seed"])
@@ -1513,7 +1987,8 @@ def _pixal3d_build_args(job: Job) -> list[str]:
         "--res", str(s["res"]),
         "--seed", str(s["seed"]),
         "--fov", str(s["fov"]),
-    ] + ([] if s.get("steps", "auto") == "auto" else ["--steps", str(s["steps"])])
+    ] + ([] if s.get("steps", "auto") == "auto" else ["--steps", str(s["steps"])]) + (
+        ["--back", str(job.directory / s["back_name"])] if s.get("back_name") else [])
 
 
 def _pixal3d_parse_line(job: Job, line: str) -> None:
@@ -1536,6 +2011,22 @@ def _pixal3d_parse_line(job: Job, line: str) -> None:
             "overall_pct": min(99, round(index / 6 * 100)),
             "message": PIXAL3D_STAGE_LABELS[stage],
         })
+
+
+def pixal3d_front_back_ready(models: Path = PIXAL3D_MV_MODELS) -> tuple[bool, str | None]:
+    """Whether every file the multi-view set's manifest requires is present, and if not,
+    what to say. The build itself is the single-view readiness check's business."""
+    listing = models / "pixal3d-models.json"
+    if not listing.is_file():
+        return False, ("Front + back needs Pixal3D's multi-view weights (5.9 GB). Get them from "
+                       "Setup & Status, or run python scripts/bootstrap_pixal3d.py --multiview.")
+    required = [entry["name"] for entry in json.loads(listing.read_text()).get("files", [])
+                if entry.get("required", True)]
+    missing = [name for name in required if not (models / name).is_file()]
+    if missing:
+        return False, ("Front + back is missing " + ", ".join(missing) + ". Run "
+                       "python scripts/bootstrap_pixal3d.py --multiview to finish the download.")
+    return True, None
 
 
 def _pixal3d_readiness() -> dict[str, Any]:
@@ -1574,8 +2065,45 @@ def _pixal3d_readiness() -> dict[str, Any]:
     }
 
 
-BACKENDS.update({
-    "trellis": BackendSpec(
+def trellis_spec(host: str | None = None) -> BackendSpec:
+    """TRELLIS.2 for this machine: the Metal port on a Mac, Microsoft's code on NVIDIA and AMD.
+
+    One id, three installs. The Linux specs are the same shape because the pipeline is the
+    same — both are Microsoft's own checkout and both matte images themselves with our
+    remover, so neither demands a transparent upload the way the Mac port does. What differs
+    is the venv each one runs in.
+
+    The AMD install is Microsoft's checkout built with HIP: nvdiffrast and CuMesh from their
+    ROCm ports, FlexGEMM and o-voxel from upstream with one compiler flag changed, and
+    AuleAttention in place of flash-attn. See scripts/bootstrap_trellis_rocm.py.
+    """
+    if (host or host_platform()) == NVIDIA:
+        return BackendSpec(
+            id="trellis", label="TRELLIS.2 (NVIDIA)",
+            interpreter=TRELLIS_CUDA_PYTHON, wrapper=TRELLIS_CUDA_WRAPPER,
+            default_settings=DEFAULT_SETTINGS, stages=STAGES, stage_labels=PHASE_LABELS,
+            requires_alpha=False,
+            validate_settings=validate_settings, build_args=_trellis_cuda_build_args,
+            parse_line=_trellis_parse_line, readiness=cuda_setup_status,
+            baseline_path=BASELINE_PATH,
+            hidden_fields=("generate-attention",),
+        )
+    if (host or host_platform()) == AMD:
+        # Same spec as NVIDIA but the ROCm venv: like it, this route mattes images itself
+        # with our remover, so it does not demand a transparent upload the way the Mac port
+        # does. The attention field is hidden because the backend is not a choice here --
+        # AuleAttention is the only one that exists for this card.
+        return BackendSpec(
+            id="trellis", label="TRELLIS.2 (AMD)",
+            interpreter=TRELLIS_ROCM_PYTHON, wrapper=TRELLIS_ROCM_WRAPPER,
+            default_settings=DEFAULT_SETTINGS, stages=STAGES, stage_labels=PHASE_LABELS,
+            requires_alpha=False,
+            validate_settings=validate_settings, build_args=_trellis_cuda_build_args,
+            parse_line=_trellis_parse_line, readiness=cuda_setup_status,
+            baseline_path=BASELINE_PATH,
+            hidden_fields=("generate-attention",),
+        )
+    return BackendSpec(
         id="trellis", label="TRELLIS.2 (clean port)",
         interpreter=PYTHON, wrapper=WRAPPER,
         default_settings=DEFAULT_SETTINGS, stages=STAGES, stage_labels=PHASE_LABELS,
@@ -1583,20 +2111,229 @@ BACKENDS.update({
         validate_settings=validate_settings, build_args=_trellis_build_args,
         parse_line=_trellis_parse_line, readiness=setup_status,
         baseline_path=BASELINE_PATH,
-    ),
-    "sf3d": BackendSpec(
+    )
+
+
+# --- Hunyuan3D-2.1 on NVIDIA (Tencent's own code) ---------------------------------------
+# Upstream's demo.py defaults. The generator validates the same ranges again.
+HUNYUAN_CUDA_DEFAULT_SETTINGS: dict[str, Any] = {
+    "seed": 1234,
+    "steps": 50,
+    "octree_resolution": 384,
+    "max_num_view": 6,
+    "paint_resolution": 512,
+}
+
+
+def _hunyuan_cuda_validate_settings(raw: Any) -> dict[str, Any]:
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ValueError("settings must be a JSON object")
+    settings = {**HUNYUAN_CUDA_DEFAULT_SETTINGS,
+                **{k: v for k, v in raw.items() if k in HUNYUAN_CUDA_DEFAULT_SETTINGS}}
+    try:
+        settings = {key: int(value) for key, value in settings.items()}
+    except (TypeError, ValueError) as exc:
+        raise ValueError("all Hunyuan3D-2.1 settings must be integers") from exc
+    if settings["octree_resolution"] not in {256, 384, 512}:
+        raise ValueError("octree_resolution must be 256, 384 or 512")
+    if not 6 <= settings["max_num_view"] <= 9:
+        raise ValueError("max_num_view must be 6 to 9")
+    if settings["paint_resolution"] not in {512, 768}:
+        raise ValueError("paint_resolution must be 512 or 768")
+    if settings["steps"] < 1:
+        raise ValueError("steps must be at least 1")
+    return settings
+
+
+# The AMD route's defaults deliberately omit views and texture resolution. Upstream's
+# defaults want about 21 GB, which a consumer card does not have; the generator's
+# fit_paint_settings walks down a ladder until it fits what is free, and a default here
+# would override that without saying so.
+HUNYUAN_ROCM_DEFAULT_SETTINGS: dict[str, Any] = {
+    "seed": 1234,
+    "steps": 50,
+    "octree_resolution": 384,
+}
+
+
+def _hunyuan_rocm_validate_settings(raw: Any) -> dict[str, Any]:
+    """Validate what the studio sends, and pass through the two optional overrides.
+
+    The bounds are the generator's, not upstream's: a small card has to be allowed to ask
+    for one view and a 128px texture, which the NVIDIA route does not permit.
+    """
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ValueError("settings must be a JSON object")
+    known = {**HUNYUAN_ROCM_DEFAULT_SETTINGS, "max_num_view": 0, "paint_resolution": 0}
+    settings = {**HUNYUAN_ROCM_DEFAULT_SETTINGS,
+                **{k: v for k, v in raw.items() if k in known}}
+    try:
+        settings = {key: int(value) for key, value in settings.items()}
+    except (TypeError, ValueError) as exc:
+        raise ValueError("all Hunyuan3D-2.1 settings must be integers") from exc
+    if settings["octree_resolution"] not in {256, 384, 512}:
+        raise ValueError("octree_resolution must be 256, 384 or 512")
+    if settings["steps"] < 1:
+        raise ValueError("steps must be at least 1")
+    # The two fitted settings are checked only when they are here. They are absent from the
+    # defaults on purpose -- that is what lets the generator fit them to the card -- so
+    # reading them unconditionally raised KeyError('max_num_view') on every fresh job.
+    if "max_num_view" in settings and not 1 <= settings["max_num_view"] <= 9:
+        raise ValueError("max_num_view must be 1 to 9")
+    if "paint_resolution" in settings and settings["paint_resolution"] not in {128, 256}:
+        # 512 and 768 are what upstream offers, and this card returns an all-black texture
+        # at both: the paint UNet's multiview output comes back with a maximum of 0.02
+        # across the whole image. Measured on an RX 7900 XTX, 2026-10-14.
+        raise ValueError("paint_resolution must be 128 or 256 on an AMD card")
+    return settings
+
+
+def _hunyuan_rocm_build_args(job: Job) -> list[str]:
+    """Only pass the two fitted settings when the studio actually set them.
+
+    The generator fits whatever is absent, so passing a default here would quietly pin the
+    card to whatever this file guessed when it was written.
+    """
+    s = job.settings
+    args = [str(job.image_path), str(job.output_path),
+            "--seed", str(s["seed"]), "--steps", str(s["steps"]),
+            "--octree-resolution", str(s["octree_resolution"])]
+    if "max_num_view" in s:
+        args += ["--max-num-view", str(s["max_num_view"])]
+    if "paint_resolution" in s:
+        args += ["--paint-resolution", str(s["paint_resolution"])]
+    return args
+
+
+def _hunyuan_cuda_build_args(job: Job) -> list[str]:
+    s = job.settings
+    return [
+        str(job.image_path), str(job.output_path),
+        "--seed", str(s["seed"]),
+        "--steps", str(s["steps"]),
+        "--octree-resolution", str(s["octree_resolution"]),
+        "--max-num-view", str(s["max_num_view"]),
+        "--paint-resolution", str(s["paint_resolution"]),
+    ]
+
+
+def _hunyuan_cuda_readiness() -> dict[str, Any]:
+    """Ready only when built *and* every weight is on disk.
+
+    Upstream fetches missing weights on first use, unannounced. The installer names and
+    fetches them all up front, so a missing one means setup has not finished, and the run
+    must not start and download it behind the user's back.
+    """
+    import backend_catalog
+
+    built = (HUNYUAN_CUDA_MARKER.is_file() and HUNYUAN_CUDA_PYTHON.is_file()
+             and HUNYUAN_CUDA_WRAPPER.is_file())
+    weights = {w["label"]: {"label": w["label"], "present": w["present"],
+                            "human": w["human_present"]}
+               for w in backend_catalog.BY_ID["hunyuan-cuda"].describe()["weights"]}
+    missing = [label for label, w in weights.items() if not w["present"]]
+    ready = built and not missing
+    hint = None
+    if not built:
+        hint = ("Hunyuan3D-2.1 for NVIDIA is not installed. Set it up from Setup & Status, "
+                "or run python scripts/bootstrap_hunyuan_cuda.py (Linux only, ~19.5 GB).")
+    elif missing:
+        hint = ("Hunyuan3D-2.1 weights are missing: " + "; ".join(missing) + ". Run "
+                "python scripts/bootstrap_hunyuan_cuda.py --weights-only.")
+    return {
+        "schema_version": 1,
+        "build": {"present": built, "interpreter": str(HUNYUAN_CUDA_PYTHON),
+                  "wrapper": str(HUNYUAN_CUDA_WRAPPER), "hint": hint},
+        "weights": weights,
+        "missing_weights": missing,
+        "ready": ready,
+        "warning": "Not licensed in the EU, the UK or South Korea.",
+    }
+
+
+def _hunyuan_rocm_readiness() -> dict[str, Any]:
+    """Readiness of the AMD Hunyuan3D-2.1 route, same shape as the NVIDIA one.
+
+    The patches count as part of "built": the generator needs them, and a build marker
+    without them is a route that compiles and then crashes in the scheduler.
+    """
+    import backend_catalog
+    sys.path.insert(0, str(REPO / "scripts"))
+    from patch_hunyuan_rocm import is_patched
+
+    root = HUNYUAN_ROCM_VENDOR / "Hunyuan3D-2.1"
+    built = (HUNYUAN_ROCM_MARKER.is_file() and HUNYUAN_ROCM_PYTHON.is_file()
+             and HUNYUAN_ROCM_WRAPPER.is_file())
+    patched = is_patched(root) if built else False
+    weights = {w["label"]: {"label": w["label"], "present": w["present"],
+                            "human": w["human_present"]}
+               for w in backend_catalog.BY_ID["hunyuan-rocm"].describe()["weights"]}
+    missing = [label for label, w in weights.items() if not w["present"]]
+    hint = None
+    if not built:
+        hint = ("Hunyuan3D-2.1 for AMD is not installed. Set it up from Setup & Status, or "
+                "run python scripts/bootstrap_hunyuan_rocm.py (Linux with ROCm, ~19.5 GB).")
+    elif not patched:
+        hint = ("The Hunyuan3D-2.1 checkout is missing the AMD patches. Run "
+                "python scripts/patch_hunyuan_rocm.py first.")
+    elif missing:
+        hint = ("Hunyuan3D-2.1 weights are missing: " + "; ".join(missing) + ". Run "
+                "python scripts/bootstrap_hunyuan_rocm.py --weights-only.")
+    return {
+        "schema_version": 1,
+        "build": {"present": built and patched, "interpreter": str(HUNYUAN_ROCM_PYTHON),
+                  "wrapper": str(HUNYUAN_ROCM_WRAPPER), "hint": hint},
+        "weights": weights,
+        "missing_weights": missing,
+        "ready": built and patched and not missing,
+        # The one licence restriction with real teeth, on the route where it bites.
+        "warning": "Not licensed in the EU, the UK or South Korea.",
+    }
+
+
+def sf3d_spec(host: str | None = None) -> BackendSpec:
+    """SF3D for this machine: this interpreter on a Mac, its own venv on AMD.
+
+    The Apple route installs SF3D into the interpreter the viewer runs in, so both halves
+    share one. That was why SF3D could not be on Linux at all: its pins (numpy 1.26,
+    transformers 4.42, an old huggingface-hub) break the shared environment. The AMD route
+    gives it a venv of its own instead, so nothing it pins can reach the viewer -- which
+    means the interpreter is not the same one, and a spec pointing at `sys.executable`
+    would look for SF3D in a place it was never installed.
+
+    One id, two interpreters, the way TRELLIS.2 does it.
+    """
+    if (host or host_platform()) == AMD:
+        return BackendSpec(
+            id="sf3d", label="Stable Fast 3D (AMD)",
+            interpreter=SF3D_ROCM_PYTHON, wrapper=REPO / "pipeline.py",
+            default_settings=SF3D_DEFAULT_SETTINGS, stages=SF3D_STAGES,
+            stage_labels=SF3D_STAGE_LABELS, requires_alpha=False,
+            validate_settings=_sf3d_validate_settings, build_args=_sf3d_build_args,
+            parse_line=_sf3d_parse_line, readiness=_sf3d_readiness, finalize=_sf3d_finalize,
+        )
+    return BackendSpec(
         id="sf3d", label="Stable Fast 3D",
         interpreter=Path(sys.executable), wrapper=REPO / "pipeline.py",
         default_settings=SF3D_DEFAULT_SETTINGS, stages=SF3D_STAGES,
         stage_labels=SF3D_STAGE_LABELS, requires_alpha=False,
         validate_settings=_sf3d_validate_settings, build_args=_sf3d_build_args,
         parse_line=_sf3d_parse_line, readiness=_sf3d_readiness, finalize=_sf3d_finalize,
-    ),
+    )
+
+
+BACKENDS.update({
+    "trellis": trellis_spec(),
+    "sf3d": sf3d_spec(),
     "hunyuan-mlx": BackendSpec(
         id="hunyuan-mlx", label="Hunyuan3D-MLX (dgrauet shape + Xiong paint)",
         interpreter=HUNYUAN_PYTHON, wrapper=HUNYUAN_WRAPPER,
         default_settings=HUNYUAN_DEFAULT_SETTINGS, stages=HUNYUAN_STAGES,
-        stage_labels=HUNYUAN_STAGE_LABELS, requires_alpha=False,
+        stage_labels=HUNYUAN_STAGE_LABELS, requires_alpha=True,  # its shape stage trusts alpha
         validate_settings=_hunyuan_validate_settings, build_args=_hunyuan_build_args,
         parse_line=_hunyuan_parse_line, readiness=_hunyuan_readiness,
     ),
@@ -1604,7 +2341,7 @@ BACKENDS.update({
         id="hunyuan-mlx-xiong", label="Hunyuan3D-MLX (Xiong, full pipeline)",
         interpreter=HUNYUAN_XIONG_SHAPE_VENV, wrapper=HUNYUAN_XIONG_WRAPPER,
         default_settings=HUNYUAN_XIONG_DEFAULT_SETTINGS, stages=HUNYUAN_STAGES,
-        stage_labels=HUNYUAN_STAGE_LABELS, requires_alpha=False,
+        stage_labels=HUNYUAN_STAGE_LABELS, requires_alpha=True,  # its shape stage trusts alpha
         validate_settings=_hunyuan_xiong_validate_settings, build_args=_hunyuan_xiong_build_args,
         parse_line=_hunyuan_parse_line, readiness=_hunyuan_xiong_readiness,
     ),
@@ -1615,6 +2352,32 @@ BACKENDS.update({
         stage_labels=PIXAL3D_STAGE_LABELS, requires_alpha=False,
         validate_settings=_pixal3d_validate_settings, build_args=_pixal3d_build_args,
         parse_line=_pixal3d_parse_line, readiness=_pixal3d_readiness,
+        # The one block it could not allocate on a busy 24 GB card, rounded up: 11.1 GB at
+        # res 1024. Without this the run reaches the texture stage -- two minutes in --
+        # and aborts with a backtrace instead of a sentence.
+        gpu_memory_wanted=12 * 1024 ** 3,
+    ),
+    # Same stage names and progress lines as the MLX Hunyuan routes, so it shares their parser.
+    "hunyuan-cuda": BackendSpec(
+        id="hunyuan-cuda", label="Hunyuan3D-2.1 (NVIDIA)",
+        interpreter=HUNYUAN_CUDA_PYTHON, wrapper=HUNYUAN_CUDA_WRAPPER,
+        default_settings=HUNYUAN_CUDA_DEFAULT_SETTINGS, stages=HUNYUAN_STAGES,
+        stage_labels=HUNYUAN_STAGE_LABELS, requires_alpha=False,
+        validate_settings=_hunyuan_cuda_validate_settings,
+        build_args=_hunyuan_cuda_build_args,
+        parse_line=_hunyuan_parse_line, readiness=_hunyuan_cuda_readiness,
+    ),
+    # The AMD route fits its paint settings to the card, so views and resolution are NOT
+    # in its defaults: leaving them out is what lets fit_paint_settings decide. An explicit
+    # one still wins, which is why _hunyuan_rocm_validate_settings accepts them.
+    "hunyuan-rocm": BackendSpec(
+        id="hunyuan-rocm", label="Hunyuan3D-2.1 (AMD)",
+        interpreter=HUNYUAN_ROCM_PYTHON, wrapper=HUNYUAN_ROCM_WRAPPER,
+        default_settings=HUNYUAN_ROCM_DEFAULT_SETTINGS, stages=HUNYUAN_STAGES,
+        stage_labels=HUNYUAN_STAGE_LABELS, requires_alpha=False,
+        validate_settings=_hunyuan_rocm_validate_settings,
+        build_args=_hunyuan_rocm_build_args,
+        parse_line=_hunyuan_parse_line, readiness=_hunyuan_rocm_readiness,
     ),
 })
 
@@ -1632,7 +2395,11 @@ def _job_status_payload(job: Job) -> dict[str, Any]:
     Deliberately the same event shape _run_job's "done"/"error" events already carry, so
     the frontend can feed this straight into its existing applyGenerateProgress() renderer
     instead of a separate code path."""
-    return {"status": job.status, "last_event": job.events[-1] if job.events else None}
+    model = None
+    if job.status == "done" and OUTPUT_ROOT in job.output_path.parents and job.output_path.is_file():
+        # where the model landed, as the studio's Library names it, so a chain can carry on
+        model = job.output_path.relative_to(OUTPUT_ROOT).as_posix()
+    return {"status": job.status, "last_event": job.events[-1] if job.events else None, "model": model}
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -1664,8 +2431,51 @@ class Handler(SimpleHTTPRequestHandler):
     def _path_parts(self) -> list[str]:
         return [unquote(p) for p in urlparse(self.path).path.split("/") if p]
 
+    # one runner per server: it calls this server's own job endpoints, so a plan keeps going
+    # after the browser tab that started it is closed
+    _chain_runner: ClassVar[ChainRunner | None] = None
+
+    def _chains(self) -> ChainRunner:
+        cls = type(self)
+        if cls._chain_runner is None:
+            host, port = self.server.server_address[:2]
+            host = "127.0.0.1" if host in ("", "0.0.0.0") else host
+            cls._chain_runner = ChainRunner(OUTPUT_ROOT, activity_api.local_request(f"http://{host}:{port}"))
+        return cls._chain_runner
+
     def do_POST(self) -> None:
         parts = self._path_parts()
+        if parts == ["api", "chains"]:
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                chain = chain_from_form(parse_multipart(self.headers.get("Content-Type", ""), self.rfile.read(length)))
+                self._chains().submit(chain)
+            except RuntimeError as exc:
+                self._send_json(409, {"error": str(exc)})
+                return
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
+                return
+            self._send_json(202, chain.to_dict())
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "chains"] and parts[3] == "cancel":
+            ok = self._chains().cancel(parts[2])
+            self._send_json(200 if ok else 404, {"cancelled": ok})
+            return
+        if parts == ["api", "blender", "install"]:
+            self._start_blender_install()
+            return
+        if parts == ["api", "gltfpack", "install"]:
+            self._start_gltfpack_install()
+            return
+        if parts == ["api", "hf", "sign-in"]:
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length)) if 0 < length <= 4096 else None
+            except (ValueError, json.JSONDecodeError):
+                payload = None
+            self._send_json(*hf_sign_in_response(payload))
+            return
         if parts == ["api", "setup", "run"]:
             self._start_setup()
             return
@@ -1696,13 +2506,121 @@ class Handler(SimpleHTTPRequestHandler):
         if len(parts) == 5 and parts[:3] == ["api", "finish", "runs"] and parts[4] == "resume":
             self._resume_finish_job(parts[3])
             return
+        if parts == ["api", "props"]:
+            self._create_props_job()
+            return
+        if parts == ["api", "animate", "rig"]:
+            self._create_animate_rig()
+            return
+        if parts == ["api", "animate", "play"]:
+            self._create_animate_play()
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "animate"] and parts[3] == "cancel":
+            job = ANIMATE_JOBS.get(parts[2])
+            if job is None:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            try:
+                cancel_animate_job(job)
+            except RuntimeError as exc:
+                self._send_json(409, {"error": str(exc)})
+                return
+            self._send_json(202, {"job_id": job.id, "status": job.status})
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "props"] and parts[3] == "cancel":
+            self._cancel_props_job(parts[2])
+            return
+        if len(parts) == 5 and parts[:3] == ["api", "props", "runs"] and parts[4] == "turn":
+            self._turn_prop(parts[3])
+            return
         if parts == ["api", "image"]:
             self._create_image_job()
+            return
+        if parts == ["api", "image", "back"]:
+            self._create_back_job()
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "assets"] and parts[3] == "name":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length)) if 0 < length <= 2048 else {}
+                name = set_asset_name(OUTPUT_ROOT, parts[2], str(body.get("name", "")))
+            except (ValueError, json.JSONDecodeError) as exc:
+                self._send_json(422, {"error": str(exc)})
+                return
+            self._send_json(200, {"id": parts[2], "name": name})
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "assets"] and parts[3] == "hidden":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length)) if 0 < length <= 1024 else {}
+                set_asset_hidden(OUTPUT_ROOT, parts[2], bool(body.get("hidden", True)))
+            except (ValueError, json.JSONDecodeError) as exc:
+                self._send_json(422, {"error": str(exc)})
+                return
+            self._send_json(200, {"id": parts[2], "hidden": bool(body.get("hidden", True))})
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "assets"] and parts[3] == "delete":
+            # a deletion cannot be undone, so the page must say so: a bare POST does nothing
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length)) if 0 < length <= 1024 else {}
+                if body.get("confirm") is not True:
+                    raise ValueError("confirm the deletion first")
+                plan = delete_asset_version(OUTPUT_ROOT, parts[2])
+            except (ValueError, json.JSONDecodeError) as exc:
+                self._send_json(422, {"error": str(exc)})
+                return
+            self._send_json(200, {"id": parts[2], "deleted": [f["path"] for f in plan["folders"]], "bytes": plan["bytes"]})
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "assets"] and parts[3] == "main":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length)) if 0 < length <= 1024 else {}
+                set_asset_main(OUTPUT_ROOT, parts[2], bool(body.get("main", True)))
+            except (ValueError, json.JSONDecodeError) as exc:
+                self._send_json(422, {"error": str(exc)})
+                return
+            self._send_json(200, {"id": parts[2], "main": bool(body.get("main", True))})
+            return
+        if parts == ["api", "reveal"]:
+            self._reveal()
+            return
+        if parts == ["api", "bug-report"]:
+            self._bug_report_links()
             return
         if len(parts) == 4 and parts[:2] == ["api", "image"] and parts[3] == "cancel":
             self._cancel_image_job(parts[2])
             return
         self.send_error(HTTPStatus.NOT_FOUND)
+
+    def _create_back_job(self) -> None:
+        """Draw the back of a picture already in output/ (front + back builds)."""
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length)) if 0 < length <= 4096 else {}
+            front = image_api.back_source(OUTPUT_ROOT, str(payload.get("picture", "")))
+            seed = int(payload.get("seed", 3))
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json(422, {"error": str(exc)})
+            return
+        if not image_api.BINARY.exists():
+            self._send_json(503, {"error": "stable-diffusion.cpp is not installed.", "needs_setup": True})
+            return
+        try:
+            image_api.resolve_weights()
+            if image_api.resolve_vision() is None:
+                raise image_api.MissingWeights([image_api.VISION_FILE[1]])
+        except image_api.MissingWeights as exc:
+            self._send_json(503, {"error": str(exc), "needs_setup": True, "missing": exc.missing})
+            return
+        try:
+            job = image_api.start_back(front, seed)
+        except RuntimeError as exc:
+            self._send_json(409, {"error": str(exc)})
+            return
+        self._send_json(202, {"job_id": job.id, "settings": job.settings,
+                              "events_url": f"/api/image/{job.id}/events",
+                              "status_url": f"/api/image/{job.id}/status"})
 
     def _create_image_job(self) -> None:
         """Start one text-to-image run. The prompt is the only required field."""
@@ -1762,11 +2680,7 @@ class Handler(SimpleHTTPRequestHandler):
         if job is None:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/event-stream")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("Connection", "keep-alive")
-        self.end_headers()
+        self._start_event_stream()
         index = 0
         try:
             while True:
@@ -1816,10 +2730,82 @@ class Handler(SimpleHTTPRequestHandler):
         except Exception as exc:
             self._send_json(500, {"error": str(exc), "advisory_only": True})
 
+    def list_directory(self, path):
+        # Never list folders: the server's root is the whole repository.
+        self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+
     def do_GET(self) -> None:
+        if urlparse(self.path).path in ("", "/", "/viewer", "/viewer/"):
+            self.send_response(HTTPStatus.FOUND)  # the front door is the studio
+            self.send_header("Location", "/viewer/studio.html")
+            self.end_headers()
+            return
         parts = self._path_parts()
+        if parts == ["api", "hf", "status"]:
+            self._send_json(200, hf_api.status())
+            return
         if parts == ["api", "catalog"]:
-            self._send_json(200, with_rebuild_reasons(catalog_status()))
+            self._send_json(200, catalog_payload())
+            return
+        if parts == ["api", "recipes"]:
+            # what we know about prompting each goal; the CLI and MCP read the same file
+            try:
+                self._send_json(200, json.loads((REPO / "image_to_3dlab" / "prompt_recipes.json").read_text()))
+            except (OSError, ValueError) as exc:
+                self._send_json(500, {"error": f"prompt recipes unreadable: {exc}"})
+            return
+        if parts == ["api", "chains"]:
+            # the plan running now, else the newest few (so a reopened tab can pick its run back up)
+            runner = self._chains()
+            self._send_json(200, {"running": (c.to_dict() if (c := runner.running()) else None),
+                                  "recent": [c.to_dict() for c in runner.recent(5)]})
+            return
+        if len(parts) == 3 and parts[:2] == ["api", "chains"]:
+            chain = self._chains().chains.get(parts[2])
+            self._send_json(200 if chain else 404, chain.to_dict() if chain else {"error": "no such run"})
+            return
+        if parts == ["api", "thumb"]:
+            relative = parse_qs(urlparse(self.path).query).get("path", [""])[0]
+            try:
+                data = asset_thumbnail(OUTPUT_ROOT, relative).read_bytes()
+            except (ValueError, OSError) as exc:
+                self._send_json(404, {"error": str(exc)})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        if parts == ["api", "activity"]:
+            self._send_json(200, {"history": read_history(OUTPUT_ROOT)})
+            return
+        if parts == ["api", "preview"]:
+            self._send_preview()
+            return
+        if parts == ["api", "model-info"]:
+            self._send_model_info()
+            return
+        if parts == ["api", "bug-report"]:
+            query = parse_qs(urlparse(self.path).query)
+            pick = {k: query.get(k, [""])[0] or None for k in ("chain", "step")}
+            failure = bug_report_api.find_failure(OUTPUT_ROOT, **pick)
+            self._send_json(200, {
+                "details": bug_report_api.details(OUTPUT_ROOT, include_prompt=query.get("prompt", [""])[0] == "1", **pick),
+                "failure": bool(failure), "has_prompt": bool(failure and failure.get("prompt")),
+            })
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "assets"] and parts[3] == "delete-plan":
+            try:
+                self._send_json(200, plan_asset_delete(OUTPUT_ROOT, parts[2]))
+            except ValueError as exc:
+                self._send_json(422, {"error": str(exc)})
+            return
+        if parts == ["api", "assets"]:
+            try:
+                self._send_json(200, assets_payload(OUTPUT_ROOT))
+            except Exception as exc:  # a broken run folder must not take the whole Library down
+                self._send_json(500, {"error": str(exc)})
             return
         if parts == ["api", "update-check"]:
             self._send_json(200, update_check())
@@ -1887,14 +2873,7 @@ class Handler(SimpleHTTPRequestHandler):
             })
             return
         if parts == ["api", "backends"]:
-            self._send_json(200, {
-                "backends": [
-                    {"id": spec.id, "label": spec.label, "requires_alpha": spec.requires_alpha,
-                     "default_settings": spec.default_settings, "stages": spec.stages,
-                     "stage_labels": spec.stage_labels}
-                    for spec in BACKENDS.values()
-                ]
-            })
+            self._send_json(200, backends_payload())
             return
         if len(parts) == 4 and parts[:2] == ["api", "setup"] and parts[3] in {"events", "status"}:
             run = DOWNLOADS.get(parts[2])
@@ -1904,8 +2883,10 @@ class Handler(SimpleHTTPRequestHandler):
                 else:
                     self._send_json(200, download_status_payload(run))
                 return
-        if len(parts) == 4 and parts[:3] == ["api", "setup", "run"] and parts[3] == "events":
-            run = SETUP_RUNS.get(parts[2]) if _safe_id(parts[2]) else None
+        # /api/setup/run/<id>/events: five parts, as _start_setup and the Blender
+        # install hand it out.
+        if len(parts) == 5 and parts[:3] == ["api", "setup", "run"] and parts[4] == "events":
+            run = SETUP_RUNS.get(parts[3]) if _safe_id(parts[3]) else None
             if run is None:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
@@ -1938,6 +2919,51 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             if action in FINISH_ARTIFACTS:
                 self._finish_artifact(job_id, action)
+                return
+        if parts == ["api", "animate", "models"]:
+            try:
+                self._send_json(200, {"models": animate_models(OUTPUT_ROOT),
+                                      "presets": animate_presets(),
+                                      "installed": autorig_installed()})
+            except Exception as exc:
+                self._send_json(500, {"error": str(exc)})
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "animate"]:
+            job = ANIMATE_JOBS.get(parts[2])
+            if job is None:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            if parts[3] == "events":
+                self._stream_events(job)
+                return
+            if parts[3] == "status":
+                self._send_json(200, animate_status_payload(job))
+                return
+        if parts == ["api", "props", "tools"]:
+            self._send_json(200, props_tools_payload())
+            return
+        if parts == ["api", "props", "runs"]:
+            try:
+                payload = {
+                    "runs": list_props_runs(PROPS_JOBS.output_root),
+                    "generated": generated_models(OUTPUT_ROOT),
+                    "tools": props_tools_payload(),
+                }
+            except Exception as exc:
+                self._send_json(500, {"error": str(exc)})
+                return
+            self._send_json(200, payload)
+            return
+        if len(parts) == 4 and parts[:2] == ["api", "props"]:
+            job = PROPS_JOBS.get(parts[2])
+            if job is None:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            if parts[3] == "events":
+                self._stream_events(job)
+                return
+            if parts[3] == "status":
+                self._send_json(200, props_status_payload(job))
                 return
         if len(parts) == 5 and parts[:3] == ["api", "rig", "rebind"]:
             job_id, action = parts[3], parts[4]
@@ -1988,6 +3014,11 @@ class Handler(SimpleHTTPRequestHandler):
             if not spec.readiness()["ready"]:
                 self._send_json(503, {"error": f"{spec.label} is not installed/ready"})
                 return
+            # Free card memory is asked here, not discovered two minutes in by the GPU
+            # refusing an allocation. It warns rather than refuses: the floor is measured on
+            # one card, and a shared-memory chip (an AMD APU) can report a small VRAM figure
+            # while the GPU borrows system RAM, so a refusal would lock out runs that work.
+            busy = gpu_busy_check(spec)
             if SETUP_ACTIVE is not None:
                 self._send_json(409, {"error": "setup is running; wait for it to finish"})
                 return
@@ -1995,11 +3026,45 @@ class Handler(SimpleHTTPRequestHandler):
             if rig_active is not None and rig_active.status not in {"done", "error", "cancelled"}:
                 self._send_json(409, {"error": "a rig rebind is running; wait for it to finish"})
                 return
+            if _props_baking():
+                self._send_json(409, {"error": "a prop sheet is baking; wait for it to finish"})
+                return
+            if _animate_running():
+                self._send_json(409, {"error": "an auto-rig or animation is running; wait for it to finish"})
+                return
             try:
                 settings = spec.validate_settings(raw_settings)
             except ValueError as exc:
                 self._send_json(422, {"error": str(exc)})
                 return
+            except Exception as exc:
+                # A validator bug must not reach the browser as a bare repr. `KeyError` on a
+                # setting name printed as just `'max_num_view'`, with nothing on the server's
+                # terminal: the run looked like it had simply stopped. Name the exception and
+                # the route, and say where to look.
+                print(f"[generate] {backend_id} validate_settings raised "
+                      f"{type(exc).__name__}: {exc}", flush=True)
+                self._send_json(500, {"error": (
+                    f"{spec.label} could not read the settings for this run "
+                    f"({type(exc).__name__}: {exc}). This is a bug in the route's settings "
+                    f"check, not in your picture. The server's terminal has the traceback.")})
+                return
+            back_field = form.get("back")
+            if back_field is not None and back_field.get("filename"):
+                if backend_id != "pixal3d":
+                    self._send_json(422, {"error": "a back picture works with Pixal3D only"})
+                    return
+                ready, hint = pixal3d_front_back_ready()
+                if not ready:
+                    self._send_json(503, {"error": hint, "needs_setup": True})
+                    return
+                back_suffix = Path(str(back_field["filename"])).suffix.lower()
+                if back_suffix not in {".png", ".jpg", ".jpeg", ".webp"}:
+                    self._send_json(422, {"error": "unsupported back picture; use PNG, JPG or WebP"})
+                    return
+                settings["back_name"] = f"back{back_suffix}"
+            else:
+                back_field = None
             suffix = Path(str(image_field["filename"])).suffix.lower()
             if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".bmp"}:
                 self._send_json(422, {"error": "unsupported image type; use PNG, JPG, WebP, or BMP"})
@@ -2011,30 +3076,27 @@ class Handler(SimpleHTTPRequestHandler):
             image_path = provisional / f"input{suffix}"
             with image_path.open("wb") as handle:
                 handle.write(image_field["data"])
+            if back_field is not None:
+                (provisional / settings["back_name"]).write_bytes(back_field["data"])
             try:
-                lacks_alpha = spec.requires_alpha and not image_has_transparent_alpha(image_path)
+                cut_needed = spec.requires_alpha and needs_cut(image_path)
             except RuntimeError as exc:
                 for child in provisional.iterdir():
                     child.unlink()
                 provisional.rmdir()
                 self._send_json(500, {"error": str(exc)})
                 return
-            if lacks_alpha and not settings.get("allow_rembg"):
-                for child in provisional.iterdir():
-                    child.unlink()
-                provisional.rmdir()
-                self._send_json(422, {
-                    "error": "This image has no transparent alpha foreground. Enable 'allow rembg' "
-                             "to use BRIA background removal, or upload a pre-masked PNG."
-                })
-                return
-            if spec.requires_alpha and not lacks_alpha:
-                border = image_border_opaque_fraction(image_path)
-                if border is not None and border > UNCUT_BORDER_LIMIT:
+            if cut_needed:
+                try:
+                    image_path, settings["matted_with"] = matte_upload(image_path)
+                except Exception as exc:
                     for child in provisional.iterdir():
                         child.unlink()
                     provisional.rmdir()
-                    self._send_json(422, {"error": uncut_image_error(border)})
+                    self._send_json(422, {
+                        "error": "This picture needs its background removed and the remover "
+                                 f"failed ({exc}). Upload a PNG with a transparent background."
+                    })
                     return
             # JobManager builds the real, human-readable job directory. Move the upload into it
             # so the id and artifact URLs are stable, without ever accepting a client-provided path.
@@ -2043,17 +3105,23 @@ class Handler(SimpleHTTPRequestHandler):
                 job = JOBS.create(provisional_image, settings, backend_id, image_stem,
                                   output_name, output_base, debug)
             except RuntimeError as exc:
-                provisional_image.unlink(missing_ok=True)
+                for child in provisional.iterdir():
+                    child.unlink()
                 provisional.rmdir()
                 self._send_json(409, {"error": str(exc)})
                 return
             final_image = job.directory / image_path.name
-            provisional_image.replace(final_image)
+            for child in provisional.iterdir():  # the upload, plus the original if we cut it out
+                child.replace(job.directory / child.name)
             provisional.rmdir()
             job.image_path = final_image
+            warning = gpu_busy_warning(busy)
+            if warning:
+                job.append_log(warning)
             threading.Thread(target=_run_job, args=(job,), daemon=True).start()
             self._send_json(202, {"job_id": job.id, "events_url": f"/api/generate/{job.id}/events",
-                                  "output_dir": str(job.directory.relative_to(REPO))})
+                                  "output_dir": str(job.directory.relative_to(REPO)),
+                                  "warning": warning})
         except Exception as exc:
             self._send_json(500, {"error": str(exc)})
 
@@ -2062,6 +3130,12 @@ class Handler(SimpleHTTPRequestHandler):
             active = JOBS.get(JOBS.active) if JOBS.active else None
             if active is not None and active.status in {"queued", "running", "cancelling"}:
                 self._send_json(409, {"error": "a generation is running; wait for it to finish"})
+                return
+            if _props_baking():
+                self._send_json(409, {"error": "a prop sheet is baking; wait for it to finish"})
+                return
+            if _animate_running():
+                self._send_json(409, {"error": "an auto-rig or animation is running; wait for it to finish"})
                 return
             if SETUP_ACTIVE is not None:
                 self._send_json(409, {"error": "setup is running; wait for it to finish"})
@@ -2101,6 +3175,96 @@ class Handler(SimpleHTTPRequestHandler):
         except Exception as exc:
             self._send_json(500, {"error": str(exc)})
 
+    def _animate_blocked(self) -> str | None:
+        """Why an Animate job cannot start now. The auto-rig loads an ~8 GB model, so it
+        waits for anything else that holds the GPU or unified memory."""
+        active = JOBS.get(JOBS.active) if JOBS.active else None
+        if active is not None and active.status in {"queued", "running", "cancelling"}:
+            return "a generation is running; wait for it to finish"
+        if SETUP_ACTIVE is not None:
+            return "setup is running; wait for it to finish"
+        if _props_baking():
+            return "a prop sheet is baking; wait for it to finish"
+        finishing = FINISH_JOBS.get(FINISH_JOBS.active) if FINISH_JOBS.active else None
+        if finishing is not None and finishing.status not in {"done", "error", "cancelled"}:
+            return "a model is being finished; wait for it to finish"
+        if not autorig_installed():
+            return "Auto-rig is not installed. Set it up on the Setup & Status page."
+        return None
+
+    def _start_animate(self, job) -> None:
+        threading.Thread(target=run_animate_job, args=(job,), daemon=True,
+                         name=f"animate-{job.id[:8]}").start()
+        self._send_json(202, {"job_id": job.id, "kind": job.kind,
+                              "events_url": f"/api/animate/{job.id}/events",
+                              "status_url": f"/api/animate/{job.id}/status"})
+
+    def _create_animate_rig(self) -> None:
+        """Rig a model: a GLB uploaded in field 'asset', or one the lab made, named in
+        field 'model' by the path /api/animate/models listed it under."""
+        try:
+            blocked = self._animate_blocked()
+            if blocked:
+                self._send_json(409, {"error": blocked})
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0 or length > 512 * 1024 * 1024:
+                self._send_json(400, {"error": "request is missing or larger than 512 MiB"})
+                return
+            form = parse_multipart(self.headers.get("Content-Type", ""), self.rfile.read(length))
+            asset = form.get("asset")
+            chosen = str((form.get("model") or {}).get("value", "")).strip()
+            if asset and str(asset.get("filename", "")).lower().endswith(".glb"):
+                name, data, record, origin = str(asset["filename"]), asset["data"], None, "uploaded"
+            elif chosen:
+                try:
+                    path = resolve_animate_model(chosen, OUTPUT_ROOT)
+                except ValueError as exc:
+                    self._send_json(422, {"error": str(exc)})
+                    return
+                name, data = path.name, path.read_bytes()
+                record, origin = animate_source_record(path), "generated"
+            else:
+                self._send_json(422, {"error": "send a .glb in 'asset' or a listed 'model'"})
+                return
+            try:
+                job = ANIMATE_JOBS.create_rig(name, data, record, origin)
+            except RuntimeError as exc:
+                self._send_json(409, {"error": str(exc)})
+                return
+            self._start_animate(job)
+        except Exception as exc:
+            self._send_json(500, {"error": str(exc)})
+
+    def _create_animate_play(self) -> None:
+        """Play a preset on a rigged model: JSON {model, preset, arm_spread, speed}."""
+        try:
+            blocked = self._animate_blocked()
+            if blocked:
+                self._send_json(409, {"error": blocked})
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            try:
+                body = json.loads(self.rfile.read(length)) if 0 < length <= 4096 else None
+            except json.JSONDecodeError:
+                body = None
+            if not isinstance(body, dict):
+                self._send_json(422, {"error": "expected a JSON object"})
+                return
+            try:
+                rigged = resolve_animate_model(str(body.get("model", "")), OUTPUT_ROOT)
+                job = ANIMATE_JOBS.create_animation(rigged, str(body.get("preset", "")),
+                                                    body.get("arm_spread", 0), body.get("speed"))
+            except ValueError as exc:
+                self._send_json(422, {"error": str(exc)})
+                return
+            except RuntimeError as exc:
+                self._send_json(409, {"error": str(exc)})
+                return
+            self._start_animate(job)
+        except Exception as exc:
+            self._send_json(500, {"error": str(exc)})
+
     def _create_finish_job(self) -> None:
         """Retopologise, repaint and compress a GLB the viewer already has.
 
@@ -2116,6 +3280,12 @@ class Handler(SimpleHTTPRequestHandler):
             if SETUP_ACTIVE is not None:
                 self._send_json(409, {"error": "setup is running; wait for it to finish"})
                 return
+            if _props_baking():
+                self._send_json(409, {"error": "a prop sheet is baking; wait for it to finish"})
+                return
+            if _animate_running():
+                self._send_json(409, {"error": "an auto-rig or animation is running; wait for it to finish"})
+                return
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0 or length > 768 * 1024 * 1024:
                 self._send_json(400, {"error": "finish bundle is missing or larger than 768 MiB"})
@@ -2128,9 +3298,11 @@ class Handler(SimpleHTTPRequestHandler):
             if not asset or not asset_name.lower().endswith(".glb"):
                 self._send_json(422, {"error": "multipart field 'asset' must be a .glb file"})
                 return
+            # The picture is optional: without one, Finish cleans up and re-bakes the mesh
+            # alone (no Pixel Match), so a model uploaded with no picture can still finish.
             image = form.get("image")
             image_name = str(image.get("filename")) if image else ""
-            if not image or Path(image_name).suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            if image and Path(image_name).suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
                 self._send_json(422, {
                     "error": "multipart field 'image' must be the source art (PNG/JPG/WebP)"
                 })
@@ -2150,7 +3322,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             try:
                 job = FINISH_JOBS.create(
-                    asset_name, asset["data"], image["data"], raw_settings,
+                    asset_name, asset["data"], image["data"] if image else None, raw_settings,
                 )
             except ValueError as exc:
                 self._send_json(422, {"error": str(exc)})
@@ -2218,6 +3390,12 @@ class Handler(SimpleHTTPRequestHandler):
             if SETUP_ACTIVE is not None:
                 self._send_json(409, {"error": "setup is running; wait for it to finish"})
                 return
+            if _props_baking():
+                self._send_json(409, {"error": "a prop sheet is baking; wait for it to finish"})
+                return
+            if _animate_running():
+                self._send_json(409, {"error": "an auto-rig or animation is running; wait for it to finish"})
+                return
         try:
             if find_blender() is None:
                 raise RuntimeError(blender_missing_help())
@@ -2243,6 +3421,136 @@ class Handler(SimpleHTTPRequestHandler):
             return
         try:
             cancel_finish_job(job)
+        except RuntimeError as exc:
+            self._send_json(409, {"error": str(exc)})
+            return
+        self._send_json(202, {"job_id": job.id, "status": job.status})
+
+    def _props_busy(self) -> str | None:
+        """Why a prop-sheet job cannot start now, or None.
+
+        Its bakes are Blender on the CPU, but a generation or a finishing repaint holds
+        gigabytes of model in unified memory, and a Blender bake on top of that is how
+        this machine starts swapping.
+        """
+        active = JOBS.get(JOBS.active) if JOBS.active else None
+        if active is not None and active.status in {"queued", "running", "cancelling"}:
+            return "a generation is running; wait for it to finish"
+        if SETUP_ACTIVE is not None:
+            return "setup is running; wait for it to finish"
+        finishing = FINISH_JOBS.jobs.get(FINISH_JOBS.active) if FINISH_JOBS.active else None
+        if finishing is not None and finishing.status in {"queued", "running", "cancelling"}:
+            return "a finishing job is running; wait for it to finish"
+        rebind = RIG_JOBS.get(RIG_JOBS.active) if RIG_JOBS.active else None
+        if rebind is not None and rebind.status not in {"done", "error", "cancelled"}:
+            return "a rig rebind is running; wait for it to finish"
+        if _animate_running():
+            return "an auto-rig or animation is running; wait for it to finish"
+        return None
+
+    def _start_props_job(self, job) -> None:
+        threading.Thread(
+            target=run_props_job, args=(job,), daemon=True, name=f"props-{job.id[:8]}"
+        ).start()
+        self._send_json(202, {
+            "job_id": job.id,
+            "directory": job.directory.name,
+            "settings": job.settings,
+            "events_url": f"/api/props/{job.id}/events",
+            "status_url": f"/api/props/{job.id}/status",
+        })
+
+    def _create_props_job(self) -> None:
+        """Split a prop-sheet GLB into props and bake each one's LODs.
+
+        The GLB is an upload, or one the Generate tab already wrote, named by the path
+        `/api/props/runs` listed it under; nothing else on disk can be named.
+        """
+        try:
+            busy = self._props_busy()
+            if busy:
+                self._send_json(409, {"error": busy})
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0 or length > 768 * 1024 * 1024:
+                self._send_json(400, {"error": "prop sheet is missing or larger than 768 MiB"})
+                return
+            form = parse_multipart(
+                self.headers.get("Content-Type", ""), self.rfile.read(length)
+            )
+            asset = form.get("asset")
+            generated = str(form.get("generated", {}).get("value", "")).strip()
+            source_record, from_generated = None, False
+            if asset and str(asset.get("filename", "")).lower().endswith(".glb"):
+                asset_name, data = str(asset["filename"]), asset["data"]
+            elif generated:
+                try:
+                    path = generated_model(OUTPUT_ROOT, generated)
+                except RuntimeError as exc:
+                    self._send_json(422, {"error": str(exc)})
+                    return
+                asset_name, data = path.name, path.read_bytes()
+                source_record, from_generated = source_record_for(path), True
+            else:
+                self._send_json(422, {
+                    "error": "send a .glb as 'asset', or a generated model as 'generated'"
+                })
+                return
+            try:
+                raw_settings = json.loads(form.get("settings", {}).get("value", "{}"))
+            except json.JSONDecodeError as exc:
+                self._send_json(422, {"error": f"invalid settings JSON: {exc}"})
+                return
+            if not isinstance(raw_settings, dict):
+                self._send_json(422, {"error": "settings must be a JSON object"})
+                return
+            try:
+                job = PROPS_JOBS.create(asset_name, data, raw_settings, source_record,
+                                        generated=from_generated)
+            except ValueError as exc:
+                self._send_json(422, {"error": str(exc)})
+                return
+            except RuntimeError as exc:
+                self._send_json(409, {"error": str(exc)})
+                return
+            self._start_props_job(job)
+        except Exception as exc:
+            self._send_json(500, {"error": str(exc)})
+
+    def _turn_prop(self, name: str) -> None:
+        """Turn one prop of a finished run about the vertical and re-bake only it."""
+        try:
+            busy = self._props_busy()
+            if busy:
+                self._send_json(409, {"error": busy})
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0 or length > 4096:
+                self._send_json(400, {"error": "expected a small JSON body"})
+                return
+            payload = json.loads(self.rfile.read(length))
+            if not isinstance(payload, dict):
+                raise ValueError("expected a JSON object")
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json(400, {"error": f"could not read the request: {exc}"})
+            return
+        try:
+            job = PROPS_JOBS.turn(name, str(payload.get("prop", "")), payload.get("degrees", 90))
+        except ValueError as exc:
+            self._send_json(422, {"error": str(exc)})
+            return
+        except RuntimeError as exc:
+            self._send_json(409, {"error": str(exc)})
+            return
+        self._start_props_job(job)
+
+    def _cancel_props_job(self, job_id: str) -> None:
+        job = PROPS_JOBS.get(job_id)
+        if job is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        try:
+            cancel_props_job(job)
         except RuntimeError as exc:
             self._send_json(409, {"error": str(exc)})
             return
@@ -2304,13 +3612,19 @@ class Handler(SimpleHTTPRequestHandler):
         job.emit({"phase": "error", "message": "Cancellation requested"})
         self._send_json(202, {"job_id": job.id, "status": "cancelling"})
 
-    def _stream_events(self, run: Job | SetupRun) -> None:
-        """SSE pump shared by generation jobs and setup runs."""
+    def _start_event_stream(self) -> None:
+        """Headers for a server-sent event stream. X-Accel-Buffering stops proxies (nginx,
+        Cloudflare, RunPod's) from holding progress back and delivering it minutes late."""
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
+
+    def _stream_events(self, run: Job | SetupRun) -> None:
+        """SSE pump shared by generation jobs and setup runs."""
+        self._start_event_stream()
         index = 0
         try:
             while True:
@@ -2330,6 +3644,85 @@ class Handler(SimpleHTTPRequestHandler):
                     break
         except (BrokenPipeError, ConnectionResetError):
             return
+
+    def _send_model_info(self) -> None:
+        """Stats and full path for one file: `?file=<output-relative>` (the studio panel), or
+        `?asset=<id>&stage=latest` (agents)."""
+        query = parse_qs(urlparse(self.path).query)
+        relative = query.get("file", [""])[0]
+        try:
+            if not relative:
+                asset_id = query.get("asset", [""])[0]
+                asset = next((a for a in list_assets(OUTPUT_ROOT) if a["id"] == asset_id), None)
+                if asset is None:
+                    raise ValueError(f"no such asset: {asset_id}")
+                found = preview_api.stage_file(asset, query.get("stage", ["latest"])[0])
+                if found is None:
+                    raise ValueError("this asset has no file for that step yet")
+                relative = found[1]
+            self._send_json(200, model_info_api.model_info(OUTPUT_ROOT, relative))
+        except ValueError as exc:
+            self._send_json(422, {"error": str(exc)})
+
+    def _bug_report_links(self) -> None:
+        """The three ways to send a report the person has read and edited: `{message, details}`."""
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            body = json.loads(self.rfile.read(length)) if 0 < length <= 64_000 else {}
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json(422, {"error": str(exc)})
+            return
+        message, details = str(body.get("message", "")).strip(), str(body.get("details", ""))
+        if not message:
+            self._send_json(422, {"error": "Say what went wrong first."})
+            return
+        self._send_json(200, bug_report_api.links(message, details))
+
+    def _reveal(self) -> None:
+        """Show one output file in Finder / Explorer / the file manager, on this machine."""
+        if not model_info_api.is_local(self.client_address[0]):
+            self._send_json(403, {"error": "Show in folder only works on the computer running the studio. "
+                                           "Use Download instead."})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            body = json.loads(self.rfile.read(length)) if 0 < length <= 4096 else {}
+            path = model_info_api.reveal(OUTPUT_ROOT, str(body.get("file", "")))
+        except (ValueError, json.JSONDecodeError) as exc:
+            self._send_json(422, {"error": str(exc)})
+            return
+        except OSError as exc:
+            self._send_json(503, {"error": f"could not open the folder: {exc}"})
+            return
+        self._send_json(200, {"shown": str(path)})
+
+    def _send_preview(self) -> None:
+        """One asset from four sides as a PNG (`?asset=<id>&stage=latest&look=paint`, or `&move=wave`
+        for four moments of a move), for agents."""
+        query = parse_qs(urlparse(self.path).query)
+        asset_id = query.get("asset", [""])[0]
+        asset = next((a for a in list_assets(OUTPUT_ROOT) if a["id"] == asset_id), None)
+        if asset is None:
+            self._send_json(404, {"error": f"no such asset: {asset_id}"})
+            return
+        try:
+            path, shown = preview_api.preview(OUTPUT_ROOT, asset, query.get("stage", ["latest"])[0],
+                                              query.get("look", ["paint"])[0], blender=find_blender(),
+                                              move=query.get("move", [""])[0] or None)
+            data = path.read_bytes()
+        except ValueError as exc:
+            self._send_json(422, {"error": str(exc)})
+            return
+        except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+            self._send_json(503, {"error": str(exc)})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Preview-Stage", shown.encode("ascii", "replace").decode())
+        self.send_header("X-Preview-Path", str(path.relative_to(OUTPUT_ROOT)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def _backend_download(self, backend_id: str, action: str) -> None:
         """Start or stop one backend's weight download.
@@ -2359,6 +3752,42 @@ class Handler(SimpleHTTPRequestHandler):
             "events_url": f"/api/setup/{backend_id}/events",
             "status_url": f"/api/setup/{backend_id}/status",
         })
+
+    def _start_blender_install(self) -> None:
+        global SETUP_ACTIVE
+        with SETUP_LOCK:
+            active = JOBS.get(JOBS.active)
+            refusal = blender_install_refusal(
+                finish_capabilities(),
+                generating=active is not None
+                and active.status in {"queued", "running", "cancelling"},
+                setting_up=SETUP_ACTIVE is not None or download_active() is not None)
+            if refusal:
+                self._send_json(refusal[0], {"error": refusal[1]})
+                return
+            setup_id = uuid.uuid4().hex
+            SETUP_ACTIVE = setup_id
+            SETUP_RUNS[setup_id] = _start_setup_run(setup_id, blender_install_command())
+        self._send_json(202, {"setup_run_id": setup_id,
+                              "events_url": f"/api/setup/run/{setup_id}/events"})
+
+    def _start_gltfpack_install(self) -> None:
+        global SETUP_ACTIVE
+        with SETUP_LOCK:
+            active = JOBS.get(JOBS.active)
+            refusal = gltfpack_install_refusal(
+                props_tools_payload(),
+                generating=active is not None
+                and active.status in {"queued", "running", "cancelling"},
+                setting_up=SETUP_ACTIVE is not None or download_active() is not None)
+            if refusal:
+                self._send_json(refusal[0], {"error": refusal[1]})
+                return
+            setup_id = uuid.uuid4().hex
+            SETUP_ACTIVE = setup_id
+            SETUP_RUNS[setup_id] = _start_setup_run(setup_id, gltfpack_install_command())
+        self._send_json(202, {"setup_run_id": setup_id,
+                              "events_url": f"/api/setup/run/{setup_id}/events"})
 
     def _start_setup(self) -> None:
         global SETUP_ACTIVE

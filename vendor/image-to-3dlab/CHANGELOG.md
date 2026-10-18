@@ -7,6 +7,479 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-10-18
+
+### Added
+- **Cleaner game models from Pixal3D.** Finish gives Pixal3D models far cleaner game-ready
+  versions, with no holes or blotches, in about 30 seconds. Applies to models made from this
+  version on. Macs first: existing Mac installs run `python scripts/bootstrap_pixal3d.py --rebuild`
+  once. NVIDIA installs keep the previous Finish for now; the new one follows in the next release.
+- **Report a bug**, in the studio's top bar and on any failed run. It fills in the version,
+  your machine and the error (your home folder shown as `~`, your prompt only if you tick
+  the box), and you read all of it before sending. Send it through assetfurnace.com (sign in
+  with your email), as a GitHub issue, or copy it to paste in #bugs on our Discord. Nothing
+  leaves your computer until you send it. Agents can draft one with the `report_bug` tool.
+- **Model stats in the studio:** triangles, vertices, texture sizes, bones, moves and file
+  size, under the Steps panel for whichever version you are viewing. GLB files store
+  triangles only, so there is no quad count.
+- **Show in folder** and **Copy path** buttons beside Download GLB. Show in folder only
+  appears when the studio is open on the computer running it.
+- Agents get the same through two new MCP tools, `model_info` and `show_in_folder`.
+- **TRELLIS.2, Hunyuan3D-2.1 and Stable Fast 3D on AMD** (Linux, ROCm), building on the AMD
+  support [@dlm21](https://github.com/dlm21) brought in 0.4.1 (#92). That release ran Pixal3D,
+  Generate Image and Auto-rig on an AMD card and said these three needed NVIDIA-only parts;
+  they now build for the card with HIP and are set up from the AMD tab like the rest. Each
+  has its own folder and venv, so a machine with both kinds of card keeps both installs.
+  Setup names every download and its size before it starts.
+  - **TRELLIS.2 (AMD):** Microsoft's own checkout and the same weights as NVIDIA. Attention
+    runs on AuleAttention, because flash-attn has no ROCm build. Setup tests torch on the
+    card before compiling anything, and on a ROCm newer than PyTorch's index (10.x, such as
+    Strix Halo) it tries AMD's index and PyTorch's newest ROCm build and keeps the one that
+    runs. Tested on an RX 7900 XTX (a model in about 4 minutes) and a Strix Halo (about 22).
+  - **Hunyuan3D-2.1 (AMD):** Tencent's own shape and PBR paint. Paint settings are fitted
+    to free GPU memory, read through torch so a shared-memory chip (an APU) is measured
+    right. Textures are capped at 256 px: at 512 px this card returns an all-black texture
+    with no error, and the cause is not pinned down yet. A run that bakes a black texture
+    stops rather than saving it. A run with weights missing stops and says how to fetch
+    them, instead of letting upstream download 8-15 GB. Tested on an RX 7900 XTX.
+  - **Stable Fast 3D (AMD):** in a venv of its own, so its old pins cannot reach the viewer,
+    with the texture baker's GPU kernels compiled for the card (under ROCm, upstream quietly
+    built a CPU-only one). It cuts pictures out with BiRefNet-lite like the other routes, and
+    Generate waits until its weights are downloaded. Tested on an RX 7900 XTX.
+- `I2L_TRELLIS_MODEL_PATH` points TRELLIS.2 at a local folder of weights instead of
+  downloading them. A tree under `vendor/trellis-cuda/models` or `vendor/trellis-rocm/models`
+  is found too, by both routes, and Setup counts it instead of offering to download it again.
+
+### Fixed
+- **Auto-rig setup no longer fails on Windows without admin rights.** Where a symlink is
+  refused, the model files are hard-linked to the download cache instead (no extra disk),
+  or copied if the cache is on another drive. Thanks to the Windows user who reported it.
+- **TRELLIS.2 on NVIDIA keeps your own `PYTORCH_CUDA_ALLOC_CONF`** if you set one. The AMD
+  merge had started overriding it.
+- **TRELLIS.2 on AMD installs AuleAttention 0.5.0**, the version it was tested with, instead
+  of whatever is newest on PyPI.
+- **Pixal3D installs on Macs still pointed at the Command Line Tools.** The Mac build could
+  not see the Metal compiler inside Xcode and stopped, even with the Metal toolchain
+  installed. It now finds your Xcode on its own. If Metal really is missing, the message
+  gives the exact Terminal commands, or tells you to install Xcode if you don't have it.
+- **An AMD install gets the ROCm build of PyTorch.** The installer handed every AMD card
+  PyPI's CUDA torch, plus about 6 GB of NVIDIA wheels it cannot load. A ROCm too old for
+  any ROCm build gets the CPU build until it is updated, rather than no PyTorch at all.
+- **Generate Image on AMD uses the card.** Its ROCm build needs ROCm's own libraries, which
+  are now put on its path; a run that still falls back to the CPU is caught and explained,
+  pointing at `rocminfo` rather than `nvidia-smi`.
+- **Pixal3D on AMD** can fetch its weights (`--weights-only`, `--multiview`) without hipcc
+  installed. Only compiling needs it.
+- **Auto-rig on AMD** names its route and where torch comes from before asking, and tests
+  torch on the card before installing the rest.
+- **Setup & Status:**
+  - The Rebuild button is back. It vanished when the page grew one tab per machine.
+  - A finished setup says *Installed*, *Setup failed* or *Setup cancelled*, in green, amber
+    or grey, instead of "Downloading" beside a full bar.
+  - TRELLIS.2's download on NVIDIA shows bytes arriving, not only minutes elapsed.
+  - A failed compile is no longer blamed on Hugging Face sign-in.
+  - A route that lost its venv or build marker names the missing file instead of only
+    offering Set up again.
+- The macOS TRELLIS.2 bootstrap refuses a machine that is not a Mac before fetching anything,
+  and names the right bootstrap.
+- The background-remover setup, run without `--yes` and without a terminal, says so instead
+  of crashing.
+
+### Changed
+- Setup & Status no longer says AMD support is coming, and the How-to page says the lab runs
+  on NVIDIA and AMD as well as Apple Silicon.
+
+## [0.4.5] - 2026-10-17
+
+### Added
+- **Use AssetFurnace from your agent.** `./lab mcp` is an MCP server for Claude Code, Codex,
+  Kimi and others: make pictures, models and animated characters, check on a run, give a
+  character another move, and install engines (only after you say yes). Setup for each agent:
+  `docs/agents.md`, including how to let your agent install AssetFurnace itself. `./lab mcp
+  --http` serves the same tools at a local web address.
+- **Previews your agent can see:** any asset as one picture from the front, three-quarter,
+  side and back, or four moments of one of its moves, so the agent can check its work and
+  show you.
+- **Full detail Finish.** A new Detail choice keeps every triangle of the 3D model (often near a
+  million) and paints it with Pixel Match: the sharpest look we make, in under a minute. For
+  renders and stills; it is too heavy for games, so rig a lighter version. Agents get it too
+  (`finish_detail="full"`), along with every other Finish detail level and Pixel Match on or off.
+- **Edge fade switch** for Pixel Match (Finish > Advanced, on by default). Pixel Match fades
+  the picture out where one part sits in front of another; on detailed models that can leave
+  coloured specks in hair and dark smudges over small eyes. Untick it and Finish again. Agents
+  pass `advanced={"edge_fade": false}`.
+- **Nudge switch** for Pixel Match (Finish > Advanced, on by default). Pixel Match first fits
+  your picture onto the model; on some models, often with a turned head, that slides a face off
+  its features and paints an eye twice. Untick it and Finish again. Agents pass `advanced={"nudge": false}`.
+- **View the raw 3D model** after Finish, Rig and Animate: the 3D model and Finish steps get a
+  **View** button beside Download, and **Show latest** goes back.
+- **Every studio knob reaches agents.** `options` lists them all, with what each does, its
+  default and when to try it; `create` and `continue_asset` take the Advanced ones as
+  `advanced` (Pixel Match edge fade and nudge, texture size, rig the raw model, move speed,
+  arms away from the body, keep everything). A test fails if a studio control has no twin.
+- Agents can list **every version** of a character with `list_versions`: its 3D models,
+  Finishes and rigs, each with its files. Library rows say which family and version they are.
+- Agents can make a finished step **again as a new version** (another 3D model, another Finish,
+  a re-rig) with `continue_asset(..., again=True)`.
+- **Open in the studio from a link:** `studio.html#asset=<id>` opens that asset, which is how
+  an agent hands you something to spin round and play.
+
+## [0.4.4] - 2026-10-14
+
+### Added
+- **Delete** a version from the studio. It says what goes ("its rig and moves") and how much space
+  it frees, and asks first. Only what belongs to that version alone is removed; the picture and
+  model it shares with other versions stay, and the original stays while later versions exist.
+- The Library can be **filtered** by step, engine and Main, and **sorted** by newest or name.
+- **Versions** in the studio. Run any finished step again from the Steps panel and the result is
+  a new version of the same character, never a replacement: **Draw another picture** (opens
+  Create with the same description), **Make another 3D model**, **Redo Finish**, and **Re-rig**
+  (with a choice of the finished or the raw model, which is also how to skip Finish). The Library
+  shows one row per character with a "3 versions" line that opens to v1, v2, v3, and the studio
+  opens the version you just made. A **Main** button marks the version to use.
+- Merged pull requests post to **Discord** as cards, like releases: title, author and the start
+  of the description (`scripts/discord_pr_card.py`). Opening, reopening and closing without
+  merging stay quiet.
+- **Front + back** in Create: for a character or a prop, Qwen draws the back of your picture,
+  Pixal3D builds the shape from both, and Pixel Match paints from both, so the sides and back
+  match your picture instead of being guessed. On by default when its downloads are present
+  (Pixal3D's multi-view weights, 5.9 GB, and Qwen's vision projector, 0.75 GB); Advanced has
+  the switch, and says what to fetch when they are missing. Scripts: `make_back_view.py`,
+  `pixal3d_generate.py --back`, `bootstrap_pixal3d.py --multiview`,
+  `bootstrap_qwen_image.py --vision`.
+- **Pixel Match** nudges each picture onto the model before painting: first the cut-out onto
+  the model's outline (a pixel or two, about 1% in size), then detailed spots such as brows,
+  eyes and ink lines onto where the model built them. It only moves what it is sure of, a
+  few pixels at most. `scripts/photo_paint.py` reports what moved; `--no-align` turns it off.
+- The studio's **Steps** panel shows how long each finished step took, while a run is going
+  and on any asset opened later (older assets too, from the run history).
+- **View pictures** on the Picture step: once a model is made, one click shows the pictures
+  it came from (front and back side by side), and another brings the model back.
+- A guide to **picking a picture** for 3D: soft 3D-render style over flat anime art, A-pose
+  over T-pose, open hands, positive wording, and a prompt to start from
+  ([docs/prompt-guide.md](docs/prompt-guide.md)).
+- **Walk (woman)** in the Animate presets: a walk made with Kimodo from "A woman walks
+  forward.", with a narrower step than the plain walk.
+
+### Changed
+- Characters made in the studio now ask for slightly larger, clearly defined eyes, and the picture
+  guide explains why: realistic faces no longer come out with a dark-rimmed shelf for eyes.
+- **Finish** offers three tested detail levels: 10,000 (light), **20,000 (game-ready, the new
+  default)** and 40,000 (more detail), plus a Custom count marked "unexpected results". Tested on
+  five very different models: 10k and 20k stay clean, 40k adds rough patches on some, and 5k
+  breaks shapes, so 5,000, 100,000 and 200,000 are no longer listed.
+- Finish keeps the **normal map at 2048 px** instead of 1024 (about 1 MB more per model), so
+  light models keep crisp edges on blocks and bevels. The other data maps stay at 1024.
+- The **picture guide** opens inside the studio: the "picture guide" link in Create's tips
+  shows it over Create, so nothing typed there is lost.
+- The studio's **Activity** list is one line per step ("✓ Rig · knight · 17:19 · 42 s");
+  click a line for the prompt, the file it made and the full log. New runs record their prompt.
+- The studio's **Steps** panel unlocks a step once the file it needs exists, not strictly in
+  order: rig a raw model without finishing it, or finish a model that has no picture (it is
+  cleaned up and re-baked, with Pixel Match skipped and a note saying so). A finished model
+  gets **Redo Finish**, with Detail from 5,000 to 200,000 triangles or a custom count.
+- **Create** now asks for characters in an **A-pose** (arms angled down, a gap from the body,
+  hands open) instead of a T-pose, without mentioning fingers or listing things to leave
+  out, both of which tended to add the very thing. New tips, linked to the picture guide.
+- **Pixel Match** matches colour spot by spot instead of with one shift for the whole model,
+  so the sides no picture sees meet each picture's colours instead of showing darker bands.
+  Slower on very dense meshes (about 12 s to 37 s on a million triangles).
+
+### Fixed
+- The **Engine** picker in Create showed only Pixal3D when TRELLIS.2 or Hunyuan3D was installed
+  but still had optional or first-run downloads to come. It now lists every engine Setup calls ready.
+- **Pixel Match** no longer crashes on models whose texture is stored as WebP (Pixal3D's raw
+  output). The painted model is written with a plain PNG texture.
+- **Finish** no longer paints patches from brows and lips onto the face behind them (grey
+  smears on a muzzle, blotches round the eyes). It copies colour from a much shorter distance.
+- A rig whose legs have **no toe bone** (three bones: thigh, knee, ankle) is no longer
+  read as facing backward. The studio turned such a character away from the camera and its
+  moves played in reverse. Facing is now read from which way the knee bends when there is no
+  toe. Rigs with a toe are unchanged; re-run Rig on an affected character to pick it up.
+- The two **Mac Hunyuan3D routes** now get your picture cut out first. Their shape stage trusts
+  the picture's transparency, and a picture from Create has none that means anything, so the
+  backdrop was built as a wall behind the model. A test now checks that every route gets a
+  real cut-out.
+- Hands that hang close to the thighs no longer stick to them when a character walks: the
+  skin-weight clean-up was handing those hand points to the leg bones.
+- Animated characters no longer bend their wrists inward on every move: the hand now turns
+  with its forearm when an A-pose rest is lined up with the motion's T-pose.
+- The studio shows the **front and back pictures side by side** while a Front + back run builds
+  its 3D model and when you open the asset, and no longer tells you to make a picture 3D while
+  it is already being made.
+- The studio's **Props** tab now shows single props made with Create's prop route, not only
+  prop sheets.
+- **Pixel Match** no longer paints the far side of thin parts (cloaks, capes, ponytails) with
+  the near side's colours, which left dark slits and holes down a cloak's back.
+- **Pixel Match** no longer draws thin dark lines on heads, ears and cheeks: it now fades out
+  near the edge of your picture's cut-out, where pixels are half background.
+- **Pixel Match** no longer spills colour across inner edges, such as an outline drawn round
+  an ear or robe colour on a neck above a collar: it fades out where one part sits in front
+  of another.
+
+## [0.4.3] - 2026-10-10
+
+### Added
+- **Keep everything** in Create (Advanced: 3D model): the 3D step keeps its textures,
+  in-between meshes and resume files instead of tidying them away, for digging into a bad
+  result. Off by default; it takes a lot more disk.
+- A docs page for **Pixel Match**: how it works, when it runs, and what to check when a
+  result looks wrong ([docs/pixel-match.md](docs/pixel-match.md)). Written by @MylesLandais (#101).
+- Two new views in the studio: **Clay** (plain grey, to judge the shape without the paint) and
+  **Normals** (surface direction as colour, so dents, lumps and flipped faces stand out).
+  The face count now shows bottom left of the viewer.
+
+### Changed
+- Pictures take 8 steps instead of 10 by default: about a fifth faster, with no visible
+  difference in side-by-side tests. You can still raise it in Create.
+
+### Fixed
+- Clicking a model in the Library now really shows it. The studio opens on Create, whose
+  sheet covers the whole viewer, and picking an asset loaded the model behind that sheet:
+  nothing appeared to happen. Create, Activity, How to use and About are now put away as
+  soon as something else wants the viewer. Opening a GLB already did this, which is why
+  it looked like the only way in. Fixed by @dlm21 (#98).
+
+## [0.4.2] - 2026-10-10
+
+### Added
+- Every finished step in the Steps panel has its own **Download GLB** link, so the raw
+  3D model from before Finish and Pixel Match is one click away. Asked for by MeAndVR.
+
+### Fixed
+- TRELLIS.2 on a Mac takes any picture again. The studio cuts the background out with our
+  own remover first, as the NVIDIA route already did. The old "allow rembg" switch went
+  with the classic viewer, and it loaded BRIA RMBG-2.0 (non-commercial, and it crashed on
+  a Mac asking for an NVIDIA card), so it is gone for good. Reported by MeAndVR.
+- Humanoids with hair, a cape, a skirt or a sword are no longer called "not a humanoid"
+  and refused preset moves. The skeleton check wanted an exact bone layout, so one extra
+  bone on the hips or chest failed it. Extra bones now just follow the body part they
+  hang from. Four-legged creatures are still turned away. Reported by MeAndVR.
+- Setting up Hunyuan3D-MLX (Xiong) from Setup & Status now builds both of its Python
+  environments before fetching weights. It used to fetch only the weights, so it said
+  "done" and the route still showed "not installed" (#97).
+
+### Removed
+- `--allow-rembg` on `scripts/trellis_space_generate.py`. It loaded BRIA RMBG-2.0; cut the
+  picture out first instead (the studio does it for you).
+
+## [0.4.1] - 2026-10-08
+
+### Added
+- **AMD support on Linux (ROCm)**, contributed by [@dlm21](https://github.com/dlm21) in
+  #92. An AMD card is now detected, and Setup & Status has an AMD tab. Three routes run
+  on it:
+  - **Pixal3D** compiles itself with HIP for your card. There is no AMD prebuilt, so the
+    first setup compiles for 10-20 minutes, once, and needs ROCm's HIP SDK.
+  - **Generate Image** installs stable-diffusion.cpp's ROCm build.
+  - **Auto-rig** installs PyTorch's ROCm build.
+
+  Tested on an RX 7900 XTX and a Ryzen AI Max+ 395. TRELLIS.2 and Hunyuan3D-2.1 need
+  NVIDIA-only parts, so Setup says they are not available on AMD.
+- `PIXAL3D_CMAKE_FLAGS` adds your own CMake flags to a local Pixal3D build.
+- A heads-up before a run when the graphics card looks too full, naming the programs
+  using it. It warns and never blocks, because some machines share memory with the
+  graphics and report less than they can use.
+
+### Changed
+- On Linux, the Blender that Setup & Status installed is used before any Blender on
+  your PATH, which can be too old or bring its own Python.
+
+### Fixed
+- A run that ran out of graphics memory now says so, instead of "exited with code -6".
+- The image tab says why a run failed, not just "sd-cli exited with code N".
+- Generate Image installs releases that contain symlinks correctly. Links that point
+  outside the install folder are skipped.
+- Stable Fast 3D frees graphics memory on Linux cards too, not only on a Mac.
+
+## [0.4.0] - 2026-10-08
+
+The headline: **rig and animate humanoids, on your own machine.** Type a sentence or drop
+a picture, and get back a textured, rigged character with moves, ready for a game engine.
+Free, local, no account.
+
+### Added
+- **Rig and animate humanoids locally.** Auto-rig adds a skeleton (SkinTokens), and preset
+  moves from Kimodo are fitted onto it: rest pose straightened, arms kept out of the body
+  and armour, feet on the floor. Download the animated GLB for Godot, Unity, Unreal,
+  Blender or three.js. Set up from Setup & Status (~1.6 GB, asks first); runs on Apple
+  Silicon and NVIDIA. Every result records its licences.
+- **The studio: the new home of AssetFurnace.** Your Library on the left, one 3D viewer in
+  the middle, and a Steps panel on the right that shows what is done and runs the next
+  step. `./lab` opens it. **Setup & Status** is its own page in the same look, with a way
+  back to the studio.
+- **Create: from an idea, a picture or a GLB to a finished asset in one go.** Pick what you
+  want (a picture, One prop, Nine props from a 3×3 sheet, or a moving character), press
+  Make it, and every step runs in order. Click any step to stop there. Progress shows in
+  the viewer.
+- **Runs carry on when you close the tab.** Reopen the studio and it picks the run back
+  up. An **Activity** page lists everything that ran, with logs when something fails.
+- **Open GLB:** look at any GLB from your computer, or drop one on the page. Nothing is
+  copied into the Library.
+- **How to use:** a short page in the studio that walks through each part.
+- Rename an asset by clicking its title; hide assets without deleting them.
+
+### Changed
+- **New name: AssetFurnace.** A darker ember look and a new wordmark. The repo keeps its
+  name, so existing links and clones still work.
+- **Each try is a new try.** Pictures and 3D models now get a fresh random seed every
+  time, so trying again gives a different result. The run record keeps the seed, so any
+  result can be repeated.
+- **Qwen-Image pictures are yours, plainly.** Qwen confirmed that what you generate is
+  yours, so Setup, the run records and the docs say that instead of a licence warning.
+
+### Removed
+- **The classic viewer and its tabs** (Generate, Generate Image, Finish, Props, Animate,
+  Rig Edit, Pose, Rig Review, Compare). The studio does all of it except side-by-side
+  Compare, which returns in the studio soon. Old links to the classic viewer open the
+  studio. Want the classic viewer? It is in release 0.3.9.
+- `serve.py --open`, `--labels` and `--static-only`, which served the classic viewer.
+
+## [0.3.9] - 2026-10-04
+
+### Changed
+- **Pixal3D models now face the front.** Pixal3D writes models facing away from glTF's
+  front, so viewers and game engines showed their backs first. Each run is now turned
+  half a turn as it is saved, together with the camera Pixel Match projects through, so
+  Pixel Match still lands the photo on the right side. Prop sheets turned this way
+  split with the same names as before; older sheets still split correctly.
+- **Far prop LODs are now smaller files.** Each LOD after the first is baked with half
+  the texture size of the one before, down to 256 (1024, 512, 256 by default). Before,
+  every LOD carried a full-size texture, so LOD2 was nearly as big as LOD0. `--resume`
+  will not mix in LODs baked the old way.
+
+### Fixed
+- **NVIDIA: the Pixal3D installer says why it is compiling.** On a driver older than
+  575 it compiles for 10+ minutes; it now says so before starting, and that updating
+  the driver makes it a one-minute download instead.
+- **Pixal3D runs, and the props cut from them, now record their licence class**
+  (commercial-conditional: MIT with the DINOv3 encoder, as for TRELLIS.2). It was
+  missing, so the Props tab showed none.
+- **Rig Review rebinds now report Blender's real error.** A crash in the rebind script
+  used to exit cleanly and surface only as "missing artifacts"; Blender now exits with
+  an error code, so the viewer shows the failure and its log.
+
+## [0.3.8] - 2026-10-03
+
+### Added
+- **Prop sheets: many props from one image, in one run.** Generate a grid of props,
+  turn the whole sheet into 3D with one Pixal3D run, then split it into separate,
+  upright, named props (`scripts/blender_split_props.py`) and give each prop
+  compressed LODs with Finish's normal and metallic-roughness bake
+  (`scripts/finish_props.py`). The walkthrough and what was measured are in
+  `docs/prop-sheets.md`. Built by @AdrielSantana (#77, #78).
+- **Props tab in the viewer.** Split a prop sheet and bake every prop's LODs from the
+  browser, with a 3D view and downloads per prop, a warning when gltfpack is missing, and
+  a **Turn 90°** button that re-bakes just the prop that came out facing sideways.
+- **Install gltfpack from Setup & Status.** One click, under 2 MB, and the Props tab's
+  files come out much smaller. The Props tab now says so in plain words and links there,
+  instead of asking you to put a native release on your PATH.
+
+### Changed
+- **The Props tab's names box is easier to fill in.** It fits a 3x3 sheet, takes commas
+  as well as new lines, and when two names land on one line it says which line and how
+  to fix it. Its hint now says to follow the order in the picture, which an image model
+  does not always take from your prompt.
+
+### Fixed
+- **Hunyuan paint no longer runs short of memory after the shape stage.** The shape
+  stage now hands its GPU memory back before the paint stage starts, so paint is less
+  likely to be killed on smaller Macs, and the run's `.json` record now includes the
+  vertex count. Thanks @gabelul (#85).
+- **Install Blender and the Mac Run setup button show their progress again.** The page
+  asked for a progress feed at an address the viewer never answered, so both ran blind.
+- `blender_bake_normals.py` no longer knocks normal-map values from 1 to 63 down a
+  step when it fixes the map's sign. It truncated where it should have rounded. The
+  normal map Finish bakes goes through the same step.
+- Finish now stops when one of its Blender stages crashes. Blender exited 0 on a Python
+  error, so the retopology or detail bake read as done.
+- Finished models now pass the Khronos glTF validator with no warnings. The detail
+  bake ships the tangents its normal map was baked against, instead of leaving every
+  engine to make up its own, and gives the odd zero-length one a direction. These three
+  Finish fixes are also @AdrielSantana's (#76).
+- Stopping the viewer (Ctrl-C) now stops a running Finish job too, instead of leaving its
+  Blender stages running in the background until the next start.
+- The viewer starts even when a folder inside `output/` is called `pid`. Its cleanup after
+  a crash tried to delete that folder as a stale process file, and gave up with an error.
+- `serve.py --open` shows the models it was given again. Its link landed on Setup & Status
+  (or on About, on the first visit after an update) instead of on Compare.
+- The menu bar stays on one row in a narrower window and scrolls sideways, instead of
+  wrapping its labels and cutting off About.
+
+## [0.3.7] - 2026-10-02
+
+### Added
+- **TRELLIS.2 on Linux with an NVIDIA card.** Setup & Status offers **Set up**, and
+  Generate 3D runs it. It uses Microsoft's own TRELLIS.2 code, not the Mac port, with the
+  same settings. Setup checks your Hugging Face access to the gated DINOv3 encoder before
+  downloading anything, says what it will fetch (~16 GB) and asks first. Tested end to end
+  on an RTX 3090. Windows is not supported for TRELLIS.2 yet. Also available as
+  `scripts/bootstrap_trellis_cuda.py` and `scripts/trellis_cuda_generate.py`.
+- **Hunyuan3D-2.1 on Linux with an NVIDIA card.** A new route, **Hunyuan3D-2.1 (NVIDIA)**,
+  runs Tencent's own code: shape, then PBR paint, in one run. Setup says what it will
+  fetch (~19.7 GB, including the DINOv2 encoder upstream downloads unannounced) and asks
+  first; it compiles the paint rasterizer for your card, so it needs the CUDA 12 toolkit
+  and a 24 GB card. Tested end to end on an RTX 3090. Not licensed in the EU, the UK or
+  South Korea. Also available as `scripts/bootstrap_hunyuan_cuda.py` and
+  `scripts/hunyuan_cuda_generate.py`.
+- **Setup & Status has a tab per machine: Mac, NVIDIA, AMD.** It opens on yours, the only
+  one with buttons; the others show what that machine gets. AMD says support is coming.
+- **Finish this model**, straight from a Generate result, with its source picture: no
+  download and re-upload.
+- **The installer starts the lab.** Run the install command and the viewer opens. On a
+  RunPod pod it prints the pod's link; over plain SSH, the tunnel command. Start it again
+  any time with `./lab`.
+- **Sign in to Hugging Face from Setup & Status.** Paste a Read token; the page checks it
+  and shows, per gated model, whether your account has access, with a link to request it.
+  A backend's "this model is gated" warning goes away once you have access. No terminal
+  needed.
+- **Install Blender from Setup & Status on Linux.** Blender 4.2 LTS from blender.org, into
+  `~/blender-lts`, no admin rights. Finish finds it.
+
+### Changed
+- **Pixal3D on NVIDIA installs the ready-made build** instead of compiling one, so setup
+  takes a fraction of the time, most of all on machines with few CPU cores. It runs 12
+  steps instead of 8, a small cost on NVIDIA. An old driver still gets a local compile,
+  and `scripts/bootstrap_pixal3d.py --compile` asks for one.
+- Generate 3D only offers the routes your machine can run.
+- With Debug off, a generated model now keeps its record (`<name>.json`) beside the GLB,
+  and a Pixal3D model keeps the camera Pixel Match needs.
+- NVIDIA and Hunyuan setups install the background remover, so a first generation never
+  fetches one you did not agree to.
+- **Fresh installs get the versions we tested.** The viewer and every NVIDIA route install
+  pinned package versions, and upstream code and weights come from fixed commits, so a
+  new release elsewhere can no longer break an install overnight.
+
+### Fixed
+- **Install Blender works on Linux.** blender.org's download server turned the installer
+  away as a bot, so it failed for everyone; found by the NVIDIA one-shot test.
+- **Updating with the install command works after you have generated.** The viewer wrote
+  learned timings into a tracked file, so the installer refused every later update. Timings
+  now live in `output/`, and the installer moves an old copy there.
+- **Pixal3D models keep their licence record.** With Debug off, it was deleted, and Finish
+  then skipped Pixel Match without saying so. Spotted by @AdrielSantana in #78. When Pixel Match is skipped, the finished
+  result now says why.
+- **Remove on one route keeps files another route uses** (the background remover).
+- Setup & Status picks a running setup back up after a refresh, shows a moving bar while
+  compiling instead of an empty one, and no longer calls a compile "stalled".
+- Generate 3D notices a setup that finished in another tab, instead of saying "not
+  installed" until a reload.
+- Live progress no longer lags behind when the lab is reached through a proxy (RunPod,
+  nginx, Cloudflare).
+- Mac-only options no longer show on NVIDIA, and routes that cut pictures out themselves no
+  longer ask for a pre-masked PNG.
+
+### Security
+- **BRIA RMBG-2.0 stays out of the NVIDIA TRELLIS.2 route too.** Upstream loads it by
+  default; `scripts/patch_trellis_cuda_no_bria.py` removes it, and the route refuses to run
+  without that patch. Pictures are cut out by our own background remover instead.
+
+### Removed
+- **Stable Fast 3D on NVIDIA.** It is Mac only again. Its pinned packages (an old
+  huggingface-hub and rembg) replaced the lab's own, which breaks the Hugging Face access
+  check and the background remover, and TRELLIS.2, Hunyuan3D-2.1 and Pixal3D all beat it
+  on NVIDIA. An existing SF3D install there is no longer offered in Generate 3D.
+
 ## [0.3.6] - 2026-10-01
 
 ### Fixed

@@ -47,8 +47,17 @@ NON_PYTHON = {
         "Rebuild, install and ad-hoc sign MtlBVH's native extension. Stop every Python "
         "worker first: overwriting a loaded Mach-O image makes macOS kill them."
     ),
+    "trellis-cuda.txt": (
+        "In `locks/`. Every package but PyTorch for the NVIDIA TRELLIS.2 route, pinned; "
+        "regenerate with `lock_nvidia_routes.py`."
+    ),
+    "hunyuan-cuda.txt": (
+        "In `locks/`. Every package but PyTorch for the NVIDIA Hunyuan3D-2.1 route, "
+        "pinned; regenerate with `lock_nvidia_routes.py`."
+    ),
     "runpod_trellis2_cuda_requirements.txt": (
-        "Pinned CUDA wheels for the RunPod control run; not used by any local path."
+        "Pinned CUDA 13 wheels from the RunPod control run; `bootstrap_trellis_cuda.py` "
+        "installs them on compute-capability 12.0 cards."
     ),
 }
 
@@ -98,7 +107,7 @@ def present_scripts() -> set[str]:
 
 def registry_entries() -> dict[str, str]:
     """Script name to summary, as the registry table rows spell them."""
-    rows = re.findall(r"^\|\s*`([^`]+)`\s*\|\s*(.+?)\s*\|$", REGISTRY.read_text(), re.M)
+    rows = re.findall(r"^\|\s*`([^`]+)`\s*\|\s*(.+?)\s*\|$", REGISTRY.read_text(), re.MULTILINE)
     return dict(rows)
 
 
@@ -119,7 +128,7 @@ def test_the_registry_lists_nothing_that_was_deleted():
 
 
 def test_no_script_is_listed_twice():
-    names = re.findall(r"^\|\s*`([^`]+)`\s*\|", REGISTRY.read_text(), re.M)
+    names = re.findall(r"^\|\s*`([^`]+)`\s*\|", REGISTRY.read_text(), re.MULTILINE)
     duplicated = sorted({n for n in names if names.count(n) > 1})
     assert not duplicated, f"listed under more than one heading: {duplicated}"
 
