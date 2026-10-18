@@ -32,7 +32,7 @@ cloud machine that deletes itself (`tools/props/cloud/`, through the provider in
 the current backend). No model runs on the coordinating machine.
 
 - `tools/props/`: the prop pipeline (close-up to Pixal3D in a cloud batch, `cloud/batch.py`; finish; `pixal.py`),
-  the scene tools (`scene/`: concepts, the world step, close-ups, inventories, layouts), the surface library and its
+  the scene tools (`scene/`: concepts, the walkable reference, close-ups, inventories, layouts), the surface library and its
   piece making (`library/`: recipes, labels by parts, `make_chunky`/`make_kit` baked in the cloud, `route.py` for kit
   rooms, `place_route.py` for outdoor places, `package.py` for the scene package) and the gates (`gates/`). Each directory's rules are in its overlay.
 - `tools/characters/`: the characters stage. `people/` builds each person's skinned, animated glTF (SOMA-X body
@@ -54,10 +54,10 @@ the current backend). No model runs on the coordinating machine.
 - `tools/sound/`: the sound picker and the loudness rule; MOSS takes are made in the cloud.
 - `data/library/`: the surface library (materials, fittings, composites, details per kind, printed pictures);
   `data/fonts/`: the fonts printed labels use (SIL OFL).
-- The first world's data, the game 2099's, read as the example world: `data/definitions/place.json` (each place's
+- The first environment's data, the game 2099's, read as the example environment: `data/definitions/place.json` (each place's
   style, palette, materials, wear), `design/tokens/tokens.json` (the palette), `data/inventory/` (scene
   inventories), `data/kit/` (laid kit rooms), `data/sound/` (the sound catalogue, briefs, licences and loudness).
-- `tools/assets/`: the world's heavy files (made models, sounds) as a release of this repository, named with their
+- `tools/assets/`: the environment's heavy files (made models, sounds) as a release of this repository, named with their
   sha256, source and licence by `data/assets/world1.json`; `world.py` fetches, checks, packs and publishes them, and
   every record names a file by its name there or by its path in git. The framework reads nothing from the game's
   checkout (2026-10-09, the owner: the game and SCORE are fully separate); `game_free_test.py` holds it so. An
@@ -66,8 +66,8 @@ the current backend). No model runs on the coordinating machine.
 - `vendor/`: third-party tools as released, each pinned with its licence (ADR-0002).
 - `score/`: the layered framework's core, its skeleton built in step 0 of PRD #6 (2026-10-11) in Infinigen's run_stage
   shape; `tools/` moves in stage by stage as each stage is built. A stage table in code (`score/stages`); one runner
-  (`score/graph`) that keys every node (a stage for one place, or for the world) on its computed code version,
-  contract, parameters, a seed derived from the world's (`data/definitions/world.json`), pinned models and every
+  (`score/graph`) that keys every node (a stage for one place, or for the environment) on its computed code version,
+  contract, parameters, a seed derived from the environment's (`data/definitions/world.json`), pinned models and every
   input, and makes a node only when its key has no finish record; contracts (`score/contracts`): every output
   stamped with its schema and version in the house units (metres, seconds, degrees, Y up), nothing off its contract
   stored, and a reader blocked on an input of another schema or version; one store (`score/store`, over
@@ -93,18 +93,18 @@ the current backend). No model runs on the coordinating machine.
   Pro's `pro.draw`, Marble's `generate` and `paint`) refuses unless SCORE_SPEND_TICKET names a node the runner
   cleared or the owner's override (`compute.require_cleared`), so the old paid entry points (blender_cloud.py,
   detached.py, the runners, demo.py, the close-up stage, marble.py) cannot spend round the runner. The job images
-  are rebuilt the same way, as a world of their own (the `images` world, experimental below). Step 0 still
+  are rebuilt the same way, as an environment of their own (the `images` environment, experimental below). Step 0 still
   lacks the layout stage's scene-record gates (every drawn mesh a plan shell piece or an inventory row, shell pieces
   bounded by the plan, a plain tag measured plain). Step 1, the surface stage (`score/stages/surfaces`, its
-  overlay), is each place's own line of rows in world 1's table (`python -m score run world1 --place <place>`), no
-  world-wide barrier: the method's rows (the finish-map method, owner 2026-10-12: Gemini's finish list of the
+  overlay), is each place's own line of rows in environment 1's table (`python -m score run world1 --place <place>`), no
+  environment-wide barrier: the method's rows (the finish-map method, owner 2026-10-12: Gemini's finish list of the
   close-up, Nano Banana Pro's finish maps of the close-up and of the raw model's sides and back, SegviGen guided by
   the close-up's map, the maps' votes laid on the raw model) end in its interface, each model's parts with the
   library surface named for each; the framework's rows paint every part from the library, bake and check it, and put
   a new library surface the method proposed in the finish registry (an append-only store item, `registry/` in the
   store) for the owner. Every model is repainted, the owner's picks included (a pick chooses the model, never its
   paint), each by one place only: a place reads a model another place claims from that place's bake. What each place
-  paints and bakes is world data, `data/surfaces/<place>.json`. The in-progress directions are in
+  paints and bakes is environment data, `data/surfaces/<place>.json`. The in-progress directions are in
   `architecture/experimental`.
   The overlay `score/CLAUDE.md` has the rules.
 
@@ -121,14 +121,14 @@ place's accepted assembly to a library entry, by content hash or by a recorded p
 cockpit lists what does not trace as the place's problems.
 
 **The library handover** (`score/stages/library`, its overlay): two free rows at the end of the stage table hand every
-accepted output of a world to the creator's library, so what is in a world is in the library by construction.
+accepted output of an environment to the creator's library, so what is in an environment is in the library by construction.
 `library@<place>` reads every place row of its line (the showcase renders, demo films and looks, only once they
-stand) and `library-world` every world row; each runs the library's own handover command once (configured by
+stand) and `library-world` every environment row; each runs the library's own handover command once (configured by
 `SCORE_LIB_*` environment variables, else `$PROPS_HOME/library.env`; score never imports the library's code) and keeps
 the report it writes, `handover.json` (contract `library-handover` v1). Its gate fails when no library is configured
-(unless the owner named the world in `data/checks/library-free.json`), when an output read is not covered by an entry
+(unless the owner named the environment in `data/checks/library-free.json`), when an output read is not covered by an entry
 or a written exception, when the library refused or did not commit, and answers unknown on a missing 3D copy or
-quality score. A place is complete when its library node stands accepted, the world when every one does (`python -m
+quality score. A place is complete when its library node stands accepted, the environment when every one does (`python -m
 score status` prints that line); `complete@<place>` keeps its meaning and its key, so no paid row moves.
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
@@ -159,7 +159,7 @@ Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next t
 
 **Which stages are current.** Every round of stages is a new folder of the work folder, never written over. No set
 is canonical: a place's stage becomes canonical only when the owner accepts it on its review page, and none is
-accepted yet. World 1's latest measured set is `WORK/usd-r3/<place>` with its review pages in `WORK/review-r3/<place>`
+accepted yet. Environment 1's latest measured set is `WORK/usd-r3/<place>` with its review pages in `WORK/review-r3/<place>`
 (the completion gate's rounds 1 and 2, 2026-10-10: round 2 exported again, into the same folders, only the places
 whose inputs it changed; `usd-r3/inputs.json` names each place's commit and model folders). In it 3 of 18 places
 pass the gate (flat, stairwell, habitat), 14 fail and the tube is unknown, measured with that day's placeholder
@@ -181,12 +181,12 @@ is meant to fix, where it is marked, and what proves it.
   specs `data/characters/makes/<name>_prop.json`, takes in `data/people/surfaces.json`). For bloated clothes on
   SOMA-made people: people made like every prop (owner, 2026-10-11), the clothing painted through the surface
   stage's own rows, SOMA-X only for the rig, Kimodo's clips swung clear of the body's own bulk (`clearance.py`).
-  World rows run only when asked for by name (`--stage people-...`). Proven when the player and Nev pass every body
+  Whole-environment rows run only when asked for by name (`--stage people-...`). Proven when the player and Nev pass every body
   gate (joins, tucks, cloth and body through cloth, rigid, outline, likeness, triangles) on every clip, the clothing
   passes the surface stage's paint gates on library surfaces, and the owner picks them on the review page.
 - **The cast stage** (`score/stages/cast`, row `cast@<place>`, design 5 of 2026-10-12; its overlay). For places whose
   concept shows people but whose cast is unmeasured: each cast record dealt into its people, its groups and crowd
-  stood on the seed's geometry, gated on `counted` (against `concept_people`, now in world 1's table), `standing`,
+  stood on the seed's geometry, gated on `counted` (against `concept_people`, now in environment 1's table), `standing`,
   `clear`, `made` and `drapes`. Nothing reads it yet. Proven when a place's cast passes all five with the people
   route's made looks and the owner has seen the characters layer written from it.
 - **The drapes** (`drape_garment.py`, `newton_drape.py`, `cloth_drape.py`, `rebuild.py`; the drapes-fix,
@@ -204,7 +204,7 @@ is meant to fix, where it is marked, and what proves it.
   owner sets the scenery rule and it has caught a real unreachable row that was then fixed.
 - **The painting after round four, the split spread and the surface check's dark rule** (`tools/props/library`: the
   two-way split fit, round five's 3D split, `--face-parts` and `finish_masks.py`, `split_spread.py`; 5c66c2e). For
-  black, stripped and one-colour paint. No owner-accepted before and after on a world model. Settled in step 1, the
+  black, stripped and one-colour paint. No owner-accepted before and after on a model of the environment. Settled in step 1, the
   surface stage, on the hangar and the six named models, with numbers and his review.
 - **The surface stage's method, the finish map** (`score/stages/surfaces`, its overlay; the six-model re-test rows
   `score/stages/finishmap/trial.py`). The owner chose it on 2026-10-12 ("finish map seed 1 looks great"); it replaced
@@ -253,7 +253,7 @@ is meant to fix, where it is marked, and what proves it.
   A domed plan's `shape: flat` is the hangar's flat roof (2026-10-12): four slabs on the walls' top round its door
   opening, its two roof leaves (the `hdoor` stage) shut over it; the hangar has its own seat on the Moon ground plan,
   north of the greenhouse, its tube joined to the greenhouse's north hatch, its yard held on its seat's flat plane
-  (a level `on_seat`). An inventory row naming a world release model (`release_model`: the airlock's suit) stands as
+  (a level `on_seat`). An inventory row naming a model of the environment's release (`release_model`: the airlock's suit) stands as
   an object at its spots. The sky record's numbers are the
   old records' shared ones, unverified. Proven when the garage's record passes its gates and the owner has seen it
   built; then each domed room, and a shell writer for each other kind of place.
@@ -366,9 +366,9 @@ is meant to fix, where it is marked, and what proves it.
 - **The sound stage** (`score/stages/sound`, its overlay). For a sound layer no one had reviewed, carried from the
   game's table, with the camp silent, the launch with no loop, the square with no PA or speech, and no car, rover or
   ship heard. `sound@<place>` answers every source the place names (room tones, the suit, objects, inventory rows,
-  motions, the surface bank) with a sound: the world's picked file, or MOSS takes of its brief made in the moss image on
+  motions, the surface bank) with a sound: the environment's picked file, or MOSS takes of its brief made in the moss image on
   one rented card (paid), chosen by the picker's rule; gated on `sources`, `level` (loudness and length, measured),
-  `likeness` (CLAP to its prompt at least 0.30, the tenth percentile of the world's MOSS picks) and `no freesound`
+  `likeness` (CLAP to its prompt at least 0.30, the tenth percentile of the environment's MOSS picks) and `no freesound`
   (the owner's 2026-10-06 recordings excepted, listed). The layer is data (`sound.json` and its files); the assembly
   does not read it yet. Proven when every place passes and the owner has heard the new sounds.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
@@ -381,19 +381,19 @@ is meant to fix, where it is marked, and what proves it.
 - **The demo films** (`WORK/demo/world1-r3`, `world1-r4`) and their technical checks. Cited nowhere; nobody reviewed
   them. They come back as the evidence step, on places the owner accepted.
 - **The Kubernetes path and 06cf411's image pins** (`tools/cloud/`). For setup time and stock. Opt-in
-  (SCORE_CLOUD=k8s), not used for world 1. Proven when a stage's paid node runs through it end to end.
-- **The images world** (`score/stages/images`, its overlay; `python -m score run images`, `python -m score images
+  (SCORE_CLOUD=k8s), not used for environment 1. Proven when a stage's paid node runs through it end to end.
+- **The images environment** (`score/stages/images`, its overlay; `python -m score run images`, `python -m score images
   publish <kind>`). For maintenance image builds that needed the owner's override: each image kind with a proof plan
-  (`tools/cloud/images/<kind>/prove.json`) is a world of its own stage table, no places, no world 1 node reads it. A
+  (`tools/cloud/images/<kind>/prove.json`) is an environment of its own stage table, no places, no environment 1 node reads it. A
   free `image-pins-<kind>` (pins exact and hashed, resolved by uv, `build_test.py`, models, licences and Dockerfile
   instructions as the published build's) gates a paid `image-proof-<kind>` cleared against the month's ceiling
   (build.py, then prove.py on real jobs, the kind's own output check), and publish writes the accepted record into
   images.json. Proved so far (2026-10-12): moss and characters-motion built, proved and published through it (two
   real MOSS takes at the build before's CLAP scores; a 5 s Kimodo walking clip), closing 30 Dependabot alerts (64 open to 34) with
-  no world 1 key moved. Proven fully when parts, sam and pixal run through it too, after the world 1 run, and the
+  no environment 1 key moved. Proven fully when parts, sam and pixal run through it too, after the environment 1 run, and the
   pins gate checks each pin's hashes against the index the build installs from (a triton hash from the wrong index
   passed it and failed a paid build).
-- **Unreviewed world data**: the far city's towers and lit windows (3 of 5 kinds made, no owner pick), the street
+- **Unreviewed environment data**: the far city's towers and lit windows (3 of 5 kinds made, no owner pick), the street
   blocks (about 81 models only in a local package, not in the release), the rows made fixed so the drop leaves them
   (square lamp posts, street lamps and notice board, launch masts and floodlights: a count fell, nothing moved), the
   settled rest poses written back into the kit and scene records, the wreck re-laid after its review (e5d829c), and
@@ -449,7 +449,7 @@ Nothing is released yet but the paper. Commands, run locally (there is no CI and
   check (`tools/**/*_test.py` and `score/**/*_test.py`, plain scripts, or under pytest when a file has `test_`
   functions and no `__main__` block, each under a 16 GB memory cap), or only the
   ones named with `TESTS="..."`. Each runs in a sandbox home (`.claude/scripts/sandbox-home.py`: a fresh
-  `PROPS_HOME` in the temp folder linking the real home's world data, with the real home mounted read-only by
+  `PROPS_HOME` in the temp folder linking the real home's environment data, with the real home mounted read-only by
   bubblewrap; its cloud ledger, store, locks and logs never linked), and the root `conftest.py` refuses a pytest run
   whose `PROPS_HOME` is not such a folder (a test unlinked the real cloud ledger, 2026-10-17). `make check` runs them when code changed. While working, run only the checks your change touches.
   Render checks run Blender headless on a cloud machine, never here; nothing here runs Godot.
@@ -621,7 +621,7 @@ Getting a fresh machine, or a wiped one, back to working.
    starts without them.
 
 **The framework's runtime** lives outside the repo, under `PROPS_HOME` (default `~/.farm-factory-props`, the first
-world's name, kept so the cloud ledger, keys and work carry over): `cloud/` (the runner's ssh key, the self-delete
+environment's name, kept so the cloud ledger, keys and work carry over): `cloud/` (the runner's ssh key, the self-delete
 key, the spend ledger), `work/` (`PROPS_WORK`: takes, pictures, places' runs), `env/` (the interpreter the cloud
 machine runner, `blender_cloud.py`'s `CLOUD_PYTHON`, and the animal route call; `bootstrap.sh` builds it from
 `uv.lock` without dev tools when it is missing; no model runs in it). The machines need `uv`, `make env`,
@@ -651,5 +651,6 @@ here.>
 | Repository | `Babon-Innovations-b-v/score` |
 | Project board | `9` (org project) |
 | First user | the game 2099, `JoeyKardolus/2099` (paused 2026-10-08) |
+| Environment ids | `world1` (environment 1, the game 2099's), `images` (the job images); the runner's grain for a whole-environment node is `world`. Stored ids and the grain keep the word world (owner 2026-10-18: SCORE is an environment synthesis framework), because the grain is hashed into every node's key and the id names the environment's records in the store (its stop lines, `stops/world1/`), so renaming either would make accepted nodes again or lose the stop |
 | Cloud | backend chosen by `SCORE_CLOUD` (default `scaleway`); Scaleway: the project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`), machines tagged `farm-factory-batch`; month ceiling `SCORE_MONTH_EUROS` (default 1500) |
 | Secrets | read by name with `secret_store.secret(name)`: the environment variable `SCORE_SECRET_<NAME>`, else the backend's store (Scaleway Secret Manager in that project): `worldlabs-api-key`, `gemini-api-key`, `freesound-api-key` (optional) |
