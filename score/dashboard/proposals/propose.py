@@ -48,31 +48,44 @@ def moved_rows(since, commit):
     return json.loads(done.stdout.strip().splitlines()[-1])
 
 
-def assembled(tree, place, real_store, work, moved):
-    """assemble.py's result for the place, run in the branch's checkout `tree` (its stage linked into
-    work/stage/)."""
-    stage_folder = work / "stage"
+def assembled(tree, place, real_store, work, job, moved):
+    """assemble.py's result for the place, run in the branch's checkout `tree` over the scratch store in `work`
+    (shared by every proposal), its own files in `job` (its stage linked into job/stage/)."""
+    stage_folder = job / "stage"
     shutil.rmtree(stage_folder, ignore_errors=True)
-    (work / "moved.json").write_text(json.dumps(moved))
+    job.mkdir(parents=True, exist_ok=True)
+    (job / "moved.json").write_text(json.dumps(moved))
     command = [sys.executable, "-c", LAUNCH, str(tree), str(ASSEMBLE), "--place", place, "--store",
-               str(real_store), "--scratch", str(work / "store"), "--moved", str(work / "moved.json"),
-               "--out", str(work / "result.json"), "--folder", str(stage_folder)]
+               str(real_store), "--scratch", str(work / "store"), "--moved", str(job / "moved.json"),
+               "--out", str(job / "result.json"), "--folder", str(stage_folder)]
     environment = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "OMP_NUM_THREADS": THREADS}
-    with open(work / "assemble.log", "w") as log:
+    with open(job / "assemble.log", "w") as log:
         done = subprocess.run(command, cwd=tree, stdout=log, stderr=subprocess.STDOUT, env=environment)
     if done.returncode != 0:
-        raise RuntimeError(f"assembling {place} on the branch failed; its log: {work / 'assemble.log'}")
-    return json.loads((work / "result.json").read_text())
+        raise RuntimeError(f"assembling {place} on the branch failed; its log: {job / 'assemble.log'}")
+    return json.loads((job / "result.json").read_text())
 
 
 def web_copy(place, stage_file, partial, views, origin):
-    """The stage's 3D web copy into partial/web3d/; the sidecar's facts the proposal keeps."""
-    sidecar = convert.write_copies(place, pathlib.Path(stage_file).parent, partial, origin,
-                                   [{key: view[key] for key in ("name", "eye", "aim", "fov")} for view in views])
+    """The stage's 3D web copy into partial/web3d/; the sidecar's facts the proposal keeps, or {"error": why} when
+    the copy cannot be made (a place with its neighbours can pass glTF's 2 GB), said on the proposal."""
+    try:
+        sidecar = convert.write_copies(place, pathlib.Path(stage_file).parent, partial, origin,
+                                       [{key: view[key] for key in ("name", "eye", "aim", "fov")} for view in views])
+    except (RuntimeError, ValueError, OverflowError) as failed:
+        return {"error": str(failed)[-1000:]}
     (partial / place).rename(partial / "web3d")
     return {"triangles": sidecar["triangles"], "bytes": sidecar["bytes"], "light_bytes": sidecar["light_bytes"],
             "files": {"sidecar": f"web3d/{place}.json", "light": f"web3d/{place}-light.glb",
                       "whole": f"web3d/{place}.glb"}}
+
+
+def still_pictures(stage_file, views, partial):
+    """The stills into partial/stills/, or [{"error": why}] when Blender could not draw them (said on the page)."""
+    try:
+        return pictures.stills(pathlib.Path(stage_file), views, partial / "stills")
+    except RuntimeError as failed:
+        return [{"error": str(failed)[-1000:]}]
 
 
 def proposal_record(found, assembled_now, pictured, started):
@@ -81,12 +94,13 @@ def proposal_record(found, assembled_now, pictured, started):
     taken = assembled_now["taken"]
     return {**found, "made_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "seconds": round(time.monotonic() - started, 1),
-            "assembly": assembled_now["assembly"], "blocked": assembled_now.get("blocked"),
+            "target": assembled_now.get("target"), "assembly": assembled_now["assembly"],
+            "blocked": assembled_now.get("blocked"),
             "layers": taken,
             "made": sorted({item["stage"] for item in taken if item["how"] == records.MADE}),
             "needs_paid_batch": sorted({item["stage"] for item in taken if item["how"] == records.PAID}),
-            **pictured, "has_3d": pictured["web3d"] is not None,
-            "hero": pictured["stills"][0]["file"] if pictured["stills"] else None}
+            **pictured, "has_3d": bool(pictured["web3d"]) and "error" not in pictured["web3d"],
+            "hero": next((still["file"] for still in pictured["stills"] if "file" in still), None)}
 
 
 def branch_facts(branch, place):
@@ -102,12 +116,11 @@ def branch_facts(branch, place):
 
 def pictured(tree, place, assembled_now, partial, drafts, with_stills):
     """The proposal's 3D web copy, stills and media (the branch's own drafts folder, or None) into `partial`."""
-    views = pictures.views(tree, place)
     made = assembled_now["assembly"] is not None
+    views = pictures.views(pathlib.Path(assembled_now["stage"]).parent, tree, place) if made else []
     origin = {"from_output": assembled_now["assembly"], "proposal": True}
     return {"web3d": web_copy(place, assembled_now["stage"], partial, views, origin) if made else None,
-            "stills": pictures.stills(pathlib.Path(assembled_now["stage"]), views, partial / "stills")
-            if made and with_stills else [],
+            "stills": still_pictures(assembled_now["stage"], views, partial) if made and with_stills else [],
             "media": pictures.media(drafts, place, partial / "media")}
 
 
@@ -124,7 +137,7 @@ def propose(branch, place, home, real_store, drafts=None, with_stills=True):
     partial = pathlib.Path(tempfile.mkdtemp(prefix=f".{branch}@{place}-", dir=root))
     try:
         with branch_git.scratch_tree(REPO, found["commit"], work / "trees") as tree:
-            assembled_now = assembled(tree, place, real_store, work, moved)
+            assembled_now = assembled(tree, place, real_store, work, work / "jobs" / f"{branch}@{place}", moved)
             shown = pictured(tree, place, assembled_now, partial, pathlib.Path(drafts) / branch if drafts else None,
                              with_stills)
         return records.put(root, partial, proposal_record(found, assembled_now, shown, started))
