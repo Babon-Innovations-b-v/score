@@ -20,6 +20,7 @@ import sys
 import tempfile
 import time
 
+from score.dashboard.checkout import pricing
 from score.dashboard.proposals import branch as branch_git
 from score.dashboard.proposals import finish, pictures, records
 from score.dashboard.web3d import convert
@@ -136,6 +137,7 @@ def propose(branch, place, home, real_store, drafts=None, with_stills=True):
     work.mkdir(parents=True, exist_ok=True)
     moved = moved_rows(found["base"], found["commit"])
     found["moved_rows"] = [{"row": name, "paid": row["paid"]} for name, row in sorted(moved.items())]
+    found["moved_paid"] = pricing.paid_nodes(moved)
     partial = pathlib.Path(tempfile.mkdtemp(prefix=f".{branch}@{place}-", dir=root))
     try:
         with branch_git.scratch_tree(REPO, found["commit"], work / "trees") as tree:

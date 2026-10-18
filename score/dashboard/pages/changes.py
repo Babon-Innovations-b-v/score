@@ -71,6 +71,12 @@ def pairs(record):
     return [{"name": still["name"], "after": still["url"], "before": before.get(still["name"])} for still in after]
 
 
+def paid_stages(record):
+    """The paid steps the place needs: those the proposal could not make for free and those its price names there."""
+    priced = (record.get("price") or {}).get("nodes") or {}
+    return list(record.get("needs_paid_batch") or []) + [node.split("@")[0] for node in priced]
+
+
 def labels(stages):
     return [groups.label(stage) for stage in sorted(set(stages))]
 
@@ -101,7 +107,7 @@ def place_part(record, source):
             "same_camera": same_camera, "now": None if same_camera else place_hero(source, record["place"]),
             "failed": after_failed,
             "media": [item for item in record.get("media") or [] if "file" in item],
-            "free": labels(record.get("made") or []), "paid": labels(record.get("needs_paid_batch") or []),
+            "free": labels(record.get("made") or []), "paid": labels(paid_stages(record)),
             "price": price_words(record.get("price"), record.get("needs_paid_batch")), "has_3d": record.get("has_3d"),
             "view": f"/view/{record['place']}?proposal={record['branch']}",
             "blocked": record.get("blocked"), "question": record.get("question"),
@@ -110,13 +116,15 @@ def place_part(record, source):
 
 
 def paid_total(found):
-    """The fix's likely and high euros, each paid node once over its places; None while any place is unpriced."""
+    """The fix's likely and high euros, each paid node once over its places and the rest its branch makes again (what
+    the checkout buys); None while any place is unpriced."""
     prices = {}
     for record in found:
         price = record.get("price") or {}
         if "nodes" not in price or (record.get("needs_paid_batch") and not price["nodes"]):
             return None
-        prices.update({node: value for node, value in price["nodes"].items() if "error" not in value})
+        for listed in (price["nodes"], price.get("branch_nodes") or {}):
+            prices.update({node: value for node, value in listed.items() if "error" not in value})
     return {"likely": round(sum(value["likely_euros"] for value in prices.values()), 2),
             "high": round(sum(value["high_euros"] for value in prices.values()), 2), "jobs": len(prices)}
 
@@ -135,10 +143,11 @@ def fix_card(branch, found, source, choice):
     """One fix branch as the owner reads it: its sentence, its places, its total, his answer so far."""
     newest = max(found, key=lambda record: record.get("made_at") or "")
     places = [place_part(record, source) for record in sorted(found, key=lambda record: record["place"])]
+    total = paid_total(found)
     stale = choice is not None and choice.commit != newest["commit"]
     return {"branch": branch, "commit": newest["commit"], "sentence": plain_sentence(newest),
-            "change": newest.get("change"), "places": places, "total": paid_total(found),
-            "free_only": all(not place["paid"] for place in places),
+            "change": newest.get("change"), "places": places, "total": total,
+            "free_only": all(not place["paid"] for place in places) and not (total and total["jobs"]),
             "questions": [place for place in places if place["question"]],
             "choice": None if choice is None or stale else {"said": CHOICES.get(choice.choice, choice.choice),
                                                              "choice": choice.choice, "applied": answer_words(choice)},

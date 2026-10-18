@@ -34,7 +34,7 @@ def made(root, branch="fix-ship-hull", place="alpha", **fields):
     (partial / "web3d" / f"{place}.glb").write_bytes(b"whole")
     record = {"branch": branch, "place": place, "commit": COMMIT, "made_at": "2026-10-18T12:00:00Z",
               "change": "The hull is one piece (#10); the hangar fits it (#10).", "made": ["assembly", "plan"],
-              "needs_paid_batch": ["surfaces-bake"], "has_3d": True, "hero": "stills/from-door.jpg",
+              "needs_paid_batch": ["surfaces-bake"], "has_3d": True, "hero": "stills/from-door.jpg", "moved_paid": [],
               "stills": [{"name": "from-door", "file": "stills/from-door.jpg"}],
               "layers": [{"node": f"assembly@{place}", "stage": "assembly", "how": records.MADE},
                          {"node": f"surfaces-bake@{place}", "stage": "surfaces-bake", "how": records.PAID}],
@@ -120,6 +120,26 @@ def test_pricing_takes_only_the_paid_nodes_once_a_commit_and_keeps_the_words_on_
     record = records.read(home, "fix-ship-hull", "alpha")
     assert record["sentence"] == "Kept." and record["price"]["totals"]["high_euros"] == 15.0
     assert json.loads((home / records.INDEX).read_text())[0]["branch"] == "fix-ship-hull"
+
+
+def test_a_fix_is_priced_at_every_paid_node_its_branch_makes_again(home):
+    made(home, moved_paid=["demo-film@alpha", "sound@beta", "terrain"])
+    backend = fixture.FakeBackend()
+    fixture.FakeBackend.calls.clear()
+    finish.finish_all(home, home / "store", False, backend)
+    assert fixture.FakeBackend.calls == [("price", "world1",
+                                          ("demo-film@alpha", "sound@beta", "surfaces-bake@alpha", "terrain"))]
+    record = records.read(home, "fix-ship-hull", "alpha")
+    assert sorted(record["price"]["nodes"]) == ["demo-film@alpha", "surfaces-bake@alpha"]
+    assert sorted(record["price"]["branch_nodes"]) == ["sound@beta", "terrain"]
+    total = changes.paid_total([record])
+    assert total["jobs"] == 4 and total["high"] == 4 * record["price"]["nodes"]["demo-film@alpha"]["high_euros"]
+    assert "demo-film" in changes.paid_stages(record)
+
+
+def test_a_price_made_before_the_moved_rows_were_counted_is_worked_out_again(home):
+    made(home, price={"commit": COMMIT, "at": "2026-10-18T12:00:00Z", "nodes": {}, "totals": {}})
+    assert finish.price_due(records.read(home, "fix-ship-hull", "alpha"))
 
 
 def test_the_export_carries_records_and_pictures_before_whole_copies(home):
