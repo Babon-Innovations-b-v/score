@@ -46,11 +46,18 @@ def books_now():
     return compute.books_now()
 
 
-def stop(store, world, euros, reason, by, books=books_now):
+def stop(store, world, euros, reason, by, books=None):
     """Write the world's new stop line at `euros` by the signed-in owner's name, his reason with it; the record. A
-    world's first line counts its spend from `books()`. review.Refused for an empty or the runner's name;
+    world's first line counts its spend from `books()` (default books_now). review.Refused for an empty or the runner's
+    name;
     PermissionError in a process an agent started (guard.set_line)."""
     from score.adapters.compute import guard
     name = checked_by(by)
-    baseline = None if guard.current(store, world) else books()
+    baseline = None if guard.current(store, world) else (books or books_now)()
     return guard.set_line(store, world, euros, reason, name, graph.now(), baseline)
+
+
+def stop_line(store, world):
+    """The world's newest stop line, or None when it has none."""
+    from score.adapters.compute import guard
+    return guard.current(store, world)

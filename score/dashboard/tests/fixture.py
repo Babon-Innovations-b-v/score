@@ -160,11 +160,16 @@ class FakeBackend:
     missing = []
     ledger = None
     log_folder = None
+    price_of = {"likely_euros": 10.0, "high_euros": 15.0, "likely_minutes": 30.0, "high_minutes": 45.0, "cards": 2,
+                "runs": 3}
+    bill = []  # [launch.backend.Billed]: the fake ledger's lines
+    plan_buys = None  # [node]: what the fake plan buys, else its closeup nodes
 
     def plan(self, group):
         FakeBackend.calls.append(("plan", group))
-        buys = [{"node": f"{stage}@{place}", "euros": self.euros, "why": "never ran", "again": False}
-                for place in group.places for stage in group.stages if stage == "closeup"]
+        bought = (self.plan_buys if self.plan_buys is not None else
+                  [f"{stage}@{place}" for place in group.places for stage in group.stages if stage == "closeup"])
+        buys = [{"node": node, "euros": self.euros, "why": "never ran", "again": False} for node in bought]
         return GroupPlan(missing=list(self.missing), buys=buys, refusal=self.refusal,
                          to_run={f"{stage}@{place}": "to run: never ran" for place in group.places
                                  for stage in group.stages}, blocked={})
@@ -189,3 +194,10 @@ class FakeBackend:
         path = pathlib.Path(handle.log)
         last = path.read_text().splitlines()[-1] if path.is_file() else ""
         return LaunchState("done" if last.startswith("detached: ok") else "running", last, last)
+
+    def price(self, world, nodes):
+        FakeBackend.calls.append(("price", world, tuple(nodes)))
+        return {node: dict(self.price_of) for node in nodes}
+
+    def ledgered(self, nodes, since):
+        return [line for line in self.bill if line.node in nodes and line.started >= since]

@@ -10,7 +10,7 @@ import sys
 
 from django.conf import settings
 
-from score.dashboard.launch.backend import GroupPlan, LaunchHandle, LaunchState, MeasuredRun, RunGroup
+from score.dashboard.launch.backend import Billed, GroupPlan, LaunchHandle, LaunchState, MeasuredRun, RunGroup
 from score.dashboard.state.models import Spend
 
 STARTED = re.compile(r"detached: started pid=(\d+) log=(\S+)")
@@ -54,6 +54,11 @@ def last_json(text):
         if line.startswith("{"):
             return json.loads(line)
     raise ValueError(f"no JSON in the command's output: {text[-400:]}")
+
+
+def ticket_node(ticket):
+    """The node a ledger ticket ("<node> <key>") names, or None."""
+    return ticket.split()[0] if ticket else None
 
 
 def ticket_stage(ticket):
@@ -140,3 +145,20 @@ class LocalBackend:
         if handle.pid and pid_alive(handle.pid):
             return LaunchState("running", "", text)
         return LaunchState("failed", "the run ended without its result line", text)
+
+    def price(self, world, nodes):
+        """{node: price} from `score price` (the runner's measured numbers, C19)."""
+        asked = [word for node in nodes for word in ("--node", node)]
+        command = [sys.executable, "-m", "score", "price", world, *asked, "--json"]
+        done = self.call(command)
+        if done.returncode != 0:
+            raise RuntimeError(f"score price failed: {(done.stderr or done.stdout)[-600:]}")
+        return last_json(done.stdout)["nodes"]
+
+    def ledgered(self, nodes, since):
+        """[Billed] of the ledger lines whose ticket names one of `nodes`, started at or after `since`."""
+        wanted = set(nodes)
+        return [Billed(node=ticket_node(row["ticket"]), euros=float(row.get("euros") or 0.0),
+                       minutes=row.get("wall_minutes", row.get("minutes")), started=row.get("started", ""))
+                for row in ledger_rows(settings.SCORE_LEDGER_FILES)
+                if ticket_node(row.get("ticket")) in wanted and row.get("started", "") >= since]
