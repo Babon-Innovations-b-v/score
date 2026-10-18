@@ -4,6 +4,7 @@ body's look and clips rebuilt on the SOMA-X base with the route's four changes, 
 
     ~/.farm-factory-props/env/bin/python route_build.py <made body.glb> <made rig.npz> <base.npz> <old body.glb>
         <out.glb> [--correctives <correctives.npz>] [--base under|shell] [--labels under|shell] [--no-cut]
+        [--no-under]
         [--shapes 24]
 
 - the garments bound by limb on the base, the arm and leg webs cut and closed (route_bind.py);
@@ -12,7 +13,9 @@ body's look and clips rebuilt on the SOMA-X base with the route's four changes, 
 - no settled cloth: the made body's per-clip garment shapes (the Newton settle) are dropped, the clothes move with
   the body (the owner's option A);
 - SOMA-X's pose correctives (route_base.py correctives) carried onto the garments by their bind places and baked as
-  `--shapes` shared morph targets (the main directions of every clip's offsets), keyed per frame in every clip.
+  `--shapes` shared morph targets (the main directions of every clip's offsets), keyed per frame in every clip;
+- the base body drawn in the suit's cloth under the cut webs (`under_layer`), so the gap where an arm lifts off the
+  side shows cloth, not the inside of the suit (`--no-under` leaves it out).
 
 Hard parts, hands and hair keep their made weights (one joint each). The far body is copied as it is.
 """
@@ -36,6 +39,9 @@ JOINTS_A_POINT = 4
 SHAPES = 24
 OLD_HEAD = ("skin_head", "eyes", "irises", "eyebrows")
 NODE = "work"
+# The body drawn under the cut webs (under_layer): base points this close to a web point's bind place, set this far in.
+UNDER_REACH = 0.09
+UNDER_INSET = 0.003
 _BYTES = {glb.FLOAT: 4, glb.UNSIGNED_BYTE: 1, glb.UNSIGNED_SHORT: 2, glb.UNSIGNED_INT: 4}
 _WIDTH = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
 
@@ -535,7 +541,9 @@ def build(options):
     picture = picture_of(old_document, old_blob, old_head["skin_head"].material)
     old_head["skin_head"], head_record = new_head(old_head["skin_head"], picture, rig, base["weights"], names, line,
                                                   centre)
-    drawn = out + kept + [old_head[name] for name in OLD_HEAD]
+    layer = None if options.no_under else under_layer(garments, welded, base_points, base["faces"], base["weights"],
+                                                      correctives, clips)
+    drawn = out + ([] if layer is None else [layer]) + kept + [old_head[name] for name in OLD_HEAD]
     if correctives is not None:
         bands_follow_cloth(drawn, out, clips)
     shapes, clip_weights, energy = (corrective_shapes(drawn, clips, options.shapes) if correctives is not None
@@ -545,8 +553,39 @@ def build(options):
             "web_edges": welded["web_edges"],
             "cut_triangles": cut_faces, "closings": closings, "regions": {
                 region: int((welded["regions"] == number).sum()) for number, region in enumerate(route_bind.REGIONS)},
+            "under_layer": None if layer is None else {"points": len(layer.points), "triangles": len(layer.faces)},
             "head": head_record, "hair": hair_record, "corrective_shapes": None if shapes is None else len(shapes[0]),
             "corrective_energy_kept": None if energy is None else round(energy, 4)}
+
+
+def under_layer(garments, welded, base_points, base_faces, base_weights, correctives, clips):
+    """The body under the cut webs, drawn in the cloth of the garment that lost the most there: the base's triangles
+    within UNDER_REACH of where a web point binds, UNDER_INSET inside the base, on the base's weights and pose
+    correctives. Where the arm lifts off the side the cut leaves a gap; through it the inside of the suit's far side
+    showed black (sitting, reaching, lifting on the player, 2026-10-18); this closes it with cloth colour. None when
+    nothing was cut."""
+    web_points = np.unique(np.array(sorted(welded["web"]), int).ravel()) if welded["web"] else np.zeros(0, int)
+    if not len(web_points):
+        return None
+    from scipy.spatial import cKDTree
+    near = cKDTree(welded["bound"].places[web_points]).query(base_points, distance_upper_bound=UNDER_REACH)[0]
+    faces = base_faces[np.isfinite(near)[base_faces].all(1)]
+    used = np.unique(faces)
+    renumber = np.full(len(base_points), -1)
+    renumber[used] = np.arange(len(used))
+    points = base_points[used] - UNDER_INSET * normals_of(base_points, base_faces)[used]
+    layer = Surface(cloth_of_web(garments, welded), points, None, base_weights[used], renumber[faces])
+    if correctives is not None:
+        layer.offsets = {clip: correctives[f"clip_{clip}"].astype(np.float64)[:, used] for clip in clips}
+    return layer
+
+
+def cloth_of_web(garments, welded):
+    """The material of the garment with the most web points (the suit's own cloth at the armpits and crotch)."""
+    counts = [len({int(number) for number in welded["numbers"][start:start + len(surface.points)]}
+                  & {point for pair in welded["web"] for point in pair}) for surface, start in
+              zip(garments, welded["starts"])]
+    return garments[int(np.argmax(counts))].material
 
 
 def rebound_offsets(moves, welded, start, surface):
@@ -567,6 +606,7 @@ def main():
     parser.add_argument("--labels", choices=("under", "shell"), default="under",
                         help="the base whose nearest point gives each look point its limb")
     parser.add_argument("--no-cut", action="store_true")
+    parser.add_argument("--no-under", action="store_true", help="leave the body under the cut webs undrawn")
     parser.add_argument("--shapes", type=int, default=SHAPES)
     options = parser.parse_args()
     record = build(options)

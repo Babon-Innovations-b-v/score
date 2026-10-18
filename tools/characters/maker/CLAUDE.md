@@ -76,3 +76,13 @@ are `data/characters/makes/<name>.json` (`spec.py` says what they hold); what a 
   `checks.txt` beside each take. A held machine keeps each make under its folder's name, so make folders carry the
   person and outfit (`make_place`). A close-up whose arms touch the body is refused before Pixal3D (`arm_gap_share`);
   klein copies a reference's pose over the words, so a spec may give a `pose_picture` to take the pose from.
+- **The people route** (`route_*.py`, owner's pick of 2026-10-18, #10; experimental, a free prototype on the PC, not
+  wired into any row yet): the accepted made body rebuilt on the SOMA-X base laid under its look (`route_base.py`,
+  with SOMA-X's pose correctives per clip), each garment region weighted from its own limb only and the arm and leg
+  webs cut and closed (`route_bind.py`), the base drawn in the suit's cloth under the cut webs so the gap where an
+  arm lifts off the side shows cloth (`route_build.py under_layer`), the made hair on the old SOMA-X head with its
+  drawn face (`route_head.py`), no settle shapes, the correctives as shared morph targets (`route_build.py`).
+  Measured by `route_stretch.py` (longest triangle edge growth per clip) and `pokes.py`; pictured by
+  `blender_route_shots.py` with the same cameras before and after. Plain CPU: SOMA-X's body model and its small
+  correctives network on 4 threads in the motion environment (`route_base.py`), the rest numpy; no card.
+  Proven: the player and Nev pass tucks and pokes on every clip and the owner picks the side-by-side.

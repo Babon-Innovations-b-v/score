@@ -158,3 +158,23 @@ def test_the_main_shapes_keep_offsets_made_of_few_directions():
 def test_the_longest_edge_of_each_triangle():
     points = np.array([[0.0, 0, 0], [3.0, 0, 0], [0.0, 4.0, 0]])
     assert route_stretch.longest_edges(points, np.array([[0, 1, 2]])).tolist() == [5.0]
+
+
+def test_the_body_under_a_cut_web_is_drawn_inside_in_the_cut_garments_cloth():
+    base_points, base_faces = grid(20, 3)
+    base_weights = np.tile(np.eye(len(NAMES))[2], (len(base_points), 1))
+    sleeve = route_build.Surface(7, np.zeros((2, 3)), None, None, np.zeros((0, 3), int))
+    torso = route_build.Surface(3, np.zeros((3, 3)), None, None, np.zeros((0, 3), int))
+    bound = route_bind.Bound(np.zeros((5, 3), int), np.tile([1.0, 0.0, 0.0], (5, 1)), base_points)
+    welded = {"numbers": np.array([0, 1, 2, 3, 4]), "starts": [0, 2], "web": {(2, 3)}, "bound": bound}
+    correctives = {"clip_walking": np.ones((4, len(base_points), 3), np.float32)}
+    layer = route_build.under_layer([sleeve, torso], welded, base_points, base_faces, base_weights, correctives,
+                                    ["walking"])
+    assert layer.material == 3
+    inside = int(np.sum(base_points[::3, 0] < route_build.UNDER_REACH))  # grid columns (1 cm apart) under the reach
+    assert len(layer.faces) == (inside - 1) * 2 * 2
+    assert np.allclose(layer.points[:, 2], -route_build.UNDER_INSET)
+    assert layer.points[:, 0].max() <= route_build.UNDER_REACH + 1e-9
+    assert layer.offsets["walking"].shape == (4, len(layer.points), 3)
+    assert route_build.under_layer([sleeve, torso], {**welded, "web": set()}, base_points, base_faces, base_weights,
+                                   correctives, ["walking"]) is None
