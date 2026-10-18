@@ -3,6 +3,13 @@
     .venv/bin/python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
     .venv/bin/python -m score status [<world>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
+    .venv/bin/python -m score plan <world> [--place P ...] [--stage S ...] [--rebuy-reason R] --json
+    .venv/bin/python -m score spend --json            # this month's spend, open reservations and the ceiling
+
+`status --json` prints the same lines as one JSON object. `plan` works out what `run` would do with the same arguments,
+running nothing: the missing inputs, the nodes it would make and why, the paid rows it would buy with their estimates
+and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard). `spend` reads the month's spend as
+the runner's clearance counts it.
 
 `run` drives the lines side by side (with --place, those places' lines and only the world nodes they read), each node in
 a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time); with
@@ -21,6 +28,8 @@ cache answers at EUR 0) and refuses, before detaching, when buying again rows th
 would cost over EUR 5, unless given --rebuy-reason, which goes into the run's log and the cloud ledger.
 """
 import argparse
+import datetime
+import json
 import pathlib
 import subprocess
 import sys
@@ -45,9 +54,16 @@ def parse(argv):
     run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
     status = commands.add_parser("status")
     status.add_argument("world", nargs="?", default="world1", choices=sorted(stages.WORLDS))
+    status.add_argument("--json", action="store_true", help="the lines as one JSON object")
+    plan = commands.add_parser("plan")
+    plan.add_argument("world", choices=sorted(stages.WORLDS))
+    plan.add_argument("--rebuy-reason", help="the reason a run would be given")
+    plan.add_argument("--json", action="store_true", help="the plan as one JSON object (the only form)")
+    spend = commands.add_parser("spend")
+    spend.add_argument("--json", action="store_true", help="the month's spend as one JSON object (the only form)")
     images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)
     images.add_parser("publish").add_argument("kind", choices=stages.images.proved_kinds())
-    for command in (run, status):
+    for command in (run, status, plan):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
     return parser.parse_args(argv)
@@ -78,6 +94,26 @@ def publish(kind):
     print(f"{kind}: {record['image']} into {stages.images.IMAGES_JSON}")
 
 
+def buy_check(runner, places, whole, only, reason):
+    """What a run of these lines would do before it starts, running nothing: {"missing": inputs it could never make
+    itself, "buys": [Buy] in table order (none when inputs are missing: free checks before paid), "refusal": why the
+    run is refused or None, "to_run": {node: why} of every node it would make, "blocked": {node: why} of every node
+    it could not start}."""
+    nodes = runner.line_nodes(places, whole, only)
+    missing = runner.missing_inputs(nodes)
+    if missing:
+        return {"missing": missing, "buys": [], "to_run": {}, "blocked": {},
+                "refusal": "refused: these inputs are missing, so the rows that read them would stop the run after it "
+                           "paid for others:\n  " + "\n  ".join(missing)}
+    with runner.still():
+        bought = rebuy.buys(runner, nodes)
+        states = {node: state for _, line_nodes in runner.lines(places, whole, only).values()
+                  for node, state in line_nodes.items()}
+    return {"missing": [], "buys": bought, "refusal": rebuy.refusal(bought, reason),
+            "to_run": {node: state for node, state in states.items() if state.startswith("to run")},
+            "blocked": {node: state for node, state in states.items() if state.startswith("blocked")}}
+
+
 def checked_buys(runner, places, whole, options):
     """Print the paid rows the run would buy; exit when its re-buys pass the limit with no reason. The run itself (not
     the call that detaches it) writes a given reason to the cloud ledger. A run missing an input it could never make
@@ -98,13 +134,43 @@ def checked_buys(runner, places, whole, options):
             compute.ledger().record(rebuy.ledger_entry(bought, options.rebuy_reason))
 
 
+def plan_json(runner, places, whole, options):
+    """The plan of a run (buy_check) as one JSON object: each buy as {node, euros, why, again}."""
+    found = buy_check(runner, places, whole, options.stage, options.rebuy_reason)
+    found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again}
+                     for buy in found["buys"]]
+    return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found}
+
+
+def spend_json():
+    """This month's spend as the clearance counts it: {spent, reserved (open reservations), ceiling, month, as_of}."""
+    from score.adapters import compute
+    reservations = Store.default().cache.parent / "reservations.json"
+    held = compute.open_reservations(reservations)
+    return {"spent": round(compute.month_spent(), 2), "reserved": round(sum(item["euros"] for item in held.values()), 2),
+            "ceiling": compute.ledger().MONTH_EUROS, "month": compute.ledger().this_month(),
+            "as_of": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+
+
+def status_json(world, lines):
+    """The lines of `status` as one JSON object: {world, made_at, lines: {line: {state, nodes: {node: state}}}}."""
+    return {"world": world, "made_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+            "lines": {line: {"state": state, "nodes": nodes} for line, (state, nodes) in lines.items()}}
+
+
 def main(argv=None):
     options = parse(argv)
     if options.command == "images":
         publish(options.kind)
         return
+    if options.command == "spend":
+        print(json.dumps(spend_json()))
+        return
     runner = stages.runner(world=stages.WORLDS[options.world]())
     places, whole = options.place or stages.places(runner.world), not options.place
+    if options.command == "plan":
+        print(json.dumps(plan_json(runner, places, whole, options)))
+        return
     if options.command == "run":
         checked_buys(runner, places, whole, options)
     if getattr(options, "detach", False):
@@ -115,6 +181,9 @@ def main(argv=None):
         runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
                      only=options.stage)
     lines = runner.lines(places, whole, options.stage)
+    if getattr(options, "json", False):
+        print(json.dumps(status_json(options.world, lines)))
+        return
     for line, (state, nodes) in lines.items():
         print(f"{line}: {state}")
         if options.command == "status":
