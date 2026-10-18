@@ -644,11 +644,12 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
     """A stage A that imports a helper H, made and accepted: H moved into FRAMEWORK moves A's key and the runner
     keeps A's accepted output, no proof file and no make (rebuy counts no buy); with A's own file also edited, its
     declared {seeds} file outside the repository changed, its make wired to another function in a file unchanged
-    since (B), another Python, H itself edited or a file read only through H (J) edited, it makes A again. A second
-    narrowing after the first (the other helper G moved too) is kept as well, still naming what made it."""
+    since (B), another Python, H itself edited or a file read only through H (J) edited or deleted, it makes A again.
+    A second narrowing after the first (the other helper G moved too) is kept as well, still naming what made it."""
     for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
                                (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
-                               (6, "read through helper edited", False), (7, "second narrowing", True)):
+                               (6, "read through helper edited", False), (7, "second narrowing", True),
+                               (8, "read through helper deleted", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.World("toy", 7, {"seeds": str(seeds)})
@@ -666,6 +667,8 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
                 (repo / f"narrow_h{case}.py").write_text('WORD = "another word "\n')
             if change == "read through helper edited":
                 (repo / f"narrow_j{case}.py").write_text('WORD = "another word "\n')
+            if change == "read through helper deleted":
+                (repo / f"narrow_j{case}.py").unlink()
             if change == "seeds":
                 (seeds / "hangar.txt").write_text("another seed")
             if change == "make swapped":

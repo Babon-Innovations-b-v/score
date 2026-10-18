@@ -189,13 +189,14 @@ def rebuilt_at(commit, starts):
     return parts
 
 
-def unchanged_or_gone(entries, hash_file):
-    """True when every code version entry ("<repository path> <hash>") names a file this checkout no longer holds or
-    one that `hash_file` hashes as the entry says."""
+def unchanged(entries, hash_file):
+    """True when every code version entry ("<repository path> <hash>") names a file this checkout still holds and
+    `hash_file` hashes as the entry says. A deleted file is not unchanged: an unchanged file that imported it may now
+    fail, or find a same-named module outside the repository."""
     for entry in entries:
         name, recorded = entry.rsplit(" ", 1)
         path = REPO / name
-        if path.is_file() and hash_file(path) != recorded:
+        if not path.is_file() or hash_file(path) != recorded:
             return False
     return True
 
