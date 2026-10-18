@@ -1,0 +1,11 @@
+{% comment %}The place page's "In the library" strip: `library` from pages/library.py strip_of().{% endcomment %}{% if library %}
+<section class="lib-strip">
+  <div class="group-head"><h2>In the library</h2><span class="count">{{ library.total }}</span>
+    <span class="soft small">{{ library.kinds|join:", " }}</span>
+    <div class="grow"></div><a class="small" href="{{ library.url }}">All in the library</a></div>
+  <div class="strip" tabindex="0" aria-label="this place's library entries">
+    {% for item in library.tiles %}<a class="step-tile" href="{{ item.url }}"><div class="frame">{% include "pages/pic.html" with src=item.thumb name=item.entry.title %}</div>
+      <span class="step-foot"><i class="mark {% if item.entry.state == 'locked' %}accepted{% else %}waiting{% endif %}"></i><span class="step-name">{{ item.entry.title }}</span></span></a>{% endfor %}
+  </div>
+</section>
+{% endif %}

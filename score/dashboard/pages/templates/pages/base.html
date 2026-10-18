@@ -17,6 +17,7 @@
     <a href="/basket/"{% if request.path == "/basket/" %} class="here"{% endif %}>Basket{% if basket_count %} <span class="count">{{ basket_count }}</span>{% endif %}</a>
     <a href="/runs/"{% if request.path == "/runs/" %} class="here"{% endif %}>Runs</a>
     <a href="/requests/"{% if request.path == "/requests/" %} class="here"{% endif %}>Requests</a>
+    <a href="/library/"{% if request.path|slice:":9" == "/library/" %} class="here"{% endif %}>Library</a>
   </nav>
   <div class="meta">
     {% if hosted %}<span>{{ export_age }}</span>{% else %}<span title="when the store was read">read {{ read_at|slice:"11:16" }} UTC</span>

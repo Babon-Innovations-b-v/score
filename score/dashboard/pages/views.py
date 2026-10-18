@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, present, seen
+from score.dashboard.pages import actions, library, present, seen
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, SyncRequest, is_owner
 from score.dashboard.state import costs, groups
 from score.dashboard.state import money as month_money
@@ -104,7 +104,8 @@ def place_page(request, place):
         "status": present.place_status(detail.status, detail.layers),
         "chain": present.chain(detail, style, step_url), "problems": present.problems(detail, step_url),
         "changes": present.changes(source, place),
-        "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states()})
+        "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
+        "library": library.strip_of(place)})
 
 
 def step_page(request, stage, place=None):

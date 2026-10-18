@@ -1,0 +1,10 @@
+{% comment %}One library entry as a tile: `item` from pages/library.py tile(); a tick box for the owner's choice when `owner` and `pickable`.{% endcomment %}<div class="tile lib-tile {{ item.entry.state }}">
+  <a class="frame" href="{{ item.url }}" aria-label="{{ item.entry.title }}">{% include "pages/pic.html" with src=item.thumb name=item.entry.title %}
+    {% if item.asked %}<span class="corner">{{ item.asked }} asked</span>{% endif %}</a>
+  {% if owner and pickable and item.entry.state != "withdrawn" %}<label class="pick" title="choose"><input type="checkbox" name="address" value="{{ item.entry.address }}" form="lib-pick" data-state="{{ item.entry.state }}"><span class="sr">choose {{ item.entry.title }}</span></label>{% endif %}
+  <a class="tile-foot" href="{{ item.url }}">
+    <span class="tile-name">{{ item.entry.title }}</span>
+    <span class="status {% if item.entry.state == 'locked' %}done{% elif item.entry.state == 'draft' %}review{% else %}quiet{% endif %}">{{ item.entry.state }}</span>
+  </a>
+  {% if item.entry.place %}<p class="tile-words">from {{ item.entry.place }}</p>{% endif %}
+</div>

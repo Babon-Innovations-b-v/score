@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ entry.title }} in 3D</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/pages/dash.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"
+} }
+</script>
+</head>
+<body class="view3d">
+<aside class="view3d-panel">
+  <p class="small"><a href="/library/">Library</a> / <a href="/library/{{ entry.kind }}/{{ entry.entry_id }}/{{ entry.version }}/">{{ entry.title }}</a> / 3D</p>
+  <h1>{{ entry.title }} in 3D</h1>
+  <p id="status" class="small" role="status">Loading {{ entry.glb.bytes|filesizeformat }}...</p>
+
+  <h2>Move</h2>
+  <label><input type="radio" name="move" value="orbit" checked> Orbit: drag, wheel</label>
+  <label><input type="radio" name="move" value="walk"> Walk: click, then W A S D and the mouse (Esc frees it)</label>
+  <label><input type="checkbox" id="hold" checked> Eyes 1.6 m over the floor while walking</label>
+  <div class="views" id="views"></div>
+
+  <h2>A click</h2>
+  <label><input type="radio" name="tool" value="name" checked> Names the part</label>
+  <label><input type="radio" name="tool" value="measure"> Measures between two clicks</label>
+  <label><input type="radio" name="tool" value="person"> Stands the person there</label>
+  <label><input type="checkbox" id="person" checked> A person 1.8 m tall, for scale</label>
+  <div id="picked" class="panel small">Click a surface.</div>
+
+  <h2>Layers</h2>
+  <div id="layers" class="small soft">The layers show once the model is loaded.</div>
+  {{ viewer|json_script:"view3d-data" }}
+  <script type="module" src="/static/pages/view3d.js"></script>
+</aside>
+<div id="stage" class="view3d-stage"><div id="measure-label" class="measure-label" hidden></div></div>
+</body>
+</html>

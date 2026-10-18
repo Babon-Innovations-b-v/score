@@ -5,6 +5,9 @@
     <out>/places/<place>.json  {"detail": PlaceDetail, "steps": {stage: StepDetail}}; _world.json the world's steps
     <out>/files/<sha>-1280.jpg hero pictures; <sha>-360.jpg thumbnails (newest 8 a node); <sha>.mp4 accepted films
     <out>/web3d/<place>/       each place's fresh 3D copy (web3d/convert.py): sidecar and preview, then the whole one
+    <out>/library/            the creator's library when SCORE_LIB_ROOT is set (state/library.py): entries.json, a
+                              sound's first takes in files/; its pictures go in <out>/files/ like the steps' (thumbnails
+                              after the steps' own, large ones last)
 
 Filled in priority order (the JSON, heroes, every node's thumbnails with each node's first before any node's second,
 films, then the 3D copies) until the cap (owner, 2026-10-18: the step cards' thumbnails go up first); what did not
@@ -18,6 +21,7 @@ import pathlib
 import shutil
 import subprocess
 
+from score.dashboard.state import library
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 
 NEWEST_PER_NODE = 8
@@ -147,6 +151,10 @@ def build(source, out, made_at, cap_mb, spend, repo):
                 found = source.file(images[rank]["sha"])
                 if found:
                     filler.picture(found[1], images[rank]["sha"], THUMB_SIDE, f"{node}: {images[rank]['name']}")
+    shelf = library.for_export()
+    shelved = library.export_rows(shelf, out, filler) if shelf else []
+    library.export_pictures(shelf, shelved, filler, THUMB_SIDE)
+    library.export_takes(shelf, shelved, filler)
     for film in films(world):
         filler.copy(source.file(film.sha)[1], f"{film.sha}.mp4", f"film {film.name}")
     for names in (("{place}.json", "{place}-light.glb"), ("{place}.glb",)):
@@ -156,6 +164,7 @@ def build(source, out, made_at, cap_mb, spend, repo):
                 found = source.web3d_file(place, name)
                 if found:
                     filler.place_copy(found, f"web3d/{place}/{name}", f"3D copy {name}")
+    library.export_pictures(shelf, shelved, filler, HERO_SIDE)
     manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo), "bytes": filler.used,
                 "left_out": filler.left_out, "cap_mb": cap_mb, "written": filler.written}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))

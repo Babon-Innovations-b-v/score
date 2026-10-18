@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, seen
+from score.dashboard.pages import actions, library_actions, seen
 from score.dashboard.pages.models import Launch, Plan
 
 
@@ -101,6 +101,15 @@ def apply_launch(item, source, chosen=None):
     return Applied("running", f"launched at {timezone.now().isoformat(timespec='seconds')}", launch_id=record.pk)
 
 
+def apply_library(item):
+    """The owner's lock or withdraw of library entries, carried out in the library folder here."""
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    payload = item["payload"]
+    said = library_actions.carried_out(payload.get("action", ""), payload.get("addresses", []), item["user"])
+    return Applied("refused" if said.startswith("refused") else "done", said)
+
+
 def apply(item, source, chosen=None):
     """Apply one hosted request; Applied."""
     kind = item["kind"]
@@ -112,4 +121,6 @@ def apply(item, source, chosen=None):
         return apply_advance(item)
     if kind == "launch":
         return apply_launch(item, source, chosen)
+    if kind == "library":
+        return apply_library(item)
     return Applied("refused", f"unknown request kind {kind!r}")

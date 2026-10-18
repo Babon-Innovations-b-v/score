@@ -1,0 +1,50 @@
+{% extends "pages/base.html" %}
+{% block title %}Library{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Library</h1>
+  {% if total %}<span class="soft">{{ total }} entr{{ total|pluralize:"y,ies" }}, {{ locked }} locked</span>{% endif %}
+  <div class="grow"></div>
+  <span class="licence-note" title="every entry in the library is MIT">MIT</span>
+</div>
+{% if missing %}<p class="notice">{{ missing }}</p>{% else %}
+
+<form class="lib-filters" method="get" action="/library/" role="search">
+  <input type="search" name="q" value="{{ filters.q }}" placeholder="Search by name" aria-label="search by name">
+  <select name="kind" aria-label="kind"><option value="">Every kind</option>{% for kind, label, count in kinds %}<option value="{{ kind }}"{% if filters.kind == kind %} selected{% endif %}>{{ label }} ({{ count }})</option>{% endfor %}</select>
+  <select name="place" aria-label="the place it came from"><option value="">Every place</option>{% for place in places %}<option value="{{ place }}"{% if filters.place == place %} selected{% endif %}>{{ place }}</option>{% endfor %}</select>
+  <select name="state" aria-label="state"><option value="">Every state</option>{% for name in states %}<option value="{{ name }}"{% if filters.state == name %} selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+  <button class="primary">Show</button>
+  {% if filters.q or filters.kind or filters.place or filters.state %}<a class="button quiet" href="/library/">Clear</a>{% endif %}
+</form>
+
+{% if owner %}
+<form id="lib-pick" method="post" action="/library/ask/">{% csrf_token %}<input type="hidden" name="back" value="{{ back }}">
+{% endif %}
+
+{% for group in groups %}
+<section class="group">
+  <div class="group-head">
+    <h2>{{ group.label }}</h2><span class="count">{{ group.total }}</span>
+    {% if group.first %}<span class="soft small">{{ group.first }} to {{ group.last }}</span>{% endif %}
+    <div class="grow"></div>
+    {% if group.all_url and group.total > group.tiles|length %}<a class="small" href="{{ group.all_url }}">All {{ group.total }} {{ group.label|lower }}</a>{% endif %}
+  </div>
+  <div class="tiles lib-tiles">
+    {% for item in group.tiles %}{% include "pages/library_tile.html" with pickable=True %}{% endfor %}
+  </div>
+  {% if group.before or group.after %}<p class="row lib-pages">{% if group.before %}<a class="button" href="{{ group.before }}">Before</a>{% endif %}{% if group.after %}<a class="button" href="{{ group.after }}">More</a>{% endif %}</p>{% endif %}
+</section>
+{% empty %}<p class="soft">Nothing matches.</p>
+{% endfor %}
+{% if owner %}<div class="lib-bar" hidden>
+  <span><b data-picked>0</b> chosen</span>
+  <button class="primary" name="action" value="lock" title="approve the chosen drafts as final">Lock</button>
+  <button class="danger" name="action" value="withdraw" title="take the chosen locked entries out of use">Withdraw</button>
+  <button type="button" class="quiet" data-unpick>Clear the choice</button>
+</div>
+</form>{% endif %}
+<p class="legend small"><span><i class="mark waiting"></i>draft</span><span><i class="mark accepted"></i>locked: approved as final</span><span><i class="mark not-run"></i>withdrawn</span>{% if owner %}<span class="soft">tick pictures to lock or withdraw them together</span>{% endif %}</p>
+{% endif %}
+<script src="/static/pages/library.js"></script>
+{% endblock %}

@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from score.dashboard.pages import views
+from score.dashboard.pages import library, views
 
 STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide/", views.step_decide),
                ("queue/", views.step_queue), ("advance/", views.step_advance)]
@@ -21,6 +21,10 @@ urlpatterns = [
     path("runs/", views.runs),
     path("runs/<int:run_id>/", views.run_page),
     path("requests/", views.requests_page),
+    path("library/", library.library_page),
+    path("library/ask/", library.ask),
+    path("library/<slug:kind>/<str:entry_id>/<int:version>/", library.entry_page),
+    path("library/<slug:kind>/<str:entry_id>/<int:version>/3d/", library.entry_viewer),
     path("view/<slug:place>", views.viewer),
     path("picks/<slug:place>", views.picks),
     path("refresh/", views.refresh),
