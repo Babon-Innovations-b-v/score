@@ -1,0 +1,58 @@
+{% extends "pages/base.html" %}
+{% block title %}{{ film.title }}: film{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/pages/film.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<p class="crumbs"><a href="/film/">Films</a><span>/</span><span>{{ film.film }}</span></p>
+<div class="page-head film-head">
+  <h1>{{ film.title }}</h1>
+  <div class="film-length-readout" id="length" aria-live="polite"></div>
+  <span class="status quiet" id="origin">{% if origin == "saved" %}saved in the cockpit{% else %}the starter script{% endif %}</span>
+  <span class="grow"></span>
+  <output class="small soft" id="said"></output>
+  {% if owner %}<button class="primary" id="save" type="button" disabled>Saved</button>{% endif %}
+</div>
+
+<section class="film-work">
+  <div class="film-left">
+    <div class="film-stage" id="stage" aria-label="the free preview">
+      <div class="film-shots" id="shots"></div>
+      <div class="film-black" id="black"></div>
+      <div class="film-wait" id="wait" hidden></div>
+    </div>
+    <div class="film-transport">
+      <button type="button" id="play" class="primary">Play</button>
+      <output id="clock" class="film-clock">0:00.0</output>
+      <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="the film's clock">
+      <label class="film-toggle"><input type="checkbox" id="sound"> Sound</label>
+      <label class="film-toggle" title="the whole 3D copies: slower to load, every triangle"><input type="checkbox" id="whole"> Whole copies</label>
+    </div>
+    <div class="film-timeline" id="timeline" aria-label="the film's segments in order"></div>
+    <div class="film-add" id="add" aria-label="add a segment"></div>
+  </div>
+  <aside class="film-inspector card" id="inspector" aria-label="the chosen segment"></aside>
+</section>
+
+<section class="film-costs">
+  <h2>What it costs to render</h2>
+  <div id="render"></div>
+  <p class="small faint">The preview above is free. Rendering is paid and goes through the basket: only rows that exist can be queued, and
+    nothing starts from this page. Prices come only from measured frames: {% for kind, found in measured.items %}a {{ kind }} frame is EUR {{ found.euros|floatformat:4 }}, from {{ found.from }}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>
+  {% if owner %}<form method="post" action="/film/{{ film.film }}/basket/" id="basket-form" hidden>{% csrf_token %}
+    <button class="button">Queue the place films it needs into the basket</button></form>{% endif %}
+</section>
+
+<section>
+  <h2>Default lengths</h2>
+  <p class="small soft">A segment without its own length takes its cut's default.</p>
+  <div class="film-defaults" id="defaults"></div>
+</section>
+<form id="token" hidden>{% csrf_token %}</form>
+{{ editor|json_script:"film-data" }}
+<script type="module" src="/static/pages/film.js"></script>
+{% endblock %}

@@ -15,6 +15,7 @@ RUN uv export --frozen --only-group dashboard --no-hashes -o /tmp/requirements.t
 COPY score/__init__.py score/__init__.py
 COPY score/dashboard score/dashboard
 COPY tools/review/viewer/viewer.html tools/review/viewer/viewer.html
+COPY data/films data/films
 ENV SCORE_DASHBOARD_MODE=hosted SCORE_STORE_WRITABLE=0
 USER score
 VOLUME /data
