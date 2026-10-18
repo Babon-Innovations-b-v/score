@@ -5,6 +5,7 @@ twice its forecast minutes; and a world with no line in the framework's store is
 
 Run: .venv/bin/python score/adapters/compute/guard_test.py   (make tests runs it in a sandbox home)
 """
+import datetime
 import os
 import pathlib
 import subprocess
@@ -190,9 +191,80 @@ def test_the_framework_store_refuses_a_world_with_no_line():
     assert "has no stop line" in compute_test.refused(lambda: compute.clearance(runner, "render@hangar", 1.0))
 
 
+def test_a_trials_own_store_in_the_home_is_held_to_the_worlds_stop_and_counted_in_flight():
+    """Fault (2026-10-18 review): compare.py's trial store had no stop line of its own, so its paid rows (close-ups,
+    pixal, likeness) skipped the stop, and their reservations sat in the trial's store where no clearance counted them."""
+    trial = Store.in_folder(compute.PROPS_HOME / "trial-test/store")  # as compare.py's, a store inside the home
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar.txt").write_text("a hall")
+    runner = graph.Runner([compute_test.BRIEF, compute_test.RENDER], graph.World("toy-trial", 1, {"data": data}),
+                          trial)
+    runner.run_node(compute_test.BRIEF, "hangar")
+    ledger({"euros": 90.0})
+    BILL["euros"] = 0.0
+    (Store.default().cache.parent / "reservations.json").unlink(missing_ok=True)  # earlier tests' runs, in the sandbox
+    assert "has no stop line" in compute_test.refused(lambda: compute.clearance(runner, "render@hangar", 1.0))
+    as_owner(lambda: guard.set_line(Store.default(), "toy-trial", 10.0, "the trial", "owner",
+                                    "2026-10-18T09:00:00+00:00", START))
+    ticket = compute.clearance(runner, "render@hangar", 6.0)
+    assert pathlib.Path(ticket["reservations"]).parent == Store.default().cache.parent
+    assert "pass the EUR 10.00 stop" in compute_test.refused(lambda: compute.clearance(runner, "render@hangar", 5.0))
+    with compute.spending(ticket):
+        assert compute.require_cleared("a batch")["euros"] == 6.0  # the clearance is read from the trial's store
+    assert compute.clearance(runner, "render@hangar", 5.0)  # released: in flight no more
+
+
+def test_a_rent_point_refuses_a_clearance_whose_run_has_ended():
+    """Fault (2026-10-18 review): any earlier clearance passed a rent point, so a ticket reused after its run ended
+    started paid work that no stop check and no in-flight sum saw."""
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 0.0})
+    ticket = compute.clearance(runner, "render@hangar", 1.0)
+    with compute.spending(ticket):
+        assert compute.require_cleared("a batch", runner.store)["euros"] == 1.0
+    os.environ[compute.TICKET] = f"render@hangar {ticket['key']}"
+    try:
+        assert "has ended" in compute_test.refused(lambda: compute.require_cleared("a batch", runner.store))
+    finally:
+        os.environ.pop(compute.TICKET)
+
+
+def test_a_reservation_stays_open_while_its_run_lives_or_until_its_runaway_limit():
+    """Fault (2026-10-18 review): a reservation was dropped after 4 h whether or not its run had ended."""
+    hours_ago = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    assert compute.still_open(hours_ago, {"holder": guard.process_mark(os.getpid())}, now)
+    assert not compute.still_open(hours_ago, {"holder": f"{os.getpid()} 0"}, now)  # a pid since given to another
+    assert not compute.still_open(hours_ago, {"high_minutes": 60.0}, now)
+    assert compute.still_open(hours_ago, {"high_minutes": 200.0}, now)  # twice 200 min is past 5 h
+
+
+def test_an_override_still_going_counts_in_flight():
+    runner = compute_test.a_runner("a hall")
+    stop_at(runner, 10.0)
+    ledger({"euros": 90.0})
+    BILL["euros"] = 0.0
+    runner.store.write_spend_yes(compute.OVERRIDE, "repaint", {"node": compute.OVERRIDE, "key": "repaint",
+                                                               "euros": 7.0, "by": "owner", "at": graph.now()})
+    assert "pass the EUR 10.00 stop" in compute_test.refused(lambda: compute.clearance(runner, "render@hangar", 4.0))
+    assert compute.clearance(runner, "render@hangar", 2.0)
+
+
+def test_a_watch_whose_preflights_cannot_be_read_falls_back_to_its_stages_forecast():
+    """A half written pre-flight line must not end the watch: the run would have no runaway stop left."""
+    def unreadable():
+        raise ValueError("a line half written")
+    stopped, clock = [], [0.0]
+    watch = guard.Watch("render@hangar u", 30.0, pathlib.Path(tempfile.mkdtemp()), batches=unreadable,
+                        stop=lambda: stopped.append(1), clock=lambda: clock[0])
+    clock[0] = 61 * 60
+    assert watch.check() and stopped == [1]
+
+
 if __name__ == "__main__":
-    if not os.environ.get("PROPS_HOME"):
-        raise SystemExit("refused: run in a sandbox home (make tests TESTS=score/adapters/compute/guard_test.py)")
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()
