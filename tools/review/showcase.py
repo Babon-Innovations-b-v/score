@@ -621,6 +621,49 @@ def opening_clip(pictures, out, credits):
     return sum(lengths) - FADE
 
 
+# Clips one ffmpeg graph joins at most: 57 cross-faded in one graph left ffmpeg stalled with 12.7 GB held, 2026-10-18.
+JOIN_GROUP = 8
+
+
+def joined_in_groups(clips, lengths, out, parts):
+    """demo.joined over many clips: each group of JOIN_GROUP joined first, then the groups, with the same cross-fades
+    between every two clips, so the video is as long as one join of them all."""
+    if len(clips) <= JOIN_GROUP:
+        joined_apart(clips, lengths, out, parts)
+        return
+    groups, group_lengths = [], []
+    for start in range(0, len(clips), JOIN_GROUP):
+        part = parts / f"group-{start // JOIN_GROUP:02d}.mp4"
+        joined_apart(clips[start:start + JOIN_GROUP], lengths[start:start + JOIN_GROUP], part, parts)
+        groups.append(part)
+        chunk = lengths[start:start + JOIN_GROUP]
+        group_lengths.append(sum(chunk) - demo.FADE_SECONDS * (len(chunk) - 1))
+    joined_in_groups(groups, group_lengths, out, parts)
+
+
+def joined_apart(clips, lengths, out, parts):
+    """demo.joined's cross-fades with the picture and the sound each joined by its own ffmpeg and laid together
+    after: in one graph the sound starved while the picture's fades buffered (a film clip's picture runs 3.54 s, its
+    sound 3.5 s; 8 such clips in one graph wrote nothing, 2026-10-18)."""
+    if len(clips) == 1 or not all(demo.has_sound(clip) for clip in clips):
+        demo.joined(clips, lengths, out)
+        return
+    inputs = [part for clip in clips for part in ("-i", clip)]
+    picture, sound, offset = [], [], 0.0
+    previous_picture, previous_sound = "[0:v]", "[0:a]"
+    for number in range(1, len(clips)):
+        offset += lengths[number - 1] - demo.FADE_SECONDS
+        picture.append(f"{previous_picture}[{number}:v]xfade=transition=fade:duration={demo.FADE_SECONDS}:"
+                       f"offset={offset:.3f}[v{number}]")
+        sound.append(f"{previous_sound}[{number}:a]acrossfade=d={demo.FADE_SECONDS}[a{number}]")
+        previous_picture, previous_sound = f"[v{number}]", f"[a{number}]"
+    video, audio = parts / f"{out.stem}-picture.mp4", parts / f"{out.stem}-sound.m4a"
+    demo.ffmpeg(*inputs, "-filter_complex", ";".join(picture), "-map", previous_picture, *demo.encode(video))
+    demo.ffmpeg(*inputs, "-filter_complex", ";".join(sound), "-map", previous_sound, "-c:a", "aac", "-b:a", "160k",
+                audio)
+    demo.ffmpeg("-i", video, "-i", audio, "-map", "0:v", "-map", "1:a", "-c", "copy", "-movflags", "+faststart", out)
+
+
 def world(folder, figure_out, films, assets, draft=False):
     """The world 1 video (demo K9) and its figure: the opening (the title, then every place's concept), then per place
     in story order its concept, plan and pieces and its accepted film's shot, then the ending's clips where they exist; the
@@ -655,7 +698,7 @@ def world(folder, figure_out, films, assets, draft=False):
         clips.append(parts / f"ending-{ending.name}")
         lengths.append(ending_clip(ending, clips[-1]))
     video = folder / "world1.mp4"
-    demo.joined(clips, lengths, video)
+    joined_in_groups(clips, lengths, video, parts)
     (folder / "frames").mkdir(exist_ok=True)
     sheet([(name, title, middle_frame(path, folder / "frames" / f"{name}.png")) for name, title, path, _ in made],
           figure_out)

@@ -133,3 +133,41 @@ if __name__ == "__main__":
             place.mkdir()
             check(place)
     print("showcase_test: ok")
+
+
+def test_many_clips_join_in_groups_as_long_as_one_join(tmp_path):
+    """57 clips in one ffmpeg graph stalled (2026-10-18): the world joins in groups of JOIN_GROUP, every cross-fade
+    kept, so 10 one-second clips still come out 10 - 9 x FADE_SECONDS long."""
+    import subprocess
+    clips = []
+    for index in range(10):
+        clip = tmp_path / f"c{index}.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=gray:s=64x36:d=1:r=24",
+                        "-pix_fmt", "yuv420p", str(clip)], check=True)
+        clips.append(clip)
+    out = tmp_path / "world.mp4"
+    showcase.joined_in_groups(clips, [1.0] * 10, out, tmp_path)
+    seconds = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                    str(out)], capture_output=True, text=True, check=True).stdout)
+    assert abs(seconds - (10 - 9 * showcase.demo.FADE_SECONDS)) < 0.1
+
+
+def test_clips_whose_picture_outlasts_their_sound_join_with_both(tmp_path):
+    """A film clip's picture runs 3.54 s, its sound 3.5 s; 8 such clips in one graph wrote nothing (2026-10-18). Joined
+    apart, the picture is as long as one join and the sound is there."""
+    import subprocess
+    clips = []
+    for index in range(8):
+        clip = tmp_path / f"s{index}.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=gray:s=64x36:d=3.5417:r=24",
+                        "-f", "lavfi", "-i", "sine=f=440:d=3.5", "-pix_fmt", "yuv420p", "-c:a", "aac", str(clip)],
+                       check=True)
+        clips.append(clip)
+    out = tmp_path / "joined.mp4"
+    showcase.joined_in_groups(clips, [3.5417] * 8, out, tmp_path)
+    kinds = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(out)],
+                           capture_output=True, text=True, check=True).stdout.split()
+    seconds = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                    str(out)], capture_output=True, text=True, check=True).stdout)
+    assert sorted(kinds) == ["audio", "video"]
+    assert abs(seconds - (8 * 3.5417 - 7 * showcase.demo.FADE_SECONDS)) < 0.2
