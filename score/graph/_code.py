@@ -51,7 +51,7 @@ def module_files(name, is_file=pathlib.Path.is_file):
     parts = name.split(".")
     for folder in search_folders():
         for path in (folder.joinpath(*parts).with_suffix(".py"), folder.joinpath(*parts, "__init__.py")):
-            if in_repo(path) and is_file(path):
+            if is_file(path) and in_repo(path):  # the cheap test first: most candidates are not there
                 found.add(path.resolve())
     return found
 
