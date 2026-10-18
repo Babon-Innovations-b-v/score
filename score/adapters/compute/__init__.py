@@ -115,18 +115,19 @@ def month_refusal(euros, reserved=0.0):
 
 
 def run_forecast(node, euros):
-    """A paid node's run forecast ({euros, minutes, measured}): its stage's measured runs in the cloud ledger at their
-    high euros and likely minutes (tools/props/cloud/preflight.py), else the stage's own estimate `euros` with no
+    """A paid node's run forecast ({euros, minutes, high_minutes, measured}): its stage's measured runs in the cloud
+    ledger at their high euros, likely and high minutes (tools/props/cloud/preflight.py), else the stage's own estimate `euros` with no
     minutes; Refused with neither. The runner's numbers, never an agent's: the owner, 2026-10-18."""
     books = ledger()
     import preflight  # beside ledger.py
     run = preflight.node_run(books.entries(), node.partition("@")[0])
     if run:
-        return {"euros": round(run["high_euros"], 4), "minutes": round(run["minutes"], 2), "measured": run["runs"]}
+        return {"euros": round(run["high_euros"], 4), "minutes": round(run["minutes"], 2),
+                "high_minutes": round(run["high_minutes"], 2), "measured": run["runs"]}
     if euros is None:
         raise Refused(f"{node}: a paid run needs its estimate in euros, or measured runs of its stage in the ledger, "
                       "before the runner can clear it")
-    return {"euros": euros, "minutes": None, "measured": 0}
+    return {"euros": euros, "minutes": None, "high_minutes": None, "measured": 0}
 
 
 def books_now():
@@ -204,7 +205,8 @@ def clearance(runner, node, euros):
         if over:
             raise Refused(f"{node}: {over}")
         cleared = {"node": node, "key": ticket["key"], "euros": forecast["euros"], "minutes": forecast["minutes"],
-                   "measured": forecast["measured"], "estimate": euros, "by": RUNNER, "at": graph.now()}
+                   "high_minutes": forecast["high_minutes"], "measured": forecast["measured"], "estimate": euros,
+                   "by": RUNNER, "at": graph.now()}
         runner.store.write_clearance(node, ticket["key"], cleared)
         keep_reservations(reservations, {**held, cleared["at"]: cleared})
     return {**ticket, "clearance": cleared, "reservations": str(reservations)}
@@ -226,16 +228,24 @@ def submit(runner, node, job_store, run, job, spec):
     return job_contract.write_job(job_store, run, job, {**spec, "node": node, "node_key": ticket["key"]})
 
 
+def batch_preflights(ticket):
+    """The pre-flights the run's batches kept so far (tools/props/cloud/preflight.py)."""
+    ledger()  # puts tools/props/cloud on the path
+    import preflight
+    return preflight.kept(ticket)
+
+
 @contextlib.contextmanager
 def spending(ticket):
     """Name a cleared ticket's run in this process and the processes it starts, for the rent points to find, its
-    runaway watch beside it (guard.Watch, at its forecast minutes); its reservation ends with the block."""
+    runaway watch beside it (guard.Watch, at its high forecast minutes); its reservation ends with the block."""
     before = {name: os.environ.get(name) for name in (TICKET, STORE)}
     os.environ[TICKET] = f"{ticket['node']} {ticket['key']}"
     if "reservations" in ticket:  # the store the clearance is in: a trial's own store (Store.in_folder) too
         os.environ[STORE] = str(pathlib.Path(ticket["reservations"]).parent)
     folder = pathlib.Path(os.environ[STORE]) if os.environ.get(STORE) else Store.default().cache.parent
-    watch = guard.Watch(os.environ[TICKET], ticket.get("clearance", {}).get("minutes"), folder)
+    watch = guard.Watch(os.environ[TICKET], ticket.get("clearance", {}).get("high_minutes"), folder,
+                        batches=lambda: batch_preflights(os.environ[TICKET]))
     try:
         with watch:
             yield
