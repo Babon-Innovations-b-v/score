@@ -7,6 +7,8 @@ checkout, with that checkout first on the path, so the `score` imported here is 
 Every node the assembly reads (and the assembly itself) is taken one of three ways (HOW):
 
     as now                 its row is not moved by the branch and it reads nothing made here: its accepted output
+    as now (another place) a node of another place (a claiming place's bake, a shown place's assembly): as it stands,
+                           so a proposal stays one place's work
     made                   a free row the branch moves, or a free node reading one made here: made into the scratch
                            store and its gates judged there (shown whatever they answer; nothing is accepted)
     needs the paid batch   a paid row, or one on pinned images, that the branch moves or that reads one made here:
@@ -58,9 +60,10 @@ def overlay_store(real_store, scratch):
 class ProposalRunner(graph.Runner):
     """The runner taking each node as now, made or stood in (HOW) in place of refusing one not usable."""
 
-    def __init__(self, stages, world, store, moved):
+    def __init__(self, stages, world, store, moved, place):
         super().__init__(stages, world, store)
         self.moved = moved
+        self.place = place
         self.taken = {}
         self.chosen = {}
         self.worked_keys = {}
@@ -108,6 +111,8 @@ class ProposalRunner(graph.Runner):
             keyed, blocked = self.key(stage, place), None
         except graph.Blocked as block:
             keyed, blocked = None, block
+        if place not in (None, self.place):
+            return self.stood_in(stage, place, AS_NOW, "another place's, shown as it stands")
         if not (self.moved_by_branch(stage, place) or self.reads_made(stage, place)):
             return self.stood_in(stage, place, AS_NOW)
         if stage.paid or stage.models:
@@ -165,7 +170,7 @@ def target(runner, place):
     """The stage whose OpenUSD output the proposal shows: the place with its neighbours standing when the branch
     moves that row and the place has one, else its assembly."""
     shows = runner.stages.get(NEIGHBOURS)
-    if shows and NEIGHBOURS in runner.moved and (shows.applies is None or shows.applies(place)):
+    if shows and runner.moved_by_branch(shows, place) and (shows.applies is None or shows.applies(place)):
         return NEIGHBOURS
     return ASSEMBLY
 
@@ -191,7 +196,8 @@ def main(argv):
     store = overlay_store(options.store, options.scratch)
     Store.default = classmethod(lambda cls: store)  # a stage's own Store.default() reads and writes the same way
     world = stages.world1()
-    runner = ProposalRunner(stages.STAGES, world, store, json.loads(pathlib.Path(options.moved).read_text()))
+    runner = ProposalRunner(stages.STAGES, world, store, json.loads(pathlib.Path(options.moved).read_text()),
+                            options.place)
     try:
         result = assemble(runner, options.place, options.folder)
     except graph.Blocked as block:
