@@ -21,6 +21,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, measured, launch, poll; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, plan,
   every launch refusal in words).
+- **`checkout/`** the owner's basket of fix branches and his one checkout under `/api/checkout`: each branch priced
+  from the paid rows it moves (`score.stages.moved --json`) at the runner's numbers (`score price`); the checkout
+  lands the branches in a fixed order, writes the world's stop line at the basket's high (`score.review.web.stop`)
+  and launches one batch through the backend. Its own overlay has the rules.
 - **`previews/`** a picture for each step whose output has none of its own, drawn from its files on the store's
   machine, kept per output, never imported by a hosted process.
 - **`sync/`** hosted mode: `building.py` the export, `endpoints.py` the hosted side (token only), `client.py` and

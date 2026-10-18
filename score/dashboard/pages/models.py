@@ -110,6 +110,58 @@ class OwnerCost(models.Model):
     class Meta:
         ordering = ["-at"]
 
+class BranchPrice(models.Model):
+    """A fix branch's price at one commit (score/dashboard/checkout): the rows it moves from where it left main, and
+    each paid node of them priced on the runner's measured numbers."""
+
+    branch = models.CharField(max_length=100)
+    head = models.CharField(max_length=40)
+    base = models.CharField(max_length=40)
+    state = models.CharField(max_length=20, default="working")  # working, ready, failed
+    body = models.JSONField(default=dict)  # {rows, nodes: {node: price}, totals}
+    error = models.TextField(blank=True)
+    started = models.DateTimeField(auto_now_add=True)
+    finished = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-started"]
+        constraints = [models.UniqueConstraint(fields=["branch", "head", "base"], name="one_price_a_commit")]
+
+
+class BasketBranch(models.Model):
+    """One fix branch in the owner's basket, as he saw it: its commit and its preview's hash when he added it."""
+
+    branch = models.CharField(max_length=100, unique=True)
+    head = models.CharField(max_length=40)
+    preview_hash = models.CharField(max_length=64)
+    added_by = models.CharField(max_length=150)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["branch"]
+
+
+class Checkout(models.Model):
+    """The owner's one checkout of the basket: his money yes, the branches landed, the one batch launched."""
+
+    key = models.CharField(max_length=64, unique=True)  # the page's own key: a second press is the same checkout
+    by = models.CharField(max_length=150)
+    at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(max_length=20, default="landing")  # landing, launching, launched, landed, refused, failed
+    items = models.JSONField(default=list)  # [{branch, head, preview_hash, nodes: {node: price}}]
+    totals = models.JSONField(default=dict)
+    landed = models.JSONField(default=list)  # [{branch, commits}]
+    main_before = models.CharField(max_length=40, blank=True)
+    main_after = models.CharField(max_length=40, blank=True)
+    stop_line = models.JSONField(default=dict)
+    before = models.JSONField(default=dict)  # {node: accepted output at checkout}
+    launch = models.ForeignKey(Launch, null=True, blank=True, on_delete=models.PROTECT, related_name="checkouts")
+    detail = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-at"]
+
+
 def is_owner(user):
     """True for the signed-in owner (SCORE_OWNER)."""
     return bool(user and user.is_authenticated and settings.SCORE_OWNER and user.username == settings.SCORE_OWNER)

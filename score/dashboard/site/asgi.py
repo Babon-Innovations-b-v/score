@@ -19,10 +19,12 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from score.dashboard.api.deps import signed_in  # noqa: E402
 from score.dashboard.api.routes import api, files  # noqa: E402
 from score.dashboard.auth.proxy import TrustedProxyGuard  # noqa: E402
+from score.dashboard.checkout.routes import checkout  # noqa: E402
 from score.dashboard.sync.endpoints import sync  # noqa: E402
 
 inner = FastAPI(title="SCORE dashboard", docs_url=None, redoc_url=None, openapi_url=None)
 inner.include_router(sync, prefix="/api/sync")
+inner.include_router(checkout, prefix="/api/checkout")
 inner.include_router(api, prefix="/api")
 inner.include_router(files)
 

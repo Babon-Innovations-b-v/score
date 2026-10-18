@@ -7,6 +7,8 @@
         def measured(self) -> Iterable[MeasuredRun]: ...       # stage, euros, minutes of earlier paid runs
         def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle: ...
         def poll(self, handle: LaunchHandle) -> LaunchState: ...
+        def price(self, world: str, nodes: list) -> dict: ...  # {node: Price fields, or {error}}: the runner's numbers
+        def ledgered(self, nodes, since: str) -> list: ...     # [Billed] of these nodes' paid runs started since
 
 SCORE_COMPUTE_BACKEND names the class as `module:Class` (imported with importlib); the shipped one is
 score.dashboard.launch.localrun:LocalBackend, which runs the `score` command line. A private deployment installs its
@@ -58,6 +60,15 @@ class LaunchState:
     log_tail: str = ""
 
 
+@dataclasses.dataclass
+class Billed:
+    """One ledger line a node's paid run wrote: what it really cost and how long its batch took."""
+    node: str
+    euros: float
+    minutes: float | None
+    started: str
+
+
 class ComputeBackend(Protocol):
     name: str
 
@@ -70,6 +81,10 @@ class ComputeBackend(Protocol):
     def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle: ...
 
     def poll(self, handle: LaunchHandle) -> LaunchState: ...
+
+    def price(self, world: str, nodes: list) -> dict: ...
+
+    def ledgered(self, nodes, since: str) -> list: ...
 
 
 def load(dotted):
