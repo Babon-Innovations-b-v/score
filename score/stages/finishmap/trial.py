@@ -1,4 +1,4 @@
-"""The finish-map method's re-test on round 4's six models as stage rows (world grain), so the runner clears and runs
+"""The finish-map method's re-test on round 4's six models as stage rows (environment grain), so the runner clears and runs
 every paid step and nothing spends outside it. The method's own rows of the surface stage run here on the six takes;
 round 4's paid turntable is read back, not rendered again.
 
@@ -113,7 +113,7 @@ def stages():
 def runner():
     from score import graph
     from score.store import Store
-    world = graph.World.from_file(REPO / "data/definitions/world.json", round=str(ROUND), work=str(WORK),
+    world = graph.Environment.from_file(REPO / "data/definitions/world.json", round=str(ROUND), work=str(WORK),
                                   repo=str(REPO))
     return graph.Runner(stages(), world, Store.default())
 

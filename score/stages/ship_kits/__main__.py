@@ -1,4 +1,4 @@
-"""The ship-kit stage's commands, on world 1 and the framework's store ($PROPS_HOME/store).
+"""The ship-kit stage's commands, on environment 1 and the framework's store ($PROPS_HOME/store).
 
     .venv/bin/python -m score.stages.ship_kits status <place> [<place> ...]
     .venv/bin/python -m score.stages.ship_kits run <place> [<place> ...]

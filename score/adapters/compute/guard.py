@@ -1,21 +1,21 @@
-"""The guard: a world's stop line, the owner's own money figure, checked before any paid job starts, never by killing
-one halfway (owner, 2026-10-18; world 1's stop was raised 13 times, by hand-run watchers that killed paid work
+"""The guard: an environment's stop line, the owner's own money figure, checked before any paid job starts, never by killing
+one halfway (owner, 2026-10-18; environment 1's stop was raised 13 times, by hand-run watchers that killed paid work
 midway and read lines an agent had typed after his yes).
 
     line = guard.set_line(store, "world1", 680.0, "the films", by, at, baseline)   # the owner's money yes, its line
     line = guard.current(store, "world1")                                           # the newest, or None
     why = guard.refusal(line, spent, flight, forecast)                              # before a paid job starts
 
-A line is kept in the store under `stops/<world>/<time>.json`, written once; the newest is the world's stop. The
+A line is kept in the store under `stops/<world>/<time>.json`, written once; the newest is the environment's stop. The
 owner's money yes is the only writer (`python -m score.review stop <world> <euros> --reason ...` from his own
 terminal), and it writes the line itself in the same step, so no decision waits on someone to copy it and no old line
 outlives it. `set_line` refuses in any process an agent started, whatever store it is given, and the accept guard hook
-blocks the other routes. A world's spend counts from its first line (`baseline`: the month and the cloud bill, cloud
+blocks the other routes. An environment's spend counts from its first line (`baseline`: the month and the cloud bill, cloud
 ledger and Google month then); a raise keeps that start.
 
 Against the stop count, at each paid job's start (`score.adapters.compute.clearance`):
 
-- what was spent since the world's first line: in each month the higher of the bill's and the ledger's growth (the
+- what was spent since the environment's first line: in each month the higher of the bill's and the ledger's growth (the
   bill lags by hours), and Google's;
 - everything in flight: each cleared run not yet ended, at its forecast less what its own batches already ledgered;
 - the job asked for, at its high forecast.
@@ -46,13 +46,13 @@ NOTHING = {"bill": 0.0, "ledger": 0.0, "google": 0.0}
 
 
 def current(store, world):
-    """The world's newest stop line, or None when it has none."""
+    """The environment's newest stop line, or None when it has none."""
     keys = sorted(store.objects.keys(f"{AREA}/{world}/"))
     return store.read(keys[-1]) if keys else None
 
 
 def set_line(store, world, euros, reason, by, at, baseline):
-    """Write the owner's stop line for one world at `euros`, his reason with it; the record. The world's spend counts
+    """Write the owner's stop line for one environment at `euros`, his reason with it; the record. The environment's spend counts
     from its first line's `baseline` ({month, bill, ledger, google}), this `baseline` only for a first line.
     PermissionError in a process an agent started."""
     if running_under_agent():
@@ -104,7 +104,7 @@ def in_flight(held, entries):
 
 
 def refusal(line, spent, flight, forecast):
-    """Why a job at `forecast` euros would pass the world's stop with `spent` and `flight` ({node: euros}) counted,
+    """Why a job at `forecast` euros would pass the environment's stop with `spent` and `flight` ({node: euros}) counted,
     naming every part, or None when it fits."""
     if spent + sum(flight.values()) + forecast <= line["euros"]:
         return None

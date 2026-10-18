@@ -4,7 +4,7 @@ baked again.
 
 Measured: each kit piece the place lays (an inventory row made as a "kit piece"), its route (a code-built kind is
 baked by tools/props/library/inside/make_kit.py, a generated one by make_chunky.py) and the latest time its bake can
-have been made: the commit that first released its file in the world's asset manifest, else the time its file was
+have been made: the commit that first released its file in the environment's asset manifest, else the time its file was
 written as the seed recorded it (inputs.json). Both come after the bake itself, so a piece older than a code change by
 them is older for certain. A piece the surface line repainted (score:repaint_of) is the runner's own, keyed by its
 code, and is left out. The bake code is each route's script and the files it imports (`bake_files`), less the piece
@@ -58,7 +58,7 @@ def code_commits(route):
 
 @functools.cache
 def released_at(sha256):
-    """When the world's asset manifest first named a file of this hash (its commit's time), or None."""
+    """When the environment's asset manifest first named a file of this hash (its commit's time), or None."""
     found = git("log", "--reverse", "--format=%cI", "-S", sha256, "--", MANIFEST).split()
     return found[0] if found else None
 

@@ -1,4 +1,4 @@
-"""The greenhouse's kit layout (world 1 place job, 2026-10-07): room_kit's capsule room (its lined walls, doors, wall
+"""The greenhouse's kit layout (environment 1 place job, 2026-10-07): room_kit's capsule room (its lined walls, doors, wall
 gear, pipe runs and composites) with what only the greenhouse has. The concept (K09) lines its walls to the dome and
 glazes only the dome, so the walls are room_kit's; then:
 

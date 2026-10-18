@@ -1,4 +1,4 @@
-"""How consistent a part splitter is across a world's models (job splits, 2026-10-10, after the owner found the split
+"""How consistent a part splitter is across an environment's models (job splits, 2026-10-10, after the owner found the split
 better but inconsistent across models on 10-09): every model's split scored against its own close-up's finishes with
 split_compare.py's scores, the spread over the models reported and the worst named, not only the mean. Measure only:
 nothing here writes a take's labels, its stored parts or a place's stage.

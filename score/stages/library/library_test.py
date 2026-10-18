@@ -1,9 +1,9 @@
-"""The library rows at the runner's seams, with a fake library: a toy table of one world row, one place row and one
+"""The library rows at the runner's seams, with a fake library: a toy table of one environment row, one place row and one
 showcase render that never passes, the two library rows made from it by `library.rows`, a store of its own and a
 PROPS_HOME of its own (the framework's store and the machine's library.env are never read or written).
 
     no library configured     library@garage says so, `configured` fails, the place is not complete
-    library-free world        the same world named in library-free.json passes, and the world is complete
+    library-free environment        the same environment named in library-free.json passes, and the environment is complete
     a configured library      the fake command runs once with the template's words; a second run reuses the record
     coverage                  an output the handover misses fails `handed` by name; a written exception covers it
     copies, quality           a missing 3D copy is unknown, never a pass
@@ -87,7 +87,7 @@ FILM = graph.Stage("demo-film", "place", make_text, TOY, (checks.Check("ok", jud
 
 
 def world_data(root, free=False, exceptions=None):
-    """The toy world's data folder: its record, a kit for its one place, the briefs, the library-free decisions."""
+    """The toy environment's data folder: its record, a kit for its one place, the briefs, the library-free decisions."""
     data = root / "data"
     for path, content in {"definitions/world.json": {"name": WORLD, "seed": 7}, f"kit/{PLACE}.json": {"pieces": []},
                           "checks/library-free.json": {"worlds": [{"world": WORLD, "why": "a toy", "who": "@owner",
@@ -165,7 +165,7 @@ def test_configured_library_runs_once():
     assert did[f"library@{PLACE}"].endswith("accepted automatically"), did
     assert did["library-world"].endswith("accepted automatically"), did
     words = [json.loads(line) for line in calls.read_text().splitlines()]
-    assert len(words) == 2, words  # the place's node and the world's, once each
+    assert len(words) == 2, words  # the place's node and the environment's, once each
     place_words = next(found for found in words if "--place" in found)
     world_words = next(found for found in words if "--place" not in found)
     value = place_words.__getitem__

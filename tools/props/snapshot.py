@@ -30,7 +30,7 @@ def face_colours(mesh):
 
 
 def view_matrix(turn, down):
-    """Rotates the world so the viewer looks along -z after turning and tilting."""
+    """Rotates the environment so the viewer looks along -z after turning and tilting."""
     yaw, pitch = np.radians(turn), np.radians(down)
     about_y = np.array([[np.cos(yaw), 0, np.sin(yaw)], [0, 1, 0], [-np.sin(yaw), 0, np.cos(yaw)]])
     about_x = np.array([[1, 0, 0], [0, np.cos(pitch), -np.sin(pitch)], [0, np.sin(pitch), np.cos(pitch)]])

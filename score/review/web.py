@@ -41,14 +41,14 @@ def decide(store, node, output, decision, by, reason="", worse_reason=None):
 
 
 def books_now():
-    """The books as they stand ({month, bill, ledger, google}), read for a world's first stop line only."""
+    """The books as they stand ({month, bill, ledger, google}), read for an environment's first stop line only."""
     from score.adapters import compute
     return compute.books_now()
 
 
 def stop(store, world, euros, reason, by, books=None):
-    """Write the world's new stop line at `euros` by the signed-in owner's name, his reason with it; the record. A
-    world's first line counts its spend from `books()` (default books_now). review.Refused for an empty or the runner's
+    """Write the environment's new stop line at `euros` by the signed-in owner's name, his reason with it; the record. A
+    environment's first line counts its spend from `books()` (default books_now). review.Refused for an empty or the runner's
     name;
     PermissionError in a process an agent started (guard.set_line)."""
     from score.adapters.compute import guard
@@ -58,6 +58,6 @@ def stop(store, world, euros, reason, by, books=None):
 
 
 def stop_line(store, world):
-    """The world's newest stop line, or None when it has none."""
+    """The environment's newest stop line, or None when it has none."""
     from score.adapters.compute import guard
     return guard.current(store, world)

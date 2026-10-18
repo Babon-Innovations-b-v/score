@@ -1,7 +1,7 @@
 """The guard at the runner's clearance, with a fake bill and fake machines: a paid job whose forecast, with what was
-spent since the world's first stop line and everything in flight, would pass the stop is refused before it starts
+spent since the environment's first stop line and everything in flight, would pass the stop is refused before it starts
 (one outbox line, free work going on); a job once started is never stopped as the bill nears the stop, only past
-twice its forecast minutes; and a world with no line in the framework's store is refused. No cloud.
+twice its forecast minutes; and an environment with no line in the framework's store is refused. No cloud.
 
 Run: .venv/bin/python score/adapters/compute/guard_test.py   (make tests runs it in a sandbox home)
 """
@@ -53,7 +53,7 @@ def as_agent(call):
 
 
 def stop_at(runner, euros, baseline=START, at="2026-10-18T09:00:00+00:00"):
-    """The owner's stop line for the runner's world."""
+    """The owner's stop line for the runner's environment."""
     return as_owner(lambda: guard.set_line(runner.store, runner.world.name, euros, "the films", "owner", at, baseline))
 
 
@@ -63,7 +63,7 @@ def outbox(runner):
 
 
 def test_a_job_that_would_pass_the_stop_is_refused_before_it_starts():
-    """Fault (world 1, 2026-10-12 to 18): the stop was a figure in a watcher script that killed runs halfway, and it
+    """Fault (environment 1, 2026-10-12 to 18): the stop was a figure in a watcher script that killed runs halfway, and it
     was raised 13 times. Now the clearance refuses a job whose forecast cannot finish under it, and says so once."""
     runner = compute_test.a_runner("a hall")
     stop_at(runner, 20.0)
@@ -120,7 +120,7 @@ def test_a_runaway_ends_the_makes_own_children_not_the_run():
 
 
 def test_the_owners_yes_writes_the_new_line_and_keeps_the_worlds_start():
-    """Fault (world 1): a yes in chat and the guard line an agent typed later disagreed. His yes writes the line."""
+    """Fault (environment 1): a yes in chat and the guard line an agent typed later disagreed. His yes writes the line."""
     runner = compute_test.a_runner("a hall")
     first = stop_at(runner, 250.0)
     raised = stop_at(runner, 680.0, baseline={"month": MONTH, "bill": 999.0, "ledger": 999.0, "google": 0.0},
@@ -178,7 +178,7 @@ def test_spend_counts_from_the_worlds_start_across_months():
 
 
 def test_the_framework_store_refuses_a_world_with_no_line():
-    """In the framework's store a world must carry the owner's money figure before any paid job starts."""
+    """In the framework's store an environment must carry the owner's money figure before any paid job starts."""
     home = pathlib.Path(os.environ["PROPS_HOME"]).resolve()
     assert home.is_relative_to(pathlib.Path(tempfile.gettempdir()).resolve()), "run in a sandbox home"
     store = Store.default()
