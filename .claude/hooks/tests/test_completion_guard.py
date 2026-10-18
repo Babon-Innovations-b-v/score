@@ -119,3 +119,24 @@ def test_no_claim_passes(tmp_path, monkeypatch):
 def test_garbage_fails_open():
     assert _run("not json")[0] == 0
     assert _run({"transcript_path": "/nowhere/at/all.jsonl"})[0] == 0
+
+
+def test_the_harness_runs_the_guard_under_the_projects_python_and_it_refuses_a_false_claim(tmp_path, monkeypatch):
+    """The guard imports score.stages, which needs pxr: under the system python3 it crashed on every stop and so
+    blocked nothing (2026-10-18). The settings run it with the project's .venv python; under that interpreter a false
+    done claim is refused, with no import error."""
+    repo = pathlib.Path(__file__).resolve().parents[3]
+    settings = json.loads((repo / ".claude/settings.json").read_text())
+    commands = [hook["command"] for groups in settings["hooks"].values() for group in groups
+                for hook in group.get("hooks", []) if "completion_guard.py" in hook.get("command", "")]
+    assert commands and all(command.startswith('"${CLAUDE_PROJECT_DIR:-$PWD}/.venv/bin/python"') for command in commands)
+    python = repo / ".venv/bin/python" if (repo / ".venv/bin/python").exists() else pathlib.Path(sys.executable)
+    kit = _with_place(tmp_path, monkeypatch)
+    try:
+        result = subprocess.run([str(python), str(_GUARD)], input=json.dumps(
+            {"transcript_path": str(_transcript(tmp_path, f"The {_PLACE} is complete now."))}),
+            capture_output=True, text=True)
+    finally:
+        kit.unlink()
+    assert "ModuleNotFoundError" not in result.stderr
+    assert result.returncode == 2 and _PLACE in result.stderr
