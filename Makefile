@@ -17,7 +17,7 @@ TESTS ?= $(shell git ls-files 'tools/*_test.py' 'score/*_test.py')
 MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 
 env:
-	uv sync -q
+	uv sync -q --group dashboard
 
 tests: env
 	@failed=""; log=$$(mktemp); for test in $(TESTS); do \
