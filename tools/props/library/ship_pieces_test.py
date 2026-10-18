@@ -28,7 +28,9 @@ except ImportError:
     sys.exit(0)
 
 sys.path.insert(0, str(HERE.parent / "gates"))
+sys.path.insert(0, str(HERE / "inside"))
 import model as model_check  # noqa: E402
+import ship_outline  # noqa: E402
 
 # The bridge's laid sizes (wide, tall, deep), as tools/props/scene/ship_kit.py lays them.
 SIZES = {"window_frame": [1.2728, 1.0, 0.12], "window_pane": [1.0728, 0.9, 0.04], "dash_light_bar": [2.4, 0.04, 0.05],
@@ -36,6 +38,46 @@ SIZES = {"window_frame": [1.2728, 1.0, 0.12], "window_pane": [1.0728, 0.9, 0.04]
          "frame_rib": [0.15, 1.4, 0.2], "floor_grate": [1.2, 0.6, 0.04], "command_platform": [1.6, 0.3, 1.2],
          "platform_step": [0.8, 0.15, 0.3], "thrust_indicator": [0.4, 0.4, 0.4],
          "outer_hatch": [1.3, 1.9, 0.35]}
+
+
+def hangar_ship_models():
+    """The hangar ship's code models as the hangar's kit lays them (tools/props/scene/bay_kit.py): the hull with the
+    plan's numbers, one of each engine and thruster at its laid size."""
+    plan = ship_outline.read_plan()
+    models = {"ship_1": {"route": "code", "kind": "hangar_ship", "size": list(ship_outline.extents(plan)),
+                         "laid": {"hull": ship_outline.hull_shows(plan)}}}
+    for mount in ship_outline.mounts(plan):
+        models.setdefault(f"{mount['row']}_1", {"route": "code", "kind": f"hangar_{mount['row']}",
+                                                "size": list(mount["size"]), "laid": {}})
+    return models
+
+
+def built_models(models, folder):
+    """{name: trimesh} of the models built headless by inside/build_only.py in `folder`."""
+    plan = pathlib.Path(folder) / "plan.json"
+    plan.write_text(json.dumps({"models": models}))
+    out = pathlib.Path(folder) / "built"
+    done = subprocess.run([sys.executable, str(REPO / "tools/blender/session.py"), "batch",
+                           str(HERE / "inside/build_only.py"), "--", str(REPO), str(plan), str(out)],
+                          capture_output=True, text=True)
+    assert done.returncode == 0, done.stdout[-2000:] + done.stderr[-2000:]
+    return {path.stem: trimesh.load(path, force="mesh") for path in out.glob("*.glb")}
+
+
+def test_the_hangar_ship_builds_from_the_plan_with_walls_the_model_check_passes():
+    """The ship built in code from the plan v7 (2026-10-18): its hull at 46 m and its engines and thrusters build, as
+    long and as wide as the plan, with walls the model check passes."""
+    if not (REPO / "tools/blender/session.py").exists():
+        print("skipped: no Blender launcher")
+        return
+    models = hangar_ship_models()
+    with tempfile.TemporaryDirectory() as folder:
+        built = built_models(models, folder)
+    assert sorted(built) == sorted(models), sorted(built)
+    for name, mesh in built.items():
+        wide, tall, deep = models[name]["size"]
+        assert abs(mesh.extents[2] - deep) < 0.05 * deep + 0.02, (name, mesh.extents, deep)
+        assert model_check.thinnest(mesh, mesh.extents) >= model_check.THINNEST_LIMIT, name
 
 
 def test_no_ship_builder_takes_another_room_s_name():

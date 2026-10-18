@@ -6588,6 +6588,13 @@ import pieces_ship  # noqa: E402
 assert not set(pieces_ship.BUILDERS) & set(BUILDERS), "a ship builder would replace another room's"
 BUILDERS.update(pieces_ship.BUILDERS)
 
+# The hangar ship built in code from the owner's plan v7 (2026-10-18, PRD #10): its hull and the engines and thrusters
+# laid on it, in a module of their own like the ship rooms'.
+import pieces_hull  # noqa: E402
+
+assert not set(pieces_hull.BUILDERS) & set(BUILDERS), "a hull builder would replace another room's"
+BUILDERS.update(pieces_hull.BUILDERS)
+
 
 def build(kind, size, laid, name):
     """One code-built piece of `kind` at `size`, as one object whose material slots name library materials; which of

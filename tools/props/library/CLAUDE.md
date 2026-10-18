@@ -77,7 +77,10 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   pipes and trims (`PLAIN`) go to `inside/pieces.py`; so does every kind listed in `data/library/fittings.json` (the
   room's shell and fittings, furniture holders, plain manufactured objects) whose last code build shows every part
   its clean close-up shows (`pieces.parts_seen`, each part seen at least 10% from in front) with no print over a part;
-  every other kind goes to the prop pipeline. A box's proportions never decide it. `route.py fittings <work>` writes a
+  every other kind goes to the prop pipeline. The hangar ship is such a listed fitting (2026-10-18): its hull, engines
+  and thrusters are built in code from the owner's plan v7 (`inside/ship_outline.py` reads `data/definitions/ship.json`
+  in plain Python for the kit layout and the builder alike; `inside/pieces_hull.py` builds them from the numbers the
+  layout hands in), never from a picture. A box's proportions never decide it. `route.py fittings <work>` writes a
   build's result back; `route.py layout` stops on a code build that failed. `library_test.py` fails on a builder
   that is neither plain nor a listed fitting, and on any model the hub lays that was not made on its kind's route.
   `labels.py` paints a generated model by its parts (job paint, 2026-10-08, the owner: "shouldn't the painting be

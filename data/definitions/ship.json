@@ -1,12 +1,21 @@
 {
  "notes": [
   "Credit: the ship's shape is traced from the owner's references, a shuttle concept by PAUL (zana), found online, through a drawing made from it. The references and the drawing stay out of the repository and off any public page; only these numbers are kept here.",
-  "Locked by the owner on 2026-10-14 (plan v7): the whole outline from the drawing's top view, the heights from its side view, at the hangar's 31 m; cockpit height 1.8 to 2.4 m.",
-  "Frame: metres; y from the nose spike's tip back to the stern, x across (starboard positive, the side ring's side), z up from the ground the ship stands on."
+  "Locked by the owner on 2026-10-14 (plan v7): the whole outline from the drawing's top view, the heights from its side view, drawn at 31 m (the hangar's keep-out estimate of 2026-10-07, never his); cockpit height 1.8 to 2.4 m.",
+  "Frame: metres; y from the nose spike's tip back to the stern, x across (starboard positive, the side ring's side), z up from the ground the ship stands on.",
+  "Built at 46 m (2026-10-18, PRD #10: the owner asked for a much bigger ship, the length the overseer's call on his delegation): every number in this file is drawn at drawn_length and is scaled by length / drawn_length where the ship is built (tools/props/library/inside/ship_outline.py); the hangar is sized to the ship."
  ],
  "made": "2026-10-14, v7: the whole outline as drawn; the stern airlock; the engines the side tubes",
- "length": 31.0,
+ "drawn_length": 31.0,
+ "length": 46.0,
  "legs": 0.7,
+ "leg_pairs": {
+  "y": [
+   11.0,
+   22.3
+  ],
+  "from": "plan v7's side page (plan-side.png): the two landing legs under the belly, one pair forward, one aft"
+ },
  "deck": 1.6,
  "airlock_deck": 2.4,
  "stern_block": 25.9,
@@ -292,13 +301,18 @@
    "for": "turning: small thrusters in the drawn nose plate, each side, under and over"
   }
  ],
- "hull_detail": {
+ "side_ring": {
   "name": "side ring",
-  "label": "hull detail",
+  "label": "docking hatch and people airlock",
   "y": 19.3,
   "side": "starboard",
   "across": 1.4,
-  "notes": "the drawing's and his painting's ring on the hull's side: hull detail, no room and no door (the owner, 2026-10-14)"
+  "door": {
+   "tall": 1.9,
+   "sill": 0.1
+  },
+  "collar": 0.3,
+  "notes": "the drawing's and his painting's ring on the hull's side: the docking hatch, and the people airlock too, one opening for both, round and sized for a person (1.9 m across, its sill 0.1 m over the deck), in a collar standing out of the hull (the owner on 2026-10-14, after the record that called it hull detail, which was wrong; PRD #10 comment of 2026-10-18)"
  },
  "door_size": {
   "wide": 0.9,
@@ -5377,5 +5391,12 @@
     15.124
    ]
   ]
- ]
+ ],
+ "windows": {
+  "y": [
+   9.0,
+   12.0
+  ],
+  "from": "plan v7's side page: the nose windows over the cockpit"
+ }
 }
