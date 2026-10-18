@@ -10,6 +10,7 @@ from score.dashboard.previews import canvas
 POSITION_KEYS = ("at", "spot", "position", "translate", "centre", "center", "middle", "eye")
 MOVED = "#b4583a"
 KEPT = "#4c6a8a"
+MANY = 200  # more placed things than this are drawn as fine dots
 
 
 def plan_picture(plan, destination):
@@ -89,19 +90,25 @@ def inside(placed, plan, margin=0.25):
 
 
 def dots(axes, placed, colour, labelled):
-    """Each placed thing as a dot, named when there are few enough to read."""
-    for name, x, z in placed:
-        axes.plot(x, z, marker="o", markersize=4, color=colour, markeredgecolor=canvas.INK, markeredgewidth=0.3)
-        if labelled:
-            axes.text(x, z, f" {canvas.short(name, 18)}", fontsize=5.5, color=canvas.INK)
+    """Each placed thing as a dot (a fine one when there are many), named when there are few enough to read."""
+    many = len(placed) > MANY
+    if placed:
+        axes.plot([x for _, x, _ in placed], [z for _, _, z in placed], linestyle="none", marker="o",
+                  markersize=1.0 if many else 4, color=colour, markeredgecolor=colour if many else canvas.INK,
+                  markeredgewidth=0.3, alpha=0.6 if many else 1.0)
+    for name, x, z in placed if labelled else ():
+        axes.text(x, z, f" {canvas.short(name, 18)}", fontsize=5.5, color=canvas.INK)
 
 
-def positions_picture(placed, plan, words, destination):
-    """The placed things over the place."""
+def positions_picture(placed, routes, plan, words, destination):
+    """The placed things over the place, and each moving thing's route."""
     figure, (axes,) = canvas.blank()
     canvas.underlay(axes, plan)
     dots(axes, placed, MOVED, len(placed) <= 30)
-    canvas.title(axes, f"{words}: {len(placed)} placed")
+    for number, (name, route) in enumerate(routes):
+        drawn_route(axes, name, route, canvas.COLOURS[number % len(canvas.COLOURS)])
+    moving = f", {len(routes)} moving" if routes else ""
+    canvas.title(axes, f"{words}: {len(placed)} placed{moving}")
     return canvas.save(figure, [axes], destination)
 
 
@@ -120,23 +127,85 @@ def settle_picture(settle, plan, destination):
     return canvas.save(figure, [axes], destination)
 
 
+def opened_layer(name, path, folder):
+    """A USD layer opened on its own (every prim, defined or over), linked under its own suffix since a stored blob
+    has none; None when it will not open."""
+    from pxr import Tf, Usd
+    linked = pathlib.Path(folder) / f"layer{pathlib.PurePosixPath(name).suffix or '.usda'}"
+    os.symlink(path, linked)
+    try:
+        return Usd.Stage.Open(str(linked), Usd.Stage.LoadNone)
+    except Tf.ErrorException:
+        return None
+
+
+def own_translate(prim, time):
+    """A prim's own `xformOp:translate` at a time, plus its parents' (an over in a layer opened on its own has no
+    op order to compose); (0, 0, 0) where none is authored."""
+    total = [0.0, 0.0, 0.0]
+    while prim and not prim.IsPseudoRoot():
+        attribute = prim.GetAttribute("xformOp:translate")
+        value = attribute.Get(time) if attribute and attribute.HasAuthoredValue() else None
+        if value is not None:
+            total = [total[axis] + value[axis] for axis in range(3)]
+        prim = prim.GetParent()
+    return total
+
+
+def placed_at(prim, cache):
+    """(x, z) of a prim the layer places: its composed transform, else its authored translates; None when the layer
+    places it nowhere."""
+    from pxr import Usd, UsdGeom
+    if UsdGeom.Xformable(prim).GetOrderedXformOps():
+        moved = cache.GetLocalToWorldTransform(prim).ExtractTranslation()
+        return moved[0], moved[2]
+    attribute = prim.GetAttribute("xformOp:translate")
+    if not (attribute and attribute.HasAuthoredValue()):
+        return None
+    moved = own_translate(prim, Usd.TimeCode.EarliestTime())
+    return moved[0], moved[2]
+
+
 def layer_positions(name, path):
-    """[(name, x, z)] of every prim a USD layer places, at its own transforms (the layer opened on its own, every
-    prim, defined or over); none when the layer will not open, so the output is pictured another way. The file is
-    linked under a .usda name, since a stored blob has no suffix."""
-    from pxr import Tf, Usd, UsdGeom
+    """[(name, x, z)] of every prim a USD layer places; none when the layer will not open, so the output is
+    pictured another way."""
+    from pxr import Usd, UsdGeom
     with tempfile.TemporaryDirectory() as folder:
-        linked = pathlib.Path(folder) / f"layer{pathlib.PurePosixPath(name).suffix or '.usda'}"
-        os.symlink(path, linked)
-        try:
-            stage = Usd.Stage.Open(str(linked), Usd.Stage.LoadNone)
-        except Tf.ErrorException:
+        stage = opened_layer(name, path, folder)
+        if stage is None:
             return []
         cache = UsdGeom.XformCache(Usd.TimeCode.EarliestTime())
         found = []
         for prim in Usd.PrimRange.AllPrims(stage.GetPseudoRoot()):
-            if prim.IsPseudoRoot() or not UsdGeom.Xformable(prim).GetOrderedXformOps():
-                continue
-            moved = cache.GetLocalToWorldTransform(prim).ExtractTranslation()
-            found.append((prim.GetName(), moved[0], moved[2]))
+            point = None if prim.IsPseudoRoot() else placed_at(prim, cache)
+            if point:
+                found.append((prim.GetName(), *point))
     return found
+
+
+def layer_paths(name, path):
+    """[(name, [(x, z), ...])] of every prim whose translate the layer animates (more than one place over time),
+    at each of its time samples; none when the layer will not open."""
+    from pxr import Usd
+    with tempfile.TemporaryDirectory() as folder:
+        stage = opened_layer(name, path, folder)
+        if stage is None:
+            return []
+        found = []
+        for prim in Usd.PrimRange.AllPrims(stage.GetPseudoRoot()):
+            attribute = None if prim.IsPseudoRoot() else prim.GetAttribute("xformOp:translate")
+            times = attribute.GetTimeSamples() if attribute else []
+            route = [tuple(own_translate(prim, time)[axis] for axis in (0, 2)) for time in times]
+            if len(set(route)) > 1:
+                found.append((prim.GetName(), route))
+    return found
+
+
+def drawn_route(axes, name, route, colour):
+    """A mover's route: a line through its places, a dot where it starts, an arrow to the farthest it goes."""
+    across, down = [x for x, _ in route], [z for _, z in route]
+    axes.plot(across, down, color=colour, linewidth=1.2)
+    axes.plot(across[0], down[0], marker="o", markersize=4, color=colour)
+    far = max(route, key=lambda point: (point[0] - route[0][0]) ** 2 + (point[1] - route[0][1]) ** 2)
+    axes.annotate("", xy=far, xytext=route[0], arrowprops={"arrowstyle": "->", "color": colour, "lw": 1.2})
+    axes.text(across[0], down[0], f" {canvas.short(name, 18)}", fontsize=6, color=canvas.INK)
