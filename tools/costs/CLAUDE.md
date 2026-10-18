@@ -4,6 +4,13 @@ The cloud's cost and time as the paper's cost tables give them (Appendix G), fro
 bill. `costs.py` is the way in (its docstring has the commands); `costs_test.py` checks its sums on a ledger written
 in the test.
 
+- **`per_unit.py` writes the runner's per-unit prices** (`data/costs/per-unit.json`, owner 2026-10-18: prices only
+  from measured per-unit numbers, at full cost): per paid stage in its `SPECS`, the unit, which ledger lines did that
+  work (a batch kind and `who`, or a Google caller), likely the median and high the 90% quantile of each line's euros
+  over its units, the lines it rests on, and the rule the runner counts a node's units by in its accepted output.
+  Rerun it with every ledger that holds those lines (the local cloud ledger lost its rows of 10-12 to 10-17; the
+  backup, the reconstruction and the paper's copy hold the rest) and commit the file; a stage with no lines stays
+  unmeasured, priced nowhere.
 - **The ledger is never rewritten.** What a row lacks (a kind, a machine type) is added beside it: the reconciliation
   file tags rows by batch, and an engine run's type is read from its price. A fix to the runners goes in
   `tools/props/cloud/`, not here.

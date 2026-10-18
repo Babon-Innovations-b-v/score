@@ -167,33 +167,49 @@ def plan_json(runner, places, whole, options):
     (buy_price)}, and the run's price over them (plan_price), the only euros and minutes the cockpit shows."""
     found = buy_check(runner, places, whole, options.stage, options.rebuy_reason)
     found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again,
-                      "price": buy_price(buy)} for buy in found["buys"]]
+                      "price": buy_price(buy, counting_store(runner.store))} for buy in found["buys"]]
     return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found,
             "price": plan_price([buy["price"] for buy in found["buys"]], options.jobs)}
 
 
-def buy_price(buy):
+def counting_store(store):
+    """`store` read with its keys walked in a node's own folder (the library check's NodeFolders), so counting a
+    node's units reads its accepts, not every blob of the store (a whole walk took 8 s a node)."""
+    from score.stages.complete.library import stored
+    from score.store import Store, runtime_store
+    if isinstance(store.objects, runtime_store.FolderStore):
+        return Store(stored.NodeFolders(store.objects.root), store.cache)
+    return store
+
+
+def buy_price(buy, store):
     """One buy's price on the runner's own numbers (compute.run_price: its stage's measured runs, the numbers its
-    clearance reserves, else its estimate), or nothing for a Google ask its cache answers (rebuy prices it EUR 0)."""
+    clearance reserves, else its measured units on `store`, else not measured yet with its estimate as a guess), or
+    nothing for a Google ask its cache answers (rebuy prices it EUR 0)."""
     from score.adapters import compute
     if buy.euros == 0:
         return {"likely_euros": 0.0, "high_euros": 0.0, "likely_minutes": 0.0, "high_minutes": 0.0, "cards": None,
-                "runs": 0}
-    return compute.run_price(buy.node, buy.euros)
+                "runs": 0, "basis": "cached"}
+    return compute.run_price(buy.node, buy.euros, store)
 
 
 def plan_price(prices, jobs):
-    """The run's price over its buys' prices: {likely_euros, high_euros} their sums; {likely_minutes, high_minutes}
-    the paid rows' time with `jobs` of them at once (the longest row, or their minutes over `jobs` when that is
-    longer), None while any row's time is unmeasured; `measured` the rows priced from measured runs of `rows`. High
+    """The run's price over its buys' prices: {likely_euros, high_euros} the sums of the measured ones; {guessed_euros,
+    guessed} the not-measured rows' estimates and their count, kept apart (a guess is never a price);
+    {likely_minutes, high_minutes} the paid rows' time with `jobs` of them at once (the longest row, or their minutes
+    over `jobs` when that is longer), None while any row's time is unmeasured; `measured` the rows priced from measured runs of `rows`. High
     is the sum of the rows' highs, so it reads high; the time leaves out the free rows and the waits between rows."""
     def wall(key):
         minutes = [price[key] for price in prices]
         if any(each is None for each in minutes):
             return None
         return round(max([*minutes, sum(minutes) / max(1, jobs)], default=0.0), 1)
-    return {"likely_euros": round(sum(price["likely_euros"] for price in prices), 2),
-            "high_euros": round(sum(price["high_euros"] for price in prices), 2),
+
+    def priced(key):
+        return round(sum(price[key] for price in prices if price[key] is not None), 2)
+    guessed = [price for price in prices if price["likely_euros"] is None]
+    return {"likely_euros": priced("likely_euros"), "high_euros": priced("high_euros"),
+            "guessed_euros": round(sum(price["guess_euros"] for price in guessed), 2), "guessed": len(guessed),
             "likely_minutes": wall("likely_minutes"), "high_minutes": wall("high_minutes"),
             "measured": sum(1 for price in prices if price["runs"]), "rows": len(prices), "jobs": jobs}
 
@@ -241,14 +257,16 @@ def cost_lines(books, read_at):
 
 
 def price_json(world, nodes):
-    """{world, nodes: {node: price}}: each paid node at compute.run_price on its stage's estimate; a node that is not
-    a paid row of the stage table says so instead."""
+    """{world, nodes: {node: price}}: each paid node at compute.run_price (its units counted on the framework store's
+    accepted outputs, its stage's estimate as the guess); a node that is not a paid row of the stage table says so
+    instead."""
     from score.adapters import compute
-    rows = {row.name: row for row in stages.STAGES}
+    from score.store import Store
+    rows, store = {row.name: row for row in stages.STAGES}, counting_store(Store.default())
     found = {}
     for node in nodes:
         row = rows.get(node.partition("@")[0])
-        found[node] = (compute.run_price(node, float(row.euros or 0)) if row is not None and row.paid
+        found[node] = (compute.run_price(node, float(row.euros or 0), store) if row is not None and row.paid
                        else {"error": f"{node} is not a paid row of the stage table"})
     return {"world": world, "nodes": found}
 

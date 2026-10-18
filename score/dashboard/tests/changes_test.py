@@ -293,3 +293,20 @@ def test_the_before_is_drawn_with_the_proposals_own_drawing_on_the_accepted_stag
                                  home / "out")
     assert drawn == ["neighbours@alpha", ("alpha.usda", planned, "before")]
     assert found == [{"name": "film-1", "file": "before/film-1.jpg"}]
+
+
+def priced_totals(likely, high, guessed, unmeasured, nodes):
+    return {"totals": {"likely_euros": likely, "high_euros": high, "guessed_euros": guessed, "nodes": nodes,
+                       "unmeasured": [f"pixal@place{number}" for number in range(unmeasured)]}}
+
+
+def test_a_guess_is_said_apart_and_never_shown_as_the_price():
+    """Jobs not measured yet are said with their stages' guess, apart from the measured price; with none measured
+    there is no price at all."""
+    measured = changes.price_words(priced_totals(1.5, 2.5, 0.0, 0, 2), True)
+    assert (measured["high"], measured["words"]) == (2.5, "measured from earlier runs")
+    partly = changes.price_words(priced_totals(1.5, 2.5, 20.0, 1, 3), True)
+    assert partly["high"] == 2.5 and partly["guessed"] == 20.0
+    assert "guess EUR 20.00, which is not a price" in partly["words"]
+    guessed = changes.price_words(priced_totals(0.0, 0.0, 20.0, 2, 2), True)
+    assert guessed["high"] is None and guessed["likely"] is None and "2 of 2 jobs not measured yet" in guessed["words"]

@@ -10,6 +10,7 @@
     <div class="eyebrow">You chose to buy</div>
     <div class="money-total">{% if bought.count %}{% if bought.high is not None %}at most EUR {{ bought.high|floatformat:2 }}{% else %}<span class="unknown">price not known yet</span>{% endif %}{% else %}nothing yet{% endif %}</div>
     <p class="soft small">{{ bought.count }} fix{{ bought.count|pluralize:"es" }} chosen{% if bought.likely is not None and bought.count %}, likely EUR {{ bought.likely|floatformat:2 }}{% endif %}; {{ waiting|length }} still to look at.</p>
+    {% if bought.count and bought.guessed %}<p class="soft small">Not in this price: {{ bought.guessed_jobs|floatformat:0 }} job{{ bought.guessed_jobs|pluralize }} never measured yet, guessed at EUR {{ bought.guessed|floatformat:2 }} by their stages.</p>{% endif %}
     <p class="soft small">Buying chooses a fix; nothing is paid until the one checkout of everything you chose.</p>
     {% if owner and bought.count %}
     <form method="post" action="/changes/checkout/" class="checkout-form">{% csrf_token %}
@@ -100,7 +101,7 @@
 
   <footer class="fix-foot">
     <div class="grow">
-      {% if card.total %}<span class="fix-total">{% if card.free_only %}Free{% else %}This fix: about EUR {{ card.total.likely|floatformat:2 }}{% if card.total.high != card.total.likely %}, at most EUR {{ card.total.high|floatformat:2 }}{% endif %}{% endif %}</span>{% elif not card.free_only %}<span class="unknown">Price not worked out yet</span>{% endif %}
+      {% if card.total %}<span class="fix-total">{% if card.free_only %}Free{% elif card.total.guessed_jobs == card.total.jobs %}This fix: not measured yet ({{ card.total.jobs }} job{{ card.total.jobs|pluralize }}, guessed EUR {{ card.total.guessed|floatformat:2 }} by their stages, not a price){% else %}This fix: about EUR {{ card.total.likely|floatformat:2 }}{% if card.total.high != card.total.likely %}, at most EUR {{ card.total.high|floatformat:2 }}{% endif %}{% if card.total.guessed %}, plus {{ card.total.guessed_jobs }} job{{ card.total.guessed_jobs|pluralize }} not measured yet (guessed EUR {{ card.total.guessed|floatformat:2 }}, not a price){% endif %}{% endif %}</span>{% elif not card.free_only %}<span class="unknown">Price not worked out yet</span>{% endif %}
       {% if card.choice.applied %}<p class="soft small">{{ card.choice.applied }}</p>{% endif %}
       {% if card.stale %}<p class="soft small">The fix changed since you answered; look again.</p>{% endif %}
     </div>

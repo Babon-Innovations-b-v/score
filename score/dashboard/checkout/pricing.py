@@ -57,11 +57,16 @@ def span(prices, field, jobs):
 
 
 def totals(prices, jobs=guard.DEFAULT_JOBS):
-    """{likely_euros, high_euros, likely_minutes, high_minutes, cards, nodes, unmeasured, unpriced} of nodes priced
-    ({node: price}); `unpriced` the nodes the runner could not price (each counts nothing)."""
+    """{likely_euros, high_euros, guessed_euros, likely_minutes, high_minutes, cards, nodes, unmeasured, unpriced} of
+    nodes priced ({node: price}): likely and high the measured nodes' sums; `guessed_euros` the stage estimates of
+    the nodes not measured yet (`unmeasured`), never part of the price; `unpriced` the nodes the runner could not
+    price (each counts nothing)."""
     priced = {node: price for node, price in prices.items() if "error" not in price}
-    return {"likely_euros": round(sum(price["likely_euros"] for price in priced.values()), 2),
-            "high_euros": round(sum(price["high_euros"] for price in priced.values()), 2),
+    measured = [price for price in priced.values() if price["likely_euros"] is not None]
+    return {"likely_euros": round(sum(price["likely_euros"] for price in measured), 2),
+            "high_euros": round(sum(price["high_euros"] for price in measured), 2),
+            "guessed_euros": round(sum(price.get("guess_euros") or 0.0 for price in priced.values()
+                                       if price["likely_euros"] is None), 2),
             "likely_minutes": span(priced, "likely_minutes", jobs), "high_minutes": span(priced, "high_minutes", jobs),
             "cards": sum(price.get("cards") or 0 for price in priced.values()), "nodes": len(prices),
             "unmeasured": sorted(node for node, price in priced.items() if not price.get("runs")),
