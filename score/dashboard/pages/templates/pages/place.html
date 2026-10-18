@@ -61,6 +61,8 @@
   {% else %}<p class="soft">None found by the checks.</p>{% endif %}
 </section>
 
+{% include "pages/library_strip.html" %}
+
 <details class="ids"><summary>details</summary>
   <div class="fold-body">
   <p class="soft">{{ detail.status|capfirst }}.</p>

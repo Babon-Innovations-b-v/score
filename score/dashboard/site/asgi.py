@@ -17,6 +17,7 @@ from fastapi.openapi.docs import get_swagger_ui_html  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from score.dashboard.api.deps import signed_in  # noqa: E402
+from score.dashboard.api.library import library_files  # noqa: E402
 from score.dashboard.api.routes import api, files  # noqa: E402
 from score.dashboard.auth.proxy import TrustedProxyGuard  # noqa: E402
 from score.dashboard.checkout.routes import checkout  # noqa: E402
@@ -27,6 +28,7 @@ inner.include_router(sync, prefix="/api/sync")
 inner.include_router(checkout, prefix="/api/checkout")
 inner.include_router(api, prefix="/api")
 inner.include_router(files)
+inner.include_router(library_files)
 
 
 @inner.get("/api/openapi.json", include_in_schema=False)

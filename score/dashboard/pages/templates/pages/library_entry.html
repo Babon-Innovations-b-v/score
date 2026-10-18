@@ -1,0 +1,47 @@
+{% extends "pages/base.html" %}
+{% block title %}{{ entry.title }}{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="/library/">Library</a><span>/</span><a href="/library/?kind={{ entry.kind }}">{{ kind_label }}</a><span>/</span>{{ entry.title }}</nav>
+<div class="page-head">
+  <h1>{{ entry.title }}</h1>
+  <span class="status {% if entry.state == 'locked' %}done{% elif entry.state == 'draft' %}review{% else %}quiet{% endif %}">{{ entry.state }}{% if entry.locked %} {{ entry.locked }}{% endif %}</span>
+  {% if asked %}<span class="tag">{{ asked }} asked, waiting for the library's machine</span>{% endif %}
+  <div class="grow"></div>
+  {% if open3d %}<a class="button primary big" href="{{ open3d }}">Open in 3D</a>{% endif %}
+</div>
+
+<section class="lib-entry">
+  <figure class="lib-picture">
+    {% if picture %}<a href="{{ picture }}"><img class="pic" src="{{ picture }}" alt="{{ entry.title }}"></a>{% else %}{% include "pages/pic.html" with src=None name=entry.title %}{% endif %}
+    {% if takes %}<div class="takes">{% for take in takes %}<figure class="take"><audio controls preload="none" src="{{ take.url }}"></audio><figcaption>{{ take.name }}</figcaption></figure>{% endfor %}</div>{% endif %}
+  </figure>
+  <div class="lib-facts">
+    <p class="lib-sentence">{{ sentence }}</p>
+    <h2 class="eyebrow">Where it came from</h2>
+    <dl class="facts">
+      {% if entry.world %}<dt>World</dt><dd>{{ entry.world }}</dd>{% endif %}
+      {% if place %}<dt>Place</dt><dd>{% if place.url %}<a href="{{ place.url }}">{{ place.label }}</a>{% else %}{{ place.label }}{% endif %}</dd>{% endif %}
+      {% if step %}<dt>Step</dt><dd>{% if step.url %}<a href="{{ step.url }}">{{ step.label }}</a>{% else %}{{ step.label }}{% endif %}</dd>{% endif %}
+      {% if entry.source %}<dt>Read from</dt><dd>{{ entry.source }}</dd>{% endif %}
+      {% if seen_in|length > 1 %}<dt>Used in</dt><dd>{% for found in seen_in %}{% if found.url %}<a href="{{ found.url }}">{{ found.label }}</a>{% else %}{{ found.label }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+    </dl>
+    {% if requires %}<h2 class="eyebrow">Needs</h2><div class="chips">{% for need in requires %}{% if need.url %}<a class="chip" href="{{ need.url }}">{{ need.title }}</a>{% else %}<span class="chip missing">{{ need.title }}</span>{% endif %}{% endfor %}</div>{% endif %}
+    {% if owner and entry.state != "withdrawn" and not asked %}
+    <form class="card lib-decide" method="post" action="/library/ask/">{% csrf_token %}<input type="hidden" name="back" value="{{ back }}"><input type="hidden" name="address" value="{{ entry.address }}">
+      {% if entry.state == "draft" %}<button class="primary wide" name="action" value="lock">Lock: approve as final</button>
+      <p class="small soft">A locked entry is never changed again; a change becomes its next version.</p>
+      {% else %}<button class="danger wide" name="action" value="withdraw">Withdraw</button>
+      <p class="small soft">Kept with its files, taken out of the library's catalogue.</p>{% endif %}
+    </form>
+    {% endif %}
+    {% if versions|length > 1 %}<h2 class="eyebrow">Versions</h2><div class="chips">{% for other in versions %}<a class="chip" href="{{ other.url }}">v{{ other.version }} {{ other.state }}</a>{% endfor %}</div>{% endif %}
+  </div>
+</section>
+
+<details class="ids"><summary>details</summary>
+  <div class="fold-body">
+    <p>Address <code>{{ entry.address }}</code>{% if entry.node %}, made by <code>{{ entry.node }}</code>{% endif %}{% if entry.commit %} at commit <code>{{ entry.commit|slice:":12" }}</code>{% endif %}.</p>
+    {% if entry.tags %}<p>{% for name, values in entry.tags.items %}{{ name }}: {{ values|join:", " }}{% if not forloop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+  </div>
+</details>
+{% endblock %}

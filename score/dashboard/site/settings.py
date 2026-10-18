@@ -56,6 +56,11 @@ SCORE_BILL_FACTOR = float(os.environ.get("SCORE_BILL_FACTOR", "1.21"))
 SCORE_MONTH_EUROS = os.environ.get("SCORE_MONTH_EUROS", "").strip() or None
 # The fresh 3D web copies (python -m score.dashboard web3d <place>), made from each accepted assembly.
 SCORE_WEB_COPIES = pathlib.Path(os.environ.get("SCORE_WEB_COPIES", SCORE_HOME / "web3d"))
+# The creator's library (state/library.py): its folder, the folder of its file bytes, and its own command, run there
+# for the owner's lock and withdraw. Unset: no Library page.
+SCORE_LIB_ROOT = os.environ.get("SCORE_LIB_ROOT", "").strip() or None
+SCORE_LIB_BLOBS_DIR = os.environ.get("SCORE_LIB_BLOBS_DIR", "").strip() or None
+SCORE_LIB_COMMAND = os.environ.get("SCORE_LIB_COMMAND", "score-lib")
 SCORE_SYNC_TOKEN = os.environ.get("SCORE_SYNC_TOKEN", "")
 SCORE_SYNC_URL = os.environ.get("SCORE_SYNC_URL", "").rstrip("/")
 # Raised from the spec's 300 for the 3D copies in the export (owner, 2026-10-18: the hosted cockpit has 3D too).
