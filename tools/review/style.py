@@ -18,7 +18,7 @@ readings, each per place:
   coloured pixels reads as None. How much the places' coloured palettes share (`palette_overlap`) says whether the
   fit can tell one place's style from another's at all.
 - **Lightness spread.** The spread (standard deviation) of the models' median L* within a place, against the spread
-  over the whole world.
+  over the whole environment.
 - **Surface marks.** How blotchy each model's surfaces look: the 75th percentile, over the TILE x TILE tiles wholly on
   the model, of each tile's L* spread (sweep.py's "blotchy", read on the render rather than the texture), per place its
   median and its spread over the models. A piece that keeps its own picture's rust and stains reads high.
@@ -235,7 +235,7 @@ def likeness_split(likeness, place, kind):
 
 
 def world_features(likeness):
-    """The whole world's feature readings: every pair within a place against every pair across, per kind, and the
+    """The whole environment's feature readings: every pair within a place against every pair across, per kind, and the
     style gap from them."""
     found = {}
     for kind in ("colour", "shape"):

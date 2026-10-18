@@ -39,7 +39,7 @@ stage as each stage is built; nothing moves before.
   held past `LOCK_WAIT` the waiter is blocked, never made again. A record or judgement another run stored first is
   taken as made, never an error; a make that writes into its read-only input's checkout fails and stores nothing.
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
-  leaves out the places its environment data says it has nothing to do for), `Environment` (`World` its old name, kept for the five stage modules that name it until each one's next paid re-make),
+  leaves out the places its environment data says it has nothing to do for), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
   stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved

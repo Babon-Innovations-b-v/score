@@ -1,4 +1,4 @@
-"""The images world's table and gates: each kind with a plan has its pins and proof nodes on a world without places;
+"""The images environment's table and gates: each kind with a plan has its pins and proof nodes on an environment without places;
 loose pins fail `pins hashed`; the moss takes pass at length and heard and fail when silent, short or scoring under
 the build before; the walking clip passes and fails when it stands still; `jobs ran` fails a job of the plan that did
 not reach its first result; `publish` refuses a proof that does not stand accepted.
@@ -54,7 +54,7 @@ def test_the_images_world_has_its_own_table_and_no_places():
             "image-proof-characters-motion"} <= set(runner.stages)
     assert runner.stages["image-proof-moss"].paid and runner.stages["image-proof-moss"].euros > 0
     assert not runner.stages["image-pins-moss"].paid
-    assert "image-pins-moss" not in stages.runner().stages  # world 1's table has none of them
+    assert "image-pins-moss" not in stages.runner().stages  # environment 1's table has none of them
 
 
 def test_loose_pins_fail():

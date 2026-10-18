@@ -49,7 +49,7 @@ def held(node, report_of=None):
 
 
 def agreeing():
-    """A world and a library that agree: the garage handed, its one entry held at its output."""
+    """An environment and a library that agree: the garage handed, its one entry held at its output."""
     handed = {"world": held("library-world", report()), "garage": held("library@garage", report("model/rover@2"))}
     return handed, [row("model/rover@1"), row("model/rover@2")], {"pixal@garage": "out-1"}
 
@@ -112,7 +112,7 @@ def test_shown_nowhere():
     found = invariant.problems(WORLD, handed, rows, accepted, True)
     assert rules(found) == {"garage": ["shown nowhere"], "world": ["shown nowhere"]}
     assert found["garage"][0]["address"] == "model/old_crate@1"
-    assert found["world"][0]["address"] == "model/hut@1"  # the hangar has no library node: shown on the world
+    assert found["world"][0]["address"] == "model/hut@1"  # the hangar has no library node: shown on the environment
 
 
 def test_history_is_not_counted():

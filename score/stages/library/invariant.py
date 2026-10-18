@@ -1,6 +1,6 @@
-"""The library invariant: what a world holds, what its library holds and what its handovers say, compared, pure.
+"""The library invariant: what an environment holds, what its library holds and what its handovers say, compared, pure.
 
-    found = invariant.problems(world, places, handed, rows, accepted, configured)
+    found = invariant.problems(environment, places, handed, rows, accepted, configured)
     # {place or "world": [{"rule", "sentence", "address", "node"}]}
 
 The three sets (the wiring contract's C1, the export side left to the cockpit's sync):
@@ -13,10 +13,10 @@ The three sets (the wiring contract's C1, the export side left to the cockpit's 
 
 Each mismatch is one problem, said in a plain sentence:
 
-    not handed     a place (or the world) with no accepted library node
+    not handed     a place (or the environment) with no accepted library node
     not in library an address a handover names that the library lacks, or holds withdrawn
-    moved on       a newest entry of this world whose node's accepted output is no longer the one it was made from
-    shown nowhere  a newest entry of this world that no handover names, once its own place's handover stands
+    moved on       a newest entry of this environment whose node's accepted output is no longer the one it was made from
+    shown nowhere  a newest entry of this environment that no handover names, once its own place's handover stands
     not pushed     a handover whose library commit did not reach its remote
 
 Nothing here reads a file: `sweep.py` gathers the sets and writes the problems where the cockpit reads them.
@@ -40,12 +40,12 @@ def problem(rule, sentence, address=None, node=None):
 
 
 def where_said(where):
-    """A place's name as a sentence says it; the world's own nodes as "the world"."""
-    return "the world" if where == WORLD else f"the {where}"
+    """A place's name as a sentence says it; the environment's own nodes as "the whole environment"."""
+    return "the whole environment" if where == WORLD else f"the {where}"
 
 
 def not_handed(where, held):
-    """The problem of a place or world whose library node stands nowhere, or None when it stands."""
+    """The problem of a place or environment whose library node stands nowhere, or None when it stands."""
     if held.get("output"):
         return None
     return problem("not handed", f"{where_said(where).capitalize()} is not handed to the library yet "
@@ -77,7 +77,7 @@ def not_pushed(where, report):
 
 
 def home_of(row, handed):
-    """Where an entry's problem is shown: its place when that place has a library node, else the world."""
+    """Where an entry's problem is shown: its place when that place has a library node, else the environment."""
     return row["place"] if row.get("place") in handed else WORLD
 
 
@@ -112,7 +112,7 @@ def handover_problems(handed, by_address):
 
 
 def entry_problems(world, rows, accepted, handed):
-    """[(where, problem)] from the library's newest entries of this world: moved on, shown nowhere."""
+    """[(where, problem)] from the library's newest entries of this environment: moved on, shown nowhere."""
     named = named_addresses(handed)
     found = []
     for row in newest(rows):
@@ -129,7 +129,7 @@ def entry_problems(world, rows, accepted, handed):
 
 
 def problems(world, handed, rows, accepted, configured):
-    """{place or "world": [problem]} of the world: every library node's handover against the library's entries.
+    """{place or "world": [problem]} of the environment: every library node's handover against the library's entries.
     With no library configured, one problem a library node, saying so."""
     if not configured:
         return {where: [problem("not handed", f"{where_said(where).capitalize()} is not handed: no library is "

@@ -77,8 +77,8 @@ STAGE = graph.Stage("ship_kit", "place", make_kit, SHIP_KIT,
 
 
 def runner(store=None):
-    """The runner over this stage alone, on world 1 with the repository as a root."""
+    """The runner over this stage alone, on environment 1 with the repository as a root."""
     from score.stages import world1
     world = world1()
-    world = graph.World(world.name, world.seed, dict(world.roots, repo=str(REPO)))
+    world = graph.Environment(world.name, world.seed, dict(world.roots, repo=str(REPO)))
     return graph.Runner((STAGE,), world, store or Store.default())

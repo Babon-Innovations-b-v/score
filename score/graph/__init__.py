@@ -173,8 +173,8 @@ class Environment:
         return cls(record["name"], record["seed"], roots)
 
 
-# The old name, kept for the stage modules that name it (ship-kits, late-bake, images, props compare, finishmap
-# trial): renaming it there moves their nodes' keys, so it goes with each one's next paid re-make.
+# The old name, kept for score/stages/images/__init__.py, which names it: that file is in the images nodes' code
+# version, so renaming it there moves their keys; it goes with the images stage's next re-make.
 World = Environment
 
 

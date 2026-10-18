@@ -7,8 +7,8 @@ against code-first (the parts check as it was: code when a kind's code build sho
     .venv/bin/python -m score.stages.props.compare run <place> code-builds [--detach]              # DINOv2 only
     .venv/bin/python -m score.stages.props.compare table <place>                                   # free
 
-Two runs, each a world of its own under $PROPS_HOME/compare/<place>/<run>/: a copy of the repository's data with the
-run's prop data (data/props/<place>.json) and surface data, and a store of its own, so neither touches world 1's store
+Two runs, each an environment of its own under $PROPS_HOME/compare/<place>/<run>/: a copy of the repository's data with the
+run's prop data (data/props/<place>.json) and surface data, and a store of its own, so neither touches environment 1's store
 or data. `run` drives the place's line up to the likeness row with the stage table as it is (score.stages):
 props-inputs, closeup, pixal, the surface line, likeness-calibration, likeness, each paid row cleared by the runner as
 in world 1, and every ledger line it and its children write tagged compare-<place>-<run> (ledger_tag/sitecustomize.py),
@@ -189,7 +189,7 @@ def prop_first_closeups(place):
 
 
 def prepare(place, order, code_builds, sample=None):
-    """The run's world data: a copy of the repository's, with its prop data, surface data and inventory; with a
+    """The run's environment data: a copy of the repository's, with its prop data, surface data and inventory; with a
     sample, only those objects."""
     data = order_folder(place, order) / "data"
     if data.exists():
@@ -218,7 +218,7 @@ def prepare(place, order, code_builds, sample=None):
 
 
 def use_data(place, order):
-    """Point the prop route's and the surface stage's world data at the order's copy (their FOLDERs), in this
+    """Point the prop route's and the surface stage's environment data at the order's copy (their FOLDERs), in this
     process and the nodes it forks."""
     data = order_folder(place, order) / "data"
     prop_data.FOLDER = data / "props"
@@ -227,10 +227,10 @@ def use_data(place, order):
 
 
 def runner_for(place, order):
-    """The runner on the order's world (its data, world 1's seeds, home and repository) and its own store."""
+    """The runner on the order's environment (its data, environment 1's seeds, home and repository) and its own store."""
     data = use_data(place, order)
     roots = {**stages.world1().roots, "data": str(data)}
-    world = graph.World.from_file(stages.WORLD1, **roots)
+    world = graph.Environment.from_file(stages.WORLD1, **roots)
     return graph.Runner(stages.STAGES, world, Store.in_folder(order_folder(place, order) / "store"))
 
 

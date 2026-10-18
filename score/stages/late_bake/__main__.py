@@ -1,4 +1,4 @@
-"""The late-bake stage's commands, on world 1 and the framework's store ($PROPS_HOME/store).
+"""The late-bake stage's commands, on environment 1 and the framework's store ($PROPS_HOME/store).
 
     .venv/bin/python -m score.stages.late_bake status <room> [<room> ...]
     .venv/bin/python -m score.stages.late_bake run <room> [<room> ...]
