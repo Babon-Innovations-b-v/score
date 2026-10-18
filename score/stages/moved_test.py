@@ -162,7 +162,7 @@ def a_runner(repo, store, bake_params=None):
                        euros=3.0, params=bake_params or {})
     draw = graph.Stage("draw", "place", make_copy, TEXT, SAID, files={"brief": "{data}/draw.txt"})
     film = graph.Stage("film", "place", make_film, TEXT, SAID, after={"draw": ("toy-text", 1)}, paid=True, euros=2.0)
-    return graph.Runner([render, bake, draw, film], graph.World("toy", 1, {"data": repo}), store,
+    return graph.Runner([render, bake, draw, film], graph.Environment("toy", 1, {"data": repo}), store,
                         model_record=lambda kind: {"kind": kind})
 
 

@@ -35,7 +35,7 @@ def test_a_blender_job_runs_the_pinned_image_headless():
 
 
 def test_the_machine_path_starts_only_for_a_cleared_node():
-    runner = graph.Runner([RENDER], graph.World("toy", 1, {}), Store.in_folder(tempfile.mkdtemp()))
+    runner = graph.Runner([RENDER], graph.Environment("toy", 1, {}), Store.in_folder(tempfile.mkdtemp()))
     blender_cloud = engines.machine_runner()
     real = blender_cloud.run_elsewhere
     blender_cloud.run_elsewhere = lambda *arguments: STARTED.append(arguments + (os.environ.get(compute.TICKET),))

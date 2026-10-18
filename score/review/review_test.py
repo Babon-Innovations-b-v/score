@@ -40,7 +40,7 @@ def made(faults, store=None, data=None):
     data = data or pathlib.Path(tempfile.mkdtemp())
     store = store or Store.in_folder(tempfile.mkdtemp())
     (data / "hangar.txt").write_text(str(faults))
-    graph.Runner([TALLY], graph.World("toy", 1, {"data": data}), store).run(["hangar"])
+    graph.Runner([TALLY], graph.Environment("toy", 1, {"data": data}), store).run(["hangar"])
     return store, data, review.record_of(store, "tally@hangar")["output"]
 
 
@@ -128,7 +128,7 @@ def test_an_owners_reject_moves_the_accepted_output_back_and_the_runner_never_ta
     review.reject(store, "tally@hangar", second, "owner", "zero faults means the gate saw nothing")
     assert store.accepted("tally@hangar") == first
     assert review.accept_automatically(store, "tally@hangar", second) is None
-    graph.Runner([TALLY], graph.World("toy", 1, {"data": data}), store).run(["hangar"])
+    graph.Runner([TALLY], graph.Environment("toy", 1, {"data": data}), store).run(["hangar"])
     assert store.accepted("tally@hangar") == first
     assert "The owner rejected this output." in review.page(store, "tally@hangar").read_text()
     review.accept(store, "tally@hangar", second, "owner", "on a second look it is right")

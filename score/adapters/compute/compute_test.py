@@ -66,7 +66,7 @@ def a_runner(text):
     """A runner whose brief stage ran once (a passing brief is accepted by the runner then)."""
     data, store = pathlib.Path(tempfile.mkdtemp()), Store.in_folder(tempfile.mkdtemp())
     (data / "hangar.txt").write_text(text)
-    runner = graph.Runner([BRIEF, RENDER], graph.World("toy", 1, {"data": data}), store)
+    runner = graph.Runner([BRIEF, RENDER], graph.Environment("toy", 1, {"data": data}), store)
     runner.run_node(BRIEF, "hangar")
     return runner
 

@@ -107,7 +107,7 @@ def toy_runner(name, free=False, exceptions=None):
     root = HOME / name
     data = world_data(root, free, exceptions)
     table = (GROUND, MADE, FILM)
-    return graph.Runner((*table, *library.rows(table, data)), graph.World(WORLD, 7, {"data": str(data)}),
+    return graph.Runner((*table, *library.rows(table, data)), graph.Environment(WORLD, 7, {"data": str(data)}),
                         Store.in_folder(root / "store"))
 
 

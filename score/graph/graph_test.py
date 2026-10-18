@@ -67,7 +67,7 @@ def a_world(briefs):
     for place, brief in briefs.items():
         (data / place).mkdir()
         (data / place / "brief.txt").write_text(brief)
-    return graph.World("toy", 7, {"data": data})
+    return graph.Environment("toy", 7, {"data": data})
 
 
 def a_runner(world, store, stages=(CLEAN, COUNT)):
@@ -539,7 +539,7 @@ def test_an_output_whose_key_moved_only_by_bytecode_is_kept_and_a_source_change_
     if not any(cache.glob("*.pyc")):
         import py_compile
         py_compile.compile(str(_code.REPO / "score/checks/__init__.py"))
-    world = graph.World("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
+    world = graph.Environment("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
     head, first = (subprocess.run(["git", "-C", str(_code.REPO), *command], capture_output=True, text=True,
                                   check=True).stdout.split()[-1]
                    for command in (["rev-parse", "HEAD"], ["rev-list", "--max-parents=0", "HEAD"]))
@@ -564,7 +564,7 @@ NOTED = graph.Stage("noted", "place", make_seen, TEXT, (checks.Check("seen", jud
 def test_an_output_is_kept_over_a_change_only_with_a_proof_naming_every_changed_file():
     """noted@hangar made at the repository's first commit, when CLAUDE.md read otherwise: made again with no proof
     or one that leaves CLAUDE.md out; kept, with the proof in its record, when the proof names it."""
-    world = graph.World("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
+    world = graph.Environment("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
     first = subprocess.run(["git", "-C", str(_code.REPO), "rev-list", "--max-parents=0", "HEAD"],
                            capture_output=True, text=True, check=True).stdout.split()[0]
     for no_ops, kept in (({}, False), ({"README.md": "not read"}, False),
@@ -652,7 +652,7 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
                                (8, "read through helper deleted", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
-        world = graph.World("toy", 7, {"seeds": str(seeds)})
+        world = graph.Environment("toy", 7, {"seeds": str(seeds)})
         store = Store.in_folder(tempfile.mkdtemp())
         with a_repo_of_its_own(case) as (repo, module):
             stage = graph.Stage("narrow", "place", module.make, TEXT, (checks.Check("seen", judge_seen),),
@@ -726,7 +726,7 @@ def test_a_run_names_every_world_file_it_could_never_make_before_it_starts():
     world = a_world({"hangar": "a ship in a hall"})
     made = graph.Stage("made", "place", make_seen, TEXT, (checks.Check("seen", judge_seen),),
                        files={"take": "{home}/takes/{place}.glb"})
-    world = graph.World("toy", 7, {**world.roots, "home": str(pathlib.Path(tempfile.mkdtemp()))})
+    world = graph.Environment("toy", 7, {**world.roots, "home": str(pathlib.Path(tempfile.mkdtemp()))})
     runner = a_runner(world, Store.in_folder(tempfile.mkdtemp()), (CLEAN, made))
     assert runner.missing_inputs([(CLEAN, "station"), (made, "hangar")]) == \
         [f"clean@station: brief ({pathlib.Path(world.roots['data']) / 'station/brief.txt'})"]
