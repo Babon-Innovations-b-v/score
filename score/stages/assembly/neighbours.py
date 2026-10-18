@@ -10,7 +10,8 @@ scene.json: the accepted scene-record output where the place has one, else data/
              write_places), and so two places that show each other read no cycle. A shown place no stage makes yet
              (the far city, far_city_stage.py's seed) is read from its seed folder, a declared world file.
     gate     neighbours  every entry of the record stands under /<place>/Places, each reference there resolves to a
-                         file, and each shown place has children
+                         file, each shown place has children, and none draws its own ground (its Outside) over the
+                         place's own
 """
 import json
 import pathlib
@@ -24,6 +25,8 @@ from score.store import Store
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACES = "places"
 SEEN = "seen {}"
+# A shown place's own made ground (score/stages/terrain/outside.py writes it under /<place>/Outside).
+OUTSIDE = "Outside"
 
 
 def record_of(place):
@@ -73,8 +76,29 @@ def make(inputs, out, seed, params):
         shutil.copytree(source, out / PLACES / other, copy_function=shutil.copyfile)
         for layer in layers:
             layer.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda", f"../{PLACES}/{other}/{other}.usda")
+    place = stage_file(out).stem
+    owns = has_own_ground(layers, place)
     for layer in layers:
+        if owns:
+            ground_left_out(layer, place)
         layer.Save()
+
+
+def has_own_ground(layers, place):
+    """Whether one of the place's layers draws its own made ground (/<place>/Outside): a room the terrain gave none
+    (the airlock, the habitat) sees the ground through its doors only as its shown places draw it."""
+    return any(layer.GetPrimAtPath(f"/{place}/{OUTSIDE}") for layer in layers)
+
+
+def ground_left_out(layer, place):
+    """Each place the layer stands under /<place>/Places with its own made ground (its Outside) made inactive, as the
+    terrain stage does for the places it adds (outside.NEIGHBOUR_SHARED): a seed's base layer stood its places before
+    any ground was made, so their grounds stayed on over the place's own and cut through the view (the old station's
+    grey slab, 2026-10-18)."""
+    from pxr import Sdf
+    places = layer.GetPrimAtPath(f"/{place}/Places")
+    for shown in (places.nameChildren if places else []):
+        Sdf.CreatePrimInLayer(layer, shown.path.AppendChild(OUTSIDE)).active = False
 
 
 def reference_faults(prim):
@@ -89,19 +113,24 @@ def reference_faults(prim):
 
 
 def judge_neighbours(output, inputs, evidence):
-    """Fail when a shown place is missing, its reference resolves to nothing, or it stands empty."""
+    """Fail when a shown place is missing, its reference resolves to nothing, stands empty or draws its own ground over
+    the place's own."""
     from pxr import Usd
     stage = Usd.Stage.Open(str(stage_file(output)))
     place = stage.GetDefaultPrim().GetName()
     scope = stage.GetPrimAtPath(f"/{place}/Places")
     standing = {prim.GetName(): prim for prim in (scope.GetAllChildren() if scope else [])}
     entries = json.loads((output / RECORD).read_text()).get("places", [])
+    own_ground = stage.GetPrimAtPath(f"/{place}/{OUTSIDE}")
     faults = [f"/{place}/Places/{entry['name']}: in the scene record, not in the stage" for entry in entries
               if entry["name"] not in standing]
     for name, prim in sorted(standing.items()):
         faults += reference_faults(prim)
         if not prim.GetChildren():
             faults.append(f"{prim.GetPath()}: no children, the shown place is empty")
+        ground = prim.GetChild(OUTSIDE)
+        if own_ground and ground and ground.IsActive():
+            faults.append(f"{prim.GetPath()}: its own ground ({OUTSIDE}) is drawn inside this place")
     reason = (f"{len(faults)} faults in {len(standing)} shown places" if faults
               else f"{len(standing)} shown places stand, each with children: {', '.join(sorted(standing))}")
     return checks.Verdict("neighbours", checks.FAIL if faults else checks.PASS, reason,

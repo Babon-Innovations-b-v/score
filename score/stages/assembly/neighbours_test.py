@@ -26,7 +26,8 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 
 def a_place(root, place, shows=(), ground_shows=()):
     """A place's stage as the assembly leaves it: a root over layers/ground.usdc (the terrain's, with the shown places
-    the seed lacks) and layers/base.usda, its shown places referenced the seed's way (../../<other>/<other>.usda)."""
+    the seed lacks, and the place's own made ground under Outside) and layers/base.usda, its shown places referenced
+    the seed's way (../../<other>/<other>.usda)."""
     from pxr import Usd, UsdGeom
     folder = root / place
     (folder / "layers").mkdir(parents=True)
@@ -36,6 +37,8 @@ def a_place(root, place, shows=(), ground_shows=()):
         for other in others:
             UsdGeom.Xform.Define(base, f"/{place}/Places/{other}").GetPrim().GetReferences().AddReference(
                 f"../../{other}/{other}.usda")
+        if layer == "ground.usdc":
+            UsdGeom.Mesh.Define(base, f"/{place}/Outside/near")
         base.GetRootLayer().Save()
     stage = Usd.Stage.CreateNew(str(folder / f"{place}.usda"))
     stage.GetRootLayer().subLayerPaths.append("./layers/ground.usdc")
@@ -98,6 +101,58 @@ def test_the_stairwell_shows_the_flat_its_terrain_added():
         shutil.rmtree(root / "kept")
         verdict = judge(out)
         assert verdict.answer == checks.PASS and verdict.measures["shown"] == 2, verdict
+    finally:
+        shutil.rmtree(root)
+
+
+def test_the_old_station_shows_its_neighbours_without_their_grounds():
+    """Fault (2026-10-18): the old station's film looked through a flat grey slab, the shown places' own made grounds
+    (Places/<other>/Outside): its seed's base layer stood them before any ground was made, so only the places the
+    terrain stage added had theirs left out."""
+    from pxr import Usd
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        station = a_place(root / "kept", "old_station", ("wreck",), ("garage",))
+        (station / assembly.RECORD).write_text(json.dumps({"places": [{"name": "wreck", "stage": "wreck"},
+                                                                      {"name": "garage", "stage": "garage"}]}))
+        inputs = {"assembly": station, "assembly@wreck": a_place(root / "kept", "wreck"),
+                  "assembly@garage": a_place(root / "kept", "garage")}
+        out = root / "out"
+        out.mkdir()
+        neighbours.make(inputs, out, 0, {})
+        shutil.copytree(inputs["assembly"], root / "before")  # the seed's way, as it stood before
+        for other in ("wreck", "garage"):
+            shutil.copytree(inputs[f"assembly@{other}"], root / other)
+        before = judge(root / "before")
+        assert before.answer == checks.FAIL and before.measures["faults"] == 2, before
+        assert all("its own ground" in finding for finding in before.findings), before.findings
+        verdict = judge(out)
+        assert verdict.answer == checks.PASS and verdict.measures["shown"] == 2, verdict
+        stage = Usd.Stage.Open(str(out / "old_station.usda"))
+        assert stage.GetPrimAtPath("/old_station/Outside/near").IsActive()  # its own ground stays
+        assert not stage.GetPrimAtPath("/old_station/Places/wreck/Outside").IsActive()
+    finally:
+        shutil.rmtree(root)
+
+
+def test_a_room_with_no_ground_of_its_own_keeps_its_neighbours_grounds():
+    """The airlock, habitat, lab and workshop have no made ground of their own: through their doors the ground is
+    the one their shown places draw, so it stays."""
+    from pxr import Usd, Sdf
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        airlock = a_place(root / "kept", "airlock", ("garage",))
+        layer = Sdf.Layer.FindOrOpen(str(airlock / "layers" / "ground.usdc"))
+        stage = Usd.Stage.Open(layer)
+        stage.RemovePrim("/airlock/Outside")
+        layer.Save()
+        (airlock / assembly.RECORD).write_text(json.dumps({"places": [{"name": "garage", "stage": "garage"}]}))
+        out = root / "out"
+        out.mkdir()
+        neighbours.make({"assembly": airlock, "assembly@garage": a_place(root / "kept", "garage")}, out, 0, {})
+        assert judge(out).answer == checks.PASS
+        shown = Usd.Stage.Open(str(out / "airlock.usda"))
+        assert shown.GetPrimAtPath("/airlock/Places/garage/Outside").IsActive()
     finally:
         shutil.rmtree(root)
 
