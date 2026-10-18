@@ -105,7 +105,7 @@ def test_every_body_builds_with_walls_the_model_check_passes():
         plan = pathlib.Path(folder) / "plan.json"
         plan.write_text(json.dumps({"models": {
             "console_body_1": {"route": "code", "kind": "cockpit_console_body", "size": CONSOLE, "laid": {}},
-            "station_module_1": {"route": "code", "kind": "old_station_station_module", "size": MODULE,
+            "station_module_1": {"route": "code", "kind": "station_station_module", "size": MODULE,
                                  "laid": {}}}}))
         out = pathlib.Path(folder) / "built"
         done = subprocess.run([sys.executable, str(REPO / "tools/blender/session.py"), "batch",

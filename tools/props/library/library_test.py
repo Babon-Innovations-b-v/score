@@ -132,7 +132,7 @@ def chunky_default_wall():
     names = {"WALL", "WALL_VOXELS", "VOXEL_SHARE", "VOXEL_FINEST"}
     kept = [node for node in tree.body if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
             and node.targets[0].id in names
-            or isinstance(node, ast.FunctionDef) and node.name == "default_wall"]
+            or isinstance(node, ast.FunctionDef) and node.name in ("default_wall", "voxel_of")]
     space = {}
     exec(compile(ast.Module(body=kept, type_ignores=[]), "make_chunky", "exec"), space)
     return space["default_wall"]
@@ -178,7 +178,12 @@ def test_every_code_builder_is_on_the_allow_list():
     names = re.findall(r'"(\w+)"', texts[0][texts[0].index("BUILDERS = "):texts[0].index("EARTH_ROOMS")])
     for text in texts[1:]:
         names += re.findall(r'"(\w+)"', text[text.index("BUILDERS = "):])
-    off = sorted(name for name in names if name not in sorter.PLAIN and name not in sorter.fittings())
+    # A body builder (pieces_bodies) builds a big object's main shapes under its take's details, the owner's rule
+    # for big objects seen up close (2026-10-18, PRD #10); bodies.BODIES names each take it is used for.
+    bodies_text = texts[-1]
+    body_builders = set(re.findall(r'"(\w+)"', bodies_text[bodies_text.index("BUILDERS = "):]))
+    off = sorted(name for name in names
+                 if name not in sorter.PLAIN and name not in sorter.fittings() and name not in body_builders)
     assert not off, f"code builders for kinds that are not plain plates, pipes, trims or fittings: {', '.join(off)}"
 
 
