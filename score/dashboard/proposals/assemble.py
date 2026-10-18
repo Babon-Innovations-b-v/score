@@ -18,7 +18,7 @@ lands in the scratch folder: Overlay reads through to the real objects and write
 import json
 import pathlib
 
-from score import contracts, graph
+from score import graph
 from score.graph import node_name
 from score.store import Store, runtime_store
 
@@ -98,6 +98,10 @@ class ProposalRunner(graph.Runner):
         """True when a node this one reads was made here."""
         return any(self.taken.get(node_name(*read), {}).get("how") == MADE for read in self.read_nodes(stage, place))
 
+    def reads_paid(self, stage, place):
+        """True when a node this one reads stands in for the paid batch."""
+        return any(self.taken.get(node_name(*read), {}).get("how") == PAID for read in self.read_nodes(stage, place))
+
     def taken_output(self, stage, place):
         """The node's output for this proposal, or the Blocked saying why there is none."""
         try:
@@ -110,13 +114,13 @@ class ProposalRunner(graph.Runner):
             return self.stood_in(stage, place, PAID)
         return self.made(stage, place, keyed) if keyed else blocked
 
-    def stood_in(self, stage, place, how):
-        """The node's accepted output, noted as taken `how`; a Blocked when it has none."""
+    def stood_in(self, stage, place, how, why=None):
+        """The node's accepted output, noted as taken `how` (and `why`); a Blocked when it has none."""
         node = node_name(stage, place)
         accepted = self.store.accepted(node)
         if accepted is None:
-            return graph.Blocked(f"{node} has no accepted output to show ({how})")
-        self.note(stage, place, how, accepted, None)
+            return graph.Blocked(f"{node} has no accepted output to show ({how}{': ' + why if why else ''})")
+        self.note(stage, place, how, accepted, None, why)
         return accepted
 
     def made(self, stage, place, keyed):
@@ -126,15 +130,23 @@ class ProposalRunner(graph.Runner):
         if record is None:
             try:
                 record = self.make(stage, place, keyed)
-            except contracts.Broken as broken:
-                return graph.Blocked(f"{node}: {broken}")
+            except Exception as failed:  # said on the proposal: stood in for the batch, or the reason it stops
+                return self.unmade(stage, place, f"{type(failed).__name__}: {failed}")
         judgement = self.judge(stage, place, record)
         self.note(stage, place, MADE, record["output"], judgement)
         return record["output"]
 
-    def note(self, stage, place, how, output, judgement):
+    def unmade(self, stage, place, why):
+        """A free node whose make failed: when it reads a node standing in for the paid batch, it cannot be made
+        before that batch either, so its accepted output stands in, said why; otherwise the Blocked that stops."""
+        if self.reads_paid(stage, place):
+            return self.stood_in(stage, place, PAID, f"made after the paid batch (made now: {why[:300]})")
+        return graph.Blocked(f"{node_name(stage, place)}: {why}")
+
+    def note(self, stage, place, how, output, judgement, why=None):
         node = node_name(stage, place)
         self.taken[node] = {"node": node, "stage": stage.name, "how": how, "output": output, "paid": bool(stage.paid),
+                            "why": why,
                             "answer": judgement["answer"] if judgement else None,
                             "gates": {name: verdict["answer"] for name, verdict in
                                       (judgement["verdicts"] if judgement else {}).items()}}

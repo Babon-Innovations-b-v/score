@@ -82,6 +82,24 @@ def test_a_branch_change_is_made_free_and_a_paid_row_waits_for_the_batch(tmp_pat
     assert all(item["answer"] == checks.PASS for item in result["taken"] if item["how"] == records.MADE)
 
 
+def make_failing_assembly(inputs, out, seed, params):
+    raise KeyError("a part the old paint does not name")
+
+
+def test_a_free_node_that_cannot_be_made_before_the_paid_batch_stands_in_for_it(tmp_path):
+    standing_store(tmp_path)
+    world = a_world(tmp_path / "branch", "new hull")
+    store = assemble.overlay_store(tmp_path / "real", tmp_path / "scratch")
+    table = (CLEAN, dataclasses.replace(PAINT, paid=True, euros=1.0),
+             dataclasses.replace(ASSEMBLY, make=make_failing_assembly))
+    runner = assemble.ProposalRunner(table, world, store, {"clean": {"paid": False, "code": True, "files": {}}})
+    result = assemble.assemble(runner, "hangar", tmp_path / "stage")
+    taken = {item["node"]: item for item in result["taken"]}
+    assert taken["assembly@hangar"]["how"] == records.PAID
+    assert "KeyError" in taken["assembly@hangar"]["why"]
+    assert result["assembly"] == store.accepted("assembly@hangar")
+
+
 def test_a_branch_moving_nothing_here_shows_the_place_as_it_stands(tmp_path):
     store = standing_store(tmp_path)
     result, _ = proposal_run(tmp_path, "new hull", {})
