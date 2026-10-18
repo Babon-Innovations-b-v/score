@@ -128,13 +128,15 @@ def test_every_row_the_inventory_places_is_laid():
 
 
 def test_the_grate_lies_set_into_the_deck():
-    """The grate lies flat with its face flush with the deck's, and the deck plates under it are cut round it."""
+    """The grate lies flat with its face flush with the deck's, and the deck plates under it are cut to the grate itself
+    (ship_kit.SET_IN_GAP: no seam round it, the ship stands on no ground)."""
     pieces = laid()["pieces"]
     grate = next(piece for piece in pieces if piece["kind"] == f"{ROOM}_floor_grate")
     assert grate.get("set_in") and grate["z"] == [0.0, -1.0, 0.0], grate
     cut = [piece for piece in pieces if piece["kind"] == f"{ROOM}_ring_floor_plate" and piece.get("openings")]
     area = sum((high_x - low_x) * (high_y - low_y) for piece in cut for low_x, low_y, high_x, high_y in piece["openings"])
-    assert abs(area - (1.2 + 2 * 0.004) * (0.6 + 2 * 0.004)) < 1e-3, area
+    gap = ship_kit.SET_IN_GAP
+    assert abs(area - (1.2 + 2 * gap) * (0.6 + 2 * gap)) < 1e-3, area
 
 
 def test_the_shell_s_plain_plates_are_built_in_code():
