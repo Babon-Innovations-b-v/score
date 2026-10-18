@@ -35,6 +35,7 @@ LAYER_MAKERS = {"edit": None, "characters": "characters-layer", "sound": "sound"
 LAYER_FILES = tuple(LAYER_MAKERS)
 ACCEPTED, WAITING, STOPPED, NOT_RUN = "accepted", "waiting", "stopped", "not run"
 STILL_NAME = "still.jpg"
+STEP_DRAWING = "preview.png"  # previews.PREVIEW_NAME: a step's picture drawn from its files
 
 
 def stamp(seconds):
@@ -287,7 +288,8 @@ class LocalSource:
         thumb = self.picture_of(node, record["output"]) if (with_thumb and record) else None
         return StepCard(node=node, stage=row.name, label=groups.label(row.name), paid=bool(row.paid), state=state,
                         state_words=words, gates=counts(self.judgement_of(record)) if with_thumb else GateCounts(),
-                        thumb=thumb.thumb_url if thumb else None, output=record["output"] if record else None)
+                        thumb=thumb.thumb_url if thumb else None, output=record["output"] if record else None,
+                        reads=list(row.after), drawn=bool(thumb) and thumb.name == STEP_DRAWING)
 
     def layer_groups(self, place, with_thumbs=False):
         """The place's steps grouped by layer, in LAYER_ORDER."""
@@ -421,7 +423,8 @@ class LocalSource:
             written, check = json.loads(path.read_text()), path.parts[-3]
             if any(self.accepted_output(node) != output for node, output in written.get("outputs", {}).items()):
                 continue
-            found += [CheckFinding(check=check, rule=item["rule"], prim=item.get("prim"), sentence=item["sentence"],
+            found += [CheckFinding(check=check, rule=item["rule"], prim=item.get("prim"), kind=item.get("kind"),
+                                   sentence=item["sentence"],
                                    picture=self.work_picture(f"WORK/{CHECKS}/{check}/{place}/{item['picture']}")
                                    if item.get("picture") else None)
                       for item in written.get("findings", [])]
@@ -481,6 +484,17 @@ class LocalSource:
         found = FPS.search(self.blob_path(sha).read_text()) if sha else None
         return float(found.group(1)) if found else 24.0
 
+    def film_view(self, place):
+        """The accepted film's first frame's camera ({eye, aim, fov} across the width), or None without one."""
+        output = self.accepted_output(f"demo-film@{place}")
+        sha = self.listing(output).get("views.json") if output else None
+        if not sha:
+            return None
+        written = json.loads(self.blob_path(sha).read_text())
+        views = (written.get("views") or []) if isinstance(written, dict) else []
+        first = next((view for view in views if "eye" in view and "aim" in view), None)
+        return {"eye": first["eye"], "aim": first["aim"], "fov": first.get("fov")} if first else None
+
     def skipped(self, place):
         """Loud: the steps of the stage table not in this place's line, and its named gaps (left out by decision)."""
         rows = {row.name for row in self.place_rows(place)}
@@ -497,7 +511,7 @@ class LocalSource:
                            layers=self.layer_groups(place, with_thumbs=True), faults=self.faults(place),
                            gaps=self.gaps(place), checks=self.check_findings(place), concept=self.concept(place),
                            skipped=self.skipped(place),
-                           film_fps=self.film_fps(place), web3d=self.web3d(place))
+                           film_fps=self.film_fps(place), film_view=self.film_view(place), web3d=self.web3d(place))
 
     def reads_of(self, node):
         """The nodes a node reads (its stage's `after`, at its place where that stage applies; world stages by

@@ -10,8 +10,6 @@ GAP_COUNT = re.compile(r"named gaps \((\d+)\)")
 OWN_LOOKS = "Each in its own look"
 NO_LOOK = "Not given a look yet"
 STATE_WORDS = {"accepted": "done", "waiting": "to review", "stopped": "stopped", "not run": "not run"}
-# Each layer group of the chain, named as the paper's order reads it.
-SEGMENT_NAMES = {"base": "plan", groups.STAGE_AND_FILMS: "result"}
 
 
 def humane(key):
@@ -174,18 +172,6 @@ def picture_tile(label, picture, words):
             "full": picture.url if picture else None,
             "state": "accepted" if picture else "not run", "words": words if picture else "none yet",
             "unseen": False, "paid": False}
-
-
-def chain(detail, style, step_url):
-    """The chain in paper order: [{name, tiles}]: the look's reference and the concept, the plan, the pieces, each
-    OpenUSD layer, then the result."""
-    found = [{"name": "reference and concept", "tiles": [
-        picture_tile("reference", style.picture if style else None, "the look"),
-        picture_tile("concept", detail.concept, "the place")]}]
-    for layer in detail.layers:
-        found.append({"name": SEGMENT_NAMES.get(layer.name, layer.name), "tiles": [
-            step_tile(step, step_url(detail.place, step.stage)) for step in layer.steps]})
-    return found
 
 
 def first_clause(text, limit=110):

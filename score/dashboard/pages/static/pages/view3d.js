@@ -14,6 +14,14 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 const given = JSON.parse(document.getElementById("view3d-data").textContent);
 const place = given.place;
 const base = given.base || `/web/${place}/`;  // the current copy, or a proposed version's
+// The hidden layers: none, or, from a breakdown's "show in 3D" (given.only), every layer but those named until its box
+// is ticked.
+class Hidden extends Set {
+  constructor(only) { super(); this.only = only ? new Set(only) : null; this.chosen = new Set(); }
+  has(name) { return this.only && !this.only.has(name) && !this.chosen.has(name) ? true : super.has(name); }
+  add(name) { this.chosen.add(name); return super.add(name); }
+  delete(name) { this.chosen.add(name); return super.delete(name); }
+}
 const EYE = 1.6, STEP_UP = 0.6, PERSON = 1.8, CLICK_SLOP = 5, NO_LAYER = "not named in the copy";
 const $ = (id) => document.getElementById(id);
 const say = (text) => { $("status").textContent = text; };
@@ -29,7 +37,7 @@ const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.enableDamping = true;
 const walk = new PointerLockControls(camera, renderer.domElement);
 const raycaster = new THREE.Raycaster();
-const hidden = new Set();
+const hidden = new Hidden(given.only);
 let sidecar = null, model = null, move = "orbit", tool = "name", ready = false;
 
 function linear(values) { return new THREE.Color().setRGB(values[0], values[1], values[2], THREE.LinearSRGBColorSpace); }
@@ -371,7 +379,7 @@ async function open() {
   scene.add(new THREE.AmbientLight(linear(sky.ambient), 1));
   (sidecar.lights || []).forEach(addLight);
   viewButtons();
-  const first = (sidecar.cameras || [])[0];
+  const first = given.at || (sidecar.cameras || [])[0];  // a breakdown link opens at the film's camera
   if (first) aimAt(first.eye, first.aim, first.fov);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   requestAnimationFrame(frame);

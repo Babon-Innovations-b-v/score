@@ -80,7 +80,7 @@ def test_the_place_page_shows_the_usd_index_and_faults(world):
 
 def test_a_known_gap_shows_its_picture_and_opens_its_step(world):
     html = signed_in().get("/place/beta/").content.decode()
-    problems = html[html.index('class="problems"'):html.index("</section>", html.index('class="problems"'))]
+    problems = html[html.index('class="problems bd-problems"'):html.index("</article>", html.index('class="problems'))]
     gap = next(chunk for chunk in problems.split('class="problem"') if "known gap" in chunk)
     assert gap.startswith(' href="/place/beta/step/assembly/"') and "/thumbs/" in gap
 

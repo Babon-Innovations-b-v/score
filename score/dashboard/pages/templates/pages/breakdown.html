@@ -1,0 +1,88 @@
+{% comment %}A place's breakdown in the paper's order (pages/breakdown.py): each step large beside what it was made from, a
+"show in 3D" per layer, a before and after slider where a step changes the picture, its problems beside it.{% endcomment %}
+<section class="breakdown" aria-label="how it was made">
+  <h2>How it was made</h2>
+  <nav class="bd-index" id="bd-index" aria-label="the steps in order">
+    {% for part in breakdown %}<a href="#bd-{{ part.key }}" class="bd-jump{% if part.absent %} absent{% endif %}"><i class="mark {{ part.state|slugify }}"></i>{{ part.title }}{% if part.problem_count %}<span class="count bad">{{ part.problem_count }}</span>{% endif %}</a>{% endfor %}
+  </nav>
+  <p class="legend small"><span><i class="mark accepted"></i>done</span><span><i class="mark waiting"></i>to review</span><span><i class="mark stopped"></i>stopped</span><span><i class="mark not-run"></i>not run</span><span><i class="mark accepted unseen"></i>not seen by you</span></p>
+
+  {% for part in breakdown %}
+  {% if part.absent %}
+  <div class="bd-absent" id="bd-{{ part.key }}"><b>{{ part.title }}</b> <span class="soft">not part of this place</span></div>
+  {% else %}
+  <article class="bd-section" id="bd-{{ part.key }}">
+    <header class="bd-head">
+      <div class="bd-title">
+        <span class="bd-number">{{ forloop.counter }}</span>
+        <h3>{{ part.title }}</h3>
+        <span class="status {{ part.state|slugify }}">{{ part.state_words }}</span>
+      </div>
+      <p class="soft">{{ part.words }}</p>
+      {% if part.show3d %}<a class="button primary bd-3d" href="{{ part.show3d }}">Show in 3D: only {{ part.title|lower }}</a>{% endif %}
+    </header>
+
+    {% if part.problems %}
+    <div class="problems bd-problems">{% for problem in part.problems %}{% include "pages/problem.html" %}{% endfor %}</div>
+    {% endif %}
+
+    {% for group in part.findings %}
+    <details class="finding-group">
+      <summary>
+        <span class="finding-pictures">{% for picture in group.pictures %}<img src="{{ picture }}" alt="where it is" loading="lazy">{% empty %}<span class="pic empty"><small>no picture yet</small></span>{% endfor %}</span>
+        <span class="finding-words"><span class="kind known-gap">library check</span><b>{{ group.count }} {{ group.rule|lower }}</b><span class="soft small">open the list</span></span>
+      </summary>
+      <ul class="small">{% for line in group.sentences %}<li>{{ line }}</li>{% endfor %}</ul>
+    </details>
+    {% endfor %}
+
+    <div class="pairs{% if part.sliders|length == 1 %} single{% endif %}">
+    {% for pair in part.sliders %}
+    {% if pair.wipe %}
+    <figure class="ba-figure">
+      <div class="ba" style="--cut: 50%">
+        <img class="ba-after" src="{{ pair.after.url }}" data-fallback="{{ pair.after.thumb_url }}" alt="{{ pair.after_words }}" loading="lazy">
+        <img class="ba-before" src="{{ pair.before.url }}" data-fallback="{{ pair.before.thumb_url }}" alt="{{ pair.before_words }}" loading="lazy">
+        <span class="ba-word left">{{ pair.before_words }}</span><span class="ba-word right">{{ pair.after_words }}</span>
+        <input class="ba-range" type="range" min="0" max="100" value="50" aria-label="wipe between {{ pair.before_words }} and {{ pair.after_words }}">
+      </div>
+      <figcaption>{{ pair.words }}: drag across to compare</figcaption>
+    </figure>
+    {% else %}
+    <figure class="side-figure">
+      <div class="side">
+        <div><img src="{{ pair.before.url }}" data-fallback="{{ pair.before.thumb_url }}" alt="{{ pair.before_words }}" loading="lazy"><span class="side-word">{{ pair.before_words }}</span></div>
+        <div><img src="{{ pair.after.url }}" data-fallback="{{ pair.after.thumb_url }}" alt="{{ pair.after_words }}" loading="lazy"><span class="side-word">{{ pair.after_words }}</span></div>
+      </div>
+      <figcaption>{{ pair.words }}</figcaption>
+    </figure>
+    {% endif %}
+    {% endfor %}
+    </div>
+
+    <div class="bd-cards{% if part.cards|length == 1 %} single{% endif %}">
+      {% for step in part.cards %}
+      <figure class="bd-card{% if step.drawn %} drawn{% endif %}{% if step.made_from %} with-from{% endif %}">
+        {% if step.made_from %}
+        <div class="bd-from">
+          <div class="eyebrow">made from</div>
+          {% for read in step.made_from %}<a class="bd-from-one" href="{{ read.url }}"><img src="{{ read.thumb }}" alt="{{ read.label }}" loading="lazy"><span>{{ read.label }}</span></a>{% endfor %}
+          {% if step.more_from %}<span class="small soft">and {{ step.more_from }} more</span>{% endif %}
+        </div>
+        {% endif %}
+        <div class="bd-out">
+          {% if step.full %}<button type="button" class="bd-pic" data-full="{{ step.full }}" data-caption="{{ step.label|capfirst }}" aria-label="open {{ step.label }} large"><img src="{{ step.full }}" data-fallback="{{ step.thumb }}" alt="{{ step.label }}" loading="lazy"></button>
+          {% else %}{% include "pages/pic.html" with src=step.thumb name=step.label %}{% endif %}
+        </div>
+        <figcaption>
+          <a {% if step.url %}href="{{ step.url }}"{% endif %} class="bd-name"><i class="mark {{ step.state|slugify }}{% if step.unseen %} unseen{% endif %}"></i>{{ step.label|capfirst }}</a>
+          <span class="soft small">{{ step.words }}{% if step.unseen %}, not seen by you{% endif %}</span>
+        </figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </article>
+  {% endif %}
+  {% endfor %}
+</section>
+<script src="/static/pages/breakdown.js"></script>

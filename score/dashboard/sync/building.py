@@ -15,8 +15,9 @@ Filled in priority order (the JSON, heroes, every node's thumbnails with each no
 films, then the 3D copies) until the cap (owner, 2026-10-18: the step cards' thumbnails go up first); what did not
 fit is named in left_out; `written` lists every file but the manifest in the order it was written, which is the order
 the sync uploads them in (sync/client.py). The 3D copies go in last: every sidecar and light preview first, then the
-whole copies while they fit (owner, 2026-10-18: the hosted cockpit has 3D too). FileRef urls stay /files/<sha>
-and /thumbs/<sha>.jpg, so the templates do not know which source served them.
+whole copies while they fit (owner, 2026-10-18: the hosted cockpit has 3D too); between the two, every step's own
+picture and the breakdown sliders' pictures large, so a place's breakdown is judged without clicking. FileRef urls
+stay /files/<sha> and /thumbs/<sha>.jpg, so the templates do not know which source served them.
 
 Every piece is keyed on the exporting code's version (state/versions.py): the bundles and the manifest carry it, so a
 code change gives them a new sha the content-addressed sync sends, and the pictures made for the export are kept per
@@ -27,8 +28,9 @@ import pathlib
 import shutil
 import subprocess
 
-from score.dashboard.state import library, versions
+from score.dashboard.state import library, sliders, versions
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
+from score.dashboard.state.models import PlaceDetail, StepDetail
 
 NEWEST_PER_NODE = 8
 WORLD_FILE = "_world"
@@ -146,6 +148,36 @@ def check_pictures(bundles):
             for finding in bundle["detail"].get("checks", []) if finding.get("picture")]
 
 
+def bundle_step(bundle, stage):
+    """A place bundle's StepDetail of a stage, or None."""
+    found = bundle["steps"].get(stage)
+    return StepDetail.model_validate(found) if found else None
+
+
+def large_step_pictures(bundles):
+    """[(what, FileRef dict)] the place pages' breakdowns show large: every step's own picture, then the pictures
+    each before and after slider wipes between (state/sliders.py)."""
+    found = [(step["node"], step["picture"]) for bundle in bundles for step in bundle["steps"].values()
+             if step.get("picture")]
+    for bundle in bundles:
+        if not bundle["detail"]:
+            continue
+        detail = PlaceDetail.model_validate(bundle["detail"])
+        for pair in sliders.pairs(detail, lambda stage, within=bundle: bundle_step(within, stage)):
+            found += [(f"{detail.place}: {pair['words']}", pair[side].model_dump()) for side in ("before", "after")]
+    return found
+
+
+def web3d_copies(source, filler, names):
+    """Each place's 3D web copy files of the `names` patterns into the export, while they fit."""
+    for place in source.places():
+        for pattern in names:
+            name = pattern.format(place=place)
+            found = source.web3d_file(place, name)
+            if found:
+                filler.place_copy(found, f"web3d/{place}/{name}", f"3D copy {name}")
+
+
 def films(world):
     return [card.film for engine in world.engines for style in engine.styles for card in style.places if card.film]
 
@@ -197,13 +229,12 @@ def build(source, out, made_at, cap_mb, spend, repo):
     library.export_takes(shelf, shelved, filler)
     for film in films(world):
         filler.copy(source.file(film.sha)[1], f"{film.sha}.mp4", f"film {film.name}")
-    for names in (("{place}.json", "{place}-light.glb"), ("{place}.glb",)):
-        for place in source.places():
-            for pattern in names:
-                name = pattern.format(place=place)
-                found = source.web3d_file(place, name)
-                if found:
-                    filler.place_copy(found, f"web3d/{place}/{name}", f"3D copy {name}")
+    web3d_copies(source, filler, ("{place}.json", "{place}-light.glb"))
+    for what, picture in large_step_pictures(bundles):  # the breakdowns' pictures before the whole copies
+        found = source.file(picture["sha"])
+        if found:
+            filler.picture(found[1], picture["sha"], HERO_SIDE, f"{what}: {picture['name']} large")
+    web3d_copies(source, filler, ("{place}.glb",))
     library.export_pictures(shelf, shelved, filler, HERO_SIDE)
     library.export_three_d(shelf, shelved, filler)
     manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo), "format": versions.FORMAT,

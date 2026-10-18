@@ -20,6 +20,7 @@
 <aside class="view3d-panel">
   <p class="small"><a href="/">World</a> / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a> / 3D</p>
   <h1>{{ detail.place|capfirst }} in 3D</h1>
+  {% if only %}<p class="panel small only-layer">Showing only <b>{{ only }}</b>, with the base for context{% if at_film %}, from the film's camera{% endif %}. <a href="/view/{{ detail.place }}">Show every layer</a></p>{% endif %}
   {% if proposed %}
   <div class="switch" role="group" aria-label="which version">
     <a href="/view/{{ detail.place }}"{% if showing == "current" %} class="on" aria-current="true"{% endif %}>Now</a>
