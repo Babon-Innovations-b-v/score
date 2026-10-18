@@ -1,18 +1,19 @@
 // A place's 3D web copy (score/dashboard/web3d/convert.py): the light preview first, then the places it shows, then
-// the whole copy; lit as the films are (its lamps, its sky, light bounced off its own surfaces from a probe at the
-// camera, AgX at the film's exposure); orbit and walk, a toggle per OpenUSD layer (its meshes, lamps, effects as
-// points, motion), a person 1.8 m tall, a measuring tool, and a click names the part, its surface, its layer and the
-// step that made that layer.
+// the whole copy; lit as the films are (its lamps, its sky's ambient, its haze, what its surfaces mirror from a
+// probe at the camera, AgX at the film's exposure); orbit and walk, a toggle per OpenUSD layer (its meshes, lamps,
+// effects as points, motion), a person 1.8 m tall, a measuring tool, and a click names the part, its surface, its
+// layer and the step that made that layer.
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { Pass } from "three/addons/postprocessing/Pass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { computeBoundsTree, acceleratedRaycast } from "three-mesh-bvh";
+import { MeshoptSimplifier } from "meshoptimizer/meshopt_simplifier.module.js";
 
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
@@ -30,18 +31,19 @@ class Hidden extends Set {
 }
 const others = given.others || "/web/";  // where the places it shows keep their own current copies
 const EYE = 1.6, STEP_UP = 0.6, PERSON = 1.8, CLICK_SLOP = 5, NO_LAYER = "not named in the copy";
-// The probe: a cube picture of the lit place from the camera, the light its surfaces bounce (BOUNCES times over),
-// made again once the camera rests REPROBE_METRES from where it was made.
-const PROBE_SIDE = 128, BOUNCES = 3, REPROBE_METRES = 4, REST_FRAMES = 20;
-// Lamps that cast shadows at once (the brightest where the probe is), each map PROBE-fixed: drawn once a probe.
-const SHADOW_LAMPS = 4, SHADOW_SIDE = 1024, SUN_SHADOW_METRES = 60;
+// The probe: a cube picture of the lit place from the camera, what its surfaces mirror, made again once the camera
+// rests REPROBE_METRES from where it was made.
+const PROBE_SIDE = 128, REPROBE_METRES = 4, REST_FRAMES = 20;
+// Lamps that cast shadows at once (the place's own first, then the brightest where the probe is), each map drawn
+// once a probe; with the pictures a surface reads, eight maps stay within the sixteen a graphics card samples.
+const SHADOW_LAMPS = 8, SHADOW_SIDE = 1024, SUN_SHADOW_METRES = 60;
+// A point lamp's shadow is six maps side by side (three.js lays them 4 by 2): at 1024 each a 4096 x 2048 picture.
+const POINT_SHADOW_SIDE = 512;
 // The orbit turns about a point this far ahead of the camera at most (a film's aim may be a city 260 m off).
 const ORBIT_REACH = 6;
 // The films' glow: what is brighter than the place's glow threshold blooms (Blender's glare at strength 1; three.js's
 // bloom normalises its own way, so its strength and spread are set by eye against the stills).
 const BLOOM_STRENGTH = 0.6, BLOOM_RADIUS = 0.5;
-// An effect's points are each this much of its opacity: thousands overlap into one cloud.
-const POINT_SHARE = 0.25;
 const $ = (id) => document.getElementById(id);
 const say = (text) => { $("status").textContent = text; };
 
@@ -54,6 +56,9 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;  // the place stands still: its shadows are drawn once a probe
 holder.appendChild(renderer.domElement);
+renderer.domElement.addEventListener("webglcontextlost", () => {
+  say("The browser's graphics dropped this view (more than it could hold at once): reload the page to try again.");
+});
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 20000);  // the far city's mountains stand about 5 km off
 const orbit = new OrbitControls(camera, renderer.domElement);
@@ -65,14 +70,58 @@ const model = new THREE.Group();  // the place's own copy (preview, then whole) 
 const copies = { own: null, around: null };
 const lamps = [], effects = new THREE.Group();
 scene.add(model, effects);
+// Where a lamp's light reaches. In the films a lamp the game casts no shadow for lights every surface through any
+// wall (the square's floodlights light the flat), and one that casts lights what it sees. Here only SHADOW_LAMPS cast
+// at once, so a lamp that should cast and has no shadow lights only the place it belongs to: unlinked, the camps'
+// lamps lit the campgrounds' ground outside through their walls (2026-10-18). three.js links lights to surfaces by
+// the camera's layers, so a frame is drawn in two passes over one depth: the shown places, then the place's own.
+const OWN_MESHES = 0, SHOWN_MESHES = 1, OWN_LAMPS = 2, SHOWN_LAMPS = 3;
+const SHOWN_PASS = (1 << SHOWN_MESHES) | (1 << SHOWN_LAMPS), OWN_PASS = (1 << OWN_MESHES) | (1 << OWN_LAMPS);
+
+// The scene drawn by `draw` through `views` (a camera, or a cube camera's six) in the two passes; shadows due are
+// drawn first, once, from every surface (through the first view, unlit, a picture the passes then draw over).
+const unlit = new THREE.MeshBasicMaterial();
+
+function drawSplit(views, draw) {
+  const kept = views.map((view) => view.layers.mask), clearing = renderer.autoClear;
+  if (renderer.shadowMap.needsUpdate) {
+    views[0].layers.enableAll();
+    scene.overrideMaterial = unlit;
+    renderer.render(scene, views[0]);
+    scene.overrideMaterial = null;
+    renderer.shadowMap.needsUpdate = false;
+  }
+  views.forEach((view) => { view.layers.mask = SHOWN_PASS; });
+  draw();
+  const sky = scene.background;
+  scene.background = null;  // a colour background clears the picture whatever autoClear says
+  renderer.autoClear = false;
+  views.forEach((view) => { view.layers.mask = OWN_PASS; });
+  draw();
+  renderer.autoClear = clearing;
+  scene.background = sky;
+  views.forEach((view, number) => { view.layers.mask = kept[number]; });
+}
+
+class SplitPass extends Pass {
+  constructor() { super(); this.needsSwap = false; }
+  render(drawer, writeBuffer, readBuffer) {
+    drawer.setRenderTarget(this.renderToScreen ? null : readBuffer);
+    drawSplit([camera], () => drawer.render(scene, camera));
+  }
+}
+
 const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new SplitPass());
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), BLOOM_STRENGTH, BLOOM_RADIUS, 1);
 bloom.enabled = false;
 composer.addPass(bloom);
 composer.addPass(new OutputPass());  // AgX and the exposure, then sRGB
 const ambient = new THREE.AmbientLight(0xffffff, 1);
+ambient.layers.set(OWN_LAMPS);
+ambient.layers.enable(SHOWN_LAMPS);
 scene.add(ambient);
+raycaster.layers.enableAll();
 let sidecar = null, move = "orbit", tool = "name", ready = false;
 
 function linear(values) { return new THREE.Color().setRGB(values[0], values[1], values[2], THREE.LinearSRGBColorSpace); }
@@ -126,7 +175,9 @@ function lampOf(entry) {
     made.shadow.camera.near = 0.05;
   }
   made.userData.entry = entry;
-  return shadowed(made, SHADOW_SIDE);
+  made.userData.own = !(entry.layer || "").startsWith("place ");
+  linkLamp(made);
+  return shadowed(made, made.isPointLight ? POINT_SHADOW_SIDE : SHADOW_SIDE);
 }
 
 function addLamps(entries) {
@@ -135,6 +186,24 @@ function addLamps(entries) {
     lamps.push(made);
     scene.add(made);
     if (made.target) scene.add(made.target);
+  }
+  chooseLamps(camera.position);
+}
+
+// The lamps drawn at once, of each kind, the place's own and the shown places' apart: those of the shown layers that
+// light `at` most. three.js works out every drawn lamp for every pixel, and the hub and the hangar hold 110 with the
+// places they show (their shader ran out of room in the browser, 2026-10-18); a lamp past these lights nothing until
+// the probe moves near it. The count of each kind stays the same, so no surface's shader is made again.
+const LAMPS_AT_ONCE = { point: 12, spot: 6, directional: 4 };
+
+function chooseLamps(at) {
+  for (const [kind, most] of Object.entries(LAMPS_AT_ONCE)) {
+    for (const own of [true, false]) {
+      const these = lamps.filter((made) => made.userData.entry.type === kind && made.userData.own === own);
+      const kept = new Set(these.filter(lampShown).sort((one, other) => reach(other, at) - reach(one, at))
+        .slice(0, most));
+      these.forEach((made) => { made.visible = kept.has(made); });
+    }
   }
 }
 
@@ -149,13 +218,23 @@ function reach(made, at) {
   return made.intensity / Math.max(made.position.distanceToSquared(at), 0.25);
 }
 
+// The surfaces a lamp lights (the layers it is on): every one for a sun, a lamp the game casts no shadow for and one
+// casting here, else its own place's alone.
+function linkLamp(made) {
+  const everywhere = made.isDirectionalLight || made.userData.entry.shadows === false || made.castShadow;
+  made.layers.mask = everywhere ? (1 << OWN_LAMPS) | (1 << SHOWN_LAMPS)
+    : 1 << (made.userData.own ? OWN_LAMPS : SHOWN_LAMPS);
+}
+
 // The sun follows the probe: its shadow box centred there. The SHADOW_LAMPS lamps that light the probe's point most
-// cast shadows; the count stays the same, so no surface's shader is made again.
+// cast shadows, the place's own first.
 function placeShadows(at) {
   const shown = lamps.filter((made) => made.visible && made.userData.entry.shadows !== false);
-  const casting = new Set(shown.sort((one, other) => reach(other, at) - reach(one, at)).slice(0, SHADOW_LAMPS));
+  const first = (one, other) => (other.userData.own - one.userData.own) || (reach(other, at) - reach(one, at));
+  const casting = new Set(shown.sort(first).slice(0, SHADOW_LAMPS));
   for (const made of lamps) {
     made.castShadow = casting.has(made);
+    linkLamp(made);
     if (!made.isDirectionalLight) continue;
     made.target.position.copy(at);
     made.position.copy(at).addScaledVector(made.userData.toward, -200);
@@ -170,26 +249,32 @@ function placeShadows(at) {
 const probeTarget = new THREE.WebGLCubeRenderTarget(PROBE_SIDE, { type: THREE.HalfFloatType });
 const probeCamera = new THREE.CubeCamera(0.05, 20000, probeTarget);
 const pmrem = new THREE.PMREMGenerator(renderer);
-const probe = { light: null, at: null, sky: new THREE.Color(), still: 0, last: new THREE.Vector3() };
+const probe = { light: null, at: null, sky: new THREE.Color(), ambient: new THREE.Color(), still: 0,
+                last: new THREE.Vector3() };
+// The probe gives what a surface mirrors, never its diffuse light: that is the sky's ambient (thinned in a haze) and
+// the lamps. As diffuse light too (bounced three times from the eye's spot) it lit every wall alike, the flat's
+// 1.7 times as bright as its film, the hub's half (2026-10-18).
+const IBL_DIFFUSE = /iblIrradiance\s*\+=\s*getIBLIrradiance\(\s*geometryNormal\s*\)\s*;/;
+THREE.ShaderChunk.lights_fragment_maps = THREE.ShaderChunk.lights_fragment_maps.replace(IBL_DIFFUSE, "");
 
-// The light bounced to every surface: the place drawn into a cube from `at` against its sky's own radiance (the dome
-// the films light with), BOUNCES times, each time lit by the last; the dome's flat ambient is then off.
+// The place drawn into a cube from `at` against its sky's own radiance (the dome the films light with), lamps,
+// shadows, haze and the far city's simplified towers chosen for that spot first.
 function probeAt(at) {
   const helpers = [person, measure.marks, effects];
   const were = helpers.map((helper) => helper.visible);
   helpers.forEach((helper) => { helper.visible = false; });
+  chooseLamps(at);
+  splitLevels(at);
   placeShadows(at);
+  hazeAt(at);
   const seen = scene.background;
   scene.background = probe.sky;
   probeCamera.position.copy(at);
-  for (let bounce = 0; bounce < BOUNCES; bounce++) {
-    probeCamera.update(renderer, scene);
-    const made = pmrem.fromCubemap(probeTarget.texture);
-    if (probe.light) probe.light.dispose();
-    probe.light = made;
-    scene.environment = made.texture;
-    ambient.intensity = 0;
-  }
+  drawSplit(probeCamera.children, () => probeCamera.update(renderer, scene));
+  const made = pmrem.fromCubemap(probeTarget.texture);
+  if (probe.light) probe.light.dispose();
+  probe.light = made;
+  scene.environment = made.texture;
   scene.background = seen;
   helpers.forEach((helper, number) => { helper.visible = were[number]; });
   probe.at = at.clone();
@@ -201,6 +286,68 @@ function probeWhenResting() {
   probe.still = camera.position.distanceTo(probe.last) < 0.01 ? probe.still + 1 : 0;
   probe.last.copy(camera.position);
   if (probe.still === REST_FRAMES && camera.position.distanceTo(probe.at) > REPROBE_METRES) probeAt(camera.position);
+}
+
+// The films' haze: a body of fog (the sidecar's `hazes`) that thins what lies behind it exponentially, its density a
+// metre, worked out only to its reach from the eye, that thins the lamps' and the sun's light on its way through it
+// and scatters that light (never the sky's: usd_views.py). three.js's linear Fog carries it: its near is the
+// density, its far the reach.
+const HAZE_SAMPLES = 4;  // the haze's own light is the lamps' averaged over a grid this many a side round the eye
+const HAZE_AROUND = 30;  // metres round the eye that grid reaches at most
+const FOG_LINEAR = /float fogFactor = smoothstep\(\s*fogNear\s*,\s*fogFar\s*,\s*vFogDepth\s*\)\s*;/;
+const hazeReady = FOG_LINEAR.test(THREE.ShaderChunk.fog_fragment);
+THREE.ShaderChunk.fog_fragment = THREE.ShaderChunk.fog_fragment.replace(FOG_LINEAR,
+  "float fogFactor = 1.0 - exp( - fogNear * ( fogFar > 0.0 ? min( vFogDepth, fogFar ) : vFogDepth ) );");
+
+// How much of a lamp's light the haze lets through to `at`: exp(-density x its way through the haze within the
+// reach), a lamp's way from where it stands, the sun's from the haze's top.
+function hazeThrough(made, haze, at) {
+  const reach = haze.reach || Infinity;
+  const up = made.isDirectionalLight ? -made.userData.toward.y : 0;
+  const way = !made.isDirectionalLight ? made.position.distanceTo(at)
+    : up > 0.01 ? Math.max(haze.high[1] - at.y, 0) / up : reach;
+  return Math.exp(-haze.density * Math.min(way, reach));
+}
+
+// The light the haze scatters back (linear radiance, isotropic): its colour times the lamps' and the sun's
+// irradiance from every side, thinned on their way, averaged over a grid round the eye inside its box, over 4 pi.
+function hazeLight(haze, eye) {
+  const low = [0, 1, 2].map((axis) => Math.max(haze.low[axis], eye.getComponent(axis) - HAZE_AROUND));
+  const high = [0, 1, 2].map((axis) => Math.min(haze.high[axis], eye.getComponent(axis) + HAZE_AROUND));
+  const at = new THREE.Vector3(), lit = new THREE.Color(0, 0, 0);
+  const shining = lamps.filter((made) => made.visible);
+  for (let step = 0; step < HAZE_SAMPLES ** 3; step++) {
+    const cell = [step % HAZE_SAMPLES, Math.floor(step / HAZE_SAMPLES) % HAZE_SAMPLES,
+                  Math.floor(step / HAZE_SAMPLES ** 2)].map((number) => (number + 0.5) / HAZE_SAMPLES);
+    at.set(...[0, 1, 2].map((axis) => low[axis] + (high[axis] - low[axis]) * cell[axis]));
+    for (const made of shining) {
+      const away = made.isDirectionalLight ? 1 : Math.max(made.position.distanceToSquared(at), 0.25);
+      const strength = made.userData.entry.intensity * hazeThrough(made, haze, at) / away;
+      lit.add(made.color.clone().multiplyScalar(strength));
+    }
+  }
+  const scale = 1 / (HAZE_SAMPLES ** 3 * 4 * Math.PI);
+  return linear(haze.colour).multiply(lit.multiplyScalar(scale));
+}
+
+// The haze the eye stands in (the box holding `at`), or none: the fog it lays, every lamp thinned by it, and the
+// sky's ambient thinned on its way down through it (a slab's mean way from the sky is twice its depth) and made up
+// by the haze's own light from every side.
+function hazeAt(at) {
+  const holds = (haze) => [0, 1, 2].every((axis) => haze.low[axis] <= at.getComponent(axis)
+                                                   && at.getComponent(axis) <= haze.high[axis]);
+  const inside = hazeReady ? (sidecar.hazes || []).find(holds) : null;
+  for (const made of lamps) {
+    made.intensity = made.userData.entry.intensity * (inside ? hazeThrough(made, inside, at) : 1);
+  }
+  ambient.color.copy(probe.ambient);
+  scene.fog = null;
+  if (!inside) return;
+  const glow = hazeLight(inside, at);
+  const depth = Math.min(Math.max(inside.high[1] - at.y, 0), inside.reach || Infinity);
+  const through = Math.exp(-2 * inside.density * depth);
+  ambient.color.multiplyScalar(through).add(glow.clone().multiplyScalar(Math.PI * (1 - through)));
+  scene.fog = new THREE.Fog(glow, inside.density, inside.reach);
 }
 
 // --- parts and layers ---------------------------------------------------------------------------------------
@@ -246,19 +393,63 @@ function leaveOut(root, hidden) {
   gone.forEach((node) => node.removeFromParent());
 }
 
-// A point instancer's prototype (the far city's towers): each of its meshes drawn once a place it stands.
-function instanced(mesh, matrices) {
-  mesh.updateWorldMatrix(true, false);
-  const into = mesh.matrixWorld.clone().invert(), out = mesh.matrixWorld;
-  const made = new THREE.InstancedMesh(mesh.geometry, mesh.material, matrices.length);
-  const each = new THREE.Matrix4();
-  matrices.forEach((numbers, number) => {
-    made.setMatrixAt(number, each.fromArray(numbers).premultiply(into).multiply(out));
-  });
+// A point instancer's prototype (the far city's towers): each of its meshes drawn once a place it stands, whole near
+// the eye and simplified (meshoptimizer's simplifier) past LOD_METRES: the far city's 2,167 towers hold about 25,000
+// triangles each, 55 million drawn whole every frame and every probe face (2026-10-18).
+const LOD_METRES = 400, FAR_SHARE = 0.02, FAR_ERROR = 0.02;
+const levels = [];  // {near, far, placed, centres}: each prototype mesh's two instanced meshes and its instances
+
+function simplified(geometry) {
+  const count = geometry.attributes.position.count;
+  const corners = geometry.index ? Uint32Array.from(geometry.index.array)
+    : Uint32Array.from({ length: count }, (unused, index) => index);
+  const target = Math.max(3, Math.floor(corners.length * FAR_SHARE / 3) * 3);
+  const [kept] = MeshoptSimplifier.simplify(corners, plainValues(geometry.attributes.position), 3, target, FAR_ERROR);
+  const far = new THREE.BufferGeometry();
+  for (const [name, values] of Object.entries(geometry.attributes)) far.setAttribute(name, values);
+  far.setIndex(new THREE.BufferAttribute(kept, 1));
+  return far;
+}
+
+function instancedOf(mesh, geometry, count) {
+  const made = new THREE.InstancedMesh(geometry, mesh.material, count);
+  made.layers.mask = mesh.layers.mask;
   made.applyMatrix4(mesh.matrix);
   made.name = mesh.name;
   made.userData.part = mesh.userData.part;
   return made;
+}
+
+// The prototype mesh as its near and far instanced meshes in its parent, every instance near until the first probe.
+function instanced(mesh, matrices) {
+  mesh.updateWorldMatrix(true, false);
+  const into = mesh.matrixWorld.clone().invert(), out = mesh.matrixWorld;
+  const placed = matrices.map((numbers) => new THREE.Matrix4().fromArray(numbers).premultiply(into).multiply(out));
+  const near = instancedOf(mesh, mesh.geometry, placed.length);
+  const far = instancedOf(mesh, simplified(mesh.geometry), placed.length);
+  mesh.parent.add(near, far);
+  near.updateMatrixWorld(true);
+  mesh.geometry.computeBoundingSphere();
+  const centres = placed.map((matrix) => mesh.geometry.boundingSphere.center.clone().applyMatrix4(matrix)
+    .applyMatrix4(near.matrixWorld));
+  levels.push({ near, far, placed, centres });
+  splitLevels(camera.position);
+}
+
+// Each instance whole within LOD_METRES of `at`, simplified past it.
+function splitLevels(at) {
+  for (const { near, far, placed, centres } of levels) {
+    let close = 0, away = 0;
+    placed.forEach((matrix, number) => {
+      if (centres[number].distanceTo(at) < LOD_METRES) near.setMatrixAt(close++, matrix);
+      else far.setMatrixAt(away++, matrix);
+    });
+    [[near, close], [far, away]].forEach(([made, count]) => {
+      made.count = count;
+      made.instanceMatrix.needsUpdate = true;
+      made.computeBoundingSphere();
+    });
+  }
 }
 
 function placeInstances(nodes) {
@@ -268,7 +459,7 @@ function placeInstances(nodes) {
         for (const node of nodes.get(name) || []) {
           const meshes = [];
           node.traverse((found) => { if (found.isMesh && !found.isInstancedMesh && found.parent) meshes.push(found); });
-          meshes.forEach((mesh) => { mesh.parent.add(instanced(mesh, prototype.matrices)); mesh.removeFromParent(); });
+          meshes.forEach((mesh) => { instanced(mesh, prototype.matrices); mesh.removeFromParent(); });
         }
       }
     }
@@ -357,6 +548,7 @@ function joinStill(root, nodes) {
     made.name = meshes[0].material.name;
     made.userData.part = { name: null, layer: meshes[0].userData.part.layer };
     made.userData.ranges = ranges;
+    made.layers.mask = meshes[0].layers.mask;
     root.add(made);
     meshes.forEach((mesh) => { mesh.removeFromParent(); mesh.geometry.dispose(); });
   }
@@ -376,7 +568,7 @@ function partOf(hit) {
 
 function showLayers() {
   model.traverse((node) => { if (node.isMesh) node.visible = !hidden.has(node.userData.part.layer); });
-  lamps.forEach((made) => { made.visible = lampShown(made); });
+  chooseLamps(probe.at || camera.position);
   effects.children.forEach((points) => {
     points.visible = !hidden.has("effects") && !shownPlaceHidden(points.userData.layer);
   });
@@ -475,13 +667,40 @@ function effectPoints(entry, sprite) {
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(placed, 3));
-  const material = new THREE.PointsMaterial({ color: linear(entry.colour), size: entry.size, map: sprite,
-                                              transparent: true, opacity: entry.opacity * POINT_SHARE,
-                                              blending: THREE.AdditiveBlending, depthWrite: false });
+  const puff = entry.look === "puff";
+  const colour = puff ? linear(entry.colour).multiplyScalar(lightOn(geometry) / Math.PI) : linear(entry.colour);
+  const material = new THREE.PointsMaterial({ color: colour, size: entry.size, map: sprite, transparent: true,
+                                              opacity: entry.opacity, depthWrite: false });
+  if (puff && entry.near_fade && entry.near_fade[1] > 0) fadedNear(material, entry.near_fade);
   const points = new THREE.Points(geometry, material);
   points.userData.layer = entry.layer;
   points.name = entry.name;
   return points;
+}
+
+// The light falling on an effect's middle (irradiance from every side, linear): the sky's ambient, the lamps and
+// half the sun's, as the films light a puff.
+function lightOn(geometry) {
+  geometry.computeBoundingSphere();
+  const middle = geometry.boundingSphere.center;
+  const lamplight = lamps.reduce((sum, made) => sum + made.userData.entry.intensity * (made.isDirectionalLight ? 0.5
+    : 1 / Math.max(made.position.distanceToSquared(middle), 0.25)), 0);
+  return lamplight + (ambient.color.r + ambient.color.g + ambient.color.b) / 3;
+}
+
+// A puff gone within near_fade metres of the eye (smoothly from the first to the second), as the films draw it.
+function fadedNear(material, [from, to]) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.fadeFrom = { value: from };
+    shader.uniforms.fadeTo = { value: to };
+    shader.vertexShader = shader.vertexShader.replace("void main() {", "varying float eyeDepth;\nvoid main() {")
+      .replace("#include <fog_vertex>", "#include <fog_vertex>\n  eyeDepth = - mvPosition.z;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("void main() {", "uniform float fadeFrom;\nuniform float fadeTo;\nvarying float eyeDepth;\n"
+                                  + "void main() {")
+      .replace("#include <premultiplied_alpha_fragment>",
+               "gl_FragColor.a *= smoothstep( fadeFrom, fadeTo, eyeDepth );\n#include <premultiplied_alpha_fragment>");
+  };
 }
 
 function addEffects(entries) {
@@ -538,10 +757,14 @@ function moveTo(mover, code) {
   }
 }
 
+// A link's moment (#...&t=<time code>, a film frame's): the movers held there; else they play from the start.
+const linkedTime = () => Number((location.hash.match(/[#&]t=([-0-9.e]+)/) || [])[1] ?? NaN);
+let heldAt = linkedTime();
+
 function playMovers(seconds) {
   if (!sidecar || !sidecar.motion || hidden.has("motion")) return;
   const { start, end, codes_per_second: rate } = sidecar.motion;
-  const code = start + (seconds * rate) % Math.max(end - start, 1);
+  const code = Number.isFinite(heldAt) ? heldAt : start + (seconds * rate) % Math.max(end - start, 1);
   movers.forEach((mover) => moveTo(mover, code));
 }
 
@@ -565,6 +788,7 @@ function personFigure() {
   return figure;
 }
 const person = personFigure();
+person.visible = $("person").checked;  // off in a place's viewer: the films show no such figure
 scene.add(person);
 
 const measure = { points: [], marks: new THREE.Group(), line: null };
@@ -735,19 +959,33 @@ function frame(now) {
 
 // --- loading --------------------------------------------------------------------------------------------------
 
+function goTo(view) {
+  if (move === "walk") document.querySelector("input[value=orbit]").click();
+  aimAt(view.eye, view.aim, view.fov);
+  if (ready) probeAt(camera.position);
+}
+
 function viewButtons() {
   $("views").replaceChildren(...(sidecar.cameras || []).map((view) => {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = view.name;
-    button.onclick = () => {
-      if (move === "walk") document.querySelector("input[value=orbit]").click();
-      aimAt(view.eye, view.aim, view.fov);
-      if (ready) probeAt(camera.position);
-    };
+    button.onclick = () => goTo(view);
     return button;
   }));
 }
+
+// A link to one view: #view=<eye x,y,z>,<aim x,y,z>,<fov across> opens there, and a new one moves there.
+function linkedView() {
+  const numbers = (location.hash.match(/view=([-0-9.,e]+)/) || [])[1]?.split(",").map(Number);
+  return numbers && numbers.length === 7 && numbers.every(Number.isFinite)
+    ? { eye: numbers.slice(0, 3), aim: numbers.slice(3, 6), fov: numbers[6] } : null;
+}
+window.addEventListener("hashchange", () => {
+  heldAt = linkedTime();
+  const view = linkedView();
+  if (view) goTo(view);
+});
 
 function standPerson() {
   raycaster.set(orbit.target.clone().add(new THREE.Vector3(0, 20, 0)), new THREE.Vector3(0, -1, 0));
@@ -769,8 +1007,51 @@ function frameModel() {
   aimAt([middle.x + size * 0.45, middle.y + size * 0.35, middle.z + size * 0.45], middle.toArray(), 75);
 }
 
+// A shown place is seen from its seat, not up close: its pictures are drawn at most SHOWN_PICTURE px a side. At their
+// copies' full size the ten places the hub and the hangar show held about 4 GB of graphics memory (2026-10-18).
+const SHOWN_PICTURE = 512;
+const PICTURE_SLOTS = ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap"];
+
+function smallerPictures(root) {
+  const done = new Set();
+  root.traverse((node) => {
+    for (const material of node.isMesh ? [node.material].flat() : []) {
+      for (const texture of PICTURE_SLOTS.map((slot) => material[slot])) {
+        const image = texture && texture.image;
+        if (!image || done.has(texture) || Math.max(image.width, image.height) <= SHOWN_PICTURE) continue;
+        done.add(texture);
+        const scale = SHOWN_PICTURE / Math.max(image.width, image.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
+        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+        if (image.close) image.close();
+        texture.image = canvas;
+        texture.needsUpdate = true;
+      }
+    }
+  });
+}
+
+// A surface drawn as nothing (a haze body's shell: fully see-through, no picture) still hides what is drawn after it
+// in the depth buffer and fills the probe from inside: left out.
+function dropUnseen(root) {
+  const gone = [];
+  root.traverse((node) => {
+    const material = node.isMesh && !Array.isArray(node.material) ? node.material : null;
+    if (material && material.transparent && material.opacity === 0 && !material.map) gone.push(node);
+  });
+  gone.forEach((node) => node.removeFromParent());
+}
+
+// Every surface takes shadows; a see-through one (glass, a lamp's shade or bowl) casts none, as light passes it in
+// the films: the flat's ceiling lamp sits in its fan's glass bowl.
 function castsAndTakes(root) {
-  root.traverse((node) => { if (node.isMesh) node.castShadow = node.receiveShadow = true; });
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    node.receiveShadow = true;
+    node.castShadow = ![node.material].flat().some((material) => material.transparent && material.opacity < 1);
+  });
 }
 
 // A copy loaded into its slot (own: the preview, then the whole; around: the shown places with no copy of their own;
@@ -782,12 +1063,15 @@ function swapIn(kind, loaded, shows = null) {
   }
   if (shows) {
     leaveOut(loaded, shows.hidden);
+    smallerPictures(loaded);
     loaded.matrixAutoUpdate = false;
     loaded.matrix.fromArray(shows.seat);
     loaded.userData.nodes = markParts(loaded, `Places/${shows.place}/`, `place ${shows.place}`);
   } else {
     loaded.userData.nodes = markParts(loaded);
   }
+  dropUnseen(loaded);
+  loaded.traverse((node) => node.layers.set(kind === "own" ? OWN_MESHES : SHOWN_MESHES));
   copies[kind] = loaded;
   model.add(loaded);
   model.updateMatrixWorld(true);
@@ -812,6 +1096,7 @@ function lightTheSky(sky) {
   scene.background = linear(sky.background);
   renderer.toneMappingExposure = sky.exposure;
   ambient.color = linear(sky.ambient);
+  probe.ambient.copy(ambient.color);
   probe.sky = linear(sky.ambient.map((value) => value / Math.PI));  // the dome's radiance: three.js's ambient over pi
 }
 
@@ -821,11 +1106,14 @@ async function loadInto(loader, kind, url, shows = null) {
   return loaded;
 }
 
-// Every shown place's own copy onto its seat, each its preview (`-light`) or its whole.
+// Every shown place's copy onto its seat (the copy of the place it stands for: a tube seated again loads the
+// tube's), each its preview (`-light`) or its whole.
 async function loadShown(loader, ending) {
   const shown = (sidecar.shows || []).filter((shows) => shows.copy);
-  await Promise.all(shown.map((shows) => loadInto(loader, `place:${shows.place}`,
-                                                  `${others}${shows.place}/${shows.place}${ending}.glb`, shows)));
+  await Promise.all(shown.map((shows) => {
+    const name = shows.of || shows.place;
+    return loadInto(loader, `place:${shows.place}`, `${others}${name}/${name}${ending}.glb`, shows);
+  }));
 }
 
 function firstLook(first) {
@@ -837,6 +1125,7 @@ function firstLook(first) {
 }
 
 async function open() {
+  await MeshoptSimplifier.ready;
   const answer = await fetch(`${base}${place}.json`, { credentials: "same-origin" });
   if (!answer.ok) throw new Error(`the copy's facts: ${answer.status}`);
   sidecar = await answer.json();
@@ -847,7 +1136,7 @@ async function open() {
   addLamps(sidecar.lights || []);
   addEffects(sidecar.effects || []);
   viewButtons();
-  const first = given.at || (sidecar.cameras || [])[0];  // a breakdown link opens at the film's camera
+  const first = linkedView() || given.at || (sidecar.cameras || [])[0];  // a breakdown link: the film's camera
   if (first) aimAt(first.eye, first.aim, first.fov);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   requestAnimationFrame(frame);

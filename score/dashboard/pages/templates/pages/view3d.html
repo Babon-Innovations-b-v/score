@@ -11,7 +11,8 @@
 { "imports": {
   "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
-  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js"
+  "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js",
+  "meshoptimizer/": "https://cdn.jsdelivr.net/npm/meshoptimizer@0.22.0/"
 } }
 </script>
 {% endif %}
@@ -42,7 +43,7 @@
   <label><input type="radio" name="tool" value="name" checked> Names the part</label>
   <label><input type="radio" name="tool" value="measure"> Measures between two clicks</label>
   <label><input type="radio" name="tool" value="person"> Stands the person there</label>
-  <label><input type="checkbox" id="person" checked> A person 1.8 m tall, for scale</label>
+  <label><input type="checkbox" id="person"> A person 1.8 m tall, for scale</label>
   <div id="picked" class="panel small">Click a surface.</div>
 
   <h2>Layers</h2>
