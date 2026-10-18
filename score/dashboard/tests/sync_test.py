@@ -1,9 +1,13 @@
-"""Hosted mode: the export built from the fixture (its files, its cap, the same twice), the upload's token and tar
-checks, the atomic swap, a request's round trip, a decision from someone not the local owner refused, and the hosted
-pages drawn from the export with its time shown."""
+"""Hosted mode: the export built from the fixture (its files, its cap, the same twice, thumbnails before films), the
+content-addressed upload (the token, path, name, offset and hash checks, two passes that send only what is lacking and
+swap the export in whole, unused files swept), a request's round trip, a decision from someone not the local owner
+refused, and the hosted pages drawn from the export with its time shown."""
+import gzip
+import hashlib
 import io
 import json
-import tarfile
+import os
+import urllib.error
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -48,54 +52,142 @@ def test_the_export_is_the_same_twice_and_keeps_to_its_cap(world, tmp_path):
     assert small["left_out"] and all(entry["why"] == "over the export's cap" for entry in small["left_out"])
 
 
-def archive(files):
-    buffer = io.BytesIO()
-    with tarfile.open(fileobj=buffer, mode="w:gz") as packed:
-        for name, data in files.items():
-            info = tarfile.TarInfo(name)
-            if data is None:
-                info.type, info.linkname = tarfile.SYMTYPE, "/etc/passwd"
-                packed.addfile(info)
-                continue
-            info.size = len(data)
-            packed.addfile(info, io.BytesIO(data))
-    return buffer.getvalue()
-
-
 def hosted_client():
     from score.dashboard.site.asgi import app
     return TestClient(app, base_url="http://127.0.0.1:8780", client=("127.0.0.1", 50000))
 
 
+class Answer:
+    """A urlopen answer from a TestClient response."""
+
+    def __init__(self, body):
+        self.body = body
+
+    def read(self):
+        return self.body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+def opener_of(web):
+    """A urlopen stand-in that sends client.Remote's requests to the hosted app in this process."""
+    def opened(request, timeout):
+        path = request.full_url.removeprefix("http://hosted")
+        answer = web.request(request.get_method(), path, content=request.data, headers=dict(request.header_items()))
+        if answer.status_code >= 400:
+            raise urllib.error.HTTPError(request.full_url, answer.status_code, answer.text, {},
+                                         io.BytesIO(answer.content))
+        return Answer(answer.content)
+    return opened
+
+
+def remote_of(web):
+    return client.Remote("http://hosted", TOKEN, opener_of(web))
+
+
+def sha_of(data):
+    return hashlib.sha256(data).hexdigest()
+
+
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_upload_needs_the_token_and_refuses_escaping_archives(settings):
-    web = hosted_client()
-    good = archive({"one/manifest.json": json.dumps({"made_at": MADE}).encode()})
-    assert web.put("/api/sync/export", content=good).status_code == 401
-    assert web.put("/api/sync/export", content=good, headers={"Authorization": "Bearer wrong"}).status_code == 401
-    bearer = {"Authorization": f"Bearer {TOKEN}"}
-    assert web.put("/api/sync/export", content=archive({"../x": b"x"}), headers=bearer).status_code == 400
-    assert web.put("/api/sync/export", content=archive({"/abs": b"x"}), headers=bearer).status_code == 400
-    assert web.put("/api/sync/export", content=archive({"link": None}), headers=bearer).status_code == 400
+def test_every_sync_route_needs_the_token():
+    web, sha = hosted_client(), sha_of(b"x")
+    for wrong in ({}, {"Authorization": "Bearer wrong"}):
+        assert web.post("/api/sync/lacking", json={"files": {sha: 1}}, headers=wrong).status_code == 401
+        assert web.put(f"/api/sync/blobs/{sha}?offset=0&size=1", content=gzip.compress(b"x"),
+                       headers=wrong).status_code == 401
+        assert web.post("/api/sync/commit", json={"name": "n", "files": {}}, headers=wrong).status_code == 401
+
+
+@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
+def test_a_bad_sha_path_or_name_is_refused(settings):
+    web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
+    assert web.post("/api/sync/lacking", json={"files": {"../etc": 1}}, headers=bearer).status_code == 400
+    sha = sha_of(b"{}")
+    assert web.put(f"/api/sync/blobs/{sha}?offset=0&size=2", content=gzip.compress(b"{}"),
+                   headers=bearer).json()["done"]
+    for path in ("../x", "/abs", "a//b", "a\\b"):
+        files = {"manifest.json": sha, path: sha}
+        assert web.post("/api/sync/commit", json={"name": "one", "files": files}, headers=bearer).status_code == 400
+    for name in ("current", "x.partial", "a/b", ""):
+        answer = web.post("/api/sync/commit", json={"name": name, "files": {"manifest.json": sha}}, headers=bearer)
+        assert answer.status_code == 400, name
+    assert web.post("/api/sync/commit", json={"name": "one", "files": {"state.json": sha}},
+                    headers=bearer).status_code == 400
     assert not (settings.SCORE_HOME / "export/current").exists()
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_an_export_is_swapped_in_whole_and_two_are_kept(settings, monkeypatch):
-    from score.dashboard import state
-    monkeypatch.setattr(state, "source", lambda: ExportedSource(settings.SCORE_HOME / "export/current"))
+def test_a_chunk_at_the_wrong_offset_is_told_where_to_go_on_and_a_wrong_hash_is_refused(settings):
     web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
-    for hour in ("10", "11", "12"):
-        made = f"2026-10-18T{hour}:00:00+00:00"
-        name = client.folder_name(made)
-        answer = web.put("/api/sync/export", content=archive({f"{name}/manifest.json": json.dumps(
-            {"made_at": made}).encode()}), headers=bearer)
+    data = b"abcdefgh"
+    sha = sha_of(data)
+    assert web.put(f"/api/sync/blobs/{sha}?offset=0&size=8", content=gzip.compress(data[:3]),
+                   headers=bearer).json() == {"have": 3, "done": False}
+    answer = web.put(f"/api/sync/blobs/{sha}?offset=6&size=8", content=gzip.compress(data[6:]), headers=bearer)
+    assert answer.status_code == 409 and answer.json() == {"have": 3}
+    assert web.put(f"/api/sync/blobs/{sha}?offset=3&size=8", content=gzip.compress(data[3:]),
+                   headers=bearer).json() == {"have": 8, "done": True}
+    assert (settings.SCORE_HOME / "blobs" / sha).read_bytes() == data
+    liar = sha_of(b"something else")
+    answer = web.put(f"/api/sync/blobs/{liar}?offset=0&size=8", content=gzip.compress(data), headers=bearer)
+    assert answer.status_code == 400 and not (settings.SCORE_HOME / "blobs" / liar).exists()
+    assert not (settings.SCORE_HOME / "blobs" / f"{liar}.part").exists()
+    past = web.put(f"/api/sync/blobs/{liar}?offset=0&size=2", content=gzip.compress(data), headers=bearer)
+    assert past.status_code == 400
+
+
+@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
+def test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole(world, settings, monkeypatch):
+    from score.dashboard.tests.fixture import FakeBackend
+    exports = settings.SCORE_HOME / "export"
+    web = hosted_client()
+    monkeypatch.setattr(client, "PASS_SECONDS", -1.0)  # the pass is over before its first file: only the manifest
+    first = client.push_export(remote_of(web), world.source, FakeBackend())
+    assert first["files"] == 0 and first["to_come"] > 0
+    shown = json.loads((exports / "current/manifest.json").read_text())
+    still = {entry["what"] for entry in shown["left_out"] if entry["why"] == client.STILL}
+    assert "state.json" in still and not (exports / "current/state.json").exists()
+    monkeypatch.setattr(client, "PASS_SECONDS", 600.0)
+    monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T13:00:00+00:00")
+    second = client.push_export(remote_of(web), world.source, FakeBackend())
+    assert second["to_come"] == 0 and second["files"] == first["to_come"]
+    shown = json.loads((exports / "current/manifest.json").read_text())
+    assert shown["made_at"] == "2026-10-18T13:00:00+00:00"
+    assert not any(entry["why"] == client.STILL for entry in shown["left_out"])
+    for path in shown["written"]:
+        assert (exports / "current" / path).is_file(), path
+    monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T14:00:00+00:00")
+    third = client.push_export(remote_of(web), world.source, FakeBackend())
+    assert third["files"] <= 2  # only what changed: the new state.json and manifest
+    kept = [path for path in exports.iterdir() if path.is_dir() and not path.is_symlink()]
+    assert len(kept) == 2 and os.readlink(exports / "current") == "2026-10-18T140000+0000"
+
+
+@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
+def test_a_file_no_kept_export_uses_is_swept(settings):
+    web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
+    blobs = settings.SCORE_HOME / "blobs"
+    for made, data in (("a", b"{\"made_at\": \"a\"}"), ("b", b"{\"made_at\": \"b\"}"),
+                       ("c", b"{\"made_at\": \"c\"}")):
+        sha = sha_of(data)
+        web.put(f"/api/sync/blobs/{sha}?offset=0&size={len(data)}", content=gzip.compress(data), headers=bearer)
+        answer = web.post("/api/sync/commit", json={"name": made, "files": {"manifest.json": sha}}, headers=bearer)
         assert answer.status_code == 200, answer.text
-    current = settings.SCORE_HOME / "export/current"
-    assert current.is_symlink() and json.loads((current / "manifest.json").read_text())["made_at"].startswith(
-        "2026-10-18T12")
-    kept = [path for path in (settings.SCORE_HOME / "export").iterdir() if path.is_dir() and not path.is_symlink()]
-    assert len(kept) == 2
+    assert not (blobs / sha_of(b'{"made_at": "a"}')).exists()
+    assert (blobs / sha_of(b'{"made_at": "b"}')).exists() and (blobs / sha_of(b'{"made_at": "c"}')).exists()
+
+
+def test_the_step_cards_thumbnails_are_written_before_any_film(world, tmp_path):
+    written = exported(world, tmp_path / "one")["written"]
+    thumbs = [index for index, path in enumerate(written) if path.endswith("-360.jpg")]
+    films = [index for index, path in enumerate(written) if path.endswith(".mp4")]
+    assert thumbs and films and max(thumbs) < min(films)
+    assert written[0] == "state.json"
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
@@ -133,10 +225,17 @@ class Hosted:
     """A stand-in for the hosted dashboard's endpoints, in memory."""
 
     def __init__(self, waiting):
-        self.waiting_items, self.reports, self.archives = waiting, [], []
+        self.waiting_items, self.reports, self.chunks, self.commits = waiting, [], [], []
 
-    def put_export(self, body):
-        self.archives.append(body)
+    def lacking(self, sizes):
+        return list(sizes)
+
+    def put_chunk(self, sha, offset, size, data):
+        self.chunks.append(sha)
+        return {"have": size, "done": True}
+
+    def commit(self, name, files):
+        self.commits.append(files)
 
     def waiting(self):
         return self.waiting_items
@@ -151,7 +250,7 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world):
                      {"id": 8, "kind": "decision", "user": "mallory", "payload": {
                          "node": "closeup@alpha", "output": "o", "decision": "reject"}}])
     said = client.sync_pass(hosted, world.source, FakeBackend())
-    assert "pushed the export" in said and len(hosted.archives) == 1
+    assert "pushed the export" in said and "0 still to come" in said and len(hosted.commits) == 1
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 
 

@@ -22,7 +22,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, plan,
   every launch refusal in words).
 - **`sync/`** hosted mode: `building.py` the export, `endpoints.py` the hosted side (token only), `client.py` and
-  `applying.py` the store side's pass. The store's machine always calls out.
+  `applying.py` the store side's pass. The store's machine always calls out. The export goes content-addressed: only
+  the files the hosted side lacks, thumbnails first, one 2 MiB gzip chunk a request, then a commit swaps it in whole.
 - **`deploy/`** templates only, every host and name a `<placeholder>`; `Dockerfile` and `docker-compose.yml` beside.
 
 Rules:
