@@ -1,0 +1,160 @@
+"""Check the people route's pieces on small made-up meshes: a region by its neighbours' majority, a web found by its
+binds' jump and by the underarm rule, a cut closed by a fan that faces as its part, the weights kept to their limb,
+the collar line filled round the neck, the neck tuck listed last, the old head's neck appended in plain skin, the
+hair drawn over the scalp, the correctives' main shapes, and the stretch measure's longest edges.
+
+Run: .venv/bin/python -m pytest tools/characters/maker/route_test.py   (PROPS_HOME is a temporary folder: nothing
+here reads or writes the store)
+"""
+import pathlib
+import sys
+
+import numpy as np
+import pytest
+
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path[:0] = [str(HERE), str(HERE.parent / "people")]
+import route_bind  # noqa: E402
+import route_build  # noqa: E402
+import route_head  # noqa: E402
+import route_stretch  # noqa: E402
+
+NAMES = ["Root", "Hips", "Chest", "Neck1", "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand"]
+TRUNK = route_bind.REGIONS.index(route_bind.TRUNK)
+ARM = route_bind.REGIONS.index("LeftArm")
+
+
+@pytest.fixture(autouse=True)
+def props_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("PROPS_HOME", str(tmp_path))
+
+
+def facing(points, faces):
+    corners = points[faces]
+    return np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])[:, 2]
+
+
+def test_a_lone_point_takes_its_neighbours_region():
+    _, faces = grid(5, 2)
+    labels = np.full(10, TRUNK)
+    labels[4] = ARM
+    assert (route_bind.majority(labels, route_bind.edges_of(faces)) == TRUNK).all()
+
+
+def test_an_edge_whose_binds_jump_is_web_and_a_touching_seam_is_not():
+    points = np.array([[0.0, 0, 0], [0.01, 0, 0], [0.02, 0, 0]])
+    edges = np.array([[0, 1], [1, 2]])
+    regions = np.array([TRUNK, ARM, ARM])
+    places = np.array([[0.0, 0, 0], [0.05, 0, 0], [0.06, 0, 0]])
+    assert route_bind.web_edges(points, edges, regions, places).tolist() == [True, False]
+    touching = np.array([[0.0, 0, 0], [0.01, 0, 0], [0.02, 0, 0]])
+    assert not route_bind.web_edges(points, edges, regions, touching).any()
+
+
+def test_the_underarm_and_the_crotch_are_cut_but_the_shoulder_top_is_not():
+    points = np.array([[0.0, 1.20, 0], [0.01, 1.20, 0], [0.0, 1.40, 0], [0.01, 1.40, 0], [0.0, 0.6, 0],
+                       [0.01, 0.6, 0]])
+    regions = np.array([TRUNK, ARM, TRUNK, ARM, route_bind.REGIONS.index("LeftLeg"),
+                        route_bind.REGIONS.index("RightLeg")])
+    edges = np.array([[0, 1], [2, 3], [4, 5]])
+    found = route_bind.underarm_edges(points, edges, regions, {ARM: 1.40})
+    assert found.tolist() == [True, False, True]
+
+
+def grid(columns, rows):
+    """A grid of points in the z = 0 plane, x along columns, its triangles wound to face +z."""
+    points = np.array([[column * 0.01, row * 0.01, 0.0] for column in range(columns) for row in range(rows)])
+    faces = []
+    for column in range(columns - 1):
+        for row in range(rows - 1):
+            low, high = column * rows + row, column * rows + row + 1
+            faces += [[low, low + rows, high], [high, low + rows, high + rows]]
+    return points, np.array(faces)
+
+
+def test_a_cut_is_closed_on_each_side_by_its_own_fan():
+    points, faces = grid(6, 3)
+    labels = np.where(points[:, 0] < 0.025, TRUNK, ARM)
+    middle = (points[faces, 0].min(1) > 0.015) & (points[faces, 0].max(1) < 0.035)
+    closed, middles = route_bind.closed(faces, labels, middle, len(points))
+    assert sorted(len(ends) for ends in middles) == [3, 3]
+    assert {labels[ends[0]] for ends in middles} == {TRUNK, ARM}
+    kept = closed[:len(faces) - middle.sum()]
+    assert (facing(points, kept) > 0).all()
+    fans = closed[len(kept):]
+    assert len(fans) == 2 * 3 and ((fans == len(points)) | (fans == len(points) + 1)).any(axis=1).all()
+    grown = route_bind.with_middles(points, middles)
+    assert np.allclose(grown[len(points):, 0], [0.02, 0.03]) or np.allclose(grown[len(points):, 0], [0.03, 0.02])
+
+
+def test_a_limb_point_keeps_only_its_chain_and_its_shoulder():
+    weights = np.full((2, len(NAMES)), 1.0 / len(NAMES))
+    kept = route_bind.kept_to_limb(weights, np.array([ARM, TRUNK]), NAMES)
+    allowed = [NAMES.index(name) for name in ("LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand")]
+    assert np.allclose(kept[0].sum(), 1.0)
+    assert np.allclose(np.delete(kept[0], allowed), 0.0)
+    assert np.allclose(kept[1], weights[1])
+
+
+def test_the_collar_line_is_filled_round_the_neck():
+    turns = np.linspace(-np.pi, np.pi, 8, endpoint=False) + 0.01
+    border = np.stack([np.cos(turns) * 0.06, 1.45 + 0.01 * np.sin(turns), np.sin(turns) * 0.06], 1)
+    line = route_head.collar_line(border, np.zeros(3), 1.5)
+    assert len(line) == route_head.DIRECTIONS
+    assert not np.isnan(line).any()
+    assert line.min() >= 1.44 - 1e-9 and line.max() <= 1.46 + 1e-9
+
+
+def test_points_under_the_collar_are_listed_last():
+    points = np.array([[0.05, 1.50, 0.0], [0.05, 1.40, 0.0], [0.05, 1.55, 0.0]])
+    order, tuck_from = route_head.tuck_order(points, np.full(route_head.DIRECTIONS, 1.45), np.zeros(3))
+    assert order.tolist() == [0, 2, 1] and tuck_from == 2
+    renumbered = route_head.reordered(order, np.array([[0, 1, 2]]))
+    assert renumbered.tolist() == [[0, 2, 1]]
+
+
+def test_the_neck_is_appended_under_the_old_head():
+    old_points = np.array([[0.0, 1.5, 0.0], [0.01, 1.5, 0.0], [0.02, 1.5, 0.0], [0.01, 1.52, 0.0]])
+    old_faces = np.array([[0, 1, 3], [1, 2, 3]])
+    old_uv = np.array([[0.1, 0.1], [0.2, 0.2], [0.9, 0.9], [0.5, 0.5]])
+    piece_points = np.r_[old_points, [[0.012, 1.45, 0.0]]]
+    piece_faces = np.array([[0, 1, 3], [1, 2, 3], [4, 1, 0]])
+    neck = route_head.Extension(piece_points, piece_faces, np.eye(5), old_points, old_faces, old_uv, np.eye(5)[:4])
+    assert neck.found == 4 and len(neck.points) == 3
+    assert neck.faces.tolist() == [[4, 5, 6]]
+    assert np.allclose(neck.points, piece_points[[4, 1, 0]])
+    assert neck.uv.tolist() == [[0.2, 0.2]] * 3
+
+
+def test_the_lowest_band_of_the_drawing_is_painted_skin():
+    picture = np.full((20, 20, 3), (200, 150, 120), np.uint8)
+    picture[2:4, :] = 0
+    points = np.array([[0.0, 1.50, 0.0], [0.01, 1.50, 0.0], [0.0, 1.51, 0.0], [0.0, 1.60, 0.0], [0.01, 1.60, 0.0]])
+    faces = np.array([[0, 1, 2], [2, 3, 4]])
+    uv = np.array([[0.0, 0.0], [0.5, 0.0], [0.0, 0.25], [0.6, 0.6], [0.9, 0.9]])
+    painted = route_head.painted_neck(picture, points, faces, uv)
+    assert (painted[2:4, :4] == (200, 150, 120)).all()
+    assert (painted[2:4, 15:] == 0).all()
+
+
+def test_the_scalp_is_drawn_under_the_hair():
+    import trimesh
+    hair = trimesh.creation.icosphere(subdivisions=2, radius=0.1)
+    points = np.array([[0.0, 0.12, 0.0], [0.0, 0.05, 0.0]])
+    moved, count = route_head.under_hair(points, hair.vertices, hair.faces, np.zeros(3), np.array([True, True]))
+    assert count == 1
+    assert np.linalg.norm(moved[0]) < 0.1 and np.allclose(moved[1], points[1])
+
+
+def test_the_main_shapes_keep_offsets_made_of_few_directions():
+    rng = np.random.default_rng(0)
+    directions = rng.normal(size=(2, 30))
+    stacked = (rng.normal(size=(40, 2)) @ directions).astype(np.float32)
+    shapes, weights, kept = route_build.principal_shapes(stacked, 2)
+    assert kept > 0.999
+    assert np.allclose(weights @ shapes, stacked, atol=1e-4)
+
+
+def test_the_longest_edge_of_each_triangle():
+    points = np.array([[0.0, 0, 0], [3.0, 0, 0], [0.0, 4.0, 0]])
+    assert route_stretch.longest_edges(points, np.array([[0, 1, 2]])).tolist() == [5.0]
