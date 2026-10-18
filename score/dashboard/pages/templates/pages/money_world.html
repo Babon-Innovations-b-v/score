@@ -1,20 +1,42 @@
-<section class="money-card" aria-label="money against your stop">
-  <div class="money-head">
-    <div>
-      <div class="eyebrow">Spent on this world</div>
-      <div class="money-total">{% if money.total is not None %}EUR {{ money.total|floatformat:2 }}{% else %}<span class="unknown">not known yet</span>{% endif %}</div>
+<section class="money-card" aria-label="money">
+  <div class="money-grid">
+    <div class="money-month">
+      <div class="eyebrow">This month, {{ money.month }}</div>
+      <div class="money-total">{% if money.total is None %}<span class="unknown">not known yet</span>{% else %}{% if not money.whole %}<span class="atleast">at least</span> {% endif %}EUR {{ money.total|floatformat:2 }}{% endif %}</div>
+      {% if money.gaps and money.total is not None %}<p class="small soft">Not whole yet: {{ money.gaps|join:", "|lower }}.</p>{% endif %}
+      <ul class="sources">
+        {% for line in money.lines %}<li title="{{ line.origin }}{% if line.read_at %}, read {{ line.read_at|slice:':16' }}{% endif %}">
+          <span>{{ line.label }}<small>{{ line.origin }}{% if line.read_at %}, read {{ line.read_at|slice:"5:10" }} {{ line.read_at|slice:"11:16" }}{% endif %}</small></span>
+          <b>{% if line.euros is None %}<span class="unknown">not known yet</span>{% else %}{% if line.partial %}<span class="atleast">at least</span> {% endif %}EUR {{ line.euros|floatformat:2 }}{% endif %}</b>
+        </li>{% endfor %}
+      </ul>
     </div>
-    <div class="money-stop">
-      <div class="eyebrow">Your stop</div>
-      <div class="money-total soft">{% if money.stop %}EUR {{ money.stop|floatformat:0 }}{% else %}<span class="unknown">not known yet</span>{% endif %}</div>
+    <div class="money-world">
+      <div class="eyebrow">{{ money.world|capfirst }} against your stop</div>
+      {% if money.stop %}
+      <div class="money-total">EUR {{ money.spent|default:0|floatformat:2 }} <span class="soft">of EUR {{ money.stop|floatformat:0 }}</span></div>
+      <div class="meter" role="img" aria-label="spent and in flight against the stop">
+        {% if money.spent_share %}<span class="used" style="width: {{ money.spent_share|floatformat:2 }}%"></span>{% endif %}
+        {% if money.flight_share %}<span class="planned" style="width: {{ money.flight_share|floatformat:2 }}%"></span>{% endif %}
+      </div>
+      <p class="small soft">{% if money.in_flight %}EUR {{ money.in_flight|floatformat:2 }} in flight; {% endif %}EUR {{ money.room|floatformat:2 }} of room left.{% if money.likely %} The basket's plan would take about EUR {{ money.likely|floatformat:2 }}.{% endif %}</p>
+      {% else %}
+      <div class="money-total stopless">No stop set: paid launches refused</div>
+      <p class="small soft">To set one, type in your own terminal:</p>
+      <pre class="command">{{ money.stop_line }}</pre>
+      {% endif %}
     </div>
   </div>
-  <div class="meter{% if money.share is None %} blank{% endif %}" role="img" aria-label="{% if money.share is not None %}{{ money.share|floatformat:0 }} percent of the stop{% else %}not known yet{% endif %}">
-    {% if money.share is not None %}<span class="used" style="width: {{ money.share|floatformat:2 }}%"></span>{% if money.likely_share %}<span class="planned" style="width: {{ money.likely_share|floatformat:2 }}%"></span>{% endif %}{% endif %}
-  </div>
-  <ul class="sources">
-    {% for source in money.sources %}<li><span>{{ source.name|capfirst }}</span><b>{% if source.euros is not None %}EUR {{ source.euros|floatformat:2 }}{% else %}<span class="unknown">not known yet</span>{% endif %}</b></li>
-    {% empty %}<li class="soft"><span>Where the money comes from</span><b class="unknown">not known yet</b></li>{% endfor %}
-  </ul>
-  {% if money.likely %}<p class="small soft">The basket's plan would add about EUR {{ money.likely|floatformat:2 }}.</p>{% endif %}
+  {% if owner %}
+  <details class="fold inner owner-costs"><summary>Enter a cost nothing reads for you</summary>
+    <form class="cost-form" data-post="/api/money/owner-costs">
+      <label>What<select name="source"><option value="models">model calls: this month's bill</option><option value="subscriptions">subscriptions: the fixed monthly figure</option></select></label>
+      <label>EUR<input type="number" name="euros" min="0" step="0.01" required></label>
+      <label class="wide">What it is<input type="text" name="words" placeholder="for example: four seats of a monthly plan"></label>
+      <button class="primary">Enter it</button>
+      <output class="small"></output>
+    </form>
+  </details>
+  {% endif %}
+  {% if money.credit_note %}<p class="small faint note">{{ money.credit_note|capfirst }}</p>{% endif %}
 </section>
