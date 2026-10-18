@@ -27,7 +27,7 @@ def token_colours(tokens_file):
 
 
 def library(materials_file, tokens_file):
-    """{surface name: (rgb, roughness, metallic)} of every variant in the material library; empty for a world
+    """{surface name: (rgb, roughness, metallic)} of every variant in the material library; empty for an environment
     with no library."""
     if not (pathlib.Path(materials_file).is_file() and pathlib.Path(tokens_file).is_file()):
         return {}

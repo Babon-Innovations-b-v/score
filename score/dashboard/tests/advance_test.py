@@ -12,7 +12,7 @@ from score.dashboard.sync import applying
 from score.dashboard.tests.fixture import FakeBackend
 
 pytestmark = pytest.mark.django_db
-PAID = "demo-film@alpha"  # reads assembly@alpha and complete@alpha, both accepted in the fixture world
+PAID = "demo-film@alpha"  # reads assembly@alpha and complete@alpha, both accepted in the fixture environment
 
 
 def signed_in(name="joey"):

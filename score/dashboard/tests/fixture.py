@@ -1,4 +1,4 @@
-"""A tiny world for the dashboard's tests, written with the framework's own store calls: two places (alpha, beta)
+"""A tiny environment for the dashboard's tests, written with the framework's own store calls: two places (alpha, beta)
 from kit files in a temp data root; nodes of plan, scene-record, closeup (paid), assembly, complete and demo-film,
 each with a stored output, a finish record, a judgement and the runner's automatic accept (beta's close-up fails);
 one fault report, one log, a waiting worse close-up at alpha, a two-row ledger, and FakeBackend, a compute backend
@@ -100,7 +100,7 @@ class Built:
 
 
 def data_root(root):
-    """The kit files, the looks, the gaps of the fixture world."""
+    """The kit files, the looks, the gaps of the fixture environment."""
     data = root / "data"
     for place in PLACES:
         (data / "kit").mkdir(parents=True, exist_ok=True)
@@ -117,7 +117,7 @@ def data_root(root):
 
 
 def build(root):
-    """The fixture world under `root`: its data, its store (not the framework's: owner writes are allowed), its
+    """The fixture environment under `root`: its data, its store (not the framework's: owner writes are allowed), its
     source and its ledger."""
     root = pathlib.Path(root)
     data = data_root(root)

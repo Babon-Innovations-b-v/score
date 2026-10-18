@@ -1,6 +1,6 @@
 """The FILM pages and the film script (score/dashboard/films): a script's clock and checks, its render items priced
 from measured frames only, the page with its free preview's data, saving to the cockpit's home only, the basket taking
-only rows that exist, and world 1's starter script."""
+only rows that exist, and environment 1's starter script."""
 import json
 import re
 

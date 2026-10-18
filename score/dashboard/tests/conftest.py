@@ -25,7 +25,7 @@ django.setup()  # pytest-django reads the settings module before this file runs,
 
 @pytest.fixture
 def world(tmp_path, monkeypatch):
-    """The fixture world (tests/fixture.py) served as this process's source, decisions on."""
+    """The fixture environment (tests/fixture.py) served as this process's source, decisions on."""
     from score.dashboard import state
     from score.dashboard.pages import actions
     from score.dashboard.tests import fixture

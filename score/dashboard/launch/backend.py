@@ -3,7 +3,7 @@
     class ComputeBackend(Protocol):
         name: str
         def plan(self, group: RunGroup) -> GroupPlan: ...      # missing inputs, nodes to run, buys with estimates, refusal
-        def spend(self) -> Spend: ...                          # the world against its stop, the month by source
+        def spend(self) -> Spend: ...                          # the environment against its stop, the month by source
         def measured(self) -> Iterable[MeasuredRun]: ...       # stage, euros, minutes of earlier paid runs
         def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle: ...
         def poll(self, handle: LaunchHandle) -> LaunchState: ...
@@ -23,7 +23,7 @@ from score.dashboard.state.models import Spend
 
 @dataclasses.dataclass(frozen=True)
 class RunGroup:
-    """Places that queued the same stages: one runner command. No places: world stages only."""
+    """Places that queued the same stages: one runner command. No places: environment stages only."""
     places: tuple
     stages: tuple
     world: str = "world1"

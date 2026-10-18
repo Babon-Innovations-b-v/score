@@ -21,7 +21,7 @@ class ChangeRequest(models.Model):
 
 
 class BasketItem(models.Model):
-    """One step queued for a launch: a place's stage, or a world stage (place empty)."""
+    """One step queued for a launch: a place's stage, or an environment stage (place empty)."""
 
     place = models.CharField(max_length=100, blank=True)
     stage = models.CharField(max_length=100)

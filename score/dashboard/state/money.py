@@ -66,7 +66,7 @@ def total(found):
 
 
 def view(spend):
-    """The month, its lines, the total, the world against its stop, and the shared credit as a note only."""
+    """The month, its lines, the total, the environment against its stop, and the shared credit as a note only."""
     found = lines(spend)
     return MoneyView(month=this_month(spend), lines=found, total=total(found), world=spend.world,
                      stop=spend.ceiling, stop_at=spend.stop_at, world_spent=spend.spent, in_flight=spend.reserved,
