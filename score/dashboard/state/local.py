@@ -12,7 +12,7 @@ import re
 
 from score import review, stages
 from score.dashboard.state import groups
-from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, thumbnail
+from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
 from score.dashboard.state.index import Fresh, answer_keys
 from score.dashboard.state.models import (EngineGroup, GateCounts, GateVerdict, InputPicture, LayerGroup,
                                           PlaceCard, PlaceDetail, Spend, StepCard, StepDetail, StyleGroup, Taken,
@@ -195,11 +195,16 @@ class LocalSource:
                     return ref
         return images[0] if images else None
 
+    def own_image(self, output):
+        """The output's first image of its own making: a texture packaged in an assets/ folder is not one."""
+        return next((ref for ref in self.refs(output, ("image",)) if not packaged(ref.name)), None)
+
     def picture_of(self, node, output):
-        """The output's first image, else its preview made from its own files (previews/); None for no output."""
+        """The output's first image of its own making, else its preview made from its own files (previews/); None
+        for no output."""
         if not output:
             return None
-        return self.first_image(output) or self.preview(node, output)
+        return self.own_image(output) or self.preview(node, output)
 
     def preview(self, node, output):
         """A FileRef of the picture previews/ makes from an output that holds no image of its own, served and
@@ -211,7 +216,7 @@ class LocalSource:
         stage, _, place = node.partition("@")
         files = [(name, self.blob_path(sha)) for name, sha in sorted(listing.items())]
         path = previews.picture(files, self.place_plan(place) if place else None, self.surface_library(), self.home,
-                                output, groups.label(stage))
+                                output, groups.label(stage), (self.props_home / "work",))
         sha = previews.preview_id(output)
         self.known.add(sha, previews.PREVIEW_NAME, path)
         return file_ref(sha, previews.PREVIEW_NAME, path.stat().st_size)
@@ -534,8 +539,8 @@ class LocalSource:
         return detail
 
     def with_preview(self, node, output, refs):
-        """An output's files, its preview added after them when none of them is an image."""
-        if any(ref.kind == "image" for ref in refs):
+        """An output's files, its preview added after them when none of them is an image of its own making."""
+        if any(ref.kind == "image" and not packaged(ref.name) for ref in refs):
             return refs
         made = self.preview(node, output)
         return [*refs, made] if made else refs

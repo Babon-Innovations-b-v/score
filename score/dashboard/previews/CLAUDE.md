@@ -1,11 +1,15 @@
 # score/dashboard/previews/
 
-A picture for every step card whose output holds no image of its own, drawn from that output's own files on the
-store's machine: the plan from above with its items labelled (`maps.plan_picture`), a settle's objects at rest
-(`maps.settle_picture`), the painted takes three-quarter (`paint.py`, .ply pieces named by library surfaces), the
-surfaces a finish list names as swatches (`swatches.py`, colours from `data/library/materials.json` and
-`design/tokens/tokens.json`), a .wav sound's waveforms, a USD layer's prims or a JSON output's placed things over
-the place's plan, else a tile per thing it names (`sheets.py`). `__init__.draw` picks the drawer from the files.
+A picture for every step card whose output holds no image of its own making (a texture or sound packaged in an
+`assets/` folder is not one: `state/files.packaged`), drawn from that output's own files on the store's machine: the
+plan from above with its items labelled (`maps.plan_picture`), a settle's objects at rest (`maps.settle_picture`),
+the painted takes three-quarter (`paint.py`, .ply pieces named by library surfaces), a surface check's library colour
+over its baked colour (`checks.py`), the surfaces a finish list names as swatches (`swatches.py`, colours from
+`data/library/materials.json` and `design/tokens/tokens.json`), a .wav sound's waveforms, what a USD layer places
+and moves (each animated translate as a route) or a JSON output's placed things over the place's plan, the models an
+output names by hash (`meshes.py`, found one level under the work folder and checked against the hash), the
+pictures its records point at, cut to their boxes (`crops.py`), else a tile per thing it names (`sheets.py`).
+`__init__.draw` picks the drawer from the files.
 
 Rules:
 

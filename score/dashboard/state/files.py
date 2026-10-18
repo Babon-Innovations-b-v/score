@@ -64,3 +64,9 @@ def thumbnail(source, target, side=THUMB_SIDE):
         picture.convert("RGB").save(partial, "JPEG", quality=THUMB_QUALITY)
     partial.replace(target)
     return target
+
+
+def packaged(name):
+    """True for a file packaged for a stage (in an assets/ folder, the output's own or a joined place's): a model, a
+    texture or a sound the layers use, not what the step made to be seen."""
+    return "assets" in pathlib.PurePosixPath(name).parts[:-1]
