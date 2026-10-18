@@ -50,6 +50,14 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (EUR 16), and card time the ledger missed (about EUR 44). The backend's `delete` now writes each machine's disk and
   address euros to the ledger (`disk-and-address-<id>`). `python3 tools/costs/costs.py today` prints the bill's day and
   month to date by product, for the 09:00, 15:00 and 21:00 reports.
+- **Card counts come from measured numbers, never a guess** (`preflight.py`, owner 2026-10-18): under a runner's
+  ticket, `capacity.machines_for` sizes a batch on its stage's measured numbers in the ledger (seconds a job, a fresh
+  card's set-up, euros a card-minute; the ledger line's `ticket` names the stage), whatever minutes the runner passed,
+  keeps the batch's pre-flight (cards, likely and high minutes and euros) in `forecasts/<node>/<key>.jsonl` beside the
+  store and says it in the run's log. A stage with fewer than 3 measured machines, or batches of two kinds, keeps its
+  runner's own rule. A unit is one job as the stage splits them: the ledger names jobs, not frames. The runner's
+  clearance reserves a paid node at its stage's measured runs (`preflight.node_run`: the high euros, the likely
+  minutes) rather than the stage's hand-written estimate.
 - **The cheapest card that fits** (owner, 2026-10-12): `capacity.next_offer` takes the kind's cheapest card per job
   first (`KIND_ORDER`, measured from the ledger; an offer out of stock last, a scarce one still first): an L4 for
   Pixal3D and the mesh splitting (EUR 0.14 a job against 0.73 on an H100), an L40S for the judge (0.33 against 0.78),

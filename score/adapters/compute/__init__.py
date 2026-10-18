@@ -109,6 +109,21 @@ def month_refusal(euros, reserved=0.0):
     return None
 
 
+def run_forecast(node, euros):
+    """A paid node's run forecast ({euros, minutes, measured}): its stage's measured runs in the cloud ledger at their
+    high euros and likely minutes (tools/props/cloud/preflight.py), else the stage's own estimate `euros` with no
+    minutes; Refused with neither. The runner's numbers, never an agent's: the owner, 2026-10-18."""
+    books = ledger()
+    import preflight  # beside ledger.py
+    run = preflight.node_run(books.entries(), node.partition("@")[0])
+    if run:
+        return {"euros": round(run["high_euros"], 4), "minutes": round(run["minutes"], 2), "measured": run["runs"]}
+    if euros is None:
+        raise Refused(f"{node}: a paid run needs its estimate in euros, or measured runs of its stage in the ledger, "
+                      "before the runner can clear it")
+    return {"euros": euros, "minutes": None, "measured": 0}
+
+
 def clearing(reservations):
     """One clearing at a time across every process: the lock beside the reservations file."""
     return locked(reservations.with_name("clearing.lock"))
@@ -130,10 +145,10 @@ def keep_reservations(reservations, held):
 
 def clearance(runner, node, euros):
     """Clear one paid run: the node's ticket ({node, key, after, clearance, reservations}) when the runner keys it (its
-    inputs passed and stand accepted) and the month's ceiling has room for its estimate over the ledger and every open
-    reservation; the clearance kept in the store and its estimate reserved, under the clearing lock. Else Refused."""
-    if euros is None:
-        raise Refused(f"{node}: a paid run needs its estimate in euros before the runner can clear it")
+    inputs passed and stand accepted) and the month's ceiling has room for its forecast (run_forecast: measured, else
+    the stage's estimate `euros`) over the ledger and every open reservation; the clearance kept in the store and its
+    forecast reserved, under the clearing lock. Else Refused."""
+    forecast = run_forecast(node, euros)
     try:
         ticket = runner.ticket(node)
     except graph.Blocked as block:
@@ -141,10 +156,11 @@ def clearance(runner, node, euros):
     reservations = runner.store.cache.parent / "reservations.json"
     with clearing(reservations):
         held = open_reservations(reservations)
-        over = month_refusal(euros, sum(reserved["euros"] for reserved in held.values()))
+        over = month_refusal(forecast["euros"], sum(reserved["euros"] for reserved in held.values()))
         if over:
             raise Refused(f"{node}: {over}")
-        cleared = {"node": node, "key": ticket["key"], "euros": euros, "by": RUNNER, "at": graph.now()}
+        cleared = {"node": node, "key": ticket["key"], "euros": forecast["euros"], "minutes": forecast["minutes"],
+                   "measured": forecast["measured"], "estimate": euros, "by": RUNNER, "at": graph.now()}
         runner.store.write_clearance(node, ticket["key"], cleared)
         keep_reservations(reservations, {**held, cleared["at"]: cleared})
     return {**ticket, "clearance": cleared, "reservations": str(reservations)}

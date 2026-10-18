@@ -118,6 +118,26 @@ def test_a_run_the_months_ceiling_has_no_room_for_is_refused():
     assert a_job(runner, euros=0.5)[1]()
 
 
+def measured_runs(stage, euros, minutes=20.0):
+    """The ledger with one batch each of four paid runs of `stage`, at these euros, this month."""
+    BOOKS.entries = lambda: [{"ticket": f"{stage}@place{number} key{number}", "started": BOOKS.this_month(),
+                              "kind": "blender", "batch": f"blender-{number}", "euros": cost, "wall_minutes": minutes,
+                              "machines": []} for number, cost in enumerate(euros)]
+
+
+def test_a_measured_stage_is_cleared_at_its_measured_high_not_its_hand_estimate():
+    """Fault (2026-10-18): a film's estimate was a hand-written EUR 0.7 while its runs cost EUR 1.3 to 16; every
+    clearance and every budget sum was built on the hand figure."""
+    runner = a_runner("a hall")
+    measured_runs("render", [1.0, 1.2, 1.4, 6.0])
+    job_store, send = a_job(runner, euros=0.7)
+    send()
+    cleared = runner.store.clearances("render@hangar", runner.ticket("render@hangar")["key"])[-1]
+    assert cleared["estimate"] == 0.7 and cleared["measured"] == 4 and cleared["minutes"] == 20.0
+    assert 1.4 < cleared["euros"] < 6.0  # the high: the 90th percentile of its runs
+    assert a_job(runner, euros=None)[1]()  # measured runs stand in for a missing estimate
+
+
 def test_google_calls_count_in_the_month_lost_ones_at_their_estimate():
     """Fault (2026-10-12): Google billed EUR 549 for Oct 11 while its ledger held EUR 30 and the month's check read
     only the cloud ledger. The check now adds Google's month, a call started and never finished at its estimate."""
