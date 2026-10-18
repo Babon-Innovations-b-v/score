@@ -95,6 +95,21 @@ class Seen(models.Model):
         indexes = [models.Index(fields=["node", "output"])]
 
 
+
+class OwnerCost(models.Model):
+    """A cost figure only the owner knows, entered by him on the cockpit: the model provider bill's month (`models`, for
+    `month`), or the fixed monthly subscriptions (`subscriptions`, standing from `month` on until a newer entry)."""
+
+    source = models.CharField(max_length=30)
+    month = models.CharField(max_length=7)  # YYYY-MM
+    euros = models.FloatField()
+    words = models.CharField(max_length=200, blank=True)  # e.g. the subscriptions that make it up
+    by = models.CharField(max_length=150)
+    at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-at"]
+
 def is_owner(user):
     """True for the signed-in owner (SCORE_OWNER)."""
     return bool(user and user.is_authenticated and settings.SCORE_OWNER and user.username == settings.SCORE_OWNER)
