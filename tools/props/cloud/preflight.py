@@ -5,6 +5,7 @@ EUR 16 on 8 cards against a EUR 0.7 estimate).
     numbers = preflight.measured(ledger.entries(), "demo-film")   # None until MEASURED_MACHINES machines worked
     flight = preflight.batch(8, numbers, cap=20)                   # {cards, minutes, euros, high_minutes, high_euros}
     run = preflight.node_run(ledger.entries(), "demo-film")       # a node's whole run: likely and high euros, minutes
+    cards = preflight.run_cards(ledger.entries(), "demo-film", 20)  # the cards a whole run of it is sized on
 
 A batch's numbers are its stage's own (the ledger line's `ticket`, "<stage>@<place> <key>", names the node that paid
 for it), from every machine that worked a job for that stage: the seconds a job took (`unit_seconds`, the median and
@@ -148,6 +149,26 @@ def node_run(entries, stage):
     euros, minutes = [euros for euros, _ in runs], [minutes for _, minutes in runs]
     return {"stage": stage, "runs": len(runs), "euros": statistics.median(euros), "high_euros": quantile(euros, HIGH),
             "minutes": statistics.median(minutes), "high_minutes": quantile(minutes, HIGH)}
+
+
+def run_jobs(entries, stage):
+    """The median jobs one paid run of `stage` worked (its worked machines' jobs added up per ticket), or None with
+    fewer than MEASURED_RUNS runs that worked any."""
+    found = {}
+    for entry in stage_entries(entries, stage):
+        jobs = sum(len(row["unit_seconds"]) for row in worked_machines([entry]))
+        if jobs:
+            found[entry["ticket"]] = found.get(entry["ticket"], 0) + jobs
+    return statistics.median(found.values()) if len(found) >= MEASURED_RUNS else None
+
+
+def run_cards(entries, stage, cap, slots=1):
+    """The cards a whole run of `stage` is sized on: the card rule (cards_for) for its median jobs a run, on its
+    measured numbers; None while either is unmeasured."""
+    numbers, jobs = measured(entries, stage), run_jobs(entries, stage)
+    if numbers is None or jobs is None:
+        return None
+    return cards_for(math.ceil(jobs), numbers, cap, slots)
 
 
 def forecasts_folder():

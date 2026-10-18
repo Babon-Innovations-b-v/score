@@ -134,6 +134,25 @@ def run_forecast(node, euros):
     return {"euros": euros, "minutes": None, "high_minutes": None, "measured": 0}
 
 
+def run_price(node, euros):
+    """A paid node's price as the creator cockpit shows it, on the runner's own numbers (tools/props/cloud/preflight.py):
+    {likely_euros, high_euros, likely_minutes, high_minutes, cards, runs}. Measured: its stage's runs in the cloud
+    ledger, likely their median and high their HIGH quantile (high_euros is what its clearance reserves), and the cards
+    a whole run of it is sized on; unmeasured: the stage's own estimate `euros` for both, no minutes, runs 0."""
+    books = ledger()
+    import capacity  # beside ledger.py
+    import preflight
+    entries, stage = books.entries(), node.partition("@")[0]
+    run = preflight.node_run(entries, stage)
+    cards = preflight.run_cards(entries, stage, capacity.run_cap())
+    if run is None:
+        return {"likely_euros": euros, "high_euros": euros, "likely_minutes": None, "high_minutes": None,
+                "cards": cards, "runs": 0}
+    return {"likely_euros": round(run["euros"], 4), "high_euros": round(run["high_euros"], 4),
+            "likely_minutes": round(run["minutes"], 2), "high_minutes": round(run["high_minutes"], 2),
+            "cards": cards, "runs": run["runs"]}
+
+
 def books_now():
     """The month's spend as it stands, each book apart: {month, bill, ledger, google}."""
     books = ledger()

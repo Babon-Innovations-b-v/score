@@ -6,8 +6,10 @@ turntable rows declare it, and every place's turntable was rendered again); a ch
 new file in the working tree and a file a row starts declaring (the gap files of 1f90a0fe, 2026-10-15).
 
     .venv/bin/python -m score.stages.moved <base> [<head>]     # head: a commit, default the working tree
+    .venv/bin/python -m score.stages.moved <base> <head> --json   # the same as one JSON object (the cockpit prices it)
 
-Prints each moved row (paid marked), why, and for a declared file the places it moves in.
+Prints each moved row (paid marked), why, and for a declared file the places it moves in. With --json, every moved
+row as {paid, code, files: {path: [places]}, places: [every place the row is declared at, "None" for a world row]}.
 """
 import argparse
 import json
@@ -70,9 +72,9 @@ def snapshot(commit):
 
 
 def moved(base, head=None):
-    """{row: {"paid", "code": its code version moved, "files": {declared path: [places]}}} of every row the change
-    from `base` to `head` moves, by its code or by a file it declares that keys differently (or is newly declared or
-    no longer)."""
+    """{row: {"paid", "code": its code version moved, "files": {declared path: [places]}, "places": [every place it
+    is declared at]}} of every row the change from `base` to `head` moves, by its code or by a file it declares that
+    keys differently (or is newly declared or no longer)."""
     before, after = snapshot(base), snapshot(head)
     found = {}
     for name, row in after.items():
@@ -84,7 +86,7 @@ def moved(base, head=None):
                 if keys.get(path) != earlier.get(path):
                     files.setdefault(path, []).append(place)
         if code or files:
-            found[name] = {"paid": row["paid"], "code": code, "files": files}
+            found[name] = {"paid": row["paid"], "code": code, "files": files, "places": sorted(row["declared"])}
     return found
 
 
@@ -92,8 +94,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("base")
     parser.add_argument("head", nargs="?", help="a commit (default: the working tree)")
+    parser.add_argument("--json", action="store_true", help="every moved row as one JSON object")
     options = parser.parse_args(argv)
     found = moved(options.base, options.head)
+    if options.json:
+        print(json.dumps(found))
+        return
     for name, row in sorted(found.items()):
         why = (["code"] if row["code"] else []) + [f"{path} ({len(places)} places)" for path, places in
                                                    sorted(row["files"].items())]

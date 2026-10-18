@@ -106,6 +106,15 @@ def test_a_nodes_run_is_forecast_from_its_stages_runs():
     assert preflight.node_run(entries[:2], "demo-film") is None
 
 
+
+def test_a_whole_run_is_sized_on_its_stages_median_jobs():
+    """Four 600 s jobs a run on a 2.5 min set-up: the card rule gives one card a job, never over the cap."""
+    entries = [films(f"demo-film@place{number} {number}") for number in range(3)]
+    assert preflight.run_jobs(entries, "demo-film") == 4
+    assert preflight.run_cards(entries, "demo-film", cap=20) == 4
+    assert preflight.run_cards(entries, "demo-film", cap=2) == 2
+    assert preflight.run_cards(entries[:2], "demo-film", cap=20) is None
+
 if __name__ == "__main__":
     import pathlib
     import runpy
