@@ -90,7 +90,9 @@ stage as each stage is built; nothing moves before.
   problems. A ship place's assembly lays its made
   pieces on its kit-built base (`stages/assembly/ship_made.py`, in the table). `complete-boxes` (paid, the ship's
   places) measures the boxes no other row measures (code rows, rows taken from another place's take), so complete's
-  box check has a verdict for each.
+  box check has a verdict for each. The materials checks (`stages/complete/materials`, its overlay: texture detail
+  near cameras, finish-border raggedness, kit bakes older than their bake code) are not gates either: standalone and
+  free, their findings reach the cockpit as problems with their pictures.
   `settle` (experimental, paid, its overlay; only the places in `stages.SETTLED`) drops a place's loose objects
   on its made ground, snaps its held ones onto their holders and lays where each rests as a layer the assembly
   takes, gated on `rested` and `resting`. `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
