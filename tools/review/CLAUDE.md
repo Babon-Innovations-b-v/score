@@ -58,7 +58,10 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   once), nobody has reviewed the round-three and round-four films, and they are cited nowhere; they come back as the
   evidence step, on places the owner accepted. `showcase.py` cuts the showcase and the
   figure from the films; its `world` step cuts demo K9, the world 1 video and its figure, from the films the runner
-  accepted (demo-film@<place> in story order, the ship's hull film after the hangar's), `--draft` with those it has.
+  accepted (demo-film@<place> in story order, the ship's hull film after the hangar's), `--draft` with those it has:
+  the framework's chain once on one hero place (cards with a progress bar, at most 8, each held 6 s; its pieces are
+  renders of our made models, never the close-up or reference pictures), then each place's film, at most 7 s, the
+  whole within 4 minutes and its sound never dropping (cards and ending on a bed of the nearest film's sound).
   `ending.py` makes K9's two closing clips locally (no Blender, no cloud): one place's accepted assembly as its layer
   stack lifting off with every place's layer count, and "ready for score_lib" from a counts file counted from the
   store (score_lib is not built; never say it is); `ending_test.py` checks the layer and prim counts. `layers3d` is
