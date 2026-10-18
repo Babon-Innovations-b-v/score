@@ -17,6 +17,7 @@ urlpatterns = [
     *[path(f"world/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
     path("changes/", changes.changes_page),
     path("changes/choose/", changes.proposal_choice),
+    path("changes/checkout/", changes.checkout),
     path("basket/", views.basket),
     path("basket/change/", views.basket_change),
     path("basket/confirm/<int:plan_id>/", views.confirm),

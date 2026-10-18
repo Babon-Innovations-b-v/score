@@ -138,9 +138,10 @@ def snapshot(items):
              "nodes": item["price"]["nodes"], "totals": item["price"]["totals"]} for item in items]
 
 
-def start(user, key, confirmed):
+def start(user, key, confirmed, at_once=False):
     """(Checkout or None, words): the same checkout again for a key already used; else every refusal checked, then
-    the checkout recorded and run in the background."""
+    the checkout recorded and run in the background, or in this thread when `at_once` (a sync pass applying the
+    owner's hosted checkout, whose process ends with the pass)."""
     with _checking_out:
         found = Checkout.objects.filter(key=key).first()
         if found is not None:
@@ -157,6 +158,10 @@ def start(user, key, confirmed):
         except IntegrityError:
             record = Checkout.objects.get(key=key)
             return record, f"checkout {record.pk} was already made with this key: {record.state}"
+    if at_once:
+        run(record)
+        record.refresh_from_db()
+        return record, f"checkout {record.pk}: {record.state}: {record.detail}"
     run_soon(record)
     return record, f"checkout {record.pk}: landing {len(bought)} branches"
 

@@ -45,7 +45,10 @@ def price_due(record):
 
 
 def before_due(record):
-    return record.get("before_commit") != record["commit"] and bool(record.get("stills"))
+    """True when the proposal has stills but no before stills drawn for its commit (or the last drawing failed)."""
+    drawn = record.get("before_commit") == record["commit"] and not any("error" in still
+                                                                       for still in record.get("before") or [])
+    return not drawn and any("file" in still for still in record.get("stills") or [])
 
 
 def before_views(stage_folder, record):
@@ -60,7 +63,8 @@ def before_views(stage_folder, record):
 
 def before_stills(record, store_root, out):
     """The before stills into `out`: [{name, file}] Blender drew, or [{"error": why}] when there is nothing accepted
-    to draw or Blender could not."""
+    to draw or Blender could not. The place alone, as the proposal's own stills draw it (its neighbours are not
+    linked in either)."""
     node = f"{record.get('target') or 'assembly'}@{record['place']}"
     accept = convert.standing_accept(pathlib.Path(store_root), node)
     if accept is None:
@@ -68,7 +72,6 @@ def before_stills(record, store_root, out):
     work = pathlib.Path(tempfile.mkdtemp(prefix="proposal-before-"))
     try:
         stage_folder = convert.linked_output(pathlib.Path(store_root), accept["output"], work / "stage")
-        convert.linked_neighbours(pathlib.Path(store_root), record["place"], work)
         made = pictures.stills(stage_folder / f"{record['place']}.usda", before_views(stage_folder, record), out)
         return [{**still, "file": f"{BEFORE}/{pathlib.Path(still['file']).name}"} for still in made]
     except RuntimeError as failed:

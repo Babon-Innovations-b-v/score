@@ -6,11 +6,20 @@
     <h1>Changes to buy</h1>
     <p class="soft lede">Each fix as it would look: the place now, and after the fix, from the same camera. What could be done for free is done; buy a fix to have its paid part made overnight in one batch.</p>
   </div>
-  <div class="card bought-card">
+  <div class="card bought-card" id="checkout">
     <div class="eyebrow">You chose to buy</div>
     <div class="money-total">{% if bought.count %}{% if bought.high is not None %}at most EUR {{ bought.high|floatformat:2 }}{% else %}<span class="unknown">price not known yet</span>{% endif %}{% else %}nothing yet{% endif %}</div>
     <p class="soft small">{{ bought.count }} fix{{ bought.count|pluralize:"es" }} chosen{% if bought.likely is not None and bought.count %}, likely EUR {{ bought.likely|floatformat:2 }}{% endif %}; {{ waiting|length }} still to look at.</p>
     <p class="soft small">Buying chooses a fix; nothing is paid until the one checkout of everything you chose.</p>
+    {% if owner and bought.count %}
+    <form method="post" action="/changes/checkout/" class="checkout-form">{% csrf_token %}
+      <input type="hidden" name="key" value="{{ checkout_key }}">
+      <label class="tick"><input type="checkbox" name="confirm" value="yes"> I buy these fixes{% if bought.high is not None %}, at most EUR {{ bought.high|floatformat:2 }}{% endif %}</label>
+      <button type="submit" class="primary wide">Check out</button>
+    </form>
+    <p class="soft small">The fixes land, then one overnight batch makes their paid parts; the month's stop still holds.</p>
+    {% endif %}
+    {% if last_checkout %}<p class="small last-checkout">{{ last_checkout }}</p>{% endif %}
   </div>
 </div>
 

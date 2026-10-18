@@ -93,9 +93,12 @@ def test_hosted_a_buy_is_kept_and_queued_for_the_stores_machine(home, settings):
 def test_the_stores_machine_puts_a_bought_fix_in_the_basket_at_the_commit_he_saw(home, monkeypatch):
     from score.dashboard.checkout import flow
     monkeypatch.setattr(flow, "offer", lambda branch: {"head": COMMIT, "preview_hash": "f" * 64})
+    priced = type("Priced", (), {"state": "ready", "body": {"totals": {"high_euros": 15.0}}, "error": ""})
+    monkeypatch.setattr(changes, "priced_now", lambda branch: priced)
     done = applying.apply({"kind": "proposal", "user": "joey",
                            "payload": {"branch": "fix-ship-hull", "commit": COMMIT, "choice": "buy"}}, None)
     assert done.state == "done" and BasketBranch.objects.get(branch="fix-ship-hull").head == COMMIT
+    assert "at most EUR 15.00" in done.detail
     moved = applying.apply({"kind": "proposal", "user": "joey",
                             "payload": {"branch": "fix-ship-hull", "commit": "a" * 40, "choice": "buy"}}, None)
     assert moved.state == "refused" and "newer commit" in moved.detail
@@ -145,3 +148,34 @@ def test_the_viewer_opens_a_fixs_own_3d_copy(home):
 def test_a_plain_sentence_drops_issue_numbers_and_keeps_the_first_change():
     assert changes.plain_sentence({"change": "the hull is one piece (#10); and more (#10)."}) == \
         "The hull is one piece."
+
+
+def test_hosted_checkout_needs_the_tick_and_queues_the_fixes_he_bought(home, settings):
+    settings.SCORE_MODE = settings.HOSTED
+    settings.SCORE_HOME = home.parent
+    (home.parent / "export" / "current").mkdir(parents=True)
+    (home.parent / "export" / "current" / "proposals").symlink_to(home)
+    made(home)
+    owner = signed_in()
+    owner.post("/changes/choose/", {"branch": "fix-ship-hull", "commit": COMMIT, "choice": "buy"})
+    owner.post("/changes/checkout/", {"key": "a" * 32})
+    assert not SyncRequest.objects.filter(kind="checkout").exists()
+    owner.post("/changes/checkout/", {"key": "a" * 32, "confirm": "yes"})
+    queued = SyncRequest.objects.get(kind="checkout")
+    assert queued.payload == {"key": "a" * 32, "fixes": [{"branch": "fix-ship-hull", "commit": COMMIT}]}
+    assert signed_in("visitor").post("/changes/checkout/", {"key": "b" * 32, "confirm": "yes"}).status_code == 403
+
+
+def test_the_stores_machine_checks_out_only_the_basket_he_saw(home, monkeypatch):
+    from score.dashboard.checkout import flow
+    started = []
+    record = type("Done", (), {"state": "launched"})
+    monkeypatch.setattr(flow, "start", lambda user, key, confirmed, at_once=False: (
+        started.append((user.username, key, confirmed, at_once)) or record, "checkout 1: launched"))
+    item = {"kind": "checkout", "user": "joey",
+            "payload": {"key": "a" * 32, "fixes": [{"branch": "fix-ship-hull", "commit": COMMIT}]}}
+    assert applying.apply(item, None).state == "refused" and not started
+    BasketBranch.objects.create(branch="fix-ship-hull", head=COMMIT, preview_hash="f" * 64, added_by="joey")
+    assert applying.apply(item, None).state == "done"
+    assert started == [("joey", "a" * 32, True, True)]
+    assert applying.apply({**item, "user": "mallory"}, None).state == "refused"
