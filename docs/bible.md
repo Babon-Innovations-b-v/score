@@ -34,8 +34,7 @@ the current backend). No model runs on the coordinating machine.
 - `tools/props/`: the prop pipeline (close-up to Pixal3D in a cloud batch, `cloud/batch.py`; finish; `pixal.py`),
   the scene tools (`scene/`: concepts, the world step, close-ups, inventories, layouts), the surface library and its
   piece making (`library/`: recipes, labels by parts, `make_chunky`/`make_kit` baked in the cloud, `route.py` for kit
-  rooms, `place_route.py` for outdoor places, `package.py` for the scene package), the gates (`gates/`), Infinigen
-  grounds and life (`infinigen/`). Each directory's rules are in its overlay.
+  rooms, `place_route.py` for outdoor places, `package.py` for the scene package) and the gates (`gates/`). Each directory's rules are in its overlay.
 - `tools/characters/`: the characters stage. `people/` builds each person's skinned, animated glTF (SOMA-X body
   shaped by SAM 3D Body, clips written by Kimodo from sentences, GarmentCode patterns draped by the cloth solver the
   spec names, the drapes being experimental;

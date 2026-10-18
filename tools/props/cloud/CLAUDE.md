@@ -203,6 +203,3 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   2026-10-06): every sound briefed in `data/sound/sounds.json` through MOSS-SoundEffect v2.0 (Apache-2.0, code and
   weights pinned), each take scored against its prompt with CLAP up there, the takes back to the picker's cache.
   Its own budget is €8 a run on top of the owner's limits.
-- **Infinigen runs on a processor machine** (`infinigen.py`, `infinigen_setup.sh`; class `cpu-32c-128gb`,
-  plain Ubuntu): no card, the jobs from `../infinigen/steer.py` side by side, through the same `rent`.
-  `--hold` keeps the machine for ssh work until the run folder holds `release`.
