@@ -102,10 +102,10 @@
 </div></details>
 {% endif %}
 {% if detail.files %}<details class="fold"><summary>files</summary><div class="fold-body"><ul>{% for file in detail.files %}{% if file.kind != "image" %}<li><a href="{{ file.url }}">{{ file.name }}</a> <span class="soft">{{ file.bytes|filesizeformat }}</span></li>{% endif %}{% endfor %}</ul></div></details>{% endif %}
-{% if detail.fault %}<details class="fold"><summary>fault report</summary><div class="fold-body"><pre>{{ detail.fault }}</pre></div></details>{% endif %}
-{% if detail.log_tail %}<details class="fold"><summary>log, last lines</summary><div class="fold-body"><pre>{{ detail.log_tail }}</pre></div></details>{% endif %}
+{% if detail.fault %}<details class="ids"><summary>fault report</summary><div class="fold-body"><pre>{{ detail.fault }}</pre></div></details>{% endif %}
+{% if detail.log_tail %}<details class="ids"><summary>log, last lines</summary><div class="fold-body"><pre>{{ detail.log_tail }}</pre></div></details>{% endif %}
 
-<details class="ids fold"><summary>details</summary><div class="fold-body">
+<details class="ids"><summary>details</summary><div class="fold-body">
 <p>{{ detail.state_words|capfirst }}.{% if detail.record.carried %} Carried over ({{ detail.record.carried.reason }}).{% endif %}{% if snapshot_state %} Freshness ({{ snapshot_at|slice:":16" }}): {{ snapshot_state }}.{% endif %}</p>
 <p>Node <code>{{ detail.node }}</code>{% if detail.accepted %}, accepted output <code>{{ detail.accepted.output }}</code> ({{ detail.accepted.at }} by {{ detail.accepted.by }}){% endif %}{% if detail.waiting %}, waiting output <code>{{ detail.waiting.output }}</code>{% endif %}.</p>
 <p>Key <code>{{ detail.record.key }}</code>, commit <code>{{ detail.record.commit }}</code>, machine {{ detail.record.machine }}.{% if detail.euros %} Estimate EUR {{ detail.euros }}.{% endif %}</p>

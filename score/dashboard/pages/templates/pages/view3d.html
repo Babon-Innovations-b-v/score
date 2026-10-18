@@ -20,7 +20,14 @@
 <aside class="view3d-panel">
   <p class="small"><a href="/">World</a> / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a> / 3D</p>
   <h1>{{ detail.place|capfirst }} in 3D</h1>
-  {% if detail.web3d %}
+  {% if proposed %}
+  <div class="switch" role="group" aria-label="which version">
+    <a href="/view/{{ detail.place }}"{% if showing == "current" %} class="on" aria-current="true"{% endif %}>Now</a>
+    <a href="/view/{{ detail.place }}?version=proposed"{% if showing == "proposed" %} class="on" aria-current="true"{% endif %}>Proposed</a>
+  </div>
+  {% if showing == "proposed" %}<p class="small proposed-words">Proposed: {{ proposed.fixes }}</p>{% endif %}
+  {% endif %}
+  {% if detail.web3d or showing == "proposed" %}
   <p class="small soft">Made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage than the place's current one{% endif %}.</p>
   <p id="status" class="small" role="status">Loading the preview...</p>
 

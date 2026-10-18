@@ -13,6 +13,7 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 const given = JSON.parse(document.getElementById("view3d-data").textContent);
 const place = given.place;
+const base = given.base || `/web/${place}/`;  // the current copy, or a proposed version's
 const EYE = 1.6, STEP_UP = 0.6, PERSON = 1.8, CLICK_SLOP = 5, NO_LAYER = "not named in the copy";
 const $ = (id) => document.getElementById(id);
 const say = (text) => { $("status").textContent = text; };
@@ -359,7 +360,7 @@ function swapIn(loaded) {
 }
 
 async function open() {
-  const answer = await fetch(`/web/${place}/${place}.json`, { credentials: "same-origin" });
+  const answer = await fetch(`${base}${place}.json`, { credentials: "same-origin" });
   if (!answer.ok) throw new Error(`the copy's facts: ${answer.status}`);
   sidecar = await answer.json();
   resize();
@@ -374,7 +375,7 @@ async function open() {
   if (first) aimAt(first.eye, first.aim, first.fov);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   requestAnimationFrame(frame);
-  const preview = await loader.loadAsync(`/web/${place}/${place}-light.glb`).catch(() => null);
+  const preview = await loader.loadAsync(`${base}${place}-light.glb`).catch(() => null);
   if (preview) {
     swapIn(preview.scene);
     if (!first) frameModel();
@@ -382,7 +383,7 @@ async function open() {
     standPerson();
     say(`Preview shown; the whole copy (${(sidecar.bytes / 1e6).toFixed(1)} MB) is loading...`);
   }
-  const whole = await loader.loadAsync(`/web/${place}/${place}.glb`);
+  const whole = await loader.loadAsync(`${base}${place}.glb`);
   swapIn(whole.scene);
   if (!first && !preview) frameModel();
   ready = true;

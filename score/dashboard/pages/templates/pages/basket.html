@@ -1,7 +1,37 @@
 {% extends "pages/base.html" %}
 {% block title %}Launch basket{% endblock %}
 {% block content %}
-<h1>Launch basket</h1>
+<div class="page-head"><h1>Basket</h1></div>
+{% if chosen %}
+<section class="checkout">
+  <div class="change-tiles">{% for item in chosen.items %}<div class="tile change-tile">
+    <a class="two-up single" href="/place/{{ item.place }}/#change-{{ item.id }}"><div class="frame">{% with still=item.stills.0 %}{% include "pages/pic.html" with src=still.thumb_url name="proposed" %}{% endwith %}</div></a>
+    <div class="change-body"><a class="tile-name" href="/place/{{ item.place }}/#change-{{ item.id }}">{{ item.place|capfirst }}</a><p class="fixes">{{ item.fixes|capfirst }}</p>{% include "pages/change_state.html" %}</div>
+  </div>{% endfor %}</div>
+  <div class="card total-card">
+    <div class="money-grid">
+      <div>
+        <div class="eyebrow">Your basket</div>
+        <div class="money-total">{% if chosen.high is not None %}at most EUR {{ chosen.high|floatformat:2 }}{% else %}<span class="unknown">price not known yet</span>{% endif %}</div>
+        {% if chosen.likely is not None %}<p class="soft">likely EUR {{ chosen.likely|floatformat:2 }}</p>{% endif %}
+      </div>
+      <div>
+        <div class="eyebrow">{{ money.world|capfirst }} so far</div>
+        {% if money.stop %}<p>EUR {{ money.spent|default:0|floatformat:2 }} spent of your EUR {{ money.stop|floatformat:0 }} stop; EUR {{ money.room|floatformat:2 }} of room.</p>
+        {% else %}<p class="stopless">No stop set: paid launches refused.</p><pre class="command">{{ money.stop_line }}</pre>{% endif %}
+      </div>
+    </div>
+    {% if owner and chosen.high is not None %}
+    <form class="checkout-form" data-post="/api/changes/checkout">
+      <label class="confirm"><input type="checkbox" name="confirm" value="yes" required> You are buying {{ chosen.items|length }} change{{ chosen.items|length|pluralize }} for at most EUR {{ chosen.high|floatformat:2 }}</label>
+      <button class="primary big">Buy</button>
+      <output class="small"></output>
+    </form>
+    {% endif %}
+  </div>
+</section>
+<h2>Steps queued by hand</h2>
+{% endif %}
 {% for card in items %}
 <section class="style"><div class="style-head">
   {% if card.hero %}<img src="{{ card.hero.thumb_url }}" alt="{{ card.place }}">{% endif %}

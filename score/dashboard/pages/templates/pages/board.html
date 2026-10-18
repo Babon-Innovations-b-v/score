@@ -2,6 +2,25 @@
 {% block title %}World{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{{ world.world|capfirst }}</h1></div>
+{% if offered or bought %}
+<section class="changes" aria-label="changes to buy">
+  {% if offered %}
+  <div class="group-head"><h2>Changes to buy</h2><span class="soft small">see each one before it costs anything</span></div>
+  <div class="change-tiles">{% for item in offered %}{% include "pages/change_card.html" %}{% endfor %}</div>
+  {% endif %}
+  {% if basket %}
+  <a class="basket-bar" href="/basket/">
+    <span><b>{{ basket.items|length }}</b> change{{ basket.items|length|pluralize }} in your basket</span>
+    <span>{% if basket.high is not None %}likely EUR {{ basket.likely|floatformat:2 }}, at most EUR {{ basket.high|floatformat:2 }}{% else %}price not known yet{% endif %}</span>
+    <span class="button primary">Go to checkout</span>
+  </a>
+  {% endif %}
+  {% if bought %}
+  <div class="group-head"><h2>Bought</h2></div>
+  <div class="change-tiles">{% for item in bought %}{% include "pages/change_card.html" %}{% endfor %}</div>
+  {% endif %}
+</section>
+{% endif %}
 {% include "pages/money_world.html" %}
 
 {% for group in groups %}
@@ -14,19 +33,20 @@
   </div>
   <div class="tiles">
     {% for tile in group.tiles %}
-    <a class="tile" href="/place/{{ tile.place }}/">
-      <div class="frame">
+    <div class="tile">
+      <a class="frame" href="/place/{{ tile.place }}/" aria-label="{{ tile.name }}">
         {% if tile.still %}<img class="pic" src="{{ tile.still.thumb_url }}" alt="{{ tile.name }}" loading="lazy">
         {% elif tile.picture %}<img class="pic" src="{{ tile.picture.thumb_url }}" alt="{{ tile.name }}" loading="lazy">
         {% else %}<div class="pic empty"><span>{{ tile.name }}</span><small>no picture yet</small></div>{% endif %}
         {% if tile.film and not tile.still %}<video class="pic middle" src="{{ tile.film.url }}" muted playsinline preload="metadata" aria-hidden="true"></video>{% endif %}
-      </div>
-      <div class="tile-foot">
+        {% if tile.queued %}<span class="corner">in basket</span>{% endif %}
+      </a>
+      {% if tile.web3d %}<a class="open3d" href="/view/{{ tile.place }}">Open in 3D</a>{% endif %}
+      <a class="tile-foot" href="/place/{{ tile.place }}/">
         <span class="tile-name">{{ tile.name }}</span>
         <span class="status {{ tile.status.tone }}">{{ tile.status.words }}</span>
-      </div>
-      {% if tile.queued %}<span class="corner">in basket</span>{% endif %}
-    </a>
+      </a>
+    </div>
     {% endfor %}
   </div>
 </section>

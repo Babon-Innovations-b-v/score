@@ -80,3 +80,64 @@ function scrubber(video) {
 for (const video of document.querySelectorAll("video[data-fps]")) {
   if (Number(video.dataset.fps) > 0) scrubber(video);
 }
+
+// A strip picture (a plan drawing, a render) opens large over the page; a click or Esc closes it.
+function openLarge(url, caption) {
+  const box = document.createElement("div");
+  box.className = "lightbox";
+  box.setAttribute("role", "dialog");
+  const image = document.createElement("img");
+  image.src = url;
+  image.alt = caption;
+  const words = document.createElement("p");
+  words.textContent = caption;
+  box.append(image, words);
+  const close = () => { box.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = (event) => { if (event.key === "Escape") close(); };
+  box.addEventListener("click", close);
+  document.addEventListener("keydown", onKey);
+  document.body.append(box);
+}
+
+for (const button of document.querySelectorAll("[data-full]")) {
+  button.addEventListener("click", () => openLarge(button.dataset.full, button.dataset.caption || ""));
+}
+
+// A proposed version beside the current one: the switch shows the current, the proposed, or both side by side.
+for (const compare of document.querySelectorAll(".compare")) {
+  for (const button of compare.querySelectorAll("[data-show]")) {
+    button.addEventListener("click", () => {
+      compare.dataset.view = button.dataset.show;
+      for (const other of compare.querySelectorAll("[data-show]")) other.classList.toggle("on", other === button);
+    });
+  }
+}
+
+// The owner's cost figures, his basket and his checkout go to the API as JSON, with the CSRF token from its cookie; the page then reads again.
+function cookie(name) {
+  const found = document.cookie.split("; ").find((part) => part.startsWith(name + "="));
+  return found ? decodeURIComponent(found.slice(name.length + 1)) : "";
+}
+
+for (const form of document.querySelectorAll("form[data-post]")) {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const said = form.querySelector("output");
+    const body = Object.fromEntries(new FormData(form));
+    if (event.submitter && event.submitter.name) body[event.submitter.name] = event.submitter.value;
+    if ("euros" in body) body.euros = Number(body.euros);
+    for (const name of ["in", "confirm"]) if (name in body) body[name] = body[name] === "yes";
+    try {
+      const answer = await fetch(form.dataset.post, {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": cookie("csrftoken") },
+        body: JSON.stringify(body),
+      });
+      const found = await answer.json().catch(() => ({}));
+      said.textContent = answer.ok ? found.said : `not entered: ${found.detail || answer.status}`;
+      if (answer.ok) setTimeout(() => location.reload(), 800);
+    } catch (error) {
+      said.textContent = `not entered: ${error}`;
+    }
+  });
+}

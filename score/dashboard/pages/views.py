@@ -16,6 +16,7 @@ from score.dashboard.launch import guard
 from score.dashboard.pages import actions, present, seen
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, SyncRequest, is_owner
 from score.dashboard.state import costs, groups
+from score.dashboard.state import money as month_money
 
 def everywhere(request):
     """What every page shows: the mode, when the store (or export) was read, and what this user may do."""
@@ -61,10 +62,33 @@ def board(request):
                 with_marks(card.layers)
     planned = basket_high() or {}
     queued = {item.place for item in BasketItem.objects.all()}
+    shown = with_web3d(source, present.look_groups(world, queued))
+    found = named_changes(source, shown)
     return render(request, "pages/board.html", {
-        "world": world, "groups": present.look_groups(world, queued),
-        "money": present.money(world.spend, planned), "world_steps": [
+        "world": world, "groups": shown, "basket": present.basket_of(found),
+        "offered": [item for item in found if item["state"] in ("offered", "in basket")],
+        "bought": [item for item in found if item["state"] in ("running", "done", "failed")],
+        "money": present.money(month_money.view(world.spend), planned), "world_steps": [
             present.step_tile(step, step_url(None, step.stage)) for step in world.world_line]})
+
+
+def with_web3d(source, shown):
+    """Mark each board tile whose place has a 3D web copy, in place; the groups."""
+    for group in shown:
+        for tile in group["tiles"]:
+            tile["web3d"] = bool(source.web3d(tile["place"]))
+    return shown
+
+
+def named_changes(source, shown):
+    """The world's changes to buy, each with its place's name and current picture from the board's tiles."""
+    tiles = {tile["place"]: tile for group in shown for tile in group["tiles"]}
+    found = present.changes(source)
+    for item in found:
+        known = tiles.get(item["place"])
+        item["name"] = known["name"] if known else present.humane(item["place"] or "")
+        item["current"] = known["picture"] if known else None
+    return found
 
 
 def place_page(request, place):
@@ -79,6 +103,7 @@ def place_page(request, place):
         "detail": detail, "name": present.place_name(style, detail) if style else present.humane(place),
         "status": present.place_status(detail.status, detail.layers),
         "chain": present.chain(detail, style, step_url), "problems": present.problems(detail, step_url),
+        "changes": present.changes(source, place),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states()})
 
 
@@ -177,7 +202,10 @@ def basket(request):
     current = guard.basket_hash(items)
     body = plan.body if plan and plan.state == "ready" else {}
     money = body.get("money", {})
+    source = state.source()
+    chosen = present.basket_of(present.changes(source))
     return render(request, "pages/basket.html", {
+        "chosen": chosen, "money": present.money(month_money.view(actions.spend()), None),
         "items": actions.basket_cards(items), "plan": plan, "plan_current": bool(plan and plan.basket_hash == current),
         "bar": money_bar(money.get("spent"), money.get("reserved"), money.get("likely"), money.get("high"),
                          money.get("ceiling")),
@@ -249,9 +277,13 @@ def viewer(request, place):
     if place not in source.places():
         raise Http404(place)
     detail = source.place_detail(place)
-    return render(request, "pages/view3d.html", {"detail": detail, "viewer": {
-        "place": place, "layers": layer_makers(detail.usd_index.layers),
-        "order": [layer.name for layer in detail.usd_index.layers]}})
+    proposed = next((item for item in present.changes(source, place) if item["web3d_base"]), None)
+    showing = "proposed" if proposed and request.GET.get("version") == "proposed" else "current"
+    base = proposed["web3d_base"] if showing == "proposed" else f"/web/{place}/"
+    return render(request, "pages/view3d.html", {"detail": detail, "proposed": proposed, "showing": showing,
+                                                 "viewer": {"place": place, "base": base,
+                                                            "layers": layer_makers(detail.usd_index.layers),
+                                                            "order": [layer.name for layer in detail.usd_index.layers]}})
 
 
 def layer_makers(layers):
