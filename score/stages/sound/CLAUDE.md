@@ -14,8 +14,11 @@ gates; `takes.py` the paid part.
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Every source has a sound.** A place's sources are its room tones, what the suit lets through, its `objects`
-  (`data/sound/places.json`), its inventory rows' `sound`, its motions' `sounds` and the whole surface bank
-  (`data/sound/surfaces.json`). A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
+  (`data/sound/places.json`), its inventory rows' `sound`, its motions' `sounds`, the sounds
+  `data/sound/movers.json` gives its movers and silent motions (`movers.py`: a hatch's latch as it opens, a rover's
+  drive over its drive, timed off the record's own moves, so a mover that stops moving stops sounding) and the whole
+  surface bank (`data/sound/surfaces.json`). That table names only picked sounds; one still to make is in its
+  `wanted` until its brief is written and made. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
 - **A sound picked already is taken as it is** (the environment's release, its credit off `data/sound/licences.json`, its CLAP
   score `chosen.clap` measured when it was made); only one whose files are off its category's loudness is levelled

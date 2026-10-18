@@ -3,23 +3,30 @@ complete, with its own sound; place nodes, paid (the frames on the cheapest card
 tools/props/cloud/blender_cloud.py inside the runner's clearance, drawn by tools/blender/inside/usd_views.py as
 tools/review/demo.py plans them).
 
-    data/definitions/demo_films/<film>.json   {"place", "camera" (a camera of the place's scene record), "why"}
+    data/definitions/demo_films/<film>.json   {"place", "camera" (a camera of the place's scene record), "why",
+                                               and optionally "eye" and "aim" or "across" (a spot of its own for
+                                               that camera, own_cameras), "then" (its second shot's camera: a
+                                               record camera's name or a spot of its own), "start", "leave_out"}
 
 A film named for its place (<place>.json) is the place's own film, the demo-film row; any other film of a place (the
 ship's hull through the hangar: hull.json, place hangar) is the demo-film-extra row's, which makes all of them for
 that place. One file a film, so adding a film moves no other film's key; a place with no file has no node.
 
     make   the final stage (the neighbours output where the place shows others, else its assembly), copied into a tree
-           of its own; demo.py's plan with SHOTS camera path starting at the film's camera (its first frame that
+           of its own; demo.py's plan with a camera path a shot, SHOTS shots: the first starting at the film's camera
+           and the second at its `then`, else at the record camera standing furthest from the first (its first frame that
            camera's view, unless the planner had to move its start clear or level it: views.json's moves say),
            SIZE frames over SECONDS at demo.RATE, look only (no ink); the frames rendered;
            demo.py's cut with the stage's sound layer. Per film:
            film.mp4, views.json (each frame's view, the moves, the planner's commit) and concept.png, the first frame
-           (for the place's own film, demo K8's still beside the concept); the other frames are not kept. The own
+           (for the place's own film, demo K8's still beside the concept), and bed.wav where the stage has sound (what
+           the camera hears standing at its first view before it walks, demo.BED_SECONDS, which the showcase lays under
+           the place's cards); the other frames are not kept. The own
            film's files lie in the output's root, each extra film's in a folder of its name.
     gate   film    film_checks.video_checks on each film.mp4 (SIZE, a sound track that is not silent, no black or
-                   frozen stretch after the title card, a length within LEAST to MOST seconds) and clearance_checks
-                   on the final stage (no eye nearer a mesh than the planner's clearance)
+                   frozen stretch after the title card, a length within LENGTH_SLACK of planned_seconds for its
+                   shots) and clearance_checks on the final stage (no eye nearer a mesh, a person or a mover than the
+                   planner's clearance)
 """
 import json
 import pathlib
@@ -27,30 +34,37 @@ import shutil
 import subprocess
 import sys
 
+import numpy as np
+
 from score import checks, contracts
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FILMS = REPO / "data/definitions/demo_films"
 SIZE = (1280, 720)
-SHOTS = 1
+# Two shots a place, each from its own camera, so a finished place stays on screen about 7 s unbroken instead of 3.5 s
+# (the finish plan for world 1, 2026-10-18); a place whose record holds one camera only gets one.
+SHOTS = 2
 # A place's shot: 4 s at demo.RATE (24), 96 frames, half the demo's SHOT_SECONDS, so a film's frames cost half (the
 # overseer's plan, 2026-10-15).
 SECONDS = 4.0
-# The planned length: the title card and the shot joined by a half-second fade (demo.py TITLE_SECONDS, FADE_SECONDS),
-# 2 + 4 - 0.5 = 5.5 s, within half a second.
-LEAST, MOST = 5.0, 6.0
+# How far a film's length may stand off its planned length (planned_seconds), seconds.
+LENGTH_SLACK = 0.5
+# The height over the floor (metres) of a spot given `across` a room's floor: its eye at the walker's, its aim at a
+# standing person's chest, so the view runs level across the room.
+ACROSS_EYE = 1.6
+ACROSS_AIM = 1.2
 # A film starts this long before the first one-off moment of its place's motion record (motion_start), so the moment
 # lands about a second into the shot (the launch's lift-off; overseer, 2026-10-15).
 LEAD = 1.0
 # Workbench and Cycles on a card; the cheapest first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
 CLASSES = "gpu-24gb,gpu-48gb"
 JOBS = 8  # a film's frames over 8 cards: the airlock's went from 47 s to 17 min a frame on 2 (2026-10-18)
-# 96 frames (SECONDS at 24) at EUR 0.0030 a frame at 720p, look only (ledger batch blender-20261009-020545-2401425:
-# 5,292 frames, EUR 15.76), and a machine's set-up, rounded up (the 8 s shot's 192 frames: EUR 1.0).
-EUROS = 0.7
+# Two shots of 96 frames: a 96-frame film over 8 cards cost EUR 1.48 to 1.75 with parking (ledger 2026-10-18:
+# greenhouse, airlock, hangar, garage), most of it the frames' card time, so twice the measured 1.6.
+EUROS = 3.2
 TOOLS = ("tools/review/demo.py", "tools/review/film_checks.py", "tools/review/renders.py",
          "tools/review/viewer/viewpoints.py", "tools/usd/camera_paths.py", "tools/usd/scene.py", "tools/usd/sound.py",
-         "tools/blender/inside/usd_views.py")
+         "tools/usd/hearing.py", "tools/blender/inside/usd_views.py")
 OUTPUTS = ("film.mp4", "views.json", "concept.png")
 
 
@@ -73,11 +87,12 @@ def applies_extra(place):
 
 
 def common_files(place):
-    """The place's seed scene record, motion record and picked viewpoints where it has them, and every tool file a film
-    is made with. A ship room has no seed record (its record is its assembly's scene.json, which demo.plan reads
+    """The place's seed scene record, motion record and picked viewpoints where it has them, the surfaces' sounds (the
+    soundtrack's footsteps), and every tool file a film is made with. A ship room has no seed record (its record is its assembly's scene.json, which demo.plan reads
     first), so it declares none, as stills.files (2026-10-16: demo-film@cockpit refused, data/scene/cockpit.json
     missing)."""
     found = {f"tool {path}": "{repo}/" + path for path in TOOLS}
+    found["sound surfaces"] = "{data}/sound/surfaces.json"  # the walker's footsteps by the kit kind underfoot
     if (REPO / "data/scene" / f"{place}.json").exists():
         found["scene"] = "{data}/scene/" + place + ".json"
     if (REPO / "data/motion" / f"{place}.json").exists():
@@ -160,31 +175,74 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     work = log_folder / ".work"
     shutil.copytree(stage_folder, work / "stages" / place)
     subprocess.run(["chmod", "-R", "u+w", str(work / "stages")], check=True)
-    own_camera(work / "stages" / place / "scene.json", film)
+    cameras = own_cameras(work / "stages" / place / "scene.json", film)
     leave_out(work / "stages" / place / f"{place}.usda", film)
-    given = f"{place}={film['camera']}" if name == place else f"{name}@{place}={film['camera']}"
-    jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE, ink=False, shots=SHOTS,
+    given = f"{place}={','.join(cameras)}" if name == place else f"{name}@{place}={','.join(cameras)}"
+    jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE, ink=False, shots=len(cameras),
                      seconds=SECONDS, start=start)
     render(jobs, log_folder)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(work / "frames" / name / "shot0-000-look.png", out / "concept.png")
     demo.cut(work, [name])
     shutil.copy(work / "videos" / f"{name}.mp4", out / "film.mp4")
+    if (work / "videos" / f"{name}-bed.wav").exists():
+        shutil.copy(work / "videos" / f"{name}-bed.wav", out / "bed.wav")
     planned = json.loads((work / "views" / f"{name}.json").read_text())
     (out / "views.json").write_text(json.dumps(dict(planned, stage=f"{place}/{place}.usda"), indent=1))
     shutil.rmtree(work)
 
 
-def own_camera(record_path, film):
-    """A film record that carries its own spot ("eye", "aim", and "fov" else the record's own 75) adds it to the
-    stage's record copy as the camera it names, so a film can frame what no record camera does (the greenhouse's crop
-    bed, 2026-10-18) with the scene record itself untouched."""
-    if "eye" not in film:
-        return
+def own_cameras(record_path, film):
+    """The film's cameras, SHOTS at most, its own spots added to the stage's record copy as the cameras they name (the
+    scene record itself untouched): the first its `camera`, the second its `then`, else the record camera standing
+    furthest from the first (second_camera); one only where the record holds no other."""
     record = json.loads(record_path.read_text())
-    record["views"] = [view for view in record.get("views", []) if view["name"] != film["camera"]] + [
-        {"name": film["camera"], "eye": film["eye"], "aim": film["aim"], "fov": film.get("fov", 75)}]
+    first = film_view(record, film["camera"], film)
+    then = film.get("then")
+    second = (film_view(record, then if isinstance(then, str) else then["camera"], then if isinstance(then, dict)
+                        else {}) if then else second_camera(record, first))
+    shots = [first] + ([second] if second else [])
+    record["views"] = [view for view in record.get("views", []) if view["name"] not in {shot["name"] for shot in shots}]
+    record["views"] += shots
     record_path.write_text(json.dumps(record, indent=1))
+    return [shot["name"] for shot in shots][:SHOTS]
+
+
+def film_view(record, name, spot):
+    """A film's camera as a record view: a spot of its own where it gives one ("eye" and "aim", or "across" the
+    record's floor), its "fov" else the record's own 75, and "stand" where its shot stands rather than walks
+    (demo.shot_move), so a film can frame what no record camera does (the greenhouse's crop bed, 2026-10-18); else
+    the record's camera of that name."""
+    held = {"stand": True} if spot.get("stand") else {}
+    if "eye" in spot:
+        return {"name": name, "eye": spot["eye"], "aim": spot["aim"], "fov": spot.get("fov", 75), **held}
+    if "across" in spot:
+        return dict(across(record, spot["across"]), name=name, fov=spot.get("fov", 75), **held)
+    found = [view for view in record.get("views", []) if view["name"] == name]
+    if not found:
+        raise ValueError(f"the scene record has no camera {name}")
+    return found[0]
+
+
+def across(record, shares):
+    """A spot given as shares of the record's floor ({"eye": [x, z], "aim": [x, z]}, 0 at its low corner and 1 at its
+    high one), so it keeps its place in the room when the room is built again at another size (the ship's rooms at
+    1.5 times, 2026-10-18): {"eye", "aim"} at ACROSS_EYE and ACROSS_AIM over the floor at y = 0."""
+    low, high = (np.asarray(corner, dtype=float) for corner in record["floor"])
+    def point(share, height):
+        flat = low + np.asarray(share, dtype=float) * (high - low)
+        return [round(float(flat[0]), 3), height, round(float(flat[1]), 3)]
+    return {"eye": point(shares["eye"], ACROSS_EYE), "aim": point(shares["aim"], ACROSS_AIM)}
+
+
+def second_camera(record, first):
+    """The record camera whose eye stands furthest from the first's, none looking up at a roof (demo.steep) and none
+    the first itself: a film's second shot where its record names none; None where there is no other."""
+    demo, _ = film_tools()
+    others = [view for view in record.get("views", []) if view["name"] != first["name"] and not demo.steep(view)]
+    if not others:
+        return None
+    return max(others, key=lambda view: float(np.linalg.norm(np.subtract(view["eye"], first["eye"]))))
 
 
 def leave_out(stage_path, film):
@@ -229,11 +287,22 @@ CONTRACT = contracts.Contract("demo-film", 1, film_faults, {"time": "second"})
 EXTRA_CONTRACT = contracts.Contract("demo-film-extra", 1, extra_faults, {"time": "second"})
 
 
+def planned_seconds(shots):
+    """A film's planned length: its title card and its shots joined by half-second fades (demo.py TITLE_SECONDS,
+    FADE_SECONDS): 2 + 4 + 4 - 2 x 0.5 = 9 s for two shots."""
+    demo, _ = film_tools()
+    return demo.TITLE_SECONDS + shots * (SECONDS - demo.FADE_SECONDS)
+
+
 def film_measures(folder, stage_folder):
-    """One film's video checks and its frames' clearance: (seconds, mean dB, faults)."""
+    """One film's video checks, its length within LENGTH_SLACK of its planned length for the shots its views hold,
+    and its frames' clearance: (seconds, mean dB, faults)."""
     demo, film_checks = film_tools()
-    video = film_checks.video_checks(folder / "film.mp4", LEAST, MOST, demo.TITLE_SECONDS, SIZE)
-    views = json.loads((folder / "views.json").read_text())["views"]
+    planned = json.loads((folder / "views.json").read_text())
+    length = planned_seconds(len(planned.get("moves", [])))
+    video = film_checks.video_checks(folder / "film.mp4", length - LENGTH_SLACK, length + LENGTH_SLACK,
+                                     demo.TITLE_SECONDS, SIZE)
+    views = planned["views"]
     _, near = film_checks.clearance_checks(stage_folder / f"{place_of(stage_folder)}.usda", views)
     return video["seconds"], video["mean_db"], video["failures"] + near
 

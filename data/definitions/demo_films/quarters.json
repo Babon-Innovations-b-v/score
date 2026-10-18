@@ -1,5 +1,32 @@
 {
  "place": "quarters",
- "camera": "spot-1",
- "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. Its door camera (from-east-door) showed only the near wall 1.4 to 1.55 m off, so its plan has a standing spot in the middle of its north end, looking down the room's 6 m length between the bunks, and the film starts at the spot-1 camera the scene record writes from it (the overseer, 2026-10-17)."
+ "camera": "film-corner",
+ "why": "Demo K9 (overseer, 2026-10-14): the place's walk-through, one 8 s path at 1280x720 without the ink look, with its own sound, starting at the scene record's camera nearest its concept, so its first frame is demo K8's still. It waits on the place's complete. Its door camera (from-east-door) showed only the near wall 1.4 to 1.55 m off, so its plan has a standing spot in the middle of its north end, looking down the room's 6 m length between the bunks, and the film starts at the spot-1 camera the scene record writes from it (the overseer, 2026-10-17). From 2026-10-18 its spots are its own, across its floor (shares of it, so they keep their place when the ship's rooms are built at 1.5 times), each a standing shot at 90 degrees, picked from eight corner and wall spots rendered locally: from each end down the room's length, so the bunks, the lockers and the table read together; from spot-1 the walk faced the wall between the bunks in the dark (the world 1 film diagnosis, 2026-10-18).",
+ "across": {
+  "eye": [
+   0.5,
+   0.1
+  ],
+  "aim": [
+   0.5,
+   0.9
+  ]
+ },
+ "fov": 90.0,
+ "stand": true,
+ "then": {
+  "camera": "film-across",
+  "across": {
+   "eye": [
+    0.5,
+    0.9
+   ],
+   "aim": [
+    0.5,
+    0.1
+   ]
+  },
+  "fov": 90.0,
+  "stand": true
+ }
 }

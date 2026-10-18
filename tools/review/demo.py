@@ -31,8 +31,10 @@ views draw them (usd_views.py's `ink`); the game's night glow is drawn where the
 and what the stage does not carry the scene record lists as game only. `cut` makes each film's video from its inked
 frames (the shots joined by short cross-fades, opened by a title card with its plain name, given as `film:Title`)
 and, given more than one, the world's video with the films in the order given. A film whose stage has a sound layer
-(tools/usd/sound.py) is heard too: each shot's sound is what its camera hears along its frames (sound.soundtrack),
-cross-faded with the pictures. `film_checks.py` measures the films; `showcase.py` cuts the showcase from them.
+(tools/usd/sound.py) is heard too: each shot's sound is what its camera hears along its frames (hearing.soundtrack),
+cross-faded with the pictures, and its title card what the camera hears standing at its first view before it walks
+(hearing.bed, the film's bed, kept beside its video for the showcase's cards). `film_checks.py` measures the films;
+`showcase.py` cuts the showcase from them.
 
 The videos are made outside the repo, like the review pages; nothing they make is committed.
 """
@@ -73,6 +75,14 @@ WALK_TRIES = (1.0, 0.5)
 SIDE_SHARE = 0.5
 SHORTEST_WALK = 0.5
 WANDER = 2.0
+# How long a shot's camera takes to speed up at its start and to slow down at its end (seconds), gliding at one speed
+# between, so the part the cut shows between its fades is one steady walk: the cosine ease over the whole 4 s shot
+# peaked at 1.57 times its mean pace (1.75 m/s outside) and read as a lurch (the world 1 film diagnosis, 2026-10-18).
+EASE_SECONDS = FADE_SECONDS
+# How far before and after a corner of a walk's path it is rounded (metres, at most half of either side of it), and
+# in how many steps: a sharp corner turned the walk in one frame.
+ROUND = 0.6
+ROUND_STEPS = 8
 # How far the view may look up or down from level (degrees): the eye reads the place, not its ceiling or its feet.
 LOOK_UP = 8.0
 LOOK_DOWN = 25.0
@@ -87,8 +97,8 @@ STEEPEST = 0.6
 MOVE_MOST = 1.5
 MOVE_STEP = 0.1
 MOVE_HEADINGS = 16
-# While a shot's move is planned its people stand where they are at every this many of its frames and its last, so a
-# walking person's box is swept over the shot (the checks measure every frame).
+# While a shot's move is planned its people and movers stand where they are at every this many of its frames and its
+# last, so a walking person's or a driving rover's box is swept over the shot (the checks measure every frame).
 PEOPLE_EVERY = 6
 # Minutes a frame's ink lines alone take on a 24 GB card (a one-sample pass render and the ink rule), the import aside
 # (2026-10-10: 9 to 17 s a frame; a hub frame with its look and its ink took about 0.95 min, look and lines together).
@@ -99,6 +109,10 @@ FRAME_MINUTES = 0.7
 FONT = pathlib.Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 # The sound track's sample rate (tools/usd/sound.py's).
 SAMPLE_RATE = 48000
+# How long a film's bed is (what its camera hears standing at its first view before it walks, hearing.bed), written
+# beside its video as <place>-bed.wav: its title card plays the bed's last seconds, and the showcase lays it under
+# the cards shown before the film (its concept, plan and pieces), so no card is silent.
+BED_SECONDS = 16.0
 
 
 def shot_cameras(record, count=SHOTS, names=()):
@@ -140,10 +154,20 @@ def turned(eye, aim, degrees):
     return eye + np.array([cosine * offset[0] + sine * offset[2], offset[1], -sine * offset[0] + cosine * offset[2]])
 
 
-def eased(frames):
-    """A shot's progress at each of its frames, from 0 to 1, starting and ending slowly."""
-    shares = np.linspace(0.0, 1.0, frames)
-    return 0.5 - 0.5 * np.cos(np.pi * shares)
+def eased(frames, ease=EASE_SECONDS):
+    """A shot's progress at each of its frames, from 0 to 1: its speed rising from still over `ease` seconds, steady,
+    and falling to still over as long at its end (a half sine wave each way); a shot too short for both, eased over
+    its whole length."""
+    seconds = max(frames - 1, 1) / RATE
+    times = np.linspace(0.0, seconds, frames)
+    if seconds <= 2.0 * ease:
+        return 0.5 - 0.5 * np.cos(np.pi * times / seconds)
+    rising = times / 2.0 - ease / (2.0 * np.pi) * np.sin(np.pi * np.minimum(times, ease) / ease)
+    gone = np.where(times < ease, rising, times - ease / 2.0)
+    left = seconds - times
+    falling = (seconds - ease) - (left / 2.0 - ease / (2.0 * np.pi) * np.sin(np.pi * left / ease))
+    gone = np.where(left < ease, falling, gone)
+    return gone / (seconds - ease)
 
 
 def levelled(eye, aim):
@@ -241,7 +265,8 @@ def seen_from(scenes, eye, spot):
 def shot_move(scenes, view, room, seed, seconds=SHOT_SECONDS):
     """How a shot moves from its camera: {"camera", "move": "walk", "path"} where a walk is clear (in a room, on its
     `floor`), else {"camera", "move": "stand", "eye", "level"}: on the floor under the camera, its view held near level,
-    or at the camera's own eye looking where it looks when it stands on no floor of the stage. Its start stands clear
+    or at the camera's own eye looking where it looks when it stands on no floor of the stage; a camera that says
+    `stand` (a small room a walk would cross into a wall: the ship's) always stands. Its start stands clear
     of walls, objects and people (clear_spot), `moved` metres from the camera's own spot; None when no spot near the
     camera does."""
     eye = start_eye(scenes, view)
@@ -251,10 +276,33 @@ def shot_move(scenes, view, room, seed, seconds=SHOT_SECONDS):
         return None
     moved = round(float(np.linalg.norm((spot - (eye if floored else np.asarray(view["eye"])))[[0, 2]])), 3)
     found = {"camera": view["name"], "seed": seed, "moved": moved}
-    path = walk_path(scenes, spot, view, room, seed, seconds) if floored else None
+    path = walk_path(scenes, spot, view, room, seed, seconds) if floored and not view.get("stand") else None
     if path is not None:
+        path = rounded_corners(scenes, path)
         return dict(found, move="walk", path=[[round(float(value), 4) for value in point] for point in path])
     return dict(found, move="stand", eye=[round(float(value), 4) for value in spot], level=floored)
+
+
+def rounded_corners(scenes, path):
+    """The path with each corner rounded (a curve from ROUND before it to ROUND after it, at most half of either side,
+    in ROUND_STEPS steps) wherever the curve stays walkable (camera_paths.edges_walkable), else the corner as it was."""
+    path = [np.asarray(point, dtype=float) for point in path]
+    kept = [path[0]]
+    for before, corner, after in zip(path, path[1:], path[2:]):
+        reach = min(ROUND, float(np.linalg.norm(corner - before)) / 2.0, float(np.linalg.norm(after - corner)) / 2.0)
+        curve = corner_curve(before, corner, after, reach)
+        steps = np.array([kept[-1], *curve[:-1]]), np.array(curve)
+        walkable = camera_paths.edges_walkable(scenes, *steps, camera_paths.CLEARANCE)
+        kept += curve if walkable.all() else [corner]
+    return kept + [path[-1]]
+
+
+def corner_curve(before, corner, after, reach):
+    """A quadratic curve round a corner from `reach` before it to `reach` after it, as ROUND_STEPS + 1 points."""
+    start = corner + (before - corner) * reach / max(float(np.linalg.norm(before - corner)), 1e-9)
+    end = corner + (after - corner) * reach / max(float(np.linalg.norm(after - corner)), 1e-9)
+    shares = np.linspace(0.0, 1.0, ROUND_STEPS + 1)[:, None]
+    return list((1.0 - shares) ** 2 * start + 2.0 * (1.0 - shares) * shares * corner + shares ** 2 * end)
 
 
 def walked_frames(path, view, number, frames):
@@ -294,10 +342,10 @@ def shot_times(number, time_rate, seconds=SHOT_SECONDS, start=0.0):
 
 
 def people_over(stage, time_rate, seconds=SHOT_SECONDS, start=0.0):
-    """For a shot's number, the place's people's boxes at every PEOPLE_EVERY of its frames and its last."""
+    """For a shot's number, the place's people's and movers' boxes at every PEOPLE_EVERY of its frames and its last."""
     def boxes(number):
         times = shot_times(number, time_rate, seconds, start)
-        return camera_paths.people_boxes(stage, times[::PEOPLE_EVERY] + times[-1:])
+        return camera_paths.moving_boxes(stage, times[::PEOPLE_EVERY] + times[-1:])
     return boxes
 
 
@@ -525,9 +573,12 @@ def cut_place(out, place, title):
     work = out / "clips" / place
     work.mkdir(parents=True, exist_ok=True)
     title_card(title, work / "title.png", planned.get("size", SIZE))
-    silence = ["-f", "lavfi", "-t", TITLE_SECONDS, "-i", f"anullsrc=r={SAMPLE_RATE}:cl=stereo", "-c:a", "aac",
-               "-shortest"] if voiced else []
-    ffmpeg("-loop", "1", "-t", TITLE_SECONDS, "-i", work / "title.png", *silence, *encode(work / "title.mp4"))
+    bed = out / "videos" / f"{place}-bed.wav"
+    if voiced:
+        bed.parent.mkdir(parents=True, exist_ok=True)
+        film_bed(stage, views, bed)
+    heard_bed = ["-sseof", -TITLE_SECONDS, "-i", bed, "-c:a", "aac", "-shortest"] if voiced else []
+    ffmpeg("-loop", "1", "-t", TITLE_SECONDS, "-i", work / "title.png", *heard_bed, *encode(work / "title.mp4"))
     clips, seconds = [work / "title.mp4"], [TITLE_SECONDS]
     for shot in shots:
         ffmpeg("-framerate", RATE, "-i", frames / f"{shot}-%03d-{'ink' if ink else 'look'}.png",
@@ -541,6 +592,14 @@ def cut_place(out, place, title):
     video.parent.mkdir(parents=True, exist_ok=True)
     joined(clips, seconds, video)
     return sum(seconds) - FADE_SECONDS * (len(clips) - 1)
+
+
+def film_bed(stage, views, out):
+    """The film's bed (BED_SECONDS of what its camera hears standing at its first view before it, hearing.bed)."""
+    import hearing  # noqa: E402  (tools/usd)
+    first = views[0]
+    moment = {"eye": first["eye"], "aim": first["aim"], "time": first.get("frame", 0) / renders.stage_rate(stage)}
+    hearing.bed(stage, moment, BED_SECONDS, RATE, out)
 
 
 def cut(out, places):

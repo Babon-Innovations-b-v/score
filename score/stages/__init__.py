@@ -231,7 +231,16 @@ CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, cha
                          optional=DRESS_ROWS, applies=cast_place)
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
-SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
+@functools.wraps(sound.files)
+def sound_files(place):
+    """sound.files, with a ship place's views (its scene record's, as the demo's views file) for its `scene`, as
+    cast_files: a ship room has no old record, so its sound row stood blocked on data/scene/<room>.json (2026-10-18).
+    In the table, so no other place's key moves."""
+    found = sound.files(place)
+    return dict(found, scene="{seeds}/demo/world1-r4/views/" + f"{place}.json") if ship_place(place) else found
+
+
+SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound_files, paid=True,
                     euros=sound.EUROS, models=(sound.moss_takes.KIND,), applies=sound.applies)
 
 # Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Bullet that shows its

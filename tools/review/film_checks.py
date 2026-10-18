@@ -113,7 +113,8 @@ def video_checks(video, least, most, skip_start=0.0, size=SIZE):
 
 
 def clearance_checks(stage, views):
-    """Per shot, the nearest any eye came to a mesh and to a person, and the frames nearer than the clearance."""
+    """Per shot, the nearest any eye came to a mesh and to a person or a mover, and the frames nearer than the
+    clearance."""
     walls, persons = camera_paths.frame_clearances(camera_paths.place_scenes(stage), stage, views)
     shots, failures = {}, []
     for index, view in enumerate(views):
@@ -126,7 +127,7 @@ def clearance_checks(stage, views):
         for kind in ("walls", "people"):
             if found[f"near_{kind}"]:
                 failures.append(f"{shot}: {found[f'near_{kind}']} frames nearer than {camera_paths.CLEARANCE} m to "
-                                f"{'a mesh' if kind == 'walls' else 'a person'} (nearest {found[kind]:.3f} m)")
+                                f"{'a mesh' if kind == 'walls' else 'a person or a mover'} (nearest {found[kind]:.3f} m)")
             found[kind] = round(float(found[kind]), 3) if np.isfinite(found[kind]) else None
     return shots, failures
 

@@ -42,6 +42,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import demo  # noqa: E402  (its joined, encode, inked and SIZE; puts tools/usd on the path)
+import hearing  # noqa: E402  (tools/usd)
 import sound  # noqa: E402  (tools/usd)
 sys.path.insert(0, str(REPO / "tools/props"))
 from paths import WORK  # noqa: E402
@@ -294,13 +295,14 @@ def checks_card(manifest, seconds, out, behind):
 
 
 def soundtrack_under(stage, video, seconds, out):
-    """The video with what a still camera at the wreck's first record spot hears over its length (sound.soundtrack)."""
+    """The video with what a still camera at the wreck's first record spot hears over its length
+    (hearing.soundtrack)."""
     record = json.loads((REPO / "data/scene/wreck.json").read_text())
     view = next(view for view in record["views"] if view["name"] == "wreck-home")
     count = round(seconds * RATE)
     moments = [{"eye": view["eye"], "aim": view["aim"], "time": number / RATE} for number in range(count)]
     track = pathlib.Path(out).with_suffix(".wav")
-    sound.soundtrack(stage, moments, RATE, track)
+    hearing.soundtrack(stage, moments, RATE, track)
     sound.with_sound(video, track, out)
 
 
@@ -674,12 +676,21 @@ def result_clip(film, seconds, layer, out, fades=True):
     still.unlink()
 
 
+def bed_of(film):
+    """A store film's bed (demo_film's bed.wav beside its film.mp4), or None (a film made before beds)."""
+    bed = pathlib.Path(film).parent / "bed.wav"
+    return bed if bed.exists() else None
+
+
 def bed_track(film, seconds, out, rise=0.0, fall=0.0):
-    """A sound bed `seconds` long from a film's own sound after its title card, looped with BED_SEAM cross-fades so no
-    seam clicks, rising over `rise` seconds at its start and falling over `fall` at its end."""
-    piece = length(film) - demo.TITLE_SECONDS
+    """A sound bed `seconds` long from the film's bed (bed_of: what its camera hears before it walks), else from its
+    own sound after its title card, looped with BED_SEAM cross-fades so no seam clicks, rising over `rise` seconds at
+    its start and falling over `fall` at its end."""
+    bed = bed_of(film)
+    piece = length(bed) if bed else length(film) - demo.TITLE_SECONDS
     copies = max(1, math.ceil((seconds - BED_SEAM) / (piece - BED_SEAM)) + 1)
-    inputs = [part for _ in range(copies) for part in ("-ss", f"{demo.TITLE_SECONDS:.3f}", "-i", film)]
+    one = ("-i", bed) if bed else ("-ss", f"{demo.TITLE_SECONDS:.3f}", "-i", film)
+    inputs = [part for _ in range(copies) for part in one]
     chain, previous = [], "[0:a]"
     for number in range(1, copies):
         chain.append(f"{previous}[{number}:a]acrossfade=d={BED_SEAM}[b{number}]")

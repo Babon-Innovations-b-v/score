@@ -266,12 +266,13 @@ def walk_video(folder, out, stage=None, walk=()):
 
 
 def heard(stage, views, frame_rate, video):
-    """The video with what its camera hears along its views laid under it (sound.soundtrack), in place."""
+    """The video with what its camera hears along its views laid under it (hearing.soundtrack), in place."""
+    import hearing  # noqa: E402  (tools/usd)
     import sound  # noqa: E402  (tools/usd)
     rate = stage_rate(stage)
     moments = [{"eye": view["eye"], "aim": view["aim"], "time": view.get("frame", 0) / rate} for view in views]
     track = pathlib.Path(video).with_suffix(".wav")
-    sound.soundtrack(stage, moments, frame_rate, track)
+    hearing.soundtrack(stage, moments, frame_rate, track)
     voiced = pathlib.Path(video).with_name(pathlib.Path(video).stem + "-sound.mp4")
     sound.with_sound(video, track, voiced)
     voiced.replace(video)

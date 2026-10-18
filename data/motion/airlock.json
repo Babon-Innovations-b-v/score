@@ -34,14 +34,14 @@
    "start": 0.0, "length": 14.0, "loop": true,
    "adds": {"light": {"type": "omni", "at": [0.0, 2.7, 1.9], "colour": "#f2c21a", "energy": 2.0, "range": 6.0, "attenuation": 1.0, "shadows": false,
             "from": "airlock.tscn:52-55 (CycleLight at 0, 2.7, 1.9, range 6, Godot's attenuation 1), airlock.gd:16-17,46,61 (energy 2 while the pump or the tanks run, else 0; its colour Palette.HAZARD, game/art/palette/palette.gd:22 f2c21a)"}},
-   "light": {"on": [[1.0, 6.0], [8.0, 13.0]]},
+   "light": {"on": [[1.0, 6.0], [8.0, 13.0]], "fade": 0.75},
    "sounds": [
     {"name": "airlock_air_hiss", "at": 1.9, "loops_until": null, "from": "airlock_sounds.gd:74-86 (the chamber's: the game sounds it from the Chamber, where the cycle light hangs)"},
     {"name": "airlock_pump_down", "at": 1.9, "loops_until": 6.0, "from": "airlock_sounds.gd:74-86 (the pump from the inner door's seal), 46-48 and 133-135 (stopped when the chamber leaves pumping)"},
     {"name": "airlock_air_hiss", "at": 8.9, "loops_until": null, "from": "airlock_sounds.gd:74-86 (the air let back in)"},
     {"name": "airlock_pressure_equalise", "at": 13.0, "loops_until": null, "from": "airlock_sounds.gd:56-63 (filling to pressurised)"}
    ],
-   "from": "airlock.gd:61 (lit while the cycle runs); airlock_cycle.gd:14-18 (pumping and filling each one base hour, CYCLE_MINUTES 60), sim/engine/world/pace.gd:19,39 (300 ticks a base hour, 60 a real second: 5 s)"
+   "from": "airlock.gd:61 (lit while the cycle runs); its 0.75 s fade up and down SCORE's own, a warning lamp's warm-up, since the game's switch in one frame turned the whole room yellow in the film (diagnosis M2, 2026-10-18); airlock_cycle.gd:14-18 (pumping and filling each one base hour, CYCLE_MINUTES 60), sim/engine/world/pace.gd:19,39 (300 ticks a base hour, 60 a real second: 5 s)"
   }
  ]
 }

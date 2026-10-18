@@ -1,5 +1,5 @@
 {
-	"is": "the sounds the world's data names (surfaces, rooms, things) and the picker's brief for every sound on a picking page: the catalogue (data/sound/catalogue.json) lays each entry here over its own, so a field here wins. 'pick' is the picker's alone: the category sets the loudness a take is brought to (tools/sound/loudness/), 'level' is how loud it is played in LUFS (its volume_db is set from it when a take is picked), 'where' is shown on the page, 'search' is what the sources are asked for. A name with no file plays nothing until the owner picks one (tools/sound/picker/)",
+	"is": "the sounds the world's data names (surfaces, rooms, things) and the picker's brief for every sound on a picking page: the catalogue (data/sound/catalogue.json) lays each entry here over its own, so a field here wins. 'pick' is the picker's alone: the category sets the loudness a take is brought to (tools/sound/loudness/), 'level' is how loud it is played in LUFS (its volume_db is set from it when a take is picked), 'where' is shown on the page, 'search' is what the sources are asked for. 'near' (metres, only where named) is how far out a placed sound plays at its full level before it falls off with distance, for a source far louder than a room's (a lift-off); any other falls off past 10 m, Godot's unit size (tools/usd/sound.py NEAR_METRES). A name with no file plays nothing until the owner picks one (tools/sound/picker/)",
 	"sounds": {
 		"habitat": {
 			"pick": {
@@ -1203,7 +1203,8 @@
 				}
 			},
 			"file": "sound/generated/doors/rocket_launch.ogg",
-			"volume_db": -10.9
+			"volume_db": -10.9,
+			"near": 300.0
 		},
 		"rocket_hull_roar": {
 			"pick": {

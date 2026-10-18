@@ -3,8 +3,9 @@ place plays with its files, its level, where it plays and who made it, for the p
 OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions' sounds, the surfaces' bank).
 
     make     every source the place names (data/sound/places.json: its room tones, what the suit lets through, its
-             `objects`; its inventory rows' `sound`; its motions' `sounds`; every surface's footstep, impact and scrape
-             in data/sound/surfaces.json) answered by one sound: the world's file of a sound already picked (a MOSS
+             `objects`; its inventory rows' `sound`; its motions' `sounds`; the sounds data/sound/movers.json gives its
+             movers and its silent motions, timed off their moves (movers.py); every surface's footstep, impact and
+             scrape in data/sound/surfaces.json) answered by one sound: the world's file of a sound already picked (a MOSS
              take, a file tools/sound/made.py makes, or a recording the owner chose over the takes), else MOSS takes
              of its brief made in the moss image on a rented card (PAID, takes.py), each brought to its category's
              loudness and chosen by the picker's rule (its CLAP match to its prompt less its faults,
@@ -25,6 +26,7 @@ import sys
 
 from score import checks, contracts
 from score.stages.sound import gates
+from score.stages.sound import movers as moving
 from score.stages.sound import takes as moss_takes
 from score.stages.sound.gates import FREESOUND, RECORD, read_json
 
@@ -64,6 +66,9 @@ def files(place):
         found["inventory"] = "{data}/inventory/" + inventory.name
     if (REPO / f"data/motion/{place}.json").exists():
         found["motion"] = "{data}/motion/{place}.json"
+    if (REPO / f"data/movers/{place}.json").exists():
+        found["movers"] = "{data}/movers/{place}.json"
+    found["moving sounds"] = "{data}/sound/movers.json"
     return found
 
 
@@ -88,7 +93,19 @@ def uses_of(place, inputs):
         uses += [{"sound": sound["name"], "role": "motion", "on": motion.get("prim", ""), "at": sound.get("at"),
                   "loops_until": sound.get("loops_until"), "from": sound.get("from", "")}
                  for motion in read_json(inputs["motion"]).get("motions", []) for sound in motion.get("sounds", [])]
-    return uses + bank_uses(read_json(inputs["surfaces"]))
+    return uses + moving_uses(inputs) + bank_uses(read_json(inputs["surfaces"]))
+
+
+def moving_uses(inputs):
+    """The sounds of the place's moving things that play none of their own (data/sound/movers.json): its silent game
+    motions' and its movers'."""
+    if "moving sounds" not in inputs:
+        return []
+    table = read_json(inputs["moving sounds"])
+    movers = read_json(inputs["movers"]) if "movers" in inputs else {}
+    uses = moving.motion_uses(read_json(inputs["motion"]).get("motions", []), table, movers.get("renamed", {})) \
+        if "motion" in inputs else []
+    return uses + moving.mover_uses(movers.get("movers", []), table)
 
 
 def bank_uses(surfaces):

@@ -95,12 +95,12 @@ def test_the_plan_asks_look_only_frames_at_its_size():
 
 
 def look_only_film(root):
-    """A planned look-only film of one shot whose frames are all one colour, cut by demo.py: its video."""
+    """A planned look-only film of SHOTS shots whose frames are all one colour, cut by demo.py: its video."""
     demo, _ = demo_film.film_tools()
     frames = root / "frames/hall"
     frames.mkdir(parents=True)
     count = round(demo_film.SECONDS * demo.RATE)
-    views = [{"name": f"shot0-{number:03d}"} for number in range(count)]
+    views = [{"name": f"shot{shot}-{number:03d}"} for shot in range(demo_film.SHOTS) for number in range(count)]
     for view in views:
         Image.new("RGB", SMALL, (90, 110, 130)).save(frames / f"{view['name']}-look.png")
     (root / "views").mkdir()
@@ -115,9 +115,11 @@ def test_a_look_only_plan_cuts_into_a_video_of_its_size():
     root = folder()
     try:
         video = look_only_film(root)
-        measured = film_checks.video_checks(video, demo_film.LEAST, demo_film.MOST, 2.0, SMALL)
+        length = demo_film.planned_seconds(demo_film.SHOTS)
+        least, most = length - demo_film.LENGTH_SLACK, length + demo_film.LENGTH_SLACK
+        measured = film_checks.video_checks(video, least, most, 2.0, SMALL)
         assert measured["size"] == list(SMALL) and not any("size" in fault for fault in measured["failures"])
-        assert demo_film.LEAST <= measured["seconds"] <= demo_film.MOST, measured
+        assert least <= measured["seconds"] <= most, measured
     finally:
         shutil.rmtree(root)
 
@@ -145,8 +147,9 @@ def test_the_gate_fails_a_silent_still_film_by_name():
 
 
 def test_a_film_starts_a_second_before_its_places_first_one_off_moment():
-    """The overseer, 2026-10-15: the launch's 4 s shot ended as the rocket lifted off (start 1 s + lift 3 s)."""
-    assert demo_film.motion_start({"motion": str(demo_film.REPO / "data/motion/launch.json")}) == 3.0
+    """The overseer, 2026-10-15: the launch's 4 s shot ended as the rocket lifted off (start 1 s + lift 5 s, the
+    engines' build to release since a7a513b3)."""
+    assert demo_film.motion_start({"motion": str(demo_film.REPO / "data/motion/launch.json")}) == 5.0
     assert demo_film.motion_start({"motion": str(demo_film.REPO / "data/motion/garage.json")}) == 0.0  # loops only
     assert demo_film.motion_start({}) == 0.0
     assert "motion" in demo_film.files("launch")
@@ -164,13 +167,24 @@ if __name__ == "__main__":
 
 def test_a_film_record_with_its_own_spot_adds_it_to_the_records_copy():
     record = folder() / "scene.json"
-    record.write_text(json.dumps({"views": [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75}]}))
-    demo_film.own_camera(record, {"camera": "spot-1"})
-    assert len(json.loads(record.read_text())["views"]) == 1, "a film record naming a record camera adds nothing"
-    demo_film.own_camera(record, {"camera": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5]})
+    spots = [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
+             {"name": "spot-2", "eye": [0.5, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
+             {"name": "spot-3", "eye": [3, 1.6, 2], "aim": [0, 1, 0], "fov": 75},
+             {"name": "roof", "eye": [9, 1.6, 9], "aim": [9, 9, 9.5], "fov": 75}]
+    record.write_text(json.dumps({"views": spots, "floor": [[-2, -1], [2, 3]]}))
+    assert demo_film.own_cameras(record, {"camera": "spot-1"}) == ["spot-1", "spot-3"], \
+        "the second shot is the record camera furthest from the first, none looking up at a roof"
+    assert len(json.loads(record.read_text())["views"]) == 4, "record cameras add nothing"
+    cameras = demo_film.own_cameras(record, {"camera": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5],
+                                             "then": {"camera": "corner", "across": {"eye": [0.0, 1.0],
+                                                                                     "aim": [1.0, 0.0]},
+                                                      "fov": 90, "stand": True}})
     views = {view["name"]: view for view in json.loads(record.read_text())["views"]}
+    assert cameras == ["bed", "corner"], cameras
     assert views["bed"] == {"name": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5], "fov": 75}
-    assert "spot-1" in views
+    assert views["corner"] == {"name": "corner", "eye": [-2.0, 1.6, 3.0], "aim": [2.0, 1.2, -1.0], "fov": 90,
+                               "stand": True}, views["corner"]
+    assert demo_film.own_cameras(record, {"camera": "spot-2", "then": "spot-1"}) == ["spot-2", "spot-1"]
 
 
 def test_a_film_record_leaves_out_the_prims_it_names_in_its_copy_only():
@@ -180,9 +194,12 @@ def test_a_film_record_leaves_out_the_prims_it_names_in_its_copy_only():
     UsdGeom.Xform.Define(stage, "/room/Places/tube/Outside/near")
     stage.GetRootLayer().Save()
     demo_film.leave_out(path, {"camera": "spot-1"})
-    assert Usd.Stage.Open(str(path)).GetPrimAtPath("/room/Places/tube/Outside").IsActive()
+    opened = Usd.Stage.Open(str(path))  # held, or its prim expires with it
+    assert opened.GetPrimAtPath("/room/Places/tube/Outside").IsActive()
     demo_film.leave_out(path, {"camera": "spot-1", "leave_out": ["/room/Places/tube/Outside"]})
-    assert not Usd.Stage.Open(str(path)).GetPrimAtPath("/room/Places/tube/Outside").IsActive()
+    opened = Usd.Stage.Open(str(path), Usd.Stage.LoadAll)
+    opened.Reload()
+    assert not opened.GetPrimAtPath("/room/Places/tube/Outside").IsActive()
 
 
 def test_a_film_record_may_name_its_own_start():
