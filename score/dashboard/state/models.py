@@ -107,6 +107,7 @@ class PlaceCard(BaseModel):
     status: str
     hero: FileRef | None = None
     film: FileRef | None = None
+    still: FileRef | None = None  # the accepted film's middle frame as a JPEG, so the board seeks no video
     layers: list[LayerGroup] = []
 
 
@@ -183,7 +184,33 @@ class StepDetail(BaseModel):
     reads: list[str] = []
     inputs: list[InputPicture] = []
     reference: FileRef | None = None  # the place's concept, what the result is held against
+    picture: FileRef | None = None  # the step's own picture: its output's own image, else one drawn from its files
     mark: str | None = None
+
+
+class NamedGap(BaseModel):
+    """A gap the owner named (data/checks/gaps/<place>.json): its words, one plain sentence of what is wrong and
+    where, its step, and a picture of what it names (state/gaps.py)."""
+    name: str
+    sentence: str = ""
+    reason: str = ""
+    step: str | None = None  # the stage it was named at
+    step_label: str | None = None
+    step_url: str | None = None  # its step's page, when the step is in this place's line
+    objects: list[str] = []
+    picture: FileRef | None = None
+    picture_is: str = ""  # what the picture shows, in words
+
+
+class StoppedStep(BaseModel):
+    """A step of a place whose run stopped after its last accept: what its fault report says, in one plain
+    sentence, its step's page and a picture of what it is about."""
+    label: str
+    why: str
+    sentence: str = ""
+    step_url: str | None = None
+    picture: FileRef | None = None
+    picture_is: str = ""
 
 
 class PlaceDetail(BaseModel):
@@ -194,8 +221,8 @@ class PlaceDetail(BaseModel):
     film: FileRef | None = None
     usd_index: UsdIndex = UsdIndex()
     layers: list[LayerGroup] = []
-    faults: list[str] = []
-    gaps: list[str] = []
+    faults: list[StoppedStep] = []
+    gaps: list[NamedGap] = []
     concept: FileRef | None = None
     skipped: list[str] = []  # loud: steps of the chain not done for this place, and named gaps
     film_fps: float = 24.0

@@ -108,8 +108,16 @@ def place_bundle(details):
 
 
 def heroes(world):
-    return [card.hero for engine in world.engines for style in engine.styles for card in style.places if card.hero] + [
+    cards = [card for engine in world.engines for style in engine.styles for card in style.places]
+    return [card.hero for card in cards if card.hero] + [card.still for card in cards if card.still] + [
         style.picture for engine in world.engines for style in engine.styles if style.picture]
+
+
+def place_pictures(bundles):
+    """Each place's concept and its named gaps' pictures, as FileRef dicts."""
+    details = [bundle["detail"] for bundle in bundles if bundle["detail"]]
+    return [detail["concept"] for detail in details if detail.get("concept")] + [
+        gap["picture"] for detail in details for gap in detail.get("gaps") or [] if gap.get("picture")]
 
 
 def films(world):
@@ -122,7 +130,9 @@ def pictures_by_node(bundles):
     found = []
     for bundle in bundles:
         for step in bundle["steps"].values():
-            images = [ref for ref in step["files"] + step["waiting_files"] if ref["kind"] == "image"]
+            own = [step["picture"]] if step.get("picture") else []
+            images = own + [ref for ref in step["files"] + step["waiting_files"]
+                            if ref["kind"] == "image" and ref not in own]
             found.append((step["node"], images[:NEWEST_PER_NODE]))
     return found
 
@@ -144,6 +154,8 @@ def build(source, out, made_at, cap_mb, spend, repo):
         bundles.append(bundle)
     for hero in heroes(world):
         filler.picture(source.file(hero.sha)[1], hero.sha, HERO_SIDE, f"picture {hero.name}")
+    for picture in place_pictures(bundles):
+        filler.picture(source.file(picture["sha"])[1], picture["sha"], HERO_SIDE, f"picture {picture['name']}")
     nodes = pictures_by_node(bundles)
     for rank in range(NEWEST_PER_NODE):  # each node's first thumbnail before any node's second
         for node, images in nodes:

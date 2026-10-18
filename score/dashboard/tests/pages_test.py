@@ -78,6 +78,19 @@ def test_the_place_page_shows_the_usd_index_and_faults(world):
     assert "<video" in html and "/files/" in html
 
 
+def test_a_known_gap_shows_its_picture_and_opens_its_step(world):
+    html = signed_in().get("/place/beta/").content.decode()
+    problems = html[html.index('class="problems"'):html.index("</section>", html.index('class="problems"'))]
+    gap = next(chunk for chunk in problems.split('class="problem"') if "known gap" in chunk)
+    assert gap.startswith(' href="/place/beta/step/assembly/"') and "/thumbs/" in gap
+
+
+def test_the_step_page_shows_its_own_picture_large(world):
+    detail = world.source.step_detail("alpha", "assembly")
+    html = signed_in().get("/place/alpha/step/assembly/").content.decode()
+    assert f'src="{detail.picture.url}"' in html
+
+
 def test_the_step_page_shows_files_gates_and_the_waiting_output(world):
     html = signed_in().get("/place/alpha/step/closeup/").content.decode()
     assert "closeups/lamp.png" in html and "looks" in html

@@ -42,6 +42,14 @@ def test_the_export_holds_the_state_places_pictures_and_films(world, tmp_path):
     assert source.step_detail("alpha", "closeup").waiting is not None
 
 
+def test_the_export_holds_each_gaps_picture_and_each_steps_own_picture(world, tmp_path):
+    exported(world, tmp_path / "one")
+    bundle = json.loads((tmp_path / "one/places/beta.json").read_text())
+    gap = bundle["detail"]["gaps"][0]["picture"]["sha"]
+    step = bundle["steps"]["assembly"]["picture"]["sha"]
+    assert (tmp_path / f"one/files/{gap}-1280.jpg").is_file() and (tmp_path / f"one/files/{step}-360.jpg").is_file()
+
+
 def test_the_export_is_the_same_twice_and_keeps_to_its_cap(world, tmp_path):
     exported(world, tmp_path / "one")
     exported(world, tmp_path / "two")
