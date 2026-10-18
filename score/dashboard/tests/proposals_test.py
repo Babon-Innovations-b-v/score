@@ -90,6 +90,16 @@ def test_a_branch_moving_nothing_here_shows_the_place_as_it_stands(tmp_path):
     assert not (tmp_path / "scratch" / "objects" / "records").exists()
 
 
+def test_the_place_is_shown_with_its_neighbours_only_when_the_branch_moves_them(tmp_path):
+    standing_store(tmp_path)
+    _, runner = proposal_run(tmp_path, "old hull", {})
+    assert assemble.target(runner, "hangar") == assemble.ASSEMBLY
+    shows = graph.Stage("neighbours", "place", make_assembly, TEXT, WRITTEN, after={"assembly": ("toy-text", 1)})
+    runner = assemble.ProposalRunner((CLEAN, PAINT, ASSEMBLY, shows), runner.world, runner.store,
+                                     {"neighbours": {"paid": False, "code": True, "files": {}}})
+    assert assemble.target(runner, "hangar") == assemble.NEIGHBOURS
+
+
 def test_the_overlay_reads_through_and_writes_only_its_own_root(tmp_path):
     real = tmp_path / "real" / "objects"
     (real / "blobs").mkdir(parents=True)
@@ -183,10 +193,13 @@ def test_stills_take_the_scene_records_first_cameras(tmp_path):
     (tmp_path / "data/scene").mkdir(parents=True)
     views = [{"name": f"v{number}", "eye": [0, 1, 0], "aim": [1, 1, 0]} for number in range(6)]
     (tmp_path / "data/scene/hangar.json").write_text(json.dumps({"views": views}))
-    chosen = pictures.views(tmp_path, "hangar")
+    chosen = pictures.views(tmp_path / "stage", tmp_path, "hangar")
     assert [view["name"] for view in chosen] == ["v0", "v1", "v2", "v3"]
     assert chosen[0]["up"] == pictures.UP and chosen[0]["fov"] == 75.0
-    assert pictures.views(tmp_path, "nowhere") == []
+    assert pictures.views(tmp_path / "stage", tmp_path, "nowhere") == []
+    (tmp_path / "stage").mkdir()
+    (tmp_path / "stage/scene.json").write_text(json.dumps({"views": views[4:]}))
+    assert [view["name"] for view in pictures.views(tmp_path / "stage", tmp_path, "hangar")] == ["v4", "v5"]
 
 
 @pytest.mark.django_db(transaction=True)

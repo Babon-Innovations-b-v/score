@@ -27,14 +27,21 @@ NOT_DRAFTS = {"old", "before", "stages", "work", "inputs", "scripts"}
 LEAST_BYTES = 1024
 
 
-def views(tree, place):
-    """The first MOST_STILLS cameras of the place's scene record in the branch's checkout, as usd_views.py takes
-    them; [] when the record has none."""
-    path = pathlib.Path(tree) / "data/scene" / f"{place}.json"
-    record = json.loads(path.read_text()) if path.is_file() else {}
+def record_views(stage_folder, tree, place):
+    """The scene record's cameras: the record the stage was assembled from (scene.json beside it), else the
+    branch's data/scene/<place>.json; [] when neither has any."""
+    for path in (pathlib.Path(stage_folder) / "scene.json", pathlib.Path(tree) / "data/scene" / f"{place}.json"):
+        found = json.loads(path.read_text()).get("views", []) if path.is_file() else []
+        if found:
+            return found
+    return []
+
+
+def views(stage_folder, tree, place):
+    """The first MOST_STILLS cameras of the place's scene record (record_views), as usd_views.py takes them."""
     return [{"name": view["name"], "eye": view["eye"], "aim": view["aim"], "up": view.get("up", UP),
              "fov": float(view.get("fov", 75.0)), "look_only": True}
-            for view in record.get("views", [])[:MOST_STILLS]]
+            for view in record_views(stage_folder, tree, place)[:MOST_STILLS]]
 
 
 def render(stage_file, chosen, folder):

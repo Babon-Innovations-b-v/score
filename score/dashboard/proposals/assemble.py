@@ -23,7 +23,7 @@ from score.graph import node_name
 from score.store import Store, runtime_store
 
 AS_NOW, MADE, PAID = "as now", "made", "needs the paid batch"
-TARGET = "assembly"
+ASSEMBLY, NEIGHBOURS = "assembly", "neighbours"
 
 
 class Overlay(runtime_store.FolderStore):
@@ -149,11 +149,22 @@ def linked(store, output, folder):
     return folder
 
 
+def target(runner, place):
+    """The stage whose OpenUSD output the proposal shows: the place with its neighbours standing when the branch
+    moves that row and the place has one, else its assembly."""
+    shows = runner.stages.get(NEIGHBOURS)
+    if shows and NEIGHBOURS in runner.moved and (shows.applies is None or shows.applies(place)):
+        return NEIGHBOURS
+    return ASSEMBLY
+
+
 def assemble(runner, place, folder):
-    """The place's assembly for this proposal, linked into `folder`: {assembly output, stage file, every node taken}."""
-    output = runner.usable(TARGET, place, None)
+    """The place's stage for this proposal (`target`), linked into `folder`: {its stage row, its output, its stage
+    file, every node taken}."""
+    shown = target(runner, place)
+    output = runner.usable(shown, place, None)
     stage_folder = linked(runner.store, output, pathlib.Path(folder))
-    return {"assembly": output, "stage": str(stage_folder / f"{place}.usda"),
+    return {"target": shown, "assembly": output, "stage": str(stage_folder / f"{place}.usda"),
             "taken": sorted(runner.taken.values(), key=lambda item: item["node"])}
 
 
