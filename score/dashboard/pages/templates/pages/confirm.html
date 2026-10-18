@@ -1,0 +1,20 @@
+{% extends "pages/base.html" %}
+{% block title %}Confirm launch{% endblock %}
+{% block content %}
+<h1>Confirm the launch</h1>
+{% if plan.state != "ready" %}<p class="soft">This plan is not worked out.</p>{% else %}
+{% include "pages/money.html" with bar=bar ceiling=plan.body.money.ceiling note=plan.body.money.note %}
+<p>Projected: likely <b>EUR {{ plan.body.money.likely|floatformat:2 }}</b>, high <b>EUR {{ plan.body.money.high|floatformat:2 }}</b>, against the stop of EUR {{ plan.body.money.ceiling|floatformat:0 }} with EUR {{ plan.body.money.spent|floatformat:2 }} spent and EUR {{ plan.body.money.reserved|floatformat:2 }} reserved. Time: likely {{ likely_time }}, high {{ high_time }}.</p>
+<h2>The runner commands</h2>
+<pre>{% for command in commands %}{{ command }}
+{% endfor %}</pre>
+{% if refusals %}<div class="banner bad"><b>It cannot launch:</b><ul>{% for why in refusals %}<li>{{ why }}</li>{% endfor %}</ul></div>{% endif %}
+{% if owner %}
+<form method="post" class="panel">{% csrf_token %}
+  {% if needs_reason %}<label>Why accepted outputs are bought again <input type="text" name="rebuy_reason" required></label>{% endif %}
+  <label><input type="checkbox" name="confirm" value="yes"> I launch this</label>
+  <p style="margin:8px 0 0"><button class="primary">Launch</button></p>
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}

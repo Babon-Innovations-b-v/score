@@ -1,0 +1,39 @@
+{% extends "pages/base.html" %}
+{% block title %}Launch basket{% endblock %}
+{% block content %}
+<h1>Launch basket</h1>
+{% for card in items %}
+<section class="style"><div class="style-head">
+  {% if card.hero %}<img src="{{ card.hero.thumb_url }}" alt="{{ card.place }}">{% endif %}
+  <div><h3>{{ card.place|capfirst }}</h3>
+  {% for item in card.items %}<div>{{ item.stage }} {% if owner %}<form class="inline" method="post" action="/basket/change/">{% csrf_token %}<input type="hidden" name="what" value="remove"><input type="hidden" name="item" value="{{ item.pk }}"><button class="small">remove</button></form>{% endif %}</div>{% endfor %}</div>
+</div></section>
+{% empty %}<p class="soft">Nothing queued. Queue steps from a step's page.</p>{% endfor %}
+
+{% if items and owner %}
+<form method="post" action="/basket/change/" class="panel">{% csrf_token %}<input type="hidden" name="what" value="plan">
+  <label class="small">Steps at once <input type="number" name="jobs" value="8" min="1" max="32" style="width:6em"></label>
+  <button class="primary">Work out the plan</button>
+</form>
+{% endif %}
+
+{% if plan %}
+<h2>Plan</h2>
+{% if plan.state == "working" %}<p class="soft">Working it out ({{ elapsed }} s so far): the runner works out every key it would need.</p>
+{% elif plan.state == "failed" %}<div class="banner bad">The plan could not be worked out: {{ plan.error }}</div>
+{% else %}
+{% if not plan_current %}<div class="banner">The basket changed since this plan: work it out again.</div>{% endif %}
+{% include "pages/money.html" with bar=bar ceiling=plan.body.money.ceiling note=plan.body.money.note %}
+<p>Likely <b>EUR {{ plan.body.money.likely|floatformat:2 }}</b>, high <b>EUR {{ plan.body.money.high|floatformat:2 }}</b>{% if plan.body.money.room is not None %} against <b>EUR {{ plan.body.money.room|floatformat:2 }}</b> of room under the stop{% endif %}. Time: likely {{ likely_time }}, high {{ high_time }}.</p>
+{% if plan.body.money.not_measured %}<p class="small soft">Not measured yet, counted at the runner's estimate: {{ plan.body.money.not_measured|join:", " }}.</p>{% endif %}
+{% for group in plan.body.groups %}
+<div class="panel"><b>{{ group.places|join:", "|default:"world" }}</b>: {{ group.stages|join:", " }}
+  <div class="small">{{ group.to_run|length }} steps to make, {{ group.buys|length }} paid.{% if group.blocked %} {{ group.blocked|length }} blocked.{% endif %}</div>
+  {% if group.missing %}<div class="banner bad small">Missing inputs: {{ group.missing|join:"; " }}</div>{% endif %}
+  {% if group.refusal %}<div class="banner small">{{ group.refusal }}</div>{% endif %}
+</div>
+{% endfor %}
+{% if owner %}<p><a class="button" href="/basket/confirm/{{ plan.pk }}/">Launch...</a></p>{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

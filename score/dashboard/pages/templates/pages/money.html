@@ -1,0 +1,11 @@
+<div class="money">
+  {% if bar %}
+  <div class="bar" role="img" aria-label="spend against the stop">{% for part in bar %}<span class="{{ part.name }}" style="width: {{ part.share|floatformat:2 }}%" title="{{ part.name }}: EUR {{ part.euros }}"></span>{% endfor %}</div>
+  <div class="legend">
+    {% for part in bar %}<span><i style="background: var(--{{ part.name }})"></i>{{ part.name }} EUR {{ part.euros|floatformat:2 }}</span>{% endfor %}
+    <span>stop EUR {{ ceiling|floatformat:0 }}</span>
+  </div>
+  {% else %}
+  <div class="soft small">Money: {{ note|default:"no reading of this month's spend" }}</div>
+  {% endif %}
+</div>

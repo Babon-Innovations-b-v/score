@@ -1,0 +1,11 @@
+{% extends "pages/base.html" %}
+{% block title %}Requests{% endblock %}
+{% block content %}
+<h1>Requests</h1>
+{% if hosted %}<p class="soft">{{ export_age }}</p>{% endif %}
+<h2>Change requests</h2>
+{% for change in changes %}<div class="panel"><b>{{ change.stage }}{% if change.place %} at {{ change.place }}{% endif %}</b> <span class="soft small">{{ change.created|date:"Y-m-d H:i" }} {{ change.user }}, {{ change.state }}</span><div>{{ change.words }}</div></div>
+{% empty %}<p class="soft">None yet.</p>{% endfor %}
+{% if sync_requests %}<h2>Requests for the store's machine</h2>
+{% for item in sync_requests %}<div class="small">{{ item.created|date:"Y-m-d H:i" }} {{ item.kind }} by {{ item.user }}: <b>{{ item.state }}</b>{% if item.detail %}: {{ item.detail }}{% endif %}</div>{% endfor %}{% endif %}
+{% endblock %}

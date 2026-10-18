@@ -1,0 +1,79 @@
+{% extends "pages/base.html" %}
+{% block title %}{{ detail.label|capfirst }}{% if detail.place %} at {{ detail.place }}{% endif %}{% endblock %}
+{% block content %}
+<p class="small"><a href="/">World</a>{% if detail.place %} / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a>{% else %} / world steps{% endif %} / {{ detail.label }}</p>
+<h1>{{ detail.label|capfirst }}{% if detail.place %} <span class="soft">at {{ detail.place }}</span>{% endif %} {% if detail.paid %}<span class="paid">paid</span>{% endif %}</h1>
+<p class="soft">{{ detail.state_words }}{% if detail.record.minutes is not None %}; made {{ detail.record.finished|slice:":16" }} in {{ detail.record.minutes|floatformat:1 }} min{% endif %}{% if detail.record.carried %}; carried over ({{ detail.record.carried.reason }}){% endif %}{% if snapshot_state %}. Freshness ({{ snapshot_at|slice:":16" }}): {{ snapshot_state }}{% endif %}</p>
+{% if detail.fault %}<div class="banner bad"><b>Stopped:</b> {{ detail.fault_why }}<details class="ids"><summary>fault report</summary><pre>{{ detail.fault }}</pre></details></div>{% endif %}
+
+<div class="columns">
+<div>
+  <h2>Accepted output</h2>
+  {% if detail.files %}{% include "pages/sheet.html" with files=detail.files %}{% else %}<p class="soft">Nothing stored yet.</p>{% endif %}
+  {% with others=detail.files %}{% if others %}<h3>Files</h3><ul class="small">{% for file in others %}{% if file.kind == "usd" or file.kind == "gltf" or file.kind == "other" %}<li><a href="{{ file.url }}">{{ file.name }}</a> <span class="soft">{{ file.bytes|filesizeformat }}</span></li>{% endif %}{% endfor %}</ul>{% endif %}{% endwith %}
+
+  {% if detail.waiting %}
+  <h2>Waiting output</h2>
+  <p class="soft">Made {{ detail.waiting.at|slice:":16" }}, answered <span class="{{ detail.waiting.answer }}">{{ detail.waiting.answer|default:"nothing yet" }}</span>.{% if detail.waiting_worse %} Worse than the accepted one: {{ detail.waiting_worse|join:"; " }}{% endif %}</p>
+  {% include "pages/sheet.html" with files=detail.waiting_files %}
+  <h3>Its gates</h3>
+  {% include "pages/gates.html" with gates=detail.waiting_judgement %}
+  {% endif %}
+
+  {% if detail.history %}
+  <h2>Earlier accepted takes</h2>
+  <div class="sheet">{% for take in detail.history %}<figure>{% if take.thumb %}<img src="{{ take.thumb }}" alt="earlier take" loading="lazy">{% endif %}<figcaption>{{ take.at|slice:":16" }} by {{ take.by }} ({{ take.answer|default:"no judgement" }})</figcaption></figure>{% endfor %}</div>
+  {% endif %}
+  {% if detail.log_tail %}<details class="ids"><summary>log, last lines</summary><pre>{{ detail.log_tail }}</pre></details>{% endif %}
+</div>
+
+<div>
+  <h2>Gates</h2>
+  {% include "pages/gates.html" with gates=detail.judgement %}
+
+  <h2>What should change</h2>
+  <form method="post" action="request/" class="panel">{% csrf_token %}
+    <input type="hidden" name="output" value="{{ detail.accepted.output|default:'' }}">
+    <textarea name="words" rows="3" placeholder="say what should change about this step's output"></textarea>
+    <p style="margin:6px 0 0"><button>Record it</button> <span class="small soft">an agent or the owner turns it into a change</span></p>
+  </form>
+  {% for change in requests %}<div class="small soft">{{ change.created|date:"Y-m-d H:i" }} {{ change.user }}: {{ change.words }}</div>{% endfor %}
+  {% for queued in sync_requests %}<div class="small soft">{{ queued.kind }} {{ queued.state }}{% if queued.detail %}: {{ queued.detail }}{% endif %}</div>{% endfor %}
+
+  {% if owner %}
+  {% if decisions_on or hosted %}
+  {% if detail.waiting and detail.waiting.answer == "pass" %}
+  <h2>Accept the waiting output</h2>
+  <form method="post" action="decide/" class="panel">{% csrf_token %}
+    <input type="hidden" name="decision" value="accept"><input type="hidden" name="output" value="{{ detail.waiting.output }}">
+    <input type="text" name="reason" placeholder="why (optional)">
+    {% if detail.waiting_worse %}<p class="small">It is worse than the accepted one: say why it may be.</p><input type="text" name="worse_reason" placeholder="why it may be worse" required>{% endif %}
+    <p style="margin:6px 0 0"><button class="primary">Accept this output</button></p>
+  </form>
+  {% endif %}
+  {% if detail.accepted %}
+  <h2>Reject the accepted output</h2>
+  <form method="post" action="decide/" class="panel">{% csrf_token %}
+    <input type="hidden" name="decision" value="reject"><input type="hidden" name="output" value="{{ detail.accepted.output }}">
+    <input type="text" name="reason" placeholder="why (needed)" required>
+    <p style="margin:6px 0 0"><button class="danger">Reject</button> <span class="small soft">the output accepted before it stands again; later steps go stale</span></p>
+  </form>
+  {% endif %}
+  {% endif %}
+
+  <h2>Advance</h2>
+  <div class="panel">
+    <form class="inline" method="post" action="queue/">{% csrf_token %}<input type="hidden" name="which" value="this"><button {% if queued %}disabled{% endif %}>{% if queued %}In the basket{% else %}Queue this step{% endif %}</button></form>
+    {% if next_steps %}<form class="inline" method="post" action="queue/">{% csrf_token %}<input type="hidden" name="which" value="next"><button>Queue the next steps</button></form>{% endif %}
+    <div class="small soft" style="margin-top:6px">Nothing runs until the basket's plan is confirmed.</div>
+  </div>
+  {% endif %}
+</div>
+</div>
+
+<details class="ids"><summary>details</summary>
+<p>Node <code>{{ detail.node }}</code>{% if detail.accepted %}, accepted output <code>{{ detail.accepted.output }}</code> ({{ detail.accepted.at }} by {{ detail.accepted.by }}){% endif %}{% if detail.waiting %}, waiting output <code>{{ detail.waiting.output }}</code>{% endif %}.</p>
+<p>Key <code>{{ detail.record.key }}</code>, commit <code>{{ detail.record.commit }}</code>, machine {{ detail.record.machine }}.{% if detail.euros %} Estimate EUR {{ detail.euros }}.{% endif %}</p>
+<p>Reads: {{ detail.reads|join:", "|default:"nothing" }}. Read by: {{ detail.readers|join:", "|default:"nothing" }}.</p>
+</details>
+{% endblock %}
