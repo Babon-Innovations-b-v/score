@@ -68,3 +68,6 @@ Rules:
   `details` fold (`tests/pages_test.py`). Money is the projected total against the stop, never per-piece prices alone.
 - Tests: `make tests TESTS="score/dashboard/tests/*_test.py score/review/web_test.py"` (temp `PROPS_HOME` and
   dashboard home, `tests/conftest.py`). `tests/real_store_smoke.py` runs by hand against the real store, read-only.
+  `tests/viewer_look.py` runs by hand too, free: the 3D viewer in headless Chromium from each film shot's and light
+  look's camera beside that picture (difference, structure, brightness, pink and black, its `THRESHOLDS`); run it on
+  new web copies, or `--hosted <export>` on the export the hosted site serves, before calling the viewer fixed.
