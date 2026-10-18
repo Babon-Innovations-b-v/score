@@ -26,7 +26,10 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=9"]
+dev = ["pytest>=9", "pytest-django>=4.11"]
+# The dashboard (score/dashboard): Django pages, a FastAPI /api, uvicorn. Its own group so the hosted container installs
+# only these (uv export --only-group dashboard), never numpy or usd-core.
+dashboard = ["django>=5.2,<5.3", "fastapi>=0.115", "uvicorn>=0.34", "pydantic>=2.10", "httpx>=0.28"]
 
 [tool.uv]
 package = false
