@@ -754,7 +754,7 @@ class Runner:
         declared file hashing as recorded (a repository one: or as git rebuilds it at that commit). A module moved
         into FRAMEWORK, or an import dropped by a file that was itself not read, is kept so, with no proof file; a
         make, check or file map wired to another function, or another Python, is not. Each file the key no longer reads
-        (the moved module, and what was read only through it) must be gone from the tree or read as it did then, so a
+        (the moved module, and what was read only through it) must still be in the tree and read as it did then, so a
         module moved and edited in one change is made again. A record kept so before is judged against what made it
         (its carried "made by"), so plumbing moved over several commits keeps it each time. None otherwise."""
         node = node_name(stage, place)
@@ -779,7 +779,7 @@ class Runner:
         now = _code.code_version(code_functions(stage), file_hash)
         if not set(now) <= set(then):
             return None
-        return record if _code.unchanged_or_gone(set(then) - set(now), file_hash) else None
+        return record if _code.unchanged(set(then) - set(now), file_hash) else None
 
     def kept_by_narrowing(self, stage, place, keyed):
         """The node's accepted output stored under `keyed` when every file its key reads today reads as it did when
