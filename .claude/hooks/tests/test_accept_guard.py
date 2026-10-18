@@ -36,6 +36,17 @@ def test_the_owners_commands_are_blocked():
         assert "only the owner accepts or rejects" in err
 
 
+def test_the_owners_money_yes_and_its_stop_lines_are_blocked():
+    """His money yes writes a world's stop line (score.adapters.compute.guard): no agent runs it, calls it or writes
+    the line by hand."""
+    for command in (".venv/bin/python -m score.review stop world1 680 --reason films",
+                    "python -c 'from score.adapters.compute import guard; guard.set_line(s, \"w\", 9e9, \"\", 1, 2, 3)'",
+                    "echo '{}' > ~/.farm-factory-props/store/objects/stops/world1/1.json",
+                    "rm -r store/objects/stops/world1"):
+        assert _run(_bash(command))[0] == 2, command
+    assert _run(_bash("ls ~/.farm-factory-props/store/objects/stops/world1"))[0] == 0
+
+
 def test_calling_accept_from_python_is_blocked():
     for command in ("python -c 'from score import review; review.accept(store, \"a@b\", \"o\", \"me\")'",
                     ".venv/bin/python - <<EOF\nstore.write_accept('a@b', {})\nEOF"):

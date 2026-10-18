@@ -59,7 +59,8 @@ stage as each stage is built; nothing moves before.
   took is accepted "within the owner's accept of <date> (<output>)", one beyond it waits for him); and the owner's `reject` (the accepted output moves back to the one accepted
   before, later nodes that read it go stale, the runner never takes it again), `accept` (his own, a worse one with his
   reason), `waive` (one check passes for one key, with his reason; it ends when the key changes and shows on the page
-  and in status) and `spend` (his override, a yes for a run outside the runner, node `override`). `python -m
+  and in status) `spend` (his override, a yes for a run outside the runner, node `override`) and `stop` (his money yes for a world: it
+  writes the world's stop line itself, so no yes waits on someone to copy it into a guard). `python -m
   score.review ...` refuses those without a terminal, the store refuses their writes in an agent's process, and
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's

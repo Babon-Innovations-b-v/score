@@ -5,18 +5,19 @@ clears a paid run.
 Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
 
 1. Running the owner's commands: Python that names ``score.review`` (or ``score/review``, or its ``__main__.py``)
-   together with the words accept, reject, spend or waive, quoted or not.
+   together with the words accept, reject, spend, waive or stop (his money yes, which writes a world's stop line),
+   quoted or not.
 2. Calling them from Python, or writing a script that does: a shell command that runs Python or writes a file and
    holds a call to ``accept(``, ``reject(``, ``spend(``, ``waive(``, ``write_once(``, ``write_accept(``,
-   ``write_reject(``, ``write_spend_yes(``, ``write_waiver(`` or ``write_clearance(``; a Write or Edit outside the
-   framework package (``score/``) with such a call.
+   ``write_reject(``, ``write_spend_yes(``, ``write_waiver(``, ``write_clearance(`` or ``set_line(``; a Write or
+   Edit outside the framework package (``score/``) with such a call.
 3. Taking Claude Code's mark off a process (``unset CLAUDECODE``, ``env -u``, ``env -i``, ``CLAUDECODE=``), or
    faking a terminal (``script -c``, ``unbuffer``) for a ``score`` command: the store refuses an agent's process the
    owner's areas by that mark (score/store ``running_under_agent``), and the review commands want a terminal.
-4. Writing the store's accepts, rejects, waivers, spend yeses or clearances (``accepts/``, ``rejects/``,
-   ``waivers/``, ``spend-yes/``, ``clearances/``) by hand: by Write, Edit or NotebookEdit on such a path, or a shell
-   command one of whose parts redirects into such a path or runs a writing command (``tee``, ``cp``, ``mv``, ``ln``,
-   ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``chmod``, ``sed -i``, ``find -delete``, Python) that names one.
+4. Writing the store's accepts, rejects, waivers, spend yeses, clearances or stop lines (``accepts/``,
+   ``rejects/``, ``waivers/``, ``spend-yes/``, ``clearances/``, ``stops/``) by hand: by Write, Edit or NotebookEdit
+   on such a path, or a shell command one of whose parts redirects into such a path or runs a writing command
+   (``tee``, ``cp``, ``mv``, ``ln``, ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``chmod``, ``sed -i``, ``find -delete``, Python) that names one.
 5. Writing an artifact database collection or document of those names (``Artifact`` with ``write_db``, a batch's
    writes included).
 
@@ -42,19 +43,19 @@ import sys
 
 _PYTHON = re.compile(r"\b(python3?(\.\d+)?|uv\s+run)\b|/python\b")
 _REVIEW = re.compile(r"score[./]review|__main__\.py")
-_OWNER_WORD = re.compile(r"\b(accept|reject|spend|waive)\b")
+_OWNER_WORD = re.compile(r"\b(accept|reject|spend|waive|stop)\b")
 _OWNER_CALL = re.compile(r"\b(accept|reject|spend|waive|write_once|write_accept|write_reject|write_spend_yes|"
-                         r"write_waiver|write_clearance)\s*\(")
+                         r"write_waiver|write_clearance|set_line)\s*\(")
 _FILE_WRITE = re.compile(r"(^|[^<>&0-9])>>?|\btee\b")
 _AGENT_MARK = re.compile(r"\b(CLAUDECODE|CLAUDE_CODE_ENTRYPOINT|AI_AGENT)\b")
 _UNMARK = re.compile(r"\bunset\b|\benv\s+(-\S+\s+)*(-u|--unset|-i|--ignore-environment)\b|\b(CLAUDECODE|"
                      r"CLAUDE_CODE_ENTRYPOINT|AI_AGENT)=|environ|\bpop\b|\bdel\b")
 _CLEARED_ENV = re.compile(r"\benv\s+(-\S+\s+)*(-i|--ignore-environment|-)\s")
 _FAKE_TERMINAL = re.compile(r"(^|[\s;&|(])(script\s+-\S*c|unbuffer\s)")
-_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|rejects|waivers|spend-yes|clearances)/")
-_OWNER_NAME = re.compile(r"(^|/)(accepts|rejects|waivers|spend-yes|clearances)(/|$)")
+_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|rejects|waivers|spend-yes|clearances|stops)/")
+_OWNER_NAME = re.compile(r"(^|/)(accepts|rejects|waivers|spend-yes|clearances|stops)(/|$)")
 _SEGMENTS = re.compile(r"\|\||&&|[;|\n]")
-_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances)/")
+_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances|stops)/")
 _WRITER = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?(\S*/)?(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod|chown|"
                      r"truncate|python3?(\.\d+)?|uv)\b|\bsed\s+(-\S+\s+)*-i|\bfind\b.*\s-(delete|exec)\b")
 _FRAMEWORK = re.compile(r"(^|/)score/(checks|contracts|store|graph|review|adapters|stages)/|(^|/)\.claude/hooks/")

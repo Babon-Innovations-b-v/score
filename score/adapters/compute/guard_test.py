@@ -38,6 +38,19 @@ def as_owner(call):
         os.environ.update(saved)
 
 
+def as_agent(call):
+    """Run `call` as an agent's process: with Claude Code's mark, whoever runs the test."""
+    saved = os.environ.get(AGENT_MARKERS[0])
+    os.environ[AGENT_MARKERS[0]] = "1"
+    try:
+        return call()
+    finally:
+        if saved is None:
+            os.environ.pop(AGENT_MARKERS[0])
+        else:
+            os.environ[AGENT_MARKERS[0]] = saved
+
+
 def stop_at(runner, euros, baseline=START, at="2026-10-18T09:00:00+00:00"):
     """The owner's stop line for the runner's world."""
     return as_owner(lambda: guard.set_line(runner.store, runner.world.name, euros, "the films", "owner", at, baseline))
@@ -110,10 +123,46 @@ def test_the_owners_yes_writes_the_new_line_and_keeps_the_worlds_start():
     assert raised["baseline"] == first["baseline"] and raised["before"] == 250.0
     assert guard.current(runner.store, runner.world.name)["euros"] == 680.0
     try:
-        guard.set_line(runner.store, runner.world.name, 900.0, "more", "agent", "2026-10-18T13:00:00+00:00", START)
+        as_agent(lambda: guard.set_line(runner.store, runner.world.name, 900.0, "more", "agent",
+                                        "2026-10-18T13:00:00+00:00", START))
         raise AssertionError("an agent's process wrote a stop line")
     except PermissionError:
         pass
+
+
+def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads():
+    """C22: his money yes and the guard line are one step: `score.review stop` writes the line, and the very next
+    clearance is held to it. Without a terminal, or in an agent's process, it writes nothing."""
+    from score.review import __main__ as review_command
+    home = pathlib.Path(os.environ["PROPS_HOME"]).resolve()
+    assert home.is_relative_to(pathlib.Path(tempfile.gettempdir()).resolve()), "run in a sandbox home"
+    world = "toy-stop"
+    try:
+        review_command.main(["stop", world, "5", "--reason", "films"])  # no terminal here
+        raise AssertionError("written without a terminal")
+    except SystemExit as refused:
+        assert "own terminal" in str(refused)
+    store = Store.default()
+    assert guard.current(store, world) is None
+    review_command.owner_at_terminal = lambda: None  # his own terminal
+    try:
+        as_agent(lambda: review_command.main(["stop", world, "5", "--reason", "films"]))
+        raise AssertionError("an agent's process wrote a stop line")
+    except SystemExit as refused:
+        assert "only the owner" in str(refused)
+    ledger({"euros": 40.0})
+    BILL["euros"] = 50.0
+    as_owner(lambda: review_command.main(["stop", world, "5", "--reason", "films"]))
+    line = guard.current(store, world)
+    assert line["euros"] == 5.0 and line["baseline"]["bill"] == 50.0 and line["reason"] == "films"
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar.txt").write_text("a hall")
+    runner = graph.Runner([compute_test.BRIEF, compute_test.RENDER], graph.World(world, 1, {"data": data}), store)
+    runner.run_node(compute_test.BRIEF, "hangar")
+    assert "pass the EUR 5.00 stop" in compute_test.refused(lambda: compute.clearance(runner, "render@hangar", 6.0))
+    as_owner(lambda: review_command.main(["stop", world, "8", "--reason", "films, raised"]))
+    assert compute.clearance(runner, "render@hangar", 6.0)  # the yes is the line: no one copies it anywhere
+    BILL["euros"] = 0.0
 
 
 def test_spend_counts_from_the_worlds_start_across_months():
