@@ -24,7 +24,6 @@ import characters  # noqa: E402
 import closeups_cloud  # noqa: E402
 import delight  # noqa: E402
 import finish_masks  # noqa: E402
-import infinigen  # noqa: E402
 import judge  # noqa: E402
 import library_bake  # noqa: E402
 import meshparts  # noqa: E402
@@ -39,16 +38,6 @@ import unirig  # noqa: E402
 OFFERS = [provider.Offer(0.02, 0, "small", "zone-a", 0.02, "gpu-24gb", 0, "available"),
           provider.Offer(0.05, 1, "big", "zone-b", 0.05, "gpu-80gb", 0, "scarce"),
           provider.Offer(0.01, 2, "short", "zone-c", 0.01, "cpu-32c-128gb", 0, "shortage")]
-
-
-def infinigen_jobs():
-    jobs = []
-    for name, minutes in (("a", 30), ("b", 90)):
-        job = _SANDBOX / "infinigen" / name
-        job.mkdir(parents=True, exist_ok=True)
-        (job / "spec.json").write_text(json.dumps({"minutes": minutes}))
-        jobs.append(job)
-    return jobs
 
 
 # Each runner's estimate on a fixed list, and what it said and returned on the code before the shared estimate.
@@ -66,9 +55,6 @@ ESTIMATES = {
     "finish_masks": (lambda: finish_masks.price([[]] * 7, "acct", 2),
                      "7 shares of pictures on 2 machines: about 26 min, €2.60; €100.00 spent this month",
                      (3, 2, 240.0)),
-    "infinigen": (lambda: infinigen.price(infinigen_jobs(), "cpu-32c-128gb", "acct", False, 4),
-                  "2 Infinigen jobs on 1 cpu-32c-128gb machine: about 110 min, €5.50; €100.00 spent this month",
-                  (2, 1, 240.0)),
     "judge": (lambda: judge.price([{}] * 300, "acct", 1),
               "300 questions on 1 card: about 42 min, €2.10; €100.00 spent this month", (3, 1, 240.0)),
     "library_bake": (lambda: library_bake.price([{"materials": [1] * 10}, {"chunky": [1] * 4}], "acct", False,
@@ -203,19 +189,6 @@ def test_a_held_character_machine_is_armed_and_deleted():
         assert (run.folder / "host").read_text() == "10.0.0.1"
     finally:
         characters.set_up, characters.hold = kept
-
-
-def test_an_infinigen_machine_is_armed_and_deleted_with_the_jobs_codes():
-    machine, run = machine_and_run()
-    kept = infinigen.set_up, infinigen.run_jobs
-    infinigen.set_up = lambda folder, host: None
-    infinigen.run_jobs = lambda run, folder, host, jobs, at_once: {"a": 0}
-    try:
-        with Tended() as tended:
-            assert infinigen.work_on(run, machine, [], False, 4) == {"a": 0}
-        assert armed_beaten_deleted(tended.done), tended.done
-    finally:
-        infinigen.set_up, infinigen.run_jobs = kept
 
 
 def test_a_served_blender_machine_runs_the_queue_and_is_deleted():
