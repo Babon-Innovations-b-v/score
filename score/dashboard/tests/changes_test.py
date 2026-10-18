@@ -179,3 +179,28 @@ def test_the_stores_machine_checks_out_only_the_basket_he_saw(home, monkeypatch)
     assert applying.apply(item, None).state == "done"
     assert started == [("joey", "a" * 32, True, True)]
     assert applying.apply({**item, "user": "mallory"}, None).state == "refused"
+
+
+def test_a_proposal_made_without_stills_gets_them_from_its_stage_in_the_scratch_store(home, monkeypatch):
+    from score.dashboard.proposals import pictures
+    made(home, stills=[], assembly="ab" * 32)
+    scratch = home.parent / "proposals-work" / "store" / "objects"
+    (scratch / "outputs").mkdir(parents=True)
+    (scratch / "blobs").mkdir()
+    (scratch / "outputs" / f"{'ab' * 32}.json").write_text(json.dumps({"alpha.usda": "cd" * 32}))
+    (scratch / "blobs" / ("cd" * 32)).write_text("#usda 1.0")
+    drawn = []
+
+    def stills(stage_file, views, out):
+        drawn.append(stage_file.read_text())
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "from-door.jpg").write_bytes(b"jpeg")
+        return [{"name": "from-door", "file": "stills/from-door.jpg"}]
+
+    monkeypatch.setattr(pictures, "stills", stills)
+    monkeypatch.setattr(pictures, "views", lambda folder, tree, place: [{"name": "from-door"}])
+    monkeypatch.setattr(finish, "before_stills", lambda record, store_root, out: [])
+    finish.finish(home, "fix-ship-hull", "alpha", home / "store", chosen=fixture.FakeBackend())
+    record = records.read(home, "fix-ship-hull", "alpha")
+    assert drawn == ["#usda 1.0"] and record["hero"] == "stills/from-door.jpg"
+    assert (records.folder(home, "fix-ship-hull", "alpha") / "stills" / "from-door.jpg").is_file()

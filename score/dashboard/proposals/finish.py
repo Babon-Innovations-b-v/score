@@ -1,6 +1,7 @@
 """What makes a made proposal ready for the owner, on the store's machine and free: its paid part priced at the
-runner's own numbers (the compute backend's `price`, `score price`, C19) for the commit it was made at, and its
-before pictures, the same cameras on the place as it stands accepted now (one small local Blender job under the
+runner's own numbers (the compute backend's `price`, `score price`, C19) for the commit it was made at, its own
+stills when it was made without them (its assembled stage, kept in the proposals' scratch store), and its before
+pictures, the same cameras on the place as it stands accepted now (one small local Blender job under the
 machine's one-heavy-job lock, as the stills). The propose command finishes each proposal it makes;
 
     .venv/bin/python -m score.dashboard proposals-finish [--no-before]
@@ -8,6 +9,7 @@ machine's one-heavy-job lock, as the stills). The propose command finishes each 
 finishes every proposal not finished at its commit, and each sync pass prices any not priced before the export
 (sync/client.py), so no proposal reaches the basket without its price because somebody forgot a step.
 """
+import json
 import pathlib
 import shutil
 import tempfile
@@ -20,6 +22,7 @@ from score.dashboard.proposals import pictures, records
 from score.dashboard.web3d import convert
 
 BEFORE = "before"
+WORK = "proposals-work"  # propose.py's scratch folder in the dashboard's home: its store keeps each proposal's stage
 
 
 def paid_nodes(record):
@@ -80,6 +83,49 @@ def before_stills(record, store_root, out):
         shutil.rmtree(work, ignore_errors=True)
 
 
+def stills_due(record):
+    """True when the proposal was put together but has no still drawn (made with --no-stills, or drawing failed)."""
+    return bool(record.get("assembly")) and not any("file" in still for still in record.get("stills") or [])
+
+
+def linked_from(roots, output, folder):
+    """The output's files as links into `folder`, its listing and each blob read from the first root that has it
+    (the proposals' scratch store, then the store): the folder."""
+    listing = next(json.loads(path.read_text()) for path in (root / "objects" / "outputs" / f"{output}.json"
+                                                               for root in roots) if path.is_file())
+    for name, sha in listing.items():
+        target = folder / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(next(blob for blob in (root / "objects" / "blobs" / sha for root in roots)
+                               if blob.is_file()))
+    return folder
+
+
+def after_stills(record, roots, out):
+    """The proposal's own stills of its assembled stage into `out` (as propose.py draws them): [{name, file}], or
+    [{"error": why}]."""
+    work = pathlib.Path(tempfile.mkdtemp(prefix="proposal-after-"))
+    try:
+        stage_folder = linked_from(roots, record["assembly"], work / "stage")
+        views = pictures.views(stage_folder, pictures.REPO, record["place"])
+        return pictures.stills(stage_folder / f"{record['place']}.usda", views, out)
+    except (RuntimeError, StopIteration) as failed:
+        return [{"error": f"{type(failed).__name__}: {str(failed)[-1000:]}"}]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def with_stills(root, record, store_root):
+    """Draw the proposal's own stills into its folder's stills/ (swapped in whole); the record's new fields."""
+    folder = records.folder(root, record["branch"], record["place"])
+    roots = [pathlib.Path(root).parent / WORK / "store", pathlib.Path(store_root)]
+    partial = pathlib.Path(tempfile.mkdtemp(prefix=".stills-", dir=folder))
+    made = after_stills(record, roots, partial)
+    shutil.rmtree(folder / "stills", ignore_errors=True)
+    partial.rename(folder / "stills")
+    return {"stills": made, "hero": next((still["file"] for still in made if "file" in still), None)}
+
+
 def with_before(root, record, store_root):
     """Draw the proposal's before stills into its folder's before/ (swapped in whole); the record's new fields."""
     folder = records.folder(root, record["branch"], record["place"])
@@ -98,6 +144,9 @@ def finish(root, branch, place, store_root, with_pictures=True, chosen=None):
     fields = {}
     if price_due(record):
         fields["price"] = priced(record, chosen)
+    if with_pictures and stills_due(record):
+        fields.update(with_stills(root, record, store_root))
+        record = {**record, **fields}
     if with_pictures and before_due(record):
         fields.update(with_before(root, record, store_root))
     return records.amend(root, branch, place, fields) if fields else record
@@ -108,7 +157,7 @@ def finish_all(root, store_root, with_pictures=True, chosen=None):
     changed = []
     for summary in records.listing(root):
         record = records.read(root, summary["branch"], summary["place"])
-        if record and (price_due(record) or (with_pictures and before_due(record))):
+        if record and (price_due(record) or (with_pictures and (stills_due(record) or before_due(record)))):
             finish(root, record["branch"], record["place"], store_root, with_pictures, chosen)
             changed.append((record["branch"], record["place"]))
     return changed
