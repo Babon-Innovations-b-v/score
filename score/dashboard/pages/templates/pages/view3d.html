@@ -24,7 +24,7 @@
   {% if proposed %}
   <div class="switch" role="group" aria-label="which version">
     <a href="/view/{{ detail.place }}"{% if showing == "current" %} class="on" aria-current="true"{% endif %}>Now</a>
-    <a href="/view/{{ detail.place }}?version=proposed"{% if showing == "proposed" %} class="on" aria-current="true"{% endif %}>Proposed</a>
+    <a href="/view/{{ detail.place }}?{{ proposed.query }}"{% if showing == "proposed" %} class="on" aria-current="true"{% endif %}>Proposed</a>
   </div>
   {% if showing == "proposed" %}<p class="small proposed-words">Proposed: {{ proposed.fixes }}</p>{% endif %}
   {% endif %}

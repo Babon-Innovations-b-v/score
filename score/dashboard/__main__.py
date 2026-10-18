@@ -7,6 +7,8 @@
     .venv/bin/python -m score.dashboard check             # Django's checks of the settings
     .venv/bin/python -m score.dashboard web3d <place>     # a place's fresh 3D web copy (web3d/convert.py), free
     .venv/bin/python -m score.dashboard propose <branch> <place>   # a fix branch's proposal for a place, free
+    .venv/bin/python -m score.dashboard proposals-finish [--no-before]  # price every proposal, draw its before stills
+    .venv/bin/python -m score.dashboard proposal-words <branch> <place> --says "..." [--ask "..." --recommend "..."]
 """
 import argparse
 import os
@@ -33,6 +35,14 @@ def parse(argv):
     propose.add_argument("--media", default=os.environ.get("SCORE_PROPOSAL_MEDIA"),
                          help="a folder of each branch's draft films and sounds, <media>/<branch>/")
     propose.add_argument("--no-stills", action="store_true", help="leave out the Blender stills")
+    finishing = commands.add_parser("proposals-finish", help="price every proposal and draw its before stills")
+    finishing.add_argument("--no-before", action="store_true", help="price only, no Blender")
+    words = commands.add_parser("proposal-words", help="the owner's words of a proposal: what it fixes, a question")
+    words.add_argument("branch")
+    words.add_argument("place")
+    words.add_argument("--says", help="one plain sentence: the fault in the place this fixes, as the owner sees it")
+    words.add_argument("--ask", help="a decision only the owner can make, as a question")
+    words.add_argument("--recommend", help="the answer you recommend and carry on with")
     return parser.parse_args(argv)
 
 
@@ -126,6 +136,33 @@ def propose(branch, place, media, with_stills):
     print(f"proposal of {branch} at {place}: {folder}")
 
 
+def proposals_finish(with_before):
+    """Price every proposal and draw its before stills where due (proposals/finish.py)."""
+    from django.conf import settings
+
+    from score.dashboard.proposals import finish
+    root = settings.SCORE_HOME / "proposals"
+    changed = finish.finish_all(root, settings.SCORE_PROPS_HOME / "store", with_before)
+    names = ", ".join(f"{branch}@{place}" for branch, place in changed) or "none due"
+    print(f"finished {len(changed)} proposals: {names}")
+
+
+def proposal_words(branch, place, says, ask, recommend):
+    """Write the owner's words into a made proposal (records.WORDS)."""
+    from django.conf import settings
+
+    from score.dashboard.proposals import records
+    if bool(ask) != bool(recommend):
+        sys.exit("refused: a question needs the answer you recommend (--ask with --recommend)")
+    fields = {name: value for name, value in (("sentence", says), ("question", ask), ("recommended", recommend))
+              if value}
+    if not fields:
+        sys.exit("refused: nothing to write (--says, --ask with --recommend)")
+    if records.amend(settings.SCORE_HOME / "proposals", branch, place, fields) is None:
+        sys.exit(f"refused: no proposal of {branch} at {place}: python -m score.dashboard propose {branch} {place}")
+    print(f"proposal of {branch} at {place}: {', '.join(sorted(fields))} written")
+
+
 def main(argv=None):
     import django
     django.setup()
@@ -142,6 +179,10 @@ def main(argv=None):
         web3d(options.place, options.store, options.out)
     elif options.command == "propose":
         propose(options.branch, options.place, options.media, not options.no_stills)
+    elif options.command == "proposals-finish":
+        proposals_finish(not options.no_before)
+    elif options.command == "proposal-words":
+        proposal_words(options.branch, options.place, options.says, options.ask, options.recommend)
     else:
         check()
 

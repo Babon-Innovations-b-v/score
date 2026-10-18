@@ -2,7 +2,8 @@
 
 SCORE's dashboard: one ASGI app (`site/asgi.py`): Django renders the pages, sign-in and admin; FastAPI serves a typed
 JSON API under `/api` and the file routes (`/files`, `/thumbs`, `/web`, `/healthz`); one sign-in for both. Commands in
-`__main__.py` (`serve`, `owner`, `export`, `sync`, `check`, `web3d`: a place's 3D web copy for the viewer at `/view/<place>`, `propose`: a fix branch's proposal for a place, `proposals/`). The world shown: world -> environment engine -> style
+`__main__.py` (`serve`, `owner`, `export`, `sync`, `check`, `web3d`: a place's 3D web copy for the viewer at `/view/<place>`, `propose`: a fix branch's proposal for a place, `proposals-finish`: price every proposal and draw its before stills,
+`proposal-words`: a proposal's plain sentence and owner question, `proposals/`). The world shown: world -> environment engine -> style
 (a look in `data/definitions/place.json`) -> environment (place) with its OpenUSD index -> layer -> step (node),
 grouped in `state/groups.py` from the stage table; no new framework level.
 
@@ -38,6 +39,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`proposals/`** each fix branch's proposal for a place (its own overlay): the place assembled free from the branch
   over the store's accepted outputs, its 3D copy, stills and draft media, in `$SCORE_DASHBOARD_HOME/proposals/`; the
   export carries them through `proposals/exporting.py`, the API at `/api/proposals` and `/proposal/<branch>/<place>/`.
+  The owner reads them on **Changes to buy** (`/changes/`, `pages/changes.py`): a card a fix, before and after from
+  the same camera, the plain sentence, free and paid part with the runner's price, his question with the recommended
+  answer, show in 3D (`/view/<place>?proposal=<branch>`), and his buy or not now (`ProposalChoice`; hosted, a
+  SyncRequest of kind `proposal` the store's machine applies into the checkout's basket).
 - **`films/`** the film script (its own overlay): the FILM pages' editor, free three.js preview on the web copies and
   films, and render items priced from measured frames; scripts saved in `$SCORE_DASHBOARD_HOME/films/`, starters in
   `data/films/`.

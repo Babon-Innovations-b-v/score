@@ -5,6 +5,7 @@ export (hosted mode), so both sides read it with these functions. Plain files on
     <root>/<branch>/<place>/proposal.json      the proposal
     <root>/<branch>/<place>/web3d/<place>.json, <place>-light.glb, <place>.glb    its 3D web copy (web3d/convert.py)
     <root>/<branch>/<place>/stills/<view>.jpg  small stills from the scene record's cameras
+    <root>/<branch>/<place>/before/<view>.jpg  the same cameras on the place as it stands now (finish.py)
     <root>/<branch>/<place>/media/<name>       draft films and sounds the branch made
 """
 import json
@@ -13,12 +14,15 @@ import re
 import shutil
 
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
-FILE = re.compile(r"^(web3d|stills|media)/[A-Za-z0-9][A-Za-z0-9._-]{0,159}$")
+FILE = re.compile(r"^(web3d|stills|before|media)/[A-Za-z0-9][A-Za-z0-9._-]{0,159}$")
 INDEX = "index.json"
 RECORD = "proposal.json"
 # How a proposal took each node (assemble.py names the same three; tests/proposals_test.py holds them equal).
 AS_NOW, MADE, PAID = "as now", "made", "needs the paid batch"
 SUMMARY = ("branch", "place", "commit", "change", "made_at", "needs_paid_batch", "hero", "has_3d")
+# The words a department gives its proposal for the owner (`python -m score.dashboard proposal-words`): kept when the
+# proposal is made again, so they are never lost to a rerun.
+WORDS = ("sentence", "question", "recommended")
 
 
 class BadName(ValueError):
@@ -80,8 +84,23 @@ def put(root, partial, proposal):
     return target
 
 
+def amend(root, branch, place, fields):
+    """Write `fields` into a made proposal's proposal.json (swapped in whole), then the index; the proposal, or None
+    when there is none."""
+    found = read(root, branch, place)
+    if found is None:
+        return None
+    found.update(fields)
+    path = folder(root, branch, place) / RECORD
+    partial = path.with_name(f"{RECORD}.partial")
+    partial.write_text(json.dumps(found, indent=1))
+    partial.replace(path)
+    write_index(root)
+    return found
+
+
 def file_path(root, branch, place, name):
-    """A proposal's file (web3d/, stills/ or media/), or None when it has no such file."""
+    """A proposal's file (web3d/, stills/, before/ or media/), or None when it has no such file."""
     if not FILE.match(name or "") or ".." in name:
         return None
     path = folder(root, branch, place) / name

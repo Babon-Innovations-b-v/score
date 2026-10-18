@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from score.dashboard.pages import films, library, views
+from score.dashboard.pages import changes, films, library, views
 
 STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide/", views.step_decide),
                ("queue/", views.step_queue), ("advance/", views.step_advance)]
@@ -15,6 +15,8 @@ urlpatterns = [
     path("place/<slug:place>/", views.place_page),
     *[path(f"place/<slug:place>/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
     *[path(f"world/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
+    path("changes/", changes.changes_page),
+    path("changes/choose/", changes.proposal_choice),
     path("basket/", views.basket),
     path("basket/change/", views.basket_change),
     path("basket/confirm/<int:plan_id>/", views.confirm),

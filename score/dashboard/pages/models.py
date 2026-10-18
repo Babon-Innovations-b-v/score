@@ -176,6 +176,21 @@ class Checkout(models.Model):
         ordering = ["-at"]
 
 
+class ProposalChoice(models.Model):
+    """The owner's answer to one fix on the Changes to buy page: buy it, or not now, at the commit he saw. A buy puts
+    the fix branch in the checkout's basket (BasketBranch) on the store's machine."""
+
+    branch = models.CharField(max_length=100, unique=True)
+    commit = models.CharField(max_length=40)
+    choice = models.CharField(max_length=10)  # buy, later
+    by = models.CharField(max_length=150)
+    at = models.DateTimeField(auto_now=True)
+    applied = models.TextField(blank=True)  # what the store's machine did with it, in words; empty while queued
+
+    class Meta:
+        ordering = ["branch"]
+
+
 def is_owner(user):
     """True for the signed-in owner (SCORE_OWNER)."""
     return bool(user and user.is_authenticated and settings.SCORE_OWNER and user.username == settings.SCORE_OWNER)

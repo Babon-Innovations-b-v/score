@@ -7,7 +7,9 @@ branch is checked out in a scratch folder and assemble.py runs there, on the bra
 store's accepted outputs, read only; its scratch store sits in the dashboard's home (proposals-work/store) and is kept
 across runs, so a rerun on the same commit makes nothing again. Then the 3D web copy (web3d/convert.py), the stills
 (pictures.py) and the branch's draft films and sounds (DIR/<branch>/, default $SCORE_PROPOSAL_MEDIA) go into the
-proposal's folder (records.py), swapped in whole. Nothing is bought, nothing in the store is written.
+proposal's folder (records.py), swapped in whole; then finish.py prices its paid part and draws the same cameras on
+the place as it stands now. The words a department gave it (records.WORDS) are kept. Nothing is bought, nothing in
+the store is written.
 """
 import json
 import os
@@ -19,7 +21,7 @@ import tempfile
 import time
 
 from score.dashboard.proposals import branch as branch_git
-from score.dashboard.proposals import pictures, records
+from score.dashboard.proposals import finish, pictures, records
 from score.dashboard.web3d import convert
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -140,6 +142,10 @@ def propose(branch, place, home, real_store, drafts=None, with_stills=True):
             assembled_now = assembled(tree, place, real_store, work, work / "jobs" / f"{branch}@{place}", moved)
             shown = pictured(tree, place, assembled_now, partial, pathlib.Path(drafts) / branch if drafts else None,
                              with_stills)
-        return records.put(root, partial, proposal_record(found, assembled_now, shown, started))
+        words = {field: value for field, value in (records.read(root, branch, place) or {}).items()
+                 if field in records.WORDS}
+        records.put(root, partial, {**proposal_record(found, assembled_now, shown, started), **words})
     finally:
         shutil.rmtree(partial, ignore_errors=True)
+    finish.finish(root, branch, place, real_store, with_stills)
+    return records.folder(root, branch, place)

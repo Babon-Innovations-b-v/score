@@ -8,7 +8,7 @@ from django.test import Client
 
 pytestmark = pytest.mark.django_db
 PAGES = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/place/beta/step/assembly/",
-         "/world/step/terrain/", "/basket/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
+         "/world/step/terrain/", "/basket/", "/changes/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
 POSTS = ["/place/alpha/step/closeup/request/", "/place/alpha/step/closeup/decide/", "/place/alpha/step/closeup/queue/",
          "/basket/change/", "/refresh/", "/freshness/"]
 NODE = re.compile(r"\b[a-z][a-z-]+@(alpha|beta)\b")
@@ -53,7 +53,8 @@ def test_the_board_shows_each_place_once_with_its_picture_and_one_status(world):
 
 
 def test_the_board_shows_no_changes_to_buy_while_there_are_none(world):
-    assert "Changes to buy" not in signed_in().get("/").content.decode()
+    page = signed_in().get("/").content.decode()
+    assert 'aria-label="changes to buy"' not in page and "wait for you" not in page
 
 
 def test_a_change_to_buy_shows_its_preview_price_and_basket_button(world, monkeypatch):
