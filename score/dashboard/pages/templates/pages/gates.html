@@ -2,5 +2,5 @@
   <div class="gate"><span class="answer {{ gate.answer }}">{{ gate.answer }}</span> <b>{{ gate.name }}</b>{% if gate.waived %} <span class="soft">(waived: {{ gate.waived }})</span>{% endif %}
     <div class="small">{{ gate.reason }}</div>
     {% if gate.measures %}<div class="measures">{% for name, value in gate.measures.items %}{{ name }} {{ value }}{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
-  </div>{% empty %}<div class="soft small">no gates judged</div>{% endfor %}
+  </div>{% empty %}<div class="soft small">no checks judged</div>{% endfor %}
 </div>

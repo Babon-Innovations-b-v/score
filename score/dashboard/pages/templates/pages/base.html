@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}SCORE dashboard{% endblock %}</title>
+<meta name="color-scheme" content="dark">
+<title>{% block title %}SCORE{% endblock %}</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/pages/dash.css">
 </head>
@@ -12,22 +13,22 @@
   <a class="brand" href="/">SCORE</a>
   {% if user.is_authenticated %}
   <nav>
-    <a href="/">World</a>
-    <a href="/basket/">Basket{% if basket_count %} ({{ basket_count }}){% endif %}</a>
-    <a href="/runs/">Runs</a>
-    <a href="/requests/">Requests</a>
+    <a href="/"{% if request.path == "/" %} class="here"{% endif %}>World</a>
+    <a href="/basket/"{% if request.path == "/basket/" %} class="here"{% endif %}>Basket{% if basket_count %} <span class="count">{{ basket_count }}</span>{% endif %}</a>
+    <a href="/runs/"{% if request.path == "/runs/" %} class="here"{% endif %}>Runs</a>
+    <a href="/requests/"{% if request.path == "/requests/" %} class="here"{% endif %}>Requests</a>
   </nav>
   <div class="meta">
-    {% if hosted %}<span>{{ export_age }}</span>{% else %}<span>store read at {{ read_at|slice:"11:19" }} UTC</span>
-    <form class="inline" method="post" action="/refresh/">{% csrf_token %}<input type="hidden" name="back" value="{{ request.path }}"><button>Read again</button></form>{% endif %}
-    <span>{{ user.username }}{% if owner %} (owner){% endif %}</span>
-    {% if not proxy_mode %}<form class="inline" method="post" action="/logout/">{% csrf_token %}<button>Sign out</button></form>{% endif %}
+    {% if hosted %}<span>{{ export_age }}</span>{% else %}<span title="when the store was read">read {{ read_at|slice:"11:16" }} UTC</span>
+    <form class="inline" method="post" action="/refresh/">{% csrf_token %}<input type="hidden" name="back" value="{{ request.path }}"><button class="quiet">Read again</button></form>{% endif %}
+    <span>{{ user.username }}</span>
+    {% if not proxy_mode %}<form class="inline" method="post" action="/logout/">{% csrf_token %}<button class="quiet">Sign out</button></form>{% endif %}
   </div>
   {% endif %}
 </header>
 <main>
 {% if messages %}<ul class="messages">{% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}</ul>{% endif %}
-{% if user.is_authenticated and decisions_off_why %}<div class="banner">{{ decisions_off_why }}</div>{% endif %}
+{% if user.is_authenticated and decisions_off_why %}<div class="notice">{{ decisions_off_why }}</div>{% endif %}
 {% block content %}{% endblock %}
 </main>
 <script src="/static/pages/dash.js"></script>

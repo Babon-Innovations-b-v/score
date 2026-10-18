@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, seen
+from score.dashboard.pages import actions, present, seen
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, SyncRequest, is_owner
 from score.dashboard.state import costs, groups
 
@@ -60,11 +60,11 @@ def board(request):
             for card in style.places:
                 with_marks(card.layers)
     planned = basket_high() or {}
-    bar = money_bar(world.spend.spent, world.spend.reserved, planned.get("likely"), planned.get("high"),
-                    world.spend.ceiling)
-    queued = {(item.place, item.stage) for item in BasketItem.objects.all()}
-    return render(request, "pages/board.html", {"world": world, "bar": bar, "queued_places": {
-        place for place, _ in queued}, "planned": planned})
+    queued = {item.place for item in BasketItem.objects.all()}
+    return render(request, "pages/board.html", {
+        "world": world, "groups": present.look_groups(world, queued),
+        "money": present.money(world.spend, planned), "world_steps": [
+            present.step_tile(step, step_url(None, step.stage)) for step in world.world_line]})
 
 
 def place_page(request, place):
@@ -73,8 +73,13 @@ def place_page(request, place):
         raise Http404(f"no place {place}")
     detail = source.place_detail(place)
     with_marks(detail.layers)
-    return render(request, "pages/place.html", {"detail": detail, "requests": ChangeRequest.objects.filter(
-        place=place)[:10], "snapshot": actions.snapshot_states()})
+    world = source.world_state()
+    style = present.look_of_place(world, place)
+    return render(request, "pages/place.html", {
+        "detail": detail, "name": present.place_name(style, detail) if style else present.humane(place),
+        "status": present.place_status(detail.status, detail.layers),
+        "chain": present.chain(detail, style, step_url), "problems": present.problems(detail, step_url),
+        "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states()})
 
 
 def step_page(request, stage, place=None):
@@ -88,9 +93,14 @@ def step_page(request, stage, place=None):
         seen.looked(request.user.username, detail.node, shown.output)
     detail.mark = seen.mark(detail.node, shown.output) if shown else None
     films = any(file.kind == "film" for file in [*detail.files, *detail.waiting_files])
+    style = present.look_of_place(source.world_state(), place) if place else None
     return render(request, "pages/step.html", {
         "film_fps": film_fps(source, place) if films else None,
         "output_picture": next((file for file in detail.files if file.kind == "image"), None),
+        "output_film": next((file for file in detail.files if file.kind == "film"), None),
+        "place_name": (present.place_name(style, detail) if style else present.humane(place)) if place else None,
+        "state_words": present.STATE_WORDS.get(detail.state, detail.state), "mark_words": present.mark_words(detail.mark),
+        "failed": [gate for gate in detail.judgement if gate.answer == "fail"],
         "detail": detail, "requests": ChangeRequest.objects.filter(node=detail.node)[:10],
         "sync_requests": SyncRequest.objects.filter(payload__node=detail.node)[:10],
         "queued": BasketItem.objects.filter(place=place or "", stage=stage).exists(),

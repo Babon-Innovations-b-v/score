@@ -1,0 +1,1 @@
+{% comment %}A picture, or a calm tile in its place: `src` the picture, `name` what it is (the tile's words when there is no picture).{% endcomment %}{% if src %}<img class="pic" src="{{ src }}" alt="{{ name }}" loading="lazy" data-name="{{ name }}">{% else %}<div class="pic empty"><span>{{ name }}</span><small>no picture yet</small></div>{% endif %}
