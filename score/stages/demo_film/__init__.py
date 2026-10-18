@@ -44,7 +44,7 @@ LEAST, MOST = 5.0, 6.0
 LEAD = 1.0
 # Workbench and Cycles on a card; the cheapest first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
 CLASSES = "gpu-24gb,gpu-48gb"
-JOBS = 2
+JOBS = 8  # a film's frames over 8 cards: the airlock's went from 47 s to 17 min a frame on 2 (2026-10-18)
 # 96 frames (SECONDS at 24) at EUR 0.0030 a frame at 720p, look only (ledger batch blender-20261009-020545-2401425:
 # 5,292 frames, EUR 15.76), and a machine's set-up, rounded up (the 8 s shot's 192 frames: EUR 1.0).
 EUROS = 0.7
