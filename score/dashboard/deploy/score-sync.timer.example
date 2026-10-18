@@ -1,0 +1,10 @@
+# TEMPLATE: copy to ~/.config/systemd/user/score-sync.timer, then `systemctl --user enable --now score-sync.timer`.
+[Unit]
+Description=SCORE dashboard sync every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

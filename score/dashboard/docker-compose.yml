@@ -1,0 +1,34 @@
+# The dashboard's services (score/dashboard). Run from the repository root with an env file kept outside the repo
+# (copied from deploy/example.env):
+#   docker compose -f score/dashboard/docker-compose.yml --env-file <env file> --profile hosted up -d
+services:
+  hosted:
+    profiles: ["hosted"]
+    build: {context: ../.., dockerfile: score/dashboard/Dockerfile, target: hosted}
+    env_file: ${SCORE_ENV_FILE:-/dev/null}
+    environment:
+      SCORE_DASHBOARD_MODE: hosted
+      SCORE_STORE_WRITABLE: "0"
+    volumes: ["dashboard-data:/data"]
+    ports: ["127.0.0.1:8780:8780"]
+    mem_limit: 256m
+    restart: unless-stopped
+
+  local:
+    profiles: ["local"]
+    build: {context: ../.., dockerfile: score/dashboard/Dockerfile, target: local}
+    env_file: ${SCORE_ENV_FILE:-/dev/null}
+    environment:
+      SCORE_DASHBOARD_MODE: local
+      SCORE_STORE_WRITABLE: "0"
+      PROPS_HOME: /props
+    volumes:
+      - "dashboard-data:/data"
+      - "${PROPS_HOME:?set PROPS_HOME}/store:/props/store:ro"
+      - "../../data:/app/data:ro"
+    ports: ["127.0.0.1:8780:8780"]
+    mem_limit: 1g
+    restart: unless-stopped
+
+volumes:
+  dashboard-data:
