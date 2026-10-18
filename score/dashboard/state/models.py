@@ -1,6 +1,6 @@
 """The dashboard's view of a world, the same whichever source served it (the store beside it, or a state export):
 templates and the API read only these. Pydantic, so the API is typed and an export is plain JSON."""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class FileRef(BaseModel):
@@ -233,6 +233,18 @@ class PlaceDetail(BaseModel):
     layers: list[LayerGroup] = []
     faults: list[StoppedStep] = []
     gaps: list[NamedGap] = []
+
+    @field_validator("faults", mode="before")
+    @classmethod
+    def faults_from_words(cls, faults):
+        """An export made before faults were records carries each as one line of words; read it as a stopped step."""
+        return [{"label": fault, "why": fault, "sentence": fault} if isinstance(fault, str) else fault for fault in faults or []]
+
+    @field_validator("gaps", mode="before")
+    @classmethod
+    def gaps_from_words(cls, gaps):
+        """An export made before gaps were records carries each as one line of words; read it as a named gap."""
+        return [{"name": gap, "sentence": gap} if isinstance(gap, str) else gap for gap in gaps or []]
     checks: list[CheckFinding] = []  # the standalone checks' findings on the outputs they judged
     concept: FileRef | None = None
     skipped: list[str] = []  # loud: steps of the chain not done for this place, and named gaps
