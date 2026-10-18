@@ -28,7 +28,8 @@ client.force_login(user)
 pages = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/world/step/terrain/", "/basket/",
          "/runs/", "/requests/", "/healthz"]
 codes = {page: client.get(page, HTTP_HOST="127.0.0.1").status_code for page in pages[:-1]}
-heavy = [name for name in ("numpy", "pxr", "score.stages", "score.store") if name in sys.modules]
+heavy = [name for name in ("numpy", "pxr", "score.stages", "score.store", "score.dashboard.previews", "matplotlib")
+         if name in sys.modules]
 # VmHWM, this process's own peak (ru_maxrss keeps the forking parent's peak across exec)
 rss = int(next(line for line in open("/proc/self/status") if line.startswith("VmHWM")).split()[1]) / 1024
 print(json.dumps({"codes": codes, "heavy": heavy, "rss_mb": rss}))

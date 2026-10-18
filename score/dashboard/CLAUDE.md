@@ -21,6 +21,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, measured, launch, poll; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, plan,
   every launch refusal in words).
+- **`previews/`** a picture for each step whose output has none of its own, drawn from its files on the store's
+  machine, kept per output, never imported by a hosted process.
 - **`sync/`** hosted mode: `building.py` the export, `endpoints.py` the hosted side (token only), `client.py` and
   `applying.py` the store side's pass. The store's machine always calls out. The export goes content-addressed: only
   the files the hosted side lacks, thumbnails first, one 2 MiB gzip chunk a request, then a commit swaps it in whole.
