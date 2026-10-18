@@ -6,7 +6,7 @@ import pathlib
 
 from django.conf import settings
 
-RECORD = "proposal.json"
+from score.dashboard.proposals.records import RECORD
 
 
 def proposals_root():
