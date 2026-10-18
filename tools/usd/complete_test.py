@@ -320,7 +320,7 @@ def a_store_copy_takes_resting_from_its_assembly_gate():
         for said, wanted in (("named", complete.PASS), ("other", complete.UNKNOWN)):
             data, store = pathlib.Path(tempfile.mkdtemp()), Store.in_folder(tempfile.mkdtemp())
             (data / "hangar.txt").write_text(said)
-            graph.Runner([toy], graph.Environment("toy", 1, {"data": data}), store).run(["hangar"])
+            graph.Runner([toy], graph.World("toy", 1, {"data": data}), store).run(["hangar"])
             Store.default = staticmethod(lambda store=store: store)
             stage = data / "copy" / "hangar.usda"
             stage.parent.mkdir()
