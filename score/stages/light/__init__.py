@@ -671,12 +671,14 @@ LAYER_STAGE = graph.Stage("light-layer", "place", make_layer, LAYERED,
                           (checks.Check("lamps placed", judge_placed), checks.Check("sky elements", judge_layer_sky)),
                           files=layer_files, after=RECORD, applies=applies)
 PASSES_STAGE = graph.Stage("light-passes", "place", passes.make_passes, passes.PASSES,
-                           (checks.Check("rendered", passes.judge_rendered),), files=passes.passes_files,
+                           (checks.Check("rendered", passes.judge_rendered),
+                            checks.Check("no missing pictures", passes.judge_magenta)), files=passes.passes_files,
                            after={"light-layer": ("light-layer", 1), **RECORD}, paid=True, euros=passes.EUROS,
                            applies=lambda place: applies(place) and not drawn_on(place))
 HAZE_STAGE = graph.Stage("light-haze", "place", haze.make_haze, contracts.Contract("light-haze", 1,
                                                                                    passes.passes_faults),
-                         (checks.Check("rendered", passes.judge_rendered),), files=passes.passes_files,
+                         (checks.Check("rendered", passes.judge_rendered),
+                          checks.Check("no missing pictures", passes.judge_magenta)), files=passes.passes_files,
                          after={"light-layer": ("light-layer", 1), **RECORD}, paid=True, euros=haze.EUROS,
                          applies=lambda place: place in haze.HAZED)
 LIGHT_STAGE = graph.Stage("light", "place", make_light, LIT,

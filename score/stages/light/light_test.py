@@ -166,6 +166,59 @@ def check_copy_leaves_its_input():
             os.chmod(path, stat.S_IRWXU)
 
 
+def check_neighbour_keeps_its_pictures():
+    """Fault (2026-10-18, light-passes of ten places): a shown place's light layer was written into its seed's copy in
+    the lit tree, and the writer moved that copy's own pictures into assets/light, so its materials drew magenta. Its
+    layer is written beside the tree now: the copy keeps its pictures and the lit tree names none that is missing."""
+    import shutil
+    import subprocess
+    import tempfile
+    from PIL import Image
+    from pxr import Sdf, Usd, UsdShade
+    from score.stages.light import passes
+    (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=PROPS_HOME / "store-tests") as folder:
+        seed, tree = pathlib.Path(folder) / "seed", pathlib.Path(folder) / "tree"
+        tiny_seed(seed)
+        (seed / "assets/textures").mkdir(parents=True)
+        Image.new("RGB", (4, 4), (90, 90, 90)).save(seed / "assets/textures/wall.png")
+        base = Usd.Stage.Open(str(seed / "layers/base.usda"))
+        shader = UsdShade.Shader.Define(base, "/tiny/Looks/wall/picture")
+        shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set("../assets/textures/wall.png")
+        base.Save()
+        tree.mkdir()
+        subprocess.run(["cp", "-al", str(seed), str(tree / "tiny")], check=True)
+        scene_of = passes.scene_of
+        passes.scene_of = lambda name: {"lights": []}
+        try:
+            passes.neighbour_layer("tiny", seed, tree)
+        finally:
+            passes.scene_of = scene_of
+        assert (tree / "tiny/assets/textures/wall.png").exists() and (tree / "tiny" / layer.LAYER).exists()
+        assert passes.unresolved(tree / "tiny/tiny.usda") == []
+        assert not (tree.parent / "light-of-tiny").exists()
+        shutil.rmtree(tree / "tiny/assets/textures")
+        assert len(passes.unresolved(tree / "tiny/tiny.usda")) == 1
+
+
+def check_magenta():
+    """A look with 1% of Blender's missing-texture magenta (as the tone curve draws it) fails; a clean one passes."""
+    import tempfile
+    from PIL import Image
+    from score import checks
+    from score.stages.light import passes
+    with tempfile.TemporaryDirectory() as folder:
+        output = pathlib.Path(folder)
+        (output / "passes/tiny-0").mkdir(parents=True)
+        clean = np.full((100, 100, 3), (120, 110, 100), np.uint8)
+        Image.fromarray(clean).save(output / "passes/tiny-0/shot0-000-look.png")
+        assert passes.judge_magenta(output, {}, {}).answer == checks.PASS
+        clean[:10, :10] = (193, 79, 136)  # the tube's hub through its hatch, 2026-10-16
+        Image.fromarray(clean).save(output / "passes/tiny-0/shot0-000-look.png")
+        verdict = passes.judge_magenta(output, {}, {})
+        assert verdict.answer == checks.FAIL and verdict.measures["magenta share"] == 0.01, verdict
+
+
 def check_kit_lamps():
     """The launch's light data puts a lamp in front of each pad floodlight's lens, among its record's lights."""
     record = json.loads((REPO / "data/scene/launch.json").read_text())
@@ -183,6 +236,8 @@ def main():
     check_layer()
     check_copy_leaves_its_input()
     check_kit_lamps()
+    check_neighbour_keeps_its_pictures()
+    check_magenta()
     check_heads()
     check_discs()
     check_sky()
