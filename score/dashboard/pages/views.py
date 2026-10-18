@@ -13,9 +13,9 @@ from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, library, present, seen
+from score.dashboard.pages import actions, breakdown, library, present, seen
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
-from score.dashboard.state import costs, groups
+from score.dashboard.state import costs, groups, sliders
 from score.dashboard.state import money as month_money
 
 def everywhere(request):
@@ -96,6 +96,9 @@ def named_changes(source, shown):
     return found
 
 
+GROUND_STAGE = "terrain"  # the world's ground, made once for every place
+
+
 def place_page(request, place):
     source = state.source()
     if place not in source.places():
@@ -107,7 +110,10 @@ def place_page(request, place):
     return render(request, "pages/place.html", {
         "detail": detail, "name": present.place_name(style, detail) if style else present.humane(place),
         "status": present.place_status(detail.status, detail.layers),
-        "chain": present.chain(detail, style, step_url), "problems": present.problems(detail),
+        "breakdown": breakdown.breakdown(detail, style, step_url,
+                                         sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
+                                         source.step_detail(None, GROUND_STAGE)),
+        "problems": present.problems(detail),
         "changes": present.changes(source, place),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
         "library": library.strip_of(place)})
@@ -289,10 +295,23 @@ def viewer(request, place):
     proposed = next((item for item in present.changes(source, place) if item["web3d_base"]), None)
     showing = "proposed" if proposed and request.GET.get("version") == "proposed" else "current"
     base = proposed["web3d_base"] if showing == "proposed" else f"/web/{place}/"
+    only = only_layer(request.GET.get("only"), detail.usd_index.layers)
+    film_view = detail.film_view if request.GET.get("at") == "film" else None
     return render(request, "pages/view3d.html", {"detail": detail, "proposed": proposed, "showing": showing,
+                                                 "only": only, "at_film": bool(film_view),
                                                  "viewer": {"place": place, "base": base,
                                                             "layers": layer_makers(detail.usd_index.layers),
-                                                            "order": [layer.name for layer in detail.usd_index.layers]}})
+                                                            "order": [layer.name for layer in detail.usd_index.layers],
+                                                            "only": [only, ONLY_WITH] if only else None,
+                                                            "at": film_view}})
+
+
+ONLY_WITH = "base"  # the layer kept on beside the one shown alone, for context
+
+
+def only_layer(asked, layers):
+    """The OpenUSD layer the viewer shows alone (with the base), when the link asks for one the place has."""
+    return asked if asked and asked in {layer.name for layer in layers if layer.present} else None
 
 
 def layer_makers(layers):

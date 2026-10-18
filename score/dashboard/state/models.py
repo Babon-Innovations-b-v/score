@@ -77,6 +77,8 @@ class StepCard(BaseModel):
     gates: GateCounts
     thumb: str | None = None
     output: str | None = None  # the shown output (accepted, else newest), for the owner's seen mark
+    reads: list[str] = []  # the stages it reads, for the breakdown's "made from"
+    drawn: bool = False  # its picture is a map drawn from its files (previews/), shown at its own size
     mark: str | None = None  # filled by the page from the dashboard's own marks
 
 
@@ -219,6 +221,7 @@ class CheckFinding(BaseModel):
     check: str
     rule: str
     prim: str | None = None
+    kind: str | None = None  # what the finding is on (model, geometry, light, sound, sky...), for its step
     sentence: str
     picture: FileRef | None = None
 
@@ -249,4 +252,5 @@ class PlaceDetail(BaseModel):
     concept: FileRef | None = None
     skipped: list[str] = []  # loud: steps of the chain not done for this place, and named gaps
     film_fps: float = 24.0
+    film_view: dict | None = None  # the film's first frame's camera (eye, aim, fov across), for the 3D viewer
     web3d: dict | None = None  # the fresh web copy's sidecar facts, or None

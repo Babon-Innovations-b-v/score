@@ -52,6 +52,15 @@ def test_the_export_holds_each_gaps_picture_and_each_steps_own_picture(world, tm
     assert (tmp_path / f"one/files/{gap}-1280.jpg").is_file() and (tmp_path / f"one/files/{step}-360.jpg").is_file()
 
 
+def test_the_export_holds_each_steps_own_picture_large_before_the_whole_3d_copies(world, tmp_path):
+    written = exported(world, tmp_path / "one")["written"]
+    bundle = json.loads((tmp_path / "one/places/alpha.json").read_text())
+    step = bundle["steps"]["closeup"]["picture"]["sha"]
+    assert f"files/{step}-1280.jpg" in written
+    films = [index for index, path in enumerate(written) if path.endswith(".mp4")]
+    assert written.index(f"files/{step}-1280.jpg") > max(films)
+
+
 def test_the_export_is_the_same_twice_and_keeps_to_its_cap(world, tmp_path):
     exported(world, tmp_path / "one")
     exported(world, tmp_path / "two")
