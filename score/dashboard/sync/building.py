@@ -1,14 +1,16 @@
 """The state export a hosted dashboard reads, built on the store's machine from the local source.
 
-    <out>/manifest.json        {made_at, world, source_commit, bytes, left_out: [{what, why}], cap_mb}
+    <out>/manifest.json        {made_at, world, source_commit, bytes, left_out: [{what, why}], cap_mb, written}
     <out>/state.json           WorldState
     <out>/places/<place>.json  {"detail": PlaceDetail, "steps": {stage: StepDetail}}; _world.json the world's steps
     <out>/files/<sha>-1280.jpg hero pictures; <sha>-360.jpg thumbnails (newest 8 a node); <sha>.mp4 accepted films
     <out>/web3d/<place>/       each place's fresh 3D copy (web3d/convert.py): sidecar and preview, then the whole one
 
-Filled in priority order (the JSON, heroes, films, each node's first thumbnail, the rest) until the cap; what did not
-fit is named in left_out. The 3D copies go in after the films: every sidecar and light preview first, then the whole
-copies while they fit (owner, 2026-10-18: the hosted cockpit has 3D too). FileRef urls stay /files/<sha>
+Filled in priority order (the JSON, heroes, every node's thumbnails with each node's first before any node's second,
+films, then the 3D copies) until the cap (owner, 2026-10-18: the step cards' thumbnails go up first); what did not
+fit is named in left_out; `written` lists every file but the manifest in the order it was written, which is the order
+the sync uploads them in (sync/client.py). The 3D copies go in last: every sidecar and light preview first, then the
+whole copies while they fit (owner, 2026-10-18: the hosted cockpit has 3D too). FileRef urls stay /files/<sha>
 and /thumbs/<sha>.jpg, so the templates do not know which source served them.
 """
 import json
@@ -32,12 +34,19 @@ class Filler:
     """Adds files to the export's folder until the cap, naming what did not fit."""
 
     def __init__(self, out, cap_bytes, thumbs):
+        self.out = out
         self.files = out / "files"
         self.files.mkdir(parents=True, exist_ok=True)
         self.cap = cap_bytes
         self.thumbs = thumbs
         self.used = 0
         self.left_out = []
+        self.written = []
+
+    def wrote(self, path, size):
+        """Count a file written into the export and keep its place in the upload order."""
+        self.used += size
+        self.written.append(path.relative_to(self.out).as_posix())
 
     def room(self, size, what):
         if self.used + size > self.cap:
@@ -52,6 +61,7 @@ class Filler:
             return
         if self.room(pathlib.Path(source).stat().st_size, what):
             shutil.copyfile(source, target)
+            self.written.append(target.relative_to(self.out).as_posix())
 
     def place_copy(self, source, target, what):
         """A file into the export at `target` (relative), when it fits."""
@@ -60,6 +70,7 @@ class Filler:
             return
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
+        self.written.append(target.relative_to(self.out).as_posix())
 
     def picture(self, source, sha, side, what):
         target = self.files / f"{sha}-{side}.jpg"
@@ -68,6 +79,7 @@ class Filler:
         made = thumbnail(source, self.thumbs / f"{sha}-{side}.jpg", side)
         if self.room(made.stat().st_size, what):
             shutil.copyfile(made, target)
+            self.written.append(target.relative_to(self.out).as_posix())
 
 
 def write_json(path, model):
@@ -118,15 +130,23 @@ def build(source, out, made_at, cap_mb, spend, repo):
     filler = Filler(out, int(cap_mb * 1024 * 1024), source.home / "thumbs")
     world = source.world_state(spend)
     world.made_at, world.source = made_at, f"export {made_at}"
-    filler.used += write_json(out / "state.json", world)
+    filler.wrote(out / "state.json", write_json(out / "state.json", world))
     bundles = [place_bundle((None, step_details(source, None, source.world_rows())))]
-    filler.used += write_json(out / "places" / f"{WORLD_FILE}.json", bundles[0])
+    world_file = out / "places" / f"{WORLD_FILE}.json"
+    filler.wrote(world_file, write_json(world_file, bundles[0]))
     for place in source.places():
         bundle = place_bundle((source.place_detail(place), step_details(source, place, source.place_rows(place))))
-        filler.used += write_json(out / "places" / f"{place}.json", bundle)
+        filler.wrote(out / "places" / f"{place}.json", write_json(out / "places" / f"{place}.json", bundle))
         bundles.append(bundle)
     for hero in heroes(world):
         filler.picture(source.file(hero.sha)[1], hero.sha, HERO_SIDE, f"picture {hero.name}")
+    nodes = pictures_by_node(bundles)
+    for rank in range(NEWEST_PER_NODE):  # each node's first thumbnail before any node's second
+        for node, images in nodes:
+            if rank < len(images):
+                found = source.file(images[rank]["sha"])
+                if found:
+                    filler.picture(found[1], images[rank]["sha"], THUMB_SIDE, f"{node}: {images[rank]['name']}")
     for film in films(world):
         filler.copy(source.file(film.sha)[1], f"{film.sha}.mp4", f"film {film.name}")
     for names in (("{place}.json", "{place}-light.glb"), ("{place}.glb",)):
@@ -136,14 +156,7 @@ def build(source, out, made_at, cap_mb, spend, repo):
                 found = source.web3d_file(place, name)
                 if found:
                     filler.place_copy(found, f"web3d/{place}/{name}", f"3D copy {name}")
-    nodes = pictures_by_node(bundles)
-    for rank in range(NEWEST_PER_NODE):  # each node's first thumbnail before any node's second
-        for node, images in nodes:
-            if rank < len(images):
-                found = source.file(images[rank]["sha"])
-                if found:
-                    filler.picture(found[1], images[rank]["sha"], THUMB_SIDE, f"{node}: {images[rank]['name']}")
     manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo), "bytes": filler.used,
-                "left_out": filler.left_out, "cap_mb": cap_mb}
+                "left_out": filler.left_out, "cap_mb": cap_mb, "written": filler.written}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
     return manifest
