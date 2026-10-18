@@ -19,6 +19,7 @@ from score.dashboard.state.models import (EngineGroup, GateCounts, GateVerdict, 
                                           UsdIndex, UsdLayer, WorldState)
 from score.store import Store
 
+REPO = pathlib.Path(__file__).resolve().parents[3]
 SUBLAYER = re.compile(r"@\./(layers/[^@]+)@")
 FPS = re.compile(r"framesPerSecond = ([0-9.]+)")
 LOG_LINES = 40
@@ -194,6 +195,41 @@ class LocalSource:
                     return ref
         return images[0] if images else None
 
+    def picture_of(self, node, output):
+        """The output's first image, else its preview made from its own files (previews/); None for no output."""
+        if not output:
+            return None
+        return self.first_image(output) or self.preview(node, output)
+
+    def preview(self, node, output):
+        """A FileRef of the picture previews/ makes from an output that holds no image of its own, served and
+        exported like any picture."""
+        from score.dashboard import previews
+        listing = self.listing(output)
+        if not listing:
+            return None
+        stage, _, place = node.partition("@")
+        files = [(name, self.blob_path(sha)) for name, sha in sorted(listing.items())]
+        path = previews.picture(files, self.place_plan(place) if place else None, self.surface_library(), self.home,
+                                output, groups.label(stage))
+        sha = previews.preview_id(output)
+        self.known.add(sha, previews.PREVIEW_NAME, path)
+        return file_ref(sha, previews.PREVIEW_NAME, path.stat().st_size)
+
+    def place_plan(self, place):
+        """The place's plan (plan.json of its plan step's shown output), the ground every map is drawn over."""
+        def read():
+            record = self.shown_record(self.node_of("plan", place))
+            sha = self.listing(record["output"]).get("plan.json") if record else None
+            return json.loads(self.blob_path(sha).read_text()) if sha else None
+        return self.remembered(("plan", place), read)
+
+    def surface_library(self):
+        """{surface: (rgb, roughness, metallic)} of the material library, the swatches' and painted takes' colours."""
+        from score.dashboard.previews import swatches
+        return self.remembered(("surfaces",), lambda: swatches.library(
+            self.data / "library" / "materials.json", REPO / "design" / "tokens" / "tokens.json"))
+
     def work_picture(self, written):
         """A FileRef of a picture place.json names (WORK/ is the work folder); None when it is not there."""
         if not written or not written.startswith("WORK/"):
@@ -227,7 +263,7 @@ class LocalSource:
         node = self.node_of(row.name, place)
         state, words = self.node_state(node)
         record = self.shown_record(node) if state != NOT_RUN else None
-        thumb = self.first_image(record["output"]) if (with_thumb and record) else None
+        thumb = self.picture_of(node, record["output"]) if (with_thumb and record) else None
         return StepCard(node=node, stage=row.name, label=groups.label(row.name), paid=bool(row.paid), state=state,
                         state_words=words, gates=counts(self.judgement_of(record)) if with_thumb else GateCounts(),
                         thumb=thumb.thumb_url if thumb else None, output=record["output"] if record else None)
@@ -423,7 +459,7 @@ class LocalSource:
         for read in self.reads_of(node):
             stage, _, place = read.partition("@")
             output = self.accepted_output(read)
-            picture = self.first_image(output) if output else None
+            picture = self.picture_of(read, output)
             found.append(InputPicture(node=read, label=groups.label(stage),
                                       thumb=picture.thumb_url if picture else None, url=f"/place/{place}/step/{stage}/" if place else f"/world/step/{stage}/"))
         return found
@@ -443,7 +479,7 @@ class LocalSource:
     def taken(self, node, output, at=None, by=None):
         record = review.record_of(self.store, node, output)
         judgement = self.judgement_of(record)
-        thumb = self.first_image(output)
+        thumb = self.picture_of(node, output)
         return Taken(output=output, at=at, by=by, answer=judgement["answer"] if judgement else None,
                      thumb=thumb.thumb_url if thumb else None)
 
@@ -486,7 +522,7 @@ class LocalSource:
         if shown:
             detail.record = self.record_facts(shown)
             detail.judgement = verdict_list(self.judgement_of(shown), self.store.waivers(node, shown["key"]))
-            detail.files = self.refs(shown["output"])
+            detail.files = self.with_preview(node, shown["output"], self.refs(shown["output"]))
         if newest and (not accept or newest["output"] != accept["output"]):
             self.add_waiting(detail, node, newest)
         if state == STOPPED:
@@ -497,12 +533,19 @@ class LocalSource:
         detail.reference = self.concept(place) if place else None
         return detail
 
+    def with_preview(self, node, output, refs):
+        """An output's files, its preview added after them when none of them is an image."""
+        if any(ref.kind == "image" for ref in refs):
+            return refs
+        made = self.preview(node, output)
+        return [*refs, made] if made else refs
+
     def add_waiting(self, detail, node, newest):
         """The newest output that is not the accepted one: its answer, gates, files and how it is worse."""
         judgement = self.judgement_of(newest)
         detail.waiting = self.taken(node, newest["output"], newest.get("finished"))
         detail.waiting_judgement = verdict_list(judgement, self.store.waivers(node, newest["key"]))
-        detail.waiting_files = self.refs(newest["output"])
+        detail.waiting_files = self.with_preview(node, newest["output"], self.refs(newest["output"]))
         if judgement:
             detail.waiting_worse = review.worse_than_accepted(self.store, node, judgement)
 
