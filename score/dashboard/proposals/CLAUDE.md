@@ -2,7 +2,8 @@
 
 A fix branch's proposal for one place: the shopping list's item, made for free on the store's machine
 (`python -m score.dashboard propose <branch> <place>`). Layout and fields: `records.py`; the run: `propose.py`;
-`finish.py` prices its paid part (`score price` through the backend, per commit) and draws its before stills (the
+`finish.py` prices its paid part (`score price` through the backend, per commit), draws its own stills when it was
+made without them, and its before stills (the
 same cameras on the place as it stands accepted), run by propose, by `proposals-finish`, and (price only) by every
 sync pass. A department gives its proposal the owner's words with `python -m score.dashboard proposal-words <branch>
 <place> --says "the fault this fixes, as he sees it" [--ask "..." --recommend "..."]`; they survive a rerun.
