@@ -48,7 +48,7 @@ ASSEMBLY = graph.Stage("assembly", "place", make_assembly, TEXT, WRITTEN,
 def a_world(folder, brief):
     (folder / "hangar").mkdir(parents=True)
     (folder / "hangar" / "brief.txt").write_text(brief)
-    return graph.World("toy", 7, {"data": str(folder)})
+    return graph.Environment("toy", 7, {"data": str(folder)})
 
 
 def standing_store(tmp_path):

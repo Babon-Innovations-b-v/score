@@ -43,7 +43,7 @@ BAKE = graph.Stage("bake", "place", make_copy, TEXT, SAID, after={"render": ("to
 def a_runner():
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text("a hall")
-    return graph.Runner([DRAW, RENDER, BAKE], graph.World("toy", 1, {"data": data}),
+    return graph.Runner([DRAW, RENDER, BAKE], graph.Environment("toy", 1, {"data": data}),
                         Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {"kind": kind})
 
 

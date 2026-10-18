@@ -1,7 +1,7 @@
 """The stage runner, in Infinigen's run_stage shape: a stage table in code, a seed per node, prerequisites, and a finish
 record for every output, so a changed input reruns only what it reaches.
 
-    runner = Runner(stages, world, store)
+    runner = Runner(stages, environment, store)
     runner.run(places)        # {node: what it did}: made, judged again, fresh, accepted, or blocked and why
     runner.drive(places)      # every line to its end, evidence gathered; a line that stops leaves a fault report
     runner.lines(places)      # {line: (its state, {node: state})}, running nothing
@@ -10,9 +10,9 @@ record for every output, so a changed input reruns only what it reaches.
     runner.ticket(node)       # the node's key, only when every prerequisite passed and is accepted (paid runs)
     runner.stale(node)        # the earlier nodes whose accepted output moved since the node's accepted output read them
 
-A node is one stage for one place (`stage@place`), or for the whole world (`stage`). Its key hashes the stage's name
+A node is one stage for one place (`stage@place`), or for the whole environment (`stage`). Its key hashes the stage's name
 and grain, its computed code version (the stage's and its checks' modules and every repository module they import),
-its parameters, its seed, its pinned images and models, and the key of every input: a world file's or seed folder's
+its parameters, its seed, its pinned images and models, and the key of every input: an environment file's or seed folder's
 content hash, or an earlier node's accepted output. A node whose key has a finish record is not made again. Its gates
 are judged again, without remaking it, when a check's evidence changes.
 
@@ -105,17 +105,17 @@ class Stage:
     """One row of the stage table.
 
     make(inputs, out, seed, params) writes the stage's output into the folder `out`; `inputs` maps each input's
-    name to a path (a world file or seed folder in place, an earlier stage's accepted output checked out).
+    name to a path (an environment file or seed folder in place, an earlier stage's accepted output checked out).
     contract: the output's schema, version and units (score.contracts.Contract); every stage has one.
-    files: {name: path pattern}, formatted with the world's roots and {place}; or a function of the place giving that
-    map, for a stage whose world files differ by place (the surface stage's takes, listed in each place's data).
+    files: {name: path pattern}, formatted with the environment's roots and {place}; or a function of the place giving that
+    map, for a stage whose environment files differ by place (the surface stage's takes, listed in each place's data).
     after: {earlier stage: (schema, version) this one was written for}, the stages whose accepted output it reads.
     models: pinned image kinds whose record (image digest, model revisions) goes into the key (score.adapters.models).
     paid, euros: a stage that rents, and its run's estimate in euros, cleared against the month's ceiling.
     gatherers: {check name: (gather, euros or None)}, how the runner's drive makes a check's missing evidence:
     gather(output, inputs, folder) writes it and returns its file; a paid one names its estimate in euros. Kept out of
     score.checks on purpose: every stage's code version hashes that module, so a change there reruns every stage.
-    applies: for a place stage, applies(place) is False for a place the stage has nothing to do for (its world data
+    applies: for a place stage, applies(place) is False for a place the stage has nothing to do for (its environment data
     says so): that place's line has no such node. None: every place.
     beside, neighbours: for a place stage that reads other places' outputs, {earlier stage: (schema, version)} read
     for each place neighbours(place) names (its input `<stage>@<other place>`), versioned and waited on like `after`.
@@ -160,17 +160,22 @@ class Stage:
 
 
 @dataclass(frozen=True)
-class World:
-    """A world's name, its seed and the folders its file patterns name ({data}, {seeds}, ...)."""
+class Environment:
+    """An environment's name, its seed and the folders its file patterns name ({data}, {seeds}, ...)."""
     name: str
     seed: int
     roots: dict
 
     @classmethod
     def from_file(cls, path, **roots):
-        """A world from its record ({"name", "seed"}), with the roots its stages' files are found under."""
+        """An environment from its record ({"name", "seed"}), with the roots its stages' files are found under."""
         record = json.loads(pathlib.Path(path).read_text())
         return cls(record["name"], record["seed"], roots)
+
+
+# The old name, kept for the stage modules that name it (ship-kits, late-bake, images, props compare, finishmap
+# trial): renaming it there moves their nodes' keys, so it goes with each one's next paid re-make.
+World = Environment
 
 
 def now():
@@ -178,7 +183,7 @@ def now():
 
 
 def node_seed(world_seed, stage, place):
-    """The seed of one node, from the world's seed, the stage and the place: never a typed number."""
+    """The seed of one node, from the environment's seed, the stage and the place: never a typed number."""
     return int(text_hash(f"{world_seed}/{stage}/{place}")[:8], 16)
 
 
@@ -202,7 +207,7 @@ def bytecode(relative):
 
 
 def source_hash(path):
-    """A world file's or folder's hash as a key part: the store's tree hash of it, its bytecode left out."""
+    """An environment file's or folder's hash as a key part: the store's tree hash of it, its bytecode left out."""
     return listing_hash({name: file_hash(found) for name, found in tree_files(path).items() if not bytecode(name)})
 
 
@@ -248,7 +253,7 @@ WHOLE_WALK = score_store.runtime_store.FolderStore.keys
 
 def scoped_keys(self, prefix):
     """FolderStore.keys walking only the prefix's own folder: the store's own walks every file under the root
-    (millions of blobs) on each call, which held a world run at one core for hours, 25 rows in 3.5 h (2026-10-14: 261
+    (millions of blobs) on each call, which held an environment run at one core for hours, 25 rows in 3.5 h (2026-10-14: 261
     of a status's 389 s). The same keys, sorted, as WHOLE_WALK gives."""
     folder = self.root / prefix.rsplit("/", 1)[0] if "/" in prefix else self.root
     if not folder.is_dir():
@@ -351,7 +356,7 @@ class Runner:
         return self.code_versions[stage.name]
 
     def files_of(self, stage, place):
-        """{name: path pattern} of the world files the node reads."""
+        """{name: path pattern} of the environment files the node reads."""
         return stage.files(place) if callable(stage.files) else stage.files
 
     def file_path(self, stage, name, place):
@@ -360,7 +365,7 @@ class Runner:
         return pathlib.Path(pattern.format(place=place, **self.world.roots))
 
     def file_keys(self, stage, place):
-        """{name: content hash} of each world file or seed folder the node reads; a missing one blocks. A file
+        """{name: content hash} of each environment file or seed folder the node reads; a missing one blocks. A file
         declared as (pattern, part) is keyed by part(path), the text of the part of it the stage reads (terrain
         reads only its ground's surfaces of the library), so a change elsewhere in the file moves no key."""
         keys = {}
@@ -459,7 +464,7 @@ class Runner:
     # --- making and judging ------------------------------------------------------------------------------------
 
     def input_paths(self, stage, place, keyed):
-        """{name: path} the stage's make reads: world files in place, earlier outputs checked out."""
+        """{name: path} the stage's make reads: environment files in place, earlier outputs checked out."""
         paths = {name: self.file_path(stage, name, place) for name in self.files_of(stage, place)}
         paths.update({before: self.store.checkout(output) for before, output in keyed["after"].items()})
         paths.update({node: self.store.checkout(output) for node, output in keyed.get("beside", {}).items()})
@@ -608,7 +613,7 @@ class Runner:
         return f"{done}, accepted automatically" if accepted else done
 
     def rejudged_accepted(self, stage, place):
-        """The accepted output's scorecard judged now, by today's gates on today's world files (its named gaps among
+        """The accepted output's scorecard judged now, by today's gates on today's environment files (its named gaps among
         them, so a gap moves the same faults on both sides), not kept: what a new output is compared with, so both
         are measured alike (assembly@lab, 2026-10-15: its accepted output was judged on 10-11 before the triage asked
         each foot, so the chairs' caster read as two new faults). None when nothing is accepted."""
@@ -816,14 +821,14 @@ class Runner:
                 f"{(commits[-1] or 'unknown')[:8]}, which this checkout does not hold); pull main")
 
     def nodes(self, places):
-        """Every (stage, place) in table order: a world stage once, a place stage once per place."""
+        """Every (stage, place) in table order: an environment stage once, a place stage once per place."""
         for stage in self.stages.values():
             for place in ([None] if stage.grain == "world" else places):
                 if place is None or stage.applies is None or stage.applies(place):
                     yield stage, place
 
     def missing_inputs(self, nodes):
-        """Every declared input a run could never make itself that is missing, of the `nodes` it plans: its world data
+        """Every declared input a run could never make itself that is missing, of the `nodes` it plans: its environment data
         and repository files ({data}, {repo}) and its bake jobs, each as "node: input (path)". A run refuses on any,
         before anything starts (the ship run of 2026-10-14 22:55 spent EUR 13.58 on machines, then stopped on missing
         seed records). Files the run makes as it goes (the Pixal3D takes under {home}) are left to their rows."""
@@ -844,8 +849,8 @@ class Runner:
         return found
 
     def line_nodes(self, places, whole, only=None):
-        """The nodes a drive runs: every one of `nodes` for the whole world, else the places' own and only the world
-        nodes they read (directly or through another world node); `only` (stage names) keeps those stages' nodes and
+        """The nodes a drive runs: every one of `nodes` for the whole environment, else the places' own and only the environment
+        nodes they read (directly or through another environment node); `only` (stage names) keeps those stages' nodes and
         the nodes they read, place by place: a stage one place reads (the garage's motion its machines layer, and so
         its surface line) is not run for a place that does not read it."""
         found = list(self.nodes(places))
@@ -862,7 +867,7 @@ class Runner:
             return found
         chosen = [(stage, place) for stage, place in found if stage.grain == "place"]
         names, reading = {node_name(*node) for node in chosen}, list(chosen)
-        while reading:  # the world nodes and other places' nodes the places read, and what those read
+        while reading:  # the environment nodes and other places' nodes the places read, and what those read
             for before in self.read_nodes(*reading.pop()):
                 if node_name(*before) not in names:
                     names.add(node_name(*before))
@@ -877,7 +882,7 @@ class Runner:
             yield self.stages[stage_name], place or None
 
     def read_nodes(self, stage, place):
-        """(stage, place) of every node this node reads: its own place's or the world's, and other places'."""
+        """(stage, place) of every node this node reads: its own place's or the environment's, and other places'."""
         own = [(self.stages[before], place if self.stages[before].grain == "place" else None)
                for before in self.reads(stage, place)]
         return own + [(self.stages[before], other) for before, other, _ in self.besides(stage, place).values()]
@@ -1056,10 +1061,10 @@ class Runner:
     def drive(self, places, say=print, jobs=JOBS, whole=True, only=None):
         """Run every line to its end with no one in the loop, the lines side by side: each node starts in a process of
         its own the moment every node it reads stands accepted, at most `jobs` at once, so a line waiting on a cloud
-        step holds up no other line, and nodes of one line that read nothing of each other run side by side. A world
+        step holds up no other line, and nodes of one line that read nothing of each other run side by side. An environment
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
         own line and leaves a fault report; {node: what it did}, in table order. `whole` False drives the places'
-        lines alone, with only the world nodes they read; `only` (stage names) those stages and the ones they read."""
+        lines alone, with only the environment nodes they read; `only` (stage names) those stages and the ones they read."""
         chosen = self.line_nodes(places, whole, only)
         order = {node_name(*node): index for index, node in enumerate(chosen)}
         waiting = list(chosen)
@@ -1101,8 +1106,8 @@ class Runner:
                 if node_name(stage, place) in done}
 
     def lines(self, places, whole=True, only=None):
-        """{line: (its state, {node: state})}, running nothing: the world's own nodes are one line, each place's
-        another (`whole` False: only the world nodes the places read). A line is done when every node stands
+        """{line: (its state, {node: state})}, running nothing: the environment's own nodes are one line, each place's
+        another (`whole` False: only the environment nodes the places read). A line is done when every node stands
         accepted, else stopped (a fault report waits) or waiting at its first node that does not stand."""
         found = {}
         with self.still():

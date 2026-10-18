@@ -162,7 +162,7 @@ def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads():
     assert line["euros"] == 5.0 and line["baseline"]["bill"] == 50.0 and line["reason"] == "films"
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text("a hall")
-    runner = graph.Runner([compute_test.BRIEF, compute_test.RENDER], graph.World(world, 1, {"data": data}), store)
+    runner = graph.Runner([compute_test.BRIEF, compute_test.RENDER], graph.Environment(world, 1, {"data": data}), store)
     runner.run_node(compute_test.BRIEF, "hangar")
     assert "pass the EUR 5.00 stop" in compute_test.refused(lambda: compute.clearance(runner, "render@hangar", 6.0))
     as_owner(lambda: review_command.main(["stop", world, "8", "--reason", "films, raised"]))
@@ -184,7 +184,7 @@ def test_the_framework_store_refuses_a_world_with_no_line():
     store = Store.default()
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text("a hall")
-    runner = graph.Runner([compute_test.BRIEF, compute_test.RENDER], graph.World("toy-framework", 1, {"data": data}),
+    runner = graph.Runner([compute_test.BRIEF, compute_test.RENDER], graph.Environment("toy-framework", 1, {"data": data}),
                           store)
     runner.run_node(compute_test.BRIEF, "hangar")
     ledger({"euros": 0.0})
@@ -197,7 +197,7 @@ def test_a_trials_own_store_in_the_home_is_held_to_the_worlds_stop_and_counted_i
     trial = Store.in_folder(compute.PROPS_HOME / "trial-test/store")  # as compare.py's, a store inside the home
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text("a hall")
-    runner = graph.Runner([compute_test.BRIEF, compute_test.RENDER], graph.World("toy-trial", 1, {"data": data}),
+    runner = graph.Runner([compute_test.BRIEF, compute_test.RENDER], graph.Environment("toy-trial", 1, {"data": data}),
                           trial)
     runner.run_node(compute_test.BRIEF, "hangar")
     ledger({"euros": 90.0})

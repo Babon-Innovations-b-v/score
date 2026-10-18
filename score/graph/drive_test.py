@@ -84,7 +84,7 @@ def a_runner(briefs, euros=None):
         (data / place / "brief.txt").write_text(brief)
     clean = graph.Stage("clean", "place", make_clean, TEXT, (WORDS, checks.Check("shout", judge_shout)),
                         files={"brief": "{data}/{place}/brief.txt"}, gatherers={"words": (gather_limit, euros)})
-    return graph.Runner((clean, COUNT), graph.World("toy", 7, {"data": data}), Store.in_folder(tempfile.mkdtemp()),
+    return graph.Runner((clean, COUNT), graph.Environment("toy", 7, {"data": data}), Store.in_folder(tempfile.mkdtemp()),
                         model_record=lambda kind: {"kind": kind})
 
 
@@ -228,7 +228,7 @@ def a_world_of(places):
     data = pathlib.Path(tempfile.mkdtemp())
     for place in places:
         (data / place).mkdir()
-    return data, graph.World("toy", 7, {"data": data})
+    return data, graph.Environment("toy", 7, {"data": data})
 
 
 def test_lines_run_side_by_side_and_one_line_waiting_holds_up_no_other():

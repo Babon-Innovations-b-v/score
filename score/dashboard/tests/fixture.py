@@ -143,7 +143,7 @@ def build(root):
     ledger.write_text("\n".join(json.dumps(row) for row in (
         {"ticket": "closeup@alpha key-1", "euros": 10.0, "wall_minutes": 30},
         {"ticket": "closeup@beta key-2", "euros": 12.0, "wall_minutes": 40})) + "\n")
-    world = graph.World("world1", 3, {"data": str(data)})
+    world = graph.Environment("world1", 3, {"data": str(data)})
     source = LocalSource(props, root / "dashboard", root / "web", store_root=root / "store", world=world,
                          rows=rows())
     return Built(root, data, store, source, ledger, outputs)

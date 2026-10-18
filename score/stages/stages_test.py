@@ -48,7 +48,7 @@ def world_data_copy(root):
 
 
 def scenario(root):
-    world = graph.World("world1", 3, {"data": str(world_data_copy(root / "data")), "seeds": str(SEEDS),
+    world = graph.Environment("world1", 3, {"data": str(world_data_copy(root / "data")), "seeds": str(SEEDS),
                                       "repo": str(REPO)})
     store = Store.in_folder(root / "store")
     # The worked example's own stages: terrain (a world node) spends and has its own test beside its module, so a
@@ -213,7 +213,7 @@ def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
         for part in ("kit/laid.json", "plans/laid.json", "plans/new.json"):
             (root / part).parent.mkdir(parents=True, exist_ok=True)
             (root / part).write_text("{}")
-        assert stages.places(graph.World("world1", 3, {"data": str(root)})) == ["laid", "new"]
+        assert stages.places(graph.Environment("world1", 3, {"data": str(root)})) == ["laid", "new"]
     finally:
         shutil.rmtree(root)
 

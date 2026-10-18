@@ -126,7 +126,7 @@ def test_a_library_surface_added_for_a_model_leaves_terrains_key_alone():
     (root / "library").mkdir()
     shutil.copy2(REPO / "data/library/materials.json", root / "library/materials.json")
     stage = graph.Stage("terrain", "world", None, terrain.GROUNDS, files={"library": terrain.FILES["library"]})
-    runner = graph.Runner((stage,), graph.World("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
+    runner = graph.Runner((stage,), graph.Environment("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
     before = runner.file_keys(stage, None)["library"]
     library = json.loads((root / "library/materials.json").read_text())
     library["families"]["plastic"]["variants"]["test_plastic"] = {"recipe": "rubber", "token": "sign-red"}
@@ -155,7 +155,7 @@ def test_a_layout_edit_terrain_never_reads_leaves_its_key_alone():
     assert set().union(*(plan.get("dents", {}) for plan in plans)) <= seated  # dented reads a seated kit only
     files = {name: inputs.FILES[name] for name in ("scenes", "kits", "motion")}
     stage = graph.Stage("terrain", "world", None, terrain.GROUNDS, files=files)
-    runner = graph.Runner((stage,), graph.World("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
+    runner = graph.Runner((stage,), graph.Environment("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
     before = runner.file_keys(stage, None)
 
     def edit(folder, place, change):
