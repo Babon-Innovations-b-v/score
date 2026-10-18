@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Run one test command in a sandbox home, so no test can write, move or delete the real runtime (a test unlinked
+the real cloud ledger, 2026-10-17). `make tests` and `make check` run every test through it:
+
+    python3 .claude/scripts/sandbox-home.py -- <command> [<argument> ...]
+
+PROPS_HOME is a fresh folder in the temp folder (PROPS_WORK unset, so it follows), removed after. The tests read
+world data from the real home (seeds, kits, stages under work/), so where bubblewrap is installed the sandbox links to
+the real home's folders and the command runs with the real home mounted read-only: a read works, a write through a
+link fails loudly instead of landing. The real home's state (STATE: the cloud ledger and bills, the store and its
+locks and logs) is never linked, so a test that writes those gets its own empty ones. Without bubblewrap nothing is
+linked, and a test that needs world data fails rather than reach the real home. The exit status is the command's.
+"""
+import os
+import pathlib
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+
+REAL_HOME = pathlib.Path(os.environ.get("SCORE_REAL_HOME", pathlib.Path.home() / ".farm-factory-props"))
+STATE = ("cloud", "store", "store-tests", "locks", "logs", "tmp", "replays")
+
+
+def linked(entry):
+    """True for a real home entry the sandbox links to: world data, not state or scratch."""
+    return entry.name not in STATE and not entry.name.startswith("scratch")
+
+
+def make_sandbox(real, link):
+    """A fresh sandbox home in the temp folder, linking the real home's world data when `link`."""
+    sandbox = pathlib.Path(tempfile.mkdtemp(prefix="score-test-"))
+    if link and real.is_dir():
+        for entry in sorted(real.iterdir()):
+            if linked(entry):
+                (sandbox / entry.name).symlink_to(entry)
+    return sandbox
+
+
+def read_only_command(real, argv):
+    """`argv` run with the real home mounted read-only (bubblewrap), or None where that cannot be done."""
+    bubblewrap = shutil.which("bwrap")
+    if not bubblewrap or not real.is_dir():
+        return None
+    return [bubblewrap, "--dev-bind", "/", "/", "--ro-bind", str(real), str(real), "--", *argv]
+
+
+def writable_again(function, path, _error):
+    """rmtree's retry for a read-only file the test left (the store keeps its files read-only): its folder and it
+    made writable, then removed. Only paths inside the sandbox reach here (rmtree never follows a link), and a link a
+    test made is removed, never changed, so nothing outside the sandbox has its permissions touched."""
+    targets = [os.path.dirname(path)] + ([] if os.path.islink(path) else [path])
+    for target in targets:
+        os.chmod(target, os.stat(target).st_mode | stat.S_IWUSR | stat.S_IXUSR)
+    function(path)
+
+
+def remove(sandbox):
+    """Remove a sandbox home: its links first (never followed), then everything the test wrote."""
+    for entry in sandbox.iterdir():
+        if entry.is_symlink():
+            entry.unlink()
+    shutil.rmtree(sandbox, onerror=writable_again)
+
+
+def run(argv, real=REAL_HOME):
+    """Run `argv` in a sandbox home; its exit status."""
+    command = read_only_command(real, argv)
+    sandbox = make_sandbox(real, link=command is not None)
+    environ = {name: value for name, value in os.environ.items() if name != "PROPS_WORK"}
+    try:
+        return subprocess.run(command or argv, env={**environ, "PROPS_HOME": str(sandbox)}).returncode
+    finally:
+        remove(sandbox)
+
+
+def main(argv):
+    if "--" not in argv or argv.index("--") == len(argv) - 1:
+        raise SystemExit("usage: sandbox-home.py -- <command> [<argument> ...]")
+    return run(argv[argv.index("--") + 1:])
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -426,7 +426,10 @@ Nothing is released yet but the paper. Commands, run locally (there is no CI and
 - `make env` builds the framework's Python environment (`.venv`, `uv sync`); `make tests` runs every framework
   check (`tools/**/*_test.py` and `score/**/*_test.py`, plain scripts, or under pytest when a file has `test_`
   functions and no `__main__` block, each under a 16 GB memory cap), or only the
-  ones named with `TESTS="..."`. `make check` runs them when code changed. While working, run only the checks your change touches.
+  ones named with `TESTS="..."`. Each runs in a sandbox home (`.claude/scripts/sandbox-home.py`: a fresh
+  `PROPS_HOME` in the temp folder linking the real home's world data, with the real home mounted read-only by
+  bubblewrap; its cloud ledger, store, locks and logs never linked), and the root `conftest.py` refuses a pytest run
+  whose `PROPS_HOME` is not such a folder (a test unlinked the real cloud ledger, 2026-10-17). `make check` runs them when code changed. While working, run only the checks your change touches.
   Render checks run Blender headless on a cloud machine, never here; nothing here runs Godot.
 - `.githooks/pre-commit` (installed by `bootstrap.sh` as `core.hooksPath`) runs the same check on
   any commit that touches `paper/`. A green run means the committed PDF is the draft's.
