@@ -1,0 +1,4 @@
+{% comment %}One problem: its picture, its kind and one plain sentence, opening its step when it has one.{% endcomment %}{% if problem.url %}<a class="problem" href="{{ problem.url }}">{% else %}<div class="problem">{% endif %}
+  <div class="frame">{% include "pages/pic.html" with src=problem.picture name=problem.name bare=True %}</div>
+  <div class="problem-body"><span class="kind {% if problem.kind == 'stopped' %}stopped{% else %}known-gap{% endif %}">{{ problem.kind }}</span><p>{{ problem.sentence }}</p></div>
+{% if problem.url %}</a>{% else %}</div>{% endif %}

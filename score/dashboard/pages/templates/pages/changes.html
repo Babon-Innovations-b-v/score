@@ -1,0 +1,138 @@
+{% extends "pages/base.html" %}
+{% block title %}Changes to buy{% endblock %}
+{% block content %}
+<div class="page-head changes-head">
+  <div class="grow">
+    <h1>Changes to buy</h1>
+    <p class="soft lede">Each fix as it would look: the place now, and after the fix, from the same camera. What could be done for free is done; buy a fix to have its paid part made overnight in one batch.</p>
+  </div>
+  <div class="card bought-card" id="checkout">
+    <div class="eyebrow">You chose to buy</div>
+    <div class="money-total">{% if bought.count %}{% if bought.high is not None %}at most EUR {{ bought.high|floatformat:2 }}{% else %}<span class="unknown">price not known yet</span>{% endif %}{% else %}nothing yet{% endif %}</div>
+    <p class="soft small">{{ bought.count }} fix{{ bought.count|pluralize:"es" }} chosen{% if bought.likely is not None and bought.count %}, likely EUR {{ bought.likely|floatformat:2 }}{% endif %}; {{ waiting|length }} still to look at.</p>
+    <p class="soft small">Buying chooses a fix; nothing is paid until the one checkout of everything you chose.</p>
+    {% if owner and bought.count %}
+    <form method="post" action="/changes/checkout/" class="checkout-form">{% csrf_token %}
+      <input type="hidden" name="key" value="{{ checkout_key }}">
+      <label class="tick"><input type="checkbox" name="confirm" value="yes"> I buy these fixes{% if bought.high is not None %}, at most EUR {{ bought.high|floatformat:2 }}{% endif %}</label>
+      <button type="submit" class="primary wide">Check out</button>
+    </form>
+    <p class="soft small">The fixes land, then one overnight batch makes their paid parts; the month's stop still holds.</p>
+    {% endif %}
+    {% if last_checkout %}<p class="small last-checkout">{{ last_checkout }}</p>{% endif %}
+  </div>
+</div>
+
+{% if not cards %}
+<div class="empty card"><p>No fixes to look at yet. Each fix appears here once its pictures are made.</p></div>
+{% endif %}
+
+{% for card in cards %}
+<article class="fix card{% if card.choice %} answered {{ card.choice.choice }}{% endif %}" id="fix-{{ card.branch }}">
+  <header class="fix-head">
+    <div class="grow">
+      <div class="eyebrow">{% for place in card.places %}{{ place.name|capfirst }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+      <h2 class="fix-sentence">{{ card.sentence }}</h2>
+    </div>
+    {% if card.choice %}<span class="pill {{ card.choice.choice }}">{{ card.choice.said }}</span>{% endif %}
+  </header>
+
+  {% for place in card.places %}
+  <section class="fix-place">
+    {% if card.places|length > 1 %}<h3>{{ place.name|capfirst }}</h3>{% endif %}
+    {% if place.held %}
+    <div class="banner">Not shown as a fix here: {{ place.held }}</div>
+    {% elif place.pairs and place.same_camera %}
+    <div class="fx-pairs">
+      {% for pair in place.pairs %}
+      <figure class="fx-pair">
+        <div class="fx-side">
+          <div class="frame wide">{% if pair.before %}<img class="pic" src="{{ pair.before }}" alt="{{ place.name }} now, {{ pair.name }}" loading="lazy">{% else %}<div class="fx-none">not drawn from this camera</div>{% endif %}</div>
+          <span class="fx-tag">Now</span>
+        </div>
+        <div class="fx-side">
+          <div class="frame wide"><img class="pic" src="{{ pair.after }}" alt="{{ place.name }} after the fix, {{ pair.name }}" loading="lazy"></div>
+          <span class="fx-tag after">After</span>
+        </div>
+        <figcaption class="soft small">{{ pair.name|capfirst }}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+    {% elif place.pairs %}
+    <p class="soft small">{% if place.now %}The place now, from its own picture, then the fix from its cameras.{% else %}New: nothing like this stands in the place now, so there is no before picture.{% endif %}</p>
+    <div class="fx-gallery">
+      {% if place.now %}<figure class="fx-new"><div class="fx-side"><div class="frame wide"><img class="pic" src="{{ place.now }}" alt="{{ place.name }} now" loading="lazy"></div><span class="fx-tag">Now</span></div><figcaption class="small">As it stands</figcaption></figure>{% endif %}
+      {% for pair in place.pairs %}
+      <figure class="fx-new"><div class="fx-side"><div class="frame wide"><img class="pic" src="{{ pair.after }}" alt="{{ pair.name }}" loading="lazy"></div>{% if place.now %}<span class="fx-tag after">After</span>{% endif %}</div><figcaption class="small">{{ pair.name|capfirst }}</figcaption></figure>
+      {% endfor %}
+    </div>
+    {% elif not place.media %}
+    <div class="banner">No pictures of this fix yet{% if place.failed %}: drawing them failed{% endif %}{% if place.blocked %}; it could not be put together: {{ place.blocked|truncatechars:200 }}{% endif %}.</div>
+    {% endif %}
+    {% for item in place.media %}{% if item.kind == "film" %}<video class="fix-film" controls preload="metadata" src="/proposal/{{ card.branch }}/{{ place.place }}/{{ item.file }}"></video>{% elif item.kind == "sound" %}<audio controls preload="none" src="/proposal/{{ card.branch }}/{{ place.place }}/{{ item.file }}"></audio>{% endif %}{% endfor %}
+
+    <div class="fx-parts">
+      <div class="fx-part">
+        <div class="eyebrow">Done for free</div>
+        <p>{% if place.free %}{{ place.free|join:", "|capfirst }}{% else %}Nothing had to be made again{% endif %}</p>
+      </div>
+      <div class="fx-part">
+        <div class="eyebrow">Needs the paid batch</div>
+        {% if place.paid %}
+        <p>{{ place.paid|join:", "|capfirst }}</p>
+        <p class="fx-price">{% if place.price.high is not None %}about EUR {{ place.price.likely|floatformat:2 }}{% if place.price.high != place.price.likely %}, at most EUR {{ place.price.high|floatformat:2 }}{% endif %}{% else %}<span class="unknown">{{ place.price.words|capfirst }}</span>{% endif %}</p>
+        {% if place.price.high is not None %}<p class="soft small">{{ place.price.words|capfirst }}.</p>{% endif %}
+        {% else %}<p>Nothing: this fix is complete without paying.</p>{% endif %}
+      </div>
+      {% if place.has_3d %}<a class="button big show3d" href="{{ place.view }}">Show in 3D</a>{% endif %}
+    </div>
+
+    {% if place.question %}
+    <div class="fx-question">
+      <div class="eyebrow">A question for you</div>
+      <p class="ask">{{ place.question }}</p>
+      <p><span class="soft">We recommend:</span> {{ place.recommended }}</p>
+      <p class="soft small">Buying the fix goes ahead with the recommended answer.</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <footer class="fix-foot">
+    <div class="grow">
+      {% if card.total %}<span class="fix-total">{% if card.free_only %}Free{% else %}This fix: about EUR {{ card.total.likely|floatformat:2 }}{% if card.total.high != card.total.likely %}, at most EUR {{ card.total.high|floatformat:2 }}{% endif %}{% endif %}</span>{% elif not card.free_only %}<span class="unknown">Price not worked out yet</span>{% endif %}
+      {% if card.choice.applied %}<p class="soft small">{{ card.choice.applied }}</p>{% endif %}
+      {% if card.stale %}<p class="soft small">The fix changed since you answered; look again.</p>{% endif %}
+    </div>
+    {% if owner %}
+    <form method="post" action="/changes/choose/" class="fx-choose">{% csrf_token %}
+      <input type="hidden" name="branch" value="{{ card.branch }}"><input type="hidden" name="commit" value="{{ card.commit }}">
+      <button type="submit" name="choice" value="later"{% if card.choice.choice == "later" %} disabled{% endif %}>Not now</button>
+      <button type="submit" name="choice" value="buy" class="primary"{% if card.choice.choice == "buy" %} disabled{% endif %}>Buy</button>
+    </form>
+    {% else %}<p class="soft small">Only the owner buys.</p>{% endif %}
+  </footer>
+
+  <details class="ids"><summary>Details</summary>
+    <div class="ids-body small soft">
+      <p>Fix branch {{ card.branch }} at {{ card.commit|slice:":10" }}</p>
+      <p>{{ card.change }}</p>
+      {% for place in card.places %}{% if place.nodes %}<p>{{ place.place }}: {{ place.nodes|join:", " }}</p>{% endif %}{% endfor %}
+    </div>
+  </details>
+</article>
+{% endfor %}
+
+{% if held %}
+<div class="card held-fixes" id="held">
+  <h2>Held back: their pictures show no change yet</h2>
+  <p class="soft small">These fixes cannot be bought until their after picture shows what they fix, measured against the before from the same camera.</p>
+  {% for card in held %}
+  <div class="held-fix" id="fix-{{ card.branch }}">
+    <p><strong>{{ card.sentence }}</strong></p>
+    {% for place in card.places %}<p class="soft small">{{ place.name|capfirst }}: {{ place.held }}</p>{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

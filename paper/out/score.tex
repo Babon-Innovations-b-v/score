@@ -126,11 +126,11 @@ Environments}
 \begin{document}
 \maketitle
 \begin{abstract}
-Games, films and robot training need 3D worlds that are complete,
+Games, films and robot training need 3D environments that are complete,
 editable and owned by their makers; world models and one-shot generators
 give frames no engine opens, or one fused scene without separate objects
-or clear rights. Studios build worlds in stages, from concept art to
-review. SCORE keeps these stages and automates them with open vision
+or clear rights. Studios build environments in stages, from concept art
+to review. SCORE keeps these stages and automates them with open vision
 foundation models, procedural tools and coding agents, while the creator
 chooses and reviews. Every stage is a node of one runner: its output is
 keyed on its inputs and code, judged by gates that answer pass, fail or
@@ -138,77 +138,79 @@ unknown, and accepted only when nothing got worse, so a fault is fixed
 in its own stage and only what follows it runs again; paid steps are
 cleared against a budget read from the provider's bill. Every model
 allows commercial use of its output, so the creator stays the author. We
-describe the framework as built for its first world, the game world of
-2099 with 28 places, and the measured gates of its surfaces, resting,
-light, motion, effects, sound and people. Code and paper are available
-at https://github.com/Babon-Innovations-b-v/score (MIT license).
+describe the framework as built for its first environment, the game
+environment of 2099 with 28 places, and the measured gates of its
+surfaces, resting, light, motion, effects, sound and people. Code and
+paper are available at https://github.com/Babon-Innovations-b-v/score
+(MIT license).
 \end{abstract}
 
 \makeatletter\def\fps@figure{tp}\makeatother\renewcommand{\topfraction}{0.9}\renewcommand{\textfraction}{0.1}
 
 \section{Introduction}\label{introduction}
 
-Interactive 3D worlds are the raw material of games, film and embodied
-AI {[}1{]}, and building one is expensive: every object is modelled,
-surfaced, placed, given collision, lit and given sound in one style, and
-the world stays editable. Generative models promise to take over much of
-this, but in GDC's 2026 survey 52 percent of game workers thought
-generative AI was hurting the industry {[}2{]}; a tool for building
-worlds has to leave the result in the creator's hands.
+Interactive 3D environments are the raw material of games, film and
+embodied AI {[}1{]}, and building one is expensive: every object is
+modelled, surfaced, placed, given collision, lit and given sound in one
+style, and the environment stays editable. Generative models promise to
+take over much of this, but in GDC's 2026 survey 52 percent of game
+workers thought generative AI was hurting the industry {[}2{]}; a tool
+for building environments has to leave the result in the creator's
+hands.
 
-World models generate a world as frames {[}3{]}, {[}4{]} that no engine
-can open. 3D world generators {[}5{]}, {[}6{]} produce geometry, but
-mostly as one fused asset, from which separate objects are recovered
-after the fact {[}7{]}, {[}8{]}. Both work in one shot, so a creator
-cannot find or change the step behind a fault. Procedural systems
-{[}9{]}, {[}10{]} and coding agents that write scenes as programs
-{[}11{]}, {[}12{]}, {[}13{]}, {[}14{]} keep the world explicit, but
-rebuild a scene that already exists or draw their objects from a fixed
-library, and such agents judge their own geometry unreliably {[}15{]}.
-Open vision foundation models {[}16{]} now read shapes {[}17{]}, masks
-{[}18{]}, depth {[}19{]} and parts {[}20{]} out of pictures, and a
-coding agent can connect them as tools; none of them provides one style
-across objects that different models made, which the field names as an
-open problem {[}21{]}, {[}22{]}.
+World models generate an environment as frames {[}3{]}, {[}4{]} that no
+engine can open. 3D environment generators {[}5{]}, {[}6{]} produce
+geometry, but mostly as one fused asset, from which separate objects are
+recovered after the fact {[}7{]}, {[}8{]}. Both work in one shot, so a
+creator cannot find or change the step behind a fault. Procedural
+systems {[}9{]}, {[}10{]} and coding agents that write scenes as
+programs {[}11{]}, {[}12{]}, {[}13{]}, {[}14{]} keep the environment
+explicit, but rebuild a scene that already exists or draw their objects
+from a fixed library, and such agents judge their own geometry
+unreliably {[}15{]}. Open vision foundation models {[}16{]} now read
+shapes {[}17{]}, masks {[}18{]}, depth {[}19{]} and parts {[}20{]} out
+of pictures, and a coding agent can connect them as tools; none of them
+provides one style across objects that different models made, which the
+field names as an open problem {[}21{]}, {[}22{]}.
 
-Studios build worlds in stages, each with an output a person can check;
-SCORE keeps these stages and automates them. Its worlds are
+Studios build environments in stages, each with an output a person can
+check; SCORE keeps these stages and automates them. Its environments are
 \textbf{complete}: every object, surface, light and sound exists
 wherever the player looks. They are \textbf{owned}: every model in the
 framework allows commercial use of its output, so the creator stays the
 author, holding the full commercial rights. They are
 \textbf{responsive}: every object has real collision, mass and material.
 And they can be any kind of \textbf{environment}. To our knowledge, no
-other openly available world generation work joins vision foundation
-models into engine-ready scenes that are built from reference pictures,
-steered by a person's choices at each step, and made only with models
-that allow commercial use of their output.
+other openly available environment generation work joins vision
+foundation models into engine-ready scenes that are built from reference
+pictures, steered by a person's choices at each step, and made only with
+models that allow commercial use of their output.
 
 We contribute \textbf{the SCORE framework}, stages as nodes of one
 runner that keys, judges and accepts every output over one canonical
 scene (Section 2); \textbf{measured gates} for every layer of a place
 and a completion gate over them (Section 3); and \textbf{evidence from a
-first world}, with its spend per stage (Section 4).
+first environment}, with its spend per stage (Section 4).
 
 \section{The framework}\label{the-framework}
 
-A world is a table of stages; world 1's has 95 rows. A \textbf{node} is
-one stage for one place (\texttt{assembly@hangar}) or for the world, and
-one runner makes, judges and accepts every node. The creator's picks
-(concepts, style, references) are the inputs; from there everything runs
-without a typed yes, and the creator reviews.
+An environment is a table of stages; environment 1's has 95 rows. A
+\textbf{node} is one stage for one place (\texttt{assembly@hangar}) or
+for the environment, and one runner makes, judges and accepts every
+node. The creator's picks (concepts, style, references) are the inputs;
+from there everything runs without a typed yes, and the creator reviews.
 
 \subsection{Keys, gates and accepts}\label{keys-gates-and-accepts}
 
 \textbf{Keys.} A node is made only when its key has no finish record.
 The key hashes the stage and place, a code version, the contracts of its
-output and inputs, its parameters, a seed derived from the world's, the
-pinned model images, every world file it reads and the accepted output
-of every node it reads. The code version hashes every source file the
-stage imports, leaving out the runner and the renting code, which change
-what a run costs, not what it makes. A fault fixed in one stage moves
-only its key and those after it. Outputs are kept by content hash, never
-overwritten.
+output and inputs, its parameters, a seed derived from the
+environment's, the pinned model images, every environment file it reads
+and the accepted output of every node it reads. The code version hashes
+every source file the stage imports, leaving out the runner and the
+renting code, which change what a run costs, not what it makes. A fault
+fixed in one stage moves only its key and those after it. Outputs are
+kept by content hash, never overwritten.
 
 \textbf{Gates and accepts.} Each gate answers pass, fail or unknown,
 with measures and a reason; missing evidence is unknown, and unknown
@@ -235,8 +237,8 @@ viewer on the store's copy of its accepted assembly; nothing is rendered
 for review.
 
 \textbf{The creator steers: the ship.} Figure 1 shows the creator's
-control on one piece of world 1, the ship. The creator's picks were
-found pictures of a shuttle, a one-deck cutaway, a cockpit and crew
+control on one piece of environment 1, the ship. The creator's picks
+were found pictures of a shuttle, a one-deck cutaway, a cockpit and crew
 quarters; we do not show them. From them an agent planned the bridge
 alone (v1, a 4.6 by 4.6 m room of 27 pieces). The creator corrected the
 plan in words: a smaller cockpit, rooms the game needs, a long flat
@@ -267,13 +269,13 @@ a row. It draws a dimensioned plan, gated on \texttt{mapped} (every
 element a row, a door or a written drop; every door says where it
 leads). The scene record is written from the plan, inventory, made
 ground and sky, gated on \texttt{game-free} (the record cites nothing
-from the game the world came from), \texttt{plan-matched} (the shell
-within 5 cm of the plan), \texttt{openings} (every doorway onto a floor,
-no view into nothing) and \texttt{seed-matched} (every old entry matched
-or dropped with a reason). The \texttt{game-free} gate sees cited
-numbers only. On world 1 the records cite nothing, but in 18 of its 28
-places the data they are written from still take positions from the
-source game (Section 4).
+from the game the environment came from), \texttt{plan-matched} (the
+shell within 5 cm of the plan), \texttt{openings} (every doorway onto a
+floor, no view into nothing) and \texttt{seed-matched} (every old entry
+matched or dropped with a reason). The \texttt{game-free} gate sees
+cited numbers only. On environment 1 the records cite nothing, but in 18
+of its 28 places the data they are written from still take positions
+from the source game (Section 4).
 
 \textbf{The canonical scene.} Every place is one OpenUSD stage {[}23{]};
 each object, one per real-world object, carries its kind, transform,
@@ -299,7 +301,7 @@ agent writes, reversing the earlier parts check (the creator's choice,
 object. Every close-up of eight thin and flat objects failed the shape
 check, so code builds carry them. The hatch wheel shows the gain: its
 code build's outline overlap was 0.45, a fail, and its generated model's
-0.60. Most of world 1's models predate the change and enter as
+0.60. Most of environment 1's models predate the change and enter as
 unverified seeds.
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
@@ -402,10 +404,11 @@ gated on \texttt{attached}, \texttt{footage}, \texttt{light} (the flame
 lights the pad at least twice as brightly as the place's lamps) and
 \texttt{outside} (no open-sky particle inside a room). \textbf{Sound:}
 every source a place names (room tones, objects, motions, each surface's
-steps) gets the world's picked file or the best of eight
+steps) gets the environment's picked file or the best of eight
 MOSS-SoundEffect {[}28{]} takes of its brief, gated on \texttt{sources},
 \texttt{level}, \texttt{likeness} (CLAP {[}29{]} score at least 0.30,
-the tenth percentile of the world's picks) and \texttt{no\ freesound}.
+the tenth percentile of the environment's picks) and
+\texttt{no\ freesound}.
 
 \subsection{People}\label{people}
 
@@ -448,10 +451,10 @@ Machines and Google calls write ledger lines with their node's ticket;
 the month's spend is the higher of ledgers and bill, which caught
 misses: EUR 1,554 billed against EUR 1,387 in the cloud ledger on 12
 October 2026, and EUR 549 billed by Google for a day the earlier ledger
-put at EUR 30. Over 13.8 hours of world 1's run the ledgers hold EUR
-117.45 of machines and EUR 34.19 of Google calls, most for painting (EUR
-37.61), the finish maps (EUR 26.59), the people's bodies (EUR 16.09) and
-the light passes (EUR 10.17).
+put at EUR 30. Over 13.8 hours of environment 1's run the ledgers hold
+EUR 117.45 of machines and EUR 34.19 of Google calls, most for painting
+(EUR 37.61), the finish maps (EUR 26.59), the people's bodies (EUR
+16.09) and the light passes (EUR 10.17).
 
 \textbf{Forecast.} Before a paid piece runs, its estimate is written
 down with the measured unit cost it rests on (the ledgers' medians per
@@ -484,8 +487,8 @@ have not run.
 
 \section{Evidence}\label{evidence}
 
-Four worlds are planned; world 1's 28 places are judged once their
-layers stand accepted.
+Four environments are planned; environment 1's 28 places are judged once
+their layers stand accepted.
 
 \textbf{Layouts from the source game.} The framework's own layout, made
 from the plan and the concept, is proven only on the ship's 8 places and
@@ -536,11 +539,11 @@ Kit, average man, wider pose (olive) & fail: shell & 0 & not run & 0 \\
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
-\textbf{Table 3.} Named gaps on 15 October: what world 1 ships without,
-failed by name in the completion gate or left out of this paper. The
-overseer, the coding-agent session that guards the run under the
-creator's rules, decided the gaps marked ``to confirm'' on the night of
-15 October; they wait for the creator's confirmation.
+\textbf{Table 3.} Named gaps on 15 October: what environment 1 ships
+without, failed by name in the completion gate or left out of this
+paper. The overseer, the coding-agent session that guards the run under
+the creator's rules, decided the gaps marked ``to confirm'' on the night
+of 15 October; they wait for the creator's confirmation.
 
 \begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
@@ -576,8 +579,8 @@ creator's rule, 13 Oct; per place, overseer, to confirm & next month's
 people work \\
 Likeness not checked & the prologue: street, launch, square, flat,
 stairwell & no props file, so generated models are not held to their
-close-ups; up to EUR 55 a place, outside world 1's budget; overseer, to
-confirm & props files \\
+close-ups; up to EUR 55 a place, outside environment 1's budget;
+overseer, to confirm & props files \\
 Cloth that stands still & the square's flags, banners and lanterns &
 cloth motion not built; overseer, to confirm & cloth motion \\
 Two far towers & launch: the housing slab and the pencil tower & no
@@ -609,7 +612,7 @@ places' completion gates \\
 An edit that survives a regenerated base & all & no edit layer yet & an
 edit layer the assembly carries \\
 Physics in an engine & one room & no engine adapter & an adapter \\
-Worlds 2 to 4 & & not started & \\
+Environments 2 to 4 & & not started & \\
 \end{longtable}
 }
 
@@ -617,42 +620,43 @@ Worlds 2 to 4 & & not started & \\
 
 \begin{figure}
 \centering
-\includegraphics[width=0.92\linewidth,height=\textheight,keepaspectratio,alt={The world 1 video (demo K9) on 18 October: the middle frame of each of its 27 films' walks, in story order. Every frame is the runner's accepted film of a place that is complete apart from named gaps; nothing was retouched or picked by hand.}]{figures/fig-k9.jpg}
-\caption{The world 1 video (demo K9) on 18 October: the middle frame of
-each of its 27 films' walks, in story order. Every frame is the runner's
-accepted film of a place that is complete apart from named gaps; nothing
-was retouched or picked by hand.}
+\includegraphics[width=0.92\linewidth,height=\textheight,keepaspectratio,alt={The environment 1 video (demo K9) on 18 October: the middle frame of each of its 27 films' walks, in story order. Every frame is the runner's accepted film of a place that is complete apart from named gaps; nothing was retouched or picked by hand.}]{figures/fig-k9.jpg}
+\caption{The environment 1 video (demo K9) on 18 October: the middle
+frame of each of its 27 films' walks, in story order. Every frame is the
+runner's accepted film of a place that is complete apart from named
+gaps; nothing was retouched or picked by hand.}
 \end{figure}
 
-\textbf{The world 1 video.} Each place is filmed once its completion
-gate passes or fails only on its named gaps: a 2 s title card, then one
-walk of 4 s (96 frames at 24 fps) on a path the planner keeps clear of
-walls, objects and people, with the place's own sound. The film gate
-measures each film (its size, a sound track that is not silent, no black
-or frozen stretch after the title card, its length and the clearance)
-and the runner accepts it; no person reviewed the films before the cut,
-and the coding agent that made the cut checked only its order, frames
-and sound. One cut opens with the creator's concept for every place,
-then takes the places in story order, the prologue, the Moon base and
-the Moon, the ship, then Mars: each place's concept, plan and pieces
-where it has them, then 3.5 s of its accepted film's walk, with the
-ship's hull after the hangar; it closes on the layer stack of one place
-and what world 1 delivers for score\_lib. On 18 October it held all 27
-films, 26 places and the hull, 3 min 9 s (Figure 3). Four of them, the
-greenhouse, the garage, the hangar and the hull, were filmed again that
-day: the ground outside a joined tube stood up to 2 m inside those
-rooms, because the scene writer (tools/usd/scene.py, write\_places) does
-not switch off a shown place's outside, and in the greenhouse it buried
-the crop bed; their film records now leave that ground out of the film's
-copy of the stage, and the fix in the scene writer is next month's. The
-airlock's film starts 6 s into its cycle, after its pump's fog: inside
-that fog a frame took from 47 s to 17 min on a card, and its first run,
-started in the fog, was stopped at the spend stop with its frames lost.
-Every filmed place was filmed after a completion gate that left it
-complete apart from named gaps. The final completion gate, run again on
-every place on 17 and 18 October, left all 26 places complete apart from
-named gaps (2 to 19 each) and none complete. The 2 door kits are not
-filmed; they are seen in the places they close.
+\textbf{The environment 1 video.} Each place is filmed once its
+completion gate passes or fails only on its named gaps: a 2 s title
+card, then one walk of 4 s (96 frames at 24 fps) on a path the planner
+keeps clear of walls, objects and people, with the place's own sound.
+The film gate measures each film (its size, a sound track that is not
+silent, no black or frozen stretch after the title card, its length and
+the clearance) and the runner accepts it; no person reviewed the films
+before the cut, and the coding agent that made the cut checked only its
+order, frames and sound. One cut opens with the creator's concept for
+every place, then takes the places in story order, the prologue, the
+Moon base and the Moon, the ship, then Mars: each place's concept, plan
+and pieces where it has them, then 3.5 s of its accepted film's walk,
+with the ship's hull after the hangar; it closes on the layer stack of
+one place and what environment 1 delivers for score\_lib. On 18 October
+it held all 27 films, 26 places and the hull, 3 min 9 s (Figure 3). Four
+of them, the greenhouse, the garage, the hangar and the hull, were
+filmed again that day: the ground outside a joined tube stood up to 2 m
+inside those rooms, because the scene writer (tools/usd/scene.py,
+write\_places) does not switch off a shown place's outside, and in the
+greenhouse it buried the crop bed; their film records now leave that
+ground out of the film's copy of the stage, and the fix in the scene
+writer is next month's. The airlock's film starts 6 s into its cycle,
+after its pump's fog: inside that fog a frame took from 47 s to 17 min
+on a card, and its first run, started in the fog, was stopped at the
+spend stop with its frames lost. Every filmed place was filmed after a
+completion gate that left it complete apart from named gaps. The final
+completion gate, run again on every place on 17 and 18 October, left all
+26 places complete apart from named gaps (2 to 19 each) and none
+complete. The 2 door kits are not filmed; they are seen in the places
+they close.
 
 \textbf{Agent tools.} With them an agent used about half the output and
 cost on two of three places; on the third it left more faults; one run
@@ -666,10 +670,10 @@ Closed models (Nano Banana Pro, Gemini 3.1 Pro) may change or go. Hard
 belts failed deep bends; light is live, measured on earlier layouts;
 objects are not interactive; 18 of 28 places still take their layouts
 from the source game. Next: layouts from plan and concept in every
-place, three worlds, an engine adapter, interaction, baked lamps, open
-models, locked parts, LEGO-Bench {[}15{]}. In short, SCORE keeps, keys
-and judges every stage's output, so a fault is fixed where it happens;
-completed places will show if it holds.
+place, three environments, an engine adapter, interaction, baked lamps,
+open models, locked parts, LEGO-Bench {[}15{]}. In short, SCORE keeps,
+keys and judges every stage's output, so a fault is fixed where it
+happens; completed places will show if it holds.
 
 \section*{References}\label{references}
 \addcontentsline{toc}{section}{References}
@@ -1157,7 +1161,7 @@ four, and 187 MB on disk, against 487 MB.
   kind's cited range.
 \item
   \textbf{Sound:} CLAP score against the brief at least 0.30, the tenth
-  percentile of 55 of the world's picks; a take no more than 0.5 s
+  percentile of 55 of the environment's picks; a take no more than 0.5 s
   longer than its brief.
 \item
   \textbf{People:} the shell gate passes a look when 99 percent of its
@@ -1236,9 +1240,9 @@ American Academy of Orthopaedic Surgeons, except hip extension of 24 and
 27 degrees (limit 20) in two clips.
 
 \textbf{Decisions recorded in these checks.} Three people's gates are
-decisions of the captain, the agent session that runs world 1, taken on
-12 and 13 October 2026 under the creator's rules and open to the
-creator's reversal. (1) The shell gate counts 99 percent of the soft
+decisions of the captain, the agent session that runs environment 1,
+taken on 12 and 13 October 2026 under the creator's rules and open to
+the creator's reversal. (1) The shell gate counts 99 percent of the soft
 points rather than every point, with the worst point recorded: the
 points beyond it were loose cloth edges (cuffs, hems, caps), which no
 part label names, so they could not be given a joint of their own by
@@ -1307,8 +1311,8 @@ regions (trial) & Apache-2.0 \\
 Depth Anything V2 Small {[}38{]} & ground relief & Apache-2.0 \\
 ProcFunc, Infinigen shaders & surfaces & BSD-3-Clause \\
 MOSS-SoundEffect v2.0, CLAP & sound & Apache-2.0 \\
-World Labs {[}39{]} & optional world step & paid; outputs owned by paid
-users \\
+World Labs {[}39{]} & optional walkable reference & paid; outputs owned
+by paid users \\
 FLUX.2 klein 4B {[}30{]} & earlier prop pictures; the characters' A-pose
 pictures from words and their hair's clay pictures & Apache-2.0 \\
 MoGe-2 {[}19{]}, SAM 3 {[}18{]} & measuring and finding objects in
@@ -1361,8 +1365,8 @@ the closed model's first pictures drew the room or dimension lines; all
 
 \par\penalty-100\ifdim\dimexpr\pagegoal-\pagetotal\relax<12\baselineskip\clearpage\fi
 
-\textbf{Table C2.} The close-up stage on world 1. Cloud is rented card
-time in euros; the closed model's pictures are in dollars.
+\textbf{Table C2.} The close-up stage on environment 1. Cloud is rented
+card time in euros; the closed model's pictures are in dollars.
 
 \begingroup\footnotesize\setlength{\tabcolsep}{3pt}
 
@@ -1397,8 +1401,8 @@ Closed model
 \endlastfoot
 Lab, 22 rows (earlier check: one answer) & 22 & 8 & 14 & 0 & €4.12 &
 \$2.81 \\
-World 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06 &
-\$4.02 \\
+Environment 1's remaining rows (three places) & 17 & 0 & 10 & 7 & €3.06
+& \$4.02 \\
 \end{longtable}
 }
 
@@ -1432,7 +1436,7 @@ the creator accepts it.
 tools}\label{with-and-without-the-agent-tools}
 
 The tools that check an agent's work were tested on three places of
-world 1: a room (the workshop, 814 objects), an outdoor place (the
+environment 1: a room (the workshop, 814 objects), an outdoor place (the
 street, 1,198 objects) and a dense room (the hangar, 1,657 objects).
 They are the completion gate (Section 3.6); a triage of the resting
 check, which judges each object by what holds it up, read from its

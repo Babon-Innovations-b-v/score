@@ -26,7 +26,7 @@ ROWS = "rows.json"
 
 
 def bounds(stage, paths):
-    """{prim path: (low, high)} of the prims' world boxes, the empty ones left out."""
+    """{prim path: (low, high)} of the prims' environment boxes, the empty ones left out."""
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     found = {}
     for path in paths:
@@ -98,7 +98,7 @@ def judged(store, context, folder, with_pictures):
 
 
 def places_of(chosen):
-    """The places asked for, else every place of world 1."""
+    """The places asked for, else every place of environment 1."""
     if chosen:
         return chosen
     from score import stages

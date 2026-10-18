@@ -1,4 +1,4 @@
-"""Every API route answers its schema from the fixture world; owner routes refuse anyone else; the session is the
+"""Every API route answers its schema from the fixture environment; owner routes refuse anyone else; the session is the
 pages' own; a write needs the CSRF header and an Origin."""
 import pytest
 from django.contrib.auth import get_user_model

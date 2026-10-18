@@ -1,7 +1,7 @@
 {% extends "pages/base.html" %}
 {% block title %}{{ detail.label|capfirst }}{% if place_name %}, {{ place_name }}{% endif %}{% endblock %}
 {% block content %}
-<nav class="crumbs"><a href="/">World</a><span>/</span>{% if detail.place %}<a href="/place/{{ detail.place }}/">{{ place_name }}</a>{% else %}shared steps{% endif %}<span>/</span>{{ detail.label }}</nav>
+<nav class="crumbs"><a href="/">Environment</a><span>/</span>{% if detail.place %}<a href="/place/{{ detail.place }}/">{{ place_name }}</a>{% else %}shared steps{% endif %}<span>/</span>{{ detail.label }}</nav>
 <div class="page-head">
   <h1>{{ detail.label|capfirst }}</h1>
   <span class="status {{ detail.state|slugify }}">{{ state_words }}</span>

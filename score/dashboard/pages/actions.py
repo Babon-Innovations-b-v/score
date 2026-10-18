@@ -132,7 +132,7 @@ def start_snapshot():
         return "a freshness snapshot is already being worked out"
     os.close(descriptor)
     threading.Thread(target=run_snapshot, args=(lock,), daemon=True).start()
-    return "working out freshness (about 3 minutes for the whole world)"
+    return "working out freshness (about 3 minutes for the whole environment)"
 
 
 # --- change requests, decisions, the basket --------------------------------------------------------------------
@@ -219,7 +219,7 @@ def basket_cards(items):
     cards = []
     for place, queued in sorted(found.items()):
         hero = source.place_card(place).hero if place else None
-        cards.append({"place": place or "world", "hero": hero, "items": queued})
+        cards.append({"place": place or "whole environment", "hero": hero, "items": queued})
     return cards
 
 

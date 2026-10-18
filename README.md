@@ -2,7 +2,7 @@
 
 **SCORE: A Framework for Synthesizing Complete, Owned, Responsive Environments.**
 
-SCORE turns a creator's picks (references, a concept, a style) into a complete world a game engine
+SCORE turns a creator's picks (references, a concept, a style) into a complete environment a game engine
 or simulator loads: every object its own model, rooms with collision, surfaces from one shared
 library, sound for every surface and object, and nothing in it the creator does not own. It works
 offline: coding agents and open models do the work in cloud batches, cheap checks
@@ -17,7 +17,7 @@ The creator writes the score; coding agents and open tools play it.
   from it in [`paper/arxiv/`](paper/arxiv/).
 - **The framework's code**, moved here from its first user, the game 2099, with its history:
   `tools/props/` (prop pipeline, scene tools, surface library, gates, cloud runners), `tools/blender/`
-  (headless Blender), `tools/sound/`, the surface library's data (`data/library/`), the first world's data
+  (headless Blender), `tools/sound/`, the surface library's data (`data/library/`), the first environment's data
   (`data/`, `design/tokens/`) and the vendored tools (`vendor/`). A place's output is a **scene package**:
   every object its own glTF model and `scene.json` saying where each copy stands, for any engine. The
   bible's `architecture/components` chapter says what is where.
@@ -52,13 +52,13 @@ make tests     # every framework check; TESTS="tools/props/library/package_test.
 
 ### One place end to end: the wreck
 
-The wreck is an outdoor place of the first world: 13 inventory rows, 22 copies. Its record is its scene
+The wreck is an outdoor place of the first environment: 13 inventory rows, 22 copies. Its record is its scene
 inventory (`data/inventory/wreck.json`), each kind's turn and allowed materials (`data/library/details.json`),
 and one close-up a generated row (kept in the work folder, not in git). With `W` its run folder and
 `py=.venv/bin/python`. Every command below runs in `.venv`, the cloud runners included: they load no model
 here, and `picture.py` imports torch only where its model loads. On a checkout older than that change,
 `pictures.py`, `parts.py` and `library_bake.py` stop on a missing torch; run them with an environment that
-has it (the first world's `~/.farm-factory-props/env/bin/python`).
+has it (the first environment's `~/.farm-factory-props/env/bin/python`).
 
 ```bash
 # 1. Pixal3D models from the close-ups, one cloud batch (a line a row: "<row>-s1 <close-up>")
@@ -100,9 +100,9 @@ $py tools/characters/cast.py square --stage ~/.farm-factory-props/work/usd/squar
 The review page then has a Characters section: why each entry is there, each character close up, each group and the
 crowd from where they are seen, and short moving shots, rendered from the stage like the scene.
 
-## The world's files
+## The environment's files
 
-The first world's heavy files, its made models (about 256 MB packed) and its sounds (about 36 MB), are not in git: they are
+The first environment's heavy files, its made models (about 256 MB packed) and its sounds (about 36 MB), are not in git: they are
 a release of this repository (`world1-assets-4` now), and `data/assets/world1.json` names every file with its sha256, its
 source and its licence. A record names a file by its name there (`models/hub_kit/console_1.gltf`,
 `sound/generated/places/habitat.ogg`); `tools/assets/world.py` fetches and checks the release the first time a
@@ -124,7 +124,7 @@ and prices. Scaleway is the current backend (`tools/props/cloud/backends/scalewa
 chooses another.
 
 Stock is the bottleneck: on 2026-10-08 the cheapest cards in one zone were out of stock most of the day.
-The cloud credits cover far more than a world costs, so a job takes whatever card is in stock, in the
+The cloud credits cover far more than an environment costs, so a job takes whatever card is in stock, in the
 order that waits least, and is never tied to one card or one zone.
 
 - **Which classes a job may use** is set per job kind in `KINDS` in `tools/props/cloud/capacity.py`.
@@ -226,7 +226,7 @@ sunk into the ground below its own contact points.
 
 A place with a scene record (`data/scene/<place>.json`: what the game drew in its own code, from room shells, stairs
 and gameplay objects to the ground, water, backdrop, lights and sky) is exported whole with `export.py`, which reads
-the files the record names from the world's release (below), and its page is drawn from the record's own cameras (the player's spots; a room from inside at
+the files the record names from the environment's release (below), and its page is drawn from the record's own cameras (the player's spots; a room from inside at
 standing height and from a cutaway above) by the stage's own lights. `--game-shots <folder>` lays each view beside the
 game's own shot from about the same place, with both pictures' mean brightness, and the page says what of the game's
 place the scene carries, its people included, and what is still missing against the game's shots ("scene vs game").

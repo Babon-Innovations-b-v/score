@@ -16,7 +16,7 @@
         {% if chosen.likely is not None %}<p class="soft">likely EUR {{ chosen.likely|floatformat:2 }}</p>{% endif %}
       </div>
       <div>
-        <div class="eyebrow">{{ money.world|capfirst }} so far</div>
+        <div class="eyebrow">{{ money.environment }} so far</div>
         {% if money.stop %}<p>EUR {{ money.spent|default:0|floatformat:2 }} spent of your EUR {{ money.stop|floatformat:0 }} stop; EUR {{ money.room|floatformat:2 }} of room.</p>
         {% else %}<p class="stopless">No stop set: paid launches refused.</p><pre class="command">{{ money.stop_line }}</pre>{% endif %}
       </div>
@@ -68,7 +68,7 @@
 <p>Likely <b>EUR {{ plan.body.money.likely|floatformat:2 }}</b>, high <b>EUR {{ plan.body.money.high|floatformat:2 }}</b>{% if plan.body.money.room is not None %} against <b>EUR {{ plan.body.money.room|floatformat:2 }}</b> of room under the stop{% endif %}. Time: likely {{ likely_time }}, high {{ high_time }}.</p>
 {% if plan.body.money.not_measured %}<p class="small soft">Not measured yet, counted at the runner's estimate: {{ plan.body.money.not_measured|join:", " }}.</p>{% endif %}
 {% for group in plan.body.groups %}
-<div class="panel"><b>{{ group.places|join:", "|default:"world" }}</b>: {{ group.stages|join:", " }}
+<div class="panel"><b>{{ group.places|join:", "|default:"whole environment" }}</b>: {{ group.stages|join:", " }}
   <div class="small">{{ group.to_run|length }} steps to make, {{ group.buys|length }} paid.{% if group.blocked %} {{ group.blocked|length }} blocked.{% endif %}</div>
   {% if group.missing %}<div class="banner bad small">Missing inputs: {{ group.missing|join:"; " }}</div>{% endif %}
   {% if group.refusal %}<div class="banner small">{{ group.refusal }}</div>{% endif %}

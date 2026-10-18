@@ -6,7 +6,7 @@ For each place, <out>/<place>/: evidence.json (measure.py), findings.json ({"pla
 {node: the output judged}, "findings": [{"rule", "prim", "sentence", "picture", ...}]}) and
 marks/<place>-<rule>-<n>.png, a picture a finding; then <out>/summary.json and <out>/contact_sheet.png. The accepted
 assemblies are linked under <out>/linked/ (read-only links to the store's files). `--judge-only` judges evidence
-measured before. The world's kit (texel.py) is read from every place's evidence in <out>, so a run of a few places
+measured before. The environment's kit (texel.py) is read from every place's evidence in <out>, so a run of a few places
 judges them as a run of all would. The default out is WORK/checks/materials, where the cockpit reads it. Prints one
 line a place and one summary line.
 """
@@ -112,7 +112,7 @@ def sheet(rows, path):
 
 
 def places_of(chosen):
-    """The places asked for, else every place of world 1."""
+    """The places asked for, else every place of environment 1."""
     if chosen:
         return chosen
     from score import stages
@@ -132,7 +132,7 @@ def measured(places, out, store):
 
 
 def kit_samples(evidences, world):
-    """{reference density: kit sample} for each place's own kit reference and the world's."""
+    """{reference density: kit sample} for each place's own kit reference and the environment's."""
     samples = {}
     for evidence in evidences:
         reference = texel.kit_reference(evidence["objects"])

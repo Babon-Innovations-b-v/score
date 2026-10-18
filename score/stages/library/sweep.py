@@ -1,10 +1,10 @@
-"""Compare a world with its library and write every mismatch where the cockpit shows a place's problems:
+"""Compare an environment with its library and write every mismatch where the cockpit shows a place's problems:
 
     .venv/bin/python -m score.stages.library.sweep [--out FOLDER]
 
 Reads, never writes: the framework's store (each library node's accepted output and its handover.json, the accepted
 output of every node an entry names), the library folder SCORE_LIB_ROOT (else `$PROPS_HOME/library.env`) and its
-pictures (SCORE_LIB_BLOBS_DIR). Writes, for each place and for the world's own nodes, <out>/<place>/findings.json
+pictures (SCORE_LIB_BLOBS_DIR). Writes, for each place and for the environment's own nodes, <out>/<place>/findings.json
 ({"place", "answer", "reason", "outputs": {library node: the output judged}, "findings": [{"rule", "prim", "name",
 "sentence", "picture"}]}) with each entry's picture beside it, and <out>/summary.json. The default out is
 WORK/checks/library-handover, which the cockpit reads (`check_findings`) as the place's problems. The comparison is
@@ -35,7 +35,7 @@ def stored_report(store, output):
 
 
 def handed_of(store, places):
-    """{place or "world": {"node", "output", "why", "report"}} of every library node of the world."""
+    """{place or "world": {"node", "output", "why", "report"}} of every library node of the environment."""
     found = {}
     for where in [invariant.WORLD, *places]:
         node = node_of(where)
@@ -62,7 +62,7 @@ def library_rows(root):
 
 
 def library_free(world, path=FREE):
-    """True when the owner decided the world is made without a library (a full dated row in library-free.json)."""
+    """True when the owner decided the environment is made without a library (a full dated row in library-free.json)."""
     rows = json.loads(path.read_text()).get("worlds", []) if path.is_file() else []
     return any(row.get("world") == world and all(str(row.get(field) or "").strip() for field in ("why", "who", "when"))
                for row in rows)
@@ -81,7 +81,7 @@ def picture_of(address, rows, blobs, folder):
 
 
 def written(where, held, found, rows, blobs, folder):
-    """The findings.json of one place or the world, its pictures copied beside it; as written."""
+    """The findings.json of one place or the environment, its pictures copied beside it; as written."""
     folder.mkdir(parents=True, exist_ok=True)
     listed = [{"rule": item["rule"], "prim": None, "name": item["address"] or item["node"],
                "sentence": item["sentence"],
@@ -96,7 +96,7 @@ def written(where, held, found, rows, blobs, folder):
 
 
 def run(out=OUT):
-    """Compare world 1 with its library and write every place's findings under `out`; the summary line."""
+    """Compare environment 1 with its library and write every place's findings under `out`; the summary line."""
     from score import stages
     world = stages.world1()
     values = backend.settings()

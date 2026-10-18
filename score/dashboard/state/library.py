@@ -52,7 +52,7 @@ class LibraryEntry(BaseModel):
     picture: str | None = None  # the picture's sha
     world: str | None = None
     place: str | None = None  # the place it came from
-    node: str | None = None  # the step that made it, `stage@place` or a world stage
+    node: str | None = None  # the step that made it, `stage@place` or an environment stage
     source: str = ""  # where it was read from, in words, when no step made it
     commit: str | None = None
     seen_in: list[str] = []
@@ -84,7 +84,7 @@ def sentence(entry):
 
 
 def step_of(node):
-    """(place or None, stage) of a step node `stage@place` or a world stage."""
+    """(place or None, stage) of a step node `stage@place` or an environment stage."""
     stage, _, place = node.partition("@")
     return (place or None), stage
 

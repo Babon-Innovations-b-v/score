@@ -110,3 +110,43 @@ def test_caps_fit_the_control_planes_node_limit(monkeypatch):
     assert set(caps.values()) == {18} and sum(caps.values()) <= 149
     updates = [call[3] for call in calls if call[:3] == ("k8s", "pool", "update")]
     assert updates[0] == "id0"
+
+
+def ledger_at_each_order(monkeypatch, tmp_path, answers):
+    """A stubbed scw that notes, for each cluster or pool create, the ledger's lines when the order went; the notes."""
+    import ledger
+
+    monkeypatch.setattr(ledger, "LEDGER", tmp_path / "ledger.jsonl")
+    seen = []
+
+    def scw(*arguments):
+        if arguments[2] == "create":
+            seen.append((arguments[:3], ledger.entries()))
+        return answers(arguments)
+    monkeypatch.setattr(cluster, "scw", scw)
+    return seen
+
+
+def test_a_cluster_order_writes_its_started_line_first(monkeypatch, tmp_path):
+    """Fault (review of C1, 2026-10-17): the cluster set-up ordered its cluster (an always-on system pool, billed by
+    the hour) and its class pools with no ledger line, while the lint listed it as a ledgered client."""
+    seen = ledger_at_each_order(monkeypatch, tmp_path, lambda arguments: {"id": "made", "status": "creating"})
+    monkeypatch.setattr(cluster, "system_offer", lambda: ("DEV1-M", "fr-par-1"))
+    monkeypatch.setattr(cluster, "latest_version", lambda: "1.31.0")
+    cluster.create_cluster(OURS)
+    [(order, [line])] = seen
+    assert order == ("k8s", "cluster", "create")
+    assert line["kind"] == "order-started" and line["name"] == cluster.CLUSTER_NAME and line["type"] == "DEV1-M"
+    assert line["euros"] == 0.0
+
+
+def test_a_pool_order_writes_its_started_line_first(monkeypatch, tmp_path):
+    seen = ledger_at_each_order(monkeypatch, tmp_path,
+                                lambda arguments: [] if arguments[:3] == ("k8s", "pool", "list") else {"id": "p1"})
+    monkeypatch.setattr(cluster, "wanted_pools", lambda: [("gpu-24gb-l4-1-24g-fr-par-2", "gpu-24gb", "L4-1-24G",
+                                                           "fr-par-2")])
+    cluster.ensure_pools("c1")
+    [(order, [line])] = seen
+    assert order == ("k8s", "pool", "create")
+    assert line["kind"] == "order-started" and line["name"] == "gpu-24gb-l4-1-24g-fr-par-2"
+    assert line["type"] == "L4-1-24G" and line["zone"] == "fr-par-2"

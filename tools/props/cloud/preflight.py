@@ -1,5 +1,5 @@
 """Pre-flight for paid work: card counts, minutes and euros from measured per-unit numbers in the cloud ledger, never
-from an agent's guess (owner, 2026-10-18: no agent picks card counts; world 1's films were sized by hand and one ran
+from an agent's guess (owner, 2026-10-18: no agent picks card counts; environment 1's films were sized by hand and one ran
 EUR 16 on 8 cards against a EUR 0.7 estimate).
 
     numbers = preflight.measured(ledger.entries(), "demo-film")   # None until MEASURED_MACHINES machines worked

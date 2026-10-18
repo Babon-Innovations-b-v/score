@@ -1,12 +1,12 @@
 """Check that the framework stands alone: no code or data in this repository reads a file of the game 2099's checkout
 (the owner, 2026-10-09: the game and SCORE are fully separate things). Every file a record names is in git
-(`data/...`) or in the world's release (tools/assets/world.py), and the manifest names every file the records name.
+(`data/...`) or in the environment's release (tools/assets/world.py), and the manifest names every file the records name.
 
 What fails:
 
 - anywhere in the code, the data and the overlays: a Godot path (`res://`), the game's checkout on this machine
   (`projects/2099`, `2099/game`), or the old `--world <the game's checkout>` option (a `--world` that takes a path;
-  `--world world1`, a SCORE world's name, is fine);
+  `--world world1`, a SCORE environment's name, is fine);
 - in Python and shell code (comments and docstrings aside, which may cite where a number came from): a string that is a
   path into the game's tree (`game/...`, `sim/...`);
 - in the data: a value that is such a path, unless it sits under a key that only notes where something came from

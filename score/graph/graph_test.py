@@ -4,8 +4,10 @@ store of its own.
 
 Run: .venv/bin/python score/graph/graph_test.py
 """
+import contextlib
 import dataclasses
 import functools
+import importlib
 import json
 import os
 import pathlib
@@ -13,13 +15,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
 compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
-from score.graph import _code  # noqa: E402
+from score.graph import _code, rebuy  # noqa: E402
 from score.store import Store, tree_hash  # noqa: E402
 
 MADE = []
@@ -64,7 +67,7 @@ def a_world(briefs):
     for place, brief in briefs.items():
         (data / place).mkdir()
         (data / place / "brief.txt").write_text(brief)
-    return graph.World("toy", 7, {"data": data})
+    return graph.Environment("toy", 7, {"data": data})
 
 
 def a_runner(world, store, stages=(CLEAN, COUNT)):
@@ -536,7 +539,7 @@ def test_an_output_whose_key_moved_only_by_bytecode_is_kept_and_a_source_change_
     if not any(cache.glob("*.pyc")):
         import py_compile
         py_compile.compile(str(_code.REPO / "score/checks/__init__.py"))
-    world = graph.World("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
+    world = graph.Environment("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
     head, first = (subprocess.run(["git", "-C", str(_code.REPO), *command], capture_output=True, text=True,
                                   check=True).stdout.split()[-1]
                    for command in (["rev-parse", "HEAD"], ["rev-list", "--max-parents=0", "HEAD"]))
@@ -561,7 +564,7 @@ NOTED = graph.Stage("noted", "place", make_seen, TEXT, (checks.Check("seen", jud
 def test_an_output_is_kept_over_a_change_only_with_a_proof_naming_every_changed_file():
     """noted@hangar made at the repository's first commit, when CLAUDE.md read otherwise: made again with no proof
     or one that leaves CLAUDE.md out; kept, with the proof in its record, when the proof names it."""
-    world = graph.World("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
+    world = graph.Environment("toy", 7, {"data": str(pathlib.Path(tempfile.mkdtemp())), "repo": str(_code.REPO)})
     first = subprocess.run(["git", "-C", str(_code.REPO), "rev-list", "--max-parents=0", "HEAD"],
                            capture_output=True, text=True, check=True).stdout.split()[0]
     for no_ops, kept in (({}, False), ({"README.md": "not read"}, False),
@@ -589,6 +592,119 @@ def test_an_output_is_kept_over_a_change_only_with_a_proof_naming_every_changed_
             assert carried["made by"]["commit"] == first and carried["from key"] == old["key"]
 
 
+STAGE_SOURCE = """import {helper}
+import {other}
+
+
+def make(inputs, out, seed, params):
+    (out / "made.txt").write_text({helper}.WORD + {other}.WORD + inputs["seeds"].read_text())
+"""
+
+
+OTHER_SOURCE = """def make(inputs, out, seed, params):
+    (out / "made.txt").write_text("TOTALLY DIFFERENT " + inputs["seeds"].read_text())
+"""
+
+
+def stage_source(case):
+    """narrow_a<case>'s source: a make reading both helpers."""
+    return STAGE_SOURCE.format(helper=f"narrow_h{case}", other=f"narrow_g{case}")
+
+
+@contextlib.contextmanager
+def a_repo_of_its_own(case):
+    """A temporary git repository, committed, holding a stage module that imports two helpers (`narrow_a<case>`
+    imports `narrow_h<case>`, which imports `narrow_j<case>`, and `narrow_g<case>`), another module with a make of its
+    own (`narrow_b<case>`) and a FRAMEWORK of none, taken as the repository while the block runs; yields (its folder,
+    the stage module)."""
+    repo = pathlib.Path(tempfile.mkdtemp(prefix="narrow_repo_")).resolve()
+    (repo / f"narrow_h{case}.py").write_text(f'import narrow_j{case}\nWORD = "kept " + narrow_j{case}.WORD\n')
+    (repo / f"narrow_j{case}.py").write_text('WORD = "joined "\n')
+    (repo / f"narrow_g{case}.py").write_text('WORD = "also "\n')
+    (repo / f"narrow_a{case}.py").write_text(stage_source(case))
+    (repo / f"narrow_b{case}.py").write_text(OTHER_SOURCE)
+    (repo / "score" / "graph").mkdir(parents=True)  # where the repository declares its FRAMEWORK, none at first
+    (repo / "score" / "graph" / "_code.py").write_text("FRAMEWORK = {REPO / name for name in ()}\n")
+    (repo / ".gitignore").write_text("__pycache__/\n")  # as this repository's: an import's bytecode is no change
+    for command in (["init", "-q"], ["add", "."], ["-c", "user.name=test", "-c", "user.email=test@test", "commit",
+                                                   "-qm", "a stage and its helper"]):
+        subprocess.run(["git", "-C", str(repo), *command], check=True)
+    saved = _code.REPO, _code.OUTSIDE, _code.FRAMEWORK, _code.search_folders
+    _code.REPO, _code.OUTSIDE, _code.FRAMEWORK = repo, (repo / ".git",), set(_code.FRAMEWORK)
+    _code.search_folders = lambda: (repo,)
+    sys.path.insert(0, str(repo))
+    try:
+        yield repo, importlib.import_module(f"narrow_a{case}")
+    finally:
+        sys.path.remove(str(repo))
+        _code.REPO, _code.OUTSIDE, _code.FRAMEWORK, _code.search_folders = saved
+
+
+def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_made_again():
+    """A stage A that imports a helper H, made and accepted: H moved into FRAMEWORK moves A's key and the runner
+    keeps A's accepted output, no proof file and no make (rebuy counts no buy); with A's own file also edited, its
+    declared {seeds} file outside the repository changed, its make wired to another function in a file unchanged
+    since (B), another Python, H itself edited or a file read only through H (J) edited or deleted, it makes A again.
+    A second narrowing after the first (the other helper G moved too) is kept as well, still naming what made it."""
+    for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
+                               (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
+                               (6, "read through helper edited", False), (7, "second narrowing", True),
+                               (8, "read through helper deleted", False)):
+        seeds = pathlib.Path(tempfile.mkdtemp())
+        (seeds / "hangar.txt").write_text("a seed")
+        world = graph.Environment("toy", 7, {"seeds": str(seeds)})
+        store = Store.in_folder(tempfile.mkdtemp())
+        with a_repo_of_its_own(case) as (repo, module):
+            stage = graph.Stage("narrow", "place", module.make, TEXT, (checks.Check("seen", judge_seen),),
+                                files={"seeds": "{seeds}/{place}.txt"})
+            first = a_runner(world, store, (stage,)).run(["hangar"])["narrow@hangar"]
+            assert first == "made: pass, accepted automatically", first
+            old = store.records("narrow@hangar")[0]
+            _code.FRAMEWORK.add(repo / f"narrow_h{case}.py")
+            if change == "own file":
+                (repo / f"narrow_a{case}.py").write_text(stage_source(case) + "# read\n")
+            if change == "helper edited":
+                (repo / f"narrow_h{case}.py").write_text('WORD = "another word "\n')
+            if change == "read through helper edited":
+                (repo / f"narrow_j{case}.py").write_text('WORD = "another word "\n')
+            if change == "read through helper deleted":
+                (repo / f"narrow_j{case}.py").unlink()
+            if change == "seeds":
+                (seeds / "hangar.txt").write_text("another seed")
+            if change == "make swapped":
+                stage = dataclasses.replace(stage, make=importlib.import_module(f"narrow_b{case}").make)
+            python = _code.sys
+            if change == "python":
+                _code.sys = types.SimpleNamespace(version_info=types.SimpleNamespace(major=3, minor=99), path=sys.path)
+            try:
+                runner = a_runner(world, store, (stage,))
+                keyed = runner.key(stage, "hangar")
+                assert keyed["key"] != old["key"] and store.record("narrow@hangar", keyed["key"]) is None
+                assert (rebuy.to_make(runner, stage, "hangar", [], {}) is None) == kept, change
+                done = runner.run(["hangar"])["narrow@hangar"]
+            finally:
+                _code.sys = python
+            assert done.startswith("fresh" if kept else "made: pass"), (change, done)
+            record = store.record("narrow@hangar", keyed["key"])
+            if kept:
+                assert record["output"] == old["output"] and record["code"] == keyed["code"]
+                assert record["carried"] == {"reason": graph.NARROWING_REASON, "from key": old["key"],
+                                             "to key": keyed["key"],
+                                             "made by": {"commit": old["commit"], "code": old["code"]}}
+                assert store.judgement("narrow@hangar", keyed["key"], runner.evidence_state(stage, old["output"]))
+                if change == "second narrowing":
+                    _code.FRAMEWORK.add(repo / f"narrow_g{case}.py")
+                    runner = a_runner(world, store, (stage,))
+                    again = runner.key(stage, "hangar")
+                    assert again["key"] != keyed["key"]
+                    assert runner.run(["hangar"])["narrow@hangar"].startswith("fresh")
+                    assert store.record("narrow@hangar", again["key"])["carried"] == {
+                        "reason": graph.NARROWING_REASON, "from key": keyed["key"], "to key": again["key"],
+                        "made by": {"commit": old["commit"], "code": old["code"]}}
+            else:
+                assert "carried" not in record
+
+
 def test_the_runners_store_lists_the_same_keys_walking_only_the_prefixs_folder():
     """scoped_keys answers every prefix as the store's whole walk does (a whole area, a node's folder, a name begun but
     not ended, one that is not there), its .partial files left out, and a runner puts it on every folder store."""
@@ -610,7 +726,7 @@ def test_a_run_names_every_world_file_it_could_never_make_before_it_starts():
     world = a_world({"hangar": "a ship in a hall"})
     made = graph.Stage("made", "place", make_seen, TEXT, (checks.Check("seen", judge_seen),),
                        files={"take": "{home}/takes/{place}.glb"})
-    world = graph.World("toy", 7, {**world.roots, "home": str(pathlib.Path(tempfile.mkdtemp()))})
+    world = graph.Environment("toy", 7, {**world.roots, "home": str(pathlib.Path(tempfile.mkdtemp()))})
     runner = a_runner(world, Store.in_folder(tempfile.mkdtemp()), (CLEAN, made))
     assert runner.missing_inputs([(CLEAN, "station"), (made, "hangar")]) == \
         [f"clean@station: brief ({pathlib.Path(world.roots['data']) / 'station/brief.txt'})"]

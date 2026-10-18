@@ -1,6 +1,8 @@
-"""A proposal's pictures: a few small stills of its stage from the scene record's cameras (one local Blender job,
-Eevee on the processor, under the machine's one-heavy-job lock), and the draft films and sounds the branch made."""
+"""A proposal's pictures: small stills of a stage drawn as its drawing (drawing.py) says, from the branch's cameras at
+its moments and lit by the stage's own lamps (one local Blender job, Eevee on the processor, under the machine's
+one-heavy-job lock), each labelled in a strip under the picture, and the draft films and sounds the branch made."""
 import json
+import math
 import os
 import pathlib
 import re
@@ -9,16 +11,20 @@ import subprocess
 import sys
 import tempfile
 
-from PIL import Image
+from PIL import Image, ImageDraw
+
+from score.dashboard.proposals import drawing
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SESSION = REPO / "tools/blender/session.py"
 VIEWS_SCRIPT = REPO / "tools/blender/inside/usd_views.py"
-SIZE = (640, 360)
-MOST_STILLS = 4
+FILM_PLANNER = "tools/review/film_preview.py"
 THREADS = "4"
 JPEG_QUALITY = 85
-UP = [0.0, 1.0, 0.0]
+# The labels' strip under a still: a line's height in pixels, its ground and its ink.
+LABEL_LINE = 16
+LABEL_BACK = (17, 18, 21)
+LABEL_INK = (236, 236, 232)
 FILMS = {".mp4", ".webm", ".mov"}
 SOUNDS = {".wav", ".ogg", ".mp3", ".flac", ".m4a", ".opus"}
 # Folders of a branch's drafts that hold inputs or the old version, never its drafts.
@@ -37,18 +43,64 @@ def record_views(stage_folder, tree, place):
     return []
 
 
-def views(stage_folder, tree, place):
-    """The first MOST_STILLS cameras of the place's scene record (record_views), as usd_views.py takes them."""
-    return [{"name": view["name"], "eye": view["eye"], "aim": view["aim"], "up": view.get("up", UP),
-             "fov": float(view.get("fov", 75.0)), "look_only": True}
-            for view in record_views(stage_folder, tree, place)[:MOST_STILLS]]
+def opened(stage_file):
+    """The stage composed by OpenUSD, read only (local mode only: the hosted process never comes here)."""
+    from pxr import Usd
+    stage = Usd.Stage.Open(str(stage_file))
+    if stage is None:
+        raise RuntimeError(f"OpenUSD could not open {stage_file}")
+    return stage
 
 
-def render(stage_file, chosen, folder):
-    """usd_views.py's look of each view of the stage into `folder`, at SIZE on at most THREADS threads; Blender's
-    exit code."""
+def stage_lamps(stage_file):
+    """Every sphere light the stage holds (its light layer's lamps, a shown place's too) as usd_views.py's point
+    lights: [{at, energy, radius}], watts as Blender's USD reader takes them (intensity times pi, times two to the
+    exposure)."""
+    from pxr import Usd, UsdGeom, UsdLux
+    cache = UsdGeom.XformCache(Usd.TimeCode.Default())
+    found = []
+    stage = opened(stage_file)  # held while its prims are read: a prim of a dropped stage has expired
+    for prim in stage.Traverse():
+        if not prim.IsA(UsdLux.SphereLight):
+            continue
+        light = UsdLux.SphereLight(prim)
+        exposure = float(light.GetExposureAttr().Get() or 0.0)
+        watts = float(light.GetIntensityAttr().Get() or 0.0) * math.pi * 2.0 ** exposure
+        spot = cache.GetLocalToWorldTransform(prim).ExtractTranslation()
+        found.append({"at": [float(value) for value in spot], "energy": watts,
+                      "radius": float(light.GetRadiusAttr().Get() or 0.1)})
+    return found
+
+
+def time_span(stage_file):
+    """The stage's (start, end) time codes, or None when it holds no time span (nothing moves in it)."""
+    stage = opened(stage_file)
+    if not stage.HasAuthoredTimeCodeRange():
+        return None
+    return float(stage.GetStartTimeCode()), float(stage.GetEndTimeCode())
+
+
+def film_views(tree, place, moved, work):
+    """The branch's own plan of the place's film (its tools/review/film_preview.py --no-draw, run in its checkout,
+    reading the store only), when the branch moves the film row and has that planner: its views, else []."""
+    planner = pathlib.Path(tree) / FILM_PLANNER
+    if drawing.FILM_ROW not in moved or not planner.is_file():
+        return []
+    out = pathlib.Path(work) / "film-plan"
+    shutil.rmtree(out, ignore_errors=True)
+    done = subprocess.run([sys.executable, str(planner), place, str(out), "--no-draw"], cwd=tree, capture_output=True,
+                          text=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONPATH": str(tree)})
+    planned = out / "views.json"
+    if done.returncode != 0 or not planned.is_file():
+        raise RuntimeError(f"the branch's film plan failed (exit {done.returncode}): {done.stderr[-1500:]}")
+    return json.loads(planned.read_text()).get("views", [])
+
+
+def render(stage_file, drawn, folder):
+    """usd_views.py's look of each view of the drawing into `folder`, lit by the stage's own lamps, at the drawing's
+    size on at most THREADS threads; Blender's exit code."""
     job = folder / "views.json"
-    job.write_text(json.dumps({"size": list(SIZE), "views": chosen}))
+    job.write_text(json.dumps({"size": drawn["size"], "views": drawn["views"], "lights": stage_lamps(stage_file)}))
     environment = {**os.environ, "OMP_NUM_THREADS": THREADS, "LP_NUM_THREADS": THREADS}
     done = subprocess.run([sys.executable, str(SESSION), "batch", str(VIEWS_SCRIPT), "--", str(stage_file), str(job),
                            str(folder)], env=environment, capture_output=True, text=True)
@@ -56,23 +108,35 @@ def render(stage_file, chosen, folder):
     return done.returncode
 
 
-def stills(stage_file, chosen, out):
-    """The stills of the stage from each chosen view, as JPEG in `out`: [{name, file}] of those Blender drew."""
-    if not chosen:
+def labelled(look, labels, out):
+    """The look with its labels in a strip under it (the picture itself untouched), as JPEG at `out`."""
+    with Image.open(look) as found:
+        picture = found.convert("RGB")
+    sheet = Image.new("RGB", (picture.width, picture.height + LABEL_LINE * len(labels)), LABEL_BACK)
+    sheet.paste(picture, (0, 0))
+    pen = ImageDraw.Draw(sheet)
+    for number, line in enumerate(labels):
+        pen.text((8, picture.height + 2 + number * LABEL_LINE), line, fill=LABEL_INK)
+    sheet.save(out, quality=JPEG_QUALITY)
+
+
+def stills(stage_file, drawn, out, folder_name="stills"):
+    """The stills of the stage from each view of the drawing (drawing.py), labelled, as JPEG in `out`:
+    [{name, file}] of those Blender drew, each file under `folder_name`/."""
+    if not drawn or not drawn.get("views"):
         return []
     work = pathlib.Path(tempfile.mkdtemp(prefix="proposal-stills-"))
     try:
-        code = render(stage_file, chosen, work)
+        code = render(stage_file, drawn, work)
         if code != 0:
             raise RuntimeError(f"Blender's stills failed (exit {code}): {(work / 'blender.log').read_text()[-1500:]}")
         out.mkdir(parents=True, exist_ok=True)
         found = []
-        for view in chosen:
+        for view in drawn["views"]:
             look = work / f"{view['name']}-look.png"
             if look.is_file():
-                with Image.open(look) as opened:
-                    opened.convert("RGB").save(out / f"{view['name']}.jpg", quality=JPEG_QUALITY)
-                found.append({"name": view["name"], "file": f"stills/{view['name']}.jpg"})
+                labelled(look, drawn.get("labels") or [], out / f"{view['name']}.jpg")
+                found.append({"name": view["name"], "file": f"{folder_name}/{view['name']}.jpg"})
         return found
     finally:
         shutil.rmtree(work, ignore_errors=True)

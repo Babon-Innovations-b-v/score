@@ -6,7 +6,7 @@ Measured: each laid model's texture pixels a metre of its surface (`density`: th
 pixels over its surface area in square metres, the laid scale counted), and how near the nearest camera that has it in
 sight comes (assets.nearest). Judged: the room's kit is the median of its code-built kit pieces' densities; an
 object seen within NEAR metres with under SHARE of it is a finding. A place that lays no code-built kit piece (the
-outdoor places, the streets) is held to the world's kit instead: the median over every place's code-built kit pieces.
+outdoor places, the streets) is held to the environment's kit instead: the median over every place's code-built kit pieces.
 """
 import functools
 import statistics
@@ -83,7 +83,7 @@ def sentence(entry, reference, whose):
 
 
 def findings(evidence, world=None):
-    """One finding a model seen within NEAR metres with under SHARE of the room's kit density (the world's kit's,
+    """One finding a model seen within NEAR metres with under SHARE of the room's kit density (the environment's kit's,
     `world`, in a place with no kit), nearest first."""
     reference, whose = kit_reference(evidence["objects"]), "the room's kit"
     if reference is None:

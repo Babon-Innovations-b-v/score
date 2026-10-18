@@ -17,15 +17,15 @@ stage as each stage is built; nothing moves before.
 - **`store/`** the store over `tools/cloud/runtime/store.py`'s interface (a folder at `$PROPS_HOME/store` by
   default; nothing in the cloud): outputs as content-hashed files and listings, finish records, judgements per
   evidence state, evidence per check and output, accepts (the runner's automatic ones and the owner's), the owner's
-  rejects, waivers and spend yeses, the runner's clearances, the world's finish registry (append-only). Written
+  rejects, waivers and spend yeses, the runner's clearances, the environment's finish registry (append-only). Written
   once, never overwritten, and safe for lines side by side (each write lands whole through a `.partial` file of its
   own process; a write-once key is linked into place, so a second writer is refused); checkouts are read-only copies (never links to the stored bytes), made again
   when changed; an agent's process cannot write the framework
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout.
 - **`python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]`** and **`python -m score
-  status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place): the runner drives every line (the world's own nodes, then each place's) to its end with no agent
+  status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place): the runner drives every line (the environment's own nodes, then each place's) to its end with no agent
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
-  most `--jobs` at once (default 8), so a line waiting on a cloud step holds up no other, and a world node every line
+  most `--jobs` at once (default 8), so a line waiting on a cloud step holds up no other, and an environment node every line
   reads is made once. It starts each node the moment the nodes it reads stand accepted,
   gathers a gate's missing evidence itself (`Stage.gatherers`; a paid one cleared like a paid stage, and only when
   nothing else blocks the output) and waits on every cloud step itself. A node that does not end accepted stops its
@@ -39,7 +39,7 @@ stage as each stage is built; nothing moves before.
   held past `LOCK_WAIT` the waiter is blocked, never made again. A record or judgement another run stored first is
   taken as made, never an error; a make that writes into its read-only input's checkout fails and stores nothing.
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
-  leaves out the places its world data says it has nothing to do for), `World`,
+  leaves out the places its environment data says it has nothing to do for), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
   stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved
@@ -49,7 +49,12 @@ stage as each stage is built; nothing moves before.
   pinned models and every input, a declared folder's bytecode left out (`graph.source_hash`: each checkout writes its
   own __pycache__, #67; an accepted output whose key moved only by it is kept under the new key when its record is
   of a committed tree and the folder's sources at that commit, from git, hash as now: `Runner.kept_over_bytecode`,
-  "same sources, bytecode left out of the key", the proof in its record). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
+  "same sources, bytecode left out of the key", the proof in its record; one whose key only got narrower, a module
+  moved into FRAMEWORK unedited say, is kept too: `Runner.kept_by_narrowing`, its record's code version rebuilt
+  from git at its commit and every file read today read as then, a rewired stage, another Python or a dropped file
+  edited or deleted made again). `python -m score moved` lists the paid rows a tree would buy again;
+  `.githooks/pre-push-moved` refuses a push that moves one without a `Moved-rows:` reason (off until the owner
+  sets `git config score.movedCheck true` and calls it from his pre-push). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
   accepted output, unless given `--rebuy-reason "<why>"`, which goes into the run's log and the cloud ledger.
 - **`review/`** the review page of one output from its own record (who accepted it, and how the owner rejects it);
@@ -59,24 +64,24 @@ stage as each stage is built; nothing moves before.
   took is accepted "within the owner's accept of <date> (<output>)", one beyond it waits for him); and the owner's `reject` (the accepted output moves back to the one accepted
   before, later nodes that read it go stale, the runner never takes it again), `accept` (his own, a worse one with his
   reason), `waive` (one check passes for one key, with his reason; it ends when the key changes and shows on the page
-  and in status) `spend` (his override, a yes for a run outside the runner, node `override`) and `stop` (his money yes for a world: it
-  writes the world's stop line itself, so no yes waits on someone to copy it into a guard). `python -m
+  and in status) `spend` (his override, a yes for a run outside the runner, node `override`) and `stop` (his money yes for an environment: it
+  writes the environment's stop line itself, so no yes waits on someone to copy it into a guard). `python -m
   score.review ...` refuses those without a terminal, the store refuses their writes in an agent's process, and
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's ceiling has room for the estimate over
   the ledger and every open reservation, cleared under one lock so two lines never both spend the last euros; kept
   in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point; the forecast a
-  node is cleared at is its stage's measured runs, else its estimate; `guard.py`: the world's stop line, the owner's
-  money figure, refuses a paid job before it starts when its forecast with the world's spend since its first line and
-  every run in flight would pass it (one outbox line, free work goes on; in the framework's store a world with no
+  node is cleared at is its stage's measured runs, else its estimate; `guard.py`: the environment's stop line, the owner's
+  money figure, refuses a paid job before it starts when its forecast with the environment's spend since its first line and
+  every run in flight would pass it (one outbox line, free work goes on; in the framework's store an environment with no
   line is refused), and never stops a started job except a runaway past twice its forecast minutes), `engines`
   (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
   `vendored` (the table of every tool in `vendor/`: where it is called, or why it is left out; its test fails on a
   tool vendored and forgotten).
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
-  example: `assembly` on world 1's round-three stages as unverified seeds (placeholder and resting gates) and
-  `complete`. `terrain` (one world node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
+  example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
+  `complete`. `terrain` (one environment node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
   scale, slope, ground under objects and openings (its overlay). `surfaces` (step 1) is each place's own line of
   rows, the finish-map method to checked bake (its overlay; per-place data in
   `data/surfaces/`). `effects-layer` (experimental: the launch, airlock, garage, hangar, greenhouse, habitat, flat, camp and campgrounds) makes a place's effects layer from its record in
@@ -102,7 +107,7 @@ stage as each stage is built; nothing moves before.
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
   apply only to a place with `data/props/<place>.json`, which only the camp grounds have (their cairn). `cast`
   (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a
-  world node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes);
+  environment node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed
   body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `machines-layer` (experimental, `stages/machines`, its overlay) lays each place's machines
   (`data/machines/<place>.json`: the garage's rover) on what holds them up, gated on outline, parts present and
@@ -114,11 +119,11 @@ stage as each stage is built; nothing moves before.
   light layer: today's sky and lamps over the seed, one render with a light group a lamp, the lamps' strengths
   swept on it against the concept; the assembly takes the accepted layer (`assembly.LAYERS`). A
   stage reads without an earlier place stage that does not apply to its place
-  (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
+  (`Runner.reads`). Environment 1's record is `data/definitions/world.json`. The `images` environment (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
   `library@<place>` and `library-world` (free, the table's last rows, `stages/library`, its overlay) hand every
-  accepted output of the place's line and of the world to the creator's library through its own command
+  accepted output of the place's line and of the environment to the creator's library through its own command
   (`SCORE_LIB_*`, else `$PROPS_HOME/library.env`) and gate on the report it writes (`handover.json`): a place is
-  complete when its library node stands accepted, the world when every one does (`status` prints it).
+  complete when its library node stands accepted, the environment when every one does (`status` prints it).
 
 Rules:
 
@@ -149,7 +154,7 @@ Rules:
   to each gate's own judge, so moving a verdict re-keys no paid row. Write one only on the owner's decision.
 - **A gate never passes on missing evidence.** A check that needs evidence names it (`Check.evidence`); a judge that
   cannot tell answers unknown. Unknown blocks like fail.
-- **Method choices live in the stage's code or in accepted world data**; a stage's parameters are its true inputs.
+- **Method choices live in the stage's code or in accepted environment data**; a stage's parameters are its true inputs.
   Every file a stage or its checks read is a declared input (`Stage.files`), or its node will not rerun when it
   changes. Over-declare rather than miss one (assembly declares the whole inventory folder for this reason).
 - **Old outputs come in as unverified seeds** (`origin.json` in the output, a banner on the page), judged by the

@@ -32,6 +32,52 @@ def test_month_total():
     assert ledger.month_total("2026-09", batches) == 1.5
 
 
+NOW = 1_760_000_000.0  # a fixed now for the open-machine checks; started lines are written relative to it
+MONTH = "2025-10"  # NOW's month (2025-10-09 UTC)
+
+
+def started_line(name, minutes_ago, deadline_in=None, price=0.02):
+    """A rent-started line for machine `name` of run `pixal-7`, ordered `minutes_ago` before NOW."""
+    import time
+
+    line = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(NOW - minutes_ago * 60)),
+            "batch": f"rent-{name}", "kind": ledger.RENT_STARTED, "state": "started", "run": "pixal-7", "name": name,
+            "price": price, "euros": 0.0}
+    if deadline_in is not None:
+        line["deadline"] = NOW + deadline_in * 60
+    return line
+
+
+def test_a_running_machine_counts_in_the_month_before_its_run_row():
+    """Fault (review of C1, 2026-10-17): the started line held 0 euros and month_total ignored it, so the guard did
+    not count a machine running and not yet billed. It counts at its price from its order until now."""
+    lines = [started_line("pixal-7-1", 60, deadline_in=120)]
+    assert round(ledger.month_total(MONTH, lines, now=NOW), 2) == 1.2
+    assert ledger.open_rents(lines, NOW) == lines
+
+
+def test_a_machine_whose_run_died_counts_until_its_deadline():
+    """A run that died leaves no row; its machine is deleted by its watchdog at the deadline, so it counts until
+    then and no longer."""
+    lines = [started_line("pixal-7-1", 600, deadline_in=-360)]
+    assert round(ledger.month_total(MONTH, lines, now=NOW), 2) == 4.8
+
+
+def test_a_started_line_closes_with_its_run_row_its_delete_or_its_refusal():
+    """A started line is open only until its run's row, its machine's disk-and-address row (written at delete) or
+    its refused line: refused orders are told apart from orphaned machines."""
+    started = [started_line("pixal-7-1", 60, 120), started_line("pixal-7-2", 60, 120), started_line("other-1", 60, 120)]
+    started[2]["run"] = "other"
+    closing = [{"started": started[0]["started"], "batch": "pixal-7", "kind": "pixal", "euros": 1.5},
+               {"started": started[0]["started"], "batch": "disk-and-address-s1", "kind": "disk-and-address",
+                "name": "other-1", "euros": 0.1},
+               {"started": started[0]["started"], "batch": "rent-pixal-7-2", "kind": ledger.RENT_REFUSED,
+                "name": "pixal-7-2", "euros": 0.0}]
+    assert ledger.open_rents(started + closing, NOW) == []
+    assert ledger.open_rents(started + closing[2:], NOW) == [started[0], started[2]]
+    assert round(ledger.month_total(MONTH, started + closing, now=NOW), 2) == 1.6
+
+
 def test_list():
     with tempfile.TemporaryDirectory() as folder:
         picture = pathlib.Path(folder) / "crate.png"
@@ -214,6 +260,48 @@ def test_nothing_is_rented_outside_a_cleared_run():
         if kept[2] is not None:
             os.environ[compute.TICKET] = kept[2]
     assert ordered == []
+
+
+def test_a_rent_writes_its_started_line_before_the_order_is_sent():
+    """Fault (2026-10-17, C1): the ledger had a run's row only at its end, so a machine of a run that died first was
+    on the bill and nowhere in the ledger. The started line names the run and its ticket before the order goes."""
+    import time
+    import types
+    import provider
+    from score.adapters import compute
+
+    seen = []
+
+    def fake_scw(command, **options):
+        """The backend's scw call: what the ledger held when the order went, then a refusal."""
+        seen.append((command, ledger.entries()))
+        return types.SimpleNamespace(returncode=1, stdout="", stderr="out of quota")
+    kept = (batch.cloud.subprocess, batch.month_spent, batch.compute.require_cleared, ledger.LEDGER,
+            os.environ.get(compute.TICKET))
+    ledger.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"
+    os.environ[compute.TICKET] = "run-7 surfaces-paint"
+    batch.cloud.subprocess = types.SimpleNamespace(run=fake_scw)
+    batch.month_spent = lambda account: 0.0
+    batch.compute.require_cleared = lambda what: None
+    fleet = types.SimpleNamespace(folder=pathlib.Path(tempfile.mkdtemp()) / "pixal-run-7",
+                                  deadline=time.time() + 60, attempts=[])
+    offer = provider.Offer(0.01, 0, "L4", "zone-a", 0.01, "gpu-24gb", 0, "available")
+    try:
+        assert batch.rent(fleet, None, offer, 3) is None
+        after = ledger.entries()
+    finally:
+        batch.cloud.subprocess, batch.month_spent, batch.compute.require_cleared, ledger.LEDGER = kept[:4]
+        os.environ.pop(compute.TICKET)
+        if kept[4] is not None:
+            os.environ[compute.TICKET] = kept[4]
+    [(command, [line])] = seen
+    assert line["deadline"] == round(fleet.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+    assert [entry["kind"] for entry in after] == [ledger.RENT_STARTED, ledger.RENT_REFUSED]
+    assert after[1]["name"] == "pixal-run-7-3" and "out of quota" in after[1]["reason"]
+    assert command[:4] == ["scw", "instance", "server", "create"]
+    assert line["state"] == "started" and line["kind"] == ledger.RENT_STARTED and line["euros"] == 0.0
+    assert line["run"] == "pixal-run-7" and line["name"] == "pixal-run-7-3"
+    assert line["ticket"] == "run-7 surfaces-paint" and line["type"] == "L4" and line["zone"] == "zone-a"
 
 
 if __name__ == "__main__":

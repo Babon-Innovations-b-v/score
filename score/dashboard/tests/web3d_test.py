@@ -7,7 +7,7 @@ import json
 import pytest
 
 from score.dashboard import __main__ as commands
-from score.dashboard.web3d import convert
+from score.dashboard.web3d import convert, facts
 
 pytestmark = pytest.mark.django_db
 
@@ -41,8 +41,8 @@ def test_each_prim_is_named_by_the_layer_that_defines_it(tmp_path):
     (tmp_path / "alpha.usda").write_text('#usda 1.0\n(\n defaultPrim = "alpha"\n subLayers = [@./layers/light.usda@, '
                                          '@./layers/base.usda@]\n)\n')
     stage = Usd.Stage.Open(str(tmp_path / "alpha.usda"))
-    assert convert.layer_of(stage.GetPrimAtPath("/alpha/Wall")) == "base"
-    assert convert.layer_of(stage.GetPrimAtPath("/alpha/Lamp")) == "light"
+    assert facts.layer_of(stage.GetPrimAtPath("/alpha/Wall")) == "base"
+    assert facts.layer_of(stage.GetPrimAtPath("/alpha/Lamp")) == "light"
 
 
 def test_the_cameras_come_from_the_scene_record(monkeypatch, tmp_path):
@@ -58,11 +58,11 @@ def test_the_preview_pictures_are_made_smaller(tmp_path):
     from PIL import Image
     source = tmp_path / "gltf"
     source.mkdir()
-    (source / "alpha.gltf").write_text("{}")
+    (source / "alpha.gltf").write_text('{"images": [{"uri": "wall.jpg"}]}')
     Image.new("RGB", (600, 300)).save(source / "wall.jpg")
-    copied = convert.smaller_copy(source / "alpha.gltf", tmp_path / "light", 128)
+    copied = convert.webp_copy(source / "alpha.gltf", tmp_path / "light", 128)
     assert copied == tmp_path / "light/alpha.gltf"
-    with Image.open(tmp_path / "light/wall.jpg") as smaller:
+    with Image.open(tmp_path / "light/wall.webp") as smaller:
         assert max(smaller.size) == 128
     with Image.open(source / "wall.jpg") as kept:
         assert kept.size == (600, 300)

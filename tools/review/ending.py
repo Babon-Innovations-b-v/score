@@ -1,7 +1,7 @@
-"""The two closing clips of demo K9 (the world 1 video), made locally from the store with no cloud and no Blender:
+"""The two closing clips of demo K9 (the environment 1 video), made locally from the store with no cloud and no Blender:
 `layers`, one place's accepted assembly (assembly@<place>) shown as its layer stack lifting off layer by layer, each
 layer drawn from the prims it holds (top view, at their place in the composed stage), then every place's layer count;
-and `ready`, what world 1 delivers for score_lib (not built yet), a card per count with its tiles, from a counts file
+and `ready`, what environment 1 delivers for score_lib (not built yet), a card per count with its tiles, from a counts file
 (a list of {label, count, how, tiles: [[source, caption], ...]}, counted from the store and repository).
 
     .venv/bin/python tools/review/ending.py layers <out.mp4> [--place garage]

@@ -21,7 +21,7 @@ class ChangeRequest(models.Model):
 
 
 class BasketItem(models.Model):
-    """One step queued for a launch: a place's stage, or a world stage (place empty)."""
+    """One step queued for a launch: a place's stage, or an environment stage (place empty)."""
 
     place = models.CharField(max_length=100, blank=True)
     stage = models.CharField(max_length=100)
@@ -174,6 +174,21 @@ class Checkout(models.Model):
 
     class Meta:
         ordering = ["-at"]
+
+
+class ProposalChoice(models.Model):
+    """The owner's answer to one fix on the Changes to buy page: buy it, or not now, at the commit he saw. A buy puts
+    the fix branch in the checkout's basket (BasketBranch) on the store's machine."""
+
+    branch = models.CharField(max_length=100, unique=True)
+    commit = models.CharField(max_length=40)
+    choice = models.CharField(max_length=10)  # buy, later
+    by = models.CharField(max_length=150)
+    at = models.DateTimeField(auto_now=True)
+    applied = models.TextField(blank=True)  # what the store's machine did with it, in words; empty while queued
+
+    class Meta:
+        ordering = ["branch"]
 
 
 def is_owner(user):

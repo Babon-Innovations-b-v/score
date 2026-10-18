@@ -1,5 +1,5 @@
 """The people's surface line: the surface stage's finish-map method and its paint, unchanged, on the takes of
-data/people/surfaces.json (each look's Pixal3D take), as world rows people-inputs ... people-paint. The owner's plan
+data/people/surfaces.json (each look's Pixal3D take), as environment rows people-inputs ... people-paint. The owner's plan
 of 2026-10-11 (#5): a person's clothing is painted through the same surface stage as the props. No bake or check
 rows: a person is not baked into a place; the dress rows (bodies.py) lay the paint's library surfaces on the built
 body.
@@ -27,7 +27,7 @@ PIXAL = "{home}/work/pixal"
 
 
 def shape_files():
-    """surface_data.shape_files' world files for the people's data (not a place's: data/surfaces holds places only)."""
+    """surface_data.shape_files' environment files for the people's data (not a place's: data/surfaces holds places only)."""
     found = {"surfaces": "{data}/people/surfaces.json"}
     for take in json.loads(DATA.read_text())["takes"]:
         found.update({f"model {take}": f"{PIXAL}/{take}.glb", f"close-up {take}": f"{PIXAL}/{take}.svviews",
@@ -43,7 +43,7 @@ PAINT = {**NAMING, "resting rules": "{data}/checks/resting.json",
 
 
 def row(name, make, faults, checks, files, after=(), **more):
-    """One world row of the line: the surface stage's make and judges, its inputs named as the surface stage's."""
+    """One environment row of the line: the surface stage's make and judges, its inputs named as the surface stage's."""
     return graph.Stage(name, "world", renamed.make(make), contracts.Contract(name, 1, faults),
                        tuple(guarded(check, renamed.judge(judge)) for check, judge in checks), files=files,
                        after={earlier: (earlier, 1) for earlier in after}, **more)

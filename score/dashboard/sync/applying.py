@@ -1,7 +1,8 @@
 """The store's machine applies a hosted request locally: a change request into the inbox, the owner's decision
 through score.review.web.decide and the owner's advance into this machine's marks (each only when its user is the
 local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
-marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend."""
+marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
+owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py)."""
 import dataclasses
 
 from django.conf import settings
@@ -110,6 +111,40 @@ def apply_library(item):
     return Applied("refused" if said.startswith("refused") else "done", said)
 
 
+def apply_proposal(item):
+    """The owner's buy or not now of a fix branch, kept here and carried out into the checkout's basket."""
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    from score.dashboard.pages import changes
+    from score.dashboard.pages.models import ProposalChoice
+    payload = item["payload"]
+    if payload.get("choice") not in changes.CHOICES:
+        return Applied("refused", f"{payload.get('choice')!r} is neither buy nor not now")
+    ProposalChoice.objects.update_or_create(branch=payload["branch"], defaults={
+        "commit": payload["commit"], "choice": payload["choice"], "by": item["user"], "applied": ""})
+    said = changes.carried_out(payload["branch"], payload["commit"], payload["choice"])
+    return Applied("refused" if said.startswith("refused") else "done", said)
+
+
+def apply_checkout(item):
+    """The owner's hosted checkout, run here in this pass (checkout/flow.py, every refusal of a local checkout), only
+    when this machine's basket holds exactly the fixes he bought, at the commits he saw."""
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    from django.contrib.auth import get_user_model
+
+    from score.dashboard.checkout import flow
+    from score.dashboard.pages.models import BasketBranch
+    seen = sorted((fix["branch"], fix["commit"]) for fix in item["payload"].get("fixes", []))
+    here = sorted(BasketBranch.objects.values_list("branch", "head"))
+    if seen != here:
+        return Applied("refused", "the basket here is not what you bought: "
+                                  f"you saw {[branch for branch, _ in seen]}, here {[branch for branch, _ in here]}")
+    owner, _ = get_user_model().objects.get_or_create(username=item["user"])
+    record, said = flow.start(owner, item["payload"]["key"], True, at_once=True)
+    return Applied("done" if record is not None and record.state in ("launched", "landed") else "refused", said)
+
+
 def apply(item, source, chosen=None):
     """Apply one hosted request; Applied."""
     kind = item["kind"]
@@ -123,4 +158,8 @@ def apply(item, source, chosen=None):
         return apply_launch(item, source, chosen)
     if kind == "library":
         return apply_library(item)
+    if kind == "proposal":
+        return apply_proposal(item)
+    if kind == "checkout":
+        return apply_checkout(item)
     return Applied("refused", f"unknown request kind {kind!r}")

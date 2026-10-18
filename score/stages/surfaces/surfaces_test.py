@@ -97,7 +97,7 @@ def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
         shutil.copytree(REPO / "data" / folder, data / folder)
     (data / "surfaces").mkdir()
     shutil.copy(surface_data.path("greenhouse"), data / "surfaces")
-    world = graph.World("world1", 1, {"data": str(data), "home": str(home), "repo": str(REPO), "seeds": str(home)})
+    world = graph.Environment("world1", 1, {"data": str(data), "home": str(home), "repo": str(REPO), "seeds": str(home)})
     runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
     for stage in surfaces.ROWS:  # each file a row names, written small in the test's own home
         for name in runner.files_of(stage, "greenhouse"):
@@ -135,7 +135,7 @@ def test_the_turntable_job_names_no_folder_of_the_run_that_made_it():
 
 
 def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothing_to_paint_has_no_rows():
-    world = graph.World("world1", 1, {"data": str(REPO / "data"), "home": tempfile.mkdtemp(), "repo": str(REPO),
+    world = graph.Environment("world1", 1, {"data": str(REPO / "data"), "home": tempfile.mkdtemp(), "repo": str(REPO),
                                       "seeds": tempfile.mkdtemp()})
     runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
     rows = {stage.name: stage for stage in surfaces.ROWS}

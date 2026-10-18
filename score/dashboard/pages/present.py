@@ -10,8 +10,6 @@ GAP_COUNT = re.compile(r"named gaps \((\d+)\)")
 OWN_LOOKS = "Each in its own look"
 NO_LOOK = "Not given a look yet"
 STATE_WORDS = {"accepted": "done", "waiting": "to review", "stopped": "stopped", "not run": "not run"}
-# Each layer group of the chain, named as the paper's order reads it.
-SEGMENT_NAMES = {"base": "plan", groups.STAGE_AND_FILMS: "result"}
 
 
 def humane(key):
@@ -176,18 +174,6 @@ def picture_tile(label, picture, words):
             "unseen": False, "paid": False}
 
 
-def chain(detail, style, step_url):
-    """The chain in paper order: [{name, tiles}]: the look's reference and the concept, the plan, the pieces, each
-    OpenUSD layer, then the result."""
-    found = [{"name": "reference and concept", "tiles": [
-        picture_tile("reference", style.picture if style else None, "the look"),
-        picture_tile("concept", detail.concept, "the place")]}]
-    for layer in detail.layers:
-        found.append({"name": SEGMENT_NAMES.get(layer.name, layer.name), "tiles": [
-            step_tile(step, step_url(detail.place, step.stage)) for step in layer.steps]})
-    return found
-
-
 def first_clause(text, limit=110):
     """The text up to its first colon or semicolon, cut at a word under `limit`."""
     clause = re.split(r":\s|;\s", text.strip(), maxsplit=1)[0].strip().rstrip(".")
@@ -294,19 +280,27 @@ def basket_of(found):
 STOP_LINE = '.venv/bin/python -m score.review stop {world} <euros> --reason "what it is for"'
 
 
+def environment_name(stored):
+    """An environment's id in the owner's words: `world1` (the stored id, kept so no node is made again) as
+    "Environment 1"; any other id as it is."""
+    numbered = re.fullmatch(r"world(\d+)", stored or "")
+    return f"Environment {numbered.group(1)}" if numbered else stored
+
+
 def share(part, whole):
     return min(100.0, 100.0 * part / whole) if part is not None and whole else None
 
 
 def money(view, planned):
     """The money card from the month's MoneyView (state/money.py): the month's total ("at least" while a line is
-    partial or missing, "not known yet" when no line has a number), a line per source, and the world against its
-    stop, or the terminal line that sets one."""
+    partial or missing, "not known yet" when no line has a number), a line per source, and the environment
+    against its stop, or the terminal line that sets one."""
     known = [line for line in view.lines if line.euros is not None]
     spent = view.world_spent or 0.0
     flight = view.in_flight or 0.0
     return {"month": view.month, "total": view.total.euros if known else None, "whole": view.total.whole,
-            "gaps": view.total.gaps, "lines": view.lines, "world": view.world or "this world",
+            "gaps": view.total.gaps, "lines": view.lines,
+            "environment": environment_name(view.world) if view.world else "this environment",
             "stop": view.stop, "spent": view.world_spent, "in_flight": view.in_flight,
             "spent_share": share(spent, view.stop), "flight_share": share(flight, view.stop),
             "room": round(view.stop - spent - flight, 2) if view.stop else None,
