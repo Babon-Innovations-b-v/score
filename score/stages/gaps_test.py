@@ -62,9 +62,18 @@ def test_a_gap_is_an_input_of_complete_and_of_the_row_it_names_alone():
     assert gaps.NAME in ROWS["assembly"].files("lab") and gaps.NAME not in ROWS["surfaces-paint"].files("lab")
 
 
-def test_the_hangars_twelve_ship_meshes_move_from_placeholders():
-    entry = gaps.entries(recorded("hangar"), "assembly", "placeholders")
-    assert len(entry[0]["objects"]) == 12 and entry[0]["name"] == "ship: no made model"
+# The hangar's gap for its code-built stand-in ship as it stood until 2026-10-18 (two of its twelve meshes), when the
+# ship was built in code from the plan v7 as a kit piece and the gap went.
+SHIP_GAP = {"name": "ship: no made model", "row": "assembly", "check": "placeholders",
+            "decided": "owner, 2026-10-14 08:40",
+            "objects": ["/hangar/Structure/ship", "/hangar/Structure/ship_legs"],
+            "faults": [f"/hangar/Structure/{name}: plain: drawn by the record's {builder} builder without saying which "
+                       "plain thing it is (a made piece's stand-in)"
+                       for name, builder in (("ship", "ship_hull"), ("ship_legs", "ship_legs"))]}
+
+
+def test_a_placeholders_gap_moves_its_named_meshes_and_no_other():
+    entry = [SHIP_GAP]
     assert gaps.moved(failed("placeholders", entry[0]["faults"]), entry).answer == checks.PASS
     stand_in = "/hangar/Structure/crate: plain: drawn by the record's box builder (a made piece's stand-in)"
     assert gaps.moved(failed("placeholders", [*entry[0]["faults"], stand_in]), entry).answer == checks.FAIL

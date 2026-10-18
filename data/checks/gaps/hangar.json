@@ -1,41 +1,6 @@
 {
  "gaps": [
   {
-   "name": "ship: no made model",
-   "row": "assembly",
-   "check": "placeholders",
-   "objects": [
-    "/hangar/Structure/ship",
-    "/hangar/Structure/ship_2",
-    "/hangar/Structure/ship_3",
-    "/hangar/Structure/ship_4",
-    "/hangar/Structure/ship_5",
-    "/hangar/Structure/ship_6",
-    "/hangar/Structure/ship_7",
-    "/hangar/Structure/ship_8",
-    "/hangar/Structure/ship_9",
-    "/hangar/Structure/ship_10",
-    "/hangar/Structure/ship_legs",
-    "/hangar/Structure/ship_legs_2"
-   ],
-   "reason": "the hangar ships today with its code-built ship as a named fail; a made ship model comes next month",
-   "decided": "owner, 2026-10-14 08:40",
-   "faults": [
-    "/hangar/Structure/ship: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_2: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_3: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_4: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_5: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_6: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_7: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_8: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_9: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_10: plain: drawn by the record's ship_hull builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_legs: plain: drawn by the record's ship_legs builder without saying which plain thing it is (a made piece's stand-in)",
-    "/hangar/Structure/ship_legs_2: plain: drawn by the record's ship_legs builder without saying which plain thing it is (a made piece's stand-in)"
-   ]
-  },
-  {
    "name": "hangar: layout taken from the source game: 16 citations, 10 positions",
    "row": "complete",
    "check": "game",
@@ -50,20 +15,6 @@
     "data/scene/hangar.json: 13 entries take their numbers from the game (from), 10 positions placed from it",
     "data/motion/hangar.json: 2 entries take their numbers from the game (from), 0 positions placed from it",
     "data/movers/hangar.json: 1 entries take their numbers from the game (from), 0 positions placed from it"
-   ]
-  },
-  {
-   "name": "hangar: the nose thruster bakes out of its close-up's light-dark order",
-   "row": "surfaces-check",
-   "check": "baked matches its surfaces",
-   "objects": [
-    "nose_thruster_1"
-   ],
-   "contains": " in its close-up but bakes ",
-   "reason": "the library's crane_yellow_paint lies only 0.2 L* over plastic_grey, and the hangar's dirt bakes it 4.6 darker, so a thruster its close-up shows 19.2 L* lighter bakes 4.4 darker; held until the narrower order rule next month",
-   "decided": "overseer, 2026-10-15, until the narrower order rule next month",
-   "faults": [
-    "nose_thruster_1: crane_yellow_paint is 19.2 L* lighter than plastic_grey in its close-up but bakes 4.4 darker"
    ]
   },
   {
@@ -151,7 +102,7 @@
     "pressure_gauge",
     "ship_bench"
    ],
-   "reason": "data/props/hangar.json lists only the ship and its thrusters, so no likeness output holds these rows, as for storage's parts crate (data/checks/gaps/storage.json); up to EUR 55 per place, outside world 1's budget",
+   "reason": "data/props/hangar.json lists none of them (the ship and its thrusters, which it listed, are built in code since 2026-10-18), so no likeness output holds these rows, as for storage's parts crate (data/checks/gaps/storage.json); up to EUR 55 per place, outside world 1's budget",
    "decided": "the overseer's decision, 2026-10-16",
    "faults": [
     "access_stair: generated, not held to its close-up by likeness@hangar",

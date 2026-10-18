@@ -1,24 +1,7 @@
 {
  "place": "hangar",
  "order": "prop-first",
- "objects": {
-  "ship": {
-   "route": "prop",
-   "take": "ship-s1"
-  },
-  "main_engine": {
-   "route": "prop",
-   "take": "main_engine-s1"
-  },
-  "lift_thruster": {
-   "route": "prop",
-   "take": "lift_thruster-s1"
-  },
-  "nose_thruster": {
-   "route": "prop",
-   "take": "nose_thruster-s1"
-  }
- },
+ "objects": {},
  "fallback": {},
  "accepted": {
   "chair_1": {

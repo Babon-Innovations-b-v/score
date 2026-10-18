@@ -3,8 +3,9 @@ nothing fails, a lathe called a ship fails, a room's own walls pass, a kit piece
 sends its kind to code and fails when the sorter sends it to the prop pipeline, a mesh with no material or in the
 default grey fails, a clear haze shell passes, a proxy fails, and a guide mesh and another place's stage are not
 judged. The hangar's case (the owner's demo of 2026-10-11: the check passed the code-built ship he saw as a
-placeholder): its record's ship_hull and ship_legs fail until a made model stands in their place, and today's hangar
-stage (HANGAR_STAGE, when this machine has it) fails.
+placeholder): the ship_hull and ship_legs its record drew until 2026-10-18 fail and a made model in their place passes,
+and today's hangar stage (HANGAR_STAGE, when this machine has it) fails while it still holds them (since 2026-10-18 the
+record lays no ship: the kit's code-built ship stands on the pads, judged by the sorter rule).
 
 Run: .venv/bin/python tools/usd/placeholders_test.py   (make tests runs it with the framework's environment)
 """
@@ -26,6 +27,22 @@ REPO = HERE.parents[1]
 # The world 1 demo's hangar stage (r4 was filmed from it), outside the repo: checked when this machine has it.
 HANGAR_STAGE = pathlib.Path.home() / ".farm-factory-props/work/usd-r3/hangar/hangar.usda"
 HANGAR_SHIP = ("ship", "ship_legs")
+# The game's upright ship as the hangar's scene record drew it until 2026-10-18, its two code builders.
+OLD_HANGAR_SHIP = [{'name': 'ship',
+                     'builder': 'ship_hull',
+                     'centre': [0.0, 0.5, 8.9],
+                     'surface': 'hull_white_gloss',
+                     'nose_surface': 'painted_panel',
+                     'band_surface': 'hazard_paint',
+                     'stripe_surface': 'dark_panel',
+                     'seam_surface': 'bare_steel',
+                     'steel_surface': 'bare_steel',
+                     'glass_surface': 'glass'},
+                    {'name': 'ship_legs',
+                     'builder': 'ship_legs',
+                     'centre': [0.0, 0.5, 8.9],
+                     'surface': 'bare_steel',
+                     'foot_surface': 'painted_panel'}]
 RECORD = {"structure": [
     {"name": "walls", "builder": "room_walls", "wide": 4.0, "deep": 5.0, "corner": 0.6, "high": 2.8,
      "surface": "roof_steel_paint", "doors": []},
@@ -114,10 +131,9 @@ def every_rule_catches_its_case():
 
 
 def hangar_stage(folder, ship_made):
-    """A stage with the hangar record's ship: drawn by its code builders, or (ship_made) left out of the record with a
-    made model standing in its place as a kit piece; its path."""
-    record = json.loads((REPO / "data/scene/hangar.json").read_text())
-    entries = [entry for entry in record["structure"] if entry["name"] in HANGAR_SHIP]
+    """A stage with the hangar record's old ship: drawn by its code builders, or (ship_made) left out of the record with
+    a made model standing in its place as a kit piece; its path."""
+    entries = OLD_HANGAR_SHIP
     path = folder / "hangar.usda"
     stage = Usd.Stage.CreateNew(str(path))
     stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, "/hangar").GetPrim())
@@ -152,8 +168,10 @@ def todays_hangar_fails():
     if not HANGAR_STAGE.exists():
         print(f"todays_hangar_fails: skipped, no {HANGAR_STAGE} on this machine")
         return []
+    stage = Usd.Stage.Open(str(HANGAR_STAGE))
+    held = [name for name in HANGAR_SHIP if stage.GetPrimAtPath(f"/hangar/Structure/{name}").IsValid()]
     caught = {fault["prim"] for fault in placeholders.check(HANGAR_STAGE) if fault["rule"] == "plain"}
-    return [f"/hangar/Structure/{name} on today's hangar stage was not caught" for name in HANGAR_SHIP
+    return [f"/hangar/Structure/{name} on today's hangar stage was not caught" for name in held
             if f"/hangar/Structure/{name}" not in caught]
 
 
