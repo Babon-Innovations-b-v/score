@@ -120,6 +120,12 @@ def place_pictures(bundles):
         gap["picture"] for detail in details for gap in detail.get("gaps") or [] if gap.get("picture")]
 
 
+def check_pictures(bundles):
+    """The picture of every standalone check finding of the places, as FileRef dicts."""
+    return [finding["picture"] for bundle in bundles if bundle["detail"]
+            for finding in bundle["detail"].get("checks", []) if finding.get("picture")]
+
+
 def films(world):
     return [card.film for engine in world.engines for style in engine.styles for card in style.places if card.film]
 
@@ -156,6 +162,8 @@ def build(source, out, made_at, cap_mb, spend, repo):
         filler.picture(source.file(hero.sha)[1], hero.sha, HERO_SIDE, f"picture {hero.name}")
     for picture in place_pictures(bundles):
         filler.picture(source.file(picture["sha"])[1], picture["sha"], HERO_SIDE, f"picture {picture['name']}")
+    for found in check_pictures(bundles):
+        filler.picture(source.file(found["sha"])[1], found["sha"], HERO_SIDE, f"check {found['name']}")
     nodes = pictures_by_node(bundles)
     for rank in range(NEWEST_PER_NODE):  # each node's first thumbnail before any node's second
         for node, images in nodes:
