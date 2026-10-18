@@ -26,10 +26,16 @@ def plan_picture(plan, destination):
             axes.plot(middle[0], middle[2], marker="s", markersize=6, color=canvas.INK)
             axes.text(middle[0], middle[2], f" door {door.get('name', '')}", fontsize=6, color=canvas.INK)
     for spot in plan.get("standing") or []:
-        if len(spot.get("at") or []) == 2:
-            axes.plot(spot["at"][0], spot["at"][1], marker="o", markersize=4, color=MOVED)
+        point = standing_point(spot)
+        if point:
+            axes.plot(point[0], point[1], marker="o", markersize=4, color=MOVED)
     canvas.title(axes, plan.get("title") or plan.get("place") or "plan")
     return canvas.save(figure, [axes], destination)
+
+
+def standing_point(spot):
+    """(x, z) of a standing point, written as {"at": [x, z]} or as the bare [x, z] or [x, y, z]; None otherwise."""
+    return ground_point(spot.get("at")) if isinstance(spot, dict) else ground_point(spot)
 
 
 def ground_point(value):
