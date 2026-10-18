@@ -294,6 +294,7 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world):
                          "node": "closeup@alpha", "output": "o", "decision": "reject"}}])
     said = client.sync_pass(hosted, world.source, FakeBackend())
     assert "pushed the export" in said and "0 still to come" in said and len(hosted.commits) == 1
+    assert "library problems" in said, said  # the library sweep ran before the export was built
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 
 

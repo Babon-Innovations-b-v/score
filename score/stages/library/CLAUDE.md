@@ -19,4 +19,12 @@ is in a world shows up in the library by construction, never by an agent's hand.
   accepted bakes, read only. A change of that check's rules is made there, never here.
 - **A library-free world** is an owner's dated decision in `data/checks/library-free.json`; write one only on his
   word.
-- `library_test.py` drives the runner over a toy table with a fake library command.
+- **The invariant** (`invariant.py`, pure; `sweep.py` gathers and writes): each library node's accepted handover
+  against the library's entries and the store's accepted outputs, one plain problem a mismatch (not handed, not in
+  the library, made from an output that moved on, shown nowhere, not pushed). Every cockpit sync pass runs the sweep
+  first (`score/dashboard/sync/client.py` `library_sweep`) and writes `WORK/checks/library-handover/<place>/
+  findings.json`, which the place pages show as problems; by hand: `.venv/bin/python -m score.stages.library.sweep`.
+  Neither is imported by the rows, so editing them re-keys nothing. The export side (library rows against the
+  export's `library/entries.json`) is not compared yet.
+- `library_test.py` drives the runner over a toy table with a fake library command; `invariant_test.py` each
+  mismatch on small fixed sets.
