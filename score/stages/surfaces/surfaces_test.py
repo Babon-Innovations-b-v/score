@@ -6,6 +6,7 @@ that model instead of crashing or passing. No cloud, no paid step.
 
 Run: .venv/bin/python score/stages/surfaces/surfaces_test.py
 """
+import inspect
 import json
 import os
 import pathlib
@@ -270,7 +271,9 @@ def test_a_clean_label_border_passes_and_a_black_smudge_along_it_fails():
         smudge.append(row)
     faults = bake_check.surface_faults("seed_tray_1", paper_record(smudge))
     assert len(faults) == 1 and "printed_paper" in faults[0] and "near black" in faults[0], faults
-    assert {stage.name: stage for stage in stages.STAGES}["surfaces-check"].make is bake_check.make_check
+    # the table wraps the make (stages/gaps.py: a named gap moves a fault, the wrapper unwraps to the judge)
+    assert inspect.unwrap({stage.name: stage for stage in stages.STAGES}["surfaces-check"].make) \
+        is bake_check.make_check
 
 
 # The flat's quilt_cotton as the library resolves it (linear RGB): red cotton, ink-line seams as its second.

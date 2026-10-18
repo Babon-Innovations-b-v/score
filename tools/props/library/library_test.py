@@ -130,7 +130,8 @@ def chunky_default_wall():
     """make_chunky's default_wall with the constants it reads, taken from its text (make_chunky needs Blender)."""
     tree = ast.parse((HERE / "inside/make_chunky.py").read_text())
     names = {"WALL", "WALL_VOXELS", "VOXEL_SHARE", "VOXEL_FINEST"}
-    kept = [node for node in tree.body if isinstance(node, ast.Assign) and node.targets[0].id in names
+    kept = [node for node in tree.body if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id in names
             or isinstance(node, ast.FunctionDef) and node.name == "default_wall"]
     space = {}
     exec(compile(ast.Module(body=kept, type_ignores=[]), "make_chunky", "exec"), space)
