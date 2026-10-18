@@ -106,7 +106,7 @@ def flagged_surfaces(place):
                 for name, entry in family.get("variants", {}).items()}
     places = json.loads(PLACES.read_text())
     entry_of = places.get(place) or places.get(host_of(place), {})  # a part takes its host's library surfaces
-    taken = {entry["library"] for entry in entry_of.get("materials", {}).values()}
+    taken = {entry["library"] for entry in entry_of.get("materials", {}).values() if "library" in entry}
     return {name: variants[name]["said"] for name in sorted(taken)
             if name in variants and OWNER_REVIEW in str(variants[name].get("said", ""))}
 
