@@ -82,6 +82,9 @@ RETRIES, RETRY_WAIT = 4, 30
 # time: a second run waits on the first's lock, then finds its record. One held longer than LOCK_WAIT seconds blocks
 # the waiter rather than be broken, so nothing is paid twice; a holder's death lets go of its lock at once.
 LOCK_WAIT, LOCK_POLL = 6 * 3600, 2
+# The folder a node makes into, named for its make and the processes it starts, so a cloud runner can keep each
+# finished job under the node's key and a rerun pay only for the jobs it lacks (tools/props/cloud/kept.py, C21).
+MAKING = "SCORE_MAKING"
 
 
 def transient(error):
@@ -252,6 +255,20 @@ def scoped(store):
     stage's code version and an edit there moves every key."""
     score_store.runtime_store.FolderStore.keys = scoped_keys
     return store
+
+
+@contextlib.contextmanager
+def making_in(folder):
+    """Name the folder a node makes into (MAKING) for its make and the processes it starts, while the block runs."""
+    before = os.environ.get(MAKING)
+    os.environ[MAKING] = str(folder)
+    try:
+        yield
+    finally:
+        if before is None:
+            os.environ.pop(MAKING, None)
+        else:
+            os.environ[MAKING] = before
 
 
 class Runner:
@@ -483,7 +500,7 @@ class Runner:
         out = self.store.making(keyed["key"])
         started, clock = now(), time.monotonic()
         inputs = self.input_paths(stage, place, keyed)
-        with cleared:
+        with cleared, making_in(out):
             stage.make(inputs, out, keyed["seed"], stage.params)
         if self.file_keys(stage, place) != keyed["files"]:
             raise RuntimeError(f"{node}: an input changed while it ran; nothing is stored")
@@ -491,6 +508,7 @@ class Runner:
         contracts.stamp(stage.contract, out)
         output = self.store.put_tree(out)
         shutil.rmtree(out)
+        self.drop_kept(node, keyed["key"])
         record = {"node": node, "key": keyed["key"], "output": output, "stage": stage.name, "place": keyed["place"],
                   "code": keyed["code"], "contract": keyed["contract"], "expects": keyed["expects"],
                   "params": keyed["params"], "seed": keyed["seed"], "files": keyed["files"], "after": keyed["after"],
@@ -503,6 +521,12 @@ class Runner:
         except FileExistsError:  # another run (one not taking the lock) stored this key first: its record stands
             return self.store.record(node, keyed["key"])
         return record
+
+    def drop_kept(self, node, key):
+        """Remove the jobs kept for an earlier try of this key (tools/props/cloud/kept.py): its output is stored."""
+        folder = self.store.cache.parent / "kept" / node / key
+        if folder.exists():
+            shutil.rmtree(folder)
 
     def unchanged_checkouts(self, node, inputs, keyed):
         """Raise when the make wrote into an earlier output's read-only checkout (light@camp saved over its input,
