@@ -89,7 +89,8 @@ stage as each stage is built; nothing moves before.
   neighbours output (else its assembly), reading its surfaces-check and likeness; one gate, two ways in
   (`stages/complete/complete_test.py` holds them equal). The library check (`stages/complete/library`, its overlay) is
   not one of its gates: a standalone check of the accepted assembly against the library, its findings the cockpit's
-  problems. A ship place's assembly lays its made
+  problems. Nor is the visual check (`stages/complete/visual`, its overlay): it reads the films, made only once
+  complete passes, and writes its findings, with their pictures, the same way. A ship place's assembly lays its made
   pieces on its kit-built base (`stages/assembly/ship_made.py`, in the table). `complete-boxes` (paid, the ship's
   places) measures the boxes no other row measures (code rows, rows taken from another place's take), so complete's
   box check has a verdict for each. The materials checks (`stages/complete/materials`, its overlay: texture detail
