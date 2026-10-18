@@ -32,29 +32,30 @@
 		"wall_fill": [],
 		"layout": {
 			"inside": [
-				26.0,
-				46.0
+				32.0,
+				64.0
 			],
 			"corner": 4.0,
-			"wall": 13.0,
+			"wall": 15.0,
 			"rise": 0.0,
 			"run": 0.0,
 			"roof": "flat",
 			"opening": [
-				22.0,
-				40.0
+				27.0,
+				55.0
 			],
 			"bands": [
 				1.1,
 				4.0,
 				7.0,
 				10.0,
-				13.0
+				13.0,
+				15.0
 			],
 			"posts": 6.0,
 			"rails": {
-				"high": 10.0,
-				"parked": -18.0,
+				"high": 12.0,
+				"parked": -26.0,
 				"gauge": 1.2
 			},
 			"doors": {
@@ -68,11 +69,16 @@
 			"features": {},
 			"leaf": {
 				"size": [
-					11.3,
-					40.6
+					13.8,
+					55.6
 				],
 				"lies": "roof",
 				"kit": "hdoor"
+			},
+			"ship": {
+				"x": 0.0,
+				"z": 0.0,
+				"facing": 180
 			}
 		}
 	},
@@ -553,58 +559,58 @@
 				},
 				{
 					"wall": "east",
-					"across": -12.0,
-					"bottom": 3.6
+					"across": -16.696,
+					"bottom": 4.2
 				},
 				{
 					"wall": "east",
-					"across": -6.0,
-					"bottom": 3.6
+					"across": -8.348,
+					"bottom": 4.2
 				},
 				{
 					"wall": "east",
-					"across": 6.0,
-					"bottom": 3.6
+					"across": 8.348,
+					"bottom": 4.2
 				},
 				{
 					"wall": "east",
-					"across": 12.0,
-					"bottom": 3.6
+					"across": 16.696,
+					"bottom": 4.2
 				},
 				{
 					"wall": "west",
-					"across": -12.0,
-					"bottom": 3.6
+					"across": -16.696,
+					"bottom": 4.2
 				},
 				{
 					"wall": "west",
-					"across": -6.0,
-					"bottom": 3.6
+					"across": -8.348,
+					"bottom": 4.2
 				},
 				{
 					"wall": "west",
-					"across": 6.0,
-					"bottom": 3.6
+					"across": 8.348,
+					"bottom": 4.2
 				},
 				{
 					"wall": "west",
-					"across": 12.0,
-					"bottom": 3.6
+					"across": 16.696,
+					"bottom": 4.2
 				},
 				{
 					"wall": "north",
-					"across": -6.0,
-					"bottom": 3.6
+					"across": -7.385,
+					"bottom": 4.2
 				},
 				{
 					"wall": "north",
 					"across": 0.0,
-					"bottom": 3.6
+					"bottom": 4.2
 				},
 				{
 					"wall": "north",
-					"across": 6.0,
-					"bottom": 3.6
+					"across": 7.385,
+					"bottom": 4.2
 				}
 			],
 			"light": {
@@ -675,16 +681,16 @@
 			"at": [
 				{
 					"x": 0.0,
-					"z": 22.45,
+					"z": 31.45,
 					"facing": 0
 				},
 				{
-					"x": -12.45,
+					"x": -15.45,
 					"z": 0.0,
 					"facing": 90
 				},
 				{
-					"x": 12.45,
+					"x": 15.45,
 					"z": 0.0,
 					"facing": 270
 				}
@@ -715,7 +721,7 @@
 					"across": 0.0,
 					"bottom": 3.2,
 					"size": [
-						36.0,
+						50.0,
 						0.1,
 						0.1
 					]
@@ -725,47 +731,47 @@
 					"across": 0.0,
 					"bottom": 3.55,
 					"size": [
-						36.0,
+						50.0,
 						0.1,
 						0.1
 					]
 				},
 				{
 					"wall": "west",
-					"across": -10.0,
+					"across": -13.913,
 					"bottom": 1.0,
 					"size": [
-						15.0,
+						21.0,
 						0.1,
 						0.1
 					]
 				},
 				{
 					"wall": "west",
-					"across": -10.0,
+					"across": -13.913,
 					"bottom": 1.6,
 					"size": [
-						15.0,
+						21.0,
 						0.1,
 						0.1
 					]
 				},
 				{
 					"wall": "west",
-					"across": 10.0,
+					"across": 13.913,
 					"bottom": 1.0,
 					"size": [
-						15.0,
+						21.0,
 						0.1,
 						0.1
 					]
 				},
 				{
 					"wall": "west",
-					"across": 10.0,
+					"across": 13.913,
 					"bottom": 1.6,
 					"size": [
-						15.0,
+						21.0,
 						0.1,
 						0.1
 					]
@@ -800,27 +806,27 @@
 			"at": [
 				{
 					"wall": "west",
-					"across": -5.7,
+					"across": -7.93,
 					"bottom": 3.1
 				},
 				{
 					"wall": "west",
-					"across": -6.0,
+					"across": -8.348,
 					"bottom": 0.9
 				},
 				{
 					"wall": "west",
-					"across": -13.0,
+					"across": -18.087,
 					"bottom": 1.5
 				},
 				{
 					"wall": "west",
-					"across": 6.0,
+					"across": 8.348,
 					"bottom": 0.9
 				},
 				{
 					"wall": "west",
-					"across": 13.0,
+					"across": 18.087,
 					"bottom": 1.5
 				}
 			],
@@ -860,7 +866,7 @@
 					"across": 0.0,
 					"bottom": 4.2,
 					"size": [
-						36.0,
+						50.0,
 						0.08,
 						0.12
 					]
@@ -874,7 +880,7 @@
 		},
 		{
 			"id": "machine_bay_plate",
-			"name": "the ship's pad: a heavy steel deck plate with tie-down points and a painted ring, set into the floor under the ship's legs",
+			"name": "the ship's pads: a heavy steel deck plate with tie-down points and a painted ring, set into the floor under each pair of the ship's legs",
 			"kind": "code",
 			"anchor": "floor",
 			"size": [
@@ -882,13 +888,18 @@
 				0.05,
 				7.2
 			],
-			"count": 1,
+			"count": 2,
 			"group": "kit: floor",
 			"made": "kit piece",
 			"at": [
 				{
 					"x": 0.0,
-					"z": 8.9,
+					"z": 6.677,
+					"facing": 0
+				},
+				{
+					"x": 0.0,
+					"z": -10.09,
 					"facing": 0
 				}
 			],
@@ -955,7 +966,7 @@
 			"made": "kit piece",
 			"at": [
 				{
-					"x": 10.5,
+					"x": 13.5,
 					"y": 0.0,
 					"z": 3.5,
 					"facing": 270
@@ -993,7 +1004,7 @@
 			"made": "kit piece",
 			"at": [
 				{
-					"x": -11.3,
+					"x": -14.3,
 					"y": 0.0,
 					"z": 6.0,
 					"facing": 90
@@ -1031,7 +1042,7 @@
 			"made": "kit piece",
 			"at": [
 				{
-					"x": -12.3,
+					"x": -15.3,
 					"y": 0.0,
 					"z": 8.0,
 					"facing": 90
@@ -1065,27 +1076,27 @@
 			"made": "kit piece",
 			"at": [
 				{
-					"x": 12.44,
+					"x": 15.44,
 					"y": 0.0,
-					"z": -17.423,
+					"z": -26.423,
 					"facing": 270
 				},
 				{
-					"x": 12.44,
+					"x": 15.44,
 					"y": 0.0,
-					"z": -14.346,
+					"z": -23.346,
 					"facing": 270
 				},
 				{
-					"x": 12.44,
+					"x": 15.44,
 					"y": 0.0,
-					"z": -11.023,
+					"z": -20.023,
 					"facing": 270
 				},
 				{
-					"x": 12.44,
+					"x": 15.44,
 					"y": 0.0,
-					"z": -7.976,
+					"z": -16.976,
 					"facing": 270
 				}
 			],
@@ -1111,27 +1122,27 @@
 			"made": "kit piece",
 			"at": [
 				{
-					"x": 8.0,
+					"x": 11.0,
 					"y": 0.0,
-					"z": -14.0,
+					"z": -23.0,
 					"facing": 0
 				},
 				{
-					"x": 9.4,
+					"x": 12.4,
 					"y": 0.0,
-					"z": -14.2,
+					"z": -23.2,
 					"facing": 10
 				},
 				{
-					"x": 8.2,
+					"x": 11.2,
 					"y": 0.0,
-					"z": -12.6,
+					"z": -21.6,
 					"facing": 355
 				},
 				{
-					"x": 8.1,
+					"x": 11.1,
 					"y": 1.0,
-					"z": -14.0,
+					"z": -23.0,
 					"facing": 5
 				}
 			],
@@ -1164,10 +1175,10 @@
 			"made": "kit piece",
 			"at": [
 				{
-					"x": 8.0,
+					"x": -9.213,
 					"y": 0.0,
-					"z": -2.8,
-					"facing": 270
+					"z": -5.639,
+					"facing": 90
 				}
 			],
 			"closeup": "/home/dupe/.claude/jobs/3326150f/tmp/place-gh/closeups/hangar/access_stair.png",
@@ -1182,7 +1193,8 @@
 			"thing": "prop:hangar_access_stair",
 			"box_from": [
 				"v1.w42"
-			]
+			],
+			"why": "stands at the ship's side ring, the docking hatch and the people airlock in one (data/definitions/ship.json side_ring, the starboard side: west with the nose south), its front to the hatch, so the crew walk up into the ship"
 		},
 		{
 			"id": "control_desk",
@@ -1201,7 +1213,7 @@
 				{
 					"x": 5.0,
 					"y": 0.0,
-					"z": 21.84,
+					"z": 30.84,
 					"facing": 0
 				}
 			],
@@ -1290,7 +1302,7 @@
 				{
 					"x": -6.0,
 					"y": 0.0,
-					"z": -22.59,
+					"z": -31.59,
 					"facing": 180
 				}
 			],
@@ -1327,13 +1339,13 @@
 				{
 					"x": -2.4,
 					"y": 0.0,
-					"z": -22.64,
+					"z": -31.64,
 					"facing": 180
 				},
 				{
 					"x": 0.0,
 					"y": 0.0,
-					"z": -22.64,
+					"z": -31.64,
 					"facing": 180
 				}
 			],
@@ -1368,17 +1380,17 @@
 				{
 					"x": -1.55,
 					"y": 1.6,
-					"z": 22.880000000000003,
+					"z": 31.88,
 					"facing": 0
 				},
 				{
-					"x": 12.879999999999999,
+					"x": 15.88,
 					"y": 1.6,
 					"z": 1.55,
 					"facing": 270
 				},
 				{
-					"x": -12.879999999999999,
+					"x": -15.88,
 					"y": 1.6,
 					"z": -1.55,
 					"facing": 90
@@ -1415,13 +1427,13 @@
 			"made": "kit piece",
 			"at": [
 				{
-					"x": -12.879999999999999,
+					"x": -15.88,
 					"y": 0.95,
 					"z": -4.0,
 					"facing": 90
 				},
 				{
-					"x": 12.879999999999999,
+					"x": 15.88,
 					"y": 0.95,
 					"z": -4.0,
 					"facing": 270
@@ -1429,7 +1441,7 @@
 				{
 					"x": 5.0,
 					"y": 1.05,
-					"z": 22.880000000000003,
+					"z": 31.88,
 					"facing": 0
 				}
 			],
@@ -1464,43 +1476,43 @@
 				{
 					"x": 0.0,
 					"y": 2.95,
-					"z": 22.84,
+					"z": 31.84,
 					"facing": 0
 				},
 				{
-					"x": -12.84,
+					"x": -15.84,
 					"y": 2.95,
 					"z": 0.0,
 					"facing": 90
 				},
 				{
-					"x": 12.84,
+					"x": 15.84,
 					"y": 2.95,
 					"z": 0.0,
 					"facing": 270
 				},
 				{
-					"x": -12.84,
-					"y": 12.3,
-					"z": -18.0,
+					"x": -15.84,
+					"y": 14.3,
+					"z": -25.043,
 					"facing": 90
 				},
 				{
-					"x": -12.84,
-					"y": 12.3,
-					"z": 18.0,
+					"x": -15.84,
+					"y": 14.3,
+					"z": 25.043,
 					"facing": 90
 				},
 				{
-					"x": 12.84,
-					"y": 12.3,
-					"z": -18.0,
+					"x": 15.84,
+					"y": 14.3,
+					"z": -25.043,
 					"facing": 270
 				},
 				{
-					"x": 12.84,
-					"y": 12.3,
-					"z": 18.0,
+					"x": 15.84,
+					"y": 14.3,
+					"z": 25.043,
 					"facing": 270
 				}
 			],
@@ -1535,51 +1547,51 @@
 			"made": "kit piece",
 			"at": [
 				{
-					"x": -12.69,
-					"y": 9.0,
-					"z": -18.0,
+					"x": -15.69,
+					"y": 10.5,
+					"z": -25.043,
 					"facing": 90
 				},
 				{
-					"x": -12.69,
-					"y": 9.0,
-					"z": -9.0,
+					"x": -15.69,
+					"y": 10.5,
+					"z": -12.522,
 					"facing": 90
 				},
 				{
-					"x": -12.69,
-					"y": 9.0,
-					"z": 9.0,
+					"x": -15.69,
+					"y": 10.5,
+					"z": 12.522,
 					"facing": 90
 				},
 				{
-					"x": -12.69,
-					"y": 9.0,
-					"z": 18.0,
+					"x": -15.69,
+					"y": 10.5,
+					"z": 25.043,
 					"facing": 90
 				},
 				{
-					"x": 12.69,
-					"y": 9.0,
-					"z": -18.0,
+					"x": 15.69,
+					"y": 10.5,
+					"z": -25.043,
 					"facing": 270
 				},
 				{
-					"x": 12.69,
-					"y": 9.0,
-					"z": -9.0,
+					"x": 15.69,
+					"y": 10.5,
+					"z": -12.522,
 					"facing": 270
 				},
 				{
-					"x": 12.69,
-					"y": 9.0,
-					"z": 9.0,
+					"x": 15.69,
+					"y": 10.5,
+					"z": 12.522,
 					"facing": 270
 				},
 				{
-					"x": 12.69,
-					"y": 9.0,
-					"z": 18.0,
+					"x": 15.69,
+					"y": 10.5,
+					"z": 25.043,
 					"facing": 270
 				}
 			],
@@ -1616,8 +1628,8 @@
 			"at": [
 				{
 					"x": 4.0,
-					"y": 9.72,
-					"z": -18.0,
+					"y": 11.72,
+					"z": -26.0,
 					"facing": 90
 				}
 			],
@@ -1637,23 +1649,25 @@
 				1379,
 				562
 			],
-			"name": "the crew's Mars shuttle: a long flat wedge-shaped hull of white panels over a dark grey lower hull, a squared-off snout, a cluster of dark window panes on its upper deck, small swept fins, two ribbed engine tubes set into the stern either side of a dark airlock block, a ring on its starboard side as hull detail, standing low on short landing legs",
-			"kind": "generate",
+			"name": "the crew's Mars shuttle: a long flat wedge-shaped hull of white panels on seams over a dark grey lower hull, a squared-off snout with a spike on its middle line, the cockpit's dark window panes over the nose, swept fins fore and aft, two ribbed engine tubes either side of the dark stern block, the side ring on its starboard side (the docking hatch and the people airlock in one), standing on two pairs of landing legs",
+			"kind": "code",
 			"anchor": "floor",
 			"size": [
-				9.02,
-				31.0,
-				5.43
+				16.3908,
+				46.0,
+				8.099
 			],
 			"count": 1,
-			"machine": true,
-			"why": "the machine the hangar holds (owner's look, 2026-10-01: flat wedge shuttle, white panels on a dark hull; concept K01 shows it standing on its legs on the pad, not lifting); its box is the four partition proposals that cover its hull (once dropped as the game's ship); the locked ship plan v7 (data/definitions/ship.json, the owner's ok of 2026-10-14): 9.02 m wide, 31 m long, 5.43 m tall on its legs; boxed on the owner's shuttle reference (v2: a shuttle concept by PAUL (zana), found online); made by the prop route, its thrusters separate made pieces (the owner, 2026-10-14)",
+			"why": "the machine the hangar holds (owner's look, 2026-10-01: flat wedge shuttle, white panels on a dark hull; concept K01 shows it standing on its legs on the pad, not lifting); its box is the four partition proposals that cover its hull; built in code from the locked ship plan v7 (data/definitions/ship.json, the owner's ok of 2026-10-14) at 46 m (2026-10-18, PRD #10: 1.5 times the drawing's 31 m, the hangar sized to it): its top and side outline, fins, spike, two leg pairs and side ring (tools/props/library/inside/ship_outline.py, pieces_hull.py; laid by tools/props/scene/bay_kit.py where the room layout's `ship` stands it), no picture-made hull: the prop route's take of the found picture never read the plan's numbers",
 			"thing": "prop:hangar_ship",
 			"ground_box": true,
 			"box_from": [
 				"v2.1",
 				"v2.2"
-			]
+			],
+			"made": "kit piece",
+			"group": "kit: ship",
+			"solid": true
 		},
 		{
 			"id": "main_engine",
@@ -1665,25 +1679,26 @@
 				274
 			],
 			"name": "main engine: a long ribbed dark grey tube with a round white nozzle housing at its back end",
-			"kind": "generate",
+			"kind": "code",
 			"anchor": "on:ship",
 			"size": [
-				1.0,
-				2.3,
-				1.0
+				1.484,
+				3.413,
+				1.484
 			],
 			"count": 2,
-			"machine": true,
 			"ground_box": true,
 			"parent": "ship",
 			"support": "fixed",
-			"support_why": "set into the ship's hull at its ship plan place, not standing on feet of its own (data/definitions/ship.json thrusters; read as held on the ship, surfaces-paint@hangar levelled its feet and failed the lift thruster's, 2026-10-15)",
+			"support_why": "set into the ship's hull at its ship plan place (data/definitions/ship.json thrusters), laid by the hangar's kit layout on the hull's surface",
 			"at": [],
-			"why": "a separate made piece set into the hull at its ship plan place (the owner, 2026-10-14; data/definitions/ship.json thrusters), boxed on the thruster sheet (v3)",
+			"why": "built in code (tools/props/library/inside/pieces_hull.py) and laid on the code-built hull where the ship plan v7 puts it (data/definitions/ship.json thrusters, read by ship_outline.mounts), on the hull's own surface: no picture-made piece (2026-10-18, PRD #10)",
 			"thing": "prop:hangar_main_engine",
 			"box_from": [
 				"v3.1"
-			]
+			],
+			"made": "kit piece",
+			"group": "kit: ship"
 		},
 		{
 			"id": "lift_thruster",
@@ -1695,27 +1710,28 @@
 				244
 			],
 			"name": "lift thruster: a round downward-facing nozzle with a louvred ring, set in a square dark grey belly plate",
-			"kind": "generate",
+			"kind": "code",
 			"anchor": "on:ship",
 			"size": [
-				1.0,
-				1.0,
-				0.4
+				1.484,
+				1.484,
+				0.3
 			],
 			"count": 4,
-			"machine": true,
 			"ground_box": true,
 			"parent": "ship",
 			"support": "fixed",
-			"support_why": "set into the ship's hull at its ship plan place, not standing on feet of its own (data/definitions/ship.json thrusters; read as held on the ship, surfaces-paint@hangar levelled its feet and failed the lift thruster's, 2026-10-15)",
+			"support_why": "set into the ship's hull at its ship plan place (data/definitions/ship.json thrusters), laid by the hangar's kit layout on the hull's surface",
 			"at": [],
-			"why": "a separate made piece set into the hull at its ship plan place (the owner, 2026-10-14; data/definitions/ship.json thrusters), boxed on the thruster sheet (v3)",
+			"why": "built in code (tools/props/library/inside/pieces_hull.py) and laid on the code-built hull where the ship plan v7 puts it (data/definitions/ship.json thrusters, read by ship_outline.mounts), on the hull's own surface: no picture-made piece (2026-10-18, PRD #10)",
 			"thing": "prop:hangar_lift_thruster",
 			"box_from": [
 				"v3.8",
 				"v3.12",
 				"v3.26"
-			]
+			],
+			"made": "kit piece",
+			"group": "kit: ship"
 		},
 		{
 			"id": "nose_thruster",
@@ -1727,25 +1743,26 @@
 				244
 			],
 			"name": "nose thruster: a small square port with three short copper nozzles in a dark grey plate",
-			"kind": "generate",
+			"kind": "code",
 			"anchor": "on:ship",
 			"size": [
-				0.3,
-				0.2,
-				0.3
+				0.297,
+				0.297,
+				0.25
 			],
 			"count": 4,
-			"machine": true,
 			"ground_box": true,
 			"parent": "ship",
 			"support": "fixed",
-			"support_why": "set into the ship's hull at its ship plan place, not standing on feet of its own (data/definitions/ship.json thrusters; read as held on the ship, surfaces-paint@hangar levelled its feet and failed the lift thruster's, 2026-10-15)",
+			"support_why": "set into the ship's hull at its ship plan place (data/definitions/ship.json thrusters), laid by the hangar's kit layout on the hull's surface",
 			"at": [],
-			"why": "a separate made piece set into the hull at its ship plan place (the owner, 2026-10-14; data/definitions/ship.json thrusters), boxed on the thruster sheet (v3)",
+			"why": "built in code (tools/props/library/inside/pieces_hull.py) and laid on the code-built hull where the ship plan v7 puts it (data/definitions/ship.json thrusters, read by ship_outline.mounts), on the hull's own surface: no picture-made piece (2026-10-18, PRD #10)",
 			"thing": "prop:hangar_nose_thruster",
 			"box_from": [
 				"v3.7"
-			]
+			],
+			"made": "kit piece",
+			"group": "kit: ship"
 		}
 	]
 }

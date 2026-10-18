@@ -9,8 +9,8 @@
    "placement": {
     "on": "Places",
     "offset": [
-     0.17,
-     13.33,
+     0.15,
+     15.33,
      0.0
     ]
    },
@@ -19,7 +19,7 @@
     "extents": [
      0.05,
      0.05,
-     20.0
+     27.5
     ]
    },
    "count": 20000,
@@ -72,14 +72,14 @@
    ],
    "space": "world",
    "seed": 521,
-   "from": "footage: S126E014192, STS075-313-022, soyuz-ms22-leak, NTRS-19910011413 (the air the pump leaves (a real airlock's pump stops short of empty and lets the rest out) leaving as the door first opens to the vacuum, its water frozen into fine ice that flies straight out at 16 to 30 m/s with nothing to slow it (NTRS-19910011413's 23 m/s, give or take 30 %), a cone about 14 to 33 degrees either side, under the Moon's 1.62 m/s2; the roof's leaves part from their seam (the west leaf's east edge, 5.67 m east of its middle) at 1 s (data/motion/hangar.json roof_leaf_west))"
+   "from": "footage: S126E014192, STS075-313-022, soyuz-ms22-leak, NTRS-19910011413 (the air the pump leaves (a real airlock's pump stops short of empty and lets the rest out) leaving as the door first opens to the vacuum, its water frozen into fine ice that flies straight out at 16 to 30 m/s with nothing to slow it (NTRS-19910011413's 23 m/s, give or take 30 %), a cone about 14 to 33 degrees either side, under the Moon's 1.62 m/s2; the roof's leaves part from their seam (the west leaf's east edge, 6.9 m east of its middle, the leaves sized to the ship's 27 x 55 m opening (2026-10-18)) at 1 s (data/motion/hangar.json roof_leaf_west))"
   },
   {
    "placement": {
     "on": "Places",
     "offset": [
-     0.17,
-     13.33,
+     0.15,
+     15.33,
      0.0
     ]
    },
@@ -88,7 +88,7 @@
     "extents": [
      0.05,
      0.05,
-     20.0
+     27.5
     ]
    },
    "lifetime": 1.2,
@@ -150,7 +150,7 @@
     ]
    ],
    "seed": 621,
-   "from": "footage: NTRS-19910011413, S126E014192 (the gas itself leaving with the ice, the fine fog of its vapour condensing again, seen as a faint fan of white leaving with the ice at its speed and diverging at its angle (NTRS-19910011413), each puff growing as it spreads so the fan stays one soft band (a vent seen in footage is a soft veil over the sparkling ice, never the ice alone); the roof's leaves part from their seam (the west leaf's east edge, 5.67 m east of its middle) at 1 s (data/motion/hangar.json roof_leaf_west))"
+   "from": "footage: NTRS-19910011413, S126E014192 (the gas itself leaving with the ice, the fine fog of its vapour condensing again, seen as a faint fan of white leaving with the ice at its speed and diverging at its angle (NTRS-19910011413), each puff growing as it spreads so the fan stays one soft band (a vent seen in footage is a soft veil over the sparkling ice, never the ice alone); the roof's leaves part from their seam (the west leaf's east edge, 6.9 m east of its middle, the leaves sized to the ship's 27 x 55 m opening (2026-10-18)) at 1 s (data/motion/hangar.json roof_leaf_west))"
   },
   {
    "name": "pump_fog",
@@ -238,13 +238,13 @@
   {
    "name": "roof-parts",
    "eye": [
-    0.0,
+    11.0,
     1.6,
     0.0
    ],
    "aim": [
     0.0,
-    13.0,
+    15.0,
     -6.0
    ],
    "fov": 70,
@@ -253,14 +253,14 @@
   {
    "name": "refill",
    "eye": [
-    -10.0,
+    -13.0,
     1.6,
-    -15.0
+    -24.0
    ],
    "aim": [
-    8.0,
+    10.0,
     4.0,
-    15.0
+    22.0
    ],
    "fov": 70,
    "frame": 480
@@ -268,14 +268,14 @@
   {
    "name": "pump-down",
    "eye": [
-    -10.0,
+    -13.0,
     1.6,
-    -15.0
+    -24.0
    ],
    "aim": [
-    8.0,
+    10.0,
     4.0,
-    15.0
+    22.0
    ],
    "fov": 70,
    "frame": 744

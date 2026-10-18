@@ -1,53 +1,62 @@
 {
  "title": "HANGAR (holds the ship)",
- "w": 26.0,
- "d": 46.0,
+ "w": 32.0,
+ "d": 64.0,
  "corner": 4.0,
  "grid": 2.0,
- "height": "walls 13 m to a flat roof; the big door is in the roof: two leaves slide apart east and west, a 22 x 40 m opening; the whole room is pumped empty of air before it opens",
+ "height": "walls 15 m to a flat roof; the big door is in the roof: two leaves slide apart east and west, a 27 x 55 m opening; the whole room is pumped empty of air before it opens",
  "doors": [
   [
    "S",
-   13.0,
+   16.0,
    2.2,
    "TUBE HATCH S"
   ],
   [
    "W",
-   23.0,
+   32.0,
    2.2,
    "TUBE HATCH W"
   ],
   [
    "E",
-   23.0,
+   32.0,
    2.2,
    "TUBE HATCH E"
   ]
  ],
  "items": [
   [
-   "ROOF DOOR OPENING 22 x 40 (overhead)",
-   2.0,
-   3.0,
-   22.0,
-   40.0,
+   "ROOF DOOR OPENING 27 x 55 (overhead)",
+   2.5,
+   4.5,
+   27.0,
+   55.0,
    null,
    "roof_door"
   ],
   [
-   "SHIP KEEP-OUT 12 x 31 (the ship, nose south)",
-   7.0,
-   7.5,
-   12.0,
-   31.0,
+   "SHIP KEEP-OUT 16.4 x 46 (the ship, nose south)",
+   7.8,
+   9.0,
+   16.39,
+   46.0,
    null,
    "zone"
   ],
   [
-   "SHIP PAD 7.2 across",
-   9.4,
-   28.3,
+   "SHIP PADS 7.2 across, one under each pair of legs",
+   12.4,
+   35.08,
+   7.2,
+   7.2,
+   null,
+   "item"
+  ],
+  [
+   "SHIP PADS 7.2 across, one under each pair of legs",
+   12.4,
+   18.31,
    7.2,
    7.2,
    null,
@@ -55,8 +64,8 @@
   ],
   [
    "SHIP BENCH",
-   23.6,
-   25.0,
+   29.6,
+   34.0,
    1.2,
    3.0,
    "W",
@@ -65,7 +74,7 @@
   [
    "FUEL POINT + HOSE REEL",
    1.0,
-   28.0,
+   37.0,
    1.4,
    1.4,
    "E",
@@ -73,7 +82,7 @@
   ],
   [
    "SHIP PARTS RACKS",
-   24.6,
+   30.6,
    6.0,
    1.4,
    10.0,
@@ -82,7 +91,7 @@
   ],
   [
    "CRATES OF SHIP PARTS",
-   20.0,
+   26.0,
    8.0,
    3.0,
    4.0,
@@ -91,17 +100,17 @@
   ],
   [
    "MOBILE ACCESS STAIR",
-   20.0,
-   18.0,
-   2.0,
+   4.59,
+   25.36,
    4.4,
+   2.0,
    null,
    "item"
   ],
   [
    "CONTROL DESK (bay cycle, roof door)",
-   16.0,
-   45.0,
+   19.0,
+   63.0,
    4.0,
    1.0,
    "N",
@@ -110,7 +119,7 @@
   [
    "BAY CONTROL PANEL",
    0.0,
-   19.0,
+   28.0,
    0.3,
    1.0,
    "E",
@@ -118,18 +127,18 @@
   ],
   [
    "BAY CONTROL PANEL",
-   25.7,
-   19.0,
+   31.7,
+   28.0,
    0.3,
    1.0,
    "W",
    "item"
   ],
   [
-   "BRIDGE CRANE on rails along both long walls (overhead, 10 m up)",
+   "BRIDGE CRANE on rails along both long walls (overhead, 12 m up)",
    0.6,
-   4.0,
-   24.8,
+   5.4,
+   30.8,
    1.2,
    null,
    "overhead"
@@ -138,22 +147,22 @@
  "people": [
   [
    18.0,
-   43.6
+   52.6
   ],
   [
    21.0,
    26.5
   ],
   [
-   4.0,
+   1.0,
    30.0
   ]
  ],
  "notes": [
   "Owner, 2026-10-07: a hangar that holds the Mars ship (so it must be large); three normal sealing doors into the base and one big outside door the craft goes out through; the room can be pumped empty of air.",
-  "Ship measured in the game: the drawn hull today is the old upright one (3.2 m across, 8.3 m tall, legs 4.4 m apart); the cabin deck inside it is 6.7 m wide over its shell, 26.3 m long (3.6 m ahead of the legs to 22.35 m behind them) and 5.5 m high over the feet (ship_cabin.gd). The locked shuttle style wraps a flat wedge round that deck: the keep-out box 12 x 31 x 8 m is the coordinator's estimate of it (deck plus hull, nose spike and engines).",
-  "The ship takes off and lands straight up and down on its belly engine (CONTEXT.md virtual stick), so the big door is in the roof: 5 m clear each side of the keep-out box, 4.5 m at the ends. Coordinator's pick, owner may change: a wall door would make the pilot fly out level through it.",
-  "Size 26 x 46 m, walls 13 m: coordinator's pick. It stands north of the greenhouse, joined to its north door; the garage joins its east door. The ship stands on the pad nose south, as it does in the game today."
+  "The ship is built in code from the owner's locked plan v7 (data/definitions/ship.json) at 46 m (2026-10-18, PRD #10): 16.4 m across its fins, 46 m long, 8.1 m tall on its legs; its legs stand in two pairs, one pad under each. The 12 x 31 m keep-out of 2026-10-07 was the coordinator's estimate of a wedge round the game's old upright ship, and it capped the ship's size; the hangar is now sized to the ship, not the ship to the hangar.",
+  "The ship takes off and lands straight up and down on its belly engines (CONTEXT.md virtual stick), so the big door is in the roof: 5 m clear each side of the keep-out box, 4.5 m at the ends. Coordinator's pick, owner may change: a wall door would make the pilot fly out level through it.",
+  "Size 32 x 64 m, walls 15 m (2026-10-18, sized to the 46 m ship: about 7.8 m clear past its fin tips each side, 9 m past each end; was 26 x 46 x 13 m, the coordinator's pick for the old keep-out). It stands north of the greenhouse, joined to its north door; the garage joins its east door. The ship stands on its pads nose south, its side ring (the docking hatch and the people airlock) to the west with the mobile stair at it."
  ],
  "shape": "flat",
  "concept": {
@@ -178,9 +187,14 @@
   }
  },
  "rows": {
-  "ROOF DOOR OPENING 22 x 40 (overhead)": [],
-  "SHIP KEEP-OUT 12 x 31 (the ship, nose south)": [],
-  "SHIP PAD 7.2 across": [
+  "ROOF DOOR OPENING 27 x 55 (overhead)": [],
+  "SHIP KEEP-OUT 16.4 x 46 (the ship, nose south)": [
+   "ship",
+   "main_engine",
+   "lift_thruster",
+   "nose_thruster"
+  ],
+  "SHIP PADS 7.2 across, one under each pair of legs": [
    "machine_bay_plate"
   ],
   "SHIP BENCH": [
@@ -207,7 +221,7 @@
   "BAY CONTROL PANEL": [
    "bay_panel"
   ],
-  "BRIDGE CRANE on rails along both long walls (overhead, 10 m up)": [
+  "BRIDGE CRANE on rails along both long walls (overhead, 12 m up)": [
    "lattice_ring_rib",
    "crane_trolley"
   ]
@@ -215,7 +229,7 @@
  "elements": [
   {
    "element": "the roof's two great leaves on deep trusses, half open",
-   "item": "ROOF DOOR OPENING 22 x 40 (overhead)"
+   "item": "ROOF DOOR OPENING 27 x 55 (overhead)"
   },
   {
    "element": "yellow bridge crane across the hall",

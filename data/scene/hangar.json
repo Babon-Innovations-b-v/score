@@ -1,26 +1,26 @@
 {
  "place": "hangar",
- "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 22 x 40 m opening and the two roof leaves shut over it (each its own kit's made plates and ribs, the hdoor stage), the ship's hull on its pad, standing on its legs, the room fill and the indoor sky. Frame: the room's middle on its floor.",
+ "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 27 x 55 m opening and the two roof leaves shut over it (each its own kit's made plates and ribs, the hdoor stage), the room fill and the indoor sky. The ship on its pads is the kit's (rows ship, main_engine, lift_thruster, nose_thruster: built in code from the ship plan v7 at 46 m), not this record's. Sized to the ship (2026-10-18, PRD #10): 32 x 64 m, walls 15 m. Frame: the room's middle on its floor.",
  "floor": [
   [
-   -13.0,
-   -23.0
+   -16.0,
+   -32.0
   ],
   [
-   13.0,
-   23.0
+   16.0,
+   32.0
   ]
  ],
- "ceiling": 13.5,
+ "ceiling": 15.5,
  "inside": true,
  "structure": [
   {
    "name": "shell_walls",
    "builder": "room_walls",
-   "wide": 26.3,
-   "deep": 46.3,
+   "wide": 32.3,
+   "deep": 64.3,
    "corner": 4.15,
-   "high": 13.0,
+   "high": 15.0,
    "surface": "roof_steel_paint",
    "doors": [
     {
@@ -34,8 +34,8 @@
   {
    "name": "shell_deck",
    "builder": "room_deck",
-   "wide": 26.3,
-   "deep": 46.3,
+   "wide": 32.3,
+   "deep": 64.3,
    "corner": 4.15,
    "height": -0.042,
    "surface": "roof_steel_paint",
@@ -45,14 +45,14 @@
    "name": "roof_slab_west",
    "builder": "box",
    "centre": [
-    -12.0,
-    13.125,
+    -14.75,
+    15.125,
     0.0
    ],
    "size": [
-    2.3,
+    2.8,
     0.25,
-    46.3
+    64.3
    ],
    "surface": "roof_steel_paint",
    "layer": 2,
@@ -63,14 +63,14 @@
    "name": "roof_slab_east",
    "builder": "box",
    "centre": [
-    12.0,
-    13.125,
+    14.75,
+    15.125,
     0.0
    ],
    "size": [
-    2.3,
+    2.8,
     0.25,
-    46.3
+    64.3
    ],
    "surface": "roof_steel_paint",
    "layer": 2,
@@ -82,13 +82,13 @@
    "builder": "box",
    "centre": [
     0.0,
-    13.125,
-    -21.6
+    15.125,
+    -29.825
    ],
    "size": [
-    22.0,
+    27.0,
     0.25,
-    3.2
+    4.65
    ],
    "surface": "roof_steel_paint",
    "layer": 2,
@@ -100,47 +100,18 @@
    "builder": "box",
    "centre": [
     0.0,
-    13.125,
-    21.6
+    15.125,
+    29.825
    ],
    "size": [
-    22.0,
+    27.0,
     0.25,
-    3.2
+    4.65
    ],
    "surface": "roof_steel_paint",
    "layer": 2,
    "from": "module_shell.gd:774, module_doors.gd:67",
    "plain": "plate"
-  },
-  {
-   "name": "ship",
-   "builder": "ship_hull",
-   "centre": [
-    0.0,
-    0.5,
-    8.9
-   ],
-   "surface": "hull_white_gloss",
-   "nose_surface": "painted_panel",
-   "band_surface": "hazard_paint",
-   "stripe_surface": "dark_panel",
-   "seam_surface": "bare_steel",
-   "steel_surface": "bare_steel",
-   "glass_surface": "glass",
-   "from": "game/craft/ship/ship.tscn (body r 1.6 h 5 at 3.3; on its legs 0.5); the hull's own parts (its panels and seams, the service windows, the nose's panels and tip, the band's chevrons and the foot ring) from its clean close-up (job r2-placeholders, 2026-10-09), built in code (tools/usd/builders.py ship_hull) as the shared rule says ships are"
-  },
-  {
-   "name": "ship_legs",
-   "builder": "ship_legs",
-   "centre": [
-    0.0,
-    0.5,
-    8.9
-   ],
-   "surface": "bare_steel",
-   "foot_surface": "painted_panel",
-   "from": "game/craft/ship/ship.tscn LegFrontLeft..LegBackRight (leg_mesh: steel CylinderMesh r 0.09, 1.4 high, at (+-1.9, 0.2, +-1.9)) and FootFrontLeft..FootBackRight (foot_mesh: trim BoxMesh 0.6 x 0.08 x 0.6 at y -0.46), drawn while the legs mount holds a part (ship.gd MOUNT_LOOKS); their soles reach the pad the hull stands half a metre over (FlightRunner.ON_ITS_LEGS); the steel and the trim in the library surfaces the hull's own steel and nose take"
   }
  ],
  "lights": [
@@ -148,12 +119,12 @@
    "type": "omni",
    "at": [
     0.0,
-    10.4,
+    12.0,
     0.0
    ],
    "colour": "#a8bcd8",
    "energy": 0.08,
-   "range": 29.44,
+   "range": 40.3,
    "attenuation": 0.4,
    "shadows": false,
    "from": "ModuleShell room fill, module_shell.gd:203-206,1280-1292"
@@ -172,20 +143,20 @@
    "shape": "box",
    "centre": [
     0.0,
-    6.5,
+    7.5,
     0.0
    ],
    "size": [
-    26.0,
-    13.0,
-    46.0
+    32.0,
+    15.0,
+    64.0
    ],
    "colour": "#ece8e0",
    "density": 0.025,
    "forward": 0.3,
    "reach": 24.0,
    "lamp_share": 0.5,
-   "from": "game/base/module_shell/module_shell.gd:191-198,1258-1275 (the room's FogVolume: a box of the room's inside up to its walls' top, Palette.AIR_HAZE #ece8e0, HAZE_DENSITY 0.025), game/world/sky/sky.gd:49,55,314-319 (worked out 24 m out, thrown forward 0.3), game/base/lamp/lamp.gd:27-30 (a lamp's light in the haze at HAZE_SHARE 0.5); hangar height 13.0, 26 x 46 (the garage and hangar game code: the agent-a1aa38a94aaca7589 worktree's module_shell.gd:170-180, module_floors.gd:116-117)"
+   "from": "game/base/module_shell/module_shell.gd:191-198,1258-1275 (the room's FogVolume: a box of the room's inside up to its walls' top, Palette.AIR_HAZE #ece8e0, HAZE_DENSITY 0.025), game/world/sky/sky.gd:49,55,314-319 (worked out 24 m out, thrown forward 0.3), game/base/lamp/lamp.gd:27-30 (a lamp's light in the haze at HAZE_SHARE 0.5); hangar height 15.0, 32 x 64 (sized to the ship, 2026-10-18; the game's was 13.0, 26 x 46) (the garage and hangar game code: the agent-a1aa38a94aaca7589 worktree's module_shell.gd:170-180, module_floors.gd:116-117)"
   }
  },
  "views": [
@@ -194,7 +165,7 @@
    "eye": [
     0.0,
     1.6,
-    21.0
+    30.0
    ],
    "aim": [
     0.0,
@@ -206,41 +177,41 @@
   {
    "name": "ship",
    "eye": [
-    6.0,
+    12.0,
     1.6,
-    16.0
+    22.0
    ],
    "aim": [
     0.0,
-    3.5,
-    8.9
+    4.0,
+    0.0
    ],
    "fov": 80
   },
   {
    "name": "across",
    "eye": [
-    -10.0,
+    -13.0,
     1.6,
-    -15.0
+    -24.0
    ],
    "aim": [
-    8.0,
+    10.0,
     4.0,
-    15.0
+    22.0
    ],
    "fov": 80
   },
   {
    "name": "up-roof",
    "eye": [
-    0.0,
+    11.0,
     1.6,
     0.0
    ],
    "aim": [
     0.0,
-    13.0,
+    15.0,
     -6.0
    ],
    "fov": 80
@@ -254,23 +225,23 @@
    "name": "roof_leaf_west",
    "stage": "hdoor",
    "at": [
-    -5.5,
-    13.4,
+    -6.75,
+    15.4,
     0.0
    ],
    "yaw": 0.0,
-   "from": "bay_room.gd:128-158 (a roof leaf 11.3 x 0.3 x 40.6 shut at (+-5.5, 13.4, 0), drawn by its kit hdoor standing 0.15 down from the slab's middle; LEAF_KITS :37); the leaf's own made pieces (data/kit/hdoor.json: plates and ribs) as their own stage; raised 0.15 m (2026-10-12) so the sliding leaves clear the wall tops and corner posts they reached 0.08 m into (the motion stage's clear gate)"
+   "from": "bay_room.gd:128-158 (a roof leaf 11.3 x 0.3 x 40.6 shut at (+-5.5, 13.4, 0); sized to the ship's 27 x 55 opening, 13.8 x 55.6 at (+-6.75, 15.4, 0) (2026-10-18), drawn by its kit hdoor standing 0.15 down from the slab's middle; LEAF_KITS :37); the leaf's own made pieces (data/kit/hdoor.json: plates and ribs) as their own stage; raised 0.15 m (2026-10-12) so the sliding leaves clear the wall tops and corner posts they reached 0.08 m into (the motion stage's clear gate)"
   },
   {
    "name": "roof_leaf_east",
    "stage": "hdoor",
    "at": [
-    5.5,
-    13.4,
+    6.75,
+    15.4,
     0.0
    ],
    "yaw": 0.0,
-   "from": "bay_room.gd:128-158 (a roof leaf 11.3 x 0.3 x 40.6 shut at (+-5.5, 13.4, 0), drawn by its kit hdoor standing 0.15 down from the slab's middle; LEAF_KITS :37); the leaf's own made pieces (data/kit/hdoor.json: plates and ribs) as their own stage; raised 0.15 m (2026-10-12) so the sliding leaves clear the wall tops and corner posts they reached 0.08 m into (the motion stage's clear gate)"
+   "from": "bay_room.gd:128-158 (a roof leaf 11.3 x 0.3 x 40.6 shut at (+-5.5, 13.4, 0); sized to the ship's 27 x 55 opening, 13.8 x 55.6 at (+-6.75, 15.4, 0) (2026-10-18), drawn by its kit hdoor standing 0.15 down from the slab's middle; LEAF_KITS :37); the leaf's own made pieces (data/kit/hdoor.json: plates and ribs) as their own stage; raised 0.15 m (2026-10-12) so the sliding leaves clear the wall tops and corner posts they reached 0.08 m into (the motion stage's clear gate)"
   }
  ]
 }

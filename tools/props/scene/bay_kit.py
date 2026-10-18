@@ -16,6 +16,11 @@ The room's numbers are its inventory's `room.layout`, as room_kit.py reads them,
 - `posts`: how far apart the posts standing up the walls are (the hangar's walls are framed), and `rails`: the bridge
   crane's two rails along the long walls, at a height (`high`), with its bridge of two girders on them where it is
   `parked` (along), `gauge` metres apart, the trolley's row standing on them.
+- `ship`: where the hangar's ship stands (`x`, `z`: its feet's middle; `facing`: the bearing its nose looks toward).
+  The ship is built in code from the owner's plan v7 (data/definitions/ship.json, read by
+  ../library/inside/ship_outline.py): its hull is one piece of row `ship` that carries the plan's numbers to its
+  builder (`shows`), and its engines and thrusters are pieces of their own rows laid on the hull where the plan puts
+  them.
 
 Frame and pieces as room_kit.py's: the room's middle on its floor, x east, z south, y up; every piece a kind of the
 inventory (`<room>_<id>`), its origin, axes and laid size. The route (tools/props/library/route.py) makes the models.
@@ -30,8 +35,10 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "library/inside"))
 import hub_kit  # noqa: E402
 import room_kit  # noqa: E402
+import ship_outline  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 # How far apart the plates of a flat roof and a door leaf are laid, at most.
@@ -281,6 +288,40 @@ def beam(room, layout, kinds):
     return [bar(room, "lattice_ring_rib", spec["from"], spec["to"], (rib[1], rib[2]), room_kit.ROOF_LAYER)]
 
 
+def ship_frame(spot):
+    """The ship's feet's middle and its axes in the room (x starboard, y up, z toward the stern): its nose looks
+    toward the spot's `facing`."""
+    bearing = math.radians(spot["facing"])
+    front = np.array([math.sin(bearing), 0.0, -math.cos(bearing)])
+    return np.array([spot["x"], 0.0, spot["z"]]), room_kit.frame_facing(front, (0, 1, 0))
+
+
+def way_in_room(axes, way):
+    """A way in the ship plan's frame (x across, y back from the nose, z up) as a way in the room."""
+    x_axis, y_axis, z_axis = axes
+    return x_axis * way[0] + z_axis * way[1] + y_axis * way[2]
+
+
+def ship(room, layout):
+    """The hangar's ship where the layout stands it: its hull, carrying the plan's numbers, and every engine and
+    thruster on it, each a piece of its own row; nothing where the layout stands no ship."""
+    spot = layout.get("ship")
+    if not spot:
+        return []
+    plan = ship_outline.read_plan()
+    origin, axes = ship_frame(spot)
+    hull = room_kit.piece(room, "ship", origin, axes, ship_outline.extents(plan))
+    hull["shows"] = {"hull": ship_outline.hull_shows(plan)}
+    found = [hull]
+    nose = origin - axes[2] * plan["length"] / 2
+    for mount in ship_outline.mounts(plan):
+        up = way_in_room(axes, mount["out"])
+        along = way_in_room(axes, (0.0, 1.0, 0.0))
+        at = nose + way_in_room(axes, mount["at"])
+        found.append(room_kit.piece(room, mount["row"], at, (np.cross(up, along), up, along), mount["size"]))
+    return found
+
+
 def laid_out(room, inventory):
     """Every piece of the room: room_kit's floor, hatches and rows, with a bay's walls, big door, roof and frame."""
     layout = inventory["room"]["layout"]
@@ -292,6 +333,7 @@ def laid_out(room, inventory):
     elif layout.get("rise"):
         found += room_kit.roof(room, layout, kinds)
     found += posts(room, layout, kinds) + rails(room, layout, kinds) + beam(room, layout, kinds)
+    found += ship(room, layout)
     found += room_kit.placed_rows(room, layout, kinds, inventory) + room_kit.flat_rows(room, inventory, kinds)
     found += room_kit.pipe_brackets(room, kinds, found) + room_kit.under_floor(room, kinds, found)
     found = hub_kit.split_at_fittings(found)
