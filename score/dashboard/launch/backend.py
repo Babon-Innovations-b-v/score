@@ -3,7 +3,7 @@
     class ComputeBackend(Protocol):
         name: str
         def plan(self, group: RunGroup) -> GroupPlan: ...      # missing inputs, nodes to run, buys with estimates, refusal
-        def spend(self) -> Spend: ...                          # spent and reserved this month, the ceiling
+        def spend(self) -> Spend: ...                          # the world against its stop, the month by source
         def measured(self) -> Iterable[MeasuredRun]: ...       # stage, euros, minutes of earlier paid runs
         def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle: ...
         def poll(self, handle: LaunchHandle) -> LaunchState: ...

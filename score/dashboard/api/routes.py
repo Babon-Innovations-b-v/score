@@ -2,7 +2,7 @@
 use (/files, /thumbs, /web, /healthz). One sign-in with the pages: api/deps.py."""
 from django.conf import settings
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from score.dashboard import state
@@ -10,8 +10,9 @@ from score.dashboard.api.deps import owner_only, signed_in
 from score.dashboard.launch import guard
 from score.dashboard.pages import actions
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan
-from score.dashboard.state.files import content_type
-from score.dashboard.state.models import PlaceDetail, Spend, StepDetail, WorldState
+from score.dashboard.state import money
+from score.dashboard.state.files import SHA, content_type
+from score.dashboard.state.models import MoneyView, PlaceDetail, Spend, StepDetail, WorldState
 
 api = APIRouter()
 files = APIRouter()
@@ -146,6 +147,26 @@ def spend(user=Depends(signed_in)):
     return actions.spend()
 
 
+@api.get("/money", response_model=MoneyView)
+def money_view(user=Depends(signed_in)):
+    return money.view(actions.spend())
+
+
+class OwnerCostIn(BaseModel):
+    source: str  # models: this month's model provider bill; subscriptions: the fixed monthly figure
+    euros: float
+    words: str = ""
+
+
+@api.post("/money/owner-costs", response_model=Said)
+def owner_cost(body: OwnerCostIn, user=Depends(owner_only)):
+    said = actions.enter_cost(user.username, body.source, str(body.euros), body.words,
+                              money.this_month(actions.spend()))
+    if not said.startswith("entered"):
+        raise HTTPException(422, said)
+    return Said(said=said)
+
+
 @api.get("/requests", response_model=list[ChangeOut])
 def change_list(user=Depends(signed_in)):
     return [change_out(change) for change in ChangeRequest.objects.all()[:200]]
@@ -243,11 +264,31 @@ def healthz():
     return {"ok": True, "mode": settings.SCORE_MODE}
 
 
+# Drawn in place of a picture a hosted page lists before the sync has brought it up: a page never shows a broken
+# image. Never cached, so the real picture replaces it on the next load once it has arrived.
+ON_ITS_WAY = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">'
+    '<rect width="320" height="200" fill="#8a8f98" fill-opacity="0.18"/>'
+    '<rect x="1" y="1" width="318" height="198" fill="none" stroke="#8a8f98" stroke-dasharray="6 5"/>'
+    '<text x="160" y="96" text-anchor="middle" font-family="sans-serif" font-size="17" fill="#6b7280">'
+    'picture on its way</text>'
+    '<text x="160" y="122" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#6b7280">'
+    'the next sync brings it up</text></svg>')
+NOT_YET = {"Cache-Control": "no-store"}
+
+
+def on_its_way(sha):
+    """The stand-in picture for a listed file the hosted export does not hold yet; 404 for anything else."""
+    if settings.SCORE_MODE != settings.HOSTED or not SHA.match(sha or ""):
+        raise HTTPException(404, "no such file")
+    return Response(ON_ITS_WAY, media_type="image/svg+xml", headers=NOT_YET)
+
+
 @files.get("/files/{sha}")
 def file(sha: str, user=Depends(signed_in)):
     found = state.source().file(sha)
     if found is None or not found[1].is_file():
-        raise HTTPException(404, "no such file")
+        return on_its_way(sha)
     name, path = found
     return FileResponse(path, media_type=content_type(name), headers=IMMUTABLE)
 
@@ -256,7 +297,7 @@ def file(sha: str, user=Depends(signed_in)):
 def thumb(sha: str, user=Depends(signed_in)):
     path = state.source().thumb_path(sha)
     if path is None:
-        raise HTTPException(404, "no such picture")
+        return on_its_way(sha)
     return FileResponse(path, media_type="image/jpeg", headers=IMMUTABLE)
 
 

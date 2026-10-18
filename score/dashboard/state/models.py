@@ -12,12 +12,51 @@ class FileRef(BaseModel):
     thumb_url: str | None = None
 
 
+class CostLine(BaseModel):
+    """One source of this month's cost: its euros, where the number comes from and when it was read; `partial` when
+    the source is known to miss some of the cost."""
+    source: str
+    label: str
+    euros: float | None = None
+    partial: bool = False
+    origin: str = ""
+    read_at: str | None = None
+
+
 class Spend(BaseModel):
+    """The world's money (spent since its first stop line, still in flight, its stop) and this month's measured cost
+    lines. The shared cloud account's monthly credit is only a note (`credit_note`)."""
     spent: float | None = None
     reserved: float | None = None
     ceiling: float | None = None
     as_of: str | None = None
     note: str = ""  # why a number is missing, in words
+    world: str | None = None
+    stop_at: str | None = None
+    month: str | None = None
+    lines: list[CostLine] = []
+    credit_note: str = ""  # the shared cloud account's credit, a note only, never SCORE's budget
+
+
+class MonthTotal(BaseModel):
+    euros: float
+    whole: bool  # False while any line is partial or missing: the page says "at least"
+    gaps: list[str] = []
+
+
+class MoneyView(BaseModel):
+    """The month's cost by source and its total (state/money.py), and the world against its stop line; `stop` None:
+    no stop set, paid launches refused."""
+    month: str
+    lines: list[CostLine]
+    total: MonthTotal
+    world: str | None = None
+    stop: float | None = None
+    stop_at: str | None = None
+    world_spent: float | None = None
+    in_flight: float | None = None
+    note: str = ""
+    credit_note: str = ""
 
 
 class GateCounts(BaseModel):

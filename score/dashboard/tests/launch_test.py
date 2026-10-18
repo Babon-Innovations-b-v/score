@@ -81,7 +81,7 @@ def test_every_refusal_in_words(settings):
     assert any("I launch this" in why for why in refused(plan, confirmed=False))
     assert any("cannot finish under the stop: high EUR 200.00, room EUR 140.00" in why
                for why in refused(ready_plan(high=200.0)))
-    assert any("could not be read" in why for why in refused(ready_plan(room=None, note="no bill")))
+    assert any("no room under a stop is known: no bill" in why for why in refused(ready_plan(room=None, note="no bill")))
     stale = ready_plan()
     stale.finished = timezone.now() - datetime.timedelta(minutes=16)
     assert any("older than 15 minutes" in why for why in refused(stale))

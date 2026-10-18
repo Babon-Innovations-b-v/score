@@ -1,5 +1,5 @@
 """The launch basket's plan and its guard: queued steps grouped into the fewest runner commands, each group planned
-by the compute backend, priced from measured runs against the month's stop, and every launch check in words.
+by the compute backend, priced from measured runs against the world's stop line, and every launch check in words.
 
 Never starts what cannot finish under the stop: the plan's high estimate must fit the room left (ceiling - spent -
 reserved). The runner's own per-node clearance stays the authority; this is the basket-level guard before it.
@@ -69,7 +69,7 @@ def plan_body(items, chosen, stage_records, jobs=DEFAULT_JOBS):
     money = costs.money(buys, list(chosen.measured()), settings.SCORE_BILL_FACTOR)
     nodes = sorted({node for group in groups for node in [*group["to_run"], *(buy["node"] for buy in group["buys"])]})
     per_stage = costs.stage_minutes(stage_records(sorted({costs.stage_of(node) for node in nodes})))
-    ceiling = float(settings.SCORE_MONTH_EUROS) if settings.SCORE_MONTH_EUROS else spend.ceiling
+    ceiling = spend.ceiling  # the world's stop line; SCORE_MONTH_EUROS only switches launching on, never raises it
     room = None if None in (ceiling, spend.spent, spend.reserved) else round(ceiling - spend.spent - spend.reserved, 2)
     return {"groups": groups, "buys": buys, "jobs": jobs, "nodes": nodes,
             "money": {**money, "spent": spend.spent, "reserved": spend.reserved, "ceiling": ceiling, "room": room,
@@ -145,7 +145,7 @@ def money_refusals(body):
         found.append(f"inputs are missing: {', '.join(missing[:5])}{' ...' if len(missing) > 5 else ''}")
     money = body["money"]
     if money["room"] is None:
-        found.append(f"the month's spend could not be read ({money.get('note') or 'no reading'}): no room is known")
+        found.append(f"no room under a stop is known: {money.get('note') or 'the spend could not be read'}")
     elif money["high"] > money["room"]:
         found.append(f"cannot finish under the stop: high EUR {money['high']:.2f}, room EUR {money['room']:.2f}")
     return found

@@ -111,7 +111,7 @@ class LocalBackend:
         if done.returncode != 0:
             return Spend(note=f"spend not read: {(done.stderr or done.stdout)[-300:]}")
         found = last_json(done.stdout)
-        return Spend(spent=found["spent"], reserved=found["reserved"], ceiling=found["ceiling"], as_of=found["as_of"])
+        return Spend.model_validate(found)
 
     def measured(self):
         for row in ledger_rows(settings.SCORE_LEDGER_FILES):

@@ -16,7 +16,7 @@ from django.utils import timezone
 from score.dashboard import state
 from score.dashboard.launch import guard
 from score.dashboard.pages import seen
-from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, SyncRequest, is_owner
+from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, OwnerCost, Plan, SyncRequest, is_owner
 from score.dashboard.state.models import Spend
 
 SPEND_SECONDS = 600
@@ -51,6 +51,21 @@ def decisions_on():
 
 
 # --- the month's spend ------------------------------------------------------------------------------------------
+
+def enter_cost(user, source, euros, words, month):
+    """Keep the owner's figure for a cost source this dashboard cannot read (the model provider bill's month, the fixed
+    monthly subscriptions); what was done, in words. It is shown, never used to clear or launch anything."""
+    if source not in ("models", "subscriptions"):
+        return f"refused: {source!r} is not a source the owner enters"
+    try:
+        amount = float(euros)
+    except ValueError:
+        return f"refused: {euros!r} is not an amount in euros"
+    if not 0 <= amount < 1_000_000:
+        return f"refused: EUR {amount} is not a monthly figure"
+    OwnerCost.objects.create(source=source, month=month, euros=amount, words=words.strip()[:200], by=user)
+    return f"entered {source} EUR {amount:.2f} for {month}"
+
 
 def read_spend():
     """Read the backend's spend now and keep it."""

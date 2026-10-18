@@ -61,6 +61,7 @@ def parse(argv):
     plan.add_argument("--json", action="store_true", help="the plan as one JSON object (the only form)")
     spend = commands.add_parser("spend")
     spend.add_argument("--json", action="store_true", help="the month's spend as one JSON object (the only form)")
+    spend.add_argument("--world", default="world1", help="the world whose stop line and spend since it are read")
     images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)
     images.add_parser("publish").add_argument("kind", choices=stages.images.proved_kinds())
     for command in (run, status, plan):
@@ -142,14 +143,46 @@ def plan_json(runner, places, whole, options):
     return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found}
 
 
-def spend_json():
-    """This month's spend as the clearance counts it: {spent, reserved (open reservations), ceiling, month, as_of}."""
+def spend_json(world):
+    """The money as the cockpit shows it: the world's spend since its first stop line against that line, and this
+    month's cost by source, each saying where its number comes from and when it was read."""
     from score.adapters import compute
     reservations = Store.default().cache.parent / "reservations.json"
     held = compute.open_reservations(reservations)
-    return {"spent": round(compute.month_spent(), 2), "reserved": round(sum(item["euros"] for item in held.values()), 2),
-            "ceiling": compute.ledger().MONTH_EUROS, "month": compute.ledger().this_month(),
-            "as_of": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+    books = compute.books_now()
+    read_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    return {**world_spend(world, held, books), "month": books["month"], "as_of": read_at,
+            "lines": cost_lines(books, read_at),
+            "credit_note": f"the Scaleway account's EUR {compute.ledger().MONTH_EUROS:.0f} monthly credit is shared with "
+                           "Movalytics; it is not SCORE's budget"}
+
+
+def world_spend(world, held, books):
+    """{spent, reserved, ceiling, world, stop_at, note}: the world's spend since its first stop line, what its cleared
+    runs still have in flight, and its newest line; all None with a note when it has no line."""
+    from score.adapters import compute
+    from score.adapters.compute import guard
+    store = Store.default()
+    line = guard.current(store, world)
+    if line is None:
+        return {"spent": None, "reserved": None, "ceiling": None, "world": world, "stop_at": None,
+                "note": f"{world}: no stop set, paid launches refused (python -m score.review stop {world} <euros> "
+                        f"--reason ...)"}
+    spent = guard.spent_since(line["baseline"], compute.months_since(line["baseline"], books))
+    flight = guard.in_flight({**compute.open_overrides(store), **held}, compute.ledger().entries())
+    return {"spent": round(spent, 2), "reserved": round(sum(flight.values()), 2), "ceiling": line["euros"],
+            "world": world, "stop_at": line["at"], "note": ""}
+
+
+def cost_lines(books, read_at):
+    """This month's measured cost lines: the cloud bill of SCORE's own project, and the Google call ledger, which
+    misses calls and so is partial (the owner enters the Google bill's figure on the cockpit)."""
+    return [{"source": "cloud", "label": "Cloud compute", "euros": round(books["bill"], 2), "partial": False,
+             "origin": "Scaleway's bill of the SCORE project (farm-factory) only, never Movalytics; lags by hours",
+             "read_at": read_at},
+            {"source": "models", "label": "Google AI", "euros": round(books["google"], 2), "partial": True,
+             "origin": "SCORE's own Google call ledger, which misses calls: the Google bill is higher",
+             "read_at": read_at}]
 
 
 def status_json(world, lines):
@@ -164,7 +197,7 @@ def main(argv=None):
         publish(options.kind)
         return
     if options.command == "spend":
-        print(json.dumps(spend_json()))
+        print(json.dumps(spend_json(options.world)))
         return
     runner = stages.runner(world=stages.WORLDS[options.world]())
     places, whole = options.place or stages.places(runner.world), not options.place
