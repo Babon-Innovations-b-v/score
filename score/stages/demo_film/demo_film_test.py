@@ -157,3 +157,14 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             test()
             print("ok", name)
+
+
+def test_a_film_record_with_its_own_spot_adds_it_to_the_records_copy():
+    record = folder() / "scene.json"
+    record.write_text(json.dumps({"views": [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75}]}))
+    demo_film.own_camera(record, {"camera": "spot-1"})
+    assert len(json.loads(record.read_text())["views"]) == 1, "a film record naming a record camera adds nothing"
+    demo_film.own_camera(record, {"camera": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5]})
+    views = {view["name"]: view for view in json.loads(record.read_text())["views"]}
+    assert views["bed"] == {"name": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5], "fov": 75}
+    assert "spot-1" in views
