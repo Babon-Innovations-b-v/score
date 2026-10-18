@@ -66,7 +66,7 @@ def proposal_run(tmp_path, brief, moved):
     world = a_world(tmp_path / "branch", brief)
     store = assemble.overlay_store(tmp_path / "real", tmp_path / "scratch")
     table = (CLEAN, dataclasses.replace(PAINT, paid=True, euros=1.0), ASSEMBLY)
-    runner = assemble.ProposalRunner(table, world, store, moved)
+    runner = assemble.ProposalRunner(table, world, store, moved, "hangar")
     return assemble.assemble(runner, "hangar", tmp_path / "stage"), runner
 
 
@@ -92,12 +92,23 @@ def test_a_free_node_that_cannot_be_made_before_the_paid_batch_stands_in_for_it(
     store = assemble.overlay_store(tmp_path / "real", tmp_path / "scratch")
     table = (CLEAN, dataclasses.replace(PAINT, paid=True, euros=1.0),
              dataclasses.replace(ASSEMBLY, make=make_failing_assembly))
-    runner = assemble.ProposalRunner(table, world, store, {"clean": {"paid": False, "code": True, "files": {}}})
+    runner = assemble.ProposalRunner(table, world, store, {"clean": {"paid": False, "code": True, "files": {}}},
+                                     "hangar")
     result = assemble.assemble(runner, "hangar", tmp_path / "stage")
     taken = {item["node"]: item for item in result["taken"]}
     assert taken["assembly@hangar"]["how"] == records.PAID
     assert "KeyError" in taken["assembly@hangar"]["why"]
     assert result["assembly"] == store.accepted("assembly@hangar")
+
+
+def test_another_places_node_is_shown_as_it_stands(tmp_path):
+    standing_store(tmp_path)
+    world = a_world(tmp_path / "branch", "new hull")
+    store = assemble.overlay_store(tmp_path / "real", tmp_path / "scratch")
+    runner = assemble.ProposalRunner((CLEAN, PAINT, ASSEMBLY), world, store,
+                                     {"clean": {"paid": False, "code": True, "files": {}}}, "station")
+    assert runner.usable("clean", "hangar", None) == store.accepted("clean@hangar")
+    assert runner.taken["clean@hangar"]["how"] == records.AS_NOW
 
 
 def test_a_branch_moving_nothing_here_shows_the_place_as_it_stands(tmp_path):
@@ -114,7 +125,7 @@ def test_the_place_is_shown_with_its_neighbours_only_when_the_branch_moves_them(
     assert assemble.target(runner, "hangar") == assemble.ASSEMBLY
     shows = graph.Stage("neighbours", "place", make_assembly, TEXT, WRITTEN, after={"assembly": ("toy-text", 1)})
     runner = assemble.ProposalRunner((CLEAN, PAINT, ASSEMBLY, shows), runner.world, runner.store,
-                                     {"neighbours": {"paid": False, "code": True, "files": {}}})
+                                     {"neighbours": {"paid": False, "code": True, "files": {}}}, "hangar")
     assert assemble.target(runner, "hangar") == assemble.NEIGHBOURS
 
 
