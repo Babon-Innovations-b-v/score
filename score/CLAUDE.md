@@ -110,6 +110,10 @@ stage as each stage is built; nothing moves before.
   swept on it against the concept; the assembly takes the accepted layer (`assembly.LAYERS`). A
   stage reads without an earlier place stage that does not apply to its place
   (`Runner.reads`). World 1's record is `data/definitions/world.json`. The `images` world (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
+  `library@<place>` and `library-world` (free, the table's last rows, `stages/library`, its overlay) hand every
+  accepted output of the place's line and of the world to the creator's library through its own command
+  (`SCORE_LIB_*`, else `$PROPS_HOME/library.env`) and gate on the report it writes (`handover.json`): a place is
+  complete when its library node stands accepted, the world when every one does (`status` prints it).
 
 Rules:
 

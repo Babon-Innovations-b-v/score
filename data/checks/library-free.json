@@ -1,0 +1,4 @@
+{
+ "_comment": "The worlds the owner decided are made without a library (score/stages/library/checks.py, `configured`). A world named here passes the library rows' gate with nothing handed; every other world's places are complete only once their outputs are in the library. Each row: world, why, who (the owner's handle) and when (YYYY-MM-DD). Only the owner adds one. World 1 is not library-free.",
+ "worlds": []
+}
