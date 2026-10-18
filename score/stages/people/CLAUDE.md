@@ -4,6 +4,13 @@ The people stage (#5, experimental; bible `architecture/experimental`): people m
 2026-10-11). World rows of world 1's table, `__init__.py`'s docstring has them; each look is a take of
 `data/people/surfaces.json` with its `spec` and `outfit`.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Run rows by name only**: `.venv/bin/python -m score run world1 --stage people-look --detach` (it drives the
   line, the LOOKED bodies and their dress). Check `ps` first that no other run is on the same rows.
 - **The clothing is the surface stage's, unchanged** (`line.py`): its makes and judges, the inputs handed over under

@@ -3,6 +3,13 @@
 The terrain stage (the paper's Methods, "Terrain"): one world node, `terrain`, that makes every ground of the world
 from its plan in `data/ground/plan/<ground>.json`. `__init__.py`'s docstring has the make and the gates.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **The plan is the input; the method is here.** A plan lists its steps (`shape`) and its landforms' settings; the
   builders (`landforms.py`) and the step runner (`plan.py`) are code. A new landform kind is a builder here and a step
   name in `plan.LANDFORMS`, never numbers typed into a stage run.

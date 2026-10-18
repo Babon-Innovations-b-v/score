@@ -108,6 +108,18 @@ the current backend). No model runs on the coordinating machine.
   `architecture/experimental`.
   The overlay `score/CLAUDE.md` has the rules.
 
+**Everything from the library (invariant, owner's hard rule of 2026-10-18).** Everything a place shows comes from
+score_lib, the creator's library: every finish, model, kit, effect, light, sound, character, ground and algorithm.
+Every finish on every surface is a library surface (`data/library`: the ProcFunc recipes coloured from palette
+tokens), on made props, picture-made models (their geometry is kept, their finish replaced), code-built objects,
+ground and walls alike; never a picture's own texture, a model's baked-in colour, a default grey or anything else.
+What is not from the library is a written exception in `data/checks/library-exceptions.json` (the place, the prim or
+pattern, what it is, why, who allowed it and when, an optional expiry), read by the check, so an exception is wired,
+never only written; one without a reason or an owner is refused. The library check (`score/stages/complete/library`,
+its overlay) traces every bound material, referenced model or file, emitter, light, sound source and character of a
+place's accepted assembly to a library entry, by content hash or by a recorded provenance attribute, and the
+cockpit lists what does not trace as the place's problems.
+
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's
 Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next task.

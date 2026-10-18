@@ -8,6 +8,13 @@ strengths written into the layer; the gates). Run with `python -m score run worl
 --detach`. `__init__.py`'s docstring has the rows and the gates; `lightkit` (kit.py, the square's proscenium) keeps
 its own runner (`python -m score.stages.light run lightkit`).
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Strengths are measured, never the game's numbers.** One render gives every lamp's light alone; light is linear in
   a lamp's strength, so the look at any strengths is mixed from the passes through the view's own tone curve (fitted on
   the render's look against its light). The sweep's scale brings the place's brightness to its concept's; a blown-out

@@ -4,6 +4,13 @@ The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for th
 (`PLACES`), reading `concept_people`'s accepted count. `__init__.py`'s docstring has the make and the five gates;
 `measure.py` the geometry, `spread.py` how a group and a crowd are stood on the place.
 
+- **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
+  light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
+  `data/checks/library-exceptions.json` that names the place, the prim or pattern, what it is, why it is not from the
+  library, who allowed it and when. Every finish is a library surface (`data/library`, the ProcFunc recipes and
+  palette tokens): never a picture's own texture, a model's baked-in colour, a default grey or anything else; a
+  picture-made model keeps its geometry and gets its finish replaced. The library check
+  (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **The record says who, the stage says where they fit.** Named people stand where their record
   (`data/characters/<place>.json`) puts them and the gates judge that; a group's members and a crowd's copies are
   stood on the seed's measured ground, clear of every solid and of each other. Never move a named person by hand to
