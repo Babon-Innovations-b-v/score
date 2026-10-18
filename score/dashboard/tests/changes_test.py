@@ -38,6 +38,7 @@ def made(root, branch="fix-ship-hull", place="alpha", **fields):
               "stills": [{"name": "from-door", "file": "stills/from-door.jpg"}],
               "layers": [{"node": f"assembly@{place}", "stage": "assembly", "how": records.MADE},
                          {"node": f"surfaces-bake@{place}", "stage": "surfaces-bake", "how": records.PAID}],
+              "difference": {"commit": COMMIT, "of": ["stills/from-door.jpg"], "shows_change": True, "held": None},
               **fields}
     return records.put(root, partial, record)
 
@@ -218,9 +219,77 @@ def test_a_proposal_made_without_stills_gets_them_from_its_stage_in_the_scratch_
         return [{"name": "from-door", "file": "stills/from-door.jpg"}]
 
     monkeypatch.setattr(pictures, "stills", stills)
-    monkeypatch.setattr(pictures, "views", lambda folder, tree, place: [{"name": "from-door"}])
     monkeypatch.setattr(finish, "before_stills", lambda record, store_root, out: [])
     finish.finish(home, "fix-ship-hull", "alpha", home / "store", chosen=fixture.FakeBackend())
     record = records.read(home, "fix-ship-hull", "alpha")
     assert drawn == ["#usda 1.0"] and record["hero"] == "stills/from-door.jpg"
     assert (records.folder(home, "fix-ship-hull", "alpha") / "stills" / "from-door.jpg").is_file()
+
+
+def a_still(path, block=0):
+    """A small grey still with a white `block`-pixel square in its corner."""
+    from PIL import Image
+    picture = Image.new("RGB", (640, 376), (40, 40, 40))
+    if block:
+        picture.paste((255, 255, 255), (0, 0, block, block))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    picture.save(path, quality=95)
+
+
+def drawn_pair(home, block):
+    """A made proposal whose after and before stills of one camera Blender drew, the after with a `block` square."""
+    made(home, difference=None, before=[{"name": "from-door", "file": "before/from-door.jpg"}],
+         before_commit=COMMIT, drawing={"views": [{"name": "from-door"}], "size": [640, 360], "clip": [],
+                                        "unshown": ["surfaces-bake"]})
+    folder = records.folder(home, "fix-ship-hull", "alpha")
+    a_still(folder / "before" / "from-door.jpg")
+    a_still(folder / "stills" / "from-door.jpg", block)
+
+
+def test_a_fix_whose_after_looks_like_its_before_is_held_off_the_cards_and_out_of_the_basket(home, monkeypatch):
+    drawn_pair(home, 0)
+    assert finish.finish_all(home, home / "store", False, fixture.FakeBackend()) == [("fix-ship-hull", "alpha")]
+    record = records.read(home, "fix-ship-hull", "alpha")
+    assert record["difference"]["shows_change"] is False and records.held(record)
+    page = signed_in().get("/changes/").content.decode()
+    assert "Held back" in page and "looks the same" in page and 'value="buy"' not in page
+    from score.dashboard.checkout import flow
+    monkeypatch.setattr(flow, "offer", lambda branch: {"head": COMMIT, "preview_hash": "f" * 64})
+    done = applying.apply({"kind": "proposal", "user": "joey",
+                           "payload": {"branch": "fix-ship-hull", "commit": COMMIT, "choice": "buy"}}, None)
+    assert done.state == "refused" and "held out of the basket" in done.detail
+    assert not BasketBranch.objects.exists()
+
+
+def test_a_fix_whose_after_shows_its_change_is_a_card_to_buy(home):
+    drawn_pair(home, 80)
+    finish.finish_all(home, home / "store", False, fixture.FakeBackend())
+    record = records.read(home, "fix-ship-hull", "alpha")
+    assert record["difference"]["shows_change"] and records.held(record) is None
+    assert record["difference"]["pairs"]["from-door"]["changed"] > 0.01
+    page = signed_in().get("/changes/").content.decode()
+    assert 'value="buy"' in page and "Held back" not in page
+
+
+def test_a_proposal_never_measured_is_held_until_it_is(home):
+    made(home, difference=None)
+    assert "not measured" in records.held(records.read(home, "fix-ship-hull", "alpha"))
+
+
+def test_the_before_is_drawn_with_the_proposals_own_drawing_on_the_accepted_stage(home, monkeypatch):
+    from score.dashboard.proposals import pictures
+    from score.dashboard.web3d import convert
+    planned = {"views": [{"name": "film-1", "eye": [0, 1, 9], "aim": [0, 1, 0], "frame": 40}], "size": [640, 360]}
+    drawn = []
+    monkeypatch.setattr(convert, "standing_accept", lambda store, node: drawn.append(node) or {"output": "ab" * 32})
+    monkeypatch.setattr(convert, "linked_output", lambda store, output, folder: folder)
+
+    def stills(stage_file, drawing, out, folder_name="stills"):
+        drawn.append((stage_file.name, drawing, folder_name))
+        return [{"name": "film-1", "file": f"{folder_name}/film-1.jpg"}]
+
+    monkeypatch.setattr(pictures, "stills", stills)
+    found = finish.before_stills({"place": "alpha", "target": "neighbours", "drawing": planned}, home / "store",
+                                 home / "out")
+    assert drawn == ["neighbours@alpha", ("alpha.usda", planned, "before")]
+    assert found == [{"name": "film-1", "file": "before/film-1.jpg"}]

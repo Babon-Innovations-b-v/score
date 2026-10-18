@@ -40,7 +40,9 @@
   {% for place in card.places %}
   <section class="fix-place">
     {% if card.places|length > 1 %}<h3>{{ place.name|capfirst }}</h3>{% endif %}
-    {% if place.pairs and place.same_camera %}
+    {% if place.held %}
+    <div class="banner">Not shown as a fix here: {{ place.held }}</div>
+    {% elif place.pairs and place.same_camera %}
     <div class="fx-pairs">
       {% for pair in place.pairs %}
       <figure class="fx-pair">
@@ -120,4 +122,17 @@
   </details>
 </article>
 {% endfor %}
+
+{% if held %}
+<div class="card held-fixes" id="held">
+  <h2>Held back: their pictures show no change yet</h2>
+  <p class="soft small">These fixes cannot be bought until their after picture shows what they fix, measured against the before from the same camera.</p>
+  {% for card in held %}
+  <div class="held-fix" id="fix-{{ card.branch }}">
+    <p><strong>{{ card.sentence }}</strong></p>
+    {% for place in card.places %}<p class="soft small">{{ place.name|capfirst }}: {{ place.held }}</p>{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}
