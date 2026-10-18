@@ -101,6 +101,10 @@ def test_a_started_job_runs_on_as_the_bill_nears_the_stop_and_stops_only_as_a_ru
     assert "runaway render@hangar k" in (folder / guard.OUTBOX).read_text()
     unknown = guard.Watch("render@hangar k", None, folder, stop=lambda: stopped.append(2), clock=lambda: 1e9)
     assert not unknown.check() and stopped == [1]
+    sized = guard.Watch("render@hangar j", 300.0, folder, batches=lambda: [{"high_minutes": 20.0}] * 2,
+                        stop=lambda: stopped.append(3), clock=lambda: clock[0])
+    clock[0] = 81 * 60 + sized.started  # its batches' pre-flights say 40 min high: past 80 it is a runaway
+    assert sized.check() and stopped == [1, 3]
     BILL["euros"] = 0.0
 
 

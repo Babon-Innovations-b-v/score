@@ -22,8 +22,10 @@ Against the stop count, at each paid job's start (`score.adapters.compute.cleara
 
 A job that would pass the stop is refused before it starts, with one line in the owner's outbox per stop line; free
 work goes on, since only paid jobs are cleared. A job once started runs to its end: the only stop halfway is a runaway,
-a run still going past RUNAWAY times its forecast minutes (at its forecast's cards, its cost grows with its time),
-which `watch` ends by signalling the make's own child processes (the cloud runners delete their machines on a signal).
+a run still going past RUNAWAY times its high forecast minutes (at its forecast's cards, its cost grows with its time):
+the sum of its batches' pre-flights once it has any (tools/props/cloud/preflight.py, sized on their jobs), else its
+stage's measured runs. `Watch` ends it by signalling the make's own child processes (the cloud runners delete their
+machines on a signal).
 
 Imported only from score.adapters.compute, outside every stage's code key, so a change here moves no row.
 """
@@ -149,12 +151,19 @@ def stop_children(pid=None):
             pass
 
 
+def no_batches():
+    """No batch pre-flights: a run that keeps none."""
+    return []
+
+
 class Watch:
     """A cleared run's runaway watch, beside its make: every `every` seconds it compares the run's minutes with its
-    forecast's, and past RUNAWAY times them tells the owner once and calls `stop` (the make's children signalled)."""
+    high forecast's (`batches()`: its batches' pre-flights, whose high minutes add up; else `forecast_minutes`), and
+    past RUNAWAY times them tells the owner once and calls `stop` (the make's children signalled)."""
 
-    def __init__(self, ticket, forecast_minutes, folder, stop=stop_children, every=WATCH_SECONDS, clock=time.monotonic):
-        self.ticket, self.forecast, self.folder = ticket, forecast_minutes, folder
+    def __init__(self, ticket, forecast_minutes, folder, batches=no_batches, stop=stop_children, every=WATCH_SECONDS,
+                 clock=time.monotonic):
+        self.ticket, self.forecast, self.folder, self.batches = ticket, forecast_minutes, folder, batches
         self.stop, self.every, self.clock = stop, every, clock
         self.started, self.ended, self.ran_away = clock(), threading.Event(), False
         self.thread = threading.Thread(target=self.watch, daemon=True)
@@ -167,13 +176,17 @@ class Watch:
     def __exit__(self, *_):
         self.ended.set()
 
+    def forecast_minutes(self):
+        """The run's high forecast in minutes: its batches' pre-flights added up, else its stage's measured runs."""
+        return sum(flight["high_minutes"] for flight in self.batches()) or self.forecast
+
     def check(self):
         """Stop the run once it is a runaway; True when it is one."""
-        minutes = (self.clock() - self.started) / 60
-        if not self.ran_away and runaway(self.forecast, minutes):
+        minutes, forecast = (self.clock() - self.started) / 60, self.forecast_minutes()
+        if not self.ran_away and runaway(forecast, minutes):
             self.ran_away = True
             tell_owner(self.folder, f"runaway {self.ticket}", f"stopped after {minutes:.0f} min, over {RUNAWAY:g} "
-                       f"times its {self.forecast:.0f} min forecast; its finished work stays under its key")
+                       f"times its {forecast:.0f} min forecast; its finished work stays under its key")
             self.stop()
         return self.ran_away
 
