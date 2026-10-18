@@ -12,6 +12,9 @@ The owner's basket of fix branches and his one checkout: the creator cockpit as 
   ONE batch through the compute backend. Nothing here stops a run once started.
 - **Prices are the runner's.** `pricing.py` takes the moved rows from `score.stages.moved --json` and each paid node's
   likely and high euros, minutes and cards from `score price` (C19) through the backend; nothing here guesses a number.
+  A node the runner has not measured has no price (likely and high None): `totals` keeps its stage's estimate apart
+  as `guessed_euros`, the pages say it as a guess, and the stop line holds it beside the high (`flow.cleared_high`),
+  since the runner's clearance reserves that estimate.
 - **Tests never launch, never push to a real remote.** `tests/checkout_test.py` uses `FakeBackend`, a temp git repo
   with a bare remote, and a temp store; `SCORE_REPO` is pointed at the temp repo.
 - One function, one purpose; no provider names; no imports of `tools.*` or `score.adapters` (`score.review.web` reaches

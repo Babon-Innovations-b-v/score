@@ -4,6 +4,7 @@ folder, and the ledger's month is set by each test.
 
 Run: .venv/bin/python score/adapters/compute/compute_test.py
 """
+import json
 import multiprocessing
 import os
 import pathlib
@@ -237,7 +238,7 @@ def run_line(number, euros, minutes):
 
 def test_a_paid_node_is_priced_on_its_stages_measured_runs_else_its_estimate():
     """The cockpit's price is the runner's: likely the median run, high what the clearance reserves, cards from
-    the run's sizing; an unmeasured stage stands at its estimate, both ways, with no minutes."""
+    the run's sizing; an unmeasured stage has no price, its estimate kept apart as the guess, with no minutes."""
     saved = BOOKS.entries
     try:
         BOOKS.entries = lambda: [run_line(number, euros, minutes)
@@ -247,10 +248,70 @@ def test_a_paid_node_is_priced_on_its_stages_measured_runs_else_its_estimate():
         assert price["high_euros"] == compute.run_forecast("render@hangar", 9.0)["euros"] > 2.0
         assert price["cards"] == 2  # two 1-minute jobs a run on a 1-minute set-up: a card each
         BOOKS.entries = lambda: []
-        assert compute.run_price("render@hangar", 9.0) == {"likely_euros": 9.0, "high_euros": 9.0, "likely_minutes": None,
-                                                           "high_minutes": None, "cards": None, "runs": 0}
+        assert compute.run_price("render@hangar", 9.0) == {
+            "likely_euros": None, "high_euros": None, "guess_euros": 9.0, "likely_minutes": None, "high_minutes": None,
+            "cards": None, "runs": 0, "basis": "not measured yet"}
+        assert compute.run_forecast("render@hangar", 9.0)["euros"] == 9.0  # the clearance still reserves the guess
     finally:
         BOOKS.entries = saved
+
+
+class Outputs:
+    """A store's read side for the per-unit price: accepted outputs as {node: {file: content}}."""
+
+    def __init__(self, made):
+        self.made = made
+
+    def accepted(self, node):
+        return node if node in self.made else None
+
+    def listing(self, output):
+        return {name: "sha" for name in self.made[output]}
+
+    def read_file(self, output, name):
+        return self.made[output].get(name)
+
+
+def test_a_stage_measured_per_unit_is_priced_at_its_units_and_a_node_with_none_to_count_is_a_guess():
+    """A stage with measured per-unit numbers (PER_UNIT) is priced at them times the units its node's accepted output
+    made, likely and high both, and cleared at its high; a stage that shares its unit (`also`) is priced the same;
+    a node with no accepted output to count is not measured yet, its estimate only a guess."""
+    saved, kept = BOOKS.entries, compute.PER_UNIT
+    folder = pathlib.Path(tempfile.mkdtemp())
+    compute.PER_UNIT = folder / "per-unit.json"
+    compute.PER_UNIT.write_text(json.dumps({"stages": {"render": {
+        "stage": "render", "unit": "model", "count": {"json_keys": "takes.json"}, "also": ["crops-render"],
+        "likely_euros": 0.2, "high_euros": 0.5, "runs": 40, "sources": {}}}}))
+    outputs = Outputs({"render@hangar": {"takes.json": {"a": 1, "b": 2, "c": 3}, "contract.json": {}},
+                       "crops-render@hangar": {"takes.json": {"a": 1}}})
+    try:
+        BOOKS.entries = lambda: []
+        price = compute.run_price("render@hangar", 9.0, outputs)
+        assert (price["likely_euros"], price["high_euros"], price["units"], price["runs"], price["basis"]) == (
+            0.6, 1.5, 3, 40, "per unit"), price
+        assert compute.run_forecast("render@hangar", 9.0, outputs) == {"euros": 1.5, "minutes": None,
+                                                                       "high_minutes": None, "measured": 40}
+        assert compute.run_price("crops-render@hangar", 2.0, outputs)["likely_euros"] == 0.2
+        unseen = compute.run_price("render@lab", 9.0, outputs)
+        assert unseen["likely_euros"] is None and unseen["guess_euros"] == 9.0 and unseen["runs"] == 0
+        assert compute.run_price("bake@hangar", 3.0, outputs)["basis"] == "not measured yet"
+    finally:
+        BOOKS.entries, compute.PER_UNIT = saved, kept
+
+
+def test_each_count_rule_counts_the_units_an_output_made():
+    """The count rules read the output as the stages write it: files by pattern, one file a take, a JSON's keys or
+    field, every map attempt of a take, every finish named again."""
+    take_map = {"front": {"attempts": [{}, {}]}, "views": {"t15-090": {"attempts": [{}]}, "t15-180": {"attempts": []}}}
+    names = {"finishes": [{"by": "the list"}, {"by": "named again (its colour)"}, {"by": "named again (its material)"}]}
+    outputs = Outputs({"out": {"contract.json": {}, "a-s1.json": names, "b-s1.json": names, "a-s1/map.json": take_map,
+                               "passes/p-0.views.json": {}, "passes/p-1.views.json": {}, "passes/p-0/look.png": None,
+                               "closeups.json": {"pro_pictures": 4}}})
+    rules = [({"one": True}, 1), ({"files": "passes/*.views.json"}, 2), ({"take_files": ".json"}, 3),
+             ({"json_field": ["closeups.json", "pro_pictures"]}, 4), ({"map_attempts": "map.json"}, 3),
+             ({"named_again": "-s1.json"}, 4), ({"json_keys": "missing.json"}, None)]
+    for count, units in rules:
+        assert compute.counted_units(outputs, "out", count) == units, (count, units)
 
 if __name__ == "__main__":
     import pathlib

@@ -130,14 +130,17 @@ def test_a_moved_paid_row_is_bought_where_it_moved_and_a_free_row_never():
 
 
 def test_totals_count_each_node_once_and_say_what_is_unmeasured_or_unpriced():
+    """Measured nodes make the price, each once; a node not measured yet adds its stage's guess apart, never to the
+    price, and the stop line holds both (what the runner's clearance reserves)."""
     measured = {"likely_euros": 2.0, "high_euros": 3.0, "likely_minutes": 10.0, "high_minutes": 20.0, "cards": 2,
                 "runs": 3}
-    estimate = {"likely_euros": 5.0, "high_euros": 5.0, "likely_minutes": None, "high_minutes": None, "cards": None,
-                "runs": 0}
+    estimate = {"likely_euros": None, "high_euros": None, "guess_euros": 5.0, "likely_minutes": None,
+                "high_minutes": None, "cards": None, "runs": 0, "basis": "not measured yet"}
     items = [{"nodes": {"closeup@alpha": measured, "closeup@beta": measured}},
              {"nodes": {"closeup@beta": measured, "pixal@alpha": estimate, "odd@alpha": {"error": "not a paid row"}}}]
     found = pricing.totals(pricing.basket_prices(items), jobs=1)
-    assert (found["likely_euros"], found["high_euros"], found["nodes"]) == (9.0, 11.0, 4)
+    assert (found["likely_euros"], found["high_euros"], found["guessed_euros"], found["nodes"]) == (4.0, 6.0, 5.0, 4)
+    assert flow.cleared_high(found) == 11.0
     assert found["likely_minutes"] == 20.0 and found["high_minutes"] == 40.0 and found["cards"] == 4
     assert found["unmeasured"] == ["pixal@alpha"] and found["unpriced"] == ["odd@alpha"]
     assert pricing.totals(pricing.basket_prices(items), jobs=8)["likely_minutes"] == 10.0  # the longest line
