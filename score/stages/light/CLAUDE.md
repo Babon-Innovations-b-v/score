@@ -43,4 +43,8 @@ its own runner (`python -m score.stages.light run lightkit`).
 - **Never edit what a running light node reads** (its layer code, the place's and its neighbours' records, kits and
   light data): the runner stores nothing for a node whose input changed while it ran (2026-10-12: six renders lost).
   The rows declare each place's own files, never a whole data folder.
+- **A shown place keeps its pictures** (2026-10-18): its light layer is written beside the lit tree and taken in, never
+  written into its seed copy (the writer moves assets/textures into assets/light, and ten places' neighbours drew
+  magenta). The lit tree is refused when it names a missing picture, and the render rows gate on the looks'
+  missing-texture magenta (`passes.judge_magenta`).
 - `light_test.py` checks the measures, the sweep and the layer on pictures, passes and a stage made in the test.

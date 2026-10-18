@@ -95,7 +95,7 @@ def source(place, inputs, folder):
 def lit_tree(place, layer_folder, tree, inputs):
     """The place's stage as the assembly lays it (source) with its light layer, and each place it shows (its seed)
     with the light layer its own record gives it (written here, as its own light-layer row would), hard links to the
-    seeds but for what is written."""
+    seeds but for what is written. Refused when the stage names a picture that is not there."""
     source(place, inputs, tree / place)
     root = take(layer_folder, tree / place, place)
     for name in neighbours(place):
@@ -104,9 +104,36 @@ def lit_tree(place, layer_folder, tree, inputs):
         seed = pathlib.Path(inputs[f"neighbour {name}"])
         subprocess.run(["cp", "-al", str(seed), str(tree / name)], check=True)
         if (REPO / f"data/scene/{name}.json").exists():  # the far city is a stage with no scene record: no lights
-            layer.write(name, scene_of(name), seed, tree / name)
-            take(tree / name, tree / name, name)
+            neighbour_layer(name, seed, tree)
+    missing = unresolved(root)
+    if missing:  # a missing picture renders as magenta on a paid card: refused before anything is rented
+        raise RuntimeError(f"{len(missing)} pictures the lit stage names are missing, first: {missing[:5]}")
     return root
+
+
+def neighbour_layer(name, seed, tree):
+    """A shown place's light layer written in a folder of its own beside the tree, then taken into tree/<name>.
+    Written straight into tree/<name> (until 2026-10-18), the writer moved every picture of that folder's
+    assets/textures, the neighbour's own seed pictures among them, into assets/light: its materials lost their
+    pictures and rendered Blender's missing-texture magenta through the doorways (PRD #10, the light step)."""
+    written = tree.parent / f"light-of-{name}"
+    shutil.rmtree(written, ignore_errors=True)
+    try:
+        layer.write(name, scene_of(name), seed, written)
+        take(written, tree / name, name)
+    finally:
+        shutil.rmtree(written, ignore_errors=True)
+
+
+def unresolved(root):
+    """Every picture or other non-layer file the stage at `root` names that is not on disk. A missing layer is left
+    out: a shown place's own neighbours are referenced under its Places, deactivated, and are not in the tree."""
+    from pxr import Sdf, UsdUtils
+    missing = UsdUtils.ComputeAllDependencies(Sdf.AssetPath(str(root)))[2]
+    return sorted(path for path in missing if pathlib.Path(path).suffix not in LAYER_SUFFIXES)
+
+
+LAYER_SUFFIXES = (".usd", ".usda", ".usdc", ".usdz")
 
 
 def demo_views(name):
@@ -179,6 +206,38 @@ def judge_rendered(output, inputs, evidence):
     return checks.Verdict("rendered", checks.FAIL if lacking else checks.PASS,
                           f"{views} views, {len(groups)} lamps each: {len(lacking)} missing", {"missing": len(lacking)},
                           {"missing": "lower"}, tuple(lacking))
+
+
+# Blender draws a material whose picture is missing in magenta (1, 0, 1); through the view's tone curve it reads as a
+# saturated pink-purple. Set 2026-10-18 on the 85 accepted light looks of every place: each look holding 0.27% or
+# more of such pixels showed a neighbour that had lost its pictures, seen by eye (ten places, up to 34%); of the
+# rest, three held under 0.1% and all others none.
+MAGENTA_HUE = (285.0, 340.0)
+MAGENTA_SATURATION = 0.3
+MAGENTA_VALUE = 0.15
+MAGENTA_MOST = 0.002
+
+
+def magenta_share(picture):
+    """The share of a look's pixels in the missing-texture magenta's hue, saturated and lit."""
+    from PIL import Image
+    pixels = np.asarray(Image.open(picture).convert("HSV")).astype(float) / 255
+    hue = pixels[..., 0] * 360
+    return float(((hue > MAGENTA_HUE[0]) & (hue < MAGENTA_HUE[1]) & (pixels[..., 1] > MAGENTA_SATURATION)
+                  & (pixels[..., 2] > MAGENTA_VALUE)).mean())
+
+
+def judge_magenta(output, inputs, evidence):
+    """No look holds more than MAGENTA_MOST of Blender's missing-texture magenta."""
+    looks = sorted(output.glob("passes/*/*-look.png"))
+    shares = {f"{look.parent.name}/{look.name}": magenta_share(look) for look in looks}
+    over = [f"{name}: {share:.1%} missing-texture magenta" for name, share in shares.items() if share > MAGENTA_MOST]
+    most = max(shares.values(), default=0.0)
+    if not looks:
+        return checks.Verdict("no missing pictures", checks.UNKNOWN, "no look rendered", {}, {}, ())
+    return checks.Verdict("no missing pictures", checks.FAIL if over else checks.PASS,
+                          f"{len(looks)} looks, the most magenta {most:.1%} (at most {MAGENTA_MOST:.0%})",
+                          {"magenta share": round(most, 4)}, {"magenta share": "lower"}, tuple(over))
 
 
 def passes_faults(folder):
