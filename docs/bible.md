@@ -387,7 +387,7 @@ is meant to fix, where it is marked, and what proves it.
   `resting` (resting.py on the composed stage). Its motion and effects are the motion and effects stages'. Only the
   garage's rover has a record. Proven when the garage's rover ends accepted and the owner sees it; the ship and the
   ship is the hangar's `ship` inventory row, grounded by `machines-boxes@hangar` (paid, SAM 3) and made by the prop
-  route in a world of its own (`ship_trial.py`); the workshop has no robot row: its concept K10 shows none, and
+  route on the hangar's own surface line (its take `ship-s1` in `data/surfaces/hangar.json`); the workshop has no robot row: its concept K10 shows none, and
   the concept decides (captain, 2026-10-12).
 - **The crops stage** (`score/stages/crops`, its overlay; `data/crops/greenhouse*.json`). For the greenhouse's bare
   beds under a concept of planted ones. `crops-concept@greenhouse` (paid) measures each kind on the concept with SAM 3
