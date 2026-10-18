@@ -1,0 +1,4 @@
+{
+ "_comment": "The written exceptions to the owner's hard rule (2026-10-18): everything in a place comes from the library (score_lib) or is an exception here. Read by score/stages/complete/library/exceptions.py; its docstring has the fields. Each needs the place, the prim or pattern, what it is, why it is not from the library, who allowed it (a handle) and when; an optional expiry. One without a reason or an owner refuses the whole file. Only the owner allows one.",
+ "exceptions": []
+}

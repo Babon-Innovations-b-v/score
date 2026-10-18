@@ -1,0 +1,59 @@
+#usda 1.0
+(
+    defaultPrim = "fixture"
+    metersPerUnit = 1
+    upAxis = "Y"
+    doc = "Known bad (score/stages/complete/library/library_test.py): a crate whose finish is a picture's own texture file, a part with no material (a default grey), and a model no library entry holds."
+)
+
+def Xform "fixture"
+{
+    def Xform "Objects"
+    {
+        def Xform "crate_1"
+        {
+            custom string score:kind = "fixture_crate"
+            custom string score:model = "crate_1"
+            custom string score:model_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+
+            def Scope "Looks"
+            {
+                def Material "picture"
+                {
+                    token outputs:surface.connect = </fixture/Objects/crate_1/Looks/picture/surface.outputs:surface>
+
+                    def Shader "surface"
+                    {
+                        uniform token info:id = "UsdPreviewSurface"
+                        color3f inputs:diffuseColor.connect = </fixture/Objects/crate_1/Looks/picture/base_color.outputs:rgb>
+                        token outputs:surface
+                    }
+
+                    def Shader "base_color"
+                    {
+                        uniform token info:id = "UsdUVTexture"
+                        asset inputs:file = @./textures/photo_of_a_crate.png@
+                        float3 outputs:rgb
+                    }
+                }
+            }
+
+            def Mesh "geo" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                rel material:binding = </fixture/Objects/crate_1/Looks/picture>
+                int[] faceVertexCounts = [3]
+                int[] faceVertexIndices = [0, 1, 2]
+                point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]
+            }
+
+            def Mesh "lid"
+            {
+                int[] faceVertexCounts = [3]
+                int[] faceVertexIndices = [0, 1, 2]
+                point3f[] points = [(0, 1, 0), (1, 1, 0), (0, 1, 1)]
+            }
+        }
+    }
+}
