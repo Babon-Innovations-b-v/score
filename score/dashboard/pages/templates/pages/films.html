@@ -1,0 +1,25 @@
+{% extends "pages/base.html" %}
+{% block title %}Film{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/pages/film.css">
+<div class="page-head"><h1>Films</h1><span class="soft">Write a film's script, play it free on the 3D copies, then buy only the frames it still needs.</span></div>
+<div class="film-tiles">
+  {% for item in films %}
+  <a class="tile film-tile" href="/film/{{ item.film }}/">
+    <span class="frame">{% if item.picture %}<img class="pic" src="{{ item.picture.thumb }}" alt="{{ item.title }}" loading="lazy">{% else %}<span class="pic empty">no picture yet</span>{% endif %}</span>
+    <span class="tile-foot"><span class="tile-name">{{ item.title }}</span>
+      <span class="status quiet">{{ item.segments }} segments, {{ item.places }} places</span></span>
+    <span class="film-length"><b>{{ item.seconds|floatformat:1 }} s</b>{% if item.target %} of {{ item.target }} s{% endif %}, {% if item.origin == "saved" %}saved in the cockpit{% else %}the starter{% endif %}</span>
+  </a>
+  {% empty %}<p class="soft">No film script yet.</p>
+  {% endfor %}
+</div>
+{% if owner %}
+<form class="card narrow" method="post" action="/film/new/">{% csrf_token %}
+  <h2 class="eyebrow">A new film</h2>
+  <label>Name (lower-case letters, digits and dashes)<input type="text" name="film" required pattern="[a-z0-9][a-z0-9\-]{0,39}"></label>
+  <label>Title<input type="text" name="title"></label>
+  <button class="primary">Start its script</button>
+</form>
+{% endif %}
+{% endblock %}

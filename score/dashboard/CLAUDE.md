@@ -33,6 +33,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`proposals/`** each fix branch's proposal for a place (its own overlay): the place assembled free from the branch
   over the store's accepted outputs, its 3D copy, stills and draft media, in `$SCORE_DASHBOARD_HOME/proposals/`; the
   export carries them through `proposals/exporting.py`, the API at `/api/proposals` and `/proposal/<branch>/<place>/`.
+- **`films/`** the film script (its own overlay): the FILM pages' editor, free three.js preview on the web copies and
+  films, and render items priced from measured frames; scripts saved in `$SCORE_DASHBOARD_HOME/films/`, starters in
+  `data/films/`.
 - **`deploy/`** templates only, every host and name a `<placeholder>`; `Dockerfile` and `docker-compose.yml` beside.
 
 Rules:

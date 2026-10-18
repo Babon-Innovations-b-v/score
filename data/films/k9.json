@@ -1,0 +1,414 @@
+{
+ "format": "score-film-script",
+ "version": 1,
+ "film": "k9",
+ "title": "World 1: 2099",
+ "world": "world1",
+ "target_seconds": 150,
+ "size": [
+  1280,
+  720
+ ],
+ "rate": 24,
+ "why": "World 1's demo film (paper demo K9), a sales trailer for the world. Improved from the 18 Oct cut: the framework's chain shown once, on the hangar, then the hangar opened up (exploded, one part isolated, its layers lifted apart, concept against result) and the places given the rest of the time, every place's accepted film in story order, the four set pieces walked longer.",
+ "defaults": {},
+ "segments": [
+  {
+   "cut": "title",
+   "shows": {
+    "world": "world1"
+   },
+   "transition": "fade-through-black",
+   "sound": "bed",
+   "text": "World 1: 2099",
+   "line": "26 places, every one walkable, every piece its own"
+  },
+  {
+   "cut": "step-card",
+   "shows": {
+    "place": "hangar",
+    "step": "reference"
+   },
+   "transition": "push",
+   "sound": "bed",
+   "line": "The look, from the creator's own pictures"
+  },
+  {
+   "cut": "step-card",
+   "shows": {
+    "place": "hangar",
+    "step": "concept"
+   },
+   "transition": "push",
+   "sound": "bed",
+   "line": "One picture per place, picked by the creator"
+  },
+  {
+   "cut": "step-card",
+   "shows": {
+    "place": "hangar",
+    "step": "plan"
+   },
+   "transition": "push",
+   "sound": "bed",
+   "line": "Measured in metres: walls, doors, every item"
+  },
+  {
+   "cut": "step-card",
+   "shows": {
+    "place": "hangar",
+    "step": "pieces"
+   },
+   "transition": "push",
+   "sound": "bed",
+   "line": "Every object made as its own model"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "hangar"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The hangar",
+   "line": "The Moon base"
+  },
+  {
+   "cut": "exploded",
+   "shows": {
+    "place": "hangar"
+   },
+   "transition": "cross-fade",
+   "sound": "bed",
+   "text": "Every piece its own model",
+   "line": "split apart, nothing baked together"
+  },
+  {
+   "cut": "isolate",
+   "shows": {
+    "place": "hangar",
+    "part": "Objects/ship_1"
+   },
+   "transition": "cross-fade",
+   "sound": "bed",
+   "text": "The ship",
+   "line": "one part, ready to edit"
+  },
+  {
+   "cut": "layer-split",
+   "shows": {
+    "place": "hangar"
+   },
+   "transition": "cross-fade",
+   "sound": "bed",
+   "text": "Built in OpenUSD layers",
+   "line": "ground, pieces, machines, light, sound, motion"
+  },
+  {
+   "cut": "before-after",
+   "shows": {
+    "place": "hangar"
+   },
+   "transition": "cross-fade",
+   "sound": "bed",
+   "text": "From the concept",
+   "line": "to the place you walk through"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "hangar",
+    "film": "hull"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The ship",
+   "line": "The Moon base, the hangar"
+  },
+  {
+   "cut": "text",
+   "shows": {
+    "world": "world1"
+   },
+   "transition": "cross-fade",
+   "sound": "bed",
+   "text": "The world",
+   "line": "every place, in story order"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "flat"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The flat",
+   "line": "Prologue, Hong Kong 2099"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "stairwell"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The stairwell",
+   "line": "Prologue"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "street"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The street",
+   "line": "Prologue"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "square"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The square",
+   "line": "Prologue",
+   "seconds": 7.0
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "launch"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The launch view",
+   "line": "Prologue",
+   "seconds": 7.0
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "hub"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The hub",
+   "line": "The Moon base"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "lab"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The lab",
+   "line": "The Moon base"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "greenhouse"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The greenhouse",
+   "line": "The Moon base",
+   "seconds": 7.0
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "workshop"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The workshop",
+   "line": "The Moon base"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "habitat"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The habitat",
+   "line": "The Moon base"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "airlock"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The airlock",
+   "line": "The Moon base"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "tube"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The walkway tube",
+   "line": "The Moon base"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "garage"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The garage",
+   "line": "The Moon base"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "wreck"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The wreck",
+   "line": "The Moon"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "old_station"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The old station",
+   "line": "The Moon"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "shiplock"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The ship's lock",
+   "line": "The ship"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "walkway"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The walkway",
+   "line": "The ship"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "cockpit"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The cockpit",
+   "line": "The ship",
+   "seconds": 7.0
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "navigation"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "Navigation",
+   "line": "The ship"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "galley"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The galley",
+   "line": "The ship"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "quarters"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The quarters",
+   "line": "The ship"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "storage"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The storage room",
+   "line": "The ship"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "engineroom"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The engine room",
+   "line": "The ship"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "camp"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The camp",
+   "line": "Mars"
+  },
+  {
+   "cut": "walk-through",
+   "shows": {
+    "place": "campgrounds"
+   },
+   "transition": "cross-fade",
+   "sound": "place",
+   "text": "The camp grounds",
+   "line": "Mars"
+  },
+  {
+   "cut": "layer-focus",
+   "shows": {
+    "place": "hub",
+    "layer": "light"
+   },
+   "transition": "cross-fade",
+   "sound": "bed",
+   "text": "Light is its own layer",
+   "line": "change it without touching a piece"
+  },
+  {
+   "cut": "title",
+   "shows": {
+    "world": "world1"
+   },
+   "transition": "fade-through-black",
+   "sound": "bed",
+   "text": "SCORE",
+   "line": "a complete, owned, editable world"
+  }
+ ]
+}

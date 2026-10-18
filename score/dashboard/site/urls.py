@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from score.dashboard.pages import library, views
+from score.dashboard.pages import films, library, views
 
 STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide/", views.step_decide),
                ("queue/", views.step_queue), ("advance/", views.step_advance)]
@@ -25,6 +25,13 @@ urlpatterns = [
     path("library/ask/", library.ask),
     path("library/<slug:kind>/<str:entry_id>/<int:version>/", library.entry_page),
     path("library/<slug:kind>/<str:entry_id>/<int:version>/3d/", library.entry_viewer),
+    path("film/", films.film_list),
+    path("film/new/", films.film_new),
+    path("film/pictures/<slug:place>/", films.film_pictures),
+    path("film/<slug:film>/", films.film_page),
+    path("film/<slug:film>/compile/", films.film_compile),
+    path("film/<slug:film>/save/", films.film_save),
+    path("film/<slug:film>/basket/", films.film_basket),
     path("view/<slug:place>", views.viewer),
     path("picks/<slug:place>", views.picks),
     path("refresh/", views.refresh),
