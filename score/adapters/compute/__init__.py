@@ -23,9 +23,12 @@ demo.py, make_jobs.py, the close-up stage) refuse to spend unless they run insid
 
 Clearing is serialised, as lines run side by side (score.graph's drive): the month's check and the clearance are
 made under one lock (`clearing.lock` beside the store), and every clearance holds a reservation of its estimate
-(`reservations.json` beside it) until its run ends (`spending` releases it), or, for one handed to a job store, until
-a batch's longest run (the ledger's BATCH_HOURS) has passed. The month's check counts the open reservations with the
-ledger, which records a batch only once it is done, so two lines can never both spend the month's last euros.
+(`reservations.json` beside it) until its run ends (`spending` releases it, and holds it open while its process
+lives), or, for one handed to a job store, until a batch's longest run (the ledger's BATCH_HOURS) or its runaway limit
+has passed. A trial's own store inside the home (compare.py's) is covered by the framework store: its paid jobs are
+checked against the world's stop line and reserved beside the framework store, so they count in flight. The month's
+check counts the open reservations with the ledger, which records a batch only once it is done, so two lines can never
+both spend the month's last euros.
 
 The world's stop line (guard.py, owner 2026-10-18) is checked under the same lock: a paid job is refused before it
 starts when its forecast, with the world's spend since its first line and every run in flight, would pass the line;
@@ -33,8 +36,9 @@ a started job is never stopped as the bill nears it, only a runaway past twice i
 
 The owner's override, an extra route he may use and never a requirement, is his yes for a run outside the runner:
 he gives it from his own terminal for a name of his choosing (the review command's spend, node `override`, key
-<name>, at his euros), and the run carries SCORE_SPEND_TICKET="override <name>". A rent point checks only that the
-clearance or the yes exists; the ledger's own ceilings still apply there. A barrier, not a lock: an agent can name a
+<name>, at his euros), and the run carries SCORE_SPEND_TICKET="override <name>"; an override yes counts in flight for
+a batch's longest run. A rent point checks that the yes exists, or that the clearance's run still holds its
+reservation; the ledger's own ceilings still apply there. A barrier, not a lock: an agent can name a
 clearance given earlier, and every clearance names its node, key, estimate and time.
 """
 import contextlib
@@ -46,7 +50,7 @@ import sys
 
 from score import graph
 from score.adapters.compute import guard
-from score.store import RUNNER, Store, locked
+from score.store import PROPS_HOME, RUNNER, Store, locked
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/cloud/runtime"))
@@ -149,20 +153,40 @@ def months_since(baseline, now):
             for month in guard.months_from(baseline["month"], now["month"])}
 
 
+def covering_store(store):
+    """The store whose stop lines and reservations cover `store`'s paid jobs: the framework store for itself and for a
+    trial's own store inside the home (compare.py's, whose paid rows spend world 1's money); a store outside the home
+    (a test's) covers itself. Fault (2026-10-18 review): a trial's store had no stop line, so its paid rows were never
+    checked against the world's stop, and its reservations were never counted in flight."""
+    if store.is_framework_store() or not store.objects.root.resolve().is_relative_to(PROPS_HOME.resolve()):
+        return store
+    return Store.default()
+
+
+def open_overrides(store):
+    """{yes time: yes} of the owner's override yeses younger than a batch's longest run: runs outside the runner that
+    may still be going, counted in flight."""
+    oldest = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=ledger().BATCH_HOURS)
+    yeses = (store.read(key) for key in store.objects.keys(f"spend-yes/{OVERRIDE}/"))
+    return {yes["at"]: yes for yes in yeses if datetime.datetime.fromisoformat(yes["at"]) > oldest}
+
+
 def stop_refusal(runner, node, forecast, held):
     """Why the world's stop line has no room for a job at `forecast` euros with every run in `held` still to come,
-    or None when it has; the owner's outbox told once per line. In the framework's store a world with no line is
-    refused: the owner sets its money figure before any paid job starts."""
-    line = guard.current(runner.store, runner.world.name)
+    or None when it has; the owner's outbox told once per line. Under the framework's store (a trial's own store
+    too) a world with no line is refused: the owner sets its money figure before any paid job starts."""
+    covering = covering_store(runner.store)
+    line = guard.current(covering, runner.world.name)
     if line is None:
-        if not runner.store.is_framework_store():
-            return None  # a test's or a trial's own store
+        if not covering.is_framework_store():
+            return None  # a test's own store
         return (f"world {runner.world.name} has no stop line: the owner sets one before any paid job starts "
                 f"(python -m score.review stop {runner.world.name} <euros> --reason \"...\")")
     spent = guard.spent_since(line["baseline"], months_since(line["baseline"], books_now()))
-    why = guard.refusal(line, spent, guard.in_flight(held, ledger().entries()), forecast)
+    flight = guard.in_flight({**open_overrides(covering), **held}, ledger().entries())
+    why = guard.refusal(line, spent, flight, forecast)
     if why:
-        guard.tell_owner(runner.store.cache.parent, f"{line['world']} stop of {line['at']}",
+        guard.tell_owner(covering.cache.parent, f"{line['world']} stop of {line['at']}",
                          f"paid work held at EUR {spent:.2f} of the EUR {line['euros']:.2f} stop; {node} would have "
                          f"needed EUR {forecast:.2f} more. Free work goes on.")
     return why
@@ -173,11 +197,22 @@ def clearing(reservations):
     return locked(reservations.with_name("clearing.lock"))
 
 
+def still_open(at, held, now):
+    """True for a reservation not released whose run may still be going: its holder (the process in its `spending`
+    block) is alive, or it is younger than a batch's longest run or its runaway limit (RUNAWAY times its high
+    minutes), whichever is longer. Fault (2026-10-18 review): a run of several batches outlived its 4 h reservation
+    and left the in-flight sum while it was still spending."""
+    if held.get("holder") and guard.alive(held["holder"]):
+        return True
+    hours = max(ledger().BATCH_HOURS, guard.RUNAWAY * (held.get("high_minutes") or 0.0) / 60)
+    return datetime.datetime.fromisoformat(at) > now - datetime.timedelta(hours=hours)
+
+
 def open_reservations(reservations):
-    """{clearance time: clearance} still open: not released, and younger than a batch's longest run."""
+    """{clearance time: clearance} still open (still_open)."""
     found = json.loads(reservations.read_text()) if reservations.exists() else {}
-    oldest = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=ledger().BATCH_HOURS)
-    return {at: held for at, held in found.items() if datetime.datetime.fromisoformat(at) > oldest}
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return {at: held for at, held in found.items() if still_open(at, held, now)}
 
 
 def keep_reservations(reservations, held):
@@ -197,10 +232,11 @@ def clearance(runner, node, euros):
         ticket = runner.ticket(node)
     except graph.Blocked as block:
         raise Refused(f"{node} is blocked: {block}") from block
-    reservations = runner.store.cache.parent / "reservations.json"
+    reservations = covering_store(runner.store).cache.parent / "reservations.json"
     with clearing(reservations):
         held = open_reservations(reservations)
-        over = (month_refusal(forecast["euros"], sum(reserved["euros"] for reserved in held.values()))
+        going = {**open_overrides(covering_store(runner.store)), **held}
+        over = (month_refusal(forecast["euros"], sum(reserved["euros"] for reserved in going.values()))
                 or stop_refusal(runner, node, forecast["euros"], held))
         if over:
             raise Refused(f"{node}: {over}")
@@ -209,7 +245,18 @@ def clearance(runner, node, euros):
                    "by": RUNNER, "at": graph.now()}
         runner.store.write_clearance(node, ticket["key"], cleared)
         keep_reservations(reservations, {**held, cleared["at"]: cleared})
-    return {**ticket, "clearance": cleared, "reservations": str(reservations)}
+    return {**ticket, "clearance": cleared, "reservations": str(reservations),
+            "store": str(runner.store.cache.parent)}
+
+
+def hold(ticket):
+    """Mark a cleared run's reservation as held by this process, so it stays open while the process lives."""
+    reservations = pathlib.Path(ticket["reservations"])
+    with clearing(reservations):
+        held = open_reservations(reservations)
+        if ticket["clearance"]["at"] in held:
+            held[ticket["clearance"]["at"]]["holder"] = guard.process_mark(os.getpid())
+            keep_reservations(reservations, held)
 
 
 def release(ticket):
@@ -242,8 +289,10 @@ def spending(ticket):
     before = {name: os.environ.get(name) for name in (TICKET, STORE)}
     os.environ[TICKET] = f"{ticket['node']} {ticket['key']}"
     if "reservations" in ticket:  # the store the clearance is in: a trial's own store (Store.in_folder) too
-        os.environ[STORE] = str(pathlib.Path(ticket["reservations"]).parent)
-    folder = pathlib.Path(os.environ[STORE]) if os.environ.get(STORE) else Store.default().cache.parent
+        os.environ[STORE] = ticket.get("store", str(pathlib.Path(ticket["reservations"]).parent))
+        hold(ticket)
+    folder = (pathlib.Path(ticket["reservations"]).parent if "reservations" in ticket else
+              pathlib.Path(os.environ[STORE]) if os.environ.get(STORE) else Store.default().cache.parent)
     watch = guard.Watch(os.environ[TICKET], ticket.get("clearance", {}).get("high_minutes"), folder,
                         batches=lambda: batch_preflights(os.environ[TICKET]))
     try:
@@ -259,9 +308,17 @@ def spending(ticket):
                 os.environ[name] = value
 
 
+def reservation_open(store, clearances):
+    """True when one of a node and key's runner clearances still holds its reservation (its run is going)."""
+    held = open_reservations(covering_store(store).cache.parent / "reservations.json")
+    return any(cleared["at"] in held for cleared in clearances)
+
+
 def require_cleared(what, store=None):
     """The runner's clearance (or the owner's override yes) for the run SCORE_SPEND_TICKET names; Refused when the
-    variable is missing or names neither. `what` says what was about to be rented."""
+    variable is missing or names neither, or names a runner clearance whose run has ended (its reservation released
+    or expired: an old ticket reused would start paid work no stop check and no in-flight sum ever saw). `what` says
+    what was about to be rented."""
     named = os.environ.get(TICKET, "").split()
     if len(named) != 2:
         raise Refused(f"{what}: nothing rents outside a cleared run. Run it through the runner (score.adapters "
@@ -269,7 +326,11 @@ def require_cleared(what, store=None):
                       f"here as {TICKET}=\"{OVERRIDE} <name>\")")
     node, key = named
     store = store or (Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default())
-    found = store.clearances(node, key) or [store.spend_yes(node, key)]
+    cleared = store.clearances(node, key)
+    found = cleared or [store.spend_yes(node, key)]
     if found[-1] is None:
         raise Refused(f"{what}: {TICKET} names {node} {key[:12]}, which the runner did not clear")
+    if cleared and not reservation_open(store, cleared):
+        raise Refused(f"{what}: {TICKET} names {node} {key[:12]}, whose cleared run has ended; a new run is cleared "
+                      "by the runner afresh")
     return found[-1]

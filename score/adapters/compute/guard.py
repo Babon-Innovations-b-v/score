@@ -142,6 +142,25 @@ def children(pid):
     return found
 
 
+def started_at(pid):
+    """When process `pid` started, in clock ticks since boot (/proc); None for a process that is gone."""
+    try:
+        return int(pathlib.Path(f"/proc/{pid}/stat").read_text().rpartition(")")[2].split()[19])
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+def process_mark(pid):
+    """A process named so it is never mistaken for a later one given the same pid: "<pid> <start ticks>"."""
+    return f"{pid} {started_at(pid)}"
+
+
+def alive(mark):
+    """True while the process `mark` (process_mark) names is still running."""
+    pid, _, ticks = mark.partition(" ")
+    return pid.isdigit() and str(started_at(int(pid))) == ticks
+
+
 def stop_children(pid=None):
     """Signal every process this one started to stop (the cloud runners delete their machines on it)."""
     for child in children(pid or os.getpid()):
@@ -177,8 +196,12 @@ class Watch:
         self.ended.set()
 
     def forecast_minutes(self):
-        """The run's high forecast in minutes: its batches' pre-flights added up, else its stage's measured runs."""
-        return sum(flight["high_minutes"] for flight in self.batches()) or self.forecast
+        """The run's high forecast in minutes: its batches' pre-flights added up, else its stage's measured runs (also
+        when the pre-flights cannot be read, say a line half written as it is read, so the watch never dies)."""
+        try:
+            return sum(flight["high_minutes"] for flight in self.batches()) or self.forecast
+        except (OSError, ValueError, KeyError, TypeError):
+            return self.forecast
 
     def check(self):
         """Stop the run once it is a runaway; True when it is one."""
@@ -186,7 +209,8 @@ class Watch:
         if not self.ran_away and runaway(forecast, minutes):
             self.ran_away = True
             tell_owner(self.folder, f"runaway {self.ticket}", f"stopped after {minutes:.0f} min, over {RUNAWAY:g} "
-                       f"times its {forecast:.0f} min forecast; its finished work stays under its key")
+                       f"times its {forecast:.0f} min forecast. The cloud runners do not keep finished work on a "
+                       "stop yet, so a rerun starts over")
             self.stop()
         return self.ran_away
 
