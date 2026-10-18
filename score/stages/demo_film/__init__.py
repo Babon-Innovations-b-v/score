@@ -154,6 +154,7 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     work = log_folder / ".work"
     shutil.copytree(stage_folder, work / "stages" / place)
     subprocess.run(["chmod", "-R", "u+w", str(work / "stages")], check=True)
+    own_camera(work / "stages" / place / "scene.json", film)
     given = f"{place}={film['camera']}" if name == place else f"{name}@{place}={film['camera']}"
     jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE, ink=False, shots=SHOTS,
                      seconds=SECONDS, start=start)
@@ -165,6 +166,18 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     planned = json.loads((work / "views" / f"{name}.json").read_text())
     (out / "views.json").write_text(json.dumps(dict(planned, stage=f"{place}/{place}.usda"), indent=1))
     shutil.rmtree(work)
+
+
+def own_camera(record_path, film):
+    """A film record that carries its own spot ("eye", "aim", and "fov" else the record's own 75) adds it to the
+    stage's record copy as the camera it names, so a film can frame what no record camera does (the greenhouse's crop
+    bed, 2026-10-18) with the scene record itself untouched."""
+    if "eye" not in film:
+        return
+    record = json.loads(record_path.read_text())
+    record["views"] = [view for view in record.get("views", []) if view["name"] != film["camera"]] + [
+        {"name": film["camera"], "eye": film["eye"], "aim": film["aim"], "fov": film.get("fov", 75)}]
+    record_path.write_text(json.dumps(record, indent=1))
 
 
 def make(inputs, out, seed, params):
