@@ -1,5 +1,5 @@
 """The typed JSON API under /api (the pages' live parts and later agents call it), and the file routes the pages
-use (/files, /thumbs, /web, /healthz). One sign-in with the pages: api/deps.py."""
+use (/files, /thumbs, /web, /proposal, /healthz). One sign-in with the pages: api/deps.py."""
 from django.conf import settings
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, Response
@@ -10,6 +10,7 @@ from score.dashboard.api.deps import owner_only, signed_in
 from score.dashboard.launch import guard
 from score.dashboard.pages import actions
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan
+from score.dashboard.proposals import records as proposals
 from score.dashboard.state import money
 from score.dashboard.state.files import SHA, content_type
 from score.dashboard.state.models import MoneyView, PlaceDetail, Spend, StepDetail, WorldState
@@ -259,6 +260,33 @@ def launch_read(launch_id: int, user=Depends(signed_in)):
     return launch_out(guard.polled(record))
 
 
+def proposals_root():
+    """Where this process reads proposals: the dashboard's home locally, the current export when hosted."""
+    if settings.SCORE_MODE == settings.HOSTED:
+        return settings.SCORE_HOME / "export" / "current" / "proposals"
+    return settings.SCORE_HOME / "proposals"
+
+
+@api.get("/proposals")
+def proposal_list(user=Depends(signed_in)):
+    """Every fix branch's proposal, newest first: branch, place, commit, change, made_at, needs_paid_batch, hero,
+    has_3d (proposals/records.py)."""
+    return proposals.listing(proposals_root())
+
+
+@api.get("/proposals/{branch}/{place}")
+def proposal_read(branch: str, place: str, user=Depends(signed_in)):
+    """One proposal whole (proposals/propose.py's proposal.json)."""
+    try:
+        found = proposals.read(proposals_root(), branch, place)
+    except proposals.BadName as bad:
+        raise HTTPException(404, str(bad)) from bad
+    if found is None:
+        raise HTTPException(404, f"no proposal of {branch} at {place}: python -m score.dashboard propose {branch} "
+                                 f"{place}")
+    return found
+
+
 @files.get("/healthz")
 def healthz():
     return {"ok": True, "mode": settings.SCORE_MODE}
@@ -310,3 +338,16 @@ def web_copy(place: str, name: str, user=Depends(signed_in)):
     if path is None:
         raise HTTPException(404, "this place has no 3D copy yet: python -m score.dashboard web3d <place>")
     return FileResponse(path, media_type=content_type(name))
+
+
+@files.get("/proposal/{branch}/{place}/{name:path}")
+def proposal_file(branch: str, place: str, name: str, user=Depends(signed_in)):
+    """A proposal's file: web3d/<place>.glb, web3d/<place>-light.glb, web3d/<place>.json, stills/<view>.jpg or
+    media/<name>."""
+    try:
+        path = proposals.file_path(proposals_root(), branch, place, name)
+    except proposals.BadName as bad:
+        raise HTTPException(404, str(bad)) from bad
+    if path is None:
+        raise HTTPException(404, "no such proposal file")
+    return FileResponse(path, media_type=content_type(path.name))

@@ -127,6 +127,19 @@ def convert(place, store_root, out_root):
     accept = accepted_assembly(store_root, place)
     if accept is None:
         raise RuntimeError(f"{place} has no accepted assembly: nothing to show in 3D")
+    work = pathlib.Path(tempfile.mkdtemp(prefix=f"web3d-{place}-"))
+    try:
+        linked = linked_output(store_root, accept["output"], work / "stage")
+        return write_copies(place, linked, out_root, {"from_output": accept["output"], "accepted_at": accept["at"]},
+                            cameras(place))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def write_copies(place, stage_folder, out_root, origin, views):
+    """Write the two web copies and sidecar of the OpenUSD stage in `stage_folder` (<place>.usda) into
+    out_root/<place>/, swapped in whole; the sidecar, which carries `origin` (where the stage came from) and the
+    cameras `views`."""
     export = exporter()
     export.TEXTURE_SIZE, export.JPEG_QUALITY = FULL_TEXTURE, JPEG_QUALITY
     from pxr import Usd
@@ -137,8 +150,7 @@ def convert(place, store_root, out_root):
     shutil.rmtree(partial, ignore_errors=True)
     partial.mkdir(parents=True)
     try:
-        linked = linked_output(store_root, accept["output"], work / "stage")
-        stage = Usd.Stage.Open(str(linked / f"{place}.usda"))
+        stage = Usd.Stage.Open(str(stage_folder / f"{place}.usda"))
         moment = Usd.TimeCode(stage.GetStartTimeCode())
         gltf = export.Gltf(work / "gltf")
         (work / "gltf").mkdir()
@@ -149,10 +161,9 @@ def convert(place, store_root, out_root):
         layers = node_layers(stage, export, moment)
         lights = [entry for entry in (export.light_entry(prim, moment) for prim in stage.Traverse()) if entry]
         sky = export.sky(stage, moment)
-        views = cameras(place)
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    sidecar = {"place": place, "from_output": accept["output"], "accepted_at": accept["at"],
+    sidecar = {"place": place, **origin,
                "made_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "triangles": triangles,
                "left_out": left_out, "lights": lights, "sky": sky, "cameras": views,
                "objects": [{"name": name, "layer": layers.get(name, "base"), "low": low.round(4).tolist(),
