@@ -5,7 +5,7 @@ clears a paid run.
 Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
 
 1. Running the owner's commands: Python that names ``score.review`` (or ``score/review``, or its ``__main__.py``)
-   together with the words accept, reject, spend, waive or stop (his money yes, which writes a world's stop line),
+   together with the words accept, reject, spend, waive or stop (his money yes, which writes an environment's stop line),
    quoted or not.
 2. Calling them from Python, or writing a script that does: a shell command that runs Python or writes a file and
    holds a call to ``accept(``, ``reject(``, ``spend(``, ``waive(``, ``write_once(``, ``write_accept(``,
