@@ -80,7 +80,7 @@ def board(request):
     shown = with_web3d(source, present.look_groups(world, queued))
     found = named_changes(source, shown)
     return render(request, "pages/board.html", {
-        "world": world, "groups": shown, "basket": present.basket_of(found),
+        "world": world, "environment_name": present.environment_name(world.world), "groups": shown, "basket": present.basket_of(found),
         "offered": [item for item in found if item["state"] in ("offered", "in basket")],
         "bought": [item for item in found if item["state"] in ("running", "done", "failed")],
         "money": present.money(month_money.view(world.spend), planned), "world_steps": [
@@ -133,7 +133,7 @@ def step_page(request, stage, place=None):
     source = state.source()
     detail = source.step_detail(place, stage)
     if detail is None:
-        raise Http404(f"no step {stage} at {place or 'the world'}")
+        raise Http404(f"no step {stage} at {place or 'the whole environment'}")
     snapshot = actions.snapshot_states()
     shown = (detail.accepted or detail.waiting)
     if shown and is_owner(request.user):

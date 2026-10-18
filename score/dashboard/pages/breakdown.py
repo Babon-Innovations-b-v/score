@@ -138,7 +138,7 @@ def ground_card(ground):
     if ground is None:
         return None
     thumb = ground.picture.thumb_url if ground.picture else None
-    return {"label": f"{ground.label} (one for the whole world)", "url": f"/world/step/{ground.stage}/",
+    return {"label": f"{ground.label} (one for the whole environment)", "url": f"/world/step/{ground.stage}/",
             "thumb": thumb, "full": large(thumb), "state": ground.state,
             "words": present.STATE_WORDS.get(ground.state, ground.state), "unseen": False, "drawn": False,
             "made_from": [], "more_from": 0}

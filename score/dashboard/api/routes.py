@@ -129,7 +129,7 @@ def place_detail(place: str, user=Depends(signed_in)):
 def step(place, stage):
     found = state.source().step_detail(place, stage)
     if found is None:
-        raise HTTPException(404, f"no step {stage} at {place or 'the world'}")
+        raise HTTPException(404, f"no step {stage} at {place or 'the whole environment'}")
     return found
 
 

@@ -12,7 +12,7 @@
       </ul>
     </div>
     <div class="money-world">
-      <div class="eyebrow">{{ money.world|capfirst }} against your stop</div>
+      <div class="eyebrow">{{ money.environment }} against your stop</div>
       {% if money.stop %}
       <div class="money-total">EUR {{ money.spent|default:0|floatformat:2 }} <span class="soft">of EUR {{ money.stop|floatformat:0 }}</span></div>
       <div class="meter" role="img" aria-label="spent and in flight against the stop">

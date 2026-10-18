@@ -245,7 +245,7 @@ for (const button of $("lib-bar").querySelectorAll("[data-act]")) button.addEven
 function factRows(entry) {
   const link = (found) => found.url ? make("a", { href: found.url }, found.label) : make("span", {}, found.label);
   const rows = [];
-  if (entry.world) rows.push(["World", entry.world]);
+  if (entry.world) rows.push(["Environment", entry.world]);
   if (entry.place) rows.push(["Place", link(entry.place)]);
   if (entry.step) rows.push(["Step", link(entry.step)]);
   if (entry.source) rows.push(["Read from", entry.source]);

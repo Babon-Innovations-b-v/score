@@ -280,19 +280,27 @@ def basket_of(found):
 STOP_LINE = '.venv/bin/python -m score.review stop {world} <euros> --reason "what it is for"'
 
 
+def environment_name(stored):
+    """An environment's id in the owner's words: `world1` (the stored id, kept so no node is made again) as
+    "Environment 1"; any other id as it is."""
+    numbered = re.fullmatch(r"world(\d+)", stored or "")
+    return f"Environment {numbered.group(1)}" if numbered else stored
+
+
 def share(part, whole):
     return min(100.0, 100.0 * part / whole) if part is not None and whole else None
 
 
 def money(view, planned):
     """The money card from the month's MoneyView (state/money.py): the month's total ("at least" while a line is
-    partial or missing, "not known yet" when no line has a number), a line per source, and the world against its
-    stop, or the terminal line that sets one."""
+    partial or missing, "not known yet" when no line has a number), a line per source, and the environment
+    against its stop, or the terminal line that sets one."""
     known = [line for line in view.lines if line.euros is not None]
     spent = view.world_spent or 0.0
     flight = view.in_flight or 0.0
     return {"month": view.month, "total": view.total.euros if known else None, "whole": view.total.whole,
-            "gaps": view.total.gaps, "lines": view.lines, "world": view.world or "this world",
+            "gaps": view.total.gaps, "lines": view.lines,
+            "environment": environment_name(view.world) if view.world else "this environment",
             "stop": view.stop, "spent": view.world_spent, "in_flight": view.in_flight,
             "spent_share": share(spent, view.stop), "flight_share": share(flight, view.stop),
             "room": round(view.stop - spent - flight, 2) if view.stop else None,

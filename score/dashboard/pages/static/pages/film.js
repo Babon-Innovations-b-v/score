@@ -71,7 +71,7 @@ function segmentPicture(segment) {
 function segmentWords(segment) {
   const shows = segment.shows || {};
   const media = mediaOf(shows.place);
-  const where = media ? media.words : (shows.world || "the world");
+  const where = media ? media.words : "the whole environment";
   if (segment.cut === "step-card") return `${given.steps[shows.step] || "a step"}: ${where}`;
   if (segment.cut === "layer-focus") return `${where}: ${shows.layer || "a layer"}`;
   if (segment.cut === "isolate") return `${where}: ${(shows.part || "a part").split("/").pop()}`;
@@ -382,7 +382,7 @@ function drawRender() {
       const frame = element("span", "film-item-pic");
       if (picture) frame.style.backgroundImage = `url("${picture.thumb}")`;
       tile.append(frame, element("b", "", `${entry.segment}. ${given.cuts[entry.cut].label}`),
-                  element("span", "small soft", entry.place ? mediaOf(entry.place).words : "the world"),
+                  element("span", "small soft", entry.place ? mediaOf(entry.place).words : "the whole environment"),
                   element("span", "small", entry.frames ? `${entry.frames} frames, ${euros(entry.euros)}` : entry.words));
       tile.title = entry.words;
       tile.onclick = () => { selected = entry.segment - 1; drawTimeline(); drawInspector(); player.seek(timeline()[selected].start + given.transition_seconds); };
