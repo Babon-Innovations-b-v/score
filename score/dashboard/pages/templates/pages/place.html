@@ -1,50 +1,75 @@
 {% extends "pages/base.html" %}
-{% block title %}{{ detail.place|capfirst }}{% endblock %}
+{% block title %}{{ name }}{% endblock %}
 {% block content %}
-<p class="small"><a href="/">World</a> / {{ detail.place }}</p>
-<h1>{{ detail.place|capfirst }}</h1>
-<p class="soft">{{ detail.status }}</p>
-{% for fault in detail.faults %}<div class="banner bad">{{ fault }}</div>{% endfor %}
-{% if detail.skipped %}<div class="banner"><b>Not done for this place:</b><ul class="skipped">{% for entry in detail.skipped %}<li>{{ entry }}</li>{% endfor %}</ul></div>{% endif %}
-
-<div class="pair">
-  <figure style="margin:0">{% if detail.hero %}<a href="{{ detail.hero.url }}"><img src="{{ detail.hero.url }}" alt="concept of {{ detail.place }}"></a><figcaption class="small soft">concept the film was made against</figcaption>{% else %}<div class="panel soft">no concept picture stored</div>{% endif %}</figure>
-  <figure style="margin:0">{% if detail.film %}<video src="{{ detail.film.url }}" controls preload="metadata" data-fps="{{ detail.film_fps|stringformat:"g" }}" class="film"></video><figcaption class="small soft">accepted film</figcaption>{% else %}<div class="panel soft">no accepted film</div>{% endif %}</figure>
+<nav class="crumbs"><a href="/">World</a><span>/</span>{{ name }}</nav>
+<div class="page-head">
+  <h1>{{ name }}</h1>
+  <span class="status {{ status.tone }}">{{ status.words }}</span>
+  <div class="grow"></div>
+  {% if detail.web3d %}<a class="button primary big" href="/view/{{ detail.place }}">Open in 3D</a>
+  {% else %}<span class="button big disabled" title="no 3D web copy of this place yet">Open in 3D: not made yet</span>{% endif %}
 </div>
 
-<h2>OpenUSD index</h2>
-<div class="panel">
-  {% if detail.usd_index.root %}
-  <div class="small">Root <b>{{ detail.usd_index.root }}</b>, accepted {{ detail.usd_index.accepted_at|slice:":16" }}, {{ detail.usd_index.asset_count }} assets{% if detail.usd_index.with_neighbours_output %}, also stood <a href="/place/{{ detail.place }}/step/neighbours/">with its neighbours</a>{% endif %}.</div>
-  <div class="chips" style="margin-top:8px">{% for layer in detail.usd_index.layers %}<span class="chip{% if not layer.present %} missing{% endif %}" title="{{ layer.path }}{% if layer.made_by_step %} made by {{ layer.made_by_step }}{% endif %}">{{ layer.name }}{% if layer.present %} {{ layer.bytes|filesizeformat }}{% else %} missing{% endif %}</span>{% endfor %}</div>
-  {% else %}<div class="soft">No accepted OpenUSD stage yet.</div>{% endif %}
-  <p class="small" style="margin-bottom:0">
-  {% if detail.web3d %}<a class="button" href="/view/{{ detail.place }}">Open in 3D</a> <span class="soft">(made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage than the one above{% endif %})</span>
-  {% else %}<span class="soft">No 3D web copy of this place yet: the layers above and the pictures below are what this page holds.</span>{% endif %}
-  </p>
-</div>
+<section class="hero">
+  <figure class="hero-film">
+    {% if detail.film %}<video src="{{ detail.film.url }}" controls preload="metadata" playsinline data-fps="{{ detail.film_fps|stringformat:"g" }}" class="film"{% if detail.hero %} poster="{{ detail.hero.url }}"{% endif %}></video>
+    <figcaption>the film</figcaption>
+    {% else %}<div class="pic empty"><span>the film</span><small>no film yet</small></div>{% endif %}
+  </figure>
+  <figure class="hero-still">
+    {% if detail.hero %}<a href="{{ detail.hero.url }}"><img class="pic" src="{{ detail.hero.url }}" alt="{{ name }}"></a>{% else %}<div class="pic empty"><span>{{ name }}</span><small>no picture yet</small></div>{% endif %}
+    <figcaption>a still</figcaption>
+  </figure>
+</section>
 
-{% if detail.gaps %}<h2>Named gaps</h2><ul class="small">{% for gap in detail.gaps %}<li>{{ gap }}</li>{% endfor %}</ul>{% endif %}
-
-<h2>Layers</h2>
-{% for layer in detail.layers %}
-<section class="layer">
-  <h3>{{ layer.name|capfirst }}</h3>
-  <div class="steps">
-    {% for step in layer.steps %}
-    <a class="step {{ step.state|slugify }}" href="/place/{{ detail.place }}/step/{{ step.stage }}/">
-      {% if step.thumb %}<img src="{{ step.thumb }}" alt="{{ step.label }}" loading="lazy">{% else %}<div class="noimg">no picture</div>{% endif %}
-      <div class="body"><span class="label">{{ step.label }}</span> {% if step.paid %}<span class="paid">paid</span>{% endif %}
-        <div class="soft">{{ step.state_words }}</div>
-        {% if step.mark %}<div class="mark {{ step.mark|slice:":8"|slugify }}">{{ step.mark }}</div>{% endif %}
-        <div class="soft">gates: <span class="pass">{{ step.gates.passed }} pass</span>{% if step.gates.fail %}, <span class="fail">{{ step.gates.fail }} fail</span>{% endif %}{% if step.gates.unknown %}, <span class="unknown">{{ step.gates.unknown }} unknown</span>{% endif %}</div>
+<section>
+  <h2>How it was made</h2>
+  <div class="strip" tabindex="0" aria-label="the steps, in order">
+    {% for segment in chain %}
+    <div class="segment">
+      <div class="segment-name">{{ segment.name }}</div>
+      <div class="segment-tiles">
+        {% for step in segment.tiles %}
+        {% if step.url %}<a class="step-tile" href="{{ step.url }}">{% else %}<div class="step-tile">{% endif %}
+          <div class="frame">{% include "pages/pic.html" with src=step.thumb name=step.label %}</div>
+          <div class="step-foot"><i class="mark {{ step.state|slugify }}{% if step.unseen %} unseen{% endif %}"></i><span class="step-name">{{ step.label }}</span></div>
+          <div class="step-words">{{ step.words }}{% if step.unseen %}, new{% endif %}</div>
+        {% if step.url %}</a>{% else %}</div>{% endif %}
+        {% endfor %}
       </div>
-    </a>
+    </div>
     {% endfor %}
   </div>
+  <p class="legend small"><span><i class="mark accepted"></i>done</span><span><i class="mark waiting"></i>to review</span><span><i class="mark stopped"></i>stopped</span><span><i class="mark not-run"></i>not run</span><span><i class="mark accepted unseen"></i>not seen by you</span></p>
 </section>
-{% endfor %}
 
-{% if requests %}<h2>Change requests</h2><ul class="small">{% for change in requests %}<li>{{ change.created|date:"Y-m-d H:i" }} {{ change.user }} on {{ change.stage }}: {{ change.words }}</li>{% endfor %}</ul>{% endif %}
-<details class="ids"><summary>details</summary><p>Look: <code>{{ detail.look }}</code>. Assembly output <code>{{ detail.usd_index.own_output }}</code>{% if detail.usd_index.with_neighbours_output %}, with neighbours <code>{{ detail.usd_index.with_neighbours_output }}</code>{% endif %}.{% if snapshot.made_at %} Freshness snapshot of {{ snapshot.made_at }}.{% endif %}</p></details>
+<section>
+  <h2>Problems {% if problems %}<span class="count bad">{{ problems|length }}</span>{% endif %}</h2>
+  {% if problems %}
+  <div class="problems">
+    {% for problem in problems %}
+    {% if problem.url %}<a class="problem" href="{{ problem.url }}">{% else %}<div class="problem">{% endif %}
+      <div class="frame">{% include "pages/pic.html" with src=problem.picture name=problem.name %}</div>
+      <div class="problem-body"><span class="kind {{ problem.kind|slugify }}">{{ problem.kind }}</span><p>{{ problem.sentence }}</p></div>
+    {% if problem.url %}</a>{% else %}</div>{% endif %}
+    {% endfor %}
+  </div>
+  {% else %}<p class="soft">None found by the checks.</p>{% endif %}
+</section>
+
+<details class="ids fold"><summary>details</summary>
+  <div class="fold-body">
+  <p class="soft">{{ detail.status|capfirst }}.</p>
+  {% if problems %}<h3>Problems in full</h3><ul>{% for problem in problems %}<li>{{ problem.full }}</li>{% endfor %}</ul>{% endif %}
+  {% if detail.skipped %}<h3>Not done for this place</h3><ul>{% for entry in detail.skipped %}<li>{{ entry }}</li>{% endfor %}</ul>{% endif %}
+  <h3>OpenUSD index</h3>
+  {% if detail.usd_index.root %}
+  <p>Root <b>{{ detail.usd_index.root }}</b>, accepted {{ detail.usd_index.accepted_at|slice:":16" }}, {{ detail.usd_index.asset_count }} assets{% if detail.usd_index.with_neighbours_output %}, also stood <a href="/place/{{ detail.place }}/step/neighbours/">with its neighbours</a>{% endif %}.</p>
+  <div class="chips">{% for layer in detail.usd_index.layers %}<span class="chip{% if not layer.present %} missing{% endif %}" title="{{ layer.path }}">{{ layer.name }}{% if layer.present %} {{ layer.bytes|filesizeformat }}{% else %} missing{% endif %}</span>{% endfor %}</div>
+  {% else %}<p>No accepted OpenUSD stage yet.</p>{% endif %}
+  {% if detail.web3d %}<p>3D web copy made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage{% endif %}.</p>{% endif %}
+  {% if requests %}<h3>Change requests</h3><ul>{% for change in requests %}<li>{{ change.created|date:"Y-m-d H:i" }} {{ change.user }} on {{ change.stage }}: {{ change.words }}</li>{% endfor %}</ul>{% endif %}
+  <p>Look: <code>{{ detail.look }}</code>. Assembly output <code>{{ detail.usd_index.own_output }}</code>{% if detail.usd_index.with_neighbours_output %}, with neighbours <code>{{ detail.usd_index.with_neighbours_output }}</code>{% endif %}.{% if snapshot.made_at %} Freshness snapshot of {{ snapshot.made_at }}.{% endif %}</p>
+  </div>
+</details>
 {% endblock %}

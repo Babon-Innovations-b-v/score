@@ -1,0 +1,20 @@
+<section class="money-card" aria-label="money against your stop">
+  <div class="money-head">
+    <div>
+      <div class="eyebrow">Spent on this world</div>
+      <div class="money-total">{% if money.total is not None %}EUR {{ money.total|floatformat:2 }}{% else %}<span class="unknown">not known yet</span>{% endif %}</div>
+    </div>
+    <div class="money-stop">
+      <div class="eyebrow">Your stop</div>
+      <div class="money-total soft">{% if money.stop %}EUR {{ money.stop|floatformat:0 }}{% else %}<span class="unknown">not known yet</span>{% endif %}</div>
+    </div>
+  </div>
+  <div class="meter{% if money.share is None %} blank{% endif %}" role="img" aria-label="{% if money.share is not None %}{{ money.share|floatformat:0 }} percent of the stop{% else %}not known yet{% endif %}">
+    {% if money.share is not None %}<span class="used" style="width: {{ money.share|floatformat:2 }}%"></span>{% if money.likely_share %}<span class="planned" style="width: {{ money.likely_share|floatformat:2 }}%"></span>{% endif %}{% endif %}
+  </div>
+  <ul class="sources">
+    {% for source in money.sources %}<li><span>{{ source.name|capfirst }}</span><b>{% if source.euros is not None %}EUR {{ source.euros|floatformat:2 }}{% else %}<span class="unknown">not known yet</span>{% endif %}</b></li>
+    {% empty %}<li class="soft"><span>Where the money comes from</span><b class="unknown">not known yet</b></li>{% endfor %}
+  </ul>
+  {% if money.likely %}<p class="small soft">The basket's plan would add about EUR {{ money.likely|floatformat:2 }}.</p>{% endif %}
+</section>

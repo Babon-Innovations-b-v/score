@@ -1,94 +1,114 @@
 {% extends "pages/base.html" %}
-{% block title %}{{ detail.label|capfirst }}{% if detail.place %} at {{ detail.place }}{% endif %}{% endblock %}
+{% block title %}{{ detail.label|capfirst }}{% if place_name %}, {{ place_name }}{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="/">World</a>{% if detail.place %} / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a>{% else %} / world steps{% endif %} / {{ detail.label }}</p>
-<h1>{{ detail.label|capfirst }}{% if detail.place %} <span class="soft">at {{ detail.place }}</span>{% endif %} {% if detail.paid %}<span class="paid">paid</span>{% endif %}</h1>
-<p class="soft">{{ detail.state_words }}{% if detail.record.minutes is not None %}; made {{ detail.record.finished|slice:":16" }} in {{ detail.record.minutes|floatformat:1 }} min{% endif %}{% if detail.record.carried %}; carried over ({{ detail.record.carried.reason }}){% endif %}{% if snapshot_state %}. Freshness ({{ snapshot_at|slice:":16" }}): {{ snapshot_state }}{% endif %}</p>
-{% if detail.mark %}<p><span class="mark {{ detail.mark|slice:":8"|slugify }}">{{ detail.mark|capfirst }}</span></p>{% endif %}
-{% if detail.fault %}<div class="banner bad"><b>Stopped:</b> {{ detail.fault_why }}<details class="ids"><summary>fault report</summary><pre>{{ detail.fault }}</pre></details></div>{% endif %}
-
-<h2>Output beside what it was made from</h2>
-<div class="beside">
-  {% for read in detail.inputs %}<figure><a href="{{ read.url }}">{% if read.thumb %}<img src="{{ read.thumb }}" alt="{{ read.label }}" loading="lazy">{% else %}<div class="noimg">no picture</div>{% endif %}</a><figcaption>reads: {{ read.label }}</figcaption></figure>{% endfor %}
-  {% if detail.reference %}<figure><a href="{{ detail.reference.url }}"><img src="{{ detail.reference.thumb_url }}" alt="concept" loading="lazy"></a><figcaption>reference: the concept</figcaption></figure>{% endif %}
-  <span class="arrow" aria-hidden="true">&rarr;</span>
-  <figure class="out">{% if output_picture %}<a href="{{ output_picture.url }}"><img src="{{ output_picture.thumb_url }}" alt="this step's output" loading="lazy"></a>{% else %}<div class="noimg">{% if detail.files %}no picture in the output{% else %}nothing stored yet{% endif %}</div>{% endif %}<figcaption>this step's output{% if detail.accepted %}, accepted{% endif %}</figcaption></figure>
+<nav class="crumbs"><a href="/">World</a><span>/</span>{% if detail.place %}<a href="/place/{{ detail.place }}/">{{ place_name }}</a>{% else %}shared steps{% endif %}<span>/</span>{{ detail.label }}</nav>
+<div class="page-head">
+  <h1>{{ detail.label|capfirst }}</h1>
+  <span class="status {{ detail.state|slugify }}">{{ state_words }}</span>
+  {% if mark_words %}<span class="status {% if mark_words == 'not seen by you' %}new{% else %}quiet{% endif %}">{{ mark_words }}</span>{% endif %}
+  {% if detail.paid %}<span class="tag">paid</span>{% endif %}
 </div>
-{% if not detail.inputs and not detail.reference %}<p class="small soft">This step reads nothing that is pictured.</p>{% endif %}
+{% if detail.fault %}<div class="alert"><b>Stopped.</b> {{ detail.fault_why }}</div>{% endif %}
+{% if failed %}<div class="alert">{% for gate in failed %}<div><b>{{ gate.name|capfirst }} failed:</b> {{ gate.reason }}</div>{% endfor %}</div>{% endif %}
 
-<div class="columns">
-<div>
-  <h2>Accepted output</h2>
-  {% if detail.files %}{% include "pages/sheet.html" with files=detail.files fps=film_fps %}{% else %}<p class="soft">Nothing stored yet.</p>{% endif %}
-  {% with others=detail.files %}{% if others %}<h3>Files</h3><ul class="small">{% for file in others %}{% if file.kind == "usd" or file.kind == "gltf" or file.kind == "other" %}<li><a href="{{ file.url }}">{{ file.name }}</a> <span class="soft">{{ file.bytes|filesizeformat }}</span></li>{% endif %}{% endfor %}</ul>{% endif %}{% endwith %}
+<section class="stepview">
+  <div class="made-from">
+    <h2 class="eyebrow">Made from</h2>
+    {% for read in detail.inputs %}<figure><a href="{{ read.url }}"><div class="frame">{% include "pages/pic.html" with src=read.thumb name=read.label %}</div></a><figcaption>reads: {{ read.label }}</figcaption></figure>{% endfor %}
+    {% if detail.reference %}<figure><a href="{{ detail.reference.url }}"><div class="frame"><img class="pic" src="{{ detail.reference.thumb_url }}" alt="the concept" loading="lazy"></div></a><figcaption>reference: the concept</figcaption></figure>{% endif %}
+    {% if not detail.inputs and not detail.reference %}<p class="small soft">It reads nothing pictured.</p>{% endif %}
+  </div>
+  <div class="output">
+    <h2 class="eyebrow">Output beside what it was made from</h2>
+    <figure>
+      {% if output_film %}<video src="{{ output_film.url }}" controls preload="metadata" playsinline class="film"{% if film_fps %} data-fps="{{ film_fps|stringformat:"g" }}"{% endif %}></video>
+      {% elif output_picture %}<a href="{{ output_picture.url }}"><img class="pic big" src="{{ output_picture.url }}" alt="this step's output"></a>
+      {% else %}<div class="pic empty big"><span>{{ detail.label|capfirst }}</span><small>{% if detail.files %}this step makes no picture yet{% else %}nothing made yet{% endif %}</small></div>{% endif %}
+      <figcaption>this step's output{% if detail.accepted %}, accepted {{ detail.accepted.at|slice:":10" }}{% endif %}{% if detail.record.minutes is not None %}, made in {{ detail.record.minutes|floatformat:1 }} min{% endif %}</figcaption>
+    </figure>
+  </div>
+  <aside class="actions">
+    {% if owner %}
+    <div class="card">
+      <h2 class="eyebrow">Advance</h2>
+      {% if detail.accepted %}
+      {% if detail.mark|slice:":8" == "advanced" %}<p class="small">{{ detail.mark|capfirst }}: the paid steps that read it may run.</p>
+      {% else %}<form method="post" action="advance/">{% csrf_token %}<input type="hidden" name="output" value="{{ detail.accepted.output }}"><button class="primary wide">I looked: advance this output</button></form>
+      <p class="small soft">Paid steps that read it wait until you advance it.</p>{% endif %}
+      {% else %}<p class="small soft">Nothing accepted to advance yet.</p>{% endif %}
+    </div>
+    {% endif %}
+    <div class="card">
+      <h2 class="eyebrow">What should change</h2>
+      <form method="post" action="request/">{% csrf_token %}
+        <input type="hidden" name="output" value="{{ detail.accepted.output|default:'' }}">
+        <textarea name="words" rows="3" placeholder="say what should change about this output"></textarea>
+        <button class="wide">Send it</button>
+      </form>
+      {% for change in requests %}<p class="small soft note">{{ change.created|date:"M j, H:i" }}: {{ change.words }}</p>{% endfor %}
+      {% for queued in sync_requests %}<p class="small soft note">{{ queued.kind }} {{ queued.state }}{% if queued.detail %}: {{ queued.detail }}{% endif %}</p>{% endfor %}
+    </div>
+    {% if owner %}
+    <div class="card">
+      <h2 class="eyebrow">Run</h2>
+      <div class="row">
+        <form class="inline" method="post" action="queue/">{% csrf_token %}<input type="hidden" name="which" value="this"><button {% if queued %}disabled{% endif %}>{% if queued %}In the basket{% else %}Queue this step{% endif %}</button></form>
+        {% if next_steps %}<form class="inline" method="post" action="queue/">{% csrf_token %}<input type="hidden" name="which" value="next"><button>Queue the next steps</button></form>{% endif %}
+      </div>
+      <p class="small soft">Nothing runs until you confirm the basket's plan.</p>
+      {% if detail.accepted and decisions_on or detail.accepted and hosted %}
+      <details class="fold inner"><summary>Reject this output</summary>
+        <form method="post" action="decide/">{% csrf_token %}
+          <input type="hidden" name="decision" value="reject"><input type="hidden" name="output" value="{{ detail.accepted.output }}">
+          <input type="text" name="reason" placeholder="why (needed)" required>
+          <button class="danger">Reject</button>
+          <p class="small soft">The output accepted before it stands again; later steps go stale.</p>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+    {% endif %}
+  </aside>
+</section>
 
-  {% if detail.waiting %}
+{% if output_picture %}
+<section>
+  <h2>Everything it made</h2>
+  {% include "pages/sheet.html" with files=detail.files fps=film_fps no_films=True %}
+</section>
+{% endif %}
+
+{% if detail.waiting %}
+<section class="waiting">
   <h2>Waiting output</h2>
-  <p class="soft">Made {{ detail.waiting.at|slice:":16" }}, answered <span class="{{ detail.waiting.answer }}">{{ detail.waiting.answer|default:"nothing yet" }}</span>.{% if detail.waiting_worse %} Worse than the accepted one: {{ detail.waiting_worse|join:"; " }}{% endif %}</p>
+  <p class="soft">Made {{ detail.waiting.at|slice:":10" }} {{ detail.waiting.at|slice:"11:16" }}; its checks said <span class="{{ detail.waiting.answer }}">{{ detail.waiting.answer|default:"nothing yet" }}</span>.{% if detail.waiting_worse %} Worse than the accepted one: {{ detail.waiting_worse|join:"; " }}.{% endif %}</p>
   {% include "pages/sheet.html" with files=detail.waiting_files fps=film_fps %}
-  <h3>Its gates</h3>
-  {% include "pages/gates.html" with gates=detail.waiting_judgement %}
-  {% endif %}
-
-  {% if detail.history %}
-  <h2>Earlier accepted takes</h2>
-  <div class="sheet">{% for take in detail.history %}<figure>{% if take.thumb %}<img src="{{ take.thumb }}" alt="earlier take" loading="lazy">{% endif %}<figcaption>{{ take.at|slice:":16" }} by {{ take.by }} ({{ take.answer|default:"no judgement" }})</figcaption></figure>{% endfor %}</div>
-  {% endif %}
-  {% if detail.log_tail %}<details class="ids"><summary>log, last lines</summary><pre>{{ detail.log_tail }}</pre></details>{% endif %}
-</div>
-
-<div>
-  <h2>Gates</h2>
-  {% include "pages/gates.html" with gates=detail.judgement %}
-
-  <h2>What should change</h2>
-  <form method="post" action="request/" class="panel">{% csrf_token %}
-    <input type="hidden" name="output" value="{{ detail.accepted.output|default:'' }}">
-    <textarea name="words" rows="3" placeholder="say what should change about this step's output"></textarea>
-    <p style="margin:6px 0 0"><button>Record it</button> <span class="small soft">an agent or the owner turns it into a change</span></p>
-  </form>
-  {% for change in requests %}<div class="small soft">{{ change.created|date:"Y-m-d H:i" }} {{ change.user }}: {{ change.words }}</div>{% endfor %}
-  {% for queued in sync_requests %}<div class="small soft">{{ queued.kind }} {{ queued.state }}{% if queued.detail %}: {{ queued.detail }}{% endif %}</div>{% endfor %}
-
-  {% if owner %}
-  {% if decisions_on or hosted %}
-  {% if detail.waiting and detail.waiting.answer == "pass" %}
-  <h2>Accept the waiting output</h2>
-  <form method="post" action="decide/" class="panel">{% csrf_token %}
+  {% if owner %}{% if decisions_on or hosted %}{% if detail.waiting.answer == "pass" %}
+  <form method="post" action="decide/" class="card narrow">{% csrf_token %}
     <input type="hidden" name="decision" value="accept"><input type="hidden" name="output" value="{{ detail.waiting.output }}">
     <input type="text" name="reason" placeholder="why (optional)">
     {% if detail.waiting_worse %}<p class="small">It is worse than the accepted one: say why it may be.</p><input type="text" name="worse_reason" placeholder="why it may be worse" required>{% endif %}
-    <p style="margin:6px 0 0"><button class="primary">Accept this output</button></p>
+    <button class="primary">Accept this output</button>
   </form>
-  {% endif %}
-  {% if detail.accepted %}
-  <h2>Reject the accepted output</h2>
-  <form method="post" action="decide/" class="panel">{% csrf_token %}
-    <input type="hidden" name="decision" value="reject"><input type="hidden" name="output" value="{{ detail.accepted.output }}">
-    <input type="text" name="reason" placeholder="why (needed)" required>
-    <p style="margin:6px 0 0"><button class="danger">Reject</button> <span class="small soft">the output accepted before it stands again; later steps go stale</span></p>
-  </form>
-  {% endif %}
-  {% endif %}
+  {% endif %}{% endif %}{% endif %}
+  <details class="fold"><summary>its checks</summary><div class="fold-body">{% include "pages/gates.html" with gates=detail.waiting_judgement %}</div></details>
+</section>
+{% endif %}
 
-  <h2>Advance</h2>
-  <div class="panel">
-    {% if detail.accepted %}
-    {% if detail.mark|slice:":8" == "advanced" %}<p class="small" style="margin-top:0">{{ detail.mark|capfirst }}: the paid steps reading this output may be launched.</p>
-    {% else %}<form method="post" action="advance/">{% csrf_token %}<input type="hidden" name="output" value="{{ detail.accepted.output }}"><button class="primary">I looked: advance this output</button></form>
-    <div class="small soft" style="margin:6px 0 10px">Paid steps that read it stay refused until it is advanced.</div>{% endif %}
-    {% else %}<p class="small soft" style="margin-top:0">Nothing accepted to advance yet.</p>{% endif %}
-    <form class="inline" method="post" action="queue/">{% csrf_token %}<input type="hidden" name="which" value="this"><button {% if queued %}disabled{% endif %}>{% if queued %}In the basket{% else %}Queue this step{% endif %}</button></form>
-    {% if next_steps %}<form class="inline" method="post" action="queue/">{% csrf_token %}<input type="hidden" name="which" value="next"><button>Queue the next steps</button></form>{% endif %}
-    <div class="small soft" style="margin-top:6px">Nothing runs until the basket's plan is confirmed.</div>
-  </div>
-  {% endif %}
-</div>
-</div>
+<details class="fold"><summary>checks ({{ detail.judgement|length }})</summary><div class="fold-body">{% include "pages/gates.html" with gates=detail.judgement %}</div></details>
+{% if detail.history %}
+<details class="fold"><summary>earlier takes ({{ detail.history|length }})</summary><div class="fold-body">
+  <div class="sheet">{% for take in detail.history %}<figure><div class="frame">{% include "pages/pic.html" with src=take.thumb name="earlier take" %}</div><figcaption>{{ take.at|slice:":10" }} {{ take.at|slice:"11:16" }} by {{ take.by }} ({{ take.answer|default:"no judgement" }})</figcaption></figure>{% endfor %}</div>
+</div></details>
+{% endif %}
+{% if detail.files %}<details class="fold"><summary>files</summary><div class="fold-body"><ul>{% for file in detail.files %}{% if file.kind != "image" %}<li><a href="{{ file.url }}">{{ file.name }}</a> <span class="soft">{{ file.bytes|filesizeformat }}</span></li>{% endif %}{% endfor %}</ul></div></details>{% endif %}
+{% if detail.fault %}<details class="fold"><summary>fault report</summary><div class="fold-body"><pre>{{ detail.fault }}</pre></div></details>{% endif %}
+{% if detail.log_tail %}<details class="fold"><summary>log, last lines</summary><div class="fold-body"><pre>{{ detail.log_tail }}</pre></div></details>{% endif %}
 
-<details class="ids"><summary>details</summary>
+<details class="ids fold"><summary>details</summary><div class="fold-body">
+<p>{{ detail.state_words|capfirst }}.{% if detail.record.carried %} Carried over ({{ detail.record.carried.reason }}).{% endif %}{% if snapshot_state %} Freshness ({{ snapshot_at|slice:":16" }}): {{ snapshot_state }}.{% endif %}</p>
 <p>Node <code>{{ detail.node }}</code>{% if detail.accepted %}, accepted output <code>{{ detail.accepted.output }}</code> ({{ detail.accepted.at }} by {{ detail.accepted.by }}){% endif %}{% if detail.waiting %}, waiting output <code>{{ detail.waiting.output }}</code>{% endif %}.</p>
 <p>Key <code>{{ detail.record.key }}</code>, commit <code>{{ detail.record.commit }}</code>, machine {{ detail.record.machine }}.{% if detail.euros %} Estimate EUR {{ detail.euros }}.{% endif %}</p>
 <p>Reads: {{ detail.reads|join:", "|default:"nothing" }}. Read by: {{ detail.readers|join:", "|default:"nothing" }}.</p>
-</details>
+</div></details>
 {% endblock %}
