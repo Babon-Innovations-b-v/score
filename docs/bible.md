@@ -542,6 +542,8 @@ stand. Terms in `CONTEXT.md`.
 **One agent, one job.** Work is split across parallel agents by default: each independent job gets
 its own agent with its own brief, and jobs run side by side unless one needs another's result.
 
+**Hard rule: a clear role, then a handoff and a close** (owner, 2026-10-18). Every agent starts with one clear role in its brief. When the role is done, or the work would change role, the agent commits what is useful, writes a handoff (its role, what is done with commits, what is half done and where, known faults, exact next steps, file paths) and closes. New work always goes to a fresh agent with its own role brief; an agent is never handed a second job mid-run. The coordinating session closes the same way at the end of its run. Coordinating sessions start inside this repository, so every agent gets its hooks, its code map and its skills; a session started elsewhere runs without them.
+
 **Sub-agents.** Independent steps go to sub-agents, and a sub-agent may split its own work over
 sub-agents again (owner, 2026-10-09; heavy work runs in the cloud, so the old local-load cap is
 gone). The parent writes each brief (task, scope, the rules that apply, where the result goes),
