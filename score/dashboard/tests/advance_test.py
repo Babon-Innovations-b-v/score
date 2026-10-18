@@ -32,9 +32,9 @@ def ready_plan(buys):
 
 def test_the_mark_shows_and_the_owner_advances_from_the_step_page(world):
     client = signed_in()
-    assert "not seen by owner" in client.get("/place/alpha/").content.decode()
+    assert "not seen by you" in client.get("/place/alpha/").content.decode()
     html = client.get("/place/alpha/step/assembly/").content.decode()
-    assert "Seen, not advanced" in html and "I looked: advance this output" in html
+    assert "seen by you" in html and "I looked: advance this output" in html
     accepted = world.outputs["assembly@alpha"]
     answer = client.post("/place/alpha/step/assembly/advance/", {"output": accepted})
     assert answer.status_code == 302 and seen.advanced("assembly@alpha", accepted)

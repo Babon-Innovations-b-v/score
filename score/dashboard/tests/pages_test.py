@@ -42,13 +42,33 @@ def test_signed_out_is_sent_to_sign_in():
     assert Client().get("/login/").status_code == 200
 
 
-def test_the_board_shows_pictures_status_and_styles(world):
+def test_the_board_shows_each_place_once_with_its_picture_and_one_status(world):
     html = signed_in().get("/").content.decode()
-    assert "the alpha look" in html.lower() and "unassigned" in html.lower()
-    assert html.count("/thumbs/") >= 3  # the look's reference and each place's hero
-    assert "#334455" in html
-    assert "complete" in html and "stopped at" not in outside_details(html).split("Beta")[0]
-    assert "spent EUR 100.00" in html or "being read" in html
+    text = outside_details(html)
+    assert "unassigned" not in text.lower() and "Not given a look yet" in text
+    assert html.count('class="tile"') == 2 and html.count("/thumbs/") >= 2  # each place's best picture
+    assert "complete apart from" not in text and "fault report" not in text
+    assert re.search(r'class="status (bad|review|new|done|idle)"', html)
+    assert "This month" in text and ("not known yet" in text or "EUR" in text)
+
+
+def test_the_board_shows_no_changes_to_buy_while_there_are_none(world):
+    assert "Changes to buy" not in signed_in().get("/").content.decode()
+
+
+def test_a_change_to_buy_shows_its_preview_price_and_basket_button(world, monkeypatch):
+    item = {"id": "c1", "place": "alpha", "fixes": "the floor gets its texture", "likely": 3.5, "high": 5.0,
+            "minutes_likely": 20, "minutes_high": 40, "state": "offered", "stills": [], "films": []}
+    monkeypatch.setattr(world.source, "changes", lambda: [item], raising=False)
+    client = signed_in()
+    board = client.get("/").content.decode()
+    assert "Changes to buy" in board and "The floor gets its texture" in board and "Add to basket" in board
+    assert "EUR 3.50" in board and "EUR 5.00" in board
+    place = client.get("/place/alpha/").content.decode()
+    assert 'id="change-c1"' in place and "Side by side" in place
+    monkeypatch.setattr(world.source, "changes", lambda: [{**item, "state": "in basket"}], raising=False)
+    basket = client.get("/basket/").content.decode()
+    assert "You are buying 1 change for at most EUR 5.00" in basket
 
 
 def test_the_place_page_shows_the_usd_index_and_faults(world):
