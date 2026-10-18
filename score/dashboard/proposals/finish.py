@@ -15,7 +15,7 @@ import shutil
 import tempfile
 import time
 
-from score.dashboard.checkout import WORLD
+from score.dashboard.checkout import WORLD, pricing
 from score.dashboard.checkout.pricing import totals
 from score.dashboard.launch import guard
 from score.dashboard.proposals import pictures, records
@@ -23,28 +23,49 @@ from score.dashboard.web3d import convert
 
 BEFORE = "before"
 WORK = "proposals-work"  # propose.py's scratch folder in the dashboard's home: its store keeps each proposal's stage
+MOVED = {}  # (base, commit): the paid nodes its moved rows make again, worked out once a process
 
 
-def paid_nodes(record):
-    """The nodes the proposal could not make for free (taken as "needs the paid batch"), sorted."""
-    return sorted({item["node"] for item in record.get("layers", []) if item["how"] == records.PAID})
+def moved_paid(record):
+    """The paid nodes the proposal's branch makes again, at every place (checkout/pricing.py, as the basket prices
+    the branch): the record's own list from propose.py, else the moved-rows check of its commits, once a commit."""
+    if "moved_paid" in record:
+        return record["moved_paid"]
+    key = (record["base"], record["commit"])
+    if key not in MOVED:
+        from django.conf import settings
+        MOVED[key] = pricing.paid_nodes(pricing.moved_rows(settings.SCORE_REPO, *key))
+    return MOVED[key]
+
+
+def paid_nodes(record, branch_nodes):
+    """The place's paid nodes, sorted: those the proposal could not make for free (taken as "needs the paid batch")
+    and those of `branch_nodes` (the branch's paid nodes) at its place."""
+    taken = {item["node"] for item in record.get("layers", []) if item["how"] == records.PAID}
+    return sorted(taken | {node for node in branch_nodes if node.endswith(f"@{record['place']}")})
 
 
 def priced(record, chosen=None):
-    """The proposal's paid part priced at the runner's numbers: {commit, at, nodes, totals}, or {commit, at, error}."""
-    nodes = paid_nodes(record)
+    """The proposal's paid part priced at the runner's numbers: {commit, at, moved, nodes, totals, branch_nodes}, or
+    {commit, at, error}. `nodes` are the place's; `branch_nodes` the rest of what buying its branch makes again
+    (other places, the environment's own rows), so a fix's total is what the checkout buys."""
     at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     try:
-        prices = (chosen or guard.backend()).price(WORLD, nodes) if nodes else {}
+        branch_nodes = moved_paid(record)
+        nodes = paid_nodes(record, branch_nodes)
+        wanted = sorted(set(nodes) | set(branch_nodes))
+        prices = (chosen or guard.backend()).price(WORLD, wanted) if wanted else {}
     except (RuntimeError, ValueError, OSError) as failed:  # said on the page as "price not worked out"
         return {"commit": record["commit"], "at": at, "error": str(failed)[-600:]}
-    return {"commit": record["commit"], "at": at, "nodes": prices, "totals": totals(prices)}
+    here = {node: prices[node] for node in nodes if node in prices}
+    return {"commit": record["commit"], "at": at, "moved": True, "nodes": here, "totals": totals(here),
+            "branch_nodes": {node: price for node, price in prices.items() if node not in here}}
 
 
 def price_due(record):
     """True when the proposal has no price for the commit it was made at (or its last pricing failed)."""
     price = record.get("price") or {}
-    return price.get("commit") != record["commit"] or "error" in price
+    return price.get("commit") != record["commit"] or "error" in price or not price.get("moved")
 
 
 def before_due(record):
