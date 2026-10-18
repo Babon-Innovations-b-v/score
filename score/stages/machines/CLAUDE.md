@@ -6,7 +6,7 @@ The machines stage (experimental, PRD #6): `machines-layer@<place>` lays each ma
 trial in a world of its own.
 
 - **Made models only.** A machine is a prop-route take the place's surface line paints and bakes (its take listed in
-  `data/surfaces/<place>.json`, which this stage never edits: ask the captain). Code lays it out: turned across or along
+  `data/surfaces/<place>.json`, which this stage never edits: ask the overseer). Code lays it out: turned across or along
   its support, centred on it, let down onto the first thing under it. Never move a machine by hand to pass `resting`:
   fix the record (`on`, `turn`, `off`, `drop_from`) or the layout rule.
 - **Motion and effects are not here.** They ride the machine's prim, `/<place>/Objects/<model>`, from the motion and
