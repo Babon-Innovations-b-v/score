@@ -10,7 +10,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   small areas walked once with os.scandir, every folder store of that root answering `keys` from it, rebuilt when
   older than 60 s); `exported.py` reads a pushed state export; both give the pydantic models of `models.py`.
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` prices a plan from measured
-  runs only.
+  runs only; `gaps.py` gives each named gap its step and a picture of what it names (local source only), `plain.py`
+  says each problem in one plain sentence.
 - **`auth/`** `proxy.py` the outermost guard (only a trusted proxy may send `Remote-User`/`Remote-Email`; an
   underscore spelling is refused from every peer), `backends.py` the allow-list, `owner.py` the local owner account
   (a terminal, a 12+ character password, loopback bind only without a proxy).

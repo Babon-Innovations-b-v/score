@@ -10,6 +10,7 @@ import pytest
 from PIL import Image
 
 from score.dashboard import previews
+from score.dashboard.previews import films
 
 pytestmark = pytest.mark.django_db
 KNOWN = {"bare_steel": ((140, 145, 150), 0.5, 0.8), "rubber": ((30, 30, 30), 0.9, 0.0)}
@@ -192,3 +193,166 @@ def test_a_record_that_lacks_something_says_so():
         "bram: missing", "sefa"]
     assert previews.named_things({"place": "alpha", "moved": [], "seconds": 4.0}) == [
         "place: alpha", "moved: 0", "seconds: 4.0"]
+
+
+def test_plan_labels_never_cover_each_other(tmp_path):
+    """Twelve items crowded into one corner: every label that is drawn sits clear of every other, the rest are
+    numbered in the key."""
+    from score.dashboard.previews import canvas, labels
+    figure, (axes,) = canvas.blank(side=canvas.LARGE_INCHES, dpi=canvas.LARGE_DPI)
+    crowded = [(f"A LONG ITEM NAME NUMBER {number}", (number * 0.1, number * 0.1)) for number in range(12)]
+    canvas.box(axes, [-1, -1, 10, 10], canvas.FAINT, 0.2)
+    canvas.fit([axes])
+    labels.place(axes, crowded)
+    renderer = figure.canvas.get_renderer()
+    boxes = [text.get_window_extent(renderer) for text in axes.texts if text.get_text()]  # not the leader lines
+    assert len(boxes) == len(crowded)
+    assert not any(labels.overlaps(first, second)
+               for number, first in enumerate(boxes) for second in boxes[number + 1:])
+    assert labels.item_words("SOLAR MAST (dead), 12 m with its blanket") == "SOLAR MAST (dead)"
+    canvas.write(figure, tmp_path / "crowded.png")
+
+
+def test_a_plan_is_drawn_large(tmp_path):
+    path = previews.maps.plan_picture(PLAN, tmp_path / "plan.png")
+    with Image.open(path) as drawn:
+        assert drawn.width >= 1000
+
+
+def test_a_whole_stage_is_drawn_over_its_labelled_plan(tmp_path, monkeypatch):
+    root = written(tmp_path, "alpha.usda", b'#usda 1.0\n(\n    subLayers = [@./layers/light.usda@]\n)\n')
+    chosen = []
+    real = previews.maps.stage_picture
+    monkeypatch.setattr(previews.maps, "stage_picture", lambda *args: (chosen.append(True), real(*args))[1])
+    previews.draw([root, *kinds(tmp_path)["layer"]], PLAN, KNOWN, tmp_path / "stage.png", "OpenUSD stage")
+    assert chosen
+    chosen.clear()
+    previews.draw(kinds(tmp_path)["layer"], PLAN, KNOWN, tmp_path / "layer.png", "light")
+    assert not chosen  # a layer alone is not a stage
+
+
+def test_a_layer_opened_alone_places_its_overs_by_their_own_ops(tmp_path):
+    settle = """#usda 1.0
+over "alpha" {
+    over "crate_1" {
+        matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (2, 0.5, -3, 1) )
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+    }
+}
+"""
+    name, path = written(tmp_path, "layers/settle.usda", settle.encode())
+    assert previews.maps.layer_points(name, path)["/alpha/crate_1"] == (2.0, 0.5, -3.0)
+    name, path = written(tmp_path, "layers/light.usda", USDA.encode())
+    assert previews.maps.layer_points(name, path)["/alpha/lamp_1"] == (1.0, 2.0, 3.0)
+
+
+def film_file(folder, seconds=2):
+    """A real two-second 24 fps film, 128 x 72."""
+    import subprocess
+    path = folder / "film.mp4"
+    subprocess.run([films.tool("ffmpeg"), "-v", "error", "-y", "-f", "lavfi", "-i",
+                    f"testsrc=size=128x72:rate=24:duration={seconds}", "-pix_fmt", "yuv420p", str(path)], check=True)
+    return path
+
+
+VIEW = {"eye": [0.0, 1.0, 5.0], "aim": [0.0, 1.0, 0.0], "up": [0.0, 1.0, 0.0], "fov": 90.0}
+
+
+def test_a_film_gives_its_middle_still_once(tmp_path):
+    made = film_file(tmp_path)
+    views = json.dumps({"size": [128, 72], "views": [dict(VIEW, frame=number) for number in range(24)]})
+    assert films.probe(made) == (48, 24.0)
+    assert films.middle_frame(48, json.loads(views)["views"]) == 36  # the title card leads the shot
+    still = films.middle_still(made, views, tmp_path / "still.jpg")
+    with Image.open(still) as picture:
+        assert picture.size == (128, 72)
+    assert films.middle_still(tmp_path / "missing.mp4", views, tmp_path / "none.jpg") is None
+
+
+def test_a_named_thing_is_found_in_the_frame_that_shows_it(tmp_path):
+    middle = films.projected(VIEW, (0.0, 1.0, 0.0), (1280, 720))
+    assert [round(value) for value in middle] == [640, 360, 5]
+    assert films.projected(VIEW, (0.0, 1.0, 9.0), (1280, 720)) is None  # behind the camera
+    away = dict(VIEW, aim=[10.0, 1.0, 5.0])
+    number, shown = films.best_view([away, VIEW], [("crate_1", (1.0, 1.0, 0.0))], (1280, 720))
+    assert number == 1 and shown[0][0] == "crate_1"
+    assert films.best_view([away], [("crate_1", (1.0, 1.0, 0.0))], (1280, 720)) is None
+    frame = tmp_path / "frame.png"
+    Image.new("RGB", (128, 72), (90, 90, 90)).save(frame)
+    path = films.ringed(frame, [("crate_1", 700.0, 360.0, 40.0)], (1280, 720), tmp_path / "ringed.jpg")
+    with Image.open(path) as picture:
+        assert picture.convert("RGB").getcolors(1 << 16) and len(picture.convert("RGB").getcolors(1 << 16)) > 2
+
+
+def test_a_gap_names_its_things_by_path_or_by_name(tmp_path):
+    from score.dashboard.state import gaps
+    points = {"/alpha/Objects/hose_reel_1": (1, 0, 2), "/alpha/Objects/hose_reel_2": (2, 0, 2),
+              "/alpha/Objects/hose_reel_stand_1": (3, 0, 3)}
+    assert [name for name, _ in gaps.matched(points, "hose_reel")] == ["hose_reel_1", "hose_reel_2"]
+    assert gaps.matched(points, "/alpha/Objects/hose_reel_2") == [("hose_reel_2", (2, 0, 2))]
+    assert gaps.matched(points, "bram") == []
+    path = previews.maps.ringed_plan(PLAN, [("hose_reel_1", 1, 2)], "ALPHA", tmp_path / "ringed.png")
+    assert path.is_file()
+
+
+def test_a_named_gap_has_its_step_and_a_picture(world):
+    beta = world.source.place_detail("beta")
+    gap = beta.gaps[0]
+    assert gap.step == "assembly" and gap.step_url == "/place/beta/step/assembly/"
+    assert gap.picture is not None and gap.picture_is == "the place in its film"  # it names nothing on the stage
+    assert world.source.thumb_path(gap.picture.sha) is not None
+    assert gap.sentence == "Something in the beta is still a stand-in block: no finished model yet."
+    stopped = beta.faults[0]
+    assert stopped.step_url == "/place/beta/step/assembly/" and stopped.picture is not None
+    assert stopped.sentence == "The OpenUSD stage step stopped: its placeholders check failed."
+
+
+def test_a_problem_is_said_in_plain_words():
+    from score.dashboard.state import plain
+    entry = {"name": "tube: readout and conduit box not laid in a 3-bay tube", "check": "reach",
+             "objects": ["small_readout", "conduit_box"]}
+    assert plain.gap_sentence(entry, "tube") == (
+        "Small readout and conduit box are missing from the tube: its layout rule never places them here.")
+    entry = {"name": "hangar: the hose reel's old model tips", "check": "resting",
+             "objects": ["/hangar/Objects/hose_reel_1"]}
+    assert plain.gap_sentence(entry, "hangar") == "Hose reel in the hangar does not rest steadily where it stands."
+    assert plain.gap_sentence({"name": "lab: something new", "check": "unheard"}, "lab") == "Something new."
+    assert plain.stop_sentence("completion", "completion answered fail: named gaps: tube: ...", "tube", 3) == (
+        "The final check stopped the tube because of the 3 known gaps below, which are not fixed yet.")
+
+
+def test_a_step_shows_its_own_picture_not_a_packaged_texture(world):
+    from score.dashboard.state.files import packaged
+    detail = world.source.step_detail("alpha", "assembly")
+    assert detail.picture is not None and not packaged(detail.picture.name)
+    assert world.source.step_detail("alpha", "closeup").picture.name == "closeups/lamp.png"
+
+
+def test_concepts_and_look_pictures_are_found_where_they_live(world, monkeypatch):
+    views = world.source.props_home / "work/scene/alpha/views"
+    views.mkdir(parents=True)
+    Image.new("RGB", (16, 16), (200, 10, 10)).save(views / "C4.png")
+    assert world.source.look_picture("TMP/playtest3/moonground2/station/C4.png", ["alpha"]).name == "C4.png"
+    assert world.source.look_picture("TMP/gone/K99.png", ["alpha"]) is None
+    assert world.source.concept("alpha") is None  # its plan names no concept, and no K01.png is there
+    Image.new("RGB", (16, 16), (10, 200, 10)).save(views / "K01.png")
+    world.source.refresh()
+    assert world.source.concept("alpha").name == "K01.png"
+    monkeypatch.setattr(world.source, "place_plan", lambda place: {"concept": {
+        "picture": "{seeds}/scene/alpha/views/C4.png"}})
+    assert world.source.concept("alpha").name == "C4.png"  # the picture its plan was read from
+
+
+def test_the_board_tile_gets_the_films_middle_still(world, tmp_path, monkeypatch):
+    from score.dashboard.tests import fixture
+    made = film_file(tmp_path)
+    views = json.dumps({"size": [128, 72], "views": [dict(VIEW, frame=number) for number in range(24)]}).encode()
+    monkeypatch.setattr(fixture, "files_of", lambda stage, place, tweak: {
+        "film.mp4": made.read_bytes(), "views.json": views, "concept.png": fixture.picture()})
+    output = fixture.made(world.store, tmp_path / "again", "demo-film", "alpha", tweak=5, minutes_ago=1)
+    world.source.refresh()
+    assert world.source.accepted_output("demo-film@alpha") == output
+    card = world.source.place_card("alpha")
+    assert card.still is not None and card.still.name == "still.jpg"
+    assert world.source.thumb_path(card.still.sha) is not None
+    assert world.source.place_card("beta").still is None  # its film cannot be read: the tile keeps its picture

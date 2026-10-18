@@ -102,7 +102,7 @@ def place_page(request, place):
     return render(request, "pages/place.html", {
         "detail": detail, "name": present.place_name(style, detail) if style else present.humane(place),
         "status": present.place_status(detail.status, detail.layers),
-        "chain": present.chain(detail, style, step_url), "problems": present.problems(detail, step_url),
+        "chain": present.chain(detail, style, step_url), "problems": present.problems(detail),
         "changes": present.changes(source, place),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
         "library": library.strip_of(place)})
@@ -122,7 +122,7 @@ def step_page(request, stage, place=None):
     style = present.look_of_place(source.world_state(), place) if place else None
     return render(request, "pages/step.html", {
         "film_fps": film_fps(source, place) if films else None,
-        "output_picture": next((file for file in detail.files if file.kind == "image"), None),
+        "output_picture": detail.picture or next((file for file in detail.files if file.kind == "image"), None),
         "output_film": next((file for file in detail.files if file.kind == "film"), None),
         "place_name": (present.place_name(style, detail) if style else present.humane(place)) if place else None,
         "state_words": present.STATE_WORDS.get(detail.state, detail.state), "mark_words": present.mark_words(detail.mark),

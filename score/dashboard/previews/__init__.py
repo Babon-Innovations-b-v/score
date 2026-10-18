@@ -21,7 +21,7 @@ from score.dashboard.previews import checks, crops, maps, meshes, paint, sheets,
 from score.dashboard.state.files import packaged  # noqa: E402
 
 PREVIEW_NAME = "preview.png"
-VERSION = "3"  # raise it when a drawer changes, so every cached picture is made again
+VERSION = "5"  # raise it when a drawer changes, so every cached picture is made again
 LARGEST_JSON = 4 * 1024 * 1024
 _one_at_a_time = threading.Lock()
 
@@ -146,9 +146,19 @@ def draw(files, plan, known, destination, words, elsewhere=()):
         files, parsed, words, destination, elsewhere)
 
 
+def stage_root(files):
+    """True when the output holds a whole OpenUSD stage: a top-level .usda that sublayers others."""
+    for name, path in own_files(files):
+        if "/" not in name and name.endswith(".usda") and pathlib.Path(path).stat().st_size < LARGEST_JSON:
+            if "subLayers" in pathlib.Path(path).read_text(errors="replace"):
+                return True
+    return False
+
+
 def drawn_over_the_place(files, parsed, plan, words, destination):
-    """What a layer places and moves (each route), else what the output places, over the place; the path, or None
-    when it moves nothing and places fewer than two things there."""
+    """What a layer places and moves (each route), else what the output places, over the place (a whole stage
+    large, over the plan's labelled items); the path, or None when it moves nothing and places fewer than two things
+    there."""
     routes = [route for name, path in layer_files(files) for route in maps.layer_paths(name, path)]
     moving = {name for name, _ in routes}
     placed = [spot for name, path in layer_files(files) for spot in maps.layer_positions(name, path)
@@ -158,6 +168,8 @@ def drawn_over_the_place(files, parsed, plan, words, destination):
     placed = maps.inside(placed, plan)
     if not routes and len(placed) < 2:
         return None
+    if stage_root(files):
+        return maps.stage_picture(placed, routes, plan, words, destination)
     return maps.positions_picture(placed, routes, plan, words, destination)
 
 

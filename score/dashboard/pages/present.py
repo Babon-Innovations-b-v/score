@@ -206,29 +206,26 @@ NO_PICTURE = "no picture of this yet"
 
 
 def gap_problem(gap, place):
-    """A named gap as one sentence: a known problem not fixed yet. It has no picture of its own yet, and the page says
-    so rather than repeat the place's film frame."""
-    name = gap.removeprefix(f"{place}: ").removeprefix(f"{place}:")
-    return {"sentence": sentence(first_clause(name)), "kind": KNOWN_GAP, "name": NO_PICTURE, "picture": None,
-            "url": None, "full": gap}
+    """A named gap as one plain sentence and the picture of what it names, opening its step: a known problem not
+    fixed yet."""
+    name = gap.name.removeprefix(f"{place}: ").removeprefix(f"{place}:")
+    picture = gap.picture
+    return {"sentence": gap.sentence or sentence(first_clause(name)), "kind": KNOWN_GAP,
+            "name": gap.picture_is or NO_PICTURE, "picture": picture.thumb_url if picture else None,
+            "url": gap.step_url, "full": f"{gap.name}: {gap.reason}" if gap.reason else gap.name}
 
 
-def fault_problem(fault, steps, step_url, place):
-    """A stopped step as its picture and one sentence: which step stopped, and the first words of why."""
-    label, _, why = fault.partition(": ")
-    step = next((step for step in steps if step.label == label), None)
-    short = first_clause(why)
-    if short.lower().startswith(label.lower()):
-        short = short[len(label):].strip()
-    words = f"{label} stopped" + (f" ({short})" if short else "")
-    return {"sentence": sentence(words), "kind": "stopped", "name": NO_PICTURE, "picture": step.thumb if step else None,
-            "url": step_url(place, step.stage) if step else None, "full": fault}
+def fault_problem(fault):
+    """A stopped step as one plain sentence and a picture of what it is about, opening its step."""
+    picture = fault.picture
+    return {"sentence": fault.sentence or sentence(f"{fault.label} stopped"), "kind": "stopped",
+            "name": fault.picture_is or NO_PICTURE, "picture": picture.thumb_url if picture else None,
+            "url": fault.step_url, "full": f"{fault.label}: {fault.why}"}
 
 
-def problems(detail, step_url):
+def problems(detail):
     """Every stopped step and every named gap of a place: [{sentence, kind, picture, url, full}]."""
-    steps = [step for layer in detail.layers for step in layer.steps]
-    return ([fault_problem(fault, steps, step_url, detail.place) for fault in detail.faults]
+    return ([fault_problem(fault) for fault in detail.faults]
             + [gap_problem(gap, detail.place) for gap in detail.gaps])
 
 

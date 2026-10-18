@@ -6,17 +6,18 @@ snapshot, a background `score status`.
 Writes nothing to the store: owner decisions go through score.review.web.decide, called by the pages and the API.
 """
 import datetime
+import hashlib
 import json
 import pathlib
 import re
 
 from score import review, stages
-from score.dashboard.state import groups
+from score.dashboard.state import gaps as named, groups, plain
 from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
 from score.dashboard.state.index import Fresh, answer_keys
 from score.dashboard.state.models import (EngineGroup, GateCounts, GateVerdict, InputPicture, LayerGroup,
-                                          PlaceCard, PlaceDetail, Spend, StepCard, StepDetail, StyleGroup, Taken,
-                                          UsdIndex, UsdLayer, WorldState)
+                                          PlaceCard, PlaceDetail, Spend, StepCard, StepDetail, StoppedStep, StyleGroup,
+                                          Taken, UsdIndex, UsdLayer, WorldState)
 from score.store import Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -30,6 +31,7 @@ LAYER_MAKERS = {"edit": None, "characters": "characters-layer", "sound": "sound"
                 "settle": "settle", "ground": "terrain", "base": "scene-record"}
 LAYER_FILES = tuple(LAYER_MAKERS)
 ACCEPTED, WAITING, STOPPED, NOT_RUN = "accepted", "waiting", "stopped", "not run"
+STILL_NAME = "still.jpg"
 
 
 def stamp(seconds):
@@ -247,6 +249,17 @@ class LocalSource:
         self.known.add(sha, path.name, path)
         return file_ref(sha, path.name, path.stat().st_size)
 
+    def look_picture(self, written, places):
+        """A picture place.json names for a look: in the work folder (WORK/), else, when the folder it was written
+        from is gone (an old session's TMP/, a job's own folder), the picture of the same name among the views of
+        the look's places (the concept picks are kept there); None when none is there."""
+        found = self.work_picture(written)
+        if found or not written:
+            return found
+        name = pathlib.PurePosixPath(written).name
+        return next((found for found in (self.work_picture(f"WORK/scene/{place}/views/{name}") for place in places)
+                     if found), None)
+
     def file(self, sha):
         return self.known.get(sha)
 
@@ -323,10 +336,26 @@ class LocalSource:
         films = self.refs(output, ("film",)) if output else []
         return films[0] if films else None
 
+    def still(self, place):
+        """The accepted film's middle frame as a JPEG, cut once on this machine and kept by the film's hash; None
+        when there is no film or it cannot be read."""
+        from score.dashboard.previews import films
+        output = self.accepted_output(f"demo-film@{place}")
+        listing = self.listing(output) if output else {}
+        if "film.mp4" not in listing:
+            return None
+        ident = hashlib.sha256(f"score-dashboard-still:{listing['film.mp4']}".encode()).hexdigest()
+        views = self.blob_path(listing["views.json"]).read_text() if "views.json" in listing else ""
+        path = films.middle_still(self.blob_path(listing["film.mp4"]), views, self.home / "stills" / f"{ident}.jpg")
+        if path is None:
+            return None
+        self.known.add(ident, STILL_NAME, path)
+        return file_ref(ident, STILL_NAME, path.stat().st_size)
+
     def place_card(self, place):
         return self.remembered(("card", place), lambda: PlaceCard(
             place=place, status=self.place_status(place), hero=self.hero(place), film=self.film(place),
-            layers=self.layer_groups(place)))
+            still=self.still(place), layers=self.layer_groups(place)))
 
     def world_line(self):
         return [self.step_card(row, None, False) for row in self.world_rows()]
@@ -341,7 +370,8 @@ class LocalSource:
             found.append(StyleGroup(look=look, label=entry.get("name") or look.replace("_", " "),
                                     palette=[colour for colour in (entry.get("palette") or [])
                                              if isinstance(colour, str) and colour.startswith("#")][:8],
-                                    picture=self.work_picture(first.get("picture")), said=first.get("said", ""),
+                                    picture=self.look_picture(first.get("picture"), places),
+                                    said=first.get("said", ""),
                                     places=[self.place_card(place) for place in places]))
         return found
 
@@ -377,19 +407,24 @@ class LocalSource:
                         asset_count=sum(1 for item in listing if item.startswith("assets/") and kind_of(item) == "usd"))
 
     def gaps(self, place):
-        path = self.data / "checks/gaps" / f"{place}.json"
-        if not path.exists():
-            return []
-        return [f"{entry['name']}: {entry.get('reason', '')}" for entry in json.loads(path.read_text())["gaps"]]
+        """The place's named gaps, each with its step and a picture of what it names (state/gaps.py)."""
+        return self.remembered(("gaps", place), lambda: named.named_gaps(self, place))
 
     def faults(self, place):
-        """The first line and cause of each fault report of the place that is newer than its node's accept."""
-        found = []
-        for row in self.place_rows(place):
-            node = self.node_of(row.name, place)
-            if self.node_state(node)[0] == STOPPED:
-                found.append(f"{groups.label(row.name)}: {self.fault_why(node, row.name)}")
-        return found
+        """Each step of the place whose fault report is newer than its accept: its cause, in one plain sentence,
+        its page and a picture of what it is about."""
+        return [self.stopped_step(place, row.name) for row in self.place_rows(place)
+                if self.node_state(self.node_of(row.name, place))[0] == STOPPED]
+
+    def stopped_step(self, place, stage):
+        """A stopped step: pictured by the image its output made of its own, else by the place in its film."""
+        label, why = groups.label(stage), self.fault_why(self.node_of(stage, place), stage)
+        picture, words = named.own_picture(self, place, stage), named.STEP_PICTURE
+        if picture is None:
+            picture, words = self.still(place) or self.hero(place), named.THE_PLACE
+        return StoppedStep(label=label, why=why, sentence=plain.stop_sentence(label, why, place, len(
+            named.entries(self.data, place))), step_url=f"/place/{place}/step/{stage}/", picture=picture,
+                           picture_is=words if picture else "")
 
     def fault_why(self, node, stage):
         """The cause line of a node's fault report, its node named by the step's words."""
@@ -412,7 +447,13 @@ class LocalSource:
                 "current": sidecar.get("from_output") == self.accepted_output(f"assembly@{place}")}
 
     def concept(self, place):
-        """The place's concept picture (the work folder's scene/<place>/views/K01.png), or None."""
+        """The place's concept picture: the one its plan was read from (plan.json `concept.picture`, {seeds} the
+        work folder), else the work folder's scene/<place>/views/K01.png; None when neither is there."""
+        written = ((self.place_plan(place) or {}).get("concept") or {}).get("picture")
+        if isinstance(written, str) and written.startswith("{seeds}/"):
+            found = self.work_picture("WORK/" + written.removeprefix("{seeds}/"))
+            if found:
+                return found
         return self.work_picture(f"WORK/scene/{place}/views/K01.png")
 
     def film_fps(self, place):
@@ -427,7 +468,7 @@ class LocalSource:
         """Loud: the steps of the stage table not in this place's line, and its named gaps (left out by decision)."""
         rows = {row.name for row in self.place_rows(place)}
         missing = [groups.label(row.name) for row in self.rows if row.grain == "place" and row.name not in rows]
-        found = [f"{entry} (named gap)" for entry in self.gaps(place)]
+        found = [f"{entry.name}: {entry.reason} (named gap)" for entry in self.gaps(place)]
         if missing:
             found.append(f"not in this place's line: {', '.join(missing)}")
         return found
@@ -528,6 +569,7 @@ class LocalSource:
             detail.record = self.record_facts(shown)
             detail.judgement = verdict_list(self.judgement_of(shown), self.store.waivers(node, shown["key"]))
             detail.files = self.with_preview(node, shown["output"], self.refs(shown["output"]))
+            detail.picture = self.picture_of(node, shown["output"])
         if newest and (not accept or newest["output"] != accept["output"]):
             self.add_waiting(detail, node, newest)
         if state == STOPPED:
