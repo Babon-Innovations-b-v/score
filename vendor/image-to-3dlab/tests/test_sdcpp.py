@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from image_to_3dlab import sdcpp
+from image_to_3dlab import host, sdcpp
 
 # Lines as the Linux Vulkan build printed them on the RunPod 4090, 2026-09-23.
 VULKAN_OK = [
@@ -24,6 +24,10 @@ def test_backend_lines_are_classified():
     assert sdcpp.backend_of(VULKAN_OK[2]) == "gpu"
     assert sdcpp.backend_of("load_backend: loaded CUDA backend from C:/sd/ggml-cuda.dll") == "gpu"
     assert sdcpp.backend_of("ggml_cuda_init: found 1 CUDA devices:") == "gpu"
+    # The ROCm build reuses the CUDA log prefix for its device enumeration.
+    assert sdcpp.backend_of(
+        "ggml_cuda_init: found 2 ROCm devices (Total VRAM: 55486 MiB):") == "gpu"
+    assert sdcpp.backend_of("load_backend: loaded ROCm backend from /x/libggml-hip.so") == "gpu"
     assert sdcpp.backend_of(CPU_ONLY[1]) == "cpu"
     assert sdcpp.backend_of("[DEBUG] loading model") is None
 
@@ -48,3 +52,17 @@ def test_watch_flags_a_cpu_fallback_only_when_the_gpu_never_showed_up():
 def test_the_help_names_the_fix_that_worked():
     assert "sudo apt install libegl1 libgl1" in sdcpp.NO_GPU_HELP
     assert "nvidia-smi" in sdcpp.NO_GPU_HELP
+
+
+def test_the_amd_help_points_at_rocm_and_the_vulkan_fallback():
+    assert "rocminfo" in sdcpp.NO_AMD_GPU_HELP
+    assert "vulkan" in sdcpp.NO_AMD_GPU_HELP.lower()
+
+
+def test_each_machine_gets_words_it_can_act_on():
+    """An AMD user has no `nvidia-smi` to run and no NVIDIA container capability to set."""
+    assert sdcpp.no_gpu_help(host.AMD) is sdcpp.NO_AMD_GPU_HELP
+    assert sdcpp.no_gpu_help(host.NVIDIA) is sdcpp.NO_GPU_HELP
+    # A machine with no card at all is most likely an NVIDIA box that lost its driver, and
+    # the generic text is the one that names a fix; AMD's would send them looking for ROCm.
+    assert sdcpp.no_gpu_help(host.OTHER) is sdcpp.NO_GPU_HELP

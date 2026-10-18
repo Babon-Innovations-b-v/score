@@ -15,8 +15,8 @@ import os
 import re
 import shutil
 import subprocess
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
 
 from image_to_3dlab.host import os_family
 
@@ -48,18 +48,34 @@ def candidates(family: str, home: Path | None = None) -> list[Path]:
             Path("/var/lib/flatpak/exports/bin/org.blender.Blender"), *unpacked]
 
 
+def ours(family: str, home: Path | None = None) -> Path | None:
+    """The Blender our Linux installer unpacked (scripts/bootstrap_blender.py), if any."""
+    if family != "linux":
+        return None
+    path = (home or Path.home()) / "blender-lts" / "blender"
+    return path if path.is_file() else None
+
+
 def find_blender(env: dict[str, str] | None = None, which: Callable = shutil.which,
                  family: str | None = None, home: Path | None = None) -> Path | None:
-    """The Blender executable to use, or None when there is none."""
+    """The Blender executable to use, or None when there is none.
+
+    The one Setup installed outranks PATH: a distro, Snap or Flatpak Blender can be older
+    than 4.2 or bring a Python of its own, and the user picked ours by installing it.
+    """
     env = os.environ if env is None else env
     configured = env.get(ENV_VAR)
     if configured:
         path = Path(configured).expanduser()
         return path if path.is_file() else None
+    family = family or os_family()
+    installed = ours(family, home)
+    if installed:
+        return installed
     on_path = which("blender")
     if on_path:
         return Path(on_path)
-    return next((p for p in candidates(family or os_family(), home) if p.is_file()), None)
+    return next((p for p in candidates(family, home) if p.is_file()), None)
 
 
 def parse_version(text: str) -> tuple[int, int] | None:
@@ -97,3 +113,13 @@ def version_problem(version: tuple[int, int] | None) -> str | None:
         return (f"Blender {version[0]}.{version[1]} is older than {MIN_VERSION[0]}."
                 f"{MIN_VERSION[1]}; Finish may fail. Get a newer one from {DOWNLOAD_URL}")
     return None
+
+
+def can_install(system: str | None = None, machine: str | None = None) -> bool:
+    """Whether scripts/bootstrap_blender.py can install Blender here: blender.org's Linux
+    x86_64 tarball, unpacked in the home folder. Elsewhere Blender is an app install."""
+    import platform
+
+    system = system or platform.system()
+    machine = machine or platform.machine()
+    return system == "Linux" and machine in {"x86_64", "AMD64"}

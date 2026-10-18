@@ -80,7 +80,7 @@ def test_version_matches_the_newest_changelog_release():
 
 def test_brand_lives_in_one_file():
     brand = json.loads((REPO / "viewer" / "brand.json").read_text())
-    assert brand["name"] == "Bingeljell's Image-to-3D Lab"
+    assert brand["name"] == "AssetFurnace"
     assert welcome_api.brand() == brand
 
 
@@ -90,11 +90,15 @@ def test_payload_names_this_machine_and_its_routes(monkeypatch):
     monkeypatch.setattr(welcome_api, "read_changelog", lambda: CHANGELOG)
     data = welcome_api.payload(since="0.2.0")
     assert data["version"] == image_to_3dlab.__version__
-    assert data["brand"]["name"] == "Bingeljell's Image-to-3D Lab"
+    assert data["brand"]["name"] == "AssetFurnace"
     assert data["host"]["id"] == "nvidia"
     runs_here = {r["id"] for r in data["routes"]}
-    assert {"pixal3d", "sf3d", "qwen-image"} <= runs_here
-    assert "trellis" not in runs_here  # Mac-only for now
+    assert {"pixal3d", "qwen-image"} <= runs_here
+    assert "sf3d" not in runs_here  # Mac only: its pins broke the shared environment
+    assert "hunyuan_xiong" not in runs_here  # Mac-only for now
+    # TRELLIS.2 runs on NVIDIA under Linux, not yet under Windows.
+    linux_ok = backend_catalog.BY_ID["trellis"].excluded_os(backend_catalog.NVIDIA) is None
+    assert ("trellis" in runs_here) is linux_ok
     assert [r["version"] for r in data["news"]] == ["0.3.0"]
 
 
@@ -147,5 +151,5 @@ def test_the_viewer_serves_it():
             data = json.loads(response.read())
     finally:
         server.shutdown()
-    assert data["brand"]["name"] == "Bingeljell's Image-to-3D Lab"
+    assert data["brand"]["name"] == "AssetFurnace"
     assert data["news"] and data["news"][0]["version"] == image_to_3dlab.__version__

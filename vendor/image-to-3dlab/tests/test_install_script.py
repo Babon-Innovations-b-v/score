@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -54,7 +55,8 @@ def fake_bin(tmp_path: Path) -> Path:
     """A PATH holding git, the basics and a `uv` that logs its arguments."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    for tool in ("git", "uname", "sed", "ls", "head", "grep", "cat", "env", "mkdir", "dirname"):
+    for tool in ("git", "uname", "sed", "ls", "head", "grep", "cat", "env", "mkdir", "dirname",
+                 "cp", "chmod", "rm", "tr", "printf"):
         found = shutil.which(tool)
         if found:
             (bin_dir / tool).symlink_to(found)
@@ -64,9 +66,12 @@ def fake_bin(tmp_path: Path) -> Path:
     return bin_dir
 
 
-def run(tmp_path: Path, path: Path, *args: str, machine=("Darwin", "arm64")):
+def run(tmp_path: Path, path: Path, *args: str, machine=("Darwin", "arm64"), env=None):
     env = {"PATH": str(path), "HOME": str(tmp_path / "home"),
-           "I3D_UNAME_S": machine[0], "I3D_UNAME_M": machine[1]}
+           "I3D_UNAME_S": machine[0], "I3D_UNAME_M": machine[1],
+           # The test machine has no card of any kind, whatever the host running the suite
+           # has: I3D_KFD_NODES points the AMD check somewhere empty by default.
+           "I3D_KFD_NODES": str(tmp_path / "no-kfd-nodes"), **(env or {})}
     # A new session has no controlling terminal, like a CI job or an agent.
     return subprocess.run([BASH, str(SCRIPT), *args], env=env, capture_output=True,
                           text=True, stdin=subprocess.DEVNULL, start_new_session=True,
@@ -164,9 +169,23 @@ def test_unsupported_machines_are_refused_by_name(tmp_path, upstream, fake_bin,
 
 def test_linux_without_a_gpu_installs_but_says_so(tmp_path, upstream, fake_bin):
     done = run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(tmp_path / "lab"),
-               machine=("Linux", "x86_64"))
+               machine=("Linux", "x86_64"), env={"I3D_KFD_NODES": str(tmp_path / "none")})
     assert done.returncode == 0, done.stderr
-    assert "No NVIDIA GPU found" in done.stdout
+    assert "No NVIDIA or AMD GPU found" in done.stdout
+
+
+def test_linux_with_an_amd_card_is_named_as_one(tmp_path, upstream, fake_bin):
+    """The installer has to recognise the machine, or it warns a user who has a perfectly
+    good card that no route will run."""
+    nodes = tmp_path / "nodes"
+    # One directory per bound card is what the kernel driver leaves behind, so an empty
+    # directory means no card.
+    (nodes / "0").mkdir(parents=True)
+    done = run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(tmp_path / "lab"),
+               machine=("Linux", "x86_64"), env={"I3D_KFD_NODES": str(nodes)})
+    assert done.returncode == 0, done.stderr
+    assert "Machine: Linux with an AMD GPU" in done.stdout
+    assert "No NVIDIA or AMD GPU found" not in done.stdout
 
 
 def test_it_never_mentions_downloading_weights_itself():
@@ -209,3 +228,268 @@ def test_both_installers_look_for_blender_with_finishs_own_finder_and_never_inst
         assert "from image_to_3dlab.blender import find_blender" in text
         assert "blender.org/download" in text
         assert "apt install blender" not in text and "winget install" not in text
+
+
+def test_update_moves_learned_timings_aside_instead_of_refusing(tmp_path, upstream, fake_bin):
+    # Seen on a real pod: viewer releases up to 0.3.6 rewrote the tracked
+    # viewer/generate_baseline.json after every generation, so every user who had generated
+    # once was refused an update. Their timings move to output/ and the update goes on.
+    (upstream / "viewer").mkdir()
+    (upstream / "viewer" / "generate_baseline.json").write_text('{"seconds": {}}\n')
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "baseline")
+    _git(upstream, "tag", "v0.2.1")
+    target = tmp_path / "lab"
+    run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(target))
+    learned = '{"seconds": {"decode": 42.0}}\n'
+    (target / "viewer" / "generate_baseline.json").write_text(learned)
+    (upstream / "VERSION").write_text("0.3.0\n")
+    _git(upstream, "commit", "-q", "-am", "four")
+    _git(upstream, "tag", "v0.3.0")
+    done = run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(target))
+    assert done.returncode == 0, done.stderr
+    assert (target / "VERSION").read_text() == "0.3.0\n"
+    assert (target / "output" / ".generate_baseline.json").read_text() == learned
+    assert (target / "viewer" / "generate_baseline.json").read_text() == '{"seconds": {}}\n'
+
+
+def _with_lab(upstream):
+    lab = upstream / "lab"
+    lab.write_text('#!/bin/sh\necho "LAB STARTED $*"\n')
+    lab.chmod(0o755)
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "lab")
+    _git(upstream, "tag", "v0.2.2")
+
+
+def test_start_opens_the_lab_when_asked(tmp_path, upstream, fake_bin):
+    # The goal: run the curl command, end up in the viewer. Nothing to type in between.
+    _with_lab(upstream)
+    done = run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(tmp_path / "lab"),
+               "--start")
+    assert done.returncode == 0, done.stderr
+    assert "LAB STARTED" in done.stdout
+
+
+def test_without_a_terminal_it_says_how_to_start_instead(tmp_path, upstream, fake_bin):
+    # Scripts and agents (no terminal, or --yes) must not be left holding a running server.
+    _with_lab(upstream)
+    done = run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(tmp_path / "lab"))
+    assert done.returncode == 0, done.stderr
+    assert "LAB STARTED" not in done.stdout and "./lab" in done.stdout
+
+
+def test_it_prints_the_line_that_connects_an_agent(tmp_path, upstream, fake_bin):
+    _with_lab(upstream)
+    done = run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(tmp_path / "lab"))
+    assert done.returncode == 0, done.stderr
+    assert f"claude mcp add assetfurnace -- {tmp_path / 'lab'}/lab mcp" in done.stdout
+
+
+def test_the_real_launcher_is_executable_and_uses_auto():
+    lab = SCRIPT.parent / "lab"
+    assert lab.is_file() and lab.stat().st_mode & 0o111
+    assert "serve.py --auto" in lab.read_text()
+
+
+def test_installs_from_the_lock_file_when_there_is_one(tmp_path, upstream, fake_bin):
+    # Unpinned requirements meant every fresh install got whatever PyPI had that day: on
+    # 2026-10-01 huggingface-hub jumped to 2.x between two installs.
+    (upstream / "requirements.lock").write_text("Pillow==10.4.0\n")
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "lock")
+    _git(upstream, "tag", "v0.2.3")
+    done = run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(tmp_path / "lab"))
+    assert done.returncode == 0, done.stderr
+    uv_calls = (tmp_path / "uv.log").read_text()
+    assert "requirements.lock" in uv_calls and "requirements.txt" not in uv_calls
+
+
+def test_the_shipped_lock_pins_what_broke_before():
+    lock = (SCRIPT.parent / "requirements.lock").read_text()
+    for line in ("numpy==1.", "rembg==2.0.69", "huggingface-hub=="):
+        assert line in lock, line
+
+
+# --- AMD: the installer must not hand an AMD card a CUDA torch ----------------------------
+
+# A real slice of the shipped lock. PyPI's Linux torch IS a CUDA build and brings about 6 GB
+# of NVIDIA wheels with it, none of which an AMD card can load.
+LOCK_WITH_CUDA = """\
+# Generated by uv pip compile
+accelerate==1.12.0 ; sys_platform == 'linux'
+cuda-toolkit==13.0.3.0 ; sys_platform == 'linux'
+nvidia-cudnn-cu13==9.24.0.43 ; sys_platform == 'linux'
+torch==2.14.1
+torchvision==0.29.1
+triton==3.8.0 ; sys_platform == 'linux'
+numpy==1.26.4
+"""
+
+
+@pytest.fixture
+def amd_venv(tmp_path: Path):
+    """A fake `uv venv` result: an interpreter that answers host.py's questions.
+
+    It delegates the lock filtering to the *real* image_to_3dlab.host, so the test covers
+    the shipped filter rather than a re-implementation of it, and answers the two GPU
+    questions from parameters so the result does not depend on the card running the suite.
+    """
+    real_python = sys.executable
+    bin_dir = tmp_path / "venv-bin"
+
+    def build(rocm_already: bool, index: str):
+        bin_dir.mkdir(exist_ok=True)
+        python = bin_dir / "python"
+        python.write_text(f"""#!/bin/sh
+if [ "$1" = "-m" ] && [ "$2" = "image_to_3dlab.host" ]; then
+  # Like real Python: `-m` only finds the package from inside the install folder.
+  if [ "$PWD" != "{tmp_path / 'lab'}" ]; then
+    echo "No module named image_to_3dlab" >&2; exit 1
+  fi
+  shift 2
+  case "$1" in
+    torch-has-rocm) exit {0 if rocm_already else 1} ;;
+    torch-rocm-index) echo "{index}"; exit 0 ;;
+    *) PYTHONPATH="{REPO}" exec "{real_python}" -m image_to_3dlab.host "$@" ;;
+  esac
+fi
+echo "$@" >> "{tmp_path}/venv-python.log"
+""")
+        python.chmod(0o755)
+        return python
+
+    build.rocm_already = build
+    return build
+
+
+def _amd_run(tmp_path, fake_bin, upstream, amd_venv, rocm_already=False,
+             index="https://download.pytorch.org/whl/rocm7.2"):
+    """install.sh on an AMD machine, with the fake venv interpreter already in place."""
+    python = amd_venv(rocm_already, index)
+    # `uv venv --quiet --allow-existing --python 3.11 DIR`, so the directory is $6.
+    uv = fake_bin / "uv"
+    uv.write_text(f'#!/bin/sh\nif [ "$1" = venv ]; then mkdir -p "$6/bin"\n'
+                  f'  cp "{python}" "$6/bin/python"\n'
+                  f'fi\necho "$@" >> "{tmp_path}/uv.log"\n')
+    uv.chmod(0o755)
+    nodes = tmp_path / "nodes"
+    (nodes / "0").mkdir(parents=True, exist_ok=True)
+    return run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(tmp_path / "lab"),
+               machine=("Linux", "x86_64"), env={"I3D_KFD_NODES": str(nodes)})
+
+
+def test_an_amd_install_never_puts_cuda_wheels_on_the_card(tmp_path, upstream, fake_bin,
+                                                           amd_venv):
+    """PyPI's Linux torch is a CUDA build, so the shared lock installs one on an AMD box:
+    a torch that reports no device, plus about 6 GB of NVIDIA libraries it cannot load."""
+    (upstream / "requirements.lock").write_text(LOCK_WITH_CUDA)
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "lock")
+    _git(upstream, "tag", "v0.2.4")
+
+    done = _amd_run(tmp_path, fake_bin, upstream, amd_venv)
+    assert done.returncode == 0, done.stderr
+
+    uv_calls = (tmp_path / "uv.log").read_text()
+    assert "requirements.rocm.lock" in uv_calls
+    # The filtered lock is what gets installed, and the untouched one is not.
+    assert "requirements.lock" not in uv_calls.replace("requirements.rocm.lock", "")
+    # And it really was filtered, by the real code rather than a sed in the script.
+    filtered = (tmp_path / "lab" / ".venv" / "requirements.rocm.lock").read_text()
+    assert "numpy==1.26.4" in filtered and "accelerate==1.12.0" in filtered
+    assert "torch==" not in filtered
+    assert "nvidia-cudnn-cu13" not in filtered and "cuda-toolkit" not in filtered
+
+
+def test_an_amd_install_gets_the_rocm_build_of_torch(tmp_path, upstream, fake_bin, amd_venv):
+    (upstream / "requirements.lock").write_text(LOCK_WITH_CUDA)
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "lock")
+    _git(upstream, "tag", "v0.2.5")
+
+    done = _amd_run(tmp_path, fake_bin, upstream, amd_venv)
+    assert done.returncode == 0, done.stderr
+    uv_calls = (tmp_path / "uv.log").read_text()
+    assert "https://download.pytorch.org/whl/rocm7.2" in uv_calls
+    # --reinstall-package is what makes uv swap the PyPI build instead of considering
+    # "torch" already satisfied.
+    assert "--reinstall-package torch" in uv_calls
+
+
+def test_an_amd_that_already_has_rocm_torch_is_left_alone(tmp_path, upstream, fake_bin,
+                                                          amd_venv):
+    """An update must not re-download a few GB of PyTorch every time."""
+    (upstream / "requirements.lock").write_text(LOCK_WITH_CUDA)
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "lock")
+    _git(upstream, "tag", "v0.2.6")
+
+    done = _amd_run(tmp_path, fake_bin, upstream, amd_venv, rocm_already=True)
+    assert done.returncode == 0, done.stderr
+    assert "--reinstall-package torch" not in (tmp_path / "uv.log").read_text()
+
+
+def test_an_amd_with_too_old_a_rocm_is_told_to_update_and_gets_cpu_torch(
+        tmp_path, upstream, fake_bin, amd_venv):
+    (upstream / "requirements.lock").write_text(LOCK_WITH_CUDA)
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "lock")
+    _git(upstream, "tag", "v0.2.7")
+
+    done = _amd_run(tmp_path, fake_bin, upstream, amd_venv, index="")
+    assert done.returncode == 0, done.stderr
+    assert "older than PyTorch's ROCm builds" in done.stdout
+    uv_calls = (tmp_path / "uv.log").read_text()
+    assert "--reinstall-package torch" not in uv_calls
+    # The lock went in without torch, so the CPU build has to fill the gap.
+    assert "https://download.pytorch.org/whl/cpu torch torchvision" in uv_calls
+
+
+def test_an_amd_install_leaves_no_stray_file_in_the_checkout(tmp_path, upstream, fake_bin,
+                                                             amd_venv):
+    (upstream / "requirements.lock").write_text(LOCK_WITH_CUDA)
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "lock")
+    _git(upstream, "tag", "v0.2.9")
+
+    done = _amd_run(tmp_path, fake_bin, upstream, amd_venv)
+    assert done.returncode == 0, done.stderr
+    assert not (tmp_path / "lab" / "requirements.rocm.lock").exists()
+
+
+def test_an_nvidia_install_is_left_alone(tmp_path, upstream, fake_bin, amd_venv):
+    """The ROCm branch is AMD's. An NVIDIA card's lock is already right, and the plain
+    install must not have its pins stripped out from under it."""
+    (upstream / "requirements.lock").write_text(LOCK_WITH_CUDA)
+    _git(upstream, "add", ".")
+    _git(upstream, "commit", "-q", "-m", "lock")
+    _git(upstream, "tag", "v0.2.8")
+
+    nvidia_smi = fake_bin / "nvidia-smi"
+    nvidia_smi.write_text("#!/bin/sh\necho 'GPU 0: Test'\n")
+    nvidia_smi.chmod(0o755)
+    env = {"I3D_KFD_NODES": str(tmp_path / "none")}
+
+    done = run(tmp_path, fake_bin, "--repo", str(upstream), "--dir", str(tmp_path / "lab"),
+               machine=("Linux", "x86_64"), env=env)
+    assert done.returncode == 0, done.stderr
+    assert "Machine: Linux with an NVIDIA GPU" in done.stdout
+    uv_calls = (tmp_path / "uv.log").read_text()
+    assert "requirements.lock" in uv_calls
+    assert "requirements.rocm.lock" not in uv_calls
+    assert "rocm" not in uv_calls
+
+
+def test_the_lock_covers_every_requirement():
+    # Regenerate with: uv pip compile --universal --python-version 3.11 requirements.txt
+    #                  -o requirements.lock
+    import re
+
+    lock = (SCRIPT.parent / "requirements.lock").read_text().lower().replace("_", "-")
+    for raw in (SCRIPT.parent / "requirements.txt").read_text().splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        name = re.split(r"[<>=!~\[; ]", line, maxsplit=1)[0].lower().replace("_", "-")
+        assert f"\n{name}==" in lock, f"{name} is in requirements.txt but not the lock"
