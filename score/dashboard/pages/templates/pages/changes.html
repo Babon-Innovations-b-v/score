@@ -31,7 +31,7 @@
 <article class="fix card{% if card.choice %} answered {{ card.choice.choice }}{% endif %}" id="fix-{{ card.branch }}">
   <header class="fix-head">
     <div class="grow">
-      <div class="eyebrow">{% for place in card.places %}{{ place.place|capfirst }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+      <div class="eyebrow">{% for place in card.places %}{{ place.name|capfirst }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>
       <h2 class="fix-sentence">{{ card.sentence }}</h2>
     </div>
     {% if card.choice %}<span class="pill {{ card.choice.choice }}">{{ card.choice.said }}</span>{% endif %}
@@ -39,21 +39,29 @@
 
   {% for place in card.places %}
   <section class="fix-place">
-    {% if card.places|length > 1 %}<h3>{{ place.place|capfirst }}</h3>{% endif %}
-    {% if place.pairs %}
-    <div class="pairs">
+    {% if card.places|length > 1 %}<h3>{{ place.name|capfirst }}</h3>{% endif %}
+    {% if place.pairs and place.same_camera %}
+    <div class="fx-pairs">
       {% for pair in place.pairs %}
-      <figure class="pair">
-        <div class="side">
-          <div class="frame wide">{% if pair.before %}<img class="pic" src="{{ pair.before }}" alt="{{ place.place }} now, {{ pair.name }}" loading="lazy">{% else %}<div class="pic-none">no picture of it now</div>{% endif %}</div>
-          <span class="tag">Now{% if pair.before and not pair.same_camera %} (its own picture){% endif %}</span>
+      <figure class="fx-pair">
+        <div class="fx-side">
+          <div class="frame wide">{% if pair.before %}<img class="pic" src="{{ pair.before }}" alt="{{ place.name }} now, {{ pair.name }}" loading="lazy">{% else %}<div class="fx-none">not drawn from this camera</div>{% endif %}</div>
+          <span class="fx-tag">Now</span>
         </div>
-        <div class="side">
-          <div class="frame wide"><img class="pic" src="{{ pair.after }}" alt="{{ place.place }} after the fix, {{ pair.name }}" loading="lazy"></div>
-          <span class="tag after">After</span>
+        <div class="fx-side">
+          <div class="frame wide"><img class="pic" src="{{ pair.after }}" alt="{{ place.name }} after the fix, {{ pair.name }}" loading="lazy"></div>
+          <span class="fx-tag after">After</span>
         </div>
         <figcaption class="soft small">{{ pair.name|capfirst }}</figcaption>
       </figure>
+      {% endfor %}
+    </div>
+    {% elif place.pairs %}
+    <p class="soft small">{% if place.now %}The place now, from its own picture, then the fix from its cameras.{% else %}New: nothing like this stands in the place now, so there is no before picture.{% endif %}</p>
+    <div class="fx-gallery">
+      {% if place.now %}<figure class="fx-new"><div class="fx-side"><div class="frame wide"><img class="pic" src="{{ place.now }}" alt="{{ place.name }} now" loading="lazy"></div><span class="fx-tag">Now</span></div><figcaption class="small">As it stands</figcaption></figure>{% endif %}
+      {% for pair in place.pairs %}
+      <figure class="fx-new"><div class="fx-side"><div class="frame wide"><img class="pic" src="{{ pair.after }}" alt="{{ pair.name }}" loading="lazy"></div>{% if place.now %}<span class="fx-tag after">After</span>{% endif %}</div><figcaption class="small">{{ pair.name|capfirst }}</figcaption></figure>
       {% endfor %}
     </div>
     {% else %}
@@ -61,16 +69,16 @@
     {% endif %}
     {% for item in place.media %}{% if item.kind == "film" %}<video class="fix-film" controls preload="none" src="/proposal/{{ card.branch }}/{{ place.place }}/{{ item.file }}"></video>{% elif item.kind == "sound" %}<audio controls preload="none" src="/proposal/{{ card.branch }}/{{ place.place }}/{{ item.file }}"></audio>{% endif %}{% endfor %}
 
-    <div class="parts">
-      <div class="part free">
+    <div class="fx-parts">
+      <div class="fx-part">
         <div class="eyebrow">Done for free</div>
         <p>{% if place.free %}{{ place.free|join:", "|capfirst }}{% else %}Nothing had to be made again{% endif %}</p>
       </div>
-      <div class="part paid">
+      <div class="fx-part">
         <div class="eyebrow">Needs the paid batch</div>
         {% if place.paid %}
         <p>{{ place.paid|join:", "|capfirst }}</p>
-        <p class="price">{% if place.price.high is not None %}about EUR {{ place.price.likely|floatformat:2 }}{% if place.price.high != place.price.likely %}, at most EUR {{ place.price.high|floatformat:2 }}{% endif %}{% else %}<span class="unknown">{{ place.price.words|capfirst }}</span>{% endif %}</p>
+        <p class="fx-price">{% if place.price.high is not None %}about EUR {{ place.price.likely|floatformat:2 }}{% if place.price.high != place.price.likely %}, at most EUR {{ place.price.high|floatformat:2 }}{% endif %}{% else %}<span class="unknown">{{ place.price.words|capfirst }}</span>{% endif %}</p>
         {% if place.price.high is not None %}<p class="soft small">{{ place.price.words|capfirst }}.</p>{% endif %}
         {% else %}<p>Nothing: this fix is complete without paying.</p>{% endif %}
       </div>
@@ -78,7 +86,7 @@
     </div>
 
     {% if place.question %}
-    <div class="question">
+    <div class="fx-question">
       <div class="eyebrow">A question for you</div>
       <p class="ask">{{ place.question }}</p>
       <p><span class="soft">We recommend:</span> {{ place.recommended }}</p>
@@ -95,7 +103,7 @@
       {% if card.stale %}<p class="soft small">The fix changed since you answered; look again.</p>{% endif %}
     </div>
     {% if owner %}
-    <form method="post" action="/changes/choose/" class="choose">{% csrf_token %}
+    <form method="post" action="/changes/choose/" class="fx-choose">{% csrf_token %}
       <input type="hidden" name="branch" value="{{ card.branch }}"><input type="hidden" name="commit" value="{{ card.commit }}">
       <button type="submit" name="choice" value="later"{% if card.choice.choice == "later" %} disabled{% endif %}>Not now</button>
       <button type="submit" name="choice" value="buy" class="primary"{% if card.choice.choice == "buy" %} disabled{% endif %}>Buy</button>

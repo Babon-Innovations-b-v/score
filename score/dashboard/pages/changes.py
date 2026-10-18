@@ -63,27 +63,28 @@ def place_hero(source, place):
     return hero.url if hero else None
 
 
-def pairs(record, source):
-    """[{name, before, after}] of the place's views, before and after from the same camera; the place's current
-    picture stands in for a before not drawn."""
+def pairs(record):
+    """[{name, before, after}] of the place's views, before and after from the same camera (before None where it
+    was not drawn)."""
     after, _ = pictures_of(record, "stills")
     before = {still["name"]: still["url"] for still in pictures_of(record, "before")[0]}
-    fallback = place_hero(source, record["place"]) if not before else None
-    return [{"name": still["name"], "after": still["url"], "before": before.get(still["name"], fallback),
-             "same_camera": still["name"] in before} for still in after]
+    return [{"name": still["name"], "after": still["url"], "before": before.get(still["name"])} for still in after]
 
 
 def labels(stages):
     return [groups.label(stage) for stage in sorted(set(stages))]
 
 
-def price_words(price):
-    """{likely, high, measured, words} of a proposal's price, or {words} when it is not worked out."""
+def price_words(price, paid):
+    """{likely, high, measured, words} of a proposal's price, or {words} when it is not worked out (also when it
+    names paid steps but no paid job the runner could price)."""
     if not price:
         return {"words": "price not worked out yet"}
     if "error" in price:
         return {"words": "the price could not be worked out", "error": price["error"]}
     sums = price["totals"]
+    if paid and not sums["nodes"]:
+        return {"words": "not priced: the proposal names no paid job the runner can price"}
     unmeasured = len(sums.get("unmeasured", []))
     return {"likely": sums["likely_euros"], "high": sums["high_euros"], "nodes": sums["nodes"],
             "measured": unmeasured == 0,
@@ -94,10 +95,14 @@ def price_words(price):
 def place_part(record, source):
     """One place of a fix: its pictures, its free and paid parts, its 3D link, its own question."""
     after, after_failed = pictures_of(record, "stills")
-    return {"place": record["place"], "pairs": pairs(record, source), "failed": after_failed,
+    shown = pairs(record)
+    same_camera = any(pair["before"] for pair in shown)
+    return {"place": record["place"], "name": record["place"].replace("_", " "), "pairs": shown,
+            "same_camera": same_camera, "now": None if same_camera else place_hero(source, record["place"]),
+            "failed": after_failed,
             "media": [item for item in record.get("media") or [] if "file" in item],
             "free": labels(record.get("made") or []), "paid": labels(record.get("needs_paid_batch") or []),
-            "price": price_words(record.get("price")), "has_3d": record.get("has_3d"),
+            "price": price_words(record.get("price"), record.get("needs_paid_batch")), "has_3d": record.get("has_3d"),
             "view": f"/view/{record['place']}?proposal={record['branch']}",
             "blocked": record.get("blocked"), "question": record.get("question"),
             "recommended": record.get("recommended"), "made_at": record.get("made_at"),
@@ -109,7 +114,7 @@ def paid_total(found):
     prices = {}
     for record in found:
         price = record.get("price") or {}
-        if "nodes" not in price:
+        if "nodes" not in price or (record.get("needs_paid_batch") and not price["nodes"]):
             return None
         prices.update({node: value for node, value in price["nodes"].items() if "error" not in value})
     return {"likely": round(sum(value["likely_euros"] for value in prices.values()), 2),
