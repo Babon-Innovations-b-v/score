@@ -485,53 +485,6 @@
    }
   }
  },
- "characters-garment": {
-  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-garment:1-9444ee0796be@sha256:90ad040c8a65e897247b70f2527215e894a783c00ebe1ab9ac54789c8bf7525a",
-  "tag": "1-9444ee0796be",
-  "digest": "sha256:90ad040c8a65e897247b70f2527215e894a783c00ebe1ab9ac54789c8bf7525a",
-  "platforms": "linux/amd64",
-  "size_mb": 378.1,
-  "build_minutes": 0.7,
-  "built": "2026-10-10T03:47:04Z",
-  "proof": {
-   "NVIDIA L4, 580.178.04": {
-    "type": "L4-1-24G",
-    "class": "gpu-24gb",
-    "zone": "pl-waw-2",
-    "answered_minutes": 0.41,
-    "docker_setup_minutes": 0.1,
-    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-garment:1-9444ee0796be@sha256:90ad040c8a65e897247b70f2527215e894a783c00ebe1ab9ac54789c8bf7525a",
-    "pull_seconds": 6.1,
-    "jobs": {
-     "new-runtime": {
-      "container_seconds": 2.9,
-      "marks": {
-       "weights_ready": 0.2,
-       "inputs_ready": 0.2,
-       "first_result": 0.2,
-       "uploaded": 0.2
-      },
-      "card": "NVIDIA L4, 580.178.04",
-      "kernel_cache": null,
-      "env": {},
-      "cache": "new-characters-garment"
-     }
-    }
-   },
-   "POP2-16C-64G pl-waw-2 (image 1-c06ef3651d02)": {
-    "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-garment:1-c06ef3651d02@sha256:3134b32de7303e2e85ccb8c0968044282e18919460a7c2a21a9498a34007f3aa",
-    "machine": "POP2-16C-64G pl-waw-2",
-    "answer_seconds": 29.8,
-    "pull_seconds": 12.5,
-    "new_node": {
-     "weights_seconds": 0.2,
-     "first_result_seconds": 8.7,
-     "note": "GarmentCode measure, pattern and box mesh of the work suit on a body made by the characters-motion proof"
-    },
-    "measured": "2026-10-09"
-   }
-  }
- },
  "characters-motion": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-characters-motion:1-6de194c3196e@sha256:b22c50176878aac1c597670bbbd19bec22b24f7de246476ed38f81088dad249f",
   "tag": "1-6de194c3196e",

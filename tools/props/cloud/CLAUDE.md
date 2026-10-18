@@ -18,8 +18,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `scene.py` (its steps as one job) with the sam image, `judge.py` with the judge image, `pictures.py` (klein and
   Qwen-Image-Edit) with the pictures image, `moss_sound.py` with the moss image, and `batch.py` (Pixal3D) with the
   pixal image, its takes grouped as many to a job as a 24 GB card runs at once and finished here as today.
-  `characters.py` stays on machines: its person chain runs every step's environment on one machine, while the
-  images split them (characters-motion, characters-garment), so it needs the chain cut by image first. The machine
+  `characters.py` stays on machines: its person chain runs every step's environment on one machine, while an
+  image holds one (characters-motion), so it needs the chain cut by image first. The machine
   runners stay the default; switch none of them over by default.
 - **Provider-neutral.** Runners rent through `provider.py` by capability class (`gpu-24gb`,
   `gpu-80gb-x2`, `cpu-32c-128gb`) and never name a provider, machine type, zone or price; those live in
