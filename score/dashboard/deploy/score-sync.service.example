@@ -1,0 +1,10 @@
+# TEMPLATE: a systemd user service on the store's machine; copy to ~/.config/systemd/user/score-sync.service and
+# fill in. The owner installs it himself: decisions are applied only from his own process, never an agent's.
+[Unit]
+Description=SCORE dashboard sync: push the state export, pull and apply the owner's requests
+
+[Service]
+Type=oneshot
+WorkingDirectory=<path to the score repository>
+EnvironmentFile=<path to the env file kept outside the repo>
+ExecStart=<path to the score repository>/.venv/bin/python -m score.dashboard sync

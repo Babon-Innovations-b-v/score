@@ -1,0 +1,18 @@
+# TEMPLATE. Replace every <...>; never commit the real values.
+<dashboard.example.org> {
+	# Strip any sign-in headers the browser sent; only forward_auth may set them.
+	request_header -Remote-User
+	request_header -Remote-Email
+	request_header -Remote_User
+	request_header -Remote_Email
+
+	# The store's machine pushes the export and pulls requests with its token: no single sign-on here.
+	handle /api/sync/* {
+		reverse_proxy <score-dashboard-address>:8780
+	}
+
+	handle {
+		import <forward-auth-snippet>
+		reverse_proxy <score-dashboard-address>:8780
+	}
+}
