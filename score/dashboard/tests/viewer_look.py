@@ -19,7 +19,9 @@ of both pictures:
   green well below both red and blue's mean), never in the film;
 - black: the share of the viewer's pixels that are near black beyond the picture's own share.
 
-A pair passes inside THRESHOLDS; a place passes when every pair does. Out (default
+A pair passes inside THRESHOLDS; a place passes when every pair of its film does. The light looks are reported
+beside them but do not decide: the light step draws them from the stage before its assembly (the flat's balcony look
+holds a crowd since gone, and its missing pictures in magenta). Out (default
 $SCORE_DASHBOARD_HOME/viewer-look/): <place>-<camera>.jpg (the film's picture left, the viewer's right), report.json,
 and one summary line on stdout.
 """
@@ -312,10 +314,13 @@ def main(argv=None):
     results = iter(rendered(browser_jobs(client, chosen, web, out), out))
     report = [judged(place, camera, next(results), out) for place in chosen for camera in chosen[place]]
     (out / "report.json").write_text(json.dumps({"thresholds": THRESHOLDS, "pairs": report}, indent=1))
-    failed = sorted({item["place"] for item in report if not item["passes"]})
+    failed = sorted({item["place"] for item in report if not item["passes"] and item["camera"].startswith("film")})
+    films = [item for item in report if item["camera"].startswith("film")]
+    looks = [item for item in report if not item["camera"].startswith("film")]
     print(f"viewer look: {len(chosen) - len(failed)} of {len(chosen)} places pass "
-          f"({sum(item['passes'] for item in report)} of {len(report)} pictures); "
-          f"failing {', '.join(failed) or 'none'}; {out / 'report.json'}")
+          f"({sum(item['passes'] for item in films)} of {len(films)} film pictures; looks, not deciding, "
+          f"{sum(item['passes'] for item in looks)} of {len(looks)}); failing {', '.join(failed) or 'none'}; "
+          f"{out / 'report.json'}")
     return 1 if failed else 0
 
 
