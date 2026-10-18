@@ -1,8 +1,8 @@
-"""The runner's commands over the stage table, on world 1 and the framework's store ($PROPS_HOME/store).
+"""The runner's commands over the stage table, on environment 1 and the framework's store ($PROPS_HOME/store).
 
     .venv/bin/python -m score.stages status <place> [<place> ...]   # each node: blocked, to run and why, or its answer
     .venv/bin/python -m score.stages run <place> [<place> ...]      # runs only nodes with no output for their key
-    .venv/bin/python -m score.stages run                            # the world's own nodes only (terrain)
+    .venv/bin/python -m score.stages run                            # the environment's own nodes only (terrain)
     .venv/bin/python -m score.stages why <node>                     # its records back through what it read
 
 Terrain spends (its pictures and their depth in the cloud). A paid stage runs once the runner clears it (its inputs

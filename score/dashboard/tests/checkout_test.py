@@ -1,6 +1,6 @@
 """The basket and the owner's one checkout: prices from the moved rows and the runner's numbers, every refusal in
 words, a key that makes the same checkout twice, branches landed on a temp repo's bare remote in a fixed order (a
-conflict lands nothing), the world's stop line written by the owner's name only outside an agent's process, ONE batch
+conflict lands nothing), the environment's stop line written by the owner's name only outside an agent's process, ONE batch
 through the fake backend, and the results against their forecast. Nothing launches; no real remote is touched."""
 import datetime
 import os
@@ -73,7 +73,7 @@ def repo(tmp_path, settings):
 
 @pytest.fixture
 def shop(world, repo, monkeypatch):
-    """The fixture world, the temp repo, pricing and checkout run in this thread, no agent marks, the owner's books."""
+    """The fixture environment, the temp repo, pricing and checkout run in this thread, no agent marks, the owner's books."""
     monkeypatch.setattr(pricing, "moved_rows", lambda repo, base, head: MOVED[branch_at(repo, head)])
     monkeypatch.setattr(pricing, "price_soon", lambda record, repo: pricing.work_out(record, repo, FakeBackend()))
     monkeypatch.setattr(flow, "run_soon", lambda record: flow.run(record, FakeBackend()))

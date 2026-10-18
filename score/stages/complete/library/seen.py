@@ -36,7 +36,7 @@ def triangles_of(prim, cache):
 
 
 def gathered(stage):
-    """Every drawn mesh and sphere of the stage a viewer sees as the world (sight.is_seen), one Scene."""
+    """Every drawn mesh and sphere of the stage a viewer sees as the environment (sight.is_seen), one Scene."""
     cache = UsdGeom.XformCache(Usd.TimeCode.Default())
     parts, prims, prim_of = [], [], []
     for prim in stage.Traverse():

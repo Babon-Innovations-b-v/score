@@ -90,6 +90,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[3]))
 
 import gpu_operator  # noqa: E402
+import ledger  # noqa: E402
 import provider  # noqa: E402
 import scaleway as backend  # noqa: E402
 from kube import Kubectl  # noqa: E402
@@ -177,8 +178,10 @@ def autoscaler_arguments():
 
 
 def create_cluster(project):
-    """Make the cluster with only its system pool; the class pools are added by ensure_pools."""
+    """Make the cluster with only its system pool; the class pools are added by ensure_pools. Its ledger line goes
+    first (ledger.order_started): the system pool is billed by the hour from the order on."""
     system_type, system_zone = system_offer()
+    ledger.order_started("cluster", CLUSTER_NAME, {"type": system_type, "zone": system_zone})
     return scw("k8s", "cluster", "create", f"project-id={project}", f"name={CLUSTER_NAME}", f"type={CLUSTER_TYPE}",
                f"version={latest_version()}", f"cni={CNI[CLUSTER_TYPE]}", f"tags.0={TAG}",
                "description=SCORE job path: Kubernetes Jobs on node pools per capability class",
@@ -239,8 +242,8 @@ def pool_arguments(machine_class, machine_type, zone):
 
 
 def ensure_pools(cluster_id):
-    """Add every wanted class pool the cluster lacks, and label any that lost its class label; existing pools are
-    otherwise left as they are."""
+    """Add every wanted class pool the cluster lacks (its ledger line, ledger.order_started, before each order), and
+    label any that lost its class label; existing pools are otherwise left as they are."""
     have = {pool["name"]: pool for pool in pools(cluster_id)}
     for name, machine_class, machine_type, zone in wanted_pools():
         if name in have:
@@ -248,6 +251,8 @@ def ensure_pools(cluster_id):
                 label_pool(have[name]["id"], machine_class)
             continue
         print(f"adding pool {name}")
+        ledger.order_started("pool", name, {"type": machine_type, "zone": zone, "class": machine_class,
+                                            "cluster": cluster_id})
         made = scw("k8s", "pool", "create", f"cluster-id={cluster_id}", f"name={name}",
                    *pool_arguments(machine_class, machine_type, zone))
         label_pool(made["id"], machine_class)

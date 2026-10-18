@@ -2,8 +2,9 @@
 
 SCORE's dashboard: one ASGI app (`site/asgi.py`): Django renders the pages, sign-in and admin; FastAPI serves a typed
 JSON API under `/api` and the file routes (`/files`, `/thumbs`, `/web`, `/healthz`); one sign-in for both. Commands in
-`__main__.py` (`serve`, `owner`, `export`, `sync`, `check`, `web3d`: a place's 3D web copy for the viewer at `/view/<place>`, `propose`: a fix branch's proposal for a place, `proposals/`). The world shown: world -> environment engine -> style
-(a look in `data/definitions/place.json`) -> environment (place) with its OpenUSD index -> layer -> step (node),
+`__main__.py` (`serve`, `owner`, `export`, `sync`, `check`, `web3d`: a place's 3D web copy for the viewer at `/view/<place>`, `propose`: a fix branch's proposal for a place, `proposals-finish`: price every proposal and draw its before stills,
+`proposal-words`: a proposal's plain sentence and owner question, `proposals/`). The environment shown: environment -> engine -> style
+(a look in `data/definitions/place.json`) -> place with its OpenUSD index -> layer -> step (node),
 grouped in `state/groups.py` from the stage table; no new framework level.
 
 - **`state/`** where the pages read from. `local.py` reads the store beside it, read-only, through `index.py` (the
@@ -26,18 +27,22 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   every launch refusal in words).
 - **`checkout/`** the owner's basket of fix branches and his one checkout under `/api/checkout`: each branch priced
   from the paid rows it moves (`score.stages.moved --json`) at the runner's numbers (`score price`); the checkout
-  lands the branches in a fixed order, writes the world's stop line at the basket's high (`score.review.web.stop`)
+  lands the branches in a fixed order, writes the environment's stop line at the basket's high (`score.review.web.stop`)
   and launches one batch through the backend. Its own overlay has the rules.
 - **`previews/`** a picture for each step whose output has none of its own, drawn from its files on the store's
   machine, kept per output, never imported by a hosted process.
 - **`sync/`** hosted mode: `building.py` the export, `endpoints.py` the hosted side (token only), `client.py` and
   `applying.py` the store side's pass. The store's machine always calls out. The export goes content-addressed: only
   the files the hosted side lacks, thumbnails first, one 2 MiB gzip chunk a request, then a commit swaps it in whole.
-  Each pass first runs the library sweep (`score.stages.library.sweep`, the world against its library), so its
+  Each pass first runs the library sweep (`score.stages.library.sweep`, the environment against its library), so its
   problems are in the export by construction; a failed sweep is said in the pass's words and the pass goes on.
 - **`proposals/`** each fix branch's proposal for a place (its own overlay): the place assembled free from the branch
   over the store's accepted outputs, its 3D copy, stills and draft media, in `$SCORE_DASHBOARD_HOME/proposals/`; the
   export carries them through `proposals/exporting.py`, the API at `/api/proposals` and `/proposal/<branch>/<place>/`.
+  The owner reads them on **Changes to buy** (`/changes/`, `pages/changes.py`): a card a fix, before and after from
+  the same camera, the plain sentence, free and paid part with the runner's price, his question with the recommended
+  answer, show in 3D (`/view/<place>?proposal=<branch>`), and his buy or not now (`ProposalChoice`; hosted, a
+  SyncRequest of kind `proposal` the store's machine applies into the checkout's basket).
 - **`films/`** the film script (its own overlay): the FILM pages' editor, free three.js preview on the web copies and
   films, and render items priced from measured frames; scripts saved in `$SCORE_DASHBOARD_HOME/films/`, starters in
   `data/films/`.

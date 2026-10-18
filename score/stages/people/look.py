@@ -1,4 +1,4 @@
-"""The people's look row: `people-look` (paid, world) renders every dressed look (blender_shots.py on a rented card
+"""The people's look row: `people-look` (paid, environment) renders every dressed look (blender_shots.py on a rented card
 through blender_cloud.py: the bind pose from the front, side and back, and a strip of clip frames) and writes the
 review page, page.html, each look with its body gates' table (the body row's checks.txt) and its dress.
 

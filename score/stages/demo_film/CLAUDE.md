@@ -26,4 +26,4 @@ own sound; paid and cleared by the runner like any paid row.
   lands 1 s into the shot; places whose motions loop start at 0); `stills.py` (the demo-stills row,
   `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film starts by itself once its place
-  passes complete, or fails it only on its named gaps, in any world run). Test: `demo_film_test.py` (no Blender, no spend).
+  passes complete, or fails it only on its named gaps, in any environment run). Test: `demo_film_test.py` (no Blender, no spend).

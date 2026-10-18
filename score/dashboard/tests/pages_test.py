@@ -8,7 +8,7 @@ from django.test import Client
 
 pytestmark = pytest.mark.django_db
 PAGES = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/place/beta/step/assembly/",
-         "/world/step/terrain/", "/basket/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
+         "/world/step/terrain/", "/basket/", "/changes/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
 POSTS = ["/place/alpha/step/closeup/request/", "/place/alpha/step/closeup/decide/", "/place/alpha/step/closeup/queue/",
          "/basket/change/", "/refresh/", "/freshness/"]
 NODE = re.compile(r"\b[a-z][a-z-]+@(alpha|beta)\b")
@@ -53,7 +53,8 @@ def test_the_board_shows_each_place_once_with_its_picture_and_one_status(world):
 
 
 def test_the_board_shows_no_changes_to_buy_while_there_are_none(world):
-    assert "Changes to buy" not in signed_in().get("/").content.decode()
+    page = signed_in().get("/").content.decode()
+    assert 'aria-label="changes to buy"' not in page and "wait for you" not in page
 
 
 def test_a_change_to_buy_shows_its_preview_price_and_basket_button(world, monkeypatch):
@@ -80,7 +81,7 @@ def test_the_place_page_shows_the_usd_index_and_faults(world):
 
 def test_a_known_gap_shows_its_picture_and_opens_its_step(world):
     html = signed_in().get("/place/beta/").content.decode()
-    problems = html[html.index('class="problems"'):html.index("</section>", html.index('class="problems"'))]
+    problems = html[html.index('class="problems bd-problems"'):html.index("</article>", html.index('class="problems'))]
     gap = next(chunk for chunk in problems.split('class="problem"') if "known gap" in chunk)
     assert gap.startswith(' href="/place/beta/step/assembly/"') and "/thumbs/" in gap
 

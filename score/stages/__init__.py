@@ -1,14 +1,14 @@
-"""The stage table: every stage the runner knows, in the paper's order, and world 1 as the runner reads it.
+"""The stage table: every stage the runner knows, in the paper's order, and environment 1 as the runner reads it.
 
     from score import stages
-    runner = stages.runner()        # world 1, the framework's store on this machine
+    runner = stages.runner()        # environment 1, the framework's store on this machine
     runner.status(["hangar", "hdoor"])
-    runner.drive(stages.places(runner.world))   # every line of the world to its end (python -m score run world1)
+    runner.drive(stages.places(runner.world))   # every line of the environment to its end (python -m score run world1)
 
-Step 0 holds the worked example: assembly (P5) on world 1's round-three stages as unverified seeds, and complete
-(P11). Terrain (the paper's Methods, "Terrain") makes every ground of the world from its plan, one world node, paid
+Step 0 holds the worked example: assembly (P5) on environment 1's round-three stages as unverified seeds, and complete
+(P11). Terrain (the paper's Methods, "Terrain") makes every ground of the environment from its plan, one environment node, paid
 (pictures and depth in the cloud, cleared by the runner). The surface stage (step 1, its overlay) is each place's
-own line of rows, split to checked bake, beside the world's seed of the finish registry. Effects (experimental) makes
+own line of rows, split to checked bake, beside the environment's seed of the finish registry. Effects (experimental) makes
 each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
 after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
 own accepted assembly. The prop route (props: close-up, Pixal3D, then the surface line, then the likeness gate) runs
@@ -118,7 +118,7 @@ def kit_laid(place):
 
 
 def kit_if_laid(files):
-    """The plan row's world files without `kit` for a place whose kit is not laid, so its plan runs before it.
+    """The plan row's environment files without `kit` for a place whose kit is not laid, so its plan runs before it.
     Wrapped here, in the table, so the plan's code version and every laid place's key stay as they were."""
     @functools.wraps(files)
     def declared(place):
@@ -147,7 +147,7 @@ NO_GROUND = "no made ground seats this place: its outside cannot be judged"
 
 
 def seed_if_any(files):
-    """scene-record's world files without `seed record` for a place that never had an old record (the ship's places,
+    """scene-record's environment files without `seed record` for a place that never had an old record (the ship's places,
     2026-10-15: the runner blocked on the missing file while `seed-matched` itself passes a place with none). Wrapped
     here, in the table, so every place with a seed keeps its key."""
     @functools.wraps(files)
@@ -230,7 +230,7 @@ CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, cha
                          after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
                          optional=DRESS_ROWS, applies=cast_place)
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
-# MOSS takes for briefs no world file answers, paid), for the place's assembly to write into its stage.
+# MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
 SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
                     euros=sound.EUROS, models=(sound.moss_takes.KIND,), applies=sound.applies)
 
@@ -260,7 +260,7 @@ def bake_checked(row):
 
 
 def check_files(place):
-    """The check's world files: the paint's (its line's, the inventories, the resting rules), the stance rules, and
+    """The check's environment files: the paint's (its line's, the inventories, the resting rules), the stance rules, and
     the place's kit, scene record and machines record (each model's spots and the views, its view distance)."""
     # A place the game never had (the ship's rooms) has no old scene record, and no kit until its shell is laid: the
     # check reads none then (bake_check.seen_degrees does without), as scene-record's seed (78243df1).
@@ -295,7 +295,7 @@ def feet_checked(row):
 
 
 def paint_files(place):
-    """The paint's world files: the line's, and the inventory of each place a take is made for with the resting rules,
+    """The paint's environment files: the line's, and the inventory of each place a take is made for with the resting rules,
     which it reads to tell a take laid loose on the floor or held, whose feet it levels (place_line.stands_on_feet)."""
     import stage_inputs  # tools/usd, on the path by the assembly stage's import: a place's inventory, or its kit's
     inventories = {f"inventory {entry['place']}": "{data}/inventory/" + stage_inputs.inventory_path(entry["place"]).name
@@ -326,7 +326,7 @@ def far_judged(row):
 
 
 def people_surfaces(place):
-    """The people line's surface data (a world line: no place)."""
+    """The people line's surface data (an environment line: no place)."""
     from score.stages.people import line as people_line
     return json.loads(people_line.DATA.read_text())
 
@@ -350,7 +350,7 @@ def library_narrowed(row):
 
 
 def box_checked(files):
-    """props-inputs' world files with the box gate's decided boxes (WORK/partition/<scene>/boxes.json, which
+    """props-inputs' environment files with the box gate's decided boxes (WORK/partition/<scene>/boxes.json, which
     machines-boxes writes), so a box check that passes later re-runs the inputs row (the cockpit, 2026-10-14: it read
     the old failed boxes and stayed failed with its key unmoved). Wrapped here, in the table, so no row's code moves."""
     @functools.wraps(files)
@@ -368,15 +368,15 @@ def prop_fed(row):
 
 
 # Experimental (2026-10-14) until the owner reviews it: concept views drawn by Pro from a creator's reference and a
-# written request (data/definitions/concept_views.json), one world node, paid: the ship's top and side views first.
+# written request (data/definitions/concept_views.json), one environment node, paid: the ship's top and side views first.
 CONCEPT_VIEWS = graph.Stage("concept-views", "world", concept_view.make, concept_view.CONTRACT, concept_view.CHECKS,
                             files=concept_view.files, paid=True, euros=concept_view.euros())
 # Experimental (2026-10-14): the concept partition's SAM 2.1 proposals for scenes whose inventory has not landed
-# (data/definitions/partitions.json), one world node, paid: the cockpit first.
+# (data/definitions/partitions.json), one environment node, paid: the cockpit first.
 PARTITION_PROPOSALS = graph.Stage("partition-proposals", "world", proposals.make, proposals.CONTRACT, proposals.CHECKS,
                                   files=proposals.files, paid=True, euros=proposals.euros())
 # Experimental (2026-10-14): models that already exist turned round for the paper's demos
-# (data/definitions/demo_turntables.json), one world node, paid: demo K2's hub objects first.
+# (data/definitions/demo_turntables.json), one environment node, paid: demo K2's hub objects first.
 DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, demo_turntable.CONTRACT,
                               demo_turntable.CHECKS, files=demo_turntable.files, paid=True,
                               euros=demo_turntable.euros())
@@ -427,7 +427,7 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
 
 
 def with_gap_files(files, row=None):
-    """A row's world files and its place's gaps file where it names a gap of `row` (whole for complete, `row` None:
+    """A row's environment files and its place's gaps file where it names a gap of `row` (whole for complete, `row` None:
     gaps.files). It unwraps to the row's own files and keeps their attributes (the paint's carry), so the row's code
     version is its own."""
     def found(place):
@@ -491,9 +491,9 @@ def ship_place(place):
 
 
 def ship_seeded(files):
-    """A row's world files with a ship place's base stage for its seed: the ship's places never had a round-three stage
+    """A row's environment files with a ship place's base stage for its seed: the ship's places never had a round-three stage
     (usd-r3), so each one's is written from its installed kit by tools/usd/export.py into usd-ship/<place> (2026-10-15)
-    and read there. Kept out of usd-r3, which the terrain and scene-record rows declare whole, so no world key moves;
+    and read there. Kept out of usd-r3, which the terrain and scene-record rows declare whole, so no environment key moves;
     a place with a round-three seed reads it as before."""
     def declared(place):
         found = files(place) if callable(files) else files
@@ -548,7 +548,7 @@ def shows_no_neighbours():
 
 
 def no_old_record(files):
-    """A light row's world files for a place with no old scene record: no neighbours and no `scene` file (its record
+    """A light row's environment files for a place with no old scene record: no neighbours and no `scene` file (its record
     is the scene-record row's output, which the row reads); a place with one declares them as before. Wrapped here, in
     the table, so no place's key moves."""
     def declared(place):
@@ -576,7 +576,7 @@ def made_without_old_record(make):
 
 
 def sounded_from_plan(files):
-    """The sound row's world files for a place with no old scene record (the ship's): its plan stands as `scene`. The
+    """The sound row's environment files for a place with no old scene record (the ship's): its plan stands as `scene`. The
     row reads only the place's name (the file's stem) and the objects and structure the record names, for where object
     sounds may play; a ship place's plan names none, so its sounds play at its inventory rows alone (2026-10-15: the
     runner refused the ship's run on the missing data/scene/<place>.json). A place with an old record reads it as
@@ -672,21 +672,21 @@ STAGES = tuple(ship_assembled(row) if row.name == "assembly" else ship_seen(row)
                else ship_completed(row) if row.name == "complete" else row for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 # The library rows (score/stages/library), appended last: library@<place> hands every accepted output of its place's
-# line to the creator's library, library-world the world's own; nothing reads them, so they re-key no other row. A place
-# is complete once its library node stands accepted, the world once every one does (library.world_completion).
+# line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
+# is complete once its library node stands accepted, the environment once every one does (library.world_completion).
 STAGES = (*STAGES, *library.rows(STAGES, REPO / "data"))
 
 
 def world1():
-    """World 1: its record, its data in the repository, its old outputs in the work folder, the prop tools' home (the
+    """Environment 1: its record, its data in the repository, its old outputs in the work folder, the prop tools' home (the
     raw models, the routes' bake jobs) and the repository (the code a stage hands to a rented machine)."""
-    return graph.World.from_file(WORLD1, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"),
+    return graph.Environment.from_file(WORLD1, data=str(REPO / "data"), seeds=str(PROPS_HOME / "work"),
                                  home=str(PROPS_HOME), repo=str(REPO))
 
 
 def places(world):
-    """A world's places: each with a kit or a plan in its data (a new place has its plan before its kit is laid;
-    none for a world without data, the images world)."""
+    """An environment's places: each with a kit or a plan in its data (a new place has its plan before its kit is laid;
+    none for an environment without data, the images environment)."""
     if "data" not in world.roots:
         return []
     data = pathlib.Path(world.roots["data"])
@@ -694,11 +694,11 @@ def places(world):
 
 
 WORLDS = {"world1": world1, "images": images.image_world}
-# A world whose stages are not world 1's: the images world (each job image rebuilt and proved, score/stages/images).
+# An environment whose stages are not environment 1's: the images environment (each job image rebuilt and proved, score/stages/images).
 TABLES = {"images": images.STAGES}
 
 
 def runner(store=None, world=None):
-    """The runner over the stage table, on world 1 and the framework's store unless told otherwise."""
+    """The runner over the stage table, on environment 1 and the framework's store unless told otherwise."""
     world = world or world1()
     return graph.Runner(TABLES.get(world.name, STAGES), world, store or Store.default())

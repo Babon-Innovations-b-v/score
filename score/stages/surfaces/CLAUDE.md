@@ -1,7 +1,7 @@
 # score/stages/surfaces/
 
 The surface stage (R4, the paper's core contribution: shape and surface apart, every part one surface of the shared
-library), step 1 of PRD #6, as rows of world 1's stage table (`__init__.py`, `ROWS`). Bible: `architecture/components`
+library), step 1 of PRD #6, as rows of environment 1's stage table (`__init__.py`, `ROWS`). Bible: `architecture/components`
 and `architecture/experimental`; method: the paper's Methods, "Shape and surface apart".
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
@@ -104,7 +104,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   own colour (`cover`: the garage beacon's red_plastic dome), left out of `close_up_colours`; other finishes judged
   by their own colour stay in it for the order and one-look checks.
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
-  `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their world
+  `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their environment
   files from `row_files.py`, so neither this folder's `__init__.py` nor `place_line.py` is in their code
   version (`../stages_test.py` holds it). Each baked triangle is named by the bake's own ray (`bake_check.ray_surfaces`:
   from its middle make_chunky's reach out along its normal, inward, the first labelled face hit), never the nearest
@@ -149,7 +149,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   library surfaces a method proposed, each standing as first proposed for the owner to accept into the library or
   not; until then the part keeps the nearest library surface the method named (`stands_in`). The paint writes it
   outside its key.
-- **Per-place data is world data** (`surface_data.py`, `data/surfaces/<place>.json`): the takes a place paints, the
+- **Per-place data is environment data** (`surface_data.py`, `data/surfaces/<place>.json`): the takes a place paints, the
   library name, the bake (the route's make_chunky job, model per take, entries the job lacks), and `elsewhere`: the
   models it lays that another place claims. Everything is repainted, the owner's picks included (a pick chooses the
   model, never its old paint: owner, 2026-10-12); each take is painted by one place only, and a place reads a claimed

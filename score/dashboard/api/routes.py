@@ -129,7 +129,7 @@ def place_detail(place: str, user=Depends(signed_in)):
 def step(place, stage):
     found = state.source().step_detail(place, stage)
     if found is None:
-        raise HTTPException(404, f"no step {stage} at {place or 'the world'}")
+        raise HTTPException(404, f"no step {stage} at {place or 'the whole environment'}")
     return found
 
 
@@ -332,7 +332,7 @@ def thumb(sha: str, user=Depends(signed_in)):
 @files.get("/web/{place}/{name}")
 def web_copy(place: str, name: str, user=Depends(signed_in)):
     """A place's fresh 3D web copy (its preview, its whole copy, its sidecar): local or from the export."""
-    if name not in (f"{place}.glb", f"{place}-light.glb", f"{place}.json"):
+    if name not in (f"{place}.glb", f"{place}-light.glb", f"{place}-around.glb", f"{place}.json"):
         raise HTTPException(404, "no such web copy")
     path = state.source().web3d_file(place, name)
     if path is None:

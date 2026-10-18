@@ -1,10 +1,10 @@
 {% extends "pages/base.html" %}
 {% block title %}{{ name }}{% endblock %}
 {% block content %}
-<nav class="crumbs"><a href="/">World</a><span>/</span>{{ name }}</nav>
+<nav class="crumbs"><a href="/">Environment</a><span>/</span>{{ name }}</nav>
 <div class="page-head">
   <h1>{{ name }}</h1>
-  <span class="status {{ status.tone }}">{{ status.words }}</span>
+  <a class="status {{ status.tone }}" href="#bd-index">{{ status.words }}</a>
   <div class="grow"></div>
   {% if detail.web3d %}<a class="button primary big" href="/view/{{ detail.place }}">Open in 3D</a>
   {% else %}<span class="button big disabled" title="no 3D web copy of this place yet">Open in 3D: not made yet</span>{% endif %}
@@ -25,41 +25,7 @@
 </section>
 {% endif %}
 
-<section>
-  <h2>How it was made</h2>
-  <div class="strip" tabindex="0" aria-label="the steps, in order">
-    {% for segment in chain %}
-    <div class="segment">
-      <div class="segment-name">{{ segment.name }}</div>
-      <div class="segment-tiles">
-        {% for step in segment.tiles %}
-        <div class="step-tile">
-          {% if step.full %}<button type="button" class="frame zoom" data-full="{{ step.full }}" data-caption="{{ step.label }}" aria-label="open {{ step.label }} large">{% include "pages/pic.html" with src=step.thumb name=step.label %}</button>
-          {% else %}<div class="frame">{% include "pages/pic.html" with src=step.thumb name=step.label %}</div>{% endif %}
-          <a class="step-foot" {% if step.url %}href="{{ step.url }}"{% endif %}><i class="mark {{ step.state|slugify }}{% if step.unseen %} unseen{% endif %}"></i><span class="step-name">{{ step.label }}</span></a>
-          <div class="step-words">{{ step.words }}{% if step.unseen %}, new{% endif %}</div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  <p class="legend small"><span class="soft">a picture opens large; a name opens its step</span><span><i class="mark accepted"></i>done</span><span><i class="mark waiting"></i>to review</span><span><i class="mark stopped"></i>stopped</span><span><i class="mark not-run"></i>not run</span><span><i class="mark accepted unseen"></i>not seen by you</span></p>
-</section>
-
-<section>
-  <h2>Problems {% if problems %}<span class="count bad">{{ problems|length }}</span>{% endif %}</h2>
-  {% if problems %}
-  <div class="problems">
-    {% for problem in problems %}
-    {% if problem.url %}<a class="problem" href="{{ problem.url }}">{% else %}<div class="problem">{% endif %}
-      <div class="frame">{% include "pages/pic.html" with src=problem.picture name=problem.name bare=True %}</div>
-      <div class="problem-body"><span class="kind {% if problem.kind == 'stopped' %}stopped{% else %}known-gap{% endif %}">{{ problem.kind }}</span><p>{{ problem.sentence }}</p></div>
-    {% if problem.url %}</a>{% else %}</div>{% endif %}
-    {% endfor %}
-  </div>
-  {% else %}<p class="soft">None found by the checks.</p>{% endif %}
-</section>
+{% include "pages/breakdown.html" %}
 
 {% include "pages/library_strip.html" %}
 

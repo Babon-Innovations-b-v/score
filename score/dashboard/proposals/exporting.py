@@ -1,13 +1,13 @@
 """The proposals' files the state export carries next to the current version, in the order they go up: every
-proposal's record and the index first, then its stills, media and light 3D copy, then the whole 3D copies while they
-fit. The export (sync/building.py) copies each pair to the same path under its own folder (<out>/proposals/...), so
-the hosted side reads them with records.py as the local side does."""
+proposal's record and the index first, then its stills, before stills, media and light 3D copy, then the whole 3D
+copies while they fit. The export (sync/building.py) copies each pair to the same path under its own folder
+(<out>/proposals/...), so the hosted side reads them with records.py as the local side does."""
 import pathlib
 
 from score.dashboard.proposals import records
 
 FIRST = ("proposal.json",)
-THEN = ("stills/*", "media/*", "web3d/*.json", "web3d/*-light.glb")
+THEN = ("stills/*", "before/*", "media/*", "web3d/*.json", "web3d/*-light.glb")
 LAST = ("web3d/*.glb",)
 
 
@@ -34,3 +34,17 @@ def files(root):
     taken = set()
     return [(root / records.INDEX, f"proposals/{records.INDEX}"), *matching(root, FIRST, taken),
             *matching(root, THEN, taken), *matching(root, LAST, taken)]
+
+
+def is_whole_copy(path):
+    """True for a proposal's whole 3D copy (web3d/<place>.glb), the biggest file and the last to go up."""
+    path = pathlib.Path(path)
+    return path.parent.name == "web3d" and path.suffix == ".glb" and not path.name.endswith("-light.glb")
+
+
+def in_export(root, filler, wholes):
+    """Copy every proposal's files into the export through `filler` (sync/building.py), the whole 3D copies only
+    when `wholes`, else all the rest, in upload order."""
+    for path, target in files(root):
+        if is_whole_copy(path) == wholes:
+            filler.place_copy(path, target, f"proposal {target}")

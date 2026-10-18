@@ -23,6 +23,8 @@ FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__
                                       "score/stages/__main__.py", "tools/props/cloud/batch.py",
                                       "tools/props/cloud/capacity.py", "tools/props/cloud/park.py",
                                       "tools/props/cloud/blender_cloud.py", "tools/props/cloud/ledger.py")}
+# Where FRAMEWORK is declared, read at an older commit to rebuild the code version a record was made under.
+DECLARED_IN = "score/graph/_code.py"
 
 
 def in_repo(path):
@@ -40,24 +42,24 @@ def search_folders():
     return tuple(sorted({pathlib.Path(entry).resolve() for entry in sys.path if entry}))
 
 
-def module_files(name):
+def module_files(name, is_file=pathlib.Path.is_file):
     """Every source file of ours an import name could find in each folder of the path (`search_folders`), read
-    from the files alone, never from what is imported. Hashing all of them keeps the code version the same whatever
-    order a process put the path's folders in (judge.py puts tools/props first when imported; a row's key moved
-    with no file changed)."""
+    from the files alone, never from what is imported; `is_file` says which files the tree holds (this checkout's by
+    default). Hashing all of them keeps the code version the same whatever order a process put the path's folders in
+    (judge.py puts tools/props first when imported; a row's key moved with no file changed)."""
     found = set()
     parts = name.split(".")
     for folder in search_folders():
         for path in (folder.joinpath(*parts).with_suffix(".py"), folder.joinpath(*parts, "__init__.py")):
-            if path.is_file() and in_repo(path):
+            if is_file(path) and in_repo(path):  # the cheap test first: most candidates are not there
                 found.add(path.resolve())
     return found
 
 
-def imported_names(path, package):
-    """Every module name a source file imports, anywhere in it (inside functions too), made absolute."""
+def imported_names(source, path, package):
+    """Every module name a source file's text imports, anywhere in it (inside functions too), made absolute."""
     names = []
-    for node in ast.walk(ast.parse(pathlib.Path(path).read_text(), str(path))):
+    for node in ast.walk(ast.parse(source, str(path))):
         if isinstance(node, ast.Import):
             names += [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom):
@@ -67,37 +69,141 @@ def imported_names(path, package):
     return names
 
 
-def package_of(path):
-    """The dotted package a repository file sits in, for its relative imports ('' outside a package)."""
+def package_of(path, is_file=pathlib.Path.is_file):
+    """The dotted package a repository file sits in, for its relative imports ('' outside a package); `is_file` says
+    which files the tree holds (this checkout's by default)."""
     parts = []
     folder = pathlib.Path(path).parent
-    while (folder / "__init__.py").exists():
+    while is_file(folder / "__init__.py"):
         parts.insert(0, folder.name)
         folder = folder.parent
     return ".".join(parts)
 
 
+def start_files(functions):
+    """The source files the functions are defined in (a wrapped judge: the wrapper's and its own)."""
+    return [pathlib.Path(inspect.getsourcefile(each)).resolve() for function in functions
+            for each in (function, inspect.unwrap(function))]
+
+
+def followed(starts, framework, is_file, read_text):
+    """Every repository file of a tree the start files are or import, followed through each import, the files in
+    `framework` left out; `is_file` and `read_text` read that tree."""
+    pending, found = list(starts), set()
+    while pending:
+        path = pending.pop()
+        if path in found or path in framework or not in_repo(path):
+            continue
+        found.add(path)
+        for name in imported_names(read_text(path), path, package_of(path, is_file)):
+            pending += [module for module in module_files(name, is_file) if module not in found]
+    return sorted(found)
+
+
 def source_files(functions):
     """Every repository file the functions' modules are or import, followed through each import, the framework's
     own files (FRAMEWORK) left out."""
-    pending = [pathlib.Path(inspect.getsourcefile(each)).resolve() for function in functions
-               for each in (function, inspect.unwrap(function))]  # a wrapped judge: the wrapper's and its own
-    found = set()
-    while pending:
-        path = pending.pop()
-        if path in found or path in FRAMEWORK or not in_repo(path):
-            continue
-        found.add(path)
-        for name in imported_names(path, package_of(path)):
-            pending += [module for module in module_files(name) if module not in found]
-    return sorted(found)
+    return followed(start_files(functions), FRAMEWORK, pathlib.Path.is_file, pathlib.Path.read_text)
+
+
+def python_part():
+    """The code version's first part: this Python's version."""
+    return f"python {sys.version_info.major}.{sys.version_info.minor}"
 
 
 def code_version(functions, hash_file):
     """The hash of the source files behind the functions, with the Python version."""
-    parts = [f"python {sys.version_info.major}.{sys.version_info.minor}"]
+    parts = [python_part()]
     parts += [f"{path.relative_to(REPO).as_posix()} {hash_file(path)}" for path in source_files(functions)]
     return parts
+
+
+TREES = {}  # (repository, commit): blobs_at's answer, once known
+
+
+def blobs_at(commit):
+    """{repository path: its blob id} of every file in `commit`'s tree (read once a process); None for a commit git
+    does not know (asked again next time: a fetch may bring it)."""
+    if (REPO, commit) not in TREES:
+        listed = subprocess.run(["git", "-C", str(REPO), "ls-tree", "-r", "-z", commit], capture_output=True,
+                                text=True)
+        if listed.returncode:
+            return None
+        entries = (entry.split("\t", 1) for entry in listed.stdout.split("\0") if entry)
+        TREES[REPO, commit] = {name: meta.split()[2] for meta, name in entries if meta.split()[1] == "blob"}
+    return TREES[REPO, commit]
+
+
+@functools.cache
+def blob_bytes(blob):
+    """A git blob's content."""
+    return subprocess.run(["git", "-C", str(REPO), "cat-file", "blob", blob], capture_output=True,
+                          check=True).stdout
+
+
+def framework_at(commit):
+    """FRAMEWORK as `commit`'s tree declared it (the names in DECLARED_IN's FRAMEWORK assignment); None when that
+    tree has no such file or assignment, or git does not know the commit."""
+    blobs = blobs_at(commit)
+    if blobs is None or DECLARED_IN not in blobs:
+        return None
+    for node in ast.walk(ast.parse(blob_bytes(blobs[DECLARED_IN]))):
+        if isinstance(node, ast.Assign) and any(getattr(target, "id", None) == "FRAMEWORK" for target in node.targets):
+            return {REPO / found.value for found in ast.walk(node.value)
+                    if isinstance(found, ast.Constant) and isinstance(found.value, str)}
+    return None
+
+
+VERSIONS = {}  # (repository, commit, start files, Python): code_version_at's answer
+
+
+def code_version_at(commit, functions):
+    """The code version the functions' start files had at `commit`, rebuilt from git once a process (each place of a
+    stage asks): see rebuilt_at. Cold, it costs about 2 s a stage (264 s for all 135 stages, 2026-10-17), paid once a
+    process for each stage whose key moved, before the runner falls back to a make; a caller timing a run or a rebuy
+    count must allow for it."""
+    asked = (REPO, commit, tuple(start_files(functions)), python_part())
+    if asked not in VERSIONS:
+        VERSIONS[asked] = rebuilt_at(commit, asked[2])
+    return VERSIONS[asked]
+
+
+def rebuilt_at(commit, starts):
+    """The code version start files had at `commit`, rebuilt from git: the files they were or imported in that tree,
+    followed with that tree's FRAMEWORK, hashed as code_version hashes them, after this Python's version. None when
+    git does not know the commit, its FRAMEWORK cannot be read or a start file was not in it."""
+    blobs, framework = blobs_at(commit), framework_at(commit)
+    if blobs is None or framework is None or any(relative(path) not in blobs for path in starts
+                                                 if in_repo(path) and path not in framework):
+        return None
+
+    def is_file(path):
+        return in_repo(path) and relative(path) in blobs
+
+    def read_text(path):
+        return blob_bytes(blobs[relative(path)]).decode()
+
+    parts = [python_part()]
+    parts += [f"{relative(path)} {hashlib.sha256(blob_bytes(blobs[relative(path)])).hexdigest()}"
+              for path in followed(starts, framework, is_file, read_text)]
+    return parts
+
+
+def unchanged(entries, hash_file):
+    """True when every code version entry ("<repository path> <hash>") names a file this checkout still holds and
+    `hash_file` hashes as the entry says. A deleted file is not unchanged: an unchanged file that imported it may now
+    fail, or find a same-named module outside the repository."""
+    for entry in entries:
+        name, recorded = entry.rsplit(" ", 1)
+        path = REPO / name
+        if not path.is_file() or hash_file(path) != recorded:
+            return False
+    return True
+
+
+def relative(path):
+    """A repository file's path as git names it."""
+    return pathlib.Path(path).resolve().relative_to(REPO).as_posix()
 
 
 def holds(commit):

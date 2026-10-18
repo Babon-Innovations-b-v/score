@@ -111,7 +111,7 @@ def test_at_the_runner_a_failed_paid_make_keeps_its_frames_and_the_rerun_renders
     film = graph.Stage("film", "place", make_film, contracts.Contract("toy-film", 1, lambda folder: []),
                        (checks.Check("made", judge_made),), paid=True, euros=0.5)
     store = Store.in_folder(tempfile.mkdtemp())
-    runner = graph.Runner([film], graph.World("toy", 1, {}), store)
+    runner = graph.Runner([film], graph.Environment("toy", 1, {}), store)
     try:
         runner.run_node(film, "airlock")
         raise AssertionError("the first try was to fail")

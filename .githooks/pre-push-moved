@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Refuse a push to main that moves the key of a paid row with an accepted output (score moved --pre-push), unless a
+# pushed commit's "Moved-rows: <node> ...: <reason>" trailer names it. Off until the owner turns it on: git runs only
+# .githooks/pre-push (his local guard, kept out of the repository), so his pre-push hands its stdin on to this script,
+#   printf '%s\n' "$lines" | "$(dirname "$0")/pre-push-moved" || exit 1
+# and he sets it running with
+#   git config score.movedCheck true        (score.movedTimeout: seconds before it gives up, default 3600)
+# Deletions, tags and other branches pass at once. The check runs on the commit pushed to main: in this checkout when
+# it is that commit with nothing changed, else in a temporary worktree of it, removed afterwards (when none can be
+# made the push is refused and nothing is left behind). A commit made before score moved existed is not checked.
+# git's push lines come on stdin and pass straight through.
+set -euo pipefail
+[ "$(git config --bool score.movedCheck || true)" = true ] || exit 0
+lines="$(cat)"
+tip=""
+while read -r _ local_sha remote_ref _; do
+  if [ "$remote_ref" = refs/heads/main ] && [ "$local_sha" != 0000000000000000000000000000000000000000 ]; then
+    tip="$local_sha"
+  fi
+done <<< "$lines"
+[ -n "$tip" ] || exit 0
+repo="$(git rev-parse --show-toplevel)"
+python="$repo/.venv/bin/python"
+if [ ! -x "$python" ]; then  # a worktree uses the main checkout's environment
+  python="$(cd "$(git rev-parse --git-common-dir)/.." && pwd)/.venv/bin/python"
+fi
+checkout="$repo"
+if [ "$(git rev-parse HEAD)" != "$tip" ] || [ -n "$(git status --porcelain)" ]; then
+  checkout="$(mktemp -d)"
+  if ! git -C "$repo" worktree add --detach -q "$checkout" "$tip"; then
+    rm -rf "$checkout"
+    echo "refused: no worktree of ${tip:0:12} could be made for the moved check" >&2
+    exit 1
+  fi
+  trap 'git -C "$repo" worktree remove --force "$checkout"' EXIT
+fi
+if ! grep -qs -- "--pre-push" "$checkout/score/__main__.py"; then
+  echo "moved check: ${tip:0:12} predates score moved, not checked"
+  exit 0
+fi
+limit="$(git config score.movedTimeout || echo 3600)"
+cd "$checkout"
+status=0
+printf '%s\n' "$lines" | timeout "$limit" "$python" -m score moved --pre-push || status=$?
+if [ "$status" -eq 124 ]; then
+  echo "refused: the moved check ran past $limit s (score.movedTimeout); push again, or raise it" >&2
+fi
+exit "$status"

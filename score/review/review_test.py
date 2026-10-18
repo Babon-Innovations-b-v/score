@@ -40,7 +40,7 @@ def made(faults, store=None, data=None):
     data = data or pathlib.Path(tempfile.mkdtemp())
     store = store or Store.in_folder(tempfile.mkdtemp())
     (data / "hangar.txt").write_text(str(faults))
-    graph.Runner([TALLY], graph.World("toy", 1, {"data": data}), store).run(["hangar"])
+    graph.Runner([TALLY], graph.Environment("toy", 1, {"data": data}), store).run(["hangar"])
     return store, data, review.record_of(store, "tally@hangar")["output"]
 
 
@@ -128,7 +128,7 @@ def test_an_owners_reject_moves_the_accepted_output_back_and_the_runner_never_ta
     review.reject(store, "tally@hangar", second, "owner", "zero faults means the gate saw nothing")
     assert store.accepted("tally@hangar") == first
     assert review.accept_automatically(store, "tally@hangar", second) is None
-    graph.Runner([TALLY], graph.World("toy", 1, {"data": data}), store).run(["hangar"])
+    graph.Runner([TALLY], graph.Environment("toy", 1, {"data": data}), store).run(["hangar"])
     assert store.accepted("tally@hangar") == first
     assert "The owner rejected this output." in review.page(store, "tally@hangar").read_text()
     review.accept(store, "tally@hangar", second, "owner", "on a second look it is right")
@@ -182,7 +182,7 @@ def test_the_waive_command_refuses_without_the_owners_terminal():
 
 def test_a_named_gaps_objects_leave_the_comparison_and_any_other_object_still_blocks():
     """The got-worse comparison is a gate a named gap moves its objects' faults from (overseer 2026-10-16;
-    assembly@wreck: resting objects 2 became 3, all three in "wreck: three pieces do not rest"). With the world's own
+    assembly@wreck: resting objects 2 became 3, all three in "wreck: three pieces do not rest"). With the environment's own
     wreck gaps: the gap's objects at new faults pass; another object at a new fault still reads worse."""
     def resting(objects, findings):
         return {"resting": {"answer": "pass", "measures": {"objects": objects}, "better": {"objects": "lower"},

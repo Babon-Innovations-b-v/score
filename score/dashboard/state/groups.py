@@ -1,7 +1,8 @@
-"""How the dashboard groups a world, synthesised from what the framework holds (no new framework level): each place's
+"""How the dashboard groups an environment, synthesised from what the framework holds (no new framework level): each place's
 style from data/definitions/place.json, each stage's layer from the stage table's reads, and words for the stages.
 
-World -> environment engine -> style -> environment (place) -> layer -> step (node).
+Environment -> engine -> style -> place -> layer -> step (node). The stored id and the runner's grain keep the word
+world (`world1`, grain "world"): renaming them would make every accepted node again.
 """
 ENGINE = "Blender (headless)"  # the only engine (score/adapters/engines); a level so a second one slots in
 UNASSIGNED = "unassigned"

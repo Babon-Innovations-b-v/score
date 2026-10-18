@@ -1,5 +1,5 @@
 """The money data: the month's cost one line per source with the owner's own figures where nothing measured is whole,
-a total that says it is not whole while a line is partial or missing, the world against its stop line, the owner-only
+a total that says it is not whole while a line is partial or missing, the environment against its stop line, the owner-only
 figure entry, and a hosted page never getting a broken picture."""
 import pytest
 from django.test import override_settings

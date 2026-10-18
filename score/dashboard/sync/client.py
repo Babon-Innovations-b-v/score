@@ -1,7 +1,8 @@
 """The store side of hosted mode, one pass (`python -m score.dashboard sync`, the owner's timer every 5 minutes):
-build the export and send what the hosted side lacks, pull the waiting requests, mark each picked up, apply it, report
-its state; then poll the launches earlier passes started and report how they ended. Every call goes out from the
-store's machine; a pass that fails leaves each request in its last reported state and the next pass goes on from there.
+price every proposal not priced at its commit (proposals/finish.py), build the export and send what the hosted side
+lacks, pull the waiting requests, mark each picked up, apply it, report its state; then poll the launches earlier
+passes started and report how they ended. Every call goes out from the store's machine; a pass that fails leaves each
+request in its last reported state and the next pass goes on from there.
 
 The export is sent content-addressed (sync/endpoints.py): only the files the hosted side lacks, in the builder's
 priority order, CHUNK bytes of a file per request, so no request nears TIMEOUT on a slow link; files not started within
@@ -223,7 +224,7 @@ def pushed_words(remote, source, chosen):
 
 
 def library_sweep():
-    """The world compared with its library (score.stages.library.sweep, free, seconds), its findings written where
+    """The environment compared with its library (score.stages.library.sweep, free, seconds), its findings written where
     the place pages read their problems; its words. A sweep that fails is said in the pass's words, and the pass goes
     on: the export still goes out."""
     from score.stages.library import sweep
@@ -233,11 +234,20 @@ def library_sweep():
         return f"library sweep failed: {type(error).__name__}: {error}"
 
 
+def priced_proposals(chosen):
+    """Price the proposals made since the last pass and measure their after against their before (no Blender
+    here); [(branch, place)] of those done."""
+    from score.dashboard.proposals import finish
+    return finish.finish_all(settings.SCORE_HOME / "proposals", settings.SCORE_PROPS_HOME / "store", False, chosen)
+
+
 def sync_pass(remote, source, chosen=None):
     """One pass; what it did, in words."""
     chosen = chosen or guard.backend()
     swept = library_sweep()
+    priced = priced_proposals(chosen)
     pushed = pushed_words(remote, source, chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}"
+    return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; "
+            f"priced {len(priced)} proposals")

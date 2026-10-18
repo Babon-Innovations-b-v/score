@@ -1,4 +1,4 @@
-"""The concept-people stage's commands, on world 1 and the framework's store ($PROPS_HOME/store).
+"""The concept-people stage's commands, on environment 1 and the framework's store ($PROPS_HOME/store).
 
     .venv/bin/python -m score.stages.concept_people status
     .venv/bin/python -m score.stages.concept_people run

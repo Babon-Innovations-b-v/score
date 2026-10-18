@@ -1,20 +1,22 @@
-"""SCORE's one command: the runner drives a world's lines to their end, with no agent in the loop.
+"""SCORE's one command: the runner drives an environment's lines to their end, with no agent in the loop.
 
-    .venv/bin/python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
-    .venv/bin/python -m score status [<world>] [--place P ...] [--stage S ...]                   # every line's state
+    .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
+    .venv/bin/python -m score status [<environment>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
-    .venv/bin/python -m score plan <world> [--place P ...] [--stage S ...] [--rebuy-reason R] --json
+    .venv/bin/python -m score plan <environment> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
     .venv/bin/python -m score spend --json            # this month's spend, open reservations and the ceiling
-    .venv/bin/python -m score price <world> --node N [--node N ...] --json   # each paid node's likely and high price
+    .venv/bin/python -m score price <environment> --node N [--node N ...] --json   # each paid node's likely and high price
+    .venv/bin/python -m score moved [--pre-push]      # the paid rows this tree would buy again, every environment
 
 `status --json` prints the same lines as one JSON object. `plan` works out what `run` would do with the same arguments,
 running nothing: the missing inputs, the nodes it would make and why, the paid rows it would buy with their estimates
-and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard). `spend` reads the month's spend as
-the runner's clearance counts it. `price` gives each paid node its likely and high euros and minutes and the cards
+and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard); each buy's `price` and the run's
+(`price`: likely and high euros and minutes) are `price`'s numbers, so the basket and the clearance read the same.
+`spend` reads the month's spend as the runner's clearance counts it. `price` gives each paid node its likely and high euros and minutes and the cards
 its run is sized on, from the stage's measured runs in the cloud ledger (the numbers its clearance reserves), else
 its estimate (the cockpit prices a fix branch's moved paid rows with it).
 
-`run` drives the lines side by side (with --place, those places' lines and only the world nodes they read), each node in
+`run` drives the lines side by side (with --place, those places' lines and only the whole-environment nodes they read), each node in
 a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time); with
 --stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone). It starts
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
@@ -29,11 +31,20 @@ Wait for that line with the Monitor tool, never a poll loop.
 Before it starts, `run` lists every paid row it would buy with its estimate (score/graph/rebuy.py; a Google ask its
 cache answers at EUR 0) and refuses, before detaching, when buying again rows that already have an accepted output
 would cost over EUR 5, unless given --rebuy-reason, which goes into the run's log and the cloud ledger.
+
+`moved` lists, read-only, every paid row with an accepted output this working tree would buy again over every
+environment's places, each with its price and why, and the total (score/stages/moved.py); it exits 3 above EUR 0. With --pre-push
+(.githooks/pre-push-moved, the push lines on stdin, run in a checkout of the commit pushed to main) it refuses the paid
+rows that commit would buy again and main's commit would not, unless a pushed commit's "Moved-rows: <node> ...:
+<reason>" trailer names each; rows main already buys again print as a warning, and when main's commit cannot be
+worked out every moved row counts as the push's. The hook runs only once the owner sets
+`git config score.movedCheck true`.
 """
 import argparse
 import datetime
 import json
 import pathlib
+import signal
 import subprocess
 import sys
 
@@ -42,35 +53,44 @@ sys.path.insert(0, str(REPO))
 
 from score import graph, stages  # noqa: E402
 from score.graph import rebuy, stopped  # noqa: E402
+from score.stages import moved  # noqa: E402
 from score.store import Store  # noqa: E402
 
 DETACH = "--detach"
+
+
+ENVIRONMENT_HELP = ("the environment's id, one of %(choices)s (stored ids keep the old word: world1 is environment 1)")
 
 
 def parse(argv):
     parser = argparse.ArgumentParser(prog="score", description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("run")
-    run.add_argument("world", choices=sorted(stages.WORLDS))
+    run.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     run.add_argument(DETACH, action="store_true", help="progress to a log, one result line at the end")
     run.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once (default %(default)s)")
     run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
     status = commands.add_parser("status")
-    status.add_argument("world", nargs="?", default="world1", choices=sorted(stages.WORLDS))
+    status.add_argument("world", metavar="environment", nargs="?", default="world1", choices=sorted(stages.WORLDS),
+                        help=ENVIRONMENT_HELP)
     status.add_argument("--json", action="store_true", help="the lines as one JSON object")
     plan = commands.add_parser("plan")
-    plan.add_argument("world", choices=sorted(stages.WORLDS))
+    plan.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     plan.add_argument("--rebuy-reason", help="the reason a run would be given")
+    plan.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once, as for run (default %(default)s)")
     plan.add_argument("--json", action="store_true", help="the plan as one JSON object (the only form)")
     spend = commands.add_parser("spend")
     spend.add_argument("--json", action="store_true", help="the month's spend as one JSON object (the only form)")
-    spend.add_argument("--world", default="world1", help="the world whose stop line and spend since it are read")
+    spend.add_argument("--world", default="world1", metavar="ENVIRONMENT",
+                       help="the environment whose stop line and spend since it are read (its id, world1)")
     price = commands.add_parser("price")
-    price.add_argument("world", choices=sorted(stages.WORLDS))
+    price.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     price.add_argument("--node", action="append", required=True, help="a paid node (repeat it)")
     price.add_argument("--json", action="store_true", help="the prices as one JSON object (the only form)")
     images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)
     images.add_parser("publish").add_argument("kind", choices=stages.images.proved_kinds())
+    commands.add_parser("moved").add_argument("--pre-push", action="store_true",
+                                              help="git's push lines on stdin: refuse the paid rows a push moves")
     for command in (run, status, plan):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
@@ -143,11 +163,39 @@ def checked_buys(runner, places, whole, options):
 
 
 def plan_json(runner, places, whole, options):
-    """The plan of a run (buy_check) as one JSON object: each buy as {node, euros, why, again}."""
+    """The plan of a run (buy_check) as one JSON object: each buy as {node, euros (its estimate), why, again, price
+    (buy_price)}, and the run's price over them (plan_price), the only euros and minutes the cockpit shows."""
     found = buy_check(runner, places, whole, options.stage, options.rebuy_reason)
-    found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again}
-                     for buy in found["buys"]]
-    return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found}
+    found["buys"] = [{"node": buy.node, "euros": buy.euros, "why": buy.why, "again": buy.again,
+                      "price": buy_price(buy)} for buy in found["buys"]]
+    return {"world": runner.world.name, "places": places, "stages": options.stage or [], **found,
+            "price": plan_price([buy["price"] for buy in found["buys"]], options.jobs)}
+
+
+def buy_price(buy):
+    """One buy's price on the runner's own numbers (compute.run_price: its stage's measured runs, the numbers its
+    clearance reserves, else its estimate), or nothing for a Google ask its cache answers (rebuy prices it EUR 0)."""
+    from score.adapters import compute
+    if buy.euros == 0:
+        return {"likely_euros": 0.0, "high_euros": 0.0, "likely_minutes": 0.0, "high_minutes": 0.0, "cards": None,
+                "runs": 0}
+    return compute.run_price(buy.node, buy.euros)
+
+
+def plan_price(prices, jobs):
+    """The run's price over its buys' prices: {likely_euros, high_euros} their sums; {likely_minutes, high_minutes}
+    the paid rows' time with `jobs` of them at once (the longest row, or their minutes over `jobs` when that is
+    longer), None while any row's time is unmeasured; `measured` the rows priced from measured runs of `rows`. High
+    is the sum of the rows' highs, so it reads high; the time leaves out the free rows and the waits between rows."""
+    def wall(key):
+        minutes = [price[key] for price in prices]
+        if any(each is None for each in minutes):
+            return None
+        return round(max([*minutes, sum(minutes) / max(1, jobs)], default=0.0), 1)
+    return {"likely_euros": round(sum(price["likely_euros"] for price in prices), 2),
+            "high_euros": round(sum(price["high_euros"] for price in prices), 2),
+            "likely_minutes": wall("likely_minutes"), "high_minutes": wall("high_minutes"),
+            "measured": sum(1 for price in prices if price["runs"]), "rows": len(prices), "jobs": jobs}
 
 
 def spend_json(world):
@@ -211,6 +259,65 @@ def status_json(world, lines):
             "lines": {line: {"state": state, "nodes": nodes} for line, (state, nodes) in lines.items()}}
 
 
+def every_world_moved():
+    """{world: [rebuy.Buy]} of every world's re-buys against the framework store."""
+    found = {}
+    for name, make in sorted(stages.WORLDS.items()):
+        runner = stages.runner(world=make())
+        found[name] = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world), True))
+    return found
+
+
+def moved_check(rows_by_world):
+    """Print the moved rows; exit moved.MOVED_EXIT above EUR 0."""
+    print(moved.listing(rows_by_world), flush=True)
+    if moved.total(rows_by_world) > 0:
+        sys.exit(moved.MOVED_EXIT)
+
+
+def pre_push_check(push_lines):
+    """The pre-push hook's check of the commit pushed to main (none passes at once): every world's re-buys in this
+    checkout, which must be that commit, against those of main's commit (pushed_check)."""
+    pushes = moved.main_pushes(push_lines)
+    if not pushes:
+        print("moved check: nothing pushed to main, not checked", flush=True)
+        return
+    tip, remote = pushes[-1]
+    if not moved.tree_is_at(tip):
+        sys.exit(f"refused: the moved check must run in a clean checkout of {tip} (.githooks/pre-push-moved makes one)")
+    print(f"moved check: working out which paid rows {tip[:12]} and main's {remote[:12]} would buy again, every world "
+          f"(a few minutes each)...", flush=True)
+    pushed_check(every_world_moved(), moved.base_rebuys(remote), moved.pushed_reasons(pushes))
+
+
+def pushed_check(rows_by_world, base, reasons):
+    """Warn of the rows main's commit buys again too (`base`, {world: [node]}, None when not worked out); refuse
+    (exit moved.MOVED_EXIT) when the push moves a paid row that no Moved-rows trailer names."""
+    pushed, drift = moved.split(rows_by_world, base)
+    if base is None:
+        print("moved check: main's commit could not be worked out, so every moved row counts as this push's",
+              flush=True)
+    if any(drift.values()):
+        print("warning, not refused: " + moved.listing(drift, "paid rows main already buys again"), flush=True)
+    print(moved.listing(pushed, "paid rows this push would make the next run buy again"), flush=True)
+    refused = moved.unexplained(pushed, reasons)
+    if not any(refused.values()):
+        if reasons:
+            print(f"{moved.TRAILER}: " + "; ".join(reasons), flush=True)
+        return
+    names = " ".join(row.node for rows in refused.values() for row in rows)
+    print(f"refused: this push moves paid rows no '{moved.TRAILER}:' trailer names. If they should be bought again, "
+          f"add to a pushed commit: '{moved.TRAILER}: {names}: <why>'. A row priced EUR 0 (a Google ask its cache "
+          f"answers) is listed, never refused.", file=sys.stderr, flush=True)
+    sys.exit(moved.MOVED_EXIT)
+
+
+def stop_on_term(signal_number, frame):
+    """End with SystemExit on SIGTERM (the hook's timeout), so the `finally` blocks run: subprocess.run ends the child
+    it waits on and moved.snapshot removes its checkout and folder."""
+    sys.exit(f"stopped by signal {signal_number}")
+
+
 def main(argv=None):
     options = parse(argv)
     if options.command == "images":
@@ -221,6 +328,13 @@ def main(argv=None):
         return
     if options.command == "price":
         print(json.dumps(price_json(options.world, options.node)))
+        return
+    if options.command == "moved":
+        signal.signal(signal.SIGTERM, stop_on_term)
+        if options.pre_push:
+            pre_push_check(sys.stdin.read().splitlines())
+        else:
+            moved_check(every_world_moved())
         return
     runner = stages.runner(world=stages.WORLDS[options.world]())
     places, whole = options.place or stages.places(runner.world), not options.place

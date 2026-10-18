@@ -1,5 +1,5 @@
 """A paint or bake row's key moves with the library surfaces and place.json entries it reads, and with nothing else
-of them: a surface added for one place re-keys no other place's paint or bake (2026-10-13). On copies of the world's
+of them: a surface added for one place re-keys no other place's paint or bake (2026-10-13). On copies of the environment's
 library and place.json under $PROPS_HOME/work, removed at the end.
 
 Run: .venv/bin/python -m pytest score/stages/surfaces/library_reads_test.py

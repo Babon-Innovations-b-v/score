@@ -7,11 +7,11 @@ run.
     .venv/bin/python -m score.review accept <node> <output> [--reason "..."] [--worse "why it may be worse"]
     .venv/bin/python -m score.review waive <node> <key> <check> --reason "why this check is wrong here"
     .venv/bin/python -m score.review spend <node> <key> <euros>   # the override, for a run outside the runner
-    .venv/bin/python -m score.review stop <world> <euros> --reason "what it is for"   # his money yes: the stop line
+    .venv/bin/python -m score.review stop <environment> <euros> --reason "what it is for"   # his money yes: the stop line
 
-`stop` is the owner's money yes for a world: it writes the world's new stop line itself, in the same step, so no
+`stop` is the owner's money yes for an environment: it writes the environment's new stop line itself, in the same step, so no
 decision waits on anyone to copy it into a guard and no older line outlives it (score/adapters/compute/guard.py; the
-runner refuses a paid job that would pass it before it starts). A world's first line counts its spend from now.
+runner refuses a paid job that would pass it before it starts). An environment's first line counts its spend from now.
 
 `reject`, `accept`, `waive`, `spend` and `stop` refuse to run without a terminal at both ends; the store refuses their
 writes in any process an agent started (score/store; a stop line, guard.set_line), and the accept guard hook (.claude/hooks/accept_guard.py) blocks
@@ -63,7 +63,7 @@ def parse(argv):
     spending.add_argument("key")
     spending.add_argument("euros", type=float)
     stopping = commands.add_parser("stop")
-    stopping.add_argument("world")
+    stopping.add_argument("world", metavar="environment", help="the environment's id (world1 is environment 1)")
     stopping.add_argument("euros", type=float)
     stopping.add_argument("--reason", required=True)
     return parser.parse_args(argv)
@@ -110,7 +110,7 @@ def main(argv=None):
         return
     if options.command == "stop":
         line = set_stop(store, options.world, options.euros, options.reason)
-        was = f", was EUR {line['before']:.2f}" if line["before"] is not None else ", the world's first"
+        was = f", was EUR {line['before']:.2f}" if line["before"] is not None else ", the environment's first"
         print(f"stop line of {line['world']}: EUR {line['euros']:.2f}{was}; spend counted from "
               f"{line['baseline']['month']}'s bill of EUR {line['baseline']['bill']:.2f}")
         return

@@ -58,6 +58,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   runner's own rule. A unit is one job as the stage splits them: the ledger names jobs, not frames. The runner's
   clearance reserves a paid node at its stage's measured runs (`preflight.node_run`: the high euros, the likely
   minutes) rather than the stage's hand-written estimate.
+- **A batch of props is priced per prop from measured units before it is bought** (`prop_batch.py`, owner 2026-10-18):
+  the upgraded route's paid steps (close-up, image-to-3D, finish pick, bake) each as one batch over every prop still in
+  it, a free check before each, kept steps and unchanged props never paid again; `price` reads the ledgers (the repo's
+  evidence copy with the live one, since the live ledger was reset on 2026-10-17) and says an unmeasured step rather
+  than guess. Its cloud makers are the route branch's; it is imported by no stage, so it re-keys nothing.
 - **A stopped run keeps its finished jobs under its key** (`kept.py`, owner 2026-10-18): `kept.keep(job)` after a job
   ends well copies its outputs to `kept/<node>/<key>/` beside the store (the runner names the make's folder,
   SCORE_MAKING, and drops the folder once the node's output is stored), and `kept.missing(jobs)` puts every kept job
@@ -171,6 +176,23 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   started and never finished counts at its estimate (Oct 11: Google billed EUR 549, this ledger, then written only
   after a call came back, held EUR 30). Nothing calls generativelanguage.googleapis.com any other way:
   `google_spend_test.py` fails on any tracked file that does.
+- **Paid calls only through the ledgered clients** (2026-10-17): `tools/costs/paid_calls_test.py` reads every tracked
+  file's syntax tree and fails on a Gemini host, key header or client, or an scw order of a machine, disk, address or
+  cluster pool (words read through variables as their own function set them, joined and starred lists, `.append`,
+  `.extend` and `.insert`, each setting checked; strings joined with `+` and f-strings; an unread word, as a
+  parameter, between a product and `create` counts; a client loaded by `importlib.import_module` or `__import__`
+  too), and every other runnable file (scripts, Makefiles, Dockerfiles, manifests) line by line with backslash
+  lines joined, outside the functions and constants its `ALLOWED` names in each allowed file. It does not follow
+  words across modules, through other functions' return values, through attributes, indexed or sliced lists, or
+  built with `%` or `.format`; docs and data are not read. Known gap: the bad address `quarantine_bad_address`
+  detaches stays in the project for good, billed by the hour with no ledger line; reconcile-day shows it in disks
+  and addresses.
+  Every order `batch.rent` makes writes a `rent-started` line first (its run, name, offer, deadline and ticket, no
+  euros; `ledger.rent_started`, called in the backend's `create` because the pixal rows declare `batch.py` and an
+  edit there re-keys them), and a refused order a `rent-refused` line. Until its run's row, its machine's
+  disk-and-address row or its refusal closes it, a started line counts in `month_total` at its price up to its
+  deadline (`ledger.open_rents`), so the guard sees machines running and not yet billed. The cluster set-up writes
+  `ledger.order_started` before each cluster and pool order.
 - **The surface judge asks Gemini, not rented cards** (`gemini_judge.py`, 2026-10-11): judge.py's question list and
   answer files, asked of the models adapter's `gemini-judge` (Gemini 3.1 Pro, temperature 0, the answer an enum of
   the question's codes plus `unknown`), through google_spend with `cache=True`; the key is the secret

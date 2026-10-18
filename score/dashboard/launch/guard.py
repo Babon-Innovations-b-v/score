@@ -1,5 +1,5 @@
 """The launch basket's plan and its guard: queued steps grouped into the fewest runner commands, each group planned
-by the compute backend, priced from measured runs against the world's stop line, and every launch check in words.
+by the compute backend, priced from measured runs against the environment's stop line, and every launch check in words.
 
 Never starts what cannot finish under the stop: the plan's high estimate must fit the room left (ceiling - spent -
 reserved). The runner's own per-node clearance stays the authority; this is the basket-level guard before it.
@@ -33,7 +33,7 @@ def basket_hash(items):
 
 
 def run_groups(items, world="world1"):
-    """The basket as runner groups: places with identical stage sets together; world stages as one group."""
+    """The basket as runner groups: places with identical stage sets together; environment stages as one group."""
     by_place = {}
     for item in items:
         by_place.setdefault(item.place or "", set()).add(item.stage)
@@ -53,7 +53,7 @@ def group_body(group, planned):
 
 
 def unique_buys(groups):
-    """Each paid node once across the groups (a world node two groups read is bought once)."""
+    """Each paid node once across the groups (an environment node two groups read is bought once)."""
     found = {}
     for group in groups:
         for buy in group["buys"]:
@@ -69,7 +69,7 @@ def plan_body(items, chosen, stage_records, jobs=DEFAULT_JOBS):
     money = costs.money(buys, list(chosen.measured()), settings.SCORE_BILL_FACTOR)
     nodes = sorted({node for group in groups for node in [*group["to_run"], *(buy["node"] for buy in group["buys"])]})
     per_stage = costs.stage_minutes(stage_records(sorted({costs.stage_of(node) for node in nodes})))
-    ceiling = spend.ceiling  # the world's stop line; SCORE_MONTH_EUROS only switches launching on, never raises it
+    ceiling = spend.ceiling  # the environment's stop line; SCORE_MONTH_EUROS only switches launching on, never raises it
     room = None if None in (ceiling, spend.spent, spend.reserved) else round(ceiling - spend.spent - spend.reserved, 2)
     return {"groups": groups, "buys": buys, "jobs": jobs, "nodes": nodes,
             "money": {**money, "spent": spend.spent, "reserved": spend.reserved, "ceiling": ceiling, "room": room,

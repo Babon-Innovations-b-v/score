@@ -1,4 +1,4 @@
-"""The world's state as the dashboard shows it: one source per mode, the same models (state/models.py) from both.
+"""The environment's state as the dashboard shows it: one source per mode, the same models (state/models.py) from both.
 
     source = state.source()   # local: the store beside it (state/local.py); hosted: the pushed export (exported.py)
 """
