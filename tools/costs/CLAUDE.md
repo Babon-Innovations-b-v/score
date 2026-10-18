@@ -11,8 +11,8 @@ in the test.
   local root replaced (`$PROPS`, `$MOTION`, `$HOME`, repository-relative), `reconcile` and `tables` read only those
   copies and the saved bill, so anyone reruns them from the repository. The bill file carries no account or project
   id; check a new one before copying it.
-- **"Per stage" is per kind of batch.** The ledger names batches, not worlds, places or the route's stages, so the
-  tables group kinds of batch; a world's or a place's cost comes from Appendix B's attribution by work folder.
+- **"Per stage" is per kind of batch.** The ledger names batches, not environments, places or the route's stages, so the
+  tables group kinds of batch; an environment's or a place's cost comes from Appendix B's attribution by work folder.
 - **R&D against production is a rule on the row**, kept in `RND_GROUPS`, `RND_KINDS` and `RND_WHO`: work on the
   framework (engine runs, images and proofs, method experiments, benchmarks and comparisons named in `who`) is R&D,
   the rest production. The route's own batches carry no mark when they were reruns while the method changed, so

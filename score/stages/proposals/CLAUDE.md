@@ -1,10 +1,10 @@
 # score/stages/proposals/
 
-The partition-proposals row (experimental, 2026-10-14): SAM 2.1's proposals on a new scene's concept views, one world
+The partition-proposals row (experimental, 2026-10-14): SAM 2.1's proposals on a new scene's concept views, one environment
 node, paid and cleared by the runner, so a new place's inventory is boxed from measured proposals before it lands (no
 box is typed). `__init__.py`'s docstring has the record, the output and the gate.
 
-- **Requests are world data** (`data/definitions/partitions.json`): each scene's views (pictures under the seeds
+- **Requests are environment data** (`data/definitions/partitions.json`): each scene's views (pictures under the seeds
   folder) and why. The tiling and the merging are `tools/props/scene/partition.py`'s, unchanged; the masks are
   `tools/props/cloud/segment.py`'s.
 - **The agent maps, the row measures.** The output's proposals are mapped to the scene's rows with `partition.py

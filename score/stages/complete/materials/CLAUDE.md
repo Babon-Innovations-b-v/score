@@ -1,7 +1,7 @@
 # score/stages/complete/materials/
 
 The materials checks (2026-10-18, the materials audit on PRD #10): why props and code-built objects look like
-different worlds when their finishes are the same library surface. Three checks, free and local: pxr, numpy and PIL
+different environments when their finishes are the same library surface. Three checks, free and local: pxr, numpy and PIL
 on each place's accepted assembly, read only, no Blender, no cloud.
 
 - `texel.py` texture detail near cameras against the room's kit (px/m), `borders.py` finish-border raggedness per

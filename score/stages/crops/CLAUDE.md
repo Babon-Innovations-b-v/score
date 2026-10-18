@@ -12,7 +12,7 @@ prop and grown on its beds as the concept grows them, as a layer of point instan
   picture-made model keeps its geometry and gets its finish replaced. The library check
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Measured on the concept, never by eye.** `crops-concept` asks SAM 3 for each kind's nouns on the concept's 2x
-  tiles; the kinds and their nouns are world data (`data/crops/<place>.json`), in precedence order (a plant two
+  tiles; the kinds and their nouns are environment data (`data/crops/<place>.json`), in precedence order (a plant two
   kinds' nouns find is the earlier kind's). A kind SAM 3 cannot count is changed in the data with a written reason
   (`dropped`, `canopy`), never typed as a count. The 2026-10-12 runs: on the whole picture the bushes merged into a
   few boxes and the seedling and herb nouns fell to earlier kinds; the 2x tiles and the precedence order fixed the

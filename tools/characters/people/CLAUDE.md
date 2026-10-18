@@ -1,6 +1,6 @@
 # tools/characters/people
 
-Builds a file for each person a world draws (`paths.PEOPLE`, the game 2099's #112), each
+Builds a file for each person an environment draws (`paths.PEOPLE`, the game 2099's #112), each
 `$MOTION_WORK/bodies/<person>.glb`: the crew with bodies of their own (take C, Nev,
 Oona, Bram, Sefa: two outfits each, `dress.py`), the crew kit's six builds (every part a seed
 mixes, `kit.py`), and the prologue's named people (the leader, the guard, the driver, the two
@@ -9,7 +9,7 @@ crowd as an animation texture (`crowd_vat.py`), which the game 2099 draws its cr
 file has the same skeleton and clips. It is the prop chain's sibling. Run it with
 `bash tools/characters/people/run.sh`; the chain itself is installed once per box (the game
 2099's bible, `workflow/bootstrap` step 9, until it moves here). It moved from 2099's
-`tools/crew` on 2026-10-08 with its history; the "game" below is 2099, the first world it built
+`tools/crew` on 2026-10-08 with its history; the "game" below is 2099, the first environment it built
 people for, and `../skel_usd.py` is how its files reach a place's OpenUSD stage.
 
 ## The one rule here

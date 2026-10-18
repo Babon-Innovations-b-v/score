@@ -1,7 +1,7 @@
 # score/stages/people/
 
 The people stage (#5, experimental; bible `architecture/experimental`): people made like every prop (owner,
-2026-10-11). World rows of world 1's table, `__init__.py`'s docstring has them; each look is a take of
+2026-10-11). Environment rows of environment 1's table, `__init__.py`'s docstring has them; each look is a take of
 `data/people/surfaces.json` with its `spec` and `outfit`.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,

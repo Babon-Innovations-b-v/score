@@ -45,7 +45,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   from the annotate step's ids (`../usd/annotate.py`), and horizontal bands, in linear light against the game's shot
   from the same camera. A knob tuned to the game's brightness (the far city's lit windows) is set from these numbers,
   never by eye. `brightness_test.py` checks it on pictures made in the test.
-- **The demo's films** (`demo.py`, PRD #1's world demo): a walk-through film of each place from its stage, rendered on
+- **The demo's films** (`demo.py`, PRD #1's environment demo): a walk-through film of each place from its stage, rendered on
   the cloud, every frame with the game's ink lines (usd_views.py's `ink`, or its `lines_only` laid over looks rendered
   before: the cheap pass, never a re-render for ink alone) and the night glow where the stage carries it. Every shot
   starts and walks the planner's clearance from walls, objects and people (`../usd/camera_paths.py`); a camera with no
@@ -57,7 +57,7 @@ what no stage drew, through headless Blender (`../blender/inside/review_models.p
   fails is not shown. Experimental: the films check only what they measure (a walk through a crowd passed them
   once), nobody has reviewed the round-three and round-four films, and they are cited nowhere; they come back as the
   evidence step, on places the owner accepted. `showcase.py` cuts the showcase and the
-  figure from the films; its `world` step cuts demo K9, the world 1 video and its figure, from the films the runner
+  figure from the films; its `world` step cuts demo K9, the environment 1 video and its figure, from the films the runner
   accepted (demo-film@<place> in story order, the ship's hull film after the hangar's), `--draft` with those it has:
   the framework's chain once on one hero place (cards with a progress bar, at most 8, each held 6 s; its pieces are
   renders of our made models, never the close-up or reference pictures), then each place's film, at most 7 s, the
