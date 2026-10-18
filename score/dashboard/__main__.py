@@ -6,6 +6,7 @@
     .venv/bin/python -m score.dashboard sync              # store side: push the export, pull and apply requests
     .venv/bin/python -m score.dashboard check             # Django's checks of the settings
     .venv/bin/python -m score.dashboard web3d <place>     # a place's fresh 3D web copy (web3d/convert.py), free
+    .venv/bin/python -m score.dashboard propose <branch> <place>   # a fix branch's proposal for a place, free
 """
 import argparse
 import os
@@ -26,6 +27,12 @@ def parse(argv):
     web3d.add_argument("place")
     web3d.add_argument("--store", help="the store folder (default $PROPS_HOME/store)")
     web3d.add_argument("--out", help="default SCORE_WEB_COPIES, where the viewer reads it")
+    propose = commands.add_parser("propose", help="a fix branch's proposal for one place, made for free (proposals/)")
+    propose.add_argument("branch")
+    propose.add_argument("place")
+    propose.add_argument("--media", default=os.environ.get("SCORE_PROPOSAL_MEDIA"),
+                         help="a folder of each branch's draft films and sounds, <media>/<branch>/")
+    propose.add_argument("--no-stills", action="store_true", help="leave out the Blender stills")
     return parser.parse_args(argv)
 
 
@@ -106,6 +113,19 @@ def web3d(place, store, out):
                   "--out", out or str(settings.SCORE_WEB_COPIES)])
 
 
+def propose(branch, place, media, with_stills):
+    """Make the branch's proposal for the place into the dashboard's home (proposals/propose.py)."""
+    from django.conf import settings
+
+    from score.dashboard.proposals import propose as proposing
+    try:
+        folder = proposing.propose(branch, place, settings.SCORE_HOME, settings.SCORE_PROPS_HOME / "store", media,
+                                   with_stills)
+    except proposing.Refused as refused:
+        sys.exit(f"refused: {refused}")
+    print(f"proposal of {branch} at {place}: {folder}")
+
+
 def main(argv=None):
     import django
     django.setup()
@@ -120,6 +140,8 @@ def main(argv=None):
         sync()
     elif options.command == "web3d":
         web3d(options.place, options.store, options.out)
+    elif options.command == "propose":
+        propose(options.branch, options.place, options.media, not options.no_stills)
     else:
         check()
 
