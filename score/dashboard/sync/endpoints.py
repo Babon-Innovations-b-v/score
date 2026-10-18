@@ -7,12 +7,14 @@ the export as a list of {path: sha256}; the hosted side builds it from hard link
 
     POST /api/sync/lacking          {files: {sha256: size}} -> {missing: [sha256]}
     PUT  /api/sync/blobs/{sha}?offset=N&size=S   one gzip chunk of the file, at offset N of its S bytes
-    POST /api/sync/commit           {name: <made_at, no colons>, files: {path: sha256}}: swapped in whole
+    POST /api/sync/commit           {name: <made_at, no colons>, files: {path: sha256}}: swapped in whole, or 409
+                                    when its manifest's format is not one this side reads (state/versions.py)
     GET  /api/sync/requests?state=waiting
     POST /api/sync/requests/{id}    {state: picked_up|running|done|refused, detail, log_tail}
 """
 import hashlib
 import hmac
+import json
 import os
 import pathlib
 import re
@@ -26,6 +28,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from score.dashboard.pages.models import SyncRequest
+from score.dashboard.state import versions
 
 sync = APIRouter()
 STATES = ("picked_up", "running", "done", "refused")
@@ -130,6 +133,19 @@ def finished(part, sha):
     os.replace(part, blobs() / sha)
 
 
+def readable(manifest_sha):
+    """Refuse (409) a manifest whose format this side cannot read; one with no format is the first, 1."""
+    try:
+        manifest = json.loads((blobs() / manifest_sha).read_text())
+    except ValueError as refused:
+        raise HTTPException(400, f"the manifest is not JSON: {refused}") from refused
+    found = manifest.get("format", 1) if isinstance(manifest, dict) else None
+    if found not in versions.READABLE:
+        raise HTTPException(409, f"export format {found} cannot be read here (this side reads "
+                                 f"{', '.join(map(str, versions.READABLE))}): the last export stays current until "
+                                 f"the store's machine and the hosted side run matching code")
+
+
 def linked(name, files):
     """export/<name>.partial built from hard links to the held blobs; its path."""
     partial = exports() / f"{name}.partial"
@@ -221,6 +237,7 @@ def commit(body: Commit, allowed=Depends(token_ok)):
     absent = sorted({sha for sha in body.files.values() if not (blobs() / sha).is_file()})
     if absent:
         raise HTTPException(409, f"{len(absent)} files are not here yet: {', '.join(absent[:3])}")
+    readable(body.files["manifest.json"])
     swapped(linked(name, body.files), name)
     gone = swept()
     from score.dashboard import state

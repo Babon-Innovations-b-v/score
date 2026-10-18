@@ -5,7 +5,8 @@ store's machine; a pass that fails leaves each request in its last reported stat
 
 The export is sent content-addressed (sync/endpoints.py): only the files the hosted side lacks, in the builder's
 priority order, CHUNK bytes of a file per request, so no request nears TIMEOUT on a slow link; files not started within
-PASS_SECONDS wait for the next pass and the export committed meanwhile names them "still uploading"."""
+PASS_SECONDS wait for the next pass and the export committed meanwhile names them "still uploading". An export the
+hosted side refuses (a format it cannot read) is said in the pass's words, and the requests are still applied."""
 import datetime
 import gzip
 import hashlib
@@ -26,6 +27,10 @@ TIMEOUT = 120
 CHUNK = 2 * 1024 * 1024
 PASS_SECONDS = 200.0
 STILL = "still uploading"
+
+
+class Refused(Exception):
+    """The hosted side refused to swap in the export; its words."""
 
 
 class Remote:
@@ -58,7 +63,13 @@ class Remote:
             return {**json.loads(answer.read()), "done": False, "conflict": True}
 
     def commit(self, name, files):
-        return self.call("POST", "/commit", json.dumps({"name": name, "files": files}).encode())
+        """Swap the export in; Refused with the hosted side's words when it will not (409, an unreadable format)."""
+        try:
+            return self.call("POST", "/commit", json.dumps({"name": name, "files": files}).encode())
+        except urllib.error.HTTPError as answer:
+            if answer.code != 409:
+                raise
+            raise Refused(json.loads(answer.read() or b"{}").get("detail", f"refused ({answer.code})")) from answer
 
     def waiting(self):
         return self.call("GET", "/requests?state=waiting")
@@ -201,11 +212,20 @@ def report_launches(remote, chosen):
     return reported
 
 
+def pushed_words(remote, source, chosen):
+    """Push the export; what was sent in words, or the hosted side's refusal."""
+    try:
+        pushed = push_export(remote, source, chosen)
+    except Refused as refused:
+        return f"REFUSED: the hosted side did not take the export: {refused}"
+    return (f"pushed the export of {pushed['made_at']}: {pushed['files']} files sent ({pushed['bytes'] / 1e6:.1f} MB), "
+            f"{pushed['to_come']} still to come")
+
+
 def sync_pass(remote, source, chosen=None):
     """One pass; what it did, in words."""
     chosen = chosen or guard.backend()
-    pushed = push_export(remote, source, chosen)
+    pushed = pushed_words(remote, source, chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return (f"pushed the export of {pushed['made_at']}: {pushed['files']} files sent ({pushed['bytes'] / 1e6:.1f} MB), "
-            f"{pushed['to_come']} still to come; applied {len(applied)} requests; {len(ended)} launches ended")
+    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended"

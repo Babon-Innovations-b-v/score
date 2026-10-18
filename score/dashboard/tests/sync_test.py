@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import urllib.error
 
 import pytest
@@ -16,6 +17,7 @@ from fastapi.testclient import TestClient
 
 from score.dashboard.pages.models import SyncRequest
 from score.dashboard.state.exported import ExportedSource
+from score.dashboard.state import versions
 from score.dashboard.state.models import Spend
 from score.dashboard.sync import applying, building, client
 
@@ -180,14 +182,47 @@ def test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole(world
 def test_a_file_no_kept_export_uses_is_swept(settings):
     web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
     blobs = settings.SCORE_HOME / "blobs"
-    for made, data in (("a", b"{\"made_at\": \"a\"}"), ("b", b"{\"made_at\": \"b\"}"),
-                       ("c", b"{\"made_at\": \"c\"}")):
+    for made, data in (("a", b"{\"made_at\": \"a\", \"format\": 2}"), ("b", b"{\"made_at\": \"b\", \"format\": 2}"),
+                       ("c", b"{\"made_at\": \"c\", \"format\": 2}")):
         sha = sha_of(data)
         web.put(f"/api/sync/blobs/{sha}?offset=0&size={len(data)}", content=gzip.compress(data), headers=bearer)
         answer = web.post("/api/sync/commit", json={"name": made, "files": {"manifest.json": sha}}, headers=bearer)
         assert answer.status_code == 200, answer.text
-    assert not (blobs / sha_of(b'{"made_at": "a"}')).exists()
-    assert (blobs / sha_of(b'{"made_at": "b"}')).exists() and (blobs / sha_of(b'{"made_at": "c"}')).exists()
+    assert not (blobs / sha_of(b'{"made_at": "a", "format": 2}')).exists()
+    assert (blobs / sha_of(b'{"made_at": "b", "format": 2}')).exists()
+    assert (blobs / sha_of(b'{"made_at": "c", "format": 2}')).exists()
+
+
+@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
+def test_a_change_to_the_exporting_code_sends_every_bundle_again(world, settings, monkeypatch):
+    from score.dashboard.tests.fixture import FakeBackend
+    web, current = hosted_client(), settings.SCORE_HOME / "export/current"
+    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)  # other tests' exports sort after a date
+    monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T15:00:00+00:00")
+    first = client.push_export(remote_of(web), world.source, FakeBackend())
+    assert first["to_come"] == 0
+    before = json.loads((current / "places/alpha.json").read_text())
+    assert before["code_version"] == versions.exporting() and before["format"] == versions.FORMAT
+    monkeypatch.setattr(versions, "exporting", lambda: "0123456789ab")  # the building code changed
+    monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T16:00:00+00:00")
+    second = client.push_export(remote_of(web), world.source, FakeBackend())
+    after = json.loads((current / "places/alpha.json").read_text())
+    assert after["code_version"] == "0123456789ab" and after["detail"] == before["detail"]
+    assert json.loads((current / "manifest.json").read_text())["code_version"] == "0123456789ab"
+    assert second["files"] >= len(world.source.places()) + 1  # every place's bundle and the world's, sent again
+    pictures = world.source.home / building.PICTURES
+    assert [path.name for path in pictures.iterdir()] == ["0123456789ab"]  # the old version's pictures went
+
+
+@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
+def test_an_export_of_a_format_the_hosted_side_cannot_read_is_refused_in_the_sync_words(world, settings,
+                                                                                         monkeypatch):
+    from score.dashboard.tests.fixture import FakeBackend
+    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
+    monkeypatch.setattr(versions, "FORMAT", 1)  # an old store side: gaps and stops as words
+    said = client.sync_pass(remote_of(hosted_client()), world.source, FakeBackend())
+    assert said.startswith("REFUSED") and "export format 1 cannot be read here" in said, said
+    assert not (settings.SCORE_HOME / "export/current").exists()
 
 
 def test_the_step_cards_thumbnails_are_written_before_any_film(world, tmp_path):

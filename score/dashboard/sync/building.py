@@ -1,8 +1,10 @@
 """The state export a hosted dashboard reads, built on the store's machine from the local source.
 
-    <out>/manifest.json        {made_at, world, source_commit, bytes, left_out: [{what, why}], cap_mb, written}
+    <out>/manifest.json        {made_at, world, source_commit, format, code_version, bytes, left_out: [{what, why}],
+                               cap_mb, written}
     <out>/state.json           WorldState
-    <out>/places/<place>.json  {"detail": PlaceDetail, "steps": {stage: StepDetail}}; _world.json the world's steps
+    <out>/places/<place>.json  {"detail": PlaceDetail, "steps": {stage: StepDetail}, format, code_version};
+                               _world.json the world's steps
     <out>/files/<sha>-1280.jpg hero pictures; <sha>-360.jpg thumbnails (newest 8 a node); <sha>.mp4 accepted films
     <out>/web3d/<place>/       each place's fresh 3D copy (web3d/convert.py): sidecar and preview, then the whole one
     <out>/library/            the creator's library when SCORE_LIB_ROOT is set (state/library.py): entries.json, a
@@ -15,17 +17,22 @@ fit is named in left_out; `written` lists every file but the manifest in the ord
 the sync uploads them in (sync/client.py). The 3D copies go in last: every sidecar and light preview first, then the
 whole copies while they fit (owner, 2026-10-18: the hosted cockpit has 3D too). FileRef urls stay /files/<sha>
 and /thumbs/<sha>.jpg, so the templates do not know which source served them.
+
+Every piece is keyed on the exporting code's version (state/versions.py): the bundles and the manifest carry it, so a
+code change gives them a new sha the content-addressed sync sends, and the pictures made for the export are kept per
+version, so a change to the code drawing them makes them again. `format` is what the hosted side checks on commit.
 """
 import json
 import pathlib
 import shutil
 import subprocess
 
-from score.dashboard.state import library
+from score.dashboard.state import library, versions
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 
 NEWEST_PER_NODE = 8
 WORLD_FILE = "_world"
+PICTURES = "export-pictures"
 
 
 def commit(repo):
@@ -104,7 +111,20 @@ def step_details(source, place, rows):
 
 def place_bundle(details):
     return {"detail": details[0].model_dump(by_alias=True) if details[0] else None,
-            "steps": {stage: step.model_dump(by_alias=True) for stage, step in details[1].items()}}
+            "steps": {stage: step.model_dump(by_alias=True) for stage, step in details[1].items()},
+            "format": versions.FORMAT, "code_version": versions.exporting()}
+
+
+def pictures_folder(home):
+    """The folder of the pictures made for the export by this code version; older versions' folders deleted."""
+    root = pathlib.Path(home) / PICTURES
+    current = root / versions.exporting()
+    if root.is_dir():
+        for old in root.iterdir():
+            if old.is_dir() and old != current:
+                shutil.rmtree(old)
+    current.mkdir(parents=True, exist_ok=True)
+    return current
 
 
 def heroes(world):
@@ -147,7 +167,7 @@ def build(source, out, made_at, cap_mb, spend, repo):
     """Write the export of `source` into `out`; its manifest."""
     out = pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    filler = Filler(out, int(cap_mb * 1024 * 1024), source.home / "thumbs")
+    filler = Filler(out, int(cap_mb * 1024 * 1024), pictures_folder(source.home))
     world = source.world_state(spend)
     world.made_at, world.source = made_at, f"export {made_at}"
     filler.wrote(out / "state.json", write_json(out / "state.json", world))
@@ -186,7 +206,8 @@ def build(source, out, made_at, cap_mb, spend, repo):
                     filler.place_copy(found, f"web3d/{place}/{name}", f"3D copy {name}")
     library.export_pictures(shelf, shelved, filler, HERO_SIDE)
     library.export_three_d(shelf, shelved, filler)
-    manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo), "bytes": filler.used,
+    manifest = {"made_at": made_at, "world": world.world, "source_commit": commit(repo), "format": versions.FORMAT,
+                "code_version": versions.exporting(), "bytes": filler.used,
                 "left_out": filler.left_out, "cap_mb": cap_mb, "written": filler.written}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
     return manifest

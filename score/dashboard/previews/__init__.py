@@ -19,9 +19,11 @@ for _threads in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
 
 from score.dashboard.previews import checks, crops, maps, meshes, paint, sheets, swatches  # noqa: E402
 from score.dashboard.state.files import packaged  # noqa: E402
+from score.dashboard.state.versions import SHORT, code_version  # noqa: E402
 
 PREVIEW_NAME = "preview.png"
-VERSION = "5"  # raise it when a drawer changes, so every cached picture is made again
+# the drawers' code version: a change to any drawer makes every cached picture again
+VERSION = f"5-{code_version([pathlib.Path(__file__).parent])[:SHORT]}"
 LARGEST_JSON = 4 * 1024 * 1024
 _one_at_a_time = threading.Lock()
 
