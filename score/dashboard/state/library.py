@@ -11,6 +11,7 @@ import json
 import pathlib
 import posixpath
 import re
+from urllib.parse import quote
 
 from pydantic import BaseModel
 
@@ -59,6 +60,11 @@ class LibraryEntry(BaseModel):
     requires: list[str] = []
     takes: list[FileOf] = []  # a sound's recordings
     glb: FileOf | None = None
+    web3d: FileOf | None = None  # the web GLB copy the viewer opens (the record's `web3d`, or a file of role web3d)
+    finish: dict | None = None  # a surface's own finish: colour, metallic, roughness, glow, see-through, its print
+    score: int | float | None = None  # the entry's quality, 0 to 100 (or a fraction 0 to 1), its kind's own scoring
+    score_parts: list[dict] = []  # what the score is made of: [{name, value (None: not measured), how}]
+    refine_options: list[dict] = []  # [{id, label}] the ways it can be made better
 
 
 def kind_label(kind):
@@ -89,7 +95,21 @@ def step_url(node):
 
 
 def entry_url(entry):
-    return f"/library/{entry.kind}/{entry.entry_id}/{entry.version}/"
+    """The explorer opened on this entry."""
+    return f"/library/?entry={quote(entry.address)}"
+
+
+def viewer_url(entry):
+    """The entry's GLB full screen in the cockpit's 3D viewer."""
+    return f"/library/{entry.kind}/{entry.entry_id}/{entry.version}/3d/"
+
+
+def percent(score):
+    """A score as a whole percent: a whole number is one already (the library's parts run 0 to 100), a fraction from
+    0 to 1 is scaled; None stays."""
+    if score is None:
+        return None
+    return round(score * 100 if isinstance(score, float) and score <= 1 else score)
 
 
 # --- reading one entry.json ------------------------------------------------------------------------------------
@@ -110,17 +130,101 @@ def made_by_node(provenance):
     return provenance.get("node") or next(iter(provenance.get("nodes") or []), None)
 
 
+def named_file(record, name):
+    described = record.get("files", {}).get(name or "")
+    return FileOf(name=name, sha=described["sha256"], bytes=described.get("bytes", 0)) if described else None
+
+
+def web_copy(record):
+    """The web GLB copy of an entry: the file its `web3d` names (a name, or {"file": name}), else a file of role
+    web3d; None while the copy is on its way."""
+    said = record.get("web3d")
+    named = named_file(record, said.get("file") if isinstance(said, dict) else said)
+    if named:
+        return named
+    found = files_of_role(record, "web3d", (".glb",))
+    return found[0] if found else None
+
+
+def quality(record):
+    """(score, score_parts, refine_options) from the record's top level, or from its `quality` object."""
+    held = record if "score" in record else (record.get("quality") or {})
+    score = held.get("score")
+    return (score if isinstance(score, (int, float)) else None), score_parts(held.get("score_parts")), \
+        refine_choices(held.get("refine_options"))
+
+
+def number_or_none(value):
+    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def score_parts(given):
+    """Score parts as [{name, value, how}], from {name: value} or from [{name, value, how, ...}] (a part with no value
+    was not measured)."""
+    if isinstance(given, dict):
+        return [{"name": str(name), "value": number_or_none(value), "how": ""} for name, value in given.items()]
+    return [{"name": str(part["name"]), "value": number_or_none(part.get("value")), "how": str(part.get("how") or "")}
+            for part in given or [] if isinstance(part, dict) and part.get("name")]
+
+
+def refine_choices(given):
+    """Refine options as [{id, label}], from names or {id, label} objects."""
+    found = []
+    for option in given or []:
+        if isinstance(option, str):
+            found.append({"id": option, "label": option.replace("_", " ")})
+        elif isinstance(option, dict) and option.get("id"):
+            found.append({"id": str(option["id"]), "label": str(option.get("label") or option["id"])})
+    return found
+
+
 def entry_of(record):
     """A LibraryEntry from one entry.json record."""
     provenance = record.get("provenance") or {}
     glbs = files_of_role(record, "gltf", (".glb",))
+    score, parts, options = quality(record)
     return LibraryEntry(
         address=record["address"], kind=record["kind"], entry_id=record["id"], version=record["version"],
         title=record.get("title") or record["id"], state=record["state"], locked=record.get("locked"),
         picture=picture_sha(record), world=provenance.get("world"), place=provenance.get("place"),
         node=made_by_node(provenance), source=provenance.get("source") or "", commit=provenance.get("commit"),
         seen_in=record.get("seen_in") or [], tags=record.get("tags") or {}, requires=record.get("requires") or [],
-        takes=files_of_role(record, "audio", (".ogg", ".wav", ".mp3", ".flac")), glb=glbs[0] if glbs else None)
+        takes=files_of_role(record, "audio", (".ogg", ".wav", ".mp3", ".flac")), glb=glbs[0] if glbs else None,
+        web3d=web_copy(record), finish=finish_print(record), score=score, score_parts=parts,
+        refine_options=options)
+
+
+# --- a surface's finish ----------------------------------------------------------------------------------------
+
+USD_INPUT = re.compile(r"(?:color3f|float)\s+inputs:(\w+)\s*=\s*(\([^)]*\)|[-0-9.e]+)")
+FINISH_INPUTS = {"diffuseColor": "colour", "metallic": "metallic", "roughness": "roughness",
+                 "emissiveColor": "glow", "opacity": "opacity"}
+
+
+def finish_print(record):
+    """A surface's print texture, the start of its finish; None for any other entry."""
+    if record.get("kind") != "surface":
+        return None
+    prints = files_of_role(record, "texture", (".png", ".jpg", ".jpeg"))
+    return {"print": prints[0].model_dump()} if prints else {}
+
+
+def usd_value(text):
+    """A UsdPreviewSurface input's value: a number, or a list of three for a colour."""
+    if text.startswith("("):
+        return [float(part) for part in text.strip("()").split(",")]
+    return float(text)
+
+
+def finish_of(material_text):
+    """The finish a surface's material.usda sets: {colour, metallic, roughness, glow, opacity} as it gives them."""
+    return {FINISH_INPUTS[name]: usd_value(value) for name, value in USD_INPUT.findall(material_text)
+            if name in FINISH_INPUTS}
+
+
+def material_sha(entry_record):
+    return next((described["sha256"] for name, described in sorted(entry_record.get("files", {}).items())
+                 if described.get("role") == "usd" and name.endswith(".usda")), None)
 
 
 def kind_order(entry):
@@ -142,15 +246,29 @@ class Library:
     def by_address(self):
         return {entry.address: entry for entry in self.entries()}
 
+    def folders(self):
+        """The explorer's folders of these entries (state/library_tree.py), made again when the entries change."""
+        from score.dashboard.state.library_tree import folders
+        entries = self.entries()
+        if self.kept.get("folders_of") is not entries:
+            self.kept.update(folders_of=entries, folders=folders(entries))
+        return self.kept["folders"]
+
     def listed_files(self):
         """{sha: listed name} of every file the pages may serve: pictures, takes, GLBs."""
         found = {}
         for entry in self.entries():
             if entry.picture:
                 found[entry.picture] = "picture.png"
-            for each in [*entry.takes, *([entry.glb] if entry.glb else [])]:
+            for each in [*entry.takes, *three_d_files(entry)]:
                 found[each.sha] = each.name
         return found
+
+
+def three_d_files(entry):
+    """An entry's files for 3D: its GLB, its web copy, a surface's print."""
+    printed = (entry.finish or {}).get("print")
+    return [each for each in (entry.glb, entry.web3d, FileOf.model_validate(printed) if printed else None) if each]
 
 
 class LocalLibrary(Library):
@@ -174,9 +292,20 @@ class LocalLibrary(Library):
         signature = self.signature()
         if self.kept["signature"] != signature:
             paths = (self.root / "entries").glob("*/*/*/entry.json")
-            found = sorted((entry_of(json.loads(path.read_text())) for path in paths), key=kind_order)
+            found = sorted((self.read_entry(json.loads(path.read_text())) for path in paths), key=kind_order)
             self.kept = {"signature": signature, "entries": found, "files": None}
         return self.kept["entries"]
+
+    def read_entry(self, record):
+        """An entry with a surface's finish read from its material in the blob folder."""
+        entry = entry_of(record)
+        if entry.finish is None:
+            return entry
+        sha = material_sha(record)
+        path = self.blobs / "blobs" / sha[:2] / sha if self.blobs and sha and SHA.match(sha) else None
+        if path is None or not path.is_file():
+            return entry
+        return entry.model_copy(update={"finish": {**entry.finish, **finish_of(path.read_text())}})
 
     def known(self):
         self.entries()
@@ -275,15 +404,15 @@ def for_export():
 
 # --- finding entries -------------------------------------------------------------------------------------------
 
-def matches(entry, kind, place, state, words):
-    """True when an entry passes the page's filters: its kind, the place it came from, its state, words in its name."""
-    if (kind and entry.kind != kind) or (place and entry.place != place) or (state and entry.state != state):
+def matches(entry, place, state, words):
+    """True when an entry passes the explorer's filters: the place it came from, its state, words in its name."""
+    if (place and entry.place != place) or (state and entry.state != state):
         return False
     return not words or all(word in f"{entry.title} {entry.entry_id}".lower() for word in words.lower().split())
 
 
-def filtered(entries, kind="", place="", state="", words=""):
-    return [entry for entry in entries if matches(entry, kind, place, state, words)]
+def filtered(entries, place="", state="", words=""):
+    return [entry for entry in entries if matches(entry, place, state, words)]
 
 
 def places_of(entries):
@@ -317,7 +446,8 @@ def counted_kind(kind, count):
 # --- into the state export (sync/building.py) ------------------------------------------------------------------
 
 def exported_rows(entries):
-    """The rows the hosted cockpit reads: each entry with a sound's first takes and no GLB (too large to send)."""
+    """The rows the hosted cockpit reads: each entry with a sound's first takes and no raw GLB (too large to send);
+    the web copies and a surface's print go as files while they fit (export_three_d)."""
     return [entry.model_copy(update={"takes": entry.takes[:MAX_TAKES], "glb": None}).model_dump() for entry in entries]
 
 
@@ -346,3 +476,13 @@ def export_takes(local, entries, filler):
             found = local.blob(take.sha)
             if found:
                 filler.place_copy(found, exported_file(take.sha, take.name), f"library take {take.name}")
+
+
+def export_three_d(local, entries, filler):
+    """Each entry's web GLB copy and each surface's print into the export's library/files/, last, while they fit."""
+    for entry in entries:
+        printed = (entry.finish or {}).get("print")
+        for each in [entry.web3d, FileOf.model_validate(printed) if printed else None]:
+            found = local.blob(each.sha) if each else None
+            if found:
+                filler.place_copy(found, exported_file(each.sha, each.name), f"library 3D {each.name}")
