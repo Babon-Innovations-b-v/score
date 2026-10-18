@@ -7,7 +7,8 @@ the real cloud ledger, 2026-10-17). `make tests` and `make check` run every test
 PROPS_HOME is a fresh folder in the temp folder (PROPS_WORK unset, so it follows), removed after. The tests read
 world data from the real home (seeds, kits, stages under work/), so where bubblewrap is installed the sandbox links to
 the real home's folders and the command runs with the real home mounted read-only: a read works, a write through a
-link fails loudly instead of landing. The real home's state (STATE: the cloud ledger and bills, the store and its
+link fails loudly instead of landing. work/ and work/carry-commits are real folders in the sandbox with their entries
+linked, so a test may add a folder of its own there. The real home's state (STATE: the cloud ledger and bills, the store and its
 locks and logs) is never linked, so a test that writes those gets its own empty ones. Without bubblewrap nothing is
 linked, and a test that needs world data fails rather than reach the real home. The exit status is the command's.
 """
@@ -21,6 +22,9 @@ import tempfile
 
 REAL_HOME = pathlib.Path(os.environ.get("SCORE_REAL_HOME", pathlib.Path.home() / ".farm-factory-props"))
 STATE = ("cloud", "store", "store-tests", "locks", "logs", "tmp", "replays")
+# World data folders made real folders in the sandbox, each entry in them linked, so a test can add an entry of its own
+# beside the real ones (a work folder, a commit's files under work/carry-commits) while the real ones stay read-only.
+MIRRORED = ("work", "work/carry-commits")
 
 
 def linked(entry):
@@ -28,13 +32,27 @@ def linked(entry):
     return entry.name not in STATE and not entry.name.startswith("scratch")
 
 
+def link_into(real, sandbox, folder):
+    """Link the real home's entries in `folder` ("" for the home itself) into the sandbox; a MIRRORED folder is made a
+    real folder there and its own entries linked."""
+    for entry in sorted((real / folder).iterdir()):
+        name = f"{folder}/{entry.name}" if folder else entry.name
+        if not folder and not linked(entry):
+            continue
+        if name in MIRRORED and entry.is_dir():
+            (sandbox / name).mkdir()
+            link_into(real, sandbox, name)
+        else:
+            (sandbox / name).symlink_to(entry)
+
+
 def make_sandbox(real, link):
-    """A fresh sandbox home in the temp folder, linking the real home's world data when `link`."""
+    """A fresh sandbox home in the temp folder with an empty store (store/cache, as a fresh real home has), linking the
+    real home's world data when `link`."""
     sandbox = pathlib.Path(tempfile.mkdtemp(prefix="score-test-"))
+    (sandbox / "store" / "cache").mkdir(parents=True)
     if link and real.is_dir():
-        for entry in sorted(real.iterdir()):
-            if linked(entry):
-                (sandbox / entry.name).symlink_to(entry)
+        link_into(real, sandbox, "")
     return sandbox
 
 

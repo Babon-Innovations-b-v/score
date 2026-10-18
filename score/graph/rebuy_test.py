@@ -137,6 +137,9 @@ def test_score_run_refuses_before_it_starts_and_records_a_given_reason():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, check in list(globals().items()):
         if name.startswith("test_"):
             check()

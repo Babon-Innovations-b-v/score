@@ -434,6 +434,9 @@ def test_two_renders_of_the_same_pixels_are_the_same_file_once_their_text_is_dro
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

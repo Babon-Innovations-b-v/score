@@ -98,6 +98,9 @@ def check_tower_turn_faces_the_bearing():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     check_tower_turn_faces_the_bearing()
     check_windows_light_a_tower_s_sides_floor_by_floor()
     check_a_kind_without_a_model_stops_the_stage()

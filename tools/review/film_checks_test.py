@@ -96,6 +96,9 @@ def check_report(folder):
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     with tempfile.TemporaryDirectory() as temporary:
         for check in (check_video, check_clearance, check_ink, check_report):
             place = pathlib.Path(temporary) / check.__name__

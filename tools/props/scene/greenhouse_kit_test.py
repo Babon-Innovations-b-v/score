@@ -132,4 +132,7 @@ def test_the_surface_and_opening_checks_pass_the_layout():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     main()

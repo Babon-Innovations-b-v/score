@@ -20,6 +20,9 @@ def no_shared_rule_builds_a_ship_in_code():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     failures = no_shared_rule_builds_a_ship_in_code()
     for failure in failures:
         print(failure)

@@ -54,6 +54,9 @@ def test_linking_again_replaces_the_link():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, check in list(globals().items()):
         if name.startswith("test_"):
             check()
