@@ -91,6 +91,8 @@ SHOT_SHOWN = demo_film.SECONDS - FADE
 OPENING_TITLE = 3.0
 OPENING_EACH = 0.7
 ENDING = WORK / "k9-ending"
+# The ending's clips in order (that folder also keeps the parts layers3d joined into the first).
+ENDING_CLIPS = ("built-in-layers.mp4", "ready-for-score-lib.mp4")
 # A store film's shown frame: the middle of its one shot, after the title card and its fade.
 FILM_MIDDLE = demo.TITLE_SECONDS - FADE + demo_film.SECONDS / 2
 
@@ -648,7 +650,8 @@ def world(folder, figure_out, films, assets, draft=False):
         result_clip(path, title, clips[-1])
         lengths.append(SHOT_SHOWN)
         shown.append({"film": name, "title": title, "output": output, "stages": [label for label, _ in stages]})
-    for ending in sorted(ENDING.glob("*.mp4")):
+    endings = [ENDING / name for name in ENDING_CLIPS if (ENDING / name).exists()]
+    for ending in endings:
         clips.append(parts / f"ending-{ending.name}")
         lengths.append(ending_clip(ending, clips[-1]))
     video = folder / "world1.mp4"
@@ -656,8 +659,7 @@ def world(folder, figure_out, films, assets, draft=False):
     (folder / "frames").mkdir(exist_ok=True)
     sheet([(name, title, middle_frame(path, folder / "frames" / f"{name}.png")) for name, title, path, _ in made],
           figure_out)
-    (folder / "world1.json").write_text(json.dumps({"films": shown, "missing": missing, "ending": [
-        str(clip) for clip in sorted(ENDING.glob("*.mp4"))]}, indent=1))
+    (folder / "world1.json").write_text(json.dumps({"films": shown, "missing": missing, "ending": [str(clip) for clip in endings]}, indent=1))
     print(f"{video}: {len(made)} of {len(films)} films, {length(video):.1f} s"
           + (f"; missing {', '.join(missing)}" if missing else ""))
 
