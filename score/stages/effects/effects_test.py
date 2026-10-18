@@ -197,6 +197,9 @@ def test_a_place_without_a_rocket_builds_its_effects_over_its_scene_record_outpu
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

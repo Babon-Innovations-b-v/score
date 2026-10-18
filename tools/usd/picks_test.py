@@ -173,6 +173,9 @@ CHECKS = (a_kept_pick_exports_with_its_hashes, a_replaced_pick_is_refused_withou
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
     for failure in failures:
         print(failure)

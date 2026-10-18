@@ -161,6 +161,9 @@ CHECKS = (every_rule_catches_its_case, hangar_ship_fails_until_made, todays_hang
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
     for failure in failures:
         print(failure)

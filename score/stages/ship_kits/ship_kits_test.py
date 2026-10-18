@@ -58,6 +58,9 @@ def test_a_ship_deck_has_no_seam_round_a_grate():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     test_the_made_rows_pieces_are_left_to_their_takes()
     test_a_ship_deck_has_no_seam_round_a_grate()
     print("ship_kits: 2 tests pass")

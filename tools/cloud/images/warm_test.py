@@ -33,6 +33,9 @@ def test_a_class_without_an_offer_is_refused_and_one_with_is_measured_and_record
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

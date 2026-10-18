@@ -38,6 +38,9 @@ def test_no_world_or_painting_is_bought_outside_a_cleared_run():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

@@ -107,6 +107,9 @@ def test_every_kind_laid_is_a_row_of_the_inventory():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in sorted(globals().items()):
         if name.startswith("test_") and callable(test):
             test()

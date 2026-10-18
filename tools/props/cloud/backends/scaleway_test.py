@@ -302,6 +302,9 @@ def test_deleting_an_address_or_disk_already_gone_is_done_and_another_failure_ra
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[4] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

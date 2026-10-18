@@ -94,6 +94,9 @@ def test_region_agreement_takes_a_region_the_drawn_split_misses():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in sorted(globals().items()):
         if name.startswith("test_"):
             test()

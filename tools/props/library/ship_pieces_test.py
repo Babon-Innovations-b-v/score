@@ -53,7 +53,7 @@ def test_every_ship_builder_builds_with_walls_the_model_check_passes():
     if not (REPO / "tools/blender/session.py").exists():
         print("skipped: no Blender launcher")
         return
-    with tempfile.TemporaryDirectory(dir=pathlib.Path.home() / ".farm-factory-props/work") as folder:
+    with tempfile.TemporaryDirectory() as folder:  # never the real home's work/ (2026-10-18 review)
         plan = pathlib.Path(folder) / "plan.json"
         plan.write_text(json.dumps({"models": {f"{own}_1": {"route": "code", "kind": f"bridge_{own}", "size": size,
                                                             "laid": {"taper": 1.0}}
@@ -71,6 +71,9 @@ def test_every_ship_builder_builds_with_walls_the_model_check_passes():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

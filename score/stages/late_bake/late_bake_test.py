@@ -34,5 +34,8 @@ def test_gates():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     test_gates()
     print("late_bake: 1 test passes")

@@ -61,6 +61,9 @@ def test_every_place_has_views():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     test_counts_and_gate()
     test_every_place_has_views()
     test_verdicts()

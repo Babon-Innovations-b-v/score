@@ -239,6 +239,9 @@ def test_an_object_carries_its_kit_models_children_and_a_dropped_child_fails():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     test_an_object_carries_its_kit_models_children_and_a_dropped_child_fails()
     test_a_moved_leaf_runs_clear_only_its_open_way()
     test_every_shell_kind_matches_its_plan_and_a_moved_number_fails()

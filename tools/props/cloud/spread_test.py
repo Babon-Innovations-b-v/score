@@ -237,6 +237,9 @@ def test_a_slot_stops_asking_at_the_deadline_and_on_a_signal():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, check in list(globals().items()):
         if name.startswith("test_"):
             check()

@@ -75,6 +75,9 @@ def the_rises_are_per_undriven_stretch():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     a_good_run_passes()
     each_gate_breaks()
     the_rises_are_per_undriven_stretch()

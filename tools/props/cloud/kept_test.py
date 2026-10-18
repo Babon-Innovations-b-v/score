@@ -126,6 +126,9 @@ def test_at_the_runner_a_failed_paid_make_keeps_its_frames_and_the_rerun_renders
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
             test()

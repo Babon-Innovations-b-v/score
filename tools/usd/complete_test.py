@@ -360,6 +360,9 @@ CHECKS = (a_finished_place_passes, a_named_gap_moves_only_the_faults_it_names, t
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
     for failure in failures:
         print(failure)

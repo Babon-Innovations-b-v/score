@@ -30,5 +30,8 @@ def test_refused_here_and_run_on_a_marked_machine():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     test_refused_here_and_run_on_a_marked_machine()
     print("heavy_test: ok")

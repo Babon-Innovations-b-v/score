@@ -224,6 +224,9 @@ CHECKS = (floating_sunk_and_hung_are_told_apart, a_crate_on_a_structure_deck_res
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
     for failure in failures:
         print(failure)

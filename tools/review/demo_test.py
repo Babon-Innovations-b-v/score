@@ -191,6 +191,9 @@ def check_names():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     for check in (check_cameras, check_picked, check_stand, check_level, check_names, check_inked):
         check()
     with tempfile.TemporaryDirectory() as temporary:

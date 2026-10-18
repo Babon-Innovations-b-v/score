@@ -178,6 +178,9 @@ CHECKS = (rooms_joined_by_a_doorway_are_both_reached, a_place_s_own_door_leaves_
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     with tempfile.TemporaryDirectory() as no_records:
         reach.SCENES = pathlib.Path(no_records)  # the test's places have no scene record: no room floor, no ceiling
         failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]

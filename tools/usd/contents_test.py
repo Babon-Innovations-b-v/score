@@ -385,6 +385,9 @@ TESTS = (people_both_ways, a_part_is_judged_on_its_host, effects_and_motion_both
          a_far_look_near_a_view_both_ways)
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()
     data, bodies = contents.DATA, contents.BODIES
     failed = []
     for test in TESTS:
