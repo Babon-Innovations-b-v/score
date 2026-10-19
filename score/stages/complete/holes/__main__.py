@@ -37,18 +37,15 @@ import shutil
 from pxr import UsdGeom
 
 from score.stages.assembly import stage_file
-from score.stages.complete.holes import fill, inputs, layer, marks, route, rows
+from score.stages.complete.holes import FINDINGS, OUT, WORLD, fill, inputs, layer, marks, route, rows
 from score.stages.complete.library import stored
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
-OUT = PROPS_HOME / "work/checks/holes"
 DATA = REPO / "data"
-FINDINGS = "findings.json"
 STAGE = "stage"
 MISSING, GATE, PLACE = "missing", "gate", "place"
 RULES = (MISSING, GATE, PLACE)
-WORLD = "world"  # the pseudo-place of the environment's own nodes' lost inputs (inputs.lost over place None)
 SOURCES = ("neighbours", "assembly")  # the stage the holes stand over: the first accepted
 STEP_SENTENCES = {fill.CONCEPT: "no concept is picked for this place",
                   fill.PLAN: "this place's plan is not accepted",

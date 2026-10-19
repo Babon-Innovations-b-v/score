@@ -37,9 +37,11 @@ HIGH = 0.9  # the high price's quantile, as preflight.HIGH
 # The forecast rules: what a make's units are forecast from before it runs, each from a source in git, counted by
 # score.stages.complete.holes.price (for the entry's own stage only, never its `also`).
 FORECASTS = {
-    "missing_rows": "the place's holes (score/stages/complete/holes): its missing rows whose node is this stage's at "
-                    "the place, one model each (fill.py FILLERS, the route)",
-    "models": "one a model: the takes data/surfaces/<place>.json lists, plus the place's missing rows pixal makes",
+    "prop_takes": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made "
+                  "in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node "
+                  "is this stage's there, by their take",
+    "models": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast "
+              "to make at the place (prop_takes)",
     "light_jobs": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job",
     "one": "one a place",
 }
@@ -51,7 +53,7 @@ NO_BATCH = "no ledger line holds both a batch's units and its models: the Google
 # stages that make the same unit by the same code (the crops' and people's lines).
 SPECS = {
     "pixal": {"unit": "model", "cloud": {"kind": "pixal"}, "per_line": "models_done",
-              "count": {"json_keys": "takes.json"}, "also": ["crops-pixal"], "forecast": "missing_rows"},
+              "count": {"json_keys": "takes.json"}, "also": ["crops-pixal"], "forecast": "prop_takes"},
     "closeup": {"unit": "close-up picture (Nano Banana Pro)", "google": "pro",
                 "count": {"json_field": ["closeups.json", "pro_pictures"]}, "also": ["crops-closeup"],
                 "forecast": None, "forecast_why": NO_BATCH},

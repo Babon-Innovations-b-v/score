@@ -93,9 +93,10 @@ stage as each stage is built; nothing moves before.
   in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point; the forecast a
   node is cleared at is its stage's measured runs, else its stage's measured per-unit high times the units its
   accepted output made (`unit_price`, `data/costs/per-unit.json` from `tools/costs/per_unit.py`), else its estimate;
-  `run_price` (`score price`, the cockpit's) the same (basis "measured runs", then "per unit × counted"), then, only
-  when its caller counted a node's units before the make by its stage's forecast rule (`forecast_price`, PER_UNIT's
-  `forecast`), "per unit × forecast", and a node with none of these has no price: its estimate is kept apart as
+  `run_price` (`score price`, the cockpit's): when its caller counted a node's units before the make by its stage's
+  forecast rule (`forecast_price`, PER_UNIT's `forecast`; the holes' price, whose node is made again with what the
+  hole adds) "per unit × forecast" first, else the same as the forecast (basis "measured runs", then "per unit ×
+  counted"), and a node with none of these has no price: its estimate is kept apart as
   `guess_euros`, with `guess_from` (`Stage.euros_from`, the line of the row that names it), never shown as a price
   (owner, 2026-10-18); `guard.py`: the environment's stop line, the owner's
   money figure, refuses a paid job before it starts when its forecast with the environment's spend since its first line and

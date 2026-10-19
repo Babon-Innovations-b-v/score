@@ -1,10 +1,14 @@
-"""The holes priced by the runner: a node two holes share is priced once with their units summed, a later node the
-place's completion reads is priced too, and a hole no stage fills goes to the unfillable list with its work. A toy
-table (pixal, its bake, complete) in a store of its own, with per-unit numbers and holes written in the test. No
-cloud, no Blender.
+"""The holes priced by the runner: a node two holes share is priced once with their models counted once, a later node
+the place's completion reads is priced too, a hole no stage fills goes to the unfillable list with its work, the prop
+route of rows waiting on their prop data is priced apart, and what cannot be priced (a node outside the table,
+findings over an output no longer accepted, a place never checked) is named, never dropped. A toy table (pixal, its
+bake, sound, likeness, complete) in a store of its own, with per-unit numbers and holes written in the test; and
+`score price --holes` at the command, its record written whole. No cloud, no Blender.
 
 Run: .venv/bin/python score/stages/complete/holes/price_test.py
 """
+import contextlib
+import io
 import json
 import pathlib
 import sys
@@ -14,12 +18,13 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 
 from score import checks, contracts, graph  # noqa: E402
 from score.adapters import compute  # noqa: E402
-from score.stages.complete.holes import price  # noqa: E402
+from score.stages.complete.holes import WORLD, price  # noqa: E402
 from score.store import Store  # noqa: E402
 
 compute.ledger().entries = lambda: []  # no measured runs: the per-unit numbers price
 TEXT = contracts.Contract("toy-text", 1, lambda folder: [])
 READS = ("toy-text", 1)
+MADE_AT = "2026-10-19T20:00:00+00:00"
 
 
 def make_nothing(inputs, out, seed, params):
@@ -32,50 +37,82 @@ TABLE = [graph.Stage("pixal", "place", make_nothing, TEXT, SAID, files={"brief":
          graph.Stage("surfaces-bake", "place", make_nothing, TEXT, SAID, after={"pixal": READS}, paid=True,
                      euros=2.0),
          graph.Stage("sound", "place", make_nothing, TEXT, SAID, paid=True, euros=1.0),
+         graph.Stage("likeness", "place", make_nothing, TEXT, SAID, after={"surfaces-bake": READS}),
          graph.Stage("complete", "place", make_nothing, TEXT, SAID,
-                     after={"surfaces-bake": READS, "sound": READS})]
+                     after={"likeness": READS, "sound": READS})]
 PER_UNIT = {"stages": {
     "pixal": {"stage": "pixal", "unit": "model", "count": {"json_keys": "takes.json"}, "also": [],
               "likely_euros": 0.2, "high_euros": 0.5, "runs": 50, "sources": {},
-              "forecast": {"rule": "missing_rows", "source": "the place's missing rows"}},
+              "forecast": {"rule": "prop_takes", "source": "the place's models not made"}},
     "surfaces-bake": {"stage": "surfaces-bake", "unit": "bake job", "count": {"files": "made/*.gltf"}, "also": [],
                       "likely_euros": 0.04, "high_euros": 0.2, "runs": 200, "sources": {},
-                      "forecast": {"rule": "models", "source": "the takes and the missing rows"}}}}
+                      "forecast": {"rule": "models", "source": "the takes and the models pixal makes"}}}}
+ROUTE_WORK = "prop data for square: data/props/square.json"
 
 
-def hole(number, node, work=None):
-    return {"id": f"missing:crate_{number}", "rule": "missing", "node": node, "work": work}
+def hole(number, node, work=None, row=None):
+    return {"id": f"missing:crate_{number}", "rule": "missing", "node": node, "work": work, "row": row}
 
 
-def a_place():
-    """(runner, holes root): the hangar's data (3 takes in its surface data) and its holes: two missing rows pixal
-    makes, one the sound fills, one no stage fills."""
+def written(root, place, findings, outputs=None):
+    (root / place).mkdir(parents=True, exist_ok=True)
+    (root / place / "findings.json").write_text(json.dumps({"place": place, "outputs": outputs or {},
+                                                             "findings": findings}))
+
+
+def a_place(findings=None, props=None, outputs=None):
+    """(runner, holes root): the hangar's data (3 takes in its surface data, `props` its prop data when given) and its
+    holes: two missing rows pixal makes, one the sound fills, one no stage fills (or `findings`)."""
     data, root = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text("a hall")
     (data / "surfaces").mkdir()
     (data / "surfaces/hangar.json").write_text(json.dumps({"takes": {"a": {}, "b": {}, "c": {}}}))
-    (root / "hangar").mkdir()
-    (root / "hangar/findings.json").write_text(json.dumps({"place": "hangar", "outputs": {}, "findings": [
-        hole(1, "pixal@hangar"), hole(2, "pixal@hangar"), {**hole(3, "sound@hangar"), "rule": "gate"},
-        hole(4, None, "a rough-model stage")]}))
+    if props is not None:
+        (data / "props").mkdir()
+        (data / "props/hangar.json").write_text(json.dumps({"place": "hangar", "objects": props}))
+    written(root, "hangar", findings if findings is not None else [
+        hole(1, "pixal@hangar", row="crate"), hole(2, "pixal@hangar", row="lamp"),
+        {**hole(3, "sound@hangar"), "rule": "gate"}, hole(4, None, "a rough-model stage")], outputs)
     runner = graph.Runner(TABLE, graph.Environment("toy", 1, {"data": data}), Store.in_folder(tempfile.mkdtemp()),
                           model_record=lambda kind: {"kind": kind})
     return runner, root
 
 
-def priced():
+@contextlib.contextmanager
+def per_unit(numbers=None):
     kept = compute.PER_UNIT
     compute.PER_UNIT = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
-    compute.PER_UNIT.write_text(json.dumps(PER_UNIT))
+    compute.PER_UNIT.write_text(json.dumps(numbers or PER_UNIT))
     try:
-        runner, root = a_place()
-        return price.holes_price(runner, "toy", root, ["hangar"], runner.store, made_at="2026-10-19T20:00:00+00:00")
+        yield
     finally:
         compute.PER_UNIT = kept
 
 
-def test_a_node_two_holes_share_is_priced_once_with_their_units_summed():
-    found = priced()
+def priced(places=("hangar",), store=None, **made):
+    with per_unit():
+        runner, root = a_place(**made)
+        return price.holes_price(runner, "toy", root, list(places), store or runner.store, made_at=MADE_AT), root
+
+
+class Accepted:
+    """A store whose only accepted output is pixal@hangar's, its takes.json listing `takes` (an older make)."""
+
+    def __init__(self, takes):
+        self.takes = takes
+
+    def accepted(self, node):
+        return "older-make" if node == "pixal@hangar" else None
+
+    def listing(self, output):
+        return {"takes.json": "sha"}
+
+    def read_file(self, output, name):
+        return self.takes
+
+
+def test_a_node_two_holes_share_is_priced_once_with_their_models_counted_once():
+    found, _ = priced()
     pixal = found["nodes"]["pixal@hangar"]
     assert (pixal["units"], pixal["basis"], pixal["likely_euros"], pixal["high_euros"]) == (
         2, "per unit × forecast", 0.4, 1.0), pixal
@@ -84,12 +121,31 @@ def test_a_node_two_holes_share_is_priced_once_with_their_units_summed():
     assert found["holes"]["hangar"] == {"missing:crate_1": "pixal@hangar", "missing:crate_2": "pixal@hangar",
                                         "missing:crate_3": "sound@hangar"}
     assert found["chains"]["hangar"]["pixal@hangar"] == [  # complete reads the sound too: the place needs it
-        "complete@hangar", "pixal@hangar", "sound@hangar", "surfaces-bake@hangar"]
-    assert found["free"] == ["complete@hangar"]
+        "complete@hangar", "likeness@hangar", "pixal@hangar", "sound@hangar", "surfaces-bake@hangar"]
+    assert found["free"] == ["complete@hangar", "likeness@hangar"]
+    assert found["priced_on"]["per_unit_sha256"] and "uncommitted" in found["priced_on"]
+
+
+def test_the_models_are_the_unmade_prop_takes_and_the_missing_rows_each_once():
+    """The cairn is both a surface take and a missing row, and two holes are two of one row: each model once."""
+    props = {"cairn": {"route": "prop", "take": "a"}, "rock": {"route": "prop", "take": "rock-p1"},
+             "pipe": {"route": "code", "take": None}}
+    found, _ = priced(props=props, findings=[hole(1, "pixal@hangar", row="cairn"), hole(2, "pixal@hangar", row="crate"),
+                                             hole(3, "pixal@hangar", row="crate")])
+    assert found["nodes"]["pixal@hangar"]["units"] == 3  # a, rock-p1 (prop takes not made) and crate
+    assert found["nodes"]["surfaces-bake@hangar"]["units"] == 5  # a, b, c, rock-p1, crate
+
+
+def test_the_holes_forecast_prices_before_the_units_an_older_accept_counted():
+    """pixal@hangar's accepted make counted 3 takes; the hole asks for 5 models: 5 are priced."""
+    found, _ = priced(store=Accepted({"x": 1, "y": 2, "z": 3}),
+                      findings=[hole(number, "pixal@hangar", row=f"row{number}") for number in range(5)])
+    pixal = found["nodes"]["pixal@hangar"]
+    assert (pixal["units"], pixal["basis"], pixal["likely_euros"]) == (5, "per unit × forecast", 1.0), pixal
 
 
 def test_a_stage_with_no_forecast_rule_is_a_guess_that_says_where_and_kept_out_of_the_price():
-    found = priced()
+    found, _ = priced()
     sound = found["nodes"]["sound@hangar"]
     assert sound["likely_euros"] is None and sound["guess_euros"] == 1.0, sound
     assert sound["guess_from"].startswith("score/stages/complete/holes/price_test.py:")
@@ -98,9 +154,86 @@ def test_a_stage_with_no_forecast_rule_is_a_guess_that_says_where_and_kept_out_o
 
 
 def test_a_hole_no_stage_fills_goes_to_the_unfillable_list_with_its_work():
-    found = priced()
+    found, _ = priced()
     assert found["unfillable"] == [{"work": "a rough-model stage", "holes": 1}]
     assert all(None not in nodes.values() for nodes in found["holes"].values())
+
+
+def test_findings_over_an_output_no_longer_accepted_are_not_current_and_price_nothing():
+    found, _ = priced(outputs={"pixal@hangar": "an-output-no-longer-accepted"})
+    assert found["not_current"] == ["hangar"]
+    assert found["chains"] == {} and found["holes"] == {} and found["nodes"] == {}
+
+
+def test_a_place_never_checked_and_a_node_outside_the_table_are_named_not_dropped():
+    found, _ = priced(places=("hangar", "lab"), findings=[hole(1, "ship_kit@hangar")])
+    assert found["not_checked"] == ["lab", WORLD]  # the environment's own findings were never written either
+    assert found["outside"] == [{"node": "ship_kit@hangar", "holes": 1}]
+    assert found["nodes"] == {}
+
+
+def test_rows_waiting_on_their_prop_data_get_the_prop_route_priced_after_that_work():
+    """Three holes of two rows at the square wait on its prop data: pixal and the bake per model (2), apart."""
+    with per_unit():
+        runner, root = a_place()
+        written(root, "square", [hole(1, None, ROUTE_WORK, "crate"), hole(2, None, ROUTE_WORK, "crate"),
+                                 hole(3, None, ROUTE_WORK, "lamp")])
+        found = price.holes_price(runner, "toy", root, ["hangar", "square"], runner.store, made_at=MADE_AT)
+    square = found["after_work"]["square"]
+    assert (square["work"], square["holes"], square["models"], square["in_chains"]) == (ROUTE_WORK, 3, 2, [])
+    assert {node: (entry["units"], entry["likely_euros"]) for node, entry in square["nodes"].items()} == {
+        "pixal@square": (2, 0.4), "surfaces-bake@square": (2, 0.08)}
+    assert {"work": ROUTE_WORK, "holes": 3} in found["unfillable"]  # still code work, with no price of its own
+
+
+def test_a_lost_input_several_places_read_counts_once():
+    lost = {"id": "place:lost:earth-seed:usd-r3", "rule": "place", "node": None, "work": "earth seed lost"}
+    with per_unit():
+        runner, root = a_place(findings=[lost])
+        written(root, "lab", [lost])
+        written(root, WORLD, [lost])
+        found = price.holes_price(runner, "toy", root, ["hangar", "lab"], runner.store, made_at=MADE_AT)
+    assert found["unfillable"] == [{"work": "earth seed lost", "holes": 1}] and found["not_checked"] == []
+
+
+def test_the_forecast_rules_one_and_unknown():
+    with per_unit({"stages": {"sound": {"stage": "sound", "unit": "place", "count": {"one": True}, "also": [],
+                                        "likely_euros": 0.5, "high_euros": 1.0, "runs": 3, "sources": {},
+                                        "forecast": {"rule": "one", "source": "one a place"}},
+                              "pixal": {**PER_UNIT["stages"]["pixal"], "forecast": {"rule": "made-up", "source": ""}}}}):
+        assert price.forecast_units("sound@hangar", [], "/nowhere") == 1
+        try:
+            price.forecast_units("pixal@hangar", [], "/nowhere")
+        except ValueError as error:
+            assert "made-up" in str(error)
+        else:
+            raise AssertionError("an unknown forecast rule must be refused")
+
+
+def test_score_price_holes_writes_its_record_whole_and_says_it_in_one_line():
+    import score.__main__ as cli
+    import score.store
+    record, root = priced()
+    home, kept = pathlib.Path(tempfile.mkdtemp()), (cli.holes_record, score.store.PROPS_HOME)
+    cli.holes_record, score.store.PROPS_HOME = (lambda world: record), home
+    try:
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            cli.main(["price", "world1", "--holes", "--json"])
+        said = json.loads(printed.getvalue())
+        out = home / "work/checks/holes-price/world1.json"
+        assert json.loads(out.read_text()) == record and not list(out.parent.glob("*.partial"))
+        assert (said["written"], said["holes"], said["unfillable"], said["outside"]) == (str(out), 3, 1, 0), said
+        assert said["not_current"] == [] and said["not_checked"] == [WORLD], said
+        for argv in (["price", "world1"], ["price", "world1", "--holes", "--node", "pixal@hangar"]):
+            try:
+                cli.main(argv)
+            except SystemExit as stop:
+                assert "give --node (repeat it) or --holes" in str(stop.code), stop
+            else:
+                raise AssertionError(f"{argv} must exit with the usage line")
+    finally:
+        cli.holes_record, score.store.PROPS_HOME = kept
 
 
 if __name__ == "__main__":

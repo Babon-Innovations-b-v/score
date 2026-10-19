@@ -10,6 +10,16 @@
     {% if holes_total.sums.guessed.nodes %}<li><span class="unknown">Guessed, not a price</span>: EUR {{ holes_total.sums.guessed.euros|floatformat:2 }} ({{ holes_total.sums.guessed.nodes }} step{{ holes_total.sums.guessed.nodes|pluralize }} never measured; each stage's own estimate, where it is written in the details)</li>{% endif %}
     {% if holes_total.sums.unknown %}<li><span class="unknown">No price and no guess</span>: {{ holes_total.sums.unknown|length }} step{{ holes_total.sums.unknown|length|pluralize }}</li>{% endif %}
   </ul>
+  {% if holes_total.after_work.places %}
+  <p>Then, once each place's prop data is written (the code work below), the prop route of its rows waiting on it, each model once:</p>
+  <ul class="small">
+    {% for entry in holes_total.after_work.sums.bases %}<li>{{ entry.label|capfirst }}: likely EUR {{ entry.likely|floatformat:2 }}, high EUR {{ entry.high|floatformat:2 }} ({{ entry.nodes }} step{{ entry.nodes|pluralize }})</li>{% endfor %}
+    {% if holes_total.after_work.sums.guessed.nodes %}<li><span class="unknown">Guessed, not a price</span>: EUR {{ holes_total.after_work.sums.guessed.euros|floatformat:2 }} ({{ holes_total.after_work.sums.guessed.nodes }} step{{ holes_total.after_work.sums.guessed.nodes|pluralize }} never measured)</li>{% endif %}
+    {% if holes_total.after_work.sums.unknown %}<li><span class="unknown">No price and no guess</span>: {{ holes_total.after_work.sums.unknown|length }} step{{ holes_total.after_work.sums.unknown|length|pluralize }}</li>{% endif %}
+  </ul>
+  {% endif %}
+  {% if holes_total.outside %}<p class="small"><span class="unknown">Not priced</span>: {{ holes_total.outside|length }} ship kit step{{ holes_total.outside|length|pluralize }} outside the stage table, named in the details.</p>{% endif %}
+  {% if holes_total.not_checked %}<p class="small"><span class="unknown">Not priced</span>, the holes check never ran: {{ holes_total.not_checked|join:", " }}.</p>{% endif %}
   {% if holes_total.not_in_basket %}<p class="small">{{ holes_total.not_in_basket }} of these paid steps {{ holes_total.not_in_basket|pluralize:"is,are" }} in no basket item yet: the basket holds only what a run would buy now, and a run leaves out a step whose inputs do not stand.</p>{% endif %}
   <p class="small soft">Priced by the runner {{ holes_total.made_at|slice:":16" }}.{% if holes_total.not_current %} Not priced, their holes check stood over outputs no longer accepted: {{ holes_total.not_current|join:", " }}.{% endif %}</p>
   {% else %}
@@ -20,6 +30,8 @@
   </details>{% endif %}
   {% if holes_total.sums %}<details class="ids"><summary>details</summary><div class="fold-body">
     {% if holes_total.sums.guessed.sources %}<h3>Where each guess is written</h3><ul>{% for source in holes_total.sums.guessed.sources %}<li>{{ source.at }}: EUR {{ source.euros|floatformat:2 }} ({{ source.nodes }} step{{ source.nodes|pluralize }})</li>{% endfor %}</ul>{% endif %}
+    {% if holes_total.after_work.places %}<h3>The prop route after each place's prop data</h3><ul>{% for entry in holes_total.after_work.places %}<li>{{ entry.place }}: {{ entry.models }} model{{ entry.models|pluralize }} for {{ entry.holes }} hole{{ entry.holes|pluralize }}: {{ entry.words }}</li>{% endfor %}</ul>{% endif %}
+    {% if holes_total.outside %}<h3>Not priced: outside the stage table</h3><ul>{% for entry in holes_total.outside %}<li>{{ entry.node }} ({{ entry.holes }} hole{{ entry.holes|pluralize }})</li>{% endfor %}</ul>{% endif %}
     {% if holes_total.sums.unknown %}<h3>No price and no guess</h3><ul>{% for node in holes_total.sums.unknown %}<li>{{ node }}</li>{% endfor %}</ul>{% endif %}
   </div></details>{% endif %}
 </section>

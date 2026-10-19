@@ -301,8 +301,8 @@ def test_a_stage_measured_per_unit_is_priced_at_its_units_and_a_node_with_none_t
 
 
 def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it_is_a_guess_that_says_where():
-    """Units forecast before a make (holes' price) give per unit times them, a basis of their own; counted units
-    on an accepted output come first; a stage with no forecast rule, an `also` stage, or no units is a guess with the
+    """Units forecast before a make (holes' price) give per unit times them, a basis of their own, before the units
+    an older accepted output counted (the hole's make makes what it adds, not what the last make made); a stage with no forecast rule, an `also` stage, or no units is a guess with the
     file and line its row names its estimate on."""
     saved, kept = BOOKS.entries, compute.PER_UNIT
     folder = pathlib.Path(tempfile.mkdtemp())
@@ -319,7 +319,9 @@ def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it
         price = compute.run_price("render@lab", 9.0, outputs, units=4, guess_from="score/stages/x.py:12")
         assert (price["likely_euros"], price["high_euros"], price["units"], price["basis"], price["unit_source"]) == (
             0.8, 2.0, 4, "per unit × forecast", "the place's takes"), price
-        assert compute.run_price("render@hangar", 9.0, outputs, units=4)["basis"] == "per unit × counted"
+        again = compute.run_price("render@hangar", 9.0, outputs, units=4)  # an accept of 1 take, 4 forecast
+        assert (again["units"], again["basis"], again["likely_euros"]) == (4, "per unit × forecast", 0.8), again
+        assert compute.run_price("render@hangar", 9.0, outputs)["basis"] == "per unit × counted"  # no forecast given
         for node, units in (("bake@lab", 4), ("crops-render@lab", 4), ("render@lab", 0), ("render@lab", None)):
             found = compute.run_price(node, 3.0, outputs, units=units, guess_from="score/stages/x.py:12")
             assert found["likely_euros"] is None and found["guess_euros"] == 3.0, (node, units, found)

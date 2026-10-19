@@ -250,19 +250,22 @@ GUESSED = {"likely_euros": None, "high_euros": None, "guess_euros": 1.0, "guess_
            "likely_minutes": None, "high_minutes": None, "runs": 0, "basis": "not measured yet", "units": None}
 
 
-def a_holes_price(world):
-    """The runner's price of alpha's holes (score price --holes), made now, after the findings: the close-up priced
-    per unit times its forecast units, the sound it needs to complete only guessed, complete free."""
+def a_holes_price(world, **more):
+    """The runner's price of alpha's holes (score price --holes), made now on this checkout's code, after the
+    findings: the close-up priced per unit times its forecast units, the sound it needs to complete only guessed,
+    complete free (`more` over it)."""
     import json
     from score import graph
+    from score.dashboard.state import local
     folder = world.root / "props/work/checks/holes-price"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "world1.json").write_text(json.dumps({
-        "world": "world1", "made_at": graph.now(), "nodes": {"closeup@alpha": FORECAST, "sound@alpha": GUESSED},
+        "world": "world1", "made_at": graph.now(), "priced_on": {**local.priced_here(), "uncommitted": False},
+        "nodes": {"closeup@alpha": FORECAST, "sound@alpha": GUESSED},
         "chains": {"alpha": {"closeup@alpha": ["closeup@alpha", "complete@alpha", "sound@alpha"],
                              "complete@alpha": ["complete@alpha", "sound@alpha"]}},
         "holes": {"alpha": {}}, "free": ["complete@alpha"], "totals": {},
-        "unfillable": [{"work": ROUGH, "holes": 1}], "outside": [], "not_current": []}))
+        "unfillable": [{"work": ROUGH, "holes": 1}], "outside": [], "not_current": [], "not_checked": [], **more}))
 
 
 def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, settings, tmp_path):
@@ -307,7 +310,7 @@ def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(wor
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "findings.json").write_text(json.dumps({"place": place, "outputs": outputs, "findings": found}))
     total = world.source.holes_total()
-    assert total.counts == {"place": 2} and total.unfillable_count == 2, total
+    assert total.counts == {"place": 2}, total
     assert total.unfillable == ["earth seed lost", "take lost"], total
 
 
@@ -324,6 +327,41 @@ def test_a_stale_holes_price_shows_no_total(world, settings, tmp_path):
     assert "No total" in section and "stale" in section and "EUR 2.00" not in section
     html = signed_in("other").get("/place/alpha/").content.decode()
     assert "Its price is stale" in html and "paid steps in its chain" not in html
+
+
+def test_a_holes_price_made_on_other_code_or_other_per_unit_prices_shows_no_total(world, settings, tmp_path):
+    from score.dashboard.state import holes, local
+    a_holes_finding(world, settings, tmp_path)
+    here = local.priced_here()
+    for priced_on, said in (({**here, "commit": "0" * 40, "uncommitted": False}, "the code moved"),
+                            ({**here, "per_unit_sha256": "0" * 64, "uncommitted": False}, "per-unit prices"),
+                            ({**here, "uncommitted": True}, "code not committed"), (None, "before the price")):
+        a_holes_price(world, priced_on=priced_on)
+        world.source.refresh()
+        total = holes.environment(world.source.holes_total(), world.source.holes_price())
+        assert total["sums"] is None and said in total["stale"] and said in total["words"], (said, total)
+
+
+def test_the_holes_total_names_what_it_could_not_price_and_sums_the_prop_route_after_its_work(world, settings,
+                                                                                               tmp_path):
+    from score.dashboard.state import holes
+    a_holes_finding(world, settings, tmp_path)
+    route = {"work": "prop data for beta: data/props/beta.json", "holes": 3, "models": 2, "in_chains": [],
+             "nodes": {"pixal@beta": {**FORECAST, "units": 2}, "closeup@beta": GUESSED}}
+    a_holes_price(world, after_work={"beta": route}, outside=[{"node": "ship_kit@beta", "holes": 4}],
+                  not_checked=["world"])
+    world.source.refresh()
+    total = holes.environment(world.source.holes_total(), world.source.holes_price())
+    assert total["outside"] == [{"node": "ship_kit@beta", "holes": 4}] and total["not_checked"] == ["world"]
+    assert total["after_work"]["sums"]["bases"] == [{"basis": "per unit × forecast", "label": holes.BASES[2][1],
+                                                     "nodes": 1, "likely": 2.0, "high": 3.0}]
+    assert total["after_work"]["sums"]["guessed"]["euros"] == 1.0
+    assert "1 node outside the stage table" in total["words"] and "1 place never checked" in total["words"]
+    board = signed_in("other").get("/").content.decode()
+    section = re.search(r'<section class="money-card holes-total".*?</section>', board, re.S).group(0)
+    assert "once each place's prop data is written" in section and "the holes check never ran: world" in section
+    assert "1 ship kit step outside the stage table" in section
+    assert NODE.search(outside_details(section)) is None  # the ship kit's node only inside the details
 
 
 def test_the_holes_total_keeps_each_basis_apart_and_a_shared_node_once():
@@ -344,7 +382,11 @@ def test_the_holes_total_keeps_each_basis_apart_and_a_shared_node_once():
     assert found["sums"]["unknown"] == ["film@alpha"]
     # two holes whose chains share lists@alpha: each chain counts it, the environment once
     pixal = holes.hole_chain(type("Hole", (), {"node": "pixal@alpha"}), price, "alpha")
-    assert "2 paid steps in its chain" in pixal["words"]
+    lists = holes.hole_chain(type("Hole", (), {"node": "lists@alpha"}), price, "alpha")
+    assert "2 paid steps in its chain" in pixal["words"] and "1 paid step in its chain" in lists["words"]
+    assert all("lists@alpha" in [row["node"] for row in chain["rows"]] for chain in (pixal, lists))
+    forecast = next(entry for entry in found["sums"]["bases"] if entry["basis"] == "per unit × forecast")
+    assert (forecast["nodes"], forecast["likely"]) == (1, 2.0), forecast
 
 
 def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):

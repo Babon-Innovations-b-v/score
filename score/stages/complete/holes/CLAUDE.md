@@ -31,7 +31,10 @@ findings.json's contract. Bible: `architecture/components`.
 - **The runner prices the holes, the cockpit only sums** (`price.py`, `score price world1 --holes --json`, free and
   local, minutes: run it in the background): each hole's chain (`score/graph/chain.py`: what does not stand before
   its node, and what the place's completion reads after it), each paid node priced once by `compute.run_price` with
-  the units its stage's forecast rule counts (`data/costs/per-unit.json` `forecast`), written to
-  `WORK/checks/holes-price/<world>.json`. It reads the findings only while the outputs they stood over stay accepted.
-  Nothing here buys: a Blocked node is priced, never dropped, and the plan and the run keep their refusals.
+  the units its stage's forecast rule counts (`data/costs/per-unit.json` `forecast`, each model once), written to
+  `WORK/checks/holes-price/<world>.json` with the commit and per-unit prices it was made on. It reads the findings
+  (the world's too) only while the outputs they stood over stay accepted; a place never checked, a stale one and a
+  node outside the table are named in the record, never dropped. The rows waiting on their place's prop data get
+  the prop route (every paid row up to `likeness`) priced apart, after that work. Nothing here buys: a Blocked node
+  is priced, never dropped, and the plan and the run keep their refusals.
 - Run: `.venv/bin/python -m score.stages.complete.holes [--place P ...]`, seconds a place. Test: `holes_test.py`.

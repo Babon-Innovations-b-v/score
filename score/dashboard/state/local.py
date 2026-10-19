@@ -10,6 +10,7 @@ import hashlib
 import json
 import pathlib
 import re
+import subprocess
 from collections import Counter
 
 from score import review, stages
@@ -31,8 +32,33 @@ CHECKS = "checks"
 HOLES = "holes"  # the holes check (score/stages/complete/holes): its findings are the place's holes, listed apart
 HOLE_FIELDS = ("id", "row", "gates", "node", "work", "placed", "low", "high")
 HOLES_PRICE = "holes-price"  # every hole's chain priced: checks/holes-price/<world>.json (score price --holes)
+PER_UNIT = "data/costs/per-unit.json"  # the measured per-unit prices a holes price record is made on
 TIMED = ("accepts/", "rejects/")  # store areas whose keys carry their time: an accept or reject moves what stands
 HOLES_WORLD = "world"  # the holes check's pseudo-place of the environment's own nodes' lost inputs (holes/__main__)
+
+
+def priced_here():
+    """{commit, per_unit_sha256} of this checkout: its commit (None when it cannot be read) and the per-unit
+    prices' sha256, what a holes price record made now would carry (score/stages/complete/holes/price.py
+    priced_on)."""
+    done = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True)
+    return {"commit": done.stdout.strip() if done.returncode == 0 else None,
+            "per_unit_sha256": hashlib.sha256((REPO / PER_UNIT).read_bytes()).hexdigest()}
+
+
+def code_moved(priced_on):
+    """Why a holes price made on `priced_on` (its record's) does not price this checkout's code, or None."""
+    if not priced_on:
+        return "it was made before the price recorded its code"
+    if priced_on.get("uncommitted"):
+        return "it was made on code not committed"
+    here = priced_here()
+    if here["commit"] is None or priced_on.get("commit") != here["commit"]:
+        return (f"the code moved since it was made (commit {str(priced_on.get('commit'))[:8]}, "
+                f"now {str(here['commit'])[:8]})")
+    if priced_on.get("per_unit_sha256") != here["per_unit_sha256"]:
+        return f"the per-unit prices ({PER_UNIT}) changed since it was made"
+    return None
 
 
 def lost_once(holes):
@@ -480,14 +506,11 @@ class LocalSource:
 
     def holes_total(self):
         """Every place's holes and the environment's own lost inputs (HOLES_WORLD) in sum, a lost input once
-        (lost_once): counts by rule, the distinct nodes that fill them (the paid ones apart), the work no stage does."""
+        (lost_once): counts by rule and the work no stage does."""
         def read():
             holes = lost_once([hole for place in [*self.places(), HOLES_WORLD] for hole in self.holes(place)])
-            work = [hole.work for hole in holes if hole.node is None]
-            nodes = sorted({hole.node for hole in holes if hole.node})
-            return HolesTotal(counts=dict(Counter(hole.rule for hole in holes)), nodes=nodes,
-                              paid_nodes=[node for node in nodes if self.paid_node(node)],
-                              unfillable=sorted(set(work)), unfillable_count=len(work))
+            return HolesTotal(counts=dict(Counter(hole.rule for hole in holes)),
+                              unfillable=sorted({hole.work for hole in holes if hole.node is None}))
         return self.remembered("holes total", read)
 
     def holes_price(self):
@@ -498,13 +521,17 @@ class LocalSource:
                 return None
             written = json.loads(path.read_text())
             fields = {name: written[name] for name in HolesPrice.model_fields if name in written}
-            return HolesPrice(**fields, stale=self.price_stale(path, written["made_at"]))
+            return HolesPrice(**fields, stale=self.price_stale(path, written))
         return self.remembered("holes price", read)
 
-    def price_stale(self, path, made_at):
-        """Why a holes price record no longer stands (an output accepted or rejected after it was made, or a holes
-        check written after it), or None: the rule of current_findings, so a stale record shows no number."""
-        since = stamp_key(made_at)
+    def price_stale(self, path, written):
+        """Why a holes price record no longer stands (made on other code or other per-unit prices than this
+        checkout's, an output accepted or rejected after it was made, or a holes check written after it), or None:
+        the rule of current_findings, so a stale record shows no number."""
+        moved = code_moved(written.get("priced_on"))
+        if moved:
+            return moved
+        since = stamp_key(written["made_at"])
         moved = [key for area in TIMED for key in self.index.prefixed(area)
                  if key.rsplit("/", 1)[-1].rsplit("-", 1)[0] > since]
         if moved:
