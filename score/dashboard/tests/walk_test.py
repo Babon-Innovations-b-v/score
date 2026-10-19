@@ -74,8 +74,9 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     assert "A rough-model stage</b>: 1 hole at 1 place" in work and ROUGH + " (1 hole)" in work
     assert html.index('aria-label="what to buy first"') < html.index('aria-label="code work no stage does yet"')
     total = unescape(section(html, "what every place still needs"))
-    assert ("The runner's price today: likely EUR 2, high EUR 3 measured by per unit × forecast, plus EUR 1 "
-            "guessed") in total
+    # the one figure leads; the measured share alone is never said first as if it were the total
+    assert "The runner's price today" not in total and "likely EUR 2, high EUR 3 measured by" not in total
+    assert total.index("What the runner can price today") < total.index("To fill what the runner can")
     assert ("2 not made yet, 1 made but failing a check, 1 step of the route not done, 0 inputs lost (each once, "
             "however many places read it).") in total  # route steps and lost inputs apart
     # what the runner prices today, its measured share by its basis; the rough model's paid work named, not priced
@@ -121,7 +122,7 @@ def test_a_place_shows_its_holes_tree_its_groups_and_each_lines_source(cockpit):
         assert f'<span class="source small">{label}</span>' in html, label
     lamp = re.search(r'<li id="hole-missing:lamp_1" data-anchor="hole-missing:lamp_1">(.*?)</li>', html, re.S).group(1)
     assert 'href="/view/alpha?holes=1&amp;hole=missing%3Alamp_1"' in lamp
-    assert "Needs the close-ups step of the alpha; its chain is 3 steps, 2 of them paid." in lamp
+    assert "Needs the close-ups step of The alpha look; its chain is 3 steps, 2 of them paid." in lamp  # its title, as on the board
     assert "Every paid step its holes' chains need, each once: likely EUR 2.00, high EUR 3.00 measured" in html
     assert "The whole environment" not in html
     assert NODE.search(outside_details(html)) is None
@@ -204,7 +205,7 @@ def test_a_lost_input_blocks_the_places_reading_it_and_the_prop_data_is_said_apa
     work = unescape(section(html, "code work no stage does yet"))
     assert "Earth seed lost: a seed row that exports each place's base</b>: 1 lost input at 2 places" in work
     total = unescape(section(html, "what every place still needs"))
-    assert "once the prop data of 1 place is written, more: likely EUR 2, high EUR 3 measured by per unit" in total
+    assert "After the prop data code work, more: EUR 2.00 to EUR 3.00, of which EUR 2.00 to 3.00 measured" in total
     # one figure with the prop route after its code work in it: today's 3 to 4 and the route's 2 to 3
     assert ("<b>Both together, the prop route after its code work in it: EUR 5.00 to EUR 7.00</b>, of which EUR 4.00 "
             "to 6.00 measured by per unit × forecast (2 of 3 paid steps)") in total
@@ -230,3 +231,56 @@ def test_a_lost_inputs_item_keeps_its_colons():
     hole = SimpleNamespace(id="place:lost:data:surfaces/launch.json:bake entry far_rocket_1", rule="place")
     assert plain.lost_item(hole.id) == "surfaces/launch.json:bake entry far_rocket_1"
     assert present.source_label(hole) == "lost input surfaces/launch.json:bake entry far_rocket_1"
+
+
+def a_shared_step(world):
+    """beta's holes check with one lamp the close-up fills, and the runner's price with the ground (`terrain`, the
+    environment's one node, only guessed) in the chains of both places, so it is in both rows and once in the total."""
+    from score.dashboard.tests.pages_test import GUESSED
+    folder = world.root / "props/work/checks/holes/beta"
+    folder.mkdir(parents=True, exist_ok=True)
+    lamp = {"id": "missing:lamp_1", "rule": "missing", "kind": "generate", "sentence": "a lamp: nothing made for it yet",
+            "picture": None, "row": "lamp", "gates": [], "source": "inventory", "node": "closeup@beta", "work": None,
+            "placed": "spot", "prim": "/beta/Holes/lamp_1", "low": [0, 0, 0], "high": [1, 1, 1]}
+    (folder / "findings.json").write_text(json.dumps({"place": "beta", "outputs": {
+        "assembly@beta": world.outputs["assembly@beta"]}, "findings": [lamp]}))
+    a_holes_price(world, nodes={"closeup@alpha": FORECAST, "sound@alpha": GUESSED, "terrain": GUESSED,
+                                "closeup@beta": FORECAST},
+                  chains={"alpha": {"closeup@alpha": ["closeup@alpha", "complete@alpha", "sound@alpha", "terrain"],
+                                    "complete@alpha": ["complete@alpha", "sound@alpha", "terrain"]},
+                          "beta": {"closeup@beta": ["closeup@beta", "terrain"]}},
+                  holes={"alpha": {}, "beta": {}})
+
+
+def test_a_step_two_places_share_is_in_both_rows_once_in_the_total_and_the_page_says_so(cockpit):
+    a_shared_step(cockpit)
+    cockpit.source.refresh()
+    html = unescape(signed_in().get("/").content.decode())
+    total = section(html, "what every place still needs")
+    assert "<b>What the runner can price today: EUR 6.00 to EUR 8.00</b>" in total  # 2+2 to 3+3 measured, 1+1 guessed
+    places = section(html, "every place")
+    rows = re.findall(r'<a href="/place/\w+/">.*?</tr>', places, re.S)
+    guessed = [float(re.findall(r'<td class="num" title="guessed, not a price">([^<]*)</td>', row)[0]) for row in rows]
+    assert sum(guessed) == 3.0  # the ground's guess in both rows: the column adds up to more than the total's 2
+    note = places[:places.index("<table")]
+    assert ("A paid step several places share is counted in each of their rows and only once in the total above"
+            in note)
+    assert ("Shared by two or more places: 1 paid step, likely EUR 0.00, high EUR 0.00 measured, plus EUR 1.00 "
+            '<span class="unknown">guessed, not a price</span>.') in note
+    own = dict(re.findall(r'<a href="/place/(\w+)/">.*?<td class="num own"[^>]*>([^<]*)</td>', places, re.S))
+    assert own == {"alpha": "2.00 to 3.00, 1.00 guessed", "beta": "2.00 to 3.00"}, own  # the ground in neither
+
+
+def test_a_holes_check_run_again_shows_at_once_not_after_the_index(cockpit):
+    import os
+    client = signed_in()
+    before = unescape(section(client.get("/").content.decode(), "what every place still needs"))
+    assert "What the runner can price today: EUR 3.00 to EUR 4.00" in before
+    findings = cockpit.root / "props/work/checks/holes/alpha/findings.json"
+    price = cockpit.root / "props/work/checks/holes-price/world1.json"
+    findings.write_text(findings.read_text())  # the holes check ran again; the store's index is not rebuilt
+    later = price.stat().st_mtime + 2
+    os.utime(findings, (later, later))
+    after = unescape(section(client.get("/").content.decode(), "what every place still needs"))
+    assert "What the runner can price today" not in after
+    assert "the holes check ran again at 1 place since the price was made" in after

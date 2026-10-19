@@ -31,7 +31,7 @@
       {% if line.view_url %}<a class="small" href="{{ line.view_url }}">frame it in 3D</a>{% endif %}
       <details class="ids"><summary>{% if line.chain %}its chain{% else %}as written{% endif %}</summary><div class="fold-body">
         <p>{% if line.chain %}{{ line.chain.words|capfirst }}{% else %}{{ line.said|capfirst }}{% endif %}. The check wrote: {{ line.full }}</p>
-        {% if line.chain %}<ul>{% for row in line.chain.rows %}<li>{{ row.node }}: {{ row.basis }}{% if row.euros %}, {{ row.euros }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+        {% if line.chain %}<ul>{% for row in line.chain.rows %}<li>{{ row.words|capfirst }} ({{ row.node }}): {{ row.basis }}{% if row.euros %}, {{ row.euros }}{% endif %}</li>{% endfor %}</ul>{% endif %}
       </div></details></li>
   {% endfor %}</ul>
   {% endfor %}

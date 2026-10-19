@@ -76,7 +76,7 @@ def board(request):
     money = present.money(month_money.view(world.spend), planned)
     details = every_place_holes(source)
     price = world.holes_price
-    names = {tile["place"]: tile["name"] for group in shown for tile in group["tiles"]}
+    names = present.place_names(shown)
     with_world = {**details, holes.WORLD: world_holes(source)}
     first = holes.buy_first(price, details, items)
     buy = present.buy_lines(first, holes.code_first(price, details), names, holes.owner_work(with_world))
@@ -87,6 +87,7 @@ def board(request):
         "world": world, "environment_name": present.environment_name(world.world),
         "groups": present.with_holes(shown, places), "holes_total": total,
         "headline": holes.headline(price) if total else None, "places": places,
+        "shared": holes.shared_money(price, details),
         "not_priced_yet": holes.unpriced_work(price, with_world) if total else None,
         "blockers": present.blockers(money, world.spend, holes.lost_inputs(with_world), names,
                                      {entry["node"] for entry in first}),
@@ -144,7 +145,8 @@ def place_page(request, place):
         "breakdown": breakdown.breakdown(detail, style, step_url,
                                          sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
                                          source.step_detail(None, GROUND_STAGE)),
-        "problems": present.problems(detail), "holes": present.hole_groups(detail, items, price),
+        "problems": present.problems(detail),
+        "holes": present.hole_groups(detail, items, price, present.place_names(present.look_groups(world, set()))),
         "tree": present.prim_tree(detail) if detail.holes else None,
         "holes_3d": bool(present.hole_marks(detail)),
         "place_money": holes.place_row(place, detail.holes, price),

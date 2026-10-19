@@ -22,20 +22,25 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   prop data (`after_work`) is summed apart, after that code work; a node outside the table and a place never
   checked are named, never read as nothing to pay. A record made on another commit, on code not committed or on
   other per-unit prices than this checkout's (`priced_on`, `code_moved`), or older than any accept or reject or any
-  holes check shows no number (`price_stale`, the rule of `current_findings`). A hole whose node a basket item
+  holes check shows no number (`price_stale`, the rule of `current_findings`); the holes, their total and their
+  price are read again as soon as a holes findings or the price record is written (`holes_written`, a stat each per
+  request), never after the 60 s index. A hole whose node a basket item
   carries links that item, where it is bought; the total no longer reads the basket. The board is the environment's
   overview from the same record and findings, judging nothing: a row a place (`per_place`: holes by kind, worst
-  first: lost input, route step, missing, gate; its chains' paid nodes once), the steps that block every paid step
+  first: lost input, route step, missing, gate; its chains' paid nodes once, so a step several places share is in
+  each of their rows and once in the total, which the table says above it; `own` the steps no other place's chain
+  has, `shared_money` the shared ones once), the steps that block every paid step
   (no stop, the month's books `paid_refused`, each kind of lost input), then `buy_first` (each paid node by how many
   holes have it in their chain, a count, and how many of those wait first on a lost input or a route step at their
   place; when every one waits, `code_first` comes first: the code work the places wait on by the holes in paid
   chains there, then euros, and the steps fold), the code work folded into tasks (`work_groups`, `WORK_TASKS`;
   holes counted from the findings, a lost input once; a line the owner does himself, `OWNER`, is never code work:
-  `owner_work` and the blockers say it as "Only you can do this", with his files) and the money `headline` with one
+  `owner_work` and the blockers say it as "Only you can do this", with his files) and the money, led by one
   figure of what the runner can price today (`whole_of`: low the measured likely plus the guesses, high the measured
   high plus the guesses, the measured share in euros, steps and its bases; the prop route after its code work said
   apart and added in, `whole_plus`), and the paid work the code work brings that no record prices yet named with
-  the holes it holds back (`unpriced_work`, `BRINGS`). A lost input kind's blocker splits its inputs by what brings
+  the holes it holds back (`unpriced_work`, `BRINGS`), then `headline`: only the holes no figure holds (outside
+  the table, waiting on code work), never the figures again. A lost input kind's blocker splits its inputs by what brings
   them back: code work, or a paid step (linked to its buy-first line). Places and steps are said by their titles
   (`groups.place_title`, `groups.label`), never their keys, outside a details fold. Counts are by kind (lost input once, route step, missing, gate);
   a board card carries its place's holes and worst kind beside its steps' status. A place page shows its holes layer as a tree

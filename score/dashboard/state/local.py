@@ -62,6 +62,14 @@ def code_moved(priced_on):
     return None
 
 
+def written_at(path):
+    """When a file was last written (its mtime in nanoseconds), None when it is not there."""
+    try:
+        return path.stat().st_mtime_ns
+    except FileNotFoundError:
+        return None
+
+
 def lost_once(holes):
     """The holes with each lost input (`<rule>:lost:...`, its id names the thing) once however many places read it,
     as the holes check's summary counts them (holes/inputs.py `distinct`); every other hole as it is."""
@@ -162,7 +170,8 @@ class LocalSource:
         self.rows_at = {}
 
     def remembered(self, key, work):
-        """`work()` once per index build."""
+        """`work()` once per index build and key (a key may carry when its files were written, so it is read again
+        once they change)."""
         self.index  # noqa: B018  (a new build clears what was remembered)
         if key not in self.memo:
             self.memo[key] = work()
@@ -493,12 +502,13 @@ class LocalSource:
     def holes(self, place):
         """What the place's route still needs (the holes check's findings), while the outputs it stood over stay
         accepted; [] when it has not run."""
+        path = self.props_home / "work" / CHECKS / HOLES / place / "findings.json"
+
         def read():
-            path = self.props_home / "work" / CHECKS / HOLES / place / "findings.json"
             written = self.current_findings(path) if path.is_file() else None
             return [self.finding(HOLES, place, item).model_copy(update={"paid": self.paid_node(item.get("node"))})
                     for item in (written or {}).get("findings", [])]
-        return self.remembered(("holes", place), read)
+        return self.remembered(("holes", place, written_at(path)), read)
 
     def paid_node(self, node):
         """Whether a node's stage is paid; None with no node or for a stage outside the table (the ship kits')."""
@@ -512,18 +522,26 @@ class LocalSource:
             holes = lost_once([hole for place in [*self.places(), HOLES_WORLD] for hole in self.holes(place)])
             return HolesTotal(counts=dict(Counter(hole_kind(hole) for hole in holes)),
                               unfillable=sorted({hole.work for hole in holes if hole.node is None}))
-        return self.remembered("holes total", read)
+        return self.remembered(("holes total", self.holes_written()), read)
+
+    def holes_written(self):
+        """(place, when its findings were written) of every holes check's findings, read on each call (a stat each):
+        what the holes read is remembered by, so a holes check that ran again shows at once, not after the index's
+        next build."""
+        return tuple(sorted((path.parent.name, written_at(path))
+                            for path in (self.props_home / "work" / CHECKS / HOLES).glob("*/findings.json")))
 
     def holes_price(self):
         """The runner's price of every hole's chain, with why it is stale; None before `score price --holes` ran."""
+        path = self.props_home / "work" / CHECKS / HOLES_PRICE / f"{self.world.name}.json"
+
         def read():
-            path = self.props_home / "work" / CHECKS / HOLES_PRICE / f"{self.world.name}.json"
             if not path.is_file():
                 return None
             written = json.loads(path.read_text())
             fields = {name: written[name] for name in HolesPrice.model_fields if name in written}
             return HolesPrice(**fields, stale=self.price_stale(path, written))
-        return self.remembered("holes price", read)
+        return self.remembered(("holes price", written_at(path), self.holes_written()), read)
 
     def price_stale(self, path, written):
         """Why a holes price record no longer stands (made on other code or other per-unit prices than this

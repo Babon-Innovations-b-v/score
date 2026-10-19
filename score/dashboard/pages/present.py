@@ -255,28 +255,36 @@ def source_label(hole):
     return f"lost input {plain.lost_words(hole.id or '')}"
 
 
-def needs_words(hole, price, place):
-    """What fills a hole and how long its chain is, in words; None when there is no chain to say."""
+def needs_words(hole, price, place, names=None):
+    """What fills a hole and how long its chain is, in words (places by their titles in `names`); None when there is
+    no chain to say."""
     current = price is not None and not price.stale and hole.node
     nodes = price.chains.get(place, {}).get(hole.node) if current else None
     if nodes is None:
         return None
     paid = sum(node in price.nodes for node in nodes)
-    return f"needs {node_words(hole.node)}; its chain is {holes.steps(len(nodes))}, {paid} of them paid"
+    return f"needs {node_words(hole.node, names)}; its chain is {holes.steps(len(nodes))}, {paid} of them paid"
 
 
-def hole_line(entry, place, count, price):
+def hole_line(entry, place, count, price, names=None):
     """One line of the holes list: the hole in plain words, where it was read, the step that fills it and its
-    chain's length (the chain itself, priced by the runner, for a fold), its basket item, or what stands in the
-    way, and the viewer framing it when it has a box."""
+    chain's length (the chain itself, priced by the runner, for a fold, each step in words), its basket item, or what
+    stands in the way, and the viewer framing it when it has a box. `names` the places' titles."""
     hole = entry["hole"]
     said = entry["said"]
     return {"sentence": plain.hole_sentence(hole, place, count), "source": source_label(hole),
-            "needs": needs_words(hole, price, place), "chain": entry["chain"],
+            "needs": needs_words(hole, price, place, names), "chain": chain_in_words(entry["chain"], names),
             "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None,
             "said": said, "short": f"{holes.NO_STAGE}: {holes.work_task(hole.work)}" if hole.node is None else said,
             "full": hole.sentence, "id": hole.id, "anchor": f"hole-{hole.id}", "filled_by": hole.node or hole.work,
             "view_url": f"/view/{place}?holes=1&hole={quote(hole.id or '')}" if hole.low is not None else None}
+
+
+def chain_in_words(chain, names=None):
+    """A hole's chain (holes.hole_chain) with each step said in words (`words`, node_words), or None."""
+    if chain is None:
+        return None
+    return {**chain, "rows": [{**row, "words": node_words(row["node"], names)} for row in chain["rows"]]}
 
 
 def framed_hole(detail, ident):
@@ -304,10 +312,10 @@ def line_key(hole):
     return (holes.kind_of(hole), hole.row if hole.rule == "missing" else hole.id)
 
 
-def hole_groups(detail, items, price):
+def hole_groups(detail, items, price, names=None):
     """[{kind, title, left, count, lines, framable}] of the place's holes by kind, worst first; a row's missing
     objects on one line. Each group says what happens if its holes are left, and whether any of its lines has a box
-    the viewer can frame."""
+    the viewer can frame. `names` the places' titles, for the steps of each chain."""
     found = {kind: [] for kind, _ in holes.KINDS}
     counted = {}
     for entry in holes.priced(detail.holes, items, price, detail.place):
@@ -320,7 +328,7 @@ def hole_groups(detail, items, price):
     grouped = []
     for kind, title in holes.KINDS:
         if found[kind]:
-            lines = [hole_line(counted[key][0], detail.place, counted[key][1], price) for key in found[kind]]
+            lines = [hole_line(counted[key][0], detail.place, counted[key][1], price, names) for key in found[kind]]
             grouped.append({"kind": kind, "title": title, "left": plain.LEFT[kind], "lines": lines,
                             "count": sum(counted[key][1] for key in found[kind]),
                             "framable": any(line["view_url"] for line in lines)})
@@ -419,9 +427,15 @@ STATUS_WORDS = {"lost": ("a lost input", "bad"), "route": ("route steps not done
                 "missing": ("objects not made", "review"), "gate": ("made, failing checks", "review")}
 
 
+def place_names(shown):
+    """{place: its title} of the board's groups (look_groups), the names every page says a place by."""
+    return {tile["place"]: tile["name"] for group in shown for tile in group["tiles"]}
+
+
 def overview(rows, names):
     """The overview's rows: each place's row with its name and its status, the worst kind of hole it has (or that
-    it was not checked), and its next route step."""
+    it was not checked), its next route step, and its own steps' high with their guess to sort by (`own_sort`, -1 with
+    no price)."""
     found = []
     for row in rows:
         if row["not_checked"]:
@@ -432,7 +446,8 @@ def overview(rows, names):
         else:
             status = {"words": "no holes found", "tone": "done"}
         found.append({**row, "name": names.get(row["place"], place_title(row["place"])), "status": status,
-                      "next": sentence(row["next"]) if row["next"] else None})
+                      "next": sentence(row["next"]) if row["next"] else None,
+                      "own_sort": round(own["high"] + own["guessed"], 2) if (own := row.get("own")) else -1})
     return found
 
 
