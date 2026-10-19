@@ -28,7 +28,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 from score import graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.adapters.compute import guard  # noqa: E402
-from score.store import Store  # noqa: E402
+from score.store import Store, durable  # noqa: E402
 
 
 def owner_at_terminal():
@@ -81,6 +81,7 @@ def set_stop(store, world, euros, reason):
 
 def main(argv=None):
     options = parse(argv)
+    durable.install()  # the owner's accepts, rejects, waivers and spend yeses written synced (score/store/durable.py)
     store = Store.default()
     if options.command == "page":
         print(review.page(store, options.node, options.key))

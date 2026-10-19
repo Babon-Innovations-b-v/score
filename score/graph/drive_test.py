@@ -377,14 +377,26 @@ def test_status_lists_each_prefix_once_and_works_out_each_key_once():
     assert runner.remembered is None and "keys" not in vars(runner.store.objects)
 
 
+@contextlib.contextmanager
+def logs_in_tmp():
+    """A detached run's logs in a folder of the test's own, never the real $PROPS_HOME/logs; that folder."""
+    from score.graph import runs
+    kept, runs.LOGS = runs.LOGS, pathlib.Path(tempfile.mkdtemp())
+    try:
+        yield runs.LOGS
+    finally:
+        runs.LOGS = kept
+
+
 def test_detach_returns_at_once_with_the_log_its_result_line_last():
     from score import __main__ as command
     printed = io.StringIO()
     started = time.time()
-    with contextlib.redirect_stdout(printed):
+    with contextlib.redirect_stdout(printed), logs_in_tmp() as logs:
         command.detach(["-c", "import time; time.sleep(3); print('the run went on')", command.DETACH])
     assert time.time() - started < 2.5, time.time() - started
     log = pathlib.Path(printed.getvalue().strip().rpartition("log=")[2])
+    assert log.parent == logs, log
     assert printed.getvalue().startswith("detached: started pid=") and log.exists(), printed.getvalue()
     deadline = time.time() + 60
     while "detached:" not in log.read_text() and time.time() < deadline:
@@ -398,10 +410,11 @@ def test_a_detached_run_stopped_by_a_signal_still_ends_with_its_line():
     import signal
     from score import __main__ as command
     printed = io.StringIO()
-    with contextlib.redirect_stdout(printed):
+    with contextlib.redirect_stdout(printed), logs_in_tmp() as logs:
         command.detach(["-c", "import time; print('working', flush=True); time.sleep(60)", command.DETACH])
     pid = int(printed.getvalue().split("pid=")[1].split()[0])
     log = pathlib.Path(printed.getvalue().strip().rpartition("log=")[2])
+    assert log.parent == logs, log
     deadline = time.time() + 30
     while "working" not in log.read_text() and time.time() < deadline:
         time.sleep(0.1)
