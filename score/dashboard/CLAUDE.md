@@ -23,7 +23,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   checked are named, never read as nothing to pay. A record made on another commit, on code not committed or on
   other per-unit prices than this checkout's (`priced_on`, `code_moved`), or older than any accept or reject or any
   holes check shows no number (`price_stale`, the rule of `current_findings`). A hole whose node a basket item
-  carries links that item, where it is bought; the total no longer reads the basket.
+  carries links that item, where it is bought; the total no longer reads the basket. The board is the environment's
+  overview from the same record and findings, judging nothing: a row a place (`per_place`: holes by kind, worst
+  first: lost input, route step, missing, gate; its chains' paid nodes once), the steps that block every paid step
+  (no stop, the month's books `paid_refused`, each kind of lost input), then `buy_first` (each paid node by how many
+  holes have it in their chain, a count), the code work folded into tasks (`work_groups`, `WORK_TASKS`) and the
+  money `headline` (the prop route after its code work said apart). A place page shows its holes layer as a tree
+  (`present.prim_tree`; no accepted assembly gives a whole scene tree yet), its holes by kind with each line's source
+  and a `/view/<place>?holes=1&hole=<id>` link the viewer frames (holes alone over a grid while no web copy exists).
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` prices a plan from measured
   runs only; `gaps.py` gives each named gap its step and a picture of what it names (local source only), `plain.py`
   says each problem in one plain sentence.

@@ -30,7 +30,7 @@ LOG_LINES = 40
 # ({"outputs": {node: the output judged}, "findings": [{"rule", "prim", "sentence", "picture"}]}).
 CHECKS = "checks"
 HOLES = "holes"  # the holes check (score/stages/complete/holes): its findings are the place's holes, listed apart
-HOLE_FIELDS = ("id", "row", "gates", "node", "work", "placed", "low", "high")
+HOLE_FIELDS = ("id", "row", "gates", "source", "node", "work", "placed", "low", "high")
 HOLES_PRICE = "holes-price"  # every hole's chain priced: checks/holes-price/<world>.json (score price --holes)
 PER_UNIT = "data/costs/per-unit.json"  # the measured per-unit prices a holes price record is made on
 TIMED = ("accepts/", "rejects/")  # store areas whose keys carry their time: an accept or reject moves what stands

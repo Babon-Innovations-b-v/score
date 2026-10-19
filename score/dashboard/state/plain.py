@@ -5,6 +5,7 @@ import re
 
 NUMBERED = re.compile(r"(_\d+|-[a-z]\d+)$")  # an instance number or a take's suffix
 MOST_NAMED = 4
+LOST = "place:lost:"  # a lost input's hole id: place:lost:<kind>:<item> (score/stages/complete/holes/__main__.py)
 # Each check of a named gap as a plain sentence, said of one thing and of several: {things} the named things in
 # words, {place} the place.
 SAID = {
@@ -40,6 +41,11 @@ SAID = {
               "{things} are missing from {place}: its layout rule never places them here."),
 }
 SAID["grounded"] = SAID["boxes"]
+# What happens if a hole of each kind is left (state/holes.py KINDS).
+LEFT = {"missing": "the place cannot be complete while a row of its scene inventory has no object.",
+        "gate": "the place cannot be complete while a made object fails its check.",
+        "route": "no step after it can run for this place, so nothing below it can be made.",
+        "lost": "every step that reads it stays blocked, here and at every other place that reads it."}
 NO_LIKENESS = "The props in {place} were never compared with their close-up pictures: it has no props list."
 
 
@@ -105,6 +111,8 @@ def hole_sentence(hole, place, count=1):
         many = f" ({count} of them)" if count > 1 else ""
         nowhere = "; the inventory gives it no spot" if hole.placed == "unplaced" else ""
         return capital(f"{name} should be in {place_words(place)} but nothing is made for it yet{many}{nowhere}.")
+    if (hole.id or "").startswith(LOST):  # its words name the file and the steps reading it: kept for the fold
+        return f"An input {place_words(place)}'s steps read is lost: {hole.id.rsplit(':', 1)[-1]}."
     gate = (hole.gates or ["/"])[0].split("/", 1)[1]
     if hole.rule == "gate" and gate in SAID:
         names = thing_names([hole.prim or (hole.id or "").split(":", 2)[-1]])  # the object its id names

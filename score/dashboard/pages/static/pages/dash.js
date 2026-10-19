@@ -139,3 +139,48 @@ for (const form of document.querySelectorAll("form[data-post]")) {
     }
   });
 }
+
+// A table with class "sortable" sorts by the column a heading click names: by each cell's data-value, else its words,
+// as numbers when both are numbers; a second click turns the order round.
+function cellValue(row, column) {
+  const cell = row.cells[column];
+  return cell ? (cell.dataset.value ?? cell.textContent.trim()) : "";
+}
+function sortBy(table, column, down) {
+  const body = table.tBodies[0];
+  const rows = [...body.rows].sort((one, other) => {
+    const [left, right] = [cellValue(one, column), cellValue(other, column)];
+    const numbers = left !== "" && right !== "" && !isNaN(left) && !isNaN(right);
+    const order = numbers ? Number(left) - Number(right) : left.localeCompare(right);
+    return down ? -order : order;
+  });
+  body.append(...rows);
+}
+for (const table of document.querySelectorAll("table.sortable")) {
+  [...table.tHead.rows[0].cells].forEach((heading, column) => {
+    heading.tabIndex = 0;
+    heading.onclick = () => {
+      const down = heading.dataset.order !== "down";
+      for (const other of table.tHead.rows[0].cells) delete other.dataset.order;
+      heading.dataset.order = down ? "down" : "up";
+      sortBy(table, column, down);
+    };
+  });
+}
+
+// A place's holes: a link to #hole-<id> lights its line of the list and its node in the tree, and opens the tree's
+// folds above it.
+function lightHole() {
+  for (const element of document.querySelectorAll(".lit")) element.classList.remove("lit");
+  const anchor = decodeURIComponent(location.hash.slice(1));
+  if (!anchor.startsWith("hole-")) return;
+  for (const element of document.querySelectorAll("[data-anchor]")) {
+    if (element.dataset.anchor !== anchor) continue;
+    element.classList.add("lit");
+    for (let fold = element.parentElement?.closest("details"); fold; fold = fold.parentElement?.closest("details")) {
+      fold.open = true;
+    }
+  }
+}
+window.addEventListener("hashchange", lightHole);
+lightHole();

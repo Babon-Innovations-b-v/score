@@ -6,7 +6,7 @@
 <title>{{ detail.place|capfirst }} in 3D</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/pages/dash.css">
-{% if detail.web3d %}
+{% if detail.web3d or holes_only %}
 <script type="importmap">
 { "imports": {
   "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
@@ -32,9 +32,11 @@
   {% endif %}
   <p class="small soft">What it changes is outlined: <span class="mark-key added">added or changed</span> <span class="mark-key removed">taken out</span>.</p>
   {% endif %}
-  {% if detail.web3d or showing == "after" %}
-  <p class="small soft">Made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage than the place's current one{% endif %}.</p>
-  <p id="status" class="small" role="status">Loading the preview...</p>
+  {% if detail.web3d or showing == "after" or holes_only %}
+  {% if holes_only %}<p class="small soft">The place itself is not drawn: each hole's box stands over a ground grid a
+    metre a square. <span class="mark-key missing">not made yet</span> <span class="mark-key gate">failing a check</span></p>
+  {% else %}<p class="small soft">Made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage than the place's current one{% endif %}.</p>{% endif %}
+  <p id="status" class="small" role="status">{% if holes_only %}No 3D web copy of this place yet: only its holes are drawn.{% else %}Loading the preview...{% endif %}</p>
 
   <h2>Move</h2>
   <label><input type="radio" name="move" value="orbit" checked> Orbit: drag, wheel</label>

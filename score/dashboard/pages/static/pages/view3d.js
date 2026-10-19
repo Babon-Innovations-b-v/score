@@ -146,6 +146,7 @@ function aimAt(eye, aim, fov) {
   const ahead = new THREE.Vector3(...aim).sub(camera.position);
   orbit.target.copy(camera.position).addScaledVector(ahead.normalize(), Math.min(ORBIT_REACH, ahead.length() || 1));
   if (fov) setAcross(fov);
+  window.__aim = { eye: [...eye], aim: [...aim] };  // where the camera was last aimed, for the browser walk
 }
 
 // --- light -----------------------------------------------------------------------------------------------------
@@ -967,13 +968,45 @@ scene.add(changeMarks);
 
 function markChanges(marks) {
   for (const mark of marks) {
-    const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high)).expandByScalar(0.03);
-    const outline = new THREE.Box3Helper(box, MARK_COLOURS[mark.kind] || 0xffffff);
-    outline.material.depthTest = false;
-    outline.renderOrder = 10;
-    changeMarks.add(outline);
+    const framed = given.hole && mark.id === given.hole;
+    // a line is one pixel wide in WebGL, so the framed hole is drawn thicker as nested outlines, white
+    for (const grow of framed ? [0.03, 0.05, 0.07, 0.09] : [0.03]) {
+      const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high)).expandByScalar(grow);
+      const outline = new THREE.Box3Helper(box, framed ? 0xffffff : MARK_COLOURS[mark.kind] || 0xffffff);
+      outline.material.depthTest = false;
+      outline.renderOrder = 10;
+      changeMarks.add(outline);
+    }
   }
   $("to-changes").hidden = !marks.length;
+}
+
+// A hole given by the page (`?hole=<id>`): looked at from above one corner, at a distance its size asks for.
+function holeView() {
+  const mark = (given.marks || []).find((each) => given.hole && each.id === given.hole);
+  if (!mark) return null;
+  const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high));
+  const middle = box.getCenter(new THREE.Vector3()), reach = Math.max(box.getSize(new THREE.Vector3()).length(), 1) * 1.6;
+  return { eye: [middle.x + reach, middle.y + reach * 0.7, middle.z + reach], aim: middle.toArray(), fov: 60 };
+}
+
+// No web copy yet (given.holes_only): only the holes' boxes, over a ground grid a metre a square, so a hole can be
+// framed today; the place itself is not drawn.
+const GRID_METRES = 200;
+function openHolesOnly() {
+  resize();
+  window.addEventListener("resize", resize);
+  lightTheSky({ background: [0.05, 0.05, 0.05], ambient: [0.5, 0.5, 0.5], exposure: 1 });
+  scene.add(new THREE.GridHelper(GRID_METRES, GRID_METRES, 0x555555, 0x2a2a2a));
+  markChanges(given.marks || []);
+  const all = new THREE.Box3();
+  for (const outline of changeMarks.children) all.union(outline.box);
+  const middle = all.getCenter(new THREE.Vector3()), reach = Math.max(all.getSize(new THREE.Vector3()).length(), 2);
+  const first = holeView() || { eye: [middle.x + reach * 0.6, middle.y + reach * 0.5, middle.z + reach * 0.6],
+                                aim: middle.toArray(), fov: 60 };
+  aimAt(first.eye, first.aim, first.fov);
+  say("No 3D web copy of this place yet: only its holes are drawn.");
+  requestAnimationFrame(frame);
 }
 
 // From `from` (a camera), looking at the middle of what changes; `from` itself when nothing is outlined.
@@ -1167,7 +1200,7 @@ async function open() {
   viewButtons();
   markChanges(given.marks || []);
   // a breakdown link: the film's camera; a basket item: the first camera turned to what it changes
-  const first = linkedView() || given.at || lookingAtChanges((sidecar.cameras || [])[0]);
+  const first = holeView() || linkedView() || given.at || lookingAtChanges((sidecar.cameras || [])[0]);
   if (first) aimAt(first.eye, first.aim, first.fov);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   requestAnimationFrame(frame);
@@ -1187,4 +1220,5 @@ async function open() {
   setTimeout(() => model.traverse((node) => { if (node.isMesh) node.geometry.computeBoundsTree(); }), 0);
 }
 
-open().catch((error) => { say(`Could not open the 3D copy: ${error.message}`); console.error(error); });
+if (given.holes_only) openHolesOnly();
+else open().catch((error) => { say(`Could not open the 3D copy: ${error.message}`); console.error(error); });

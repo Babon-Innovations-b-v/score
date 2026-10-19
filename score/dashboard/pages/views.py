@@ -72,12 +72,40 @@ def board(request):
     planned = basket_high() or {}
     queued = {item.place for item in BasketItem.objects.all()}
     shown = with_web3d(source, present.look_groups(world, queued))
+    items = basket_now()
+    money = present.money(month_money.view(world.spend), planned)
+    details = every_place_holes(source)
+    price = world.holes_price
+    first = present.buy_lines(holes.buy_first(price, details, items))
+    total = holes.environment(world.holes_total, price, items)
+    work = holes.work_groups((total or {}).get("unfillable", []), details, price)
     return render(request, "pages/board.html", {
         "world": world, "environment_name": present.environment_name(world.world), "groups": shown,
-        "holes_total": holes.environment(world.holes_total, world.holes_price, basket_now()),
+        "holes_total": total, "headline": holes.headline(price) if total else None,
+        "places": present.overview(holes.per_place(price, details),
+                                   {tile["place"]: tile["name"] for group in shown for tile in group["tiles"]}),
+        "blockers": present.blockers(money, world.spend,
+                                     holes.lost_inputs({**details, holes.WORLD: world_holes(source)})),
+        "buy_first": first[:SHOWN], "buy_rest": first[SHOWN:], "buy_count": len(first),
+        "work": work[:SHOWN], "work_rest": work[SHOWN:], "work_count": len(work),
         "waiting_items": basket_items.unanswered(),
-        "money": present.money(month_money.view(world.spend), planned), "world_steps": [
+        "money": money, "world_steps": [
             present.step_tile(step, step_url(None, step.stage)) for step in world.world_line]})
+
+
+SHOWN = 10  # the lines of the buy-first list and of the code work shown before their "show all" folds
+
+
+def every_place_holes(source):
+    """{place: [hole]} of every place of the environment, the holes check's findings."""
+    if hasattr(source, "holes"):
+        return {place: source.holes(place) for place in source.places()}
+    return {place: source.place_detail(place).holes for place in source.places()}
+
+
+def world_holes(source):
+    """The environment's own nodes' lost inputs (the holes check's pseudo-place `world`); [] where not read."""
+    return source.holes(holes.WORLD) if hasattr(source, "holes") else []
 
 
 def with_web3d(source, shown):
@@ -105,15 +133,17 @@ def place_page(request, place):
     world = source.world_state()
     style = present.look_of_place(world, place)
     items = basket_now()
+    price = world.holes_price
     return render(request, "pages/place.html", {
         "detail": detail, "name": present.place_name(style, detail) if style else present.humane(place),
         "status": present.place_status(detail.status, detail.layers),
         "breakdown": breakdown.breakdown(detail, style, step_url,
                                          sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
                                          source.step_detail(None, GROUND_STAGE)),
-        "problems": present.problems(detail), "holes": present.hole_groups(detail, items, world.holes_price),
-        "chains": present.place_chains(detail, world.holes_price),
-        "holes_total": holes.environment(world.holes_total, world.holes_price, items),
+        "problems": present.problems(detail), "holes": present.hole_groups(detail, items, price),
+        "tree": present.prim_tree(detail) if detail.holes else None,
+        "place_money": holes.place_row(place, detail.holes, price),
+        "price_said": holes.said_of_price(price),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
         "library": library.strip_of(place)})
 
@@ -290,7 +320,8 @@ def viewer(request, place):
     measuring tool, and a click names the part, its surface, its layer and the step that made that layer. With a
     basket item (`item`), its free after (`side` before: the place now) with the parts it changes outlined; `embed`
     leaves the panel out (the item's details hold it in a frame); `holes=1` outlines the place's holes too (each
-    missing object's box and each made object failing a check; the web copy stays the accepted one)."""
+    missing object's box and each made object failing a check; the web copy stays the accepted one), and `hole`
+    frames that one; with no web copy yet, the holes alone over a ground grid, said so."""
     source = state.source()
     if place not in source.places():
         raise Http404(place)
@@ -300,19 +331,21 @@ def viewer(request, place):
     base = after["web3d_base"] if showing == "after" else f"/web/{place}/"
     only = only_layer(request.GET.get("only"), detail.usd_index.layers)
     film_view = detail.film_view if request.GET.get("at") == "film" else None
+    hole_marks = present.hole_marks(detail) if request.GET.get("holes") == "1" else []
+    holes_only = bool(hole_marks) and not detail.web3d and showing != "after"
     return render(request, "pages/view3d.html", {"detail": detail, "after": after, "showing": showing,
                                                  "only": only, "at_film": bool(film_view),
-                                                 "embed": request.GET.get("embed") == "1",
+                                                 "embed": request.GET.get("embed") == "1", "holes_only": holes_only,
                                                  "viewer": {"place": place, "base": base,
                                                             "layers": layer_makers(detail.usd_index.layers),
                                                             "order": [layer.name for layer in detail.usd_index.layers],
                                                             "only": [only, ONLY_WITH] if only else None,
-                                                            "at": film_view,
+                                                            "at": film_view, "hole": request.GET.get("hole"),
+                                                            "holes_only": holes_only,
                                                             "marks": basket_items.marks(
                                                                 (after or {}).get("changes"),
                                                                 "after" if showing == "after" else "before")
-                                                            + (present.hole_marks(detail)
-                                                               if request.GET.get("holes") == "1" else [])}})
+                                                            + hole_marks}})
 
 
 def item_after(place, ident):

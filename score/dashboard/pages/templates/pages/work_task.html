@@ -1,0 +1,1 @@
+<li><b>{{ task.task|capfirst }}</b>: {% if task.holes %}unblocks {{ task.holes }} hole{{ task.holes|pluralize }}{% else %}its holes are not counted while the price is missing or stale{% endif %} at {{ task.places }} place{{ task.places|pluralize }}{% if task.after %}; once done, the prop route adds {{ task.after }}{% endif %}.</li>

@@ -564,6 +564,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .item-3d-frame { display: block; width: 100%; height: min(70vh, 720px); border: 1px solid var(--line); border-radius: var(--radius); background: #000; }
 .mark-key { white-space: nowrap; } .mark-key::before { content: ""; display: inline-block; width: 10px; height: 10px; margin: 0 4px 0 8px; border: 2px solid; vertical-align: -1px; }
 .mark-key.added::before { border-color: #4fd18b; } .mark-key.removed::before { border-color: #ff7b72; }
+.mark-key.missing::before { border-color: #ff3b30; } .mark-key.gate::before { border-color: #ff9f0a; }
 .item-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; align-items: start; }
 .item-part .eyebrow + p, .item-part ul { margin-bottom: 16px; }
 .change-list { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 6px; }
@@ -600,3 +601,24 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .hole-list { margin: 4px 0 16px; padding-left: 20px; }
 .hole-list li { margin: 4px 0; }
 .holes-total { margin-top: 12px; }
+.headline { font-size: 16px; font-weight: 550; }
+.buy-first, .places-overview { margin: 24px 0 32px; }
+.blockers li, .buy-list li, .work-list li { margin: 6px 0; }
+.blockers .command { margin: 6px 0; }
+.table-wrap { overflow-x: auto; }
+table.sortable { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.sortable th { cursor: pointer; text-align: left; white-space: nowrap; padding: 6px 8px; border-bottom: 1px solid var(--line-strong); }
+table.sortable th[data-order="down"]::after { content: " \2193"; } table.sortable th[data-order="up"]::after { content: " \2191"; }
+table.sortable td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.sortable .num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 4px; border-radius: 9px; font-size: 11px; font-weight: 600; text-align: center; color: #fff; }
+.badge.missing { background: var(--bad); } .badge.gate { background: #ff9f0a; } .badge.route { background: var(--idle); }
+.badge.lost { background: transparent; color: var(--bad); border: 1.5px dashed var(--bad); }
+.tree, .tree ul { list-style: none; padding-left: 16px; margin: 2px 0; }
+.tree-node.placeholder > a, .tree-node.placeholder > span:first-child { color: var(--faint); font-style: italic; }
+.hole-list .source { color: var(--faint); margin: 0 4px; }
+.lit { outline: 2px solid var(--review); outline-offset: 2px; border-radius: 4px; }
+.buy-list details.ids, .hole-list details.ids, .blockers details.ids { display: inline-block; vertical-align: top; margin: 0 0 0 6px; border: 0; background: none; }
+.buy-list details.ids > summary, .hole-list details.ids > summary, .blockers details.ids > summary { padding: 0; font-size: 12px; color: var(--faint); }
+.buy-list details.ids[open], .hole-list details.ids[open], .blockers details.ids[open] { display: block; }
+.places-overview td:last-child { min-width: 14em; }
