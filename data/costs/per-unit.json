@@ -80,8 +80,8 @@
     ]
    },
    "forecast": {
-    "rule": "missing_rows",
-    "source": "the place's holes (score/stages/complete/holes): its missing rows whose node is this stage's at the place, one model each (fill.py FILLERS, the route)"
+    "rule": "prop_takes",
+    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node is this stage's there, by their take"
    }
   },
   "closeup": {
@@ -142,7 +142,7 @@
    },
    "forecast": {
     "rule": "models",
-    "source": "one a model: the takes data/surfaces/<place>.json lists, plus the place's missing rows pixal makes"
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
    }
   },
   "surfaces-names": {
@@ -629,7 +629,7 @@
    },
    "forecast": {
     "rule": "models",
-    "source": "one a model: the takes data/surfaces/<place>.json lists, plus the place's missing rows pixal makes"
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
    }
   }
  }

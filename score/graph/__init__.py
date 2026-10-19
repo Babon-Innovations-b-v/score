@@ -44,6 +44,7 @@ taken as made.
 import contextlib
 import datetime
 import fcntl
+import inspect
 import json
 import multiprocessing
 import multiprocessing.connection
@@ -117,7 +118,7 @@ class Blocked(Exception):
 
 def passes_euros_on(code):
     """Whether a function takes `euros` or any keyword (a table helper that hands a row's estimate on)."""
-    return "euros" in code.co_varnames[:code.co_argcount + code.co_kwonlyargcount] or bool(code.co_flags & 0x08)
+    return "euros" in code.co_varnames[:code.co_argcount + code.co_kwonlyargcount] or bool(code.co_flags & inspect.CO_VARKEYWORDS)
 
 
 def row_written_at():
@@ -134,11 +135,12 @@ def row_written_at():
 
 
 def replaced_row():
-    """The row a dataclasses.replace call is building this one from, or None outside one."""
+    """The row a dataclasses.replace call is building this one from, or None outside one: `obj` of replace, or
+    `self` of the _replace it calls on Python 3.13 and later (the innermost frame there)."""
     frame = sys._getframe(1)
     while frame is not None:
         if frame.f_code.co_name in ("replace", "_replace") and frame.f_code.co_filename.endswith("dataclasses.py"):
-            return frame.f_locals.get("obj")
+            return frame.f_locals.get("obj", frame.f_locals.get("self"))
         frame = frame.f_back
     return None
 

@@ -612,31 +612,28 @@ HOLES_PRICE = "work/checks/holes-price"  # under PROPS_HOME: the holes' prices t
 
 def holes_record(world):
     """Every place's holes priced through their chains (score/stages/complete/holes/price.py) on the framework store."""
-    from score.stages.complete.holes import price
-    from score.store import PROPS_HOME, Store
+    from score.stages.complete.holes import OUT, price
+    from score.store import Store
     runner = stages.runner(world=stages.WORLDS[world]())
-    return price.holes_price(runner, world, PROPS_HOME / "work/checks/holes", stages.places(runner.world),
-                             counting_store(Store.default()))
-
-
-def written_whole(path, body):
-    """`body` as JSON at `path`, landing whole (through a .partial beside it); the path."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    partial = path.with_suffix(".partial")
-    partial.write_text(json.dumps(body, indent=1) + "\n")
-    partial.replace(path)
-    return path
+    return price.holes_price(runner, world, OUT, stages.places(runner.world), counting_store(Store.default()))
 
 
 def holes_price(world):
-    """The holes' prices (holes_record) written to WORK/checks/holes-price/<world>.json for the cockpit, said in one
-    line: {written, totals, nodes, holes, unfillable, not_current}."""
+    """The holes' prices (holes_record) written whole to WORK/checks/holes-price/<world>.json for the cockpit, said
+    in one line: {written, totals, after_work, nodes, holes, unfillable, outside, not_current, not_checked}."""
+    from score.dashboard.proposals.records import swapped_json
+    from score.stages.complete.holes import price
     from score.store import PROPS_HOME
     record = holes_record(world)
-    out = written_whole(PROPS_HOME / HOLES_PRICE / f"{world}.json", record)
-    return {"written": str(out), "totals": record["totals"], "nodes": len(record["nodes"]),
-            "holes": sum(len(found) for found in record["holes"].values()),
-            "unfillable": sum(entry["holes"] for entry in record["unfillable"]), "not_current": record["not_current"]}
+    out = PROPS_HOME / HOLES_PRICE / f"{world}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    swapped_json(out, record)
+    after = {node: found for entry in record["after_work"].values() for node, found in entry["nodes"].items()}
+    return {"written": str(out), "totals": record["totals"], "after_work": price.totals(after),
+            "nodes": len(record["nodes"]), "holes": sum(len(found) for found in record["holes"].values()),
+            "unfillable": sum(entry["holes"] for entry in record["unfillable"]),
+            "outside": sum(entry["holes"] for entry in record["outside"]), "not_current": record["not_current"],
+            "not_checked": record["not_checked"]}
 
 
 def status_json(world, lines):

@@ -18,7 +18,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `WORK/checks/holes-price/<world>.json` read as `HolesPrice`): `holes.py` only sums it, every paid node of any
   hole's chain once, each basis in its own bucket (measured runs, per unit × counted, per unit × forecast, the
   guesses with the file and line each is written on, never a price; the nodes with neither are unknown), and lists
-  each hole's chain; no price is made and no unit counted here. A record older than any accept or reject or any
+  each hole's chain; no price is made and no unit counted here. The prop route of the rows waiting on their place's
+  prop data (`after_work`) is summed apart, after that code work; a node outside the table and a place never
+  checked are named, never read as nothing to pay. A record made on another commit, on code not committed or on
+  other per-unit prices than this checkout's (`priced_on`, `code_moved`), or older than any accept or reject or any
   holes check shows no number (`price_stale`, the rule of `current_findings`). A hole whose node a basket item
   carries links that item, where it is bought; the total no longer reads the basket.
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` prices a plan from measured

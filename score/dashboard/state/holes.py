@@ -2,8 +2,10 @@
 chain once (WORK/checks/holes-price/<world>.json, read as models.HolesPrice); this module adds them up and makes no
 price and counts no unit. Each basis is kept in a bucket of its own, never mixed: measured runs, per unit times units
 counted on an accepted output, per unit times units forecast before the make, and the stages' guesses (with the
-file and line each is written on, never part of a price); a node with neither a price nor a guess is unknown. A
-stale record shows no number. A basket item that carries a hole's node is still where it is bought. Plain dicts and
+file and line each is written on, never part of a price); a node with neither a price nor a guess is unknown. The
+prop route of the rows that wait on their place's prop data is summed apart, after that code work; a node outside
+the runner's table and a place whose holes check never ran are named, never read as nothing to pay. A stale record
+shows no number. A basket item that carries a hole's node is still where it is bought. Plain dicts and
 the models only, so a hosted process sums them too.
 
     found = holes.priced(detail.holes, records.items(root), world.holes_price, place)  # [{hole, item, chain, said}]
@@ -119,27 +121,49 @@ def priced(holes, items, price, place):
     return found
 
 
-def total_words(price, sums):
-    """The environment's total in one line, or why there is none."""
+def total_words(price, sums, after):
+    """The environment's total in one line, or why there is none: its sums, the prop route after the code work
+    (`after`), and what is not priced at all."""
     if price is None:
         return NO_PRICE
     if price.stale:
         return f"the runner's price is stale ({price.stale}): run score price world1 --holes again"
-    return sum_words(sums)
+    words = [sum_words(sums)]
+    if after["places"]:
+        words.append(f"after the prop data of {len(after['places'])} places: {sum_words(after['sums'])}")
+    unpriced = [f"{steps(len(price.outside), 'node')} outside the stage table" if price.outside else "",
+                f"{steps(len(price.not_checked), 'place')} never checked" if price.not_checked else "",
+                f"{steps(len(price.not_current), 'place')} not current" if price.not_current else ""]
+    if any(unpriced):
+        words.append("not priced: " + ", ".join(word for word in unpriced if word))
+    return "; ".join(words)
+
+
+def after_work(price):
+    """{places: [{place, work, holes, models, words}], sums} of the prop route the runner priced for the rows that
+    wait on their place's prop data, every place's nodes summed once, each basis apart."""
+    nodes = {node: found for entry in price.after_work.values() for node, found in entry["nodes"].items()}
+    places = [{"place": place, "work": entry["work"], "holes": entry["holes"], "models": entry["models"],
+               "words": sum_words(summed(entry["nodes"]))} for place, entry in sorted(price.after_work.items())]
+    return {"places": places, "sums": summed(nodes)}
 
 
 def environment(total, price, items=()):
-    """{holes, counts, made_at, stale, sums, not_in_basket, unfillable, words} of every place's holes, None without
-    a holes total: the runner's price of every paid node in any hole's chain, each node once and each basis apart (no
-    sums while the record is missing or stale), how many of those nodes no basket item carries yet (`items`, the
-    basket's), and the work no stage can fill yet with its hole count."""
+    """{holes, counts, made_at, stale, sums, after_work, not_in_basket, unfillable, outside, not_current,
+    not_checked, words} of every place's holes, None without a holes total: the runner's price of every paid node in
+    any hole's chain, each node once and each basis apart, the prop route after its code work apart (no sums while
+    the record is missing or stale), how many chain nodes no basket item carries yet (`items`, the basket's), the
+    work no stage can fill yet with its hole count, and what the record could not price."""
     if total is None:
         return None
     current = price is not None and not price.stale
     sums = summed(price.nodes) if current else None
+    after = after_work(price) if current else None
     carried = carriers(items)
     return {"holes": sum(total.counts.values()), "counts": total.counts, "made_at": price.made_at if price else None,
-            "stale": price.stale if price else None, "sums": sums,
+            "stale": price.stale if price else None, "sums": sums, "after_work": after,
             "not_in_basket": sum(node not in carried for node in price.nodes) if current else None,
             "unfillable": price.unfillable if current else [{"work": work, "holes": None} for work in total.unfillable],
-            "not_current": price.not_current if current else [], "words": total_words(price, sums)}
+            "outside": price.outside if current else [], "not_current": price.not_current if current else [],
+            "not_checked": price.not_checked if current else [],
+            "words": total_words(price, sums, after) if current else total_words(price, None, None)}
