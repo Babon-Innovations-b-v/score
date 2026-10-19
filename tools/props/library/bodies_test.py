@@ -36,8 +36,25 @@ import model as model_check  # noqa: E402
 
 CONSOLE = [3.6, 1.0, 0.65]
 MODULE = [6.5, 4.308, 3.783]
+CORE = [1.4, 2.3, 1.4]
+FUEL = [0.9, 1.8, 0.9]
+WATER = [1.6, 1.6, 1.6]
+LANDER = [8.649, 19.0, 10.597]
+ROVER = [1.72, 1.66, 3.03]
+CRANE = [1.811, 3.2, 1.065]
+# Each built body's laid size, by the first word of its builder.
+SIZES = {"console": CONSOLE, "station": MODULE, "power": CORE, "fuel": FUEL, "water": WATER, "lander": LANDER,
+         "rover": ROVER, "crane": CRANE}
 # Each place's bake entry that names a body: (place, model, builder).
-WIRED = (("cockpit", "main_console_1", "console_body"), ("old_station", "first_module", "station_module"))
+WIRED = (("cockpit", "main_console_1", "console_body"), ("old_station", "first_module", "station_module"),
+         ("engineroom", "power_core_1", "power_core"), ("engineroom", "fuel_tank_1", "fuel_tank"),
+         ("greenhouse", "water_tank_1", "water_tank"), ("campgrounds", "lander", "lander_body"),
+         ("garage", "rover_1", "rover_body"), ("campgrounds", "crane", "crane_body"))
+# The plan's kind for each builder (build_only builds the kind's part after its first underscore).
+KINDS = {"console_body": "cockpit_console_body", "station_module": "station_station_module",
+         "power_core": "engineroom_power_core", "fuel_tank": "engineroom_fuel_tank",
+         "water_tank": "greenhouse_water_tank", "lander_body": "campgrounds_lander_body",
+         "rover_body": "garage_rover_body", "crane_body": "campgrounds_crane_body"}
 
 
 def test_the_console_keeps_its_controls_anywhere_and_its_bays_details_only():
@@ -83,6 +100,67 @@ def test_the_module_s_blankets_and_holes_follow_its_grid():
     assert len(holes) == 1 and holes[0][:2] == (30.0, 60.0), holes
 
 
+def test_the_core_the_water_tank_the_lander_and_the_crane_keep_nothing_of_their_takes():
+    middles = np.zeros((2, 3))
+    assert not bodies.kept("power_core", CORE, middles, ["clear_glass", "led_white"], []).any()
+    assert not bodies.kept("water_tank", WATER, middles, ["dark_panel", "bare_steel"], []).any()
+    assert not bodies.kept("lander_body", LANDER, middles, ["stainless", "stainless"], []).any()
+    assert not bodies.kept("crane_body", CRANE, middles, ["cream_paint", "stainless"], []).any()
+
+
+def test_the_core_s_lamps_sit_on_its_drums_and_its_pipes_stay_in_its_box():
+    for low, high in bodies.CORE_LAMPS:
+        assert bodies.CORE_PLINTH[0] < low < high <= bodies.CORE_HOOD[2]
+    reach = max(abs(x) for run in bodies.CORE_PIPES for x, _ in run) + bodies.CORE_PIPE[0]
+    assert reach < 0.5 and bodies.CORE_CANISTER["at"] + bodies.CORE_CANISTER["radius"] < 0.5
+
+
+def test_the_fuel_tank_keeps_its_fittings_by_place_only():
+    """Each FUEL_DETAILS box keeps the take's faces in it (its gauge, valve and pipe fittings); none elsewhere."""
+    boxes = bodies.detail_boxes("fuel_tank", FUEL)
+    assert len(boxes) == len(bodies.FUEL_DETAILS)
+    inside = [[(low[axis] + high[axis]) / 2 for axis in range(3)] for low, high in boxes]
+    found = bodies.kept("fuel_tank", FUEL, inside + [[0.0, -1.0, 0.0]], ["dark_panel"] * (len(boxes) + 1), [])
+    assert found.tolist() == [True] * len(boxes) + [False], found
+
+
+def test_the_lander_s_hull_stands_in_its_laid_box_and_closes_at_its_top():
+    profile = np.array(bodies.lander_profile(LANDER))
+    assert profile[0].tolist() == [0.0, bodies.LANDER_FOOT * LANDER[1]] and profile[-1].tolist() == [0.0, LANDER[1]]
+    assert np.all(np.diff(profile[2:, 0]) < 0) and np.all(np.diff(profile[1:, 1]) >= 0)
+    axis = bodies.LANDER_AXIS * LANDER[2]
+    assert profile[:, 0].max() < LANDER[0] / 2 and axis + profile[:, 0].max() < LANDER[2] / 2
+
+
+def test_the_lander_s_stencil_panel_is_flat_under_its_decal():
+    """The decal (1.2 x 0.3 m at [0, 7.5], details.json campgrounds_lander) lies wholly on the panel cut flat into
+    the hull's front, so the bake's clear_spot finds it flat where it was placed."""
+    across, low, high = bodies.LANDER_PANEL
+    assert across * LANDER[0] >= 0.6 and low * LANDER[1] <= 7.5 - 0.15 and high * LANDER[1] >= 7.5 + 0.15
+    first, last, count = bodies.LANDER_SEAMS
+    seams = [(first + (last - first) * step / (count - 1)) * LANDER[1] for step in range(count)]
+    assert not any(low * LANDER[1] - 0.05 < seam < high * LANDER[1] + 0.05 for seam in seams), seams
+
+
+def test_the_rover_keeps_its_seats_and_console_details_by_place_only():
+    wide, tall, deep = ROVER
+    x0, x1, y0, y1, z0, z1 = bodies.ROVER_DETAILS["seats"]
+    on_a_seat = [0.0, (y0 + y1) / 2 * tall, (z0 + z1) / 2 * deep]
+    tyre = [bodies.ROVER_TYRE[0] * wide - 0.05, bodies.ROVER_WHEEL[0] * tall, bodies.ROVER_AXLES[1] * deep]
+    floor = [0.0, bodies.ROVER_FLOOR[0] * tall, 0.0]
+    found = bodies.kept("rover_body", ROVER, [on_a_seat, tyre, floor], ["plastic_grey", "plastic_grey", "screen"], [])
+    assert found.tolist() == [True, False, False], found
+    assert set(bodies.ROVER_DETAIL_SURFACES) == set(bodies.ROVER_DETAILS)
+
+
+def test_the_rover_s_detail_boxes_stand_in_its_laid_box():
+    for low, high in bodies.detail_boxes("rover_body", ROVER):
+        for axis in range(3):
+            assert low[axis] < high[axis]
+        assert -ROVER[0] / 2 <= low[0] and high[0] <= ROVER[0] / 2 and 0 <= low[1] and high[1] <= ROVER[1] + 1e-9
+        assert -ROVER[2] / 2 <= low[2] and high[2] <= ROVER[2] / 2
+
+
 def test_every_wired_body_is_built_by_a_body_builder_and_its_turn_is_a_turn():
     """Each place's model named in WIRED is baked from a take BODIES builds over a body (the registry lives in the
     bake's folder, bodies.py, not in the place's data), with a builder pieces_bodies has and a turn that is a turn."""
@@ -104,18 +182,17 @@ def test_every_body_builds_with_walls_the_model_check_passes():
     with tempfile.TemporaryDirectory() as folder:
         plan = pathlib.Path(folder) / "plan.json"
         plan.write_text(json.dumps({"models": {
-            "console_body_1": {"route": "code", "kind": "cockpit_console_body", "size": CONSOLE, "laid": {}},
-            "station_module_1": {"route": "code", "kind": "station_station_module", "size": MODULE,
-                                 "laid": {}}}}))
+            f"{builder}_1": {"route": "code", "kind": kind, "size": SIZES[builder.split("_")[0]], "laid": {}}
+            for builder, kind in KINDS.items()}}))
         out = pathlib.Path(folder) / "built"
         done = subprocess.run([sys.executable, str(REPO / "tools/blender/session.py"), "batch",
                                str(HERE / "inside/build_only.py"), "--", str(REPO), str(plan), str(out)],
                               capture_output=True, text=True)
         assert done.returncode == 0, done.stdout[-2000:] + done.stderr[-2000:]
         built = {path.stem: trimesh.load(path, force="mesh") for path in out.glob("*.glb")}
-        assert sorted(built) == ["console_body_1", "station_module_1"], sorted(built)
+        assert sorted(built) == sorted(f"{builder}_1" for builder in KINDS), sorted(built)
         for name, mesh in built.items():
-            size = CONSOLE if name.startswith("console") else MODULE
+            size = SIZES[name.split("_")[0]]
             # Within its laid box and filling most of it: a body drops the take's lumps (the module's foil flaps
             # stood 23 cm over its hull), never grows past them.
             assert np.all(mesh.extents <= np.array(size) + 0.01), (name, mesh.extents)
