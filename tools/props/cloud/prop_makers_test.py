@@ -117,7 +117,9 @@ def test_a_prop_with_no_parts_stops_before_anything_is_paid():
     assert not ok and "names no parts" in why, why
     assert prop_makers.parts_named(PROPS[0]) == (True, "")
     assert prop_makers.parts_named(dict(PROPS[0], parts=None, keep=["bake"])) == (True, "")
-    assert prop_makers.parts_named(dict(PROPS[0], parts=None, body="ship-s1")) == (True, "")
+    assert prop_makers.parts_named(dict(PROPS[0], parts=None, body="main_console-s1")) == (True, "")
+    ok, why = prop_makers.parts_named(dict(PROPS[0], parts=None, body="ship-s1"))
+    assert not ok and "no builder" in why, why
 
 
 def test_a_bodied_prop_s_parts_are_written_before_its_bake_and_a_refusal_stops_it():

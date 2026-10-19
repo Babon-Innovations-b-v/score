@@ -36,8 +36,8 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
-for folder in (REPO, HERE.parent, HERE, HERE.parent / "library", HERE.parent / "closeup", HERE.parent / "scene",
-               HERE.parent / "gates", REPO / "score/stages/surfaces"):
+for folder in (REPO, HERE.parent, HERE, HERE.parent / "library", HERE.parent / "library/inside", HERE.parent / "closeup",
+               HERE.parent / "scene", HERE.parent / "gates", REPO / "score/stages/surfaces"):
     if str(folder) not in sys.path:
         sys.path.append(str(folder))  # appended: the prop tools must not shadow the framework's
 
@@ -264,9 +264,14 @@ def makers_for(out, who):
 # --- the free checks -------------------------------------------------------------------------------------------------
 
 def parts_named(prop):
-    """(ok, why): a prop that makes the bake names the parts folder it bakes, or the body its parts are written for."""
-    if not prop_batch.makes_step(prop, prop_batch.STEPS[-1]) or prop.get("parts") or prop.get("body"):
+    """(ok, why): a prop that makes the bake names the parts folder it bakes, or a body with a builder
+    (bodies.BODIES) its parts are written for. Fault (trial, 2026-10-19): eight trial props named a body no builder
+    makes, passed this check and would have paid Pixal3D before check_parts refused them."""
+    import bodies
+    if not prop_batch.makes_step(prop, prop_batch.STEPS[-1]) or prop.get("parts") or prop.get("body") in bodies.BODIES:
         return True, ""
+    if prop.get("body"):
+        return False, f"names the body {prop['body']}, which no builder makes (bodies.BODIES)"
     return False, ("names no parts and no body for its bake: a re-made take needs a code body (bodies.BODIES) or "
                    "today's maps, SegviGen and paint")
 
@@ -281,8 +286,12 @@ def check_inputs(prop):
 
 
 def check_closeup(prop, out):
-    """Before image-to-3d: the close-up is there and passes its measured shape check at the row's size."""
+    """Before image-to-3d: its parts named (parts_named: a prop that kept its close-up stops here, before its first
+    paid step), and the close-up is there and passes its measured shape check at the row's size."""
     import check
+    named, why = parts_named(prop)
+    if not named:
+        return False, why
     picture = picture_of(prop, out)
     if not picture.is_file():
         return False, f"no close-up at {picture}"
