@@ -137,6 +137,21 @@ Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next t
 
 ## architecture/lifecycles
 
+**The route: outside first** (the owner's rule of 2026-10-19; terms in `CONTEXT.md`). One loop, the same at every
+scale, starting big with a new place inside an existing environment:
+
+1. The outside: its outside shell only, a concept for it and its plan.
+2. The concept goes through picture to model (the prop pipeline) as the place's rough model, and the plan is drawn
+   to the rough model's proportions and shape.
+3. Close-ups of every detailed prop and the finishes each needs; then the outside is ready.
+4. Inside: within the size the outside decided, its plan is cut into inside places (rooms, corridors, holds), and each
+   goes through this same loop, from its own concept on.
+
+How the pieces fit is the framework's and its tools' work. Where the runner stands today: the stage table has no
+rough-model stage and no stage that cuts inside places from an outside's plan, and a plan does not name its outside;
+each place's concept, plan and inventory are made on their own. The ship is the first place run through the loop: its
+rooms' concepts were drawn before its hull was planned; drawing them again from the hull's plan is the loop's first run.
+
 **One outdoor place, end to end** (the wreck is the worked example; commands in the README):
 
 1. The place's record: its picked concept, its scene inventory (`data/inventory/<place>.json`, one row per object
@@ -517,7 +532,8 @@ unpredictable.
 - **GitHub issues** hold the durable backlog. Anything that must survive the chat lives there.
 
 **Session roles.** One coordinating session, the overseer, runs the work directly with many
-parallel agents; the owner reviews and buys changes in the creator cockpit (score.babon.eu). The
+parallel agents; the owner reviews and buys his basket in the creator cockpit (score.babon.eu), each item's free details
+showing what it would change. The
 captain, a second session that ran one effort under the overseer, was retired on 2026-10-18 (owner:
 it did not work); records that cite "the captain" name decisions taken in that role, and they
 stand. Terms in `CONTEXT.md`.
