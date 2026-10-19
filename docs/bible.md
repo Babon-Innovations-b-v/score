@@ -466,6 +466,27 @@ who can read them. Placeholder.>
 
 <What breaks when each piece breaks, what the blast radius is, and how to recover. Placeholder.>
 
+**Losing `$PROPS_HOME`** (the old WSL disk, 2026-10-19, #13): the store, the cloud and Google spend ledgers, the
+runner's ssh and self-delete keys and the dashboard's records went; git, the bucket (`score_lib/`, `runs/`,
+`inputs/`, `weights/`, `code/`, `kernels/`) and score_lib's entry records (each naming its node, output and the
+runner's key it was made under) survived. Recovery, in order:
+
+1. **Paid work stays shut until the month's spend is known again.** A missing ledger reads as EUR 0, so
+   `ledger.books_refusal` refuses every paid point (`compute.month_refusal`, `compute.require_cleared`,
+   `compute.submit`) unless `cloud/books.json` says this month is `known` or both ledgers run from before the month
+   began. `score spend --read-back` writes the provider's bill as `lost`; the owner's `score spend --google-month EUR`
+   makes it `known`; else the next month opens it. `batch.rent` refuses without both keys, and `batch.ssh_key` never
+   makes one: the owner makes the runner's key and deletes the stale IAM key.
+2. **The store comes back by today's standard, never by copying.** `python -m score.store.restore <environment>
+   --library <score_lib>` (`score/store/restore`, its overlay) drives every line with a runner that spends nothing:
+   free rows are made again, paid rows come back blocked, a paid gatherer's check stays unknown, and a Blender call
+   blocks its node with nothing written. An old paid output stands again only when its key today equals the key it
+   was made under, its bucket checkout rebuilds to its exact output hash and today's gates pass on it; downloading
+   it is the owner's own (`--reattach --max-gb N`). Since the prop route and the method were hardened after most
+   outputs were made, most keys differ: those nodes stay holes (#12) naming the paid row that remakes them.
+3. Never put back by hand: records, judgements, evidence, accepts, rejects, waivers, clearances, spend yeses, the
+   registry or stop lines; the library's own `accept{}` is not an accept in the store.
+
 ## build/release
 
 Nothing is released yet but the paper. Commands, run locally (there is no CI and no GitHub Actions):
