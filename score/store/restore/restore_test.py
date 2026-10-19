@@ -23,11 +23,14 @@ from score.adapters import compute  # noqa: E402
 from score.store import RUNNER, Store, runtime_store, tree_hash  # noqa: E402
 from score.store import restore  # noqa: E402
 from score.store.restore import __main__ as command  # noqa: E402
+from score.store.restore import _bucket  # noqa: E402
 from score.store.restore._bucket import Fetch, index_checkouts  # noqa: E402
 
 import google_spend  # noqa: E402  (tools/props/cloud, on the path through the restore)
 
 PLACES = ("hangar", "station", "garage")  # a line each: the paid row, the paid gatherer, Blender
+REPO = pathlib.Path(__file__).resolve().parents[3]
+ACCEPTED_THEN = "2026-10-15T22:15:48.546897+00:00"  # when the library says the old output stood accepted
 
 
 def touched(name):
@@ -45,6 +48,7 @@ compute.cloud_bill = touched("the cloud bill")
 SCRATCH = pathlib.Path(tempfile.mkdtemp())
 restore.ledger.LEDGER, google_spend.LEDGER = SCRATCH / "ledger.jsonl", SCRATCH / "google-ledger.jsonl"
 restore.guard_free_only()
+_bucket.DISK_MARGIN = 0  # the test disk's free room is not what these tests are about (one test sets it)
 
 
 def make_brief(inputs, out, seed, params):
@@ -121,22 +125,33 @@ def an_old_render(text="a render"):
     return folder, tree_hash(folder)
 
 
-def a_bucket(folder, named):
-    """A folder bucket holding `folder` as a checkout tar whose first member is named `named` (as inputs.py writes)."""
-    bucket = runtime_store.FolderStore(tempfile.mkdtemp())
+def tar_of(folder, named):
+    """`folder` as a checkout tar's bytes, its first member named `named` (as inputs.py writes)."""
     data = io.BytesIO()
     with tarfile.open(fileobj=data, mode="w", format=tarfile.PAX_FORMAT) as archive:
         archive.add(folder, arcname=named)
-    bucket.write_bytes(f"inputs/{'a' * 64}.tar", data.getvalue())
+    return data.getvalue()
+
+
+def a_bucket(folder, named):
+    """A folder bucket holding `folder` as a checkout tar whose first member is named `named`, and one bad object."""
+    bucket = runtime_store.FolderStore(tempfile.mkdtemp())
+    bucket.write_bytes(f"inputs/{'a' * 64}.tar", tar_of(folder, named))
     bucket.write_bytes(f"inputs/{'b' * 64}.tar", b"not a tar at all")
     return bucket
 
 
-def restored(runner, old, key, bucket):
+def held_by_library(old, key):
+    """The library (library_outputs) holding `old` under `key`, as score_lib's provenance names it."""
+    return {"render@hangar": [{"output": old, "record_key": key, "entry": "model/render.hangar@1", "code": "c" * 64,
+                               "library_commit": "1" * 40, "accepted_at": ACCEPTED_THEN}]}
+
+
+def restored(runner, old, key, bucket, max_bytes=10e9):
     """The runner again on the same store, with the library holding `old` under `key` and the bucket indexed."""
-    library = {"render@hangar": [{"output": old, "record_key": key, "entry": "model/render.hangar@1"}]}
-    fetch = Fetch(bucket, pathlib.Path(tempfile.mkdtemp()), 10e9)
-    return a_runner(library, index_checkouts(bucket, say=quiet), fetch, runner.store, runner.world.roots["data"])
+    fetch = Fetch(bucket, pathlib.Path(tempfile.mkdtemp()), max_bytes)
+    return a_runner(held_by_library(old, key), index_checkouts(bucket, say=quiet), fetch, runner.store,
+                    runner.world.roots["data"])
 
 
 def no_paid_point_touched(found):
@@ -182,6 +197,12 @@ def test_an_old_output_on_todays_key_is_reattached_judged_today_and_accepted_by_
     record = again.store.record("render@hangar", todays_key(again, RENDER))
     assert record["output"] == old and record["euros"] == 0
     assert record["restored"]["entry"] == "model/render.hangar@1"
+    # Nothing in its record dates or names it as made today (review of #13): its maker's commit is unknown, so no
+    # carry or proof diffs from today's, and its time is the library's accept, today's download kept apart.
+    assert graph.made_by(record)["commit"] is None and record["uncommitted"] is True, record
+    assert (record["finished"], record["started"], record["machine"], record["minutes"]) == (ACCEPTED_THEN, None,
+                                                                                            None, None), record
+    assert record["restored"]["library_commit"] == "1" * 40 and record["restored"]["at"] > ACCEPTED_THEN
     assert [accept["by"] for accept in again.store.accepts("render@hangar")] == [RUNNER]
     assert again.notes.read("render@hangar")["downloaded"] > 0
 
@@ -204,9 +225,56 @@ def test_a_checkout_that_does_not_rebuild_to_its_hash_stores_nothing():
     (folder / "render.txt").write_text("changed since")  # the tar's bytes no longer hash to the library's output
     again = restored(runner, old, todays_key(runner, RENDER), a_bucket(folder, old))
     found = again.drive(PLACES, say=quiet)
-    assert "does not rebuild to its output hash" in found["render@hangar"], found
+    assert "rebuilds to its output hash (1 tried)" in found["render@hangar"], found
     assert again.store.objects.keys("records/render@hangar/") == []
     assert not again.store.objects.exists(f"outputs/{tree_hash(folder)}.json")
+
+
+def test_a_second_checkout_of_the_output_is_tried_when_the_first_does_not_rebuild():
+    runner = a_runner()
+    runner.drive(PLACES, say=quiet)
+    folder, old = an_old_render()
+    bucket = a_bucket(folder, old)
+    changed = pathlib.Path(tempfile.mkdtemp()) / "out"
+    changed.mkdir()
+    (changed / "render.txt").write_text("x")  # the same folder name, other bytes, a smaller tar: tried first
+    bucket.write_bytes(f"inputs/{'0' * 64}.tar", tar_of(changed, old))
+    again = restored(runner, old, todays_key(runner, RENDER), bucket)
+    assert [tar["key"][7:8] for tar in again.checkouts[old]] == ["0", "a"]
+    found = again.drive(PLACES, say=quiet)
+    assert found["render@hangar"] == "made: pass, accepted automatically", found
+    assert again.notes.read("render@hangar")["downloaded"] == sum(tar["bytes"] for tar in again.checkouts[old])
+
+
+def test_a_reattach_past_the_runs_budget_downloads_nothing():
+    runner = a_runner()
+    runner.drive(PLACES, say=quiet)
+    folder, old = an_old_render()
+    bucket = a_bucket(folder, old)
+    bucket.download = touched("a download")
+    again = restored(runner, old, todays_key(runner, RENDER), bucket, max_bytes=1)
+    found = again.drive(PLACES, say=quiet)
+    no_paid_point_touched(found)
+    assert "would pass the run's" in found["render@hangar"], found
+    assert again.store.objects.keys("records/render@hangar/") == []
+
+
+def test_a_reattach_on_a_disk_without_room_downloads_nothing():
+    runner = a_runner()
+    runner.drive(PLACES, say=quiet)
+    folder, old = an_old_render()
+    bucket = a_bucket(folder, old)
+    bucket.download = touched("a download")
+    again = restored(runner, old, todays_key(runner, RENDER), bucket)
+    _bucket.DISK_MARGIN = 1e18  # no disk keeps this free; each node's process is forked with it
+    try:
+        found = again.drive(PLACES, say=quiet)
+    finally:
+        _bucket.DISK_MARGIN = 0
+    no_paid_point_touched(found)
+    assert "free on the disk" in found["render@hangar"], found
+    assert again.store.objects.keys("records/render@hangar/") == []
+    assert not (again.fetch.folder / "downloaded.json").exists()
 
 
 def test_counting_downloads_nothing():
@@ -214,14 +282,14 @@ def test_counting_downloads_nothing():
     runner.drive(PLACES, say=quiet)
     folder, old = an_old_render()
     bucket = a_bucket(folder, old)
-    library = {"render@hangar": [{"output": old, "record_key": todays_key(runner, RENDER), "entry": "e"}]}
     checkouts = index_checkouts(bucket, say=quiet)
     bucket.download = touched("a download")
-    counting = a_runner(library, checkouts, None, runner.store, runner.world.roots["data"])
+    counting = a_runner(held_by_library(old, todays_key(runner, RENDER)), checkouts, None, runner.store,
+                        runner.world.roots["data"])
     found = counting.drive(PLACES, say=quiet)
     no_paid_point_touched(found)
     assert "key matches today: would re-attach" in found["render@hangar"], found
-    assert counting.notes.read("render@hangar")["would_reattach"] == checkouts[old]["bytes"]
+    assert counting.notes.read("render@hangar")["would_reattach"] == checkouts[old][0]["bytes"]
 
 
 def test_the_index_takes_only_tars_whose_first_member_is_an_output():
@@ -262,6 +330,116 @@ def test_a_run_that_wrote_a_spend_line_says_so_and_fails():
                                 store.cache.parent / "notes", {})
     line, status = command.restore(runner, ("hangar",), True, 1, data / "restore.json", say=quiet)
     assert status == 1 and "spend ledger lines added [1, 0]" in line and "EUR 0" not in line, line
+
+
+def an_accept_by_someone_else(runner):
+    """`runner` with its drive followed by an accept of brief@hangar's output written by another hand (the owner)."""
+    drive = runner.drive
+
+    def driven(*arguments, **options):
+        found = drive(*arguments, **options)
+        output = runner.store.accepted("brief@hangar")
+        runner.store.write_accept("brief@hangar", {"node": "brief@hangar", "output": output, "at": graph.now(),
+                                                   "by": "owner"})
+        return found
+    runner.drive = driven
+    return runner
+
+
+def test_an_accept_not_by_the_runner_fails_the_run():
+    runner = an_accept_by_someone_else(a_runner())
+    detail = pathlib.Path(tempfile.mkdtemp()) / "restore.json"
+    line, status = command.restore(runner, PLACES, True, 2, detail, say=quiet)
+    assert status == 1, line
+    foreign = json.loads(detail.read_text())["accepts_not_by_runner"]
+    assert [accept["by"] for accept in foreign] == ["owner"], foreign
+
+
+def gather_with_blender(output, inputs, folder):
+    subprocess.run(["blender", "-b", "--python", "drop.py"], check=True)
+    (folder / "rests.json").write_text("{}")
+
+
+FREE_DROP = graph.Stage("drop", "place", make_brief, TEXT, (checks.Check("rests", judge_rests, evidence="a drop run"),),
+                        files={"brief": "{data}/{place}.txt"}, gatherers={"rests": (gather_with_blender, 0)})
+
+
+def test_a_gatherer_declared_free_that_reaches_blender_leaves_its_check_unknown():
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "station.txt").write_text("a station")
+    store = Store.in_folder(tempfile.mkdtemp())
+    runner = restore.FreeRunner((FREE_DROP,), graph.Environment("toy", 7, {"data": data}), store,
+                                store.cache.parent / "notes", {})
+    detail = data / "restore.json"
+    line, status = command.restore(runner, ("station",), True, 1, detail, say=quiet)
+    row = json.loads(detail.read_text())["nodes"]["drop@station"]
+    assert row["category"] == "unknown" and restore.HEAVY_REFUSED in row["did"], row
+    assert "blender" in row["free_only"], row
+    assert store.objects.keys("evidence/") == [] and store.accepted("drop@station") is None
+
+
+def make_library_handover(inputs, out, seed, params):
+    raise AssertionError("touched the library handover")
+
+
+def test_the_library_rows_are_never_made_during_the_restore():
+    """The handover commits and pushes score_lib, puts blobs in the bucket and runs heavy hooks in grandchildren."""
+    from score.stages import library
+    rows = tuple(graph.Stage(name, grain, make_library_handover, TEXT, WRITTEN, files={"brief": "{data}/hangar.txt"})
+                 for name, grain in ((library.PLACE_ROW, "place"), (library.WORLD_ROW, "world")))
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar.txt").write_text("a hangar")
+    store = Store.in_folder(tempfile.mkdtemp())
+    runner = restore.FreeRunner(rows, graph.Environment("toy", 7, {"data": data}), store, store.cache.parent / "notes",
+                                {})
+    found = runner.drive(("hangar",), say=quiet)
+    assert set(found) == {f"{library.PLACE_ROW}@hangar", library.WORLD_ROW}, found
+    for node, did in found.items():
+        assert did.startswith(f"blocked: {restore.LIBRARY_REFUSED}"), (node, did)
+        assert command.category(did, "not accepted") == "unknown"
+        assert store.objects.keys(f"records/{node}/") == []
+
+
+MAIN_CHILD = """
+import json, os, pathlib, subprocess, sys, types
+sys.path.insert(0, sys.argv[1])
+from score.store import restore
+from score.store.restore import __main__ as command
+if sys.argv[3] == "open":
+    restore.ledger.write_books({"month": restore.ledger.this_month(), "state": "known"})
+def reached(*arguments, **options):
+    raise AssertionError("free_runner reached")
+command.free_runner = (lambda options, folder: types.SimpleNamespace(world=None)) if sys.argv[3] == "shut" else reached
+command.claim_store = lambda runner, places, whole: None
+def started(runner, places, whole, jobs, detail, say=print):
+    print(json.dumps({"free_only": os.environ.get(restore.ledger.FREE_ONLY),
+                      "guarded": subprocess.Popen is restore.FreeOnlyPopen}))
+    return "line", 0
+command.restore = started
+command.main(["world1", "--library", sys.argv[2], "--place", "hangar"])
+"""
+
+
+def main_in_a_child(books):
+    """command.main in a fresh process (the guard not yet applied) with a home of its own; (exit code, out, err)."""
+    library = pathlib.Path(tempfile.mkdtemp())
+    (library / "entries").mkdir()
+    environment = {**os.environ, "PROPS_HOME": tempfile.mkdtemp()}
+    environment.pop(restore.ledger.FREE_ONLY, None)
+    ran = subprocess.run([sys.executable, "-c", MAIN_CHILD, str(REPO), str(library), books], capture_output=True,
+                         text=True, env=environment, timeout=300)
+    return ran.returncode, ran.stdout, ran.stderr
+
+
+def test_main_guards_the_process_before_the_drive_starts():
+    code, out, err = main_in_a_child("shut")
+    assert code == 0, err
+    assert json.loads(out.strip().splitlines()[0]) == {"free_only": "1", "guarded": True}, out
+
+
+def test_main_refuses_while_paid_work_is_open_before_the_runner_is_built():
+    code, out, err = main_in_a_child("open")
+    assert code == 1 and "refused: the month's books are known" in err and "reached" not in err, (code, err)
 
 
 def test_blender_is_refused_however_it_is_started():

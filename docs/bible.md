@@ -482,8 +482,11 @@ runner's key it was made under) survived. Recovery, in order:
    free rows are made again, paid rows come back blocked, a paid gatherer's check stays unknown, and a Blender call
    blocks its node with nothing written. An old paid output stands again only when its key today equals the key it
    was made under, its bucket checkout rebuilds to its exact output hash and today's gates pass on it; downloading
-   it is the owner's own (`--reattach --max-gb N`). Since the prop route and the method were hardened after most
-   outputs were made, most keys differ: those nodes stay holes (#12) naming the paid row that remakes them.
+   it is the owner's own (`--reattach --max-gb N`). Its record says no maker's commit (the library holds only its
+   handover's) and its make's time as the library's accept, so nothing dates it today or carries it from today's
+   commit. Since the prop route and the method were hardened after most outputs were made, most keys differ: those
+   nodes stay holes (#12) naming the paid row that remakes them. The library rows are never made by the restore
+   (their handover pushes score_lib and writes to the bucket): they stay unknown.
 3. Never put back by hand: records, judgements, evidence, accepts, rejects, waivers, clearances, spend yeses, the
    registry or stop lines; the library's own `accept{}` is not an accept in the store.
 

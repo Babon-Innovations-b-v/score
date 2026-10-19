@@ -134,12 +134,35 @@ def read_books():
     return json.loads(BOOKS.read_text()) if BOOKS.exists() else {}
 
 
+def this_months_books():
+    """The books (read_books) when they were written for this month, else {}."""
+    books = read_books()
+    return books if books.get("month") == this_month() else {}
+
+
 def write_books(books):
     """Write the month's books whole (a reader never sees half a file)."""
     BOOKS.parent.mkdir(parents=True, exist_ok=True)
     partial = BOOKS.with_name(f"{BOOKS.name}.{os.getpid()}.partial")
     partial.write_text(json.dumps(books, indent=1))
     partial.replace(BOOKS)
+
+
+def open_books_for_tests(folder):
+    """A test's own books in `folder`, written known for this month, so the paid paths it drives are open."""
+    global BOOKS
+    BOOKS = pathlib.Path(folder) / "books.json"
+    write_books({"month": this_month(), "state": "known"})
+
+
+def euro_figure(value):
+    """`value` as euros when it is a finite figure of at least 0, else None (NaN passes every comparison: a NaN
+    Google month made the month's ceiling never refuse)."""
+    try:
+        euros = float(value)
+    except (TypeError, ValueError):
+        return None
+    return euros if math.isfinite(euros) and euros >= 0 else None
 
 
 def written_before(lines, field, month):
@@ -163,8 +186,11 @@ def books_refusal():
     until the owner's figure or the next month (fault, 2026-10-19: both ledgers were lost with the disk, and a missing
     ledger read as EUR 0)."""
     month = this_month()
-    books = read_books()
-    if books.get("month") == month:
+    books = this_months_books()
+    if books:
+        if books.get("state") == "known" and euro_figure(books.get("google_before", 0.0)) is None:
+            return (f"the month's books hold no usable Google figure ({books.get('google_before')!r} in {BOOKS}): "
+                    f"paid work is refused until the owner gives it again (score spend --google-month EUR)")
         if books.get("state") == "known":
             return None
         return (f"the month's books are {books.get('state', 'unknown')} ({BOOKS}): paid work is refused until the "
@@ -178,9 +204,13 @@ def books_refusal():
 
 def google_before():
     """The euros Google billed this month before the Google ledger began again (the books' `google_before`, known
-    from the owner), 0 when the books hold none for this month."""
-    books = read_books()
-    return float(books.get("google_before") or 0.0) if books.get("month") == this_month() else 0.0
+    from the owner), 0 when the books hold none for this month. A figure that is not finite and at least 0 is
+    refused (BooksUnknown): books_refusal shuts paid work on it."""
+    figure = this_months_books().get("google_before") or 0.0
+    euros = euro_figure(figure)
+    if euros is None:
+        raise BooksUnknown(f"the books' Google month is {figure!r}, not a figure of euros ({BOOKS})")
+    return euros
 
 
 def refuse_free_only(what):
