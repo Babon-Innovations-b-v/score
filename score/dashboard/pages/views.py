@@ -74,7 +74,7 @@ def board(request):
     shown = with_web3d(source, present.look_groups(world, queued))
     return render(request, "pages/board.html", {
         "world": world, "environment_name": present.environment_name(world.world), "groups": shown,
-        "holes_total": holes.environment(world.holes_total, world.holes_price),
+        "holes_total": holes.environment(world.holes_total, world.holes_price, basket_now()),
         "waiting_items": basket_items.unanswered(),
         "money": present.money(month_money.view(world.spend), planned), "world_steps": [
             present.step_tile(step, step_url(None, step.stage)) for step in world.world_line]})
@@ -113,7 +113,7 @@ def place_page(request, place):
                                          source.step_detail(None, GROUND_STAGE)),
         "problems": present.problems(detail), "holes": present.hole_groups(detail, items, world.holes_price),
         "chains": present.place_chains(detail, world.holes_price),
-        "holes_total": holes.environment(world.holes_total, world.holes_price),
+        "holes_total": holes.environment(world.holes_total, world.holes_price, items),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
         "library": library.strip_of(place)})
 
@@ -216,7 +216,7 @@ def basket(request):
     world = state.source().world_state()
     return render(request, "pages/basket.html", {
         **basket_items.basket_context(), "money": present.money(month_money.view(actions.spend()), None),
-        "holes_total": holes.environment(world.holes_total, world.holes_price),
+        "holes_total": holes.environment(world.holes_total, world.holes_price, basket_now()),
         "items": actions.basket_cards(items), "refine": library.refine_cards(RefineItem.objects.all()),
         "plan": plan, "plan_current": bool(plan and plan.basket_hash == current),
         "bar": money_bar(money.get("spent"), money.get("reserved"), money.get("likely"), money.get("high"),

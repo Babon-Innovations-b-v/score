@@ -128,15 +128,18 @@ def total_words(price, sums):
     return sum_words(sums)
 
 
-def environment(total, price):
-    """{holes, counts, made_at, stale, sums, unfillable, words} of every place's holes, None without a holes total:
-    the runner's price of every paid node in any hole's chain, each node once and each basis apart (no sums while
-    the record is missing or stale), and the work no stage can fill yet with its hole count."""
+def environment(total, price, items=()):
+    """{holes, counts, made_at, stale, sums, not_in_basket, unfillable, words} of every place's holes, None without
+    a holes total: the runner's price of every paid node in any hole's chain, each node once and each basis apart (no
+    sums while the record is missing or stale), how many of those nodes no basket item carries yet (`items`, the
+    basket's), and the work no stage can fill yet with its hole count."""
     if total is None:
         return None
     current = price is not None and not price.stale
     sums = summed(price.nodes) if current else None
+    carried = carriers(items)
     return {"holes": sum(total.counts.values()), "counts": total.counts, "made_at": price.made_at if price else None,
             "stale": price.stale if price else None, "sums": sums,
+            "not_in_basket": sum(node not in carried for node in price.nodes) if current else None,
             "unfillable": price.unfillable if current else [{"work": work, "holes": None} for work in total.unfillable],
             "not_current": price.not_current if current else [], "words": total_words(price, sums)}
