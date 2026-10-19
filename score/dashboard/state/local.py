@@ -30,6 +30,20 @@ LOG_LINES = 40
 CHECKS = "checks"
 HOLES = "holes"  # the holes check (score/stages/complete/holes): its findings are the place's holes, listed apart
 HOLE_FIELDS = ("id", "row", "gates", "node", "work", "placed", "low", "high")
+HOLES_WORLD = "world"  # the holes check's pseudo-place of the environment's own nodes' lost inputs (holes/__main__)
+
+
+def lost_once(holes):
+    """The holes with each lost input (`<rule>:lost:...`, its id names the thing) once however many places read it,
+    as the holes check's summary counts them (holes/inputs.py `distinct`); every other hole as it is."""
+    seen, found = set(), []
+    for hole in holes:
+        if hole.id.partition(":")[2].startswith("lost:"):
+            if hole.id in seen:
+                continue
+            seen.add(hole.id)
+        found.append(hole)
+    return found
 HISTORY = 6
 # Which stage makes each sublayer of a place's OpenUSD stage (score/stages/assembly/record.py ORDER).
 LAYER_MAKERS = {"edit": None, "characters": "characters-layer", "sound": "sound", "light": "light",
@@ -461,10 +475,10 @@ class LocalSource:
         return bool(row.paid) if row else None
 
     def holes_total(self):
-        """Every place's holes in sum: counts by rule, the distinct nodes that fill them (the paid ones apart), the
-        work no stage does."""
+        """Every place's holes and the environment's own lost inputs (HOLES_WORLD) in sum, a lost input once
+        (lost_once): counts by rule, the distinct nodes that fill them (the paid ones apart), the work no stage does."""
         def read():
-            holes = [hole for place in self.places() for hole in self.holes(place)]
+            holes = lost_once([hole for place in [*self.places(), HOLES_WORLD] for hole in self.holes(place)])
             work = [hole.work for hole in holes if hole.node is None]
             nodes = sorted({hole.node for hole in holes if hole.node})
             return HolesTotal(counts=dict(Counter(hole.rule for hole in holes)), nodes=nodes,

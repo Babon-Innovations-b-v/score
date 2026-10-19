@@ -14,13 +14,16 @@ assembly, laid out as links to the stored bytes), holes.usda (the holes layer ov
     id      missing:<row>_<n>, gate:<stage>/<gate>:<object>, place:concept|plan|rough-model or
             place:lost:<kind>:<item>, stable run to run
     rule    missing (a scene inventory row with nothing made for it), gate (a made object a written fault names)
-            or place (a step of the route the place has not been through, or an input its line reads that is lost
-            and no row makes: inputs.py, read from the stage table over the repository's data only)
-    source  inventory, check:<name>, gap:<name>, judgement:<node> or route
+            or place (a step of the route the place has not been through, or an input its line reads that is lost:
+            inputs.py, read from the stage table over the repository's data only)
+    source  inventory, check:<name>, gap:<name>, judgement:<node>, route or inputs
     node    the node that fills it (`<stage>@<place>`, or a world stage's name), else null and `work` its code work
     placed  a missing object's: spot, wall, on or unplaced; null for the rest
     low, high  its world box ([x, y, z]), or null
 
+A whole run (no --place, the repository's data) also writes <out>/world/findings.json: the environment's own nodes'
+lost inputs, place "world", no outputs and no stage. A lost input's id names the thing, so the summary line and the
+cockpit's total count it once however many places read it (inputs.distinct).
 The default out is WORK/checks/holes, where the cockpit reads it; the other checks' findings are read beside it.
 Reads the store, the scene inventories, kits, plans and named gaps, and the checks already written; judges nothing,
 writes nothing to the store. Free and local, seconds a place. Prints one line a place and one summary line, and
@@ -45,6 +48,7 @@ FINDINGS = "findings.json"
 STAGE = "stage"
 MISSING, GATE, PLACE = "missing", "gate", "place"
 RULES = (MISSING, GATE, PLACE)
+WORLD = "world"  # the pseudo-place of the environment's own nodes' lost inputs (inputs.lost over place None)
 SOURCES = ("neighbours", "assembly")  # the stage the holes stand over: the first accepted
 STEP_SENTENCES = {fill.CONCEPT: "no concept is picked for this place",
                   fill.PLAN: "this place's plan is not accepted",
@@ -124,11 +128,28 @@ def place_holes(stage, place, store, written, plan):
 
 
 def lost_holes(runner, place):
-    """Each input the place's line reads that is lost and no row makes (inputs.lost), on its root, as a place hole
-    with its code work."""
-    return [{"id": f"{PLACE}:{hole['id']}", "rule": PLACE, "prim": f"/{place}", "kind": None,
+    """Each input the place's line reads that is lost (inputs.lost; the world's own nodes' for place None), on its
+    root, as a place hole with the node that makes it again or its code work."""
+    return [{"id": f"{PLACE}:{hole['id']}", "rule": PLACE, "prim": f"/{place}" if place else None, "kind": None,
              "sentence": hole["sentence"], "picture": None, "row": None, "gates": [], "source": "inputs",
-             "node": None, "work": hole["work"], "placed": None, "bounds": None} for hole in inputs.lost(runner, place)]
+             "node": hole["node"], "work": hole["work"], "placed": None, "bounds": None}
+            for hole in inputs.lost(runner, place)]
+
+
+def written_world(folder, runner):
+    """The environment's own (world) nodes' lost inputs, written as the findings.json of WORLD, the pseudo-place the
+    cockpit adds to its total; findings.json as written. No stage and no outputs: the world has no scene of its own."""
+    folder.mkdir(parents=True, exist_ok=True)
+    findings = [{**{key: value for key, value in finding.items() if key != "bounds"}, "low": None, "high": None}
+                for finding in lost_holes(runner, None)]
+    written = {"place": WORLD, "answer": "fail" if findings else "pass", "outputs": {},
+               "counts": {rule: sum(item["rule"] == rule for item in findings) for rule in RULES},
+               "findings": findings}
+    faults = holes_faults(written)
+    if faults:
+        raise SystemExit(f"{WORLD}: the holes break their contract: " + "; ".join(faults[:5]))
+    (folder / FINDINGS).write_text(json.dumps(written, indent=1))
+    return written
 
 
 def bounded(stage, finding):
@@ -225,16 +246,18 @@ def main(argv=None):
     parser.add_argument("--data", type=pathlib.Path, default=DATA, help="the environment's data folder")
     options = parser.parse_args(argv)
     store = existing_store()
-    totals = dict.fromkeys(RULES, 0)
     places = places_of(options.place)
     table = table_runner(store) if options.data.resolve() == DATA.resolve() else None
+    found = []
     for place in places:
         written = written_place(store, place, options.data, options.out / place, table)
-        for rule in RULES:
-            totals[rule] += written["counts"][rule]
+        found += written["findings"]
         print(summary_line(written), flush=True)
-    print(f"{len(places)} places: {totals[MISSING]} missing, {totals[GATE]} gate, {totals[PLACE]} place holes; "
-          f"{options.out}")
+    if table is not None and not options.place:
+        found += written_world(options.out / WORLD, table)["findings"]
+    totals = {rule: sum(item["rule"] == rule for item in inputs.distinct(found)) for rule in RULES}
+    print(f"{len(places)} places: {totals[MISSING]} missing, {totals[GATE]} gate, {totals[PLACE]} place holes "
+          f"(a lost input once); {options.out}")
 
 
 if __name__ == "__main__":

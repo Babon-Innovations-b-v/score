@@ -18,6 +18,8 @@ sys.path.insert(0, str(HERE))
 import prop_makers  # noqa: E402
 import place_line  # noqa: E402  (put on the path by prop_makers)
 
+BAKE_ENTRY = prop_makers.bake_entry  # in_sandbox stands it in; the real one, kept for its own check
+
 ENTRY = {"name": "ship_1", "faces": 19000, "base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [9.02, 5.43, 31.0]}
 PROPS = [{"name": "ship-s1", "place": "hangar", "row": "ship", "take": "ship-b1", "seed": 1,
           "picture": "/pics/ship.png", "parts": "/parts/ship", "keep": ["closeup"]},
@@ -131,6 +133,34 @@ def test_a_bodied_prop_s_parts_are_written_before_its_bake_and_a_refusal_stops_i
         written = []
         prop_makers.write_body_parts = lambda prop: (written.append(prop["name"]) or False, "lies 0.3 off")
         assert prop_makers.check_parts(bodied) == (False, "lies 0.3 off") and written == [bodied["name"]]
+
+
+def test_a_bodied_prop_at_an_outside_place_is_sized_over_its_accepted_labelled_take():
+    """Its re-made take's parts are written at this entry's size, so the entry is sized over the accepted labelled take
+    (a toy box), never the parts folder still to be written; the entry's parts are that folder."""
+    import trimesh
+    with tempfile.TemporaryDirectory() as temp:
+        folder = pathlib.Path(temp)
+        kept = prop_makers.WORK, prop_makers.bake_inputs, prop_makers.accepted_labelled
+        try:
+            prop_makers.WORK = folder / "work"
+            labelled = folder / "labelled/aft_section-t1"
+            labelled.mkdir(parents=True)
+            trimesh.creation.box(extents=(2.0, 1.0, 1.0)).export(labelled / "hull_white.ply")
+            records = {"surfaces": {"place": "wreck", "library": "wreck",
+                                    "bake": {"models": {"aft_section": "aft_section-t1"}}},
+                       "kit": {"place": "wreck", "on_seat": [0.0, 0.0], "pieces": []},
+                       "inventory": {"rows": [{"id": "aft_section", "size": [10.3, 6.7, 6.3]}]}}
+            for name, record in records.items():
+                (folder / f"{name}.json").write_text(json.dumps(record))
+            prop_makers.bake_inputs = lambda place: {name: folder / f"{name}.json" for name in records}
+            prop_makers.accepted_labelled = lambda prop: labelled
+            bodied = {"name": "aft_section-t1", "place": "wreck", "take": "aft_section-b2", "body": "aft_section-t1"}
+            _, entry = BAKE_ENTRY(bodied)
+            assert max(entry["size"]) == 10.3, entry
+            assert entry["parts"] == str(folder / "work/body-parts/aft_section-b2"), entry
+        finally:
+            prop_makers.WORK, prop_makers.bake_inputs, prop_makers.accepted_labelled = kept
 
 
 def test_run_is_refused_without_yes_after_its_price():

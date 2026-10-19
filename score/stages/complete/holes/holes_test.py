@@ -253,9 +253,39 @@ def test_lost_inputs_are_place_holes_with_their_code_work():
     assert "ship_kit@cockpit" in cockpit["lost:ship-seed:cockpit"]["work"]
     assert not any("data/scene/cockpit.json" in hole["sentence"] for hole in cockpit.values())
     launch = {hole["id"] for hole in inputs.lost(runner, "launch")}
-    assert {"lost:data:bake entry far_rocket_1", "lost:earth-seed:launch"} <= launch, sorted(launch)
+    assert {"lost:data:surfaces/launch.json:bake entry far_rocket_1", "lost:earth-seed:launch"} <= launch, \
+        sorted(launch)
     found = [dict(hole, low=None, high=None) for hole in lost_holes(runner, "launch")]
-    assert holes_faults({"findings": found}) == [] and all(hole["work"] and hole["rule"] == "place" for hole in found)
+    assert holes_faults({"findings": found}) == [] and all(hole["rule"] == "place" for hole in found)
+
+
+def test_a_take_a_pixal_row_makes_is_that_row_s_hole_and_one_none_makes_has_its_work():
+    """The cockpit's pilot seat take is made by pixal@cockpit, so its hole is that node's, priced through it, never
+    code work; a world row's lost take no pixal row makes (demo-turntables' pliers) is a hole of the world."""
+    from score.stages.complete.holes import inputs
+    runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
+    cockpit = {hole["id"]: hole for hole in inputs.lost(runner, "cockpit")}
+    seat = cockpit["lost:pixal:pilot_seat-s1"]
+    assert seat["node"] == "pixal@cockpit" and seat["work"] is None, seat
+    world = {hole["id"]: hole for hole in inputs.lost(runner, None)}
+    pliers = world["lost:pixal:pliers-pf"]
+    assert pliers["node"] is None and pliers["work"] and "demo-turntables" in pliers["sentence"], pliers
+
+
+def test_an_earth_place_s_views_copy_names_the_rows_that_read_it():
+    from score.stages.complete.holes import inputs
+    runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
+    views = {hole["id"]: hole for hole in inputs.lost(runner, "launch")}["lost:views:launch.json"]
+    assert "effects-look@launch" in views["work"] and "ship place" not in views["work"], views
+    cockpit = {hole["id"]: hole for hole in inputs.lost(runner, "cockpit")}["lost:views:cockpit.json"]
+    assert "ship place" in cockpit["work"], cockpit
+
+
+def test_a_lost_input_many_places_read_counts_once():
+    from score.stages.complete.holes import inputs
+    holes = [{"id": "place:lost:earth-seed:usd-r3"}, {"id": "place:concept"}, {"id": "place:lost:earth-seed:usd-r3"},
+             {"id": "place:concept"}]
+    assert inputs.distinct(holes) == holes[:2] + holes[3:]
 
 
 def test_a_lost_input_many_nodes_read_is_one_hole():
