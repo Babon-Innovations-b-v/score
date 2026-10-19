@@ -599,7 +599,8 @@ def price_json(world, nodes):
     found = {}
     for node in nodes:
         row = rows.get(node.partition("@")[0])
-        found[node] = (compute.run_price(node, float(row.euros or 0), store) if row is not None and row.paid
+        found[node] = (compute.run_price(node, float(row.euros or 0), store, guess_from=row.euros_from)
+                       if row is not None and row.paid
                        else {"error": f"{node} is not a paid row of the stage table"})
     return {"world": world, "nodes": found}
 

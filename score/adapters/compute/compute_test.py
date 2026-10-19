@@ -289,7 +289,7 @@ def test_a_stage_measured_per_unit_is_priced_at_its_units_and_a_node_with_none_t
         BOOKS.entries = lambda: []
         price = compute.run_price("render@hangar", 9.0, outputs)
         assert (price["likely_euros"], price["high_euros"], price["units"], price["runs"], price["basis"]) == (
-            0.6, 1.5, 3, 40, "per unit"), price
+            0.6, 1.5, 3, 40, "per unit × counted"), price
         assert compute.run_forecast("render@hangar", 9.0, outputs) == {"euros": 1.5, "minutes": None,
                                                                        "high_minutes": None, "measured": 40}
         assert compute.run_price("crops-render@hangar", 2.0, outputs)["likely_euros"] == 0.2
@@ -298,6 +298,51 @@ def test_a_stage_measured_per_unit_is_priced_at_its_units_and_a_node_with_none_t
         assert compute.run_price("bake@hangar", 3.0, outputs)["basis"] == "not measured yet"
     finally:
         BOOKS.entries, compute.PER_UNIT = saved, kept
+
+
+def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it_is_a_guess_that_says_where():
+    """Units forecast before a make (holes' price) give per unit times them, a basis of their own; counted units
+    on an accepted output come first; a stage with no forecast rule, an `also` stage, or no units is a guess with the
+    file and line its row names its estimate on."""
+    saved, kept = BOOKS.entries, compute.PER_UNIT
+    folder = pathlib.Path(tempfile.mkdtemp())
+    compute.PER_UNIT = folder / "per-unit.json"
+    rule = {"rule": "models", "source": "the place's takes"}
+    compute.PER_UNIT.write_text(json.dumps({"stages": {
+        "render": {"stage": "render", "unit": "model", "count": {"json_keys": "takes.json"}, "also": ["crops-render"],
+                   "likely_euros": 0.2, "high_euros": 0.5, "runs": 40, "sources": {}, "forecast": rule},
+        "bake": {"stage": "bake", "unit": "job", "count": {"one": True}, "also": [], "likely_euros": 1.0,
+                 "high_euros": 2.0, "runs": 3, "sources": {}, "forecast": None, "forecast_why": "no batch"}}}))
+    outputs = Outputs({"render@hangar": {"takes.json": {"a": 1}}})
+    try:
+        BOOKS.entries = lambda: []
+        price = compute.run_price("render@lab", 9.0, outputs, units=4, guess_from="score/stages/x.py:12")
+        assert (price["likely_euros"], price["high_euros"], price["units"], price["basis"], price["unit_source"]) == (
+            0.8, 2.0, 4, "per unit × forecast", "the place's takes"), price
+        assert compute.run_price("render@hangar", 9.0, outputs, units=4)["basis"] == "per unit × counted"
+        for node, units in (("bake@lab", 4), ("crops-render@lab", 4), ("render@lab", 0), ("render@lab", None)):
+            found = compute.run_price(node, 3.0, outputs, units=units, guess_from="score/stages/x.py:12")
+            assert found["likely_euros"] is None and found["guess_euros"] == 3.0, (node, units, found)
+            assert found["guess_from"] == "score/stages/x.py:12" and found["basis"] == "not measured yet"
+        assert "guess_from" not in compute.run_price("bake@lab", 3.0)
+    finally:
+        BOOKS.entries, compute.PER_UNIT = saved, kept
+
+
+def test_a_stage_row_says_where_its_estimate_is_written():
+    """A paid row records the line that builds it (through a helper that hands its euros on), so a guess names it;
+    a row made from another by dataclasses.replace keeps the first's line unless its estimate changed."""
+    def row(name, **more):
+        return graph.Stage(name, "place", make_nothing, TEXT, **more)
+
+    built = row("render", paid=True, euros=2.0)
+    line = sys._getframe().f_lineno - 1
+    assert built.euros_from == f"score/adapters/compute/compute_test.py:{line}", built.euros_from
+    import dataclasses
+    assert dataclasses.replace(built, name="render-again").euros_from == built.euros_from
+    moved = dataclasses.replace(built, euros=3.0)
+    assert moved.euros_from == f"score/adapters/compute/compute_test.py:{sys._getframe().f_lineno - 1}"
+    assert RENDER.euros_from is None  # no estimate, nothing to say
 
 
 def test_each_count_rule_counts_the_units_an_output_made():
