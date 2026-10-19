@@ -6,6 +6,8 @@
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
     .venv/bin/python -m score plan <environment> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
     .venv/bin/python -m score spend --json            # this month's spend, open reservations and the ceiling
+    .venv/bin/python -m score spend --read-back       # the month's cloud bill read back into the books (#13)
+    .venv/bin/python -m score spend --google-month EUR   # the owner's own: Google's month before its ledger began again
     .venv/bin/python -m score price <environment> --node N [--node N ...] --json   # each paid node's likely and high price
     .venv/bin/python -m score moved [--pre-push]      # the paid rows this tree would buy again, every environment
     .venv/bin/python -m score resume [--dry]          # start again the runs a reboot cut off (score/graph/runs.py)
@@ -14,7 +16,10 @@
 running nothing: the missing inputs, the nodes it would make and why, the paid rows it would buy with their estimates
 and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard); each buy's `price` and the run's
 (`price`: likely and high euros and minutes) are `price`'s numbers, so the basket and the clearance read the same.
-`spend` reads the month's spend as the runner's clearance counts it. `price` gives each paid node its likely and high euros and minutes and the cards
+`spend` reads the month's spend as the runner's clearance counts it, and its `paid_refused` says why paid work is
+refused while the month's books are unknown (tools/props/cloud/ledger.py books_refusal; both ledgers were lost on
+2026-10-19): `--read-back` writes the provider's bill into the books as `lost`, and the owner's `--google-month`
+(refused in an agent's process) makes them `known`. `price` gives each paid node its likely and high euros and minutes and the cards
 its run is sized on, from the stage's measured runs in the cloud ledger (the numbers its clearance reserves), else
 its estimate (the cockpit prices a fix branch's moved paid rows with it).
 
@@ -136,6 +141,10 @@ def parse(argv):
     spend.add_argument("--json", action="store_true", help="the month's spend as one JSON object (the only form)")
     spend.add_argument("--world", default="world1", metavar="ENVIRONMENT",
                        help="the environment whose stop line and spend since it are read (its id, world1)")
+    spend.add_argument("--read-back", action="store_true",
+                       help="read the month's cloud bill back into the books (read-only at the provider)")
+    spend.add_argument("--google-month", type=float, metavar="EUR",
+                       help="the owner's figure: what Google billed this month before its ledger began again")
     price = commands.add_parser("price")
     price.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     price.add_argument("--node", action="append", required=True, help="a paid node (repeat it)")
@@ -524,6 +533,20 @@ def plan_price(prices, jobs):
             "measured": sum(1 for price in prices if price["runs"]), "rows": len(prices), "jobs": jobs}
 
 
+def spend_command(options):
+    """`spend`: the books read back, or the owner's Google month written, when asked; else the month's spend as JSON."""
+    from score.adapters import compute
+    if options.read_back:
+        print(json.dumps(compute.read_back_books()))
+    elif options.google_month is not None:
+        try:
+            print(json.dumps(compute.owners_google_month(options.google_month)))
+        except compute.Refused as refused:
+            sys.exit(f"refused: {refused}")
+    else:
+        print(json.dumps(spend_json(options.world)))
+
+
 def spend_json(world):
     """The money as the cockpit shows it: the world's spend since its first stop line against that line, and this
     month's cost by source, each saying where its number comes from and when it was read."""
@@ -533,7 +556,7 @@ def spend_json(world):
     books = compute.books_now()
     read_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     return {**world_spend(world, held, books), "month": books["month"], "as_of": read_at,
-            "lines": cost_lines(books, read_at),
+            "lines": cost_lines(books, read_at), "paid_refused": compute.ledger().books_refusal(),
             "credit_note": f"the Scaleway account's EUR {compute.ledger().MONTH_EUROS:.0f} monthly credit is shared with "
                            "Movalytics; it is not SCORE's budget"}
 
@@ -772,7 +795,7 @@ def main(argv=None):
         publish(options.kind)
         return
     if options.command == "spend":
-        print(json.dumps(spend_json(options.world)))
+        spend_command(options)
         return
     if options.command == "price":
         print(json.dumps(price_json(options.world, options.node)))

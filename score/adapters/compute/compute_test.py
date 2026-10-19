@@ -316,6 +316,23 @@ def test_each_count_rule_counts_the_units_an_output_made():
     for count, units in rules:
         assert compute.counted_units(outputs, "out", count) == units, (count, units)
 
+
+def test_the_owners_google_month_is_refused_in_an_agents_process():
+    """Only the owner knows what Google billed before its ledger began again (#13): an agent's figure opens nothing."""
+    kept = BOOKS.BOOKS
+    BOOKS.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"
+    os.environ["CLAUDECODE"] = os.environ.get("CLAUDECODE", "1")
+    try:
+        compute.owners_google_month(400.0)
+    except compute.Refused as refused:
+        assert "owner" in str(refused)
+    else:
+        raise AssertionError("an agent wrote the owner's Google month")
+    finally:
+        written, BOOKS.BOOKS = BOOKS.BOOKS.exists(), kept
+    assert not written
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
