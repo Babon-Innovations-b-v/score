@@ -254,7 +254,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/lab-score1/work/job-chunky.json",
   "models": {
    "desk_1": "desk-lab1",
    "desk_chair_1": "desk_chair-lab1",

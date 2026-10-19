@@ -127,7 +127,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/hangar-score1/run/job-chunky.json",
   "models": {
    "bay_panel_1": "bay_panel-h1",
    "access_stair_1": "access_stair-h2",

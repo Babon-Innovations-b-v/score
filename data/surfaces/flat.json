@@ -136,7 +136,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/flat-score1/run/job-chunky.json",
   "models": {
    "ashtray_1": "ashtray-rr1",
    "balcony_fern_pot_1": "balcony_fern_pot-rr1",

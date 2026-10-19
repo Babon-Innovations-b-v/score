@@ -37,7 +37,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/navigation-score1/run/job-chunky.json",
   "models": {
    "nav_table_1": "nav_table-s1",
    "wall_screen_1": "wall_screen-s1",

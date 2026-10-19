@@ -26,13 +26,10 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/launch-score1/run/job-chunky.json",
   "models": {
    "far_ferry_1": "far_ferry-s1",
    "far_rocket_1": "wf-launch-rocket-2"
   },
-  "entries": {
-   "far_rocket_1": "{home}/work/rocket-bl/job-chunky-solid.json"
-  }
+  "entries": {}
  }
 }

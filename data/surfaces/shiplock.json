@@ -15,7 +15,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/shiplock-score1/run/job-chunky.json",
   "models": {
    "locker_1": "locker-s1"
   },

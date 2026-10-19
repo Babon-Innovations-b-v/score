@@ -26,7 +26,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/habitat-score1/run/job-chunky.json",
   "models": {
    "kettle_1": "kettle-m6",
    "blanket_1": "blanket-m6"

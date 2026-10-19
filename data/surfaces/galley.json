@@ -37,7 +37,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/galley-score1/run/job-chunky.json",
   "models": {
    "galley_counter_1": "galley_counter-s1",
    "galley_table_1": "galley_table-s1",

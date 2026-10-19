@@ -187,14 +187,9 @@ def test_the_foliage_bakes_pack_face_by_face():
     it on; the potato, a solid, keeps the island packing."""
     sys.path.append(str(crop_data.REPO / "score/stages/surfaces"))
     import place_line
-    from score.store import PROPS_HOME
     surfaces = crop_data.FOLDER / "greenhouse-surfaces.json"
-    job = pathlib.Path(json.loads(surfaces.read_text())["bake"]["job"].replace("{home}", str(PROPS_HOME)))
-    if not job.exists():
-        print(f"skipped: no bake job at {job}")
-        return
     labelled = {take: pathlib.Path("/labelled") / take for take in json.loads(surfaces.read_text())["takes"]}
-    _, chunky = place_line.bake_entries({"surfaces": surfaces, "bake job": job}, labelled)
+    _, chunky = place_line.bake_entries({"surfaces": surfaces}, labelled)
     per_face = {entry["name"]: entry.get("per_face", False) for entry in chunky}
     assert per_face == {"crop_lettuce_1": True, "crop_potato_1": False, "crop_herb_1": True,
                         "crop_greens_1": True}, per_face

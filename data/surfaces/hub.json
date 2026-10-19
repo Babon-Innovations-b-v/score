@@ -37,7 +37,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/hub-score1/run/job-chunky.json",
   "models": {
    "microscope_1": "microscope-r6",
    "telephone_1": "telephone-r6",

@@ -26,7 +26,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/street-score1/run/job-chunky.json",
   "models": {
    "water_barrier_red_1": "water_barrier_red-s1",
    "water_barrier_white_1": "water_barrier_white-s1"

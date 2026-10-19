@@ -547,20 +547,23 @@ def judge_concept_colour(output, inputs, evidence):
 
 # --- bake ----------------------------------------------------------------------------------------------------------
 
+def read_or_none(inputs, name):
+    return json.loads(inputs[name].read_text()) if name in inputs else {}
+
+
 def bake_entries(inputs, labelled):
-    """The place's bake job and its make_chunky entries for the labelled takes ({take: folder}): each model the data
-    names, by its entry in the job, in another job the data names, or written out in the data."""
-    bake = data_of(inputs)["bake"]
-    job = json.loads(inputs["bake job"].read_text())
-    entries = {entry["name"]: entry for entry in job["chunky"]}
-    for name, entry in bake.get("entries", {}).items():
-        if isinstance(entry, str):
-            entry = next(found for found in json.loads(inputs[f"bake job {name}"].read_text())["chunky"]
-                         if found["name"] == name)
-        entries[name] = entry
+    """The place's bake job and its make_chunky entries for the labelled takes ({take: folder}), written from git
+    (bake_job.py): each model the data names, by its entry written out in the data, else its route's own entry over
+    the place's kit, inventory and labelled take. A model with neither stops the bake before anything is rented."""
+    import bake_job
+    data = data_of(inputs)
+    kit, inventory = read_or_none(inputs, "kit"), read_or_none(inputs, "inventory")
+    job = bake_job.job_head(data["library"], bake_job.outside(kit))
+    written = data["bake"].get("entries", {})
     # regions: an old job's boxes that forced a variant over the paint (the water tank's top as glass): the method paints
-    chunky = [dict(entries[name], name=name, parts=str(labelled[take]), regions=[])
-              for name, take in bake["models"].items() if take in labelled]
+    chunky = [dict(bake_job.entry_of(data["place"], name, written.get(name), kit, inventory, labelled[take]),
+                   name=name, parts=str(labelled[take]), regions=[])
+              for name, take in data["bake"]["models"].items() if take in labelled]
     return job, chunky
 
 

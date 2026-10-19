@@ -164,13 +164,13 @@ def bake_entry(place, row, details):
 
 def surface_record(place, objects, rows, details):
     """The place's surface data for the order: its prop objects' takes, each baked as <row>_1 with its entry written
-    out, on the place's own bake job; no claims on other places."""
+    out (the job is written in the bake, bake_job.py); no claims on other places."""
     record = json.loads((REPO / "data/surfaces" / f"{place}.json").read_text())
     by_id = {row["id"]: row for row in rows}
     prop = {row: entry for row, entry in objects.items() if entry["route"] == "prop"}
     takes = {entry["take"]: {"places": [place], "library_places": [place], "place": place, "kind": f"{place}_{row}",
                              "object": by_id[row]["name"]} for row, entry in prop.items()}
-    bake = {"job": record["bake"]["job"], "models": {f"{row}_1": entry["take"] for row, entry in prop.items()},
+    bake = {"models": {f"{row}_1": entry["take"] for row, entry in prop.items()},
             "entries": {f"{row}_1": bake_entry(place, by_id[row], details) for row in prop}}
     return {"place": place, "library": record["library"], "takes": takes, "bake": bake, "elsewhere": {}}
 

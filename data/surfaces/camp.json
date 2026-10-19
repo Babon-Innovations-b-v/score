@@ -92,7 +92,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/camp-score1/run/job-chunky.json",
   "models": {
    "bunk_1": "bunk-m1",
    "coffee_maker_1": "coffee_maker-rr2",
