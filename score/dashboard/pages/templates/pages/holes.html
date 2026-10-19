@@ -1,6 +1,7 @@
 {% if holes %}
 <section class="holes" id="holes" aria-label="what this place still needs">
-  <div class="group-head"><h2>What this place still needs</h2></div>
+  <div class="group-head"><h2>What this place still needs</h2><div class="grow"></div>
+    <a class="button" href="/view/{{ detail.place }}?holes=1">Holes in 3D</a></div>
   {% for group in holes %}
   <h3>{{ group.title }} ({{ group.count }})</h3>
   <ul class="hole-list">{% for line in group.lines %}

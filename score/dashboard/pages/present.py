@@ -251,6 +251,12 @@ def hole_line(entry, place, count):
             "filled_by": hole.node or hole.work}
 
 
+def hole_marks(detail):
+    """[{low, high, kind}] the viewer outlines: each hole with a box in space, by its rule (missing, gate)."""
+    return [{"low": hole.low, "high": hole.high, "kind": hole.rule} for hole in detail.holes
+            if hole.low is not None and hole.high is not None]
+
+
 def hole_groups(detail, items):
     """[{rule, title, count, lines}] of the place's holes, by rule; a row's missing objects on one line."""
     found = {rule: [] for rule, _ in HOLE_GROUPS}
