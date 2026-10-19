@@ -116,6 +116,9 @@ def test_batch_euros_split_by_job_seconds():
 
 
 if __name__ == "__main__":
+    import pathlib
+    import runpy
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, function in list(globals().items()):
         if name.startswith("test_"):
             function()
