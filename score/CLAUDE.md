@@ -26,7 +26,12 @@ stage as each stage is built; nothing moves before.
   status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place): the runner drives every line (the environment's own nodes, then each place's) to its end with no agent
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
   most `--jobs` at once (default 8), so a line waiting on a cloud step holds up no other, and an environment node every line
-  reads is made once. It starts each node the moment the nodes it reads stand accepted,
+  reads is made once. Each node's process sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and
+  `NUMBA_NUM_THREADS` to this PC's cores divided by `--jobs` (at least 1; a smaller value already set stands, an empty one counts as unset, and
+  one that is not a whole number above 0 is refused before the run) before its make starts, inside its log (a failed cap
+  shows in its fault report), so its children inherit them, and resizes the OpenBLAS pools the drive loaded before it forked; a
+  lone node gets only that share too (3 cores at the default 8 on 24), so `--jobs 1` gives a lone heavy node every
+  core; more jobs than cores is refused unless given `--oversubscribe`. It starts each node the moment the nodes it reads stand accepted,
   gathers a gate's missing evidence itself (`Stage.gatherers`; a paid one cleared like a paid stage, and only when
   nothing else blocks the output) and waits on every cloud step itself. A node that does not end accepted stops its
   own line only and leaves a plain fault report, `faults/<node>.txt` beside the store (`$PROPS_HOME/store/`): the
