@@ -368,6 +368,23 @@ def box_checked(files):
     return declared
 
 
+def scene_inventory_read(files):
+    """props-inputs' environment files with "inventories" the scene's own inventory, the one the box gate reads
+    (box_check.gate: inventory.path_of(scene), the scene the place's inventory names), not the whole folder: every
+    place's inputs row was made again for the hangar's inventory alone (46313397, 2026-10-18). The name is kept, so an
+    output whose scene's inventory reads as when it was made keeps it (the narrowing carry). Wrapped here, in the table,
+    so no row's code moves."""
+    @functools.wraps(files)
+    def declared(place):
+        found = files(place)
+        if found.get("inventories") != "{data}/inventory":
+            return found
+        own = prop_data.FOLDER.parent / "inventory" / f"{place}.json"
+        scene = json.loads(own.read_text()).get("scene", place) if own.exists() else place
+        return {**found, "inventories": "{data}/inventory/" + f"{scene}.json"}
+    return declared
+
+
 def prop_fed(row):
     """surfaces-inputs waiting on the prop route's Pixal3D row (props.FEEDS), whose takes its line paints. A place
     with no prop data reads without it (Runner.reads), so its key does not move."""
@@ -411,7 +428,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS,
           TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
-          dataclasses.replace(props.INPUTS, files=box_checked(props.INPUTS.files)), props.CLOSEUP, props.PIXAL,
+          dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
           props.CALIBRATION, props.LIKENESS,
           *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
