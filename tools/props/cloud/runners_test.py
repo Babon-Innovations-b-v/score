@@ -43,7 +43,7 @@ OFFERS = [provider.Offer(0.02, 0, "small", "zone-a", 0.02, "gpu-24gb", 0, "avail
 # Each runner's estimate on a fixed list, and what it said and returned on the code before the shared estimate.
 ESTIMATES = {
     "blender_cloud": (lambda: blender_cloud.price([{"minutes": 5}, {"minutes": 20}], "acct", ["gpu-24gb"]),
-                      "2 Blender jobs on 2 machines: about 28 min, €2.80; €100.00 spent this month", (2, 2, 240.0)),
+                      "2 Blender jobs on 2 machines: about 28 min, €2.80; €100.00 spent this month", (2, 2, 240.0, None)),
     "box_masks_cloud": (lambda: box_masks_cloud.price([{}] * 9, "acct"),
                         "9 pictures on 1 card: about 13 min, €0.65; €100.00 spent this month", (3, 240.0)),
     "characters": (lambda: characters.price(["p1", "p2", "p3"], "acct", None),

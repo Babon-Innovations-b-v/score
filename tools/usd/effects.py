@@ -90,6 +90,7 @@ the GPUParticles3D's 30 steps a second), with this module's own seeded generator
 record always gives the same particles, but not the game's own draws (Godot's particle hash is not repeated here).
 """
 import argparse
+import copy
 import json
 import math
 import pathlib
@@ -339,7 +340,7 @@ def second_of(value, motions):
 def timed(effects, motions):
     """The record with every second given from a moment of the climb (an emitter's `once` and `starts`, a light's
     `intensity` keys) as its second of the stage."""
-    found = json.loads(json.dumps(effects))
+    found = copy.deepcopy(effects)
     for entry in found["effects"]:
         if "once" in entry:
             entry["once"] = [second_of(value, motions) for value in entry["once"]]
