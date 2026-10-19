@@ -645,11 +645,14 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
     keeps A's accepted output, no proof file and no make (rebuy counts no buy); with A's own file also edited, its
     declared {seeds} file outside the repository changed, its make wired to another function in a file unchanged
     since (B), another Python, H itself edited or a file read only through H (J) edited or deleted, it makes A again.
-    A second narrowing after the first (the other helper G moved too) is kept as well, still naming what made it."""
+    A second narrowing after the first (the other helper G moved too) is kept as well, still naming what made it.
+    With nothing moved into FRAMEWORK, A and G reworded only (comments, blank lines, layout, docstrings) keep it,
+    the record naming them; a docstring changed in a file that reads `__doc__`, or a type hint, makes A again."""
     for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
                                (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
                                (6, "read through helper edited", False), (7, "second narrowing", True),
-                               (8, "read through helper deleted", False)):
+                               (8, "read through helper deleted", False), (9, "words only", True),
+                               (10, "read docstring changed", False), (11, "type hint", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.Environment("toy", 7, {"seeds": str(seeds)})
@@ -657,12 +660,24 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
         with a_repo_of_its_own(case) as (repo, module):
             stage = graph.Stage("narrow", "place", module.make, TEXT, (checks.Check("seen", judge_seen),),
                                 files={"seeds": "{seeds}/{place}.txt"})
+            if change == "read docstring changed":
+                (repo / f"narrow_g{case}.py").write_text('"""also """\nWORD = __doc__\n')
+                subprocess.run(["git", "-C", str(repo), "commit", "-qam", "a usage text"], check=True)
             first = a_runner(world, store, (stage,)).run(["hangar"])["narrow@hangar"]
             assert first == "made: pass, accepted automatically", first
             old = store.records("narrow@hangar")[0]
-            _code.FRAMEWORK.add(repo / f"narrow_h{case}.py")
+            if change not in ("words only", "read docstring changed", "type hint"):
+                _code.FRAMEWORK.add(repo / f"narrow_h{case}.py")
             if change == "own file":
-                (repo / f"narrow_a{case}.py").write_text(stage_source(case) + "# read\n")
+                (repo / f"narrow_a{case}.py").write_text(stage_source(case) + "EXTRA = 1\n")
+            if change == "words only":
+                (repo / f"narrow_a{case}.py").write_text('"""A stage."""\n\n# made here\n' + stage_source(case).replace(
+                    "    (out", '    """It makes made.txt."""\n    (out'))
+                (repo / f"narrow_g{case}.py").write_text('WORD = (\n    "also "  # a word\n)\n')
+            if change == "read docstring changed":
+                (repo / f"narrow_g{case}.py").write_text('"""other """\nWORD = __doc__\n')
+            if change == "type hint":
+                (repo / f"narrow_g{case}.py").write_text('WORD: str = "also "\n')
             if change == "helper edited":
                 (repo / f"narrow_h{case}.py").write_text('WORD = "another word "\n')
             if change == "read through helper edited":
@@ -686,7 +701,12 @@ def test_an_output_whose_key_only_got_narrower_is_kept_and_a_changed_read_is_mad
                 _code.sys = python
             assert done.startswith("fresh" if kept else "made: pass"), (change, done)
             record = store.record("narrow@hangar", keyed["key"])
-            if kept:
+            if change == "words only":
+                assert record["output"] == old["output"] and record["carried"] == {
+                    "reason": graph.WORDS_REASON, "from key": old["key"], "to key": keyed["key"],
+                    "made by": {"commit": old["commit"], "code": old["code"]},
+                    "words only": [f"narrow_a{case}.py", f"narrow_g{case}.py"]}
+            elif kept:
                 assert record["output"] == old["output"] and record["code"] == keyed["code"]
                 assert record["carried"] == {"reason": graph.NARROWING_REASON, "from key": old["key"],
                                              "to key": keyed["key"],

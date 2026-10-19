@@ -189,6 +189,64 @@ def rebuilt_at(commit, starts):
     return parts
 
 
+DOCUMENTED = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)
+
+
+def doc_reads(tree):
+    """How a parsed file reads docstrings: "others" when it reads any object's (`x.__doc__`, `getdoc`), "own" when
+    only its module's (`__doc__`: a usage text), None when it reads none."""
+    found = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr in ("__doc__", "getdoc") or \
+                isinstance(node, ast.Name) and node.id == "getdoc":
+            return "others"
+        if isinstance(node, ast.Name) and node.id == "__doc__":
+            found = "own"
+    return found
+
+
+def without_docstrings(tree):
+    """The parsed file with every module, class and function docstring taken out (an emptied body gets `pass`)."""
+    for node in ast.walk(tree):
+        if isinstance(node, DOCUMENTED) and node.body and isinstance(node.body[0], ast.Expr) and \
+                isinstance(node.body[0].value, ast.Constant) and isinstance(node.body[0].value.value, str):
+            node.body = node.body[1:] or [ast.Pass()]
+    return tree
+
+
+def words_only(commit, relatives, read):
+    """True when each repository Python file of `relatives` differs between `commit` and this tree only in words
+    that cannot change what it does: comments, blank lines, layout and docstrings (these count when a file reads its
+    own `__doc__`, and in every file when any file of `read`, the files the code reads today, reads another
+    object's). Type hints and names count: a dataclass or a caller can read them. False for any other file, a file
+    not at `commit`, one deleted, or one that does not parse."""
+    blobs = blobs_at(commit)
+    if blobs is None:
+        return False
+    pairs = []
+    for name in relatives:
+        path = REPO / name
+        if not name.endswith(".py") or name not in blobs or not path.is_file():
+            return False
+        try:
+            pairs.append((ast.parse(blob_bytes(blobs[name])), ast.parse(path.read_text())))
+        except (SyntaxError, ValueError, UnicodeDecodeError):
+            return False
+    keep_all = any(doc_reads(tree) == "others" for pair in pairs for tree in pair) or \
+        any(doc_reads(ast.parse((REPO / name).read_text())) == "others" for name in read if name.endswith(".py"))
+    for then, now in pairs:
+        docstrings = keep_all or "own" in (doc_reads(then), doc_reads(now))
+        if meaning_of(then, docstrings) != meaning_of(now, docstrings):
+            return False
+    return True
+
+
+def meaning_of(tree, docstrings):
+    """What a parsed Python file does, as text: its syntax tree's dump, so comments, blank lines and layout are not
+    in it, its docstrings left out unless `docstrings`. Two files of the same meaning run the same."""
+    return ast.dump(tree if docstrings else without_docstrings(tree))
+
+
 def unchanged(entries, hash_file):
     """True when every code version entry ("<repository path> <hash>") names a file this checkout still holds and
     `hash_file` hashes as the entry says. A deleted file is not unchanged: an unchanged file that imported it may now
