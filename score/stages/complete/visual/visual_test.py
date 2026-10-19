@@ -150,8 +150,9 @@ def a_run_writes_its_pictures():
 
 
 if __name__ == "__main__":
+    import pathlib
     import runpy
-    runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[4] / "conftest.py"))["refuse_outside_sandbox"]()
     failures = (fixture_answers() + kinds_read_off_a_stage() + neighbours_read_inside_a_room()
                 + a_run_writes_its_pictures())
     for failure in failures:

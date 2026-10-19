@@ -157,7 +157,8 @@ def test_every_plain_script_test_refuses_first_without_a_sandbox_home():
     against the real home."""
     assert len(plain_script_tests()) > 100
     for path in plain_script_tests():
-        block = path.read_text().split('if __name__ == "__main__":\n', 1)[1].splitlines()
+        # the lines after the guard; its own line may end in a comment (score/stages/moved_test.py)
+        block = path.read_text().split('if __name__ == "__main__":', 1)[1].splitlines()[1:]
         assert block[2].strip().startswith("runpy.run_path(") and "refuse_outside_sandbox" in block[2], path
         assert f"parents[{len(path.relative_to(REPO).parts) - 1}] / " in block[2], path  # the repository's root
     environ = {name: value for name, value in os.environ.items() if name not in ("PROPS_HOME", "PROPS_WORK")}
