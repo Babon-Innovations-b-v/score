@@ -3110,6 +3110,7 @@
 	},
 	"cockpit": {
 		"name": "the ship's cockpit",
+		"ship": true,
 		"scenes": [
 			"cockpit"
 		],
@@ -3278,6 +3279,7 @@
 	},
 	"quarters": {
 		"name": "the ship's crew quarters",
+		"ship": true,
 		"scenes": [
 			"quarters"
 		],
@@ -3455,6 +3457,7 @@
 	},
 	"navigation": {
 		"name": "the ship's navigation room",
+		"ship": true,
 		"scenes": [
 			"navigation"
 		],
@@ -3632,6 +3635,7 @@
 	},
 	"galley": {
 		"name": "the ship's galley",
+		"ship": true,
 		"scenes": [
 			"galley"
 		],
@@ -3809,6 +3813,7 @@
 	},
 	"storage": {
 		"name": "the ship's storage room",
+		"ship": true,
 		"scenes": [
 			"storage"
 		],
@@ -3986,6 +3991,7 @@
 	},
 	"engineroom": {
 		"name": "the ship's engine and power room",
+		"ship": true,
 		"scenes": [
 			"engineroom"
 		],
@@ -4163,6 +4169,7 @@
 	},
 	"shiplock": {
 		"name": "the ship's airlock",
+		"ship": true,
 		"scenes": [
 			"shiplock"
 		],
@@ -4340,6 +4347,7 @@
 	},
 	"walkway": {
 		"name": "the ship's walkway",
+		"ship": true,
 		"scenes": [
 			"walkway"
 		],

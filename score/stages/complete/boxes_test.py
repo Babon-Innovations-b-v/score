@@ -35,8 +35,7 @@ def test_the_rows_no_other_box_row_measures():
     rows = {row["id"] for row in boxes.other_rows(inventory("cockpit"))}
     assert {"ring_floor_plate", "hatch_door_frame"} <= rows and not {"pilot_seat", "door_leaf"} & rows, rows
     row = next(row for row in stages.STAGES if row.name == "complete-boxes")
-    if not stages.ship_place("cockpit"):
-        raise SystemExit("cockpit has no ship base stage on this machine (usd-ship/cockpit): cannot test the table")
+    assert stages.ship_place("cockpit") and not stages.ship_place("hub")
     assert row.applies("cockpit") and not row.applies("hub")
 
 
