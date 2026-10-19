@@ -1,7 +1,7 @@
 """SCORE's one command: the runner drives an environment's lines to their end, with no agent in the loop.
 
     .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
-        [--uncommitted]
+        [--uncommitted] [--oversubscribe]
     .venv/bin/python -m score status [<environment>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
     .venv/bin/python -m score plan <environment> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
@@ -19,8 +19,12 @@ its run is sized on, from the stage's measured runs in the cloud ledger (the num
 its estimate (the cockpit prices a fix branch's moved paid rows with it).
 
 `run` drives the lines side by side (with --place, those places' lines and only the whole-environment nodes they read), each node in
-a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time); with
---stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone). It starts
+a process of its own and at most --jobs at once (default score.graph.JOBS; --jobs 1 runs one node at a time), each
+node's thread pools and its children's capped at this PC's cores shared out among the jobs (OMP_NUM_THREADS and the
+others in score.graph.THREAD_VARIABLES, and the OpenBLAS pools already loaded), so a lone node at the default --jobs
+still gets only its share (--jobs 1 gives it every core); more jobs than cores is refused unless given --oversubscribe;
+with --stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone). It
+starts
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
 the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a plain fault report
 (faults/<node>.txt beside the store) to point an agent or the owner at; the other lines go on. It exits 1 when any line
@@ -115,7 +119,8 @@ def parse(argv):
     run = commands.add_parser("run")
     run.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     run.add_argument(DETACH, action="store_true", help="progress to a log, one result line at the end")
-    run.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once (default %(default)s)")
+    run.add_argument("--jobs", type=jobs_count, default=graph.JOBS, help="nodes at once (default %(default)s)")
+    run.add_argument("--oversubscribe", action="store_true", help="allow more jobs than this PC has cores")
     run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
     run.add_argument("--uncommitted", action="store_true", help="run this worktree's changes not committed")
     status = commands.add_parser("status")
@@ -144,6 +149,14 @@ def parse(argv):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
     return parser.parse_args(argv)
+
+
+def jobs_count(text):
+    """--jobs as a whole number of at least 1; argparse refuses anything else plainly."""
+    jobs = int(text)
+    if jobs < 1:
+        raise argparse.ArgumentTypeError(f"{text}: at least 1")
+    return jobs
 
 
 def detach(argv):
@@ -421,6 +434,22 @@ def as_run(runner, drive):
     finally:
         give_terminal_back(held_before)
         release_once_ended(runner, run_id, mark)
+
+
+def checked_thread_variables():
+    """Exit when a thread variable the owner set is not a thread count: every node would stop on it."""
+    try:
+        graph.owner_thread_counts()
+    except ValueError as error:
+        sys.exit(f"refused: {error}")
+
+
+def checked_threads(options):
+    """Exit when the run's jobs times their threads would pass this PC's core count and --oversubscribe was not
+    given."""
+    refused = graph.oversubscribed(options.jobs)
+    if refused and not options.oversubscribe:
+        sys.exit(f"refused: {refused}")
 
 
 def checked_buys(runner, places, whole, options):
@@ -764,6 +793,8 @@ def main(argv=None):
         print(json.dumps(plan_json(runner, places, whole, options)))
         return
     if options.command == "run":
+        checked_thread_variables()
+        checked_threads(options)
         claim(runner, places, whole, options)
         checked_buys(runner, places, whole, options)
     if getattr(options, "detach", False):

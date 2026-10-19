@@ -356,6 +356,142 @@ def test_a_node_that_leaves_a_thread_running_does_not_hold_up_the_drive():
         signal.alarm(0)
 
 
+CHILD_THREADS = "import os; print(os.environ['OMP_NUM_THREADS'], os.environ['NUMBA_NUM_THREADS'])"
+
+
+def live_openblas_threads():
+    """The pool size each OpenBLAS loaded in this process runs its work on now (not what its variable says)."""
+    import ctypes
+    sizes = []
+    for library in graph.loaded_openblas():
+        handle = ctypes.CDLL(library)
+        getter = next(getattr(handle, name.replace("_set_", "_get_")) for name in graph.OPENBLAS_SETTERS
+                      if hasattr(handle, name))
+        sizes.append(getter())
+    return sizes
+
+
+def make_thread_note(inputs, out, seed, params):
+    own = f"{os.environ['OMP_NUM_THREADS']} {os.environ['NUMBA_NUM_THREADS']}"
+    child = subprocess.run([sys.executable, "-c", CHILD_THREADS], capture_output=True, text=True, check=True)
+    pools = " ".join(str(size) for size in live_openblas_threads())
+    (out / "threads.txt").write_text(f"{own}\n{child.stdout.strip()}\n{pools}")
+
+
+def thread_note(jobs, cores=24):
+    """The thread note one node writes when `jobs` nodes share `cores`, numpy and scipy's OpenBLAS loaded in the
+    drive before it forks (as score.stages loads them)."""
+    import numpy  # noqa: F401
+    import scipy.linalg  # noqa: F401
+    world = a_world_of(["hangar"])[1]
+    runner = graph.Runner((graph.Stage("threads", "place", make_thread_note, TEXT, MET),), world,
+                          Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    real_count = os.cpu_count
+    os.cpu_count = lambda: cores
+    try:
+        assert runner.drive(["hangar"], say=quiet, jobs=jobs) == {
+            "threads@hangar": "made: pass, accepted automatically"}
+    finally:
+        os.cpu_count = real_count
+    return (runner.store.checkout(runner.store.accepted("threads@hangar")) / "threads.txt").read_text().splitlines()
+
+
+def test_six_jobs_on_twenty_four_cores_give_each_node_and_its_child_four_threads():
+    """Fault (C11, 2026-10-17): six local nodes each sized their thread pools to every core and overloaded the PC.
+    The OpenBLAS numpy and scipy loaded before the fork is resized in the node too, not only its variable."""
+    lines = thread_note(6)
+    assert lines[:2] == ["4 4", "4 4"], lines
+    assert lines[2].split() and set(lines[2].split()) == {"4"}, lines
+    assert graph.oversubscribed(6) is None and "--oversubscribe" in graph.oversubscribed(30)
+
+
+def test_a_smaller_thread_count_the_owner_set_is_kept():
+    """Review (C11): OMP_NUM_THREADS=1 set by the owner was raised to the node's share."""
+    own = os.environ.get("OMP_NUM_THREADS")
+    os.environ["OMP_NUM_THREADS"] = "1"
+    try:
+        lines = thread_note(6)
+    finally:
+        if own is None:
+            del os.environ["OMP_NUM_THREADS"]
+        else:
+            os.environ["OMP_NUM_THREADS"] = own
+    assert lines[:2] == ["1 4", "1 4"], lines
+
+
+def test_a_cap_that_fails_shows_its_cause_in_the_nodes_fault_report():
+    """Review (C11): a cap that raised in the node's process before its log opened ended the node with 'its process
+    ended without saying what it did' and an empty log tail, on every line."""
+    import numpy  # noqa: F401 - its OpenBLAS loaded before the fork, as score.stages loads it
+    world = a_world_of(["hangar"])[1]
+    runner = graph.Runner((graph.Stage("threads", "place", make_thread_note, TEXT, MET),), world,
+                          Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    setters = graph.OPENBLAS_SETTERS
+    graph.OPENBLAS_SETTERS = ("no_such_setter",)
+    try:
+        did = runner.drive(["hangar"], say=quiet, jobs=6)["threads@hangar"]
+    finally:
+        graph.OPENBLAS_SETTERS = setters
+    assert "pool cannot be capped" in did and "without saying" not in did, did
+    report = runner.desk("faults", "threads@hangar", ".txt").read_text()
+    assert "RuntimeError" in report and "  | " in report and "pool cannot be capped" in report, report
+
+
+def with_omp(value, act):
+    """act() with OMP_NUM_THREADS set to `value`, the owner's own put back after."""
+    own = os.environ.get("OMP_NUM_THREADS")
+    os.environ["OMP_NUM_THREADS"] = value
+    try:
+        return act()
+    finally:
+        if own is None:
+            del os.environ["OMP_NUM_THREADS"]
+        else:
+            os.environ["OMP_NUM_THREADS"] = own
+
+
+def test_a_thread_variable_that_is_not_a_count_is_refused_plainly_and_an_empty_one_is_unset():
+    """Review (C11): OMP_NUM_THREADS='' (export OMP_NUM_THREADS=), '4,2' and 'auto' each crashed every node."""
+    from score import __main__ as command
+    assert with_omp("", lambda: thread_note(6))[:2] == ["4 4", "4 4"]
+    for value in ("4,2", "auto", "0"):
+        try:
+            with_omp(value, command.checked_thread_variables)
+        except SystemExit as refusal:
+            assert str(refusal) == (f"refused: OMP_NUM_THREADS={value!r} is not a thread count (a whole number "
+                                    "above 0); unset it or set one"), refusal
+        else:
+            raise AssertionError(f"OMP_NUM_THREADS={value!r} was taken")
+
+
+def test_score_run_refuses_more_jobs_than_cores_without_oversubscribe_and_any_jobs_under_one():
+    """Review (C11): --jobs 0 ended in a ZeroDivisionError traceback, and the refusal had no test."""
+    from score import __main__ as command
+    real_count = os.cpu_count
+    os.cpu_count = lambda: 24
+    try:
+        for jobs in ("8", "24"):
+            command.checked_threads(command.parse(["run", "world1", "--jobs", jobs]))
+        command.checked_threads(command.parse(["run", "world1", "--jobs", "25", "--oversubscribe"]))
+        try:
+            command.checked_threads(command.parse(["run", "world1", "--jobs", "25"]))
+        except SystemExit as refusal:
+            assert str(refusal).startswith("refused: 25 jobs") and "--oversubscribe" in str(refusal), refusal
+        else:
+            raise AssertionError("25 jobs on 24 cores ran without --oversubscribe")
+    finally:
+        os.cpu_count = real_count
+    for jobs in ("0", "-2"):
+        printed = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(printed):
+                command.parse(["run", "world1", "--jobs", jobs])
+        except SystemExit as refusal:
+            assert refusal.code == 2 and "at least 1" in printed.getvalue(), printed.getvalue()
+        else:
+            raise AssertionError(f"--jobs {jobs} was taken")
+
+
 def test_status_lists_each_prefix_once_and_works_out_each_key_once():
     """Fault (2026-10-12): a run's closing status walked the whole store for every lookup and worked out each key once
     a path through the nodes reading it; `score status` on world 1 took over five minutes. Fault (2026-10-16): the

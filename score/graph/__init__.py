@@ -76,6 +76,14 @@ RUNNER_POLL_SECONDS = 2
 # A drive says a heartbeat line (rows done, running and queued, and the run's gauges) every HEARTBEAT seconds, so a run
 # that is alive says so and a quiet log means a dead run (2026-10-16: runs failed or sat idle for hours unseen).
 HEARTBEAT = 120
+# The thread-pool variables every node's process sets before its make starts (lowered only: a smaller value the owner
+# set stands), so the libraries first loaded in the node and every child it starts share this PC's cores among the
+# nodes running at once: six nodes each sizing a pool to every core overloaded the PC for hours (C11, 2026-10-17).
+THREAD_VARIABLES = ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMBA_NUM_THREADS")
+# A library the drive loaded before it forked (score.stages loads numpy's and scipy's OpenBLAS) sized its pool then
+# and never reads the variables again: each node resizes those pools by the first of these setters each one has.
+OPENBLAS_SETTERS = ("openblas_set_num_threads", "openblas_set_num_threads64_", "scipy_openblas_set_num_threads",
+                    "scipy_openblas_set_num_threads64_")
 # The completion gate's check that fails a place's named gaps by name (score/review GAPPED).
 GAPPED = review.GAPPED
 # Each node runs in a forked process: its output (and its children's) goes to its own log, and the toy stages of the
@@ -261,6 +269,64 @@ def logged(path):
             for descriptor, copy in zip((1, 2), saved):
                 os.dup2(copy, descriptor)
                 os.close(copy)
+
+
+def node_threads(jobs):
+    """The threads each of `jobs` nodes at once may use: this PC's cores shared out, at least one."""
+    return max(1, (os.cpu_count() or 1) // jobs)
+
+
+def oversubscribed(jobs):
+    """Why `jobs` nodes at once, each with its node_threads, would ask for more threads than this PC has cores; None
+    when they fit."""
+    cores, threads = os.cpu_count() or 1, node_threads(jobs)
+    if jobs * threads <= cores:
+        return None
+    return (f"{jobs} jobs of {threads} thread(s) each ask for {jobs * threads} threads on {cores} cores; lower --jobs "
+            "or pass --oversubscribe")
+
+
+def cap_threads(threads):
+    """This process's thread pools, those already loaded included, and every child it starts run on at most
+    `threads`."""
+    cap_thread_variables(threads)
+    resize_loaded_openblas(int(os.environ["OPENBLAS_NUM_THREADS"]))
+
+
+def cap_thread_variables(threads):
+    """Lower each THREAD_VARIABLES to `threads`; a smaller value already set stands."""
+    for variable, own in owner_thread_counts().items():
+        os.environ[variable] = str(threads if own is None else min(own, threads))
+
+
+def owner_thread_counts():
+    """{each THREAD_VARIABLES: the thread count the owner set in it, None when unset or empty}; a ValueError naming
+    one set to anything but a whole number above 0 (OpenMP's '4,2', 'auto')."""
+    counts = {}
+    for variable in THREAD_VARIABLES:
+        own = os.environ.get(variable, "").strip()
+        if own and not (own.isdigit() and int(own) > 0):
+            raise ValueError(f"{variable}={own!r} is not a thread count (a whole number above 0); unset it or set one")
+        counts[variable] = int(own) if own else None
+    return counts
+
+
+def loaded_openblas():
+    """The OpenBLAS libraries this process has loaded, by path."""
+    with open("/proc/self/maps") as maps:
+        paths = {line.split()[-1] for line in maps if line.rstrip().endswith(".so") or ".so." in line}
+    return sorted(path for path in paths if "openblas" in pathlib.Path(path).name.lower())
+
+
+def resize_loaded_openblas(threads):
+    """Size the pool of every OpenBLAS this process has already loaded to `threads`."""
+    import ctypes
+    for library in loaded_openblas():
+        handle = ctypes.CDLL(library)
+        setter = next((name for name in OPENBLAS_SETTERS if hasattr(handle, name)), None)
+        if setter is None:
+            raise RuntimeError(f"{library}: an OpenBLAS with none of {OPENBLAS_SETTERS}; its pool cannot be capped")
+        getattr(handle, setter)(threads)
 
 
 def no_bytecode():
@@ -986,13 +1052,14 @@ class Runner:
             self.store.put_evidence(name, output, found)
         shutil.rmtree(folder)
 
-    def drive_node(self, stage, place):
-        """Run one node, gathering the evidence it lacks and judging it again; what it did. Its output, a raised
-        error's traceback included, goes to its log."""
+    def drive_node(self, stage, place, threads):
+        """Run one node, its thread pools capped at `threads` first, gathering the evidence it lacks and judging it
+        again; what it did. Its output, a raised error's traceback included (a failed cap's too), goes to its log."""
         log = self.desk("logs", node_name(stage, place), ".log")
         log.parent.mkdir(parents=True, exist_ok=True)
         with logged(log):
             try:
+                cap_threads(threads)
                 did = self.run_retrying(stage, place)
                 wanted = [] if did.startswith(("blocked", "broken")) else self.gatherable(stage, place)
                 if wanted:
@@ -1064,24 +1131,25 @@ class Runner:
                       *(f"    - {finding}" for finding in verdict["findings"])]
         return lines + [""]
 
-    def start(self, stage, place):
-        """Start one node in a process of its own (forked: its output goes to its own log); {its result pipe: (stage,
-        place, process)}."""
+    def start(self, stage, place, threads):
+        """Start one node in a process of its own (forked: its output goes to its own log), its thread pools and its
+        children's capped at `threads`; {its result pipe: (stage, place, process)}."""
         receiving, sending = FORK.Pipe(duplex=False)
         sys.stdout.flush()
         sys.stderr.flush()
-        process = FORK.Process(target=self.node_process, args=(stage, place, sending, os.getpid()),
+        process = FORK.Process(target=self.node_process, args=(stage, place, sending, os.getpid(), threads),
                                name=node_name(stage, place))
         process.start()
         sending.close()
         return {receiving: (stage, place, process)}
 
-    def node_process(self, stage, place, sending, runner_pid):
-        """In the node's own process: drive it, send back what it did and end the process at once: a thread its make
-        left running (a library's pool, a read that never returns) would otherwise hold the process at its exit, and
-        the drive's join with it, after the node is done. Its runner's death ends it (watch_runner)."""
+    def node_process(self, stage, place, sending, runner_pid, threads):
+        """In the node's own process: drive it, its thread pools capped at `threads`, send back what it did and end
+        the process at once: a thread its make left running (a library's pool, a read that never returns) would
+        otherwise hold the process at its exit, and the drive's join with it, after the node is done. Its runner's
+        death ends it (watch_runner)."""
         threading.Thread(target=watch_runner, args=(runner_pid,), daemon=True).start()
-        sending.send(self.drive_node(stage, place))
+        sending.send(self.drive_node(stage, place, threads))
         sending.close()
         sys.stdout.flush()
         sys.stderr.flush()
@@ -1125,6 +1193,7 @@ class Runner:
         on_gaps = set()  # stopped nodes that fail only on their named gaps: a stage's `gapped` reads them
         halted = {}  # {line: [(table index, node)]} of its stopped nodes: nothing later on the line starts
         beat_at = time.monotonic() + HEARTBEAT
+        threads = node_threads(jobs)
         while waiting or running:
             for stage, place in list(waiting):
                 node, earlier = node_name(stage, place), self.earlier(stage, place)
@@ -1140,7 +1209,7 @@ class Runner:
                     say(f"{node}: {done[node]}")
                 elif stood.union(passes).issuperset(earlier) and len(running) < jobs:
                     waiting.remove((stage, place))
-                    running.update(self.start(stage, place))
+                    running.update(self.start(stage, place, threads))
             if not running:
                 break
             if gauges and time.monotonic() >= beat_at:
