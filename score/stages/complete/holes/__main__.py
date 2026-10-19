@@ -11,9 +11,11 @@ assembly, laid out as links to the stored bytes), holes.usda (the holes layer ov
      "findings": [{"id", "rule", "prim", "kind", "sentence", "picture": null, "row", "gates", "source", "node",
                    "work", "placed", "low", "high"}]}
 
-    id      missing:<row>_<n>, gate:<stage>/<gate>:<object> or place:concept|plan|rough-model, stable run to run
+    id      missing:<row>_<n>, gate:<stage>/<gate>:<object>, place:concept|plan|rough-model or
+            place:lost:<kind>:<item>, stable run to run
     rule    missing (a scene inventory row with nothing made for it), gate (a made object a written fault names)
-            or place (a step of the route the place has not been through)
+            or place (a step of the route the place has not been through, or an input its line reads that is lost
+            and no row makes: inputs.py, read from the stage table over the repository's data only)
     source  inventory, check:<name>, gap:<name>, judgement:<node> or route
     node    the node that fills it (`<stage>@<place>`, or a world stage's name), else null and `work` its code work
     placed  a missing object's: spot, wall, on or unplaced; null for the rest
@@ -32,7 +34,7 @@ import shutil
 from pxr import UsdGeom
 
 from score.stages.assembly import stage_file
-from score.stages.complete.holes import fill, layer, marks, route, rows
+from score.stages.complete.holes import fill, inputs, layer, marks, route, rows
 from score.stages.complete.library import stored
 from score.store import PROPS_HOME
 
@@ -121,6 +123,14 @@ def place_holes(stage, place, store, written, plan):
     return found
 
 
+def lost_holes(runner, place):
+    """Each input the place's line reads that is lost and no row makes (inputs.lost), on its root, as a place hole
+    with its code work."""
+    return [{"id": f"{PLACE}:{hole['id']}", "rule": PLACE, "prim": f"/{place}", "kind": None,
+             "sentence": hole["sentence"], "picture": None, "row": None, "gates": [], "source": "inputs",
+             "node": None, "work": hole["work"], "placed": None, "bounds": None} for hole in inputs.lost(runner, place)]
+
+
 def bounded(stage, finding):
     """A finding with its world box (`low`, `high`) in place of where to read it."""
     where = finding.pop("bounds")
@@ -152,8 +162,9 @@ def outputs_read(store, place):
                                                     f"complete@{place}")}
 
 
-def written_place(store, place, data, folder):
-    """Work out one place's holes and write holes.usda and findings.json; findings.json as written."""
+def written_place(store, place, data, folder, runner=None):
+    """Work out one place's holes and write holes.usda and findings.json; findings.json as written. `runner`: the
+    stage table's, for the lost inputs (the table reads the repository's data, so none for another data folder)."""
     folder.mkdir(parents=True, exist_ok=True)
     _, output = accepted_stage(store, place)
     stage = layer.opened(folder, place, laid(store, output, folder) if output else None)
@@ -162,7 +173,8 @@ def written_place(store, place, data, folder):
     row_ids = {row["id"] for row in (inventory or {}).get("rows", [])}
     found = (missing_holes(stage, place, inventory, kit)
              + gate_holes(stage, place, store, data, folder.parent, row_ids)
-             + place_holes(stage, place, store, inventory, read(data / "plans" / f"{place}.json")))
+             + place_holes(stage, place, store, inventory, read(data / "plans" / f"{place}.json"))
+             + (lost_holes(runner, place) if runner is not None else []))
     layer.saved(stage)
     findings = [bounded(stage, finding) for finding in found]
     written = {"place": place, "answer": "fail" if findings else "pass",
@@ -200,6 +212,12 @@ def existing_store():
     return stored.reading()
 
 
+def table_runner(store):
+    """The stage table's runner over environment 1, on the store read."""
+    from score import stages
+    return stages.runner(store=store)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--place", action="append", default=[])
@@ -209,8 +227,9 @@ def main(argv=None):
     store = existing_store()
     totals = dict.fromkeys(RULES, 0)
     places = places_of(options.place)
+    table = table_runner(store) if options.data.resolve() == DATA.resolve() else None
     for place in places:
-        written = written_place(store, place, options.data, options.out / place)
+        written = written_place(store, place, options.data, options.out / place, table)
         for rule in RULES:
             totals[rule] += written["counts"][rule]
         print(summary_line(written), flush=True)

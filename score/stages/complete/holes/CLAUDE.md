@@ -21,4 +21,9 @@ findings.json's contract. Bible: `architecture/components`.
 - **What fills a hole is one table** (`fill.py`): a stage of the table that runs for the place (its node), else the
   code work in words. No price here: the cockpit joins the basket's prices at read time. `holes_test.py` keeps every
   stage it names in the table (or the ship kits' own).
+- **A lost input is a place hole with its code work** (`inputs.py`, 2026-10-19: the old disk's work folder went with
+  it): every place node's declared world file under the work folder or in the repository that is not there, read
+  from the stage table (the repository's data only), grouped by what it is (earth seed, ship seed, views copy,
+  Pixal3D take, a folder), and the owner's reference pictures its concept views name. Never fetched back as a loose
+  file: an old paid output comes back only through `store/restore`'s key match.
 - Run: `.venv/bin/python -m score.stages.complete.holes [--place P ...]`, seconds a place. Test: `holes_test.py`.
