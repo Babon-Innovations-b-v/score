@@ -102,11 +102,12 @@ def cloud_bill():
 def month_spent():
     """What this month has cost so far, in euros: the cloud's (the higher of its own bill, which lags by hours, and the
     cloud ledger, which counts a batch once it ends) plus the Google ledger's (tools/props/cloud/google_spend.py),
-    calls still going or lost included."""
+    calls still going or lost included, and what Google billed before its ledger began again (the books'
+    `google_before`, the owner's figure after a loss)."""
     books = ledger()
     import google_spend  # beside ledger.py; its month counts a call started and never finished at its estimate
     cloud = max(cloud_bill(), books.month_total(books.this_month(), books.entries()))
-    return cloud + google_spend.month_euros(books.this_month())
+    return cloud + google_spend.month_euros(books.this_month()) + books.google_before()
 
 
 def month_refusal(euros, reserved=0.0):
@@ -114,8 +115,14 @@ def month_refusal(euros, reserved=0.0):
     in the ledger, or None when the month has room. The month's spend is the cloud's, the higher of its own bill
     (which lags by hours) and the cloud ledger (which counts a batch once it ends), plus the Google ledger's
     (tools/props/cloud/google_spend.py), calls still going or lost included. Fault (2026-10-12): the bill held EUR
-    1,554 for October and the ledger EUR 1,387; disks, addresses and storage were never in the ledger."""
+    1,554 for October and the ledger EUR 1,387; disks, addresses and storage were never in the ledger. Refused
+    outright, before the bill is read, in a process that runs free only (ledger.FreeOnly) and while the month's books
+    are not known (ledger.books_refusal: both ledgers were lost on 2026-10-19, and a missing ledger read as EUR 0)."""
     books = ledger()
+    books.refuse_free_only("a paid run")
+    unknown = books.books_refusal()
+    if unknown:
+        return unknown
     spent = month_spent()
     if spent + reserved + euros > books.MONTH_EUROS:
         return (f"EUR {spent:.2f} spent this month and EUR {reserved:.2f} cleared for runs still going; EUR {euros} "
@@ -233,7 +240,7 @@ def books_now():
     import google_spend
     month = books.this_month()
     return {"month": month, "bill": cloud_bill(), "ledger": books.month_total(month, books.entries()),
-            "google": google_spend.month_euros(month)}
+            "google": google_spend.month_euros(month) + books.google_before()}
 
 
 def months_since(baseline, now):
@@ -375,8 +382,9 @@ def release_run(reservations, run_id):
 
 def submit(runner, node, job_store, run, job, spec):
     """Put a cleared node's job in the job store (the existing contract); the job's key. The spec carries the run's
-    estimate as `euros`."""
+    estimate as `euros`. Refused while the month's books are unknown (require_books), before the job is written."""
     ticket = clearance(runner, node, spec.get("euros"))
+    require_books(f"the job {run}/{job}")
     return job_contract.write_job(job_store, run, job, {**spec, "node": node, "node_key": ticket["key"]})
 
 
@@ -419,11 +427,25 @@ def reservation_open(store, clearances):
     return any(cleared["at"] in held for cleared in clearances)
 
 
+def require_books(what):
+    """ledger.require_books with its refusal as Refused: nothing is ordered while the month's spend is unknown (both
+    ledgers were lost on 2026-10-19); ledger.FreeOnly goes up as it is. Asked here rather than in google_spend.py or
+    tools/cloud/runtime/submit.py: the first is in the surface rows' code version and the second in every job
+    image's tag, so an edit there would buy those again."""
+    books = ledger()
+    try:
+        books.require_books(what)
+    except books.BooksUnknown as unknown:
+        raise Refused(str(unknown)) from unknown
+
+
 def require_cleared(what, store=None):
     """The runner's clearance (or the owner's override yes) for the run SCORE_SPEND_TICKET names; Refused when the
     variable is missing or names neither, or names a runner clearance whose run has ended (its reservation released
     or expired: an old ticket reused would start paid work no stop check and no in-flight sum ever saw). `what` says
-    what was about to be rented."""
+    what was about to be rented. Every paid point asks this first (batch.rent, park, the cluster, the Google and World
+    Labs callers), so it also refuses while the month's books are unknown, and raises ledger.FreeOnly in a process
+    that runs free only (require_books)."""
     named = os.environ.get(TICKET, "").split()
     if len(named) != 2:
         raise Refused(f"{what}: nothing rents outside a cleared run. Run it through the runner (score.adapters "
@@ -438,4 +460,5 @@ def require_cleared(what, store=None):
     if cleared and not reservation_open(store, cleared):
         raise Refused(f"{what}: {TICKET} names {node} {key[:12]}, whose cleared run has ended; a new run is cleared "
                       "by the runner afresh")
+    require_books(what)
     return found[-1]

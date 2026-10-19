@@ -283,6 +283,10 @@ def test_a_rent_writes_its_started_line_before_the_order_is_sent():
     batch.cloud.subprocess = types.SimpleNamespace(run=fake_scw)
     batch.month_spent = lambda account: 0.0
     batch.compute.require_cleared = lambda what: None
+    keys = batch.KEY, batch.SELF_DELETE_KEY
+    batch.KEY, batch.SELF_DELETE_KEY = (pathlib.Path(tempfile.mkdtemp()) / name for name in ("ssh_key", "self_delete.json"))
+    batch.KEY.write_text("private")
+    batch.SELF_DELETE_KEY.write_text("{}")
     fleet = types.SimpleNamespace(folder=pathlib.Path(tempfile.mkdtemp()) / "pixal-run-7",
                                   deadline=time.time() + 60, attempts=[])
     offer = provider.Offer(0.01, 0, "L4", "zone-a", 0.01, "gpu-24gb", 0, "available")
@@ -291,6 +295,7 @@ def test_a_rent_writes_its_started_line_before_the_order_is_sent():
         after = ledger.entries()
     finally:
         batch.cloud.subprocess, batch.month_spent, batch.compute.require_cleared, ledger.LEDGER = kept[:4]
+        batch.KEY, batch.SELF_DELETE_KEY = keys
         os.environ.pop(compute.TICKET)
         if kept[4] is not None:
             os.environ[compute.TICKET] = kept[4]

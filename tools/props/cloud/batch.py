@@ -85,6 +85,8 @@ KEY = CLOUD / "ssh_key"
 # The key a machine deletes itself with: the account's machines, addresses and disks only, never
 # creating anything (made 2026-09-29 at the owner's word). It lives here and on the machines, never in the repo.
 SELF_DELETE_KEY = CLOUD / "self_delete_key.json"
+# What a missing runner key asks of the owner (2026-10-19: both keys went with the disk; neither is made silently).
+OWNER_MAKES_KEYS = "owner: make the runner's key and delete the stale IAM key farm-factory-batch"
 # A machine that has not heard from this PC for this long deletes itself.
 QUIET_MINUTES = 15
 BATCHES = WORK / "cloud"
@@ -297,12 +299,17 @@ def sweep_what_machines_left(account):
 # Talking to a machine.
 
 def ssh_key():
-    """The runner's own key pair, made once; the public half."""
-    if not KEY.exists():
-        CLOUD.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "farm-factory-batch",
-                        "-f", str(KEY)], check=True)
+    """The public half of the runner's own key pair. Never made here: a key made silently (the old one went with the
+    disk, 2026-10-19) leaves the stale one allowed on the account and the self-delete key missing, so a machine would
+    be paid for and then fail to arm its self-delete; the owner makes it."""
+    if not KEY.exists() or not KEY.with_suffix(".pub").exists():
+        raise SystemExit(f"no runner key at {KEY}: {OWNER_MAKES_KEYS}")
     return KEY.with_suffix(".pub").read_text().strip()
+
+
+def missing_keys():
+    """The runner's keys a rented machine needs that are missing here: its ssh key and its self-delete key."""
+    return [str(path) for path in (KEY, SELF_DELETE_KEY) if not path.exists()]
 
 
 def ssh_options(folder):
@@ -670,9 +677,12 @@ def queue(fleet, models):
 
 def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     """Rent one machine from `offer` with its watchdog and a root disk of `disk_gb`; its record, or None when
-    refused. Nothing is rented outside a cleared run (compute.require_cleared raises Refused)."""
+    refused. Nothing is rented outside a cleared run (compute.require_cleared raises Refused, also while the month's
+    books are unknown) or without the runner's ssh and self-delete keys (Refused before any provider call)."""
     machine_type, zone = offer.type, offer.zone
     compute.require_cleared(f"a {machine_type} in {zone}")
+    if missing_keys():
+        raise compute.Refused(f"a {machine_type} in {zone}: missing {', '.join(missing_keys())}; {OWNER_MAKES_KEYS}")
     spent = month_spent(account)
     if spent >= ledger.MONTH_EUROS:
         say(f"€{spent:.2f} spent this month, at the €{ledger.MONTH_EUROS:.0f} ceiling: nothing more is rented")

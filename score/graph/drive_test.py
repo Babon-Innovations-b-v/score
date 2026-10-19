@@ -25,6 +25,9 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 from score import checks, contracts, graph  # noqa: E402
 from score.adapters import compute  # noqa: E402
 compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
+BOOKS_OPEN = compute.ledger()
+BOOKS_OPEN.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"  # this month's books known: paid paths open
+BOOKS_OPEN.write_books({"month": BOOKS_OPEN.this_month(), "state": "known"})
 from score.graph import stopped  # noqa: E402
 from score.store import Store  # noqa: E402
 
