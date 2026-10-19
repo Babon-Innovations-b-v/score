@@ -1,6 +1,6 @@
 """A walk through the creator cockpit as the owner takes it, with no JavaScript: the environment overview (every place
-with its holes by kind, the steps that block every paid step, then what to buy first by holes unblocked, the code
-work grouped), a place (its holes tree, its groups and each line's source and 3D link), the viewer framing one hole,
+with its holes by kind, the steps that block every paid step, then what to buy first by how many holes have each
+paid step in their chain, the code work grouped, a lost input read by two places and the environment), a place (its holes tree, its groups and each line's source and 3D link), the viewer framing one hole,
 and the basket item a hole line links."""
 import json
 import re
@@ -8,7 +8,8 @@ from html import unescape
 
 import pytest
 
-from score.dashboard.tests.pages_test import NODE, ROUGH, a_holes_finding, a_holes_price, outside_details, signed_in
+from score.dashboard.tests.pages_test import (FORECAST, NODE, ROUGH, a_holes_finding, a_holes_price, outside_details,
+                                              signed_in)
 
 pytestmark = pytest.mark.django_db
 REFUSED = ("the month's books are lost (books.json): paid work is refused until the owner gives his month's figure "
@@ -46,19 +47,26 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     first = unescape(section(html, "what to buy first"))
     blockers = re.findall(r"<li><b>(.*?)</b>", first)
     assert blockers[:2] == ["Set a stop.", "The month's books are not known."], blockers
-    assert "score spend --read-back" in first and REFUSED in first  # the refusal in its details fold
+    assert REFUSED in first  # the refusal in its details fold
+    assert "score spend --read-back" not in first  # only the commands the refusal names
     assert '<pre class="command">.venv/bin/python -m score spend --owners-month EUR</pre>' in first  # as it names it
     buys = re.findall(r'<ol class="buy-list".*?</ol>', first, re.S)[0]
     # the sound is in the chains of the lamps and of the crate, the close-up in the lamps' only: a count, not a price
     sound, closeup = buys.index("The sound step of the alpha"), buys.index("The close-ups step of the alpha")
     assert sound < closeup
-    assert ("The sound step of the alpha: unblocks 3 holes in 1 place · EUR 1.00 guessed, not a price · in no basket "
-            "item yet") in buys
-    assert ("The close-ups step of the alpha: unblocks 2 holes in 1 place · likely EUR 2.00, high EUR 3.00 "
-            "(per unit × forecast) · <a href=\"/basket/item/alpha-pieces/\">its basket item</a>") in buys
+    # alpha waits on its rough model, a route step: every hole there waits on it first
+    assert ("The sound step of the alpha: in the chain of 3 holes at 1 place, all of them at a place that waits on a "
+            "lost input or a route step first · EUR 1.00 guessed, not a price · in no basket item yet") in buys
+    assert ("The close-ups step of the alpha: in the chain of 2 holes at 1 place, all of them at a place that waits on "
+            "a lost input or a route step first · likely EUR 2.00, high EUR 3.00 (per unit × forecast) · "
+            "<a href=\"/basket/item/alpha-pieces/\">its basket item</a>") in buys
+    assert "unblocks" not in first
+    work = section(html, "code work no stage does yet")
+    assert "A rough-model stage</b>: 1 hole at 1 place" in work and ROUGH + " (1 hole)" in work
+    assert html.index('aria-label="what to buy first"') < html.index('aria-label="code work no stage does yet"')
     total = section(html, "what every place still needs")
-    assert "A rough-model stage</b>: unblocks 1 hole at 1 place" in total and ROUGH + " (1 hole)" in total
     assert "To complete: likely EUR 2, high EUR 3 measured by per unit × forecast, plus EUR 1 guessed" in total
+    assert re.search(r'<td data-value="1"><span class="status bad">route steps not done', alpha)  # sorts by rank
     assert NODE.search(outside_details(html)) is None
 
 
@@ -95,7 +103,12 @@ def test_the_viewer_frames_one_hole_with_or_without_a_web_copy(cockpit):
     given = view_data(answer.content.decode())
     assert given["hole"] == "missing:lamp_2" and given["holes_only"] is True
     assert "missing:lamp_2" in [mark["id"] for mark in given["marks"]]
-    assert "No 3D web copy of this place yet: only its holes are drawn" in answer.content.decode()
+    page = unescape(answer.content.decode())
+    assert "No 3D web copy of this place yet: only its holes are drawn" in page
+    assert ('Framed: A lamp should be in the alpha but nothing is made for it yet. '
+            '<a href="/place/alpha/#hole-missing:lamp_1">') in page  # its line: the row's first lamp
+    assert 'class="mark-key framed"' in page and 'class="mark-key gate"' in page  # the crate's gate has a box
+    assert "work once a 3D web copy of this place exists" in page
     (cockpit.root / "web/alpha").mkdir(parents=True)
     (cockpit.root / "web/alpha/alpha.json").write_text(json.dumps({
         "place": "alpha", "from_output": cockpit.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
@@ -109,3 +122,67 @@ def test_the_basket_item_a_hole_links_opens(cockpit):
     html = client.get("/place/alpha/").content.decode()
     link = re.search(r'href="(/basket/item/[^"]+/)"', html).group(1)
     assert client.get(link).status_code == 200
+
+
+EARTH = "earth seed lost: a seed row that exports each place's base; terrain and every row after it stay blocked"
+PROP_DATA = "prop data for alpha: a props file"
+
+
+def a_lost_input(world):
+    """The earth seed's usd-r3 lost, read by alpha, beta and the environment's own nodes: alpha's findings with it
+    added, beta's with only it, the world pseudo-place's."""
+    found = json.loads((world.root / "props/work/checks/holes/alpha/findings.json").read_text())
+    lost = {"id": "place:lost:earth-seed:usd-r3", "rule": "place", "prim": None, "kind": None,
+            "sentence": "lost input usd-r3", "picture": None, "row": None, "gates": [], "source": "inputs",
+            "node": None, "work": EARTH, "placed": None, "low": None, "high": None}
+    for place, outputs, holes in (("alpha", found["outputs"], found["findings"] + [lost]),
+                                  ("beta", {"assembly@beta": world.outputs["assembly@beta"]}, [lost]),
+                                  ("world", {}, [lost])):
+        folder = world.root / "props/work/checks/holes" / place
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "findings.json").write_text(json.dumps({"place": place, "outputs": outputs, "findings": holes}))
+
+
+def test_a_lost_input_blocks_the_places_reading_it_and_the_prop_data_is_said_apart(cockpit):
+    a_lost_input(cockpit)
+    a_holes_price(cockpit, unfillable=[{"work": ROUGH, "holes": 1}, {"work": EARTH, "holes": 1}],
+                  after_work={"alpha": {"work": PROP_DATA, "holes": 2, "models": 1, "in_chains": [],
+                                        "nodes": {"pixal@alpha": FORECAST}}})
+    cockpit.source.refresh()
+    html = signed_in().get("/").content.decode()
+    first = unescape(section(html, "what to buy first"))
+    assert ("<b>The earth seed is lost.</b> Blocks 2 places (1 input). The code work: Earth seed lost: a seed row "
+            "that exports each place's base.") in first
+    places = section(html, "every place")
+    alpha = re.search(r'<a href="/place/alpha/">.*?</tr>', places, re.S).group(0)
+    assert re.findall(r'<td class="num"[^>]*>([^<]*)</td>', alpha)[:5] == ["5", "2", "1", "1", "1"]
+    assert "a lost input" in alpha
+    beta = re.search(r'<a href="/place/beta/">.*?</tr>', places, re.S).group(0)
+    assert '<span class="unknown">no price</span>' in beta and "0.00" not in beta  # its one hole has no stage
+    assert re.search(r'<td class="num" data-value="1">1</td>', beta)  # one hole not priced
+    work = unescape(section(html, "code work no stage does yet"))
+    assert "Earth seed lost: a seed row that exports each place's base</b>: 1 lost input at 2 places" in work
+    total = unescape(section(html, "what every place still needs"))
+    assert "once the prop data of 1 place is written, more: likely EUR 2, high EUR 3 measured by per unit" in total
+    page = signed_in("other").get("/place/beta/").content.decode()
+    assert "<h3>Lost inputs (1)</h3>" in page and '<span class="source small">lost input usd-r3</span>' in page
+    assert "No stage can fill this yet: Earth seed lost: a seed row that exports each place&#x27;s base" in page
+    assert "No price</span>: no hole of this place has a paid step the runner priced" in page
+    assert "1 hole no stage can fill yet" in page
+
+
+def test_a_place_never_checked_has_no_price_not_nothing_to_pay():
+    from types import SimpleNamespace
+    from score.dashboard.state import holes
+    price = SimpleNamespace(stale=None, not_checked=["gamma"], not_current=[], chains={}, nodes={})
+    assert holes.place_row("gamma", [], price)["money"] is None
+    assert holes.place_row("gamma", [], price)["rank"] == len(holes.KINDS) + 1
+
+
+def test_a_lost_inputs_item_keeps_its_colons():
+    from types import SimpleNamespace
+    from score.dashboard.pages import present
+    from score.dashboard.state import plain
+    hole = SimpleNamespace(id="place:lost:data:surfaces/launch.json:bake entry far_rocket_1", rule="place")
+    assert plain.lost_item(hole.id) == "surfaces/launch.json:bake entry far_rocket_1"
+    assert present.source_label(hole) == "lost input surfaces/launch.json:bake entry far_rocket_1"

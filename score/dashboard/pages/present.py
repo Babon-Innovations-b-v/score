@@ -245,7 +245,7 @@ def source_label(hole):
         return f"gate {hole.gates[0]}" if hole.gates else "a written fault"
     if kind == "route":
         return f"route step {(hole.id or '').split(':', 1)[-1]}"
-    return f"lost input {(hole.id or '').rsplit(':', 1)[-1]}"
+    return f"lost input {plain.lost_item(hole.id or '')}"
 
 
 def needs_words(hole, price, place):
@@ -267,9 +267,19 @@ def hole_line(entry, place, count, price):
     return {"sentence": plain.hole_sentence(hole, place, count), "source": source_label(hole),
             "needs": needs_words(hole, price, place), "chain": entry["chain"],
             "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None,
-            "said": said, "short": f"{holes.NO_STAGE}: {first_clause(hole.work)}" if hole.node is None else said,
+            "said": said, "short": f"{holes.NO_STAGE}: {holes.work_task(hole.work)}" if hole.node is None else said,
             "full": hole.sentence, "id": hole.id, "anchor": f"hole-{hole.id}", "filled_by": hole.node or hole.work,
             "view_url": f"/view/{place}?holes=1&hole={quote(hole.id or '')}" if hole.low is not None else None}
+
+
+def framed_hole(detail, ident):
+    """{sentence, url} of the hole the viewer frames (`ident`, its id): its plain sentence and its line on the place
+    page; None when no hole of the place has that id."""
+    hole = next((hole for hole in detail.holes if ident and hole.id == ident), None)
+    if hole is None:
+        return None
+    return {"sentence": plain.hole_sentence(hole, detail.place),
+            "url": f"/place/{detail.place}/#{anchors_of(detail)[hole.id]}"}
 
 
 def hole_marks(detail):
@@ -284,8 +294,9 @@ def line_key(hole):
 
 
 def hole_groups(detail, items, price):
-    """[{kind, title, left, count, lines}] of the place's holes by kind, worst first; a row's missing objects on one
-    line. Each group says what happens if its holes are left."""
+    """[{kind, title, left, count, lines, framable}] of the place's holes by kind, worst first; a row's missing
+    objects on one line. Each group says what happens if its holes are left, and whether any of its lines has a box
+    the viewer can frame."""
     found = {kind: [] for kind, _ in holes.KINDS}
     counted = {}
     for entry in holes.priced(detail.holes, items, price, detail.place):
@@ -295,10 +306,14 @@ def hole_groups(detail, items, price):
             continue
         counted[key] = [entry, 1]
         found[key[0]].append(key)
-    return [{"kind": kind, "title": title, "left": plain.LEFT[kind],
-             "count": sum(counted[key][1] for key in found[kind]),
-             "lines": [hole_line(counted[key][0], detail.place, counted[key][1], price) for key in found[kind]]}
-            for kind, title in holes.KINDS if found[kind]]
+    grouped = []
+    for kind, title in holes.KINDS:
+        if found[kind]:
+            lines = [hole_line(counted[key][0], detail.place, counted[key][1], price) for key in found[kind]]
+            grouped.append({"kind": kind, "title": title, "left": plain.LEFT[kind], "lines": lines,
+                            "count": sum(counted[key][1] for key in found[kind]),
+                            "framable": any(line["view_url"] for line in lines)})
+    return grouped
 
 
 def anchors_of(detail):
@@ -387,9 +402,8 @@ def money(view, planned):
 
 # --- the environment overview ------------------------------------------------------------------------------------
 
-READ_BACK = ".venv/bin/python -m score spend --read-back"
-# The owner's own figure a books refusal names, as its command: "score spend --<figure> EUR".
-OWNERS_FIGURE = re.compile(r"score spend[ ]+(--[a-z-]+ EUR)")
+# Each owner's command a books refusal names, as it names it: "score spend --read-back", "score spend --<figure> EUR".
+OWNERS_COMMAND = re.compile(r"score spend[ ]+(--[a-z-]+(?: EUR)?)")
 STATUS_WORDS = {"lost": ("a lost input", "bad"), "route": ("route steps not done", "bad"),
                 "missing": ("objects not made", "review"), "gate": ("made, failing checks", "review")}
 
@@ -427,14 +441,14 @@ def blockers(money_card, spend, lost):
         if spend.paid_refused:
             found.append({"title": "The month's books are not known", "words": "Paid work is refused until they are. "
                           "Only you can make them known, in your own terminal:",
-                          "commands": [READ_BACK] + [f".venv/bin/python -m score spend {named}"
-                                                     for named in OWNERS_FIGURE.findall(spend.paid_refused)],
+                          "commands": [f".venv/bin/python -m score spend {named}"
+                                       for named in dict.fromkeys(OWNERS_COMMAND.findall(spend.paid_refused))],
                           "details": [spend.paid_refused]})
     for entry in lost:
         found.append({"title": entry["words"],
                       "words": f"Blocks {entry['places']} place{'s' if entry['places'] != 1 else ''} "
                                f"({entry['items']} input{'s' if entry['items'] != 1 else ''}). "
-                               f"The code work: {first_clause(entry['work'][0])}.",
+                               f"The code work: {holes.work_task(entry['work'][0])}.",
                       "commands": [], "details": entry["work"] + entry["ids"]})
     return found
 

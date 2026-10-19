@@ -146,7 +146,6 @@ function aimAt(eye, aim, fov) {
   const ahead = new THREE.Vector3(...aim).sub(camera.position);
   orbit.target.copy(camera.position).addScaledVector(ahead.normalize(), Math.min(ORBIT_REACH, ahead.length() || 1));
   if (fov) setAcross(fov);
-  window.__aim = { eye: [...eye], aim: [...aim] };  // where the camera was last aimed, for the browser walk
 }
 
 // --- light -----------------------------------------------------------------------------------------------------

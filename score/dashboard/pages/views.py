@@ -78,14 +78,15 @@ def board(request):
     price = world.holes_price
     first = present.buy_lines(holes.buy_first(price, details, items))
     total = holes.environment(world.holes_total, price, items)
-    work = holes.work_groups((total or {}).get("unfillable", []), details, price)
+    with_world = {**details, holes.WORLD: world_holes(source)}
+    work = holes.work_groups((total or {}).get("unfillable", []), with_world, price)
     return render(request, "pages/board.html", {
         "world": world, "environment_name": present.environment_name(world.world), "groups": shown,
         "holes_total": total, "headline": holes.headline(price) if total else None,
         "places": present.overview(holes.per_place(price, details),
                                    {tile["place"]: tile["name"] for group in shown for tile in group["tiles"]}),
         "blockers": present.blockers(money, world.spend,
-                                     holes.lost_inputs({**details, holes.WORLD: world_holes(source)})),
+                                     holes.lost_inputs(with_world)),
         "buy_first": first[:SHOWN], "buy_rest": first[SHOWN:], "buy_count": len(first),
         "work": work[:SHOWN], "work_rest": work[SHOWN:], "work_count": len(work),
         "waiting_items": basket_items.unanswered(),
@@ -333,9 +334,12 @@ def viewer(request, place):
     film_view = detail.film_view if request.GET.get("at") == "film" else None
     hole_marks = present.hole_marks(detail) if request.GET.get("holes") == "1" else []
     holes_only = bool(hole_marks) and not detail.web3d and showing != "after"
+    framed = present.framed_hole(detail, request.GET.get("hole")) if hole_marks else None
     return render(request, "pages/view3d.html", {"detail": detail, "after": after, "showing": showing,
                                                  "only": only, "at_film": bool(film_view),
                                                  "embed": request.GET.get("embed") == "1", "holes_only": holes_only,
+                                                 "framed": framed,
+                                                 "gate_marks": any(mark["kind"] == "gate" for mark in hole_marks),
                                                  "viewer": {"place": place, "base": base,
                                                             "layers": layer_makers(detail.usd_index.layers),
                                                             "order": [layer.name for layer in detail.usd_index.layers],
