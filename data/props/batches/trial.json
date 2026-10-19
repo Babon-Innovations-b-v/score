@@ -1,8 +1,4 @@
 [
- {"name": "ship-s1", "place": "hangar", "row": "ship", "take": "ship-b1", "seed": 1,
-  "picture": "{home}/work/pixal/ship-s1.svviews/input.png", "body": "ship-s1", "parts": null, "keep": ["closeup", "finish-pick"]},
- {"name": "main_engine-s1", "place": "hangar", "row": "main_engine", "take": "main_engine-b1", "seed": 1,
-  "picture": "{home}/work/pixal/main_engine-s1.svviews/input.png", "body": "main_engine-s1", "parts": null, "keep": ["closeup", "finish-pick"]},
  {"name": "main_console-s1", "place": "cockpit", "row": "main_console", "take": "main_console-b1", "seed": 1,
   "picture": "{home}/work/pixal/main_console-s1.svviews/input.png", "body": "main_console-s1", "parts": null,
   "keep": ["closeup", "finish-pick"]},
