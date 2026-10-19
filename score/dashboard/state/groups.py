@@ -27,13 +27,42 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "cast": "cast", "assembly": "OpenUSD stage", "neighbours": "with neighbours", "complete": "completion",
           "complete-boxes": "completion boxes", "demo-film": "film", "demo-film-extra": "extra film",
           "demo-stills": "stills", "terrain": "ground", "terrain-look": "ground renders", "settle": "settle",
-          "sound": "sound", "motion": "motion", "physics-layer": "physics", "physics-trial": "physics trial"}
-# Door kits: places whose kit is a door, shown together.
-DOOR_KITS = ("gdoor", "hdoor")
+          "sound": "sound", "motion": "motion", "physics-layer": "physics", "physics-trial": "physics trial",
+          "surface-tiles": "surface tiles", "ship_kit": "ship kit", "concept_people": "people concepts",
+          "concept-views": "concept views", "library": "library handover", "library-world": "library handover",
+          "demo-turntables": "turntable films", "partition-proposals": "partition proposals",
+          "people-inputs": "people list", "people-turntable": "people turntables",
+          "people-lists": "people finish lists",
+          "people-maps": "people finish maps", "people-names": "people finish names",
+          "people-segvigen": "people segmentation", "people-parts": "people parts", "people-paint": "people paint",
+          "people-clips": "people clips"}
+# The crop rows run the prop and surface line again on the crops: each in its own step's words, for the crops.
+LABELS.update({f"crops-{stage}": f"crop {LABELS[stage]}" for stage in (
+    "closeup", "pixal", "props-inputs", "surfaces-inputs", "surfaces-turntable", "surfaces-lists", "surfaces-maps",
+    "surfaces-names", "surfaces-segvigen", "surfaces-parts", "surfaces-paint", "surfaces-bake", "surfaces-check")})
+LABELS.update({"crops-boxes": "crop boxes", "crops-concept": "crop patches on the concept", "crops-layer": "crops",
+               "crops-look": "crop renders"})
+# A person's rows, one a look: the step's words, then the look.
+PEOPLE = {"people-body-": "body", "people-dress-": "dressed body", "people-take-": "model"}
+# Door kits: places whose kit is a door, shown together, each by its title (data/checks/contents.json: the garage's
+# big door leaves, the hangar's roof leaves).
+DOOR_TITLES = {"gdoor": "garage door", "hdoor": "hangar roof door"}
+DOOR_KITS = tuple(DOOR_TITLES)
 
 
 def label(stage):
-    return LABELS.get(stage, stage)
+    """A stage in words: LABELS, a person's row by its step and look, else the stage's own name."""
+    if stage in LABELS:
+        return LABELS[stage]
+    prefix = next((prefix for prefix in PEOPLE if stage.startswith(prefix)), None)
+    if prefix:
+        return f"{PEOPLE[prefix]} of the {stage.removeprefix(prefix).replace('_', ' ')} look"
+    return stage
+
+
+def place_title(place):
+    """A place's key in words: a door kit by its title, any other with its underscores as spaces."""
+    return DOOR_TITLES.get(place, place.replace("_", " "))
 
 
 def look_of(place, looks):

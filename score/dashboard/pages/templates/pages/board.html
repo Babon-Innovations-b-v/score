@@ -12,12 +12,13 @@
   {% if buy.all_wait %}
   <p class="buy-none"><b>No paid step fills a hole yet.</b> Every hole in a paid step's chain is at a place that waits first on a lost input or a route step, so nothing bought today fills a single hole. This code work has to land before the first purchase means anything, the most holes it holds up first:</p>
   <ol class="code-first">{% for task in buy.code %}<li><b>{{ task.task }}</b>: at {{ task.places }} place{{ task.places|pluralize }}, where {{ task.holes }} hole{{ task.holes|pluralize }} with a paid chain wait on it ({{ task.euros }} in those chains)</li>{% endfor %}</ol>
-  <p class="small soft">A place waits on every piece of code work listed at it, so one piece frees its places only once the others there land too.{% if blockers %} Then the steps that block every paid step:{% endif %}</p>
+  {% for task in buy.owner %}<p class="owner-first"><b>Only you can do this, not code: {{ task.task|lower }}</b>{% if task.files %} ({{ task.files|join:", " }}){% endif %}: at {{ task.places }} place{{ task.places|pluralize }}, where {{ task.holes }} hole{{ task.holes|pluralize }} with a paid chain wait on it too ({{ task.euros }} in those chains).</p>{% endfor %}
+  <p class="small soft">A place waits on every piece of work listed at it, so one piece frees its places only once the others there land too.{% if blockers %} Then the steps that block every paid step:{% endif %}</p>
   {% else %}
   <p class="small soft">First the steps that block every paid step, read from the money and the holes. Then each paid step by how many holes have it in their chain: a count, never a judgement. Buying a step fills none of those holes by itself: the rest of each chain is needed too, and a place that waits on a lost input or a route step runs nothing before that is put right.</p>
   {% endif %}
   {% if blockers %}<ol class="blockers">{% for step in blockers %}
-    <li><b>{{ step.title }}.</b> {{ step.words }}
+    <li><b>{{ step.title }}.</b> {{ step.words }}{% if step.buys %} {{ step.bought }} come{{ step.bought|pluralize:"s," }} back by buying {% for buy_step in step.buys %}{% if buy_step.anchor %}<a href="#{{ buy_step.anchor }}">{{ buy_step.words }}</a>{% else %}{{ buy_step.words }}{% endif %} ({{ buy_step.inputs }}){% if not forloop.last %}, {% endif %}{% endfor %}, in the list below.{% endif %}
       {% for command in step.commands %}<pre class="command">{{ command }}</pre>{% endfor %}
       {% if step.details %}<details class="ids"><summary>details</summary><ul class="fold-body">{% for line in step.details %}<li>{{ line }}</li>{% endfor %}</ul></details>{% endif %}</li>
   {% endfor %}</ol>{% endif %}
