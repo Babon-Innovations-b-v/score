@@ -128,10 +128,11 @@ class EngineGroup(BaseModel):
 
 
 class HolesTotal(BaseModel):
-    """Every place's holes in sum: how many of each rule, the distinct nodes that fill them, and the code work no
-    stage can do yet (each line once) with how many holes need it."""
+    """Every place's holes in sum: how many of each rule, the distinct nodes that fill them (those of a paid stage
+    apart), and the code work no stage can do yet (each line once) with how many holes need it."""
     counts: dict[str, int] = {}
     nodes: list[str] = []
+    paid_nodes: list[str] = []
     unfillable: list[str] = []
     unfillable_count: int = 0
 
@@ -235,11 +236,12 @@ class CheckFinding(BaseModel):
     sentence: str
     picture: FileRef | None = None
     # A hole's (score/stages/complete/holes): its stable id, row, failed gates, the node that fills it or the code
-    # work it needs, how its box is placed, and its world box.
+    # work it needs (and whether that node's stage is paid), how its box is placed, and its world box.
     id: str | None = None
     row: str | None = None
     gates: list[str] | None = None
     node: str | None = None
+    paid: bool | None = None
     work: str | None = None
     placed: str | None = None
     low: list[float] | None = None

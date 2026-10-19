@@ -451,16 +451,24 @@ class LocalSource:
         def read():
             path = self.props_home / "work" / CHECKS / HOLES / place / "findings.json"
             written = self.current_findings(path) if path.is_file() else None
-            return [self.finding(HOLES, place, item) for item in (written or {}).get("findings", [])]
+            return [self.finding(HOLES, place, item).model_copy(update={"paid": self.paid_node(item.get("node"))})
+                    for item in (written or {}).get("findings", [])]
         return self.remembered(("holes", place), read)
 
+    def paid_node(self, node):
+        """Whether a node's stage is paid; None with no node or for a stage outside the table (the ship kits')."""
+        row = self.by_name.get(node.split("@", 1)[0]) if node else None
+        return bool(row.paid) if row else None
+
     def holes_total(self):
-        """Every place's holes in sum: counts by rule, the distinct nodes that fill them, the work no stage does."""
+        """Every place's holes in sum: counts by rule, the distinct nodes that fill them (the paid ones apart), the
+        work no stage does."""
         def read():
             holes = [hole for place in self.places() for hole in self.holes(place)]
             work = [hole.work for hole in holes if hole.node is None]
-            return HolesTotal(counts=dict(Counter(hole.rule for hole in holes)),
-                              nodes=sorted({hole.node for hole in holes if hole.node}),
+            nodes = sorted({hole.node for hole in holes if hole.node})
+            return HolesTotal(counts=dict(Counter(hole.rule for hole in holes)), nodes=nodes,
+                              paid_nodes=[node for node in nodes if self.paid_node(node)],
                               unfillable=sorted(set(work)), unfillable_count=len(work))
         return self.remembered("holes total", read)
 
