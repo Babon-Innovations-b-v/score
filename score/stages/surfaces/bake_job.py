@@ -4,6 +4,8 @@ files under the work folder went with the old disk, and every surface bake block
     job_head(library_name, outside)               the job's top-level fields: script, density, wear, dirt, seed,
                                                   faces, specs, as the place's route writes them
     entry_of(place, model, inline, kit, inventory, labelled)  one model's make_chunky entry
+    refusal(place, model, inline, kit, inventory)  why entry_of stops on it whatever its labelled take, or None
+    reads(place, model, kit)                       (details kinds, composite props) its route's entry reads
 
 A model's entry is the one its surface data writes out, else the route's own entry for it, written by the route's own
 code over the place's data: an outside place's (tools/props/library/place_route.py `chunky_entry`, its kit record has
@@ -11,7 +13,9 @@ an `on_seat`: package.py's) sized by `place_route.made_size` over its labelled t
 room's (tools/props/library/route.py `jobs`) at its laid size in data/kit/<place>.json. A model with neither fails the
 make, by name: a hole, never a guessed size.
 
-The world files it reads are the bake row's (surface_data.job_files). Kept small and apart from place_line.py on
+The world files it reads are the bake row's (surface_data.job_files), its details and composites keyed on the
+entries `reads` names and each model `refusal` stops declared missing before anything is cleared (the table's
+library_reads.narrowed). Kept small and apart from place_line.py on
 purpose: the paid bake row's code version hashes it.
 """
 import json
@@ -23,6 +27,10 @@ import route
 
 class NoEntry(RuntimeError):
     """A model the place bakes whose entry nothing in git gives."""
+
+
+class NoTake(NoEntry):
+    """An outside place's model with no labelled take to size its entry over."""
 
 
 def outside(kit):
@@ -52,13 +60,21 @@ def details_of(kind, model):
     return found
 
 
+def outside_row(model, inventory):
+    """An outside place's inventory row a model is entered from (named by its id)."""
+    row = next((row for row in inventory.get("rows", []) if row["id"] == model), None)
+    if row is None:
+        raise NoEntry(f"no entry for {model}: no inventory row of that id")
+    return row
+
+
 def outside_entry(place, model, inventory, labelled):
     """place_route's entry for an outside place's model (one inventory row, named by its id), sized over its
     labelled take."""
-    row = next((row for row in inventory.get("rows", []) if row["id"] == model), None)
-    if row is None or labelled is None:
-        raise NoEntry(f"no entry for {model}: no inventory row of that id, or no labelled take")
+    row = outside_row(model, inventory)
     own = details_of(f"{place}_{model}", model)
+    if labelled is None:
+        raise NoTake(f"no entry for {model}: no labelled take to size it over")
     size = place_route.made_size(labelled, place_route.kit_size(row["size"]), place_route.yaw_of(own["turn"]))
     planned = {"size": size, "faces": place_route.faces_for(model, row["size"])}
     return place_route.chunky_entry(model, planned, own, labelled.parent, labelled.name)
@@ -133,3 +149,33 @@ def entry_of(place, model, inline, kit, inventory, labelled):
     if outside(kit):
         return outside_entry(place, model, inventory, labelled)
     return room_entry(model, kit, inventory)
+
+
+def refusal(place, model, inline, kit, inventory):
+    """Why entry_of stops on a model whatever its labelled take, or None: entry_of's own checks, run without the
+    take (an outside place's model is sized over it in the bake, so its absence here is no refusal)."""
+    try:
+        entry_of(place, model, inline, kit, inventory, None)
+    except NoTake:
+        return None
+    except NoEntry as refused:
+        return str(refused)
+    return None
+
+
+def reads(place, model, kit):
+    """(details kinds, composite props) of data/library the route's own entry of a model reads: an outside place's
+    `<place>_<model>`, a kit room's laid kind or furniture prop, a composite child's parent prop and its children's
+    kinds (child_of picks one of them by name and size)."""
+    if outside(kit):
+        return [f"{place}_{model}"], []
+    laid = [piece for piece in kit.get("pieces", []) if piece.get("model") == model]
+    models = kit.get("models", {})
+    own_model = models.get(model, {})
+    if laid:
+        return [laid[0]["kind"]], []
+    if own_model.get("child_of"):
+        prop = models.get(own_model["child_of"], {}).get("prop")
+        children = json.loads(route.COMPOSITES.read_text()).get(prop, {}).get("children", [])
+        return sorted({child["kind"] for child in children}), [prop] if prop else []
+    return ([own_model["prop"]] if own_model.get("prop") else []), []

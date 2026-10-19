@@ -15,7 +15,7 @@ import tempfile
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from score.stages.surfaces import place_line, surface_data  # noqa: E402
+from score.stages.surfaces import library_reads, place_line, surface_data  # noqa: E402
 from score.store import PROPS_HOME  # noqa: E402
 
 import bake_job  # noqa: E402  (place_line puts its folder and tools/props/library on the path)
@@ -112,9 +112,41 @@ def test_every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry():
     for path in sorted(surface_data.FOLDER.glob("*.json")):
         declared = surface_data.bake_files(path.stem)
         assert not any("{home}" in pattern or "{seeds}" in pattern for pattern in declared.values()), path.stem
-        assert "bake job" in declared or "kit route" in declared, path.stem
-    missing = {name for name in surface_data.bake_files("launch") if name.startswith("bake entry")}
+        assert "bake job" in declared or "details" in declared, path.stem
+    missing = {name for name in table_files("launch") if name.startswith("bake entry")}
     assert missing == {"bake entry far_rocket_1"}, missing
+
+
+def table_files(place, record=None):
+    """The bake row's world files as the table declares them (library_reads.narrowed over its surface data)."""
+    return library_reads.narrowed(surface_data.bake_files, lambda _: record or surface_data.record(place))(place)
+
+
+def test_a_model_the_bake_would_stop_on_is_declared_missing_by_its_own_checks():
+    """bake_job's own rule, run without a take: a sized kit model with neither child_of nor prop, and a laid kind with
+    no details, each declared missing; a model it enters is not."""
+    kit = json.loads((REPO / "data/kit/hangar.json").read_text())
+    laid = next(piece for piece in kit["pieces"] if piece.get("model") and "turn" in DETAILS.get(piece["kind"], {}))
+    assert bake_job.refusal("hangar", laid["model"], None, kit, {}) is None
+    sized = dict(kit, models={**kit.get("models", {}), "loose_1": {"size": [1.0, 1.0, 1.0]}})
+    assert "no furniture or composite child size" in bake_job.refusal("hangar", "loose_1", None, sized, {})
+    unknown = dict(kit, pieces=[dict(laid, kind="hangar_no_such_kind")])
+    assert "has no details" in bake_job.refusal("hangar", laid["model"], None, unknown, {})
+    record = dict(surface_data.record("hangar"))
+    record["bake"] = {"models": {laid["model"]: "t1", "loose_1": "t2"}}
+    declared = table_files("hangar", record)
+    assert "bake entry loose_1" in declared and f"bake entry {laid['model']}" not in declared, sorted(declared)
+
+
+def test_a_bake_keys_only_the_details_its_models_read():
+    """One kind's details edited re-keys only the bakes whose models read it, never every place's bake."""
+    kit = json.loads((REPO / "data/kit/hangar.json").read_text())
+    laid = next(piece for piece in kit["pieces"] if piece.get("model") and "turn" in DETAILS.get(piece["kind"], {}))
+    record = dict(surface_data.record("hangar"), bake={"models": {laid["model"]: "t1"}})
+    pattern, part = table_files("hangar", record)["details"]
+    assert pattern == "{data}/library/details.json"
+    assert set(json.loads(part(REPO / "data/library/details.json"))) == {laid["kind"]}
+    assert "kit route" not in table_files("hangar", record) and "place route" not in table_files("hangar", record)
 
 
 if __name__ == "__main__":

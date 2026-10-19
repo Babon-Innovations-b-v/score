@@ -1,21 +1,26 @@
-"""The inputs a place's line reads that are not there and no row makes (the old disk's work folder, lost 2026-10-19),
-each a hole of the whole place with its code work: never fetched back as a loose file (an old paid output made to look
-current, score/store/restore's key rule), never passed.
+"""The inputs a line reads that are not there (the old disk's work folder, lost 2026-10-19), each a hole with the node
+that makes it again or its code work: never fetched back as a loose file (an old paid output made to look current,
+score/store/restore's key rule), never passed.
 
-    found = inputs.lost(runner, place)   # [{"id", "sentence", "work"}], one a lost thing, ids stable run to run
+    found = inputs.lost(runner, place)   # [{"id", "sentence", "node", "work"}], one a lost thing, ids stable run to run
+    found = inputs.lost(runner, None)    # the same of the environment's own (world) nodes
 
-Read from the stage table: every place node's declared world files (a ship place's through the table's own wrappers)
-under the work folder ({seeds}, {home}/work) or in the repository ({data}, {repo}) that are not there, grouped by what
-they are (KINDS: an earth seed, a ship seed, a ship place's views, a Pixal3D take), each kind with its code work; and
-the owner's reference pictures the concept views of the place name (a view whose id names the place, or `ship` for a
-ship place). A world node's inputs are no place's and are left to the run's own refusal.
+Read from the stage table: every node's declared world files (a ship place's through the table's own wrappers) under
+the work folder ({seeds}, {home}/work) or in the repository ({data}, {repo}) that are not there, grouped by what they
+are (KINDS: an earth seed, a ship seed, a place's views copy, a Pixal3D take), each kind with its code work; and the
+owner's reference pictures the concept views of the place name (a view whose id names the place, or `ship` for a ship
+place). A Pixal3D take some place's pixal row makes is that row's hole (node `pixal@<place>`), priced through it. An
+id names the lost thing itself, never the place reading it, so one input many places read is one hole world-wide
+(`distinct`).
 """
 import pathlib
 
 from score import stages
 from score.stages import concept_view
+from score.stages.props import prop_data
 
 WORK_ROOTS = ("{seeds}/", "{home}/work/")
+DATA_ROOTS = ("{data}/", "{repo}/")
 EARTH, SHIP, VIEWS, PIXAL, OTHER, DATA, PICTURE = ("earth-seed", "ship-seed", "views", "pixal", "work", "data",
                                                    "reference")
 # What a lost path under the work folder is, by its start there: (kind, the code work that makes it again).
@@ -31,6 +36,8 @@ KINDS = (("usd-r3/", EARTH, "earth seed lost: a seed row that exports each place
          ("pixal/", PIXAL, "Pixal3D take lost: pixal@<place>'s accepted output carries its takes (<take>.glb, "
                            ".svviews, -final.glb, takes.json) and every reader reads them through an `after` on it; "
                            "then each lost take is a pixal hole, priced"))
+EARTH_VIEWS_WORK = ("views lost (a copy of the scene record under work/demo, made by hand): {nodes} read it by path; "
+                    "they read the place's views from its own scene-record output instead, or a row writes the copy")
 OTHER_WORK = "an input under the work folder no row makes: a row that makes it, or the code that stops reading it"
 DATA_WORK = "an input the repository should hold and does not: {name} ({path})"
 PICTURE_WORK = ("the owner supplies {name}, his own reference picture (kept off the public repository until he says "
@@ -38,9 +45,9 @@ PICTURE_WORK = ("the owner supplies {name}, his own reference picture (kept off 
 TAKE_ENDS = ("-final.glb", ".glb", ".svviews")
 
 
-def relative(pattern):
-    """A declared pattern's path under the work folder, or None for one elsewhere."""
-    root = next((root for root in WORK_ROOTS if pattern.startswith(root)), None)
+def relative(pattern, roots=WORK_ROOTS):
+    """A declared pattern's path under one of `roots` (the work folder's by default), or None for one elsewhere."""
+    root = next((root for root in roots if pattern.startswith(root)), None)
     return pattern[len(root):] if root else None
 
 
@@ -56,28 +63,49 @@ def what(rest):
     return OTHER, folder if folder and "." in name else rest
 
 
-def work_of(kind, place):
-    return next((work for _, found, work in KINDS if found == kind), OTHER_WORK).replace("{place}", place)
+def data_item(pattern, name):
+    """A lost repository input's item: its file there (the pattern's first word under {data} or {repo}) and the name
+    the node reads it by, so one name in two places' files is two holes."""
+    return f"{relative(pattern, DATA_ROOTS).split(' ', 1)[0]}:{name}"
+
+
+def work_of(kind, place, nodes):
+    """The code work that makes a lost thing of `kind` again; the views copy an earth place's rows read names them."""
+    if kind == VIEWS and not stages.ship_place(place):
+        return EARTH_VIEWS_WORK.format(nodes=", ".join(nodes))
+    return next((work for _, found, work in KINDS if found == kind), OTHER_WORK).replace("{place}", str(place))
+
+
+def pixal_makers(place):
+    """{take: place} of every take a place's pixal row makes (its prop objects' takes), the place's own first."""
+    found = {}
+    others = sorted(path.stem for path in prop_data.FOLDER.glob("*.json") if path.stem != place)
+    for maker in ([place] if place else []) + others:
+        for entry in prop_data.prop_objects({"objects": prop_data.objects(maker)}).values():
+            found.setdefault(entry["take"], maker)
+    return found
 
 
 def declared_lost(runner, place):
-    """{(kind, item): {"paths", "nodes", "names"}} of the place nodes' declared world files that are not there."""
+    """{(kind, item): {"paths", "nodes", "names"}} of the declared world files of the place's nodes (the world's own
+    nodes for place None) that are not there."""
     found = {}
-    for stage, node_place in runner.nodes([place]):
-        if node_place is None:
+    for stage, node_place in runner.nodes([place] if place else []):
+        if node_place != place:
             continue
         for name, pattern in runner.files_of(stage, place).items():
-            pattern = (pattern[0] if isinstance(pattern, tuple) else pattern).replace("{place}", place)
+            pattern = pattern[0] if isinstance(pattern, tuple) else pattern
+            pattern = pattern.replace("{place}", place) if place else pattern
             rest = relative(pattern)
-            if rest is None and not pattern.startswith(("{data}", "{repo}")):
+            if rest is None and not pattern.startswith(DATA_ROOTS):
                 continue
             path = runner.file_path(stage, name, place)
             if path.exists():
                 continue
-            key = what(rest) if rest is not None else (DATA, name)
+            key = what(rest) if rest is not None else (DATA, data_item(pattern, name))
             entry = found.setdefault(key, {"paths": set(), "nodes": set(), "names": set()})
             entry["paths"].add(str(path))
-            entry["nodes"].add(f"{stage.name}@{place}")
+            entry["nodes"].add(f"{stage.name}@{place}" if place else stage.name)
             entry["names"].add(name)
     return found
 
@@ -94,18 +122,48 @@ def lost_pictures(runner, place):
     return found
 
 
+def declared_hole(kind, item, entry, place, makers):
+    """One declared lost thing as a hole: a take a pixal row makes with that node, anything else with its code work."""
+    nodes, paths = sorted(entry["nodes"]), sorted(entry["paths"])
+    more = f" and {len(nodes) - 1} more" if len(nodes) > 1 else ""
+    node = f"{PIXAL}@{makers[item]}" if kind == PIXAL and item in makers else None
+    if node:
+        work = None
+    elif kind == DATA:
+        work = DATA_WORK.format(name=item.split(":", 1)[1], path=paths[0])
+    else:
+        work = work_of(kind, place, nodes)
+    return {"id": f"lost:{kind}:{item}", "sentence": f"lost input {item} ({paths[0]}), read by {nodes[0]}{more}",
+            "node": node, "work": work}
+
+
 def lost(runner, place):
-    """The place's lost inputs as holes (module docstring), declared ones first, then the owner's pictures."""
-    found = []
-    for (kind, item), entry in sorted(declared_lost(runner, place).items()):
-        nodes, paths = sorted(entry["nodes"]), sorted(entry["paths"])
-        more = f" and {len(nodes) - 1} more" if len(nodes) > 1 else ""
-        work = DATA_WORK.format(name=item, path=paths[0]) if kind == DATA else work_of(kind, place)
-        found.append({"id": f"lost:{kind}:{item}", "sentence": f"lost input {item} ({paths[0]}), read by {nodes[0]}"
-                                                              f"{more}", "work": work})
-    for path, views in sorted(lost_pictures(runner, place).items()):
+    """The lost inputs of the place's line (of the world's own nodes for None) as holes (module docstring), declared
+    ones first, then the owner's pictures."""
+    makers = pixal_makers(place)
+    found = [declared_hole(kind, item, entry, place, makers)
+             for (kind, item), entry in sorted(declared_lost(runner, place).items())]
+    for path, views in sorted((lost_pictures(runner, place) if place else {}).items()):
         name = pathlib.Path(path).name
         found.append({"id": f"lost:{PICTURE}:{name}",
                       "sentence": f"owner's reference picture {name} missing ({path}), for the concept views "
-                                  f"{', '.join(views)}", "work": PICTURE_WORK.format(name=name)})
+                                  f"{', '.join(views)}", "node": None, "work": PICTURE_WORK.format(name=name)})
+    return found
+
+
+def is_lost(hole_id):
+    """Whether a finding's id is a lost input's (`<rule>:lost:<kind>:<item>`)."""
+    return hole_id.partition(":")[2].startswith("lost:")
+
+
+def distinct(holes):
+    """The holes counted once world-wide: a lost input once however many places read it (its id names the thing),
+    every other hole as it is."""
+    seen, found = set(), []
+    for hole in holes:
+        if is_lost(hole["id"]):
+            if hole["id"] in seen:
+                continue
+            seen.add(hole["id"])
+        found.append(hole)
     return found

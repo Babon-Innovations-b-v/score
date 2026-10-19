@@ -86,8 +86,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   out, else its route's own (`place_route.chunky_entry` sized over its labelled take for an outside place, whose kit
   says `on_seat`; `route.jobs`' fields at its laid size in `data/kit/<place>.json` for a kit room), the specs every
   library variant (`library.by_library` and `resolved`, as both routes write a job), so a variant added anywhere
-  re-keys every bake. A model neither gives (`surface_data.unentered`: the launch's far rocket) is declared as a file
-  that is never there, naming it, so the run refuses before anything is cleared.
+  re-keys every bake; details.json and composites.json are keyed on only the entries the place's models read
+  (`bake_job.reads`, through `library_reads.narrowed`), and the routes' code is in the bake's code version, not its
+  files. A model neither gives (`bake_job.refusal`, entry_of's own checks run without the take: the launch's far
+  rocket) is declared as a file that is never there, naming it, so the run refuses before anything is cleared; the
+  crops bake too.
 - **The paint runs on rented processor machines, a job a take** (`make_paint`, `inside/paint_take.py` through
   `blender_cloud.py`; paid, cleared like the bake): heavy steps run in the cloud (owner, 2026-10-12); measured up there,
   campgrounds' takes peak at 1.5 to 3.4 GB and crane-r1 at 34.8 GB (the PC's cap is 14 GB). Up there Blender's own

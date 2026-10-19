@@ -63,12 +63,21 @@ def bake_inputs(place):
 
 def bake_entry(prop):
     """(the place's bake job, the prop's make_chunky entry with its parts folder): the model the place's data bakes
-    from the prop's take, by place_line.bake_entries."""
+    from the prop's take, by place_line.bake_entries, sized over the prop's sizing folder (sizing_folder)."""
     import place_line
-    job, chunky = place_line.bake_entries(bake_inputs(prop["place"]), {prop["name"]: parts_folder(prop) or ""})
+    job, chunky = place_line.bake_entries(bake_inputs(prop["place"]), {prop["name"]: sizing_folder(prop)})
     if not chunky:
         raise KeyError(f"{prop['place']}'s surface data bakes no model from {prop['name']}")
-    return job, chunky[0]
+    return job, dict(chunky[0], parts=str(parts_folder(prop) or ""))
+
+
+def sizing_folder(prop):
+    """The labelled folder an outside place's entry is sized over (place_route.made_size): the prop's own `parts`,
+    else a bodied prop's accepted labelled take (its re-made take's parts are written at this entry's size, so they
+    are not there yet), else None (a prop with neither stops at its first free check)."""
+    if prop.get("parts"):
+        return prop_batch.resolved(prop["parts"])
+    return accepted_labelled(prop) if prop.get("body") else None
 
 
 def parts_folder(prop):

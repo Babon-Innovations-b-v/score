@@ -969,9 +969,9 @@ class Runner:
 
     def missing_inputs(self, nodes):
         """Every declared input a run could never make itself that is missing, of the `nodes` it plans: its environment data
-        and repository files ({data}, {repo}) and its bake jobs, each as "node: input (path)". A run refuses on any,
-        before anything starts (the ship run of 2026-10-14 22:55 spent EUR 13.58 on machines, then stopped on missing
-        seed records). Files the run makes as it goes (the Pixal3D takes under {home}) are left to their rows."""
+        and repository files ({data}, {repo}; a bake's job and entries are declared there), each as "node: input
+        (path)". A run refuses on any, before anything starts (the ship run of 2026-10-14 22:55 spent EUR 13.58 on
+        machines, then stopped on missing seed records). Files the run makes as it goes (the Pixal3D takes under {home}) are left to their rows."""
         found = []
         for stage, place in nodes:
             try:
@@ -981,7 +981,7 @@ class Runner:
                 continue
             for name, pattern in declared.items():
                 pattern = pattern[0] if isinstance(pattern, tuple) else pattern
-                if not (pattern.startswith(("{data}", "{repo}")) or name.startswith("bake job")):
+                if not pattern.startswith(("{data}", "{repo}")):
                     continue
                 path = self.file_path(stage, name, place)
                 if not path.exists():

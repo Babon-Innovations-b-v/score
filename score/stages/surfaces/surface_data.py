@@ -75,41 +75,22 @@ def parts_files(place):
     return {**line_files(place), **kit, **builders, "kit surfaces": "{repo}/tools/props/library/kit_surfaces.py"}
 
 
-# What bake_job.py writes a place's bake job from: the routes' code, the kinds' details and the composites' children.
-BAKE_JOB_FILES = {"place route": "{repo}/tools/props/library/place_route.py",
-                  "kit route": "{repo}/tools/props/library/route.py", "details": "{data}/library/details.json",
-                  "composites": "{data}/library/composites.json"}
-
-
-def read_data(folder, place):
-    found = REPO / "data" / folder / f"{place}.json"
-    return json.loads(found.read_text()) if found.exists() else {}
-
-
-def unentered(place, bake):
-    """The models a place bakes whose entry nothing in git gives (bake_job.entry_of would stop the bake on each): no
-    entry written out, not laid in its kit (a piece, or a furniture or composite child model with its size) and, in
-    an outside place (its kit says `on_seat`), no inventory row of its name."""
-    kit, inventory = read_data("kit", place), read_data("inventory", place)
-    laid = {piece.get("model") for piece in kit.get("pieces", [])}
-    sized = {model for model, entry in kit.get("models", {}).items() if entry.get("size")}
-    rows = {row["id"] for row in inventory.get("rows", [])} if "on_seat" in kit else set()
-    return sorted(model for model in bake.get("models", {})
-                  if not isinstance(bake.get("entries", {}).get(model), dict) and model not in laid | sized | rows)
+# What bake_job.py writes a place's bake job from besides its own code (which the bake's code version hashes, the
+# routes' with it): the kinds' details and the composites' children. The table keys each on the entries the place's
+# models read (library_reads.narrowed), so one kind's edit re-keys only the bakes that read it.
+BAKE_JOB_FILES = {"details": "{data}/library/details.json", "composites": "{data}/library/composites.json"}
 
 
 def job_files(place, bake):
     """The world files a place's bake job is written from (BAKE_JOB_FILES, the place's kit and inventory where it has
-    them); a place whose data has no bake, or a model no entry can be written for (unentered), blocks here, before
-    anything is cleared: a path that is never there, naming it."""
+    them); a place whose data has no bake blocks here, before anything is cleared: a path that is never there, naming
+    it. A model no entry can be written for blocks the same way, declared in the table (library_reads.narrowed)."""
     if not bake:
         return {"bake job": pattern(place) + " names no bake"}
     found = dict(BAKE_JOB_FILES)
     for folder in ("kit", "inventory"):
         if (REPO / "data" / folder / f"{place}.json").exists():
             found[folder] = "{data}/" + f"{folder}/{place}.json"
-    found.update({f"bake entry {model}": pattern(place) + f" writes no entry for {model} and its kit lays none"
-                  for model in unentered(place, bake)})
     return found
 
 

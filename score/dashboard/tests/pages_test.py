@@ -263,6 +263,25 @@ def test_the_place_page_lists_its_holes_priced_from_the_basket(world, settings, 
     assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00; 0 guessed; 1 holes no stage can fill yet" in board
 
 
+def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(world):
+    """The holes check writes the environment's own lost inputs as the pseudo-place `world`; the total counts it, and
+    one lost input read by alpha, beta and the world once."""
+    import json
+    lost = {"id": "place:lost:earth-seed:usd-r3", "rule": "place", "prim": None, "kind": None,
+            "sentence": "lost input usd-r3", "picture": None, "row": None, "gates": [], "source": "inputs",
+            "node": None, "work": "earth seed lost", "placed": None, "low": None, "high": None}
+    take = dict(lost, id="place:lost:pixal:pliers-pf", sentence="lost input pliers-pf", work="take lost")
+    for place, outputs, found in (("alpha", {"assembly@alpha": world.outputs["assembly@alpha"]}, [lost]),
+                                  ("beta", {"assembly@beta": world.outputs["assembly@beta"]}, [lost]),
+                                  ("world", {}, [lost, take])):
+        folder = world.root / "props/work/checks/holes" / place
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "findings.json").write_text(json.dumps({"place": place, "outputs": outputs, "findings": found}))
+    total = world.source.holes_total()
+    assert total.counts == {"place": 2} and total.unfillable_count == 2, total
+    assert total.unfillable == ["earth seed lost", "take lost"], total
+
+
 def test_the_holes_total_prices_whole_items_and_says_the_paid_steps_no_item_carries():
     from score.dashboard.state import holes
     from score.dashboard.state.models import HolesTotal
