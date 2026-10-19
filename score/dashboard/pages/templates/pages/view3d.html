@@ -17,19 +17,22 @@
 </script>
 {% endif %}
 </head>
-<body class="view3d">
+<body class="view3d{% if embed %} embed{% endif %}">
 <aside class="view3d-panel">
   <p class="small"><a href="/">Environment</a> / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a> / 3D</p>
   <h1>{{ detail.place|capfirst }} in 3D</h1>
   {% if only %}<p class="panel small only-layer">Showing only <b>{{ only }}</b>, with the base for context{% if at_film %}, from the film's camera{% endif %}. <a href="/view/{{ detail.place }}">Show every layer</a></p>{% endif %}
-  {% if proposed %}
-  <div class="switch" role="group" aria-label="which version">
-    <a href="/view/{{ detail.place }}"{% if showing == "current" %} class="on" aria-current="true"{% endif %}>Now</a>
-    <a href="/view/{{ detail.place }}?{{ proposed.query }}"{% if showing == "proposed" %} class="on" aria-current="true"{% endif %}>Proposed</a>
+  {% if after %}
+  <p class="small"><a href="/basket/item/{{ after.item }}/">{{ after.name }}</a>, in the basket</p>
+  {% if after.has_copy %}
+  <div class="switch" role="group" aria-label="before or after">
+    <a href="/view/{{ detail.place }}?item={{ after.item }}&side=before"{% if showing == "current" %} class="on" aria-current="true"{% endif %}>Before</a>
+    <a href="/view/{{ detail.place }}?item={{ after.item }}"{% if showing == "after" %} class="on" aria-current="true"{% endif %}>After</a>
   </div>
-  {% if showing == "proposed" %}<p class="small proposed-words">Proposed: {{ proposed.fixes }}</p>{% endif %}
   {% endif %}
-  {% if detail.web3d or showing == "proposed" %}
+  <p class="small soft">What it changes is outlined: <span class="mark-key added">added or changed</span> <span class="mark-key removed">taken out</span>.</p>
+  {% endif %}
+  {% if detail.web3d or showing == "after" %}
   <p class="small soft">Made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage than the place's current one{% endif %}.</p>
   <p id="status" class="small" role="status">Loading the preview...</p>
 
@@ -55,6 +58,7 @@
     OpenUSD stage.</div>
   {% endif %}
 </aside>
-<div id="stage" class="view3d-stage"><div id="measure-label" class="measure-label" hidden></div></div>
+<div id="stage" class="view3d-stage"><div id="measure-label" class="measure-label" hidden></div>
+  <button type="button" id="to-changes" class="to-changes" hidden>Look at what changes</button></div>
 </body>
 </html>

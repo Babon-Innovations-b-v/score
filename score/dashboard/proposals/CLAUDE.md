@@ -1,31 +1,27 @@
 # score/dashboard/proposals/
 
-A fix branch's proposal for one place: the shopping list's item, made for free on the store's machine
-(`python -m score.dashboard propose <branch> <place>`). Layout and fields: `records.py`; the run: `propose.py`;
-`finish.py` prices its paid part (`score price` through the backend, per commit), draws its own stills when it was
-made without them, and its before stills (the same cameras on the place as it stands accepted), run by propose, by
-`proposals-finish`, and (price only) by every sync pass. A department gives its proposal the owner's words with `python -m score.dashboard proposal-words <branch>
-<place> --says "the fault this fixes, as he sees it" [--ask "..." --recommend "..."]`; they survive a rerun.
+The basket's details (CONTEXT.md: basket, basket item): what a run on main would buy, grouped into items, each with
+details made for free on the store's machine before anything is bought (`python -m score.dashboard basket`, in the
+background: the runner's plan of the whole environment takes minutes). Layout and fields: `records.py`; the command:
+`make.py`; the free after and each paid node's inputs: `assemble.py`; the after's 3D copy and what changes:
+`details.py`. A department declares an item, its words and its questions with `python -m score.dashboard basket-item
+<id> --title ... --says ... --node '<pattern>' --picture ... --ask ... --recommend ...` (kept across makes; an item
+may span places); the owner's answers are in `answers.json` (`python -m score.dashboard basket-answers`).
 
 Rules:
 
-- **Read the store, never write it.** `assemble.py` runs inside the branch's scratch checkout over an `Overlay`
-  store: reads fall through to `$PROPS_HOME/store/objects`, every write (blobs, outputs, records, judgements, cache,
-  locks) lands in `$SCORE_DASHBOARD_HOME/proposals-work/store`. Nothing is accepted; nothing is bought.
+- **Read the store, never write it.** `assemble.py` runs in a subprocess over an `Overlay` store: reads fall through
+  to `$PROPS_HOME/store/objects`, every write (blobs, outputs, records, judgements, cache, locks) lands in
+  `$SCORE_DASHBOARD_HOME/proposals-work/store`. Nothing is accepted; nothing is bought.
 - **Free only.** A paid row, or one on pinned images, is never made here: its accepted output stands in, named "needs
-  the paid batch". No cloud call, no `score run`, no clearance. Stills are one small local Blender job (640x360,
-  4 threads, under the machine's one-heavy-job lock through `tools/blender/session.py batch`).
-- **After and before are one drawing.** `drawing.py` works out what to draw once, from the branch (its scene
-  record's cameras, its film plan where it moves the film, moments over the stage where it made a moving layer,
-  the stage's own lamps), kept on the record as `drawing`; the after and the before (`finish.before_stills`) are
-  both drawn from it, never from two scene records. A paid row standing in is previewed only where `drawing.
-  PAID_PREVIEWS` has a free way, labelled "preview: the paid batch makes the full version"; the rest are `unshown`.
-- **No change, no card.** `compare.py` measures each after still against its before (share of pixels changed by
-  more than `CHANGED_LEVEL`, over `LEAST_CHANGED`); a proposal with no pair that shows a change, or never measured,
-  is held out of the basket with its plain reason (`records.held`), on the page and in `changes.carried_out`.
-- **assemble.py is loaded by path** with the branch's checkout first on `sys.path`, so it imports only what every
-  branch has (`score.graph`, `score.store`, `score.stages`, `score.contracts`), never `score.dashboard`. The three
-  ways a node is taken are named in both `assemble.py` and `records.py`; a test holds them equal.
-- **records.py stays light**: plain files only, read by the hosted process too (no store, no stages, no numpy).
+  the paid batch". No cloud call, no `score run`, no clearance, no Blender render: the after is shown as a 3D web copy
+  (web3d/convert.py) of the free assembly, the before is the place's own web copy.
+- **What changes is read, not written by hand.** `details.py` compares the two OpenUSD stages (the accepted one and
+  the free after, linked the same way): objects added, removed, moved, reshaped, refinished (their bound materials
+  and inputs, textures by blob), lamps, sounds, the scene record's cameras; each with its layer and box for the
+  viewer's outlines. Where nothing changes for free, the item shows what its paid steps would be made from.
+- **Prices are the runner's** (`score plan`'s buys, C19); a node never measured is said apart as a guess.
+- **records.py stays light**: plain files only, read by the hosted process too (no store, no stages, no numpy). The
+  three ways a node is taken are named in both `assemble.py` and `records.py`; a test holds them equal.
 - Tests: `score/dashboard/tests/proposals_test.py` (a toy stage table over a temp store; the real store is never
-  touched).
+  touched) and `score/dashboard/tests/basket_test.py` (the pages, the choices, the answers, the checkout's queue).

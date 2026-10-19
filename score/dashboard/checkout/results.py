@@ -58,7 +58,7 @@ def item_result(source, item, before, billed, at):
     nodes = [node_result(source, node, price, before.get(node), billed, at)
              for node, price in sorted(item["nodes"].items())]
     real = [node["euros"] for node in nodes if node["euros"] is not None]
-    return {"branch": item["branch"], "nodes": nodes, "forecast": item["totals"],
+    return {"id": item["id"], "place": item["place"], "layers": item["layers"], "nodes": nodes, "forecast": item["totals"],
             "euros": round(sum(real), 2) if real else None,
             "minutes": round(sum(node["minutes"] or 0.0 for node in nodes), 1),
             "new_outputs": sum(node["new"] for node in nodes),

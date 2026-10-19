@@ -185,19 +185,19 @@ def publish(kind):
 
 def buy_check(runner, places, whole, only, reason):
     """What a run of these lines would do before it starts, running nothing: {"missing": inputs it could never make
-    itself, "buys": [Buy] in table order (none when inputs are missing: free checks before paid), "refusal": why the
-    run is refused or None, "to_run": {node: why} of every node it would make, "blocked": {node: why} of every node
-    it could not start}."""
+    itself, "buys": [Buy] in table order (listed when inputs are missing too, so the cockpit's basket shows what a run
+    would buy; that run is refused: free checks before paid), "refusal": why the run is refused or None, "to_run":
+    {node: why} of every node it would make, "blocked": {node: why} of every node it could not start}."""
     nodes = runner.line_nodes(places, whole, only)
     missing = runner.missing_inputs(nodes)
-    if missing:
-        return {"missing": missing, "buys": [], "to_run": {}, "blocked": {},
-                "refusal": "refused: these inputs are missing, so the rows that read them would stop the run after it "
-                           "paid for others:\n  " + "\n  ".join(missing)}
     with runner.still():
         bought = rebuy.buys(runner, nodes)
-        states = {node: state for _, line_nodes in runner.lines(places, whole, only).values()
-                  for node, state in line_nodes.items()}
+        states = {} if missing else {node: state for _, line_nodes in runner.lines(places, whole, only).values()
+                                     for node, state in line_nodes.items()}
+    if missing:
+        return {"missing": missing, "buys": bought, "to_run": {}, "blocked": {},
+                "refusal": "refused: these inputs are missing, so the rows that read them would stop the run after it "
+                           "paid for others:\n  " + "\n  ".join(missing)}
     return {"missing": [], "buys": bought, "refusal": rebuy.refusal(bought, reason),
             "to_run": {node: state for node, state in states.items() if state.startswith("to run")},
             "blocked": {node: state for node, state in states.items() if state.startswith("blocked")}}
