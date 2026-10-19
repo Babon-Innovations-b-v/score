@@ -41,6 +41,17 @@ def test_only_the_places_with_prop_data_have_prop_rows_and_a_place_without_them_
     assert "pixal" in runner.reads(inputs, "campgrounds")
 
 
+def test_the_inputs_row_declares_its_scenes_inventory_not_the_whole_folder():
+    """props-inputs reads the inventory the box gate reads, its scene's, under the name the folder had, and the code
+    version stays the file map's own (the table's wrapper is the framework's): the hangar's inventory alone moved every
+    place's inputs row (46313397, 2026-10-18)."""
+    runner = stages.runner()
+    row = runner.stages["props-inputs"]
+    for place in ("campgrounds", "hangar", "shiplock"):
+        assert runner.files_of(row, place)["inventories"] == "{data}/inventory/" + f"{place}.json", place
+    assert _code.source_files(graph.code_functions(row)) == _code.source_files(graph.code_functions(props.INPUTS))
+
+
 def test_a_take_s_faces_come_from_the_bake_model_made_from_it_whatever_its_name():
     """Fault (2026-10-13): pixal@campgrounds looked for `cairn_1`, a name made from the row, where the camp grounds
     name their models by the row alone (`cairn`). The entry is found by the take the model is made from."""
