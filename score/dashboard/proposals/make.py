@@ -12,7 +12,9 @@ joins the item of a node it waits for. Then each place with an item gets its fre
 over a scratch store in the dashboard's home, proposals-work/store, kept across makes, so a second make on the same
 code makes nothing again), its 3D web copy and what changes (details.py), and the inputs each paid node would be made
 from (pictures as small JPEGs, short texts quoted); a declared item's own pictures and files beside. Nothing is bought;
-nothing in the store is written. `--place` makes those places' details again and keeps the rest.
+nothing in the store is written. `--place` makes those places' details again and keeps the rest. `--plan-only`
+makes the plan and its items and assembles no place: for a store whose free rows before a place's first paid one
+would run heavy local work (the lost store of 2026-10-19), or when only the buys are wanted.
 """
 import fnmatch
 import hashlib
@@ -288,16 +290,16 @@ def nodes_by_place(found):
     return by_place
 
 
-def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line: None):
-    """Make the basket into home/proposals/: the plan, its items, each place's details; the index. `say` gets one line
-    a place."""
+def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line: None, plan_only=False):
+    """Make the basket into home/proposals/: the plan, its items, each place's details (none with `plan_only`: no
+    place is assembled); the index. `say` gets one line a place."""
     root, work = pathlib.Path(home) / "proposals", pathlib.Path(home) / WORK
     root.mkdir(parents=True, exist_ok=True)
     work.mkdir(parents=True, exist_ok=True)
     declared = records.declared(root)
     planned = (chosen or guard.backend()).plan(RunGroup(places=(), stages=()))
     found = grouped(planned.buys, layer_of or layer_map(), planned.missing, declared)
-    for place, nodes in nodes_by_place(found).items():
+    for place, nodes in ({} if plan_only else nodes_by_place(found)).items():
         if only and place not in only:
             continue
         try:
@@ -310,6 +312,6 @@ def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line:
     for ident, given in declared.items():
         declared_details(ident, given, root)
     index = {"made_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "commit": commit(),
-             "refusal": planned.refusal, "missing": planned.missing, "items": found}
+             "refusal": planned.refusal, "missing": planned.missing, "items": found, "plan_only": plan_only}
     records.put_index(root, index)
     return index

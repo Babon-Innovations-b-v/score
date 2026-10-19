@@ -21,6 +21,9 @@ Rules:
   and inputs, textures by blob), lamps, sounds, the scene record's cameras; each with its layer and box for the
   viewer's outlines. Where nothing changes for free, the item shows what its paid steps would be made from.
 - **Prices are the runner's** (`score plan`'s buys, C19); a node never measured is said apart as a guess.
+- **`--plan-only` assembles no place**: the plan and its items (with the plan's missing inputs and refusal) only,
+  `plan_only` in the index. Use it whenever a place's free rows before its first paid one could run heavy local work
+  or cannot stand (after the store's loss, 2026-10-19, every place's assembly fails at its first unmade paid node).
 - **records.py stays light**: plain files only, read by the hosted process too (no store, no stages, no numpy). The
   three ways a node is taken are named in both `assemble.py` and `records.py`; a test holds them equal.
 - Tests: `score/dashboard/tests/proposals_test.py` (a toy stage table over a temp store; the real store is never

@@ -6,7 +6,7 @@
     .venv/bin/python -m score.dashboard sync              # store side: push the export, pull and apply requests
     .venv/bin/python -m score.dashboard check             # Django's checks of the settings
     .venv/bin/python -m score.dashboard web3d <place>     # a place's fresh 3D web copy (web3d/convert.py), free
-    .venv/bin/python -m score.dashboard basket [--place P ...]  # what a run on main would buy, its free details
+    .venv/bin/python -m score.dashboard basket [--place P ...] [--plan-only]  # what a run would buy, its free details
     .venv/bin/python -m score.dashboard basket-item <id> [--title T] [--says S] [--node PATTERN ...] [--picture P ...]
         [--file F ...] [--ask Q --recommend A ...]   # a department's basket item, its words and questions
     .venv/bin/python -m score.dashboard basket-answers   # the owner's answers to the basket's questions, as JSON
@@ -33,6 +33,7 @@ def parse(argv):
     web3d.add_argument("--out", help="default SCORE_WEB_COPIES, where the viewer reads it")
     basket = commands.add_parser("basket", help="what a run on main would buy, its items' free details (proposals/)")
     basket.add_argument("--place", action="append", default=[], help="make only this place's details again")
+    basket.add_argument("--plan-only", action="store_true", help="the plan and its items only: no place assembled")
     words = commands.add_parser("basket-item", help="a department's basket item: its words, nodes and questions")
     words.add_argument("item")
     words.add_argument("--title", help="the item's name, as the owner reads it")
@@ -123,13 +124,13 @@ def web3d(place, store, out):
                   "--out", out or str(settings.SCORE_WEB_COPIES)])
 
 
-def basket(places):
+def basket(places, plan_only=False):
     """Make the basket into the dashboard's home (proposals/make.py): one summary line."""
     from django.conf import settings
 
     from score.dashboard.proposals import make
     made = make.make(settings.SCORE_HOME, settings.SCORE_PROPS_HOME / "store", tuple(places),
-                     say=lambda line: print(line, flush=True))
+                     say=lambda line: print(line, flush=True), plan_only=plan_only)
     print(f"basket: {len(made['items'])} items, {sum(len(item['nodes']) for item in made['items'])} paid nodes; "
           f"{settings.SCORE_HOME / 'proposals'}")
 
@@ -184,7 +185,7 @@ def main(argv=None):
     elif options.command == "web3d":
         web3d(options.place, options.store, options.out)
     elif options.command == "basket":
-        basket(options.place)
+        basket(options.place, options.plan_only)
     elif options.command == "basket-item":
         basket_item(options)
     elif options.command == "basket-answers":
