@@ -258,7 +258,10 @@ def summary_words(item, root, known):
              change_lines((known.setdefault(place, records.details(root, place) or {})).get("changes"))]
     if lines:
         return " · ".join(lines[:3])
-    return "Nothing changes for free: open it to see what it is made from"
+    reasons = Counter(reason_words(why) for why in item["why"].values())
+    if not reasons:
+        return "Nothing changes for free: open it to see what it is made from"
+    return "Why again: " + "; ".join(reason for reason, _ in reasons.most_common(2))
 
 
 def tile(item, root, source, known, choices, said, given):
