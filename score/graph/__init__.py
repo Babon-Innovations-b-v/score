@@ -205,6 +205,7 @@ def node_seed(world_seed, stage, place):
 BYTECODE_REASON = "same sources, bytecode left out of the key"
 NO_OP_REASON = "same result: every change since it was made is proved a no-op for it"
 NARROWING_REASON = "same reads: every file its key reads today reads as it did when it was made"
+WORDS_REASON = "same meaning: every file its key reads today reads as when it was made, or differs only in words"
 # The key parts a narrowing carry needs the same: all but the code version and the declared files' hashes.
 NARROWING_SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
 
@@ -866,11 +867,13 @@ class Runner:
                                        {**judgement, "key": keyed["key"], "carried": new["carried"]})
         return new
 
-    def narrowing_proof(self, stage, place, keyed):
-        """The node's accepted output's record when its key only got narrower: a record of a committed tree, every
-        key part but code and files the same, the code version rebuilt from git at the record's commit (today's
+    def narrowed(self, stage, place, keyed):
+        """(the node's accepted output's record, the files it reads only reworded since) when its key only got
+        narrower, or its code changed only in words (comments, blank lines, layout, docstrings: _code.words_only): a
+        record of a committed tree, every key part but code and files the same, the code version rebuilt from git at the record's commit (today's
         start files followed with that commit's FRAMEWORK, after this Python's version) equal to the record's, today's
-        code version a part of it (each file today reads, the Python version too, read as it was then), and each
+        code version a part of it (each file today reads, the Python version too, read as it was then, or a Python file
+        only reworded since), and each
         declared file hashing as recorded (a repository one: or as git rebuilds it at that commit). A module moved
         into FRAMEWORK, or an import dropped by a file that was itself not read, is kept so, with no proof file; a
         make, check or file map wired to another function, or another Python, is not. Each file the key no longer reads
@@ -897,21 +900,34 @@ class Runner:
         if then is None or listing_hash(then) != made["code"]:
             return None
         now = _code.code_version(code_functions(stage), file_hash)
-        if not set(now) <= set(then):
+        reads = {entry.rsplit(" ", 1)[0] for entry in now}
+        reworded = sorted(reads - {entry.rsplit(" ", 1)[0] for entry in set(now) & set(then)})
+        if not {entry.rsplit(" ", 1)[0] for entry in then} >= reads or \
+                reworded and not _code.words_only(made["commit"], reworded, reads):
             return None
-        return record if _code.unchanged(set(then) - set(now), file_hash) else None
+        dropped = {entry for entry in then if entry.rsplit(" ", 1)[0] not in reads}
+        return (record, reworded) if _code.unchanged(dropped, file_hash) else None
+
+    def narrowing_proof(self, stage, place, keyed):
+        """The node's accepted output's record when its key only got narrower or its code was only reworded
+        (narrowed), else None."""
+        found = self.narrowed(stage, place, keyed)
+        return found and found[0]
 
     def kept_by_narrowing(self, stage, place, keyed):
         """The node's accepted output stored under `keyed` when every file its key reads today reads as it did when
-        that output was made (narrowing_proof): its record and judgements copied, the record naming the reason, both
-        keys and the commit and code that made it. Its new record, or None (the runner then makes the node)."""
-        record = self.narrowing_proof(stage, place, keyed)
-        if record is None:
+        that output was made, or differs from then only in words (narrowed): its record and judgements copied, the
+        record naming the reason, both keys, the commit and code that made it and any file only reworded. Its new
+        record, or None (the runner then makes the node)."""
+        found = self.narrowed(stage, place, keyed)
+        if found is None:
             return None
+        record, reworded = found
         node = node_name(stage, place)
         new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"],
-               "carried": {"reason": NARROWING_REASON, "from key": record["key"], "to key": keyed["key"],
-                           "made by": made_by(record)}}
+               "carried": {"reason": WORDS_REASON if reworded else NARROWING_REASON, "from key": record["key"],
+                           "to key": keyed["key"], "made by": made_by(record),
+                           **({"words only": reworded} if reworded else {})}}
         try:
             self.store.write_record(node, keyed["key"], new)
         except FileExistsError:  # another run kept it first
