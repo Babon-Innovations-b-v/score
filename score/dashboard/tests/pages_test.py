@@ -245,22 +245,48 @@ def a_holes_finding(world, settings, tmp_path):
     return items
 
 
-def test_the_place_page_lists_its_holes_priced_from_the_basket(world, settings, tmp_path):
-    from score.dashboard.checkout import pricing
+FORECAST = {**MEASURED, "basis": "per unit × forecast", "units": 2, "unit_source": "the place's missing rows"}
+GUESSED = {"likely_euros": None, "high_euros": None, "guess_euros": 1.0, "guess_from": "score/stages/__init__.py:243",
+           "likely_minutes": None, "high_minutes": None, "runs": 0, "basis": "not measured yet", "units": None}
+
+
+def a_holes_price(world):
+    """The runner's price of alpha's holes (score price --holes), made now, after the findings: the close-up priced
+    per unit times its forecast units, the sound it needs to complete only guessed, complete free."""
+    import json
+    from score import graph
+    folder = world.root / "props/work/checks/holes-price"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "world1.json").write_text(json.dumps({
+        "world": "world1", "made_at": graph.now(), "nodes": {"closeup@alpha": FORECAST, "sound@alpha": GUESSED},
+        "chains": {"alpha": {"closeup@alpha": ["closeup@alpha", "complete@alpha", "sound@alpha"],
+                             "complete@alpha": ["complete@alpha", "sound@alpha"]}},
+        "holes": {"alpha": {}}, "free": ["complete@alpha"], "totals": {},
+        "unfillable": [{"work": ROUGH, "holes": 1}], "outside": [], "not_current": []}))
+
+
+def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, settings, tmp_path):
     from score.dashboard.state import holes
-    items = a_holes_finding(world, settings, tmp_path)
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world)
+    world.source.refresh()
     html = signed_in().get("/place/alpha/").content.decode()
     assert "A lamp should be in the alpha but nothing is made for it yet (2 of them)." in html
-    assert "/basket/item/alpha-pieces/" in html and "likely EUR 2.00, high EUR 3.00" in html
-    assert "A free step: the next run makes it at no cost." in html  # complete: no item, and not a paid stage
+    lamp = re.search(r"\(2 of them\)\.(.*?)</li>", html, re.S).group(1)
+    assert "/basket/item/alpha-pieces/" in lamp and "2 paid steps in its chain" in lamp
+    assert "likely EUR 2.00, high EUR 3.00 (1 step)" in lamp and "guessed, not a price: EUR 1.00 (1 step)" in lamp
     rough = re.search(r"<li>This place has no rough model\.(.*?)</li>", html, re.S).group(1)
     assert "No stage can fill this yet: " + ROUGH in rough and "EUR" not in rough
+    assert "sound@alpha: not measured yet, guess EUR 1.00 (score/stages/__init__.py:243)" in html  # in details
     assert NODE.search(outside_details(html)) is None
-    total = holes.environment(world.source.holes_total(), items)
-    assert total["likely"] == pricing.totals({"closeup@alpha": MEASURED})["likely_euros"]
-    assert total["holes"] == 4 and total["unfillable"] == [ROUGH] and total["uncarried"] == 0
+    total = holes.environment(world.source.holes_total(), world.source.holes_price())
+    assert total["holes"] == 4 and total["unfillable"] == [{"work": ROUGH, "holes": 1}]
+    assert total["sums"]["bases"] == [{"basis": "per unit × forecast", "label": holes.BASES[2][1], "nodes": 1,
+                                       "likely": 2.0, "high": 3.0}]
+    assert total["sums"]["guessed"] == {"euros": 1.0, "nodes": 1, "sources": [
+        {"at": "score/stages/__init__.py:243", "euros": 1.0, "nodes": 1}]}
     board = signed_in("other").get("/").content.decode()
-    assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00; 0 guessed; 1 holes no stage can fill yet" in board
+    assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00 (1 step)" in board and ROUGH + " (1 hole)" in board
 
 
 def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(world):
@@ -282,18 +308,40 @@ def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(wor
     assert total.unfillable == ["earth seed lost", "take lost"], total
 
 
-def test_the_holes_total_prices_whole_items_and_says_the_paid_steps_no_item_carries():
+def test_a_stale_holes_price_shows_no_total(world, settings, tmp_path):
+    import os
+    import time
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world)
+    later = time.time() + 60
+    os.utime(world.root / "props/work/checks/holes/alpha/findings.json", (later, later))  # the check ran again
+    world.source.refresh()
+    board = signed_in().get("/").content.decode()
+    section = re.search(r'<section class="money-card holes-total".*?</section>', board, re.S).group(0)
+    assert "No total" in section and "stale" in section and "EUR 2.00" not in section
+    html = signed_in("other").get("/place/alpha/").content.decode()
+    assert "Its price is stale" in html and "paid steps in its chain" not in html
+
+
+def test_the_holes_total_keeps_each_basis_apart_and_a_shared_node_once():
     from score.dashboard.state import holes
-    from score.dashboard.state.models import HolesTotal
-    total = HolesTotal(counts={"missing": 2}, nodes=["closeup@alpha", "closeup@beta"],
-                       paid_nodes=["closeup@alpha", "closeup@beta"])
-    items = [{"id": "alpha-pieces", "nodes": {"closeup@alpha": MEASURED, "assembly@alpha": MEASURED}},
-             {"id": "gamma-light", "nodes": {"light@gamma": MEASURED}}]
-    found = holes.environment(total, items)
-    # the item's later node is part of its price; an item filling no hole is not
-    assert found["likely"] == 4.0 and found["uncarried"] == 1
-    assert found["words"] == "likely EUR 4.00, high EUR 6.00; 0 guessed; 1 paid steps not in the basket, unpriced; " \
-                             "0 holes no stage can fill yet"
+    from score.dashboard.state.models import HolesPrice, HolesTotal
+    total = HolesTotal(counts={"missing": 2, "gate": 1})
+    price = HolesPrice(made_at="2026-10-19T20:00:00+00:00", nodes={
+        "pixal@alpha": {**MEASURED, "basis": "measured runs"},
+        "bake@alpha": {**MEASURED, "basis": "per unit × counted"},
+        "lists@alpha": {**FORECAST},
+        "sound@alpha": GUESSED, "sound@beta": {**GUESSED, "guess_euros": 1.5},
+        "film@alpha": {**GUESSED, "guess_euros": None, "guess_from": None}},
+        chains={"alpha": {"pixal@alpha": ["pixal@alpha", "lists@alpha"], "lists@alpha": ["lists@alpha"]}})
+    found = holes.environment(total, price)
+    assert [(entry["basis"], entry["likely"], entry["high"], entry["nodes"]) for entry in found["sums"]["bases"]] == [
+        ("measured runs", 2.0, 3.0, 1), ("per unit × counted", 2.0, 3.0, 1), ("per unit × forecast", 2.0, 3.0, 1)]
+    assert found["sums"]["guessed"]["euros"] == 2.5 and found["sums"]["guessed"]["nodes"] == 2
+    assert found["sums"]["unknown"] == ["film@alpha"]
+    # two holes whose chains share lists@alpha: each chain counts it, the environment once
+    pixal = holes.hole_chain(type("Hole", (), {"node": "pixal@alpha"}), price, "alpha")
+    assert "2 paid steps in its chain" in pixal["words"]
 
 
 def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):

@@ -33,6 +33,7 @@
   <p class="soft">{{ detail.status|capfirst }}.</p>
   {% if problems %}<h3>Problems in full</h3><ul>{% for problem in problems %}<li>{{ problem.full }}</li>{% endfor %}</ul>{% endif %}
   {% if holes %}<h3>Holes in full</h3><ul>{% for group in holes %}{% for line in group.lines %}<li>{{ line.id }}: {{ line.filled_by }}</li>{% endfor %}{% endfor %}</ul>{% endif %}
+  {% for chain in chains %}<h3>The chain of {{ chain.node }}</h3><ul>{% for row in chain.rows %}<li>{{ row.node }}: {{ row.basis }}{% if row.euros %}, {{ row.euros }}{% endif %}</li>{% endfor %}</ul>{% endfor %}
   {% if detail.skipped %}<h3>Not done for this place</h3><ul>{% for entry in detail.skipped %}<li>{{ entry }}</li>{% endfor %}</ul>{% endif %}
   <h3>OpenUSD index</h3>
   {% if detail.usd_index.root %}

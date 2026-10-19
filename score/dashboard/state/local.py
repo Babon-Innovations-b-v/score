@@ -16,10 +16,10 @@ from score import review, stages
 from score.dashboard.state import gaps as named, groups, plain
 from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
 from score.dashboard.state.index import Fresh, answer_keys
-from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, HolesTotal,
+from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, HolesPrice, HolesTotal,
                                           InputPicture, LayerGroup, PlaceCard, PlaceDetail, Spend, StepCard, StepDetail,
                                           StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
-from score.store import Store
+from score.store import Store, stamp_key
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SUBLAYER = re.compile(r"@\./(layers/[^@]+)@")
@@ -30,6 +30,8 @@ LOG_LINES = 40
 CHECKS = "checks"
 HOLES = "holes"  # the holes check (score/stages/complete/holes): its findings are the place's holes, listed apart
 HOLE_FIELDS = ("id", "row", "gates", "node", "work", "placed", "low", "high")
+HOLES_PRICE = "holes-price"  # every hole's chain priced: checks/holes-price/<world>.json (score price --holes)
+TIMED = ("accepts/", "rejects/")  # store areas whose keys carry their time: an accept or reject moves what stands
 HOLES_WORLD = "world"  # the holes check's pseudo-place of the environment's own nodes' lost inputs (holes/__main__)
 
 
@@ -44,6 +46,8 @@ def lost_once(holes):
             seen.add(hole.id)
         found.append(hole)
     return found
+
+
 HISTORY = 6
 # Which stage makes each sublayer of a place's OpenUSD stage (score/stages/assembly/record.py ORDER).
 LAYER_MAKERS = {"edit": None, "characters": "characters-layer", "sound": "sound", "light": "light",
@@ -401,7 +405,7 @@ class LocalSource:
         return WorldState(made_at=self.read_at(), source=self.name, world=self.world.name,
                           engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
-                          holes_total=self.holes_total())
+                          holes_total=self.holes_total(), holes_price=self.holes_price())
 
     # --- one place ---------------------------------------------------------------------------------------------
 
@@ -485,6 +489,30 @@ class LocalSource:
                               paid_nodes=[node for node in nodes if self.paid_node(node)],
                               unfillable=sorted(set(work)), unfillable_count=len(work))
         return self.remembered("holes total", read)
+
+    def holes_price(self):
+        """The runner's price of every hole's chain, with why it is stale; None before `score price --holes` ran."""
+        def read():
+            path = self.props_home / "work" / CHECKS / HOLES_PRICE / f"{self.world.name}.json"
+            if not path.is_file():
+                return None
+            written = json.loads(path.read_text())
+            fields = {name: written[name] for name in HolesPrice.model_fields if name in written}
+            return HolesPrice(**fields, stale=self.price_stale(path, written["made_at"]))
+        return self.remembered("holes price", read)
+
+    def price_stale(self, path, made_at):
+        """Why a holes price record no longer stands (an output accepted or rejected after it was made, or a holes
+        check written after it), or None: the rule of current_findings, so a stale record shows no number."""
+        since = stamp_key(made_at)
+        moved = [key for area in TIMED for key in self.index.prefixed(area)
+                 if key.rsplit("/", 1)[-1].rsplit("-", 1)[0] > since]
+        if moved:
+            return f"{len(moved)} outputs were accepted or rejected since the price was made"
+        made = path.stat().st_mtime
+        newer = [found for found in (self.props_home / "work" / CHECKS / HOLES).glob("*/findings.json")
+                 if found.stat().st_mtime > made]
+        return f"the holes check ran again at {len(newer)} places since the price was made" if newer else None
 
     def faults(self, place):
         """Each step of the place whose fault report is newer than its accept: its cause, in one plain sentence,

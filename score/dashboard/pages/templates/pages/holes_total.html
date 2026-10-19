@@ -3,9 +3,23 @@
   <div class="eyebrow">What every place still needs</div>
   <div class="money-total">{{ holes_total.holes }} hole{{ holes_total.holes|pluralize }}</div>
   <p class="small soft">{{ holes_total.counts.missing|default:0 }} not made yet, {{ holes_total.counts.gate|default:0 }} made but failing a check, {{ holes_total.counts.place|default:0 }} steps of the route not done.</p>
-  <p>To fill what the runner can: {{ holes_total.words }}{% if money.stop %}, against your stop of EUR {{ money.stop|floatformat:0 }}{% endif %}.</p>
+  {% if holes_total.sums %}
+  <p>To fill what the runner can, every paid step each hole's chain needs, each once{% if money.stop %}, against your stop of EUR {{ money.stop|floatformat:0 }}{% endif %}:</p>
+  <ul class="small">
+    {% for entry in holes_total.sums.bases %}<li>{{ entry.label|capfirst }}: likely EUR {{ entry.likely|floatformat:2 }}, high EUR {{ entry.high|floatformat:2 }} ({{ entry.nodes }} step{{ entry.nodes|pluralize }})</li>{% endfor %}
+    {% if holes_total.sums.guessed.nodes %}<li><span class="unknown">Guessed, not a price</span>: EUR {{ holes_total.sums.guessed.euros|floatformat:2 }} ({{ holes_total.sums.guessed.nodes }} step{{ holes_total.sums.guessed.nodes|pluralize }} never measured; each stage's own estimate, where it is written in the details)</li>{% endif %}
+    {% if holes_total.sums.unknown %}<li><span class="unknown">No price and no guess</span>: {{ holes_total.sums.unknown|length }} step{{ holes_total.sums.unknown|length|pluralize }}</li>{% endif %}
+  </ul>
+  <p class="small soft">Priced by the runner {{ holes_total.made_at|slice:":16" }}.{% if holes_total.not_current %} Not priced, their holes check stood over outputs no longer accepted: {{ holes_total.not_current|join:", " }}.{% endif %}</p>
+  {% else %}
+  <p><span class="unknown">No total</span>: {{ holes_total.words }}.</p>
+  {% endif %}
   {% if holes_total.unfillable %}<details class="fold"><summary>No stage can fill these yet: the work each needs ({{ holes_total.unfillable|length }})</summary>
-    <ul class="fold-body">{% for work in holes_total.unfillable %}<li>{{ work }}</li>{% endfor %}</ul>
+    <ul class="fold-body">{% for entry in holes_total.unfillable %}<li>{{ entry.work }}{% if entry.holes %} ({{ entry.holes }} hole{{ entry.holes|pluralize }}){% endif %}</li>{% endfor %}</ul>
   </details>{% endif %}
+  {% if holes_total.sums %}<details class="ids"><summary>details</summary><div class="fold-body">
+    {% if holes_total.sums.guessed.sources %}<h3>Where each guess is written</h3><ul>{% for source in holes_total.sums.guessed.sources %}<li>{{ source.at }}: EUR {{ source.euros|floatformat:2 }} ({{ source.nodes }} step{{ source.nodes|pluralize }})</li>{% endfor %}</ul>{% endif %}
+    {% if holes_total.sums.unknown %}<h3>No price and no guess</h3><ul>{% for node in holes_total.sums.unknown %}<li>{{ node }}</li>{% endfor %}</ul>{% endif %}
+  </div></details>{% endif %}
 </section>
 {% endif %}
