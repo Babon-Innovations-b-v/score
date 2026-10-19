@@ -38,7 +38,7 @@ def bake_files(script):
         if path in found:
             continue
         found.add(path)
-        for name in _code.imported_names(path, ""):
+        for name in _code.imported_names(path.read_text(), path, ""):
             pending += [folder / f"{name}.py" for folder in FOLDERS if (folder / f"{name}.py").is_file()]
     return sorted(path for path in found if path.name not in BODIES)
 

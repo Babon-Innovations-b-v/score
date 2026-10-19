@@ -112,6 +112,11 @@ def test_an_objects_picture_is_worded_from_the_place():
 
 
 def test_every_place_keeps_the_design_system_shape():
+    """A material's token is one of the place's palette, the hull, or the token of the library variant it takes
+    (places take library surfaces with their own tokens since 2026-10-12, 0bd7638e)."""
+    families = json.loads((place.REPO / "data/library/materials.json").read_text())["families"]
+    variant_tokens = {name: variant["token"] for family in families.values()
+                      for name, variant in family["variants"].items()}
     for name, entry in place.places().items():
         if name == place.SHARED:
             assert entry["scale"]["eye_height"] == 1.6
@@ -119,7 +124,8 @@ def test_every_place_keeps_the_design_system_shape():
         for field in ("style", "plan", "palette", "materials", "light", "pictures"):
             assert field in entry, f"{name} has no {field}"
         tokens = set(entry["palette"]["tokens"]) | set(entry["palette"]["accents"])
-        assert all(material["token"] in tokens | {"hull"} for material in entry["materials"].values()), name
+        assert all(material["token"] in tokens | {"hull", variant_tokens.get(material.get("library"))}
+                   for material in entry["materials"].values()), name
 
 
 def main():

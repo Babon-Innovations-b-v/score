@@ -27,12 +27,15 @@ import score.stages.props.likeness_row as likeness_row  # noqa: E402
 PROPS = ("props-inputs", "closeup", "pixal", "likeness-calibration", "likeness")
 
 
-def test_only_the_camp_grounds_have_prop_rows_and_a_place_without_them_reads_without_one():
-    """The camp grounds' cairn (2026-10-13) is world 1's first object by the prop route; every other place's surface
-    line reads without its rows, so no other key moves."""
+def test_only_the_places_with_prop_data_have_prop_rows_and_a_place_without_them_reads_without_one():
+    """The camp grounds' cairn (2026-10-13) was world 1's first object by the prop route; the ship's rooms (b31e05bd)
+    and the hangar (e24781c1) followed with prop data of their own; every other place's surface line reads without
+    its rows, so no other key moves."""
     runner = stages.runner()
     places = stages.places(runner.world)
-    assert {node[1] for node in runner.nodes(places) if node[0].name in PROPS} == {"campgrounds"}
+    with_data = {"campgrounds", "hangar", "cockpit", "quarters", "navigation", "galley", "storage", "engineroom",
+                 "shiplock"}
+    assert {node[1] for node in runner.nodes(places) if node[0].name in PROPS} == with_data
     inputs = runner.stages["surfaces-inputs"]
     assert "pixal" in inputs.after and "pixal" not in runner.reads(inputs, "hub")
     assert "pixal" in runner.reads(inputs, "campgrounds")
