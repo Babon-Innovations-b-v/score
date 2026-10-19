@@ -315,6 +315,17 @@ def test_a_detached_run_logs_under_props_home_not_tmp():
     assert runs.LOGS == runs.PROPS_HOME / "logs"
 
 
+def test_the_claims_beside_the_entries_are_not_a_run():
+    """C9 and C10 share runs/: the store's claims (active.json) are never read as a run's entry."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    try:
+        assert runs.claim("aaa111", ["draw@hangar"], os.getpid(), worktree="/work/one", folder=folder) is None
+        entry = an_entry(folder, "20261017T080000-1")
+        assert (folder / runs.ACTIVE).exists() and list(runs.entries(folder).values()) == [entry]
+    finally:
+        shutil.rmtree(folder)
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

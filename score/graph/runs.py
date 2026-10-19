@@ -17,9 +17,25 @@ registered it: its worktree still there, at the entry's commit, with nothing unc
 before this boot: a driving run touches its entry every HEARTBEAT seconds, and one silent for over RESUME_WINDOW
 before this boot began died some other way (an OOM kill, a SIGKILL) and is never started again unasked. The systemd
 user unit `.claude/scripts/score-resume.service` runs `score resume` at boot; installing it is the owner's step.
+
+One commit per store (C10), in the same folder: every `score run` claims the store (`claim`), recording its commit,
+worktree, pid, the pid's start time and the nodes it would make in runs/active.json (which `entries` leaves out),
+under a lock on runs/active.lock, and is refused while a live run from another commit holds a claim (the refusal names
+that run, its commit and its worktree). A run at the same commit joins only when none of the nodes it would make is
+one the other would make: a node that stands accepted (the environment nodes every place reads, once made) is not
+made, so one `score run world1 --place <place>` per place runs side by side. A claim whose pid is gone, or whose pid
+now belongs to a process started at another time (a reused pid), is dropped as if it were never there.
+
+A run from a worktree with tracked changes not committed (an untracked scratch file is not one) that would buy a
+paid row is refused unless given --uncommitted; a free run goes on as it is. Either registers as its commit
+"uncommitted in <worktree>", so it never joins a run of another worktree or of the clean commit.
+
+Fault (2026-10-17): two runs at different code over one store, each re-keying and re-making the other's rows, about
+6 hours of clashes.
 """
 import contextlib
 import datetime
+import fcntl
 import json
 import os
 import pathlib
@@ -30,6 +46,7 @@ import sys
 import threading
 import time
 
+from score.graph import node_name
 from score.store import PROPS_HOME, Store, locked
 from score.store.durable import write_whole
 
@@ -43,6 +60,7 @@ RESUME_WINDOW = 12 * 3600  # a run silent longer than this before the boot began
 DETACH = "--detach"
 BOOT_ID = pathlib.Path("/proc/sys/kernel/random/boot_id")
 PARTIAL = "*.partial"
+ACTIVE, ACTIVE_LOCK = "active.json", "active.lock"  # the claims (C10), not run entries
 
 
 def log_path(name):
@@ -148,6 +166,8 @@ def entries(folder=RUNS):
     """{path: entry} of every readable registered run, oldest first; an unreadable one is named on stderr."""
     found = {}
     for path in sorted(pathlib.Path(folder).glob("*.json")):
+        if path.name == ACTIVE:
+            continue
         try:
             found[path] = json.loads(path.read_text())
         except ValueError:
@@ -255,3 +275,98 @@ def resume(dry, say, folder=RUNS, swept=None):
                 removed(path)
                 say(f"removed {path}: an earlier boot's cut write")
     return len(found)
+
+
+# --- one commit per store (C10) --------------------------------------------------------------------------------------
+
+def tracked_changes(repo=REPO):
+    """True when a tracked file of the worktree has changes not committed (untracked files do not count)."""
+    found = subprocess.run(["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=no"],
+                           capture_output=True, text=True, check=True)
+    return bool(found.stdout.strip())
+
+
+def identity(commit, dirty, worktree):
+    """The commit a run registers as: the commit itself, or one of its own when the worktree has changes."""
+    return f"{commit} uncommitted in {worktree}" if dirty else commit
+
+
+def dirty_refusal(dirty, uncommitted, paid):
+    """Why a run may not start from this worktree (changes not committed, a paid row to buy and no --uncommitted), or
+    None."""
+    if dirty and paid and not uncommitted:
+        return (f"refused: {REPO} has changes not committed and this run would buy paid rows; commit them, or give "
+                "--uncommitted to run them as they are (no other commit's run may then share the store)")
+    return None
+
+
+def would_make(runner, nodes):
+    """The names of the `nodes` ((stage, place)) a drive would make: those that do not stand accepted now."""
+    with runner.still():
+        return [node_name(stage, place) for stage, place in nodes if runner.standing(stage, place) is not None]
+
+
+def start_time(pid):
+    """The process's start time (/proc/<pid>/stat field 22, in clock ticks since boot), or None when it is gone."""
+    try:
+        stat = pathlib.Path(f"/proc/{pid}/stat").read_text()
+    except (FileNotFoundError, ProcessLookupError):
+        return None
+    return stat.rpartition(")")[2].split()[19]  # fields from the 3rd on follow the name's closing bracket
+
+
+def live(entries):
+    """The registrations whose process still runs: its pid is there and started when the registered one did."""
+    return {pid: entry for pid, entry in entries.items()
+            if entry.get("started") is not None and start_time(int(pid)) == entry["started"]}
+
+
+def clash(entries, commit, nodes):
+    """Why a run at `commit` that would make `nodes` may not join the live `entries`, naming the run it clashes with,
+    or None."""
+    for pid, entry in entries.items():
+        if entry["commit"] != commit:
+            return (f"refused: run pid {pid} from commit {entry['commit']} in {entry['worktree']} is live on this "
+                    f"store; this run is at {commit}. Wait for it to end or stop it.")
+        shared = sorted(set(entry["nodes"]) & set(nodes))
+        if shared:
+            return (f"refused: run pid {pid} at the same commit in {entry['worktree']} would also make "
+                    f"{len(shared)} of these nodes ({', '.join(shared[:5])}{', ...' if len(shared) > 5 else ''})")
+    return None
+
+
+@contextlib.contextmanager
+def claims_locked(folder):
+    """The live registrations in `folder`, held under its lock; what the caller leaves in the dict is written back."""
+    folder.mkdir(parents=True, exist_ok=True)
+    with open(folder / ACTIVE_LOCK, "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        path = folder / ACTIVE
+        entries = live(json.loads(path.read_text())) if path.exists() else {}
+        yield entries
+        partial = folder / f"{ACTIVE}.{os.getpid()}.partial"
+        partial.write_text(json.dumps(entries, indent=1, sort_keys=True))
+        os.replace(partial, path)
+
+
+def claim(commit, nodes, pid, worktree=REPO, folder=RUNS):
+    """Record this run (commit, worktree, pid and its start time, the nodes it would make) unless it clashes with a
+    live one; the refusal, or None when registered."""
+    with claims_locked(folder) as entries:
+        refused = clash(entries, commit, nodes)
+        if not refused:
+            entries[str(pid)] = {"commit": commit, "worktree": str(worktree), "nodes": sorted(nodes),
+                                 "started": start_time(pid)}
+    return refused
+
+
+def claim_refusal(commit, nodes, folder=RUNS):
+    """The refusal a run would get now, registering nothing (before detaching: the detached run registers itself)."""
+    with claims_locked(folder) as entries:
+        return clash(entries, commit, nodes)
+
+
+def unclaim(pid, folder=RUNS):
+    """Drop this run's registration."""
+    with claims_locked(folder) as entries:
+        entries.pop(str(pid), None)

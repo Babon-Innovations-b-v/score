@@ -1,6 +1,7 @@
 """SCORE's one command: the runner drives an environment's lines to their end, with no agent in the loop.
 
     .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--jobs N] [--detach] [--rebuy-reason R]
+        [--uncommitted]
     .venv/bin/python -m score status [<environment>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
     .venv/bin/python -m score plan <environment> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
@@ -59,8 +60,15 @@ rows that commit would buy again and main's commit would not, unless a pushed co
 <reason>" trailer names each; rows main already buys again print as a warning, and when main's commit cannot be
 worked out every moved row counts as the push's. The hook runs only once the owner sets
 `git config score.movedCheck true`.
+
+One commit per store (score/graph/runs.py): `run` refuses while a live run from another commit holds the store (naming
+it, its commit and its worktree), or one at the same commit would make some of the same nodes (one not standing
+accepted: environment nodes already made do not count, so one run per place goes side by side), and refuses a
+worktree with tracked changes not committed that would buy a paid row unless given --uncommitted. A detached run
+registers itself: a run registering between its check and that is refused, `detached: refused: ...` its result line.
 """
 import argparse
+import atexit
 import datetime
 import json
 import os
@@ -76,7 +84,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from score import graph, stages  # noqa: E402
-from score.graph import rebuy, runs, stopped  # noqa: E402
+from score.graph import _code, rebuy, runs, stopped  # noqa: E402
 from score.stages import moved  # noqa: E402
 from score.store import Store  # noqa: E402
 
@@ -109,6 +117,7 @@ def parse(argv):
     run.add_argument(DETACH, action="store_true", help="progress to a log, one result line at the end")
     run.add_argument("--jobs", type=int, default=graph.JOBS, help="nodes at once (default %(default)s)")
     run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
+    run.add_argument("--uncommitted", action="store_true", help="run this worktree's changes not committed")
     status = commands.add_parser("status")
     status.add_argument("world", metavar="environment", nargs="?", default="world1", choices=sorted(stages.WORLDS),
                         help=ENVIRONMENT_HELP)
@@ -148,7 +157,8 @@ def detach(argv):
     with open(log, "a") as result:  # detached.py prints its result line here, after the run's own output
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=result, stderr=subprocess.STDOUT,
                                    start_new_session=True)
-    print(f"detached: started pid={process.pid} log={log}", flush=True)
+    print(f"detached: started pid={process.pid} (it registers on the store itself and may still be refused: its "
+          f"result line says) log={log}", flush=True)
 
 
 def publish(kind):
@@ -699,6 +709,34 @@ def driven(runner, places, whole, options, argv, gauges=None):
     return found
 
 
+def run_commit(runner, nodes, options):
+    """The commit this run registers as; exit when the worktree has tracked changes not committed, the run would buy
+    a paid row and no --uncommitted is given."""
+    dirty = runs.tracked_changes()
+    refused = runs.dirty_refusal(dirty, options.uncommitted, dirty and bool(rebuy.buys(runner, nodes)))
+    if refused:
+        sys.exit(refused)
+    return runs.identity(_code.git_commit()["commit"], dirty, REPO)
+
+
+def claim(runner, places, whole, options):
+    """Register this run on the store (graph/runs.py), released at exit; exit REFUSED (graph/stopped.py, so a
+    detached run's result line is the refusal) when a live run of another commit, or one at this commit that would
+    make some of the same nodes, holds it. Before detaching it only checks: the detached run registers itself, and a
+    run that registers in between refuses it then."""
+    nodes = runner.line_nodes(places, whole, options.stage)
+    commit = run_commit(runner, nodes, options)
+    making = runs.would_make(runner, nodes)
+    if options.detach:
+        refused = runs.claim_refusal(commit, making)
+    else:
+        refused = runs.claim(commit, making, os.getpid())
+        atexit.register(runs.unclaim, os.getpid())
+    if refused:
+        print(refused, file=sys.stderr, flush=True)
+        sys.exit(stopped.REFUSED)
+
+
 def main(argv=None):
     options = parse(argv)
     if options.command == "images":
@@ -726,6 +764,7 @@ def main(argv=None):
         print(json.dumps(plan_json(runner, places, whole, options)))
         return
     if options.command == "run":
+        claim(runner, places, whole, options)
         checked_buys(runner, places, whole, options)
     if getattr(options, "detach", False):
         detach(sys.argv)
