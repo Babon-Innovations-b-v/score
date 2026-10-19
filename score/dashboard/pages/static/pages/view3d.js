@@ -961,7 +961,7 @@ function frame(now) {
 // What a basket item changes, outlined over the place (given.marks: boxes from the two stages' difference, in the
 // stage's own metres), drawn through walls and left out of the probe; the first look aims at them.
 const MARK_COLOURS = { added: 0x4fd18b, moved: 0xf2c14e, reshaped: 0xf2c14e, refinished: 0x8ab4ff, lamp: 0xffd400,
-                       removed: 0xff7b72 };
+                       removed: 0xff7b72, missing: 0xff3b30, gate: 0xff9f0a };
 const changeMarks = new THREE.Group();
 scene.add(changeMarks);
 

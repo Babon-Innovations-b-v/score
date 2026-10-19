@@ -263,6 +263,26 @@ def test_the_place_page_lists_its_holes_priced_from_the_basket(world, settings, 
     assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00; 0 guessed; 1 holes no stage can fill yet" in board
 
 
+def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):
+    import json
+    a_holes_finding(world, settings, tmp_path)
+    (world.root / "web/alpha").mkdir(parents=True)
+    (world.root / "web/alpha/alpha.json").write_text(json.dumps({
+        "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
+        "objects": [], "bytes": 10, "light_bytes": 5, "triangles": 12}))
+    client = signed_in()
+    assert 'href="/view/alpha?holes=1"' in client.get("/place/alpha/").content.decode()
+
+    def marks(page):
+        html = client.get(page).content.decode()
+        return json.loads(re.search(r'<script id="view3d-data" type="application/json">(.*?)</script>', html,
+                                    re.S).group(1))["marks"]
+    assert marks("/view/alpha") == []
+    assert marks("/view/alpha?holes=1") == [
+        {"low": [0, 0, 0], "high": [1, 1, 1], "kind": "missing"}, {"low": [2, 0, 0], "high": [3, 1, 1], "kind": "missing"},
+        {"low": [4, 0, 0], "high": [5, 1, 1], "kind": "gate"}]
+
+
 def test_holes_are_not_repeated_among_the_check_findings(world, settings, tmp_path):
     a_holes_finding(world, settings, tmp_path)
     assert [finding.check for finding in world.source.check_findings("alpha")] == []

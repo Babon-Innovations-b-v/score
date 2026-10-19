@@ -286,7 +286,8 @@ def viewer(request, place):
     """The 3D viewer of a place's fresh web copy: orbit and walk, a toggle per OpenUSD layer, a person for scale, a
     measuring tool, and a click names the part, its surface, its layer and the step that made that layer. With a
     basket item (`item`), its free after (`side` before: the place now) with the parts it changes outlined; `embed`
-    leaves the panel out (the item's details hold it in a frame)."""
+    leaves the panel out (the item's details hold it in a frame); `holes=1` outlines the place's holes too (each
+    missing object's box and each made object failing a check; the web copy stays the accepted one)."""
     source = state.source()
     if place not in source.places():
         raise Http404(place)
@@ -306,7 +307,9 @@ def viewer(request, place):
                                                             "at": film_view,
                                                             "marks": basket_items.marks(
                                                                 (after or {}).get("changes"),
-                                                                "after" if showing == "after" else "before")}})
+                                                                "after" if showing == "after" else "before")
+                                                            + (present.hole_marks(detail)
+                                                               if request.GET.get("holes") == "1" else [])}})
 
 
 def item_after(place, ident):
