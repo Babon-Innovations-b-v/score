@@ -212,6 +212,26 @@ def buy(node, why="code changed", again=True):
     return {"node": node, "why": why, "again": again, "price": PRICE}
 
 
+def test_a_plan_only_basket_groups_the_buys_and_assembles_no_place(tmp_path, monkeypatch):
+    """The plan's buys and its missing inputs make the items; no place is assembled (no free row runs here)."""
+    import types
+
+    class Planned:
+        def plan(self, group):
+            return types.SimpleNamespace(buys=[buy("pixal@hangar"), buy("light-passes@garage")],
+                                         missing=["cast@cockpit: scene (data/scene/cockpit.json)"],
+                                         refusal="refused: these inputs are missing")
+
+    def assembling(*given):
+        raise AssertionError("a plan-only basket assembles no place")
+    monkeypatch.setattr(make, "place_details", assembling)
+    index = make.make(tmp_path, tmp_path / "store", chosen=Planned(), layer_of=LAYERS, plan_only=True)
+    assert index["plan_only"] is True and index["missing"] == ["cast@cockpit: scene (data/scene/cockpit.json)"]
+    assert sorted(node for item in index["items"] for node in item["nodes"]) == ["light-passes@garage",
+                                                                                "pixal@hangar"]
+    assert records.items(tmp_path / "proposals") == index["items"]
+
+
 def test_buys_group_by_place_and_layer_and_join_what_they_wait_for():
     found = make.grouped([buy("pixal@hangar"), buy("surfaces-bake@hangar", "reads pixal@hangar"),
                           buy("light-passes@hangar"), buy("light-passes@garage"),
