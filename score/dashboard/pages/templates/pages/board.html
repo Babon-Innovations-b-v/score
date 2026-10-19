@@ -9,7 +9,7 @@
 {% if blockers or buy_first %}
 <section class="buy-first" aria-label="what to buy first">
   <h2>What to buy first</h2>
-  <p class="small soft">First the steps that block every paid step, read from the money and the holes. Then each paid step by how many holes have it in their chain: a count, never a judgement.</p>
+  <p class="small soft">First the steps that block every paid step, read from the money and the holes. Then each paid step by how many holes have it in their chain: a count, never a judgement. Buying a step fills none of those holes by itself: the rest of each chain is needed too, and a place that waits on a lost input or a route step runs nothing before that is put right.</p>
   {% if blockers %}<ol class="blockers">{% for step in blockers %}
     <li><b>{{ step.title }}.</b> {{ step.words }}
       {% for command in step.commands %}<pre class="command">{{ command }}</pre>{% endfor %}
@@ -24,6 +24,8 @@
 </section>
 {% endif %}
 
+{% include "pages/work_list.html" %}
+
 {% if places %}
 <section class="places-overview" aria-label="every place">
   <h2>Every place ({{ places|length }})</h2>
@@ -32,20 +34,21 @@
     <thead><tr><th>Place</th><th>Worst hole</th><th class="num">Holes</th><th class="num">Not made</th>
       <th class="num">Failing a check</th><th class="num">Route steps</th><th class="num">Lost inputs</th>
       <th class="num">Likely EUR</th><th class="num">High EUR</th><th class="num">Guessed EUR</th>
-      <th class="num">Paid steps measured</th><th>Next step</th></tr></thead>
+      <th class="num">Paid steps measured</th><th class="num" title="no stage fills them, or their step is outside the stage table">Holes not priced</th><th>Next step</th></tr></thead>
     <tbody>{% for row in places %}<tr>
       <td data-value="{{ row.name }}"><a href="/place/{{ row.place }}/">{{ row.name }}</a></td>
-      <td data-value="{{ row.status.words }}"><span class="status {{ row.status.tone }}">{{ row.status.words }}</span></td>
+      <td data-value="{{ row.rank }}"><span class="status {{ row.status.tone }}">{{ row.status.words }}</span></td>
       <td class="num">{{ row.holes }}</td><td class="num">{{ row.counts.missing }}</td><td class="num">{{ row.counts.gate }}</td>
       <td class="num">{{ row.counts.route }}</td><td class="num">{{ row.counts.lost }}</td>
-      {% if row.money %}<td class="num">{{ row.money.likely|floatformat:2 }}</td><td class="num">{{ row.money.high|floatformat:2 }}</td>
+      {% if row.money and row.money.paid %}<td class="num">{{ row.money.likely|floatformat:2 }}</td><td class="num">{{ row.money.high|floatformat:2 }}</td>
       <td class="num" title="guessed, not a price">{{ row.money.guessed|floatformat:2 }}</td>
-      <td class="num" data-value="{{ row.money.measured }}">{{ row.money.measured }} of {{ row.money.paid }}</td>
-      {% else %}<td class="num" colspan="4" data-value="-1"><span class="unknown">no price</span></td>{% endif %}
+      <td class="num" data-value="{{ row.money.measured }}">{{ row.money.measured }} of {{ row.money.paid }}{% if row.money.unknown %}, {{ row.money.unknown }} with no price and no guess{% endif %}</td>
+      {% else %}<td class="num" data-value="-1"><span class="unknown">no price</span></td><td class="num" data-value="-1"></td><td class="num" data-value="-1"></td><td class="num" data-value="-1"></td>{% endif %}
+      <td class="num" data-value="{% if row.money %}{{ row.unpriced.no_stage|add:row.unpriced.outside }}{% else %}{{ row.holes }}{% endif %}">{% if row.money %}{{ row.unpriced.no_stage|add:row.unpriced.outside }}{% else %}{{ row.holes }}{% endif %}</td>
       <td>{{ row.next|default:"" }}</td>
     </tr>{% endfor %}</tbody>
   </table></div>
-  <p class="small soft">Guessed euros are each stage's own estimate, not a price. Each place's euros count every paid step of its holes' chains once; a step two places share is in both rows, once in the total above.</p>
+  <p class="small soft">Guessed euros are each stage's own estimate, not a price. Each place's euros count every paid step of its holes' chains once; a step two places share is in both rows, once in the total above. Holes not priced: no stage fills them (code work below) or their step is outside the stage table, so no row's euros include them; with no price, every hole of the place.</p>
 </section>
 {% endif %}
 

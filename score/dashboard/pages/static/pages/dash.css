@@ -565,6 +565,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .mark-key { white-space: nowrap; } .mark-key::before { content: ""; display: inline-block; width: 10px; height: 10px; margin: 0 4px 0 8px; border: 2px solid; vertical-align: -1px; }
 .mark-key.added::before { border-color: #4fd18b; } .mark-key.removed::before { border-color: #ff7b72; }
 .mark-key.missing::before { border-color: #ff3b30; } .mark-key.gate::before { border-color: #ff9f0a; }
+.mark-key.framed::before { border-color: #ffffff; border-width: 3px; box-shadow: 0 0 0 1px #777; }
 .item-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; align-items: start; }
 .item-part .eyebrow + p, .item-part ul { margin-bottom: 16px; }
 .change-list { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 6px; }
@@ -600,7 +601,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .holes .group-head h2 { margin: 0; }
 .hole-list { margin: 4px 0 16px; padding-left: 20px; }
 .hole-list li { margin: 4px 0; }
-.holes-total { margin-top: 12px; }
+.holes-total, .work-total { margin-top: 12px; }
 .headline { font-size: 16px; font-weight: 550; }
 .buy-first, .places-overview { margin: 24px 0 32px; }
 .blockers li, .buy-list li, .work-list li { margin: 6px 0; }

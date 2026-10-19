@@ -102,6 +102,11 @@ def stop_sentence(label, why, place, gaps):
     return f"The {label} step stopped: {cause}." if cause else f"The {label} step stopped."
 
 
+def lost_item(hole_id):
+    """The item a lost input's id names (place:lost:<kind>:<item>), whole: an item may hold a colon itself."""
+    return hole_id.removeprefix(LOST).split(":", 1)[-1]
+
+
 def hole_sentence(hole, place, count=1):
     """A hole in one plain sentence: a row with nothing made for it (`count` of its objects), a made thing that fails
     a check (said by that check as a named gap's is, else as the check found it), or a step the place has not been
@@ -112,7 +117,7 @@ def hole_sentence(hole, place, count=1):
         nowhere = "; the inventory gives it no spot" if hole.placed == "unplaced" else ""
         return capital(f"{name} should be in {place_words(place)} but nothing is made for it yet{many}{nowhere}.")
     if (hole.id or "").startswith(LOST):  # its words name the file and the steps reading it: kept for the fold
-        return f"An input {place_words(place)}'s steps read is lost: {hole.id.rsplit(':', 1)[-1]}."
+        return f"An input {place_words(place)}'s steps read is lost: {lost_item(hole.id)}."
     gate = (hole.gates or ["/"])[0].split("/", 1)[1]
     if hole.rule == "gate" and gate in SAID:
         names = thing_names([hole.prim or (hole.id or "").split(":", 2)[-1]])  # the object its id names

@@ -2,9 +2,12 @@
 <section class="holes" id="holes" aria-label="what this place still needs">
   <div class="group-head"><h2>What this place still needs ({{ place_money.holes }})</h2><div class="grow"></div>
     <a class="button" href="/view/{{ detail.place }}?holes=1">Holes in 3D</a></div>
-  {% if place_money.money %}
-  <p>Every paid step its holes' chains need, each once: likely EUR {{ place_money.money.likely|floatformat:2 }}, high EUR {{ place_money.money.high|floatformat:2 }} measured{% if place_money.money.guessed %}, plus EUR {{ place_money.money.guessed|floatformat:2 }} <span class="unknown">guessed, not a price</span>{% endif %}. {{ place_money.money.measured }} of {{ place_money.money.paid }} paid step{{ place_money.money.paid|pluralize }} {{ place_money.money.measured|pluralize:"has,have" }} a measured price.</p>
+  {% if place_money.money and place_money.money.paid %}
+  <p>Every paid step its holes' chains need, each once: likely EUR {{ place_money.money.likely|floatformat:2 }}, high EUR {{ place_money.money.high|floatformat:2 }} measured{% if place_money.money.guessed %}, plus EUR {{ place_money.money.guessed|floatformat:2 }} <span class="unknown">guessed, not a price</span>{% endif %}. {{ place_money.money.measured }} of {{ place_money.money.paid }} paid step{{ place_money.money.paid|pluralize }} {{ place_money.money.measured|pluralize:"has,have" }} a measured price{% if place_money.money.unknown %}; {{ place_money.money.unknown }} {{ place_money.money.unknown|pluralize:"has,have" }} <span class="unknown">no price and no guess</span>{% endif %}.</p>
+  {% elif place_money.money %}<p><span class="unknown">No price</span>: no hole of this place has a paid step the runner priced.</p>
+  {% elif place_money.not_checked %}<p><span class="unknown">No price</span>: the holes check of this place never ran, or stood over outputs no longer accepted.</p>
   {% elif price_said %}<p><span class="unknown">No price</span>: {{ price_said }}.</p>{% endif %}
+  {% if place_money.money and place_money.unpriced.no_stage or place_money.money and place_money.unpriced.outside %}<p class="small"><span class="unknown">Not priced</span>: {% if place_money.unpriced.no_stage %}{{ place_money.unpriced.no_stage }} hole{{ place_money.unpriced.no_stage|pluralize }} no stage can fill yet{% endif %}{% if place_money.unpriced.no_stage and place_money.unpriced.outside %}, {% endif %}{% if place_money.unpriced.outside %}{{ place_money.unpriced.outside }} hole{{ place_money.unpriced.outside|pluralize }} whose step is outside the stage table{% endif %}. The euros above do not include them.</p>{% endif %}
 
   {% if tree %}
   <details class="fold hole-tree" open><summary>Where the holes are</summary><div class="fold-body">
@@ -19,6 +22,7 @@
   {% for group in holes %}
   <h3>{{ group.title }} ({{ group.count }})</h3>
   <p class="small soft">If left, {{ group.left }}</p>
+  {% if group.kind == "gate" and not group.framable %}<p class="small soft">These holes have no box yet, so they cannot be framed in 3D.</p>{% endif %}
   <ul class="hole-list">{% for line in group.lines %}
     <li id="{{ line.anchor }}" data-anchor="{{ line.anchor }}">{{ line.sentence }}
       <span class="source small">{{ line.source }}</span>

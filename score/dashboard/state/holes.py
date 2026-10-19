@@ -229,14 +229,34 @@ def not_checked(place, found, price):
     return not found
 
 
+def unpriced(found, price, place):
+    """{no_stage, outside} of a place's holes whose chain has no price: no stage fills them, or their node is not in
+    the runner's chains for the place (a node outside the stage table)."""
+    chains = price.chains.get(place, {}) if price is not None else {}
+    return {"no_stage": sum(hole.node is None for hole in found),
+            "outside": sum(hole.node is not None and hole.node not in chains for hole in found)}
+
+
+def worst_rank(worst, unchecked):
+    """A place's worst kind of hole as a number to sort by, worst first: its index in KINDS, then no holes, then
+    not checked."""
+    if unchecked:
+        return len(KINDS) + 1
+    return [kind for kind, _ in KINDS].index(worst) if worst else len(KINDS)
+
+
 def place_row(place, found, price):
-    """One place of the overview: its holes by kind, the worst kind, its chains' price, its next route step."""
+    """One place of the overview: its holes by kind, the worst kind, its chains' price (None while its holes are not
+    known), the holes no price reaches, its next route step."""
     counts = {kind: sum(kind_of(hole) == kind for hole in found) for kind, _ in KINDS}
     route = next((hole for hole in found if kind_of(hole) == "route"), None)
-    return {"place": place, "holes": len(found), "counts": counts,
-            "worst": next((kind for kind, _ in KINDS if counts[kind]), None),
-            "money": money_of(place_sum(found, price, place)), "lost": bool(counts["lost"]),
-            "not_checked": not_checked(place, found, price), "next": route.sentence if route else None}
+    unchecked = not_checked(place, found, price)
+    worst = next((kind for kind, _ in KINDS if counts[kind]), None)
+    return {"place": place, "holes": len(found), "counts": counts, "worst": worst,
+            "rank": worst_rank(worst, unchecked),
+            "money": None if unchecked else money_of(place_sum(found, price, place)),
+            "unpriced": unpriced(found, price, place), "lost": bool(counts["lost"]),
+            "not_checked": unchecked, "next": route.sentence if route else None}
 
 
 def per_place(price, details):
@@ -244,18 +264,27 @@ def per_place(price, details):
     return [place_row(place, found, price) for place, found in details.items()]
 
 
-def unblocked(price, details):
-    """{node: (holes, places)} of every paid node: how many holes have it in their chain, at how many places."""
+def waits_first(found):
+    """Whether a place's holes include a lost input or a route step not done: every later step there waits on it."""
+    return any(kind_of(hole) in ("lost", "route") for hole in found)
+
+
+def in_chains(price, details):
+    """{node: (holes, places, waiting)} of every paid node: how many holes have it in their chain, at how many
+    places, and how many of those holes sit at a place with a lost input or a route step not done, so the node
+    cannot run there before that is put right."""
     per_node = {}
     for place, found in details.items():
         chains = price.chains.get(place, {})
+        waiting = waits_first(found)
         for node, count in Counter(hole.node for hole in found if hole.node).items():
             for step in chains.get(node, []):
                 if step in price.nodes:
-                    entry = per_node.setdefault(step, [0, set()])
+                    entry = per_node.setdefault(step, [0, set(), 0])
                     entry[0] += count
                     entry[1].add(place)
-    return {node: (holes, len(places)) for node, (holes, places) in per_node.items()}
+                    entry[2] += count if waiting else 0
+    return {node: (holes, len(places), waiting) for node, (holes, places, waiting) in per_node.items()}
 
 
 def node_price(found):
@@ -268,15 +297,16 @@ def node_price(found):
 
 
 def buy_first(price, details, items=()):
-    """[{node, holes, places, price, item}] of every paid node, the most holes unblocked first (a count, never an
-    opinion), with its own price by basis and the basket item that carries it; [] with no current record."""
+    """[{node, holes, places, waiting, price, item}] of every paid node, the most holes with it in their chain first
+    (a count, never an opinion), how many of them wait on a lost input or a route step first, with its own price by
+    basis and the basket item that carries it; [] with no current record."""
     if price is None or price.stale:
         return []
     carried = carriers(items)
-    return [{"node": node, "holes": holes, "places": places, "price": node_price(price.nodes[node]),
-             "item": carried.get(node)}
-            for node, (holes, places) in sorted(unblocked(price, details).items(),
-                                                key=lambda pair: (-pair[1][0], pair[0]))]
+    return [{"node": node, "holes": holes, "places": places, "waiting": waiting,
+             "price": node_price(price.nodes[node]), "item": carried.get(node)}
+            for node, (holes, places, waiting) in sorted(in_chains(price, details).items(),
+                                                         key=lambda pair: (-pair[1][0], pair[0]))]
 
 
 LOST_KINDS = {"earth-seed": "The earth seed is lost", "ship-seed": "The ship seed is lost",
@@ -304,11 +334,13 @@ def lost_inputs(details):
 
 
 def money_words(sums):
-    """A sum in the headline's words: measured likely and high by their bases, the guesses said as guesses."""
+    """A sum in the headline's words: measured likely and high by their bases, the guesses said as guesses, the
+    paid steps with neither."""
     money = money_of(sums)
     labels = " and ".join(entry["basis"] for entry in sums["bases"]) or "nothing measured"
     return (f"likely EUR {money['likely']:.0f}, high EUR {money['high']:.0f} measured by {labels}"
-            + (f", plus EUR {money['guessed']:.0f} guessed, not a price" if money["guessed"] else ""))
+            + (f", plus EUR {money['guessed']:.0f} guessed, not a price" if money["guessed"] else "")
+            + (f"; {steps(money['unknown'], 'paid step')} with no price and no guess" if money["unknown"] else ""))
 
 
 def headline(price):
@@ -322,7 +354,7 @@ def headline(price):
     words = ["To complete: " + money_words(summed(price.nodes))]
     after = after_work(price)
     if after["places"]:
-        words.append(f"once the prop data of {len(after['places'])} places is written, more: "
+        words.append(f"once the prop data of {steps(len(after['places']), 'place')} is written, more: "
                      + money_words(after["sums"]))
     outside = sum(entry.get("holes") or 0 for entry in price.outside)
     waiting = (sum(entry.get("holes") or 0 for entry in price.unfillable)
@@ -368,30 +400,44 @@ def work_task(work):
     return re.split(r"[:;(]", work, maxsplit=1)[0].strip().rstrip(".") or work
 
 
-def work_places(details):
-    """{work: places} of every hole no stage fills: the places whose holes need it."""
+def work_holes(details):
+    """{work: {holes, inputs, places}} of every hole no stage fills, from the holes check's findings: the holes that
+    need it (a lost input once however many places read it, as the total counts it, in `inputs` as ids), and the
+    places whose holes need it (the environment's own pseudo-place not one)."""
     found = {}
     for place, holes in details.items():
         for hole in holes:
             if hole.node is None and hole.work:
-                found.setdefault(hole.work, set()).add(place)
+                entry = found.setdefault(hole.work, {"holes": set(), "inputs": set(), "places": set()})
+                if kind_of(hole) == "lost":
+                    entry["inputs"].add(hole.id)
+                else:
+                    entry["holes"].add((place, hole.id))
+                if place != WORLD:
+                    entry["places"].add(place)
     return found
 
 
 def work_groups(unfillable, details, price=None):
-    """[{task, holes, places, lines, after}] of the code work no stage does, one entry a code task, the most holes
-    first: the holes it unblocks, the places it touches, its raw lines and, once it is done, what the prop route the
-    runner priced after it adds (`after`, words; None when it adds nothing priced)."""
-    places = work_places(details)
+    """[{task, holes, inputs, places, lines, after}] of the code work no stage does, one entry a code task, the most
+    holes first: the holes that need it and the lost inputs (each once) it makes again, counted from the holes
+    check's findings (`details`, the environment's own pseudo-place too), the places they are at, its raw lines and,
+    once it is done, what the prop route the runner priced after it adds (`after`, words; None when it adds nothing
+    priced)."""
+    counted = work_holes(details)
     after = {entry["work"]: entry["nodes"] for entry in (price.after_work.values() if price and not price.stale
                                                           else [])}
     found = {}
     for entry in unfillable:
-        task = found.setdefault(work_task(entry["work"]), {"holes": 0, "places": set(), "lines": [], "nodes": {}})
-        task["holes"] += entry.get("holes") or 0
-        task["places"] |= places.get(entry["work"], set())
+        task = found.setdefault(work_task(entry["work"]),
+                                {"holes": set(), "inputs": set(), "places": set(), "lines": [], "nodes": {}})
+        mine = counted.get(entry["work"], {"holes": set(), "inputs": set(), "places": set()})
+        for part in ("holes", "inputs", "places"):
+            task[part] |= mine[part]
         task["lines"].append(entry)
         task["nodes"].update(after.get(entry["work"], {}))
-    return sorted(({"task": name, "holes": task["holes"], "places": len(task["places"]), "lines": task["lines"],
+    return sorted(({"task": name, "holes": len(task["holes"]), "inputs": len(task["inputs"]),
+                    "places": len(task["places"]), "lines": task["lines"],
                     "after": sum_words(summed(task["nodes"])) if task["nodes"] else None}
-                   for name, task in found.items()), key=lambda entry: (-entry["holes"], entry["task"]))
+                   for name, task in found.items()),
+                  key=lambda entry: (-(entry["holes"] + entry["inputs"]), entry["task"]))
