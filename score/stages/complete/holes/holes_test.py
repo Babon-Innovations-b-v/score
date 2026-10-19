@@ -35,6 +35,17 @@ def Xform "{PLACE}"
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }}
     }}
+    def Scope "Places"
+    {{
+        def Xform "next_door"
+        {{
+            def Cube "shelf_1"
+            {{
+                custom string score:row = "shelf"
+                double size = 1
+            }}
+        }}
+    }}
 }}
 """
 INVENTORY = {"room": {"layout": {"inside": [6.0, 6.0], "corner": 1.0, "wall": 3.0, "doors": {}}}, "rows": [
@@ -56,6 +67,8 @@ INVENTORY = {"room": {"layout": {"inside": [6.0, 6.0], "corner": 1.0, "wall": 3.
      "at": [], "dropped": "not in the concept"}]}
 GAP = {"name": f"{PLACE}: the crate's placeholder", "row": "assembly", "check": "placeholders", "objects": ["crate_1"],
        "reason": "its model comes next month", "decided": "owner, 2026-10-19", "faults": []}
+ROWS_GAP = {"name": f"{PLACE}: the shelf comes later", "row": "complete", "check": "rows", "objects": ["shelf"],
+            "reason": "its model comes next month", "decided": "owner, 2026-10-19", "faults": []}
 STAMP = "2026-10-19T10:00:00.000000+00:00"
 
 
@@ -88,7 +101,7 @@ def ran(tmp_path_factory):
     root = tmp_path_factory.mktemp("holes")
     data = root / "data"
     for folder, written in (("inventory", INVENTORY), ("kit", {"room": PLACE, "pieces": []}),
-                            ("checks/gaps", {"gaps": [GAP]})):
+                            ("checks/gaps", {"gaps": [GAP, ROWS_GAP]})):
         (data / folder).mkdir(parents=True, exist_ok=True)
         (data / folder / f"{PLACE}.json").write_text(json.dumps(written))
     store = Store.in_folder(PROPS_HOME / "store")
@@ -96,11 +109,16 @@ def ran(tmp_path_factory):
                     {"placeholders": verdict("placeholders", "pass")})
     made(store, root / "complete", f"complete@{PLACE}", {"manifest.json": "{}"},
          {"people": verdict("people", "fail", ["crate_1: stands where a person should"]),
+          "boxes": verdict("boxes", "fail", [f"{PLACE}.crate: its box is off the model's (crate-s1)"]),
           "rows": verdict("rows", "fail", [json.dumps({"row": "shelf", "why": "no object"})])})
     seen = root / "work/checks/visual" / PLACE
     seen.mkdir(parents=True)
     (seen / "findings.json").write_text(json.dumps({"outputs": {f"assembly@{PLACE}": assembly}, "findings": [
         {"rule": "seen", "prim": f"/{PLACE}/Objects/crate_1", "sentence": "the crate floats", "picture": None}]}))
+    stale = root / "work/checks/materials" / PLACE
+    stale.mkdir(parents=True)
+    (stale / "findings.json").write_text(json.dumps({"outputs": {f"assembly@{PLACE}": "0" * 64}, "findings": [
+        {"rule": "ragged", "prim": f"/{PLACE}/Objects/crate_1", "sentence": "a ragged border", "picture": None}]}))
     out = root / "work/checks/holes"
     main(["--place", PLACE, "--out", str(out), "--data", str(data)])
     folder = out / PLACE
@@ -131,8 +149,9 @@ def test_missing_rows_are_guide_boxes_at_their_spots_and_never_made_objects(ran)
 def test_children_stand_on_their_parents_top_made_or_missing(ran):
     folder, written, stage = ran
     found = by_id(written)
-    assert [found[f"missing:cup_{number}"]["low"][1] for number in (1, 2)] == pytest.approx([1.0, 1.0])
-    assert found["missing:cup_1"]["low"][0] < found["missing:cup_2"]["low"][0]
+    # the inventory gives no layout on the parent: both stand at the middle of its top, none spread by guess
+    assert found["missing:cup_1"]["low"] == pytest.approx([-0.1, 1.0, -0.1])
+    assert found["missing:cup_2"]["low"] == found["missing:cup_1"]["low"]
     assert found["missing:lamp_1"]["prim"] == f"/{PLACE}/Holes/shelf_1/lamp_1"
     assert found["missing:lamp_1"]["placed"] == "on" and found["missing:lamp_1"]["low"][1] == pytest.approx(1.0)
 
@@ -150,13 +169,38 @@ def test_gate_marks_merge_on_the_prim_they_name_and_a_gap_is_a_decided_fault(ran
     crate = stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_1")
     assert crate.GetAttribute("score:hole").Get() == "gate"
     assert set(crate.GetAttribute("score:hole:gates").Get()) == {
-        "complete/people", "visual/seen", "assembly/placeholders"}
+        "complete/people", "complete/boxes", "visual/seen", "assembly/placeholders"}
     found = by_id(written)
     gap = found["gate:assembly/placeholders:crate_1"]
     assert gap["node"] is None and gap["work"] == GAP["reason"] and gap["source"].startswith("gap:")
-    assert found["gate:visual/seen:" + f"/{PLACE}/Objects/crate_1"]["source"] == "check:visual"
+    seen = found["gate:visual/seen:" + f"/{PLACE}/Objects/crate_1"]
+    assert seen["source"] == "check:visual" and "visual check" in seen["work"] and "floats" not in seen["work"]
     assert found["gate:complete/people:crate_1"]["source"] == f"judgement:complete@{PLACE}"
+    # "<place>.<row>" names the row: found on its object, joined to its row
+    boxes = found["gate:complete/boxes:crate"]
+    assert boxes["prim"] == f"/{PLACE}/Objects/crate_1" and boxes["row"] == "crate"
+    # complete's rows verdict and a named gap on it are the missing rows' own: never a gate hole too
     assert not any("complete/rows" in item["gates"] for item in written["findings"])
+
+
+def test_a_check_whose_output_moved_marks_nothing(ran):
+    folder, written, stage = ran
+    assert not any("materials/ragged" in item["gates"] for item in written["findings"])
+    assert "materials/ragged" not in stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_1").GetAttribute(
+        "score:hole:gates").Get()
+
+
+def test_a_shown_place_s_objects_are_never_the_place_s_own(ran):
+    folder, written, stage = ran
+    assert "missing:shelf_1" in by_id(written)
+    assert not stage.GetPrimAtPath(f"/{PLACE}/Places/next_door/shelf_1").HasAttribute("score:hole")
+
+
+def test_a_kit_piece_the_kit_has_is_filled_by_the_assembly():
+    beam = INVENTORY["rows"][6]
+    assert fill.missing_row(beam, PLACE, True) == (f"assembly@{PLACE}", None)
+    node, work = fill.missing_row(beam, PLACE, False)
+    assert node is None and "code body" in work
 
 
 def test_the_place_lacks_its_concept_plan_and_rough_model(ran):
@@ -166,14 +210,18 @@ def test_the_place_lacks_its_concept_plan_and_rough_model(ran):
     assert found["place:rough-model"]["work"] and found["place:rough-model"]["node"] is None
     assert list(stage.GetPrimAtPath(f"/{PLACE}").GetAttribute("score:holes:place").Get()) == [
         "concept", "plan", "rough-model"]
-    assert written["counts"] == {"missing": 7, "gate": 3, "place": 3}
+    assert written["counts"] == {"missing": 7, "gate": 4, "place": 3}
 
 
 def test_the_contract_holds_and_the_rows_gate_still_lists_every_unmade_row(ran):
     folder, written, stage = ran
     assert holes_faults(written) == []
-    assert set(written["outputs"]) == {f"assembly@{PLACE}"}
-    assert {fault["row"] for fault in complete.rows_faults(folder / "holes.usda", INVENTORY)} == {
+    # every node read is written, null when not accepted, so one accepted later makes the findings stale
+    outputs = written["outputs"]
+    assert set(outputs) == {f"neighbours@{PLACE}", f"assembly@{PLACE}", f"plan@{PLACE}", f"complete@{PLACE}"}
+    assert outputs[f"assembly@{PLACE}"]  # complete failed: not accepted, so null like the two never made
+    assert [outputs[f"{stage}@{PLACE}"] for stage in ("neighbours", "plan", "complete")] == [None] * 3
+    assert {fault["row"] for fault in complete.rows_faults(folder / "holes.usda", INVENTORY, PLACE)} == {
         "shelf", "panel", "cup", "lamp", "rug", "beam"}
 
 
@@ -187,5 +235,6 @@ def test_the_contract_refuses_what_it_names():
 
 def test_every_filler_is_a_stage_of_the_table_or_the_ship_kit():
     names = {row.name for row in stages.STAGES} | {fill.SHIP_KIT}
-    named = {stage for stage, _ in fill.FILLERS.values() if stage} | set(fill.COMPLETE_GATES.values())
+    named = ({stage for stage, _ in fill.FILLERS.values() if stage} | set(fill.COMPLETE_GATES.values())
+             | {fill.ASSEMBLY})
     assert named <= names, named - names

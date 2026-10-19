@@ -6,7 +6,7 @@ For each place, <out>/<place>/: stage/ (the accepted stage, its neighbours outpu
 assembly, laid out as links to the stored bytes), holes.usda (the holes layer over it: layers/holes.usda, then
 ./stage/<place>.usda; the holes layer alone when no assembly stands accepted) and findings.json:
 
-    {"place", "answer", "outputs": {the stage judged, plan@P, complete@P: each only when accepted},
+    {"place", "answer", "outputs": {neighbours@P, assembly@P, plan@P, complete@P: each its accepted output or null},
      "counts": {"missing", "gate", "place"},
      "findings": [{"id", "rule", "prim", "kind", "sentence", "picture": null, "row", "gates", "source", "node",
                    "work", "placed", "low", "high"}]}
@@ -22,7 +22,7 @@ assembly, laid out as links to the stored bytes), holes.usda (the holes layer ov
 The default out is WORK/checks/holes, where the cockpit reads it; the other checks' findings are read beside it.
 Reads the store, the scene inventories, kits, plans and named gaps, and the checks already written; judges nothing,
 writes nothing to the store. Free and local, seconds a place. Prints one line a place and one summary line, and
-fails loudly on a findings.json that breaks the contract above (holes_faults).
+fails loudly on a findings.json that breaks the contract above (holes_faults) and on a box with no store.
 """
 import argparse
 import json
@@ -44,7 +44,6 @@ STAGE = "stage"
 MISSING, GATE, PLACE = "missing", "gate", "place"
 RULES = (MISSING, GATE, PLACE)
 SOURCES = ("neighbours", "assembly")  # the stage the holes stand over: the first accepted
-SEEN = [UsdGeom.Tokens.default_, UsdGeom.Tokens.render]
 STEP_SENTENCES = {fill.CONCEPT: "no concept is picked for this place",
                   fill.PLAN: "this place's plan is not accepted",
                   fill.ROUGH_MODEL: "this place has no rough model"}
@@ -72,9 +71,9 @@ def read(path):
 def missing_holes(stage, place, written, kit):
     """Each missing object's box written, and its finding (its box's bounds read once the layer is whole)."""
     found = []
-    for box in rows.boxes(stage, place, written, kit, rows.missing(stage, written)):
+    for box in rows.boxes(stage, place, written, kit, rows.missing(stage, place, written)):
         row = box["row"]
-        node, work = fill.missing_row(row, place)
+        node, work = fill.missing_row(row, place, bool(rows.kit_pieces(row, kit)))
         values = {"score:hole": MISSING, "score:hole:row": row["id"], "score:hole:placed": box["placed"],
                   "score:kind": row.get("kind", ""), "score:anchor": str(row.get("anchor", "")),
                   **({"score:hole:node": node} if node else {"score:hole:work": work})}
@@ -105,7 +104,7 @@ def gate_holes(stage, place, store, data, own, row_ids):
                       "row": hole["object"] if hole["object"] in row_ids else None, "gates": hole["gates"],
                       "source": hole["source"], "node": hole["node"],
                       "work": "; ".join(hole["works"]) if hole["node"] is None else None, "placed": None,
-                      "bounds": (prim, SEEN) if prim else None})
+                      "bounds": (prim, layer.SEEN) if prim else None})
     return holes
 
 
@@ -146,16 +145,17 @@ def holes_faults(written):
     return found
 
 
-def outputs_read(store, place, source):
-    """{node: accepted output} of the stage the holes stand over, the place's plan and its complete row."""
-    accepted = {node: store.accepted(node) for node in (source, f"plan@{place}", f"complete@{place}") if node}
-    return {node: output for node, output in accepted.items() if output}
+def outputs_read(store, place):
+    """{node: accepted output or None} of every node the holes were read against: the stages they may stand over,
+    the place's plan and its complete row; one accepted later then fails the cockpit's current-findings test."""
+    return {node: store.accepted(node) for node in (*(f"{stage}@{place}" for stage in SOURCES), f"plan@{place}",
+                                                    f"complete@{place}")}
 
 
 def written_place(store, place, data, folder):
     """Work out one place's holes and write holes.usda and findings.json; findings.json as written."""
     folder.mkdir(parents=True, exist_ok=True)
-    source, output = accepted_stage(store, place)
+    _, output = accepted_stage(store, place)
     stage = layer.opened(folder, place, laid(store, output, folder) if output else None)
     inventory = rows.inventory(data, place)
     kit = read(data / "kit" / f"{place}.json") or {}
@@ -166,7 +166,7 @@ def written_place(store, place, data, folder):
     layer.saved(stage)
     findings = [bounded(stage, finding) for finding in found]
     written = {"place": place, "answer": "fail" if findings else "pass",
-               "outputs": outputs_read(store, place, source),
+               "outputs": outputs_read(store, place),
                "counts": {rule: sum(item["rule"] == rule for item in findings) for rule in RULES},
                "findings": findings}
     faults = holes_faults(written)
@@ -186,8 +186,18 @@ def places_of(chosen):
 
 def summary_line(written):
     counts = written["counts"]
-    over = next((node for node in written["outputs"] if node.split("@", 1)[0] in SOURCES), "no accepted stage")
+    over = next((node for node, output in written["outputs"].items()
+                 if output and node.split("@", 1)[0] in SOURCES), "no accepted stage")
     return f"{written['place']}: {counts[MISSING]} missing, {counts[GATE]} gate, {counts[PLACE]} place; over {over}"
+
+
+def existing_store():
+    """The framework's store, read only; fails loudly when it has no objects folder, since an absent store would
+    read as nothing made and every inventory row as missing."""
+    objects = PROPS_HOME / "store/objects"
+    if not objects.is_dir():
+        raise SystemExit(f"no store at {objects.parent}: the holes need the accepted outputs")
+    return stored.reading()
 
 
 def main(argv=None):
@@ -196,7 +206,7 @@ def main(argv=None):
     parser.add_argument("--out", type=pathlib.Path, default=OUT)
     parser.add_argument("--data", type=pathlib.Path, default=DATA, help="the environment's data folder")
     options = parser.parse_args(argv)
-    store = stored.reading()
+    store = existing_store()
     totals = dict.fromkeys(RULES, 0)
     places = places_of(options.place)
     for place in places:

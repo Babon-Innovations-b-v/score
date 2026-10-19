@@ -65,14 +65,14 @@ def test_made_rows_are_laid_on_a_kit_base():
         folder = pathlib.Path(temporary)
         out = folder / "out"
         a_base(out, ["wall_upper_plain"])
-        assert "bunk" in {fault["row"] for fault in complete.rows_faults(out / BASE_LAYER, inventory)}
+        assert "bunk" in {fault["row"] for fault in complete.rows_faults(out / BASE_LAYER, inventory, PLACE)}
         laid, unlaid = ship_made.lay(own_inputs(folder), out, PLACE)
         assert laid == {"bunk": "bunk_1"} and "locker" in unlaid and "bunk" not in unlaid, (laid, unlaid)
         found = bunks(out)
         assert sorted(found) == [f"bunk_{number}" for number in range(1, len(spots) + 1)], found
         for name, spot in zip(sorted(found), spots):  # a 1 m box's foot is its origin: the piece stands at its spot
             assert all(abs(found[name][axis] - spot[key]) < 1e-6 for axis, key in enumerate("xyz")), (name, spot)
-        assert "bunk" not in {fault["row"] for fault in complete.rows_faults(out / BASE_LAYER, inventory)}
+        assert "bunk" not in {fault["row"] for fault in complete.rows_faults(out / BASE_LAYER, inventory, PLACE)}
 
 
 def test_a_laid_row_is_left_alone():

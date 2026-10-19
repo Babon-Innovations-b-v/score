@@ -168,11 +168,6 @@ def load(check, stage):
 
 # --- the checks ---------------------------------------------------------------------------------------------------
 
-def laid_rows(stage):
-    """The inventory rows an object on an open stage is of (its `score:row`)."""
-    return {prim.GetAttribute("score:row").Get() for prim in stage.Traverse() if prim.HasAttribute("score:row")}
-
-
 def unlaid_rows(inventory, laid):
     """Each inventory row not among the laid rows and with no written drop reason: [{row, why}]."""
     held_back = {row["id"] for row in inventory.get("held_back", []) if row.get("why_code") or row.get("why")}
@@ -182,10 +177,11 @@ def unlaid_rows(inventory, laid):
             if row["id"] not in laid and not str(row.get("dropped", "")).strip() and row["id"] not in held_back]
 
 
-def rows_faults(stage_file, inventory):
-    """Each inventory row with no object on the stage and no written drop reason: [{row, why}]."""
+def rows_faults(stage_file, inventory, place):
+    """Each inventory row with no object of the place's own on the stage (a shown place's never counts) and no
+    written drop reason: [{row, why}]."""
     from pxr import Usd
-    return unlaid_rows(inventory, laid_rows(Usd.Stage.Open(str(stage_file))))
+    return unlaid_rows(inventory, contents.laid_rows(Usd.Stage.Open(str(stage_file)), place))
 
 
 def host_of(place):
@@ -214,7 +210,7 @@ def own_inventory(place, stage):
 
 def rows_check(place, stage):
     """Every inventory row made or dropped with a reason (a part's: its own kit's rows)."""
-    faults = rows_faults(stage, own_inventory(place, stage))
+    faults = rows_faults(stage, own_inventory(place, stage), place)
     return result("rows", FAIL if faults else PASS, stage, faults)
 
 
