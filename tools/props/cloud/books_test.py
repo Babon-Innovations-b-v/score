@@ -196,3 +196,33 @@ def test_a_read_back_keeps_the_owners_known_month():
     fresh_books(books={"month": ledger.this_month(), "state": "known", "google_before": 400.0})
     books = compute.read_back_books()
     assert (books["state"], books["google_before"]) == ("known", 400.0), books
+
+
+def test_the_owners_google_month_must_be_a_finite_figure_of_at_least_zero():
+    """Review of #13: `score spend --google-month nan` was taken (argparse's float reads it), and a NaN month made the
+    ceiling's `spent + euros > MONTH_EUROS` false for every run; a negative figure lowered the month."""
+    fresh_books()
+    kept, compute.running_under_agent = compute.running_under_agent, lambda: False
+    try:
+        for figure in (float("nan"), float("inf"), -5.0):
+            try:
+                compute.owners_google_month(figure)
+                raise AssertionError(f"took {figure}")
+            except compute.Refused as refused:
+                assert "finite figure" in str(refused), refused
+            assert not ledger.BOOKS.exists()
+        assert compute.owners_google_month(12.5)["google_before"] == 12.5
+    finally:
+        compute.running_under_agent = kept
+    assert refusals() == {"month": None, "cleared": None}
+
+
+def test_books_edited_to_a_nan_google_month_stay_refused():
+    fresh_books([cloud_line(last_month())], [google_line(last_month())],
+                {"month": ledger.this_month(), "state": "known", "google_before": float("nan")})
+    assert all(refusals().values())
+    try:
+        ledger.google_before()
+        raise AssertionError("a NaN Google month was counted")
+    except ledger.BooksUnknown as unknown:
+        assert "not a figure of euros" in str(unknown), unknown

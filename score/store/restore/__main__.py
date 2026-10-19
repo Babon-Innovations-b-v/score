@@ -26,7 +26,7 @@ import sys
 
 from score import graph
 from score.graph import _code, runs
-from score.store import RUNNER, Store, running_under_agent
+from score.store import RUNNER, Store, running_under_agent, whole_file
 from score.store.restore import PAID_REFUSED, FreeRunner, guard_free_only, ledger, library_outputs
 from score.store.restore._bucket import Fetch, index_checkouts, open_bucket
 
@@ -71,8 +71,7 @@ def ledger_lines():
 
 def books_state():
     """The month's books' state: `known` or `lost` as written for this month, else `unknown`."""
-    books = ledger.read_books()
-    return books.get("state", "unknown") if books.get("month") == ledger.this_month() else "unknown"
+    return ledger.this_months_books().get("state", "unknown")
 
 
 def category(did, stands):
@@ -123,19 +122,28 @@ def summary_line(world, rows, added, detail):
 
 
 def restore(runner, places, whole, jobs, detail, say=print):
-    """Drive the free runner over the places' lines (`whole`: the environment's every line) and write the detail to
-    `detail`; (the summary line, the exit status: 1 when a spend ledger gained a line or an accept is not the
+    """Drive the free runner over the places' lines (`whole`: the environment's every line), its detail in `detail`
+    (write_detail); (the summary line, the exit status: 1 when a spend ledger gained a line or an accept is not the
     runner's)."""
     started, before = graph.now(), ledger_lines()
     found = runner.drive(places, say=say, jobs=jobs, whole=whole)
     rows = described(runner, found)
     added = [after - earlier for after, earlier in zip(ledger_lines(), before)]
     foreign = strays(runner, found)
-    detail.parent.mkdir(parents=True, exist_ok=True)
-    detail.write_text(json.dumps({"world": runner.world.name, "started": started, "finished": graph.now(),
-                                  "books": ledger.read_books(), "ledger_lines_added": added,
-                                  "accepts_not_by_runner": foreign, "nodes": rows}, indent=1))
+    write_detail(detail, runner, started, rows, added, foreign)
     return summary_line(runner.world.name, rows, added, detail), int(any(added) or bool(foreign))
+
+
+def write_detail(path, runner, started, rows, added, foreign):
+    """The run's detail file: each node's row, the books, the ledger lines added and the accepts not the runner's."""
+    written_whole(path, {"world": runner.world.name, "started": started, "finished": graph.now(),
+                         "books": ledger.read_books(), "ledger_lines_added": added, "accepts_not_by_runner": foreign,
+                         "nodes": rows})
+
+
+def written_whole(path, data):
+    """`data` as JSON at `path`, landed whole through a partial file of this process (a crash leaves no half file)."""
+    whole_file(path, json.dumps(data, indent=1).encode()).replace(path)
 
 
 def free_runner(options, folder):
@@ -163,10 +171,11 @@ def index_command():
     from score.adapters import compute
     bill_before = compute.cloud_bill()
     found = index_checkouts(open_bucket())
-    FOLDER.mkdir(parents=True, exist_ok=True)
-    CHECKOUTS.write_text(json.dumps({"at": graph.now(), "bill_before": bill_before, "bill_after": compute.cloud_bill(),
-                                     "checkouts": found}, indent=1))
-    print(f"checkouts: {len(found)} ({sum(item['bytes'] for item in found.values()) / 1e9:.1f} GB); index {CHECKOUTS}")
+    written_whole(CHECKOUTS, {"at": graph.now(), "bill_before": bill_before, "bill_after": compute.cloud_bill(),
+                              "checkouts": found})
+    tars = [tar for candidates in found.values() for tar in candidates]
+    print(f"checkouts: {len(found)} outputs in {len(tars)} tars ({sum(tar['bytes'] for tar in tars) / 1e9:.1f} GB); "
+          f"index {CHECKOUTS}")
 
 
 def main(argv=None):

@@ -92,9 +92,7 @@ def test_at_the_runner_a_failed_paid_make_keeps_its_frames_and_the_rerun_renders
     from score.adapters import compute
     from score.store import Store
     compute.cloud_bill = lambda: 0.0  # no cloud: a fake bill
-    BOOKS_OPEN = compute.ledger()
-    BOOKS_OPEN.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"  # this month's books known: paid paths open
-    BOOKS_OPEN.write_books({"month": BOOKS_OPEN.this_month(), "state": "known"})
+    compute.ledger().open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
     for name in (kept.TICKET, kept.STORE, kept.MAKING):
         os.environ.pop(name, None)
     rendered, fail_after = [], [5]

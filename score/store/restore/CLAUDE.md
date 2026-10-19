@@ -18,7 +18,15 @@ with `FreeRunner`, the runner made unable to spend, and prints one summary line;
 - **Counting is the default; downloading is the owner's own.** Without `--reattach` a key match is only counted
   ("would re-attach"); `--reattach --max-gb N` is refused in an agent's process (the egress price is unknown and the
   yes is the owner's), downloads one tar at a time into a new empty folder, unpacks it with tarfile's data filter and
-  deletes it after. `--index-checkouts` reads only each hex-named `inputs/<sha>.tar`'s first 8 KB.
+  deletes it after. `--max-gb` caps the run's total; each download also needs three times its size plus
+  `_bucket.DISK_MARGIN` (20 GB) free on the disk, or it is blocked (a full WSL disk is the failure this PC cannot
+  take). `--index-checkouts` reads only each hex-named `inputs/<sha>.tar`'s first 8 KB and keeps every tar of an
+  output, smallest first; the first that rebuilds to the output's hash is stored.
+- **A re-attached record never looks current**: `commit` None and `uncommitted` True (the library holds its
+  handover's commit, not the maker's, so no carry or proof diffs from it), `finished` the library's accept time,
+  `started`, `machine` and `minutes` None; today's download is under `restored`.
+- **The library rows (`library@<place>`, `library-world`) are refused, never made**: their handover commits and
+  pushes score_lib, puts blobs in the bucket and runs hooks in processes the free-only guard does not reach.
 - **Never downloaded:** `runs/`, `weights/`, `code/`, `kernels/`, library blobs, view sets, `.glb` files and place USD:
   no key proves any of them is today's. An old-route output stays a hole (#12, `score/stages/complete/holes`).
 - Tests: `restore_test.py` drives a toy table on `Store.in_folder` with a folder bucket; every paid point fails the

@@ -18,9 +18,7 @@ from score.adapters import compute  # noqa: E402
 from score.store import Store  # noqa: E402
 
 BOOKS = compute.ledger()
-BOOKS_OPEN = compute.ledger()
-BOOKS_OPEN.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"  # this month's books known: paid paths open
-BOOKS_OPEN.write_books({"month": BOOKS_OPEN.this_month(), "state": "known"})
+compute.ledger().open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
 import google_spend  # noqa: E402  (on the path compute.ledger() set)
 
 google_spend.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"  # each test's Google month: empty

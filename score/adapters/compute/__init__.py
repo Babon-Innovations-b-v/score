@@ -250,8 +250,7 @@ def read_back_books():
     (SCORE_BILL_FACTOR is unsettled)."""
     books = ledger()
     month = books.this_month()
-    held = books.read_books()
-    held = held if held.get("month") == month else {}
+    held = books.this_months_books()
     read = {**held, "month": month, "state": held.get("state", "lost"), "bill": round(cloud_bill(), 2),
             "bill_at": graph.now(), "source": "scaleway consumption", "vat_in_bill": "unknown"}
     books.write_books(read)
@@ -260,14 +259,16 @@ def read_back_books():
 
 def owners_google_month(euros):
     """The owner's figure for what Google billed this month before the Google ledger began again: the books' known
-    state; the books. Refused in a process an agent started: only the owner knows the Google bill."""
+    state; the books. Refused in a process an agent started (only the owner knows the Google bill) and for a figure
+    that is not finite and at least 0 (`nan` passed every ceiling, a negative one lowered the month)."""
     if running_under_agent():
         raise Refused("the Google month is the owner's figure: he enters it from his own terminal")
     books = ledger()
-    month = books.this_month()
-    held = books.read_books()
-    held = held if held.get("month") == month else {}
-    known = {**held, "month": month, "state": "known", "google_before": float(euros), "google_at": graph.now()}
+    figure = books.euro_figure(euros)
+    if figure is None:
+        raise Refused(f"the Google month must be a finite figure of at least EUR 0, not {euros!r}")
+    known = {**books.this_months_books(), "month": books.this_month(), "state": "known", "google_before": figure,
+             "google_at": graph.now()}
     books.write_books(known)
     return known
 

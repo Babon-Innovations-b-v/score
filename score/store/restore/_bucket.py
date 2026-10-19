@@ -15,12 +15,15 @@ import tarfile
 import tempfile
 
 from score import graph
-from score.store import locked, runtime_store
+from score.store import locked, runtime_store, whole_file
 
 HEX_TAR = re.compile(r"^inputs/[0-9a-f]{64}\.tar$")
 OUTPUT_NAME = re.compile(r"^[0-9a-f]{64}$")
 # Enough of a tar's front for its first member's headers: a PAX header and its data, then the ustar header.
 HEAD_BYTES = 8192
+# Free disk a download must leave on the WSL virtual disk at its peak (the tar, its unpacked copy, the store's copy):
+# a full virtual disk is the failure this PC cannot take (2026-10-19).
+DISK_MARGIN = 20e9
 
 
 def open_bucket():
@@ -53,13 +56,16 @@ def first_member(head):
 
 
 def index_checkouts(bucket, say=print):
-    """{output: {key, bytes}} of every hex-named input tar in `bucket` whose first member is an output's folder."""
+    """{output: [{key, bytes}, ...]} of every hex-named input tar in `bucket` whose first member is an output's folder,
+    smallest first: one folder can go up in several tars (other modes, a copy changed before upload), and only one
+    whose bytes rebuild to the output's hash may be stored."""
     found = {}
     keys = [key for key in bucket.keys("inputs/") if HEX_TAR.match(key)]
     for number, key in enumerate(keys, 1):
         member = first_member(head_bytes(bucket, key))
         if member and member[1] and OUTPUT_NAME.match(member[0]):
-            found[member[0]] = {"key": key, "bytes": bucket.size(key)}
+            found.setdefault(member[0], []).append({"key": key, "bytes": bucket.size(key)})
+            found[member[0]].sort(key=lambda tar: (tar["bytes"], tar["key"]))
         if number % 100 == 0:
             say(f"read {number} of {len(keys)} tar headers, {len(found)} checkouts")
     return found
@@ -81,12 +87,23 @@ class Fetch:
             if done + size > self.max_bytes:
                 raise graph.Blocked(f"a {size / 1e9:.2f} GB download would pass the run's "
                                     f"{self.max_bytes / 1e9:.2f} GB ({done / 1e9:.2f} GB downloaded)")
-            spent.write_text(json.dumps({"bytes": done + size}))
+            whole_file(spent, json.dumps({"bytes": done + size}).encode()).replace(spent)
+
+    def room_for(self, size):
+        """Blocked unless the disk under `folder` keeps DISK_MARGIN free with three times `size` written on it (the
+        tar, its unpacked copy, the store's copy)."""
+        self.folder.mkdir(parents=True, exist_ok=True)
+        free = shutil.disk_usage(self.folder).free
+        if free < 3 * size + DISK_MARGIN:
+            raise graph.Blocked(f"a {size / 1e9:.2f} GB download needs {(3 * size + DISK_MARGIN) / 1e9:.1f} GB free "
+                                f"on the disk, {free / 1e9:.1f} GB is: nothing downloaded")
 
     @contextlib.contextmanager
     def unpacked(self, key, output, size):
         """The folder of `output` from the tar at `key`, unpacked with tarfile's data filter, while the block runs;
-        the tar is deleted once unpacked, the folder after the block. Blocked when the tar holds no such folder."""
+        the tar is deleted once unpacked, the folder after the block. Blocked when the disk has no room for it
+        (room_for), it would pass the run's budget (reserve) or the tar holds no such folder."""
+        self.room_for(size)
         self.reserve(size)
         with locked(self.folder / "download.lock"):  # one tar at a time
             work = pathlib.Path(tempfile.mkdtemp(prefix="reattach-", dir=self.folder))
