@@ -613,10 +613,11 @@ def test_a_triangle_under_a_texel_is_named_by_where_the_bake_wrote_its_texel():
     positions = np.array([[-0.9, 0.1, 0.05], [-0.1, 0.1, 0.05], [-0.5, 0.9, 0.05],
                           [0.4, 0.4, 0.05], [0.6, 0.4, 0.05], [0.5, 0.6, 0.05]])
     uvs = np.array([[0.2, 0.0], [0.5, 0.0], [0.2, 0.45], [0.05, 0.05], [0.12, 0.05], [0.05, 0.12]])
-    geometry = {"positions": positions, "uvs": uvs, "triangles": np.array([[0, 1, 2], [3, 4, 5]])}
+    geometry = {"positions": positions, "uvs": uvs, "triangles": np.array([[0, 1, 2], [3, 4, 5]]),
+                "maps": np.array([0, 0])}
     entry = {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [2.0, 1.0, 0.1]}
     rows, columns = np.array([0, 0]), np.array([0, 0])
-    points, owners = bake_check.sampled_points(geometry, rows, columns, 2, 2)
+    points, owners = bake_check.sampled_points(geometry, rows, columns, np.array([[2, 2], [2, 2]]))
     assert owners.tolist() == [0, 0], owners
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
