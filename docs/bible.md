@@ -141,7 +141,9 @@ written fault names carries the gates it fails, and the root carries the route's
 plan, rough model); and `findings.json`, one hole each, naming the node that fills it (a stage of the table that runs
 for the place) or the code work it needs. The cockpit lists them on the place page, outlines them in its 3D viewer
 (`?holes=1`) and prices them at read time from the basket (`score/dashboard/state/holes.py`: a node an item carries
-gets the runner's price, each node once in the environment's total; work-only holes are listed with no price). The
+gets the runner's price; the environment's total prices every node of the items that fill a hole, each once, and
+counts the paid steps no item carries; work-only holes are listed with no price). A shown place's objects are never
+the place's own: rows made only there stay missing (the completion gate's rows check reads them the same way). The
 sync pass writes them after the library sweep. The boxes stay out of the accepted assembly: putting them inside would
 move assembly's, complete's and every later paid row's key.
 

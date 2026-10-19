@@ -11,7 +11,6 @@ hole of the whole place, on its root prim.
 """
 import json
 
-from score import stages
 from score.stages import concept_view, scene_record
 from score.stages.complete.holes import fill
 
@@ -27,7 +26,7 @@ def has_plan(store, place):
 
 
 def has_rough_model(place):
-    return any(row.name == fill.ROUGH_MODEL for row in stages.STAGES) and fill.runs_at(fill.ROUGH_MODEL, place)
+    return fill.runs_at(fill.ROUGH_MODEL, place)
 
 
 def wanted(kind, place):

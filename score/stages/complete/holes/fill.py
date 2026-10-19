@@ -2,7 +2,7 @@
 table and applies to the place; else the code work it needs, in one line. One table; no price here (the cockpit
 joins the basket's prices at read time).
 
-    node, work = fill.missing_row(row, place)        # a scene inventory row with nothing made for it
+    node, work = fill.missing_row(row, place, in_kit)  # a scene inventory row with nothing made for it
     node, work = fill.gate(stage, gate, place)       # a gate that failed on a made object
     node, work = fill.place_step(kind, place, wanted) # a step of the route the place has not been through
 
@@ -14,6 +14,7 @@ from score import stages
 ROUTE, CROP, MECHANIC, CODE = "route", "crop", "mechanic", "code"
 # The ship kits' own table (score/stages/ship_kits), not in STAGES: its node runs a ship place.
 SHIP_KIT = "ship_kit"
+ASSEMBLY = "assembly"  # lays a place's kit pieces from its seed
 CONCEPT, PLAN, ROUGH_MODEL = "concept", "plan", "rough-model"
 FILLERS = {
     ROUTE: ("pixal", "prop data for {place}: data/props/{place}.json"),
@@ -67,9 +68,13 @@ def made_by(row):
     return ROUTE
 
 
-def missing_row(row, place):
-    """(node, work) of a row with nothing made for it."""
-    stage, work = FILLERS[made_by(row)]
+def missing_row(row, place, in_kit):
+    """(node, work) of a row with nothing made for it; `in_kit` whether the place's kit has a piece of the row,
+    which the place's assembly lays from its seed (a ship place's by its kit's own node)."""
+    made = made_by(row)
+    if made == CODE and in_kit and not runs_at(SHIP_KIT, place):
+        return filled(ASSEMBLY, None, place)
+    stage, work = FILLERS[made]
     return filled(stage, work, place)
 
 

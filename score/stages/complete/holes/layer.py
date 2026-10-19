@@ -21,6 +21,7 @@ from pxr import Gf, Sdf, Usd, UsdGeom
 ROOT = "holes.usda"
 LAYER = "layers/holes.usda"
 BOX = "box"
+SEEN = [UsdGeom.Tokens.default_, UsdGeom.Tokens.render]  # the purposes a made object's world box is read under
 
 
 def opened(folder, place, laid):
@@ -53,8 +54,7 @@ def strings(prim, values):
 
 def matrix_of(frame):
     """A frame {origin, axes} as USD's row-major 4x4: the axes as rows, the origin last."""
-    (x, y, z), origin = frame["axes"], frame["origin"]
-    return [[*map(float, x), 0.0], [*map(float, y), 0.0], [*map(float, z), 0.0], [*map(float, origin), 1.0]]
+    return [[*map(float, axis), 0.0] for axis in frame["axes"]] + [[*map(float, frame["origin"]), 1.0]]
 
 
 def write_box(stage, box, values):

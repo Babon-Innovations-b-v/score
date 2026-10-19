@@ -7,21 +7,26 @@ place's stage. Nothing is judged here; nothing found is dropped.
     holes = marks.holes(stage, place, found)      # one hole an object and filler, with the prims it is on
 
 A finding names its object as gaps.object_of reads it (before its first ": ", or a JSON finding's `row`); a check's
-finding names its prim. The object is found as /<place>/Objects/<object>, else every prim whose score:row is it; a
-fault on the whole node marks the place's root; one found on nothing is kept with no prim. complete's `rows`
-findings are the missing rows' (rows.py) and its `named gaps` the gaps' own, so both are left to them.
+finding names its prim. A name is read as the stage names it (object_name: no "<place>." before it, no take's suffix
+or words in brackets after it). The object is found as /<place>/Objects/<object>, else every one of the place's own
+prims whose score:row is it (never a shown place's); a fault on the whole node marks the place's root; one found on
+nothing is kept with no prim. complete's `rows` findings, and the named gaps on them, are the missing rows'
+(rows.py) and its `named gaps` the gaps' own, so all are left to them.
 """
 import json
+import re
 
 from pxr import Sdf
 
 from score import checks, review, stages
 from score.review import GAPPED
 from score.stages import gaps
-from score.stages.complete.holes import fill
+from score.stages.complete.holes import fill, rows
 
 FINDINGS = "findings.json"
 SENTENCE = 300
+MISSING_ROWS = (fill.COMPLETE, "rows")  # complete's rows gate: its unmade rows are the missing holes (rows.py)
+TAKE = re.compile(r"-[a-z]\d+$")  # a take's suffix on an object's name (the paint's "hatch_door_frame-s1")
 
 
 def place_nodes(place):
@@ -85,16 +90,17 @@ def gapped(data, place):
     return [{"stage": entry["row"], "gate": entry["check"], "object": item, "kind": None,
              "sentence": f"{entry['name']} (named gap, {entry['decided']})"[:SENTENCE],
              "source": f"gap:{entry['name']}", "work": entry["reason"]}
-            for entry in gaps.entries({gaps.NAME: str(path)}) for item in entry.get("objects") or [place]]
+            for entry in gaps.entries({gaps.NAME: str(path)}) if (entry["row"], entry["check"]) != MISSING_ROWS
+            for item in entry.get("objects") or [place]]
 
 
-def rows_index(stage):
-    """{row: [prim path]} of every object on the stage with a score:row."""
-    found = {}
-    for prim in stage.Traverse() if stage is not None else ():
-        if prim.HasAttribute("score:row"):
-            found.setdefault(prim.GetAttribute("score:row").Get(), []).append(str(prim.GetPath()))
-    return found
+def object_name(name, place):
+    """The object a finding names, as the stage and the inventory name it: anything from " (" cut off; a name that
+    is no path loses a leading "<place>." and a take's suffix ("-s1"). Paths and `<row>_<n>` names are kept."""
+    name = name.split(" (", 1)[0]
+    if name.startswith("/"):
+        return name
+    return TAKE.sub("", name.removeprefix(f"{place}."))
 
 
 def prims_of(stage, place, name, by_row):
@@ -110,25 +116,27 @@ def prims_of(stage, place, name, by_row):
 
 
 def filler(item, place):
-    """(node, work) of a finding: a named gap's reason; a check's sentence (no stage fills a standalone check's
-    finding); a judgement's by fill.gate."""
+    """(node, work) of a finding: a named gap's reason; a code fix of what the check finds (no stage fills a
+    standalone check's finding); a judgement's by fill.gate."""
     if "work" in item:
         return None, item["work"]
     if item["source"].startswith("check:"):
-        return None, item["sentence"]
+        check = item["stage"]
+        return None, f"a code fix for what the {check} check finds (no stage makes it again)"
     return fill.gate(item["stage"], item["gate"], place)
 
 
 def holes(stage, place, found):
     """One gate hole an object and filler: its gates, sentences, sources and prims."""
-    by_row = rows_index(stage)
+    by_row = rows.made_objects(stage, place)
     grouped = {}
     for item in found:
         node, work = filler(item, place)
-        key = (item["object"], node, item["source"] if node is None else None)
-        hole = grouped.setdefault(key, {"object": item["object"], "node": node, "works": [], "gates": [],
+        name = object_name(item["object"], place)
+        key = (name, node, item["source"] if node is None else None)
+        hole = grouped.setdefault(key, {"object": name, "node": node, "works": [], "gates": [],
                                         "sentences": [], "source": item["source"], "kind": item["kind"],
-                                        "prims": prims_of(stage, place, item["object"], by_row)})
+                                        "prims": prims_of(stage, place, name, by_row)})
         for field, value in (("gates", f"{item['stage']}/{item['gate']}"), ("sentences", item["sentence"]),
                              ("works", work)):
             if value is not None and value not in hole[field]:
