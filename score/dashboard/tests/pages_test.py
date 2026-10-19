@@ -267,7 +267,7 @@ def a_holes_price(world):
 
 def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, settings, tmp_path):
     from score.dashboard.state import holes
-    a_holes_finding(world, settings, tmp_path)
+    items = a_holes_finding(world, settings, tmp_path)
     a_holes_price(world)
     world.source.refresh()
     html = signed_in().get("/place/alpha/").content.decode()
@@ -285,8 +285,11 @@ def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, setti
                                        "likely": 2.0, "high": 3.0}]
     assert total["sums"]["guessed"] == {"euros": 1.0, "nodes": 1, "sources": [
         {"at": "score/stages/__init__.py:243", "euros": 1.0, "nodes": 1}]}
+    assert total["not_in_basket"] == 2  # the basket's file was not read: no items passed
+    assert holes.environment(world.source.holes_total(), world.source.holes_price(), items)["not_in_basket"] == 1
     board = signed_in("other").get("/").content.decode()
     assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00 (1 step)" in board and ROUGH + " (1 hole)" in board
+    assert "1 of these paid steps is in no basket item yet" in board  # the sound: the basket carries the close-up
 
 
 def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(world):
