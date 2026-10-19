@@ -78,6 +78,10 @@
      "batch-20261011-195534-3853961",
      "batch-20261011-195519-3854106"
     ]
+   },
+   "forecast": {
+    "rule": "missing_rows",
+    "source": "the place's holes (score/stages/complete/holes): its missing rows whose node is this stage's at the place, one model each (fill.py FILLERS, the route)"
    }
   },
   "closeup": {
@@ -97,7 +101,9 @@
    "runs": 135,
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller pro, 135 finished calls, 2026-10-12 to 2026-10-16"
-   }
+   },
+   "forecast": null,
+   "forecast_why": "no ledger line holds both a batch's units and its models: the Google ledger names only each call's caller"
   },
   "surfaces-maps": {
    "stage": "surfaces-maps",
@@ -114,7 +120,9 @@
    "runs": 2065,
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-map, 2065 finished calls, 2026-10-11 to 2026-10-16"
-   }
+   },
+   "forecast": null,
+   "forecast_why": "no ledger line holds both a batch's units and its models: the Google ledger names only each call's caller"
   },
   "surfaces-lists": {
    "stage": "surfaces-lists",
@@ -131,6 +139,10 @@
    "runs": 275,
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-list, 275 finished calls, 2026-10-11 to 2026-10-16"
+   },
+   "forecast": {
+    "rule": "models",
+    "source": "one a model: the takes data/surfaces/<place>.json lists, plus the place's missing rows pixal makes"
    }
   },
   "surfaces-names": {
@@ -148,7 +160,9 @@
    "runs": 697,
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-name, 697 finished calls, 2026-10-12 to 2026-10-16"
-   }
+   },
+   "forecast": null,
+   "forecast_why": "no ledger line holds both a batch's units and its models: the Google ledger names only each call's caller"
   },
   "light-passes": {
    "stage": "light-passes",
@@ -195,6 +209,10 @@
      "blender-20261011-180616-3651526",
      "blender-20261011-180614-3651590"
     ]
+   },
+   "forecast": {
+    "rule": "light_jobs",
+    "source": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job"
    }
   },
   "settle": {
@@ -322,6 +340,10 @@
      "blender-20261011-163550-3395270",
      "blender-20261011-163525-3392152"
     ]
+   },
+   "forecast": {
+    "rule": "one",
+    "source": "one a place"
    }
   },
   "surfaces-bake": {
@@ -604,6 +626,10 @@
      "library-20261011-171056-3514094",
      "library-20261011-175559-3588569"
     ]
+   },
+   "forecast": {
+    "rule": "models",
+    "source": "one a model: the takes data/surfaces/<place>.json lists, plus the place's missing rows pixal makes"
    }
   }
  }
