@@ -59,24 +59,33 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     assert '<pre class="command">.venv/bin/python -m score spend --owners-month EUR</pre>' in first  # as it names it
     buys = re.findall(r'<ol class="buy-list".*?</ol>', first, re.S)[0]
     # the sound is in the chains of the lamps and of the crate, the close-up in the lamps' only: a count, not a price
-    sound, closeup = buys.index("The sound step of the alpha"), buys.index("The close-ups step of the alpha")
+    # each step by its place's title on the board, never its key
+    sound, closeup = buys.index("The sound step of The alpha look"), buys.index("The close-ups step of The alpha look")
     assert sound < closeup
     # alpha waits on its rough model, a route step: every hole there waits on it first
-    assert ("The sound step of the alpha: in the chain of 3 holes at 1 place, all of them at a place that waits on a "
-            "lost input or a route step first · EUR 1.00 guessed, not a price · in no basket item yet") in buys
-    assert ("The close-ups step of the alpha: in the chain of 2 holes at 1 place, all of them at a place that waits on "
-            "a lost input or a route step first · likely EUR 2.00, high EUR 3.00 (per unit × forecast) · "
+    assert ('<li id="buy-sound-alpha">The sound step of The alpha look: in the chain of 3 holes at 1 place, all of '
+            "them at a place that waits on a lost input or a route step first · EUR 1.00 guessed, not a price · in no "
+            "basket item yet") in buys
+    assert ("The close-ups step of The alpha look: in the chain of 2 holes at 1 place, all of them at a place that "
+            "waits on a lost input or a route step first · likely EUR 2.00, high EUR 3.00 (per unit × forecast) · "
             "<a href=\"/basket/item/alpha-pieces/\">its basket item</a>") in buys
     assert "unblocks" not in first
     work = section(html, "code work no stage does yet")
     assert "A rough-model stage</b>: 1 hole at 1 place" in work and ROUGH + " (1 hole)" in work
     assert html.index('aria-label="what to buy first"') < html.index('aria-label="code work no stage does yet"')
-    total = section(html, "what every place still needs")
-    assert "To complete: likely EUR 2, high EUR 3 measured by per unit × forecast, plus EUR 1 guessed" in total
+    total = unescape(section(html, "what every place still needs"))
+    assert ("The runner's price today: likely EUR 2, high EUR 3 measured by per unit × forecast, plus EUR 1 "
+            "guessed") in total
     assert ("2 not made yet, 1 made but failing a check, 1 step of the route not done, 0 inputs lost (each once, "
             "however many places read it).") in total  # route steps and lost inputs apart
-    assert ("<b>In all, to complete: EUR 3.00 to EUR 4.00</b>, of which EUR 2.00 to 3.00 measured (1 of 2 paid "
-            'steps) and EUR 1.00 <span class="unknown">guessed, not a price</span> (1 step).') in total
+    # what the runner prices today, its measured share by its basis; the rough model's paid work named, not priced
+    assert ("<b>What the runner can price today: EUR 3.00 to EUR 4.00</b>, of which EUR 2.00 to 3.00 measured by per "
+            'unit × forecast (1 of 2 paid steps) and EUR 1.00 <span class="unknown">guessed, not a price</span> '
+            "(1 step).") in total
+    assert ('<span class="unknown">Not priced yet</span>: the paid work the code work will bring, which no runner\'s '
+            "price holds: the rough-model stage at 1 place. It holds back 4 holes; no figure above includes "
+            "it.") in total
+    assert "In all, to complete" not in total
     tiles = re.findall(r'<a class="tile-foot" href="/place/(\w+)/">(.*?)</a>', html, re.S)
     alpha_tile = dict(tiles)["alpha"]
     assert "4 holes, worst: route steps not done" in alpha_tile and "steps: " in alpha_tile, alpha_tile
@@ -183,8 +192,8 @@ def test_a_lost_input_blocks_the_places_reading_it_and_the_prop_data_is_said_apa
     cockpit.source.refresh()
     html = signed_in().get("/").content.decode()
     first = unescape(section(html, "what to buy first"))
-    assert ("<b>The earth seed is lost.</b> Blocks 2 places (1 input). The code work: Earth seed lost: a seed row "
-            "that exports each place's base.") in first
+    assert ("<b>The earth seed is lost.</b> Blocks 2 places (1 input). 1 needs code work: Earth seed lost: a seed "
+            "row that exports each place's base.") in first
     places = section(html, "every place")
     alpha = re.search(r'<a href="/place/alpha/">.*?</tr>', places, re.S).group(0)
     assert re.findall(r'<td class="num"[^>]*>([^<]*)</td>', alpha)[:5] == ["5", "2", "1", "1", "1"]
@@ -196,6 +205,9 @@ def test_a_lost_input_blocks_the_places_reading_it_and_the_prop_data_is_said_apa
     assert "Earth seed lost: a seed row that exports each place's base</b>: 1 lost input at 2 places" in work
     total = unescape(section(html, "what every place still needs"))
     assert "once the prop data of 1 place is written, more: likely EUR 2, high EUR 3 measured by per unit" in total
+    # one figure with the prop route after its code work in it: today's 3 to 4 and the route's 2 to 3
+    assert ("<b>Both together, the prop route after its code work in it: EUR 5.00 to EUR 7.00</b>, of which EUR 4.00 "
+            "to 6.00 measured by per unit × forecast (2 of 3 paid steps)") in total
     page = signed_in("other").get("/place/beta/").content.decode()
     assert "<h3>Lost inputs (1)</h3>" in page and '<span class="source small">lost input usd-r3</span>' in page
     assert "No stage can fill this yet: Earth seed lost: a seed row that exports each place&#x27;s base" in page

@@ -325,6 +325,7 @@ def test_a_stale_holes_price_shows_no_total(world, settings, tmp_path):
     board = signed_in().get("/").content.decode()
     section = re.search(r'<section class="money-card holes-total".*?</section>', board, re.S).group(0)
     assert "No total" in section and "stale" in section and "EUR 2.00" not in section
+    assert "the holes check ran again at 1 place since" in section  # one place, said as one
     html = signed_in("other").get("/place/alpha/").content.decode()
     assert "Its price is stale" in html and "paid steps in its chain" not in html
 
@@ -424,6 +425,102 @@ def test_the_whole_figure_and_the_code_work_before_the_first_purchase():
     ready = present.buy_lines(holes.buy_first(price, {"beta": [hole("missing:b1", "missing", "sound@beta")]}), [])
     assert not ready["all_wait"] and [line["node"] for line in ready["ready"]] == ["sound@beta"]
     assert present.node_words("terrain") == "the shared ground step"
+
+
+PIXAL = ("Pixal3D take lost: pixal@<place>'s accepted output carries its takes and every reader reads them through an "
+         "`after` on it; then each lost take is a pixal hole, priced")
+OWNERS = "the owner supplies cockpit.png, his own reference picture (kept off the public repository)"
+
+
+def ship_seed(node):
+    return f"ship seed lost: {node} (paid, the ship kits' own table) made again, then a free ship-seed row"
+
+
+def a_lost_takes_price():
+    """Alpha with a lost take its models step makes again, a lost take only code brings back (read by beta too), the
+    owner's own reference picture and the rough model at both places; the models step measured, beta's ship kit
+    guessed."""
+    from types import SimpleNamespace
+
+    from score.dashboard.state.models import HolesPrice
+
+    def hole(ident, rule, node=None, work=None):
+        return SimpleNamespace(id=ident, rule=rule, node=node, work=work)
+    details = {"alpha": [hole("missing:a1", "missing", "pixal@alpha"),
+                         hole("place:lost:pixal:chair-b", "place", node="pixal@alpha"),
+                         hole("place:lost:pixal:lamp-s1", "place", work=PIXAL),
+                         hole("place:lost:reference:cockpit.png", "place", work=OWNERS),
+                         hole("place:rough-model", "place", work=ROUGH)],
+               "beta": [hole("place:lost:pixal:lamp-s1", "place", work=PIXAL),
+                        hole("place:rough-model", "place", work=ROUGH)]}
+    price = HolesPrice(made_at="2026-10-19T20:00:00+00:00",
+                       nodes={"pixal@alpha": {**MEASURED, "basis": "measured runs"}, "ship_kit@beta": GUESSED},
+                       chains={"alpha": {"pixal@alpha": ["pixal@alpha"]}},
+                       unfillable=[{"work": PIXAL, "holes": 1}, {"work": ROUGH, "holes": 2},
+                                   {"work": OWNERS, "holes": 1}, {"work": ship_seed("ship_kit@beta"), "holes": 1}])
+    return price, details
+
+
+def test_lost_takes_are_split_by_what_brings_them_back_and_the_owners_own_files_are_not_code():
+    from score.dashboard.pages import present
+    from score.dashboard.state import holes
+    price, details = a_lost_takes_price()
+    lost = {entry["kind"]: entry for entry in holes.lost_inputs(details)}
+    assert (lost["pixal"]["items"], lost["pixal"]["coded"], lost["pixal"]["bought"]) == (
+        2, 1, [{"node": "pixal@alpha", "inputs": 1}])
+    assert lost["reference"]["owner"] and lost["reference"]["files"] == ["cockpit.png"]
+    names = {"alpha": "Alpha", "beta": "Beta"}
+    found = {step["title"]: step for step in present.blockers(
+        {"stop": 5.0}, SimpleSpend(), holes.lost_inputs(details), names, {"pixal@alpha"})}
+    takes = found["Pixal3D takes are lost"]
+    assert takes["words"] == "Blocks 2 places (2 inputs). 1 needs code work: Lost Pixal3D takes made again."
+    assert (takes["bought"], takes["buys"]) == (1, [{"words": "the models step of Alpha", "inputs": 1,
+                                                     "anchor": "buy-pixal-alpha"}])
+    owners = found["Only you can do this: your reference pictures are missing"]
+    assert "cockpit.png" in owners["words"] and "code work" not in owners["words"] and owners["buys"] == []
+    assert "Your own reference pictures" not in [task["task"] for task in holes.work_groups(
+        price.unfillable, details, price)]
+    buy = present.buy_lines(holes.buy_first(price, details), holes.code_first(price, details), names,
+                            holes.owner_work(details))
+    assert [task["task"] for task in buy["owner"]] == ["Your own reference pictures"]
+    assert buy["owner"][0]["files"] == ["cockpit.png"]
+    assert "Your own reference pictures" not in [task["task"] for task in buy["code"]]
+    assert buy["waiting"][0]["anchor"] == "buy-pixal-alpha"
+    assert buy["waiting"][0]["words"] == "the models step of Alpha"  # the place's title, never its key
+
+
+def test_the_paid_work_the_code_work_brings_is_named_unpriced_and_both_figures_add_up():
+    from score.dashboard.state import holes
+    price, details = a_lost_takes_price()
+    # beta's ship kit is in the runner's price (a guess), so its seed's line adds nothing unpriced
+    assert holes.unpriced_work(price, details) == {
+        "lines": ["the lost Pixal3D takes made again (1)", "the rough-model stage at 2 places"], "holes": 5}
+    today = holes.whole_of(holes.summed(price.nodes))
+    after = holes.whole_of(holes.summed({"pixal@beta": {**FORECAST}}))
+    both = holes.whole_plus(today, after)
+    assert today["measured_by"] == ["measured runs"]
+    assert (both["low"], both["high"], both["measured"], both["paid"], both["guessed"]) == (5.0, 7.0, 2, 3, 1.0)
+    assert both["measured_by"] == ["measured runs", "per unit × forecast"]
+
+
+def test_every_priced_step_and_place_has_plain_words():
+    from score.dashboard.pages import present
+    from score.dashboard.state import groups, plain
+    assert groups.label("crops-surfaces-segvigen") == "crop segmentation"
+    assert groups.label("crops-boxes") == "crop boxes" and groups.label("crops-pixal") == "crop models"
+    assert groups.label("surface-tiles") == "surface tiles" and groups.label("ship_kit") == "ship kit"
+    assert groups.label("people-dress-nev-work") == "dressed body of the nev-work look"
+    assert plain.place_words("gdoor") == "the garage door" and present.place_title("hdoor") == "Hangar roof door"
+    assert plain.lost_words("place:lost:earth-seed:gdoor") == "garage door"  # its seed folder, by the kit's title
+    assert present.node_words("closeup@engineroom", {"engineroom": "Engine room"}) == (
+        "the close-ups step of Engine room")
+
+
+class SimpleSpend:
+    """A spend read with the month's books known: nothing refused."""
+    as_of = "2026-10-19T08:00:00+00:00"
+    paid_refused = None
+    note = None
 
 
 def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):

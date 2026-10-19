@@ -3,6 +3,8 @@ where, never a gate's name or a node. A named gap is said by its check (data/che
 the things it names in words; a stopped step by what its fault report says stopped it."""
 import re
 
+from score.dashboard.state.groups import DOOR_TITLES, place_title
+
 NUMBERED = re.compile(r"(_\d+|-[a-z]\d+)$")  # an instance number or a take's suffix
 MOST_NAMED = 4
 LOST = "place:lost:"  # a lost input's hole id: place:lost:<kind>:<item> (score/stages/complete/holes/__main__.py)
@@ -50,7 +52,7 @@ NO_LIKENESS = "The props in {place} were never compared with their close-up pict
 
 
 def place_words(place):
-    return f"the {place.replace('_', ' ')}"
+    return f"the {place_title(place)}"
 
 
 def thing_names(objects):
@@ -107,6 +109,13 @@ def lost_item(hole_id):
     return hole_id.removeprefix(LOST).split(":", 1)[-1]
 
 
+def lost_words(hole_id):
+    """A lost input's item in words: one named by a door kit's key ("gdoor", its seed folder) by the kit's title, any
+    other as it is."""
+    item = lost_item(hole_id)
+    return DOOR_TITLES.get(item, item)
+
+
 def hole_sentence(hole, place, count=1):
     """A hole in one plain sentence: a row with nothing made for it (`count` of its objects), a made thing that fails
     a check (said by that check as a named gap's is, else as the check found it), or a step the place has not been
@@ -117,7 +126,7 @@ def hole_sentence(hole, place, count=1):
         nowhere = "; the inventory gives it no spot" if hole.placed == "unplaced" else ""
         return capital(f"{name} should be in {place_words(place)} but nothing is made for it yet{many}{nowhere}.")
     if (hole.id or "").startswith(LOST):  # its words name the file and the steps reading it: kept for the fold
-        return f"An input {place_words(place)}'s steps read is lost: {lost_item(hole.id)}."
+        return f"An input {place_words(place)}'s steps read is lost: {lost_words(hole.id)}."
     gate = (hole.gates or ["/"])[0].split("/", 1)[1]
     if hole.rule == "gate" and gate in SAID:
         names = thing_names([hole.prim or (hole.id or "").split(":", 2)[-1]])  # the object its id names

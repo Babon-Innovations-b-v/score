@@ -14,7 +14,7 @@ the models only, so a hosted process sums them too.
 import re
 from collections import Counter
 
-from score.dashboard.state.plain import LOST  # a lost input's id: place:lost:<kind>:<item>
+from score.dashboard.state.plain import LOST, lost_item  # a lost input's id: place:lost:<kind>:<item>
 
 BASES = (("measured runs", "measured runs"), ("per unit × counted", "per unit × the units its last make counted"),
          ("per unit × forecast", "per unit × the units forecast before the make"))
@@ -160,36 +160,55 @@ def after_work(price):
 
 
 def whole_of(sums):
-    """{low, high, measured_likely, measured_high, measured, guessed, guessed_steps, unknown, paid} of a sum as one
-    figure: low the measured likely plus the guesses, high the measured high plus the guesses; the measured part and
-    the guessed part kept apart beside it, in euros and in paid steps; None for no sum."""
+    """{low, high, measured_likely, measured_high, measured_by, measured, guessed, guessed_steps, unknown, paid} of a
+    sum as one figure: low the measured likely plus the guesses, high the measured high plus the guesses; the measured
+    part (with the bases it is measured by) and the guessed part kept apart beside it, in euros and in paid steps;
+    None for no sum."""
     money = money_of(sums)
     if money is None:
         return None
     return {"low": round(money["likely"] + money["guessed"], 2), "high": round(money["high"] + money["guessed"], 2),
-            "measured_likely": money["likely"], "measured_high": money["high"], "measured": money["measured"],
+            "measured_likely": money["likely"], "measured_high": money["high"],
+            "measured_by": [entry["basis"] for entry in sums["bases"]], "measured": money["measured"],
             "guessed": money["guessed"], "guessed_steps": sums["guessed"]["nodes"], "unknown": money["unknown"],
             "paid": money["paid"]}
 
 
+def whole_plus(first, second):
+    """Two figures of whole_of added into one (the runner's price today and the prop route after its code work: each
+    a make of its own), the bases of both named once; the first alone when there is no second."""
+    if second is None:
+        return first
+    added = {key: round(first[key] + second[key], 2) for key in ("low", "high", "measured_likely", "measured_high",
+                                                                 "guessed")}
+    counted = {key: first[key] + second[key] for key in ("measured", "guessed_steps", "unknown", "paid")}
+    return {**added, **counted,
+            "measured_by": list(dict.fromkeys(first["measured_by"] + second["measured_by"]))}
+
+
 def environment(total, price, items=()):
-    """{holes, counts, made_at, stale, sums, whole, after_work, whole_after, not_in_basket, unfillable, outside,
-    not_current, not_checked, words} of every place's holes, None without a holes total: the runner's price of every
-    paid node in any hole's chain, each node once and each basis apart, as one figure too (`whole`), the prop route
-    after its code work apart (`whole_after`; no sums while the record is missing or stale), how many chain nodes no
-    basket item carries yet (`items`, the basket's), the work no stage can fill yet with its hole count, and what the
-    record could not price."""
+    """{holes, counts, made_at, stale, sums, whole, after_work, whole_after, whole_with_after, not_in_basket,
+    unfillable, code_lines, outside, not_current, not_checked, words} of every place's holes, None without a holes
+    total: the runner's price of every paid node in any hole's chain, each node once and each basis apart, as one
+    figure too (`whole`), the prop route after its code work apart (`whole_after`) and both in one figure
+    (`whole_with_after`; no sums while the record is missing or stale), how many chain nodes no basket item carries
+    yet (`items`, the basket's), the work no stage can fill yet with its hole count (`code_lines` the code work of
+    it, the owner's own actions left out), and what the record could not price."""
     if total is None:
         return None
     current = price is not None and not price.stale
     sums = summed(price.nodes) if current else None
     after = after_work(price) if current else None
     carried = carriers(items)
+    whole_after = whole_of(after["sums"]) if after and after["places"] else None
+    unfillable = price.unfillable if current else [{"work": work, "holes": None} for work in total.unfillable]
     return {"holes": sum(total.counts.values()), "counts": total.counts, "made_at": price.made_at if price else None,
             "stale": price.stale if price else None, "sums": sums, "whole": whole_of(sums), "after_work": after,
-            "whole_after": whole_of(after["sums"]) if after and after["places"] else None,
+            "whole_after": whole_after,
+            "whole_with_after": whole_plus(whole_of(sums), whole_after) if whole_after else None,
             "not_in_basket": sum(node not in carried for node in price.nodes) if current else None,
-            "unfillable": price.unfillable if current else [{"work": work, "holes": None} for work in total.unfillable],
+            "unfillable": unfillable,
+            "code_lines": [entry for entry in unfillable if not owners_own(entry["work"])],
             "outside": price.outside if current else [], "not_current": price.not_current if current else [],
             "not_checked": price.not_checked if current else [],
             "words": total_words(price, sums, after) if current else total_words(price, None, None)}
@@ -325,24 +344,27 @@ def buy_first(price, details, items=()):
 
 
 def code_first(price, details):
-    """[{task, places, holes, money}] of the code work the places wait on before a paid step fills a hole there: each
-    lost input or route step no stage fills at a place, folded into its task (work_task), with how many places it is
-    at, how many holes there have a paid chain (they wait on it) and those chains' paid steps' money (money_of, each
-    node once); the most holes first, then the most euros. A place waits on every task listed at it, so a task frees
-    its places only with the others there; [] with no current record."""
+    """[{task, places, holes, money, owner}] of the work the places wait on before a paid step fills a hole there:
+    each lost input or route step no stage fills at a place, folded into its task (work_task), with how many places
+    it is at, how many holes there have a paid chain (they wait on it) and those chains' paid steps' money (money_of,
+    each node once), and whether it is the owner's own action rather than code (`owner`, owners_own); the most holes
+    first, then the most euros. A place waits on every task listed at it, so a task frees its places only with the
+    others there; [] with no current record."""
     if price is None or price.stale:
         return []
-    found = {}
+    found, owners = {}, set()
     for place, listed in details.items():
         for hole in listed:
             if place != WORLD and hole.node is None and hole.work and kind_of(hole) in ("lost", "route"):
                 found.setdefault(work_task(hole.work), set()).add(place)
+                if owners_own(hole.work):
+                    owners.add(work_task(hole.work))
     rows = []
     for task, places in found.items():
         chained = sum(1 for place in places for hole in details[place]
                       if hole.node and hole.node in price.chains.get(place, {}))
         nodes = {node for place in places for node in place_nodes(details[place], price, place) if node in price.nodes}
-        rows.append({"task": task, "places": len(places), "holes": chained,
+        rows.append({"task": task, "places": len(places), "holes": chained, "owner": task in owners,
                      "money": money_of(summed({node: price.nodes[node] for node in nodes}))})
     return sorted(rows, key=lambda row: (-row["holes"], -(row["money"]["high"] + row["money"]["guessed"]),
                                          row["task"]))
@@ -355,21 +377,36 @@ LOST_KINDS = {"earth-seed": "The earth seed is lost", "ship-seed": "The ship see
 
 
 def lost_inputs(details):
-    """[{kind, words, items, places, work, ids}] of the lost inputs by kind (place:lost:<kind>:<item>): each input
-    once however many places read it, how many places its kind blocks, the most places first."""
+    """[{kind, words, items, places, work, ids, coded, bought, owner, files}] of the lost inputs by kind
+    (place:lost:<kind>:<item>): each input once however many places read it, how many places its kind blocks, split
+    by what brings each back: no node, so code work (`coded`, its lines in `work`), or a paid node a run makes again
+    (`bought`: [{node, inputs}]); `owner` when every line is the owner's own action, with the files he supplies; the
+    most places first."""
     found = {}
     for place, holes in details.items():
         for hole in holes:
             if kind_of(hole) == "lost":
                 kind = hole.id.removeprefix(LOST).split(":", 1)[0]
                 entry = found.setdefault(kind, {"kind": kind, "words": LOST_KINDS.get(kind, f"Lost inputs ({kind})"),
-                                                "ids": set(), "places": set(), "work": set()})
+                                                "ids": set(), "places": set(), "work": set(), "coded": set(),
+                                                "bought": {}})
                 entry["ids"].add(hole.id)
                 entry["places"].add(place)
-                entry["work"].add(hole.work or hole.node)
-    return sorted(({**entry, "items": len(entry["ids"]), "places": len(entry["places"] - {WORLD}),
-                    "ids": sorted(entry["ids"]), "work": sorted(entry["work"])} for entry in found.values()),
-                  key=lambda entry: (-entry["places"], entry["kind"]))
+                if hole.node:
+                    entry["bought"].setdefault(hole.node, set()).add(hole.id)
+                else:
+                    entry["coded"].add(hole.id)
+                    entry["work"].add(hole.work)
+    return sorted((lost_kind(entry) for entry in found.values()), key=lambda entry: (-entry["places"], entry["kind"]))
+
+
+def lost_kind(entry):
+    """One kind of lost_inputs, its sets counted and sorted."""
+    owner = bool(entry["work"]) and all(owners_own(work) for work in entry["work"])
+    return {**entry, "items": len(entry["ids"]), "places": len(entry["places"] - {WORLD}), "ids": sorted(entry["ids"]),
+            "work": sorted(work for work in entry["work"] if work), "coded": len(entry["coded"]),
+            "bought": [{"node": node, "inputs": len(ids)} for node, ids in sorted(entry["bought"].items())],
+            "owner": owner, "files": sorted(lost_item(ident) for ident in entry["coded"]) if owner else []}
 
 
 def money_words(sums):
@@ -390,7 +427,7 @@ def headline(price):
         return NO_PRICE
     if price.stale:
         return f"the runner's price is stale ({price.stale}): run score price world1 --holes again"
-    words = ["To complete: " + money_words(summed(price.nodes))]
+    words = ["The runner's price today: " + money_words(summed(price.nodes))]
     after = after_work(price)
     if after["places"]:
         words.append(f"once the prop data of {steps(len(after['places']), 'place')} is written, more: "
@@ -429,6 +466,78 @@ WORK_TASKS = (
     (r"library surfaces", "Library surfaces held until next month"),
     (r"settle drops|paint level uses|^fix next week", "Settle and paint fixes"),
 )
+# A work line that is the owner's own action, not code to write: he supplies a file of his own.
+OWNER = r"^the owner supplies "
+# The paid work a piece of code work brings once it lands that no record prices yet, as the holes check writes it:
+# the first pattern a work line matches, said with its lines' holes ({holes}) and their places ({places}, in words).
+# A line that names its paid node (the group) is left out while the runner's record prices that node.
+BRINGS = ((r"^Pixal3D take lost", "the lost Pixal3D takes made again ({holes})"),
+          (r"^a rough-model stage", "the rough-model stage at {places}"),
+          (r"^ship seed lost: (\S+@\S+) \(paid", "the ship kits made again at {places}"))
+
+
+def owners_own(work):
+    """Whether a work line no stage fills is the owner's own action (OWNER), not code to write."""
+    return bool(work and re.search(OWNER, work))
+
+
+def owner_work(details):
+    """{files, places} of what only the owner can do: the files he supplies (each once, from the lost inputs whose
+    work is his) and how many places read them (the environment's own pseudo-place not one); None when there is
+    none."""
+    files, places = set(), set()
+    for place, found in details.items():
+        for hole in found:
+            if hole.node is None and owners_own(hole.work):
+                files.add(lost_item(hole.id) if kind_of(hole) == "lost" else hole.work)
+                if place != WORLD:
+                    places.add(place)
+    return {"files": sorted(files), "places": len(places)} if files else None
+
+
+def brought(price):
+    """{words: {holes, works}} of the paid work the code work brings that the record does not price (BRINGS), each
+    pattern's lines added up."""
+    found = {}
+    for entry in price.unfillable:
+        for pattern, words in BRINGS:
+            matched = re.search(pattern, entry["work"])
+            if matched:
+                if not (matched.groups() and matched.group(1) in price.nodes):
+                    slot = found.setdefault(words, {"holes": 0, "works": set()})
+                    slot["holes"] += entry.get("holes") or 0
+                    slot["works"].add(entry["work"])
+                break
+    return found
+
+
+def held_back(details, price, works):
+    """(places, holes) the work lines `works` hold back: the places their holes are at (the environment's own
+    pseudo-place not one), and their own holes with every hole that has a paid chain at those places, a lost input
+    once."""
+    places, held = set(), set()
+    for place, listed in details.items():
+        if not any(hole.node is None and hole.work in works for hole in listed):
+            continue
+        if place != WORLD:
+            places.add(place)
+        for hole in listed:
+            if (hole.node is None and hole.work in works) or (hole.node and hole.node in price.chains.get(place, {})):
+                held.add(hole.id if kind_of(hole) == "lost" else (place, hole.id))
+    return places, held
+
+
+def unpriced_work(price, details):
+    """{lines, holes} of the paid work the code work brings that no record prices yet: a line each in words, and how
+    many holes it holds back, each once (held_back); None with no such work or no current record."""
+    if price is None or price.stale:
+        return None
+    lines, held = [], set()
+    for words, slot in brought(price).items():
+        places, holes = held_back(details, price, slot["works"])
+        lines.append(words.format(holes=slot["holes"], places=steps(len(places), "place")))
+        held |= holes
+    return {"lines": lines, "holes": len(held)} if lines else None
 
 
 def work_task(work):
@@ -462,12 +571,14 @@ def work_groups(unfillable, details, price=None):
     holes first: the holes that need it and the lost inputs (each once) it makes again, counted from the holes
     check's findings (`details`, the environment's own pseudo-place too), the places they are at, its raw lines and,
     once it is done, what the prop route the runner priced after it adds (`after`, words; None when it adds nothing
-    priced)."""
+    priced). The owner's own actions (owners_own) are not code and not in it: owner_work says them."""
     counted = work_holes(details)
     after = {entry["work"]: entry["nodes"] for entry in (price.after_work.values() if price and not price.stale
                                                           else [])}
     found = {}
     for entry in unfillable:
+        if owners_own(entry["work"]):
+            continue
         task = found.setdefault(work_task(entry["work"]),
                                 {"holes": set(), "inputs": set(), "places": set(), "lines": [], "nodes": {}})
         mine = counted.get(entry["work"], {"holes": set(), "inputs": set(), "places": set()})

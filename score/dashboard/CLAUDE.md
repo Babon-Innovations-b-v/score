@@ -30,9 +30,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   holes have it in their chain, a count, and how many of those wait first on a lost input or a route step at their
   place; when every one waits, `code_first` comes first: the code work the places wait on by the holes in paid
   chains there, then euros, and the steps fold), the code work folded into tasks (`work_groups`, `WORK_TASKS`;
-  holes counted from the findings, a lost input once) and the money `headline` with one figure (`whole_of`: low the
-  measured likely plus the guesses, high the measured high plus the guesses, the measured share in euros and steps;
-  the prop route after its code work said apart). Counts are by kind (lost input once, route step, missing, gate);
+  holes counted from the findings, a lost input once; a line the owner does himself, `OWNER`, is never code work:
+  `owner_work` and the blockers say it as "Only you can do this", with his files) and the money `headline` with one
+  figure of what the runner can price today (`whole_of`: low the measured likely plus the guesses, high the measured
+  high plus the guesses, the measured share in euros, steps and its bases; the prop route after its code work said
+  apart and added in, `whole_plus`), and the paid work the code work brings that no record prices yet named with
+  the holes it holds back (`unpriced_work`, `BRINGS`). A lost input kind's blocker splits its inputs by what brings
+  them back: code work, or a paid step (linked to its buy-first line). Places and steps are said by their titles
+  (`groups.place_title`, `groups.label`), never their keys, outside a details fold. Counts are by kind (lost input once, route step, missing, gate);
   a board card carries its place's holes and worst kind beside its steps' status. A place page shows its holes layer as a tree
   (`present.prim_tree`; no accepted assembly gives a whole scene tree yet), its holes by kind with each line's source
   and a `/view/<place>?holes=1&hole=<id>` link the viewer frames (holes alone over a grid while no web copy exists).

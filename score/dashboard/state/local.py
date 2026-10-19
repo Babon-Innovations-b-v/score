@@ -536,11 +536,13 @@ class LocalSource:
         moved = [key for area in TIMED for key in self.index.prefixed(area)
                  if key.rsplit("/", 1)[-1].rsplit("-", 1)[0] > since]
         if moved:
-            return f"{len(moved)} outputs were accepted or rejected since the price was made"
+            return (f"{len(moved)} output{'' if len(moved) == 1 else 's'} {'was' if len(moved) == 1 else 'were'} "
+                    "accepted or rejected since the price was made")
         made = path.stat().st_mtime
         newer = [found for found in (self.props_home / "work" / CHECKS / HOLES).glob("*/findings.json")
                  if found.stat().st_mtime > made]
-        return f"the holes check ran again at {len(newer)} places since the price was made" if newer else None
+        return (f"the holes check ran again at {len(newer)} place{'' if len(newer) == 1 else 's'} since the price "
+                "was made") if newer else None
 
     def faults(self, place):
         """Each step of the place whose fault report is newer than its accept: its cause, in one plain sentence,

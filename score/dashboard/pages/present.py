@@ -20,6 +20,11 @@ def humane(key):
     return words[:1].upper() + words[1:]
 
 
+def place_title(place):
+    """A place's title from its key alone: a door kit by its title (groups.DOOR_TITLES), else its key in words."""
+    return humane(groups.place_title(place))
+
+
 def field(item, name):
     """A field of a model or a dict, None when it has none."""
     return item.get(name) if isinstance(item, dict) else getattr(item, name, None)
@@ -109,14 +114,14 @@ def group_name(key, styles):
 
 def place_name(style, card, within=""):
     """A place's name once: its own look's words when the look is its alone (less the group's own words: "the
-    ship's galley" in the ship is "Galley"), else its key in words."""
+    ship's galley" in the ship is "Galley"), else its title from its key (place_title)."""
     if len(style.places) == 1 and style.look not in (groups.DOORS, groups.UNASSIGNED):
         label = style.label
         prefix = f"{within.lower()}'s "
         if within and label.lower().startswith(prefix):
             label = label[len(prefix):]
         return humane(label)
-    return humane(card.place)
+    return place_title(card.place)
 
 
 def look_groups(world, queued):
@@ -229,12 +234,13 @@ def problems(detail):
 
 # --- holes -------------------------------------------------------------------------------------------------------
 
-def node_words(node):
-    """A node in words for the pages: its step's label and its place, never its id."""
+def node_words(node, names=None):
+    """A node in words for the pages: its step's label and its place (its title from `names`, {place: title}, when
+    given), never its id."""
     stage, _, place = node.partition("@")
     if not place:
         return f"the shared {groups.label(stage)} step"
-    return f"the {groups.label(stage)} step of {plain.place_words(place)}"
+    return f"the {groups.label(stage)} step of {(names or {}).get(place) or plain.place_words(place)}"
 
 
 def source_label(hole):
@@ -246,7 +252,7 @@ def source_label(hole):
         return f"gate {hole.gates[0]}" if hole.gates else "a written fault"
     if kind == "route":
         return f"route step {(hole.id or '').split(':', 1)[-1]}"
-    return f"lost input {plain.lost_item(hole.id or '')}"
+    return f"lost input {plain.lost_words(hole.id or '')}"
 
 
 def needs_words(hole, price, place):
@@ -425,7 +431,7 @@ def overview(rows, names):
             status = {"words": words, "tone": tone}
         else:
             status = {"words": "no holes found", "tone": "done"}
-        found.append({**row, "name": names.get(row["place"], humane(row["place"])), "status": status,
+        found.append({**row, "name": names.get(row["place"], place_title(row["place"])), "status": status,
                       "next": sentence(row["next"]) if row["next"] else None})
     return found
 
@@ -443,10 +449,11 @@ def with_holes(shown, places):
     return shown
 
 
-def blockers(money_card, spend, lost):
-    """[{title, words, commands, details}] of the steps that block every paid step, read from state: no stop set (the
-    money card's, as it says it, read or not), the month's books not known (or not read yet), and each kind of lost
-    input with the places it blocks."""
+def blockers(money_card, spend, lost, names=None, listed=()):
+    """[{title, words, commands, details, buys, bought}] of the steps that block every paid step, read from state: no
+    stop set (the money card's, as it says it, read or not), the month's books not known (or not read yet), and each
+    kind of lost input with the places it blocks (lost_blocker; `names` the places' titles, `listed` the nodes of
+    the buy-first list it links)."""
     found = []
     if not money_card["stop"]:
         found.append({"title": "Set a stop", "words": "No stop is set for this environment, so every paid step "
@@ -462,18 +469,37 @@ def blockers(money_card, spend, lost):
                       "commands": [f".venv/bin/python -m score spend {named}"
                                    for named in dict.fromkeys(OWNERS_COMMAND.findall(spend.paid_refused))],
                       "details": [spend.paid_refused]})
-    for entry in lost:
-        found.append({"title": entry["words"],
-                      "words": f"Blocks {entry['places']} place{'s' if entry['places'] != 1 else ''} "
-                               f"({entry['items']} input{'s' if entry['items'] != 1 else ''}). "
-                               f"The code work: {holes.work_task(entry['work'][0])}.",
-                      "commands": [], "details": entry["work"] + entry["ids"]})
-    return found
+    return found + [lost_blocker(entry, names, listed) for entry in lost]
 
 
-def buy_line(entry):
-    """One paid step of the buy-first list in words: its step, its own price and the basket item that carries it."""
-    return {**entry, "words": node_words(entry["node"]),
+def lost_blocker(entry, names=None, listed=()):
+    """One kind of lost input (holes.lost_inputs) as a blocker: the places it blocks, then what brings its inputs
+    back, apart: the owner's own files (only he can supply them), the inputs that need code work (its task), and the
+    inputs a paid step makes again (`buys`, each linked to its buy-first line when listed there)."""
+    blocks = (f"Blocks {entry['places']} place{'s' if entry['places'] != 1 else ''} "
+              f"({entry['items']} input{'s' if entry['items'] != 1 else ''}).")
+    buys = [{"words": node_words(bought["node"], names), "inputs": bought["inputs"],
+             "anchor": buy_anchor(bought["node"]) if bought["node"] in listed else None}
+            for bought in entry["bought"]]
+    found = {"title": entry["words"], "commands": [], "details": entry["work"] + entry["ids"], "buys": buys,
+             "bought": sum(bought["inputs"] for bought in entry["bought"])}
+    if entry["owner"]:
+        return {**found, "title": f"Only you can do this: {entry['words'][:1].lower()}{entry['words'][1:]}",
+                "words": f"{blocks} Supply your own {', '.join(entry['files'])}: no stage and no code makes them."}
+    coded = (f" {entry['coded']} need{'s' if entry['coded'] == 1 else ''} code work: "
+             f"{holes.work_task(entry['work'][0])}." if entry["coded"] and entry["work"] else "")
+    return {**found, "words": blocks + coded}
+
+
+def buy_anchor(node):
+    """The id of a paid step's line in the buy-first list, for a link to it."""
+    return "buy-" + re.sub(r"[^A-Za-z0-9_-]", "-", node)
+
+
+def buy_line(entry, names=None):
+    """One paid step of the buy-first list in words: its step and its place's title, its own price, the basket item
+    that carries it and the id a link reaches it by."""
+    return {**entry, "words": node_words(entry["node"], names), "anchor": buy_anchor(entry["node"]),
             "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None}
 
 
@@ -489,13 +515,18 @@ def euros_words(money):
     return ", ".join(words) or "no paid step"
 
 
-def buy_lines(first, code):
-    """{all_wait, ready, waiting, code, count} of the buy-first list (holes.buy_first) and the code work the places
+def buy_lines(first, code, names=None, owner=None):
+    """{all_wait, ready, waiting, code, owner, count} of the buy-first list (holes.buy_first) and the work the places
     wait on (holes.code_first): the paid steps some of whose holes wait on nothing (`ready`) apart from those whose
     holes all wait on a lost input or a route step first (`waiting`), and `all_wait` when no step is ready, so the
-    page says first that no paid step fills a hole yet and which code work comes before."""
-    lines = [buy_line(entry) for entry in first]
+    page says first that no paid step fills a hole yet and which work comes before: the code work (`code`) apart from
+    what only the owner can do (`owner`, with the files he supplies from holes.owner_work). `names` the places'
+    titles."""
+    lines = [buy_line(entry, names) for entry in first]
     ready = [line for line in lines if line["waiting"] < line["holes"]]
+    tasks = [{**task, "euros": euros_words(task["money"])} for task in code]
     return {"all_wait": bool(lines) and not ready, "ready": ready,
             "waiting": [line for line in lines if line["waiting"] >= line["holes"]],
-            "code": [{**task, "euros": euros_words(task["money"])} for task in code], "count": len(lines)}
+            "code": [task for task in tasks if not task.get("owner")],
+            "owner": [{**task, "files": (owner or {}).get("files", [])} for task in tasks if task.get("owner")],
+            "count": len(lines)}

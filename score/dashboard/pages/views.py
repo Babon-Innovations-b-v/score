@@ -76,18 +76,20 @@ def board(request):
     money = present.money(month_money.view(world.spend), planned)
     details = every_place_holes(source)
     price = world.holes_price
-    buy = present.buy_lines(holes.buy_first(price, details, items), holes.code_first(price, details))
-    total = holes.environment(world.holes_total, price, items)
+    names = {tile["place"]: tile["name"] for group in shown for tile in group["tiles"]}
     with_world = {**details, holes.WORLD: world_holes(source)}
+    first = holes.buy_first(price, details, items)
+    buy = present.buy_lines(first, holes.code_first(price, details), names, holes.owner_work(with_world))
+    total = holes.environment(world.holes_total, price, items)
     work = holes.work_groups((total or {}).get("unfillable", []), with_world, price)
-    places = present.overview(holes.per_place(price, details),
-                              {tile["place"]: tile["name"] for group in shown for tile in group["tiles"]})
+    places = present.overview(holes.per_place(price, details), names)
     return render(request, "pages/board.html", {
         "world": world, "environment_name": present.environment_name(world.world),
         "groups": present.with_holes(shown, places), "holes_total": total,
         "headline": holes.headline(price) if total else None, "places": places,
-        "blockers": present.blockers(money, world.spend,
-                                     holes.lost_inputs(with_world)),
+        "not_priced_yet": holes.unpriced_work(price, with_world) if total else None,
+        "blockers": present.blockers(money, world.spend, holes.lost_inputs(with_world), names,
+                                     {entry["node"] for entry in first}),
         "buy": buy, "buy_ready": buy["ready"][:SHOWN], "buy_ready_rest": buy["ready"][SHOWN:],
         "work": work[:SHOWN], "work_rest": work[SHOWN:], "work_count": len(work),
         "waiting_items": basket_items.unanswered(),
@@ -137,7 +139,7 @@ def place_page(request, place):
     items = basket_now()
     price = world.holes_price
     return render(request, "pages/place.html", {
-        "detail": detail, "name": present.place_name(style, detail) if style else present.humane(place),
+        "detail": detail, "name": present.place_name(style, detail) if style else present.place_title(place),
         "status": present.place_status(detail.status, detail.layers),
         "breakdown": breakdown.breakdown(detail, style, step_url,
                                          sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
@@ -167,7 +169,7 @@ def step_page(request, stage, place=None):
         "film_fps": film_fps(source, place) if films else None,
         "output_picture": detail.picture or next((file for file in detail.files if file.kind == "image"), None),
         "output_film": next((file for file in detail.files if file.kind == "film"), None),
-        "place_name": (present.place_name(style, detail) if style else present.humane(place)) if place else None,
+        "place_name": (present.place_name(style, detail) if style else present.place_title(place)) if place else None,
         "state_words": present.STATE_WORDS.get(detail.state, detail.state), "mark_words": present.mark_words(detail.mark),
         "failed": [gate for gate in detail.judgement if gate.answer == "fail"],
         "detail": detail, "requests": ChangeRequest.objects.filter(node=detail.node)[:10],
