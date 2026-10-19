@@ -19,8 +19,7 @@ findings.json's contract. Bible: `architecture/components`.
 - **Nothing found is dropped.** A fault whose object is on no prim keeps its hole with no prim. A named gap is a
   decided fault: its reason is the work, never a node to buy.
 - **What fills a hole is one table** (`fill.py`): a stage of the table that runs for the place (its node), else the
-  code work in words. No price here: the cockpit joins the basket's prices at read time. `holes_test.py` keeps every
-  stage it names in the table (or the ship kits' own).
+  code work in words, with no price. `holes_test.py` keeps every stage it names in the table (or the ship kits' own).
 - **A lost input is a place hole with its code work** (`inputs.py`, 2026-10-19: the old disk's work folder went with
   it): every node's declared world file under the work folder or in the repository that is not there, read from the
   stage table (the repository's data only), grouped by what it is (earth seed, ship seed, views copy, Pixal3D take, a
@@ -29,4 +28,10 @@ findings.json's contract. Bible: `architecture/components`.
   `world`, which the cockpit's total reads); a lost input's id names the thing, so the totals count it once however
   many places read it. Never fetched back as a loose file: an old paid output comes back only through
   `store/restore`'s key match.
+- **The runner prices the holes, the cockpit only sums** (`price.py`, `score price world1 --holes --json`, free and
+  local, minutes: run it in the background): each hole's chain (`score/graph/chain.py`: what does not stand before
+  its node, and what the place's completion reads after it), each paid node priced once by `compute.run_price` with
+  the units its stage's forecast rule counts (`data/costs/per-unit.json` `forecast`), written to
+  `WORK/checks/holes-price/<world>.json`. It reads the findings only while the outputs they stood over stay accepted.
+  Nothing here buys: a Blocked node is priced, never dropped, and the plan and the run keep their refusals.
 - Run: `.venv/bin/python -m score.stages.complete.holes [--place P ...]`, seconds a place. Test: `holes_test.py`.

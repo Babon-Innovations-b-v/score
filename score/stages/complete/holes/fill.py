@@ -1,6 +1,6 @@
 """What fills a hole: the stage that makes what it lacks, as its node at the place, when the stage is in the stage
-table and applies to the place; else the code work it needs, in one line. One table; no price here (the cockpit
-joins the basket's prices at read time).
+table and applies to the place; else the code work it needs, in one line. One table; no price here (price.py prices
+each hole's chain for the cockpit).
 
     node, work = fill.missing_row(row, place, in_kit)  # a scene inventory row with nothing made for it
     node, work = fill.gate(stage, gate, place)       # a gate that failed on a made object
