@@ -238,3 +238,43 @@ def test_every_filler_is_a_stage_of_the_table_or_the_ship_kit():
     named = ({stage for stage, _ in fill.FILLERS.values() if stage} | set(fill.COMPLETE_GATES.values())
              | {fill.ASSEMBLY})
     assert named <= names, named - names
+
+
+def test_lost_inputs_are_place_holes_with_their_code_work():
+    """On a home whose work folder is gone: the cockpit's ship seed, its views copy and the owner's pictures, the
+    earth seeds the scene record reads, and the launch's far rocket whose bake entry went with its old job, each a
+    place hole with its code work and no node; the cockpit's cast no longer asks for a scene record it never had."""
+    from score.stages.complete.holes import inputs
+    from score.stages.complete.holes.__main__ import lost_holes
+    runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
+    cockpit = {hole["id"]: hole for hole in inputs.lost(runner, "cockpit")}
+    assert {"lost:ship-seed:cockpit", "lost:views:cockpit.json", "lost:earth-seed:usd-r3",
+            "lost:reference:cockpit.png", "lost:reference:reference-shuttle.png"} <= set(cockpit), sorted(cockpit)
+    assert "ship_kit@cockpit" in cockpit["lost:ship-seed:cockpit"]["work"]
+    assert not any("data/scene/cockpit.json" in hole["sentence"] for hole in cockpit.values())
+    launch = {hole["id"] for hole in inputs.lost(runner, "launch")}
+    assert {"lost:data:bake entry far_rocket_1", "lost:earth-seed:launch"} <= launch, sorted(launch)
+    found = [dict(hole, low=None, high=None) for hole in lost_holes(runner, "launch")]
+    assert holes_faults({"findings": found}) == [] and all(hole["work"] and hole["rule"] == "place" for hole in found)
+
+
+def test_a_lost_input_many_nodes_read_is_one_hole():
+    """Grouped by what it is: a take's files, read by two nodes, one hole; a folder's lost files one hole."""
+    from score.stages.complete.holes import inputs
+
+    class Table:
+        world = stages.world1()
+
+        def nodes(self, places):
+            return [(type("Row", (), {"name": name}), places[0]) for name in ("one", "two")]
+
+        def files_of(self, stage, place):
+            return {"model": "{home}/work/pixal/cup-s1.glb", "close-up": "{home}/work/pixal/cup-s1.svviews",
+                    "picture": "{seeds}/scene/{place}/views/a.png", "other": "{seeds}/scene/{place}/views/b.png"}
+
+        def file_path(self, stage, name, place):
+            return PROPS_HOME / "no-such" / name
+
+    found = {hole["id"]: hole for hole in inputs.lost(Table(), PLACE)}
+    assert set(found) == {"lost:pixal:cup-s1", f"lost:work:scene/{PLACE}/views"}, set(found)
+    assert "and 1 more" in found["lost:pixal:cup-s1"]["sentence"]
