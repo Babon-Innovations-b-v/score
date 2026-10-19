@@ -9,13 +9,14 @@ from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, breakdown, changes, library, present, seen
-from score.dashboard.pages.models import (BasketItem, ChangeRequest, Launch, Plan, ProposalChoice, RefineItem,
-                                          SyncRequest, is_owner)
+from score.dashboard.pages import actions, breakdown, library, present, seen
+from score.dashboard.pages import basket as basket_items
+from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.proposals import records
 from score.dashboard.state import costs, groups, sliders
 from score.dashboard.state import money as month_money
@@ -29,19 +30,12 @@ def everywhere(request):
             "export_age": source.age_words() if hasattr(source, "age_words") else None,
             "owner": is_owner(request.user), "decisions_on": actions.decisions_on(),
             "decisions_off_why": actions.decisions_off_why(), "proxy_mode": settings.SCORE_PROXY_MODE,
-            "basket_count": basket_count() if request.user.is_authenticated else 0,
-            "changes_count": changes_count() if request.user.is_authenticated else 0}
-
-
-def changes_count():
-    """How many fixes wait on Changes to buy for the owner's answer."""
-    answered = set(ProposalChoice.objects.values_list("branch", flat=True))
-    return len({item["branch"] for item in records.listing(changes.proposals_root())} - answered)
+            "basket_count": basket_count() if request.user.is_authenticated else 0}
 
 
 def basket_count():
-    """What the basket holds: steps queued by hand and library entries to refine."""
-    return BasketItem.objects.count() + RefineItem.objects.count()
+    """What waits in the basket: items waiting for his answer, steps queued by hand and library entries to refine."""
+    return basket_items.unanswered() + BasketItem.objects.count() + RefineItem.objects.count()
 
 
 def money_bar(spent, reserved, likely, high, ceiling):
@@ -78,11 +72,9 @@ def board(request):
     planned = basket_high() or {}
     queued = {item.place for item in BasketItem.objects.all()}
     shown = with_web3d(source, present.look_groups(world, queued))
-    found = named_changes(source, shown)
     return render(request, "pages/board.html", {
-        "world": world, "environment_name": present.environment_name(world.world), "groups": shown, "basket": present.basket_of(found),
-        "offered": [item for item in found if item["state"] in ("offered", "in basket")],
-        "bought": [item for item in found if item["state"] in ("running", "done", "failed")],
+        "world": world, "environment_name": present.environment_name(world.world), "groups": shown,
+        "waiting_items": basket_items.unanswered(),
         "money": present.money(month_money.view(world.spend), planned), "world_steps": [
             present.step_tile(step, step_url(None, step.stage)) for step in world.world_line]})
 
@@ -93,17 +85,6 @@ def with_web3d(source, shown):
         for tile in group["tiles"]:
             tile["web3d"] = bool(source.web3d(tile["place"]))
     return shown
-
-
-def named_changes(source, shown):
-    """The world's changes to buy, each with its place's name and current picture from the board's tiles."""
-    tiles = {tile["place"]: tile for group in shown for tile in group["tiles"]}
-    found = present.changes(source)
-    for item in found:
-        known = tiles.get(item["place"])
-        item["name"] = known["name"] if known else present.humane(item["place"] or "")
-        item["current"] = known["picture"] if known else None
-    return found
 
 
 GROUND_STAGE = "terrain"  # the world's ground, made once for every place
@@ -124,7 +105,6 @@ def place_page(request, place):
                                          sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
                                          source.step_detail(None, GROUND_STAGE)),
         "problems": present.problems(detail),
-        "changes": present.changes(source, place),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
         "library": library.strip_of(place)})
 
@@ -224,10 +204,8 @@ def basket(request):
     current = guard.basket_hash(items)
     body = plan.body if plan and plan.state == "ready" else {}
     money = body.get("money", {})
-    source = state.source()
-    chosen = present.basket_of(present.changes(source))
     return render(request, "pages/basket.html", {
-        "chosen": chosen, "money": present.money(month_money.view(actions.spend()), None),
+        **basket_items.basket_context(), "money": present.money(month_money.view(actions.spend()), None),
         "items": actions.basket_cards(items), "refine": library.refine_cards(RefineItem.objects.all()),
         "plan": plan, "plan_current": bool(plan and plan.basket_hash == current),
         "bar": money_bar(money.get("spent"), money.get("reserved"), money.get("likely"), money.get("high"),
@@ -295,39 +273,46 @@ def requests_page(request):
                                                     "sync_requests": SyncRequest.objects.all()[:100]})
 
 
+@xframe_options_sameorigin
 def viewer(request, place):
     """The 3D viewer of a place's fresh web copy: orbit and walk, a toggle per OpenUSD layer, a person for scale, a
-    measuring tool, and a click names the part, its surface, its layer and the step that made that layer."""
+    measuring tool, and a click names the part, its surface, its layer and the step that made that layer. With a
+    basket item (`item`), its free after (`side` before: the place now) with the parts it changes outlined; `embed`
+    leaves the panel out (the item's details hold it in a frame)."""
     source = state.source()
     if place not in source.places():
         raise Http404(place)
     detail = source.place_detail(place)
-    proposed = branch_proposal(place, request.GET.get("proposal")) or next(
-        ({**item, "query": "version=proposed"} for item in present.changes(source, place) if item["web3d_base"]), None)
-    asked = request.GET.get("version") == "proposed" or bool(request.GET.get("proposal"))
-    showing = "proposed" if proposed and asked else "current"
-    base = proposed["web3d_base"] if showing == "proposed" else f"/web/{place}/"
+    after = item_after(place, request.GET.get("item"))
+    showing = "after" if after and after["has_copy"] and request.GET.get("side") != "before" else "current"
+    base = after["web3d_base"] if showing == "after" else f"/web/{place}/"
     only = only_layer(request.GET.get("only"), detail.usd_index.layers)
     film_view = detail.film_view if request.GET.get("at") == "film" else None
-    return render(request, "pages/view3d.html", {"detail": detail, "proposed": proposed, "showing": showing,
+    return render(request, "pages/view3d.html", {"detail": detail, "after": after, "showing": showing,
                                                  "only": only, "at_film": bool(film_view),
+                                                 "embed": request.GET.get("embed") == "1",
                                                  "viewer": {"place": place, "base": base,
                                                             "layers": layer_makers(detail.usd_index.layers),
                                                             "order": [layer.name for layer in detail.usd_index.layers],
                                                             "only": [only, ONLY_WITH] if only else None,
-                                                            "at": film_view}})
+                                                            "at": film_view,
+                                                            "marks": basket_items.marks(
+                                                                (after or {}).get("changes"),
+                                                                "after" if showing == "after" else "before")}})
 
 
-def branch_proposal(place, branch):
-    """A fix branch's proposal for the place as the viewer's proposed version (Changes to buy's show in 3D), or None
-    when the branch has none with a 3D copy."""
-    if not branch or not records.NAME.match(branch):
+def item_after(place, ident):
+    """A basket item's free after of the place as the viewer shows it: {item, name, web3d_base, changes, has_copy},
+    or None when the item has no details at this place."""
+    if not ident or not records.NAME.match(ident):
         return None
-    found = records.read(changes.proposals_root(), branch, place)
-    if not found or not found.get("has_3d"):
+    root = basket_items.basket_root()
+    item = records.item(root, ident)
+    found = records.details(root, place) if item and place in item["places"] else None
+    if not found:
         return None
-    return {"web3d_base": f"/proposal/{branch}/{place}/web3d/", "fixes": changes.plain_sentence(found),
-            "query": f"proposal={branch}"}
+    return {"item": ident, "name": basket_items.item_name(item), "web3d_base": f"/basket-file/{place}/web3d/",
+            "changes": found.get("changes"), "has_copy": basket_items.has_after(found)}
 
 
 ONLY_WITH = "base"  # the layer kept on beside the one shown alone, for context

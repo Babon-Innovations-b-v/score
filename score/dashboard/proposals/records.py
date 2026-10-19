@@ -1,12 +1,21 @@
-"""Where a proposal is kept and how it is read: one layout in the dashboard's home (local mode) and in the state
-export (hosted mode), so both sides read it with these functions. Plain files only: no store, no stages.
+"""Where the basket is kept and how it is read: one layout in the dashboard's home (local mode) and in the state export
+(hosted mode), so both sides read it with these functions. Plain files only: no store, no stages.
 
-    <root>/index.json                          [each proposal's summary (SUMMARY), newest first]
-    <root>/<branch>/<place>/proposal.json      the proposal
-    <root>/<branch>/<place>/web3d/<place>.json, <place>-light.glb, <place>.glb    its 3D web copy (web3d/convert.py)
-    <root>/<branch>/<place>/stills/<view>.jpg  small stills of the proposal's drawing (drawing.py: the branch's cameras)
-    <root>/<branch>/<place>/before/<view>.jpg  the same drawing on the place as it stands now (finish.py)
-    <root>/<branch>/<place>/media/<name>       draft films and sounds the branch made, and the moments' clip
+    <root>/index.json                       the basket (make.py): {made_at, commit, refusal, missing, items}
+    <root>/declared.json                    a department's items, by id (`declared`): kept across makes
+    <root>/answers.json                     the owner's answers to the items' questions (`answers`): agents read them
+    <root>/<place>/details.json             the place's free after and its items' inputs (details.py)
+    <root>/<place>/web3d/<place>.json, <place>-light.glb, <place>.glb, <place>-around.glb   the after's 3D web copy
+    <root>/<place>/inputs/<n>.jpg           the pictures a paid node would be made from
+    <root>/item-<id>/details.json, inputs/  a declared item's own pictures and files
+
+An item: {id, title (a declared item's), places, place (its one place, else None), layers, nodes: {node: price},
+why: {node: why}, again: [node], missing: [words], declared, totals, version}. `version` hashes its nodes and why,
+so a buy is of the item he saw. The environment's own rows keep their details under ENVIRONMENT.
+
+A declared item (`python -m score.dashboard basket-item`): {title, sentence, nodes: [patterns of the paid nodes it
+takes, any place], pictures: [paths], files: [paths], questions: [{ask, recommended}]}. A declaration with an
+automatic item's id and no node patterns gives that item its words and questions.
 """
 import json
 import pathlib
@@ -14,103 +23,115 @@ import re
 import shutil
 
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
-FILE = re.compile(r"^(web3d|stills|before|media)/[A-Za-z0-9][A-Za-z0-9._-]{0,159}$")
+FILE = re.compile(r"^(web3d|inputs)/[A-Za-z0-9][A-Za-z0-9._-]{0,159}$")
 INDEX = "index.json"
-RECORD = "proposal.json"
-# How a proposal took each node (assemble.py names the same three; tests/proposals_test.py holds them equal).
+DETAILS = "details.json"
+DECLARED = "declared.json"
+ANSWERS = "answers.json"
+ENVIRONMENT = "environment"
+# How the free after took each node (assemble.py names the same three; tests/proposals_test.py holds them equal).
 AS_NOW, MADE, PAID = "as now", "made", "needs the paid batch"
-SUMMARY = ("branch", "place", "commit", "change", "made_at", "needs_paid_batch", "hero", "has_3d")
-# The words a department gives its proposal for the owner (`python -m score.dashboard proposal-words`): kept when the
-# proposal is made again, so they are never lost to a rerun.
-WORDS = ("sentence", "question", "recommended")
 
 
 class BadName(ValueError):
-    """A branch, place or file name a proposal cannot have."""
+    """A place, item or file name the basket cannot have."""
 
 
 def checked(name):
-    """The name, when it is a plain branch or place name (no path, no dots in front); BadName otherwise."""
+    """The name, when it is a plain place or item name (no path, no dots in front); BadName otherwise."""
     if not NAME.match(name or "") or ".." in name:
-        raise BadName(f"{name!r} is not a branch or place name")
+        raise BadName(f"{name!r} is not a place or item name")
     return name
 
 
-def folder(root, branch, place):
-    """The folder of one branch's proposal for one place."""
-    return pathlib.Path(root) / checked(branch) / checked(place)
+def folder(root, place):
+    """The folder of one place's details (ENVIRONMENT for the environment's own rows)."""
+    return pathlib.Path(root) / checked(place or ENVIRONMENT)
 
 
-def read(root, branch, place):
-    """One proposal, or None."""
-    path = folder(root, branch, place) / RECORD
-    return json.loads(path.read_text()) if path.is_file() else None
+def read_json(path, empty):
+    return json.loads(path.read_text()) if path.is_file() else empty
 
 
-def listing(root):
-    """Every proposal's summary, newest first ([] when none is made yet)."""
-    path = pathlib.Path(root) / INDEX
-    return json.loads(path.read_text()) if path.is_file() else []
+def index(root):
+    """The basket as make.py left it, or {} when none is made yet."""
+    return read_json(pathlib.Path(root) / INDEX, {})
 
 
-def summary(proposal):
-    return {field: proposal.get(field) for field in SUMMARY}
+def items(root):
+    """Every item of the basket, in its order ([] when none is made yet)."""
+    return index(root).get("items", [])
 
 
-def summaries(root):
-    """The summary of every proposal.json under `root`, newest first."""
-    found = [summary(json.loads(path.read_text())) for path in pathlib.Path(root).glob(f"*/*/{RECORD}")]
-    return sorted(found, key=lambda item: item["made_at"] or "", reverse=True)
+def item(root, ident):
+    """One item by its id, or None."""
+    return next((found for found in items(root) if found["id"] == ident), None)
 
 
-def write_index(root):
-    """Write index.json from the proposals under `root`; its summaries."""
-    found = summaries(root)
-    partial = pathlib.Path(root) / f"{INDEX}.partial"
+def details(root, place):
+    """A place's details (details.py), or None."""
+    return read_json(folder(root, place) / DETAILS, None)
+
+
+def declared(root):
+    """{item id: declaration} of the departments' items."""
+    return read_json(pathlib.Path(root) / DECLARED, {})
+
+
+def declared_folder(ident):
+    """The folder name of a declared item's own pictures and files."""
+    return f"item-{checked(ident)}"
+
+
+def answers(root):
+    """{item id: {question number: {question, answer, by, at}}} the owner gave."""
+    return read_json(pathlib.Path(root) / ANSWERS, {})
+
+
+def swapped_json(path, found):
+    """Write `found` as JSON to `path`, swapped in whole."""
+    partial = path.with_name(f"{path.name}.partial")
     partial.write_text(json.dumps(found, indent=1))
-    partial.replace(pathlib.Path(root) / INDEX)
+    partial.replace(path)
+
+
+def put_declared(root, ident, fields):
+    """Keep a department's item (its fields over what it declared before); every declared item."""
+    found = declared(root)
+    found[checked(ident)] = {**found.get(ident, {}), **fields}
+    pathlib.Path(root).mkdir(parents=True, exist_ok=True)
+    swapped_json(pathlib.Path(root) / DECLARED, found)
     return found
 
 
-def put(root, partial, proposal):
-    """Swap the finished proposal folder `partial` in for the branch's old one at its place, write its
-    proposal.json, then the index; the proposal's folder."""
-    target = folder(root, proposal["branch"], proposal["place"])
-    (partial / RECORD).write_text(json.dumps(proposal, indent=1))
+def put_answer(root, ident, number, given):
+    """Keep the owner's answer to an item's question; every answer."""
+    found = answers(root)
+    found.setdefault(checked(ident), {})[str(int(number))] = given
+    pathlib.Path(root).mkdir(parents=True, exist_ok=True)
+    swapped_json(pathlib.Path(root) / ANSWERS, found)
+    return found
+
+
+def put_index(root, found):
+    """Write the basket's index, swapped in whole."""
+    pathlib.Path(root).mkdir(parents=True, exist_ok=True)
+    swapped_json(pathlib.Path(root) / INDEX, found)
+
+
+def put_place(root, partial, place, found):
+    """Swap the finished folder `partial` in for the place's old one, its details.json written; the folder."""
+    target = folder(root, place)
+    (partial / DETAILS).write_text(json.dumps(found, indent=1))
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(target, ignore_errors=True)
     partial.rename(target)
-    write_index(root)
     return target
 
 
-def amend(root, branch, place, fields):
-    """Write `fields` into a made proposal's proposal.json (swapped in whole), then the index; the proposal, or None
-    when there is none."""
-    found = read(root, branch, place)
-    if found is None:
-        return None
-    found.update(fields)
-    path = folder(root, branch, place) / RECORD
-    partial = path.with_name(f"{RECORD}.partial")
-    partial.write_text(json.dumps(found, indent=1))
-    partial.replace(path)
-    write_index(root)
-    return found
-
-
-def held(proposal):
-    """The plain reason a proposal is held out of the basket, or None when its after was measured against its
-    before at its commit and shows its change (finish.py, compare.py); one not measured yet is held until it is."""
-    found = proposal.get("difference") or {}
-    if found.get("commit") != proposal.get("commit"):
-        return "Its after and before pictures are not measured against each other yet."
-    return found.get("held")
-
-
-def file_path(root, branch, place, name):
-    """A proposal's file (web3d/, stills/, before/ or media/), or None when it has no such file."""
+def file_path(root, place, name):
+    """A place's basket file (web3d/ or inputs/), or None when it has no such file."""
     if not FILE.match(name or "") or ".." in name:
         return None
-    path = folder(root, branch, place) / name
+    path = folder(root, place) / name
     return path if path.is_file() else None

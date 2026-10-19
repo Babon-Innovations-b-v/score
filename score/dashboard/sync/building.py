@@ -7,7 +7,7 @@
                                _world.json the world's steps
     <out>/files/<sha>-1280.jpg hero pictures; <sha>-360.jpg thumbnails (newest 8 a node); <sha>.mp4 accepted films
     <out>/web3d/<place>/       each place's fresh 3D copy (web3d/convert.py): sidecar and preview, then the whole one
-    <out>/proposals/           every fix branch's proposal (proposals/exporting.py): records, stills and light copies
+    <out>/proposals/           the basket (proposals/exporting.py): its index, each place's details, inputs and 3D copies
                                right after the heroes, the whole 3D copies after the places' own
     <out>/library/            the creator's library when SCORE_LIB_ROOT is set (state/library.py): entries.json, a
                               sound's first takes in files/; its pictures go in <out>/files/ like the steps' (thumbnails

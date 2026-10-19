@@ -103,14 +103,12 @@ for (const button of document.querySelectorAll("[data-full]")) {
   button.addEventListener("click", () => openLarge(button.dataset.full, button.dataset.caption || ""));
 }
 
-// A proposed version beside the current one: the switch shows the current, the proposed, or both side by side.
-for (const compare of document.querySelectorAll(".compare")) {
-  for (const button of compare.querySelectorAll("[data-show]")) {
-    button.addEventListener("click", () => {
-      compare.dataset.view = button.dataset.show;
-      for (const other of compare.querySelectorAll("[data-show]")) other.classList.toggle("on", other === button);
-    });
-  }
+// A basket item's 3D view: the before and after switch loads the other side into the frame.
+for (const button of document.querySelectorAll(".item-3d-bar [data-src]")) {
+  button.addEventListener("click", () => {
+    document.getElementById("item-3d").src = button.dataset.src;
+    for (const other of document.querySelectorAll(".item-3d-bar [data-src]")) other.classList.toggle("on", other === button);
+  });
 }
 
 // The owner's cost figures, his basket and his checkout go to the API as JSON, with the CSRF token from its cookie; the page then reads again.

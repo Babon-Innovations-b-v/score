@@ -1,19 +1,15 @@
-"""The owner's basket of fix branches and his one checkout (the creator cockpit as a shopping list).
+"""The owner's basket checkout (the creator cockpit's money yes).
 
-    offers   every fix branch, priced: the paid rows it moves from where it left main (score.stages.moved), each paid
-             node at the runner's likely and high euros and minutes and its cards (score price, C19)
-    basket   the branches he added, each with the commit and preview hash he saw; totals and time
-    checkout his signed-in money yes, once: refused if any reviewed preview changed; lands the branches on main in a
-             fixed order; writes the environment's stop line at the basket's high (score.review.web.stop, C22); launches
-             one batch through the compute backend, whose runner clears every paid node again
+    basket   the items he chose to buy on the basket page (pages/basket.py, BasketChoice), each as he saw it (its
+             version); the items themselves are what a run on main would buy (proposals/make.py), priced at the
+             runner's numbers (C19)
+    checkout his signed-in money yes, once: refused if any item changed since he chose it; the runner's own plan of
+             each item must buy only what was priced; writes the environment's stop line at the basket's high
+             (score.review.web.stop, C22); launches one batch through the compute backend, whose runner clears every
+             paid node again
     results  per item its nodes' real cost from the ledger against their forecast, time, gate verdicts, new outputs
 
-`git.py` the git side, `pricing.py` the prices, `previews.py` the preview hash, `flow.py` the checkout, `results.py` the
-results feed, `routes.py` the API under /api/checkout.
+`pricing.py` the totals, `flow.py` the checkout, `results.py` the results feed, `routes.py` the API under
+/api/checkout.
 """
-import os
-
-REMOTE = os.environ.get("SCORE_LAND_REMOTE", "origin")
-MAIN = "main"
-FIX_PREFIX = os.environ.get("SCORE_FIX_PREFIX", "fix-")
 WORLD = "world1"

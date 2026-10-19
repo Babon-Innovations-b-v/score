@@ -2,26 +2,7 @@
 {% block title %}Environment{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{{ environment_name }}</h1></div>
-{% if changes_count %}<a class="basket-bar" href="/changes/"><span><b>{{ changes_count }}</b> fix{{ changes_count|pluralize:"es" }} wait for you on Changes to buy</span><span>see each one before and after</span></a>{% endif %}
-{% if offered or bought %}
-<section class="changes" aria-label="changes to buy">
-  {% if offered %}
-  <div class="group-head"><h2>Changes to buy</h2><span class="soft small">see each one before it costs anything</span></div>
-  <div class="change-tiles">{% for item in offered %}{% include "pages/change_card.html" %}{% endfor %}</div>
-  {% endif %}
-  {% if basket %}
-  <a class="basket-bar" href="/basket/">
-    <span><b>{{ basket.items|length }}</b> change{{ basket.items|length|pluralize }} in your basket</span>
-    <span>{% if basket.high is not None %}likely EUR {{ basket.likely|floatformat:2 }}, at most EUR {{ basket.high|floatformat:2 }}{% else %}price not known yet{% endif %}</span>
-    <span class="button primary">Go to checkout</span>
-  </a>
-  {% endif %}
-  {% if bought %}
-  <div class="group-head"><h2>Bought</h2></div>
-  <div class="change-tiles">{% for item in bought %}{% include "pages/change_card.html" %}{% endfor %}</div>
-  {% endif %}
-</section>
-{% endif %}
+{% if waiting_items %}<a class="basket-bar" href="/basket/"><span><b>{{ waiting_items }}</b> item{{ waiting_items|pluralize }} in your basket wait for you</span><span>see what each one changes before it costs anything</span></a>{% endif %}
 {% include "pages/money_world.html" %}
 
 {% for group in groups %}

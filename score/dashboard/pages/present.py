@@ -225,56 +225,6 @@ def problems(detail):
             + [check_problem(finding) for finding in detail.checks])
 
 
-# --- changes to buy ----------------------------------------------------------------------------------------------
-# A change to buy: a fix branch's proposed version of a place, previewed (stills, draft films, a 3D copy beside the
-# current one), with what it fixes in one sentence and its forecast price and time. The owner adds it to the basket and
-# checks the basket out; then it runs, and its result shows the real cost against the forecast. Read from the source's
-# `changes()` when the data side has it; until then there are none and nothing is shown.
-# Fields read: id, place, fixes, stills, films, web3d_base, likely, high, minutes_likely, minutes_high, state
-# (offered, in basket, running, done, failed), progress (0 to 1), euros (the real cost), minutes (the real time), gates
-# ({pass, fail}), basket_url.
-CHANGE_STATES = ("offered", "in basket", "running", "done", "failed")
-
-
-def minutes_words(minutes):
-    if minutes is None:
-        return None
-    return f"{minutes:.0f} min" if minutes < 90 else f"{minutes / 60:.1f} h"
-
-
-def change(item):
-    """One change to buy as the pages show it."""
-    ident = field(item, "id")
-    progress = field(item, "progress")
-    return {"id": ident, "place": field(item, "place"), "fixes": field(item, "fixes") or "a proposed change",
-            "stills": field(item, "stills") or [], "films": field(item, "films") or [],
-            "web3d_base": field(item, "web3d_base"), "state": field(item, "state") or "offered",
-            "likely": field(item, "likely"), "high": field(item, "high"),
-            "time_likely": minutes_words(field(item, "minutes_likely")),
-            "time_high": minutes_words(field(item, "minutes_high")),
-            "progress": round(100 * progress) if progress is not None else None,
-            "euros": field(item, "euros"), "took": minutes_words(field(item, "minutes")),
-            "gates": field(item, "gates") or {},
-            "basket_url": field(item, "basket_url") or f"/api/changes/{ident}/basket"}
-
-
-def changes(source, place=None):
-    """The changes of the world (of one place when given), [] while the source has none."""
-    reader = getattr(source, "changes", None)
-    found = [change(item) for item in (reader() if reader else []) or []]
-    return [item for item in found if place is None or item["place"] == place]
-
-
-def basket_of(found):
-    """The changes in the basket and their sums: {items, likely, high, time_high}; None when it is empty."""
-    chosen = [item for item in found if item["state"] == "in basket"]
-    if not chosen:
-        return None
-    priced = all(item["likely"] is not None and item["high"] is not None for item in chosen)
-    return {"items": chosen, "likely": round(sum(item["likely"] for item in chosen), 2) if priced else None,
-            "high": round(sum(item["high"] for item in chosen), 2) if priced else None}
-
-
 # --- money -------------------------------------------------------------------------------------------------------
 
 STOP_LINE = '.venv/bin/python -m score.review stop {world} <euros> --reason "what it is for"'
