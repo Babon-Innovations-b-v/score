@@ -18,7 +18,7 @@ from score.dashboard.pages import actions, breakdown, library, present, seen
 from score.dashboard.pages import basket as basket_items
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.proposals import records
-from score.dashboard.state import costs, groups, sliders
+from score.dashboard.state import costs, groups, holes, sliders
 from score.dashboard.state import money as month_money
 
 
@@ -74,6 +74,7 @@ def board(request):
     shown = with_web3d(source, present.look_groups(world, queued))
     return render(request, "pages/board.html", {
         "world": world, "environment_name": present.environment_name(world.world), "groups": shown,
+        "holes_total": holes.environment(world.holes_total, basket_now()),
         "waiting_items": basket_items.unanswered(),
         "money": present.money(month_money.view(world.spend), planned), "world_steps": [
             present.step_tile(step, step_url(None, step.stage)) for step in world.world_line]})
@@ -90,6 +91,11 @@ def with_web3d(source, shown):
 GROUND_STAGE = "terrain"  # the world's ground, made once for every place
 
 
+def basket_now():
+    """The basket's items as its last make left them ([] before one), for pricing the holes."""
+    return records.items(basket_items.basket_root())
+
+
 def place_page(request, place):
     source = state.source()
     if place not in source.places():
@@ -104,7 +110,8 @@ def place_page(request, place):
         "breakdown": breakdown.breakdown(detail, style, step_url,
                                          sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
                                          source.step_detail(None, GROUND_STAGE)),
-        "problems": present.problems(detail),
+        "problems": present.problems(detail), "holes": present.hole_groups(detail, basket_now()),
+        "holes_total": holes.environment(world.holes_total, basket_now()),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
         "library": library.strip_of(place)})
 
@@ -206,6 +213,7 @@ def basket(request):
     money = body.get("money", {})
     return render(request, "pages/basket.html", {
         **basket_items.basket_context(), "money": present.money(month_money.view(actions.spend()), None),
+        "holes_total": holes.environment(state.source().world_state().holes_total, basket_now()),
         "items": actions.basket_cards(items), "refine": library.refine_cards(RefineItem.objects.all()),
         "plan": plan, "plan_current": bool(plan and plan.basket_hash == current),
         "bar": money_bar(money.get("spent"), money.get("reserved"), money.get("likely"), money.get("high"),

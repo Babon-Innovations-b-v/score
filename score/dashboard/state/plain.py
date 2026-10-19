@@ -94,3 +94,19 @@ def stop_sentence(label, why, place, gaps):
         return f"The {label} step stopped: its {failed.group(1).strip()} check failed."
     cause = re.split(r"[;(]", why, maxsplit=1)[0].strip().rstrip(".:")
     return f"The {label} step stopped: {cause}." if cause else f"The {label} step stopped."
+
+
+def hole_sentence(hole, place, count=1):
+    """A hole in one plain sentence: a row with nothing made for it (`count` of its objects), a made thing that fails
+    a check (said by that check as a named gap's is, else as the check found it), or a step the place has not been
+    through."""
+    if hole.rule == "missing":
+        name = hole.sentence.split(": ", 1)[0]
+        many = f" ({count} of them)" if count > 1 else ""
+        nowhere = "; the inventory gives it no spot" if hole.placed == "unplaced" else ""
+        return capital(f"{name} should be in {place_words(place)} but nothing is made for it yet{many}{nowhere}.")
+    gate = (hole.gates or ["/"])[0].split("/", 1)[1]
+    if hole.rule == "gate" and gate in SAID:
+        names = thing_names([hole.prim or (hole.id or "").split(":", 2)[-1]])  # the object its id names
+        return capital(SAID[gate][0].format(things=thing_words(names), place=place_words(place)))
+    return capital(hole.sentence).rstrip(".") + "."

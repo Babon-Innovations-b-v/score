@@ -4,6 +4,7 @@
 <div class="page-head"><h1>{{ environment_name }}</h1></div>
 {% if waiting_items %}<a class="basket-bar" href="/basket/"><span><b>{{ waiting_items }}</b> item{{ waiting_items|pluralize }} in your basket wait for you</span><span>see what each one changes before it costs anything</span></a>{% endif %}
 {% include "pages/money_world.html" %}
+{% include "pages/holes_total.html" %}
 
 {% for group in groups %}
 <section class="group">

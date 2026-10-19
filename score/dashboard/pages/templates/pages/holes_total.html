@@ -1,0 +1,11 @@
+{% if holes_total and holes_total.holes %}
+<section class="money-card holes-total" aria-label="what every place still needs">
+  <div class="eyebrow">What every place still needs</div>
+  <div class="money-total">{{ holes_total.holes }} hole{{ holes_total.holes|pluralize }}</div>
+  <p class="small soft">{{ holes_total.counts.missing|default:0 }} not made yet, {{ holes_total.counts.gate|default:0 }} made but failing a check, {{ holes_total.counts.place|default:0 }} steps of the route not done.</p>
+  <p>To fill what the runner can: {{ holes_total.words }}{% if money.stop %}, against your stop of EUR {{ money.stop|floatformat:0 }}{% endif %}.</p>
+  {% if holes_total.unfillable %}<details class="fold"><summary>No stage can fill these yet: the work each needs ({{ holes_total.unfillable|length }})</summary>
+    <ul class="fold-body">{% for work in holes_total.unfillable %}<li>{{ work }}</li>{% endfor %}</ul>
+  </details>{% endif %}
+</section>
+{% endif %}

@@ -10,13 +10,14 @@ import hashlib
 import json
 import pathlib
 import re
+from collections import Counter
 
 from score import review, stages
 from score.dashboard.state import gaps as named, groups, plain
 from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
 from score.dashboard.state.index import Fresh, answer_keys
-from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, InputPicture,
-                                          LayerGroup, PlaceCard, PlaceDetail, Spend, StepCard, StepDetail,
+from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, HolesTotal,
+                                          InputPicture, LayerGroup, PlaceCard, PlaceDetail, Spend, StepCard, StepDetail,
                                           StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
 from score.store import Store
 
@@ -27,6 +28,8 @@ LOG_LINES = 40
 # Where standalone checks write each place's findings, in the work folder: checks/<check>/<place>/findings.json
 # ({"outputs": {node: the output judged}, "findings": [{"rule", "prim", "sentence", "picture"}]}).
 CHECKS = "checks"
+HOLES = "holes"  # the holes check (score/stages/complete/holes): its findings are the place's holes, listed apart
+HOLE_FIELDS = ("id", "row", "gates", "node", "work", "placed", "low", "high")
 HISTORY = 6
 # Which stage makes each sublayer of a place's OpenUSD stage (score/stages/assembly/record.py ORDER).
 LAYER_MAKERS = {"edit": None, "characters": "characters-layer", "sound": "sound", "light": "light",
@@ -383,7 +386,8 @@ class LocalSource:
     def world_state(self, spend=None):
         return WorldState(made_at=self.read_at(), source=self.name, world=self.world.name,
                           engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
-                          world_line=self.world_line(), spend=spend or Spend(note="spend not read"))
+                          world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
+                          holes_total=self.holes_total())
 
     # --- one place ---------------------------------------------------------------------------------------------
 
@@ -415,20 +419,50 @@ class LocalSource:
         """The place's named gaps, each with its step and a picture of what it names (state/gaps.py)."""
         return self.remembered(("gaps", place), lambda: named.named_gaps(self, place))
 
+    def current_findings(self, path):
+        """A standalone check's findings.json, or None once an output it judged is no longer the accepted one (it is
+        run again on the new one)."""
+        written = json.loads(path.read_text())
+        if any(self.accepted_output(node) != output for node, output in written.get("outputs", {}).items()):
+            return None
+        return written
+
+    def finding(self, check, place, item):
+        """One finding of a check's findings.json, with its picture and, for a hole, its hole fields."""
+        return CheckFinding(check=check, rule=item["rule"], prim=item.get("prim"), kind=item.get("kind"),
+                            sentence=item["sentence"],
+                            picture=self.work_picture(f"WORK/{CHECKS}/{check}/{place}/{item['picture']}")
+                            if item.get("picture") else None,
+                            **{field: item.get(field) for field in HOLE_FIELDS})
+
     def check_findings(self, place):
-        """Every standalone check's findings of the place, each with its picture; a check's are left out once an
-        output it judged is no longer the accepted one (it is run again on the new one)."""
+        """Every standalone check's findings of the place but the holes (listed apart), each with its picture,
+        while the outputs it judged stay accepted."""
         found = []
         for path in sorted((self.props_home / "work" / CHECKS).glob(f"*/{place}/findings.json")):
-            written, check = json.loads(path.read_text()), path.parts[-3]
-            if any(self.accepted_output(node) != output for node, output in written.get("outputs", {}).items()):
-                continue
-            found += [CheckFinding(check=check, rule=item["rule"], prim=item.get("prim"), kind=item.get("kind"),
-                                   sentence=item["sentence"],
-                                   picture=self.work_picture(f"WORK/{CHECKS}/{check}/{place}/{item['picture']}")
-                                   if item.get("picture") else None)
-                      for item in written.get("findings", [])]
+            check, written = path.parts[-3], self.current_findings(path)
+            if check != HOLES and written:
+                found += [self.finding(check, place, item) for item in written.get("findings", [])]
         return found
+
+    def holes(self, place):
+        """What the place's route still needs (the holes check's findings), while the outputs it stood over stay
+        accepted; [] when it has not run."""
+        def read():
+            path = self.props_home / "work" / CHECKS / HOLES / place / "findings.json"
+            written = self.current_findings(path) if path.is_file() else None
+            return [self.finding(HOLES, place, item) for item in (written or {}).get("findings", [])]
+        return self.remembered(("holes", place), read)
+
+    def holes_total(self):
+        """Every place's holes in sum: counts by rule, the distinct nodes that fill them, the work no stage does."""
+        def read():
+            holes = [hole for place in self.places() for hole in self.holes(place)]
+            work = [hole.work for hole in holes if hole.node is None]
+            return HolesTotal(counts=dict(Counter(hole.rule for hole in holes)),
+                              nodes=sorted({hole.node for hole in holes if hole.node}),
+                              unfillable=sorted(set(work)), unfillable_count=len(work))
+        return self.remembered("holes total", read)
 
     def faults(self, place):
         """Each step of the place whose fault report is newer than its accept: its cause, in one plain sentence,
@@ -509,7 +543,8 @@ class LocalSource:
         return PlaceDetail(place=place, status=self.place_status(place), look=look, hero=self.hero(place),
                            film=self.film(place), usd_index=self.usd_index(place),
                            layers=self.layer_groups(place, with_thumbs=True), faults=self.faults(place),
-                           gaps=self.gaps(place), checks=self.check_findings(place), concept=self.concept(place),
+                           gaps=self.gaps(place), checks=self.check_findings(place), holes=self.holes(place),
+                           concept=self.concept(place),
                            skipped=self.skipped(place),
                            film_fps=self.film_fps(place), film_view=self.film_view(place), web3d=self.web3d(place))
 

@@ -13,6 +13,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   older than 60 s); `exported.py` reads a pushed state export; both give the pydantic models of `models.py`.
   A place's problems are its stopped steps, its named gaps and every standalone check's findings
   (`WORK/checks/<check>/<place>/findings.json`, `check_findings`, read while the outputs it judged stay accepted).
+  Its holes (CONTEXT.md "hole") are the holes check's findings (`score/stages/complete/holes`), listed apart
+  (`holes`, `holes_total`) and priced at read time by `holes.py` from the basket's records: a hole whose node an
+  item carries gets that item and the runner's price; one with only its code work is listed with no price.
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` prices a plan from measured
   runs only; `gaps.py` gives each named gap its step and a picture of what it names (local source only), `plain.py`
   says each problem in one plain sentence.
