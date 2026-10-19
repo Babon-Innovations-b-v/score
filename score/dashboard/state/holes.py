@@ -279,9 +279,10 @@ def worst_rank(worst, unchecked):
     return [kind for kind, _ in KINDS].index(worst) if worst else len(KINDS)
 
 
-def place_row(place, found, price):
+def place_row(place, found, price, reach=None):
     """One place of the overview: its holes by kind, the worst kind, its chains' price (None while its holes are not
-    known), the holes no price reaches, its next route step."""
+    known), the price of its paid steps no other place's chain has (`own`, from `reach` of node_reach; None without
+    it), the holes no price reaches, its next route step."""
     counts = {kind: sum(kind_of(hole) == kind for hole in found) for kind, _ in KINDS}
     route = next((hole for hole in found if kind_of(hole) == "route"), None)
     unchecked = not_checked(place, found, price)
@@ -289,13 +290,44 @@ def place_row(place, found, price):
     return {"place": place, "holes": len(found), "counts": counts, "worst": worst,
             "rank": worst_rank(worst, unchecked),
             "money": None if unchecked else money_of(place_sum(found, price, place)),
+            "own": None if unchecked or reach is None else money_of(own_sum(found, price, place, reach)),
             "unpriced": unpriced(found, price, place), "lost": bool(counts["lost"]),
             "not_checked": unchecked, "next": route.sentence if route else None}
 
 
+def node_reach(price, details):
+    """Counter {node: how many places' chains have it} of every paid node in the places' holes' chains
+    ({place: [hole]}); empty with no current record."""
+    reach = Counter()
+    if price is None or price.stale:
+        return reach
+    for place, found in details.items():
+        reach.update(node for node in place_nodes(found, price, place) if node in price.nodes)
+    return reach
+
+
+def own_sum(found, price, place, reach):
+    """summed() of the paid nodes in a place's holes' chains that no other place's chain has (`reach`, node_reach);
+    None with no current record."""
+    if price is None or price.stale:
+        return None
+    return summed({node: price.nodes[node] for node in place_nodes(found, price, place)
+                   if node in price.nodes and reach[node] == 1})
+
+
+def shared_money(price, details):
+    """money_of() of the paid nodes two or more places' chains share, each once: what the overview's rows count in
+    each of their places and the total once; None with no current record."""
+    if price is None or price.stale:
+        return None
+    reach = node_reach(price, details)
+    return money_of(summed({node: price.nodes[node] for node, count in reach.items() if count > 1}))
+
+
 def per_place(price, details):
-    """[place row] of every place ({place: [hole]}), in the order given."""
-    return [place_row(place, found, price) for place, found in details.items()]
+    """[place row] of every place ({place: [hole]}), in the order given, each with its own steps' price."""
+    reach = node_reach(price, details)
+    return [place_row(place, found, price, reach) for place, found in details.items()]
 
 
 def waits_first(found):
@@ -409,37 +441,21 @@ def lost_kind(entry):
             "owner": owner, "files": sorted(lost_item(ident) for ident in entry["coded"]) if owner else []}
 
 
-def money_words(sums):
-    """A sum in the headline's words: measured likely and high by their bases, the guesses said as guesses, the
-    paid steps with neither."""
-    money = money_of(sums)
-    labels = " and ".join(entry["basis"] for entry in sums["bases"]) or "nothing measured"
-    return (f"likely EUR {money['likely']:.0f}, high EUR {money['high']:.0f} measured by {labels}"
-            + (f", plus EUR {money['guessed']:.0f} guessed, not a price" if money["guessed"] else "")
-            + (f"; {steps(money['unknown'], 'paid step')} with no price and no guess" if money["unknown"] else ""))
-
-
 def headline(price):
-    """The money headline in one line: to complete, the measured likely and high with the guesses apart, then the
-    prop route after its code work apart (a node it makes again with more units is a make of its own), and the holes
-    with no price; why there is none when the record is missing or stale."""
-    if price is None:
-        return NO_PRICE
-    if price.stale:
-        return f"the runner's price is stale ({price.stale}): run score price world1 --holes again"
-    words = ["The runner's price today: " + money_words(summed(price.nodes))]
-    after = after_work(price)
-    if after["places"]:
-        words.append(f"once the prop data of {steps(len(after['places']), 'place')} is written, more: "
-                     + money_words(after["sums"]))
+    """What no figure of the total holds, in one line under it: the holes whose steps are outside the stage table and
+    the holes that wait on code work no stage does yet; None with nothing to say, or while the record is missing or
+    stale (the total says why it has no figure). The figures themselves lead (whole_of), never repeated here."""
+    if price is None or price.stale:
+        return None
     outside = sum(entry.get("holes") or 0 for entry in price.outside)
     waiting = (sum(entry.get("holes") or 0 for entry in price.unfillable)
                - sum(entry.get("holes") or 0 for entry in price.after_work.values()))
+    words = []
     if outside:
         words.append(f"{outside} holes have no price yet (their steps are outside the stage table)")
     if waiting > 0:
-        words.append(f"{waiting} more wait on code work no stage does yet")
-    return "; ".join(words)
+        words.append(f"{waiting} holes wait on code work no stage does yet, in no figure above")
+    return "; ".join(words) or None
 
 
 # --- the code work no stage does yet, one task each ----------------------------------------------------------

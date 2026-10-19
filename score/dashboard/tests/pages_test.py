@@ -1,6 +1,7 @@
 """Every page renders for the owner from the fixture world, with its pictures and words; a signed-out visitor is sent
 to the sign-in page; node ids stay inside the details fold; every POST needs its CSRF token."""
 import re
+from html import unescape
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -280,7 +281,8 @@ def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, setti
     assert "likely EUR 2.00, high EUR 3.00 (1 step)" in lamp and "guessed, not a price: EUR 1.00 (1 step)" in lamp
     rough = re.search(r"<li[^>]*>This place has no rough model\.(.*?)</li>", html, re.S).group(1)
     assert "No stage can fill this yet: " + ROUGH in rough and "EUR" not in rough
-    assert "sound@alpha: not measured yet, guess EUR 1.00 (score/stages/__init__.py:243)" in html  # in details
+    assert ("The sound step of The alpha look (sound@alpha): not measured yet, guess EUR 1.00 "
+            "(score/stages/__init__.py:243)") in unescape(html)  # each step in words, its id beside it in details
     assert NODE.search(outside_details(html)) is None
     total = holes.environment(world.source.holes_total(), world.source.holes_price())
     assert total["holes"] == 4 and total["unfillable"] == [{"work": ROUGH, "holes": 1}]
