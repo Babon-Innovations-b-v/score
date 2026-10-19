@@ -94,9 +94,10 @@ def test_the_owner_of_a_taken_row_is_read_beside():
     assert "surfaces shiplock" in ship_made.files(PLACE)
 
 
-def checked_inputs(place, views):
-    """The surfaces check's make as the table hands it over, for `place`: the inputs it was given, seen through
-    bake_check.seen_degrees while the seen kit stands."""
+def checked_inputs(place, record):
+    """The surfaces check's make as the table hands it over, for `place`, its own scene-record output (a folder with
+    record/<place>.json) read beside: the inputs it was given, seen through bake_check.seen_degrees while the seen kit
+    stands."""
     seen = {}
 
     def make(inputs, out, seed, params):
@@ -105,7 +106,7 @@ def checked_inputs(place, views):
     wrapped = stages.ship_seen(dataclasses.replace(row, make=make))
     inputs = {"surfaces": DATA / "surfaces" / f"{place}.json",
               f"inventory {place}": DATA / "inventory" / f"{place}.json",
-              "kit": DATA / "kit" / f"{place}.json", "plan": DATA / "plans" / f"{place}.json", "views": views}
+              "kit": DATA / "kit" / f"{place}.json", "plan": DATA / "plans" / f"{place}.json", f"scene-record@{place}": record}
     with tempfile.TemporaryDirectory() as temporary:
         wrapped.make(inputs, pathlib.Path(temporary), 0, {})
         assert not list(pathlib.Path(temporary).iterdir()), "the seen kit is the check's input, not its output"
@@ -115,14 +116,15 @@ def checked_inputs(place, views):
 def test_a_ship_place_s_made_models_get_a_view_distance():
     """Both ways: the installed kit alone (code pieces) gives the bunk no spot, so no view distance; the table's
     surfaces check lays the made pieces beside it and reads the views, so the bunk has one."""
-    if not stages.ship_place(PLACE):
-        raise SystemExit(f"{PLACE} has no ship base stage on this machine (usd-ship/{PLACE}): cannot test the table")
+    assert stages.ship_place(PLACE)
     with tempfile.TemporaryDirectory() as temporary:
-        views = pathlib.Path(temporary) / "views.json"
+        record = pathlib.Path(temporary)
+        (record / "record").mkdir()
+        views = record / "record" / f"{PLACE}.json"
         views.write_text(json.dumps({"views": [{"name": "door", "eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.0, 1.0]}]}))
         alone = bake_check.seen_degrees({"kit": DATA / "kit" / f"{PLACE}.json", "scene record": views})
         assert "bunk_1" not in alone and alone, alone
-        degrees = checked_inputs(PLACE, views)
+        degrees = checked_inputs(PLACE, record)
         assert degrees.get("bunk_1", 0) > 0, degrees
 
 
@@ -134,7 +136,8 @@ def test_an_old_place_s_check_is_handed_over_as_before():
     inputs = {"surfaces": DATA / "surfaces/hub.json", "kit": DATA / "kit/hub.json"}
     wrapped.make(inputs, pathlib.Path(tempfile.gettempdir()), 0, {})
     assert given == inputs
-    assert "views" not in wrapped.files("hub") and "views" in wrapped.files(PLACE)
+    assert wrapped.neighbours("hub") == [] and wrapped.neighbours(PLACE) == [PLACE]
+    assert not any("world1-r4" in path for path in wrapped.files(PLACE).values())
 
 
 if __name__ == "__main__":

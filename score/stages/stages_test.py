@@ -304,6 +304,25 @@ def test_the_crops_check_reads_every_input_check_step_reads():
         assert read <= set(handed), (name, read - set(handed))
 
 
+def test_a_ship_place_is_read_from_git_and_reads_its_own_scene_record():
+    """Both ways, on a home with no work folder: the cockpit is a ship place by its place.json mark and the hub is
+    not; the cockpit's cast declares neither data/scene/cockpit.json nor a views file under work/, reads its own
+    scene-record output beside and crowds from the record in it; the hub's cast reads nothing beside."""
+    assert not (SEEDS / stages.SHIP_SEED / "cockpit").exists()
+    assert stages.ship_place("cockpit") and not stages.ship_place("hub")
+    row = next(row for row in stages.STAGES if row.name == "cast")
+    declared = row.files("cockpit")
+    assert "scene" not in declared and not any("world1-r4" in path for path in declared.values()), declared
+    assert row.neighbours("cockpit") == ["cockpit"] and row.neighbours("hub") == []
+    assert stages.cast.files("hub")["scene"] == row.files("hub")["scene"]
+    seen = {}
+    wrapped = stages.ship_cast(dataclasses.replace(row, make=lambda inputs, *rest: seen.update(inputs)))
+    with tempfile.TemporaryDirectory() as temporary:
+        record = pathlib.Path(temporary)
+        wrapped.make({"record": "data/characters/cockpit.json", "scene-record@cockpit": record}, record, 0, {})
+        assert seen["scene"] == record / "record" / "cockpit.json", seen
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

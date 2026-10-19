@@ -210,15 +210,7 @@ def cast_place(place):
     return place in cast.PLACES or (path.exists() and bool(json.loads(path.read_text()).get("people")))
 
 
-@functools.wraps(cast.files)
-def cast_files(place):
-    """cast.files, with a ship place's views (its scene record's, as the demo's views file) for its `scene`: it has no
-    old record (the cockpit, 2026-10-15). In the table, so no other place's key moves."""
-    found = cast.files(place)
-    return dict(found, scene="{seeds}/demo/world1-r4/views/" + f"{place}.json") if ship_place(place) else found
-
-
-CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast_files,
+CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
                    after={"concept_people": ("concept-people", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS}},
                    optional=DRESS_ROWS, applies=cast_place)
 # Experimental (2026-10-13): each cast place's people laid from its accepted cast, each in its own look's accepted
@@ -231,16 +223,7 @@ CHARACTERS = graph.Stage("characters-layer", "place", characters_layer.make, cha
                          optional=DRESS_ROWS, applies=cast_place)
 # Experimental (PRD #6) until the owner has heard it: each place's sound layer data (its sounds, their files and levels,
 # MOSS takes for briefs no environment file answers, paid), for the place's assembly to write into its stage.
-@functools.wraps(sound.files)
-def sound_files(place):
-    """sound.files, with a ship place's views (its scene record's, as the demo's views file) for its `scene`, as
-    cast_files: a ship room has no old record, so its sound row stood blocked on data/scene/<room>.json (2026-10-18).
-    In the table, so no other place's key moves."""
-    found = sound.files(place)
-    return dict(found, scene="{seeds}/demo/world1-r4/views/" + f"{place}.json") if ship_place(place) else found
-
-
-SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound_files, paid=True,
+SOUND = graph.Stage("sound", "place", sound.make, sound.LAYER, sound.CHECKS, files=sound.files, paid=True,
                     euros=sound.EUROS, models=(sound.moss_takes.KIND,), applies=sound.applies)
 
 # Experimental (F11) until the owner reviews it: a place's physics in UsdPhysics and a trial in Bullet that shows its
@@ -511,10 +494,21 @@ SEEDS_HOME = PROPS_HOME / "work"
 OLD_SEED, SHIP_SEED = "usd-r3", "usd-ship"
 
 
+PLACE_DEFINITIONS = REPO / "data/definitions/place.json"
+
+
+@functools.cache
+def ship_places():
+    """The places data/definitions/place.json marks `ship` (the ship's rooms, which the game never had)."""
+    return frozenset(name for name, entry in json.loads(PLACE_DEFINITIONS.read_text()).items()
+                     if isinstance(entry, dict) and entry.get("ship"))
+
+
 def ship_place(place):
-    """A place the game never had (the ship's rooms): no round-three seed, its base stage written from its kit."""
-    return (place is not None and not (SEEDS_HOME / OLD_SEED / place).exists()
-            and (SEEDS_HOME / SHIP_SEED / place).exists())
+    """A place the game never had (the ship's rooms): no round-three seed, its base stage written from its kit. Read
+    from git (its `ship` mark in place.json), never from the disk: with the work folder lost (2026-10-19) a test for
+    usd-ship/<place> took the cockpit off the ship's route and its cast blocked on a scene record it never had."""
+    return place is not None and place in ship_places()
 
 
 def ship_seeded(files):
@@ -524,7 +518,7 @@ def ship_seeded(files):
     a place with a round-three seed reads it as before."""
     def declared(place):
         found = files(place) if callable(files) else files
-        if place is None or (SEEDS_HOME / OLD_SEED / place).exists() or not (SEEDS_HOME / SHIP_SEED / place).exists():
+        if not ship_place(place):
             return found
         old = (f"{{seeds}}/{OLD_SEED}/{{place}}", f"{{seeds}}/{OLD_SEED}/{place}")
         return {name: f"{{seeds}}/{SHIP_SEED}/{place}" if path in old else path for name, path in found.items()}
@@ -549,11 +543,7 @@ def ship_lit(applies):
     are its scene record's, written as the demo's views file (2026-10-15). Wrapped here, in the table, so no place
     with a round-three seed moves."""
     def lit(place):
-        if applies(place):
-            return True
-        return (place is not None and not (SEEDS_HOME / OLD_SEED / place).exists()
-                and (SEEDS_HOME / SHIP_SEED / place / f"{place}.usda").exists()
-                and (light.passes.DEMO / f"views/{place}.json").exists())
+        return applies(place) or ship_place(place)
     return functools.wraps(applies)(lit)
 
 
@@ -653,10 +643,51 @@ def ship_assembled(row):
                                neighbours=functools.wraps(neighbours)(beside), make=functools.wraps(make)(made))
 
 
+OWN_RECORD = "scene-record"
+
+
+def own_record(place):
+    """[place] for a ship place, which reads its own scene record (`OWN_RECORD@<place>`, read beside), else none."""
+    return [place] if ship_place(place) else []
+
+
+def record_beside(inputs, place):
+    """The scene record a ship place's row reads beside (own_record): record/<place>.json in its output."""
+    return pathlib.Path(inputs[f"{OWN_RECORD}@{place}"]) / "record" / f"{place}.json"
+
+
+def reading_own_record(row):
+    """The row reading, for a ship place, its own scene-record output beside (own_record), so its views come from the
+    stage that writes them and wait on it (2026-10-19: they were a copy under work/demo/world1-r4/views, made by hand,
+    lost with the work folder). A place with an old record reads nothing beside, so its key stays."""
+    beside = {OWN_RECORD: ("scene-record", 1)}
+    if row.beside and row.beside != beside:
+        raise ValueError(f"{row.name} already reads beside; own_record would give its other reads the same places")
+    return dataclasses.replace(row, beside=beside, neighbours=own_record)
+
+
+def ship_cast(row):
+    """cast for a ship place: it has no old record (data/scene/<place>.json), so its `scene` (the views it crowds
+    from) is its own scene record, read beside (reading_own_record). Wrapped here, so no other place's key moves."""
+    files, make = row.files, row.make
+
+    def declared(place):
+        found = files(place)
+        return {name: path for name, path in found.items() if name != "scene"} if ship_place(place) else found
+
+    def made(inputs, out, seed, params):
+        place = pathlib.Path(inputs["record"]).stem
+        if not ship_place(place):
+            return make(inputs, out, seed, params)
+        return make(dict(inputs, scene=record_beside(inputs, place)), out, seed, params)
+    return reading_own_record(dataclasses.replace(row, files=functools.wraps(files)(declared),
+                                                  make=functools.wraps(make)(made)))
+
+
 def ship_seen(row):
     """surfaces-check with a view distance for a ship place's models (2026-10-15: every model's was none, so the
     cockpit's pedestal, side console and ceiling equipment and the engine room's fuel tank were unknown): its views
-    the scene record's, as the demo's views file the light rows read (it has no data/scene record), and its made
+    its own scene record's, read beside (reading_own_record; it has no data/scene record), and its made
     models' spots where the ship kit lays them (its installed kit holds the code pieces only), laid beside the kit
     for the check. A place with a round-three seed is checked as before: wrapped here, so its key stays."""
     files, make = row.files, row.make
@@ -665,7 +696,7 @@ def ship_seen(row):
         if not ship_place(place):
             return files(place)
         laid = {name: pattern for name, pattern in ship_made.files(place).items() if not name.startswith("surfaces ")}
-        return {**files(place), **laid, "views": "{seeds}/demo/world1-r4/views/" + f"{place}.json"}
+        return {**files(place), **laid}
 
     def made(inputs, out, seed, params):
         place = json.loads(pathlib.Path(inputs["surfaces"]).read_text())["place"]
@@ -679,10 +710,11 @@ def ship_seen(row):
         seen = out / ".seen-kit.json"
         seen.write_text(json.dumps(dict(kit, pieces=kit["pieces"] + made_pieces)))
         try:
-            return make(dict(inputs, kit=seen, **{"scene record": inputs["views"]}), out, seed, params)
+            return make(dict(inputs, kit=seen, **{"scene record": record_beside(inputs, place)}), out, seed, params)
         finally:
             seen.unlink()
-    return dataclasses.replace(row, files=functools.wraps(files)(declared), make=functools.wraps(make)(made))
+    return reading_own_record(dataclasses.replace(row, files=functools.wraps(files)(declared),
+                                                  make=functools.wraps(make)(made)))
 
 
 def ship_completed(row):
@@ -696,7 +728,8 @@ def ship_completed(row):
 
 
 STAGES = tuple(ship_assembled(row) if row.name == "assembly" else ship_seen(row) if row.name == "surfaces-check"
-               else ship_completed(row) if row.name == "complete" else row for row in STAGES)
+               else ship_completed(row) if row.name == "complete" else ship_cast(row) if row.name == "cast" else row
+               for row in STAGES)
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
 # The library rows (score/stages/library), appended last: library@<place> hands every accepted output of its place's
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
