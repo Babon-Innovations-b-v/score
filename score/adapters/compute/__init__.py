@@ -51,7 +51,7 @@ import sys
 
 from score import graph
 from score.adapters.compute import guard
-from score.store import PROPS_HOME, RUNNER, Store, locked
+from score.store import PROPS_HOME, RUNNER, Store, locked, running_under_agent
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/cloud/runtime"))
@@ -241,6 +241,35 @@ def books_now():
     month = books.this_month()
     return {"month": month, "bill": cloud_bill(), "ledger": books.month_total(month, books.entries()),
             "google": google_spend.month_euros(month) + books.google_before()}
+
+
+def read_back_books():
+    """Read the month's cloud bill back from the provider (read-only) into the books; the books. Books already known
+    for this month keep their state and the owner's Google figure; else they are `lost`, which refuses paid work
+    (ledger.books_refusal): the Google month cannot be read back. Whether the bill holds VAT is not known
+    (SCORE_BILL_FACTOR is unsettled)."""
+    books = ledger()
+    month = books.this_month()
+    held = books.read_books()
+    held = held if held.get("month") == month else {}
+    read = {**held, "month": month, "state": held.get("state", "lost"), "bill": round(cloud_bill(), 2),
+            "bill_at": graph.now(), "source": "scaleway consumption", "vat_in_bill": "unknown"}
+    books.write_books(read)
+    return read
+
+
+def owners_google_month(euros):
+    """The owner's figure for what Google billed this month before the Google ledger began again: the books' known
+    state; the books. Refused in a process an agent started: only the owner knows the Google bill."""
+    if running_under_agent():
+        raise Refused("the Google month is the owner's figure: he enters it from his own terminal")
+    books = ledger()
+    month = books.this_month()
+    held = books.read_books()
+    held = held if held.get("month") == month else {}
+    known = {**held, "month": month, "state": "known", "google_before": float(euros), "google_at": graph.now()}
+    books.write_books(known)
+    return known
 
 
 def months_since(baseline, now):

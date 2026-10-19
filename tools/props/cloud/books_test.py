@@ -179,3 +179,20 @@ def test_the_runners_ssh_key_is_never_made_here():
         batch.KEY, batch.subprocess.run = kept
     assert ran == [] and not (folder / "ssh_key").exists()
 
+
+def test_the_bill_read_back_leaves_the_books_lost_and_paid_work_refused():
+    """The Google month cannot be read back, so a read-back alone never opens paid work (`score spend --read-back`)."""
+    fresh_books([cloud_line(last_month())], [google_line(last_month())])
+    kept, compute.cloud_bill = compute.cloud_bill, lambda: 1234.5
+    try:
+        books = compute.read_back_books()
+    finally:
+        compute.cloud_bill = kept
+    assert (books["state"], books["bill"], books["vat_in_bill"]) == ("lost", 1234.5, "unknown"), books
+    assert all(refusals().values())
+
+
+def test_a_read_back_keeps_the_owners_known_month():
+    fresh_books(books={"month": ledger.this_month(), "state": "known", "google_before": 400.0})
+    books = compute.read_back_books()
+    assert (books["state"], books["google_before"]) == ("known", 400.0), books
