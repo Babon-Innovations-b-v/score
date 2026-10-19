@@ -131,6 +131,20 @@ or a written exception, when the library refused or did not commit, and answers 
 quality score. A place is complete when its library node stands accepted, the environment when every one does (`python -m
 score status` prints that line); `complete@<place>` keeps its meaning and its key, so no paid row moves.
 
+**Holes** (`score/stages/complete/holes`, its overlay; CONTEXT.md "hole", #12): what each place's route still needs,
+shown in its OpenUSD scene and in the creator cockpit. A free, local, standalone check (not a row, so no key moves)
+reads the store, the scene inventories, kits, plans, named gaps and the findings other checks already wrote, judges
+nothing, and writes `WORK/checks/holes/<place>/`: an overlay (`holes.usda`, its own layer over the accepted stage laid
+out as links) in which every inventory row with nothing made for it is a guide box at its spot, wall or parent's top
+(unplaced when no data says where; never `score:row`, so the rows gate still counts it missing), every made object a
+written fault names carries the gates it fails, and the root carries the route's steps the place lacks (its concept,
+plan, rough model); and `findings.json`, one hole each, naming the node that fills it (a stage of the table that runs
+for the place) or the code work it needs. The cockpit lists them on the place page, outlines them in its 3D viewer
+(`?holes=1`) and prices them at read time from the basket (`score/dashboard/state/holes.py`: a node an item carries
+gets the runner's price, each node once in the environment's total; work-only holes are listed with no price). The
+sync pass writes them after the library sweep. The boxes stay out of the accepted assembly: putting them inside would
+move assembly's, complete's and every later paid row's key.
+
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's
 Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next task.
