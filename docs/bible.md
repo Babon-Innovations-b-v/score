@@ -137,20 +137,22 @@ Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next t
 
 ## architecture/lifecycles
 
-**The route: outside first** (the owner's rule of 2026-10-19; terms in `CONTEXT.md`). One loop, the same at every
+**The route: shapes first** (the owner's rule of 2026-10-19; terms in `CONTEXT.md`). One loop, the same at every
 scale, starting big with a new place inside an existing environment:
 
-1. The outside: its outside shell only, a concept for it and its plan.
-2. The concept goes through picture to model (the prop pipeline) as the place's rough model, and the plan is drawn
-   to the rough model's proportions and shape.
-3. Close-ups of every detailed prop and the finishes each needs; then the outside is ready.
-4. Inside: within the size the outside decided, its plan is cut into inside places (rooms, corridors, holds), and each
-   goes through this same loop, from its own concept on.
+1. The big shape: the place's outside shell only, with its concept, its plan and its rough model (the concept put
+   through picture to model, the prop pipeline), which gives the plan its proportions.
+2. The shapes inside: the shell's plan is split into the shapes of its inside places (rooms, corridors, holds), each
+   sized inside the shell.
+3. Once those shapes are fixed, everything else runs in parallel, because from then on it is all proportions: every
+   place's concept, rough model, close-ups of every detailed prop and the finishes each needs.
+4. Zooming into an inside place repeats the same steps.
 
 How the pieces fit is the framework's and its tools' work. Where the runner stands today: the stage table has no
-rough-model stage and no stage that cuts inside places from an outside's plan, and a plan does not name its outside;
-each place's concept, plan and inventory are made on their own. The ship is the first place run through the loop: its
-rooms' concepts were drawn before its hull was planned; drawing them again from the hull's plan is the loop's first run.
+rough-model stage and no stage that splits a shell's plan into the shapes of its inside places, and a plan does not
+name its outside shell; each place's concept, plan and inventory are made on their own. The ship is the first place run
+through the loop: its rooms' concepts were drawn before its hull was planned; drawing them again to the shapes split
+from the hull's plan is the loop's first run.
 
 **One outdoor place, end to end** (the wreck is the worked example; commands in the README):
 
