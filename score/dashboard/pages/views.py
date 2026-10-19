@@ -74,7 +74,7 @@ def board(request):
     shown = with_web3d(source, present.look_groups(world, queued))
     return render(request, "pages/board.html", {
         "world": world, "environment_name": present.environment_name(world.world), "groups": shown,
-        "holes_total": holes.environment(world.holes_total, basket_now()),
+        "holes_total": holes.environment(world.holes_total, world.holes_price),
         "waiting_items": basket_items.unanswered(),
         "money": present.money(month_money.view(world.spend), planned), "world_steps": [
             present.step_tile(step, step_url(None, step.stage)) for step in world.world_line]})
@@ -92,7 +92,7 @@ GROUND_STAGE = "terrain"  # the world's ground, made once for every place
 
 
 def basket_now():
-    """The basket's items as its last make left them ([] before one), for pricing the holes."""
+    """The basket's items as its last make left them ([] before one), for the holes' links to them."""
     return records.items(basket_items.basket_root())
 
 
@@ -111,8 +111,9 @@ def place_page(request, place):
         "breakdown": breakdown.breakdown(detail, style, step_url,
                                          sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
                                          source.step_detail(None, GROUND_STAGE)),
-        "problems": present.problems(detail), "holes": present.hole_groups(detail, items),
-        "holes_total": holes.environment(world.holes_total, items),
+        "problems": present.problems(detail), "holes": present.hole_groups(detail, items, world.holes_price),
+        "chains": present.place_chains(detail, world.holes_price),
+        "holes_total": holes.environment(world.holes_total, world.holes_price),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
         "library": library.strip_of(place)})
 
@@ -212,9 +213,10 @@ def basket(request):
     current = guard.basket_hash(items)
     body = plan.body if plan and plan.state == "ready" else {}
     money = body.get("money", {})
+    world = state.source().world_state()
     return render(request, "pages/basket.html", {
         **basket_items.basket_context(), "money": present.money(month_money.view(actions.spend()), None),
-        "holes_total": holes.environment(state.source().world_state().holes_total, basket_now()),
+        "holes_total": holes.environment(world.holes_total, world.holes_price),
         "items": actions.basket_cards(items), "refine": library.refine_cards(RefineItem.objects.all()),
         "plan": plan, "plan_current": bool(plan and plan.basket_hash == current),
         "bar": money_bar(money.get("spent"), money.get("reserved"), money.get("likely"), money.get("high"),

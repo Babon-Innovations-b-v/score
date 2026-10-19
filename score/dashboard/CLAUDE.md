@@ -14,8 +14,13 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   A place's problems are its stopped steps, its named gaps and every standalone check's findings
   (`WORK/checks/<check>/<place>/findings.json`, `check_findings`, read while the outputs it judged stay accepted).
   Its holes (CONTEXT.md "hole") are the holes check's findings (`score/stages/complete/holes`), listed apart
-  (`holes`, `holes_total`) and priced at read time by `holes.py` from the basket's records: a hole whose node an
-  item carries gets that item and the runner's price; one with only its code work is listed with no price.
+  (`holes`, `holes_total`). Their price is the runner's (`score price world1 --holes`, its record
+  `WORK/checks/holes-price/<world>.json` read as `HolesPrice`): `holes.py` only sums it, every paid node of any
+  hole's chain once, each basis in its own bucket (measured runs, per unit × counted, per unit × forecast, the
+  guesses with the file and line each is written on, never a price; the nodes with neither are unknown), and lists
+  each hole's chain; no price is made and no unit counted here. A record older than any accept or reject or any
+  holes check shows no number (`price_stale`, the rule of `current_findings`). A hole whose node a basket item
+  carries links that item, where it is bought; the total no longer reads the basket.
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` prices a plan from measured
   runs only; `gaps.py` gives each named gap its step and a picture of what it names (local source only), `plain.py`
   says each problem in one plain sentence.

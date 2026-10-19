@@ -6,8 +6,8 @@
   <h3>{{ group.title }} ({{ group.count }})</h3>
   <ul class="hole-list">{% for line in group.lines %}
     <li>{{ line.sentence }}
-      {% if line.item_url %}<a href="{{ line.item_url }}">in your basket</a>{% if line.price %}: {{ line.price }}{% endif %}
-      {% else %}<span class="soft">{{ line.said|capfirst }}.</span>{% endif %}</li>
+      {% if line.item_url %}<a href="{{ line.item_url }}">in your basket</a>.{% endif %}
+      {% if line.price %}<span class="small">{{ line.price|capfirst }}.</span>{% else %}<span class="soft">{{ line.said|capfirst }}.</span>{% endif %}</li>
   {% endfor %}</ul>
   {% endfor %}
   {% if holes_total %}<p class="small soft">The whole environment: {{ holes_total.words }}.</p>{% endif %}

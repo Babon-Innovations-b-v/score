@@ -137,6 +137,20 @@ class HolesTotal(BaseModel):
     unfillable_count: int = 0
 
 
+class HolesPrice(BaseModel):
+    """The runner's price of every hole's chain (`score price <world> --holes`, its record read as written): each
+    paid node priced once ({node: price with its basis}), each place's chains by the node a hole names, the free
+    nodes in them, the work no stage does with its hole count, and why the record is stale (None while current)."""
+    made_at: str
+    nodes: dict[str, dict] = {}
+    chains: dict[str, dict[str, list[str]]] = {}
+    free: list[str] = []
+    unfillable: list[dict] = []
+    outside: list[dict] = []
+    not_current: list[str] = []
+    stale: str | None = None
+
+
 class WorldState(BaseModel):
     made_at: str
     source: str  # "store" or "export <made_at>"
@@ -145,6 +159,7 @@ class WorldState(BaseModel):
     world_line: list[StepCard] = []
     spend: Spend = Spend()
     holes_total: HolesTotal | None = None
+    holes_price: HolesPrice | None = None
 
 
 class GateVerdict(BaseModel):

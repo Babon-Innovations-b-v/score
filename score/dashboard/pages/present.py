@@ -231,24 +231,26 @@ HOLE_GROUPS = (("missing", "Not made yet"), ("gate", "Made, but failing a check"
                ("place", "Steps of the route not done"))
 
 
-def price_words(price):
-    """A node's price in words: likely and high when measured, its guess said apart, else not priced."""
-    if not price:
-        return None
-    if price.get("likely_euros") is not None:
-        return f"likely EUR {price['likely_euros']:.2f}, high EUR {price['high_euros']:.2f}"
-    if price.get("guess_euros"):
-        return f"a guess of EUR {price['guess_euros']:.2f}, never measured"
-    return "not priced yet"
-
-
 def hole_line(entry, place, count):
-    """One line of the holes list: the hole in plain words, its basket item and price, or what stands in the way."""
+    """One line of the holes list: the hole in plain words, its basket item, its chain's price (the runner's, by
+    basis) or what stands in the way."""
     hole = entry["hole"]
     return {"sentence": plain.hole_sentence(hole, place, count),
             "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None,
-            "price": price_words(entry["price"]), "said": entry["said"], "id": hole.id,
+            "price": entry["chain"]["words"] if entry["chain"] else None, "said": entry["said"], "id": hole.id,
             "filled_by": hole.node or hole.work}
+
+
+def place_chains(detail, price):
+    """[{node, rows}] of each distinct node the place's holes name, its chain's nodes with basis and euros (node ids:
+    for the details fold)."""
+    found = {}
+    for hole in detail.holes:
+        if hole.node and hole.node not in found:
+            chain = holes.hole_chain(hole, price, detail.place)
+            if chain:
+                found[hole.node] = chain["rows"]
+    return [{"node": node, "rows": rows} for node, rows in found.items()]
 
 
 def hole_marks(detail):
@@ -257,11 +259,11 @@ def hole_marks(detail):
             if hole.low is not None and hole.high is not None]
 
 
-def hole_groups(detail, items):
+def hole_groups(detail, items, price):
     """[{rule, title, count, lines}] of the place's holes, by rule; a row's missing objects on one line."""
     found = {rule: [] for rule, _ in HOLE_GROUPS}
     counted = {}
-    for entry in holes.priced(detail.holes, items):
+    for entry in holes.priced(detail.holes, items, price, detail.place):
         hole = entry["hole"]
         key = (hole.rule, hole.row if hole.rule == "missing" else hole.id)
         if key in counted:
