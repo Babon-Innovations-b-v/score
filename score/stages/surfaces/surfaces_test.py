@@ -653,11 +653,13 @@ def test_a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_
     assert abs(nearest[0]) <= 0.05 + 1e-9, f"the post lies nearer than the facade behind: {nearest}"
     assert [names[index] for index in surface] == ["facade_paint", "post_dark"], surface
     assert reach[0].all(), "both parts lie within the triangle's reach"
-    found = {node.targets[0].id: node.value.value for node in ast.parse(
+    found = {node.targets[0].id: eval(compile(ast.Expression(node.value), "make_chunky", "eval")) for node in ast.parse(
         (REPO / "tools/props/library/inside/make_chunky.py").read_text()).body
         if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
-        and node.targets[0].id in ("REACH_SHARE", "REACH_LEAST")}
-    assert (found["REACH_SHARE"], found["REACH_LEAST"]) == (bake_check.BAKE_REACH_SHARE, bake_check.BAKE_REACH_LEAST)
+        and node.targets[0].id in ("REACH_VOXELS", "REACH_LEAST", "VOXEL_SHARE", "VOXEL_FINEST")}
+    assert (found["REACH_VOXELS"], found["REACH_LEAST"], found["VOXEL_SHARE"], found["VOXEL_FINEST"]) == (
+        bake_check.BAKE_REACH_VOXELS, bake_check.BAKE_REACH_LEAST, bake_check.BAKE_VOXEL_SHARE,
+        bake_check.BAKE_VOXEL_FINEST)
 
 
 def test_a_standing_model_with_a_foot_off_the_floor_fails_and_lying_wreckage_is_left_out():

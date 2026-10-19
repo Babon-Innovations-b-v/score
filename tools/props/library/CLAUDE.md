@@ -45,6 +45,15 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
 - **Screens and lamp lenses glow as plates of their own** (`data/library/details.json` `screens`, pictures drawn by
   `printed.py` into `data/library/pictures`), laid by `route.py` on a generated piece's front, or a code-built
   piece's own glass (make_kit splits glowing slots off).
+- **Big objects seen up close are code-built bodies under the take's details** (the owner, 2026-10-18, PRD #10: the
+  picture model's geometry is right in its details, lumpy in its main shapes; every finish the library's).
+  `inside/bodies.py` (plain Python) names each such take in `BODIES` (its builder in `inside/pieces_bodies.py`, the
+  surfaces kept wherever they are, and its turn where the place's data has it wrong) and holds each body's numbers,
+  read off its take in the kit frame; the bake (`make_chunky.make_bodied`) builds the body, keeps only the take's
+  faces `bodies.kept` names (the console's screens, lamps and its bays' controls; nothing of the old station's first
+  module), bakes both into one model and writes `<model>.parts/` (its surfaces as laid, kit frame), which the bake
+  check and the assembly's export read in place of the labelled take. The registry sits in the bake's own folder, not
+  in `data/surfaces/<place>.json`, which every row of a place's line reads: an edit there repaints the place.
 - **Generated pieces** (`data/library/details.json`: each kind's `turn`, `screens`, `cuts`, `decals` and whether it is
   `square`): `inside/make_chunky.py` turns a labelled Pixal3D model into the kit frame at its laid size, closes a copy
   into a solid (thickened 5 mm inward, rebuilt on a voxel grid: a raw Pixal3D model is a shell under 1 mm thick, which

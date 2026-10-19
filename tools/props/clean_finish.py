@@ -17,6 +17,9 @@ the ice mine, the rover and the lab's own garden gnome, the old finish (`retopo_
 4. Pixel Match. Every surface the source picture sees takes the picture's own pixel (the lab's
    `photo_paint`, image-to-3dlab 0.3.5+), so bolts, screens and edges come out as drawn. The
    lab's palette shift is left off: fitted on the front it tinted the crate's unseen back yellow.
+   Its picture nudge (`view_align`, on by default since 0.4.x) is left off too: it needs opencv,
+   which the lab's Python here (IMAGE_TO_3DLAB/.venv, set up by hand, by no script in this repo)
+   does not have; turn it on (ALIGN) once that Python has opencv-python-headless.
 
 Then the lab's compression (JPEG, 2048). About a minute a model on the processor; nothing here
 touches the graphics card.
@@ -43,6 +46,9 @@ FOLD_DEGREES = 40.0
 # Rays averaged for each texel of the bake.
 RAYS = 8
 ATLAS = 2048
+# Pixel Match's picture nudge (photo_paint.Settings.align, image-to-3dlab 0.4.x): off while the lab's Python has no
+# opencv (see the top).
+ALIGN = False
 
 # pixal3d.cpp's --sv-image crop (src/image_preprocess.cpp), restated so a raw model made before
 # its camera folder was kept (every cloud batch) can still be Pixel Matched: the picture shrunk
@@ -172,7 +178,7 @@ from image_to_3dlab import photo_paint as pp
 positions, uvs, faces, texture = pp.read_glb(pathlib.Path({model!r}))
 views, scale = pp.load_views(pathlib.Path({views!r}))
 painted, weight = pp.paint_texture(texture, positions, uvs, faces, views, scale,
-                                   settings=pp.Settings(match_colour=False))
+                                   settings=pp.Settings(match_colour=False, align={align}))
 pathlib.Path({out!r}).write_bytes(pp.replace_base_colour(pathlib.Path({model!r}).read_bytes(),
                                                          pp.encode_png(painted)))
 print(f"pixel match: {{(weight > 0.5).mean():.0%}} of the texture from the picture")
@@ -205,7 +211,7 @@ def finish(raw, picture_cut, finished, faces, views):
     if views is not None:
         current = steps / "5_matched.glb"
         run([LAB_PYTHON, "-c", PIXEL_MATCH.format(lab=str(LAB), model=str(bake), views=str(views),
-                                                 out=str(current))], steps / "5_matched.log")
+                                                 out=str(current), align=ALIGN)], steps / "5_matched.log")
     run([LAB_PYTHON, "-c", COMPRESS.format(scripts=str(LAB / "scripts"), model=str(current),
                                            out=str(finished), side=ATLAS)], steps / "6_compressed.log")
     return finished

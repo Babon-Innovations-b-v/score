@@ -78,8 +78,9 @@ def parse_args(argv: list[str]) -> tuple[str, str, int, int, float, float, float
             raise SystemExit(f"{name} must be within 0..1, got {value}")
     if not 1.0 <= ior <= 3.0:
         raise SystemExit(f"ior must be within 1.0..3.0, got {ior}")
-    if size not in (1024, 2048, 4096):
-        raise SystemExit(f"atlas size must be 1024, 2048 or 4096, got {size}")
+    # 256 and 512 are for the far LODs finish_props.py bakes, which are seen small.
+    if size not in (256, 512, 1024, 2048, 4096):
+        raise SystemExit(f"atlas size must be 256, 512, 1024, 2048 or 4096, got {size}")
     if not 1000 <= target_faces <= 200000:
         raise SystemExit(
             f"target faces must be 1000..200000; too few loses the silhouette, too many "
@@ -132,12 +133,14 @@ def base_colour_image(material):
     return None
 
 
-def ray_distance(dimensions, fraction: float = 0.02) -> float:
+def ray_distance(dimensions, fraction: float = 0.005) -> float:
     """How far the bake may search from the new surface to find the old one.
 
     Scaled to the asset rather than fixed: too small and the new surface misses the old
-    one entirely, leaving the atlas empty; too large and a ray from the chest can reach
-    the far side of the body and sample its colour.
+    one entirely, leaving the atlas empty; too large and a ray picks up colour from a thin
+    part standing in front of the surface it was meant for. At 2% (the old value) the
+    gnoll's lip and brow ridges painted grey patches over its muzzle and eyes; at 0.5%
+    they were gone on all seven test models, with no empty spots (2026-10-13).
     """
     return max(dimensions) * fraction
 

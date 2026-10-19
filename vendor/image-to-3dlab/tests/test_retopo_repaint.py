@@ -12,6 +12,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "retopo_repaint.py"
 
 
@@ -54,10 +56,22 @@ def test_skipping_compress_leaves_the_asset_uncompressed():
     ]
 
 
-def test_retopology_is_never_skipped():
-    """It is what makes the repaint affordable; there is no route that omits it."""
+def test_retopology_is_never_skipped_for_a_game_ready_finish():
+    """It is what makes the repaint affordable; only full detail leaves it out."""
     assert rr.stage_plan(skip_paint=True, skip_compress=True, skip_bake=True) == [
         "retopologise"]
+
+
+def test_full_detail_keeps_the_mesh_and_only_pixel_matches_and_squeezes():
+    """Nothing simplified means nothing to repaint or bake onto, whatever else was asked."""
+    assert rr.stage_plan(skip_paint=False, skip_compress=False, photo=True, keep_mesh=True) == ["photo", "compress"]
+    assert rr.stage_plan(skip_paint=True, skip_compress=False, keep_mesh=True) == ["compress"]
+
+
+def test_full_detail_is_a_flag_on_the_command_line():
+    args = rr.build_parser().parse_args(["a.glb", "a.png", "out.glb", "--keep-mesh"])
+    assert args.keep_mesh is True
+    assert rr.build_parser().parse_args(["a.glb", "a.png", "out.glb"]).keep_mesh is False
 
 
 def test_the_blender_command_passes_arguments_in_the_documented_order():
@@ -118,10 +132,37 @@ def test_resume_is_opt_in_on_the_real_parser():
 def test_the_bake_command_bakes_the_original_onto_the_current_mesh():
     command = rr.bake_command(Path("gen.glb"), Path("painted.glb"), Path("baked.glb"), 2048,
                               blender=Path("/bl"))
-    assert command[:4] == ["/bl", "--background", "--python", command[3]]
-    assert command[3].endswith("blender_bake_detail.py")
+    assert command[:6] == ["/bl", "--background", "--python-exit-code", "1", "--python",
+                           command[5]]
+    assert command[5].endswith("blender_bake_detail.py")
     after = command[command.index("--") + 1:]
     assert after == ["gen.glb", "painted.glb", "baked.glb", "2048"]
+
+
+@pytest.mark.parametrize("build", [
+    lambda: rr.retopo_command(Path("in.glb"), Path("out.glb"), 40000, 2048, 89.0, 0.004,
+                              0.25, 0.65, 1.45),
+    lambda: rr.bake_command(Path("gen.glb"), Path("painted.glb"), Path("baked.glb"), 2048),
+])
+def test_a_crash_in_a_blender_stage_fails_the_stage(build):
+    """Blender exits 0 when a script raises, unless this comes before ``--python``."""
+    command = build()
+    flag = command.index("--python-exit-code")
+    assert command[flag + 1] == "1"
+    assert flag < command.index("--python")
+
+
+def test_a_stage_line_still_names_the_script_it_runs(capsys, tmp_path):
+    """The progress line printed the first four words, which were the script path until
+    --python-exit-code 1 took two of them."""
+    command = rr.bake_command(Path("gen.glb"), Path("painted.glb"), Path("baked.glb"), 2048,
+                              blender=Path("/usr/bin/true"))
+    assert rr.shown(command).endswith("blender_bake_detail.py")
+    rr._run(command, tmp_path / "bake.log", "bake")
+    line = capsys.readouterr().out
+    assert line.startswith("[bake] /usr/bin/true --background --python-exit-code 1 --python ")
+    assert "blender_bake_detail.py ..." in line
+    assert rr.shown(["gltfpack", "-i", "a.glb", "-o", "b.glb", "-cc"]) == "gltfpack -i a.glb -o"
 
 
 def test_skip_bake_is_on_the_real_parser_and_off_by_default():
@@ -192,3 +233,55 @@ def test_preflight_finds_blender_when_none_is_given(tmp_path):
     exe = tmp_path / "blender"
     exe.write_text("")
     assert rr.preflight(None, skip_paint=True, platform="nvidia", find=lambda: exe) == (exe, None)
+
+
+def test_a_run_with_no_repaint_and_no_photo_needs_only_the_mesh():
+    parser = rr.build_parser()
+    alone = parser.parse_args(["a.glb", "missing.png", "out.glb", "--skip-paint"])
+    assert rr.required_inputs(alone) == [Path("a.glb")]
+    with_views = parser.parse_args(["a.glb", "a.png", "out.glb", "--skip-paint", "--views", "v"])
+    assert rr.required_inputs(with_views) == [Path("a.glb"), Path("a.png")]
+    repaint = parser.parse_args(["a.glb", "a.png", "out.glb"])
+    assert rr.required_inputs(repaint) == [Path("a.glb"), Path("a.png")]
+
+
+def test_edge_fade_is_on_unless_the_run_turns_it_off():
+    assert rr.build_parser().parse_args(["a.glb", "a.png", "out.glb"]).no_edge_fade is False
+    assert rr.build_parser().parse_args(["a.glb", "a.png", "out.glb", "--no-edge-fade"]).no_edge_fade is True
+    assert rr.photo_settings().inner_edge > 0
+    off = rr.photo_settings(edge_fade=False)
+    assert off.inner_edge == 0.0 and off.cutout_edge > 0      # only the inner-edge fade goes
+
+
+def test_nudge_is_on_unless_the_run_turns_it_off():
+    assert rr.build_parser().parse_args(["a.glb", "a.png", "out.glb"]).no_nudge is False
+    assert rr.build_parser().parse_args(["a.glb", "a.png", "out.glb", "--no-nudge"]).no_nudge is True
+    assert rr.photo_settings().align is True
+    off = rr.photo_settings(nudge=False)
+    assert off.align is False and off.inner_edge > 0          # edge fade untouched
+    both = rr.photo_settings(edge_fade=False, nudge=False)
+    assert both.align is False and both.inner_edge == 0.0
+
+
+# --- The Pixal3D route: Pixal3D's own clean-up instead of the classic retopology --------------
+
+
+@pytest.mark.parametrize("dump, keep_mesh, available, expected", [
+    (Path("run.post.bin"), False, True, True),
+    (None, False, True, False),                  # no dump: an older model, or another engine
+    (Path("run.post.bin"), False, False, False),  # no post-replay: upstream's prebuilt download
+    (Path("run.post.bin"), True, True, False),    # full detail keeps the generator's mesh
+])
+def test_the_pixal3d_route_needs_a_dump_and_post_replay(dump, keep_mesh, available, expected):
+    assert rr.finish_route(dump, keep_mesh, available) is expected
+
+
+def test_the_dump_is_a_required_input_when_given(tmp_path):
+    args = rr.build_parser().parse_args(
+        ["in.glb", "in.png", "out.glb", "--skip-paint", "--native-dump", "run.post.bin"])
+    assert Path("run.post.bin") in rr.required_inputs(args)
+
+
+def test_without_a_dump_the_inputs_are_unchanged():
+    args = rr.build_parser().parse_args(["in.glb", "in.png", "out.glb", "--skip-paint"])
+    assert rr.required_inputs(args) == [Path("in.glb")]

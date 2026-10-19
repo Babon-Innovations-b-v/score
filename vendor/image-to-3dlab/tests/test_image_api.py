@@ -17,6 +17,10 @@ from pathlib import Path
 import pytest
 
 VIEWER = Path(__file__).resolve().parents[1] / "viewer"
+sys.path.insert(0, str(VIEWER.parent))
+from image_to_3dlab.host import AMD as HOST_AMD
+from image_to_3dlab.host import APPLE as HOST_APPLE
+from image_to_3dlab.host import NVIDIA as HOST_NVIDIA
 
 
 def _load():
@@ -46,7 +50,7 @@ def test_defaults_are_the_measured_fast_ones():
     """cfg 6.0 (the upstream recipe) makes the model do two passes per step for nothing:
     17 minutes against 11 for an identical picture. 768/10 steps was 4m22s."""
     assert api.DEFAULTS["cfg_scale"] == 1.0
-    assert api.DEFAULTS["steps"] == 10
+    assert api.DEFAULTS["steps"] == 8  # tested by eye against 10: nothing visible lost
     assert api.DEFAULTS["width"] == api.DEFAULTS["height"] == 768
 
 
@@ -70,7 +74,7 @@ def test_prompt_is_one_argument_not_shell_text():
     command = command_for(nasty)
     assert command[command.index("-p") + 1] == nasty
     assert command.count("--steps") == 1
-    assert command[command.index("--steps") + 1] == "10"
+    assert command[command.index("--steps") + 1] == str(api.DEFAULTS["steps"])
 
 
 def test_negative_prompt_only_appears_when_asked():
@@ -134,25 +138,23 @@ def test_slug_survives_a_prompt_with_nothing_usable():
     assert api.slug("!!!???") == "image"
 
 
-def test_provenance_records_the_non_commercial_restriction():
+def test_provenance_records_the_licence_and_its_class():
     """A PNG in a folder six months from now remembers nothing on its own."""
     record = api.provenance("a fox", api.clean_settings({}), 262.3, Path("/o/fox.png"))
-    assert record["license"]["classification"] == "research-only"
+    assert record["license"]["classification"] == "commercial-conditional"
     assert "Built with Qwen" == record["license"]["attribution"]
     assert record["prompt"] == "a fox"
     json.dumps(record)  # must survive being written to the sidecar
 
 
-def test_provenance_says_the_output_is_yours_but_the_model_is_not():
-    """Qwen stated on 2026-09-21 that outputs are not licensed Materials, but the licence
-    text still makes running the model non-commercial. The sidecar must say both, and cite
-    the statement, because a tweet is not the licence."""
+def test_provenance_says_the_output_is_yours_and_cites_qwen():
+    """Qwen stated on 2026-09-21 that outputs are not licensed Materials. The sidecar says
+    the picture is yours and cites the statement, so the record stands on its own."""
     note = api.provenance("a fox", api.clean_settings({}), 1.0, Path("/o/f.png"))[
         "license"]["inherited_by_derivatives"]
     assert note == api.OUTPUT_RIGHTS
-    assert "yours" in note and "commercial licence" in note
+    assert "yours" in note and "non-commercial" not in note.lower()
     assert "https://x.com/QwenDevs/status/2101917379785838660" in note
-    assert "inherits the non-commercial" not in note
 
 
 def test_output_goes_to_the_images_folder():
@@ -192,6 +194,22 @@ def test_job_describe_hides_the_result_until_it_exists(tmp_path):
     assert job.describe()["result_url"].endswith("/result.png")
 
 
+def test_job_describe_reports_progress_log_and_where_the_picture_lands(tmp_path):
+    # the studio follows every step the same way: status, last event, log tail, and the file it made
+    manager = api.ImageJobManager(output_root=tmp_path)
+    job = manager.create("a knight", api.clean_settings({}))
+    job.emit({"phase": "sampling", "percent": 40.0})
+    job.log_lines.append("step 4/10")
+    described = job.describe()
+    assert described["last_event"]["percent"] == 40.0
+    assert described["log_tail"] == "step 4/10"
+    assert described["picture"] is None            # nothing on disk yet
+    job.status = "done"
+    picture = api.ImageJob.picture_path(job)
+    assert picture == f"images/{job.directory.name}/{job.output_path.name}"
+    assert job.describe()["picture"] == picture
+
+
 def test_sidecar_names_each_weight_file_readably():
     """The first sidecar written recorded a Python tuple's repr as the value, which is
     not something a person opening the file six months later can use."""
@@ -203,21 +221,58 @@ def test_sidecar_names_each_weight_file_readably():
         assert "(" not in weights[key]["cache_dir"]
 
 
-def _fake_sd_cli(tmp_path: Path, lines: list[str], then_sleep: float) -> list[str]:
+def _fake_sd_cli(tmp_path: Path, lines: list[str], then_sleep: float,
+                 exit_code: int = 0) -> list[str]:
     script = tmp_path / "fake_sd_cli.py"
     script.write_text(
         "import sys, time\n"
         f"for line in {lines!r}:\n"
         "    print(line, flush=True)\n"
         f"time.sleep({then_sleep})\n"
+        f"sys.exit({exit_code})\n"
     )
     return [sys.executable, str(script)]
+
+
+def test_a_failed_run_says_why_not_just_the_exit_code(tmp_path, monkeypatch):
+    """'sd-cli exited with code 2' is a riddle; the binary's own last line -- here a
+    rejected flag, because vendor/sdcpp once held a LocalAI backend that only speaks
+    -addr -- is the reason, and the image tab has no log panel to find it in.
+
+    The GPU line is not decoration: a run that reaches its third step was on the GPU, and
+    the no-GPU explanation is for the ones that were not."""
+    command = _fake_sd_cli(tmp_path, [
+        "load_backend: loaded ROCm backend from /x/libggml-hip.so",
+        "load_backend: loaded CPU backend from /x/libggml-cpu.so",
+        "|=====>    | 3/10 - 1.5s/it",
+        "flag provided but not defined: -diffusion-model",
+    ], then_sleep=0, exit_code=2)
+    monkeypatch.setattr(api, "host_platform", lambda: HOST_AMD)
+    monkeypatch.setattr(api, "build_command", lambda *a, **k: command)
+    manager = api.ImageJobManager(output_root=tmp_path)
+    job = manager.create("a fox", api.clean_settings({}))
+    api.run_job(job, manager, weights=WEIGHTS)
+    assert job.status == "error"
+    assert "code 2" in job.error
+    assert "flag provided but not defined: -diffusion-model" in job.error
+
+
+def test_a_failed_run_with_only_progress_says_just_the_code(tmp_path, monkeypatch):
+    """When the tail is nothing but progress chatter, there is no reason to quote."""
+    command = _fake_sd_cli(tmp_path, ["|=====>    | 3/10 - 1.5s/it"],
+                           then_sleep=0, exit_code=2)
+    monkeypatch.setattr(api, "build_command", lambda *a, **k: command)
+    manager = api.ImageJobManager(output_root=tmp_path)
+    job = manager.create("a fox", api.clean_settings({}))
+    api.run_job(job, manager, weights=WEIGHTS)
+    assert job.status == "error"
+    assert job.error == "sd-cli exited with code 2"
 
 
 def test_a_cpu_only_run_on_an_nvidia_machine_is_stopped_with_the_fix(tmp_path, monkeypatch):
     """On the RunPod 4090 a CPU-only run sat at 1,700% CPU for minutes with no word why.
     The viewer must stop it the moment the CPU backend loads with no GPU before it."""
-    monkeypatch.setattr(api, "host_platform", lambda: api.NVIDIA)
+    monkeypatch.setattr(api, "host_platform", lambda: HOST_NVIDIA)
     command = _fake_sd_cli(tmp_path, [
         "load_backend: loaded CPU backend from /x/libggml-cpu-haswell.so",
     ], then_sleep=60)
@@ -232,7 +287,7 @@ def test_a_cpu_only_run_on_an_nvidia_machine_is_stopped_with_the_fix(tmp_path, m
 
 
 def test_a_gpu_run_is_left_alone(tmp_path, monkeypatch):
-    monkeypatch.setattr(api, "host_platform", lambda: api.NVIDIA)
+    monkeypatch.setattr(api, "host_platform", lambda: HOST_NVIDIA)
     command = _fake_sd_cli(tmp_path, [
         "ggml_vulkan: Found 1 Vulkan devices:",
         "load_backend: loaded CPU backend from /x/libggml-cpu-haswell.so",
@@ -243,3 +298,148 @@ def test_a_gpu_run_is_left_alone(tmp_path, monkeypatch):
     api.run_job(job, manager, weights=WEIGHTS)
     # The fake writes no PNG, so the run ends in the ordinary "no output" error, not ours.
     assert "libegl1" not in (job.error or "")
+
+
+# --- AMD: the same silent fallback, and words the AMD user can act on ----------------------
+
+# Lines as the ROCm build printed them on an RX 7900 XTX, 2026-10-07.
+ROCM_OK = [
+    "ggml_cuda_init: found 1 ROCm devices (Total VRAM: 20480 MiB):",
+    "load_backend: loaded ROCm backend from /workspace/lab/vendor/sdcpp/libggml-hip.so",
+    "load_backend: loaded CPU backend from /workspace/lab/vendor/sdcpp/libggml-cpu-haswell.so",
+]
+ROCM_CPU_ONLY = [
+    "load_backend: loaded CPU backend from /workspace/lab/vendor/sdcpp/libggml-cpu-haswell.so",
+]
+
+
+def test_a_cpu_only_run_on_an_amd_card_is_stopped_too(tmp_path, monkeypatch):
+    """The ROCm build loads its GPU backend at run time exactly as CUDA does, so it falls
+    back to the CPU just as silently. Watcher or not, an AMD user watched the same idle card."""
+    monkeypatch.setattr(api, "host_platform", lambda: HOST_AMD)
+    command = _fake_sd_cli(tmp_path, ROCM_CPU_ONLY, then_sleep=60)
+    monkeypatch.setattr(api, "build_command", lambda *a, **k: command)
+    manager = api.ImageJobManager(output_root=tmp_path)
+    job = manager.create("a fox", api.clean_settings({}))
+    started = time.monotonic()
+    api.run_job(job, manager, weights=WEIGHTS)
+    assert time.monotonic() - started < 10, "the CPU run was left to finish"
+    assert job.status == "error"
+
+
+def test_an_amd_fallback_is_told_about_rocm_and_not_about_nvidia(tmp_path, monkeypatch):
+    """`nvidia-smi` and NVIDIA_DRIVER_CAPABILITIES are both useless to someone with an AMD
+    card. Telling them to check them reads as the viewer having got the machine wrong."""
+    monkeypatch.setattr(api, "host_platform", lambda: HOST_AMD)
+    command = _fake_sd_cli(tmp_path, ROCM_CPU_ONLY, then_sleep=60)
+    monkeypatch.setattr(api, "build_command", lambda *a, **k: command)
+    manager = api.ImageJobManager(output_root=tmp_path)
+    job = manager.create("a fox", api.clean_settings({}))
+    api.run_job(job, manager, weights=WEIGHTS)
+    assert "rocminfo" in job.error
+    assert "nvidia-smi" not in job.error
+
+
+def test_an_amd_gpu_run_is_left_alone(tmp_path, monkeypatch):
+    monkeypatch.setattr(api, "host_platform", lambda: HOST_AMD)
+    command = _fake_sd_cli(tmp_path, ROCM_OK, then_sleep=0)
+    monkeypatch.setattr(api, "build_command", lambda *a, **k: command)
+    manager = api.ImageJobManager(output_root=tmp_path)
+    job = manager.create("a fox", api.clean_settings({}))
+    api.run_job(job, manager, weights=WEIGHTS)
+    assert "rocminfo" not in (job.error or "")
+
+
+def test_the_mac_is_still_left_watched_over_nothing(tmp_path, monkeypatch):
+    """The Mac build is Metal, compiled in, and never announces a backend. Watching it would
+    stop every run on the CPU line, which sd-cli always prints."""
+    monkeypatch.setattr(api, "host_platform", lambda: HOST_APPLE)
+    command = _fake_sd_cli(tmp_path, ROCM_OK, then_sleep=0)
+    monkeypatch.setattr(api, "build_command", lambda *a, **k: command)
+    manager = api.ImageJobManager(output_root=tmp_path)
+    job = manager.create("a fox", api.clean_settings({}))
+    api.run_job(job, manager, weights=WEIGHTS)
+    assert job.status != "error" or "rocminfo" not in (job.error or "")
+
+
+# --- edit mode: a reference picture, read by the vision file --------------------------------
+
+
+def test_an_edit_carries_the_reference_and_the_vision_file():
+    settings = api.clean_settings({})
+    command = api.build_command("the back", settings, Path("/out/x.png"), WEIGHTS,
+                                binary=Path("/bin/sd-cli"), reference=Path("/in/front.png"),
+                                vision=Path("/w/mmproj.gguf"))
+    assert command[command.index("-r") + 1] == "/in/front.png"
+    assert command[command.index("--llm_vision") + 1] == "/w/mmproj.gguf"
+
+
+def test_a_plain_picture_has_no_reference():
+    assert "-r" not in command_for() and "--llm_vision" not in command_for()
+
+
+def test_an_edit_without_the_vision_file_is_refused():
+    with pytest.raises(ValueError, match="vision"):
+        api.build_command("the back", api.clean_settings({}), Path("/out/x.png"), WEIGHTS,
+                          binary=Path("/bin/sd-cli"), reference=Path("/in/front.png"))
+
+
+def test_the_vision_file_is_the_one_beside_the_qwen_llm():
+    directory, filename = api.VISION_FILE
+    assert directory == api.WEIGHT_FILES["llm"][0]
+    assert filename.startswith("mmproj") and filename.endswith(".gguf")
+
+
+# --- back-picture jobs ------------------------------------------------------------------------
+
+
+def _front(tmp_path):
+    from PIL import Image
+    folder = tmp_path / "an-orc__20261012-120000"
+    folder.mkdir(parents=True)
+    front = folder / "an-orc__20261012-120000.png"
+    rgba = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    rgba.paste((180, 60, 40, 255), (16, 8, 48, 60))
+    rgba.save(front)
+    return front
+
+
+def test_a_back_job_lands_beside_its_front(tmp_path):
+    manager = api.ImageJobManager(tmp_path)
+    front = _front(tmp_path)
+    job = api.create_back_job(manager, front, seed=3)
+    assert job.output_path == front.with_name("an-orc__20261012-120000__back.png")
+    assert job.prompt == api.back_view.BACK_PROMPT
+    assert job.settings["width"] == 768 and job.settings["steps"] == 8 and job.settings["seed"] == 3
+    assert job.reference.is_file() and job.reference.parent == front.parent
+
+
+def test_a_back_jobs_command_is_an_edit_from_its_reference(tmp_path):
+    manager = api.ImageJobManager(tmp_path)
+    job = api.create_back_job(manager, _front(tmp_path), seed=3)
+    command = api.job_command(job, WEIGHTS, vision=Path("/w/mmproj.gguf"), binary=Path("/bin/sd-cli"))
+    assert command[command.index("-r") + 1] == str(job.reference)
+
+
+def test_a_back_job_without_the_vision_file_asks_for_setup(tmp_path, monkeypatch):
+    manager = api.ImageJobManager(tmp_path)
+    job = api.create_back_job(manager, _front(tmp_path), seed=3)
+    monkeypatch.setattr(api, "resolve_vision", lambda: None)
+    api.run_job(job, manager, weights=WEIGHTS)
+    assert job.status == "error" and job.events[-1].get("needs_setup")
+    assert "mmproj" in job.error
+
+
+def test_a_plain_jobs_command_has_no_reference(tmp_path):
+    manager = api.ImageJobManager(tmp_path)
+    job = manager.create("a fox", api.clean_settings({}))
+    assert "-r" not in api.job_command(job, WEIGHTS, vision=None, binary=Path("/bin/sd-cli"))
+
+
+def test_a_back_job_only_reads_pictures_inside_the_output_folder(tmp_path):
+    images = tmp_path / "images"
+    front = _front(images)
+    assert api.back_source(tmp_path, f"images/{front.parent.name}/{front.name}") == front
+    for bad in ("../secrets.png", "/etc/passwd", "images/nope.png", f"images/{front.parent.name}"):
+        with pytest.raises(ValueError):
+            api.back_source(tmp_path, bad)

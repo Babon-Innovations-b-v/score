@@ -11,12 +11,11 @@ import os
 import sys
 from pathlib import Path
 
-import pytest
-
 # Plain import for the same reason `test_backend_catalog.py` uses one: `generate_api`
 # imports `download_api`, so a hand-loaded second copy leaves the two holding different
 # objects and a patch here never reaches the code being tested.
 import download_api as dl
+import pytest
 
 
 def test_progress_bars_are_stripped_to_their_last_frame():
@@ -94,6 +93,15 @@ def test_a_gated_repo_is_explained_as_a_login_problem():
     assert "login" in message and "retry" in message
 
 
+def test_a_repo_named_tokens_is_not_mistaken_for_a_login_problem():
+    """A Windows user's symlink error was blamed on Hugging Face sign-in, because the old
+    check matched "token" inside SkinTokens' own path."""
+    log = ["Fetching experiments/articulation_xl_quantization_256_token_4/grpo_1400.ckpt",
+           ("OSError: [WinError 1314] A required privilege is not held by the client: "
+            "'C:\\hub\\models--VAST-AI--SkinTokens\\grpo_1400.ckpt'")]
+    assert "Hugging Face" not in dl._explain(1, log)
+
+
 def test_a_full_disk_is_explained_as_a_full_disk():
     assert "disk space" in dl._explain(1, ["OSError: [Errno 28] No space left on device"])
 
@@ -126,12 +134,10 @@ def test_an_unknown_backend_is_rejected():
         dl.start("not-a-backend")
 
 
-def test_the_hunyuan_command_pins_one_model_rather_than_all_three():
-    # Without --model the downloader fetches every shape checkpoint: 23 GB where the
-    # default route needs 5.
+def test_hunyuan_setup_builds_both_venvs_not_only_the_weights():
+    """Weights alone left the paint venv unbuilt: "done", yet "not installed" (issue #97)."""
     command = dl.COMMANDS["hunyuan_xiong"]
-    assert "--model" in command
-    assert command[command.index("--model") + 1] == "2.0"
+    assert Path(command[1]).name == "bootstrap_hunyuan_xiong.py" and "--yes" in command
 
 
 def test_removal_refuses_paths_outside_the_repo_and_cache(tmp_path, monkeypatch):
@@ -185,12 +191,6 @@ def test_removal_is_refused_while_that_backend_is_downloading(monkeypatch):
 # is spelled `.venv\\Scripts\\python.exe`, and the raw OSError went straight to the browser.
 
 
-def test_the_hunyuan_command_uses_this_os_s_interpreter_path():
-    program = Path(dl.COMMANDS["hunyuan_xiong"][0])
-    assert program.name in ("python", "python.exe")
-    assert program.parent.name in ("bin", "Scripts")
-
-
 def test_a_missing_venv_is_explained_rather_than_reported_as_errno_2(tmp_path):
     absent = tmp_path / "shape" / ".venv" / "bin" / "python"
     message = dl._missing_executable(str(absent))
@@ -218,6 +218,81 @@ def test_an_unsupported_machine_is_refused_before_anything_downloads(monkeypatch
     assert "Apple Silicon" in str(raised.value)
     assert "Nothing has been downloaded" in str(raised.value)
     assert "hunyuan_xiong" not in dl.DOWNLOADS
+
+
+def test_trellis_on_nvidia_runs_the_cuda_bootstrap_with_yes():
+    command = dl.command_for("trellis", host=dl.NVIDIA)
+    assert command[1].endswith("bootstrap_trellis_cuda.py")
+    assert command[-1] == "--yes"
+
+
+def test_trellis_on_a_mac_still_runs_the_metal_bootstrap():
+    command = dl.command_for("trellis", host="apple-silicon")
+    assert command == dl.COMMANDS["trellis"]
+    assert command[1].endswith("bootstrap_trellis_space_macos.py")
+
+
+def test_trellis_on_amd_runs_the_rocm_bootstrap():
+    """TRELLIS.2 on AMD is Microsoft's checkout built with HIP.
+
+    Without a host entry here the Setup page falls back to COMMANDS["trellis"], which is
+    the Metal port. That script refuses a machine that is not a Mac, so the button died
+    minutes in -- and before that check existed, it failed on `xcrun` after cloning four
+    repositories. Hit on a real AMD card.
+    """
+    command = dl.command_for("trellis", host=dl.AMD)
+    assert command[1].endswith("bootstrap_trellis_rocm.py")
+    assert command[-1] == "--yes"
+    assert dl.building_label("trellis", host=dl.AMD) == "building the ROCm version"
+
+
+@pytest.mark.parametrize("host", [dl.NVIDIA, dl.AMD])
+def test_no_machine_is_handed_the_metal_bootstrap(host):
+    """A general guard, not a trellis one: the Metal port builds through xcrun, so any
+    non-Mac given that script fails somewhere unhelpful."""
+    for backend_id in dl.COMMANDS:
+        command = dl.command_for(backend_id, host=host)
+        if command is None:
+            continue
+        assert "bootstrap_trellis_space_macos.py" not in command[1], (
+            f"{backend_id} on {host} runs the macOS bootstrap")
+
+
+def test_the_label_matches_the_command_being_run():
+    """A progress line that says CUDA while the ROCm build runs is worse than none."""
+    for host in ("apple-silicon", dl.NVIDIA, dl.AMD):
+        command = dl.command_for("trellis", host=host)
+        label = dl.building_label("trellis", host=host)
+        if "rocm" in command[1]:
+            assert "ROCm" in label
+        elif "cuda" in command[1]:
+            assert "CUDA" in label
+        else:
+            assert "Metal" in label
+
+
+def test_a_route_without_a_host_command_uses_the_shared_one():
+    assert dl.command_for("pixal3d", host=dl.NVIDIA) == dl.COMMANDS["pixal3d"]
+    assert dl.command_for("pixal3d", rebuild=True) == dl.REBUILDS["pixal3d"]
+    assert dl.command_for("trellis", rebuild=True) is None
+
+
+def test_the_command_follows_the_machine(monkeypatch):
+    import backend_catalog
+
+    monkeypatch.setattr(backend_catalog, "host_platform", lambda: backend_catalog.NVIDIA)
+    assert dl.command_for("trellis")[1].endswith("bootstrap_trellis_cuda.py")
+    assert dl.building_label("trellis") == "building the CUDA version"
+    monkeypatch.setattr(backend_catalog, "host_platform", lambda: backend_catalog.APPLE)
+    assert dl.building_label("trellis") == "building the Metal port"
+
+
+def test_a_setup_run_on_nvidia_holds_the_cuda_command(monkeypatch):
+    import backend_catalog
+
+    monkeypatch.setattr(backend_catalog, "host_platform", lambda: backend_catalog.NVIDIA)
+    run = dl.DownloadRun(backend_catalog.BY_ID["trellis"])
+    assert run.command[1].endswith("bootstrap_trellis_cuda.py")
 
 
 def test_every_route_claiming_automated_setup_actually_has_a_command():
@@ -327,3 +402,189 @@ def test_the_catalog_carries_a_rebuild_reason_only_where_the_backend_runs():
     out = generate_api.with_rebuild_reasons(catalog, reason=lambda backend_id: "stale")
     assert out["backends"][0]["rebuild_reason"] == "stale"
     assert out["backends"][1]["rebuild_reason"] is None
+
+
+def test_the_tab_the_setup_page_draws_carries_the_rebuild_reason_too():
+    """setup.js renders `views[host]`, not `backends`; a reason only on `backends` meant the
+    Rebuild button never appeared once the page grew one tab per machine."""
+    import generate_api
+    from backend_catalog import AMD, catalog_status
+
+    out = generate_api.with_rebuild_reasons(catalog_status(AMD),
+                                            reason=lambda backend_id: "stale")
+    pixal = next(b for b in out["views"][AMD] if b["id"] == "pixal3d")
+    assert pixal["rebuild_reason"] == "stale"
+
+
+def test_a_page_loaded_mid_setup_can_find_the_run_again(monkeypatch):
+    # A setup runs 30-60 minutes; a refreshed or reopened Setup page must reattach to it
+    # instead of showing idle "Set up" buttons that refuse with "already running".
+    monkeypatch.setattr(dl, "DOWNLOADS", {})
+    assert dl.running_payload() is None
+    run = dl.DownloadRun(dl.BY_ID["pixal3d"])
+    run.status = "running"
+    dl.DOWNLOADS["pixal3d"] = run
+    assert dl.running_payload() == {
+        "backend": "pixal3d", "rebuild": False,
+        "events_url": "/api/setup/pixal3d/events",
+    }
+    run.status = "done"
+    assert dl.running_payload() is None
+
+
+def test_a_download_timeout_buried_above_a_traceback_is_still_explained():
+    # Seen on a real pod: uv's "Failed to download ... operation timed out" sat above a
+    # 20-line Python traceback, so the user got the traceback's last line instead.
+    log = ["  x Failed to download `nvidia-cudnn-cu12==9.10.2.21`",
+           "  |-> Request failed after 3 retries", "  `-> operation timed out",
+           "Traceback (most recent call last):"] + [f"  frame {i}" for i in range(20)] + [
+           "subprocess.CalledProcessError: Command '[uv, pip, install]' returned 1."]
+    message = dl._explain(1, log)
+    assert "network" in message and "Set up again" in message
+
+
+def test_finished_nvidia_trellis_setup_does_not_promise_a_later_download(monkeypatch):
+    monkeypatch.setattr(dl, "_this_host", lambda: dl.NVIDIA)
+    assert dl.done_detail(dl.BY_ID["trellis"], present=16 * 1024 ** 3).startswith("done ·")
+    monkeypatch.setattr(dl, "_this_host", lambda: "apple")
+    assert "first generation run" in dl.done_detail(dl.BY_ID["trellis"], present=0)
+
+
+def test_hunyuan_cuda_sets_up_with_its_own_bootstrap_and_says_cuda():
+    command = dl.command_for("hunyuan-cuda", host=dl.NVIDIA)
+    assert command[1].endswith("bootstrap_hunyuan_cuda.py") and command[-1] == "--yes"
+    assert dl.building_label("hunyuan-cuda", host=dl.NVIDIA) == "building the CUDA version"
+
+
+def test_files_already_on_disk_do_not_make_a_build_look_stalled():
+    # Seen on a real pod: the shared background remover (214 MB) was already there from
+    # another route, so Hunyuan's rasterizer compile read "stalled" after 90 s. Only bytes
+    # this setup has fetched count, and until there are some the step is shown.
+    backend = dl.BY_ID["hunyuan-cuda"]
+    line = dl.describe_progress(backend, present=214 * 1024 ** 2, rate=None, eta=None,
+                                stalled=dl.is_stalled(0, 10 * dl.STALL_SECONDS),
+                                step="Building custom-rasterizer", fetched=0)
+    assert line["detail"] == "Building custom-rasterizer" and line["stalled"] is False
+
+
+def _sharing(tmp_path, monkeypatch):
+    """Two routes and the remover's own card, all declaring one remover file."""
+    import dataclasses
+
+    shared = tmp_path / "birefnet-lite.onnx"
+    shared.write_bytes(b"x" * 10)
+    own = tmp_path / "own-weights"
+    own.mkdir()
+    (own / "w.bin").write_bytes(b"y" * 20)
+    real = dl.BY_ID["pixal3d"]
+    lite = dataclasses.replace(real.weights[0], path=shared)
+    mine = dataclasses.replace(real.weights[0], path=own)
+    monkeypatch.setitem(dl.BY_ID, "route-a", dataclasses.replace(real, id="route-a", weights=(mine, lite)))
+    monkeypatch.setitem(dl.BY_ID, "route-b", dataclasses.replace(real, id="route-b", weights=(lite,)))
+    monkeypatch.setitem(dl.BY_ID, "remover", dataclasses.replace(
+        dl.BY_ID["matte"], id="remover", weights=(lite,)))
+    monkeypatch.setattr(dl, "_inside_known_roots", lambda path: True)
+    return shared, own
+
+
+def test_removing_a_route_keeps_files_another_route_uses(tmp_path, monkeypatch):
+    # Seen on a real pod: Pixal3D offered "Delete 213.6 MB of weights", and that was the
+    # background remover TRELLIS and Hunyuan cut out with.
+    shared, own = _sharing(tmp_path, monkeypatch)
+    result = dl.remove("route-a")
+    assert not own.exists() and shared.is_file()
+    assert result["freed_bytes"] == 20
+
+
+def test_the_removers_own_card_can_still_remove_it(tmp_path, monkeypatch):
+    shared, _ = _sharing(tmp_path, monkeypatch)
+    dl.remove("remover")
+    assert not shared.exists()
+
+
+# --- a weight that is one file inside a shared Hugging Face folder ----------------------------
+
+
+def _hf_folder(tmp_path):
+    """A Hugging Face cache folder holding a big model and a small extra, both as snapshot
+    links into blobs/, the way the hub lays them out."""
+    repo = tmp_path / "models--Qwen--Qwen3-VL-8B-Instruct-GGUF"
+    (repo / "blobs").mkdir(parents=True)
+    snap = repo / "snapshots" / "abc123"
+    snap.mkdir(parents=True)
+    for name, size in (("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 50), ("mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf", 7)):
+        blob = repo / "blobs" / f"sha-{size}"
+        blob.write_bytes(b"z" * size)
+        (snap / name).symlink_to(os.path.relpath(blob, snap))
+    return repo
+
+
+def _vision_weight(repo):
+    from backend_catalog import WeightSet
+    return WeightSet("vision", "Qwen/Qwen3-VL-8B-Instruct-GGUF", 7, repo,
+                     pattern="snapshots/*/mmproj-*.gguf")
+
+
+def test_a_patterned_weight_measures_only_its_own_file(tmp_path):
+    weight = _vision_weight(_hf_folder(tmp_path))
+    present, total, alt = weight.state()
+    assert (present, total, alt) == (True, 7, None)
+    assert weight.describe()["bytes_present"] == 7
+
+
+def test_a_patterned_weight_is_missing_when_its_file_is(tmp_path):
+    repo = _hf_folder(tmp_path)
+    for link in repo.glob("snapshots/*/mmproj-*"):
+        link.unlink()
+    assert _vision_weight(repo).state()[:2] == (False, 0)
+
+
+def test_removing_a_patterned_weight_deletes_its_file_and_keeps_the_folder(tmp_path, monkeypatch):
+    import dataclasses
+    repo = _hf_folder(tmp_path)
+    monkeypatch.setitem(dl.BY_ID, "front-back-test", dataclasses.replace(
+        dl.BY_ID["matte"], id="front-back-test", weights=(_vision_weight(repo),)))
+    monkeypatch.setattr(dl, "_inside_known_roots", lambda path: True)
+    result = dl.remove("front-back-test")
+    assert result["freed_bytes"] == 7
+    assert not list(repo.glob("snapshots/*/mmproj-*")) and not (repo / "blobs" / "sha-7").exists()
+    assert (repo / "blobs" / "sha-50").is_file() and repo.is_dir()   # Qwen's own model stays
+
+
+def test_a_patterned_weight_does_not_make_its_whole_folder_shared(tmp_path):
+    import dataclasses
+
+    from backend_catalog import WeightSet, is_shared
+    repo = _hf_folder(tmp_path)
+    whole = WeightSet("llm", "Qwen/Qwen3-VL-8B-Instruct-GGUF", 50, repo)
+    qwen = dataclasses.replace(dl.BY_ID["qwen-image"], id="q-test", weights=(whole,))
+    extra = dataclasses.replace(dl.BY_ID["matte"], id="x-test", kind="3d", weights=(_vision_weight(repo),))
+    import backend_catalog
+    backend_catalog.BY_ID.update({"q-test": qwen, "x-test": extra})
+    try:
+        assert not is_shared(qwen, whole)
+    finally:
+        backend_catalog.BY_ID.pop("q-test"), backend_catalog.BY_ID.pop("x-test")
+
+
+def test_trellis_on_a_linux_card_shows_bytes_not_a_clock():
+    """TRELLIS.2's setup on NVIDIA and AMD fetches 16 GB after the build. The size watcher
+    was chosen from the Mac's answer (fetches nothing), so that download showed only
+    "minutes elapsed"."""
+    run = dl.DownloadRun(dl.BY_ID["trellis"])
+    assert dl.measures_bytes(run, dl.AMD)
+    assert dl.measures_bytes(run, dl.NVIDIA)
+    assert not dl.measures_bytes(run, "apple-silicon")
+    assert not dl.measures_bytes(dl.DownloadRun(dl.BY_ID["pixal3d"], rebuild=True), dl.AMD)
+
+
+def test_a_compile_error_is_not_mistaken_for_a_sign_in_problem():
+    """GCC and hipcc both end a syntax error with "... before '}' token". The AMD builds
+    compile for half an hour, so that line is a likely last word, not a login hint."""
+    message = dl._explain(1, ["custom_rasterizer.cpp:12: error: expected ';' before '}' token"])
+    assert "login" not in message
+    assert "before '}' token" in message
+
+
+def test_a_bad_token_is_still_a_sign_in_problem():
+    assert "login" in dl._explain(1, ["huggingface_hub.errors: Invalid user token."])

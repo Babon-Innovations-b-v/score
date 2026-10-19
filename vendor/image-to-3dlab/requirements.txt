@@ -9,8 +9,14 @@ requests>=2.32
 rembg==2.0.69
 numpy<2
 onnxruntime>=1.18
-huggingface-hub>=0.23
+huggingface-hub>=0.24  # auth_check: the Setup page asks whether gated models are reachable
 trimesh>=4.0
+# Pixel Match's local colour fix solves a sparse system (already pulled in by rembg).
+scipy>=1.10
+# Pixel Match's alignment matches picture patches (already pulled in by rembg).
+opencv-python-headless>=4.8
 fast_simplification>=0.1.7
 rtree>=1.2
 
+# The MCP server agents connect to (./lab mcp). 2.x: FastMCP became MCPServer.
+mcp>=2.3,<3

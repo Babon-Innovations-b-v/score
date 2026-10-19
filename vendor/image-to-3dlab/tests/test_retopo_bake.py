@@ -83,6 +83,14 @@ def test_rejects_a_face_target_too_low_to_hold_a_silhouette():
 def test_rejects_a_bad_atlas_size():
     with pytest.raises(SystemExit):
         retopo.parse_args(["--", "a.glb", "b.glb", "20000", "3000"])
+    with pytest.raises(SystemExit):
+        retopo.parse_args(["--", "a.glb", "b.glb", "20000", "128"])
+
+
+@pytest.mark.parametrize("size", [256, 512])
+def test_accepts_the_small_atlases_far_lods_use(size):
+    """finish_props.py halves the atlas per LOD, so the far ones are 512 and 256."""
+    assert retopo.parse_args(["--", "a.glb", "b.glb", "2000", str(size)])[3] == size
 
 
 def test_missing_arguments_exit_with_usage():
@@ -102,6 +110,11 @@ def test_ray_distance_scales_with_the_asset():
 
 def test_ray_distance_uses_the_largest_dimension():
     assert retopo.ray_distance((1.0, 5.0, 2.0)) == pytest.approx(retopo.ray_distance((5.0, 5.0, 5.0)))
+
+
+def test_ray_distance_is_short_enough_to_miss_parts_in_front():
+    """At 2% of the model's size, brows and lips in front of a face painted over it."""
+    assert retopo.ray_distance((1.0, 1.0, 1.0)) == pytest.approx(0.005)
 
 
 def test_ray_distance_is_a_small_fraction_not_the_whole_body():
