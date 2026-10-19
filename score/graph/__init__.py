@@ -115,6 +115,34 @@ class Blocked(Exception):
     """A node cannot run: an input is missing, or an earlier node failed, answered unknown or is not accepted."""
 
 
+def passes_euros_on(code):
+    """Whether a function takes `euros` or any keyword (a table helper that hands a row's estimate on)."""
+    return "euros" in code.co_varnames[:code.co_argcount + code.co_kwonlyargcount] or bool(code.co_flags & 0x08)
+
+
+def row_written_at():
+    """`<file>:<line>` of the stage row being built: the first caller outside this module and the dataclass
+    machinery, or, while that caller is a helper of the same file that hands `euros` on, the line calling it."""
+    frame = sys._getframe(1)
+    while frame.f_code.co_filename in (__file__, "<string>") or frame.f_code.co_filename.endswith("dataclasses.py"):
+        frame = frame.f_back
+    while (frame.f_back is not None and frame.f_back.f_code.co_filename == frame.f_code.co_filename
+           and passes_euros_on(frame.f_code)):
+        frame = frame.f_back
+    path = pathlib.Path(frame.f_code.co_filename)
+    return f"{path.relative_to(_code.REPO) if path.is_relative_to(_code.REPO) else path}:{frame.f_lineno}"
+
+
+def replaced_row():
+    """The row a dataclasses.replace call is building this one from, or None outside one."""
+    frame = sys._getframe(1)
+    while frame is not None:
+        if frame.f_code.co_name in ("replace", "_replace") and frame.f_code.co_filename.endswith("dataclasses.py"):
+            return frame.f_locals.get("obj")
+        frame = frame.f_back
+    return None
+
+
 @dataclass(frozen=True)
 class Stage:
     """One row of the stage table.
@@ -142,6 +170,9 @@ class Stage:
     gapped: names in `after` the node also reads when their only blocking check is GAPPED, the place's named gaps
     (a dated decision): the output on its current key, which the runner never accepts as it fails, unless the owner
     rejected it; any other fault still stops the node (demo-film on complete, the overseer, 2026-10-15).
+    euros_from: where the row naming its estimate is written, `<file>:<line>` (set when the row is built: the line
+    that builds it, through a helper of the same file that passes its `euros` on), so a guess says where it comes
+    from. Never in a key.
     """
     name: str
     grain: str
@@ -160,8 +191,13 @@ class Stage:
     neighbours: Callable = None
     optional: tuple = ()
     gapped: tuple = ()
+    euros_from: str = field(default=None, init=False, compare=False)
 
     def __post_init__(self):
+        if self.euros is not None:
+            earlier = replaced_row()
+            kept = earlier is not None and earlier.euros == self.euros and earlier.euros_from
+            object.__setattr__(self, "euros_from", kept or row_written_at())
         if self.grain not in GRAINS:
             raise ValueError(f"stage {self.name}: grain {self.grain!r} is not one of {GRAINS}")
         if not isinstance(self.contract, contracts.Contract):
