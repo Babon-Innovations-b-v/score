@@ -1,44 +1,60 @@
 {% extends "pages/base.html" %}
-{% block title %}Launch basket{% endblock %}
+{% block title %}Basket{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Basket</h1></div>
-{% if chosen %}
-<section class="checkout">
-  <div class="change-tiles">{% for item in chosen.items %}<div class="tile change-tile">
-    <a class="two-up single" href="/place/{{ item.place }}/#change-{{ item.id }}"><div class="frame">{% with still=item.stills.0 %}{% include "pages/pic.html" with src=still.thumb_url name="proposed" %}{% endwith %}</div></a>
-    <div class="change-body"><a class="tile-name" href="/place/{{ item.place }}/#change-{{ item.id }}">{{ item.place|capfirst }}</a><p class="fixes">{{ item.fixes|capfirst }}</p>{% include "pages/change_state.html" %}</div>
-  </div>{% endfor %}</div>
-  <div class="card total-card">
-    <div class="money-grid">
-      <div>
-        <div class="eyebrow">Your basket</div>
-        <div class="money-total">{% if chosen.high is not None %}at most EUR {{ chosen.high|floatformat:2 }}{% else %}<span class="unknown">price not known yet</span>{% endif %}</div>
-        {% if chosen.likely is not None %}<p class="soft">likely EUR {{ chosen.likely|floatformat:2 }}</p>{% endif %}
-      </div>
-      <div>
-        <div class="eyebrow">{{ money.environment }} so far</div>
-        {% if money.stop %}<p>EUR {{ money.spent|default:0|floatformat:2 }} spent of your EUR {{ money.stop|floatformat:0 }} stop; EUR {{ money.room|floatformat:2 }} of room.</p>
-        {% else %}<p class="stopless">No stop set: paid launches refused.</p><pre class="command">{{ money.stop_line }}</pre>{% endif %}
-      </div>
-    </div>
-    {% if owner and chosen.high is not None %}
-    <form class="checkout-form" data-post="/api/changes/checkout">
-      <label class="confirm"><input type="checkbox" name="confirm" value="yes" required> You are buying {{ chosen.items|length }} change{{ chosen.items|length|pluralize }} for at most EUR {{ chosen.high|floatformat:2 }}</label>
-      <button class="primary big">Buy</button>
-      <output class="small"></output>
+<div class="page-head basket-head">
+  <div class="grow">
+    <h1>Basket</h1>
+    <p class="soft lede">Everything a run would buy now, item by item. Open one to see what it changes, in 3D and in a list, before anything is paid.</p>
+  </div>
+  <div class="card bought-card" id="checkout">
+    <div class="eyebrow">You chose to buy</div>
+    <div class="money-total">{% if chosen_items.count %}{% if chosen_items.high is not None %}at most EUR {{ chosen_items.high|floatformat:2 }}{% else %}<span class="unknown">not measured yet</span>{% endif %}{% else %}nothing yet{% endif %}</div>
+    <p class="soft small">{{ chosen_items.count }} item{{ chosen_items.count|pluralize }} chosen{% if chosen_items.likely is not None and chosen_items.count %}, likely EUR {{ chosen_items.likely|floatformat:2 }}{% endif %}; {{ waiting }} still to look at.</p>
+    {% if chosen_items.count and chosen_items.guessed_jobs %}<p class="soft small">Not in this price: {{ chosen_items.guessed_jobs }} job{{ chosen_items.guessed_jobs|pluralize }} never measured, guessed at EUR {{ chosen_items.guessed|floatformat:2 }}.</p>{% endif %}
+    {% if owner and chosen_items.count %}
+    <form method="post" action="/basket/checkout/" class="checkout-form">{% csrf_token %}
+      <input type="hidden" name="key" value="{{ checkout_key }}">
+      <label class="tick"><input type="checkbox" name="confirm" value="yes"> I buy these{% if chosen_items.high is not None %}, at most EUR {{ chosen_items.high|floatformat:2 }}{% endif %}</label>
+      <button type="submit" class="primary wide">Check out</button>
     </form>
     {% endif %}
+    {% if last_checkout %}<p class="small last-checkout">{{ last_checkout }}</p>{% endif %}
+  </div>
+</div>
+
+{% if not places %}<div class="empty card"><p>Nothing to buy: a run on main would make nothing paid now.{% if made_at %} Read {{ made_at|slice:":16" }} UTC.{% endif %}</p></div>{% endif %}
+
+{% for group in places %}
+<section class="basket-place">
+  <div class="group-head">
+    {% if group.hero %}<img class="look-ref" src="{{ group.hero }}" alt="{{ group.name }} now" loading="lazy">{% endif %}
+    <h2>{{ group.name|capfirst }}</h2>
+    {% if group.place %}<a class="small" href="/place/{{ group.place }}/">the place</a>{% endif %}
+  </div>
+  <div class="item-tiles">
+    {% for tile in group.tiles %}
+    <a class="tile item-tile{% if tile.choice %} answered {{ tile.choice.choice }}{% endif %}" id="item-{{ tile.id }}" href="/basket/item/{{ tile.id }}/">
+      <div class="frame">{% include "pages/pic.html" with src=tile.picture name=tile.name %}{% if tile.choice %}<span class="corner pill {{ tile.choice.choice }}">{{ tile.choice.said }}</span>{% endif %}{% if tile.questions %}<span class="corner ask">{{ tile.questions }} question{{ tile.questions|pluralize }}</span>{% endif %}</div>
+      <div class="item-body">
+        <span class="tile-name">{{ tile.name }}</span>
+        <span class="small soft">{{ tile.summary }}</span>
+        <span class="item-price">{% if tile.waiting %}<span class="unknown">not bought by a run yet</span>{% elif tile.price.high is not None %}about EUR {{ tile.price.likely|floatformat:2 }}{% if tile.price.high != tile.price.likely %}, at most {{ tile.price.high|floatformat:2 }}{% endif %}{% if tile.price.guessed_jobs %} <span class="soft small">+ {{ tile.price.guessed_jobs }} guessed</span>{% endif %}{% else %}<span class="unknown">not measured yet</span> <span class="soft small">guess EUR {{ tile.price.guessed|floatformat:2 }}</span>{% endif %}</span>
+        {% if tile.missing %}<span class="small bad-words">inputs missing: cannot be bought yet</span>{% endif %}
+      </div>
+    </a>
+    {% endfor %}
   </div>
 </section>
-<h2>Steps queued by hand</h2>
-{% endif %}
+{% endfor %}
+
+{% if items or refine or plan %}<h2>Steps you queued by hand</h2>{% endif %}
 {% for card in items %}
 <section class="style"><div class="style-head">
   {% if card.hero %}<img src="{{ card.hero.thumb_url }}" alt="{{ card.place }}">{% endif %}
   <div><h3>{{ card.place|capfirst }}</h3>
   {% for item in card.items %}<div>{{ item.stage }} {% if owner %}<form class="inline" method="post" action="/basket/change/">{% csrf_token %}<input type="hidden" name="what" value="remove"><input type="hidden" name="item" value="{{ item.pk }}"><button class="small">remove</button></form>{% endif %}</div>{% endfor %}</div>
 </div></section>
-{% empty %}<p class="soft">Nothing queued. Queue steps from a step's page.</p>{% endfor %}
+{% endfor %}
 
 {% if refine %}
 <h2>Library entries to refine</h2>

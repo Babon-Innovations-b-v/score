@@ -20,7 +20,7 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 const given = JSON.parse(document.getElementById("view3d-data").textContent);
 const place = given.place;
-const base = given.base || `/web/${place}/`;  // the current copy, or a proposed version's
+const base = given.base || `/web/${place}/`;  // the current copy, or a basket item's free after
 // The hidden layers: none, or, from a breakdown's "show in 3D" (given.only), every layer but those named until its box
 // is ticked.
 class Hidden extends Set {
@@ -260,7 +260,7 @@ THREE.ShaderChunk.lights_fragment_maps = THREE.ShaderChunk.lights_fragment_maps.
 // The place drawn into a cube from `at` against its sky's own radiance (the dome the films light with), lamps,
 // shadows, haze and the far city's simplified towers chosen for that spot first.
 function probeAt(at) {
-  const helpers = [person, measure.marks, effects];
+  const helpers = [person, measure.marks, effects, changeMarks];
   const were = helpers.map((helper) => helper.visible);
   helpers.forEach((helper) => { helper.visible = false; });
   chooseLamps(at);
@@ -957,6 +957,35 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+// --- a basket item's changes ---------------------------------------------------------------------------------
+// What a basket item changes, outlined over the place (given.marks: boxes from the two stages' difference, in the
+// stage's own metres), drawn through walls and left out of the probe; the first look aims at them.
+const MARK_COLOURS = { added: 0x4fd18b, moved: 0xf2c14e, reshaped: 0xf2c14e, refinished: 0x8ab4ff, lamp: 0xffd400,
+                       removed: 0xff7b72 };
+const changeMarks = new THREE.Group();
+scene.add(changeMarks);
+
+function markChanges(marks) {
+  for (const mark of marks) {
+    const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high)).expandByScalar(0.03);
+    const outline = new THREE.Box3Helper(box, MARK_COLOURS[mark.kind] || 0xffffff);
+    outline.material.depthTest = false;
+    outline.renderOrder = 10;
+    changeMarks.add(outline);
+  }
+  $("to-changes").hidden = !marks.length;
+}
+
+// From `from` (a camera), looking at the middle of what changes; `from` itself when nothing is outlined.
+function lookingAtChanges(from) {
+  if (!changeMarks.children.length || !from) return from;
+  const box = new THREE.Box3();
+  for (const outline of changeMarks.children) box.union(outline.box);
+  return { eye: from.eye, aim: box.getCenter(new THREE.Vector3()).toArray(), fov: from.fov };
+}
+
+$("to-changes").onclick = () => goTo(lookingAtChanges({ eye: camera.position.toArray(), aim: null, fov: null }));
+
 // --- loading --------------------------------------------------------------------------------------------------
 
 function goTo(view) {
@@ -1136,7 +1165,9 @@ async function open() {
   addLamps(sidecar.lights || []);
   addEffects(sidecar.effects || []);
   viewButtons();
-  const first = linkedView() || given.at || (sidecar.cameras || [])[0];  // a breakdown link: the film's camera
+  markChanges(given.marks || []);
+  // a breakdown link: the film's camera; a basket item: the first camera turned to what it changes
+  const first = linkedView() || given.at || lookingAtChanges((sidecar.cameras || [])[0]);
   if (first) aimAt(first.eye, first.aim, first.fov);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   requestAnimationFrame(frame);

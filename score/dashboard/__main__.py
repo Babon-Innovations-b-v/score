@@ -6,12 +6,14 @@
     .venv/bin/python -m score.dashboard sync              # store side: push the export, pull and apply requests
     .venv/bin/python -m score.dashboard check             # Django's checks of the settings
     .venv/bin/python -m score.dashboard web3d <place>     # a place's fresh 3D web copy (web3d/convert.py), free
-    .venv/bin/python -m score.dashboard propose <branch> <place>   # a fix branch's proposal for a place, free
-    .venv/bin/python -m score.dashboard proposals-finish [--no-before]  # price every proposal, draw its before stills
-    .venv/bin/python -m score.dashboard proposal-words <branch> <place> --says "..." [--ask "..." --recommend "..."]
+    .venv/bin/python -m score.dashboard basket [--place P ...]  # what a run on main would buy, its free details
+    .venv/bin/python -m score.dashboard basket-item <id> [--title T] [--says S] [--node PATTERN ...] [--picture P ...]
+        [--file F ...] [--ask Q --recommend A ...]   # a department's basket item, its words and questions
+    .venv/bin/python -m score.dashboard basket-answers   # the owner's answers to the basket's questions, as JSON
 """
 import argparse
 import os
+import pathlib
 import sys
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "score.dashboard.site.settings")
@@ -29,20 +31,18 @@ def parse(argv):
     web3d.add_argument("place")
     web3d.add_argument("--store", help="the store folder (default $PROPS_HOME/store)")
     web3d.add_argument("--out", help="default SCORE_WEB_COPIES, where the viewer reads it")
-    propose = commands.add_parser("propose", help="a fix branch's proposal for one place, made for free (proposals/)")
-    propose.add_argument("branch")
-    propose.add_argument("place")
-    propose.add_argument("--media", default=os.environ.get("SCORE_PROPOSAL_MEDIA"),
-                         help="a folder of each branch's draft films and sounds, <media>/<branch>/")
-    propose.add_argument("--no-stills", action="store_true", help="leave out the Blender stills")
-    finishing = commands.add_parser("proposals-finish", help="price every proposal and draw its before stills")
-    finishing.add_argument("--no-before", action="store_true", help="price only, no Blender")
-    words = commands.add_parser("proposal-words", help="the owner's words of a proposal: what it fixes, a question")
-    words.add_argument("branch")
-    words.add_argument("place")
+    basket = commands.add_parser("basket", help="what a run on main would buy, its items' free details (proposals/)")
+    basket.add_argument("--place", action="append", default=[], help="make only this place's details again")
+    words = commands.add_parser("basket-item", help="a department's basket item: its words, nodes and questions")
+    words.add_argument("item")
+    words.add_argument("--title", help="the item's name, as the owner reads it")
+    words.add_argument("--node", action="append", default=[], help="a pattern of the paid nodes it takes (any place)")
+    words.add_argument("--picture", action="append", default=[], help="a picture it is made from (a plan, a drawing)")
+    words.add_argument("--file", action="append", default=[], help="a short text it is made from (a brief)")
+    commands.add_parser("basket-answers", help="the owner's answers to the basket's questions, as JSON")
     words.add_argument("--says", help="one plain sentence: the fault in the place this fixes, as the owner sees it")
-    words.add_argument("--ask", help="a decision only the owner can make, as a question")
-    words.add_argument("--recommend", help="the answer you recommend and carry on with")
+    words.add_argument("--ask", action="append", default=[], help="a decision only the owner can make (repeat)")
+    words.add_argument("--recommend", action="append", default=[], help="the answer you recommend, one an --ask")
     return parser.parse_args(argv)
 
 
@@ -123,44 +123,50 @@ def web3d(place, store, out):
                   "--out", out or str(settings.SCORE_WEB_COPIES)])
 
 
-def propose(branch, place, media, with_stills):
-    """Make the branch's proposal for the place into the dashboard's home (proposals/propose.py)."""
+def basket(places):
+    """Make the basket into the dashboard's home (proposals/make.py): one summary line."""
     from django.conf import settings
 
-    from score.dashboard.proposals import propose as proposing
-    try:
-        folder = proposing.propose(branch, place, settings.SCORE_HOME, settings.SCORE_PROPS_HOME / "store", media,
-                                   with_stills)
-    except proposing.Refused as refused:
-        sys.exit(f"refused: {refused}")
-    print(f"proposal of {branch} at {place}: {folder}")
+    from score.dashboard.proposals import make
+    made = make.make(settings.SCORE_HOME, settings.SCORE_PROPS_HOME / "store", tuple(places),
+                     say=lambda line: print(line, flush=True))
+    print(f"basket: {len(made['items'])} items, {sum(len(item['nodes']) for item in made['items'])} paid nodes; "
+          f"{settings.SCORE_HOME / 'proposals'}")
 
 
-def proposals_finish(with_before):
-    """Price every proposal and draw its before stills where due (proposals/finish.py)."""
-    from django.conf import settings
+def declaration(options):
+    """A basket item's declared fields from its command line (only those given); SystemExit when a question has no
+    recommended answer."""
+    if len(options.ask) != len(options.recommend):
+        sys.exit("refused: every question needs the answer you recommend (an --ask and a --recommend each)")
+    fields = {"title": options.title, "sentence": options.says, "nodes": options.node,
+              "pictures": [str(pathlib.Path(path).resolve()) for path in options.picture],
+              "files": [str(pathlib.Path(path).resolve()) for path in options.file],
+              "questions": [{"ask": ask, "recommended": recommended}
+                            for ask, recommended in zip(options.ask, options.recommend)]}
+    return {name: value for name, value in fields.items() if value}
 
-    from score.dashboard.proposals import finish
-    root = settings.SCORE_HOME / "proposals"
-    changed = finish.finish_all(root, settings.SCORE_PROPS_HOME / "store", with_before)
-    names = ", ".join(f"{branch}@{place}" for branch, place in changed) or "none due"
-    print(f"finished {len(changed)} proposals: {names}")
 
-
-def proposal_words(branch, place, says, ask, recommend):
-    """Write the owner's words into a made proposal (records.WORDS)."""
+def basket_item(options):
+    """Keep a department's basket item (records.declared), kept across makes; it shows from the next basket make."""
     from django.conf import settings
 
     from score.dashboard.proposals import records
-    if bool(ask) != bool(recommend):
-        sys.exit("refused: a question needs the answer you recommend (--ask with --recommend)")
-    fields = {name: value for name, value in (("sentence", says), ("question", ask), ("recommended", recommend))
-              if value}
+    fields = declaration(options)
     if not fields:
-        sys.exit("refused: nothing to write (--says, --ask with --recommend)")
-    if records.amend(settings.SCORE_HOME / "proposals", branch, place, fields) is None:
-        sys.exit(f"refused: no proposal of {branch} at {place}: python -m score.dashboard propose {branch} {place}")
-    print(f"proposal of {branch} at {place}: {', '.join(sorted(fields))} written")
+        sys.exit("refused: nothing to write (--title, --says, --node, --picture, --file, --ask with --recommend)")
+    records.put_declared(settings.SCORE_HOME / "proposals", options.item, fields)
+    print(f"basket item {options.item}: {', '.join(sorted(fields))} written; shown from the next basket make")
+
+
+def basket_answers():
+    """Print the owner's answers to the basket's questions (records.answers) as one JSON object."""
+    import json
+
+    from django.conf import settings
+
+    from score.dashboard.proposals import records
+    print(json.dumps(records.answers(settings.SCORE_HOME / "proposals"), indent=1))
 
 
 def main(argv=None):
@@ -177,12 +183,12 @@ def main(argv=None):
         sync()
     elif options.command == "web3d":
         web3d(options.place, options.store, options.out)
-    elif options.command == "propose":
-        propose(options.branch, options.place, options.media, not options.no_stills)
-    elif options.command == "proposals-finish":
-        proposals_finish(not options.no_before)
-    elif options.command == "proposal-words":
-        proposal_words(options.branch, options.place, options.says, options.ask, options.recommend)
+    elif options.command == "basket":
+        basket(options.place)
+    elif options.command == "basket-item":
+        basket_item(options)
+    elif options.command == "basket-answers":
+        basket_answers()
     else:
         check()
 
