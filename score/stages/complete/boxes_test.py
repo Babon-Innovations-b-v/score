@@ -29,10 +29,11 @@ def inventory(place):
 
 
 def test_the_rows_no_other_box_row_measures():
-    """Both ways: the cockpit's code rows (its door leaf, its deck plates) are measured here, its machine-boxed rows
-    (the pilot seat, flagged ground_box) are not; the row applies to a ship place and not to an old one."""
+    """Both ways: the cockpit's boxed code rows (its door frame, its deck plates) are measured here, its machine-boxed
+    rows (the pilot seat, flagged ground_box) and its unseen door leaf (box null since 436aefa3) are not; the row
+    applies to a ship place and not to an old one."""
     rows = {row["id"] for row in boxes.other_rows(inventory("cockpit"))}
-    assert {"door_leaf", "ring_floor_plate", "hatch_door_frame"} <= rows and "pilot_seat" not in rows, rows
+    assert {"ring_floor_plate", "hatch_door_frame"} <= rows and not {"pilot_seat", "door_leaf"} & rows, rows
     row = next(row for row in stages.STAGES if row.name == "complete-boxes")
     if not stages.ship_place("cockpit"):
         raise SystemExit("cockpit has no ship base stage on this machine (usd-ship/cockpit): cannot test the table")
