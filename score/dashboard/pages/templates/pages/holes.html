@@ -1,15 +1,35 @@
 {% if holes %}
 <section class="holes" id="holes" aria-label="what this place still needs">
-  <div class="group-head"><h2>What this place still needs</h2><div class="grow"></div>
+  <div class="group-head"><h2>What this place still needs ({{ place_money.holes }})</h2><div class="grow"></div>
     <a class="button" href="/view/{{ detail.place }}?holes=1">Holes in 3D</a></div>
+  {% if place_money.money %}
+  <p>Every paid step its holes' chains need, each once: likely EUR {{ place_money.money.likely|floatformat:2 }}, high EUR {{ place_money.money.high|floatformat:2 }} measured{% if place_money.money.guessed %}, plus EUR {{ place_money.money.guessed|floatformat:2 }} <span class="unknown">guessed, not a price</span>{% endif %}. {{ place_money.money.measured }} of {{ place_money.money.paid }} paid step{{ place_money.money.paid|pluralize }} {{ place_money.money.measured|pluralize:"has,have" }} a measured price.</p>
+  {% elif price_said %}<p><span class="unknown">No price</span>: {{ price_said }}.</p>{% endif %}
+
+  {% if tree %}
+  <details class="fold hole-tree" open><summary>Where the holes are</summary><div class="fold-body">
+    <p class="small soft">The holes layer only: {% if detail.usd_index.root %}the place's whole OpenUSD index is in the details below{% else %}no assembly of this place stands accepted, so there is no whole scene tree to show yet{% endif %}.
+      <span class="badge missing">not made yet</span> <span class="badge gate">failing a check</span>
+      <span class="badge route">route step not done</span> <span class="badge lost">lost input</span>
+      A grey row is a placeholder: a row of the scene inventory with nothing made for it.</p>
+    <ul class="tree">{% include "pages/hole_tree.html" with node=tree %}</ul>
+  </div></details>
+  {% endif %}
+
   {% for group in holes %}
   <h3>{{ group.title }} ({{ group.count }})</h3>
+  <p class="small soft">If left, {{ group.left }}</p>
   <ul class="hole-list">{% for line in group.lines %}
-    <li>{{ line.sentence }}
+    <li id="{{ line.anchor }}" data-anchor="{{ line.anchor }}">{{ line.sentence }}
+      <span class="source small">{{ line.source }}</span>
+      {% if line.needs %}<span class="small">{{ line.needs|capfirst }}.</span>{% else %}<span class="soft">{{ line.short|capfirst }}.</span>{% endif %}
       {% if line.item_url %}<a href="{{ line.item_url }}">in your basket</a>.{% endif %}
-      {% if line.price %}<span class="small">{{ line.price|capfirst }}.</span>{% else %}<span class="soft">{{ line.said|capfirst }}.</span>{% endif %}</li>
+      {% if line.view_url %}<a class="small" href="{{ line.view_url }}">frame it in 3D</a>{% endif %}
+      <details class="ids"><summary>{% if line.chain %}its chain{% else %}as written{% endif %}</summary><div class="fold-body">
+        <p>{% if line.chain %}{{ line.chain.words|capfirst }}{% else %}{{ line.said|capfirst }}{% endif %}. The check wrote: {{ line.full }}</p>
+        {% if line.chain %}<ul>{% for row in line.chain.rows %}<li>{{ row.node }}: {{ row.basis }}{% if row.euros %}, {{ row.euros }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+      </div></details></li>
   {% endfor %}</ul>
   {% endfor %}
-  {% if holes_total %}<p class="small soft">The whole environment: {{ holes_total.words }}.</p>{% endif %}
 </section>
 {% endif %}

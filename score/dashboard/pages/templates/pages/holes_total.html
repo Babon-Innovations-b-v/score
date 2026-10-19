@@ -2,7 +2,8 @@
 <section class="money-card holes-total" aria-label="what every place still needs">
   <div class="eyebrow">What every place still needs</div>
   <div class="money-total">{{ holes_total.holes }} hole{{ holes_total.holes|pluralize }}</div>
-  <p class="small soft">{{ holes_total.counts.missing|default:0 }} not made yet, {{ holes_total.counts.gate|default:0 }} made but failing a check, {{ holes_total.counts.place|default:0 }} steps of the route not done.</p>
+  <p class="small soft">{{ holes_total.counts.missing|default:0 }} not made yet, {{ holes_total.counts.gate|default:0 }} made but failing a check, {{ holes_total.counts.place|default:0 }} steps of the route not done or inputs lost.</p>
+  {% if headline %}<p class="headline">{{ headline|capfirst }}.</p>{% endif %}
   {% if holes_total.sums %}
   <p>To fill what the runner can, every paid step each hole's chain needs, each once{% if money.stop %}, against your stop of EUR {{ money.stop|floatformat:0 }}{% endif %}:</p>
   <ul class="small">
@@ -25,9 +26,21 @@
   {% else %}
   <p><span class="unknown">No total</span>: {{ holes_total.words }}.</p>
   {% endif %}
-  {% if holes_total.unfillable %}<details class="fold"><summary>No stage can fill these yet: the work each needs ({{ holes_total.unfillable|length }})</summary>
-    <ul class="fold-body">{% for entry in holes_total.unfillable %}<li>{{ entry.work }}{% if entry.holes %} ({{ entry.holes }} hole{{ entry.holes|pluralize }}){% endif %}</li>{% endfor %}</ul>
+  {% if work %}
+  <h3>No stage can fill these yet: {{ work_count }} pieces of code work</h3>
+  {% endif %}
+  {% if holes_total.unfillable %}
+  {% if work %}
+  <p class="small soft">Each is code to write, not something to buy. Most holes first.</p>
+  <ol class="work-list">{% for task in work %}{% include "pages/work_task.html" %}{% endfor %}</ol>
+  {% if work_rest %}<details class="fold"><summary>Show all {{ work_count }}</summary>
+    <ol class="work-list" start="{{ work|length|add:1 }}">{% for task in work_rest %}{% include "pages/work_task.html" %}{% endfor %}</ol>
   </details>{% endif %}
+  {% endif %}
+  <details class="ids"><summary>{% if work %}every line of code work as written{% else %}No stage can fill these yet: the work each needs{% endif %} ({{ holes_total.unfillable|length }})</summary>
+    <ul class="fold-body">{% for entry in holes_total.unfillable %}<li>{{ entry.work }}{% if entry.holes %} ({{ entry.holes }} hole{{ entry.holes|pluralize }}){% endif %}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
   {% if holes_total.sums %}<details class="ids"><summary>details</summary><div class="fold-body">
     {% if holes_total.sums.guessed.sources %}<h3>Where each guess is written</h3><ul>{% for source in holes_total.sums.guessed.sources %}<li>{{ source.at }}: EUR {{ source.euros|floatformat:2 }} ({{ source.nodes }} step{{ source.nodes|pluralize }})</li>{% endfor %}</ul>{% endif %}
     {% if holes_total.after_work.places %}<h3>The prop route after each place's prop data</h3><ul>{% for entry in holes_total.after_work.places %}<li>{{ entry.place }}: {{ entry.models }} model{{ entry.models|pluralize }} for {{ entry.holes }} hole{{ entry.holes|pluralize }}: {{ entry.words }}</li>{% endfor %}</ul>{% endif %}

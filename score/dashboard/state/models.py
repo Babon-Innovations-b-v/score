@@ -36,6 +36,7 @@ class Spend(BaseModel):
     month: str | None = None
     lines: list[CostLine] = []
     credit_note: str = ""  # the shared cloud account's credit, a note only, never SCORE's budget
+    paid_refused: str | None = None  # why paid work is refused while the month's books are not known (score spend)
 
 
 class MonthTotal(BaseModel):
@@ -255,6 +256,7 @@ class CheckFinding(BaseModel):
     id: str | None = None
     row: str | None = None
     gates: list[str] | None = None
+    source: str | None = None  # where the hole was read: inventory, gap:<name>, judgement:<node>, route or inputs
     node: str | None = None
     paid: bool | None = None
     work: str | None = None

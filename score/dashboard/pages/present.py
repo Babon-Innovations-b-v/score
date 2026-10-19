@@ -2,6 +2,8 @@
 strip and its problems, and the money against the stop. Presentation only: it reads the models of state/models.py
 and never the store."""
 import re
+from collections import Counter
+from urllib.parse import quote
 
 from score.dashboard.pages import seen
 from score.dashboard.state import groups, holes, plain
@@ -227,53 +229,127 @@ def problems(detail):
 
 # --- holes -------------------------------------------------------------------------------------------------------
 
-HOLE_GROUPS = (("missing", "Not made yet"), ("gate", "Made, but failing a check"),
-               ("place", "Steps of the route not done"))
+def node_words(node):
+    """A node in words for the pages: its step's label and its place, never its id."""
+    stage, _, place = node.partition("@")
+    where = f" of {plain.place_words(place)}" if place else " shared by every place"
+    return f"the {groups.label(stage)} step{where}"
 
 
-def hole_line(entry, place, count):
-    """One line of the holes list: the hole in plain words, its basket item, its chain's price (the runner's, by
-    basis) or what stands in the way."""
+def source_label(hole):
+    """Where a hole was read, in a few words: its inventory row, its gate, its route step or its lost input."""
+    kind = holes.kind_of(hole)
+    if kind == "missing":
+        return f"inventory row {hole.row}"
+    if kind == "gate":
+        return f"gate {hole.gates[0]}" if hole.gates else "a written fault"
+    if kind == "route":
+        return f"route step {(hole.id or '').split(':', 1)[-1]}"
+    return f"lost input {(hole.id or '').rsplit(':', 1)[-1]}"
+
+
+def needs_words(hole, price, place):
+    """What fills a hole and how long its chain is, in words; None when there is no chain to say."""
+    current = price is not None and not price.stale and hole.node
+    nodes = price.chains.get(place, {}).get(hole.node) if current else None
+    if nodes is None:
+        return None
+    paid = sum(node in price.nodes for node in nodes)
+    return f"needs {node_words(hole.node)}; its chain is {holes.steps(len(nodes))}, {paid} of them paid"
+
+
+def hole_line(entry, place, count, price):
+    """One line of the holes list: the hole in plain words, where it was read, the step that fills it and its
+    chain's length (the chain itself, priced by the runner, for a fold), its basket item, or what stands in the
+    way, and the viewer framing it when it has a box."""
     hole = entry["hole"]
-    return {"sentence": plain.hole_sentence(hole, place, count),
+    said = entry["said"]
+    return {"sentence": plain.hole_sentence(hole, place, count), "source": source_label(hole),
+            "needs": needs_words(hole, price, place), "chain": entry["chain"],
             "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None,
-            "price": entry["chain"]["words"] if entry["chain"] else None, "said": entry["said"], "id": hole.id,
-            "filled_by": hole.node or hole.work}
-
-
-def place_chains(detail, price):
-    """[{node, rows}] of each distinct node the place's holes name, its chain's nodes with basis and euros (node ids:
-    for the details fold)."""
-    found = {}
-    for hole in detail.holes:
-        if hole.node and hole.node not in found:
-            chain = holes.hole_chain(hole, price, detail.place)
-            if chain:
-                found[hole.node] = chain["rows"]
-    return [{"node": node, "rows": rows} for node, rows in found.items()]
+            "said": said, "short": f"{holes.NO_STAGE}: {first_clause(hole.work)}" if hole.node is None else said,
+            "full": hole.sentence, "id": hole.id, "anchor": f"hole-{hole.id}", "filled_by": hole.node or hole.work,
+            "view_url": f"/view/{place}?holes=1&hole={quote(hole.id or '')}" if hole.low is not None else None}
 
 
 def hole_marks(detail):
-    """[{low, high, kind}] the viewer outlines: each hole with a box in space, by its rule (missing, gate)."""
-    return [{"low": hole.low, "high": hole.high, "kind": hole.rule} for hole in detail.holes
+    """[{id, low, high, kind}] the viewer outlines: each hole with a box in space, by its rule (missing, gate)."""
+    return [{"id": hole.id, "low": hole.low, "high": hole.high, "kind": hole.rule} for hole in detail.holes
             if hole.low is not None and hole.high is not None]
 
 
+def line_key(hole):
+    """The line a hole is listed on: a row's missing objects share one, every other hole its own."""
+    return (holes.kind_of(hole), hole.row if hole.rule == "missing" else hole.id)
+
+
 def hole_groups(detail, items, price):
-    """[{rule, title, count, lines}] of the place's holes, by rule; a row's missing objects on one line."""
-    found = {rule: [] for rule, _ in HOLE_GROUPS}
+    """[{kind, title, left, count, lines}] of the place's holes by kind, worst first; a row's missing objects on one
+    line. Each group says what happens if its holes are left."""
+    found = {kind: [] for kind, _ in holes.KINDS}
     counted = {}
     for entry in holes.priced(detail.holes, items, price, detail.place):
-        hole = entry["hole"]
-        key = (hole.rule, hole.row if hole.rule == "missing" else hole.id)
+        key = line_key(entry["hole"])
         if key in counted:
             counted[key][1] += 1
             continue
         counted[key] = [entry, 1]
-        found[hole.rule].append(key)
-    return [{"rule": rule, "title": title, "count": sum(counted[key][1] for key in found[rule]),
-             "lines": [hole_line(counted[key][0], detail.place, counted[key][1]) for key in found[rule]]}
-            for rule, title in HOLE_GROUPS if found[rule]]
+        found[key[0]].append(key)
+    return [{"kind": kind, "title": title, "left": plain.LEFT[kind],
+             "count": sum(counted[key][1] for key in found[kind]),
+             "lines": [hole_line(counted[key][0], detail.place, counted[key][1], price) for key in found[kind]]}
+            for kind, title in holes.KINDS if found[kind]]
+
+
+def anchors_of(detail):
+    """{hole id: the anchor of the line it is listed on}."""
+    first = {}
+    for hole in detail.holes:
+        first.setdefault(line_key(hole), f"hole-{hole.id}")
+    return {hole.id: first[line_key(hole)] for hole in detail.holes}
+
+
+def tree_path(hole, place):
+    """The path a hole hangs at in the place's tree: a missing object's row beside its box (under /<place>/Objects
+    with no box), a failing object's prim, a route step or lost input at the place itself."""
+    if hole.rule == "missing":
+        folder = hole.prim.rsplit("/", 1)[0] if hole.prim else f"/{place}/Objects"
+        return f"{folder}/{hole.row}"
+    if hole.rule == "gate":
+        named = (hole.id or "").rsplit(":", 1)[-1].replace("/", " ")  # an object named by a path is one leaf
+        return hole.prim or f"/{place}/not on a prim/{named}"
+    return f"/{place}"
+
+
+def tree_node(name):
+    return {"name": name, "count": 0, "kinds": Counter(), "children": {}, "anchor": None, "placeholder": False}
+
+
+def finished(node):
+    """A tree node with its kinds as [(kind, count)] worst first and its children as a list."""
+    return {**node, "kinds": [(kind, node["kinds"][kind]) for kind, _ in holes.KINDS if node["kinds"][kind]],
+            "children": [finished(child) for child in node["children"].values()]}
+
+
+def prim_tree(detail):
+    """The holes layer as a tree from the place's root: each node's holes below it by kind, a missing row a
+    placeholder leaf, each leaf linked to its line of the list. The holes layer only: no accepted assembly stands
+    to give the whole scene's tree."""
+    anchors = anchors_of(detail)
+    root = tree_node(f"/{detail.place}")
+    for hole in detail.holes:
+        kind = holes.kind_of(hole)
+        parts = tree_path(hole, detail.place).strip("/").split("/")
+        node = root
+        node["count"] += 1
+        node["kinds"][kind] += 1
+        for part in parts[1:] if parts[0] == detail.place else parts:
+            node = node["children"].setdefault(part, tree_node(part))
+            node["count"] += 1
+            node["kinds"][kind] += 1
+        node["anchor"] = node["anchor"] or anchors.get(hole.id)
+        node["placeholder"] = node["placeholder"] or kind == "missing"
+    return finished(root)
 
 
 # --- money -------------------------------------------------------------------------------------------------------
@@ -307,3 +383,64 @@ def money(view, planned):
             "room": round(view.stop - spent - flight, 2) if view.stop else None,
             "stop_line": STOP_LINE.format(world=view.world or "<world>"),
             "likely": (planned or {}).get("likely"), "credit_note": view.credit_note}
+
+
+# --- the environment overview ------------------------------------------------------------------------------------
+
+READ_BACK = ".venv/bin/python -m score spend --read-back"
+# The owner's own figure a books refusal names, as its command: "score spend --<figure> EUR".
+OWNERS_FIGURE = re.compile(r"score spend[ ]+(--[a-z-]+ EUR)")
+STATUS_WORDS = {"lost": ("a lost input", "bad"), "route": ("route steps not done", "bad"),
+                "missing": ("objects not made", "review"), "gate": ("made, failing checks", "review")}
+
+
+def overview(rows, names):
+    """The overview's rows: each place's row with its name and its status, the worst kind of hole it has (or that
+    it was not checked), and its next route step."""
+    found = []
+    for row in rows:
+        if row["not_checked"]:
+            status = {"words": "not checked", "tone": "idle"}
+        elif row["worst"]:
+            words, tone = STATUS_WORDS[row["worst"]]
+            status = {"words": words, "tone": tone}
+        else:
+            status = {"words": "no holes found", "tone": "done"}
+        found.append({**row, "name": names.get(row["place"], humane(row["place"])), "status": status,
+                      "next": sentence(row["next"]) if row["next"] else None})
+    return found
+
+
+def blockers(money_card, spend, lost):
+    """[{title, words, commands, details}] of the steps that block every paid step, read from state: no stop set, the
+    month's books not known (or not read), and each kind of lost input with the places it blocks."""
+    found = []
+    if spend.as_of is None:
+        found.append({"title": "The month's spend is not read yet",
+                      "words": "Whether a stop is set and whether the month's books are known is not known yet.",
+                      "commands": [], "details": [spend.note] if spend.note else []})
+    else:
+        if not money_card["stop"]:
+            found.append({"title": "Set a stop", "words": "No stop is set for this environment, so every paid step "
+                          "is refused. Type in your own terminal:", "commands": [money_card["stop_line"]],
+                          "details": []})
+        if spend.paid_refused:
+            found.append({"title": "The month's books are not known", "words": "Paid work is refused until they are. "
+                          "Only you can make them known, in your own terminal:",
+                          "commands": [READ_BACK] + [f".venv/bin/python -m score spend {named}"
+                                                     for named in OWNERS_FIGURE.findall(spend.paid_refused)],
+                          "details": [spend.paid_refused]})
+    for entry in lost:
+        found.append({"title": entry["words"],
+                      "words": f"Blocks {entry['places']} place{'s' if entry['places'] != 1 else ''} "
+                               f"({entry['items']} input{'s' if entry['items'] != 1 else ''}). "
+                               f"The code work: {first_clause(entry['work'][0])}.",
+                      "commands": [], "details": entry["work"] + entry["ids"]})
+    return found
+
+
+def buy_lines(first):
+    """The buy-first list in words: each paid step, the holes and places it unblocks, its own price and the basket
+    item that carries it."""
+    return [{**entry, "words": node_words(entry["node"]),
+             "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None} for entry in first]

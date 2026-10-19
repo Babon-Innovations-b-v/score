@@ -1,0 +1,2 @@
+<li>{{ entry.words|capfirst }}: unblocks {{ entry.holes }} hole{{ entry.holes|pluralize }} in {{ entry.places }} place{{ entry.places|pluralize }} · {{ entry.price }} · {% if entry.item_url %}<a href="{{ entry.item_url }}">its basket item</a>{% else %}in no basket item yet{% endif %}
+  <details class="ids"><summary>id</summary><span class="fold-body">{{ entry.node }}</span></details></li>

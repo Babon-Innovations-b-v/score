@@ -278,7 +278,7 @@ def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, setti
     lamp = re.search(r"\(2 of them\)\.(.*?)</li>", html, re.S).group(1)
     assert "/basket/item/alpha-pieces/" in lamp and "2 paid steps in its chain" in lamp
     assert "likely EUR 2.00, high EUR 3.00 (1 step)" in lamp and "guessed, not a price: EUR 1.00 (1 step)" in lamp
-    rough = re.search(r"<li>This place has no rough model\.(.*?)</li>", html, re.S).group(1)
+    rough = re.search(r"<li[^>]*>This place has no rough model\.(.*?)</li>", html, re.S).group(1)
     assert "No stage can fill this yet: " + ROUGH in rough and "EUR" not in rough
     assert "sound@alpha: not measured yet, guess EUR 1.00 (score/stages/__init__.py:243)" in html  # in details
     assert NODE.search(outside_details(html)) is None
@@ -405,8 +405,9 @@ def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):
                                     re.S).group(1))["marks"]
     assert marks("/view/alpha") == []
     assert marks("/view/alpha?holes=1") == [
-        {"low": [0, 0, 0], "high": [1, 1, 1], "kind": "missing"}, {"low": [2, 0, 0], "high": [3, 1, 1], "kind": "missing"},
-        {"low": [4, 0, 0], "high": [5, 1, 1], "kind": "gate"}]
+        {"id": "missing:lamp_1", "low": [0, 0, 0], "high": [1, 1, 1], "kind": "missing"},
+        {"id": "missing:lamp_2", "low": [2, 0, 0], "high": [3, 1, 1], "kind": "missing"},
+        {"id": "gate:complete/painted:crate_1", "low": [4, 0, 0], "high": [5, 1, 1], "kind": "gate"}]
 
 
 def test_holes_are_not_repeated_among_the_check_findings(world, settings, tmp_path):

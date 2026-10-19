@@ -6,6 +6,49 @@
 {% include "pages/money_world.html" %}
 {% include "pages/holes_total.html" %}
 
+{% if blockers or buy_first %}
+<section class="buy-first" aria-label="what to buy first">
+  <h2>What to buy first</h2>
+  <p class="small soft">First the steps that block every paid step, read from the money and the holes. Then each paid step by how many holes have it in their chain: a count, never a judgement.</p>
+  {% if blockers %}<ol class="blockers">{% for step in blockers %}
+    <li><b>{{ step.title }}.</b> {{ step.words }}
+      {% for command in step.commands %}<pre class="command">{{ command }}</pre>{% endfor %}
+      {% if step.details %}<details class="ids"><summary>details</summary><ul class="fold-body">{% for line in step.details %}<li>{{ line }}</li>{% endfor %}</ul></details>{% endif %}</li>
+  {% endfor %}</ol>{% endif %}
+  {% if buy_first %}
+  <ol class="buy-list">{% for entry in buy_first %}{% include "pages/buy_line.html" %}{% endfor %}</ol>
+  {% if buy_rest %}<details class="fold"><summary>Show all {{ buy_count }}</summary>
+    <ol class="buy-list" start="{{ buy_first|length|add:1 }}">{% for entry in buy_rest %}{% include "pages/buy_line.html" %}{% endfor %}</ol>
+  </details>{% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+{% if places %}
+<section class="places-overview" aria-label="every place">
+  <h2>Every place ({{ places|length }})</h2>
+  <p class="small soft">What each place still needs, read from its concept, its scene inventory and the route by the holes check. Click a heading to sort.</p>
+  <div class="table-wrap"><table class="sortable">
+    <thead><tr><th>Place</th><th>Worst hole</th><th class="num">Holes</th><th class="num">Not made</th>
+      <th class="num">Failing a check</th><th class="num">Route steps</th><th class="num">Lost inputs</th>
+      <th class="num">Likely EUR</th><th class="num">High EUR</th><th class="num">Guessed EUR</th>
+      <th class="num">Paid steps measured</th><th>Next step</th></tr></thead>
+    <tbody>{% for row in places %}<tr>
+      <td data-value="{{ row.name }}"><a href="/place/{{ row.place }}/">{{ row.name }}</a></td>
+      <td data-value="{{ row.status.words }}"><span class="status {{ row.status.tone }}">{{ row.status.words }}</span></td>
+      <td class="num">{{ row.holes }}</td><td class="num">{{ row.counts.missing }}</td><td class="num">{{ row.counts.gate }}</td>
+      <td class="num">{{ row.counts.route }}</td><td class="num">{{ row.counts.lost }}</td>
+      {% if row.money %}<td class="num">{{ row.money.likely|floatformat:2 }}</td><td class="num">{{ row.money.high|floatformat:2 }}</td>
+      <td class="num" title="guessed, not a price">{{ row.money.guessed|floatformat:2 }}</td>
+      <td class="num" data-value="{{ row.money.measured }}">{{ row.money.measured }} of {{ row.money.paid }}</td>
+      {% else %}<td class="num" colspan="4" data-value="-1"><span class="unknown">no price</span></td>{% endif %}
+      <td>{{ row.next|default:"" }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <p class="small soft">Guessed euros are each stage's own estimate, not a price. Each place's euros count every paid step of its holes' chains once; a step two places share is in both rows, once in the total above.</p>
+</section>
+{% endif %}
+
 {% for group in groups %}
 <section class="group">
   <div class="group-head">
