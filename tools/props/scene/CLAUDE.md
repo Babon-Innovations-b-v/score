@@ -87,3 +87,9 @@ serve: skill `make-scene`, bible "How a scene is designed".
   Shell plates take the sorter's plain names; a room's name is one word (`bridge`), as the route's
   kinds are `<room>_<own>`. `ship_kit_test.py` checks it on a bridge-shaped room.
 - `camp_kit.py` lays the expedition camp habitat's kit on Mars (data/kit/camp.json via route.py) from the camp scripts' own numbers; `camp_kit_test.py` reads them back. `camp_shots.tscn` draws the habitat from cameras in its own frame (run with `--mars`, so the game's own check stays on Mars while it shoots).
+- `ship_floor.py <out>` is the ship's floor plan inside its 46 m hull (the owner's loop, 2026-10-19: the outside's
+  plan split into the inside's rooms): data/definitions/ship_floor.json names each room's span, side, floors and doors;
+  every size and section is measured from the hull (`../library/inside/ship_outline.py`), people keep their size
+  (0.9 x 2.0 m doors, a 2.6 m ceiling), and its faults (overlaps, a floor under the keel, a door to nowhere) exit 1.
+  It draws the plan (`ship-floor.png`) and, with `--views`, each room's concept request in concept_views.json's form.
+  `ship_floor_test.py` checks it.

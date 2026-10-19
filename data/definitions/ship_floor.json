@@ -1,0 +1,306 @@
+{
+ "notes": [
+  "The ship's floor plan inside its hull: the outside's plan (data/definitions/ship.json, the owner's plan v7, built at 46 m on PRD #10) split into the rooms, the walkway and what is left out, the inside step of the owner's loop of 2026-10-19. Read by tools/props/scene/ship_floor.py, which measures every room's size and section from the hull itself (tools/props/library/inside/ship_outline.py), so no size here can drift from the hull.",
+  "Frame as the ship plan's, built metres: y back from the nose spike's tip, x across (starboard positive, the side ring's side), z up from the ground the ship stands on.",
+  "People keep their size at 46 m: doors stay 0.9 x 2.0 m and rooms take a person's ceiling; only the hull's lengths grow. The fix-ship-rooms branch scaled every room 1.5 times instead (ceilings 3 to 5 m, a 1.8 m walkway): replaced by this plan.",
+  "Sizes and order come from the hull and the story: the cockpit under the nose windows, navigation beside it, the crew's quarters and galley together, storage beside the ship's lock so cargo comes in through the one hatch, the engine room aft over the engines, the walkway joining them all."
+ ],
+ "made": "2026-10-19, the ship lead, from plan v7 at 46 m",
+ "length": 46.0,
+ "deck": 2.4,
+ "deck_why": "the main deck's floor over the ground: plan v7's 1.6 m drawn times 1.5, the height the hull's side ring is built on (fix-ship-hull)",
+ "lining": 0.25,
+ "lining_why": "the hull's frame and lining between its outside and a room's wall",
+ "floor_depth": 0.3,
+ "floor_depth_why": "the deck's structure under a floor: the hull's keel must lie at least this far under it",
+ "head": 2.0,
+ "head_why": "a person's height over a floor: a room is as wide as the hull is at its floor and at this height, the narrower",
+ "partition": 0.1,
+ "ceiling": 2.6,
+ "ceiling_why": "a room's clear height on the one deck; the hull's space over it (2.0 to 2.9 m clear from y 22 to 34) is the service space",
+ "door": {
+  "wide": 0.9,
+  "tall": 2.0,
+  "frame": "hexagonal, orange and white panels"
+ },
+ "walkway": {
+  "place": "walkway",
+  "y": [
+   18.0,
+   31.5
+  ],
+  "wide": 1.5,
+  "ceiling": 2.4,
+  "hall": [
+   18.0,
+   19.5
+  ],
+  "for": "the corridor joining every room, cockpit to engine room, down the ship's middle line; a hall as wide as the hull behind the cockpit",
+  "doors": [
+   {
+    "y": 18.0,
+    "wall": "forward",
+    "leads": "cockpit"
+   },
+   {
+    "y": 31.5,
+    "wall": "aft",
+    "leads": "engine and power room"
+   }
+  ],
+  "holds": [
+   "grey panelled walls and ceiling, dark deck, a steel grating down the middle of the deck",
+   "steel frame ribs arching over the corridor between the doors",
+   "white light strips down the ceiling, amber strips along the wall tops",
+   "the rooms' doors in hexagonal orange and white frames off both sides, a wider hall at its forward end before the cockpit's door"
+  ]
+ },
+ "rooms": [
+  {
+   "name": "cockpit",
+   "place": "cockpit",
+   "side": "whole",
+   "y": [
+    13.5,
+    18.0
+   ],
+   "ceiling": "hull",
+   "for": "flying the ship: two pilot seats with the flight stick and consoles under the nose windows; take-off, landing and flight",
+   "why": "under the nose windows (plan v7: 9 to 12 m drawn), as wide as the hull there; its roof is the windows, so its ceiling is the hull's",
+   "doors": [
+    {
+     "y": 18.0,
+     "wall": "aft",
+     "leads": "walkway"
+    }
+   ],
+   "holds": [
+    "two chunky dark padded pilot seats side by side, facing the windows, a flight stick for each",
+    "the throttle pedestal between the seats, levers and switch rows on its top",
+    "the main console across the front: three screens, the middle red-orange, two amber, a thrust indicator between them, a cyan light bar along its top",
+    "angled side consoles with screens and red-lit switches, and equipment racks filling the room's wide sides",
+    "the windows in the sloping roof over the seats, split by frame ribs, two cyan light panels at their top",
+    "the overhead console with two black vent boxes, black equipment boxes in the ceiling's corners",
+    "warm amber light strips along the ceiling's edges, small orange lamps in the upper front corners",
+    "dark grey panelled walls, dark deck with a grated step between the seats",
+    "the aft door to the walkway's hall in the ship's hexagonal frame"
+   ]
+  },
+  {
+   "name": "navigation room",
+   "place": "navigation",
+   "side": "starboard",
+   "y": [
+    19.5,
+    23.5
+   ],
+   "for": "navigation systems: the star map and route plotting between the Moon and Mars",
+   "why": "first off the hall, next to the cockpit it serves",
+   "doors": [
+    {
+     "y": 21.5,
+     "wall": "walkway",
+     "leads": "walkway"
+    }
+   ],
+   "holds": [
+    "a star map table in the room's middle, glowing amber with a cyan route",
+    "two consoles along the front wall with a seat before them",
+    "two wall screens over the table: the route between the Moon and Mars",
+    "amber light strips at the wall tops, a white strip in the ceiling, a vent in the ceiling",
+    "grey panelled walls and ceiling, dark deck"
+   ]
+  },
+  {
+   "name": "crew quarters",
+   "place": "quarters",
+   "side": "port",
+   "y": [
+    19.5,
+    25.5
+   ],
+   "for": "sleep: four bunks in two stacks (orange padded), lockers; save and skip time",
+   "why": "the crew's rooms together on the port side, away from the hatch; 6 m holds the two bunk stacks and the lockers",
+   "doors": [
+    {
+     "y": 22.5,
+     "wall": "walkway",
+     "leads": "walkway"
+    }
+   ],
+   "holds": [
+    "four bunks in two stacks with thick orange padded mattresses on dark frames",
+    "lockers for the crew's kit",
+    "dark grey wall desks with switch rows under wall screens with amber and white readouts, one a round glowing display",
+    "white light strips along the ceiling and the wall tops, black ceiling boxes and vents",
+    "grey panelled walls and ceiling, dark deck plates with lit inlays"
+   ]
+  },
+  {
+   "name": "storage",
+   "place": "storage",
+   "side": "starboard",
+   "y": [
+    23.5,
+    27.2
+   ],
+   "for": "storage: cargo racks and crates for the base's supplies and parts",
+   "why": "beside the ship's lock, so cargo comes in through the one hatch and goes straight to the racks",
+   "doors": [
+    {
+     "y": 25.35,
+     "wall": "walkway",
+     "leads": "walkway"
+    }
+   ],
+   "holds": [
+    "tall cargo racks with strapped supplies along the hull wall and the back wall",
+    "crates of the base's supplies and parts on the deck",
+    "equipment boxes and a vent in the ceiling",
+    "amber light strips at the wall tops, a white strip in the ceiling",
+    "grey panelled walls and ceiling, dark deck"
+   ]
+  },
+  {
+   "name": "galley",
+   "place": "galley",
+   "side": "port",
+   "y": [
+    25.5,
+    31.5
+   ],
+   "for": "food: eat and prepare meals (counter, food stores, a table with fold-down seats)",
+   "why": "beside the quarters; 6 m holds the counter along the hull and the table",
+   "doors": [
+    {
+     "y": 28.5,
+     "wall": "walkway",
+     "leads": "walkway"
+    }
+   ],
+   "holds": [
+    "a counter along the hull wall with a cooker, a sink and cupboards",
+    "food stores beside the counter",
+    "a table with fold-down seats round it",
+    "a wall screen on the back wall",
+    "amber light strips at the wall tops, white strips and vents in the ceiling",
+    "grey panelled walls and ceiling, dark deck"
+   ]
+  },
+  {
+   "name": "ship's lock",
+   "place": "shiplock",
+   "side": "starboard",
+   "y": [
+    27.2,
+    31.5
+   ],
+   "for": "the one way in and out, and the dock: the side ring's round hatch in its hull wall, the inner door onto the walkway, lockers for the suits",
+   "why": "behind the side ring (the docking hatch and the people airlock in one opening, PRD #10, 2026-10-18), which stands at 28.64 m on the starboard side",
+   "doors": [
+    {
+     "y": 29.35,
+     "wall": "walkway",
+     "leads": "walkway"
+    },
+    {
+     "y": 28.64,
+     "wall": "hull",
+     "leads": "outside, or a docked craft",
+     "round": 1.9,
+     "sill": 0.1
+    }
+   ],
+   "holds": [
+    "the side ring's round outer hatch in the hull wall, 1.9 m across in a heavy collar, the one way in and the dock",
+    "suit lockers along the back wall",
+    "the cycle panel by the outer hatch and two orange lamps",
+    "hand rails along the walls, a grated drain in the deck",
+    "a vent for the cycle's air, a white ceiling strip",
+    "grey panelled walls and ceiling, dark deck"
+   ]
+  },
+  {
+   "name": "engine and power room",
+   "place": "engineroom",
+   "side": "whole",
+   "y": [
+    31.5,
+    42.4
+   ],
+   "ceiling": 3.4,
+   "floors": [
+    [
+     31.5,
+     2.4
+    ],
+    [
+     35.3,
+     3.0
+    ],
+    [
+     38.85,
+     3.6
+    ]
+   ],
+   "for": "engines and power: the power core, fuel and the controls of the two main engines either side of the stern block; repairs",
+   "why": "aft over the engines; its floor steps up twice as the belly rises under the stern (plan v7's 0.4 m drawn step and its 2.4 m airlock deck, times 1.5), its aft bay inside the stern block between the main engines; 3.4 m clear for the power core and the tanks",
+   "doors": [
+    {
+     "y": 31.5,
+     "wall": "forward",
+     "leads": "walkway"
+    }
+   ],
+   "holds": [
+    "the power core: an upright cylinder with amber-lit rings",
+    "fuel tanks against the walls of the narrow stern bay at the back, between the two main engines",
+    "engine consoles with screens along the starboard wall",
+    "pipes from the core and tanks into the stern bay, cables over the ceiling",
+    "junction boxes and a toolbox for repairs",
+    "orange lamps, amber strips, white ceiling strips; equipment boxes and vents in the ceiling",
+    "grey panelled walls and ceiling, dark deck"
+   ]
+  }
+ ],
+ "left_out": [
+  {
+   "what": "the nose bay",
+   "y": [
+    4.47,
+    13.5
+   ],
+   "why": "ahead of the windows the hull is under 2.6 m over the deck and narrows to the spike: sensors and the nose thrusters, no room"
+  },
+  {
+   "what": "the belly",
+   "why": "between the deck and the keel (0.3 to 1.3 m): the landing legs, the lift thrusters and the tanks' pipes, no room"
+  },
+  {
+   "what": "the service space",
+   "why": "over the rooms' ceilings, 2.0 to 2.9 m clear from y 22 to 34: ducts and cables; a second deck of a person's height would fit only from about y 28 to 31 (see the questions)"
+  },
+  {
+   "what": "the stern tail",
+   "y": [
+    42.4,
+    46.0
+   ],
+   "why": "the stern block narrows and its keel rises past a floor: the main engines' backs, no room"
+  }
+ ],
+ "questions": [
+  {
+   "ask": "the way in: the side ring (PRD #10, 2026-10-18: the docking hatch and the people airlock in one opening) or the stern block's hatch (plan v7, 2026-10-14: the dark block at the stern is the airlock)?",
+   "ours": "the side ring only, one opening as the later call says; the stern block becomes the engine room's aft bay and has no hatch"
+  },
+  {
+   "ask": "one deck or two: the 46 m hull has 2.0 to 2.9 m clear over a 2.6 m ceiling between y 22 and 34, a person-high second deck only from about y 28 to 31",
+   "ours": "one deck, as the owner's one-deck cutaway reference; the space over it is service space"
+  },
+  {
+   "ask": "the cockpit is as wide as the hull under the windows, 7.9 to 9.1 m",
+   "ours": "keep it: the consoles and the overhead panels fill its sides, the two seats in the middle"
+  }
+ ]
+}
