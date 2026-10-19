@@ -38,6 +38,13 @@ stage as each stage is built; nothing moves before.
   dead holder lets go at once) makes a second run wait and then reuse the first's record, so nothing is paid twice;
   held past `LOCK_WAIT` the waiter is blocked, never made again. A record or judgement another run stored first is
   taken as made, never an error; a make that writes into its read-only input's checkout fails and stores nothing.
+  One commit per store (`graph/runs.py`'s claims): `run` registers its commit, worktree, pid (with its start time) and the
+  nodes it would make in `$PROPS_HOME/runs/active.json` under a lock, and is refused while a live run from another
+  commit holds the store (named with its commit and worktree), or one at the same commit would make some of the same
+  nodes (a node standing accepted is not made, so one run per place goes side by side once the world nodes stand); an
+  entry whose pid is gone or now another process's is dropped. A worktree with tracked changes not committed is
+  refused when the run would buy a paid row, unless given `--uncommitted`. A detached run registers itself: refused
+  there, its result line is `detached: refused: ...`.
 - **`python -m score resume [--dry]`** starts again, each from its own worktree and detached, every `score run` in
   the run registry (`graph/runs.py`, `$PROPS_HOME/runs/<id>.json`) an earlier boot cut off (one the owner stopped is marked `stopped` and never resumed), one resume at a time, and clears an earlier boot's `.partial` files. It starts a run only at the commit that registered it with nothing uncommitted, and only one alive (its entry touched every minute while it drives) within 12 h before the boot; any other, or one whose restart fails, is marked `unresumable` with why and listed by `score status`; a
   detached run's log is under `$PROPS_HOME/logs`. `.claude/scripts/score-resume.service` runs it at boot once the

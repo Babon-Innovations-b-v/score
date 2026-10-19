@@ -2,13 +2,15 @@
 log with no line). `stop_on_signals` makes SIGTERM, SIGINT and SIGHUP say one line and exit 128 + the signal's number;
 run as a script it is tools/props/cloud/detached.py's run with that line as its result line, which `score run
 --detach` starts. Outside detached.py on purpose: most stages' code version hashes that file, and an edit there would
-re-make them all.
+re-make them all. A command that exits REFUSED (a `score run` another run's registration refused after it was
+detached, graph/runs.py) gets its refusal, its output's last line, as its result line: `detached: refused: ...`.
 
     python score/graph/stopped.py --log <log> --outputs <paths> -- <command ...>
 """
 import os
 import pathlib
 import signal
+import subprocess
 import sys
 import tempfile
 import threading
@@ -24,6 +26,7 @@ FORWARD_WAIT_SECONDS = 40
 # was busy when the whole group was signalled handles that stop first, and passes nothing on (a batch stops deleting
 # at its second signal).
 PASS_ON = signal.SIGRTMIN
+REFUSED = 75  # the run did not start: another run holds the store (EX_TEMPFAIL, try again later)
 
 
 def stop_on_signals(say):
@@ -152,8 +155,8 @@ def forward(number, wait=FORWARD_WAIT_SECONDS):
 
 
 def detached_run(log, outputs, command):
-    """detached.run (the command's output to the log, one result line at the end), its result line also on a stopping
-    signal: `detached: stopped by signal N exit=128+N minutes=... log=... outputs=...`; the exit code."""
+    """detached.run's way (the command's output to the log, one result line at the end), its result line also on a
+    stopping signal: `detached: stopped by signal N exit=128+N minutes=... log=... outputs=...`; the exit code."""
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import detached
     started = time.time()
@@ -163,7 +166,21 @@ def detached_run(log, outputs, command):
         line = detached.result_line(128 + number, (time.time() - started) / 60, log, outputs)
         print(line.replace("detached: failed", f"detached: stopped by signal {number}", 1), flush=True)
     stop_on_signals(say)
-    return detached.run(command, log, outputs)
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("w") as written:
+        code = subprocess.run(command, stdout=written, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL).returncode
+    print(result_line(detached.result_line(code, (time.time() - started) / 60, log, outputs), code, log), flush=True)
+    return code
+
+
+def result_line(line, code, log):
+    """detached's result line, or for a REFUSED command `detached: refused: <why> exit=...`, its why being the last
+    line the command wrote."""
+    if code != REFUSED:
+        return line
+    written = log.read_text(errors="replace").strip().splitlines()
+    why = written[-1] if written else "refused"
+    return line.replace("detached: failed", f"detached: {why}", 1)
 
 
 if __name__ == "__main__":

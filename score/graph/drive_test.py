@@ -25,6 +25,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 from score import checks, contracts, graph  # noqa: E402
 from score.adapters import compute  # noqa: E402
 compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
+from score.graph import stopped  # noqa: E402
 from score.store import Store  # noqa: E402
 
 PLACES = ("hangar", "station")
@@ -916,6 +917,23 @@ def test_the_run_gauges_count_only_this_runs_rows():
     finally:
         books.entries = before
     assert said == "this run's rows: paid runs open 1, EUR 2.50 in the ledger since the run started", said
+
+
+def test_a_detached_run_refused_on_the_store_ends_with_the_refusal_as_its_line():
+    """Review of C10: a run that registered between the check and the detached run's own registration refuses it;
+    the start line says it may still be refused, and the refusal is its result line, not a plain failure."""
+    from score import __main__ as command
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed), logs_in_tmp():
+        command.detach(["-c", "import sys; print('refused: run pid 7 holds the store', file=sys.stderr); "
+                        f"sys.exit({stopped.REFUSED})", command.DETACH])
+    assert "may still be refused" in printed.getvalue(), printed.getvalue()
+    log = pathlib.Path(printed.getvalue().strip().rpartition("log=")[2])
+    deadline = time.time() + 60
+    while "detached:" not in log.read_text() and time.time() < deadline:
+        time.sleep(0.2)
+    lines = log.read_text().splitlines()
+    assert lines[-1].startswith(f"detached: refused: run pid 7 holds the store exit={stopped.REFUSED} "), lines
 
 
 # --- runs side by side on one store ----------------------------------------------------------------------------------
