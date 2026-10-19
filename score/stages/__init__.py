@@ -490,7 +490,6 @@ def worn(row):
         place == coloured if coloured else place not in characters_layer.coloured_places()))
 
 
-SEEDS_HOME = PROPS_HOME / "work"
 OLD_SEED, SHIP_SEED = "usd-r3", "usd-ship"
 
 

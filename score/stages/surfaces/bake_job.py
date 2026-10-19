@@ -20,6 +20,7 @@ import library
 import place_route
 import route
 
+
 class NoEntry(RuntimeError):
     """A model the place bakes whose entry nothing in git gives."""
 
