@@ -13,6 +13,8 @@ import gzip
 import hashlib
 import json
 import pathlib
+import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -234,11 +236,24 @@ def library_sweep():
         return f"library sweep failed: {type(error).__name__}: {error}"
 
 
+def holes_sweep():
+    """Every place's holes written where the place pages read them (score.stages.complete.holes, free, seconds, in a
+    process of its own: it reads OpenUSD); its summary line. One that fails is said in the pass's words, and the pass
+    goes on."""
+    done = subprocess.run([sys.executable, "-m", "score.stages.complete.holes"], cwd=settings.SCORE_REPO,
+                          capture_output=True, text=True)
+    if done.returncode != 0:
+        said = (done.stderr.strip().splitlines() or ["no output"])[-1]
+        return f"holes failed: exit {done.returncode}: {said}"
+    return (done.stdout.strip().splitlines() or ["holes wrote nothing"])[-1]
+
+
 def sync_pass(remote, source, chosen=None):
     """One pass; what it did, in words."""
     chosen = chosen or guard.backend()
     swept = library_sweep()
+    holes = holes_sweep()
     pushed = pushed_words(remote, source, chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}"
+    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}"

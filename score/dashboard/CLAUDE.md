@@ -39,6 +39,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the files the hosted side lacks, thumbnails first, one 2 MiB gzip chunk a request, then a commit swaps it in whole.
   Each pass first runs the library sweep (`score.stages.library.sweep`, the environment against its library), so its
   problems are in the export by construction; a failed sweep is said in the pass's words and the pass goes on.
+  The holes (`score.stages.complete.holes`, in a process of its own: it reads OpenUSD) are written right after it,
+  the same way.
 - **`proposals/`** the basket's details (its own overlay): what a run on main would buy (the runner's plan), grouped
   into items by place and by what changes (a department's declared item may span places), each place's free after
   assembled over the store's accepted outputs as a 3D web copy, what changes read from the two stages, each paid
