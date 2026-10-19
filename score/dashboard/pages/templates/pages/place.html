@@ -7,6 +7,7 @@
   <a class="status {{ status.tone }}" href="#bd-index">{{ status.words }}</a>
   <div class="grow"></div>
   {% if detail.web3d %}<a class="button primary big" href="/view/{{ detail.place }}">Open in 3D</a>
+  {% elif holes_3d %}<a class="button primary big" href="/view/{{ detail.place }}?holes=1" title="no 3D web copy of this place yet: its holes' boxes over a grid">Open in 3D: its holes</a>
   {% else %}<span class="button big disabled" title="no 3D web copy of this place yet">Open in 3D: not made yet</span>{% endif %}
 </div>
 

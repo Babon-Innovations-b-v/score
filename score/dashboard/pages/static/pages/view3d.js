@@ -877,6 +877,7 @@ function namePart(hit) {
 }
 
 function picked(screen) {
+  if (given.holes_only) { pickHole(screen); return; }
   if (!ready) return;
   const hit = hitAt(screen);
   if (!hit) { $("picked").textContent = "Nothing there."; return; }
@@ -965,9 +966,10 @@ const MARK_COLOURS = { added: 0x4fd18b, moved: 0xf2c14e, reshaped: 0xf2c14e, ref
 const changeMarks = new THREE.Group();
 scene.add(changeMarks);
 
-function markChanges(marks) {
+function markChanges(marks, framedId = given.hole) {
+  changeMarks.clear();
   for (const mark of marks) {
-    const framed = given.hole && mark.id === given.hole;
+    const framed = framedId && mark.id === framedId;
     // a line is one pixel wide in WebGL, so the framed hole is drawn thicker as nested outlines, white
     for (const grow of framed ? [0.03, 0.05, 0.07, 0.09] : [0.03]) {
       const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high)).expandByScalar(grow);
@@ -998,14 +1000,40 @@ function openHolesOnly() {
   lightTheSky({ background: [0.05, 0.05, 0.05], ambient: [0.5, 0.5, 0.5], exposure: 1 });
   scene.add(new THREE.GridHelper(GRID_METRES, GRID_METRES, 0x555555, 0x2a2a2a));
   markChanges(given.marks || []);
-  const all = new THREE.Box3();
-  for (const outline of changeMarks.children) all.union(outline.box);
-  const middle = all.getCenter(new THREE.Vector3()), reach = Math.max(all.getSize(new THREE.Vector3()).length(), 2);
-  const first = holeView() || { eye: [middle.x + reach * 0.6, middle.y + reach * 0.5, middle.z + reach * 0.6],
-                                aim: middle.toArray(), fov: 60 };
+  const first = holeView() || allHolesView();
   aimAt(first.eye, first.aim, first.fov);
   say("No 3D web copy of this place yet: only its holes are drawn.");
   requestAnimationFrame(frame);
+}
+
+// Every hole's box in view, from above one corner: the holes-only view's first look and its "Back to all holes".
+function allHolesView() {
+  const all = new THREE.Box3();
+  for (const outline of changeMarks.children) all.union(outline.box);
+  const middle = all.getCenter(new THREE.Vector3()), reach = Math.max(all.getSize(new THREE.Vector3()).length(), 2);
+  return { eye: [middle.x + reach * 0.6, middle.y + reach * 0.5, middle.z + reach * 0.6], aim: middle.toArray(),
+           fov: 60 };
+}
+
+// A click in the holes-only view: the nearest hole's box under it is selected, outlined white, and named with its
+// sentence and a link to its line on the place page (given.marks' sentence and url).
+function pickHole(screen) {
+  raycaster.setFromCamera(screen, camera);
+  const point = new THREE.Vector3();
+  let chosen = null, nearest = Infinity;
+  for (const mark of given.marks || []) {
+    const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high)).expandByScalar(0.03);
+    if (!mark.sentence || !raycaster.ray.intersectBox(box, point)) continue;
+    const distance = point.distanceTo(raycaster.ray.origin);
+    if (distance < nearest) { nearest = distance; chosen = mark; }
+  }
+  if (!chosen) { $("hole-picked").textContent = "No hole's box there: click inside one."; return; }
+  markChanges(given.marks || [], chosen.id);
+  const link = document.createElement("a");
+  link.href = chosen.url;
+  link.textContent = "its line on the place page";
+  $("hole-picked").replaceChildren(`${chosen.sentence} `, link);
+  history.replaceState(null, "", `?holes=1&hole=${encodeURIComponent(chosen.id)}`);
 }
 
 // From `from` (a camera), looking at the middle of what changes; `from` itself when nothing is outlined.
@@ -1016,7 +1044,8 @@ function lookingAtChanges(from) {
   return { eye: from.eye, aim: box.getCenter(new THREE.Vector3()).toArray(), fov: from.fov };
 }
 
-$("to-changes").onclick = () => goTo(lookingAtChanges({ eye: camera.position.toArray(), aim: null, fov: null }));
+$("to-changes").onclick = () => goTo(given.holes_only ? allHolesView()
+  : lookingAtChanges({ eye: camera.position.toArray(), aim: null, fov: null }));
 
 // --- loading --------------------------------------------------------------------------------------------------
 

@@ -129,7 +129,8 @@ class EngineGroup(BaseModel):
 
 
 class HolesTotal(BaseModel):
-    """Every place's holes in sum: how many of each rule, and the code work no stage can do yet (each line once)."""
+    """Every place's holes in sum: how many of each kind (lost, route, missing, gate), and the code work no stage can
+    do yet (each line once)."""
     counts: dict[str, int] = {}
     unfillable: list[str] = []
 

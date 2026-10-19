@@ -16,6 +16,7 @@ from collections import Counter
 from score import review, stages
 from score.dashboard.state import gaps as named, groups, plain
 from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
+from score.dashboard.state.holes import kind_of as hole_kind
 from score.dashboard.state.index import Fresh, answer_keys
 from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, HolesPrice, HolesTotal,
                                           InputPicture, LayerGroup, PlaceCard, PlaceDetail, Spend, StepCard, StepDetail,
@@ -506,10 +507,10 @@ class LocalSource:
 
     def holes_total(self):
         """Every place's holes and the environment's own lost inputs (HOLES_WORLD) in sum, a lost input once
-        (lost_once): counts by rule and the work no stage does."""
+        (lost_once): counts by kind (holes.KINDS: lost, route, missing, gate) and the work no stage does."""
         def read():
             holes = lost_once([hole for place in [*self.places(), HOLES_WORLD] for hole in self.holes(place)])
-            return HolesTotal(counts=dict(Counter(hole.rule for hole in holes)),
+            return HolesTotal(counts=dict(Counter(hole_kind(hole) for hole in holes)),
                               unfillable=sorted({hole.work for hole in holes if hole.node is None}))
         return self.remembered("holes total", read)
 
