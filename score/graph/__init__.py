@@ -243,6 +243,18 @@ def watch_runner(runner_pid, every=None):
         os.killpg(runner_pid, signal.SIGTERM)
 
 
+def finish_record(node, keyed, output, stage_name, started, clock):
+    """A node's finish record: its output under `keyed` (the key and everything it hashes), the commit and machine,
+    and the make's start (`started`, a time) and length (from `clock`, time.monotonic at its start)."""
+    return {"node": node, "key": keyed["key"], "output": output, "stage": stage_name, "place": keyed["place"],
+            "code": keyed["code"], "contract": keyed["contract"], "expects": keyed["expects"],
+            "params": keyed["params"], "seed": keyed["seed"], "files": keyed["files"], "after": keyed["after"],
+            "models": keyed["models"], **({"beside": keyed["beside"]} if "beside" in keyed else {}),
+            **_code.git_commit(),
+            "machine": platform.node(), "started": started, "finished": now(),
+            "minutes": round((time.monotonic() - clock) / 60, 3), "euros": 0}
+
+
 def node_name(stage, place):
     return stage.name if stage.grain == "world" else f"{stage.name}@{place}"
 
@@ -639,13 +651,10 @@ class Runner:
         output = self.store.put_tree(out)
         shutil.rmtree(out)
         self.drop_kept(node, keyed["key"])
-        record = {"node": node, "key": keyed["key"], "output": output, "stage": stage.name, "place": keyed["place"],
-                  "code": keyed["code"], "contract": keyed["contract"], "expects": keyed["expects"],
-                  "params": keyed["params"], "seed": keyed["seed"], "files": keyed["files"], "after": keyed["after"],
-                  "models": keyed["models"], **({"beside": keyed["beside"]} if "beside" in keyed else {}),
-                  **_code.git_commit(),
-                  "machine": platform.node(), "started": started, "finished": now(),
-                  "minutes": round((time.monotonic() - clock) / 60, 3), "euros": 0}
+        return self.write_finish(node, keyed, finish_record(node, keyed, output, stage.name, started, clock))
+
+    def write_finish(self, node, keyed, record):
+        """Store a node's finish record; the record that stands (another run's, when one stored this key first)."""
         try:
             self.store.write_record(node, keyed["key"], record)
         except FileExistsError:  # another run (one not taking the lock) stored this key first: its record stands

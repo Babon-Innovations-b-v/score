@@ -21,7 +21,8 @@ stage as each stage is built; nothing moves before.
   once, never overwritten, and safe for lines side by side (each write lands whole through a `.partial` file of its
   own process; a write-once key is linked into place, so a second writer is refused); `store/durable.py`, installed by the runner and `score.review` only so it is in no row's key, syncs every write to disk before and after it lands, so a reboot leaves it whole or absent, and moves an empty or unparsable object to `quarantine/` beside the store, read as absent, except in the owner areas: an unreadable accept, reject, waiver or spend yes stops the run and stays put (a trade-off kept on purpose: a cut runner's automatic accept then stops every run until it is fixed by hand, since reading it as absent could buy a paid row again); checkouts are read-only copies (never links to the stored bytes), made again
   when changed; an agent's process cannot write the framework
-  store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout.
+  store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout. `store/restore/`
+  (its overlay) rebuilds a lost store by today's keys and gates with a runner that spends nothing (#13).
 - **`python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]`** and **`python -m score
   status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place): the runner drives every line (the environment's own nodes, then each place's) to its end with no agent
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
