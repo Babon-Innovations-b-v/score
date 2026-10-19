@@ -158,7 +158,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/old_station-score1/job-chunky1.json",
   "models": {
    "solar_mast": "solar_mast-r1",
    "comms_mast": "comms_mast-r1",
@@ -175,14 +174,6 @@
    "bag_pile": "bag_pile-r1",
    "spare_wheel": "spare_wheel-r1"
   },
-  "entries": {
-   "solar_mast_dead": "{home}/work/place/old_station-score1/job-chunky2.json",
-   "hab_lander": "{home}/work/place/old_station-score1/job-chunky2.json",
-   "lab_module": "{home}/work/place/old_station-score1/job-chunky2.json",
-   "radiator": "{home}/work/place/old_station-score1/job-chunky2.json",
-   "power_unit": "{home}/work/place/old_station-score1/job-chunky2.json",
-   "bag_pile": "{home}/work/place/old_station-score1/job-chunky2.json",
-   "spare_wheel": "{home}/work/place/old_station-score1/job-chunky2.json"
-  }
+  "entries": {}
  }
 }

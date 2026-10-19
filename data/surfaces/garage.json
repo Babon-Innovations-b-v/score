@@ -182,7 +182,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/garage-score1/run/job-chunky.json",
   "models": {
    "rover_lift_1": "rover_lift-g1",
    "chain_hoist_1": "chain_hoist-g2",

@@ -37,7 +37,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/square-score1/run/job-chunky.json",
   "models": {
    "far_flag_pole_1": "far_flag_pole-s1",
    "far_palm_1": "far_palm-s1",

@@ -323,6 +323,29 @@ def test_a_ship_place_is_read_from_git_and_reads_its_own_scene_record():
         assert seen["scene"] == record / "record" / "cockpit.json", seen
 
 
+# The environment data's paths into the work folder still standing, per file, and why: the work folder is no store
+# (it went with the old disk on 2026-10-19). Shrinks to empty as the Pixal3D takes move into their row's output
+# (the inputs track's item 6); a new one fails below.
+WORK_PATHS_LEFT = {
+    **{f"data/props/{room}.json": 24 for room in ("campgrounds", "engineroom", "galley", "hangar", "navigation",
+                                                   "quarters", "storage")},
+    "data/props/cockpit.json": 25, "data/props/shiplock.json": 25,  # Pixal3D takes and hub-round6 models
+    "data/props/batches/trial.json": 8,  # the trial's close-ups, Pixal3D takes
+    "data/inventory/garage.json": 1,  # a citation of the coordinator's audit file in a `needed` note, no path read
+}
+
+
+def test_the_environment_data_names_no_new_path_into_the_work_folder():
+    import subprocess
+    found = subprocess.run(["git", "grep", "-c", "-E", r"\{home\}/work/|score-coordinator", "--", "data"], cwd=REPO,
+                           capture_output=True, text=True).stdout.split()
+    counts = {line.rsplit(":", 1)[0]: int(line.rsplit(":", 1)[1]) for line in found}
+    grown = {path: count for path, count in counts.items() if count > WORK_PATHS_LEFT.get(path, 0)}
+    assert not grown, f"new paths into the work folder (make them a row's output, or a hole): {grown}"
+    shrunk = {path: counts.get(path, 0) for path, count in WORK_PATHS_LEFT.items() if counts.get(path, 0) < count}
+    assert not shrunk, f"fewer paths into the work folder than WORK_PATHS_LEFT allows: lower it to {shrunk}"
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

@@ -29,6 +29,7 @@ import finish_parts  # noqa: E402
 import finish_rows  # noqa: E402
 import place_line  # noqa: E402
 import segvigen_row  # noqa: E402
+import surface_data  # noqa: E402
 import turntable_row  # noqa: E402
 from surface_gates import guarded  # noqa: E402
 
@@ -113,7 +114,7 @@ def paint_files(place):
 
 def bake_files(place):
     bake = line_record(place).get("bake")
-    jobs = {"bake job": bake["job"]} if bake else {"bake job": surfaces_pattern(place) + " names no bake job"}
+    jobs = dict(surface_data.BAKE_JOB_FILES) if bake else {"bake job": surfaces_pattern(place) + " names no bake"}
     return {"surfaces": surfaces_pattern(place), **jobs, "library bake": "{repo}/tools/props/cloud/library_bake.py",
             "bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library",
             "places": "{data}/definitions/place.json", "tokens": "{repo}/design/tokens/tokens.json"}

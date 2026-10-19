@@ -149,7 +149,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/wreck-score1/job-chunky1.json",
   "models": {
    "aft_section": "aft_section-s1",
    "hull_panel": "hull_panel-s1",
@@ -166,14 +165,6 @@
    "fragment": "fragment-s1",
    "probe_lander": "probe_lander-rr1"
   },
-  "entries": {
-   "forward_section": "{home}/work/place/wreck-score1/job-chunky2.json",
-   "foil_blanket": "{home}/work/place/wreck-score1/job-chunky2.json",
-   "leg_strut": "{home}/work/place/wreck-score1/job-chunky2.json",
-   "ring_frame": "{home}/work/place/wreck-score1/job-chunky2.json",
-   "access_cover": "{home}/work/place/wreck-score1/job-chunky2.json",
-   "fragment": "{home}/work/place/wreck-score1/job-chunky2.json",
-   "probe_lander": "{home}/work/place/wreck-rr2/job-chunky1.json"
-  }
+  "entries": {}
  }
 }

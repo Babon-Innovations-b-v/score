@@ -148,7 +148,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/campgrounds-score1/job-chunky1.json",
   "models": {
    "sample_case": "sample_case-g1",
    "cargo_case": "cargo_case-r1",
@@ -165,12 +164,6 @@
    "cairn": "cairn-p1"
   },
   "entries": {
-   "sample_case": "{home}/work/place/campgrounds-score1/job-chunky2.json",
-   "cargo_case": "{home}/work/place/campgrounds-score1/job-chunky2.json",
-   "cargo_pallet": "{home}/work/place/campgrounds-score1/job-chunky2.json",
-   "coiled_cable": "{home}/work/place/campgrounds-score1/job-chunky2.json",
-   "ice_drill": "{home}/work/place/campgrounds-score1/job-chunky2.json",
-   "reactor": "{home}/work/place/campgrounds-score1/job-chunky2.json",
    "cairn": {
     "base": [
      1.0,

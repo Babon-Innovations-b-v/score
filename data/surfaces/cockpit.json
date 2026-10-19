@@ -103,7 +103,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/cockpit-score1/run/job-chunky.json",
   "models": {
    "pilot_seat_1": "pilot_seat-s1",
    "control_stick_1": "control_stick-s1",

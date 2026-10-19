@@ -56,7 +56,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/workshop-score1/run/job-chunky.json",
   "models": {
    "hammer_1": "hammer-r6",
    "pliers_1": "pliers-r6",

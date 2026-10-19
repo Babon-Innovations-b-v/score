@@ -26,7 +26,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/engineroom-score1/run/job-chunky.json",
   "models": {
    "power_core_1": "power_core-s1",
    "fuel_tank_1": "fuel_tank-s1"

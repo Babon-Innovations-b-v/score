@@ -13,7 +13,6 @@
                      "kind": "greenhouse_crop_greens", "object": "leafy bush of fern-leaved kale, a single plant"}
  },
  "bake": {
-  "job": "{home}/work/place/greenhouse-w1f2/work/job-chunky.json",
   "models": {
    "crop_lettuce_1": "crop_lettuce-c1",
    "crop_potato_1": "crop_potato-c1",

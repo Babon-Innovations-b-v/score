@@ -3,9 +3,10 @@
 
 The paint reads labels.allowed_materials(library place, kind): the place's materials resolved through the library and
 the kind's list in details.json. The bake reads library.by_library and library.resolved of its own library place for
-the painted names and its job's spec names. So a row's key holds, of place.json, the materials and wear of its library places
+the painted names and its job's specs, which are every library variant (bake_job.specs_of, as both routes write a
+job). So a row's key holds, of place.json, the materials and wear of its library places
 (the surface data's `library` and every take's `library_places`), and of the library, the variants those entries
-name and their material names, its job's spec names, with their recipes, families and pictures, the kinds' details
+name and their material names (a bake row: every variant), with their recipes, families and pictures, the kinds' details
 and the library's own settings (wear levels, dirt). Before 2026-10-13 the rows hashed the whole library folder and
 place.json, and one surface added for one place re-keyed every place's paint and bake (the hub's assembly wanted
 about EUR 60 of re-buys).
@@ -13,9 +14,7 @@ about EUR 60 of re-buys).
 import json
 import pathlib
 
-from score.store import PROPS_HOME, file_hash
-
-REPO = pathlib.Path(__file__).resolve().parents[3]
+from score.store import file_hash
 
 
 def library_places(record):
@@ -39,12 +38,10 @@ def places_part(ids):
     return part
 
 
-def job_specs(job, data):
-    """The spec names of a bake job (its pattern), none when there is no job file (the row blocks on it anyway)."""
-    if not job:
-        return []
-    path = pathlib.Path(job.format(home=PROPS_HOME, data=data, repo=REPO))
-    return sorted(json.loads(path.read_text()).get("specs", {})) if path.is_file() else []
+def job_specs(library, bakes):
+    """The spec names of a bake job: every variant of the library (bake_job.specs_of) for a bake row, none for
+    another."""
+    return [name for entry in library["families"].values() for name in entry["variants"]] if bakes else []
 
 
 def named_variants(library, names):
@@ -57,7 +54,7 @@ def named_variants(library, names):
     return found
 
 
-def library_text(folder, ids, kind_names, job):
+def library_text(folder, ids, kind_names, bakes):
     """The library a row reads (see the module's docstring), as sorted JSON; its pictures by their files' hashes."""
     folder = pathlib.Path(folder)
     places = json.loads((folder.parent / "definitions/place.json").read_text())
@@ -65,7 +62,7 @@ def library_text(folder, ids, kind_names, job):
     details = json.loads((folder / "details.json").read_text())
     materials = {name: entry for place in ids for name, entry in places.get(place, {}).get("materials", {}).items()}
     names = {*materials, *(entry["library"] for entry in materials.values() if "library" in entry),
-             *job_specs(job, str(folder.parent))}
+             *job_specs(library, bakes)}
     variants = named_variants(library, names)
     recipes = {variant["recipe"] for variant in variants.values() if "recipe" in variant}
     pictures = {spec["picture"] for spec in [*variants.values(), *(library["recipes"].get(name, {}) for name in recipes)]
@@ -84,9 +81,9 @@ def library_text(folder, ids, kind_names, job):
                        "details": {kind: details.get(kind) for kind in kind_names}}, sort_keys=True)
 
 
-def library_part(ids, kind_names, job):
+def library_part(ids, kind_names, bakes):
     def part(path):
-        return library_text(path, ids, kind_names, job)
+        return library_text(path, ids, kind_names, bakes)
     return part
 
 
@@ -97,8 +94,8 @@ def narrowed(files, record_of):
         wide = files(place) if callable(files) else dict(files)
         record = record_of(place)
         ids = library_places(record)
-        job = record.get("bake", {}).get("job") if "bake job" in wide else None
-        return {**wide, "library": (wide["library"], library_part(ids, kinds(record), job)),
+        bakes = "kit route" in wide
+        return {**wide, "library": (wide["library"], library_part(ids, kinds(record), bakes)),
                 "places": (wide["places"], places_part(ids))}
     found.wide = files
     return found

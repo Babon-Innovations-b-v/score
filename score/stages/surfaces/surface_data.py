@@ -2,9 +2,9 @@
 
 data/surfaces/<place>.json: the models a place's line paints, each under its raw take (`takes`: its place, kind,
 object words and the places whose library it may take surfaces from, as the library names them), the name the
-library knows the place by (`library`), its bake (`bake`: the route's make_chunky job, the model each take is baked
-as, and entries the job lacks: another job's path, or the entry written out), and the models it lays that another
-place claims (`elsewhere`: {model: {take, place}}, read from that place's bake); a place with nothing to paint lists
+library knows the place by (`library`), its bake (`bake`: the model each take is baked as, and the make_chunky entries
+written out where the route's own would not do; the job is written in the bake from git, bake_job.py), and the models
+it lays that another place claims (`elsewhere`: {model: {take, place}}, read from that place's bake); a place with nothing to paint lists
 no takes and says why (`nothing`). Every model is painted, the owner's picks included (a pick chooses the model,
 never its old paint: owner, 2026-10-12), and each take by one place only: a model is painted once world-wide.
 
@@ -75,13 +75,48 @@ def parts_files(place):
     return {**line_files(place), **kit, **builders, "kit surfaces": "{repo}/tools/props/library/kit_surfaces.py"}
 
 
+# What bake_job.py writes a place's bake job from: the routes' code, the kinds' details and the composites' children.
+BAKE_JOB_FILES = {"place route": "{repo}/tools/props/library/place_route.py",
+                  "kit route": "{repo}/tools/props/library/route.py", "details": "{data}/library/details.json",
+                  "composites": "{data}/library/composites.json"}
+
+
+def read_data(folder, place):
+    found = REPO / "data" / folder / f"{place}.json"
+    return json.loads(found.read_text()) if found.exists() else {}
+
+
+def unentered(place, bake):
+    """The models a place bakes whose entry nothing in git gives (bake_job.entry_of would stop the bake on each): no
+    entry written out, not laid in its kit (a piece, or a furniture or composite child model with its size) and, in
+    an outside place (its kit says `on_seat`), no inventory row of its name."""
+    kit, inventory = read_data("kit", place), read_data("inventory", place)
+    laid = {piece.get("model") for piece in kit.get("pieces", [])}
+    sized = {model for model, entry in kit.get("models", {}).items() if entry.get("size")}
+    rows = {row["id"] for row in inventory.get("rows", [])} if "on_seat" in kit else set()
+    return sorted(model for model in bake.get("models", {})
+                  if not isinstance(bake.get("entries", {}).get(model), dict) and model not in laid | sized | rows)
+
+
+def job_files(place, bake):
+    """The world files a place's bake job is written from (BAKE_JOB_FILES, the place's kit and inventory where it has
+    them); a place whose data has no bake, or a model no entry can be written for (unentered), blocks here, before
+    anything is cleared: a path that is never there, naming it."""
+    if not bake:
+        return {"bake job": pattern(place) + " names no bake"}
+    found = dict(BAKE_JOB_FILES)
+    for folder in ("kit", "inventory"):
+        if (REPO / "data" / folder / f"{place}.json").exists():
+            found[folder] = "{data}/" + f"{folder}/{place}.json"
+    found.update({f"bake entry {model}": pattern(place) + f" writes no entry for {model} and its kit lays none"
+                  for model in unentered(place, bake)})
+    return found
+
+
 def bake_files(place):
-    """The bake row's world files: the place's data, its bake jobs (a place whose data names none blocks here, before
-    anything is cleared), the data of each place that claims a model it lays, the bake's code and the library."""
-    bake = record(place).get("bake")
-    jobs = {"bake job": bake["job"]} if bake else {"bake job": pattern(place) + " names no bake job"}
-    jobs.update({f"bake job {model}": entry for model, entry in (bake or {}).get("entries", {}).items()
-                 if isinstance(entry, str)})
+    """The bake row's world files: the place's data, what its bake job is written from (job_files), the data of each
+    place that claims a model it lays, the bake's code and the library."""
+    jobs = job_files(place, record(place).get("bake"))
     claimed = {f"claimed {claim['place']}": pattern(claim["place"])
                for claim in record(place).get("elsewhere", {}).values()}
     return {"surfaces": pattern(place), **jobs, **claimed, "library bake": "{repo}/tools/props/cloud/library_bake.py",

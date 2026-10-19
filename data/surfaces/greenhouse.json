@@ -100,7 +100,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/greenhouse-w1f2/work/job-chunky.json",
   "models": {
    "chair_1": "chair-b",
    "desklamp_1": "desklamp-r6",
@@ -111,8 +110,6 @@
    "crop_crate_1": "crop_crate-r2",
    "control_cabinet_1": "control_cabinet-g2"
   },
-  "entries": {
-   "control_cabinet_1": "{home}/work/place/gh-score1/garage/job-chunky.json"
-  }
+  "entries": {}
  }
 }

@@ -81,7 +81,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   in `data/library/materials.json` on a palette token, the place taking it in `place.json`), never a picture's colour.
 - **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture
-  stops the bake before anything is rented. The job files still give each model's entry (size, decals, cuts).
+  stops the bake before anything is rented. The job is written from git inside the bake (`bake_job.py`, 2026-10-19:
+  the job files lived in the work folder and went with the old disk): each model's entry is the one its data writes
+  out, else its route's own (`place_route.chunky_entry` sized over its labelled take for an outside place, whose kit
+  says `on_seat`; `route.jobs`' fields at its laid size in `data/kit/<place>.json` for a kit room), the specs every
+  library variant (`library.by_library` and `resolved`, as both routes write a job), so a variant added anywhere
+  re-keys every bake. A model neither gives (`surface_data.unentered`: the launch's far rocket) is declared as a file
+  that is never there, naming it, so the run refuses before anything is cleared.
 - **The paint runs on rented processor machines, a job a take** (`make_paint`, `inside/paint_take.py` through
   `blender_cloud.py`; paid, cleared like the bake): heavy steps run in the cloud (owner, 2026-10-12); measured up there,
   campgrounds' takes peak at 1.5 to 3.4 GB and crane-r1 at 34.8 GB (the PC's cap is 14 GB). Up there Blender's own
@@ -150,7 +156,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   not; until then the part keeps the nearest library surface the method named (`stands_in`). The paint writes it
   outside its key.
 - **Per-place data is environment data** (`surface_data.py`, `data/surfaces/<place>.json`): the takes a place paints, the
-  library name, the bake (the route's make_chunky job, model per take, entries the job lacks), and `elsewhere`: the
+  library name, the bake (model per take, the entries the route's own would not give written out), and `elsewhere`: the
   models it lays that another place claims. Everything is repainted, the owner's picks included (a pick chooses the
   model, never its old paint: owner, 2026-10-12); each take is painted by one place only, and a place reads a claimed
   model from the claiming place's bake (`elsewhere.json` in its bake output; the bake gate fails a claim the other

@@ -43,7 +43,9 @@ def edit(path, change):
     path.write_text(json.dumps(found, indent=1))
 
 
-def test_a_surface_no_library_place_of_the_row_takes_moves_no_key():
+def test_a_surface_no_library_place_of_the_row_takes_moves_no_paint_key_and_every_bake_key():
+    """The paint reads only its places' surfaces; the bake's job, written from git (bake_job.py), carries every
+    variant of the library as its specs, as both routes write a job, so a variant added anywhere moves every bake."""
     data = a_copy()
     try:
         before = {row: keys(row, "hub", data) for row in ("surfaces-paint", "surfaces-bake")}
@@ -53,7 +55,10 @@ def test_a_surface_no_library_place_of_the_row_takes_moves_no_key():
         edit(data / "definitions/place.json",
              lambda places: places["greenhouse"]["materials"].update(brand_new=dict(library="brand_new_panel",
                                                                                    token="hull-trim")))
-        assert {row: keys(row, "hub", data) for row in before} == before
+        assert keys("surfaces-paint", "hub", data) == before["surfaces-paint"]
+        after = keys("surfaces-bake", "hub", data)
+        assert after["library"] != before["surfaces-bake"]["library"]
+        assert after["places"] == before["surfaces-bake"]["places"]
     finally:
         shutil.rmtree(data)
 

@@ -15,7 +15,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/storage-score1/run/job-chunky.json",
   "models": {
    "cargo_rack_1": "cargo_rack-s1"
   },

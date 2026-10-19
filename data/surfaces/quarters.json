@@ -15,7 +15,6 @@
   }
  },
  "bake": {
-  "job": "{home}/work/place/quarters-score1/run/job-chunky.json",
   "models": {
    "bunk_1": "bunk-s1"
   },
