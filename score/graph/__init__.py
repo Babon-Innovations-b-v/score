@@ -64,7 +64,7 @@ from score import checks, contracts, review
 from score.adapters import models
 from score.graph import _code, stopped
 import score.store as score_store
-from score.store import file_hash, listing_hash, text_hash, tree_files, tree_listing
+from score.store import durable, file_hash, listing_hash, text_hash, tree_files, tree_listing
 
 GRAINS = ("world", "place")
 WORLD_LINE = "world"
@@ -336,6 +336,7 @@ def read_gauges(gauges):
 class Runner:
     def __init__(self, stages, world, store, model_record=None):
         no_bytecode()
+        durable.install()  # synced writes and quarantining reads, here and not in the store's module: in no row's key
         self.stages = {stage.name: stage for stage in stages}
         self.world = world
         self.store = scoped(store)

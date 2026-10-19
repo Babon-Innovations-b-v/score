@@ -19,7 +19,7 @@ stage as each stage is built; nothing moves before.
   evidence state, evidence per check and output, accepts (the runner's automatic ones and the owner's), the owner's
   rejects, waivers and spend yeses, the runner's clearances, the environment's finish registry (append-only). Written
   once, never overwritten, and safe for lines side by side (each write lands whole through a `.partial` file of its
-  own process; a write-once key is linked into place, so a second writer is refused); checkouts are read-only copies (never links to the stored bytes), made again
+  own process; a write-once key is linked into place, so a second writer is refused); `store/durable.py`, installed by the runner and `score.review` only so it is in no row's key, syncs every write to disk before and after it lands, so a reboot leaves it whole or absent, and moves an empty or unparsable object to `quarantine/` beside the store, read as absent, except in the owner areas: an unreadable accept, reject, waiver or spend yes stops the run and stays put (a trade-off kept on purpose: a cut runner's automatic accept then stops every run until it is fixed by hand, since reading it as absent could buy a paid row again); checkouts are read-only copies (never links to the stored bytes), made again
   when changed; an agent's process cannot write the framework
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout.
 - **`python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]`** and **`python -m score
@@ -38,6 +38,10 @@ stage as each stage is built; nothing moves before.
   dead holder lets go at once) makes a second run wait and then reuse the first's record, so nothing is paid twice;
   held past `LOCK_WAIT` the waiter is blocked, never made again. A record or judgement another run stored first is
   taken as made, never an error; a make that writes into its read-only input's checkout fails and stores nothing.
+- **`python -m score resume [--dry]`** starts again, each from its own worktree and detached, every `score run` in
+  the run registry (`graph/runs.py`, `$PROPS_HOME/runs/<id>.json`) an earlier boot cut off (one the owner stopped is marked `stopped` and never resumed), one resume at a time, and clears an earlier boot's `.partial` files. It starts a run only at the commit that registered it with nothing uncommitted, and only one alive (its entry touched every minute while it drives) within 12 h before the boot; any other, or one whose restart fails, is marked `unresumable` with why and listed by `score status`; a
+  detached run's log is under `$PROPS_HOME/logs`. `.claude/scripts/score-resume.service` runs it at boot once the
+  owner installs it (needs systemd in WSL).
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
   leaves out the places its environment data says it has nothing to do for), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed

@@ -7,6 +7,7 @@
     .venv/bin/python -m score spend --json            # this month's spend, open reservations and the ceiling
     .venv/bin/python -m score price <environment> --node N [--node N ...] --json   # each paid node's likely and high price
     .venv/bin/python -m score moved [--pre-push]      # the paid rows this tree would buy again, every environment
+    .venv/bin/python -m score resume [--dry]          # start again the runs a reboot cut off (score/graph/runs.py)
 
 `status --json` prints the same lines as one JSON object. `plan` works out what `run` would do with the same arguments,
 running nothing: the missing inputs, the nodes it would make and why, the paid rows it would buy with their estimates
@@ -30,7 +31,10 @@ signal N, exit 128+N`. --detach returns at once with the log's path: the run goe
 (tools/props/cloud/detached.py), its progress in that log and, when every line is done or stopped, one result line
 (`detached: ok|failed exit=N minutes=M log=... outputs=<faults folder>`) as the log's last line; a run stopped by
 SIGTERM, SIGINT or SIGHUP says `score run: stopped by signal N`, then `detached: stopped by signal N exit=128+N ...`.
-Wait for that line with the Monitor tool, never a poll loop.
+Wait for that line with the Monitor tool, never a poll loop. Its log is under $PROPS_HOME/logs, not /tmp, so it
+outlives a reboot. Every run that drives is registered in $PROPS_HOME/runs (score/graph/runs.py), and `resume` starts
+again, from its own worktree, each one an earlier boot cut off; a run the owner stopped (Ctrl-C, a kill while the
+machine is up, a closed session) is marked stopped and never started again.
 
 A run and everything it starts end together (2026-10-17: orphaned cloud machines and boxes billed by the started hour
 after runs were stopped): `run` names itself SCORE_RUN_ID (every node, batch and cloud tool it starts inherits it; their
@@ -72,7 +76,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from score import graph, stages  # noqa: E402
-from score.graph import rebuy, stopped  # noqa: E402
+from score.graph import rebuy, runs, stopped  # noqa: E402
 from score.stages import moved  # noqa: E402
 from score.store import Store  # noqa: E402
 
@@ -126,6 +130,7 @@ def parse(argv):
     images.add_parser("publish").add_argument("kind", choices=stages.images.proved_kinds())
     commands.add_parser("moved").add_argument("--pre-push", action="store_true",
                                               help="git's push lines on stdin: refuse the paid rows a push moves")
+    commands.add_parser("resume").add_argument("--dry", action="store_true", help="only list the runs it would start")
     for command in (run, status, plan):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
@@ -136,9 +141,7 @@ def detach(argv):
     """Start this command (argv, less --detach) again in a session of its own under detached.py, its output and then
     its result line into a fresh log (graph/stopped.py: on a stopping signal too); print the log's path and return
     at once."""
-    sys.path.insert(0, str(REPO / "tools/props/cloud"))
-    import detached
-    log = detached.log_path_for("score-run")
+    log = runs.log_path("score-run")
     command = [sys.executable, stopped.__file__, "--log", str(log), "--outputs",
                str(Store.default().cache.parent / "faults"), "--", sys.executable,
                *[word for word in argv if word != DETACH]]
@@ -652,17 +655,16 @@ def raised_status(error):
     return f"error: {type(error).__name__}: {error}"
 
 
-def run_with_exit_line(runner, places, whole, options):
-    """Drive the lines as a run (as_run), then print their closing states, then one `exit: <status>` line, the run's
-    last, said in every case: when it ends, raises, or is stopped by a signal (stopped.stop_on_signals raises
-    SystemExit); the lines."""
+def run_with_exit_line(runner, places, whole, options, argv):
+    """Drive the lines as a run (as_run) registered in the run registry (driven), then print their closing states,
+    then one `exit: <status>` line, the run's last, said in every case: when it ends, raises, or is stopped by a
+    signal (stopped.stop_on_signals raises SystemExit); the lines."""
     status = "ended without a status"
     try:
         started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # the ledger's own time format
         found = {}
-        as_run(runner, lambda: found.update(runner.drive(
-            places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole, only=options.stage,
-            gauges=run_gauges(runner, places, whole, options.stage, started))))
+        as_run(runner, lambda: found.update(driven(runner, places, whole, options, argv,
+                                                   gauges=run_gauges(runner, places, whole, options.stage, started))))
         lines = closing_lines(runner, places, whole, options)
         status = exit_status(found, lines)
         return lines
@@ -671,6 +673,30 @@ def run_with_exit_line(runner, places, whole, options):
         raise
     finally:
         print(f"exit: {status}", flush=True)
+
+
+def driven(runner, places, whole, options, argv, gauges=None):
+    """Drive the lines, registered in the run registry while they run (graph/runs.py): `ended` once the drive returns,
+    `crashed` when the runner raises, `stopped` by a stopping signal unless it is a shutdown's SIGTERM (runs.stopped_by:
+    then it stays `running`, for `score resume` after the reboot); what the drive did. The stopping signals are handled
+    before it is called (as_run), so a stop as the entry is written leaves it stopped, never running."""
+    entry = runs.new_entry(argv)
+    path = runs.entry_path(entry)
+    try:
+        with runs.beating(runs.written(path, entry)):
+            found = runner.drive(places, say=lambda line: print(line, flush=True), jobs=options.jobs, whole=whole,
+                                 only=options.stage, gauges=gauges)
+    except Exception:
+        if path.exists():
+            runs.mark(path, runs.CRASHED)
+        raise
+    except SystemExit as stop:
+        code = stop.code if isinstance(stop.code, int) else 0
+        if code > 128 and path.exists():  # stopped.stop_on_signals exits 128 + the signal's number
+            runs.stopped_by(path, code - 128)
+        raise
+    runs.mark(path, runs.ENDED)
+    return found
 
 
 def main(argv=None):
@@ -691,6 +717,9 @@ def main(argv=None):
         else:
             moved_check(every_world_moved())
         return
+    if options.command == "resume":
+        runs.resume(options.dry, say=lambda line: print(line, flush=True))
+        return
     runner = stages.runner(world=stages.WORLDS[options.world]())
     places, whole = options.place or stages.places(runner.world), not options.place
     if options.command == "plan":
@@ -709,8 +738,10 @@ def main(argv=None):
         if whole and stages.library.WORLD_ROW in runner.stages:
             print(stages.library.completion_line(runner.world.name,
                                                  stages.library.world_completion(runner, places)))
+        for line in runs.unresumable():
+            print(f"unresumable run {line}")
         return
-    lines = run_with_exit_line(runner, places, whole, options)
+    lines = run_with_exit_line(runner, places, whole, options, sys.argv[1:] if argv is None else argv)
     if any(state != "done" for state, _ in lines.values()):
         sys.exit(1)
 
