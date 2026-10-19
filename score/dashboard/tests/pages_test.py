@@ -252,15 +252,29 @@ def test_the_place_page_lists_its_holes_priced_from_the_basket(world, settings, 
     html = signed_in().get("/place/alpha/").content.decode()
     assert "A lamp should be in the alpha but nothing is made for it yet (2 of them)." in html
     assert "/basket/item/alpha-pieces/" in html and "likely EUR 2.00, high EUR 3.00" in html
-    assert "The runner buys nothing for it now" in html
+    assert "A free step: the next run makes it at no cost." in html  # complete: no item, and not a paid stage
     rough = re.search(r"<li>This place has no rough model\.(.*?)</li>", html, re.S).group(1)
     assert "No stage can fill this yet: " + ROUGH in rough and "EUR" not in rough
     assert NODE.search(outside_details(html)) is None
     total = holes.environment(world.source.holes_total(), items)
     assert total["likely"] == pricing.totals({"closeup@alpha": MEASURED})["likely_euros"]
-    assert total["holes"] == 4 and total["unfillable"] == [ROUGH]
+    assert total["holes"] == 4 and total["unfillable"] == [ROUGH] and total["uncarried"] == 0
     board = signed_in("other").get("/").content.decode()
     assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00; 0 guessed; 1 holes no stage can fill yet" in board
+
+
+def test_the_holes_total_prices_whole_items_and_says_the_paid_steps_no_item_carries():
+    from score.dashboard.state import holes
+    from score.dashboard.state.models import HolesTotal
+    total = HolesTotal(counts={"missing": 2}, nodes=["closeup@alpha", "closeup@beta"],
+                       paid_nodes=["closeup@alpha", "closeup@beta"])
+    items = [{"id": "alpha-pieces", "nodes": {"closeup@alpha": MEASURED, "assembly@alpha": MEASURED}},
+             {"id": "gamma-light", "nodes": {"light@gamma": MEASURED}}]
+    found = holes.environment(total, items)
+    # the item's later node is part of its price; an item filling no hole is not
+    assert found["likely"] == 4.0 and found["uncarried"] == 1
+    assert found["words"] == "likely EUR 4.00, high EUR 6.00; 0 guessed; 1 paid steps not in the basket, unpriced; " \
+                             "0 holes no stage can fill yet"
 
 
 def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):

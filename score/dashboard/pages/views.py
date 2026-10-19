@@ -104,14 +104,15 @@ def place_page(request, place):
     with_marks(detail.layers)
     world = source.world_state()
     style = present.look_of_place(world, place)
+    items = basket_now()
     return render(request, "pages/place.html", {
         "detail": detail, "name": present.place_name(style, detail) if style else present.humane(place),
         "status": present.place_status(detail.status, detail.layers),
         "breakdown": breakdown.breakdown(detail, style, step_url,
                                          sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
                                          source.step_detail(None, GROUND_STAGE)),
-        "problems": present.problems(detail), "holes": present.hole_groups(detail, basket_now()),
-        "holes_total": holes.environment(world.holes_total, basket_now()),
+        "problems": present.problems(detail), "holes": present.hole_groups(detail, items),
+        "holes_total": holes.environment(world.holes_total, items),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
         "library": library.strip_of(place)})
 
