@@ -93,6 +93,7 @@ Nothing is deployed. A push to `main` publishes the source, the paper's PDF and 
 - Don't continue into adjacent work after the requested task is done. Stop and wait.
 - When a background monitor reports repeated failures, propose stopping or investigating; don't passively echo "awaiting direction".
 - Never ship unverified claims (measured numbers, benchmark figures, compatibility assertions).
+- Costs of a few cents (a bucket download, a small read) need no approval; say them in the report after (owner, 2026-10-19). Paid runs, machines, model calls and basket checkouts still wait for his yes.
 
 ## Verification
 
