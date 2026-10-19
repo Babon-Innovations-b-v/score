@@ -140,3 +140,29 @@ def test_the_harness_runs_the_guard_under_the_projects_python_and_it_refuses_a_f
         kit.unlink()
     assert "ModuleNotFoundError" not in result.stderr
     assert result.returncode == 2 and _PLACE in result.stderr
+
+
+def test_saying_no_place_is_complete_passes(tmp_path, monkeypatch):
+    kit = _with_place(tmp_path, monkeypatch)
+    try:
+        code, _ = _run({"transcript_path": str(_transcript(tmp_path, f"No place is complete, {_PLACE} included."))})
+    finally:
+        kit.unlink()
+    assert code == 0
+
+
+def test_a_place_only_named_in_an_agents_prompt_was_not_worked_on(tmp_path, monkeypatch):
+    kit = _with_place(tmp_path, monkeypatch)
+    entries = [
+        {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "name": "Agent", "input": {"prompt": f"read data/inventory/{_PLACE}.json"}}]}},
+        {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "text", "text": f"The {_PLACE} is done."}]}},
+    ]
+    path = tmp_path / "transcript.jsonl"
+    path.write_text("\n".join(json.dumps(entry) for entry in entries) + "\n")
+    try:
+        code, _ = _run({"transcript_path": str(path)})
+    finally:
+        kit.unlink()
+    assert code == 0

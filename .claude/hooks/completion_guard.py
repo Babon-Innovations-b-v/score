@@ -24,8 +24,13 @@ sys.path.insert(0, str(_REPO_ROOT / "tools/usd"))
 
 _TOOL_RUNS = r"(?:export|page|settle|complete|resting|placeholders|made_only)\.py\s+(?:check\s+|done\s+)?"
 _CLAIM = re.compile(r"\b(complete|completed|done|finished|ready)\b", re.IGNORECASE)
-_NEGATION = re.compile(r"\b(not|incomplete|unfinished|blocked|fails?|failing)\b|n't\b", re.IGNORECASE)
+_NEGATION = re.compile(r"\b(not|no|none|nothing|never|neither|incomplete|unfinished|blocked|fails?|failing)\b|n't\b",
+                       re.IGNORECASE)
 _EVERY = re.compile(r"\b(every|all)\s+(the\s+)?places?\b", re.IGNORECASE)
+# a hand-off to another agent names places without working on them
+_DELEGATING = {"Agent", "Workflow", "SendMessage"}
+# the glossary's page, not the place named cockpit
+_PAGE = re.compile(r"\bcreator cockpit\b", re.IGNORECASE)
 
 
 def places():
@@ -56,7 +61,8 @@ def contents(entry):
 def touched(entries, known):
     """The places the session's tool calls worked on."""
     calls = " ".join(json.dumps(block.get("input", {})) for entry in entries if entry.get("type") == "assistant"
-                     for block in contents(entry) if block.get("type") == "tool_use")
+                     for block in contents(entry)
+                     if block.get("type") == "tool_use" and block.get("name") not in _DELEGATING)
     names = "|".join(re.escape(place) for place in known)
     patterns = (rf"data/(?:inventory|kit|scene|characters)/({names})\.json", rf"work/(?:usd|review)/({names})\b",
                 rf"{_TOOL_RUNS}({names})\b")
@@ -77,6 +83,7 @@ def claimed(text, candidates):
     """The places among these that the text claims are done."""
     found = set()
     text = re.sub(r"`[^`]*`", "", text)  # a quoted command (`complete.py done wreck`) is not a claim
+    text = _PAGE.sub("", text)
     for sentence in re.split(r"(?<=[.!?;])\s+|\n+", text):
         if not _CLAIM.search(sentence) or _NEGATION.search(sentence):
             continue
