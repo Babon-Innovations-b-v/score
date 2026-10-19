@@ -844,7 +844,7 @@ def run_printing(runner, places, whole=False):
     from score import __main__ as command
     printed = io.StringIO()
     with contextlib.redirect_stdout(printed):
-        lines = command.run_with_exit_line(runner, places, whole, run_options())
+        lines = command.run_with_exit_line(runner, places, whole, run_options(), ["run", "world1"])
     return printed.getvalue().splitlines(), lines
 
 
@@ -872,7 +872,7 @@ def test_a_run_that_raises_ends_with_an_exit_line():
     printed = io.StringIO()
     with contextlib.redirect_stdout(printed):
         try:
-            command.run_with_exit_line(runner, ["hangar"], False, run_options())
+            command.run_with_exit_line(runner, ["hangar"], False, run_options(), ["run", "world1"])
             raise AssertionError("the run did not raise")
         except RuntimeError:
             pass
@@ -887,7 +887,7 @@ def test_a_run_stopped_by_sigterm_ends_with_an_exit_line():
     def driving():
         sys.stdout = said.open("a", buffering=1)
         stopped.stop_on_signals(lambda number: print(f"score run: stopped by signal {number}", flush=True))
-        command.run_with_exit_line(slow_runner(5), ["hangar"], False, run_options())
+        command.run_with_exit_line(slow_runner(5), ["hangar"], False, run_options(), ["run", "world1"])
     process = graph.FORK.Process(target=driving)
     process.start()
     time.sleep(1)
