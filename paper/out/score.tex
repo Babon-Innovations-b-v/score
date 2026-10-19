@@ -40,6 +40,8 @@
   \KOMAoptions{parskip=half}}
 \makeatother
 \usepackage{longtable,booktabs,array}
+\usepackage{caption}
+\captionsetup[table]{skip=6pt}
 \newcounter{none} % for unnumbered tables
 \usepackage{calc} % for calculating minipage widths
 % Correct order of tables after \paragraph or \subparagraph
@@ -47,9 +49,6 @@
 \makeatletter
 \patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
 \makeatother
-% Allow footnotes in longtable head/foot
-\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
-\makesavenoteenv{longtable}
 \usepackage{graphicx}
 \makeatletter
 \newsavebox\pandoc@box
@@ -251,7 +250,13 @@ to use: shuttle concept by PAUL (zana), found online.
 
 \begin{figure}
 \centering
-\includegraphics[width=0.88\linewidth,height=\textheight,keepaspectratio,alt={The creator steers the ship's plan, in twelve steps: the creator's picks, described in words (found pictures, not shown); plan v1 of the bridge alone; the creator's corrections; v2 of the whole ship; the creator's correction of the outline; v3 to v6; the creator's two corrections of the nose; v7, which the creator accepted. All plans are ours. Shuttle concept by PAUL (zana), found online.}]{figures/fig-k7.jpg}
+\includegraphics[width=0.88\linewidth,height=\textheight,keepaspectratio,alt={The
+creator steers the ship's plan, in twelve steps: the creator's picks,
+described in words (found pictures, not shown); plan v1 of the bridge
+alone; the creator's corrections; v2 of the whole ship; the creator's
+correction of the outline; v3 to v6; the creator's two corrections of
+the nose; v7, which the creator accepted. All plans are ours. Shuttle
+concept by PAUL (zana), found online.}]{figures/fig-k7.jpg}
 \caption{The creator steers the ship's plan, in twelve steps: the
 creator's picks, described in words (found pictures, not shown); plan v1
 of the bridge alone; the creator's corrections; v2 of the whole ship;
@@ -343,9 +348,36 @@ Code first & 4 & 7 & 2 \\
 
 \endgroup
 
+\textbf{Big objects seen up close.} A generated model is right in its
+details and lumpy in its main shapes, which shows on a big object the
+player walks up to, so such an object gets a body built in code, under
+only the generated details its entry names (a console's screens and
+lamps), both baked as one model in library surfaces (the creator, 18
+October 2026). A re-audit of environment 1's 479 code-built inventory
+rows kept 396 as code, sent 80 to the prop route and 3 to a code body
+with generated details, and listed 46 picture-made kinds that are big
+objects seen up close; eight have a body builder so far (a cockpit
+console, a station module, a power core, fuel and water tanks, a lander,
+a rover and a crane). A bodied object's parts come from its code, so a
+re-made take skips the finish map and the split: each kept face takes
+the surface of the nearest face of the accepted take, and a take whose
+faces lie too far from it is refused. A prop whose body has no builder
+stops before its first paid step; without that stop, eight of the
+trial's ten props, whose bodies had no builder then, would have paid
+Pixal3D before the parts check refused them. Pixal3D now runs from
+image-to-3dlab 0.4.6. The trial of the eight bodied props has not run
+yet.
+
 \begin{figure}
 \centering
-\includegraphics[width=0.72\linewidth,height=\textheight,keepaspectratio,alt={Generation first on four hub objects. Columns: close-up, generated model, code build, final model. The hatch wheel's generated model passes its outline check at 0.60 where its code build fails at 0.45; the pliers pass at 0.81; every close-up of the screwdriver failed, so its code build carries it; the keyboard fails both ways (paint ΔE 33.1; code build too thin and out of proportion) and needs a new builder. Generated models are split into library surfaces, not baked.}]{figures/fig-k2.jpg}
+\includegraphics[width=0.72\linewidth,height=\textheight,keepaspectratio,alt={Generation
+first on four hub objects. Columns: close-up, generated model, code
+build, final model. The hatch wheel's generated model passes its outline
+check at 0.60 where its code build fails at 0.45; the pliers pass at
+0.81; every close-up of the screwdriver failed, so its code build
+carries it; the keyboard fails both ways (paint ΔE 33.1; code build too
+thin and out of proportion) and needs a new builder. Generated models
+are split into library surfaces, not baked.}]{figures/fig-k2.jpg}
 \caption{Generation first on four hub objects. Columns: close-up,
 generated model, code build, final model. The hatch wheel's generated
 model passes its outline check at 0.60 where its code build fails at
@@ -359,19 +391,25 @@ builder. Generated models are split into library surfaces, not baked.}
 
 \subsection{Surfaces: the finish map}\label{surfaces-the-finish-map}
 
-Models give shape only; every part takes one surface from a shared
-library of rule-based surfaces, written as ProcFunc functions {[}25{]}
-on Infinigen's shaders {[}9{]}, coloured from the place's palette and
-worn only where wear has a cause (Appendix D). Gemini 3.1 Pro {[}26{]}
-lists the close-up's finishes and names a library surface for each. Nano
-Banana Pro draws the close-up again with one flat colour per finish, up
-to three times until the map fits the close-up's outline, then draws
-unlit renders of the raw model's sides and back against it. SegviGen
-{[}27{]} splits the mesh guided by the close-up's map, every map votes
-on the faces its view sees, and a part whose second finish holds a fifth
-of it fails. Each part is painted from its library surface and baked,
-never in the picture's colours, which gave every piece its own rust and
-stains (Appendix A).
+Everything a place shows comes from the creator's library, score\_lib,
+or is a written exception: every model, kit, finish, effect, light,
+sound, character, ground and algorithm (the creator's rule of 18 October
+2026). Models give shape only, picture-made and code-built alike, so one
+style holds across them: a picture-made model keeps its geometry and its
+finish is replaced, never kept as the picture's own texture, its
+baked-in colour or a default grey. Every part takes one surface from a
+shared library of rule-based surfaces, written as ProcFunc functions
+{[}25{]} on Infinigen's shaders {[}9{]}, coloured from the place's
+palette and worn only where wear has a cause (Appendix D). Gemini 3.1
+Pro {[}26{]} lists the close-up's finishes and names a library surface
+for each. Nano Banana Pro draws the close-up again with one flat colour
+per finish, up to three times until the map fits the close-up's outline,
+then draws unlit renders of the raw model's sides and back against it.
+SegviGen {[}27{]} splits the mesh guided by the close-up's map, every
+map votes on the faces its view sees, and a part whose second finish
+holds a fifth of it fails. Each part is painted from its library surface
+and baked, never in the picture's colours, which gave every piece its
+own rust and stains (Appendix A).
 
 The bake is checked against the close-up. A finish's surface must lie
 within ΔE 32 of its colour there, else a nearer surface of its family is
@@ -381,6 +419,23 @@ three near greys and tipped, came two checks: a bake fails when it
 darkens a finish the close-up shows lighter, or turns all surfaces into
 one grey; and short legs are stretched onto one level plane, a foot over
 3 cm off the floor failing. Dirt follows the close-up.
+
+The bake's finish borders follow the model's real edges: the cut-down
+copy it bakes onto is shaded smooth except at folds of 60 degrees or
+more, and its cage stands four voxels out, so a border no longer breaks
+into steps along the remeshed facets. Three free checks over each
+place's accepted assembly, outside the gates, measure texture detail
+near the cameras against the room's kit, how ragged each part's finish
+borders are, and kit bakes older than their bake code; the hangar's ship
+fails, with 56 pixels a metre at 0.5 m against its kit's 617. A written
+exception names the place, the object, what it is, why it is not from
+the library, who allowed it and when; only the creator allows one, and
+one without a reason or an owner refuses the whole file. A free library
+check traces every material, model, emitter, light, sound source and
+character of a place's accepted assembly to a library entry, by content
+hash or a recorded origin, and lists what does not trace. It is not a
+gate of any row yet, since wiring it in would move the keys of paid
+rows; the creator cockpit shows its findings as the place's problems.
 
 \subsection{Resting}\label{resting}
 
@@ -640,7 +695,11 @@ Environments 2 to 4 & & not started & \\
 
 \begin{figure}
 \centering
-\includegraphics[width=0.92\linewidth,height=\textheight,keepaspectratio,alt={The environment 1 video (demo K9) on 18 October: the middle frame of each of its 27 films' walks, in story order. Every frame is the runner's accepted film of a place that is complete apart from named gaps; nothing was retouched or picked by hand.}]{figures/fig-k9.jpg}
+\includegraphics[width=0.92\linewidth,height=\textheight,keepaspectratio,alt={The
+environment 1 video (demo K9) on 18 October: the middle frame of each of
+its 27 films' walks, in story order. Every frame is the runner's
+accepted film of a place that is complete apart from named gaps; nothing
+was retouched or picked by hand.}]{figures/fig-k9.jpg}
 \caption{The environment 1 video (demo K9) on 18 October: the middle
 frame of each of its 27 films' walks, in story order. Every frame is the
 runner's accepted film of a place that is complete apart from named
