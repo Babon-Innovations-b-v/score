@@ -43,6 +43,16 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   key and ledger live under `~/.farm-factory-props/cloud/`.
 - **The limits are the owner's:** 4 h and €60 a batch, and the month's ceiling `SCORE_MONTH_EUROS` (€1,500 by default, 2026-10-08), checked before every rent (`ledger.py`, `batch.rent`). A batch that
   would pass one is refused before anything is rented; raising one is the owner's call.
+- **Nothing paid runs while the month's books are unknown** (#13, after the old WSL disk took both ledgers and the
+  runner's keys, 2026-10-19): `ledger.books_refusal` gives a reason unless `cloud/books.json` says this month is
+  `known` (the owner's `score spend --google-month EUR`), or the cloud ledger and the Google ledger each hold a line
+  from before the month began; a ledger begun again after a loss (a refused rent's line) holds none, so it stays
+  refused until the owner's figure or the next month. `compute.month_refusal`, `compute.require_cleared` (so
+  `batch.rent`, `park`, the cluster and every Google and World Labs caller) and `compute.submit` ask it before anything
+  is ordered; `google_spend.py` and `tools/cloud/runtime/submit.py` are left alone, as one is in the surface rows' code
+  version and the other in every job image's tag. Under SCORE_FREE_ONLY=1 the same points raise `ledger.FreeOnly`.
+  `batch.rent` refuses before any provider call without `ssh_key` and `self_delete_key.json`, and `batch.ssh_key`
+  never makes a key: the owner makes the runner's key and deletes the stale IAM key `farm-factory-batch`.
 - **The month's spend is the provider's own bill when that is higher** (2026-10-12: Scaleway billed EUR 1,554 for
   October, the ledger held EUR 1,387): `score.adapters.compute.month_refusal` and `batch.month_spent` take the higher of
   the bill (`provider.cloud.consumption`, lagging by hours) and the ledger. The gap was disks (EUR 71) and addresses

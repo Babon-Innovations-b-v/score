@@ -30,6 +30,21 @@ RENT_REFUSED = "rent-refused"
 ORDER_LINES = ("rent-started", "rent-refused", "order-started")
 # The kind of the line written before a cluster or a node pool is ordered (order_started, from the cluster set-up).
 ORDER_STARTED = "order-started"
+# The month's books as read back after a loss (#13: the ledgers went with the old WSL disk on 2026-10-19):
+# {month, state: "lost" or "known", bill, bill_at, source, google_before}, written by `score spend --read-back` (state
+# lost) and the owner's `score spend --google-month` (state known). Paid work is refused while the month's books are
+# not known (books_refusal).
+BOOKS = HOME / "cloud" / "books.json"
+# Set in a process that may spend nothing (the restore of #13): every paid point raises FreeOnly there.
+FREE_ONLY = "SCORE_FREE_ONLY"
+
+
+class FreeOnly(Exception):
+    """A paid or heavy step was reached in a process that runs free only (FREE_ONLY)."""
+
+
+class BooksUnknown(Exception):
+    """Paid work was asked for while the month's books are not known (books_refusal)."""
 
 
 def origin():
@@ -112,6 +127,75 @@ def month_total(month, batches, now=None):
 def this_month():
     """The current month as YYYY-MM, in UTC like the ledger's times."""
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m")
+
+
+def read_books():
+    """The month's books as read back (BOOKS), or {} when none were written."""
+    return json.loads(BOOKS.read_text()) if BOOKS.exists() else {}
+
+
+def write_books(books):
+    """Write the month's books whole (a reader never sees half a file)."""
+    BOOKS.parent.mkdir(parents=True, exist_ok=True)
+    partial = BOOKS.with_name(f"{BOOKS.name}.{os.getpid()}.partial")
+    partial.write_text(json.dumps(books, indent=1))
+    partial.replace(BOOKS)
+
+
+def written_before(lines, field, month):
+    """True when one of the ledger `lines` is dated (its `field`, ISO) before `month` (YYYY-MM)."""
+    return any(str(line[field])[:7] < month for line in lines if line.get(field))
+
+
+def google_lines():
+    """Every line of the Google call ledger (google_spend.py, beside this file), oldest first."""
+    import google_spend
+    if not google_spend.LEDGER.exists():
+        return []
+    return [json.loads(line) for line in google_spend.LEDGER.read_text().splitlines() if line.strip()]
+
+
+def books_refusal():
+    """Why the month's spend is not known, or None when it is. Known means the books for this month say so (the
+    owner gave the Google month, `score spend --google-month`), or, with no books for this month, the cloud ledger
+    and the Google ledger each hold a line from before the month began: each was written without a break since then.
+    A ledger lost and begun again (a refusal line written after the loss) holds no such line, so it stays refused
+    until the owner's figure or the next month (fault, 2026-10-19: both ledgers were lost with the disk, and a missing
+    ledger read as EUR 0)."""
+    month = this_month()
+    books = read_books()
+    if books.get("month") == month:
+        if books.get("state") == "known":
+            return None
+        return (f"the month's books are {books.get('state', 'unknown')} ({BOOKS}): paid work is refused until the "
+                f"owner gives the Google month (score spend --google-month EUR) or the month ends")
+    if written_before(entries(), "started", month) and written_before(google_lines(), "time", month):
+        return None
+    return (f"the month's spend is unknown: the cloud ledger ({LEDGER}) and the Google ledger do not both run "
+            f"from before {month}; paid work is refused until `score spend --read-back` and the owner's "
+            f"`score spend --google-month EUR`, or the next month")
+
+
+def google_before():
+    """The euros Google billed this month before the Google ledger began again (the books' `google_before`, known
+    from the owner), 0 when the books hold none for this month."""
+    books = read_books()
+    return float(books.get("google_before") or 0.0) if books.get("month") == this_month() else 0.0
+
+
+def refuse_free_only(what):
+    """Raise FreeOnly when this process runs free only; `what` says what was about to be paid or run."""
+    if os.environ.get(FREE_ONLY) == "1":
+        raise FreeOnly(f"{what}: refused, this process runs free only ({FREE_ONLY}=1)")
+
+
+def require_books(what):
+    """The gate at a paid point, before anything is ordered: FreeOnly in a process that runs free only, BooksUnknown
+    while the month's spend is not known (books_refusal); `what` says what was about to be ordered."""
+    refuse_free_only(what)
+    refused = books_refusal()
+    if refused:
+        raise BooksUnknown(f"{what}: {refused}")
 
 
 def cost(minutes, euros_per_minute, unit_minutes=1):
