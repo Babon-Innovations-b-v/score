@@ -310,7 +310,7 @@ def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(wor
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "findings.json").write_text(json.dumps({"place": place, "outputs": outputs, "findings": found}))
     total = world.source.holes_total()
-    assert total.counts == {"place": 2}, total
+    assert total.counts == {"lost": 2}, total
     assert total.unfillable == ["earth seed lost", "take lost"], total
 
 
@@ -360,7 +360,7 @@ def test_the_holes_total_names_what_it_could_not_price_and_sums_the_prop_route_a
     board = signed_in("other").get("/").content.decode()
     section = re.search(r'<section class="money-card holes-total".*?</section>', board, re.S).group(0)
     assert "once each place's prop data is written" in section and "the holes check never ran: world" in section
-    assert "1 ship kit step outside the stage table" in section
+    assert "1 step outside every stage table" in section
     assert NODE.search(outside_details(section)) is None  # the ship kit's node only inside the details
 
 
@@ -389,6 +389,43 @@ def test_the_holes_total_keeps_each_basis_apart_and_a_shared_node_once():
     assert (forecast["nodes"], forecast["likely"]) == (1, 2.0), forecast
 
 
+def test_the_whole_figure_and_the_code_work_before_the_first_purchase():
+    """One figure for completion (low: measured likely plus the guesses; high: measured high plus the guesses), the
+    measured share apart; the code work the places wait on ranked by the holes in paid chains there, then euros; the
+    shared ground step said as shared, its places left to the line."""
+    from types import SimpleNamespace
+
+    from score.dashboard.pages import present
+    from score.dashboard.state import holes
+    from score.dashboard.state.models import HolesPrice, HolesTotal
+    price = HolesPrice(made_at="2026-10-19T20:00:00+00:00",
+                       nodes={"pixal@alpha": {**MEASURED, "basis": "measured runs"}, "sound@alpha": GUESSED,
+                              "sound@beta": {**GUESSED, "guess_euros": 4.0}},
+                       chains={"alpha": {"pixal@alpha": ["pixal@alpha", "sound@alpha"]},
+                               "beta": {"sound@beta": ["sound@beta"]}})
+    whole = holes.environment(HolesTotal(counts={"missing": 3}), price)["whole"]
+    assert (whole["low"], whole["high"], whole["measured_likely"], whole["measured_high"], whole["guessed"],
+            whole["measured"], whole["paid"]) == (7.0, 8.0, 2.0, 3.0, 5.0, 1, 3), whole
+
+    def hole(ident, rule, node=None, work=None):
+        return SimpleNamespace(id=ident, rule=rule, node=node, work=work)
+    details = {"alpha": [hole("missing:a1", "missing", "pixal@alpha"), hole("missing:a2", "missing", "pixal@alpha"),
+                         hole("place:rough-model", "place", work=ROUGH),
+                         hole("place:lost:earth-seed:usd-r3", "place", work="earth seed lost")],
+               "beta": [hole("missing:b1", "missing", "sound@beta"),
+                        hole("place:lost:earth-seed:usd-r3", "place", work="earth seed lost")]}
+    code = holes.code_first(price, details)
+    assert [(task["task"], task["places"], task["holes"]) for task in code] == [
+        ("Earth seed lost: a seed row that exports each place's base", 2, 3), ("A rough-model stage", 1, 2)], code
+    assert code[0]["money"]["guessed"] == 5.0 and code[0]["money"]["likely"] == 2.0
+    buy = present.buy_lines(holes.buy_first(price, details), code)
+    assert buy["all_wait"] and buy["ready"] == [] and len(buy["waiting"]) == buy["count"] == 3
+    assert buy["code"][0]["euros"] == "EUR 2.00 to 3.00 measured, EUR 5.00 guessed"
+    ready = present.buy_lines(holes.buy_first(price, {"beta": [hole("missing:b1", "missing", "sound@beta")]}), [])
+    assert not ready["all_wait"] and [line["node"] for line in ready["ready"]] == ["sound@beta"]
+    assert present.node_words("terrain") == "the shared ground step"
+
+
 def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):
     import json
     a_holes_finding(world, settings, tmp_path)
@@ -404,7 +441,7 @@ def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):
         return json.loads(re.search(r'<script id="view3d-data" type="application/json">(.*?)</script>', html,
                                     re.S).group(1))["marks"]
     assert marks("/view/alpha") == []
-    assert marks("/view/alpha?holes=1") == [
+    assert [{name: mark[name] for name in ("id", "low", "high", "kind")} for mark in marks("/view/alpha?holes=1")] == [
         {"id": "missing:lamp_1", "low": [0, 0, 0], "high": [1, 1, 1], "kind": "missing"},
         {"id": "missing:lamp_2", "low": [2, 0, 0], "high": [3, 1, 1], "kind": "missing"},
         {"id": "gate:complete/painted:crate_1", "low": [4, 0, 0], "high": [5, 1, 1], "kind": "gate"}]

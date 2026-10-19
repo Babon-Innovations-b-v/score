@@ -6,21 +6,31 @@
 {% include "pages/money_world.html" %}
 {% include "pages/holes_total.html" %}
 
-{% if blockers or buy_first %}
+{% if blockers or buy.count %}
 <section class="buy-first" aria-label="what to buy first">
   <h2>What to buy first</h2>
+  {% if buy.all_wait %}
+  <p class="buy-none"><b>No paid step fills a hole yet.</b> Every hole in a paid step's chain is at a place that waits first on a lost input or a route step, so nothing bought today fills a single hole. This code work has to land before the first purchase means anything, the most holes it holds up first:</p>
+  <ol class="code-first">{% for task in buy.code %}<li><b>{{ task.task }}</b>: at {{ task.places }} place{{ task.places|pluralize }}, where {{ task.holes }} hole{{ task.holes|pluralize }} with a paid chain wait on it ({{ task.euros }} in those chains)</li>{% endfor %}</ol>
+  <p class="small soft">A place waits on every piece of code work listed at it, so one piece frees its places only once the others there land too.{% if blockers %} Then the steps that block every paid step:{% endif %}</p>
+  {% else %}
   <p class="small soft">First the steps that block every paid step, read from the money and the holes. Then each paid step by how many holes have it in their chain: a count, never a judgement. Buying a step fills none of those holes by itself: the rest of each chain is needed too, and a place that waits on a lost input or a route step runs nothing before that is put right.</p>
+  {% endif %}
   {% if blockers %}<ol class="blockers">{% for step in blockers %}
     <li><b>{{ step.title }}.</b> {{ step.words }}
       {% for command in step.commands %}<pre class="command">{{ command }}</pre>{% endfor %}
       {% if step.details %}<details class="ids"><summary>details</summary><ul class="fold-body">{% for line in step.details %}<li>{{ line }}</li>{% endfor %}</ul></details>{% endif %}</li>
   {% endfor %}</ol>{% endif %}
-  {% if buy_first %}
-  <ol class="buy-list">{% for entry in buy_first %}{% include "pages/buy_line.html" %}{% endfor %}</ol>
-  {% if buy_rest %}<details class="fold"><summary>Show all {{ buy_count }}</summary>
-    <ol class="buy-list" start="{{ buy_first|length|add:1 }}">{% for entry in buy_rest %}{% include "pages/buy_line.html" %}{% endfor %}</ol>
+  {% if buy_ready %}
+  <h3>Paid steps with holes that wait on nothing else first</h3>
+  <ol class="buy-list">{% for entry in buy_ready %}{% include "pages/buy_line.html" %}{% endfor %}</ol>
+  {% if buy_ready_rest %}<details class="fold"><summary>Show all {{ buy.ready|length }}</summary>
+    <ol class="buy-list" start="{{ buy_ready|length|add:1 }}">{% for entry in buy_ready_rest %}{% include "pages/buy_line.html" %}{% endfor %}</ol>
   </details>{% endif %}
   {% endif %}
+  {% if buy.waiting %}<details class="fold"><summary>{% if buy.all_wait %}Every paid step ({{ buy.count }}){% else %}{{ buy.waiting|length }} paid step{{ buy.waiting|length|pluralize }} whose holes all wait on a lost input or a route step first{% endif %}, by how many holes have it in their chain</summary>
+    <ol class="buy-list">{% for entry in buy.waiting %}{% include "pages/buy_line.html" %}{% endfor %}</ol>
+  </details>{% endif %}
 </section>
 {% endif %}
 
@@ -73,7 +83,9 @@
       {% if tile.web3d %}<a class="open3d" href="/view/{{ tile.place }}">Open in 3D</a>{% endif %}
       <a class="tile-foot" href="/place/{{ tile.place }}/">
         <span class="tile-name">{{ tile.name }}</span>
-        <span class="status {{ tile.status.tone }}">{{ tile.status.words }}</span>
+        {% if tile.holes and tile.holes.checked %}<span class="status {{ tile.holes.tone }}" title="its holes, read by the holes check">{{ tile.holes.count }} hole{{ tile.holes.count|pluralize }}{% if tile.holes.count %}, worst: {{ tile.holes.words }}{% endif %}</span>
+        {% elif tile.holes %}<span class="status idle">holes not checked</span>{% endif %}
+        <span class="status {{ tile.status.tone }}" title="its steps: stopped steps and named gaps are problems">steps: {{ tile.status.words }}</span>
       </a>
     </div>
     {% endfor %}

@@ -159,12 +159,26 @@ def after_work(price):
     return {"places": places, "sums": summed(nodes)}
 
 
+def whole_of(sums):
+    """{low, high, measured_likely, measured_high, measured, guessed, guessed_steps, unknown, paid} of a sum as one
+    figure: low the measured likely plus the guesses, high the measured high plus the guesses; the measured part and
+    the guessed part kept apart beside it, in euros and in paid steps; None for no sum."""
+    money = money_of(sums)
+    if money is None:
+        return None
+    return {"low": round(money["likely"] + money["guessed"], 2), "high": round(money["high"] + money["guessed"], 2),
+            "measured_likely": money["likely"], "measured_high": money["high"], "measured": money["measured"],
+            "guessed": money["guessed"], "guessed_steps": sums["guessed"]["nodes"], "unknown": money["unknown"],
+            "paid": money["paid"]}
+
+
 def environment(total, price, items=()):
-    """{holes, counts, made_at, stale, sums, after_work, not_in_basket, unfillable, outside, not_current,
-    not_checked, words} of every place's holes, None without a holes total: the runner's price of every paid node in
-    any hole's chain, each node once and each basis apart, the prop route after its code work apart (no sums while
-    the record is missing or stale), how many chain nodes no basket item carries yet (`items`, the basket's), the
-    work no stage can fill yet with its hole count, and what the record could not price."""
+    """{holes, counts, made_at, stale, sums, whole, after_work, whole_after, not_in_basket, unfillable, outside,
+    not_current, not_checked, words} of every place's holes, None without a holes total: the runner's price of every
+    paid node in any hole's chain, each node once and each basis apart, as one figure too (`whole`), the prop route
+    after its code work apart (`whole_after`; no sums while the record is missing or stale), how many chain nodes no
+    basket item carries yet (`items`, the basket's), the work no stage can fill yet with its hole count, and what the
+    record could not price."""
     if total is None:
         return None
     current = price is not None and not price.stale
@@ -172,7 +186,8 @@ def environment(total, price, items=()):
     after = after_work(price) if current else None
     carried = carriers(items)
     return {"holes": sum(total.counts.values()), "counts": total.counts, "made_at": price.made_at if price else None,
-            "stale": price.stale if price else None, "sums": sums, "after_work": after,
+            "stale": price.stale if price else None, "sums": sums, "whole": whole_of(sums), "after_work": after,
+            "whole_after": whole_of(after["sums"]) if after and after["places"] else None,
             "not_in_basket": sum(node not in carried for node in price.nodes) if current else None,
             "unfillable": price.unfillable if current else [{"work": work, "holes": None} for work in total.unfillable],
             "outside": price.outside if current else [], "not_current": price.not_current if current else [],
@@ -307,6 +322,30 @@ def buy_first(price, details, items=()):
              "price": node_price(price.nodes[node]), "item": carried.get(node)}
             for node, (holes, places, waiting) in sorted(in_chains(price, details).items(),
                                                          key=lambda pair: (-pair[1][0], pair[0]))]
+
+
+def code_first(price, details):
+    """[{task, places, holes, money}] of the code work the places wait on before a paid step fills a hole there: each
+    lost input or route step no stage fills at a place, folded into its task (work_task), with how many places it is
+    at, how many holes there have a paid chain (they wait on it) and those chains' paid steps' money (money_of, each
+    node once); the most holes first, then the most euros. A place waits on every task listed at it, so a task frees
+    its places only with the others there; [] with no current record."""
+    if price is None or price.stale:
+        return []
+    found = {}
+    for place, listed in details.items():
+        for hole in listed:
+            if place != WORLD and hole.node is None and hole.work and kind_of(hole) in ("lost", "route"):
+                found.setdefault(work_task(hole.work), set()).add(place)
+    rows = []
+    for task, places in found.items():
+        chained = sum(1 for place in places for hole in details[place]
+                      if hole.node and hole.node in price.chains.get(place, {}))
+        nodes = {node for place in places for node in place_nodes(details[place], price, place) if node in price.nodes}
+        rows.append({"task": task, "places": len(places), "holes": chained,
+                     "money": money_of(summed({node: price.nodes[node] for node in nodes}))})
+    return sorted(rows, key=lambda row: (-row["holes"], -(row["money"]["high"] + row["money"]["guessed"]),
+                                         row["task"]))
 
 
 LOST_KINDS = {"earth-seed": "The earth seed is lost", "ship-seed": "The ship seed is lost",

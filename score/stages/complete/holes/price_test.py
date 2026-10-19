@@ -165,11 +165,25 @@ def test_findings_over_an_output_no_longer_accepted_are_not_current_and_price_no
     assert found["chains"] == {} and found["holes"] == {} and found["nodes"] == {}
 
 
-def test_a_place_never_checked_and_a_node_outside_the_table_are_named_not_dropped():
-    found, _ = priced(places=("hangar", "lab"), findings=[hole(1, "ship_kit@hangar")])
+def test_a_place_never_checked_and_a_node_outside_every_table_are_named_not_dropped():
+    found, _ = priced(places=("hangar", "lab"), findings=[hole(1, "drone@hangar")])
     assert found["not_checked"] == ["lab", WORLD]  # the environment's own findings were never written either
-    assert found["outside"] == [{"node": "ship_kit@hangar", "holes": 1}]
+    assert found["outside"] == [{"node": "drone@hangar", "holes": 1}]
     assert found["nodes"] == {}
+
+
+def test_a_ship_kit_is_priced_on_its_own_table_as_a_guess_with_its_line():
+    """ship_kit@<place> is in no runner's table here but the ship kits' own: priced once on its row, however many
+    holes name it; with no measured run its estimate is a guess, with the file and line it is written on."""
+    from score.stages import ship_kits
+    found, _ = priced(findings=[hole(1, "ship_kit@hangar"), hole(2, "ship_kit@hangar")])
+    assert found["outside"] == [] and found["chains"]["hangar"]["ship_kit@hangar"] == ["ship_kit@hangar"]
+    kit = found["nodes"]["ship_kit@hangar"]
+    assert (kit["basis"], kit["likely_euros"], kit["guess_euros"]) == ("not measured yet", None, ship_kits.EUROS)
+    assert kit["guess_from"] == ship_kits.STAGE.euros_from and kit["guess_from"].startswith(
+        "score/stages/ship_kits/__init__.py:"), kit
+    assert found["totals"]["guessed"] == 1 and found["holes"]["hangar"] == {
+        "missing:crate_1": "ship_kit@hangar", "missing:crate_2": "ship_kit@hangar"}
 
 
 def test_rows_waiting_on_their_prop_data_get_the_prop_route_priced_after_that_work():

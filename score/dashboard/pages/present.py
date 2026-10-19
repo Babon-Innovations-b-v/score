@@ -232,8 +232,9 @@ def problems(detail):
 def node_words(node):
     """A node in words for the pages: its step's label and its place, never its id."""
     stage, _, place = node.partition("@")
-    where = f" of {plain.place_words(place)}" if place else " shared by every place"
-    return f"the {groups.label(stage)} step{where}"
+    if not place:
+        return f"the shared {groups.label(stage)} step"
+    return f"the {groups.label(stage)} step of {plain.place_words(place)}"
 
 
 def source_label(hole):
@@ -283,8 +284,12 @@ def framed_hole(detail, ident):
 
 
 def hole_marks(detail):
-    """[{id, low, high, kind}] the viewer outlines: each hole with a box in space, by its rule (missing, gate)."""
-    return [{"id": hole.id, "low": hole.low, "high": hole.high, "kind": hole.rule} for hole in detail.holes
+    """[{id, low, high, kind, sentence, url}] the viewer outlines: each hole with a box in space, by its rule (missing,
+    gate), its plain sentence and its line on the place page, so a click on its box names it."""
+    anchors = anchors_of(detail)
+    return [{"id": hole.id, "low": hole.low, "high": hole.high, "kind": hole.rule,
+             "sentence": plain.hole_sentence(hole, detail.place),
+             "url": f"/place/{detail.place}/#{anchors[hole.id]}"} for hole in detail.holes
             if hole.low is not None and hole.high is not None]
 
 
@@ -425,25 +430,38 @@ def overview(rows, names):
     return found
 
 
+def with_holes(shown, places):
+    """The board's groups with each tile's holes from the overview's rows (present.overview): {count, words, tone}
+    of its holes and its worst kind, or None for a place the overview has no row of; the groups, changed in place."""
+    rows = {row["place"]: row for row in places}
+    for group in shown:
+        for tile in group["tiles"]:
+            row = rows.get(tile["place"])
+            tile["holes"] = None if row is None else {
+                "count": row["holes"], "words": row["status"]["words"], "tone": row["status"]["tone"],
+                "checked": not row["not_checked"]}
+    return shown
+
+
 def blockers(money_card, spend, lost):
-    """[{title, words, commands, details}] of the steps that block every paid step, read from state: no stop set, the
-    month's books not known (or not read), and each kind of lost input with the places it blocks."""
+    """[{title, words, commands, details}] of the steps that block every paid step, read from state: no stop set (the
+    money card's, as it says it, read or not), the month's books not known (or not read yet), and each kind of lost
+    input with the places it blocks."""
     found = []
+    if not money_card["stop"]:
+        found.append({"title": "Set a stop", "words": "No stop is set for this environment, so every paid step "
+                      "is refused. Type in your own terminal:", "commands": [money_card["stop_line"]],
+                      "details": []})
     if spend.as_of is None:
-        found.append({"title": "The month's spend is not read yet",
-                      "words": "Whether a stop is set and whether the month's books are known is not known yet.",
-                      "commands": [], "details": [spend.note] if spend.note else []})
-    else:
-        if not money_card["stop"]:
-            found.append({"title": "Set a stop", "words": "No stop is set for this environment, so every paid step "
-                          "is refused. Type in your own terminal:", "commands": [money_card["stop_line"]],
-                          "details": []})
-        if spend.paid_refused:
-            found.append({"title": "The month's books are not known", "words": "Paid work is refused until they are. "
-                          "Only you can make them known, in your own terminal:",
-                          "commands": [f".venv/bin/python -m score spend {named}"
-                                       for named in dict.fromkeys(OWNERS_COMMAND.findall(spend.paid_refused))],
-                          "details": [spend.paid_refused]})
+        found.append({"title": "The month's books are not read yet",
+                      "words": "Whether they are known is read with the month's spend; load the page again in a "
+                               "moment.", "commands": [], "details": [spend.note] if spend.note else []})
+    elif spend.paid_refused:
+        found.append({"title": "The month's books are not known", "words": "Paid work is refused until they are. "
+                      "Only you can make them known, in your own terminal:",
+                      "commands": [f".venv/bin/python -m score spend {named}"
+                                   for named in dict.fromkeys(OWNERS_COMMAND.findall(spend.paid_refused))],
+                      "details": [spend.paid_refused]})
     for entry in lost:
         found.append({"title": entry["words"],
                       "words": f"Blocks {entry['places']} place{'s' if entry['places'] != 1 else ''} "
@@ -453,8 +471,31 @@ def blockers(money_card, spend, lost):
     return found
 
 
-def buy_lines(first):
-    """The buy-first list in words: each paid step, the holes and places it unblocks, its own price and the basket
-    item that carries it."""
-    return [{**entry, "words": node_words(entry["node"]),
-             "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None} for entry in first]
+def buy_line(entry):
+    """One paid step of the buy-first list in words: its step, its own price and the basket item that carries it."""
+    return {**entry, "words": node_words(entry["node"]),
+            "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None}
+
+
+def euros_words(money):
+    """A sum's money in a few words: the measured likely to high, the guesses said as guessed."""
+    words = []
+    if money["measured"]:
+        words.append(f"EUR {money['likely']:.2f} to {money['high']:.2f} measured")
+    if money["guessed"]:
+        words.append(f"EUR {money['guessed']:.2f} guessed")
+    if money["unknown"]:
+        words.append(f"{holes.steps(money['unknown'], 'paid step')} with no price and no guess")
+    return ", ".join(words) or "no paid step"
+
+
+def buy_lines(first, code):
+    """{all_wait, ready, waiting, code, count} of the buy-first list (holes.buy_first) and the code work the places
+    wait on (holes.code_first): the paid steps some of whose holes wait on nothing (`ready`) apart from those whose
+    holes all wait on a lost input or a route step first (`waiting`), and `all_wait` when no step is ready, so the
+    page says first that no paid step fills a hole yet and which code work comes before."""
+    lines = [buy_line(entry) for entry in first]
+    ready = [line for line in lines if line["waiting"] < line["holes"]]
+    return {"all_wait": bool(lines) and not ready, "ready": ready,
+            "waiting": [line for line in lines if line["waiting"] >= line["holes"]],
+            "code": [{**task, "euros": euros_words(task["money"])} for task in code], "count": len(lines)}

@@ -19,13 +19,15 @@ The record:
                      (the prop route of the place's missing rows that wait on its prop data, priced as if the data
                       were written: each paid row of the route once a place, per model where its stage has a rule;
                       a row whose node is in a chain already is counted there, not again)
-     "outside": [{"node", "holes"}],                  (a node outside this runner's table: the ship kits')
+     "outside": [{"node", "holes"}],                  (a node outside this runner's table and every own table)
      "not_current": [places whose findings stood over an output no longer accepted: run the holes check again],
      "not_checked": [places (and WORLD) with no findings: the holes check never ran there]}
 
 A node is priced once, however many holes share it. A Blocked node or a missing input is something to make, so it is
 in the chain and priced; nothing is skipped. A lost input read by several places (its id names the thing) counts
-once. A count of 0 or a rule whose source is missing is no count (a guess), never a free make.
+once. A count of 0 or a rule whose source is missing is no count (a guess), never a free make. A node of a table of
+its own (OWN_TABLES: the ship kits', `ship_kit@<place>`) is priced the same way on its own row, its chain the node
+alone: no row of this table reads it, so what the place's completion reads after it is in the place's other chains.
 """
 import hashlib
 import json
@@ -39,6 +41,17 @@ from score.stages.complete.holes import FINDINGS, WORLD, fill, inputs
 
 MISSING = "missing"
 ROUTE_END = "likeness"  # the prop route's last row (score/stages/props): a model's route runs up to its likeness gate
+
+
+def own_tables():
+    """{stage name: its row} of the tables of their own a hole's node may name (fill.SHIP_KIT: the ship kits')."""
+    from score.stages import ship_kits
+    return {fill.SHIP_KIT: ship_kits.STAGE}
+
+
+def stage_of(runner, name):
+    """A stage's row: the runner's table's, else a table of its own's, else None (a node outside every table)."""
+    return runner.stages.get(name) or own_tables().get(name)
 
 
 def findings_of(root, place):
@@ -118,7 +131,7 @@ def forecast_units(node, found, data):
 
 def node_price(runner, node, found, data, store):
     """One paid node at compute.run_price with its forecast units, and the units and their source."""
-    stage = runner.stages[node.partition("@")[0]]
+    stage = stage_of(runner, node.partition("@")[0])
     units = forecast_units(node, found, data)
     price = compute.run_price(node, stage.euros, store, units=units, guess_from=stage.euros_from)
     return {**price, "units": price.get("units", units)}
@@ -177,7 +190,7 @@ def waits_on_prop_data(hole, place):
 
 def chained(runner, found, places):
     """{chains: {place: {node: its hole chain}}, holes: {place: {hole id: node}}, work: {work: holes},
-    outside: {node outside the table: holes}, route: {place: {"work", "holes", "rows"}}} of the places' holes
+    outside: {node outside every table: holes}, route: {place: {"work", "holes", "rows"}}} of the places' holes
     (`found`), each lost input once."""
     reading = chain.readers(runner, places)
     record = {"chains": {}, "holes": {}, "work": {}, "outside": {}, "route": {}}
@@ -189,13 +202,16 @@ def chained(runner, found, places):
                 route = record["route"].setdefault(place, {"work": hole["work"], "holes": 0, "rows": set()})
                 route["holes"] += 1
                 route["rows"].add(hole.get("row") or hole["id"])
-        elif node.partition("@")[0] not in runner.stages:
-            record["outside"][node] = record["outside"].get(node, 0) + 1
-        else:
+        elif node.partition("@")[0] in runner.stages:
             record["holes"].setdefault(place, {})[hole["id"]] = node
             at = record["chains"].setdefault(place, {})
             if node not in at:
                 at[node] = node_chain(runner, node, place, places, reading)
+        elif node.partition("@")[0] in own_tables():
+            record["holes"].setdefault(place, {})[hole["id"]] = node
+            record["chains"].setdefault(place, {})[node] = {node: bool(own_tables()[node.partition("@")[0]].paid)}
+        else:
+            record["outside"][node] = record["outside"].get(node, 0) + 1
     return record
 
 

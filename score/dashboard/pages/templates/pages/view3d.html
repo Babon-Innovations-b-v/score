@@ -45,7 +45,9 @@
   <label><input type="checkbox" id="hold" checked> Eyes 1.6 m over the floor while walking</label>
   <div class="views" id="views"></div>
 
-  {% if holes_only %}<p class="small soft">Naming a part, measuring and the layers work once a 3D web copy of this place exists.</p>{% endif %}
+  {% if holes_only %}<h2>A click</h2>
+  <div id="hole-picked" class="panel small">Click a box to name its hole.</div>
+  <p class="small soft">Naming a part, measuring and the layers work once a 3D web copy of this place exists.</p>{% endif %}
   <div{% if holes_only %} hidden{% endif %}>
   <h2>A click</h2>
   <label><input type="radio" name="tool" value="name" checked> Names the part</label>
@@ -65,6 +67,6 @@
   {% endif %}
 </aside>
 <div id="stage" class="view3d-stage"><div id="measure-label" class="measure-label" hidden></div>
-  <button type="button" id="to-changes" class="to-changes" hidden>Look at what changes</button></div>
+  <button type="button" id="to-changes" class="to-changes" hidden>{% if holes_mode %}Back to all holes{% else %}Look at what changes{% endif %}</button></div>
 </body>
 </html>

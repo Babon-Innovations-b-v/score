@@ -28,8 +28,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   first: lost input, route step, missing, gate; its chains' paid nodes once), the steps that block every paid step
   (no stop, the month's books `paid_refused`, each kind of lost input), then `buy_first` (each paid node by how many
   holes have it in their chain, a count, and how many of those wait first on a lost input or a route step at their
-  place), the code work folded into tasks (`work_groups`, `WORK_TASKS`; holes counted from the findings, a lost
-  input once) and the money `headline` (the prop route after its code work said apart). A place page shows its holes layer as a tree
+  place; when every one waits, `code_first` comes first: the code work the places wait on by the holes in paid
+  chains there, then euros, and the steps fold), the code work folded into tasks (`work_groups`, `WORK_TASKS`;
+  holes counted from the findings, a lost input once) and the money `headline` with one figure (`whole_of`: low the
+  measured likely plus the guesses, high the measured high plus the guesses, the measured share in euros and steps;
+  the prop route after its code work said apart). Counts are by kind (lost input once, route step, missing, gate);
+  a board card carries its place's holes and worst kind beside its steps' status. A place page shows its holes layer as a tree
   (`present.prim_tree`; no accepted assembly gives a whole scene tree yet), its holes by kind with each line's source
   and a `/view/<place>?holes=1&hole=<id>` link the viewer frames (holes alone over a grid while no web copy exists).
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` prices a plan from measured

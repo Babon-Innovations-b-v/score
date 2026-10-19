@@ -45,8 +45,15 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     beta = re.search(r'<a href="/place/beta/">.*?</tr>', places, re.S).group(0)
     assert "not checked" in beta or "no holes found" in beta
     first = unescape(section(html, "what to buy first"))
-    blockers = re.findall(r"<li><b>(.*?)</b>", first)
+    blockers = re.findall(r"<li><b>(.*?)</b>", re.search(r'<ol class="blockers">.*?</ol>', first, re.S).group(0))
     assert blockers[:2] == ["Set a stop.", "The month's books are not known."], blockers
+    # every hole in a paid chain waits on alpha's rough model: the section says so first, then the code work
+    assert first.index("No paid step fills a hole yet.") < first.index('<ol class="code-first">') < first.index(
+        '<ol class="blockers">')
+    assert ("<b>A rough-model stage</b>: at 1 place, where 3 holes with a paid chain wait on it "
+            "(EUR 2.00 to 3.00 measured, EUR 1.00 guessed in those chains)") in first
+    assert re.search(r'<details class="fold"><summary>Every paid step \(2\), by how many holes have it in their '
+                     r'chain</summary>\s*<ol class="buy-list">', first)  # every step folded, none shown open
     assert REFUSED in first  # the refusal in its details fold
     assert "score spend --read-back" not in first  # only the commands the refusal names
     assert '<pre class="command">.venv/bin/python -m score spend --owners-month EUR</pre>' in first  # as it names it
@@ -66,12 +73,32 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     assert html.index('aria-label="what to buy first"') < html.index('aria-label="code work no stage does yet"')
     total = section(html, "what every place still needs")
     assert "To complete: likely EUR 2, high EUR 3 measured by per unit × forecast, plus EUR 1 guessed" in total
+    assert ("2 not made yet, 1 made but failing a check, 1 step of the route not done, 0 inputs lost (each once, "
+            "however many places read it).") in total  # route steps and lost inputs apart
+    assert ("<b>In all, to complete: EUR 3.00 to EUR 4.00</b>, of which EUR 2.00 to 3.00 measured (1 of 2 paid "
+            'steps) and EUR 1.00 <span class="unknown">guessed, not a price</span> (1 step).') in total
+    tiles = re.findall(r'<a class="tile-foot" href="/place/(\w+)/">(.*?)</a>', html, re.S)
+    alpha_tile = dict(tiles)["alpha"]
+    assert "4 holes, worst: route steps not done" in alpha_tile and "steps: " in alpha_tile, alpha_tile
     assert re.search(r'<td data-value="1"><span class="status bad">route steps not done', alpha)  # sorts by rank
     assert NODE.search(outside_details(html)) is None
 
 
+def test_the_first_load_says_set_a_stop_and_only_the_books_not_read_yet(cockpit, monkeypatch):
+    """Before the spend read returns: the money card's stop decides "Set a stop", the books are said as not read."""
+    from score.dashboard.pages import actions
+    from score.dashboard.state.models import Spend
+    monkeypatch.setattr(actions, "spend", lambda: Spend(note="the month's spend is being read"))
+    first = unescape(section(signed_in().get("/").content.decode(), "what to buy first"))
+    blockers = re.findall(r"<li><b>(.*?)</b>", re.search(r'<ol class="blockers">.*?</ol>', first, re.S).group(0))
+    assert blockers[:2] == ["Set a stop.", "The month's books are not read yet."], blockers
+    assert "not known yet" not in first
+
+
 def test_a_place_shows_its_holes_tree_its_groups_and_each_lines_source(cockpit):
     html = signed_in().get("/place/alpha/").content.decode()
+    assert 'href="/view/alpha?holes=1"' in html and "Open in 3D: its holes" in html  # no web copy: the holes view
+    assert "Open in 3D: not made yet" not in html
     tree = re.search(r'<ul class="tree">.*?</ul>\s*</div></details>', html, re.S).group(0)
     assert re.search(r"/alpha</span>\s*<span class=\"soft small\">holes below: 4</span>", tree)
     assert re.search(r'<a href="#hole-missing:lamp_1">lamp</a>\s*<span class="soft small">holes below: 2</span>'
@@ -109,6 +136,11 @@ def test_the_viewer_frames_one_hole_with_or_without_a_web_copy(cockpit):
             '<a href="/place/alpha/#hole-missing:lamp_1">') in page  # its line: the row's first lamp
     assert 'class="mark-key framed"' in page and 'class="mark-key gate"' in page  # the crate's gate has a box
     assert "work once a 3D web copy of this place exists" in page
+    # a click on a box names its hole: each mark carries its sentence and its line; the corner button is the holes'
+    lamp = next(mark for mark in given["marks"] if mark["id"] == "missing:lamp_2")
+    assert lamp["sentence"].startswith("A lamp should be in the alpha") and lamp["url"] == (
+        "/place/alpha/#hole-missing:lamp_1"), lamp
+    assert 'id="hole-picked"' in page and ">Back to all holes</button>" in page and "Look at what changes" not in page
     (cockpit.root / "web/alpha").mkdir(parents=True)
     (cockpit.root / "web/alpha/alpha.json").write_text(json.dumps({
         "place": "alpha", "from_output": cockpit.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",

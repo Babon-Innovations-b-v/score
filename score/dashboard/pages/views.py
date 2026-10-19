@@ -76,18 +76,19 @@ def board(request):
     money = present.money(month_money.view(world.spend), planned)
     details = every_place_holes(source)
     price = world.holes_price
-    first = present.buy_lines(holes.buy_first(price, details, items))
+    buy = present.buy_lines(holes.buy_first(price, details, items), holes.code_first(price, details))
     total = holes.environment(world.holes_total, price, items)
     with_world = {**details, holes.WORLD: world_holes(source)}
     work = holes.work_groups((total or {}).get("unfillable", []), with_world, price)
+    places = present.overview(holes.per_place(price, details),
+                              {tile["place"]: tile["name"] for group in shown for tile in group["tiles"]})
     return render(request, "pages/board.html", {
-        "world": world, "environment_name": present.environment_name(world.world), "groups": shown,
-        "holes_total": total, "headline": holes.headline(price) if total else None,
-        "places": present.overview(holes.per_place(price, details),
-                                   {tile["place"]: tile["name"] for group in shown for tile in group["tiles"]}),
+        "world": world, "environment_name": present.environment_name(world.world),
+        "groups": present.with_holes(shown, places), "holes_total": total,
+        "headline": holes.headline(price) if total else None, "places": places,
         "blockers": present.blockers(money, world.spend,
                                      holes.lost_inputs(with_world)),
-        "buy_first": first[:SHOWN], "buy_rest": first[SHOWN:], "buy_count": len(first),
+        "buy": buy, "buy_ready": buy["ready"][:SHOWN], "buy_ready_rest": buy["ready"][SHOWN:],
         "work": work[:SHOWN], "work_rest": work[SHOWN:], "work_count": len(work),
         "waiting_items": basket_items.unanswered(),
         "money": money, "world_steps": [
@@ -143,6 +144,7 @@ def place_page(request, place):
                                          source.step_detail(None, GROUND_STAGE)),
         "problems": present.problems(detail), "holes": present.hole_groups(detail, items, price),
         "tree": present.prim_tree(detail) if detail.holes else None,
+        "holes_3d": bool(present.hole_marks(detail)),
         "place_money": holes.place_row(place, detail.holes, price),
         "price_said": holes.said_of_price(price),
         "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
@@ -340,6 +342,7 @@ def viewer(request, place):
                                                  "embed": request.GET.get("embed") == "1", "holes_only": holes_only,
                                                  "framed": framed,
                                                  "gate_marks": any(mark["kind"] == "gate" for mark in hole_marks),
+                                                 "holes_mode": bool(hole_marks),
                                                  "viewer": {"place": place, "base": base,
                                                             "layers": layer_makers(detail.usd_index.layers),
                                                             "order": [layer.name for layer in detail.usd_index.layers],
