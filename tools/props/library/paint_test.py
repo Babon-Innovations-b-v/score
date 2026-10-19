@@ -6,6 +6,7 @@ hands itself to the prop environment when the box has one, and says it skipped w
 Run: python3 tools/props/library/paint_test.py
 """
 import json
+import math
 import os
 import pathlib
 import sys
@@ -287,6 +288,43 @@ def test_the_route_refuses_patchy_labels():
                                                                      ["stray 0.173 > 0.03"]}}))
         found = route.painted_badly({"chair": patchy_folder, "desk": clean}, {"chair", "desk"})
     assert found == {"chair": ["stray 0.173 > 0.03"]}
+
+
+def bake_smoothing():
+    """bake.py's normal smoothing (smoothing_rounds, smoothed_normals and their settings), taken from its text: bake.py
+    runs inside Blender."""
+    import ast
+    import math
+    tree = ast.parse((HERE / "inside/bake.py").read_text())
+    names = {"SMOOTH_REACH", "SMOOTH_CREASE", "SMOOTH_ROUNDS_MOST"}
+    kept = [node for node in tree.body if isinstance(node, ast.Assign) and node.targets[0].id in names
+            or isinstance(node, ast.FunctionDef) and node.name in ("smoothing_rounds", "smoothed_normals")]
+    space = {"math": math, "np": np}
+    exec(compile(ast.Module(body=kept, type_ignores=[]), "bake", "exec"), space)
+    return space
+
+
+def test_a_lumpy_face_is_smoothed_and_a_real_edge_kept():
+    """The materials fix (2026-10-18): a generated model's lumps are smoothed out of the shading of a painted finish,
+    its real edges are not. A 0.5 m box's faces tilted at random up to 15 degrees settle back within 5 degrees of their
+    side, and no face beside the box's edges bends toward the other side."""
+    smoothing = bake_smoothing()
+    box = trimesh.creation.box(extents=(0.5, 0.5, 0.5))
+    for _ in range(5):
+        box = box.subdivide()
+    true = box.face_normals.copy()
+    random = np.random.default_rng(3)
+    tilt = random.normal(size=true.shape) * math.radians(15.0) / 2
+    lumpy = true + tilt - (tilt * true).sum(1, keepdims=True) * true
+    lumpy /= np.linalg.norm(lumpy, axis=1, keepdims=True)
+    pairs = box.face_adjacency.T
+    rounds = smoothing["smoothing_rounds"](box.area_faces)
+    smoothed = smoothing["smoothed_normals"](lumpy, box.area_faces, pairs, rounds)
+    off = np.degrees(np.arccos(np.clip((smoothed * true).sum(1), -1.0, 1.0)))
+    before = np.degrees(np.arccos(np.clip((lumpy * true).sum(1), -1.0, 1.0)))
+    assert np.percentile(before, 90) > 10.0, "the lumps are there to smooth"
+    assert np.percentile(off, 90) < 5.0, f"lumps left: 90% within {np.percentile(off, 90):.1f} degrees"
+    assert off.max() < 20.0, f"a face beside an edge bent {off.max():.1f} degrees toward the other side"
 
 
 def main():

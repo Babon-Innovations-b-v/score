@@ -56,8 +56,9 @@ REPO = Path(__file__).resolve().parents[1]
 SCRIPTS = REPO / "scripts"
 sys.path.insert(0, str(REPO))
 
-from image_to_3dlab.blender import MAC_APP, find_blender, missing_help  # noqa: E402
-from image_to_3dlab.host import APPLE, host_platform  # noqa: E402
+from image_to_3dlab import pixal3d_native
+from image_to_3dlab.blender import MAC_APP, find_blender, missing_help
+from image_to_3dlab.host import APPLE, host_platform
 
 # Only a default for the command builders; main() finds the real one on every OS.
 BLENDER = MAC_APP
@@ -75,13 +76,26 @@ def emit_stage(phase: str, message: str) -> None:
     print(f"{STAGE_MARKER}::{phase}::{message}", flush=True)
 
 
+def finish_route(native_dump: Path | None, keep_mesh: bool, replay_available: bool) -> bool:
+    """Whether this run takes Pixal3D's own clean-up instead of the classic retopology.
+
+    Needs the run's dump and a post-replay build. Full detail keeps the generator's mesh,
+    so there is nothing to clean up again.
+    """
+    return native_dump is not None and not keep_mesh and replay_available
+
+
 def stage_plan(skip_paint: bool, skip_compress: bool, skip_bake: bool = False,
-               photo: bool = False) -> list[str]:
+               photo: bool = False, keep_mesh: bool = False) -> list[str]:
     """The stages this run will execute, in order.
 
     Named separately from the running of them so a caller — the viewer's job API, say —
     can show the sequence before anything starts, and so the order is testable.
+    `keep_mesh` finishes the generator's own mesh as it is: no retopology, so nothing
+    to repaint or bake detail onto, just Pixel Match and the texture squeeze.
     """
+    if keep_mesh:
+        return (["photo"] if photo else []) + ([] if skip_compress else ["compress"])
     stages = ["retopologise"]
     if not skip_paint:
         stages.append("repaint")
@@ -92,6 +106,16 @@ def stage_plan(skip_paint: bool, skip_compress: bool, skip_bake: bool = False,
     if not skip_compress:
         stages.append("compress")
     return stages
+
+
+def headless(blender: Path, script: str) -> list[str]:
+    """Blender, headless, running one of this repo's scripts; its arguments follow.
+
+    Blender exits 0 when a ``--python`` script raises unless ``--python-exit-code`` comes
+    first, and a stage that crashed would then read as done.
+    """
+    return [str(blender), "--background", "--python-exit-code", "1",
+            "--python", str(SCRIPTS / script), "--"]
 
 
 def retopo_command(
@@ -106,8 +130,7 @@ def retopo_command(
     error. Built here so it can be asserted in a test.
     """
     return [
-        str(blender), "--background", "--python",
-        str(SCRIPTS / "blender_retopo_bake.py"), "--",
+        *headless(blender, "blender_retopo_bake.py"),
         str(source), str(output), str(faces), str(atlas), str(angle),
         str(voxel), str(metallic), str(roughness), str(ior),
     ]
@@ -118,8 +141,7 @@ def bake_command(
 ) -> list[str]:
     """The headless bake-detail invocation: original high-poly onto the current mesh."""
     return [
-        str(blender), "--background", "--python",
-        str(SCRIPTS / "blender_bake_detail.py"), "--",
+        *headless(blender, "blender_bake_detail.py"),
         str(source), str(target), str(output), str(size),
     ]
 
@@ -134,9 +156,16 @@ def reuse(path: Path, resume: bool) -> bool:
     return resume and path.is_file() and path.stat().st_size > 0
 
 
+def shown(command: list[str]) -> str:
+    """The start of a stage's command, for its progress line: through the script it runs,
+    which is what tells one Blender stage from another."""
+    end = command.index("--python") + 2 if "--python" in command else 4
+    return " ".join(command[:end])
+
+
 def _run(command: list[str], log: Path, label: str) -> None:
     """Run one stage, tee its output to a log, and fail loudly."""
-    print(f"[{label}] {' '.join(command[:4])} ...", flush=True)
+    print(f"[{label}] {shown(command)} ...", flush=True)
     with log.open("w") as handle:
         process = subprocess.run(command, stdout=handle, stderr=subprocess.STDOUT, check=False)
     if process.returncode != 0:
@@ -144,7 +173,20 @@ def _run(command: list[str], log: Path, label: str) -> None:
         raise SystemExit(f"[{label}] failed (exit {process.returncode}); last lines:\n{tail}")
 
 
-def photo_stage(model: Path, views_dir: Path, output: Path, weights_png: Path) -> dict:
+def photo_settings(edge_fade: bool = True, nudge: bool = True):
+    """Pixel Match's settings. `edge_fade=False` stops it fading the picture out beside inner
+    depth edges: on a full-detail mesh deep eye sockets and hair layers count as edges, so the
+    fade can swallow a small eye and leave coloured specks along hair (2026-10-16 knight).
+    `nudge=False` paints from the pictures as they are: fitting the picture's outline to the
+    body's can slide a face off its features (2026-10-16 gator: a ghost eye on the snout)."""
+    sys.path.insert(0, str(REPO))
+    from image_to_3dlab import photo_paint as pp
+
+    return pp.Settings(align=nudge, **({} if edge_fade else {"inner_edge": 0.0}))
+
+
+def photo_stage(model: Path, views_dir: Path, output: Path, weights_png: Path,
+                edge_fade: bool = True, nudge: bool = True) -> dict:
     """Paint `model` with the real pixels of the photos in `views_dir`; see
     image_to_3dlab/photo_paint.py. In-process: numpy only, seconds on a Finish mesh."""
     sys.path.insert(0, str(REPO))
@@ -155,12 +197,13 @@ def photo_stage(model: Path, views_dir: Path, output: Path, weights_png: Path) -
 
     positions, uvs, faces, texture = pp.read_glb(model)
     views, mesh_scale = pp.load_views(views_dir)
-    painted, weight = pp.paint_texture(texture, positions, uvs, faces, views, mesh_scale)
+    painted, weight = pp.paint_texture(texture, positions, uvs, faces, views, mesh_scale,
+                                       settings=photo_settings(edge_fade, nudge))
     output.write_bytes(pp.replace_base_colour(model.read_bytes(), pp.encode_png(painted)))
     Image.fromarray(np.rint(weight * 255).astype(np.uint8)).save(weights_png)
     share = round(float((weight > 0.5).mean()), 3)
     print(f"[photo] {len(views)} view(s); {share:.0%} of the texture from the photo", flush=True)
-    return {"count": len(views), "texture_share": share}
+    return {"count": len(views), "texture_share": share, "edge_fade": edge_fade, "nudge": nudge}
 
 
 def step_paths(output: Path, steps_dir: Path | None = None) -> dict[str, Path]:
@@ -210,7 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("source", type=Path, help="generated GLB to finish")
     parser.add_argument("image", type=Path, help="source concept art, for the repaint")
     parser.add_argument("output", type=Path, help="finished GLB to write")
-    parser.add_argument("--faces", type=int, default=40000, help="retopology target")
+    parser.add_argument("--faces", type=int, default=20000, help="retopology target")
     parser.add_argument("--atlas", type=int, default=2048)
     parser.add_argument("--angle", type=float, default=89.0)
     parser.add_argument(
@@ -234,10 +277,31 @@ def build_parser() -> argparse.ArgumentParser:
                              "original; the asset keeps flat surface settings")
     parser.add_argument("--skip-compress", action="store_true")
     parser.add_argument(
+        "--keep-mesh", action="store_true",
+        help="full detail: keep every triangle of the source (no retopology, repaint or "
+             "bake); Pixel Match paints it directly. For renders and stills, not games",
+    )
+    parser.add_argument(
         "--views", type=Path, default=None,
         help="transforms.json directory holding the source photo(s) and their cameras "
              "(a Pixal3D run's .svviews). Given, every surface a photo can see takes the "
              "photo's real pixels after the repaint, which keeps text and logos exact",
+    )
+    parser.add_argument(
+        "--no-edge-fade", action="store_true",
+        help="Pixel Match paints right up to inner edges (an ear in front of a head) instead of "
+             "fading out beside them. Try it when hair gets coloured specks or small eyes go dark",
+    )
+    parser.add_argument(
+        "--no-nudge", action="store_true",
+        help="Pixel Match paints from the pictures as they are instead of first nudging them onto "
+             "the model. Try it when a feature lands twice (a ghost eye) or slides off its place",
+    )
+    parser.add_argument(
+        "--native-dump", type=Path, default=None,
+        help="Pixal3D's own clean-up input (<run>.post.bin, saved by pixal3d_generate.py): "
+             "rerun Pixal3D's clean-up at --faces instead of retopologising. Cleaner on "
+             "every model tested. Falls back to the classic route when post-replay is missing",
     )
     parser.add_argument(
         "--steps-dir", type=Path, default=None,
@@ -256,10 +320,19 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def required_inputs(args: argparse.Namespace) -> list[Path]:
+    """The files this run must find. The picture feeds only the repaint and the photo
+    stage, so a run with neither (a model that came with no picture) needs just the mesh."""
+    dump = [args.native_dump] if getattr(args, "native_dump", None) is not None else []
+    if args.skip_paint and args.views is None:
+        return [args.source, *dump]
+    return [args.source, args.image, *dump]
+
+
 def main() -> int:
     args = build_parser().parse_args()
 
-    for path in (args.source, args.image):
+    for path in required_inputs(args):
         if not path.is_file():
             raise SystemExit(f"not found: {path}")
     args.blender, problem = preflight(args.blender, args.skip_paint)
@@ -273,19 +346,33 @@ def main() -> int:
         args.steps_dir.mkdir(parents=True, exist_ok=True)
     if args.views is not None and not (args.views / "transforms.json").is_file():
         raise SystemExit(f"--views has no transforms.json: {args.views}")
+    if args.keep_mesh:
+        args.skip_paint = args.skip_bake = True   # nothing simplified, so nothing to repaint or bake onto
     stages = stage_plan(args.skip_paint, args.skip_compress, args.skip_bake,
-                        photo=args.views is not None)
+                        photo=args.views is not None, keep_mesh=args.keep_mesh)
     print(f"[retopo-repaint] {args.source.name} -> {args.output.name}: "
           f"{' -> '.join(stages)}", flush=True)
 
     started = time.time()
     timings: dict[str, float] = {}
 
+    native = finish_route(args.native_dump, args.keep_mesh, pixal3d_native.replay_available())
+    native_record = None
     retopo_glb = steps["retopo"]
     step = time.time()
-    if reuse(retopo_glb, args.resume):
+    if args.keep_mesh:
+        retopo_glb = args.source   # full detail: Pixel Match works on the generator's own mesh
+    elif reuse(retopo_glb, args.resume):
         emit_stage("retopologise", f"Reusing {retopo_glb.name}")
+    elif native:
+        emit_stage("retopologise", f"Pixal3D's own clean-up to {args.faces:,} faces")
+        native_record = pixal3d_native.native_retopo(
+            args.native_dump, args.source, retopo_glb, args.faces, args.atlas,
+            steps["retopo_log"])
     else:
+        if args.native_dump is not None and not args.keep_mesh:
+            print("[retopo-repaint] note: post-replay is not built here, so Pixal3D's own "
+                  "clean-up cannot run; using the classic route", flush=True)
         emit_stage("retopologise", f"Retopologising to {args.faces:,} faces")
         _run(
             retopo_command(
@@ -294,7 +381,8 @@ def main() -> int:
             ),
             steps["retopo_log"], "retopologise",
         )
-    timings["retopologise"] = round(time.time() - step, 1)
+    if not args.keep_mesh:
+        timings["retopologise"] = round(time.time() - step, 1)
 
     current = retopo_glb
     if not args.skip_paint:
@@ -325,7 +413,8 @@ def main() -> int:
         else:
             emit_stage("photo", "Pixel Match: keeping the photo's real pixels where it can see")
             photo_record = photo_stage(current, args.views, photo_glb,
-                                       steps["photo_weights"])
+                                       steps["photo_weights"], edge_fade=not args.no_edge_fade,
+                                       nudge=not args.no_nudge)
         timings["photo"] = round(time.time() - step, 1)
         current = photo_glb
 
@@ -371,8 +460,11 @@ def main() -> int:
         "stages": stages,
         "seconds": timings,
         "total_seconds": round(time.time() - started, 1),
-        "retopology": {"faces": args.faces, "atlas": args.atlas, "voxel": args.voxel,
-                       "angle": args.angle},
+        "retopology": None if args.keep_mesh else (
+            {**native_record, "atlas": args.atlas} if native_record else
+            {"route": "pixal3d" if native else "classic", "faces": args.faces,
+             "atlas": args.atlas, "voxel": args.voxel, "angle": args.angle}),
+        "full_detail": args.keep_mesh,
         "surface": {"metallic": args.metallic, "roughness": args.roughness, "ior": args.ior},
         "bake": None if args.skip_bake else {"size": args.atlas},
         "paint": None if args.skip_paint else {

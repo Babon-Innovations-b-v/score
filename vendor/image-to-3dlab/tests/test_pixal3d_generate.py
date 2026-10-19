@@ -9,10 +9,15 @@ projected through it, so a missing FOV is not a cosmetic difference.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
+
+from image_to_3dlab import glb_turn
+from tests.test_glb_turn import make_glb, read
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "pixal3d_generate.py"
 
@@ -89,6 +94,18 @@ def test_ordinary_output_is_not_a_stage():
     assert px.stage_from_banner("done in 349.9s -> out.glb") is None
     assert px.stage_from_banner("[cond] flow (load + runner + sampler) (77.6s)") is None
     assert px.stage_from_banner("ggml_metal_library_compile_pipeline: loaded kernel") is None
+
+
+def test_kernel_chatter_is_dropped_on_every_backend():
+    """ggml names its kernels after the backend, and a run emits hundreds of these lines.
+    Left in, they bury the six stage banners the progress panel reads."""
+    for line in ("ggml_metal_library_compile_pipeline: loaded kernel",
+                 "ggml_hip_init: found 1 devices",
+                 "ggml_cuda_init: found 1 CUDA devices",
+                 "  loaded kernel flash_attn_ext"):
+        assert px.kernel_noise(line) is True
+    for line in ("[3/6] flow (sampling)", "done in 349.9s -> out.glb", ""):
+        assert px.kernel_noise(line) is False
 
 
 def test_stage_zero_is_not_a_stage():
@@ -257,8 +274,8 @@ def test_a_matted_image_is_not_sent_through_birefnet_again():
 
 
 def test_matting_writes_a_real_cutout_beside_the_source(tmp_path, monkeypatch):
-    from PIL import Image
     import numpy as np
+    from PIL import Image
 
     source = tmp_path / "fox.png"
     Image.new("RGB", (32, 32), (200, 120, 60)).save(source)
@@ -357,11 +374,17 @@ def test_a_successful_run_writes_its_manifest_beside_the_glb(tmp_path, monkeypat
     image.write_bytes(b"png")
     output = tmp_path / "out" / "gnome.glb"
 
+    views = output.with_suffix(".svviews")
+
     class FakeProcess:
         stdout = iter(["[1/3] structure\n"])
 
         def wait(self):
-            output.write_bytes(b"glb")
+            # What trellis-cli leaves: a GLB facing -Z, and the camera it staged.
+            output.write_bytes(make_glb([[0.1, 0.2, 0.3]]))
+            views.mkdir()
+            (views / "transforms.json").write_text(json.dumps(
+                {"frames": [{"file_path": "input.png", "transform_matrix": np.eye(4).tolist()}]}))
             return 0
 
     monkeypatch.setattr(px, "has_alpha", lambda _: True)
@@ -373,6 +396,19 @@ def test_a_successful_run_writes_its_manifest_beside_the_glb(tmp_path, monkeypat
     record = __import__("json").loads((tmp_path / "out" / "gnome.json").read_text())
     assert record["backend"] == "pixal3d"
     assert record["output"]["path"] == str(output.resolve())
+    # Turned to face front, with its camera, before the record hashes it.
+    assert glb_turn.glb_faces_front(output.read_bytes())
+    assert np.allclose(read(output.read_bytes(), 0), [[-0.1, 0.2, -0.3]])
+    camera = json.loads((views / "transforms.json").read_text())
+    assert camera["frames"][0]["transform_matrix"][0][0] == -1.0
+    assert record["output"]["sha256"] == px.sha256_file(output)
+
+
+def test_a_run_without_a_saved_camera_still_turns_the_model(tmp_path):
+    output = tmp_path / "o.glb"
+    output.write_bytes(make_glb([[1.0, 0.0, 0.0]]))
+    px.face_front(output)
+    assert glb_turn.glb_faces_front(output.read_bytes())
 
 
 # --- Fewer sampling steps ------------------------------------------------------------------
@@ -423,14 +459,53 @@ def test_out_of_range_steps_are_refused(tmp_path):
     assert "1 to 50" in px.steps_problem(0, tmp_path / "x", tmp_path / "y")
 
 
-def test_the_env_carries_steps_only_when_asked():
+@pytest.fixture
+def no_rocm(monkeypatch):
+    """Pretend this machine has no ROCm, so the AMD loader path stays out of the way. The
+    real box running these tests is an AMD one, and asserting on an env without it would
+    pass or fail depending on which machine the suite ran on."""
+    monkeypatch.setattr(px, "_rocm_root", lambda: None)
+
+
+def test_the_env_carries_steps_only_when_asked(no_rocm):
     assert px.run_env(8, {"PATH": "/bin"}) == {"PATH": "/bin", "PIXAL3D_STEPS": "8"}
     assert px.run_env(None, {"PATH": "/bin"}) == {"PATH": "/bin"}
 
 
-def test_a_stray_steps_variable_in_the_shell_is_dropped():
+def test_a_stray_steps_variable_in_the_shell_is_dropped(no_rocm):
     """Otherwise a run labelled 12 steps in its manifest could quietly be an 8-step one."""
     assert px.run_env(None, {"PIXAL3D_STEPS": "4"}) == {}
+
+
+def test_a_hip_build_gets_rocm_on_the_loader_path(tmp_path, monkeypatch):
+    """A HIP trellis-cli links against ROCm's own libamdhip64.so. Without it the process
+    dies at load time complaining about a missing library, which says nothing about the GPU
+    and sends the user looking in the wrong place."""
+    root = tmp_path / "rocm"
+    (root / "lib").mkdir(parents=True)
+    monkeypatch.setattr(px, "_rocm_root", lambda: root)
+    assert px.run_env(None, {"PATH": "/bin"})["LD_LIBRARY_PATH"] == str(root / "lib")
+
+
+def test_an_existing_loader_path_is_kept_in_front(tmp_path, monkeypatch):
+    root = tmp_path / "rocm"
+    (root / "lib").mkdir(parents=True)
+    monkeypatch.setattr(px, "_rocm_root", lambda: root)
+    env = px.run_env(None, {"LD_LIBRARY_PATH": "/my/lib"})
+    assert env["LD_LIBRARY_PATH"] == f"{root / 'lib'}:/my/lib"
+
+
+def test_rocm_is_not_added_twice(tmp_path, monkeypatch):
+    root = tmp_path / "rocm"
+    (root / "lib").mkdir(parents=True)
+    monkeypatch.setattr(px, "_rocm_root", lambda: root)
+    env = px.run_env(None, {"LD_LIBRARY_PATH": str(root / "lib")})
+    assert env["LD_LIBRARY_PATH"] == str(root / "lib")
+
+
+def test_a_rocm_without_a_lib_directory_changes_nothing(tmp_path, monkeypatch):
+    monkeypatch.setattr(px, "_rocm_root", lambda: tmp_path)
+    assert px.run_env(None, {"PATH": "/bin"}) == {"PATH": "/bin"}
 
 
 def test_a_flow_starting_without_the_override_stops_the_run():
@@ -480,3 +555,128 @@ def test_an_explicit_count_the_build_cannot_honour_is_refused(tmp_path):
     with pytest.raises(SystemExit, match="not patched"):
         px.resolve_steps(8, source, cli)
     assert px.resolve_steps(12, source, cli)[0] == 12
+
+
+def test_the_manifest_records_the_licence_class_props_inherit(tmp_path):
+    """The Props tab copies output.classification; without it every prop said null."""
+    from image_to_3dlab.provenance import LICENSES
+    from viewer.backend_catalog import resolve
+
+    image = tmp_path / "i.png"
+    output = tmp_path / "o.glb"
+    image.write_bytes(b"i")
+    output.write_bytes(b"o")
+    record = px.manifest(image, output, res=1024, seed=42, fov=0.349, gss=10.0, gsh=None,
+                         matted=True, matted_here=False, seconds=1.0)
+    profile = LICENSES["pixal3d"]
+    assert record["output"]["classification"] == profile.classification == "commercial-conditional"
+    catalogue = resolve("pixal3d")
+    assert (profile.license_name, profile.license_url) == (catalogue.license_name,
+                                                           catalogue.license_url)
+
+
+# --- front + back (multi-view) ---------------------------------------------------------------
+
+
+def _cut(width: int, height: int, box):
+    from PIL import Image
+    rgba = np.zeros((height, width, 4), dtype=np.uint8)
+    x0, y0, x1, y1 = box
+    rgba[y0:y1, x0:x1] = (200, 50, 50, 255)
+    return Image.fromarray(rgba, "RGBA")
+
+
+def test_a_view_is_centred_at_ninety_percent_of_the_square():
+    padded = np.asarray(px.pad_view(_cut(300, 600, (100, 50, 200, 450)), 768))
+    ys, xs = np.nonzero(padded[..., 3] > 127)
+    assert padded.shape == (768, 768, 4)
+    assert ys.max() - ys.min() + 1 == pytest.approx(0.9 * 768, abs=2)
+    assert (ys.min() + ys.max()) / 2 == pytest.approx(383.5, abs=2)
+    assert (xs.min() + xs.max()) / 2 == pytest.approx(383.5, abs=2)
+
+
+def test_a_wide_t_pose_is_fitted_by_its_width_and_stays_inside():
+    padded = np.asarray(px.pad_view(_cut(800, 400, (0, 100, 800, 300)), 768))
+    _, xs = np.nonzero(padded[..., 3] > 127)
+    assert xs.max() - xs.min() + 1 == pytest.approx(0.9 * 768, abs=2)
+
+
+def test_front_and_back_views_share_one_rig_half_a_turn_apart(tmp_path):
+    front, back = _cut(400, 400, (150, 40, 250, 360)), _cut(400, 400, (150, 40, 250, 360))
+    model_dir, paint_dir = tmp_path / "in", tmp_path / "out.svviews"
+    px.write_front_back_views(front, back, model_dir, paint_dir)
+    for folder, size in ((model_dir, 768), (paint_dir, 768)):
+        rig = json.loads((folder / "transforms.json").read_text())
+        names = [frame["file_path"] for frame in rig["frames"]]
+        assert names == ["view_000.png", "view_180.png"]
+        c0, c180 = (np.array(f["transform_matrix"]) for f in rig["frames"])
+        assert np.allclose(c180, np.diag([-1.0, -1.0, 1.0, 1.0]) @ c0)
+        assert rig["camera_angle_x"] == pytest.approx(px.DEFAULT_FOV)
+        from PIL import Image
+        assert Image.open(folder / "view_000.png").size == (size, size)
+
+
+def test_paint_copies_keep_a_bigger_pictures_detail(tmp_path):
+    big = _cut(1024, 1024, (400, 50, 620, 980))
+    px.write_front_back_views(big, big, tmp_path / "in", tmp_path / "out.svviews")
+    from PIL import Image
+    assert Image.open(tmp_path / "in" / "view_000.png").size == (768, 768)
+    assert Image.open(tmp_path / "out.svviews" / "view_000.png").size == (1024, 1024)
+
+
+def test_the_front_back_command_uses_the_views_and_the_multiview_weights():
+    command = px.build_multiview_command(Path("/v"), Path("/o.glb"), res=1024, seed=42,
+                                         models=Path("/mv"), cli=Path("/bin/trellis-cli"))
+    assert command[command.index("--views") + 1] == "/v"
+    assert command[command.index("--pixal3d-weights") + 1] == "mv"
+    assert command[command.index("--models") + 1] == "/mv"
+    assert command[command.index("--gss") + 1] == str(px.DEFAULT_GSS)
+    assert "--sv-image" not in command and command[-1] == "/o.glb"
+
+
+def test_multiview_readiness_checks_the_manifests_files(tmp_path):
+    cli = tmp_path / "trellis-cli"
+    cli.write_text("")
+    models = tmp_path / "mv"
+    models.mkdir()
+    names = ["a.gguf", "b.gguf"]
+    (models / "pixal3d-models.json").write_text(json.dumps(
+        {"files": [{"name": n, "required": True} for n in names]}))
+    (models / "a.gguf").write_text("")
+    state = px.multiview_readiness(cli, models)
+    assert not state["ready"] and state["missing"] == ["b.gguf"]
+    (models / "b.gguf").write_text("")
+    assert px.multiview_readiness(cli, models)["ready"]
+
+
+# --- Saving Pixal3D's clean-up input for the Pixal3D Finish route ------------------------------
+
+
+def test_a_binary_with_the_dump_patch_saves_a_dump(tmp_path):
+    cli = tmp_path / "trellis-cli"
+    cli.write_bytes(b"\x00\x01...PIXAL3D_DUMP_CONTINUE...\x02")
+    assert px.dump_supported(cli) is True
+
+
+def test_a_binary_without_it_runs_as_before(tmp_path):
+    """Upstream's prebuilt downloads, or a patched source not yet rebuilt: no dump, because
+    an unpatched --dump-post stops before writing the model."""
+    cli = tmp_path / "trellis-cli"
+    cli.write_bytes(b"\x00\x01 plain trellis-cli \x02")
+    assert px.dump_supported(cli) is False
+    assert px.dump_supported(tmp_path / "missing") is False
+
+
+def test_the_dump_flag_goes_before_the_output():
+    command = px.with_dump(["trellis-cli", "--sv-image", "a.png", "out.glb"], Path("out.post.bin"))
+    assert command[-1] == "out.glb"
+    assert command[-3:-1] == ["--dump-post", "out.post.bin"]
+
+
+def test_the_env_asks_to_carry_on_only_when_dumping(no_rocm):
+    assert px.run_env(None, base={}, dump=True)[px.DUMP_ENV] == "1"
+    assert px.DUMP_ENV not in px.run_env(None, base={})
+
+
+def test_a_stray_dump_variable_in_the_shell_is_dropped(no_rocm):
+    assert px.DUMP_ENV not in px.run_env(None, base={px.DUMP_ENV: "1"})

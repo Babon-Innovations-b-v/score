@@ -404,6 +404,17 @@ def test_face_counts_are_named_the_way_people_say_them(faces, label):
 def test_the_final_model_is_named_after_the_asset_and_its_faces():
     assert finish.final_name("vanguard__pixal3d__finish__20260929-101010", 5000) == "vanguard_5k.glb"
     assert finish.final_name("fox__finish__20260921-122518", 40000) == "fox_40k.glb"
+    assert finish.final_name("fox__finish__20260921-122518", 20000, full=True) == "fox_full.glb"
+
+
+def test_full_detail_skips_the_repaint_and_bake_and_tells_the_worker():
+    settings = finish.normalise_settings({"keep_mesh": True, "skip_paint": False})
+    assert settings["skip_paint"] and settings["skip_bake"]
+    job = finish.FinishJob("0" * 32, Path("/tmp/fox__finish__20260921-122518"))
+    job.settings = settings
+    command = finish.build_command(job, settings)
+    assert "--keep-mesh" in command and job.result_glb.name == "fox_full.glb"
+    assert "--keep-mesh" not in finish.build_command(job, finish.normalise_settings({}))
 
 
 def test_a_new_run_keeps_inputs_and_steps_out_of_the_top_folder(tmp_path):
@@ -523,8 +534,139 @@ def test_repaint_is_opt_in_so_finish_never_needs_the_hunyuan_paint_weights():
     assert finish.normalise_settings({"skip_paint": False})["skip_paint"] is False
 
 
-def test_the_finish_page_calls_it_pixel_match():
-    from pathlib import Path
-    html = Path("viewer/index.html").read_text()
-    assert "Pixel Match" in html
-    assert 'id="finish-repaint" type="checkbox" checked' not in html
+def test_a_skipped_pixel_match_is_said_plainly_and_stays_on_screen(tmp_path):
+    # Seen on a real NVIDIA pod: Pixel Match stayed ticked, no stage ran, and the only word
+    # about it was a start-up line replaced a second later. The note rides on the finished
+    # result, and says what Pixel Match needs.
+    manager = finish.FinishJobManager(tmp_path / "finish", tmp_path / "generated")
+    job = manager.create("robot.glb", b"some-other-model", b"png", {})
+    note = finish.photo_note(job, job.settings)
+    assert note and "Pixel Match" in note and "skipped" in note and "Pixal3D" in note
+    assert finish.photo_note(job, {**job.settings, "skip_photo": True}) is None
+
+
+def test_no_note_when_the_camera_is_found(tmp_path):
+    _pixal3d_run(tmp_path / "generated")
+    manager = finish.FinishJobManager(tmp_path / "finish", tmp_path / "generated")
+    job = manager.create("robot.glb", b"glb-bytes", b"png", {})
+    assert finish.photo_note(job, job.settings) is None
+
+
+def test_capabilities_offer_a_blender_install_only_where_one_can_run():
+    # Linux x86_64 with no Blender: the Setup card gets an Install Blender button.
+    linux = finish.capabilities("nvidia", find=lambda: None, version=lambda _: None,
+                                installable=lambda: True)
+    assert linux["blender_installable"] is True
+    mac = finish.capabilities("apple-silicon", find=lambda: None, version=lambda _: None,
+                              installable=lambda: False)
+    assert mac["blender_installable"] is False
+
+
+def test_no_install_offered_once_blender_is_found(tmp_path):
+    exe = tmp_path / "blender"
+    exe.write_text("")
+    found = finish.capabilities("nvidia", find=lambda: exe, version=lambda _: (4, 2),
+                                installable=lambda: True)
+    assert found["blender_installable"] is False
+
+
+def test_a_finished_model_is_named_by_its_path_in_output(tmp_path, monkeypatch):
+    # Create hands this to the next step; the done event's result_url is a download link, not a path
+    monkeypatch.setattr(finish, "OUTPUT_ROOT", tmp_path / "output" / "finish")
+    glb = tmp_path / "output" / "finish" / "knight__finish__20261006-220000" / "knight_40k.glb"
+    assert finish.library_path(glb) == "finish/knight__finish__20261006-220000/knight_40k.glb"
+    assert finish.library_path(tmp_path / "elsewhere.glb") is None
+
+
+def test_a_run_without_a_picture_finishes_the_mesh_alone(tmp_path):
+    manager = finish.FinishJobManager(output_root=tmp_path, generated_root=tmp_path / "none")
+    job = manager.create("upload.glb", b"glb", None, {"faces": 10000, "skip_photo": False})
+    assert job.settings["skip_photo"] is True and job.settings["skip_paint"] is True
+    assert not job.image_path.exists()
+    command = finish.build_command(job, job.settings)
+    assert "--skip-paint" in command and "--views" not in command
+    # and a run that died halfway is still offered for resume, and adopts cleanly
+    assert finish.describe_run(job.directory)["resumable"] is True
+    manager.finish(job)
+    assert manager.adopt(job.directory.name).asset_path == job.asset_path
+
+
+def test_a_run_with_pixel_match_still_needs_its_picture(tmp_path):
+    job = finish.FinishJob("", tmp_path)
+    assert finish.needed_inputs(job, {"skip_photo": False}) == [job.asset_path, job.image_path]
+    assert finish.needed_inputs(job, {"skip_photo": True, "skip_paint": False}) == [job.asset_path, job.image_path]
+    assert finish.needed_inputs(job, {"skip_photo": True, "skip_paint": True}) == [job.asset_path]
+
+
+def test_turning_edge_fade_off_tells_the_worker():
+    job = finish.FinishJob("0" * 32, Path("/tmp/fox__finish__20260921-122518"))
+    assert finish.normalise_settings({})["skip_edge_fade"] is False
+    assert "--no-edge-fade" not in finish.build_command(job, finish.normalise_settings({}))
+    assert "--no-edge-fade" in finish.build_command(job, finish.normalise_settings({"skip_edge_fade": True}))
+
+
+def test_turning_nudge_off_tells_the_worker():
+    job = finish.FinishJob("0" * 32, Path("/tmp/fox__finish__20260921-122518"))
+    assert finish.normalise_settings({})["skip_nudge"] is False
+    assert "--no-nudge" not in finish.build_command(job, finish.normalise_settings({}))
+    assert "--no-nudge" in finish.build_command(job, finish.normalise_settings({"skip_nudge": True}))
+
+
+# --- The Pixal3D route: link the run's clean-up dump in and hand it to the worker -------------
+
+
+def _with_dump(views):
+    """Give a `_pixal3d_run` the dump and record line pixal3d_generate.py writes."""
+    run = views.parent
+    dump = run / "robot__pixal3d__1.post.bin"
+    dump.write_bytes(b"dump")
+    record_path = run / "robot__pixal3d__1.json"
+    record = json.loads(record_path.read_text())
+    record["post_dump"] = dump.name
+    record_path.write_text(json.dumps(record))
+    return dump
+
+
+def test_the_dump_is_linked_in_and_passed_to_the_worker(tmp_path):
+    dump = _with_dump(_pixal3d_run(tmp_path / "generated"))
+    manager = finish.FinishJobManager(tmp_path / "finish", tmp_path / "generated")
+    job = manager.create("robot.glb", b"glb-bytes", b"png", {})
+    assert job.dump_path.read_bytes() == b"dump"
+    assert job.dump_path.stat().st_ino == dump.stat().st_ino   # a link, not a 400 MB copy
+    command = finish.build_command(job, job.settings)
+    assert command[command.index("--native-dump") + 1] == str(job.dump_path)
+
+
+def test_the_dump_is_found_even_with_pixel_match_off(tmp_path):
+    """The route needs the dump, not the pictures."""
+    _with_dump(_pixal3d_run(tmp_path / "generated"))
+    manager = finish.FinishJobManager(tmp_path / "finish", tmp_path / "generated")
+    job = manager.create("robot.glb", b"glb-bytes", b"png", {"skip_photo": True})
+    assert "--native-dump" in finish.build_command(job, job.settings)
+
+
+def test_full_detail_never_takes_the_pixal3d_route(tmp_path):
+    _with_dump(_pixal3d_run(tmp_path / "generated"))
+    manager = finish.FinishJobManager(tmp_path / "finish", tmp_path / "generated")
+    job = manager.create("robot.glb", b"glb-bytes", b"png", {"keep_mesh": True})
+    assert "--native-dump" not in finish.build_command(job, job.settings)
+
+
+def test_a_run_from_before_the_dump_takes_the_classic_route(tmp_path):
+    _pixal3d_run(tmp_path / "generated")
+    manager = finish.FinishJobManager(tmp_path / "finish", tmp_path / "generated")
+    job = manager.create("robot.glb", b"glb-bytes", b"png", {})
+    assert not job.dump_path.exists()
+    assert "--native-dump" not in finish.build_command(job, job.settings)
+
+
+def test_a_dump_is_copied_when_it_cannot_be_linked(tmp_path, monkeypatch):
+    source = tmp_path / "a.post.bin"
+    source.write_bytes(b"dump")
+
+    def no_links(*args):
+        raise OSError("cross-device link")
+
+    monkeypatch.setattr(finish.os, "link", no_links)
+    finish.link_or_copy(source, tmp_path / "b.post.bin")
+    assert (tmp_path / "b.post.bin").read_bytes() == b"dump"

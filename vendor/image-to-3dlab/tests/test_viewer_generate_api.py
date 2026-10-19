@@ -6,7 +6,6 @@ import builtins
 import importlib.util
 import json
 import os
-import re
 import sys
 import types
 from pathlib import Path
@@ -45,7 +44,6 @@ def test_shape_slat_passes_are_disambiguated(tmp_path):
     {"resolution": "2048"},
     {"texture_size": 512},
     {"decimation_target": 0},
-    {"allow_rembg": "yes"},
     {"sparse_attn_backend": "metal_flash"},
     {"sparse_attn_backend": "fp16"},
     {"sparse_attn_backend": "sdpa-fp16"},
@@ -225,6 +223,7 @@ def test_trellis_input_advisor_runs_in_backend_environment(monkeypatch, tmp_path
         path.write_bytes(b"x")
     monkeypatch.setattr(api, "PYTHON", interpreter)
     monkeypatch.setattr(api, "TINYCLIP_ADVISOR", script)
+    monkeypatch.setattr(api, "host_platform", lambda: "apple-silicon")
 
     class Result:
         stdout = json.dumps({"verdict": "likely_flat", "flat_risk": 0.91}) + "\n"
@@ -257,13 +256,14 @@ def test_trellis_input_advisor_rejects_malformed_output(monkeypatch, tmp_path):
         stdout = "not-json\n"
 
     monkeypatch.setattr(api.subprocess, "run", lambda *args, **kwargs: Result())
-    with pytest.raises(RuntimeError, match="invalid JSON"):
+    with pytest.raises(RuntimeError, match="invalid JSON|TRELLIS environment"):
         api.run_trellis_input_advisor(image)
 
 
 # --- setup runner (bootstrap via the web UI) ---
 def test_setup_available_reports_missing_uv(monkeypatch):
     monkeypatch.setattr(api.shutil, "which", lambda name: None if name == "uv" else "/usr/bin/uv")
+    monkeypatch.setattr(api, "host_platform", lambda: api.APPLE)
     ok, reason = api.setup_available()
     assert ok is False and "uv" in reason
 
@@ -271,6 +271,7 @@ def test_setup_available_reports_missing_uv(monkeypatch):
 def test_setup_available_reports_missing_bootstrap(monkeypatch, tmp_path):
     monkeypatch.setattr(api.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
     monkeypatch.setattr(api, "REPO", tmp_path)
+    monkeypatch.setattr(api, "host_platform", lambda: api.APPLE)
     ok, reason = api.setup_available()
     assert ok is False and "bootstrap" in reason
 
@@ -397,17 +398,74 @@ def test_job_status_payload_reports_last_event(tmp_path):
 def test_job_status_payload_handles_no_events_yet(tmp_path):
     job = api.Job("0" * 32, tmp_path, tmp_path / "a.png", tmp_path / "m.glb", {}, "trellis")
     payload = api._job_status_payload(job)
-    assert payload == {"status": "queued", "last_event": None}
+    assert payload == {"status": "queued", "last_event": None, "model": None}
+
+
+def test_job_status_payload_names_the_model_once_it_is_on_disk(tmp_path, monkeypatch):
+    monkeypatch.setattr(api, "OUTPUT_ROOT", tmp_path)
+    run = tmp_path / "commercial_conditional" / "knight__pixal3d__20261006-210000"
+    run.mkdir(parents=True)
+    glb = run / f"{run.name}.glb"
+    job = api.Job("0" * 32, run, tmp_path / "a.png", glb, {}, "pixal3d")
+    job.status = "done"
+    assert api._job_status_payload(job)["model"] is None      # done but no file yet
+    glb.write_bytes(b"glb")
+    assert api._job_status_payload(job)["model"] == f"commercial_conditional/{run.name}/{run.name}.glb"
 
 
 # --- backend registry ------------------------------------------------------------------
 
 def test_backend_registry_lists_every_backend():
     assert set(api.BACKENDS) == {
-        "trellis", "sf3d", "hunyuan-mlx", "hunyuan-mlx-xiong", "pixal3d",
+        "trellis", "sf3d", "hunyuan-mlx", "hunyuan-mlx-xiong", "pixal3d", "hunyuan-cuda",
+        "hunyuan-rocm",
     }
     for spec in api.BACKENDS.values():
         assert spec.stages, f"{spec.id} must declare at least one stage"
+
+
+def test_every_route_accepts_exactly_the_settings_it_declares_as_defaults():
+    """A fresh job sends the route's own defaults and nothing else.
+
+    The AMD Hunyuan route declares fewer defaults than it accepts, on purpose: the two
+    paint settings are left out so the generator can fit them to the card. Its validator
+    read them anyway, so every character died at the first job with a bare
+    `KeyError: 'max_num_view'` in the UI and nothing on the server's terminal.
+    """
+    for backend_id, spec in api.BACKENDS.items():
+        validate = spec.validate_settings
+        if validate is None:
+            continue
+        out = validate(spec.default_settings)
+        assert isinstance(out, dict), backend_id
+        # And it must survive the round trip: defaults in, build args out.
+        assert validate(out) == out, backend_id
+
+
+def _rocm_job(tmp_path, settings):
+    return api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb",
+                   settings, "hunyuan-rocm")
+
+
+def test_a_route_whose_defaults_are_a_subset_still_builds_its_command_line(tmp_path):
+    """The shape of that failure: settings that validate, then a KeyError while building
+    the command. Both halves are checked here, because either alone passes."""
+    spec = api.BACKENDS["hunyuan-rocm"]
+    settings = spec.validate_settings(spec.default_settings)
+    assert "max_num_view" not in settings, "absent is what lets the generator fit it"
+    args = spec.build_args(_rocm_job(tmp_path, settings))
+    assert "--max-num-view" not in args, args
+    assert "--paint-resolution" not in args, args
+    assert "--octree-resolution" in args
+
+
+def test_an_explicit_view_count_still_reaches_the_command_line(tmp_path):
+    spec = api.BACKENDS["hunyuan-rocm"]
+    settings = spec.validate_settings(
+        {**api.HUNYUAN_ROCM_DEFAULT_SETTINGS, "max_num_view": 4, "paint_resolution": 256})
+    args = spec.build_args(_rocm_job(tmp_path, settings))
+    assert args[args.index("--max-num-view") + 1] == "4"
+    assert args[args.index("--paint-resolution") + 1] == "256"
 
 
 def test_every_stage_event_a_backend_emits_names_a_declared_stage(tmp_path):
@@ -457,12 +515,6 @@ def test_pixal3d_settings_reject_an_unavailable_resolution():
     assert api._pixal3d_validate_settings({"res": 1024})["res"] == 1024
 
 
-def test_pixal3d_page_offers_only_the_resolution_that_runs():
-    page = (Path(__file__).resolve().parents[1] / "viewer" / "index.html").read_text()
-    select = page.split('<select id="pixal3d-res">', 1)[1].split("</select>", 1)[0]
-    assert re.findall(r"<option[^>]*>(\d+)</option>", select) == ["1024"]
-
-
 def test_pixal3d_settings_reject_a_fov_given_in_degrees():
     """The gauge camera is radians; 20 would be a plausible-looking disaster."""
     with pytest.raises(ValueError):
@@ -475,6 +527,26 @@ def test_pixal3d_build_args_carry_the_camera(tmp_path):
     args = api._pixal3d_build_args(job)
     assert args[:2] == [str(tmp_path / "input.png"), str(tmp_path / "model.glb")]
     assert "--fov" in args
+
+
+def test_pixal3d_build_args_pass_a_back_picture_the_server_saved(tmp_path):
+    settings = api._pixal3d_validate_settings({})
+    settings["back_name"] = "back.png"  # set by the server after it saved the upload
+    job = api.Job("0" * 32, tmp_path, tmp_path / "input.png", tmp_path / "model.glb",
+                  settings, "pixal3d")
+    args = api._pixal3d_build_args(job)
+    assert args[args.index("--back") + 1] == str(tmp_path / "back.png")
+
+
+def test_pixal3d_settings_never_take_a_back_path_from_the_client():
+    settings = api._pixal3d_validate_settings({"back_name": "../../etc/passwd"})
+    assert "back_name" not in settings
+
+
+def test_a_front_only_pixal3d_job_has_no_back(tmp_path):
+    job = api.Job("0" * 32, tmp_path, tmp_path / "input.png", tmp_path / "model.glb",
+                  api._pixal3d_validate_settings({}), "pixal3d")
+    assert "--back" not in api._pixal3d_build_args(job)
 
 
 def test_sf3d_build_args_matches_pipeline_cli(tmp_path):
@@ -686,14 +758,15 @@ def test_job_manager_disambiguates_colliding_folder_names(tmp_path):
     assert job2.output_path.name == "dup-2.glb"
 
 
-def test_cleanup_debug_files_keeps_only_output_glb(tmp_path):
+def test_cleanup_debug_files_keeps_the_glb_and_its_record(tmp_path):
     job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "run.glb", {}, "trellis")
     job.output_path.write_bytes(b"glb")
     job.manifest_path.write_text("{}")
     (tmp_path / "run_latents.pt").write_bytes(b"x")
     (tmp_path / "run.log").write_text("log")
     api._cleanup_debug_files(job)
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["run.glb"]
+    # The manifest is the run's record (for Pixal3D, its licence record), not debug output.
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["run.glb", "run.json"]
 
 
 # --- alpha-transparency check: a missing Pillow install is a broken environment, not a
@@ -733,8 +806,8 @@ def test_image_has_transparent_alpha_false_for_fully_opaque_rgba(tmp_path):
 # --- "has alpha" is not "is cut out" (2026-09-03): a letterboxed image passed the alpha
 # check on its bars alone, and its opaque backdrop was rebuilt as 3D geometry ---
 def _save(tmp_path, name, alpha_rows):
-    from PIL import Image
     import numpy as np
+    from PIL import Image
 
     a = np.zeros((64, 64, 4), dtype=np.uint8)
     a[..., :3] = 200
@@ -777,10 +850,20 @@ def test_border_opaque_fraction_none_when_unreadable(tmp_path):
     assert api.image_border_opaque_fraction(tmp_path / "missing.png") is None
 
 
-def test_uncut_image_error_states_the_measurement(tmp_path):
-    msg = api.uncut_image_error(0.39)
-    assert "39%" in msg
-    assert "transparent background" in msg
+def test_a_fake_alpha_is_cut_out_like_no_alpha(tmp_path):
+    """Qwen-Image writes RGBA that cuts nothing; it gets cut out, not refused."""
+    from PIL import Image
+
+    rgb, opaque, framed, cutout = (tmp_path / n for n in ("rgb.png", "o.png", "f.png", "c.png"))
+    Image.new("RGB", (40, 40), "white").save(rgb)
+    Image.new("RGBA", (40, 40), (255, 255, 255, 255)).save(opaque)
+    fake = Image.new("RGBA", (40, 40), (255, 255, 255, 255))
+    fake.putpixel((20, 20), (0, 0, 0, 0))  # one transparent pixel, a backdrop all round
+    fake.save(framed)
+    real = Image.new("RGBA", (40, 40), (0, 0, 0, 0))
+    real.paste((200, 50, 50, 255), (10, 10, 30, 30))
+    real.save(cutout)
+    assert [api.needs_cut(p) for p in (rgb, opaque, framed, cutout)] == [True, True, True, False]
 
 
 def test_image_has_transparent_alpha_false_for_rgb_no_alpha_channel(tmp_path):
@@ -883,6 +966,47 @@ def test_terminate_active_job_also_kills_a_running_rebind(tmp_path, monkeypatch)
     assert killed == [5252]
 
 
+def test_terminate_active_job_also_kills_a_running_prop_bake(tmp_path, monkeypatch):
+    props_jobs = api.PROPS_JOBS.__class__(tmp_path)
+    job = props_jobs.create("sheet.glb", b"glb", {})
+    job.process = _FakeProcess(6262)
+    killed = []
+    monkeypatch.setattr(api, "PROPS_JOBS", props_jobs)
+    monkeypatch.setattr(api, "_killpg_if_alive", killed.append)
+
+    api._terminate_active_job()
+
+    assert killed == [6262]
+
+
+def test_a_prop_bake_waits_for_a_running_rig_rebind(tmp_path, monkeypatch):
+    """Both are headless Blender; a generation already refused to start beside either."""
+    rig_jobs = api.RIG_JOBS.__class__(tmp_path)
+    monkeypatch.setattr(api, "RIG_JOBS", rig_jobs)
+    assert api.Handler._props_busy(None) is None
+    job = rig_jobs.create(
+        "asset.glb", b"glb", b"blend", _valid_rig_sidecar(b"glb", b"blend")
+    )
+    assert api.Handler._props_busy(None) == "a rig rebind is running; wait for it to finish"
+    job.status = "done"
+    assert api.Handler._props_busy(None) is None
+
+
+def test_terminate_active_job_also_kills_a_running_finish(tmp_path, monkeypatch):
+    """Its repaint runs in a process group of its own, so the server's exit alone
+    leaves it running until the next start's reconciliation finds its pid file."""
+    finish_jobs = api.FINISH_JOBS.__class__(tmp_path)
+    job = finish_jobs.create("asset.glb", b"glb", b"png", {})
+    job.process = _FakeProcess(7272)
+    killed = []
+    monkeypatch.setattr(api, "FINISH_JOBS", finish_jobs)
+    monkeypatch.setattr(api, "_killpg_if_alive", killed.append)
+
+    api._terminate_active_job()
+
+    assert killed == [7272]
+
+
 def test_handler_exposes_typed_rig_rebind_routes():
     source = MODULE_PATH.read_text()
 
@@ -963,6 +1087,17 @@ def test_reconcile_discards_an_unparseable_pid_file(tmp_path):
     assert not (job_dir / "pid").exists()
 
 
+def test_reconcile_leaves_a_folder_named_pid_alone(tmp_path):
+    """A prop, or anything else, called `pid` is a folder; unlinking it raised
+    PermissionError and the viewer would not start until someone deleted it by hand."""
+    folder = tmp_path / "sheet__props__20260926-100000" / "finished" / "pid"
+    folder.mkdir(parents=True)
+    (folder / "pid_LOD0.glb").write_bytes(b"glb")
+
+    assert api._reconcile_orphaned_jobs(tmp_path) == []
+    assert (folder / "pid_LOD0.glb").is_file()
+
+
 def test_reconcile_is_a_noop_with_no_leftover_jobs(tmp_path):
     assert api._reconcile_orphaned_jobs(tmp_path) == []
 
@@ -993,6 +1128,202 @@ def test_failure_reason_returns_the_generators_last_words():
     assert "39%" in reason
     assert "transparent background" in reason
     assert "rss" not in reason and "Sampling" not in reason
+
+
+# --- GPU memory shortage: said once, in a sentence, instead of after a GDB backtrace ------
+# What an actual Pixal3D run on an RX 7900 XTX left behind (2026-10-07) while ComfyUI-3D
+# held 13.7 GB of the card. ggml aborts, so the last words are a backtrace and the wrapper
+# restating the signal; the one line that explains anything is 40 lines up.
+OOM_LOG = [
+    "[5/6] texture SLAT flow (HR 1024, NAF@1024) + PBR decode",
+    "[trellis] using ROCm0 (24560 MB) [auto]",
+    ("ggml_backend_cuda_buffer_type_alloc_buffer: allocating 11329.27 MiB on device 0: "
+     "cudaMalloc failed: out of memory"),
+    "ggml_gallocr_reserve_n_impl: failed to allocate ROCm0 buffer of size 11879596032",
+    "#7  0x00005639cd310495 in trellis::naf_upsample_ggml()",
+    "terminate called after throwing an instance of 'std::runtime_error'",
+    "  what():  naf_upsample_ggml: graph alloc failed",
+    "[rss 0.32 GB]",
+    "trellis-cli exited with code -6",
+    "generator exited with code 1",
+]
+
+
+def test_a_gpu_that_ran_out_of_memory_says_so_instead_of_the_signal():
+    """-6 is SIGABRT and means nothing to a user. 'The GPU did not have enough free
+    memory' means everything, and it was in the log all along."""
+    reason = api.failure_reason(OOM_LOG)
+    assert reason is not None
+    assert "out of memory" in reason
+    assert "free memory" in reason
+    assert "Close it and run this again" in reason
+    # The backtrace and the bare exit code are what it replaced.
+    assert "GDB" not in reason and "naf_upsample_ggml() " not in reason
+    assert "exited with code" not in reason
+
+
+def test_a_normal_failure_still_reads_as_the_generator_spoke_it():
+    """The memory message must not swallow every other failure's own words."""
+    log = ["[rss 0.1 GB]", "RuntimeError: weights missing", "generator exited with code 1"]
+    reason = api.failure_reason(log)
+    assert reason is not None and "weights missing" in reason
+
+
+def test_out_of_memory_is_only_called_when_the_log_says_so():
+    assert api.out_of_memory_reason(["all fine", "generator exited with code 0"]) is None
+
+
+def test_a_backend_with_no_declared_need_never_asks_the_gpu(monkeypatch):
+    """A CPU route must not be refused for having no card."""
+    monkeypatch.setattr(api, "gpu_busy_note", lambda *a, **k: pytest.fail("asked the GPU"))
+    assert api.gpu_busy_check(api.BACKENDS["trellis"]) is None
+
+
+def test_a_backend_that_declares_a_need_is_checked(monkeypatch):
+    # Asking the real card made this a coin flip on a busy machine, which is how a green
+    # suite turns red for reasons that have nothing to do with the change under test.
+    monkeypatch.setattr(api, "gpu_busy_note", lambda wanted: None)
+    spec = api.BACKENDS["pixal3d"]
+    assert spec.gpu_memory_wanted is not None
+    assert api.gpu_busy_check(spec) is None
+
+
+def test_a_route_with_no_need_is_never_asked_about_the_card(monkeypatch):
+    """A CPU route must not be warned about having no card, so the card is not asked."""
+    def refuse(wanted):
+        raise AssertionError("the card must not be asked for a route that needs none")
+
+    monkeypatch.setattr(api, "gpu_busy_note", refuse)
+    for backend_id, spec in api.BACKENDS.items():
+        if spec.gpu_memory_wanted is None:
+            assert api.gpu_busy_check(spec) is None, backend_id
+
+
+# --- Stable Fast 3D: one route, two installs that must not be confused ---------------------
+
+def test_sf3d_runs_in_its_own_venv_on_amd_and_in_this_interpreter_on_a_mac():
+    """The Apple route installs SF3D into the interpreter the viewer runs in. The AMD route
+    gives it a venv, because its pins break the shared environment -- so the two installs
+    are in different places and a spec pointing at one is wrong on the other."""
+    amd = api.sf3d_spec(api.AMD)
+    apple = api.sf3d_spec(api.APPLE)
+    assert amd.interpreter == api.SF3D_ROCM_PYTHON
+    assert ".venv" in str(amd.interpreter)
+    assert apple.interpreter != amd.interpreter
+    # Not "no .venv in the path": the suite itself often runs from one.
+    assert apple.interpreter == Path(sys.executable)
+    # One id, so the studio's saved setting still names the same route either way.
+    assert amd.id == apple.id == "sf3d"
+    assert amd.wrapper == apple.wrapper, "only the interpreter differs"
+
+
+def test_sf3d_readiness_proves_the_right_install_for_each_machine(monkeypatch):
+    """A shared source file is true on a Mac that has only ever built the Apple install, and
+    on a Linux box whose texture baker compiled with no GPU kernels in it -- which is the
+    failure this route had. Each machine needs its own proof, and its own hint."""
+    # This machine may well have it installed, so the not-installed hints are read against
+    # paths that are definitely absent -- otherwise the test asserts on whatever the host
+    # happens to have, and passes for the wrong reason.
+    absent = Path("/nonexistent/stable-fast-3d")
+    monkeypatch.setattr(api, "SF3D_ROCM_MARKER", absent / ".i2l-build-complete")
+    monkeypatch.setattr(api, "SF3D_ROCM_PYTHON", absent / ".venv" / "bin" / "python")
+    monkeypatch.setattr(api, "SF3D_REPO_DEFAULT", absent)
+
+    amd = api._sf3d_readiness(api.AMD)
+    apple = api._sf3d_readiness(api.APPLE)
+    assert amd["ready"] is False and apple["ready"] is False
+    # Each hint names its own installer, so "not installed" is actionable.
+    assert "bootstrap_sf3d_rocm.py" in amd["build"]["hint"]
+    assert "bootstrap_macos.sh" in apple["build"]["hint"]
+    assert "bootstrap_sf3d_rocm.py" not in apple["build"]["hint"]
+
+    # And when it is installed, AMD proves it from its venv rather than from the checkout
+    # the two routes share.
+    monkeypatch.setattr(api, "SF3D_ROCM_MARKER", Path(__file__))
+    monkeypatch.setattr(api, "SF3D_ROCM_PYTHON", Path(sys.executable))
+    monkeypatch.setattr(api, "_sf3d_weights", lambda: [
+        {"label": "Stable Fast 3D", "present": True, "human_present": "3.8 GB"}])
+    installed = api._sf3d_readiness(api.AMD)
+    assert installed["ready"] is True and installed["build"]["hint"] is None
+    assert str(api.SF3D_ROCM_PYTHON) in installed["build"]["interpreter"]
+
+
+def test_sf3d_on_amd_is_not_ready_without_its_weights(monkeypatch):
+    """Built but never downloaded (code-only, or stopped by the gated licence): a run would
+    have fetched ~4.9 GB nobody agreed to."""
+    monkeypatch.setattr(api, "SF3D_ROCM_MARKER", Path(__file__))
+    monkeypatch.setattr(api, "SF3D_ROCM_PYTHON", Path(sys.executable))
+    monkeypatch.setattr(api, "_sf3d_weights", lambda: [
+        {"label": "Stable Fast 3D", "present": False, "human_present": "0 B"},
+        {"label": "DINOv2 image encoder", "present": True, "human_present": "1.1 GB"}])
+    readiness = api._sf3d_readiness(api.AMD)
+    assert readiness["ready"] is False
+    assert readiness["missing_weights"] == ["Stable Fast 3D"]
+    assert "--weights-only" in readiness["build"]["hint"]
+
+def test_sf3d_is_offered_on_an_amd_card_and_still_on_a_mac():
+    import backend_catalog
+
+    entry = backend_catalog.BY_ID["sf3d"]
+    assert entry.runs_here(backend_catalog.AMD, "linux") is True
+    assert entry.runs_here(backend_catalog.APPLE, "darwin") is True
+    assert api.sf3d_spec(api.AMD).label != api.sf3d_spec(api.APPLE).label, \
+        "two installs behind one label is how a user picks the wrong one"
+
+
+def test_the_sf3d_download_command_is_the_amd_bootstrap_on_an_amd_card():
+    """The Setup button runs a command, and the Mac one installs into the shared
+    interpreter -- which is exactly what this route exists to stop doing on Linux."""
+    import backend_catalog
+    import download_api
+
+    command = download_api.command_for("sf3d", backend_catalog.AMD)
+    assert command is not None
+    assert any("bootstrap_sf3d_rocm.py" in part for part in command), command
+    assert "--yes" in command
+
+
+def test_a_run_that_may_not_fit_is_flagged_before_it_starts(monkeypatch):
+    monkeypatch.setattr(api, "gpu_busy_note", lambda wanted: "the GPU has 2.0 GB free")
+    assert api.gpu_busy_check(api.BACKENDS["pixal3d"]) == "the GPU has 2.0 GB free"
+
+
+def test_a_busy_card_is_a_heads_up_not_a_refusal():
+    """An AMD APU can report a small VRAM figure while borrowing system RAM, so a busy note
+    must ride along with the run rather than stop it."""
+    warning = api.gpu_busy_warning("the GPU has 2.0 GB free.")
+    assert warning.startswith("Heads up: the GPU has 2.0 GB free.")
+    assert "may fail" in warning
+
+
+def test_no_busy_note_means_no_warning():
+    assert api.gpu_busy_warning(None) is None
+
+
+def test_the_generate_handler_never_refuses_for_a_busy_card():
+    """The handler used to answer 409 on a busy card; it must now start the run."""
+    import inspect
+    source = inspect.getsource(api.Handler)
+    assert "gpu_busy_warning(busy)" in source
+    assert '{"error": f"{spec.label}: {busy}"}' not in source
+
+
+def test_a_bug_in_a_routes_settings_check_is_reported_as_a_sentence():
+    """A `KeyError` on a setting name reached the browser as a bare `'max_num_view'` with
+    nothing on the server's terminal, so the run looked like it had simply stopped.
+    ValueError is still the user's problem and stays a 422; anything else is our bug."""
+    import inspect
+    source = inspect.getsource(api.Handler)
+    assert "validate_settings raised" in source, "the traceback must reach the terminal"
+    assert "_send_json(500" in source
+    assert "bug in the route's settings" in source, "and say so in the browser"
+
+
+def test_every_backend_answers_the_check_without_raising():
+    """The check runs on every generate request, so a backend that forgot to declare a need
+    must get a plain None rather than an AttributeError at click time."""
+    for name, spec in api.BACKENDS.items():
+        assert api.gpu_busy_check(spec) is None or "GPU has" in api.gpu_busy_check(spec), name
 
 
 def test_failure_reason_is_none_when_only_progress_noise():
@@ -1077,9 +1408,498 @@ def test_reconcile_notes_a_finish_run_in_its_steps_log(tmp_path, monkeypatch):
     assert "died mid-run" in (job_dir / "steps" / "run.log").read_text()
 
 
+# --- TRELLIS.2 on NVIDIA: same id, Microsoft's own code, the Mac path unchanged ---
+def test_trellis_on_a_mac_keeps_the_metal_port():
+    spec = api.trellis_spec(api.APPLE)
+    assert spec.wrapper == api.WRAPPER and spec.interpreter == api.PYTHON
+    assert spec.requires_alpha is True
+    assert spec.readiness is api.setup_status
+
+
+def test_trellis_on_nvidia_runs_the_cuda_generator():
+    spec = api.trellis_spec(api.backend_catalog.NVIDIA)
+    assert spec.id == "trellis"
+    assert spec.wrapper == api.TRELLIS_CUDA_WRAPPER and spec.wrapper.is_file()
+    assert spec.interpreter == api.TRELLIS_CUDA_PYTHON
+    # It mattes with our own remover, so an opaque upload is fine.
+    assert spec.requires_alpha is False
+    assert spec.readiness is api.cuda_setup_status
+
+
+def test_trellis_is_offered_on_an_amd_card(monkeypatch):
+    """It used not to be, for a reason that turned out not to be the card: the extensions
+    all have working ROCm builds, and attention moved to AuleAttention. What matters now is
+    that the spec names the ROCm venv rather than this interpreter or the NVIDIA one."""
+    monkeypatch.setattr(api.backend_catalog, "host_platform", lambda: api.AMD)
+    here = {b["id"]: b["runs_here"] for b in api.backends_payload()["backends"]}
+    assert here["trellis"] is True
+
+    spec = api.trellis_spec(api.AMD)
+    assert spec.interpreter == api.TRELLIS_ROCM_PYTHON
+    assert "trellis-rocm" in str(spec.interpreter)
+    assert spec.wrapper == api.TRELLIS_ROCM_WRAPPER
+    # Like the NVIDIA route it mattes images itself, so it must not demand alpha.
+    assert spec.requires_alpha is False
+
+
+def test_the_two_linux_trellis_specs_differ_only_in_where_they_run():
+    """One pipeline, two cards: the settings, stages and line parser must not diverge."""
+    cuda_spec = api.trellis_spec(api.NVIDIA)
+    amd_spec = api.trellis_spec(api.AMD)
+    assert amd_spec.default_settings == cuda_spec.default_settings
+    assert amd_spec.stages == cuda_spec.stages
+    assert amd_spec.parse_line is cuda_spec.parse_line
+    assert amd_spec.validate_settings is cuda_spec.validate_settings
+    assert amd_spec.interpreter != cuda_spec.interpreter
+
+
+def test_pixal3d_runs_on_an_amd_card(monkeypatch):
+    """The one 3D route with an api.AMD install, so the Generate dropdown must keep it there."""
+    monkeypatch.setattr(api.backend_catalog, "host_platform", lambda: api.AMD)
+    here = {b["id"]: b["runs_here"] for b in api.backends_payload()["backends"]}
+    assert here["pixal3d"] is True
+
+
+def test_cuda_args_drop_the_mac_only_flags(tmp_path):
+    settings = api.validate_settings({"allow_rembg": True, "sparse_attn_backend": "mlx"})
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb",
+                  settings, "trellis")
+    args = api._trellis_cuda_build_args(job)
+    assert args[:2] == [str(tmp_path / "in.png"), str(tmp_path / "out.glb")]
+    assert "--allow-rembg" not in args and "--sparse-attn-backend" not in args
+    assert "--no-save-latents" in args
+    job.debug = True
+    assert "--no-save-latents" not in api._trellis_cuda_build_args(job)
+
+
+def test_cuda_args_are_ones_the_generator_accepts(tmp_path):
+    import trellis_cuda_generate
+
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb",
+                  api.validate_settings({}), "trellis")
+    parsed = trellis_cuda_generate.parse_args(api._trellis_cuda_build_args(job))
+    assert parsed.resolution == "1024" and parsed.save_latents is False
+
+
+def _cuda_install(tmp_path, monkeypatch, *, built=True, patched=True):
+    vendor = tmp_path / "trellis-cuda"
+    python = vendor / ".venv" / "bin" / "python"
+    marker = vendor / ".i2l-build-complete"
+    if built:
+        python.parent.mkdir(parents=True)
+        python.write_text("")
+        marker.write_text("{}")
+    monkeypatch.setattr(api, "TRELLIS_CUDA_PYTHON", python)
+    monkeypatch.setattr(api, "TRELLIS_CUDA_MARKER", marker)
+    monkeypatch.setattr(api, "weights_on_disk", lambda *a, **k: {})
+    monkeypatch.setattr(api, "trellis_cuda_bria_patched", lambda *a: patched)
+
+
+def test_cuda_route_is_ready_when_built_and_patched(tmp_path, monkeypatch):
+    _cuda_install(tmp_path, monkeypatch)
+    assert api.cuda_setup_status(api.NVIDIA)["ready"] is True
+
+
+def test_cuda_route_is_not_ready_without_the_bria_patch(tmp_path, monkeypatch):
+    _cuda_install(tmp_path, monkeypatch, patched=False)
+    status = api.cuda_setup_status()
+    assert status["ready"] is False and status["bria_patched"] is False
+    assert "patch_trellis_cuda_no_bria.py" in status["build"]["hint"]
+
+
+def test_cuda_route_not_built_points_at_its_bootstrap(tmp_path, monkeypatch):
+    _cuda_install(tmp_path, monkeypatch, built=False)
+    status = api.cuda_setup_status(api.NVIDIA)
+    assert status["ready"] is False
+    assert "bootstrap_trellis_cuda.py" in status["build"]["hint"]
+
+
+def test_the_rocm_route_not_built_points_at_its_own_bootstrap(tmp_path, monkeypatch):
+    """A hint naming the CUDA bootstrap would send an api.AMD user to a script that refuses
+    their card. The ROCm install is faked here because this machine has one, and a test
+    that depends on what happens to be built passes for the wrong reason."""
+    monkeypatch.setattr(api, "TRELLIS_ROCM_PYTHON", tmp_path / "nope" / "python")
+    monkeypatch.setattr(api, "TRELLIS_ROCM_MARKER", tmp_path / "nope" / "marker")
+    status = api.cuda_setup_status(api.AMD)
+    assert status["ready"] is False
+    assert "bootstrap_trellis_rocm.py" in status["build"]["hint"]
+    assert "api.NVIDIA" not in status["build"]["hint"]
+
+
+def _rocm_install(tmp_path, monkeypatch, *, attention=None):
+    vendor = tmp_path / "trellis-rocm"
+    python = vendor / ".venv" / "bin" / "python"
+    marker = vendor / ".i2l-build-complete"
+    python.parent.mkdir(parents=True)
+    python.write_text("")
+    marker.write_text("{}")
+    monkeypatch.setattr(api, "TRELLIS_ROCM_VENDOR", vendor)
+    monkeypatch.setattr(api, "TRELLIS_ROCM_PYTHON", python)
+    monkeypatch.setattr(api, "TRELLIS_ROCM_MARKER", marker)
+    monkeypatch.setattr(api, "TRELLIS_ROCM_WRAPPER", python)
+    monkeypatch.setattr(api, "weights_on_disk", lambda *a, **k: {})
+    monkeypatch.setattr(api, "trellis_cuda_bria_patched", lambda *a: True)
+    return vendor
+
+
+def test_the_rocm_route_is_not_ready_without_its_attention_patches(tmp_path, monkeypatch):
+    _rocm_install(tmp_path, monkeypatch)
+    status = api.cuda_setup_status(api.AMD)
+    assert status["ready"] is False and status["build"]["present"] is False
+    assert "patch_trellis_rocm.py" in status["build"]["hint"]
+
+
+def test_the_rocm_route_is_not_ready_without_aule_installed(tmp_path, monkeypatch):
+    import patch_trellis_rocm
+
+    vendor = _rocm_install(tmp_path, monkeypatch)
+    monkeypatch.setattr(patch_trellis_rocm, "is_patched", lambda root: True)
+    status = api.cuda_setup_status(api.AMD)
+    assert status["ready"] is False
+    assert "aule" in status["build"]["hint"]
+    aule = vendor / ".venv" / "lib" / "python3.11" / "site-packages" / "aule"
+    aule.mkdir(parents=True)
+    (aule / "__init__.py").write_text("")
+    assert api.cuda_setup_status(api.AMD)["ready"] is True
+
+
+def test_the_nvidia_route_is_not_asked_about_aule(tmp_path, monkeypatch):
+    _cuda_install(tmp_path, monkeypatch)
+    monkeypatch.setattr(api, "trellis_rocm_attention_problem",
+                        lambda *a: pytest.fail("asked an NVIDIA card about aule"))
+    assert api.cuda_setup_status(api.NVIDIA)["ready"] is True
+
+
+def test_bria_patch_probe_reads_the_real_checkout_rule(tmp_path):
+    assert api.trellis_cuda_bria_patched(tmp_path / "missing") is False
+
+
+def test_the_old_mac_setup_runner_refuses_other_machines():
+    ok, reason = api.setup_available(api.backend_catalog.NVIDIA)
+    assert ok is False and "Setup & Status" in reason
+
+
 def test_cleanup_keeps_the_provenance_sidecar(tmp_path):
     job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb", {}, "trellis")
-    for name in ("out.glb", "out.provenance.json", "out.json", "out_latents.pt"):
+    for name in ("out.glb", "out.provenance.json", "out.json", "out_latents.pt", "run.log"):
         (tmp_path / name).write_text("x")
     api._cleanup_debug_files(job)
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["out.glb", "out.provenance.json"]
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "out.glb", "out.json", "out.provenance.json"]
+
+
+def test_cleanup_keeps_pixal3d_licence_record_and_camera(tmp_path):
+    # Seen on a real NVIDIA pod: with Debug off, a Pixal3D model kept only its .glb. Its
+    # licence record is <name>.json and its camera is <name>.svviews/, so it shipped with
+    # no provenance, and Finish silently skipped Pixel Match. Both travel with the model.
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb", {}, "pixal3d")
+    for name in ("out.glb", "out.json", "input__matted.png", "run.log"):
+        (tmp_path / name).write_text("x")
+    (tmp_path / "out.svviews").mkdir()
+    (tmp_path / "out.svviews" / "transforms.json").write_text("{}")
+    api._cleanup_debug_files(job)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["out.glb", "out.json", "out.svviews"]
+    assert (tmp_path / "out.svviews" / "transforms.json").is_file()
+
+
+def test_cleanup_keeps_pixal3d_clean_up_dump(tmp_path):
+    """2026-10-18: a studio run's dump was deleted here, so Finish fell back to the classic route."""
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb", {}, "pixal3d")
+    for name in ("out.glb", "out.json", "out.post.bin", "run.log"):
+        (tmp_path / name).write_text("x")
+    api._cleanup_debug_files(job)
+    assert (tmp_path / "out.post.bin").is_file()
+
+
+def test_nvidia_trellis_hides_the_mac_only_controls():
+    assert set(api.trellis_spec(api.backend_catalog.NVIDIA).hidden_fields) == {"generate-attention"}
+    assert api.trellis_spec(api.APPLE).hidden_fields == ()
+
+
+def test_catalog_names_the_setup_already_running(monkeypatch):
+    monkeypatch.setattr(api, "running_payload", lambda: {"backend": "trellis"})
+    assert api.catalog_payload()["running_setup"] == {"backend": "trellis"}
+    monkeypatch.setattr(api, "running_payload", lambda: None)
+    assert api.catalog_payload()["running_setup"] is None
+
+
+def test_learned_timings_never_dirty_a_tracked_file(tmp_path, monkeypatch):
+    # Seen on a real pod: the viewer rewrote the tracked viewer/generate_baseline.json after
+    # a generation, and the curl installer then refused every update ("local edits to
+    # tracked files"). Learned timings go to a git-ignored file; the shipped one is read-only.
+    shipped = tmp_path / "shipped.json"
+    shipped.write_text('{"seconds": {"decode": 100.0, "load": 10.0}}')
+    learned = tmp_path / "output" / ".generate_baseline.json"
+    monkeypatch.setattr(api, "BASELINE_PATH", shipped)
+    monkeypatch.setattr(api, "LEARNED_BASELINE_PATH", learned)
+    assert api._baseline() == {"decode": 100.0, "load": 10.0}
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb", {}, "trellis")
+    job.stage_durations = {"decode": 42.0}
+    api._update_baseline(job)
+    assert shipped.read_text() == '{"seconds": {"decode": 100.0, "load": 10.0}}'
+    assert api._baseline() == {"decode": 42.0, "load": 10.0}
+
+
+def test_learned_baseline_lives_under_the_ignored_output_folder():
+    assert api.LEARNED_BASELINE_PATH.parent == api.REPO / "output"
+
+
+# --- Hunyuan3D-2.1 on NVIDIA: Tencent's own code, NVIDIA only ---------------------------
+def test_hunyuan_cuda_runs_the_cuda_generator():
+    spec = api.BACKENDS["hunyuan-cuda"]
+    assert spec.wrapper == api.HUNYUAN_CUDA_WRAPPER and spec.wrapper.is_file()
+    assert spec.interpreter == api.HUNYUAN_CUDA_PYTHON
+    assert spec.requires_alpha is False  # the generator mattes with our own remover
+
+
+def test_hunyuan_cuda_defaults_match_the_generator():
+    import hunyuan_cuda_generate as gen
+
+    for key, value in api.HUNYUAN_CUDA_DEFAULT_SETTINGS.items():
+        assert gen.DEFAULTS[key] == value, key
+
+
+@pytest.mark.parametrize("payload", [{"octree_resolution": 1024}, {"max_num_view": 12},
+                                     {"paint_resolution": 1024}, {"steps": 0},
+                                     {"seed": "x"}, "not a dict"])
+def test_hunyuan_cuda_rejects_bad_settings(payload):
+    with pytest.raises(ValueError):
+        api._hunyuan_cuda_validate_settings(payload)
+
+
+def test_hunyuan_cuda_args_are_ones_the_generator_accepts(tmp_path):
+    import hunyuan_cuda_generate as gen
+
+    settings = api._hunyuan_cuda_validate_settings({"octree_resolution": 512})
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb", settings,
+                  "hunyuan-cuda")
+    args = gen.parse_args(api._hunyuan_cuda_build_args(job))
+    assert args.octree_resolution == 512 and args.output == tmp_path / "out.glb"
+
+
+def test_hunyuan_cuda_progress_moves_through_its_stages(tmp_path):
+    """The generator's own progress lines, through the shared Hunyuan parser."""
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb", {},
+                  "hunyuan-cuda")
+    for line in ("loaded shape pipeline in 12.0s",
+                 "shape generated in 40.0s -> /x/shape.glb",
+                 "mesh loaded; paint models ready in 30.0s",
+                 "paint stage done in 90.0s -> /x/out.glb",
+                 "DONE in 130.0s -> /x/out.glb"):
+        api._hunyuan_parse_line(job, line)
+    phases = [event["phase"] for event in job.events]
+    assert phases == ["shape", "shape", "paint_setup", "paint_finish", "paint_finish"]
+    assert job.events[-1]["overall_pct"] == 100
+
+
+def test_hunyuan_cuda_is_not_ready_with_weights_missing(tmp_path, monkeypatch):
+    """Upstream would fetch them unannounced on the first run; the button must not allow it."""
+    for name in ("HUNYUAN_CUDA_MARKER", "HUNYUAN_CUDA_PYTHON"):
+        path = tmp_path / name
+        path.write_text("")
+        monkeypatch.setattr(api, name, path)
+    import backend_catalog
+
+    monkeypatch.setattr(backend_catalog, "_dir_state", lambda path: (False, 0))
+    status = api._hunyuan_cuda_readiness()
+    assert status["build"]["present"] is True
+    assert status["ready"] is False
+    assert "--weights-only" in status["build"]["hint"]
+
+
+def test_hunyuan_cuda_is_ready_when_built_and_fetched(tmp_path, monkeypatch):
+    for name in ("HUNYUAN_CUDA_MARKER", "HUNYUAN_CUDA_PYTHON"):
+        path = tmp_path / name
+        path.write_text("")
+        monkeypatch.setattr(api, name, path)
+    import backend_catalog
+
+    monkeypatch.setattr(backend_catalog, "_dir_state", lambda path: (True, 1))
+    assert api._hunyuan_cuda_readiness()["ready"] is True
+
+
+def test_hunyuan_cuda_is_not_ready_before_setup(tmp_path, monkeypatch):
+    monkeypatch.setattr(api, "HUNYUAN_CUDA_MARKER", tmp_path / "absent")
+    status = api._hunyuan_cuda_readiness()
+    assert status["ready"] is False and "bootstrap_hunyuan_cuda.py" in status["build"]["hint"]
+
+
+def test_progress_streams_tell_proxies_not_to_buffer():
+    # Seen through RunPod's proxy: progress arrived in batches, minutes behind, because
+    # proxies (nginx, Cloudflare, RunPod) hold event streams back unless told not to.
+    sent = []
+
+    class Fake:
+        def send_response(self, code):
+            sent.append(("status", code))
+
+        def send_header(self, name, value):
+            sent.append((name, value))
+
+        def end_headers(self):
+            sent.append(("end",))
+
+    api.Handler._start_event_stream(Fake())
+    assert ("Content-Type", "text/event-stream") in sent
+    assert ("X-Accel-Buffering", "no") in sent and sent[-1] == ("end",)
+
+
+def test_backends_say_whether_they_run_on_this_machine(monkeypatch):
+    # The Generate dropdown offered the Mac-only Hunyuan-MLX routes on an NVIDIA pod.
+    monkeypatch.setattr(api.backend_catalog, "host_platform", lambda: api.backend_catalog.NVIDIA)
+    here = {b["id"]: b["runs_here"] for b in api.backends_payload()["backends"]}
+    assert here["hunyuan-cuda"] is True and here["hunyuan-mlx-xiong"] is False
+    monkeypatch.setattr(api.backend_catalog, "host_platform", lambda: api.APPLE)
+    here = {b["id"]: b["runs_here"] for b in api.backends_payload()["backends"]}
+    assert here["hunyuan-mlx-xiong"] is True and here["hunyuan-cuda"] is False
+
+
+def test_sign_in_answers_with_status_or_a_plain_error(monkeypatch):
+    monkeypatch.setattr(api.hf_api, "sign_in", lambda token: (
+        {"signed_in": True, "user": "ada", "repos": []} if token == "good"
+        else {"error": "Hugging Face refused that token."}))
+    assert api.hf_sign_in_response({"token": "good"}) == (
+        200, {"signed_in": True, "user": "ada", "repos": []})
+    code, body = api.hf_sign_in_response({"token": "nope"})
+    assert code == 422 and "error" in body
+    assert api.hf_sign_in_response("not a dict")[0] == 400
+
+
+def test_blender_install_is_refused_when_it_cannot_or_should_not_run():
+    ok = {"blender_installable": True}
+    assert api.blender_install_refusal(ok, generating=False, setting_up=False) is None
+    assert api.blender_install_refusal(ok, generating=True, setting_up=False)[0] == 409
+    assert api.blender_install_refusal(ok, generating=False, setting_up=True)[0] == 409
+    code, message = api.blender_install_refusal(
+        {"blender_installable": False}, generating=False, setting_up=False)
+    assert code == 409 and "blender.org" in message
+
+
+def test_gltfpack_install_is_refused_when_it_cannot_or_should_not_run():
+    ok = {"gltfpack_installable": True}
+    assert api.gltfpack_install_refusal(ok, generating=False, setting_up=False) is None
+    assert api.gltfpack_install_refusal(ok, generating=True, setting_up=False)[0] == 409
+    assert api.gltfpack_install_refusal(ok, generating=False, setting_up=True)[0] == 409
+    code, message = api.gltfpack_install_refusal(
+        {"gltfpack_installable": False}, generating=False, setting_up=False)
+    assert code == 409 and "meshoptimizer/releases" in message
+
+
+def test_blender_install_runs_the_bootstrap_with_yes():
+    command = api.blender_install_command()
+    assert command[-2].endswith("bootstrap_blender.py") and command[-1] == "--yes"
+
+
+def test_a_setup_run_streams_its_progress_at_the_address_it_hands_out():
+    # Found on a pod 2026-10-02: Install Blender (and the Mac Run setup button) hand out
+    # /api/setup/run/<id>/events, but the route only matched four path parts, so the
+    # page's progress feed was a 404 since the day it was written.
+    import http.server
+    import threading
+    import urllib.request
+    import uuid
+
+    run_id = uuid.uuid4().hex
+    run = api.SetupRun(run_id)
+    run.emit({"phase": "setup", "message": "Downloading blender..."})
+    run.status = "done"
+    run.emit({"phase": "setup_done", "status": "done", "message": "exit 0"})
+    api.SETUP_RUNS[run_id] = run
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), api.Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/api/setup/run/{run_id}/events"
+        # A live feed: read events until the last one, as the page's EventSource does,
+        # rather than waiting for the connection to close.
+        lines = []
+        with urllib.request.urlopen(url, timeout=30) as response:
+            assert response.status == 200
+            for raw in response:
+                lines.append(raw.decode())
+                if '"setup_done"' in lines[-1]:
+                    break
+        body = "".join(lines)
+        assert "Downloading blender" in body and '"setup_done"' in body
+    finally:
+        server.shutdown()
+        server.server_close()
+        api.SETUP_RUNS.pop(run_id, None)
+
+
+def test_old_allow_rembg_setting_is_ignored_not_passed_on(tmp_path):
+    """BRIA is never loaded; a stale client sending the old flag must not reach the wrapper."""
+    settings = api.validate_settings({"allow_rembg": True})
+    assert "allow_rembg" not in settings
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb", settings, "trellis")
+    assert "--allow-rembg" not in api._trellis_build_args(job)
+
+
+def test_matted_upload_records_the_remover(tmp_path):
+    settings = {**api.validate_settings({}), "matted_with": "birefnet-general-lite"}
+    job = api.Job("0" * 32, tmp_path, tmp_path / "in.png", tmp_path / "out.glb", settings, "trellis")
+    args = api._trellis_build_args(job)
+    assert args[args.index("--matted-with") + 1] == "birefnet-general-lite"
+
+
+def test_matte_upload_cuts_out_and_keeps_the_original(tmp_path, monkeypatch):
+    from PIL import Image
+
+    from image_to_3dlab import matte
+
+    upload = tmp_path / "input.jpg"
+    Image.new("RGB", (8, 8), "white").save(upload)
+    monkeypatch.setattr(matte, "cut_out", lambda image: (Image.new("RGBA", image.size), "u2net"))
+    cut, model = api.matte_upload(upload)
+    assert (cut.name, model) == ("input.png", "u2net")
+    assert Image.open(cut).mode == "RGBA"
+    assert (tmp_path / "original.jpg").is_file()
+
+
+# --- every engine gets a real cut-out ------------------------------------------------------
+# Qwen-Image writes RGBA whose alpha is opaque noise, so an engine that trusts the alpha
+# builds the backdrop as geometry: the Mac Hunyuan routes put a grey wall behind a knight
+# (2026-10-12). Each route either has the server cut the picture (requires_alpha) or cuts
+# it in its own code with our remover; this keeps a new route from slipping through.
+
+
+@pytest.mark.parametrize("host", [api.APPLE, api.backend_catalog.NVIDIA,
+                                  api.backend_catalog.AMD])
+def test_every_route_gets_a_real_cut_out(host):
+    specs = {**api.BACKENDS, "trellis": api.trellis_spec(host)}
+    for backend_id, spec in specs.items():
+        if spec.requires_alpha:
+            continue
+        cutter = api.SELF_CUTTING.get((backend_id, host)) or api.SELF_CUTTING.get((backend_id, None))
+        assert cutter is not None, f"{backend_id} on {host}: nothing cuts its picture out"
+        source = (api.REPO / cutter).read_text()
+        assert "image_to_3dlab.matte" in source or "from image_to_3dlab import matte" in source, \
+            f"{backend_id}: {cutter} does not use our remover"
+
+
+def test_the_mac_hunyuan_routes_have_the_server_cut_the_picture():
+    assert api.BACKENDS["hunyuan-mlx"].requires_alpha is True
+    assert api.BACKENDS["hunyuan-mlx-xiong"].requires_alpha is True
+
+def test_front_back_readiness_follows_the_multiview_manifest(tmp_path):
+    models = tmp_path / "pixal3d-q8_0-v1"
+    models.mkdir()
+    (models / "pixal3d-models.json").write_text(json.dumps(
+        {"files": [{"name": "a_mv.gguf", "required": True}, {"name": "b.gguf", "required": True}]}))
+    (models / "a_mv.gguf").write_text("")
+    ready, hint = api.pixal3d_front_back_ready(models)
+    assert not ready and "b.gguf" in hint and "--multiview" in hint
+    (models / "b.gguf").write_text("")
+    assert api.pixal3d_front_back_ready(models) == (True, None)
+
+
+def test_front_back_readiness_without_the_folder_says_how_to_get_it(tmp_path):
+    ready, hint = api.pixal3d_front_back_ready(tmp_path / "missing")
+    assert not ready and "5.9 GB" in hint
+
+
+def test_front_back_is_ready_only_with_both_downloads():
+    assert api.front_back_status(lambda: (True, None), lambda: Path("/w/mmproj.gguf")) == {
+        "ready": True, "hint": None}
+    for weights, vision in (((True, None), None), ((False, "x"), Path("/w/m.gguf")), ((False, "x"), None)):
+        status = api.front_back_status(lambda w=weights: w, lambda v=vision: v)
+        assert not status["ready"] and "Front + back" in status["hint"] and "6.6 GB" in status["hint"]

@@ -3,8 +3,9 @@
 
 Two halves, the same way the viewer tracks every other backend. The **build** is a
 prebuilt `stable-diffusion.cpp` release binary. Nothing is compiled: upstream publishes a
-Metal build for Apple Silicon, a CUDA build for Windows and a Vulkan build for Linux, which
-runs on NVIDIA cards. The **weights** are three files totalling about 13.4 GB.
+Metal build for Apple Silicon, a CUDA build for Windows, a Vulkan build for Linux that
+runs on NVIDIA cards, and a ROCm build for AMD cards on Linux. The **weights** are three
+files totalling about 13.4 GB.
 
 `AGENTS.md`: a download path must name the backend, name the route, state the size, and
 require an affirmative answer. This prints all of that and stops, unless `--yes` is given
@@ -19,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import stat
 import subprocess
@@ -33,7 +35,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from image_to_3dlab import host
-from image_to_3dlab.sdcpp import NO_GPU_HELP, gpu_found
+from image_to_3dlab.sdcpp import NO_AMD_GPU_HELP, NO_GPU_HELP, gpu_found
 
 VENDOR = REPO / "vendor" / "sdcpp"
 BINARY = host.executable(VENDOR, "sd-cli")
@@ -48,10 +50,13 @@ WEIGHTS = [
     ("Comfy-Org/Qwen-Image-2.1", "vae/qwen_image_2.1_vae_bf16.safetensors", 0.68),
 ]
 
+# Optional: the LLM's vision projector. Edit mode needs it (drawing a back picture from the
+# front for a front + back build); plain pictures do not. Fetched only with --vision.
+VISION = ("Qwen/Qwen3-VL-8B-Instruct-GGUF", "mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf", 0.75)
+
 LICENCE = (
-    "Qwen Research License: NON-COMMERCIAL USE ONLY, and it asks that you say\n"
-    "  'Built with Qwen'. Anything you generate from these weights inherits that,\n"
-    "  including a 3D asset made from a generated picture.\n"
+    "Qwen Research License. The pictures you generate are yours (Qwen confirmed it);\n"
+    "  the weights stay on this machine. Built with Qwen.\n"
     "  https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE"
 )
 
@@ -78,6 +83,27 @@ def announcement(build: bool = True, weights: bool = True) -> str:
             lines.append(f"             {size:>5.2f} GB  {filename}  ({repo})")
     lines += ["", "  licence: " + LICENCE, ""]
     return "\n".join(lines)
+
+
+def vision_announcement() -> str:
+    repo, filename, size = VISION
+    return "\n".join(["", "About to install:", "",
+                      "  backend: Qwen-Image 2.1, edit mode (draws the back picture for",
+                      "           front + back 3D builds)",
+                      f"  weights: {size:.2f} GB  {filename}  ({repo}) -> Hugging Face cache",
+                      "", "  licence: " + LICENCE, ""])
+
+
+def install_vision() -> None:
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError as exc:
+        raise SystemExit(
+            "huggingface_hub is not installed. pip install -r requirements-dev.txt"
+        ) from exc
+    repo, filename, size = VISION
+    print(f"\nFetching {filename} ({size:.2f} GB) from {repo}...", flush=True)
+    print(f"  {hf_hub_download(repo_id=repo, filename=filename)}")
 
 
 def binary_present() -> bool:
@@ -109,6 +135,12 @@ BUILDS = {
     # NVIDIA card; the NVIDIA driver ships the Vulkan support it needs.
     "linux-nvidia": Build("Vulkan on Linux (NVIDIA)", "~40 MB",
                           (("linux", "x86_64", "vulkan"),)),
+    # An AMD card with ROCm on it gets the native HIP build rather than the Vulkan one:
+    # same weights, faster sampling. It carries ggml's HIP backend but not ROCm itself:
+    # libamdhip64 and rocBLAS come from the system's ROCm, which the viewer puts on the
+    # loader path for each run (image_to_3dlab.host.with_rocm_libraries).
+    "linux-amd": Build("ROCm on Linux (AMD)", "~278 MB",
+                       (("linux", "x86_64", "rocm"),)),
 }
 
 
@@ -139,8 +171,8 @@ def install_binary(destination: Path = VENDOR) -> Path:
     if build is None:
         raise SystemExit(
             "There is no prebuilt stable-diffusion.cpp for this machine. Supported: an "
-            "Apple Silicon Mac, or Linux/Windows with an NVIDIA card. Otherwise build it "
-            f"from source and put sd-cli in {destination}."
+            "Apple Silicon Mac, or Linux/Windows with an NVIDIA card, or Linux with an "
+            f"AMD card and ROCm. Otherwise build it from source and put sd-cli in {destination}."
         )
     print("Finding the latest stable-diffusion.cpp release...")
     try:
@@ -162,8 +194,45 @@ def install_binary(destination: Path = VENDOR) -> Path:
         urllib.request.urlretrieve(asset["browser_download_url"], archive)
         with zipfile.ZipFile(archive) as bundle:
             bundle.extractall(destination)
+            restore_symlinks(bundle, destination)
         archive.unlink(missing_ok=True)
     return finish_install(destination)
+
+
+def restore_symlinks(bundle: zipfile.ZipFile, destination: Path) -> None:
+    """Turn extracted symlink entries back into real links.
+
+    `zipfile` writes a stored symlink as a plain text file holding its target, and the
+    dynamic loader then dies with "file too short" on the first versioned library in the
+    chain (`libggml.so` -> `.so.0` -> `.so.0.25.3`). The link target is relative to the
+    link's own directory, so entries are fixed where they were extracted, before any
+    flattening moves them.
+    """
+    for info in bundle.infolist():
+        if (info.external_attr >> 28) != 0xA:
+            continue
+        target = bundle.read(info.filename).decode("utf-8").strip()
+        path = destination / info.filename
+        if not link_stays_inside(path, target, destination):
+            continue
+        if path.is_symlink() or not path.exists():
+            continue
+        if path.is_file() and path.read_bytes().decode("utf-8", "replace").strip() == target:
+            path.unlink()
+            os.symlink(target, path)
+
+
+def link_stays_inside(link: Path, target: str, destination: Path) -> bool:
+    """Whether a link at `link` pointing to `target` resolves inside `destination`.
+
+    The archive decides where its links point, so one aimed at `/etc` or `../../..` is
+    left as the plain file zipfile wrote rather than turned into a way out of the folder.
+    """
+    if os.path.isabs(target):
+        return False
+    resolved = Path(os.path.normpath(link.parent / target))
+    root = Path(os.path.normpath(destination))
+    return resolved == root or root in resolved.parents
 
 
 def finish_install(destination: Path) -> Path:
@@ -177,6 +246,12 @@ def finish_install(destination: Path) -> Path:
         # catalogue probes is the path that exists.
         for item in found.parent.iterdir():
             shutil.move(str(item), str(destination / item.name))
+        # rmdir what the move left behind, innermost first.
+        for leftover in (found.parent, found.parent.parent):
+            try:
+                leftover.rmdir()
+            except OSError:
+                break
     # zipfile drops the executable bit, and a Linux build also needs it on sd-server.
     for name in ("sd-cli", "sd-server"):
         path = host.executable(destination, name)
@@ -224,11 +299,14 @@ def main(argv: list[str] | None = None) -> int:
                         help="Install the binary and stop, leaving the weights.")
     parser.add_argument("--weights-only", action="store_true",
                         help="Fetch the weights only, assuming sd-cli is already present.")
+    parser.add_argument("--vision", action="store_true",
+                        help=f"Fetch only the {VISION[2]:.2f} GB vision projector edit mode "
+                             "needs (back pictures for front + back builds).")
     args = parser.parse_args(argv)
 
-    build = not args.weights_only
-    weights = not args.build_only
-    print(announcement(build=build, weights=weights))
+    build = not args.weights_only and not args.vision
+    weights = not args.build_only and not args.vision
+    print(vision_announcement() if args.vision else announcement(build=build, weights=weights))
 
     if not args.yes:
         # Non-interactive without --yes must not silently proceed, and must not hang
@@ -245,16 +323,22 @@ def main(argv: list[str] | None = None) -> int:
             print(f"\nsd-cli is already installed at {BINARY}, leaving it alone.")
         else:
             install_binary()
-        # The NVIDIA builds load their GPU backend at run time and fall back to the CPU
-        # without a word if it cannot reach the driver. Catch that now, not 13 GB later.
-        if target() in ("linux-nvidia", "windows-nvidia"):
+        # The Linux/Windows builds load their GPU backend at run time and fall back to
+        # the CPU without a word if it cannot reach the driver. Catch that now, not
+        # 13 GB later.
+        help_text = NO_AMD_GPU_HELP if target() == "linux-amd" else NO_GPU_HELP
+        if target() in ("linux-nvidia", "windows-nvidia", "linux-amd"):
             if not gpu_found(probe_gpu()):
-                print("\n" + NO_GPU_HELP + "\nThe weights were not downloaded.")
+                print("\n" + help_text + "\nThe weights were not downloaded.")
                 return 1
-            print("sd-cli found the NVIDIA GPU.")
+            print("sd-cli found the GPU.")
     if weights:
         install_weights()
-    print("\nDone. Open the viewer's Generate Image tab.")
+    if args.vision:
+        install_vision()
+        print("\nDone. Back pictures: python scripts/make_back_view.py front.png back.png")
+        return 0
+    print("\nDone. In the studio, press + Create and start from an idea.")
     return 0
 
 

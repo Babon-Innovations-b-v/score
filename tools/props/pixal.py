@@ -23,6 +23,11 @@ Four steps, and only the second touches the graphics card:
    step 1). On the processor.
 4. Stand it upright and pad its maps (glb_file.py), on the processor.
 
+Before step 3, a raw model image-to-3dlab 0.3.9+ turned half round to face +Z (its glb_turn stamp in
+asset.extras), and the camera folder turned with it, are turned back to Pixal3D's own -Z in place
+(facing_back): everything here that reads a raw model or its camera folder (the finish, labels.py's
+seen faces, the outline, the splits, the turntables) reads them in that frame.
+
 Writes <name>.glb (the raw model), <name>-<faces>.glb (finished) and <name>-final.glb (upright and
 padded, the one to import) under WORK/pixal/, with each finishing step's file and log in
 <name>-<faces>/. --finish-only redoes steps 3 and 4 from the raw model already there, which is how
@@ -30,14 +35,20 @@ a model already in the game is re-finished.
 """
 import argparse
 import contextlib
+import json
 import pathlib
 import subprocess
 import sys
 import time
 
+import numpy as np
+
 from card import claimed
 from local_models import refuse_here
-from paths import IMAGE_TO_3DLAB, WORK
+from paths import IMAGE_TO_3DLAB, REPO, WORK
+
+sys.path.insert(0, str(REPO / "vendor" / "image-to-3dlab"))
+from image_to_3dlab.glb_turn import CAMERA_KEY, FACING_KEY, VIEW_TURN  # noqa: E402
 
 # Where every Pixal3D step runs instead of this PC (local_models.py).
 CLOUD = 'tools/props/cloud/batch.py <list.txt> --who "<session>" (one line a model: name picture options)'
@@ -49,6 +60,8 @@ OUT = WORK / "pixal"
 STEPS, GUIDANCE = 12, 10
 # The generator's banner for its last stage, writing the file, which needs no card.
 WRITING = "[6/6]"
+# Half a turn about glTF's up axis (y): undoes image-to-3dlab's glb_turn, which is its own inverse.
+HALF_TURN = np.diag([-1.0, 1.0, -1.0])
 
 
 def say(line):
@@ -95,6 +108,51 @@ def generate(cut, raw, seed, who):
                     card.close()
         if run.returncode:
             raise subprocess.CalledProcessError(run.returncode, command)
+
+
+def turned_by_lab(raw):
+    """Whether image-to-3dlab turned the raw model to face +Z (glb_turn's stamp in asset.extras)."""
+    import glb_file
+    document, _ = glb_file.read(raw)
+    return FACING_KEY in (document.get("asset", {}).get("extras") or {})
+
+
+def model_turned_back(raw):
+    """The raw model turned back half round to face -Z, its stamp taken off, written over itself."""
+    import glb_file
+    document, views = glb_file.read(raw)
+    glb_file.turned(document, views, HALF_TURN)
+    extras = document["asset"]["extras"]
+    extras.pop(FACING_KEY)
+    if not extras:
+        document["asset"].pop("extras")
+    turning = raw.with_name(raw.name + ".turning")
+    glb_file.write(document, views, turning)
+    turning.replace(raw)
+
+
+def cameras_turned_back(views):
+    """The camera folder's cameras turned back with their model, when image-to-3dlab turned them (its stamp in
+    transforms.json); a folder it never turned is left as it is."""
+    cameras = views / "transforms.json"
+    if not cameras.is_file():
+        return
+    transforms = json.loads(cameras.read_text())
+    if not transforms.pop(CAMERA_KEY, False):
+        return
+    for frame in transforms["frames"]:
+        frame["transform_matrix"] = (VIEW_TURN @ np.asarray(frame["transform_matrix"], dtype=float)).tolist()
+    cameras.write_text(json.dumps(transforms, indent=2) + "\n")
+
+
+def facing_back(raw):
+    """A raw model image-to-3dlab turned to face +Z, and its camera folder, turned back to Pixal3D's -Z; True when
+    they were turned."""
+    if not turned_by_lab(raw):
+        return False
+    model_turned_back(raw)
+    cameras_turned_back(raw.with_suffix(".svviews"))
+    return True
 
 
 def camera_folder(raw, picture):
@@ -163,6 +221,8 @@ def main():
         seconds["generate (card)"] = time.time() - start
     elif not raw.exists():
         sys.exit(f"--finish-only needs the raw model at {raw}")
+    if facing_back(raw):
+        say(f"{raw.name}: turned back from image-to-3dlab's +Z to -Z, with its camera folder")
     start = time.time()
     finish(raw, options.picture, finished, options.faces, options.paint_from)
     seconds["finish"] = time.time() - start

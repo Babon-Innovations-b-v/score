@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""End-to-end Pixal3D generation: image -> textured GLB, on a Mac or an NVIDIA card.
+"""End-to-end Pixal3D generation: image -> textured GLB, on a Mac, NVIDIA or AMD.
 
     python scripts/pixal3d_generate.py input.png output.glb [--res 1024] [--seed 42]
 
 Wraps `trellis-cli` from `vendor/pixal3d-cpp` (raven38/pixal3d.cpp), a C++/GGML runtime
-with Metal kernels on a Mac and CUDA on NVIDIA. Install it with
+with Metal kernels on a Mac, CUDA on NVIDIA and HIP on AMD. Install it with
 `scripts/bootstrap_pixal3d.py`.
 
 **Why this port and not the PyTorch one.** `pawel-mazurkiewicz/Pixal3D-mac` loads ~22 GB of
@@ -40,13 +40,18 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+import numpy as np
+
+from image_to_3dlab.glb_turn import turn_cameras, turn_glb
 from image_to_3dlab.host import executable
 from image_to_3dlab.matte import cut_out, fallback_note, is_matted, matte_model
-from image_to_3dlab.provenance import sha256_file
+from image_to_3dlab.provenance import LICENSES, sha256_file
 
 PIXAL3D_ROOT = REPO / "vendor" / "pixal3d-cpp"
 CLI = executable(PIXAL3D_ROOT / "build", "trellis-cli")
 MODELS = PIXAL3D_ROOT / "models" / "pixal3d-sv"
+# Front + back: the multi-view set (scripts/bootstrap_pixal3d.py --multiview).
+MV_MODELS = PIXAL3D_ROOT / "models" / "pixal3d-q8_0-v1"
 
 # The gauge camera the single-view path is designed around: 20 degrees, as radians.
 DEFAULT_FOV = 0.3490658503988659
@@ -64,6 +69,13 @@ FAST_STEPS = 8
 STEPS_ENV = "PIXAL3D_STEPS"
 STEPS_MARKER = "i2l_steps"
 FLOW_SOURCE = PIXAL3D_ROOT / "src" / "flow_runner.cpp"
+
+# Pixal3D's own clean-up input, saved beside every model whose trellis-cli carries
+# scripts/patch_pixal3d_dump_continue.py. Finish reruns that clean-up from it at any face
+# count through post-replay (scripts/pixal3d_native.py). ~230 MB per model.
+DUMP_ENV = "PIXAL3D_DUMP_CONTINUE"
+DUMP_MARKER = DUMP_ENV.encode()
+DUMP_SUFFIX = ".post.bin"
 
 STAGES = ["stage", "views", "ss", "shape", "decode", "texture", "write"]
 STAGE_LABELS = {
@@ -86,8 +98,9 @@ MATTE_LICENSES = {
 }
 
 # Must match viewer/backend_catalog.py's "pixal3d" entry; a test holds them together.
-LICENSE_NAME = "MIT (code + flow weights); DINOv3 License (bundled encoder)"
-LICENSE_URL = "https://huggingface.co/raven38/pixal3d-sv-q8_0-v1"
+PROFILE = LICENSES["pixal3d"]
+LICENSE_NAME = PROFILE.license_name
+LICENSE_URL = PROFILE.license_url
 
 
 def manifest(image: Path, output: Path, *, res: int, seed: int, fov: float, gss: float,
@@ -103,7 +116,8 @@ def manifest(image: Path, output: Path, *, res: int, seed: int, fov: float, gss:
         "schema_version": 1,
         "backend": "pixal3d",
         "input": {"path": str(image), "sha256": sha256_file(image)},
-        "output": {"path": str(output), "sha256": sha256_file(output)},
+        "output": {"path": str(output), "sha256": sha256_file(output),
+                   "classification": PROFILE.classification},
         "parameters": {"res": res, "seed": seed, "fov": fov, "gss": gss, "gsh": gsh,
                        "matted": matted, "steps": steps},
         "license": {"name": LICENSE_NAME, "url": LICENSE_URL},
@@ -114,6 +128,99 @@ def manifest(image: Path, output: Path, *, res: int, seed: int, fov: float, gss:
         }] if matted_here and matte_model else [],
         "timings_seconds": {"total": round(seconds, 1)},
     }
+
+
+# --- Front + back -------------------------------------------------------------------------
+#
+# Two pictures through two cameras half a turn apart, both the single-view gauge camera's
+# distance and field of view, so a front + back run frames its subject the way a
+# single-view run does. Validated on eight characters, 2026-10-10 to 10-12.
+
+GAUGE_CAMERA = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, -1.0, -2.83564091],
+                         [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
+HALF_TURN = np.diag([-1.0, -1.0, 1.0, 1.0])
+VIEW_SIZE = 768
+
+
+def pad_view(cut_out, size: int = VIEW_SIZE):
+    """The subject centred on a transparent square, its longer side at 90% of it.
+
+    Height decides for a standing figure; width for anything wider than tall (a T-pose),
+    which would otherwise spill off the sides.
+    """
+    from PIL import Image
+
+    rgba = cut_out.convert("RGBA")
+    box = rgba.getchannel("A").point(lambda a: 255 if a > 128 else 0).getbbox()
+    subject = rgba.crop(box) if box else rgba
+    scale = 0.9 * size / max(subject.width, subject.height)
+    subject = subject.resize((max(1, round(subject.width * scale)),
+                              max(1, round(subject.height * scale))), Image.LANCZOS)
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas.paste(subject, ((size - subject.width) // 2, (size - subject.height) // 2), subject)
+    return canvas
+
+
+def _rig(fov: float = DEFAULT_FOV) -> dict:
+    frames = [("view_000.png", GAUGE_CAMERA), ("view_180.png", HALF_TURN @ GAUGE_CAMERA)]
+    return {"camera_angle_x": fov, "mesh_scale": 1, "frames": [
+        {"file_path": name, "transform_matrix": matrix.tolist(), "camera_angle_x": fov}
+        for name, matrix in frames]}
+
+
+def write_front_back_views(front, back, model_dir: Path, paint_dir: Path) -> None:
+    """Stage the two cut-outs for Pixal3D (`model_dir`, 768 px) and for Pixel Match
+    (`paint_dir`, the run's `.svviews`), with one camera rig for both.
+
+    Pixel Match gets copies at the pictures' own size (never below 768), framed the same
+    way, so a 1024 picture keeps its detail in the paint; the camera is angle-based, so
+    the same rig serves both sizes.
+    """
+    paint_size = max(VIEW_SIZE, *front.size, *back.size)
+    for folder, size in ((model_dir, VIEW_SIZE), (paint_dir, paint_size)):
+        folder.mkdir(parents=True, exist_ok=True)
+        pad_view(front, size).save(folder / "view_000.png")
+        pad_view(back, size).save(folder / "view_180.png")
+        (folder / "transforms.json").write_text(json.dumps(_rig(), indent=2) + "\n")
+
+
+def build_multiview_command(views: Path, output: Path, res: int, seed: int,
+                            models: Path = MV_MODELS, cli: Path = CLI,
+                            gss: float = DEFAULT_GSS, gsh: float | None = None) -> list[str]:
+    """The `trellis-cli` invocation for a front + back run: cameras come from `views`."""
+    command = [str(cli), "--views", str(views), "--models", str(models),
+               "--pixal3d-weights", "mv", "--res", str(res), "--seed", str(seed),
+               "--gss", str(gss)]
+    if gsh is not None:
+        command += ["--gsh", str(gsh)]
+    return command + [str(output)]
+
+
+def multiview_readiness(cli: Path = CLI, models: Path = MV_MODELS) -> dict[str, object]:
+    """Whether a front + back run can start: the CLI and every file the set's manifest
+    marks required."""
+    listing = models / "pixal3d-models.json"
+    required = ([entry["name"] for entry in json.loads(listing.read_text())["files"]
+                 if entry.get("required", True)] if listing.is_file() else ["pixal3d-models.json"])
+    missing = [name for name in required if not (models / name).is_file()]
+    return {"cli_built": cli.is_file(), "models_dir": str(models), "missing": missing,
+            "ready": cli.is_file() and not missing}
+
+
+def face_front(output: Path) -> None:
+    """Turn the GLB trellis-cli wrote to face +Z, glTF's front, and its saved camera with it.
+
+    pixal3d.cpp writes models facing -Z, so every viewer showed the back first. The camera
+    in `<output>.svviews/` turns too, or Pixel Match would paint the photo on the back.
+    The .ply beside it is left as written: nothing here reads it.
+    """
+    turned = output.with_name(output.name + ".turning")
+    turned.write_bytes(turn_glb(output.read_bytes()))
+    turned.replace(output)
+    cameras = output.with_suffix(".svviews") / "transforms.json"
+    if cameras.is_file():
+        cameras.write_text(json.dumps(turn_cameras(json.loads(cameras.read_text())),
+                                      indent=2) + "\n")
 
 
 def has_alpha(image: Path) -> bool:
@@ -242,12 +349,63 @@ def resolve_steps(requested: int | None, source: Path = FLOW_SOURCE,
     return requested, f"steps={requested}"
 
 
-def run_env(steps: int | None, base: dict[str, str] | None = None) -> dict[str, str]:
+def dump_supported(cli: Path = CLI) -> bool:
+    """Whether this trellis-cli can save its clean-up input and still write the model.
+
+    Read from the binary itself, not the source: a patched source with a stale build would
+    stop after the dump and write no model at all. Upstream's prebuilt downloads never have
+    it, so they run exactly as before.
+    """
+    try:
+        return cli.is_file() and DUMP_MARKER in cli.read_bytes()
+    except OSError:
+        return False
+
+
+def with_dump(command: list[str], dump: Path) -> list[str]:
+    """The command with `--dump-post` added; the output GLB stays the last argument."""
+    return [*command[:-1], "--dump-post", str(dump), command[-1]]
+
+
+def rocm_library_path(base: dict[str, str], root: Path | None = None) -> str | None:
+    """ROCm's library directory, to put on the loader's path when it is not already there.
+
+    A HIP `trellis-cli` links against ROCm's own `libamdhip64.so` and friends. CMake records
+    that path in the binary at build time on most systems, so this is only the safety net for
+    one where it did not — without it the process dies at load time with a message about a
+    missing library rather than anything about the GPU.
+    """
+    found = root or _rocm_root()
+    if found is None:
+        return None
+    directory = found / "lib"
+    if not directory.is_dir():
+        return None
+    return None if str(directory) in base.get("LD_LIBRARY_PATH", "").split(":") else directory
+
+
+def _rocm_root() -> Path | None:
+    from image_to_3dlab import host
+
+    return host.rocm_root()
+
+
+def run_env(steps: int | None, base: dict[str, str] | None = None,
+            dump: bool = False) -> dict[str, str]:
     """The CLI's environment. `PIXAL3D_STEPS` is set only when asked for, and a stray one
-    in the caller's shell is dropped, so the manifest's step count is always the truth."""
-    env = {k: v for k, v in (os.environ if base is None else base).items() if k != STEPS_ENV}
+    in the caller's shell is dropped, so the manifest's step count is always the truth.
+    `PIXAL3D_DUMP_CONTINUE` likewise: only when this run saves a dump, or `--dump-post`
+    would stop before writing the model."""
+    env = {k: v for k, v in (os.environ if base is None else base).items()
+           if k not in (STEPS_ENV, DUMP_ENV)}
     if steps is not None and steps != DEFAULT_STEPS:
         env[STEPS_ENV] = str(steps)
+    if dump:
+        env[DUMP_ENV] = "1"
+    rocm = rocm_library_path(env)
+    if rocm is not None:
+        existing = env.get("LD_LIBRARY_PATH", "")
+        env["LD_LIBRARY_PATH"] = f"{rocm}:{existing}" if existing else str(rocm)
     return env
 
 
@@ -257,6 +415,17 @@ def steps_not_applied(line: str, steps: int | None, seen_override: bool) -> bool
     if steps is None or steps == DEFAULT_STEPS or seen_override:
         return False
     return "[flow] [" in line
+
+
+def kernel_noise(line: str) -> bool:
+    """True for ggml's own kernel chatter, on every backend it has.
+
+    Metal names its pipelines `ggml_metal_*`, HIP its kernels `ggml_hip_*`, and CUDA says
+    `ggml_cuda_init` and friends. A 6-minute run emits hundreds of these lines, and they
+    bury the six `[n/6]` stage banners the progress panel reads, so they are dropped rather
+    than printed. Anything else, including a line that merely mentions a kernel, is kept.
+    """
+    return line.startswith(("ggml_metal", "ggml_hip", "ggml_cuda")) or "loaded kernel" in line
 
 
 def stage_from_banner(line: str) -> tuple[str, int] | None:
@@ -324,17 +493,33 @@ def main() -> int:
         "--no-matte", dest="matte", action="store_false",
         help="never matte; use the image exactly as given (u2net can eat thin structures)",
     )
-    parser.add_argument("--models", type=Path, default=MODELS)
+    parser.add_argument(
+        "--back", type=Path, default=None,
+        help="a picture of the back (scripts/make_back_view.py draws one): builds from front "
+             "and back with the multi-view weights, and Finish paints from both",
+    )
+    parser.add_argument("--models", type=Path, default=None,
+                        help="weights folder (default: single-view, or multi-view with --back)")
     parser.add_argument("--cli", type=Path, default=CLI)
     args = parser.parse_args()
 
-    if not args.image.is_file():
-        raise SystemExit(f"not found: {args.image}")
-    state = readiness(args.cli, args.models)
-    if not state["ready"]:
-        raise SystemExit(
-            f"pixal3d.cpp is not ready: {state}. Run scripts/bootstrap_pixal3d.py"
-        )
+    for picture in (args.image, args.back):
+        if picture is not None and not picture.is_file():
+            raise SystemExit(f"not found: {picture}")
+    if args.back is not None:
+        args.models = args.models or MV_MODELS
+        state = multiview_readiness(args.cli, args.models)
+        if not state["ready"]:
+            raise SystemExit(
+                f"front + back needs the multi-view weights ({state['missing'] or 'trellis-cli'}"
+                " missing). Run: python scripts/bootstrap_pixal3d.py --multiview  (5.9 GB)")
+    else:
+        args.models = args.models or MODELS
+        state = readiness(args.cli, args.models)
+        if not state["ready"]:
+            raise SystemExit(
+                f"pixal3d.cpp is not ready: {state}. Run scripts/bootstrap_pixal3d.py"
+            )
 
     steps, steps_note = resolve_steps(args.steps, cli=args.cli)
 
@@ -366,17 +551,38 @@ def main() -> int:
         print(f"[pixal3d] matted image: {image}", flush=True)
 
     started = time.time()
-    command = build_command(
-        image, args.output, args.res, args.seed, args.fov,
-        args.models, args.cli, matted, args.gss, args.gsh,
-    )
+    if args.back is not None:
+        from PIL import Image
+
+        back = args.back.resolve()
+        with Image.open(back) as opened:
+            back_cut = opened.convert("RGBA") if has_alpha(back) else None
+        if back_cut is None:
+            back_path, _ = matte(back, args.output.with_name(f"{args.output.stem}__back_matted.png"))
+            back_cut = Image.open(back_path).convert("RGBA")
+        with Image.open(image) as opened:
+            front_cut = opened.convert("RGBA")
+        model_views = args.output.with_suffix(".mvinput")
+        write_front_back_views(front_cut, back_cut, model_views,
+                               args.output.with_suffix(".svviews"))
+        command = build_multiview_command(model_views, args.output, args.res, args.seed,
+                                          args.models, args.cli, args.gss, args.gsh)
+        print(f"[pixal3d] front + back: {image.name} + {back.name}", flush=True)
+    else:
+        command = build_command(
+            image, args.output, args.res, args.seed, args.fov,
+            args.models, args.cli, matted, args.gss, args.gsh,
+        )
     print(f"[pixal3d] res={args.res} seed={args.seed} gss={args.gss} matted={matted}",
           flush=True)
     print(f"[pixal3d] {steps_note}", flush=True)
 
+    dump = args.output.with_suffix(DUMP_SUFFIX) if dump_supported(args.cli) else None
+    if dump is not None:
+        command = with_dump(command, dump)
     process = subprocess.Popen(
         command, cwd=str(PIXAL3D_ROOT), stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, text=True, bufsize=1, env=run_env(steps),
+        stderr=subprocess.STDOUT, text=True, bufsize=1, env=run_env(steps, dump=dump is not None),
     )
     assert process.stdout is not None
     seen_override = False
@@ -387,21 +593,28 @@ def main() -> int:
             process.kill()
             raise SystemExit(f"trellis-cli ignored {STEPS_ENV}; stopped before wasting "
                              "the run. Re-apply scripts/patch_pixal3d_steps.py and rebuild")
-        # ggml logs every Metal pipeline it compiles; that is hundreds of lines of noise.
-        if line.startswith("ggml_metal") or "loaded kernel" in line:
-            continue
-        print(line, flush=True)
+        if not kernel_noise(line):
+            print(line, flush=True)
     code = process.wait()
     if code != 0:
         raise SystemExit(f"trellis-cli exited with code {code}")
     if not args.output.is_file():
         raise SystemExit(f"trellis-cli exited 0 without writing {args.output}")
+    face_front(args.output)
 
     seconds = time.time() - started
     record = manifest(args.image, args.output, res=args.res, seed=args.seed, fov=args.fov,
                       gss=args.gss, gsh=args.gsh, matted=matted, matted_here=matted_here,
                       matte_model=used_matte,
                       seconds=seconds, steps=steps)
+    if args.back is not None:
+        record["back_input"] = {"path": str(args.back), "sha256": sha256_file(args.back)}
+        record["parameters"]["views"] = "front + back"
+    if dump is not None and dump.is_file():
+        record["post_dump"] = dump.name
+    elif dump is not None:
+        print("[pixal3d] note: no clean-up dump was written; Finish will use its classic route",
+              flush=True)
     record_path = args.output.with_name(f"{args.output.stem}.json")
     record_path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
 

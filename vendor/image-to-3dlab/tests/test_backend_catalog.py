@@ -16,6 +16,9 @@ from pathlib import Path
 # `audit_model_weights` all import this module normally, and a second copy under the same
 # name is how a monkeypatch here stops reaching the code under test.
 import backend_catalog as bc
+import pytest
+
+REPO = Path(__file__).resolve().parents[1]
 
 
 def test_every_backend_states_a_licence_and_links_to_it():
@@ -132,12 +135,13 @@ def test_onboarding_is_needed_only_when_nothing_is_ready(monkeypatch, tmp_path):
     empty = bc.catalog_status(host=bc.APPLE)
     assert empty["needs_onboarding"] is True
     assert empty["ready_count"] == 0
-    assert all(b["state"] == "missing" for b in empty["backends"])
+    # NVIDIA-only routes (Hunyuan3D-2.1) are "unsupported" on a Mac, not "missing".
+    here = [b for b in empty["backends"] if b["supported_here"]]
+    assert here and all(b["state"] == "missing" for b in here)
     # "build" where the viewer can do it, "manual" where it cannot. Both mean "not yet";
     # neither means "nothing to offer", which is what an unsupported machine gets.
-    assert all(b["action"] in {"build", "manual"} for b in empty["backends"])
-    assert all(b["action"] == ("build" if b["automated_setup"] else "manual")
-               for b in empty["backends"])
+    assert all(b["action"] in {"build", "manual"} for b in here)
+    assert all(b["action"] == ("build" if b["automated_setup"] else "manual") for b in here)
 
 
 def test_backends_are_listed_best_first():
@@ -183,12 +187,12 @@ def test_a_single_file_counts_as_present_by_its_own_size(tmp_path):
     assert bc._dir_state(model) == (True, 5)
 
 
-def test_the_image_route_states_its_non_commercial_licence():
-    """Running the model is non-commercial; the pictures are yours, per Qwen's statement."""
+def test_the_image_route_names_its_licence_and_says_the_pictures_are_yours():
+    """Qwen confirmed outputs are the user's; the card names the licence, with no warning box."""
     entry = next(b for b in bc.catalog_status()["backends"] if b["id"] == "qwen-image")
-    assert "non-commercial" in entry["license"]["name"].lower()
-    assert "non-commercial" in entry["caveat"].lower()
-    assert "yours" in entry["caveat"] and "inherits" not in entry["caveat"]
+    assert entry["license"]["name"] == "Qwen Research License"
+    assert not entry.get("caveat")
+    assert "yours" in entry["tradeoff"]
 
 
 def test_sizes_are_stated_before_anything_is_fetched():
@@ -215,8 +219,15 @@ def test_trellis_setup_is_a_build_not_a_download():
 
 
 def test_the_flag_reaches_the_browser():
-    trellis = next(b for b in bc.catalog_status()["backends"] if b["id"] == "trellis")
-    assert trellis["setup_fetches_weights"] is False
+    """The Mac port's bootstrap fetches no weights; the NVIDIA and AMD ones fetch them once
+    the build is done, and the card decides which flag the browser sees."""
+    def flag_for(host):
+        entry = next(b for b in bc.catalog_status(host)["backends"] if b["id"] == "trellis")
+        return entry["setup_fetches_weights"]
+
+    assert flag_for(bc.APPLE) is False
+    assert flag_for(bc.NVIDIA) is True
+    assert flag_for(bc.AMD) is True
 
 
 def test_a_built_trellis_with_no_weights_is_ready_not_missing():
@@ -355,17 +366,85 @@ def test_there_is_only_ever_one_catalogue_module():
     assert sys.modules["backend_catalog"] is bc
 
 
-def test_a_mac_port_points_other_machines_at_the_official_nvidia_version():
-    """TRELLIS.2 and Hunyuan3D are NVIDIA-first upstream; only our ports are Mac-only.
+def test_a_mac_hunyuan_port_points_nvidia_at_the_nvidia_route():
+    """The MLX Hunyuan ports are Mac-only; on NVIDIA the lab has Tencent's own code.
 
-    A Linux or Windows user must not read "needs Apple Silicon" as the whole truth.
+    A Linux user must not read "needs Apple Silicon" as the whole truth, nor be sent off
+    to another repo for something this lab now runs.
     """
-    for backend_id in ("trellis", "hunyuan_xiong", "hunyuan-mlx"):
+    twin = bc.BY_ID["hunyuan-cuda"]
+    for backend_id in ("hunyuan_xiong", "hunyuan-mlx"):
         entry = bc.BY_ID[backend_id].describe(bc.NVIDIA)
         assert entry["supported_here"] is False
         assert entry["upstream"]["url"].startswith("https://github.com/"), backend_id
-        assert "port" in entry["platform_note"] and "NVIDIA" in entry["platform_note"]
-        assert entry["upstream"]["label"] in entry["platform_note"], backend_id
+        assert twin.label in entry["platform_note"], backend_id
+        assert "later" not in entry["platform_note"], backend_id
+
+
+def test_hunyuan_cuda_is_nvidia_linux_only():
+    entry = bc.BY_ID["hunyuan-cuda"]
+    assert entry.runs_here(bc.NVIDIA, "linux")
+    assert not entry.runs_here(bc.NVIDIA, "windows")
+    assert not entry.runs_here(bc.APPLE, "darwin")
+    assert "EU" in entry.caveat
+
+
+def test_trellis_is_supported_on_nvidia_now_not_pointed_elsewhere():
+    """TRELLIS.2 has its own NVIDIA route (Microsoft's code, built for CUDA), so an NVIDIA
+    Linux machine gets a Set up button rather than a link to the official repo."""
+    trellis = bc.BY_ID["trellis"]
+    assert trellis.runs_on == (bc.APPLE, bc.NVIDIA, bc.AMD)
+    entry = trellis.describe(bc.NVIDIA)
+    if trellis.excluded_os(bc.NVIDIA):  # this test machine is Windows
+        pytest.skip("TRELLIS.2 on NVIDIA is Linux only")
+    assert entry["supported_here"] is True
+    assert entry["platform_note"] is None
+    assert entry["install"] == "scripts/bootstrap_trellis_cuda.py"
+    assert entry["upstream"]["url"] == "https://github.com/microsoft/TRELLIS.2"
+
+
+def test_trellis_install_and_build_probe_differ_per_machine():
+    trellis = bc.BY_ID["trellis"]
+    assert trellis.install_for(bc.APPLE) == "viewer"
+    assert trellis.install_for(bc.NVIDIA) == "scripts/bootstrap_trellis_cuda.py"
+    mac = trellis.probes_for(bc.APPLE)
+    nvidia = trellis.probes_for(bc.NVIDIA)
+    assert mac == (bc.venv_python(bc.REPO / "vendor" / "trellis-space-mac"),)
+    assert all("trellis-cuda" in str(p) for p in nvidia) and nvidia
+
+
+def test_trellis_nvidia_build_is_judged_by_its_own_probe(monkeypatch, tmp_path):
+    import dataclasses
+
+    marker = tmp_path / ".i2l-build-complete"
+    trellis = dataclasses.replace(bc.BY_ID["trellis"],
+                                  build_probes_by_host={bc.NVIDIA: (marker,)})
+    assert trellis.built_on(bc.NVIDIA) is False
+    marker.write_text("{}")
+    assert trellis.built_on(bc.NVIDIA) is True
+
+
+def test_trellis_on_windows_nvidia_is_refused_with_a_reason():
+    trellis = bc.BY_ID["trellis"]
+    assert trellis.runs_here(bc.NVIDIA, "windows") is False
+    assert trellis.runs_here(bc.NVIDIA, "linux") is True
+    note = trellis._platform_note(bc.NVIDIA, "windows")
+    assert "Windows" in note and "Linux" in note
+
+
+def test_the_mac_trellis_route_is_unchanged():
+    entry = bc.BY_ID["trellis"].describe(bc.APPLE)
+    assert entry["supported_here"] is True
+    assert entry["install"] == "viewer"
+    assert entry["setup_fetches_weights"] is False
+
+
+def test_readiness_hint_names_the_nvidia_installer(monkeypatch):
+    if bc.BY_ID["trellis"].excluded_os(bc.NVIDIA):
+        pytest.skip("TRELLIS.2 on NVIDIA is Linux only")
+    monkeypatch.setattr(bc.Backend, "built_on", lambda self, host=None: False)
+    payload = bc.readiness("trellis", host=bc.NVIDIA)
+    assert "bootstrap_trellis_cuda.py" in payload["build"]["hint"]
 
 
 def test_a_route_with_no_official_elsewhere_keeps_the_plain_note():
@@ -376,9 +455,387 @@ def test_a_route_with_no_official_elsewhere_keeps_the_plain_note():
 
 def test_trellis_warns_about_the_gated_dinov3_before_setup():
     caveat = bc.BY_ID["trellis"].caveat or ""
-    assert "dinov3" in caveat.lower() and "hf auth login" in caveat
+    assert "dinov3" in caveat.lower() and "Hugging Face sign-in" in caveat
+
+
+def test_every_gated_repo_is_one_the_sign_in_check_asks_about():
+    # The Setup page hides a gated warning only on the sign-in check's "yes"; a repo it never
+    # asks about would keep its warning forever.
+    import hf_api
+
+    checked = {repo for repo, _ in hf_api.GATED}
+    gated = {b.id: b.gated_repo for b in bc.CATALOG if b.gated_repo}
+    assert gated == {"trellis": "facebook/dinov3-vitl16-pretrain-lvd1689m",
+                     "sf3d": "stabilityai/stable-fast-3d"}
+    assert set(gated.values()) <= checked
+    assert bc.BY_ID["trellis"].describe(bc.APPLE)["gated_repo"] == gated["trellis"]
 
 
 def test_pixal3d_setup_counts_the_background_remover_it_now_installs():
     sources = [w.source for w in bc.BY_ID["pixal3d"].weights]
     assert any("BiRefNet" in s for s in sources)
+
+
+def test_trellis_on_nvidia_is_described_as_what_it_is():
+    # Seen on a real NVIDIA pod: the card said "clean port", "Slowest" and that the first
+    # run stops after the 14 GB download; the confirmation promised a Metal build and no
+    # downloads. On NVIDIA it is Microsoft's own code, and setup fetches the weights after
+    # checking Hugging Face access first.
+    entry = bc.BY_ID["trellis"].describe(bc.NVIDIA)
+    assert entry["label"] == "TRELLIS.2 (NVIDIA)"
+    assert "port" not in entry["label"] and "Slowest" not in entry["tradeoff"]
+    assert entry["setup_fetches_weights"] is True
+    assert "Hugging Face sign-in" in entry["caveat"] and "stops after" not in entry["caveat"]
+
+
+def test_trellis_on_nvidia_needs_its_weights_to_be_ready():
+    entry = bc.BY_ID["trellis"].describe(bc.NVIDIA)
+    none_present = [{"bytes_present": 0, "bytes_expected": 10 * bc.GB}]
+    assert bc._state(none_present, built=True, setup_fetches=entry["setup_fetches_weights"]) != "ready"
+
+
+def test_host_overrides_only_name_fields_describe_knows():
+    for backend in bc.CATALOG:
+        for overrides in backend.overrides_by_host.values():
+            assert set(overrides) <= bc.HOST_OVERRIDABLE, backend.id
+
+
+def test_setup_fetch_flag_is_answered_per_machine():
+    trellis = bc.BY_ID["trellis"]
+    assert trellis.setup_fetches_on(bc.NVIDIA) is True
+    assert trellis.setup_fetches_on(bc.APPLE) is False
+    assert bc.BY_ID["pixal3d"].setup_fetches_on(bc.NVIDIA) is True
+
+
+# --- Setup page tabs: one per machine family, so nobody reads another machine's cards ---
+def test_catalog_offers_a_tab_per_machine_family():
+    tabs = bc.catalog_status(bc.NVIDIA)["platforms"]
+    assert [t["id"] for t in tabs] == [bc.APPLE, bc.NVIDIA, bc.AMD]
+    assert all(t["coming"] is False for t in tabs)
+
+
+def test_each_tab_lists_only_what_runs_on_that_machine():
+    views = bc.catalog_status(bc.NVIDIA)["views"]
+    nvidia = {b["id"] for b in views[bc.NVIDIA]}
+    apple = {b["id"] for b in views[bc.APPLE]}
+    assert "hunyuan-cuda" in nvidia and "hunyuan_xiong" not in nvidia
+    assert "hunyuan_xiong" in apple and "hunyuan-cuda" not in apple
+    assert {"pixal3d", "trellis"} <= nvidia & apple
+
+
+def test_amd_gets_a_3d_route_and_the_image_one():
+    """An AMD box must be able to generate 3D, not only pictures: Pixal3D compiles with
+    HIP, Qwen-Image has a prebuilt ROCm build, and the cut-out runs on the CPU."""
+    amd = {b["id"] for b in bc.catalog_status(bc.AMD)["views"][bc.AMD]}
+    assert {"pixal3d", "qwen-image", "matte"} <= amd
+
+
+def test_trellis_is_offered_on_amd_but_hunyuan_cuda_is_not():
+    """TRELLIS.2 runs on AMD through its ROCm route; Hunyuan3D-2.1's CUDA route does not,
+    and offering it there means a download that cannot finish. Pixal3D works either way."""
+    assert bc.AMD in bc.BY_ID["trellis"].runs_on
+    assert bc.AMD not in bc.BY_ID["hunyuan-cuda"].runs_on
+    assert bc.BY_ID["pixal3d"].runs_here(bc.AMD) is True
+
+
+def test_trellis_uses_a_separate_rocm_checkout_from_the_cuda_one():
+    """A two-card machine keeps both installs: they are different builds of the same source,
+    so sharing a directory would mean one card's compiled extensions overwriting the other's."""
+    trellis = bc.BY_ID["trellis"]
+    assert trellis.install_by_host[bc.AMD] == "scripts/bootstrap_trellis_rocm.py"
+    assert trellis.build_probes_by_host[bc.AMD] != trellis.build_probes_by_host[bc.NVIDIA]
+    assert "trellis-rocm" in str(trellis.build_probes_by_host[bc.AMD][0])
+
+
+@pytest.mark.parametrize("backend_id", ["hunyuan-cuda"])
+def test_an_amd_user_is_told_why_not_and_what_to_use_instead(backend_id):
+    """"Needs an NVIDIA GPU" is true of an AMD machine and explains nothing: it reads as a
+    card problem rather than a port problem, and sends the user off to check their drivers.
+    The note has to say what is missing and name the route that does work here."""
+    note = bc.BY_ID[backend_id]._platform_note(bc.AMD)
+    assert "AMD" in note
+    assert "Pixal3D" in note
+    assert "download gigabytes" not in note
+
+
+# --- a build that lost part of itself -------------------------------------------------------
+#
+# "Set up" with nothing else is what a vanished venv looks like, and it sends people to the
+# install script rather than to the directory that is missing. The card now names the file.
+
+
+def _backend_with_probes(probes, **kwargs):
+    return bc.Backend(id="x", label="Stable Fast 3D", kind="3d", best_for="", tradeoff="",
+                      license_name="", license_url="", weights=(), install="viewer",
+                      build_probes_by_host={bc.AMD: probes}, **kwargs)
+
+
+def test_a_complete_build_says_nothing(tmp_path):
+    probes = (tmp_path / "marker", tmp_path / "venv" / "bin" / "python")
+    probes[0].write_text("{}")
+    probes[1].parent.mkdir(parents=True)
+    probes[1].write_text("")
+    backend = _backend_with_probes(probes)
+    assert backend.missing_build_probes(bc.AMD) == []
+    assert backend.build_hint(bc.AMD) is None
+
+
+def test_a_never_installed_route_is_not_dressed_up_as_a_loss(tmp_path):
+    """Both look like `action == build`. One deserves a rebuild message and one does not."""
+    backend = _backend_with_probes((tmp_path / "marker", tmp_path / "venv"))
+    assert "not installed" in backend.build_hint(bc.AMD)
+    assert "was installed here" not in backend.build_hint(bc.AMD)
+
+
+def test_a_lost_build_names_the_file_that_is_missing(tmp_path):
+    marker = tmp_path / "marker"
+    marker.write_text("{}")
+    python = tmp_path / "venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("")
+    backend = _backend_with_probes((marker, python))
+
+    python.unlink()          # the venv is what has gone
+    hint = backend.build_hint(bc.AMD)
+    assert "was installed here" in hint
+    assert "venv/bin/python" in hint
+    assert backend.missing_build_probes(bc.AMD) == [python]
+
+
+def test_the_hint_reaches_the_payload_the_card_reads(tmp_path):
+    """A field nothing renders is a field nobody benefits from."""
+    backend = _backend_with_probes((tmp_path / "marker", tmp_path / "venv"))
+    described = backend.describe(bc.AMD)
+    assert described["build_present"] is False
+    assert described["build_missing"]
+    assert described["build_hint"]
+
+
+def test_a_build_with_all_its_probes_present_reports_none_missing(tmp_path):
+    """Synthetic, not the live catalogue: whether a route happens to be built on the machine
+    running the tests is not a property of this code, and a test that reads it passes for the
+    wrong reason on a developer who built everything and fails on a fresh clone."""
+    marker, python = tmp_path / "marker", tmp_path / "venv" / "bin" / "python"
+    marker.write_text("{}")
+    python.parent.mkdir(parents=True)
+    python.write_text("")
+    backend = _backend_with_probes((marker, python))
+    assert backend.missing_build_probes(bc.AMD) == []
+    assert backend.describe(bc.AMD)["build_missing"] == []
+    assert backend.describe(bc.AMD)["build_hint"] is None
+
+
+def test_every_declared_probe_is_a_path():
+    """A probe that is a string would silently always exist, and every route would read as
+    built on every machine."""
+    for backend in bc.CATALOG:
+        for host in (bc.APPLE, bc.NVIDIA, bc.AMD):
+            for probe in backend.probes_for(host):
+                assert isinstance(probe, Path), f"{backend.id}/{host}: {probe!r}"
+
+
+def test_the_setup_page_renders_the_hint():
+    """Pinned in the page's own source: the payload alone proves nothing about the screen."""
+    source = (REPO / "viewer" / "studio" / "setup.js").read_text()
+    assert "build_hint" in source
+    assert "setup-build-hint" in (REPO / "viewer" / "studio" / "setup.css").read_text()
+
+
+def test_trellis_shows_no_amd_note_because_it_runs_there():
+    """A route that runs on the card has nothing to explain. `_platform_note` is only ever
+    shown when `runs_here` is False, so what matters is that the blocked-on-AMD note is not
+    the one this produces."""
+    trellis = bc.BY_ID["trellis"]
+    assert trellis.runs_here(bc.AMD) is True
+    assert "Not on AMD" not in trellis._platform_note(bc.AMD)
+
+
+# --- weights that are not in the Hugging Face cache ---------------------------------------
+#
+# TRELLIS.2 loads from a local directory when I2L_TRELLIS_MODEL_PATH names one, or when the
+# route's own vendor/<route>/models/TRELLIS.2-4B exists. The card only looked in the cache,
+# so a machine whose weights are local was told it was missing 15 GB it did not need -- on
+# the very machine that had just finished a generation.
+
+
+def test_a_local_weights_directory_satisfies_a_download(tmp_path):
+    local = tmp_path / "local"
+    local.mkdir()
+    (local / "weights.safetensors").write_bytes(b"x" * 4096)
+    weight = bc.WeightSet("w", "some/repo", 4096, tmp_path / "empty-cache",
+                          alt_paths=(local,))
+    present, total, alt = weight.state()
+    assert (present, total, alt) == (True, 4096, str(local))
+
+
+def test_an_empty_cache_directory_does_not_settle_it(tmp_path):
+    """A Hugging Face cache folder is created with a refs/ file before anything is
+    downloaded, so preferring the first location that merely exists picks the empty one."""
+    cache = tmp_path / "cache"
+    (cache / "refs").mkdir(parents=True)
+    local = tmp_path / "local"
+    local.mkdir()
+    (local / "weights.safetensors").write_bytes(b"x" * 4096)
+    weight = bc.WeightSet("w", "some/repo", 4096, cache, alt_paths=(local,))
+    assert weight.state()[1] == 4096
+    assert weight.state()[2] == str(local)
+
+
+def test_one_shared_directory_is_counted_once_not_once_per_weight(tmp_path):
+    """TRELLIS.2's main weights, its image-large decoder and its DINOv3 encoder all sit in
+    one local tree. Summed naively the card read "53.1 GB of 17.9 GB" while being ready."""
+    local = tmp_path / "local"
+    local.mkdir()
+    (local / "w.safetensors").write_bytes(b"x" * 2048)
+    weights = [
+        bc.WeightSet(f"w{n}", "some/repo", 100, tmp_path / f"cache{n}", alt_paths=(local,)).describe()
+        for n in range(3)
+    ]
+    assert bc._total_present(weights) == 2048
+
+
+def test_distinct_directories_are_each_counted(tmp_path):
+    weights = []
+    for n, size in ((0, 100), (1, 250)):
+        directory = tmp_path / f"local{n}"
+        directory.mkdir()
+        (directory / "w.safetensors").write_bytes(b"x" * size)
+        weights.append(bc.WeightSet(f"w{n}", "some/repo", size, tmp_path / f"cache{n}",
+                                    alt_paths=(directory,)).describe())
+    assert bc._total_present(weights) == 350
+
+
+def test_the_trellis_weights_look_in_both_local_places(monkeypatch, tmp_path):
+    monkeypatch.setenv(bc.TRELLIS_MODEL_PATH_ENV, str(tmp_path / "named"))
+    assert tmp_path / "named" in bc._local_trellis()
+    assert any("trellis-rocm" in str(p) for p in bc._local_trellis())
+
+
+def test_the_card_and_the_generator_read_the_same_variable():
+    """They each read it in their own module; nothing forces the names to agree."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import trellis_route
+
+    assert trellis_route.ROCM.model_repo  # sanity: the module loaded
+    source = (REPO / "scripts" / "trellis_route.py").read_text()
+    assert bc.TRELLIS_MODEL_PATH_ENV in source, (
+        f"the card reads {bc.TRELLIS_MODEL_PATH_ENV} but the generator does not set that name")
+
+
+def test_the_trellis_weights_all_look_in_the_local_places():
+    """Without alt_paths the card measures only the Hugging Face cache. No module reload
+    here on purpose: reloading backend_catalog binds a *second* copy under the same name, and
+    every monkeypatch in this file would then stop reaching the code under test."""
+    trellis = {w.label: w for w in bc.BY_ID["trellis"].weights}
+    for label in ("TRELLIS.2-4B", "TRELLIS image-large decoder", "DINOv3 image encoder"):
+        assert trellis[label].alt_paths, f"{label} only looks in the cache"
+        assert any("trellis-rocm" in str(p) for p in trellis[label].alt_paths), label
+    # The other two are not part of the TRELLIS.2 tree: TinyCLIP is a separate advisory
+    # model and the remover is a single file this repo fetches itself.
+    assert not trellis["TinyCLIP input advisor"].alt_paths
+    assert not trellis["BiRefNet-lite background remover"].alt_paths
+
+
+def test_the_amd_note_does_not_leak_into_other_tabs():
+    """What must not leak is the AMD *blockade* wording. The platform list naming AMD is
+    correct on any machine, because it is now true on all of them."""
+    trellis = bc.BY_ID["trellis"]
+    for host in (bc.APPLE, bc.NVIDIA):
+        note = trellis._platform_note(host)
+        assert "Not on AMD" not in note
+        assert "does not run on AMD" not in note
+
+
+def test_sf3d_is_no_longer_a_blocked_route_on_amd():
+    """It was blocked for a reason that had nothing to do with the card: its pins broke the
+    lab's *shared* environment, so it was left out rather than given a venv. Giving it one
+    removed the reason, and the note it used to show must be gone rather than reworded --
+    a route that runs here has nothing to explain."""
+    entry = bc.BY_ID["sf3d"]
+    assert entry.runs_here(bc.AMD, "linux") is True
+    assert entry.amd_blocked_reason is None
+    assert entry._platform_note(bc.AMD) is None or "Not on AMD" not in entry._platform_note(bc.AMD)
+    assert entry.describe(bc.AMD)["platform_note"] is None
+
+
+def test_trellis_is_no_longer_a_blocked_route_on_amd():
+    """It was blocked for a reason that turned out not to be the card: nvdiffrast, CuMesh and
+    AuleAttention all have working ROCm builds, and FlexGEMM needed one flag changed. The
+    note it used to show must be gone rather than reworded."""
+    trellis = bc.BY_ID["trellis"]
+    assert trellis.runs_here(bc.AMD, "linux") is True
+    assert "Not on AMD" not in trellis._platform_note(bc.AMD)
+    assert trellis.amd_blocked_reason in (None, "")
+
+
+def test_the_cuda_hunyuan_route_points_an_amd_card_at_the_rocm_one():
+    """Tencent's code is not NVIDIA-only; this route is. The AMD card gets the same model
+    built with HIP, and the note has to name that rather than claim an impossibility."""
+    note = bc.BY_ID["hunyuan-cuda"]._platform_note(bc.AMD)
+    assert "NVIDIA-only compiled extensions" not in note
+    assert "Hunyuan3D-2.1 (AMD)" in note
+    assert bc.BY_ID["hunyuan-rocm"].runs_here(bc.AMD, "linux") is True
+
+
+def test_the_mac_hunyuan_ports_do_not_claim_tencent_is_nvidia_only():
+    """Both MLX ports said "Tencent's own needs NVIDIA-only compiled extensions" after the
+    AMD route shipped, which was simply no longer true."""
+    for backend_id in ("hunyuan_xiong", "hunyuan-mlx"):
+        note = bc.BY_ID[backend_id]._platform_note(bc.AMD)
+        assert "NVIDIA-only compiled extensions" not in note, backend_id
+        assert "Hunyuan3D-2.1 (AMD)" in note, backend_id
+
+
+def test_every_route_named_as_an_amd_alternative_really_runs_on_amd():
+    """A suggestion that is itself unavailable is the same failure as no suggestion, and
+    it is what makes a page read as broken rather than as honest."""
+    for backend in bc.CATALOG:
+        note = backend._platform_note(bc.AMD)
+        if not note.startswith("Not on AMD"):
+            continue
+        # The route being talked about is the one the note is about, not a suggestion:
+        # "TRELLIS.2 (clean port) needs NVIDIA-only extensions" contains its own label and
+        # is not recommending it.
+        for other in bc.CATALOG:
+            if other.label == backend.label or other.label not in note:
+                continue
+            assert other.runs_here(bc.AMD, "linux"), \
+                f"{other.label} is suggested to an AMD user but does not run there"
+
+
+def test_an_amd_user_is_not_sent_to_an_nvidia_machine_they_do_not_have():
+    """The MLX ports point at Tencent's own route as the alternative. That is true and
+    useless here: it is NVIDIA-only too, so the note has to say Hunyuan is out, not offer
+    a machine the reader is not on."""
+    for backend_id in ("hunyuan_xiong", "hunyuan-mlx"):
+        note = bc.BY_ID[backend_id]._platform_note(bc.AMD)
+        assert "on an NVIDIA machine, use" not in note
+        assert "AMD" in note and "Pixal3D" in note
+
+
+def test_a_tab_describes_its_own_machine():
+    views = bc.catalog_status(bc.NVIDIA)["views"]
+    trellis_mac = next(b for b in views[bc.APPLE] if b["id"] == "trellis")
+    trellis_nv = next(b for b in views[bc.NVIDIA] if b["id"] == "trellis")
+    assert trellis_nv["label"] == "TRELLIS.2 (NVIDIA)" and trellis_mac["label"] != trellis_nv["label"]
+    pixal_mac = next(b for b in views[bc.APPLE] if b["id"] == "pixal3d")
+    pixal_nv = next(b for b in views[bc.NVIDIA] if b["id"] == "pixal3d")
+    assert "Xcode" in pixal_mac["tradeoff"] and "NVIDIA" not in pixal_mac["tradeoff"]
+    assert "CUDA" in pixal_nv["tradeoff"] and "Xcode" not in pixal_nv["tradeoff"]
+
+
+def test_the_amd_tab_names_hip_and_not_cuda():
+    """The wording has to match what the installer does, or a user reads "CUDA" and waits
+    for a download that never comes."""
+    pixal_amd = next(b for b in bc.catalog_status(bc.AMD)["views"][bc.AMD]
+                     if b["id"] == "pixal3d")
+    assert "HIP" in pixal_amd["tradeoff"] and "CUDA" not in pixal_amd["tradeoff"]
+
+
+def test_a_routes_removable_bytes_leave_out_shared_files():
+    # Pixal3D's Remove button counted the shared background remover as its own.
+    pixal = bc.BY_ID["pixal3d"]
+    lite = next(w for w in pixal.weights if "BiRefNet" in w.source)
+    assert bc.is_shared(pixal, lite) is True
+    assert bc.is_shared(bc.BY_ID["matte"], bc.BY_ID["matte"].weights[0]) is False
+    assert "bytes_removable" in pixal.describe(bc.NVIDIA)
