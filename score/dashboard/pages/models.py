@@ -124,49 +124,15 @@ class OwnerCost(models.Model):
     class Meta:
         ordering = ["-at"]
 
-class BranchPrice(models.Model):
-    """A fix branch's price at one commit (score/dashboard/checkout): the rows it moves from where it left main, and
-    each paid node of them priced on the runner's measured numbers."""
-
-    branch = models.CharField(max_length=100)
-    head = models.CharField(max_length=40)
-    base = models.CharField(max_length=40)
-    state = models.CharField(max_length=20, default="working")  # working, ready, failed
-    body = models.JSONField(default=dict)  # {rows, nodes: {node: price}, totals}
-    error = models.TextField(blank=True)
-    started = models.DateTimeField(auto_now_add=True)
-    finished = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-started"]
-        constraints = [models.UniqueConstraint(fields=["branch", "head", "base"], name="one_price_a_commit")]
-
-
-class BasketBranch(models.Model):
-    """One fix branch in the owner's basket, as he saw it: its commit and its preview's hash when he added it."""
-
-    branch = models.CharField(max_length=100, unique=True)
-    head = models.CharField(max_length=40)
-    preview_hash = models.CharField(max_length=64)
-    added_by = models.CharField(max_length=150)
-    added_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["branch"]
-
-
 class Checkout(models.Model):
-    """The owner's one checkout of the basket: his money yes, the branches landed, the one batch launched."""
+    """The owner's one checkout of the basket: his money yes for the items he bought, the stop line, the batch."""
 
     key = models.CharField(max_length=64, unique=True)  # the page's own key: a second press is the same checkout
     by = models.CharField(max_length=150)
     at = models.DateTimeField(auto_now_add=True)
-    state = models.CharField(max_length=20, default="landing")  # landing, launching, launched, landed, refused, failed
-    items = models.JSONField(default=list)  # [{branch, head, preview_hash, nodes: {node: price}}]
+    state = models.CharField(max_length=20, default="launching")  # launching, launched, done, refused, failed
+    items = models.JSONField(default=list)  # [{id, version, place, layers, nodes: {node: price}, totals}]
     totals = models.JSONField(default=dict)
-    landed = models.JSONField(default=list)  # [{branch, commits}]
-    main_before = models.CharField(max_length=40, blank=True)
-    main_after = models.CharField(max_length=40, blank=True)
     stop_line = models.JSONField(default=dict)
     before = models.JSONField(default=dict)  # {node: accepted output at checkout}
     launch = models.ForeignKey(Launch, null=True, blank=True, on_delete=models.PROTECT, related_name="checkouts")
@@ -176,19 +142,34 @@ class Checkout(models.Model):
         ordering = ["-at"]
 
 
-class ProposalChoice(models.Model):
-    """The owner's answer to one fix on the Changes to buy page: buy it, or not now, at the commit he saw. A buy puts
-    the fix branch in the checkout's basket (BasketBranch) on the store's machine."""
+class BasketChoice(models.Model):
+    """The owner's answer to one basket item: buy it, or not now, as he saw it (its version). His checkout buys the
+    items he chose to buy."""
 
-    branch = models.CharField(max_length=100, unique=True)
-    commit = models.CharField(max_length=40)
+    item = models.CharField(max_length=100, unique=True)
+    version = models.CharField(max_length=64)
     choice = models.CharField(max_length=10)  # buy, later
     by = models.CharField(max_length=150)
     at = models.DateTimeField(auto_now=True)
-    applied = models.TextField(blank=True)  # what the store's machine did with it, in words; empty while queued
 
     class Meta:
-        ordering = ["branch"]
+        ordering = ["item"]
+
+
+class BasketAnswer(models.Model):
+    """The owner's answer to one question of a basket item (its number among the item's questions, and the question
+    as he read it). Agents read the answers from the basket's answers.json on the store's machine."""
+
+    item = models.CharField(max_length=100)
+    number = models.PositiveIntegerField()
+    question = models.TextField()
+    answer = models.TextField()
+    by = models.CharField(max_length=150)
+    at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["item", "number"]
+        constraints = [models.UniqueConstraint(fields=["item", "number"], name="one_answer_a_question")]
 
 
 def is_owner(user):

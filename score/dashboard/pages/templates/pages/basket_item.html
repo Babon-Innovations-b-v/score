@@ -1,0 +1,114 @@
+{% extends "pages/base.html" %}
+{% block title %}{{ name }}{% endblock %}
+{% block content %}
+<nav class="crumbs"><a href="/basket/">Basket</a><span>/</span>{% if item.places|length == 1 %}<a href="/place/{{ place }}/">{{ place_name|capfirst }}</a>{% elif item.places %}{{ item.places|length }} places{% else %}the environment{% endif %}</nav>
+<div class="page-head item-head">
+  <div class="grow">
+    <h1>{{ name }}</h1>
+    <p class="lede">{{ sentence }}</p>
+  </div>
+  {% if choice %}<span class="pill {{ choice.choice }}">{{ choice.said }}</span>{% endif %}
+</div>
+
+{% if item.missing %}<div class="banner bad">Cannot be bought yet: inputs are missing. {{ item.missing|join:"; " }}</div>{% endif %}
+{% if error %}<div class="banner bad">Its details could not be made: {{ error|truncatechars:300 }}</div>{% endif %}
+
+{% if places|length > 1 %}
+<div class="item-places">{% for each in places %}<a class="item-place{% if each.here %} here{% endif %}" href="?place={{ each.place }}">
+  <div class="frame">{% include "pages/pic.html" with src=each.picture name=each.name bare=1 %}</div><span>{{ each.name|capfirst }}{% if each.changes %} · {{ each.changes }}{% endif %}</span></a>{% endfor %}</div>
+{% endif %}
+
+{% if view %}
+<section class="item-3d">
+  <div class="item-3d-bar">
+    {% if has_after %}
+    <div class="switch" role="group" aria-label="before or after">
+      <button type="button" data-src="{{ view }}&side=before">Before</button>
+      <button type="button" data-src="{{ view }}" class="on">After</button>
+    </div>
+    <span class="small soft">{{ place_name|capfirst }}: what changes is outlined, <span class="mark-key added">added or changed</span> <span class="mark-key removed">taken out</span></span>
+    {% else %}
+    <span class="small soft">{{ place_name|capfirst }} as it stands now. Nothing here changes for free: what this item changes is made in the paid batch, from what is shown below.</span>
+    {% endif %}
+    <a class="small" id="item-3d-open" href="{{ view|cut:'&embed=1' }}" target="_top">Open the full viewer</a>
+  </div>
+  <iframe class="item-3d-frame" id="item-3d" src="{{ view }}{% if not has_after %}&side=before{% endif %}" title="{{ place_name }} in 3D" allow="fullscreen"></iframe>
+  {% if after_error %}<p class="small soft">The after could not be made in 3D: {{ after_error|truncatechars:200 }}</p>{% endif %}
+</section>
+{% endif %}
+
+<div class="item-grid">
+  <section class="card item-part">
+    <div class="eyebrow">What changes for free{% if place and item.places|length > 1 %} in {{ place_name }}{% endif %}</div>
+    {% if changes %}<ul class="change-list">{% for line in changes %}<li class="{{ line.kind }}"><b>{{ line.what|capfirst }}</b>{% if line.names %}<span class="soft">: {{ line.names }}</span>{% endif %}</li>{% endfor %}</ul>
+    {% else %}<p class="soft">Nothing a free run makes changes what you see{% if blocked %}; the free after stopped: {{ blocked|truncatechars:200 }}{% endif %}.</p>{% endif %}
+    {% if made %}<p class="small soft">Made for free: {{ made|join:", " }}.</p>{% endif %}
+    <div class="eyebrow">Made in the paid batch</div>
+    <p>{% if paid %}{{ paid|join:", "|capfirst }}{% else %}Nothing yet: a run on main does not buy this item now.{% endif %}</p>
+  </section>
+
+  <section class="card item-part item-money">
+    <div class="eyebrow">Price</div>
+    {% if not item.nodes %}<p class="unknown">Priced once a run on main would buy it.</p>
+    {% elif price.high is not None %}
+    <div class="money-total">about EUR {{ price.likely|floatformat:2 }}</div>
+    <p class="soft">at most EUR {{ price.high|floatformat:2 }}{% if price.hours %}, up to {{ price.hours }}{% endif %}; measured from {{ price.measured }} earlier job{{ price.measured|pluralize }}.</p>
+    {% if price.guessed_jobs %}<p class="small soft">Not in this price: {{ price.guessed_jobs }} job{{ price.guessed_jobs|pluralize }} never measured, guessed at EUR {{ price.guessed|floatformat:2 }} (a guess, not a price).</p>{% endif %}
+    {% else %}
+    <div class="money-total unknown">not measured yet</div>
+    <p class="small soft">{{ price.jobs }} job{{ price.jobs|pluralize }} never measured: their steps guess EUR {{ price.guessed|floatformat:2 }}, which is not a price.</p>
+    {% endif %}
+    <p class="small soft">Seeing all of this cost nothing. Paying starts only at your checkout.</p>
+    {% if owner %}
+    <form method="post" action="/basket/choose/" class="fx-choose">{% csrf_token %}
+      <input type="hidden" name="item" value="{{ item.id }}"><input type="hidden" name="version" value="{{ item.version }}"><input type="hidden" name="back" value="item">
+      <button type="submit" name="choice" value="later"{% if choice.choice == "later" %} disabled{% endif %}>Not now</button>
+      <button type="submit" name="choice" value="buy" class="primary"{% if choice.choice == "buy" or not item.nodes or item.missing %} disabled{% endif %}>Buy</button>
+    </form>
+    {% else %}<p class="soft small">Only the owner buys.</p>{% endif %}
+  </section>
+</div>
+
+{% if questions %}
+<section class="item-questions" id="questions">
+  <h2>Questions for you</h2>
+  {% for asked in questions %}
+  <div class="fx-question">
+    <p class="ask">{{ asked.ask }}</p>
+    <p><span class="soft">We recommend:</span> {{ asked.recommended }}</p>
+    {% if asked.answer %}<p class="answered-words"><span class="soft">Your answer:</span> {{ asked.answer }}</p>{% endif %}
+    {% if owner %}
+    <form method="post" action="/basket/answer/" class="answer-form">{% csrf_token %}
+      <input type="hidden" name="item" value="{{ item.id }}"><input type="hidden" name="number" value="{{ asked.number }}">
+      <button type="submit" name="take" value="recommended" class="primary">{% if asked.answer %}Take the recommended answer{% else %}Yes, as recommended{% endif %}</button>
+      <input type="text" name="answer" placeholder="or your own answer" aria-label="your own answer">
+      <button type="submit" name="take" value="own">Save my answer</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="item-inputs">
+  <h2>What it is made from</h2>
+  {% for step in inputs %}
+  <div class="input-step">
+    <h3>{{ step.step|capfirst }}{% if step.place and item.places|length > 1 %} <span class="soft">· {{ step.place }}</span>{% endif %}{% if step.made %} <span class="small soft">· from {{ step.made|join:", " }} made again for free</span>{% endif %}</h3>
+    {% if step.blocked %}<p class="small soft">Its inputs cannot be read here: {{ step.blocked|truncatechars:200 }}</p>{% endif %}
+    {% if step.pictures %}<div class="input-pictures">{% for picture in step.pictures %}<figure><a href="{{ picture.url }}"><img class="pic" src="{{ picture.url }}" alt="{{ picture.name }}" loading="lazy"></a><figcaption class="small soft">{{ picture.from }}</figcaption></figure>{% endfor %}</div>{% endif %}
+    {% for text in step.texts %}<blockquote class="input-text small"><span class="soft">{{ text.name }}</span><br>{{ text.text|truncatechars:400 }}</blockquote>{% endfor %}
+    {% if not step.pictures and not step.texts and not step.blocked %}<p class="small soft">Made from what stands now; no picture or brief to show.</p>{% endif %}
+  </div>
+  {% empty %}<p class="soft">Nothing to show yet.</p>
+  {% endfor %}
+</section>
+
+<details class="ids"><summary>Details</summary>
+  <div class="ids-body small soft">
+    <p>Item {{ item.id }}, version {{ item.version }}{% if made_at %}, details made {{ made_at|slice:":16" }} UTC{% endif %}</p>
+    {% for node, why in item.why.items %}<p>{{ node }}: {{ why }}</p>{% endfor %}
+    {% if reasons %}<p>Why: {{ reasons|join:"; " }}</p>{% endif %}
+  </div>
+</details>
+{% endblock %}

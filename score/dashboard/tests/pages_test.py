@@ -8,7 +8,7 @@ from django.test import Client
 
 pytestmark = pytest.mark.django_db
 PAGES = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/place/beta/step/assembly/",
-         "/world/step/terrain/", "/basket/", "/changes/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
+         "/world/step/terrain/", "/basket/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
 POSTS = ["/place/alpha/step/closeup/request/", "/place/alpha/step/closeup/decide/", "/place/alpha/step/closeup/queue/",
          "/basket/change/", "/refresh/", "/freshness/"]
 NODE = re.compile(r"\b[a-z][a-z-]+@(alpha|beta)\b")
@@ -52,24 +52,9 @@ def test_the_board_shows_each_place_once_with_its_picture_and_one_status(world):
     assert "This month" in text and ("not known yet" in text or "EUR" in text)
 
 
-def test_the_board_shows_no_changes_to_buy_while_there_are_none(world):
+def test_the_board_shows_no_basket_bar_while_nothing_waits(world):
     page = signed_in().get("/").content.decode()
-    assert 'aria-label="changes to buy"' not in page and "wait for you" not in page
-
-
-def test_a_change_to_buy_shows_its_preview_price_and_basket_button(world, monkeypatch):
-    item = {"id": "c1", "place": "alpha", "fixes": "the floor gets its texture", "likely": 3.5, "high": 5.0,
-            "minutes_likely": 20, "minutes_high": 40, "state": "offered", "stills": [], "films": []}
-    monkeypatch.setattr(world.source, "changes", lambda: [item], raising=False)
-    client = signed_in()
-    board = client.get("/").content.decode()
-    assert "Changes to buy" in board and "The floor gets its texture" in board and "Add to basket" in board
-    assert "EUR 3.50" in board and "EUR 5.00" in board
-    place = client.get("/place/alpha/").content.decode()
-    assert 'id="change-c1"' in place and "Side by side" in place
-    monkeypatch.setattr(world.source, "changes", lambda: [{**item, "state": "in basket"}], raising=False)
-    basket = client.get("/basket/").content.decode()
-    assert "You are buying 1 change for at most EUR 5.00" in basket
+    assert 'class="basket-bar"' not in page and "wait for you" not in page
 
 
 def test_the_place_page_shows_the_usd_index_and_faults(world):

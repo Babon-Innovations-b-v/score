@@ -10,8 +10,6 @@
   {% else %}<span class="button big disabled" title="no 3D web copy of this place yet">Open in 3D: not made yet</span>{% endif %}
 </div>
 
-{% for item in changes %}{% include "pages/compare.html" %}{% endfor %}
-{% if not changes %}
 <section class="hero">
   <figure class="hero-film">
     {% if detail.film %}<video src="{{ detail.film.url }}" controls preload="metadata" playsinline data-fps="{{ detail.film_fps|stringformat:"g" }}" class="film"{% if detail.hero %} poster="{{ detail.hero.url }}"{% endif %}></video>
@@ -23,7 +21,6 @@
     <figcaption>a still</figcaption>
   </figure>
 </section>
-{% endif %}
 
 {% include "pages/breakdown.html" %}
 
