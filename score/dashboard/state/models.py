@@ -127,6 +127,15 @@ class EngineGroup(BaseModel):
     styles: list[StyleGroup]
 
 
+class HolesTotal(BaseModel):
+    """Every place's holes in sum: how many of each rule, the distinct nodes that fill them, and the code work no
+    stage can do yet (each line once) with how many holes need it."""
+    counts: dict[str, int] = {}
+    nodes: list[str] = []
+    unfillable: list[str] = []
+    unfillable_count: int = 0
+
+
 class WorldState(BaseModel):
     made_at: str
     source: str  # "store" or "export <made_at>"
@@ -134,6 +143,7 @@ class WorldState(BaseModel):
     engines: list[EngineGroup]
     world_line: list[StepCard] = []
     spend: Spend = Spend()
+    holes_total: HolesTotal | None = None
 
 
 class GateVerdict(BaseModel):
@@ -224,6 +234,16 @@ class CheckFinding(BaseModel):
     kind: str | None = None  # what the finding is on (model, geometry, light, sound, sky...), for its step
     sentence: str
     picture: FileRef | None = None
+    # A hole's (score/stages/complete/holes): its stable id, row, failed gates, the node that fills it or the code
+    # work it needs, how its box is placed, and its world box.
+    id: str | None = None
+    row: str | None = None
+    gates: list[str] | None = None
+    node: str | None = None
+    work: str | None = None
+    placed: str | None = None
+    low: list[float] | None = None
+    high: list[float] | None = None
 
 
 class PlaceDetail(BaseModel):
@@ -249,6 +269,7 @@ class PlaceDetail(BaseModel):
         """An export made before gaps were records carries each as one line of words; read it as a named gap."""
         return [{"name": gap, "sentence": gap} if isinstance(gap, str) else gap for gap in gaps or []]
     checks: list[CheckFinding] = []  # the standalone checks' findings on the outputs they judged
+    holes: list[CheckFinding] = []  # what the place's route still needs (the holes check's findings)
     concept: FileRef | None = None
     skipped: list[str] = []  # loud: steps of the chain not done for this place, and named gaps
     film_fps: float = 24.0

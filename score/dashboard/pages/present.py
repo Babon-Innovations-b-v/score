@@ -4,7 +4,7 @@ and never the store."""
 import re
 
 from score.dashboard.pages import seen
-from score.dashboard.state import groups
+from score.dashboard.state import groups, holes, plain
 
 GAP_COUNT = re.compile(r"named gaps \((\d+)\)")
 OWN_LOOKS = "Each in its own look"
@@ -223,6 +223,49 @@ def problems(detail):
     return ([fault_problem(fault) for fault in detail.faults]
             + [gap_problem(gap, detail.place) for gap in detail.gaps]
             + [check_problem(finding) for finding in detail.checks])
+
+
+# --- holes -------------------------------------------------------------------------------------------------------
+
+HOLE_GROUPS = (("missing", "Not made yet"), ("gate", "Made, but failing a check"),
+               ("place", "Steps of the route not done"))
+
+
+def price_words(price):
+    """A node's price in words: likely and high when measured, its guess said apart, else not priced."""
+    if not price:
+        return None
+    if price.get("likely_euros") is not None:
+        return f"likely EUR {price['likely_euros']:.2f}, high EUR {price['high_euros']:.2f}"
+    if price.get("guess_euros"):
+        return f"a guess of EUR {price['guess_euros']:.2f}, never measured"
+    return "not priced yet"
+
+
+def hole_line(entry, place, count):
+    """One line of the holes list: the hole in plain words, its basket item and price, or what stands in the way."""
+    hole = entry["hole"]
+    return {"sentence": plain.hole_sentence(hole, place, count),
+            "item_url": f"/basket/item/{entry['item']}/" if entry["item"] else None,
+            "price": price_words(entry["price"]), "said": entry["said"], "id": hole.id,
+            "filled_by": hole.node or hole.work}
+
+
+def hole_groups(detail, items):
+    """[{rule, title, count, lines}] of the place's holes, by rule; a row's missing objects on one line."""
+    found = {rule: [] for rule, _ in HOLE_GROUPS}
+    counted = {}
+    for entry in holes.priced(detail.holes, items):
+        hole = entry["hole"]
+        key = (hole.rule, hole.row if hole.rule == "missing" else hole.id)
+        if key in counted:
+            counted[key][1] += 1
+            continue
+        counted[key] = [entry, 1]
+        found[hole.rule].append(key)
+    return [{"rule": rule, "title": title, "count": sum(counted[key][1] for key in found[rule]),
+             "lines": [hole_line(counted[key][0], detail.place, counted[key][1]) for key in found[rule]]}
+            for rule, title in HOLE_GROUPS if found[rule]]
 
 
 # --- money -------------------------------------------------------------------------------------------------------

@@ -207,3 +207,63 @@ def test_a_check_finding_on_an_assembly_no_longer_accepted_is_not_listed(world):
     a_check_finding(world, "0" * 64)
     html = signed_in().get("/place/beta/").content.decode()
     assert "finish not from the library" not in html
+
+
+MEASURED = {"likely_euros": 2.0, "high_euros": 3.0, "likely_minutes": 10.0, "high_minutes": 20.0, "runs": 4,
+            "cards": 1}
+ROUGH = "a rough-model stage: the prop pipeline on the whole concept, a row in score/stages STAGES"
+
+
+def a_holes_finding(world, settings, tmp_path):
+    """The holes check's findings.json for alpha over its accepted assembly: two objects of a row the close-up step
+    fills (a basket item carries it, measured), a gate on a step nothing buys now, and the rough model no stage
+    makes yet; the basket made with that one item."""
+    import json
+    from score.dashboard.proposals import make, records
+    folder = world.root / "props/work/checks/holes/alpha"
+    folder.mkdir(parents=True, exist_ok=True)
+    missing = {"rule": "missing", "kind": "generate", "sentence": "a lamp: nothing made for it yet (made by the route)",
+               "picture": None, "row": "lamp", "gates": [], "source": "inventory", "node": "closeup@alpha",
+               "work": None, "placed": "spot"}
+    (folder / "findings.json").write_text(json.dumps({"place": "alpha", "outputs": {
+        "assembly@alpha": world.outputs["assembly@alpha"]}, "findings": [
+        dict(missing, id="missing:lamp_1", prim="/alpha/Holes/lamp_1", low=[0, 0, 0], high=[1, 1, 1]),
+        dict(missing, id="missing:lamp_2", prim="/alpha/Holes/lamp_2", low=[2, 0, 0], high=[3, 1, 1]),
+        {"id": "gate:complete/painted:crate_1", "rule": "gate", "prim": "/alpha/Objects/crate_1", "kind": None,
+         "sentence": "crate_1: still the rough paint", "picture": None, "row": "crate", "gates": ["complete/painted"],
+         "source": "judgement:complete@alpha", "node": "complete@alpha", "work": None, "placed": None,
+         "low": [4, 0, 0], "high": [5, 1, 1]},
+        {"id": "place:rough-model", "rule": "place", "prim": "/alpha", "kind": None,
+         "sentence": "this place has no rough model", "picture": None, "row": None, "gates": [], "source": "route",
+         "node": None, "work": ROUGH, "placed": None, "low": None, "high": None}]}))
+    settings.SCORE_HOME = tmp_path / "home"
+    root = settings.SCORE_HOME / "proposals"
+    root.mkdir(parents=True)
+    items = make.grouped([{"node": "closeup@alpha", "why": "code changed", "again": True, "price": MEASURED}],
+                         {"closeup": "pieces"}, [], {})
+    records.put_index(root, {"made_at": "2026-10-19T08:00:00Z", "items": items})
+    return items
+
+
+def test_the_place_page_lists_its_holes_priced_from_the_basket(world, settings, tmp_path):
+    from score.dashboard.checkout import pricing
+    from score.dashboard.state import holes
+    items = a_holes_finding(world, settings, tmp_path)
+    html = signed_in().get("/place/alpha/").content.decode()
+    assert "A lamp should be in the alpha but nothing is made for it yet (2 of them)." in html
+    assert "/basket/item/alpha-pieces/" in html and "likely EUR 2.00, high EUR 3.00" in html
+    assert "The runner buys nothing for it now" in html
+    rough = re.search(r"<li>This place has no rough model\.(.*?)</li>", html, re.S).group(1)
+    assert "No stage can fill this yet: " + ROUGH in rough and "EUR" not in rough
+    assert NODE.search(outside_details(html)) is None
+    total = holes.environment(world.source.holes_total(), items)
+    assert total["likely"] == pricing.totals({"closeup@alpha": MEASURED})["likely_euros"]
+    assert total["holes"] == 4 and total["unfillable"] == [ROUGH]
+    board = signed_in("other").get("/").content.decode()
+    assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00; 0 guessed; 1 holes no stage can fill yet" in board
+
+
+def test_holes_are_not_repeated_among_the_check_findings(world, settings, tmp_path):
+    a_holes_finding(world, settings, tmp_path)
+    assert [finding.check for finding in world.source.check_findings("alpha")] == []
+    assert [hole.id for hole in world.source.holes("alpha")][:1] == ["missing:lamp_1"]

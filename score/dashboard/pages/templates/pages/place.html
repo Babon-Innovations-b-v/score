@@ -24,12 +24,15 @@
 
 {% include "pages/breakdown.html" %}
 
+{% include "pages/holes.html" %}
+
 {% include "pages/library_strip.html" %}
 
 <details class="ids"><summary>details</summary>
   <div class="fold-body">
   <p class="soft">{{ detail.status|capfirst }}.</p>
   {% if problems %}<h3>Problems in full</h3><ul>{% for problem in problems %}<li>{{ problem.full }}</li>{% endfor %}</ul>{% endif %}
+  {% if holes %}<h3>Holes in full</h3><ul>{% for group in holes %}{% for line in group.lines %}<li>{{ line.id }}: {{ line.filled_by }}</li>{% endfor %}{% endfor %}</ul>{% endif %}
   {% if detail.skipped %}<h3>Not done for this place</h3><ul>{% for entry in detail.skipped %}<li>{{ entry }}</li>{% endfor %}</ul>{% endif %}
   <h3>OpenUSD index</h3>
   {% if detail.usd_index.root %}
