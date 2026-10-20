@@ -555,9 +555,9 @@ class LocalSource:
         """What `node`'s draws send (score/review/concepts.py): its generated first-draw wording, why it cannot be
         drawn now, the creator's own wording, the pictures a first draw sends and what a redraw sends."""
         from score.review import concepts
-        return ConceptWording(generated=concepts.generated(node), own=concepts.own_wording(self.store, node),
-                              refused=concepts.waits(self.store, node), redraw=concepts.redraw_preview(),
-                              pictures=[words for words, _ in concepts.sent_pictures(node)])
+        return ConceptWording(generated=concepts.generated(self.store, node),
+                              own=concepts.own_wording(self.store, node), refused=concepts.waits(self.store, node), redraw=concepts.redraw_preview(),
+                              pictures=[words for words, _ in concepts.sent_pictures(self.store, node)])
 
     def hierarchy(self):
         """{within, shells} of data/places/within.json: what each place or shell sits within (a part of a place's
