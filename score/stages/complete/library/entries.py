@@ -69,11 +69,13 @@ def file_shas(record):
 
 
 def prim_paths(record):
-    """(place, prim path) of every prim an entry's provenance names."""
+    """(place, prim path) of every prim an entry's provenance names: its place's prims, and every placement of an
+    effect one entry holds for all the spots and places that show it (`placements`, score #46)."""
     provenance = record.get("provenance") or {}
     place = provenance.get("place")
     named = list(provenance.get("prims") or []) + ([provenance["prim"]] if provenance.get("prim") else [])
-    return [(place, unvarianted(path)) for path in named] if place else []
+    found = [(place, unvarianted(path)) for path in named] if place else []
+    return found + [(each["place"], unvarianted(each["prim"])) for each in provenance.get("placements") or []]
 
 
 def shelve(shelf, record):

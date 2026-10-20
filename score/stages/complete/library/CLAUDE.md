@@ -11,7 +11,8 @@ no Blender, no cloud. `trace.py`'s docstring has the tracing rules. Bible: `arch
   assembly it judged is still the accepted one.
 - **Two aspects a thing.** Its source (model, place, ground, sky, structure, character, effect, light, sound, loose
   geometry) traces by `score:library` (an entry's address, the attribute the export writes), a place by name, a
-  model by its gltf (`score:model_sha256`), the prim an entry's provenance names, or the content hash of a file it is
+  model by its gltf (`score:model_sha256`), the prim an entry's provenance names (an effect entry names every placement
+  of its one effect, `placements`), or the content hash of a file it is
   made of. Its finishes (each bound material once) trace by `score:library`, a library surface it names, or its
   model's finish record (an accepted bake that paints every part from the library: `stored.BAKES`). A baked texture
   nothing names, a picture's texture, a constant colour or no material is a finding.
