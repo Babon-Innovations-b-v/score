@@ -328,6 +328,25 @@ def test_real_table():
     assert not any(library.PLACE_ROW in row.after or library.WORLD_ROW in row.after for row in stages.STAGES)
 
 
+def test_a_lost_picture_never_stops_the_others():
+    from score.stages.library import backend, pictures
+
+    def fetched(address, named):
+        if address == "ground/lost@1":
+            raise backend.library_files.LibraryUnreachable("fetch ground/lost@1 exited 1: 404 Not Found")
+        return pathlib.Path(named)
+
+    saved = (pictures.fetched, pictures.pictured, backend.settings)
+    pictures.fetched, backend.settings = fetched, lambda: {"SCORE_LIB_ROOT": "lib"}
+    pictures.pictured = lambda root, kinds: [("place/flat@1", "a.png"), ("ground/lost@1", "b.png")]
+    try:
+        said = pictures.run()
+    finally:
+        pictures.fetched, pictures.pictured, backend.settings = saved
+    assert said == ("library pictures: 1 of 2 (every kind) in the cache; 1 not fetched "
+                    "(first: ground/lost@1: fetch ground/lost@1 exited 1: 404 Not Found)"), said
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

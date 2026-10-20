@@ -40,7 +40,7 @@ LABELS.update({"crops-boxes": "crop boxes", "crops-concept": "crop patches on th
 PEOPLE = {"people-body-": "body", "people-dress-": "dressed body", "people-take-": "model"}
 # Door kits: places whose kit is a door, shown together, each by its title (data/checks/contents.json: the garage's
 # big door leaves, the hangar's roof leaves).
-DOOR_TITLES = {"gdoor": "garage door", "hdoor": "hangar roof door"}
+DOOR_TITLES = {"gdoor": "garage door", "hdoor": "hangar door"}
 DOOR_KITS = tuple(DOOR_TITLES)
 
 
@@ -57,6 +57,20 @@ def label(stage):
 def place_title(place):
     """A place's key in words: a door kit by its title, any other with its underscores as spaces."""
     return DOOR_TITLES.get(place, place.replace("_", " "))
+
+
+def short_name(place, style):
+    """A place's short name: its own look's `short` (place.json), else its title from its key, first letter capital."""
+    if style is not None and style.short and len(style.places) == 1:
+        return style.short
+    title = place_title(place)
+    return title[:1].upper() + title[1:]
+
+
+def short_names(world):
+    """{place: its short name} of every place of a WorldState."""
+    return {card.place: short_name(card.place, style)
+            for engine in world.engines for style in engine.styles for card in style.places}
 
 
 def look_of(place, looks):

@@ -69,7 +69,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   requests, basket, plans, launches, sync requests; never a mirror of the store). `actions.py` does what a request
   asks, one function each.
 - **The cockpit app (#42): five screens under one top nav** (`templates/pages/base.html`): **Environment** `/`
-  (`environment.html`: the month spent against the stop line, the remake's euros and hours, a Review and buy
+  (`environment.html`: the month spent (the lines read, "at least" while one is not, each line as hover text; no
+  stop shown), the remake's euros and hours, a Review and buy
   button, a tile per place), **Place** `/place/<place>/` (`place.html`: the 3D view, the scene tree with gap dots, a
   side panel), **Buy** `/buy/` (`buy.html`: the batch's list, total, ETA and the Buy button; the owner's books
   buttons while paid work is refused; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
@@ -97,8 +98,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   - `number.html` `label`, `value` (None: grey "unknown" with `unknown_tip`), `unit` ("EUR": to the cent), `of` a
     denominator, `bar` a percent under it, `tone` a dot beside the label, `tip`. Pass every argument (None where
     unused): an include inherits its caller's names.
-  - `tile.html` `href`, `picture`, `name`, `made`, `needed`, `gaps` (None: "?", not checked), `tone`, `tip`.
-  - `tree.html` `nodes` [{label, count, tone, tip, href, open, panel, children, children_url}]: `children` drawn now,
+  - `tile.html` `href`, `picture`, `name` (the place's short name, place.json `short`; its look's long words are
+    `tip`), `made`, `needed`, `made_tip` ("made 0 of 30"), `gaps` (None: "?", not checked) with a gap icon in its
+    `tone` and "781 gaps" as hover text, `tone`, `tip`.
+  - `tree.html` `nodes` [{label, count, tone, tip, href, picture (a thumbnail link), open, panel, children,
+    children_url}]: `children` drawn now,
     `children_url` fetched (GET, JSON [node] of the same fields) only when its branch first opens (dash.js); a
     failed load turns its dot red and goes to the console. `panel` {title, state, tone, price, picture, hole,
     action, action_label, body, reason} opens the side panel on a click or Enter.

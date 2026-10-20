@@ -121,6 +121,7 @@ class PlaceCard(BaseModel):
 class StyleGroup(BaseModel):
     look: str
     label: str
+    short: str = ""  # the place's short name (place.json `short`); `label` its long words, hover text
     palette: list[str] = []
     picture: FileRef | None = None
     said: str = ""

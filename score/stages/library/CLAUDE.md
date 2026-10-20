@@ -30,9 +30,10 @@ is in an environment shows up in the library by construction, never by an agent'
   findings.json`, which the place pages show as problems; by hand: `.venv/bin/python -m score.stages.library.sweep`.
   Neither is imported by the rows, so editing them re-keys nothing. The export side (library rows against the
   export's `library/entries.json`) is not compared yet.
-- **`pictures.py`** fetches the pictures the cockpit shows (the place entries', by default) into the library cache
-  through the library's own command (`library_files.from_library`, hash-checked), so the cockpit and its export have
-  their bytes with no blob folder; each sync pass runs it (`score/dashboard/sync/client.py` `library_pictures`). Never
-  a row. By hand: `.venv/bin/python -m score.stages.library.pictures [--kind place ...]`.
+- **`pictures.py`** fetches the pictures the cockpit shows (every kind's by default: the place tiles and the Library
+  screen's thumbnails) into the library cache through the library's own command (`library_files.from_library`,
+  hash-checked), so the cockpit and its export have their bytes with no blob folder; each sync pass runs it
+  (`score/dashboard/sync/client.py` `library_pictures`). A picture the library lost is counted and named in its line,
+  never stops the others. Never a row. By hand: `.venv/bin/python -m score.stages.library.pictures [--kind place ...]`.
 - `library_test.py` drives the runner over a toy table with a fake library command; `invariant_test.py` each
   mismatch on small fixed sets.

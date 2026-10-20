@@ -457,6 +457,7 @@ class LocalSource:
             pictures = (entry.get("pictures") or {}).get("do") or [] if isinstance(entry.get("pictures"), dict) else []
             first = pictures[0] if pictures else {}
             found.append(StyleGroup(look=look, label=entry.get("name") or look.replace("_", " "),
+                                    short=entry.get("short") or "",
                                     palette=[colour for colour in (entry.get("palette") or [])
                                              if isinstance(colour, str) and colour.startswith("#")][:8],
                                     picture=self.look_picture(first.get("picture"), places),

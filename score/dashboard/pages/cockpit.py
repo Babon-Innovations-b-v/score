@@ -19,14 +19,20 @@ def known(line):
 
 
 def month_money(view):
-    """{cloud, models, cloud_label, models_label, total, stop, share} of the month (a MoneyView): the cloud bill and
-    the model bill with the labels their lines carry (a provider is named only by its line, never here), their total
-    only when both are known, the environment's one stop line and the total's share of it."""
+    """{cloud, models, cloud_label, models_label, total, spent, whole, missing, stop, share} of the month (a
+    MoneyView): the cloud bill and the model bill with the labels their lines carry (a provider is named only by its
+    line, never here), their total only when both are known, `spent` the sum of the lines read (None while none is;
+    `whole` False and `missing` each line not read with why, hover text, while one is), the environment's one stop
+    line and the total's share of it."""
     lines = {line.source: line for line in view.lines}
     cloud, models = known(lines.get("cloud")), known(lines.get("models"))
     total = round(cloud + models, 2) if cloud is not None and models is not None else None
     share = min(100, round(100 * total / view.stop)) if total is not None and view.stop else None
+    read = [line for line in view.lines if known(line) is not None]
+    missing = "; ".join(f"{line.label}: {line.origin or 'not read'}" for line in view.lines if known(line) is None)
     return {"cloud": cloud, "models": models, "total": total, "stop": view.stop, "share": share,
+            "spent": round(sum(known(line) for line in read), 2) if read else None, "whole": not missing,
+            "missing": missing or None,
             "cloud_label": lines["cloud"].label if "cloud" in lines else "Cloud",
             "models_label": lines["models"].label if "models" in lines else "Models"}
 
@@ -63,19 +69,21 @@ def tone_of(row):
 
 
 def tiles(world, names, rows):
-    """[{place, href, name, picture, made, needed, gaps, tone}] of every place of the environment (a WorldState),
-    `names` their titles, with its row of holes.per_place: gaps None while its holes are not known."""
+    """[{place, href, name, about, picture, made, needed, gaps, tone}] of every place of the environment (a
+    WorldState), `names` their short names, `about` its look's long words (hover text), with its row of
+    holes.per_place: gaps None while its holes are not known."""
     by_place = {row["place"]: row for row in rows}
     shelf = library.library()
     found = []
-    for card in [card for engine in world.engines for style in engine.styles for card in style.places]:
+    for style, card in [(style, card) for engine in world.engines for style in engine.styles for card in style.places]:
         row = by_place.get(card.place)
         picture = card.still or card.hero
         made, needed = made_of(card)
         found.append({"place": card.place, "href": f"/place/{card.place}/",
                       "name": names.get(card.place, card.place),
+                      "about": style.label if style.short else None,
                       "picture": screens.thumb(picture) or screens.library_picture(shelf, card.place),
-                      "made": made,
+                      "made": made, "made_tip": f"made {made} of {needed}",
                       "needed": needed, "gaps": None if row is None or row["not_checked"] else row["holes"],
                       "tone": tone_of(row)})
     return found

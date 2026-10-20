@@ -112,7 +112,9 @@ def group_name(key, styles):
 
 def place_name(style, card, within=""):
     """A place's name once: its own look's words when the look is its alone (less the group's own words: "the
-    ship's galley" in the ship is "Galley"), else its title from its key (place_title)."""
+    ship's galley" in the ship is "Galley"), else its title from its key (place_title); its look's `short` first."""
+    if style.short:
+        return groups.short_name(card.place, style)
     if len(style.places) == 1 and style.look not in (groups.DOORS, groups.UNASSIGNED):
         label = style.label
         prefix = f"{within.lower()}'s "

@@ -239,7 +239,13 @@ function treeRow(node) {
   const label = document.createElement("span");
   label.className = "node-label";
   label.textContent = node.label;
-  row.append(dot, label);
+  row.append(dot);
+  if (node.picture) {
+    const thumb = document.createElement("img");
+    Object.assign(thumb, { className: "node-thumb", src: node.picture, alt: "", loading: "lazy" });
+    row.append(thumb);
+  }
+  row.append(label);
   if (node.count !== undefined && node.count !== null) {
     const count = document.createElement("span");
     count.className = "node-count";
