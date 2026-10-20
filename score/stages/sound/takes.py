@@ -15,7 +15,6 @@ import json
 import pathlib
 import shutil
 import sys
-import time
 
 from score import graph
 
@@ -32,8 +31,6 @@ MINUTES_A_TAKE = 0.6
 FIRST_RESULT_MINUTES = 8
 # Each prompt's one seed (#21): a brief's `seeds` is the picking page's, not the stage's.
 SEED = 1
-WAIT_MINUTES = 90
-RETRY_SECONDS = 180
 REMOTE = "/root/sfx"
 
 
@@ -83,18 +80,18 @@ def prove_tool():
 
 
 def on_card(plan):
-    """The plan on one rented card, asking again while none is in stock; Blocked after WAIT_MINUTES."""
+    """The plan on one rented card, asked for once (#21): no card in stock is a hole (Blocked), never waited out by
+    asking again; a card in stock later is a new batch."""
     prove = prove_tool()
     from provider import cloud  # prove.py put it on the path
     account = cloud.account()
     prove.batch.sweep(account)
     cloud.allow_key(account, "farm-factory-batch", prove.batch.ssh_key())
     registry, store_spec = cloud.registry(), cloud.object_store()
-    results, give_up = {}, time.time() + WAIT_MINUTES * 60
-    while not prove.one_attempt(plan, account, registry, store_spec, WHO, results):
-        if time.time() > give_up:
-            raise graph.Blocked(f"no card of {', '.join(plan['classes'])} in {WAIT_MINUTES} min")
-        time.sleep(RETRY_SECONDS)
+    results = {}
+    if not prove.one_attempt(plan, account, registry, store_spec, WHO, results):
+        raise graph.Blocked(f"no card of {', '.join(plan['classes'])} in stock: the takes are holes, a new batch "
+                            "asks again")
     failed = [job for numbers in results.get(KIND, []) for job in numbers["jobs"].values() if job.get("failed")]
     if failed:  # its takes are holes (made says which), never asked again inside the batch
         print(f"the moss job failed on its card: {failed}", flush=True)
