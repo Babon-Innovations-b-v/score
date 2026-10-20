@@ -22,7 +22,7 @@ def loop_ends(folder):
     ends = {name: folder / name for name in ("props-inputs", "surfaces-bake", "surfaces-parts", "likeness")}
     for path in ends.values():
         path.mkdir()
-    rows = [{"id": "player-work", "take": "pp-player", "layer": "people"},
+    rows = [{"id": "player-work", "take": "pp-player", "layer": "people", "failures": {"take": "made before the loop"}},
             {"id": "nev-space", "take": "pp-nev", "layer": "people"}, {"id": "crate", "take": "crate-s1"}]
     (ends["props-inputs"] / "rows.json").write_text(json.dumps({"rows": [dict({"layer": "objects"}, **row)
                                                                          for row in rows]}))
@@ -48,8 +48,11 @@ def test_the_loop_hands_each_look_on_and_names_its_gap():
         assert sorted(found) == ["nev-space", "player-work"], found  # the object is not the people layer's
         assert found["player-work"]["finishes"] == [{"part": 0, "surface": "navy_twill"}], found
         assert (out / found["player-work"]["labelled"]).exists() and "no baked model" in found["nev-space"]["gap"]
+        assert found["player-work"]["failures"] == {"take": "made before the loop"}, found  # named, never silent
+        assert found["player-work"]["model"].endswith("made/player-work.gltf"), found
         verdict = loop.judge_made(out, ends, {})
         assert verdict.answer == "pass" and verdict.measures["gaps"] == 1 and "nev-space" in verdict.findings[0]
+        assert verdict.measures["named_failures"] == 1, verdict
         inputs = {f"{bodies.MADE}@{bodies.LINE}": out}
         assert dress.painted_take(inputs, "player-work") == out / "labelled" / "pp-player.npz"
         for look in ("nev-space", "guard-guard-uniform"):

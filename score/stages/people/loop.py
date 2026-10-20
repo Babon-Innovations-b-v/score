@@ -1,12 +1,15 @@
 """The people's after-step on the shared loop (#41; score/stages/shapes_first): `people-made@people` (free), on the
 line `people`, which no place owns (shapes_first/align.NO_PLACE). Every look is a row the people layer handed the loop
 (data/props/people.json), made like every model: its close-up, its Pixal3D take, the finish route and its bake, the
-likeness gate. This row reads the loop's ends (made.ENDS) and hands each look on: made.json, {look: {"take",
-"finishes" (its surfaces-parts part rows), "labelled" (its painted samples, labelled/<take>.npz)} or {"gap": <why>}},
-and each labelled take the bake painted, so the dress rows (dress.py) lay its library surfaces on the look's body.
+likeness gate; a step made outside the loop is a named failure in the row's record (`failures`), handed on with it.
+This row reads the loop's ends (made.ENDS) and hands each look on: made.json, {look: {"take", "model" (the loop's
+baked model), "finishes" (its surfaces-parts part rows), "labelled" (its painted samples, labelled/<take>.npz),
+"failures"} or {"gap": <why>}}, and each labelled take the bake painted, so the dress rows (dress.py) lay its library
+surfaces on the look's body.
 
-Gate `made` (unknown blocks): every look the loop handed on, each gap named; it fails only when no look came through,
-so one look's gap stops its own dress row (dress.py names it), never the others'.
+Gate `made` (unknown blocks): every look the loop handed on, each gap named and the looks with named failures
+counted; it fails only when no look came through, so one look's gap stops its own dress row (dress.py names it),
+never the others'.
 """
 import json
 import pathlib
@@ -32,7 +35,8 @@ def handed(found, bake, out):
         return {"gap": f"the bake painted no labelled take {take}"}
     (out / "labelled").mkdir(exist_ok=True)
     shutil.copyfile(labelled, out / "labelled" / f"{take}.npz")
-    return {"take": take, "finishes": found["finishes"], "labelled": f"labelled/{take}.npz"}
+    return {"take": take, "model": found["model"], "finishes": found["finishes"], "labelled": f"labelled/{take}.npz",
+            "failures": found["failures"]}
 
 
 def make(inputs, out, seed, params):
@@ -53,5 +57,7 @@ def judge_made(output, inputs, evidence):
     found = json.loads((output / "made.json").read_text())
     gaps = [f"{look}: {entry['gap']}" for look, entry in sorted(found.items()) if "gap" in entry]
     through = len(found) - len(gaps)
-    return Verdict("made", PASS if through else FAIL, f"{through} of {len(found)} looks made by the loop",
-                   {"gaps": len(gaps), "made": through}, {"gaps": "lower"}, tuple(gaps[:40]))
+    failed = sum(1 for entry in found.values() if entry.get("failures"))
+    return Verdict("made", PASS if through else FAIL,
+                   f"{through} of {len(found)} looks made by the loop, {failed} with steps named made outside it",
+                   {"gaps": len(gaps), "made": through, "named_failures": failed}, {"gaps": "lower"}, tuple(gaps[:40]))

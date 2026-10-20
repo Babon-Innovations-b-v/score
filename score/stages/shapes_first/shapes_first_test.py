@@ -124,7 +124,7 @@ def test_an_after_step_gets_the_made_models_with_their_finishes_or_the_gaps(tmp_
     inputs = {"props-inputs": split, "likeness": likeness, "surfaces-bake": bake, "surfaces-parts": parts}
     assert made.made(inputs, "objects") == {
         "seat": {"route": "prop", "model": str(bake / "made/seat_1.gltf"), "take": "seat-s1",
-                 "finishes": [{"surface": "steel"}]},
+                 "finishes": [{"surface": "steel"}], "failures": {}},
         "lamp": {"gap": "no close-up"}, "rock": {"route": "code", "model": "/data/rock.gltf", "finishes": []}}
     assert made.made(inputs, "terrain") == {"path": {"gap": "no likeness record: the loop never reached its model"}}
 
