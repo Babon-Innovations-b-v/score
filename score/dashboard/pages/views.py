@@ -100,7 +100,8 @@ def environment(request):
 def stats(request):
     """Screen 4, numbers only, no controls, in three groups: the month's money (its lines, total, spend per day and,
     once a batch's stop line is written, the remake's spend so far), progress (places complete, gaps by kind, each
-    opening the Environment filtered to it) and prices (paid steps measured, the remake's measured share)."""
+    opening the Environment filtered to it) and prices (paid steps measured, the remake's measured share); the gaps
+    by kind unknown while no place's scene inventory counts."""
     found = overview_of(state.source())
     world, view = found["world"], found["view"]
     complete, _ = cockpit.places_complete(found["rows"])
@@ -113,7 +114,7 @@ def stats(request):
         "unplaced": cockpit.unplaced(money["total"], days),
         "measured": cockpit.measured_prices(world.gaps_price), "share": cockpit.measured_share(
             screens.batch(world, records.items(basket_items.basket_root()))),
-        "kinds": cockpit.gaps_by_kind(world.gaps_total), "complete": complete, "of": of})
+        "kinds": cockpit.gaps_by_kind(world.gaps_total if found["rows"] else None), "complete": complete, "of": of})
 
 
 def buy(request):
