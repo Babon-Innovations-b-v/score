@@ -73,8 +73,7 @@ def split_take(folder, seed):
     centres, per_pixel = colour_groups(colours, faces, seed)
     count = len(centres)
     per_map = {view: view_labels(faces[view], per_pixel[view], count, len(mesh.faces)) for view in faces}
-    named = {("front" if view == cast.FRONT else view): label for view, label in per_map.items()}
-    votes = finish_parts.voted(named, count)
+    votes = finish_parts.voted(per_map, count)  # the close-up's view is "front": finish_parts' FRONT_VOTE
     own = np.where(votes.sum(1) > 0, votes.argmax(1), -1)
     part_of, group_of = finish_parts.merged_islands(mesh, finish_parts.cleaned(mesh, finish_parts.walked(mesh, own),
                                                                               count))
@@ -90,7 +89,7 @@ def split_take(folder, seed):
     srgb = group_colours(colours, per_pixel, count)
     return {"groups": [{"group": group, "lab": [round(float(value), 1) for value in centre], "srgb": srgb[group],
                         "share": round(float(area[group]), 4)} for group, centre in enumerate(centres)],
-            "parts": int(part_of.max()) + 1, "agreement": finish_parts.agreement(mesh, group_of, named)}
+            "parts": int(part_of.max()) + 1, "agreement": finish_parts.agreement(mesh, group_of, per_map)}
 
 
 def group_colours(colours, per_pixel, count):
@@ -106,7 +105,7 @@ def make_split(inputs, out, seed, params):
     """Every cast take's groups and parts; groups.json."""
     views = pathlib.Path(inputs["finish-route-views"])
     cast_takes = json.loads((views / "views.json").read_text())
-    route_data.takes_written(out, inputs, params)
+    route_data.takes_written(out, inputs, params)  # the filter's takes, for the record; the cast ones are split
     found = {take: split_take({"views": views / take, "out": out / take}, seed)
              for take, record in cast_takes.items() if record.get("model")}
     (out / "groups.json").write_text(json.dumps(found, indent=1))

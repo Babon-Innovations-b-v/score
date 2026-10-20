@@ -37,12 +37,14 @@ def released(place, take):
 
 
 def model_path(place, take):
-    """The file a take's model is read from: its raw take, else its released model, else None."""
+    """The file a take's model is read from: its raw take, else its released model when the release is on this
+    machine (`python3 tools/assets/world.py fetch`), else None."""
     raw = pixal_folder() / f"{take}.glb"
     if raw.exists():
         return raw
     name = released(place, take)
-    return world_assets.local_folder(world_assets.manifest()) / name if name else None
+    found = world_assets.local_folder(world_assets.manifest()) / name if name else None
+    return found if found is not None and found.exists() else None
 
 
 def close_up_path(take):
@@ -51,11 +53,13 @@ def close_up_path(take):
     return found if found.exists() else None
 
 
-def model_files(place):
-    """{name: path} of every take's model and own close-up that is there; a take with neither model is left out and
-    named by the views row."""
+def model_files(place, objects=None):
+    """{name: path} of every take's model and own close-up that is there (of the takes the runner's object filter
+    keeps, `objects`); a take with no model here is left out and named by the views row."""
     found = {}
     for take in data.takes(place):
+        if objects is not None and take not in objects:
+            continue
         model = model_path(place, take)
         if model is not None:
             found[f"model {take}"] = str(model)
@@ -65,14 +69,14 @@ def model_files(place):
     return found
 
 
-def shape_files(place):
-    """The views and parts rows' files: the place's data, its takes' models and close-ups, the release's manifest."""
-    return {"surfaces": data.pattern(place), "assets": "{data}/assets/world1.json", **model_files(place)}
+def shape_files(place, objects=None):
+    """The views and split rows' files: the place's data, its takes' models and close-ups, the release's manifest."""
+    return {"surfaces": data.pattern(place), "assets": "{data}/assets/world1.json", **model_files(place, objects)}
 
 
-def library_files(place):
+def library_files(place, objects=None):
     """The rows that read the library (list, fill, recheck): shape_files, the library, the places and the palette."""
-    return {**shape_files(place), "library": "{data}/library", "places": "{data}/definitions/place.json",
+    return {**shape_files(place, objects), "library": "{data}/library", "places": "{data}/definitions/place.json",
             "tokens": "{repo}/design/tokens/tokens.json"}
 
 
@@ -86,12 +90,8 @@ def takes(inputs, params):
 
 
 def takes_written(out, inputs, params):
-    """takes.json in the output: the place and the takes the row worked on (later rows read it); those takes."""
+    """takes.json in the output: the place and the takes the row worked on; the place and those takes."""
     place, found = takes(inputs, params)
     (out / "takes.json").write_text(json.dumps({"place": place, "takes": found}, indent=1))
-    return found
+    return place, found
 
-
-def takes_read(folder):
-    """{take: entry} an earlier row of the route wrote."""
-    return json.loads((pathlib.Path(folder) / "takes.json").read_text())["takes"]

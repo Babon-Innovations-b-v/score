@@ -163,14 +163,13 @@ def make_list(inputs, out, seed, params):
     """Every split take's finish list, and the owner's questions."""
     import library
     views, split = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-split"])
-    place, _ = route_data.takes(inputs, params)
-    takes = route_data.takes_written(out, inputs, params)
-    grouped = json.loads((split / "groups.json").read_text())
+    place, takes = route_data.takes_written(out, inputs, params)
+    split_takes = json.loads((split / "groups.json").read_text())
     stand_ins = json.loads((views / "views.json").read_text())
     tokens = library_tokens()
     wear = json.loads(library.PLACES.read_text())[place]["wear"]["level"]
     questions = []
-    for take, record in grouped.items():
+    for take, record in split_takes.items():
         surfaces = finish_parts.take_surfaces(takes[take])
         stand_in = stand_ins[take].get("close_up") == route_data.STAND_IN
         body = list_body(pictures_of(views, split, take), takes[take], record["groups"], surfaces, tokens, wear,

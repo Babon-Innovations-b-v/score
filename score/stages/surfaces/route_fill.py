@@ -27,9 +27,10 @@ import route_data  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
 
-def finish_per_face(groups, finishes):
-    """Each face's finish (index into `finishes`) from its colour group; -1 for a group no finish holds."""
-    finish_of_group = np.full(int(groups.max()) + 1, -1)
+def finish_per_face(groups, finishes, count):
+    """Each face's finish (index into `finishes`) from its colour group (`count` groups, some perhaps holding no
+    face after the vote); -1 for a group no finish holds."""
+    finish_of_group = np.full(count, -1)
     for number, entry in enumerate(finishes):
         finish_of_group[entry["groups"]] = number
     return finish_of_group[groups]
@@ -86,9 +87,9 @@ def filled(views, finish_of, finishes, families):
     return [{**entry, **colour_record(entry, colour, families)} for entry, colour in zip(finishes, seen)]
 
 
-def fill_take(folders, finishes, families):
+def fill_take(folders, finishes, families, count):
     """One take filled into folders["out"]: finish.npy, its pictures; its finishes with their colour check."""
-    finish_of = finish_per_face(np.load(folders["split"] / "groups.npy").astype(int), finishes)
+    finish_of = finish_per_face(np.load(folders["split"] / "groups.npy").astype(int), finishes, count)
     folders["out"].mkdir(parents=True)
     np.save(folders["out"] / "finish.npy", finish_of.astype(np.int16))
     found = filled(folders["views"], finish_of, finishes, families)
@@ -100,12 +101,13 @@ def make_fill(inputs, out, seed, params):
     """Every listed take filled; fill.json."""
     views, split = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-split"])
     listed = pathlib.Path(inputs["finish-route-list"])
-    takes = route_data.takes_written(out, inputs, params)
+    _, takes = route_data.takes_written(out, inputs, params)
     found = {}
-    for take in json.loads((split / "groups.json").read_text()):
+    for take, record in json.loads((split / "groups.json").read_text()).items():
         finishes = json.loads((listed / f"{take}.json").read_text())["finishes"]
         families = {name: spec.get("family") for name, spec in finish_parts.take_surfaces(takes[take]).items()}
-        found[take] = fill_take({"views": views / take, "split": split / take, "out": out / take}, finishes, families)
+        found[take] = fill_take({"views": views / take, "split": split / take, "out": out / take}, finishes, families,
+                                len(record["groups"]))
     (out / "fill.json").write_text(json.dumps(found, indent=1))
 
 

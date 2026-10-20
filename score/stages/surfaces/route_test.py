@@ -89,6 +89,15 @@ def test_a_model_with_no_file_fails_by_name():
         assert verdict.answer == "fail" and verdict.findings[0].startswith("other-t1: no model"), verdict
 
 
+def test_a_filter_that_keeps_no_take_fails_the_views():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        inputs = {"surfaces": place_data(folder)}
+        route_views.make_views(inputs, folder, 7, {"objects": ["no-such-take"]})
+        verdict = route_views.judge_views(folder, inputs, {})
+        assert verdict.answer == "fail" and "no take to work on" in verdict.findings[0], verdict
+
+
 def answer_for(groups, red_token):
     """A list answer naming the red group only (the blue one left out)."""
     red = next(entry["group"] for entry in groups if entry["srgb"] == list(RED))
@@ -109,13 +118,83 @@ def test_the_list_is_settled_fill_checks_colour_and_a_tweak_takes_the_nearest_to
         assert finishes[0]["settings"] == {"token": far, "roughness": 1.0, "metal": 0.0, "seed": 7}
         out = pathlib.Path(temporary) / "fill"
         filled = route_fill.fill_take({"views": views / TAKE, "split": split / TAKE, "out": out}, finishes,
-                                      {"dark_panel": "painted"})
+                                      {"dark_panel": "painted"}, len(groups))
         assert not filled[0]["colour_fits"], filled  # one light token cannot be both red and blue
         assert (out / "filled-front.png").exists()
         nudged = route_recheck.tweaked(filled[0], {}, tokens)
         assert nudged["settings"]["token"] == route_recheck.nearest_token(filled[0]["seen_lab"], tokens)
         assert "colour_fits" not in nudged
         assert route_recheck.failed(filled, {0: {"matches": True}}) == [0]
+
+
+def group_of(groups, colour):
+    """The 1-based number of the split's group of a colour."""
+    return next(entry["group"] for entry in groups if entry["srgb"] == list(colour)) + 1
+
+
+def made_through_the_rows(folder, list_answer, recheck_answers):
+    """views, split, list, fill and recheck made on the two boxes with the two Gemini asks stubbed (no spend): the
+    list's ask answers `list_answer(groups)`, the recheck's each try's `recheck_answers(try)`; the recheck folder."""
+    inputs, views, split = cast_and_split(folder)
+    groups = json.loads((split / "groups.json").read_text())[TAKE]["groups"]
+    asked = []
+    route_list.ask = lambda body: json.dumps(list_answer(groups))
+    route_recheck.ask = lambda body: asked.append(body) or recheck_answers(len(asked))
+    rows = {"finish-route-views": views, "finish-route-split": split}
+    for name, make in (("list", route_list.make_list), ("fill", route_fill.make_fill),
+                       ("recheck", route_recheck.make_recheck)):
+        out = folder / name
+        out.mkdir()
+        make({**inputs, **rows}, out, 7, {"objects": [TAKE]})
+        rows[f"finish-route-{name}"] = out
+    return {**inputs, **rows}
+
+
+def two_finishes(groups):
+    return {"finishes": [
+        {"parts": "left box", "finish": "red paint", "groups": [group_of(groups, RED)], "surface": "M1",
+         "token": "sign-red", "roughness": 0.4, "metal": 0.0, "fits": True},
+        {"parts": "right box", "finish": "blue paint", "groups": [group_of(groups, BLUE)], "surface": "M1",
+         "token": "bay-three", "roughness": 0.4, "metal": 0.0, "fits": True, "wear_wish": "more worn"}]}
+
+
+def test_a_finish_no_library_token_fits_is_named_after_its_tweak_changes_nothing():
+    """The red box's sign-red lies within COLOUR_DELTA_E of its texture; no library token lies within it of the blue
+    box's, so its tweak (the nearest token) changes nothing and the take fails by name."""
+    originals = route_list.ask, route_recheck.ask
+    try:
+        with tempfile.TemporaryDirectory() as temporary:
+            rows = made_through_the_rows(pathlib.Path(temporary), two_finishes,
+                                         lambda attempt: {0: {"matches": True}, 1: {"matches": True}})
+            assert route_list.judge_list(rows["finish-route-list"], rows, {}).answer == "pass"
+            questions = json.loads((rows["finish-route-list"] / "questions.json").read_text())["wear_wishes"]
+            assert questions and "more worn" in questions[0], questions
+            assert route_fill.judge_fill(rows["finish-route-fill"], rows, {}).answer == "pass"
+            filled = json.loads((rows["finish-route-fill"] / "fill.json").read_text())[TAKE]
+            assert [entry["colour_fits"] for entry in filled] == [True, False], filled
+            verdict = route_recheck.judge_recheck(rows["finish-route-recheck"], rows, {})
+            assert verdict.answer == "fail", verdict
+            assert verdict.findings[0].startswith(f"{TAKE}: no library surface fits (blue paint"), verdict.findings
+            assert "no tweak left" in verdict.findings[0]
+    finally:
+        route_list.ask, route_recheck.ask = originals
+
+
+def test_the_recheck_stops_after_three_tries_and_keeps_the_last_checked_settings():
+    tokens = ("sign-red", "alarm", "hazard")
+    originals = route_list.ask, route_recheck.ask
+    try:
+        with tempfile.TemporaryDirectory() as temporary:
+            rows = made_through_the_rows(pathlib.Path(temporary), lambda groups: {"finishes": [two_finishes(groups)[
+                "finishes"][0] | {"groups": [1, 2]}]},
+                                         lambda attempt: {0: {"matches": False, "why": "too dull",
+                                                              "token": tokens[attempt % 3]}})
+            record = json.loads((rows["finish-route-recheck"] / "recheck.json").read_text())[TAKE]
+            assert len(record["tries"]) == 3 and not record["passed"], record
+            assert record["finishes"][0]["settings"] == record["tries"][-1]["settings"][0]
+            assert (rows["finish-route-recheck"] / TAKE / "try-3-front.png").exists()
+    finally:
+        route_list.ask, route_recheck.ask = originals
 
 
 def test_paid_rows_refuse_outside_a_cleared_run():
@@ -140,6 +219,7 @@ def test_the_object_filter_keys_only_a_selecting_row():
         runner.objects = frozenset({"b", "a"})
         assert runner.params_of(views) == {"objects": ["a", "b"]}
         assert runner.params_of(plain) == {}
+        assert not any(name.startswith("model ") for name in runner.files_of(views, "old_station"))
         assert all(row.selects for row in surfaces.ROUTE)
         assert [row.name for row in surfaces.ROUTE if row.paid] == ["finish-route-list", "finish-route-recheck"]
 

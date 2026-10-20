@@ -52,7 +52,7 @@ def view_take(model_file, close_up, folder):
 
 def make_views(inputs, out, seed, params):
     """Every take's views; views.json records each, or that it has no model."""
-    takes = route_data.takes_written(out, inputs, params)
+    _, takes = route_data.takes_written(out, inputs, params)
     found = {}
     for take in takes:
         model_file = inputs.get(f"model {take}")
@@ -74,10 +74,14 @@ def judge_views(output, inputs, evidence):
     failing = []
     for take, record in found.items():
         if record.get("model") is None:
-            failing.append(f"{take}: no model (no raw take here and no released model of it)")
+            failing.append(f"{take}: no model here (no raw take, and no released model of it on this machine)")
         elif record["views_empty"]:
             failing.append(f"{take}: views seeing nothing: {', '.join(record['views_empty'])}")
         elif record["seen_share"] < SEEN_LEAST:
             failing.append(f"{take}: the views see {record['seen_share']:.0%} of its area")
+    if not found:
+        place = json.loads((output / "takes.json").read_text())["place"]
+        failing.append(f"{place}: no take to work on (the object filter keeps none of its takes)")
     stand_ins = sum(record.get("close_up") == route_data.STAND_IN for record in found.values())
-    return gates.verdict("views cast", failing, len(found), "takes not cast", {"stand_in_close_ups": stand_ins})
+    return gates.verdict("views cast", failing, max(len(found), 1), "takes not cast",
+                         {"stand_in_close_ups": stand_ins})
