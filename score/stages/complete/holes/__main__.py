@@ -12,12 +12,13 @@ assembly, laid out as links to the stored bytes), holes.usda (the holes layer ov
      "findings": [{"id", "rule", "prim", "kind", "sentence", "picture": null, "row", "gates", "source", "node",
                    "work", "placed", "low", "high"}]}
 
-    id      missing:<row>_<n>, gate:<stage>/<gate>:<object>, place:concept|plan|rough-model or
-            place:lost:<kind>:<item>, stable run to run
+    id      missing:<row>_<n>, gate:<stage>/<gate>:<object>, place:concept|plan|rough-model,
+            place:lost:<kind>:<item> or place:<layer>:<kind>:<item>, stable run to run
     rule    missing (a scene inventory row with nothing made for it), gate (a made object a written fault names)
-            or place (a step of the route the place has not been through, or an input its line reads that is lost:
-            inputs.py, read from the stage table over the repository's data only)
-    source  inventory, check:<name>, gap:<name>, judgement:<node>, route or inputs
+            or place (a step of the route the place has not been through, an input its line reads that is lost:
+            inputs.py, read from the stage table over the repository's data only, or a layer's need the library
+            does not answer: layers.py)
+    source  inventory, check:<name>, gap:<name>, judgement:<node>, route, inputs or layer:<layer>
     node    the node that fills it (`<stage>@<place>`, or a world stage's name), else null and `work` its code work
     placed  a missing object's: spot, wall, on or unplaced; null for the rest
     low, high  its world box ([x, y, z]), or null
@@ -38,8 +39,8 @@ import shutil
 from pxr import UsdGeom
 
 from score.stages.assembly import stage_file
-from score.stages.complete.holes import (FINDINGS, GATE, MISSING, OUT, PLACE, WORLD, fill, inputs, layer, marks, route,
-                                        rows)
+from score.stages.complete.holes import (FINDINGS, GATE, MISSING, OUT, PLACE, WORLD, fill, inputs, layer, layers,
+                                        marks, route, rows)
 from score.stages.complete.library import stored
 from score.store import PROPS_HOME
 
@@ -196,6 +197,7 @@ def written_place(store, place, data, folder, runner=None):
     found = (missing_holes(stage, place, inventory, kit)
              + gate_holes(stage, place, store, data, folder.parent, row_ids)
              + place_holes(stage, place, store, inventory, read(data / "plans" / f"{place}.json"))
+             + layers.holes(place, data)
              + (lost_holes(runner, place) if runner is not None else []))
     layer.saved(stage)
     findings = [bounded(stage, finding) for finding in found]

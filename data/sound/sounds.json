@@ -10,7 +10,6 @@
 					"Quiet interior room tone of a sealed space station module: a steady soft hiss of air handling, a distant low ventilation fan drone and a faint electrical hum, constant and even, no voices and no events.",
 					"Calm ambience inside a steel research habitat on the Moon: the low rumble of life-support machinery behind metal walls and gentle moving air, very steady, nothing sudden."
 				],
-				"seeds": 2,
 				"seconds": 15,
 				"loop": true,
 				"search": [
@@ -47,7 +46,6 @@
 					"Footsteps of one person in heavy work boots walking slowly at a steady pace across thick steel deck plates in a metal room: each step a clear, separate, solid metallic thud with a short ring, short pauses between steps, nothing else.",
 					"One person walking on the steel floor of a ship's engine room in hard-soled boots: an even rhythm of distinct metallic footsteps, no other sounds."
 				],
-				"seeds": 2,
 				"seconds": 8,
 				"level": -55.0,
 				"search": [
@@ -83,7 +81,6 @@
 					"Footsteps of one person in boots walking steadily over a steel bar grating catwalk: each step rattles the metal grate with a light clank and buzz, clear gaps between steps, nothing else.",
 					"Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace."
 				],
-				"seeds": 2,
 				"seconds": 8,
 				"level": -55.0,
 				"search": [
@@ -118,7 +115,6 @@
 					"Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.",
 					"Quiet footsteps on a rubber floor indoors: soft padded thuds, one person walking at an even pace."
 				],
-				"seeds": 2,
 				"seconds": 8,
 				"level": -55.0,
 				"search": [
@@ -143,7 +139,6 @@
 				"prompts": [
 					"A heavy metal tool dropped onto a thick steel floor plate: one loud solid metallic clang with a short ring, in a metal room."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:impact_steel_plate__p1__s3",
@@ -162,7 +157,6 @@
 				"prompts": [
 					"A metal box dropped onto a steel grating floor: a rattling clank of the grate and a short metallic buzz."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:impact_grating__p1__s3",
@@ -181,7 +175,6 @@
 				"prompts": [
 					"A heavy object dropped onto a thick rubber mat: one dull muffled thud, short."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:impact_rubber__p1__s3",
@@ -200,7 +193,6 @@
 				"prompts": [
 					"A heavy metal crate dragged across a steel floor: a harsh grinding metallic scrape, about two seconds."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:scrape_steel_plate__p1__s1",
@@ -219,7 +211,6 @@
 				"prompts": [
 					"A metal case dragged over a steel bar grating: a rattling, juddering metallic scrape, about two seconds."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:scrape_grating__p1__s1",
@@ -238,7 +229,6 @@
 				"prompts": [
 					"A box pushed across a rubber floor mat: a soft rubbery squeaking drag, about two seconds."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:scrape_rubber__p1__s4",
@@ -256,7 +246,6 @@
 					"A heavy sci-fi pressure door slides open: a short hiss of air as the seal breaks, a hydraulic whine, the metal door rolling smoothly into the wall and stopping with a soft clunk.",
 					"An automatic metal door in a space station opens with a pneumatic hiss and a motorised slide, ending in a solid thud."
 				],
-				"seeds": 2,
 				"seconds": 6,
 				"search": [
 					"sci-fi door open",
@@ -279,7 +268,6 @@
 					"A heavy sci-fi pressure door slides shut: a motorised metal slide ending in a deep solid clunk as it seals, then a short hiss.",
 					"An automatic metal door in a space station closes with a hydraulic whine and a heavy metallic thud."
 				],
-				"seeds": 2,
 				"seconds": 6,
 				"search": [
 					"sci-fi door close",
@@ -302,7 +290,6 @@
 					"Heavy steel hatch locking bolts engaging: a deep mechanical clunk and a solid metallic latch in a small metal room, short and final.",
 					"A vault door locked shut: a heavy metal clank and the dull thud of a pressure seal closing, short."
 				],
-				"seeds": 2,
 				"seconds": 5,
 				"search": [
 					"heavy hatch lock clunk",
@@ -331,7 +318,6 @@
 					"Steady hum of a computer console with several screens: soft cooling fans whirring and a faint high electronic whine, constant and unchanging, no clicks.",
 					"Constant drone of a server rack in a quiet room: even fan noise and a low electrical hum, steady."
 				],
-				"seeds": 2,
 				"seconds": 15,
 				"level": -52.0,
 				"loop": true,
@@ -360,7 +346,6 @@
 					"Steady low whir of a small laboratory air pump and filter fan running, constant and soft, no changes.",
 					"Constant hum of a lab fume hood extractor fan: smooth airflow and a low motor drone, steady."
 				],
-				"seeds": 2,
 				"seconds": 15,
 				"level": -54.0,
 				"loop": true,
@@ -391,7 +376,6 @@
 					"Constant electrical buzz of fluorescent tube lights in a quiet room: a steady low mains hum with a thin high buzz, no flicker clicks.",
 					"Steady soft buzzing of an industrial ceiling lamp's ballast: a continuous low electric hum."
 				],
-				"seeds": 2,
 				"seconds": 15,
 				"level": -60.0,
 				"loop": true,
@@ -420,7 +404,6 @@
 					"Steady deep electrical hum of a power transformer inside a metal junction box: a constant low mains drone with a faint buzz.",
 					"Constant low mains hum from electrical equipment in a machine room, smooth and unchanging."
 				],
-				"seeds": 2,
 				"seconds": 15,
 				"level": -58.0,
 				"loop": true,
@@ -449,7 +432,6 @@
 					"Steady air flowing out of a ventilation duct behind a metal grille: a constant soft whoosh with a faint fan rumble.",
 					"Constant airflow through a large metal air duct: an even rushing air noise, no changes."
 				],
-				"seeds": 2,
 				"seconds": 15,
 				"level": -56.0,
 				"loop": true,
@@ -473,7 +455,6 @@
 				"prompts": [
 					"A very low, steady electrical and mechanical hum of a large building's power plant heard through steel floors, deep and constant, no other sounds."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -493,7 +474,6 @@
 				"prompts": [
 					"Ambience of an enclosed hydroponic greenhouse: soft trickling water in pipes, the gentle whir of small circulation fans and a faint hum of grow lights, calm and constant."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -513,7 +493,6 @@
 				"prompts": [
 					"Room tone of a large empty metal vehicle garage: a low airy hum, faint ventilation and the slight ring of a big steel space, constant."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -533,7 +512,6 @@
 				"prompts": [
 					"Room tone of a small industrial workshop with machines idling: a low compressor hum, a faint electrical buzz and quiet air ventilation, constant, no tool hits."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -553,7 +531,6 @@
 				"prompts": [
 					"Ambience inside a narrow enclosed walkway tube: a soft hollow airflow whoosh and a faint distant machine hum, airy and constant."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -573,7 +550,6 @@
 				"prompts": [
 					"Interior of a small spacecraft cabin in flight: a steady low engine drone through the hull, cabin fans and a faint electronic hum, constant."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -593,7 +569,6 @@
 				"prompts": [
 					"Thin, distant wind on a cold barren desert plain, heard muffled from inside a helmet: a soft steady low whoosh with gentle gusts."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -613,7 +588,6 @@
 				"prompts": [
 					"A howling dust storm heard muffled from inside a spacesuit helmet: strong steady roaring wind with fine sand hissing against glass."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -633,7 +607,6 @@
 				"prompts": [
 					"Room tone of a small apartment high in a big Asian city at night: a distant city traffic rumble through the window, a refrigerator hum, quiet and calm."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -653,7 +626,6 @@
 				"prompts": [
 					"A large crowd gathered in a city square at night heard from a balcony above: a steady murmur of thousands of people, distant and even, no clear words."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -673,7 +645,6 @@
 				"prompts": [
 					"Slow calm breathing of one person heard from inside a closed space helmet, steady in and out breaths through the nose, close and intimate, no other sounds."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -691,7 +662,6 @@
 				"prompts": [
 					"Fast heavy breathing of one out-of-breath person inside a closed space helmet, quick steady panting, close, no other sounds."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -709,7 +679,6 @@
 				"prompts": [
 					"The steady whir of small air circulation fans inside a spacesuit helmet, a soft constant airflow hiss close to the ears."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true,
 				"chosen": {
@@ -729,7 +698,6 @@
 				"prompts": [
 					"A short crisp click of a two-way radio push-to-talk button pressed, with a tiny burst of static, very short."
 				],
-				"seeds": 4,
 				"seconds": 2,
 				"chosen": {
 					"take": "moss:radio_click_in__p1__s2",
@@ -748,7 +716,6 @@
 				"prompts": [
 					"A short crisp click of a two-way radio push-to-talk button released, with a short tail of static, very short."
 				],
-				"seeds": 4,
 				"seconds": 2,
 				"chosen": {
 					"take": "moss:radio_click_out__p1__s1",
@@ -767,7 +734,6 @@
 				"prompts": [
 					"A single short clean electronic radio beep, a soft two-tone chirp of a headset, very short."
 				],
-				"seeds": 4,
 				"seconds": 2,
 				"chosen": {
 					"take": "moss:radio_beep__p1__s2",
@@ -786,7 +752,6 @@
 				"prompts": [
 					"A short burst of radio squelch static, a crackling hiss that cuts off abruptly, from a walkie-talkie."
 				],
-				"seeds": 4,
 				"seconds": 2,
 				"chosen": {
 					"take": "moss:radio_squelch__p1__s4",
@@ -805,7 +770,6 @@
 				"prompts": [
 					"A solid toggle switch flipped on an aircraft cockpit panel: one firm mechanical click, very short."
 				],
-				"seeds": 4,
 				"seconds": 2,
 				"chosen": {
 					"take": "moss:cockpit_switch__p1__s2",
@@ -824,7 +788,6 @@
 				"prompts": [
 					"A short dry plastic click of a locked button that does not give, a dull refusal tap, very short."
 				],
-				"seeds": 4,
 				"seconds": 2,
 				"chosen": {
 					"take": "moss:desk_locked__p1__s4",
@@ -843,7 +806,6 @@
 				"prompts": [
 					"A geiger counter ticking: irregular sharp clicks at a steady moderate rate, close, no other sounds."
 				],
-				"seeds": 4,
 				"seconds": 10,
 				"loop": true,
 				"chosen": {
@@ -863,7 +825,6 @@
 				"prompts": [
 					"A spacecraft hatch unlatched and swung open: a heavy metal latch release clunk, a short air hiss and a hinge creak."
 				],
-				"seeds": 4,
 				"seconds": 4,
 				"chosen": {
 					"take": "moss:hatch_open__p1__s2",
@@ -882,7 +843,6 @@
 				"prompts": [
 					"A powerful vacuum pump running steadily in a small metal chamber: a constant deep motor drone with a rushing air suction, steady."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -902,7 +862,6 @@
 				"prompts": [
 					"Strong pressurised air venting from a sealed metal chamber: a loud rushing hiss that slowly tapers off."
 				],
-				"seeds": 4,
 				"seconds": 6,
 				"chosen": {
 					"take": "moss:airlock_air_hiss__p1__s3",
@@ -921,7 +880,6 @@
 				"prompts": [
 					"Air pressure equalising in a sealed airlock: a rising hiss of air flowing in that settles with a soft pop and a valve click."
 				],
-				"seeds": 4,
 				"seconds": 5,
 				"chosen": {
 					"take": "moss:airlock_pressure_equalise__p1__s3",
@@ -940,7 +898,6 @@
 				"prompts": [
 					"A heavy industrial freight lift starting: a motor whir spinning up with a mechanical clunk of the brake releasing."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:lift_start__p1__s3",
@@ -959,7 +916,6 @@
 				"prompts": [
 					"A heavy industrial freight platform lift moving steadily: a constant electric motor drone with a soft rattle of chains and rails."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -979,7 +935,6 @@
 				"prompts": [
 					"A heavy industrial freight lift stopping: the motor winding down and a solid mechanical clunk of the brake."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:lift_stop__p1__s4",
@@ -998,7 +953,6 @@
 				"prompts": [
 					"Footsteps of one person in heavy boots walking at a steady pace on a metal floor inside a building: clear separate metallic steps with short pauses between them, nothing else."
 				],
-				"seeds": 4,
 				"seconds": 8,
 				"chosen": {
 					"take": "game:footsteps_metal",
@@ -1015,7 +969,6 @@
 				"prompts": [
 					"Slow footsteps of heavy boots crunching on loose gravel and dust, muffled and dull as if heard through a thick suit, an even walking rhythm."
 				],
-				"seeds": 4,
 				"seconds": 10,
 				"loop": true,
 				"chosen": {
@@ -1035,7 +988,6 @@
 				"prompts": [
 					"A small electric screwdriver and a cordless drill working on a metal robot part at a workbench: short whirring bursts and light metal clinks, steady work."
 				],
-				"seeds": 4,
 				"seconds": 10,
 				"loop": true,
 				"chosen": {
@@ -1055,7 +1007,6 @@
 				"prompts": [
 					"A small digging machine scraping and scooping gravel: a steady motor grind with rocks and grit pouring, constant work."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -1075,7 +1026,6 @@
 				"prompts": [
 					"A small robot arm pushing a seedling into soft soil: a short servo whir and a soft scoop of earth, short."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:robot_planting__p1__s2",
@@ -1094,7 +1044,6 @@
 				"prompts": [
 					"Small electric servo motors of a robot moving: steady soft mechanical whirring rising and falling, constant."
 				],
-				"seeds": 4,
 				"seconds": 10,
 				"loop": true,
 				"chosen": {
@@ -1114,7 +1063,6 @@
 				"prompts": [
 					"A small rocket-powered drone hovering: a steady soft hissing thrust of gas jets with a light electric whine, constant."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -1134,7 +1082,6 @@
 				"prompts": [
 					"A small rocket thruster firing steadily: a strong roaring hiss of gas exhaust, constant, no ignition pop."
 				],
-				"seeds": 4,
 				"seconds": 10,
 				"loop": true,
 				"chosen": {
@@ -1154,7 +1101,6 @@
 				"prompts": [
 					"An electric off-road vehicle driving at a steady speed: a smooth high electric motor whine with a low gear hum, constant."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -1174,7 +1120,6 @@
 				"prompts": [
 					"Big rubber wheels rolling steadily over loose gravel and rocks: a constant crunching and popping of stones, no engine."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -1194,7 +1139,6 @@
 				"prompts": [
 					"A large rocket lifting off a few kilometres away: a deep thunderous roar with crackling low rumble that builds, holds and slowly fades as it climbs."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"chosen": {
 					"take": "moss:rocket_launch__p1__s2",
@@ -1214,7 +1158,6 @@
 				"prompts": [
 					"A rocket launch heard from inside the crew capsule: an overwhelming deep rumbling roar muffled by the hull, violent crackling vibration that builds and holds."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"chosen": {
 					"take": "moss:rocket_hull_roar__p1__s3",
@@ -1233,7 +1176,6 @@
 				"prompts": [
 					"A rocket engine firing steadily during a slow descent: a constant deep roaring rumble with crackle, no start and no end."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true,
 				"chosen": {
@@ -1253,7 +1195,6 @@
 				"prompts": [
 					"A huge heavy machine landing hard on a concrete pad: a deep booming thud with metal creaking and the engine roar cutting off."
 				],
-				"seeds": 4,
 				"seconds": 4,
 				"chosen": {
 					"take": "moss:rocket_touchdown__p1__s1",
@@ -1272,7 +1213,6 @@
 				"prompts": [
 					"A heavy metal object landing hard on packed dirt: one deep dull ground thud, short."
 				],
-				"seeds": 4,
 				"seconds": 3,
 				"chosen": {
 					"take": "moss:ground_thud__p1__s3",
@@ -1291,7 +1231,6 @@
 				"prompts": [
 					"A person in a heavy suit landing on their feet after a jump onto hard ground: one soft dull thud, short."
 				],
-				"seeds": 4,
 				"seconds": 2,
 				"chosen": {
 					"take": "moss:landing_thud__p1__s1",
@@ -1311,7 +1250,6 @@
 					"Quiet room tone inside a small prefabricated habitat on Mars: a steady low hum of life-support fans and air scrubbers, a faint wind buffeting the thin outer wall, constant and even, no voices and no events.",
 					"Calm interior ambience of a cramped planetary research camp module: a soft hiss of circulating air, a distant pump drone and a faint electrical hum behind panel walls, very steady, nothing sudden."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true
 			},
@@ -1326,7 +1264,6 @@
 					"Night ambience at a rocket launch site heard from a few kilometres away: a distant low drone of venting propellant and pumps, a light wind over open ground, constant and even, no voices and no sirens.",
 					"Open-air ambience near a large rocket standing on its launch pad before lift-off: a steady hiss of cryogenic venting and a deep hum of ground equipment carried on a soft breeze, nothing sudden."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true
 			},
@@ -1341,7 +1278,6 @@
 					"Night ambience on a closed-off side street between old apartment blocks in a big Asian harbour city: a distant even rumble of traffic across the water, the hum of street lamps and air conditioners, a soft breeze off the harbour, constant and calm, no voices, no horns and no sirens.",
 					"Outdoor room tone of an empty wet city street late at night: far-off traffic wash echoing between concrete buildings, a faint electrical hum of a neon sign, steady and even, nothing close and nothing sudden."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true
 			},
@@ -1357,7 +1293,6 @@
 					"A political speech echoing from public address loudspeakers on tall poles around a huge city square at night, heard from a balcony: an amplified man's voice reverberating between buildings with a long slap-back echo, words unclear, steady, no music.",
 					"Loudspeaker towers carrying an amplified speech across a vast stone plaza: a distant booming reverberant male voice, delayed echoes overlapping, a faint mains hum of the loudspeakers, no music."
 				],
-				"seeds": 4,
 				"seconds": 15,
 				"loop": true
 			},
@@ -1373,7 +1308,6 @@
 					"A man giving a forceful political speech into a microphone at a podium outdoors, his voice amplified, with short pauses, words unclear, heard from across a large square, no music and no crowd.",
 					"An authoritative male leader addressing a rally through a microphone: steady declamatory speech with rhetorical pauses and a slight amplified reverb, no other sounds."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true
 			},
@@ -1389,7 +1323,6 @@
 					"A small car parked on a city street at night with its engine idling: a steady low petrol engine rumble and a faint exhaust burble, constant, no doors, no horn and no other traffic.",
 					"Close recording of a compact car's engine ticking over at idle: an even low four-cylinder hum with a slight vibration, very steady, nothing else."
 				],
-				"seeds": 4,
 				"seconds": 10,
 				"loop": true
 			},
@@ -1405,7 +1338,6 @@
 					"A parked electric off-road rover charging in a metal garage: a faint high-pitched charger whine, a small coolant fan whirring and a low electrical hum, constant and even, no driving and no other sounds.",
 					"An electric vehicle standing still with its systems on: a soft inverter whine, a quiet cooling fan and a gentle electronic hum, steady, nothing sudden."
 				],
-				"seeds": 4,
 				"seconds": 10,
 				"loop": true
 			},
@@ -1421,12 +1353,43 @@
 					"A small spacecraft parked in a large metal hangar with its systems on standby: a deep steady hum of onboard power, cooling fans whirring and a faint hiss of venting gas, constant and even, no engines firing.",
 					"The idle hum of a parked shuttle in a cavernous metal hangar: a low electrical drone from the hull and a ventilation fan, very steady, nothing sudden."
 				],
-				"seeds": 4,
 				"seconds": 12,
 				"loop": true
 			},
 			"bus": "effects",
 			"reach": 30.0
+		},
+		"crew_talk": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"level": -40.0,
+				"where": "the base's crew at work in its rooms (data/characters: Bram, Sefa and Nev at the benches, racks and beds), talking now and then",
+				"prompts": [
+					"Two or three adults working together in a small enclosed metal room, talking quietly now and then in short calm sentences with long pauses, words unclear, close and dry, no music, no radio and no other sounds.",
+					"Quiet working conversation between a few crew members in a cramped station module: low murmured remarks and brief replies, unhurried, words unclear, no laughter, no machinery."
+				],
+				"seconds": 12,
+				"loop": true
+			},
+			"bus": "effects",
+			"reach": 12.0
+		},
+		"radio_chatter": {
+			"pick": {
+				"page": "world1",
+				"category": "loop",
+				"level": -40.0,
+				"where": "the ship's cockpit: the two pilots and their radio to the base (data/characters/cockpit.json)",
+				"prompts": [
+					"Calm spacecraft radio chatter in a cockpit: a pilot's short clipped call and a distant controller's reply through a band-limited radio, with soft static between and long pauses, words unclear, no music, no alarms.",
+					"Two pilots exchanging brief checklist call-outs in a quiet cockpit, one voice close and one over a crackling radio link, words unclear, steady, nothing else."
+				],
+				"seconds": 12,
+				"loop": true
+			},
+			"bus": "effects",
+			"reach": 8.0
 		}
 	}
 }

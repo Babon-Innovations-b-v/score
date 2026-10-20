@@ -28,6 +28,10 @@ findings.json's contract. Bible: `architecture/components`.
   `world`, which the cockpit's total reads); a lost input's id names the thing, so the totals count it once however
   many places read it. Never fetched back as a loose file: an old paid output comes back only through
   `store/restore`'s key match.
+- **A layer without models adds its own holes** (`layers.py`, #29): its `holes(place, data)` in `SOURCES`, worked out
+  free from the place's records by the layer itself (sound: `score/stages/sound/needs.py`), each a place hole with a
+  generic id (`place:<layer>:<kind>:<item>`), source `layer:<layer>`, and the layer's node or its work. Never a
+  list of places or objects written here.
 - **The runner prices the holes, the cockpit only sums** (`price.py`, `score price world1 --holes --json`, free and
   local, minutes: run it in the background): each hole's chain (`score/graph/chain.py`: what does not stand before
   its node, and what the place's completion reads after it), each paid node priced once by `compute.run_price` with

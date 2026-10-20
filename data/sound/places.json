@@ -1,5 +1,5 @@
 {
-	"is": "each place's sounds that belong to no object: the room tones it plays all the time (loops, by their names in data/sound/catalogue.json and sounds.json), and, outside on the Moon, what is heard through the suit instead (heard_through), which tools/usd/sound.py writes into the place's stage as non-spatial UsdMedia.SpatialAudio; and the sounds of a thing in the place whose inventory row names none (objects: the sound and the inventory row id or scene object it plays at, spatial), each place's additions said in `added`. The sound stage (score/stages/sound) makes the place's sound layer from these.",
+	"is": "each place's sounds that belong to no object: the room tones it plays all the time (loops, by their names in data/sound/catalogue.json and sounds.json), and, outside on the Moon, what is heard through the suit instead (heard_through), which tools/usd/sound.py writes into the place's stage as non-spatial UsdMedia.SpatialAudio; and the sounds of a thing in the place whose inventory row names none (objects: the sound and the inventory row id or scene object it plays at, spatial), each place's additions said in `added`. The sound stage (score/stages/sound) makes the place's sound layer from these. A place's voices (voices: a sound and the person of its cast, data/characters/<place>.json, it plays at, spatial, at /<place>/Characters/<person>) are what its people say (#29: voices where people are).",
 	"places": {
 		"hub": {
 			"loops": [
@@ -13,27 +13,51 @@
 				"habitat",
 				"base_hum"
 			],
-			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: habitat: 'the hub and the habitat's room tone: air handling, a far fan, the base breathing'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: habitat: 'the hub and the habitat's room tone: air handling, a far fan, the base breathing'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'",
+			"voices": [
+				{
+					"sound": "crew_talk",
+					"on": "bram"
+				}
+			]
 		},
 		"greenhouse": {
 			"loops": [
 				"greenhouse",
 				"base_hum"
 			],
-			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: greenhouse: 'the greenhouse on the Moon: grow lights, water pumps, fans over the plant beds'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: greenhouse: 'the greenhouse on the Moon: grow lights, water pumps, fans over the plant beds'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'",
+			"voices": [
+				{
+					"sound": "crew_talk",
+					"on": "bram"
+				}
+			]
 		},
 		"workshop": {
 			"loops": [
 				"workshop",
 				"base_hum"
 			],
-			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: workshop: 'the workshop where robots are built at the bench'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: workshop: 'the workshop where robots are built at the bench'; base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'",
+			"voices": [
+				{
+					"sound": "crew_talk",
+					"on": "bram"
+				}
+			]
 		},
 		"airlock": {
 			"loops": [
 				"base_hum"
 			],
-			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'",
+			"voices": [
+				{
+					"sound": "crew_talk",
+					"on": "bram"
+				}
+			]
 		},
 		"tube": {
 			"loops": [
@@ -46,7 +70,13 @@
 			"loops": [
 				"base_hum"
 			],
-			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'"
+			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: base_hum: 'under every room of the base: the deep hum of its power and life support, unbroken through the doors'",
+			"voices": [
+				{
+					"sound": "crew_talk",
+					"on": "nev"
+				}
+			]
 		},
 		"garage": {
 			"loops": [
@@ -60,7 +90,13 @@
 					"on": "rover"
 				}
 			],
-			"added": "rover_idle at the rover: world 1's checklist of 2026-10-12: the place had no such sound (no rover sounds)"
+			"added": "rover_idle at the rover: world 1's checklist of 2026-10-12: the place had no such sound (no rover sounds)",
+			"voices": [
+				{
+					"sound": "crew_talk",
+					"on": "bram"
+				}
+			]
 		},
 		"hangar": {
 			"loops": [
@@ -73,14 +109,26 @@
 					"on": "ship"
 				}
 			],
-			"added": "ship_idle at the ship (data/scene/hangar.json): world 1's checklist of 2026-10-12: the place had no such sound (base_hum only)"
+			"added": "ship_idle at the ship (data/scene/hangar.json): world 1's checklist of 2026-10-12: the place had no such sound (base_hum only)",
+			"voices": [
+				{
+					"sound": "crew_talk",
+					"on": "bram"
+				}
+			]
 		},
 		"camp": {
 			"loops": [
 				"camp_room"
 			],
 			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: camp_room: 'the Mars camp's room tone: inside the prefabricated habitat'",
-			"added": "camp_room: world 1's checklist of 2026-10-12: the place had no such sound (no room tone at all)"
+			"added": "camp_room: world 1's checklist of 2026-10-12: the place had no such sound (no room tone at all)",
+			"voices": [
+				{
+					"sound": "crew_talk",
+					"on": "bram"
+				}
+			]
 		},
 		"wreck": {
 			"loops": [],
@@ -129,13 +177,13 @@
 				"square_pa"
 			],
 			"from": "each loop's own brief (data/sound/sounds.json `where`) names this place: prologue_crowd: 'the crowd in the square under the balcony in the prologue'; square_pa: 'the square's public address towers carrying the leader's speech, heard from the balcony'",
-			"objects": [
+			"added": "square_pa and leader_speech at the podium (data/characters/square.json: the leader speaking from the podium): world 1's checklist of 2026-10-12: the place had no such sound (no PA, no speech); leader_speech moved onto the leader (voices, #29: a voice plays at the person speaking)",
+			"voices": [
 				{
 					"sound": "leader_speech",
-					"on": "far_podium"
+					"on": "leader"
 				}
-			],
-			"added": "square_pa and leader_speech at the podium (data/characters/square.json: the leader speaking from the podium): world 1's checklist of 2026-10-12: the place had no such sound (no PA, no speech)"
+			]
 		},
 		"launch": {
 			"loops": [
@@ -171,7 +219,13 @@
 					"on": "overhead_vent"
 				}
 			],
-			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the consoles' cooling fans and the cabin vent"
+			"added": "finish world 1, 2026-10-18: the eight ship rooms played the same ship_inside loop and nothing else, so every room's film sounded the same; each now hears its own machines at their rows, from sounds already picked: the consoles' cooling fans and the cabin vent",
+			"voices": [
+				{
+					"sound": "radio_chatter",
+					"on": "pilot_port"
+				}
+			]
 		},
 		"quarters": {
 			"loops": [

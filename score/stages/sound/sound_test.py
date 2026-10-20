@@ -1,5 +1,6 @@
 """The sound stage's make and gates on places whose sounds are all picked already (no take is made, nothing rented):
-the hub and the airlock pass all four gates; a sound with no file fails `sources`, as does an object sound at a row
+the hub passes every gate and the airlock all but `voices`; a silent mover fails `events` and people with no voice
+fail `voices`; a sound with no file fails `sources`, as does an object sound at a row
 the place does not hold; a file made too loud fails `level`; a MOSS sound under the CLAP floor fails `likeness`; a
 Freesound recording the owner did not choose fails `no freesound`.
 
@@ -54,12 +55,57 @@ def read(name):
 
 
 def test_picked_places_pass():
-    for place in ("hub", "airlock"):
+    """The hub passes every gate; the airlock, its voice (crew_talk, still to make) left out so nothing is rented,
+    passes every gate but voices: Bram stands at its bench with no voice."""
+    places = read("places")
+    places["places"]["airlock"].pop("voices")
+    for place, changes, failing in (("hub", None, set()), ("airlock", {"places": places}, {"voices"})):
         with tempfile.TemporaryDirectory() as folder:
-            inputs, out = made(place, folder)
+            inputs, out = made(place, folder, changes)
             found = verdicts(out, inputs)
-        assert all(verdict.answer == checks.PASS for verdict in found.values()), {
+        assert {name for name, verdict in found.items() if verdict.answer != checks.PASS} == failing, {
             name: (verdict.reason, verdict.findings[:5]) for name, verdict in found.items()}
+
+
+def recorded(place, folder, drop_on=()):
+    """A sound record of the place's uses (sound.uses_of, nothing made), every sound with a file, the uses at any of
+    `drop_on` left out; its inputs and output folder."""
+    inputs = inputs_for(place, folder)
+    uses = [use for use in sound.uses_of(place, inputs) if use["on"] not in drop_on]
+    out = pathlib.Path(folder) / "out"
+    out.mkdir()
+    (out / gates.RECORD).write_text(json.dumps({"place": place, "uses": uses,
+                                                "sounds": {use["sound"]: {"files": ["files/x.wav"]} for use in uses}}))
+    return inputs, out
+
+
+def test_a_silent_mover_fails_events_and_people_with_no_voice_fail_voices():
+    """#29: the lab's hatch (leaf, wheel and window moving as one) and its crew's voice; the hatch's leaf silent fails
+    events, Nev's voice left out fails voices."""
+    with tempfile.TemporaryDirectory() as folder:
+        inputs, out = recorded("lab", folder)
+        assert gates.judge_events(out, inputs, None).answer == checks.PASS
+        assert gates.judge_voices(out, inputs, None).answer == checks.PASS
+    with tempfile.TemporaryDirectory() as folder:
+        inputs, out = recorded("lab", folder, ("/lab/Objects/hatch_leaf_1", "nev"))
+        events, voices = gates.judge_events(out, inputs, None), gates.judge_voices(out, inputs, None)
+    assert events.answer == checks.FAIL and any("hatch_door_leaf_1" in line for line in events.findings), events
+    assert voices.answer == checks.FAIL, voices
+
+
+def test_needs_name_what_the_library_does_not_answer():
+    """#29: free, from the place's records: the lab's hatches are answered from the library, its crew's voice is a
+    brief the sound row makes (a hole naming sound@lab); the workshop's robot turntable has no sound named (a hole
+    with its work); a hatch's wheel and window ride its leaf (one event)."""
+    from score.stages.sound import needs
+    lab = {(need["kind"], need["item"]): need["state"] for need in needs.needs("lab", REPO / "data")}
+    assert lab[("event", "hatch_door_leaf_1")] == needs.LIBRARY and ("event", "hatch_door_wheel_1") not in lab, lab
+    assert lab[("voice", "people")] == needs.MAKE, lab
+    holes = {hole["id"]: hole for hole in needs.holes("lab", REPO / "data")}
+    assert holes["sound:voice:people"]["node"] == "sound@lab", holes
+    workshop = {hole["id"]: hole for hole in needs.holes("workshop", REPO / "data")}
+    assert workshop["sound:event:robot_turntable"]["node"] is None, workshop
+    assert "data/sound/movers.json" in workshop["sound:event:robot_turntable"]["work"], workshop
 
 
 def test_a_missing_sound_and_a_lost_row_fail_sources():
@@ -125,12 +171,13 @@ def test_moving_things_sound_off_their_own_moves():
 
 
 def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_hole():
-    """#21: each prompt at each of the brief's `seeds`, made once side by side; the card's deadline is its takes' minutes, not
-    twice them; a take that did not come back is left out of the scores (its sound a hole), never asked again."""
+    """#21, #29: one take a sound, its brief's first prompt at seed 1, made once; the card's deadline is its takes'
+    minutes, not twice them; a take that did not come back is left out of the scores (its sound a hole), never asked
+    again."""
     from score.stages.sound import takes
-    jobs = takes.jobs_for("pump", {"prompts": ["a pump", "a pump, closer"], "seconds": 6}, "rev")
-    assert [(job["prompt"], job["seed"]) for job in jobs] == [("a pump", 1), ("a pump", 2), ("a pump, closer", 1),
-                                                              ("a pump, closer", 2)], jobs
+    jobs = [job for name in ("pump", "fan") for job in
+            takes.jobs_for(name, {"prompts": [f"a {name}", f"a {name}, closer"], "seconds": 6, "seeds": 4}, "rev")]
+    assert [(job["prompt"], job["seed"]) for job in jobs] == [("a pump", 1), ("a fan", 1)], jobs
     kept_folder = pathlib.Path(tempfile.mkdtemp())
     real_takes, real_on_card = takes.TAKES, takes.on_card
     asked = []
@@ -140,14 +187,17 @@ def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_hole():
         back = pathlib.Path(plan["runs"][0]["jobs"][0]["outputs"][0]["to"])
         (back / jobs[0]["file"]).write_bytes(b"RIFF")
         (back / "scores-0.json").write_text(json.dumps({jobs[0]["file"]: 0.41}))
+        (back / "timings-0.json").write_text(json.dumps({"runs": {jobs[0]["file"]: 27.5}}))
 
     try:
         takes.TAKES, takes.on_card = kept_folder / "takes", on_card
         scored = takes.made(jobs, kept_folder / "work")
+        kept = [json.loads(path.read_text()) for path in (kept_folder / "takes" / takes.TIMINGS).iterdir()]
+        assert kept == [{"runs": {jobs[0]["file"]: 27.5}}], kept  # the take's work seconds outlive the batch
     finally:
         takes.TAKES, takes.on_card = real_takes, real_on_card
         shutil.rmtree(kept_folder)
-    assert asked == [round(takes.FIRST_RESULT_MINUTES + takes.MINUTES_A_TAKE * 4)], asked
+    assert asked == [round(takes.FIRST_RESULT_MINUTES + takes.MINUTES_A_TAKE * 2)], asked
     assert scored == {jobs[0]["file"]: 0.41}, scored
     assert len(sound.candidates("pump", jobs, scored, "rev")) == 1
 
