@@ -489,8 +489,10 @@ runner's key it was made under) survived. Recovery, in order:
 1. **Paid work stays shut until the month's spend is known again.** A missing ledger reads as EUR 0, so
    `ledger.books_refusal` refuses every paid point (`compute.month_refusal`, `compute.require_cleared`,
    `compute.submit`) unless `cloud/books.json` says this month is `known` or both ledgers run from before the month
-   began. `score spend --read-back` writes the provider's bill as `lost`; the owner's `score spend --google-month EUR`
-   makes it `known`; else the next month opens it. `batch.rent` refuses without both keys, and `batch.ssh_key` never
+   began. `score spend --read-back` (and the runner's month check, when an export is set) reads the Scaleway bill and
+   Google's bill (Cloud Billing's usage cost export in BigQuery, `tools/props/cloud/google_bill.py`, its table named
+   by SCORE_GOOGLE_BILLING_TABLE outside the repo) and makes it `known` once Google's was read, else leaves it as it
+   was with the reason; the owner's `score spend --google-month EUR` stays an override; else the next month opens it. `batch.rent` refuses without both keys, and `batch.ssh_key` never
    makes one: the owner makes the runner's key and deletes the stale IAM key.
 2. **The store comes back by today's standard, never by copying.** `python -m score.store.restore <environment>
    --library <score_lib>` (`score/store/restore`, its overlay) drives every line with a runner that spends nothing:
@@ -732,5 +734,5 @@ here.>
 | Project board | `9` (org project) |
 | First user | the game 2099, `JoeyKardolus/2099` (paused 2026-10-08) |
 | Environment ids | `world1` (environment 1, the game 2099's), `images` (the job images); the runner's grain for a whole-environment node is `world`. Stored ids and the grain keep the word world (owner 2026-10-18: SCORE is an environment synthesis framework), because the grain is hashed into every node's key and the id names the environment's records in the store (its stop lines, `stops/world1/`), so renaming either would make accepted nodes again or lose the stop |
-| Cloud | backend chosen by `SCORE_CLOUD` (default `scaleway`); Scaleway: the project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`), machines tagged `farm-factory-batch`; month ceiling `SCORE_MONTH_EUROS` (default 1500) |
+| Cloud | backend chosen by `SCORE_CLOUD` (default `scaleway`); Scaleway: the project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`), machines tagged `farm-factory-batch`; month ceiling `SCORE_MONTH_EUROS` (default 1500); Google's bill read from the billing export table named by `SCORE_GOOGLE_BILLING_TABLE`, else `$PROPS_HOME/cloud/google-billing-table` |
 | Secrets | read by name with `secret_store.secret(name)`: the environment variable `SCORE_SECRET_<NAME>`, else the backend's store (Scaleway Secret Manager in that project): `worldlabs-api-key`, `gemini-api-key`, `freesound-api-key` (optional) |

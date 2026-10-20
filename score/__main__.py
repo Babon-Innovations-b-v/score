@@ -6,7 +6,7 @@
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
     .venv/bin/python -m score plan <environment> [--place P ...] [--stage S ...] [--rebuy-reason R] [--jobs N] --json
     .venv/bin/python -m score spend --json            # this month's spend, open reservations and the ceiling
-    .venv/bin/python -m score spend --read-back       # the month's cloud bill read back into the books (#13)
+    .venv/bin/python -m score spend --read-back       # the month's Scaleway and Google bills read back into the books (#13)
     .venv/bin/python -m score spend --google-month EUR   # the owner's own: Google's month before its ledger began again
     .venv/bin/python -m score price <environment> --node N [--node N ...] --json   # each paid node's likely and high price
     .venv/bin/python -m score moved [--pre-push]      # the paid rows this tree would buy again, every environment
@@ -18,8 +18,9 @@ and the re-buy refusal (the dashboard's launch basket reads it, score/dashboard)
 (`price`: likely and high euros and minutes) are `price`'s numbers, so the basket and the clearance read the same.
 `spend` reads the month's spend as the runner's clearance counts it, and its `paid_refused` says why paid work is
 refused while the month's books are unknown (tools/props/cloud/ledger.py books_refusal; both ledgers were lost on
-2026-10-19): `--read-back` writes the provider's bill into the books as `lost`, and the owner's `--google-month`
-(refused in an agent's process) makes them `known`. `price` gives each paid node its likely and high euros and minutes and the cards
+2026-10-19): `--read-back` writes the Scaleway bill and Google's (its billing export, SCORE_GOOGLE_BILLING_TABLE)
+into the books, `known` once Google's was read, and the owner's `--google-month` (refused in an agent's process)
+overrides the Google figure and makes them `known`. `price` gives each paid node its likely and high euros and minutes and the cards
 its run is sized on, from the stage's measured runs in the cloud ledger (the numbers its clearance reserves), else
 its estimate (the cockpit prices a fix branch's moved paid rows with it).
 
@@ -142,7 +143,7 @@ def parse(argv):
     spend.add_argument("--world", default="world1", metavar="ENVIRONMENT",
                        help="the environment whose stop line and spend since it are read (its id, world1)")
     spend.add_argument("--read-back", action="store_true",
-                       help="read the month's cloud bill back into the books (read-only at the provider)")
+                       help="read the month's Scaleway and Google bills back into the books (read-only)")
     spend.add_argument("--google-month", type=float, metavar="EUR",
                        help="the owner's figure: what Google billed this month before its ledger began again")
     price = commands.add_parser("price")

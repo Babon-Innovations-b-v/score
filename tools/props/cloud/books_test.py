@@ -18,6 +18,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 import batch  # noqa: E402
+import google_bill  # noqa: E402
 import google_spend  # noqa: E402
 import ledger  # noqa: E402
 import provider  # noqa: E402
@@ -25,6 +26,7 @@ from score.adapters import compute  # noqa: E402
 from score.store import Store  # noqa: E402
 
 compute.cloud_bill = lambda: 0.0  # no cloud: the provider's bill is never read here
+os.environ.pop(google_bill.TABLE, None)  # nor Google's: no billing export table is set (google_bill_set is false)
 OFFER = provider.Offer(0.01, 0, "L4", "zone-a", 0.01, "gpu-24gb", 0, "available")
 # A store whose ticket names a yes, so require_cleared reaches its books check (no owner area is written).
 NAMED = types.SimpleNamespace(clearances=lambda node, key: [], spend_yes=lambda node, key: {"euros": 1.0})
@@ -180,16 +182,87 @@ def test_the_runners_ssh_key_is_never_made_here():
     assert ran == [] and not (folder / "ssh_key").exists()
 
 
-def test_the_bill_read_back_leaves_the_books_lost_and_paid_work_refused():
-    """The Google month cannot be read back, so a read-back alone never opens paid work (`score spend --read-back`)."""
-    fresh_books([cloud_line(last_month())], [google_line(last_month())])
-    kept, compute.cloud_bill = compute.cloud_bill, lambda: 1234.5
+def unread_google_bill():
+    raise google_bill.Unread("gcp_billing_export_v1_* does not match any table")
+
+
+def read_back_with(google):
+    """compute.read_back_books with the Scaleway bill at EUR 1234.5 and `google` as the Google bill's reader."""
+    kept = compute.cloud_bill, compute.google_bill
+    compute.cloud_bill, compute.google_bill = lambda: 1234.5, google
     try:
-        books = compute.read_back_books()
+        return compute.read_back_books()
     finally:
-        compute.cloud_bill = kept
+        compute.cloud_bill, compute.google_bill = kept
+
+
+def test_a_read_back_without_googles_bill_leaves_the_books_lost_and_says_why():
+    """No billing export table yet: the read-back alone never opens paid work, and the refusal says why."""
+    fresh_books([cloud_line(last_month())], [google_line(last_month())])
+    books = read_back_with(unread_google_bill)
     assert (books["state"], books["bill"], books["vat_in_bill"]) == ("lost", 1234.5, "unknown"), books
-    assert all(refusals().values())
+    said = refusals()
+    assert all(said.values()) and "does not match any table" in said["month"], said
+
+
+def test_a_read_back_of_both_bills_makes_the_books_known():
+    fresh_books(google_lines=[google_line(ledger.this_month(), 20.0)])
+    books = read_back_with(lambda: 321.456)
+    assert (books["state"], books["google_bill"], books["google_unread"]) == ("known", 321.46, None), books
+    assert "google billing export" in books["source"], books
+    assert compute.google_month() == 321.46  # the higher of the bill and the Google ledger's EUR 20
+    assert refusals() == {"month": None, "cleared": None}
+
+
+def test_the_month_check_reads_both_bills_back_when_an_export_is_set():
+    """The runner's month check (month_refusal) reads the books back itself, so lost books open once Google's bill
+    reads, with no figure typed by anyone."""
+    fresh_books(books={"month": ledger.this_month(), "state": "lost"})
+    kept = compute.google_bill_set, compute.google_bill
+    compute.google_bill_set, compute.google_bill = (lambda: True), (lambda: 99.0)
+    try:
+        assert compute.month_refusal(1.0) is None
+    finally:
+        compute.google_bill_set, compute.google_bill = kept
+    assert (ledger.read_books()["state"], ledger.read_books()["google_bill"]) == ("known", 99.0)
+
+
+def test_the_owners_google_figure_overrides_the_bill_read():
+    fresh_books(google_lines=[google_line(ledger.this_month(), 20.0)],
+                books={"month": ledger.this_month(), "state": "known", "google_before": 400.0})
+    books = read_back_with(lambda: 50.0)
+    assert (books["state"], books["google_before"], books["google_bill"]) == ("known", 400.0, 50.0), books
+    assert compute.google_month() == 420.0
+
+
+def test_a_failed_read_back_keeps_a_known_month():
+    fresh_books(books={"month": ledger.this_month(), "state": "known", "google_bill": 80.0})
+    books = read_back_with(unread_google_bill)
+    assert (books["state"], books["google_bill"]) == ("known", 80.0), books
+
+
+def test_the_billing_export_rows_give_the_months_euros_or_say_why_not():
+    assert "invoice.month = '202610'" in google_bill.month_query("p.d.gcp_billing_export_v1_*", "2026-10")
+    assert google_bill.euros_of([{"currency": "EUR", "euros": "12.5", "lines": "3"}], "2026-10") == 12.5
+    for rows, said in (([], "no rows"), ([{"currency": "USD", "euros": "1"}], "not EUR")):
+        try:
+            google_bill.euros_of(rows, "2026-10")
+            raise AssertionError(f"read {rows}")
+        except google_bill.Unread as unread:
+            assert said in str(unread), unread
+
+
+def test_no_billing_export_table_set_is_unread():
+    kept = os.environ.pop(google_bill.TABLE, None)
+    google_bill.SETTINGS = pathlib.Path(tempfile.mkdtemp()) / "google-billing-table"
+    try:
+        google_bill.month_euros("2026-10")
+        raise AssertionError("read a bill with no table set")
+    except google_bill.Unread as unread:
+        assert google_bill.TABLE in str(unread), unread
+    finally:
+        if kept is not None:
+            os.environ[google_bill.TABLE] = kept
 
 
 def test_a_read_back_keeps_the_owners_known_month():

@@ -99,15 +99,42 @@ def cloud_bill():
     return provider.cloud.month_spend(provider.cloud.account())
 
 
-def month_spent():
-    """What this month has cost so far, in euros: the cloud's (the higher of its own bill, which lags by hours, and the
-    cloud ledger, which counts a batch once it ends) plus the Google ledger's (tools/props/cloud/google_spend.py),
-    calls still going or lost included, and what Google billed before its ledger began again (the books'
-    `google_before`, the owner's figure after a loss)."""
+def google_bill():
+    """What Google has billed this month so far (cost plus credits, EUR), read from its billing export
+    (tools/props/cloud/google_bill.py); google_bill.Unread when it cannot be read."""
+    books = ledger()  # puts tools/props/cloud on the path
+    import google_bill as export
+
+    return export.month_euros(books.this_month())
+
+
+def google_bill_set():
+    """True when a Google billing export table is set (google_bill.table), so the books can read Google's bill."""
+    ledger()
+    import google_bill as export
+
+    return export.table() is not None
+
+
+def google_month():
+    """What Google cost this month, in euros: with the owner's figure in the books (`google_before`, an override)
+    that figure plus the Google ledger's month (tools/props/cloud/google_spend.py, calls still going or lost
+    included), else the higher of the Google bill the books last read (`google_bill`, lagging by hours) and the
+    Google ledger's month."""
     books = ledger()
     import google_spend  # beside ledger.py; its month counts a call started and never finished at its estimate
+    logged = google_spend.month_euros(books.this_month())
+    if books.this_months_books().get("google_before") is not None:
+        return logged + books.google_before()
+    return max(logged, books.this_months_books().get("google_bill") or 0.0)
+
+
+def month_spent():
+    """What this month has cost so far, in euros: the cloud's (the higher of its own bill, which lags by hours, and the
+    cloud ledger, which counts a batch once it ends) plus Google's (google_month)."""
+    books = ledger()
     cloud = max(cloud_bill(), books.month_total(books.this_month(), books.entries()))
-    return cloud + google_spend.month_euros(books.this_month()) + books.google_before()
+    return cloud + google_month()
 
 
 def month_refusal(euros, reserved=0.0):
@@ -117,9 +144,12 @@ def month_refusal(euros, reserved=0.0):
     (tools/props/cloud/google_spend.py), calls still going or lost included. Fault (2026-10-12): the bill held EUR
     1,554 for October and the ledger EUR 1,387; disks, addresses and storage were never in the ledger. Refused
     outright, before the bill is read, in a process that runs free only (ledger.FreeOnly) and while the month's books
-    are not known (ledger.books_refusal: both ledgers were lost on 2026-10-19, and a missing ledger read as EUR 0)."""
+    are not known (ledger.books_refusal: both ledgers were lost on 2026-10-19, and a missing ledger read as EUR 0). With
+    a Google billing export set, both bills are read back into the books first (read_back_books)."""
     books = ledger()
     books.refuse_free_only("a paid run")
+    if google_bill_set():
+        read_back_books()
     unknown = books.books_refusal()
     if unknown:
         return unknown
@@ -313,29 +343,45 @@ def run_price(node, euros, store=None, units=None, guess_from=None):
 def books_now():
     """The month's spend as it stands, each book apart: {month, bill, ledger, google}."""
     books = ledger()
-    import google_spend
     month = books.this_month()
     return {"month": month, "bill": cloud_bill(), "ledger": books.month_total(month, books.entries()),
-            "google": google_spend.month_euros(month) + books.google_before()}
+            "google": google_month()}
+
+
+def read_google_bill():
+    """This month's Google bill as the books hold it: {google_bill, google_bill_at, google_unread: None}, or
+    {google_unread: why} when its billing export cannot be read (google_bill.Unread)."""
+    ledger()
+    import google_bill as export
+
+    try:
+        euros = google_bill()
+    except export.Unread as unread:
+        return {"google_unread": str(unread)}
+    return {"google_bill": round(euros, 2), "google_bill_at": graph.now(), "google_unread": None}
 
 
 def read_back_books():
-    """Read the month's cloud bill back from the provider (read-only) into the books; the books. Books already known
-    for this month keep their state and the owner's Google figure; else they are `lost`, which refuses paid work
-    (ledger.books_refusal): the Google month cannot be read back. Whether the bill holds VAT is not known
-    (SCORE_BILL_FACTOR is unsettled)."""
+    """Read the month's cloud bill and Google bill back (read-only) into the books; the books. They are `known` when
+    Google's bill was read (its billing export, read_google_bill); else they keep the state they had for this month,
+    `lost` when none, which refuses paid work (ledger.books_refusal) with the reason it was not read. The owner's
+    Google figure (`google_before`) stays and overrides the bill read (google_month). Whether the Scaleway bill holds
+    VAT is not known (SCORE_BILL_FACTOR is unsettled)."""
     books = ledger()
     month = books.this_month()
     held = books.this_months_books()
-    read = {**held, "month": month, "state": held.get("state", "lost"), "bill": round(cloud_bill(), 2),
-            "bill_at": graph.now(), "source": "scaleway consumption", "vat_in_bill": "unknown"}
+    google = read_google_bill()
+    state = "known" if google["google_unread"] is None else held.get("state", "lost")
+    source = "scaleway consumption" + ("" if google["google_unread"] else " + google billing export (bigquery)")
+    read = {**held, "month": month, "state": state, "bill": round(cloud_bill(), 2), "bill_at": graph.now(),
+            "source": source, "vat_in_bill": "unknown", **google}
     books.write_books(read)
     return read
 
 
 def owners_google_month(euros):
-    """The owner's figure for what Google billed this month before the Google ledger began again: the books' known
-    state; the books. Refused in a process an agent started (only the owner knows the Google bill) and for a figure
+    """The owner's figure for what Google billed this month before the Google ledger began again, an override of the
+    bill read from Google's billing export (read_back_books): the books' known state; the books. Refused in a process an agent started (only the owner knows the Google bill) and for a figure
     that is not finite and at least 0 (`nan` passed every ceiling, a negative one lowered the month)."""
     if running_under_agent():
         raise Refused("the Google month is the owner's figure: he enters it from his own terminal")

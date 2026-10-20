@@ -31,8 +31,9 @@ ORDER_LINES = ("rent-started", "rent-refused", "order-started")
 # The kind of the line written before a cluster or a node pool is ordered (order_started, from the cluster set-up).
 ORDER_STARTED = "order-started"
 # The month's books as read back after a loss (#13: the ledgers went with the old WSL disk on 2026-10-19):
-# {month, state: "lost" or "known", bill, bill_at, source, google_before}, written by `score spend --read-back` (state
-# lost) and the owner's `score spend --google-month` (state known). Paid work is refused while the month's books are
+# {month, state: "lost" or "known", bill, bill_at, source, google_bill, google_bill_at, google_unread, google_before},
+# written by `score spend --read-back` (known once Google's bill was read from its billing export, google_bill.py) and
+# the owner's `score spend --google-month` (known; his figure overrides the bill read). Paid work is refused while the month's books are
 # not known (books_refusal).
 BOOKS = HOME / "cloud" / "books.json"
 # Set in a process that may spend nothing (the restore of #13): every paid point raises FreeOnly there.
@@ -179,8 +180,9 @@ def google_lines():
 
 
 def books_refusal():
-    """Why the month's spend is not known, or None when it is. Known means the books for this month say so (the
-    owner gave the Google month, `score spend --google-month`), or, with no books for this month, the cloud ledger
+    """Why the month's spend is not known, or None when it is. Known means the books for this month say so (Google's
+    bill was read from its billing export by `score spend --read-back`, or the owner gave the Google month,
+    `score spend --google-month`), or, with no books for this month, the cloud ledger
     and the Google ledger each hold a line from before the month began: each was written without a break since then.
     A ledger lost and begun again (a refusal line written after the loss) holds no such line, so it stays refused
     until the owner's figure or the next month (fault, 2026-10-19: both ledgers were lost with the disk, and a missing
@@ -193,13 +195,15 @@ def books_refusal():
                     f"paid work is refused until the owner gives it again (score spend --google-month EUR)")
         if books.get("state") == "known":
             return None
-        return (f"the month's books are {books.get('state', 'unknown')} ({BOOKS}): paid work is refused until the "
-                f"owner gives the Google month (score spend --google-month EUR) or the month ends")
+        unread = f" (Google's bill was not read: {books['google_unread']})" if books.get("google_unread") else ""
+        return (f"the month's books are {books.get('state', 'unknown')} ({BOOKS}){unread}: paid work is refused until "
+                f"`score spend --read-back` reads Google's bill from its billing export, the owner gives the Google "
+                f"month (score spend --google-month EUR) or the month ends")
     if written_before(entries(), "started", month) and written_before(google_lines(), "time", month):
         return None
     return (f"the month's spend is unknown: the cloud ledger ({LEDGER}) and the Google ledger do not both run "
-            f"from before {month}; paid work is refused until `score spend --read-back` and the owner's "
-            f"`score spend --google-month EUR`, or the next month")
+            f"from before {month}; paid work is refused until `score spend --read-back` reads both bills (or the "
+            f"owner's `score spend --google-month EUR`), or the next month")
 
 
 def google_before():

@@ -45,9 +45,15 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   would pass one is refused before anything is rented; raising one is the owner's call.
 - **Nothing paid runs while the month's books are unknown** (#13, after the old WSL disk took both ledgers and the
   runner's keys, 2026-10-19): `ledger.books_refusal` gives a reason unless `cloud/books.json` says this month is
-  `known` (the owner's `score spend --google-month EUR`), or the cloud ledger and the Google ledger each hold a line
-  from before the month began; a ledger begun again after a loss (a refused rent's line) holds none, so it stays
-  refused until the owner's figure or the next month. `compute.month_refusal`, `compute.require_cleared` (so
+  `known`, or the cloud ledger and the Google ledger each hold a line from before the month began; a ledger begun
+  again after a loss (a refused rent's line) holds none, so it stays refused until the books are known or the next
+  month. `score spend --read-back` (and the runner's month check, `compute.month_refusal`, whenever an export is set)
+  reads both bills, read-only: Scaleway's consumption and Google's from Cloud Billing's standard usage cost export in
+  BigQuery (`google_bill.py`, the bq CLI; cost plus credits in EUR for this invoice month), and makes the books
+  `known` once Google's was read; the Google month is then the higher of that bill and the Google ledger. The table
+  is named by SCORE_GOOGLE_BILLING_TABLE, else one line in `cloud/google-billing-table`, never in this repo; an
+  unset, missing or empty table leaves the books as they were and the refusal says why. The owner's `score spend
+  --google-month EUR` (his terminal only) stays an override. `compute.month_refusal`, `compute.require_cleared` (so
   `batch.rent`, `park`, the cluster and every Google and World Labs caller) and `compute.submit` ask it before anything
   is ordered; `google_spend.py` and `tools/cloud/runtime/submit.py` are left alone, as one is in the surface rows' code
   version and the other in every job image's tag. Under SCORE_FREE_ONLY=1 the same points raise `ledger.FreeOnly`.
