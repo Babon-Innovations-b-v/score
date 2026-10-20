@@ -236,8 +236,7 @@ def floor_wording(place, floor):
     that view or None)."""
     plan = json.loads(floor.read_text())
     rooms = [room["name"] for room in plan.get("rooms", [])]
-    words = [f"One concept painting of the whole {place} seen from outside, standing on the ground, a wide landscape "
-             f"view. It is {plan['length']:g} m long: large enough to hold, on one deck inside, {', '.join(rooms)}, "
+    words = [f"One concept painting of the whole {place} seen from outside. It is {plan['length']:g} m long: large enough to hold, on one deck inside, {', '.join(rooms)}, "
              "and a walkway joining them. Show its true size: people and a vehicle on the ground beside it, small "
              "against it."]
     views = json.loads((DATA / "definitions/concept_views.json").read_text())["views"]
@@ -345,9 +344,26 @@ def shell_wording(place):
     its whole outside from a wide high view, its own look and plan where it has them, every inside place at its size
     joined as laid out, the parts of its outside, people for scale."""
     return " ".join(filter(None, [
-        f"One concept painting of the whole {place} seen from outside, a wide high landscape view with every part of "
-        "it in view.", *described(place), holding_words(place), parts_words(place),
-        "People on the ground beside it for scale; no text, no labels."]))
+        f"One concept painting of the whole {place} seen from outside.", *described(place), holding_words(place), parts_words(place),
+        "People on the ground beside it for scale."]))
+
+
+OUTSIDE_VIEW = ("Viewpoint: a high three-quarter view from one corner, looking down about 35 to 45 degrees, so its "
+                "footprint, its roofs and two of its sides show; the whole place in frame with a small margin, its "
+                "surroundings only at the edges; a long lens with little perspective distortion, so sizes compare "
+                "honestly; clear, readable light within the place's own mood.")
+INSIDE_VIEW = ("Viewpoint: a cutaway, the roof and the near walls removed, seen from a high three-quarter view from one "
+               "corner looking down about 35 to 45 degrees, so the whole floor and every remaining wall can be read; "
+               "a long lens with little perspective distortion; clear, readable light within the place's own mood.")
+EVERY_DRAW = "One picture, 16:9, no text and no labels; people in view for scale."
+
+
+def framing(place):
+    """The fixed viewpoint every concept of `place` is drawn from (the owner, 2026-10-20): an outside place (one that
+    sits in nothing, or holds inside places of its own) from a high three-quarter view, an inside place as a cutaway
+    from the same view; then what every draw shares."""
+    inside = place in tree()["within"] and not holds_inside(place)
+    return f"{INSIDE_VIEW if inside else OUTSIDE_VIEW} {EVERY_DRAW}"
 
 
 def first_wording(place):
@@ -362,12 +378,12 @@ def first_wording(place):
     else:
         wording = view["wording"] if view else from_data(place)
     if view is None:
-        return " ".join(part for part in (wording, style()) if part), None
+        return " ".join(part for part in (wording, framing(place), style()) if part), None
     reference = resolved(view["reference"])
     if not reference.is_file():
         raise Refused(f"its reference {view['reference']} is not on this machine (the private bucket's references/, "
                       f"copied to {PROPS_HOME / 'references'})")
-    return " ".join(part for part in (wording, style()) if part), reference
+    return " ".join(part for part in (wording, framing(place), style()) if part), reference
 
 
 def redraw_wording(marks, note):
