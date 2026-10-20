@@ -9,8 +9,10 @@ the export as a list of {path: sha256}; the hosted side builds it from hard link
     PUT  /api/sync/blobs/{sha}?offset=N&size=S   one gzip chunk of the file, at offset N of its S bytes
     POST /api/sync/commit           {name: <made_at, no colons>, files: {path: sha256}}: swapped in whole, or 409
                                     when its manifest's format is not one this side reads (state/versions.py)
-    GET  /api/sync/requests?state=waiting
+    GET  /api/sync/requests?state=waiting[&kind=a,b][&wait=S]   held open up to S seconds until one is there
+    POST /api/sync/requests/{id}/claim   the waiting request taken by its first caller, else 409
     POST /api/sync/requests/{id}    {state: picked_up|running|done|refused, detail, log_tail}
+    PUT  /api/sync/request-files/<sha>-<360|1280>.jpg   a picture a request brought back (a concept draw)
 """
 import hashlib
 import hmac
@@ -37,6 +39,9 @@ SHORTEST_TOKEN = 32
 CHUNK = 4 * 1024 * 1024  # the most one compressed chunk may carry; the client sends 2 MiB of the file a chunk
 SHA = re.compile(r"[0-9a-f]{64}")
 PART_DAYS = 1.0
+LONGEST_WAIT = 30.0
+POLL_SECONDS = 0.5
+REQUEST_FILE = re.compile(r"[0-9a-f]{64}-(360|1280)\.jpg")
 
 
 class Report(BaseModel):
@@ -245,9 +250,50 @@ def commit(body: Commit, allowed=Depends(token_ok)):
     return {"current": name, "swept": gone}
 
 
+def listed(state, kinds):
+    """The requests in `state` (of `kinds` when given), oldest first."""
+    found = SyncRequest.objects.filter(state=state)
+    return [request_out(item) for item in (found.filter(kind__in=kinds) if kinds else found).order_by("created")]
+
+
 @sync.get("/requests")
-def requests(state: str = "waiting", allowed=Depends(token_ok)):
-    return [request_out(item) for item in SyncRequest.objects.filter(state=state).order_by("created")]
+def requests(state: str = "waiting", kind: str = "", wait: float = 0.0, allowed=Depends(token_ok)):
+    """The requests in `state`, of the comma-separated `kind`s when given; with `wait` (seconds, at most
+    LONGEST_WAIT) the answer waits until one is there or the time is up: the store's machine's listener
+    (sync/listen.py) holds one such call open, so an owner's click reaches it within a POLL_SECONDS."""
+    kinds = [name for name in kind.split(",") if name]
+    deadline = time.monotonic() + min(max(wait, 0.0), LONGEST_WAIT)
+    while True:
+        found = listed(state, kinds)
+        if found or time.monotonic() >= deadline:
+            return found
+        time.sleep(POLL_SECONDS)
+
+
+@sync.post("/requests/{request_id}/claim")
+def claim(request_id: int, allowed=Depends(token_ok)):
+    """Take a waiting request for the one caller that asks first (the listener or the sync pass); 409 when it was
+    taken already."""
+    if not SyncRequest.objects.filter(pk=request_id, state="waiting").update(state="picked_up"):
+        raise HTTPException(409, "taken already")
+    return request_out(SyncRequest.objects.get(pk=request_id))
+
+
+@sync.put("/request-files/{name}")
+async def request_file(name: str, request: Request, allowed=Depends(token_ok)):
+    """One picture a request brought back (`<sha>-360.jpg` or `<sha>-1280.jpg`, the sha the source picture's), kept
+    in SCORE_HOME/request-files and served beside the export's (state/exported.py) until the next export holds it."""
+    if not REQUEST_FILE.fullmatch(name):
+        raise HTTPException(400, f"{name[:80]}: not a request's picture")
+    body = await request.body()
+    if len(body) > CHUNK:
+        raise HTTPException(413, "a request's picture is at most 4 MiB")
+    folder = settings.SCORE_HOME / "request-files"
+    folder.mkdir(parents=True, exist_ok=True)
+    partial = folder / f"{name}.partial"
+    partial.write_bytes(body)
+    os.replace(partial, folder / name)
+    return {"kept": name}
 
 
 @sync.post("/requests/{request_id}")

@@ -1,0 +1,25 @@
+{% extends "pages/base.html" %}
+{% block title %}{{ name }}: concept{% endblock %}
+{% block content %}
+<nav class="trail" aria-label="where"><a href="/" data-v>Environment</a> <span class="sep">&rsaquo;</span> <b data-v>{{ name }}</b> <span class="sep">&rsaquo;</span> <span data-v>concept</span>{% if picked %} {% include "pages/c/dot.html" with tone="done" tip="picked: locked for the design" %}{% endif %}</nav>
+<div class="concept-layout" id="concept" data-place="{{ place }}" data-base="{{ shown.picture.sha|default:'' }}" data-euros="{{ euros|default_if_none:'' }}"{% if pending %} data-pending="{{ pending }}"{% endif %}{% if can and not picked %} data-marking{% endif %}>
+  <div class="concept-stage">{% if shown %}<img id="concept-picture" src="{{ shown.picture.url }}" alt="{{ name }}, the concept" draggable="false"><div class="concept-marks" id="concept-marks" title="drag to mark an area to change"></div>{% else %}<div class="concept-none"><span class="ptile-missing" data-v>concept missing</span></div>{% endif %}</div>
+  <aside class="concept-side" aria-label="what to change">
+    {% if can and not picked %}
+    <ol class="concept-notes" id="concept-notes"></ol>
+    <label class="num-label" for="concept-note" data-v>note</label>
+    <textarea id="concept-note" rows="4" title="what to change in the whole picture"></textarea>
+    <div class="concept-actions">
+      <button type="button" class="button primary big" id="concept-draw"{% if euros is None or pending %} disabled{% endif %} title="one direct model call, your click is its spend yes{% if euros is None %}; its price is not measured{% endif %}"><span data-slot="label" data-v>{% if shown %}Redraw{% else %}Draw concept{% endif %}</span> <small data-v>{% if euros is None %}<span class="unknown">unknown</span>{% else %}EUR {{ euros|floatformat:2 }}{% endif %}</small></button>
+      <span class="dot{% if refused %} tone-bad{% endif %}" id="concept-said"{% if refused %} title="{{ refused }}"{% else %} hidden{% endif %}></span>
+    </div>
+    {% if shown %}<button type="button" class="button" id="concept-pick" data-sha="{{ shown.picture.sha }}" title="lock this concept for the design" data-v>Pick</button>{% endif %}
+    {% elif can and picked %}
+    <button type="button" class="button" id="concept-pick" data-sha="" title="unlock it to mark and draw again (until the design is approved)" data-v>Unlock</button>
+    <span class="dot" id="concept-said" hidden></span>
+    {% endif %}
+  </aside>
+</div>
+{% if draws %}<section class="concept-history" aria-label="draws">{% for draw in draws %}<a class="concept-past{% if draw.picture.sha == shown.picture.sha %} shown{% endif %}" href="?draw={{ draw.picture.sha }}" title="{{ draw.at|slice:':16' }}, {{ draw.by }}{% if draw.euros is not None %}, EUR {{ draw.euros|floatformat:2 }}{% endif %}{% if draw.note %}: {{ draw.note }}{% endif %}"><img src="{{ draw.picture.thumb_url }}" alt="" loading="lazy">{% if draw.picture.sha == picked %}{% include "pages/c/dot.html" with tone="done" tip="picked" %}{% endif %}</a>{% endfor %}</section>{% endif %}
+<script src="/static/pages/concept.js"></script>
+{% endblock %}

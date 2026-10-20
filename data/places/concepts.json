@@ -1,5 +1,5 @@
 {
- "about": "Each place's and outside shell's concept picture (#42): `concepts` {node: {sha256, name, from}}, its bytes in the store's blobs, hash-checked against the sha256 its plan or inventory names where one does; `lost` {node: {picture (where its plan names it), sha256 (as its inventory names it, null when none does), why}} the ones not found, which the cockpit shows as \"concept missing\" (the remake's first step redraws them). Read by the cockpit only (score/dashboard/state/local.py), never by a stage.",
+ "about": "Each place's and outside shell's concept picture (#42): `concepts` {node: {sha256, name, from}}, its bytes in the store's blobs, hash-checked against the sha256 its plan or inventory names where one does; `lost` {node: {picture (where its plan names it), sha256 (as its inventory names it, null when none does), why}} the ones not found, which the cockpit shows as \"concept missing\" (the remake's first step redraws them). Read by the cockpit only (score/dashboard/state/local.py), never by a stage; a place's concept review draws (score/review/concepts.py, kept in the store) stand over its entry here: its picked draw, else its newest.",
  "concepts": {},
  "lost": {
   "airlock": {

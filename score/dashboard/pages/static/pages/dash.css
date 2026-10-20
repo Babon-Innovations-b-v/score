@@ -470,6 +470,29 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .ptile-held:has(img) { padding-left: 3px; }
 .ptile-held img { width: 56px; height: 35px; object-fit: cover; border-radius: var(--radius-small); }
 .trail { margin: 0 0 12px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; } .trail .sep { color: var(--faint); }
+.ptile-box { position: relative; }
+.ptile-review { position: absolute; top: 8px; right: 8px; padding: 4px 12px; background: var(--bg); }
+.concept-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+@media (max-width: 860px) { .concept-layout { grid-template-columns: 1fr; } }
+.concept-stage { position: relative; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.concept-stage img { display: block; width: 100%; height: auto; user-select: none; }
+.concept-none { position: relative; aspect-ratio: 16 / 10; }
+.concept-marks { position: absolute; inset: 0; touch-action: none; }
+[data-marking] .concept-marks { cursor: crosshair; }
+.concept-mark { position: absolute; border: 3px solid var(--bad); border-radius: var(--radius-small); }
+.concept-mark::before { content: attr(data-n); position: absolute; top: 2px; left: 4px; padding: 0 6px; border-radius: var(--radius-small); background: var(--bad); color: var(--bg); font-weight: 600; }
+.concept-side { display: flex; flex-direction: column; gap: 10px; }
+.concept-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.concept-notes li { display: flex; gap: 6px; align-items: center; }
+.concept-notes b { flex: none; min-width: 24px; text-align: center; border-radius: var(--radius-small); background: var(--bad); color: var(--bg); }
+.concept-notes input { flex: 1; min-width: 0; }
+.concept-drop { flex: none; padding: 2px 8px; }
+.concept-actions { display: flex; gap: 10px; align-items: center; }
+.concept-history { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; }
+.concept-past { position: relative; display: block; width: 160px; border: 2px solid var(--line); border-radius: var(--radius-small); overflow: hidden; }
+.concept-past.shown { border-color: var(--accent); }
+.concept-past img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.concept-past .dot { position: absolute; top: 6px; right: 6px; }
 .ptile-foot { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
 .ptile-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ptile-gaps { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }

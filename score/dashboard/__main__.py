@@ -4,6 +4,7 @@
     .venv/bin/python -m score.dashboard owner <name>      # the local owner account (from the owner's own terminal)
     .venv/bin/python -m score.dashboard export --out DIR  # the state export, into DIR
     .venv/bin/python -m score.dashboard sync              # store side: push the export, pull and apply requests
+    .venv/bin/python -m score.dashboard listen            # store side: answer the owner's quick requests at once
     .venv/bin/python -m score.dashboard check             # Django's checks of the settings
     .venv/bin/python -m score.dashboard web3d <place>     # a place's fresh 3D web copy (web3d/convert.py), free
     .venv/bin/python -m score.dashboard basket [--place P ...] [--plan-only]  # what a run would buy, its free details
@@ -30,6 +31,7 @@ def parse(argv):
     commands.add_parser("owner").add_argument("name")
     commands.add_parser("export").add_argument("--out", required=True)
     commands.add_parser("sync")
+    commands.add_parser("listen")
     commands.add_parser("check")
     release = commands.add_parser("release", help="move the hosted cockpit's pinned SCORE_COMMIT to a pushed commit")
     install = commands.add_parser("install-sync", help="the sync's systemd user timer (the owner's one command)")
@@ -122,6 +124,20 @@ def sync():
         sys.exit("refused: sync needs SCORE_SYNC_URL and a SCORE_SYNC_TOKEN of 32+ characters")
     migrate()
     print(sync_pass(Remote(settings.SCORE_SYNC_URL, settings.SCORE_SYNC_TOKEN), state.source()))
+
+
+def listen():
+    """Answer the owner's quick requests (a concept draw, a pick) as they come (sync/listen.py), until stopped."""
+    from django.conf import settings
+
+    from score.dashboard import state
+    from score.dashboard.sync import listen as listening
+    from score.dashboard.sync.client import Remote
+    if not settings.SCORE_SYNC_URL or len(settings.SCORE_SYNC_TOKEN) < 32:
+        sys.exit("refused: listen needs SCORE_SYNC_URL and a SCORE_SYNC_TOKEN of 32+ characters")
+    migrate()
+    listening.listen(Remote(settings.SCORE_SYNC_URL, settings.SCORE_SYNC_TOKEN), state.source(),
+                     log=lambda line: print(line, flush=True))
 
 
 def release(options):
@@ -221,6 +237,8 @@ def main(argv=None):
         export(options.out)
     elif options.command == "sync":
         sync()
+    elif options.command == "listen":
+        listen()
     elif options.command == "web3d":
         web3d(options.place, options.store, options.out)
     elif options.command == "basket":

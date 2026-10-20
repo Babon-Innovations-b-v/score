@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, cockpit, library, present, seen
+from score.dashboard.pages import actions, cockpit, concepts, library, present, seen
 from score.dashboard.pages import basket as basket_items
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.proposals import records
@@ -83,6 +83,7 @@ def environment(request):
         tiles = [{**tile, "href": tile["href"] + (f"&kind={kind}" if tile["href"].startswith("/?") else "")}
                  for tile in tiles if tile["gaps"]]
         trail = [{**step, "href": f"{step['href']}&kind={kind}"} for step in trail]
+    tiles = [{**tile, "review": concepts.review_href(world, tile["place"])} for tile in tiles]
     return render(request, "pages/environment.html", {
         "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(world), "trail": trail,
         "kind": kind and {"kind": kind, "label": cockpit.KIND_WORDS[kind][0], "tone": cockpit.KIND_TONES[kind]},

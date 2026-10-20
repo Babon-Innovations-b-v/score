@@ -217,6 +217,10 @@ def build(source, out, made_at, cap_mb, spend, repo):
         bundles.append(bundle)
     for concept in world.concepts.values():  # the tiles' pictures, small, before anything else
         filler.picture(source.file(concept.sha)[1], concept.sha, THUMB_SIDE, f"concept {concept.name}")
+    drawn = [draw.picture for draws in world.concept_draws.values() for draw in reversed(draws)]
+    for side in (THUMB_SIDE, HERO_SIDE):  # the concept review's draws, newest first, its history then its page
+        for picture in drawn:
+            filler.picture(source.file(picture.sha)[1], picture.sha, side, f"concept draw {picture.name}")
     for hero in heroes(world):
         filler.picture(source.file(hero.sha)[1], hero.sha, HERO_SIDE, f"picture {hero.name}")
     proposals.in_export(source.home / "proposals", filler, wholes=False)  # the basket's items, pictures and all

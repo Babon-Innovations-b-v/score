@@ -27,9 +27,15 @@ def in_todays_words(value):
 class ExportedSource:
     name = "export"
 
-    def __init__(self, folder):
+    def __init__(self, folder, results=None):
+        """The export in `folder`; `results` the folder of the pictures the owner's requests brought back since
+        (a concept review's draws, sync/endpoints.py), served beside the export's own."""
         self.folder = pathlib.Path(folder)
+        self.results = pathlib.Path(results) if results else None
         self.cache = {}
+
+    def picture_folders(self):
+        return [self.folder / "files"] + ([self.results] if self.results else [])
 
     def manifest(self):
         path = self.folder / "manifest.json"
@@ -97,10 +103,10 @@ class ExportedSource:
         """(name, path) of an exported file: a film, else the largest picture of it."""
         if not SHA.match(sha or ""):
             return None
-        for name in (f"{sha}.mp4", f"{sha}-{HERO_SIDE}.jpg", f"{sha}-{THUMB_SIDE}.jpg"):
-            path = self.folder / "files" / name
-            if path.is_file():
-                return name, path
+        for folder in self.picture_folders():
+            for name in (f"{sha}.mp4", f"{sha}-{HERO_SIDE}.jpg", f"{sha}-{THUMB_SIDE}.jpg"):
+                if (folder / name).is_file():
+                    return name, folder / name
         return None
 
     def web3d_file(self, place, name):
@@ -111,10 +117,10 @@ class ExportedSource:
     def thumb_path(self, sha):
         if not SHA.match(sha or ""):
             return None
-        for side in (THUMB_SIDE, HERO_SIDE):
-            path = self.folder / "files" / f"{sha}-{side}.jpg"
-            if path.is_file():
-                return path
+        for folder in self.picture_folders():
+            for side in (THUMB_SIDE, HERO_SIDE):
+                if (folder / f"{sha}-{side}.jpg").is_file():
+                    return folder / f"{sha}-{side}.jpg"
         return None
 
     def web3d(self, place):

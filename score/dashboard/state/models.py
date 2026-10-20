@@ -194,6 +194,26 @@ class WorldState(BaseModel):
     within: dict[str, str] = {}  # {place or shell: the outside place or shell it sits within} (data/places/within.json)
     shells: dict[str, str] = {}  # {outside shell that is no place of its own: its short name}
     concepts: dict[str, FileRef] = {}  # {place or shell: its concept picture} (data/places/concepts.json); absent: lost
+    # The concept review's (score/review/concepts.py): each place's draws oldest first, the draw picked (locked) for
+    # it, and the euros of one draw (None: not measured).
+    concept_draws: dict[str, list["ConceptDraw"]] = {}
+    concept_picked: dict[str, str] = {}
+    concept_draw_euros: float | None = None
+
+
+class ConceptDraw(BaseModel):
+    """One draw of a place's concept: its picture, when and by whom, what it cost, the draw it redrew (None: a first
+    draw) and the marks ({x, y, w, h, note}, shares of the picture) and note it was asked with."""
+    picture: FileRef
+    at: str
+    by: str
+    euros: float | None = None
+    base: str | None = None
+    marks: list[dict] = []
+    note: str = ""
+
+
+WorldState.model_rebuild()
 
 
 class GateVerdict(BaseModel):

@@ -1,0 +1,23 @@
+# TEMPLATE: the listener's systemd user service on the store's machine (sync/listen.py): the owner's quick requests
+# (a concept review's draw or pick) answered within a second of his click instead of at the next sync pass. Never
+# copied by hand: `python -m score.dashboard install-sync` (sync/timer.py) fills in the three <slots>, writes it to
+# ~/.config/systemd/user/score-listen.service beside the sync's units and starts it; requests are applied only in his
+# own process, never an agent's.
+#
+# It reads the sync token the way the sync pass does: by its name from the owner's secret manager, inline, into this
+# one process's environment, never into a file. It holds one call open to the hosted side at a time (the store's
+# machine calls out; nothing calls in), and starts again every hour so it runs the code the sync pass pulled.
+[Unit]
+Description=SCORE dashboard listener: answer the owner's concept draws and picks as they come
+
+[Service]
+Type=simple
+WorkingDirectory=<path to the score repository>
+EnvironmentFile=<path to the env file kept outside the repo>
+ExecStart=/bin/sh -c 'SCORE_SYNC_TOKEN="$$("$$SCORE_SECRET_READER" "<the sync token's name in your secret manager>")" && [ -n "$$SCORE_SYNC_TOKEN" ] && export SCORE_SYNC_TOKEN && exec "<path to the score repository>/.venv/bin/python" -m score.dashboard listen'
+Restart=always
+RestartSec=10
+RuntimeMaxSec=3600
+
+[Install]
+WantedBy=default.target

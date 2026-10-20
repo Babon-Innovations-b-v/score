@@ -79,8 +79,28 @@ class Remote:
                 raise
             raise Refused(json.loads(answer.read() or b"{}").get("detail", f"refused ({answer.code})")) from answer
 
-    def waiting(self):
-        return self.call("GET", "/requests?state=waiting")
+    def waiting(self, kinds=(), wait=0):
+        """The waiting requests (of `kinds` when given); with `wait` the hosted side holds the call open up to that
+        many seconds until one is there."""
+        query = "".join([f"&kind={','.join(kinds)}" if kinds else "", f"&wait={wait}" if wait else ""])
+        return self.call("GET", f"/requests?state=waiting{query}")
+
+    def claim(self, request_id):
+        """True when this caller took the waiting request, False when another took it first; a hosted side from
+        before the claim (404) is told picked_up instead."""
+        try:
+            self.call("POST", f"/requests/{request_id}/claim")
+        except urllib.error.HTTPError as answer:
+            if answer.code == 409:
+                return False
+            if answer.code != 404:
+                raise
+            self.report(request_id, "picked_up")
+        return True
+
+    def put_request_file(self, name, data):
+        """One picture a request brought back, `<sha>-<side>.jpg`."""
+        return self.call("PUT", f"/request-files/{name}", data, "image/jpeg")
 
     def report(self, request_id, state, detail="", log_tail=""):
         return self.call("POST", f"/requests/{request_id}", json.dumps(
@@ -191,13 +211,25 @@ def keep_tracked(found):
     path.write_text(json.dumps(found, indent=1))
 
 
+def answered(remote, item, source, chosen=None):
+    """Claim one waiting request, apply it, send back the pictures it brought and report it; the Applied, or None
+    when another caller (the listener, sync/listen.py, or a pass) took it first."""
+    if not remote.claim(item["id"]):
+        return None
+    applied = applying.apply(item, source, chosen)
+    for name, path in applied.files.items():
+        remote.put_request_file(name, pathlib.Path(path).read_bytes())
+    remote.report(item["id"], applied.state, applied.detail, applied.log_tail)
+    return applied
+
+
 def apply_waiting(remote, source, chosen):
     """Pick up, apply and report each waiting request; [(id, state)]."""
     done, following = [], tracked()
     for item in remote.waiting():
-        remote.report(item["id"], "picked_up")
-        applied = applying.apply(item, source, chosen)
-        remote.report(item["id"], applied.state, applied.detail, applied.log_tail)
+        applied = answered(remote, item, source, chosen)
+        if applied is None:
+            continue
         if applied.launch_id:
             following[str(item["id"])] = applied.launch_id
         done.append((item["id"], applied.state))

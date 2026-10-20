@@ -12,7 +12,8 @@ names). The unit runs as the owner, with his HOME, so the reader finds his own c
 It refuses before writing anything: an env file without SCORE_SYNC_URL or an executable SCORE_SECRET_READER, and a
 cockpit that cannot read this checkout's export (the host's pinned SCORE_COMMIT on its origin/main runs another
 score/dashboard than this checkout's: release first). Then it writes both units under ~/.config/systemd/user, reloads
-the user manager and enables the timer; it prints what it did.
+the user manager, enables the timer and starts the listener (score-listen.service, sync/listen.py: the owner's
+quick requests answered as they come); it prints what it did.
 """
 import os
 import pathlib
@@ -22,7 +23,8 @@ from score.dashboard.sync.client import git
 from score.dashboard.sync.release import Refused, inside, pinned, ran
 
 DEPLOY = pathlib.Path(__file__).resolve().parents[1] / "deploy"
-UNITS = ("score-sync.service", "score-sync.timer")
+UNITS = ("score-sync.service", "score-sync.timer", "score-listen.service")
+STARTED = ("score-sync.timer", "score-listen.service")  # the timer, and the listener (sync/listen.py)
 SECRET = "score-cockpit-sync-token"  # the token's name in the owner's secret manager
 REPO_SLOT, ENV_SLOT, SECRET_SLOT = ("<path to the score repository>", "<path to the env file kept outside the repo>",
                                     "<the sync token's name in your secret manager>")
@@ -100,11 +102,12 @@ def install(repo, env_file, host, dockerfile, secret=SECRET, systemctl=None):
         (folder / name).write_text(unit_text(name, pathlib.Path(repo).resolve(), pathlib.Path(env_file).resolve(),
                                               secret))
     run = systemctl or user_manager
-    for args in (("daemon-reload",), ("enable", "--now", UNITS[1])):
+    for args in (("daemon-reload",), ("enable", "--now", *STARTED), ("restart", STARTED[1])):
         failed = run(*args)
         if failed:
             raise Refused(f"the units are written to {folder}, but systemctl --user {' '.join(args)} failed: {failed}; "
                           f"on WSL turn systemd on and run `loginctl enable-linger`, then install again")
-    return (f"install-sync: {', '.join(UNITS)} written to {folder}; the timer is enabled (systemctl --user list-timers "
+    return (f"install-sync: {', '.join(UNITS)} written to {folder}; the timer is enabled and the listener runs "
+            f"(journalctl --user -u score-listen.service); (systemctl --user list-timers "
             f"score-sync.timer); each pass reads the token {secret} by name and logs to journalctl --user -u "
             f"score-sync.service")
