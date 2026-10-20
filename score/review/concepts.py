@@ -41,7 +41,9 @@ and openings from its plan's leads and that it has no others, its size against t
 words, the places listed inside it (data/places/within.json) and how they join, the place it sits within as context,
 the pictures sent with it named in order, the fixed viewpoint, people only where its data has them (`has_people`) and
 the environment's style
-(data/definitions/concept_views.json `style`). A place within another is sent first a crop of that one's picked concept
+(its locked environment concept's, else data/definitions/concept_views.json `style`; its references the same way; a
+draw and a pick record the environment concept's version they were made under, one under another is out of date, and
+none is made while it is unlocked: score/review/environment_concept.py). A place within another is sent first a crop of that one's picked concept
 to the scene inventory row its plan says holds it ("the inside of what this crop shows": the ship for its rooms, the
 block for the flat), never the whole scene; the design steps are strict, in one place (`step_refusal`, owner
 2026-10-21): it is drawn or picked only once the layer above is picked (the pick is the approval), its inventory read,
@@ -141,9 +143,17 @@ def draws(store, place):
 
 
 def picked(store, place):
-    """The sha of the draw picked for `place`, or None while none is (never picked, or unlocked again)."""
+    """The sha of the draw picked for `place`, or None while none is (never picked, unlocked again, or picked under
+    another version of the environment concept: out of date)."""
     found = records(store, place, "picks")
-    return found[-1]["sha"] if found else None
+    return found[-1]["sha"] if found and found[-1].get("environment") == environment().version(store) else None
+
+
+def environment():
+    """score/review/environment_concept.py (CONTEXT.md "environment concept"), which every draw reads; imported here
+    because it reads this module."""
+    from score.review import environment_concept
+    return environment_concept
 
 
 def inventory_read(place, folder=DATA / "inventory"):
@@ -180,9 +190,9 @@ def current_draw(store, place, wording):
     a Redraw with notes' corrected prompt among them), on the picks it is sent now (the layer above's and its joined
     places'); a draw from an older wording or pick (its data, the draw rules, his wording or one of those picks
     changed since) does not count, so Draw all draws it again."""
-    sent = sent_picks(store, place)
+    sent, version = sent_picks(store, place), environment().version(store)
     return any(str(draw.get("wording", "")).startswith(wording) and (draw.get("picks") or {}) == sent
-               for draw in draws(store, place))
+               and draw.get("environment") == version for draw in draws(store, place))
 
 
 def placed(store):
@@ -197,7 +207,10 @@ def pick(store, place, sha, by):
         raise Refused(f"{sha[:12]} is no draw of {place}")
     if sha is not None and (why := step_refusal(store, place, "pick")):
         raise Refused(f"{place} {why}")
-    record = {"place": place, "sha": sha, "by": by, "at": now()}
+    version = environment().version(store)
+    if sha is not None and next(draw for draw in draws(store, place) if draw["sha"] == sha).get("environment") != version:
+        raise Refused(f"{sha[:12]} was drawn under another environment concept: draw it again")
+    record = {"place": place, "sha": sha, "by": by, "at": now(), "environment": version}
     recorded(store, f"{AREA}/{place}/picks/{stamp_key(record['at'])}.json", record)
     return record
 
@@ -287,10 +300,20 @@ def inputs_of(place):
     return json.loads((DATA / "places/concept_inputs.json").read_text())["places"].get(place, {})
 
 
-def style():
-    """The environment's one style wording (data/definitions/concept_views.json `style`, the owner's), every
-    place's draw shares; empty when none is set."""
-    found = json.loads((DATA / "definitions/concept_views.json").read_text()).get("style", "").strip()
+def references_of(store, place):
+    """[{picture, shows}] of the creator's references sent with `place`'s draw: the locked environment concept's
+    that go with it, else data/places/concept_inputs.json's."""
+    held = environment().in_force(store)
+    if held is None:
+        return inputs_of(place).get("references", [])
+    return [{"picture": ref["picture"], "shows": ref["shows"]} for ref in held["references"] if ref["place"] == place]
+
+
+def style(store):
+    """The environment's one style wording, every place's draw shares: the locked environment concept's style line,
+    else data/definitions/concept_views.json `style` (the owner's); empty when none is set."""
+    held = environment().in_force(store)
+    found = held["style"] if held else environment().style_now()
     return f"Style: {found}" if found else ""
 
 
@@ -511,6 +534,8 @@ def step_refusal(store, place, step):
         return None if picked(store, place) else "its concept is not picked"
     if step == "plan":
         return None if reading.reading_of(store, place) else "its scene inventory is not read"
+    if environment().unlocked(store):
+        return "waits for the environment concept to be locked"
     if holder and not picked(store, holder):
         return f"waits for {holder}'s concept to be picked"
     if holder and not reading.reading_of(store, holder):
@@ -519,7 +544,7 @@ def step_refusal(store, place, step):
         return f"waits for {holder}'s plan to be made"
     if holder and holding_box(store, place) is None:
         return f"waits for {holder}'s plan to outline what holds it"
-    missing = [ref["picture"] for ref in inputs_of(place).get("references", [])
+    missing = [ref["picture"] for ref in references_of(store, place)
                if not resolved(ref["picture"]).is_file()] if step == "draw" else []
     if missing:
         return (f"its reference {missing[0]} is not on this machine (the private bucket's references/, copied to "
@@ -570,7 +595,7 @@ def sent_pictures(store, place):
     found += [(f"{short_name(other)}, picked: match the door they share", other)
               for other in joined(place) if picked(store, other)]
     return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
-                    for ref in inputs_of(place).get("references", [])]
+                    for ref in references_of(store, place)]
 
 
 def has_people(place):
@@ -609,7 +634,7 @@ def generated(store, place):
         f"Concept painting of {short_name(place)}" + (": the inside of what picture 1 shows." if pictures
                                                        and isinstance(pictures[0][1], tuple) else "."),
         floor_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "",
-        holds_and_doors(place), size_words(place), listed if pictures else "", view_words(place), style()) if part)
+        holds_and_doors(place), size_words(place), listed if pictures else "", view_words(place), style(store)) if part)
 
 
 def own_wording(store, place):
@@ -886,6 +911,8 @@ def draw(store, place, request, by, caller=call, offsite=None, reviser=revise):
     (`offsite`: a store with the bucket's calls, None the bucket). `caller(wording, pictures)` makes the PNG bytes."""
     from score.adapters import compute
     yes = compute.require_cleared("a concept draw", store)
+    if environment().unlocked(store):
+        raise Refused("the environment concept is unlocked; lock it first")
     if request.get("base"):
         wording, pictures, fields = redrawn(store, place, request, by, reviser)
     else:
@@ -897,6 +924,7 @@ def draw(store, place, request, by, caller=call, offsite=None, reviser=revise):
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,
               "euros": yes["euros"], "yes": yes["key"], "base": request.get("base") or None,
               "marks": checked_marks(request.get("marks")), "note": str(request.get("note", "")), "wording": wording,
+              "environment": environment().version(store),
               **fields, "calls": [*fields["calls"], {"model": tools()[0].MODEL, "asked": wording, "answered": sha}]}
     record = kept_offsite(png, record, offsite)
     recorded(store, f"{AREA}/{place}/draws/{stamp_key(record['at'])}.json", record)

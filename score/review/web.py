@@ -17,6 +17,12 @@ spend override (a yes for a run outside the runner) stays terminal-only, except 
     web.concept_draw(store, "airlock", {"marks": [...], "note": "", "base": sha}, 0.15, by="joey")
     web.concept_pick(store, "airlock", sha, by="joey")    # sha None: unlocked again
     web.concept_generated(store, "airlock", by="joey")    # his own wording dropped: worded from its data again
+    web.environment_ask(store, "world1", {"topic": "style", "answer": "...", "concept": {...}}, 0.05, by="joey")
+    web.environment_saved(store, "world1", concept, True, by="joey")   # his Save, Lock (True) or Unlock (False)
+    web.environment_reference(store, "world1", png_bytes, "dock.png", "the dock's look", "hangar", by="joey")
+
+`environment_ask` is his Send in the environment concept's set interview (CONTEXT.md "environment concept"): his yes
+for that one model call at the price his Send showed, the same way as a concept draw.
 
 `concept_draw` is his click on a concept review's Draw button (CONTEXT.md "concept review", owner 2026-10-20: the
 click is the spend yes): his yes for exactly that one call at the price the button showed (refused when the measured
@@ -181,3 +187,57 @@ def reading_started(store, place, by, start=None):
                                     env={**os.environ, "SCORE_SPEND_STORE": str(store.cache.parent)}, stdout=out,
                                     stderr=subprocess.STDOUT, start_new_session=True, cwd=str(concepts.REPO))
     return str(log)
+
+
+def environment_ask(store, world, request, euros, by, run=None):
+    """His Send in the environment concept's set interview: his yes for exactly that one model call at `euros` (the
+    price his Send showed; refused when the measured price moved since), then the ask as its own process inside it
+    (score/review/environment_concept.py); the ask's record with the fields it proposes. review.Refused for an empty
+    or the runner's name, a price that moved, or an ask refused (its words); PermissionError in an agent's process."""
+    import json
+    import os
+    import subprocess
+    import sys
+    from score.review import concepts, environment_concept
+    name = checked_by(by)
+    price = environment_concept.ask_euros()
+    if price is None or abs(float(euros) - price) > 0.005:
+        shown = "not measured" if price is None else f"EUR {price:.2f}"
+        raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
+                             "read the page again")
+    key = environment_concept.yes_key(world, review.now())
+    review.spend(store, "override", key, price, name,
+                 purpose=f"environment concept: one interview answer ({request.get('topic')}) for {world}")
+    asked = store.cache / environment_concept.AREA / "asked" / f"{key}.json"
+    asked.parent.mkdir(parents=True, exist_ok=True)
+    asked.write_text(json.dumps(request))
+    env = {**os.environ, "SCORE_SPEND_TICKET": f"override {key}", "SCORE_SPEND_STORE": str(store.cache.parent)}
+    done = (run or subprocess.run)([sys.executable, "-m", "score.review.environment_concept", world, str(asked),
+                                    name], env=env, capture_output=True, text=True, timeout=concepts.TIMEOUT + 60)
+    if done.returncode != 0:
+        raise review.Refused((done.stderr.strip().splitlines() or ["the ask failed"])[-1].removeprefix("refused: "))
+    return json.loads(done.stdout.strip().splitlines()[-1])
+
+
+def environment_saved(store, world, concept, locked, by):
+    """His Save, Lock or Unlock of the environment concept: a new version, locked or not; the record. Unlocking puts
+    every place's concept made under the old version out of date (environment_concept.version). review.Refused for
+    an empty or the runner's name or a concept out of shape; PermissionError in an agent's process."""
+    from score.review import environment_concept
+    name = checked_by(by)
+    try:
+        return environment_concept.saved(store, world, concept, locked, name)
+    except environment_concept.Refused as refused:
+        raise review.Refused(str(refused)) from refused
+
+
+def environment_reference(store, world, data, name, shows, place, by):
+    """His new reference picture: into the private bucket and its local copy, then added to the unlocked environment
+    concept as a new version; the version. review.Refused for an empty or the runner's name, no picture or a locked
+    concept; PermissionError in an agent's process."""
+    from score.review import environment_concept
+    by_name = checked_by(by)
+    try:
+        return environment_concept.referenced(store, world, data, name, shows, place, by_name)
+    except environment_concept.Refused as refused:
+        raise review.Refused(str(refused)) from refused
