@@ -97,15 +97,6 @@ def test_turning_back_twice_turns_once():
         assert np.array_equal(positions(raw), before)
 
 
-def test_the_steps_default_to_the_lock_and_a_run_takes_its_own():
-    parsed = pixal.options_parser().parse_args(["in.png", "crate", "--who", "test"])
-    assert parsed.steps == pixal.STEPS == 12
-    arguments = pixal.generator_arguments("cut.png", "raw.glb", 3)
-    assert arguments[arguments.index("--steps") + 1] == "12"
-    lowered = pixal.generator_arguments("cut.png", "raw.glb", 3, 8)
-    assert lowered[lowered.index("--steps") + 1] == "8" and lowered[lowered.index("--gss") + 1] == str(pixal.GUIDANCE)
-
-
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[2] / "conftest.py"))["refuse_outside_sandbox"]()

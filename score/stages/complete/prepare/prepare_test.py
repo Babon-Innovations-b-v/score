@@ -137,8 +137,7 @@ def test_the_benchmarks_stay_under_their_cap_and_ask_the_months_guard():
     assert "cap" in over["refusal"]
     high = benchmarks.guard([{"euros": 1.0, "high_euros": benchmarks.CAP_EUROS + 1}])  # the high is what counts
     assert "cap" in high["refusal"] and high["total_euros"] == 1.0
-    paid_paths = ("score run", "tools/props/cloud/batch.py")  # the runner's, or the batch tool's under an override
-    assert all(sum(each["command"].count(path) for path in paid_paths) == 1 for each in benchmarks.listed())
+    assert all(each["command"].count("score run") == 1 for each in benchmarks.listed())
 
 
 def test_the_remake_record_counts_every_row_once_and_says_its_one_line():

@@ -22,15 +22,10 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as holes.
 - **Sharing a take across places is the owner's call** (a place's style may differ): `across_places` prices it
   beside the figure, never in it.
-- **Pixal3D's steps stay at the #55 lock until measured and allowed** (`pixal_steps.py`, the owner's ask of
-  2026-10-20). A shape runs at fewer steps only where P2 measured at least `MIN_TAKES` takes sort the same at both
-  settings on the shape check, outline and DINOv2 likeness, judged as the route's check sees them (the model stood
-  upright and levelled, the close-up cut as likeness_row cuts it), and the owner said yes on #55 (`OWNER_YES`); an
-  untold check is never "the same". No take's batch line reads a lower setting until that yes and its wiring land.
-  Never lower another setting that ships (film samples, resolutions) here.
+- **Quality is never a cost lever** (owner, 2026-10-20): never lower a setting that ships (Pixal3D's steps, held at
+  the #55 lock in `tools/props/pixal.py`; film samples; resolutions), and never list a benchmark that would.
 - **Benchmarks are listed, never launched here** (`benchmarks.py`, EUR 20 cap in all, counted on their highs): each
-  through `score run --detach` once its track has landed, P2 through `tools/props/cloud/batch.py` under the owner's
-  override ticket at its high, after `benchmarks.guard()` (the month's guard) has room.
+  through `score run --detach` once its track has landed, after `benchmarks.guard()` (the month's guard) has room.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
   `WORK/checks/prepare/remake.json`. Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python
   score/stages/complete/prepare/prepare_test.py`.
