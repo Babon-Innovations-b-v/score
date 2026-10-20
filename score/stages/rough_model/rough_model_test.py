@@ -2,6 +2,7 @@
 through a stand-in batch and finish (no spend, no model made); its gates on a one-triangle binary glTF; its batch check
 without rows; and the holes it fills. Run: .venv/bin/python -m pytest score/stages/rough_model
 """
+import contextlib
 import hashlib
 import json
 import pathlib
@@ -154,6 +155,27 @@ def test_a_take_brought_back_raw_is_finished_here_not_sent_again(tmp_path, monke
     out.mkdir()
     rough_model.make({"plan": plan_output(tmp_path / "plan", "airlock"), "concept": concept}, out, 1, {})
     assert finished == [(take, "K02.png")] and (out / "rough.glb").exists()
+
+
+def test_the_finish_here_holds_one_of_the_pcs_finish_slots_in_the_batchs_interpreter(tmp_path, monkeypatch):
+    """The finish runs Blender as a batch's does: under batch.finish_slot (the PC's cap across every batch) and in
+    batch.VENV_PYTHON; a stand-in batch and a stand-in run, no Blender."""
+    held, ran = [], []
+
+    @contextlib.contextmanager
+    def finish_slot():
+        held.append("in")
+        yield
+        held.append("out")
+    batch = types.SimpleNamespace(finish_slot=finish_slot, VENV_PYTHON=pathlib.Path("/props/env/bin/python"))
+    monkeypatch.setattr(cloud, "load_batch", lambda: batch)
+
+    def run(command, **options):
+        ran.append((command[0], list(held)))
+        return types.SimpleNamespace(returncode=0)
+    monkeypatch.setattr(rough_model.subprocess, "run", run)
+    rough_model.finish("airlock-rough-0", tmp_path / "K02.png", tmp_path)
+    assert ran == [("/props/env/bin/python", ["in"])] and held == ["in", "out"]
 
 
 def test_the_batch_check_keeps_the_owner_s_approval_without_the_rows():

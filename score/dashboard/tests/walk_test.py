@@ -8,7 +8,7 @@ from html import unescape
 
 import pytest
 
-from score.dashboard.tests.pages_test import (FORECAST, NODE, ROUGH, a_holes_finding, a_holes_price, outside_details,
+from score.dashboard.tests.pages_test import (FORECAST, NODE, PLAN_WORK, a_holes_finding, a_holes_price, outside_details,
                                               signed_in)
 
 pytestmark = pytest.mark.django_db
@@ -40,17 +40,17 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     alpha = re.search(r'<tr>\s*<td data-value="[^"]*"><a href="/place/alpha/">.*?</tr>', places, re.S).group(0)
     cells = re.findall(r'<td class="num"[^>]*>([^<]*)</td>', alpha)
     assert cells[:5] == ["4", "2", "1", "1", "0"], cells  # holes; not made, failing, route steps, lost inputs
-    assert "route steps not done" in alpha and "This place has no rough model" in alpha
+    assert "route steps not done" in alpha and "This place&#x27;s plan is not accepted" in alpha
     assert "2.00" in alpha and "3.00" in alpha and "1.00" in alpha  # likely, high and the guess, apart
     beta = re.search(r'<a href="/place/beta/">.*?</tr>', places, re.S).group(0)
     assert "not checked" in beta or "no holes found" in beta
     first = unescape(section(html, "what to buy first"))
     blockers = re.findall(r"<li><b>(.*?)</b>", re.search(r'<ol class="blockers">.*?</ol>', first, re.S).group(0))
     assert blockers[:2] == ["Set a stop.", "The month's books are not known."], blockers
-    # every hole in a paid chain waits on alpha's rough model: the section says so first, then the code work
+    # every hole in a paid chain waits on alpha's plan: the section says so first, then the code work
     assert first.index("No paid step fills a hole yet.") < first.index('<ol class="code-first">') < first.index(
         '<ol class="blockers">')
-    assert ("<b>A rough-model stage</b>: at 1 place, where 3 holes with a paid chain wait on it "
+    assert ("<b>Door kits: a concept view and a plan</b>: at 1 place, where 3 holes with a paid chain wait on it "
             "(EUR 2.00 to 3.00 measured, EUR 1.00 guessed in those chains)") in first
     assert re.search(r'<details class="fold"><summary>Every paid step \(2\), by how many holes have it in their '
                      r'chain</summary>\s*<ol class="buy-list">', first)  # every step folded, none shown open
@@ -62,7 +62,7 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     # each step by its place's title on the board, never its key
     sound, closeup = buys.index("The sound step of The alpha look"), buys.index("The close-ups step of The alpha look")
     assert sound < closeup
-    # alpha waits on its rough model, a route step: every hole there waits on it first
+    # alpha waits on its plan, a route step: every hole there waits on it first
     assert ('<li id="buy-sound-alpha">The sound step of The alpha look: in the chain of 3 holes at 1 place, all of '
             "them at a place that waits on a lost input or a route step first · EUR 1.00 guessed, not a price · in no "
             "basket item yet") in buys
@@ -71,7 +71,7 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
             "<a href=\"/basket/item/alpha-pieces/\">its basket item</a>") in buys
     assert "unblocks" not in first
     work = section(html, "code work no stage does yet")
-    assert "A rough-model stage</b>: 1 hole at 1 place" in work and ROUGH + " (1 hole)" in work
+    assert "Door kits: a concept view and a plan</b>: 1 hole at 1 place" in work and PLAN_WORK + " (1 hole)" in work
     assert html.index('aria-label="what to buy first"') < html.index('aria-label="code work no stage does yet"')
     total = unescape(section(html, "what every place still needs"))
     # the one figure leads; the measured share alone is never said first as if it were the total
@@ -79,13 +79,11 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     assert total.index("What the runner can price today") < total.index("To fill what the runner can")
     assert ("2 not made yet, 1 made but failing a check, 1 step of the route not done, 0 inputs lost (each once, "
             "however many places read it).") in total  # route steps and lost inputs apart
-    # what the runner prices today, its measured share by its basis; the rough model's paid work named, not priced
+    # what the runner prices today, its measured share by its basis; the plan's code work brings no paid work
     assert ("<b>What the runner can price today: EUR 3.00 to EUR 4.00</b>, of which EUR 2.00 to 3.00 measured by per "
             'unit × forecast (1 of 2 paid steps) and EUR 1.00 <span class="unknown">guessed, not a price</span> '
             "(1 step).") in total
-    assert ('<span class="unknown">Not priced yet</span>: the paid work the code work will bring, which no runner\'s '
-            "price holds: the rough-model stage at 1 place. It holds back 4 holes; no figure above includes "
-            "it.") in total
+    assert "Not priced yet" not in total
     assert "In all, to complete" not in total
     tiles = re.findall(r'<a class="tile-foot" href="/place/(\w+)/">(.*?)</a>', html, re.S)
     alpha_tile = dict(tiles)["alpha"]
@@ -118,7 +116,7 @@ def test_a_place_shows_its_holes_tree_its_groups_and_each_lines_source(cockpit):
     for title in ("Steps of the route not done (1)", "Not made yet (2)", "Made, but failing a check (1)"):
         assert f"<h3>{title}</h3>" in html, title
     assert "If left, the place cannot be complete while a row of its scene inventory has no object." in html
-    for label in ("inventory row lamp", "gate complete/painted", "route step rough-model"):
+    for label in ("inventory row lamp", "gate complete/painted", "route step plan"):
         assert f'<span class="source small">{label}</span>' in html, label
     lamp = re.search(r'<li id="hole-missing:lamp_1" data-anchor="hole-missing:lamp_1">(.*?)</li>', html, re.S).group(1)
     assert 'href="/view/alpha?holes=1&amp;hole=missing%3Alamp_1"' in lamp
@@ -187,7 +185,7 @@ def a_lost_input(world):
 
 def test_a_lost_input_blocks_the_places_reading_it_and_the_prop_data_is_said_apart(cockpit):
     a_lost_input(cockpit)
-    a_holes_price(cockpit, unfillable=[{"work": ROUGH, "holes": 1}, {"work": EARTH, "holes": 1}],
+    a_holes_price(cockpit, unfillable=[{"work": PLAN_WORK, "holes": 1}, {"work": EARTH, "holes": 1}],
                   after_work={"alpha": {"work": PROP_DATA, "holes": 2, "models": 1, "in_chains": [],
                                         "nodes": {"pixal@alpha": FORECAST}}})
     cockpit.source.refresh()

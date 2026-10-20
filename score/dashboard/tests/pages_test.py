@@ -212,13 +212,13 @@ def test_a_check_finding_on_an_assembly_no_longer_accepted_is_not_listed(world):
 
 MEASURED = {"likely_euros": 2.0, "high_euros": 3.0, "likely_minutes": 10.0, "high_minutes": 20.0, "runs": 4,
             "cards": 1}
-ROUGH = "a rough-model stage: the prop pipeline on the whole concept, a row in score/stages STAGES"
+PLAN_WORK = "data/plans/alpha.json with its leads"
 
 
 def a_holes_finding(world, settings, tmp_path):
     """The holes check's findings.json for alpha over its accepted assembly: two objects of a row the close-up step
-    fills (a basket item carries it, measured), a gate on a step nothing buys now, and the rough model no stage
-    makes yet; the basket made with that one item."""
+    fills (a basket item carries it, measured), a gate on a step nothing buys now, and the plan no stage
+    makes yet (its scene record names no leads); the basket made with that one item."""
     import json
     from score.dashboard.proposals import make, records
     folder = world.root / "props/work/checks/holes/alpha"
@@ -234,9 +234,9 @@ def a_holes_finding(world, settings, tmp_path):
          "sentence": "crate_1: still the rough paint", "picture": None, "row": "crate", "gates": ["complete/painted"],
          "source": "judgement:complete@alpha", "node": "complete@alpha", "work": None, "placed": None,
          "low": [4, 0, 0], "high": [5, 1, 1]},
-        {"id": "place:rough-model", "rule": "place", "prim": "/alpha", "kind": None,
-         "sentence": "this place has no rough model", "picture": None, "row": None, "gates": [], "source": "route",
-         "node": None, "work": ROUGH, "placed": None, "low": None, "high": None}]}))
+        {"id": "place:plan", "rule": "place", "prim": "/alpha", "kind": None,
+         "sentence": "this place's plan is not accepted", "picture": None, "row": None, "gates": [], "source": "route",
+         "node": None, "work": PLAN_WORK, "placed": None, "low": None, "high": None}]}))
     settings.SCORE_HOME = tmp_path / "home"
     root = settings.SCORE_HOME / "proposals"
     root.mkdir(parents=True)
@@ -266,7 +266,7 @@ def a_holes_price(world, **more):
         "chains": {"alpha": {"closeup@alpha": ["closeup@alpha", "complete@alpha", "sound@alpha"],
                              "complete@alpha": ["complete@alpha", "sound@alpha"]}},
         "holes": {"alpha": {}}, "free": ["complete@alpha"], "totals": {},
-        "unfillable": [{"work": ROUGH, "holes": 1}], "outside": [], "not_current": [], "not_checked": [], **more}))
+        "unfillable": [{"work": PLAN_WORK, "holes": 1}], "outside": [], "not_current": [], "not_checked": [], **more}))
 
 
 def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, settings, tmp_path):
@@ -279,13 +279,13 @@ def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, setti
     lamp = re.search(r"\(2 of them\)\.(.*?)</li>", html, re.S).group(1)
     assert "/basket/item/alpha-pieces/" in lamp and "2 paid steps in its chain" in lamp
     assert "likely EUR 2.00, high EUR 3.00 (1 step)" in lamp and "guessed, not a price: EUR 1.00 (1 step)" in lamp
-    rough = re.search(r"<li[^>]*>This place has no rough model\.(.*?)</li>", html, re.S).group(1)
-    assert "No stage can fill this yet: " + ROUGH in rough and "EUR" not in rough
+    plan = re.search(r"<li[^>]*>This place&#x27;s plan is not accepted\.(.*?)</li>", html, re.S).group(1)
+    assert "No stage can fill this yet: " + PLAN_WORK in plan and "EUR" not in plan
     assert ("The sound step of The alpha look (sound@alpha): not measured yet, guess EUR 1.00 "
             "(score/stages/__init__.py:243)") in unescape(html)  # each step in words, its id beside it in details
     assert NODE.search(outside_details(html)) is None
     total = holes.environment(world.source.holes_total(), world.source.holes_price())
-    assert total["holes"] == 4 and total["unfillable"] == [{"work": ROUGH, "holes": 1}]
+    assert total["holes"] == 4 and total["unfillable"] == [{"work": PLAN_WORK, "holes": 1}]
     assert total["sums"]["bases"] == [{"basis": "per unit × forecast", "label": holes.BASES[2][1], "nodes": 1,
                                        "likely": 2.0, "high": 3.0}]
     assert total["sums"]["guessed"] == {"euros": 1.0, "nodes": 1, "sources": [
@@ -293,7 +293,7 @@ def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, setti
     assert total["not_in_basket"] == 2  # the basket's file was not read: no items passed
     assert holes.environment(world.source.holes_total(), world.source.holes_price(), items)["not_in_basket"] == 1
     board = signed_in("other").get("/").content.decode()
-    assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00 (1 step)" in board and ROUGH + " (1 hole)" in board
+    assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00 (1 step)" in board and PLAN_WORK + " (1 hole)" in board
     assert "1 of these paid steps is in no basket item yet" in board  # the sound: the basket carries the close-up
 
 
@@ -413,13 +413,13 @@ def test_the_whole_figure_and_the_code_work_before_the_first_purchase():
     def hole(ident, rule, node=None, work=None):
         return SimpleNamespace(id=ident, rule=rule, node=node, work=work)
     details = {"alpha": [hole("missing:a1", "missing", "pixal@alpha"), hole("missing:a2", "missing", "pixal@alpha"),
-                         hole("place:rough-model", "place", work=ROUGH),
+                         hole("place:plan", "place", work=PLAN_WORK),
                          hole("place:lost:earth-seed:usd-r3", "place", work="earth seed lost")],
                "beta": [hole("missing:b1", "missing", "sound@beta"),
                         hole("place:lost:earth-seed:usd-r3", "place", work="earth seed lost")]}
     code = holes.code_first(price, details)
     assert [(task["task"], task["places"], task["holes"]) for task in code] == [
-        ("Earth seed lost: a seed row that exports each place's base", 2, 3), ("A rough-model stage", 1, 2)], code
+        ("Earth seed lost: a seed row that exports each place's base", 2, 3), ("Door kits: a concept view and a plan", 1, 2)], code
     assert code[0]["money"]["guessed"] == 5.0 and code[0]["money"]["likely"] == 2.0
     buy = present.buy_lines(holes.buy_first(price, details), code)
     assert buy["all_wait"] and buy["ready"] == [] and len(buy["waiting"]) == buy["count"] == 3
@@ -431,6 +431,7 @@ def test_the_whole_figure_and_the_code_work_before_the_first_purchase():
 
 PIXAL = ("Pixal3D take lost: pixal@<place>'s accepted output carries its takes and every reader reads them through an "
          "`after` on it; then each lost take is a pixal hole, priced")
+BETA_PLAN = "data/plans/beta.json with its leads"
 OWNERS = "the owner supplies cockpit.png, his own reference picture (kept off the public repository)"
 
 
@@ -440,7 +441,7 @@ def ship_seed(node):
 
 def a_lost_takes_price():
     """Alpha with a lost take its models step makes again, a lost take only code brings back (read by beta too), the
-    owner's own reference picture and the rough model at both places; the models step measured, beta's ship kit
+    owner's own reference picture and the plan at both places; the models step measured, beta's ship kit
     guessed."""
     from types import SimpleNamespace
 
@@ -452,13 +453,13 @@ def a_lost_takes_price():
                          hole("place:lost:pixal:chair-b", "place", node="pixal@alpha"),
                          hole("place:lost:pixal:lamp-s1", "place", work=PIXAL),
                          hole("place:lost:reference:cockpit.png", "place", work=OWNERS),
-                         hole("place:rough-model", "place", work=ROUGH)],
+                         hole("place:plan", "place", work=PLAN_WORK)],
                "beta": [hole("place:lost:pixal:lamp-s1", "place", work=PIXAL),
-                        hole("place:rough-model", "place", work=ROUGH)]}
+                        hole("place:plan", "place", work=BETA_PLAN)]}
     price = HolesPrice(made_at="2026-10-19T20:00:00+00:00",
                        nodes={"pixal@alpha": {**MEASURED, "basis": "measured runs"}, "ship_kit@beta": GUESSED},
                        chains={"alpha": {"pixal@alpha": ["pixal@alpha"]}},
-                       unfillable=[{"work": PIXAL, "holes": 1}, {"work": ROUGH, "holes": 2},
+                       unfillable=[{"work": PIXAL, "holes": 1}, {"work": PLAN_WORK, "holes": 1}, {"work": BETA_PLAN, "holes": 1},
                                    {"work": OWNERS, "holes": 1}, {"work": ship_seed("ship_kit@beta"), "holes": 1}])
     return price, details
 
@@ -496,7 +497,7 @@ def test_the_paid_work_the_code_work_brings_is_named_unpriced_and_both_figures_a
     price, details = a_lost_takes_price()
     # beta's ship kit is in the runner's price (a guess), so its seed's line adds nothing unpriced
     assert holes.unpriced_work(price, details) == {
-        "lines": ["the lost Pixal3D takes made again (1)", "the rough-model stage at 2 places"], "holes": 5}
+        "lines": ["the lost Pixal3D takes made again (1)"], "holes": 3}
     today = holes.whole_of(holes.summed(price.nodes))
     after = holes.whole_of(holes.summed({"pixal@beta": {**FORECAST}}))
     both = holes.whole_plus(today, after)
@@ -506,20 +507,19 @@ def test_the_paid_work_the_code_work_brings_is_named_unpriced_and_both_figures_a
 
 
 def test_the_pixal_code_work_the_record_prices_leaves_the_unpriced_lines_and_joins_the_after_figure():
-    """The runner priced the lost take and the rough models at pixal's unit: no longer named unpriced, in the figure
+    """The runner priced the lost take at pixal's unit: no longer named unpriced, in the figure
     after the code work, and in the total's words."""
     from score.dashboard.state import holes
     price, details = a_lost_takes_price()
     price.code_work = {
-        PIXAL: {"holes": 1, "models": 1, "nodes": {"pixal: the lost Pixal3D takes made again": FORECAST}},
-        ROUGH: {"holes": 2, "models": 2, "nodes": {"pixal: a rough model a place": FORECAST}}}
+        PIXAL: {"holes": 1, "models": 1, "nodes": {"pixal: the lost Pixal3D takes made again": FORECAST}}}
     assert holes.unpriced_work(price, details) is None
     after = holes.after_work(price)
-    assert [entry["work"] for entry in after["code"]] == sorted([PIXAL, ROUGH]) and after["places"] == []
+    assert [entry["work"] for entry in after["code"]] == [PIXAL] and after["places"] == []
     whole = holes.whole_of(after["sums"])
-    assert (whole["low"], whole["high"], whole["measured"]) == (4.0, 6.0, 2)
-    assert "after 2 Pixal3D code tasks: per unit" in holes.total_words(price, holes.summed(price.nodes), after)
-    assert "2 holes wait on code work" in holes.headline(price)  # 5 unfillable, 3 of them priced after the work
+    assert (whole["low"], whole["high"], whole["measured"]) == (2.0, 3.0, 1)
+    assert "after 1 Pixal3D code tasks: per unit" in holes.total_words(price, holes.summed(price.nodes), after)
+    assert "4 holes wait on code work" in holes.headline(price)  # 5 unfillable, 1 of them priced after the work
 
 
 def test_every_priced_step_and_place_has_plain_words():
