@@ -73,6 +73,8 @@ FORECASTS = {
               "to make at the place (prop_takes)",
     "light_jobs": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record "
                   "(data/scene/<place>.json), VIEWS_A_JOB a job",
+    "kit_jobs": "score/stages/earth_seed kit_jobs: route.py late-plan's picture sets of the place's code-built kit "
+                "pieces (data/kit/<place>.json), one make_kit job a set",
     "one": "one a place (one for an environment node)",
     "sound_takes": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief "
                    "and seed, each counted once at the first place in data/sound/places.json that plays it",
@@ -114,6 +116,9 @@ SPECS = {
     "surfaces-bake": {"unit": "bake job (library_bake.py, one a model)", "cloud": {"kind": "library"},
                       "per_line": "jobs", "count": {"files": "made/*.gltf"}, "also": ["crops-surfaces-bake"],
                       "forecast": "models"},
+    "earth-kit": {"unit": "make_kit job of an earth place's code-built kit (library_bake.py, one picture set)",
+                  "cloud": {"kind": "library", "who": "score earth_kit stage"}, "per_line": "jobs",
+                  "count": {"files": "job-*.json"}, "forecast": "kit_jobs"},
 }
 # Measured runs of today's route whose ledger lines went with the old disk (2026-10-19), their euros and the units they
 # made written down in git when they ran: per stage, its unit, its forecast rule and each run (euros, units, where it
@@ -154,6 +159,9 @@ OVERHEAD = 0.10  # the owner's target share (2026-10-20): replace it with the me
 WARM = {
     "pixal": {"kind": "pixal", "type": "L4-1-24G", "class": "gpu-24gb"},
     "surfaces-bake": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
+    # An earth-kit job is one make_kit picture set on the bake's card; priced at every timed library job on L4 (make_kit
+    # sets and one-model bakes alike: the ledger copy names no job's script), until its own runs are timed.
+    "earth-kit": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
     # A light-passes (and light-haze) job is one Blender render job of up to VIEWS_A_JOB views on one L4
     # (passes.CARDS); priced at every timed Blender job on L4 (116 s median in the capacity report), not at light
     # jobs' own seconds: the ledger copy names no job's stage. Its own runs' timings replace it once recorded.
@@ -545,13 +553,20 @@ def batch_entry(stage, found, spec):
             "basis": "batch price of measured calls"}
 
 
+def bare_entry(stage):
+    """A SPECS stage's entry before any ledger line of it is read: its unit, count rule and forecast fields."""
+    spec = SPECS[stage]
+    return {"stage": stage, "unit": spec["unit"], "count": spec.get("count"), "also": spec.get("also", []),
+            **forecast(spec)}
+
+
 def with_warm(body):
     """The per-unit file's body with every WARM and BATCH stage priced by the owner's method of 2026-10-20, every
     other stage as it was."""
     stages = dict(body["stages"])
     for stage, spec in WARM.items():
-        if stage in stages:
-            stages[stage] = warm_entry(stages[stage], spec)
+        if stage in stages or stage in SPECS:  # a SPECS stage no ledger line measured is priced warm from its rules
+            stages[stage] = warm_entry(stages.get(stage) or bare_entry(stage), spec)
     for stage, spec in BATCH.items():
         stages[stage] = batch_entry(stage, stages.get(stage), spec)
     return {**body, "stages": stages}
