@@ -1,17 +1,26 @@
-"""The terrain adapter's inputs (#27, CONTEXT.md "layer adapter"): an outdoor place's detail areas, worked out free from
-its ground plan and concept, as scene inventory rows the shared prop pipeline makes into models (close-up, Pixal3D, the
-finish route, the bake), which the join step (join.py) lays into the ground.
+"""The terrain adapter's hand-in (#27, #41; CONTEXT.md "layer adapter", "shapes first"): an outdoor place's detail
+areas, split free from its plan, its concept and its rough model registered to the plan (rough-align, the shared
+loop's), and handed to the shared loop as rows of the terrain layer, which makes them into models (close-up, Pixal3D,
+the finish route, the bake) like any other; the adapter's one after-step (join.py) lays them into the ground.
 
 A detail area is a landform of the place's ground plan (data/ground/plan/<body>.json: its named craters and its
 `landforms`, each built here by the terrain's own builder on a coarse grid) whose footprint reaches into the place's
 fine patch (its own box grown by outside.NEAR_MARGIN, the ground the place draws finely); its part inside the patch is
 the area: its middle and size in the place's frame (through the place's copied ground record, tools/usd/ground.py),
 its relief, and the close-up's words from the plan's own description and the concept's ground elements (the plan's
-`elements` whose drop sends them to the made ground). So the count per place comes from the plan alone.
+`elements` whose drop sends them to the made ground). The registered rough model (the concept made whole, in the
+place's metres) is read over each area: the share of its footprint the rough model covers and the relief the rough
+model shows there (`rough`), which the close-up's words carry. The plan says where and how big, the concept and its
+rough model what is there, as an outside shell's split takes its rooms from its concept and its outline from its plan
+drawn to its rough model (shell_split). Areas are landed only from a registered rough model: the loop splits a place's
+parts once its rough model stands in its plan.
 
-    found = areas.detail_areas(place, data)      # [{id, kind, landform, words, plan_at, at, size}]
-    rows = areas.inventory_rows(place, found)    # the scene inventory rows (prop route, anchor ground)
-    python -m score.stages.terrain.areas write <place>   # lands them: inventory rows, prop objects, surface takes
+    found = areas.detail_areas(place, data, rough)   # [{id, kind, landform, words, plan_at, at, size, rough}]
+    rough = areas.rough_points(<rough-align output>) # the aligned rough model's points in the place's frame
+    rows = areas.inventory_rows(place, found)        # the scene inventory rows (prop route, anchor ground)
+    python -m score.stages.terrain.areas write <place> [<rough-align output>]
+        # lands them (default: the accepted rough-align@<place>): inventory rows, terrain-layer objects in the
+        # place's hand-in record, surface takes
 
 A place whose body has no copied ground record (data/ground/<body>.json) gets no areas: none can be placed.
 """
@@ -23,8 +32,10 @@ import sys
 import numpy as np
 
 from score.stages.terrain import landforms, outside, plan as ground_plan
+import score.stages.shapes_first.align as align
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+LAYER = "terrain"  # the layer its rows carry in the place's hand-in record (shapes_first.ADAPTERS)
 # The coarse plan grid the footprints are read on: one point a metre on a 260 m plan.
 GRID_STEP = 1.0
 # A landform's footprint: where it moves the ground by at least this share of its own largest rise or fall.
@@ -118,22 +129,56 @@ def concept_words(place, data):
             if "drop" in entry and GROUND_WORDS.search(entry["drop"])]
 
 
-def area_of(name, words, footprint, laid, concept):
-    """One area from its footprint cells inside the patch: middle and size in the place's frame, relief, words."""
+def rough_points(registration):
+    """The registered rough model's points in the place's frame, metres (rough-align's aligned.glb: its root node
+    carries the registration); ValueError for a rough model the registration refused."""
+    import trimesh
+    registration = pathlib.Path(registration)
+    found = json.loads((registration / align.REGISTRATION).read_text())
+    if found["unregistrable"]:
+        raise ValueError(f"{found['place']}'s rough model is not registered: " + "; ".join(found["unregistrable"]))
+    return np.asarray(trimesh.load(registration / align.ALIGNED, force="mesh").vertices, dtype=float)
+
+
+def within(points, low, high):
+    """Which points lie inside the box low..high across and along (x, z)."""
+    return np.all((points[:, [0, 2]] >= low) & (points[:, [0, 2]] <= high), axis=1)
+
+
+def rough_reading(points, rough):
+    """The registered rough model over an area's footprint points (place frame): the share of them inside its
+    footprint, and the relief its points show over the area's box (None where it has none there)."""
+    covered = within(points, rough[:, [0, 2]].min(axis=0), rough[:, [0, 2]].max(axis=0))
+    over = rough[within(rough, points[:, [0, 2]].min(axis=0), points[:, [0, 2]].max(axis=0)), 1]
+    return {"share": round(float(covered.mean()), 3), "relief": round(float(np.ptp(over)), 2) if len(over) else None}
+
+
+def area_words(words, size, concept, reading):
+    """The close-up's words: the plan's landform and its metres, the concept's ground and its rough model's relief."""
+    seen = f"; the concept shows {'; '.join(concept)}" if concept else ""
+    shown = f"; the concept's rough model shows {reading['relief']:.1f} m of relief there" \
+        if reading and reading["relief"] is not None else ""
+    return f"ground detail: {words}, {size[0]:.0f} by {size[1]:.0f} m, {size[2]:.1f} m of relief{seen}{shown}"
+
+
+def area_of(name, words, footprint, laid, concept, rough=None):
+    """One area from its footprint cells inside the patch: middle and size in the place's frame, relief, words, and
+    the registered rough model's reading over it (None without one)."""
     grid_x, grid_z, rise = footprint
     points = place_points(laid, grid_x, grid_z)
     low, high = points.min(axis=0), points.max(axis=0)
     size = [round(float(high[0] - low[0]), 2), round(float(high[2] - low[2]), 2), round(float(np.ptp(rise)), 2)]
     middle = place_points(laid, np.array([grid_x.mean()]), np.array([grid_z.mean()]))[0]
-    seen = f"; the concept shows {'; '.join(concept)}" if concept else ""
+    reading = rough_reading(points, rough) if rough is not None else None
     return {"id": area_id(name), "landform": name, "kind": words.split(",")[0].split(" ")[0],
-            "words": f"ground detail: {words}, {size[0]:.0f} by {size[1]:.0f} m, {size[2]:.1f} m of relief{seen}",
+            "words": area_words(words, size, concept, reading),
             "plan_at": [round(float(grid_x.mean()), 2), round(float(grid_z.mean()), 2)],
-            "at": [round(float(value), 3) for value in middle], "size": size}
+            "at": [round(float(value), 3) for value in middle], "size": size, "rough": reading}
 
 
-def detail_areas(place, data):
-    """The place's detail areas, nearest first: [{id, kind, landform, words, plan_at, at, size}]."""
+def detail_areas(place, data, rough=None):
+    """The place's detail areas, nearest first: [{id, kind, landform, words, plan_at, at, size, rough}], read over the
+    registered rough model's points (`rough`, rough_points) when given."""
     record, _ = body_plan(place, data)
     laid = laid_ground(place, data) if record else None
     if laid is None:
@@ -147,7 +192,7 @@ def detail_areas(place, data):
         inside = footprint & patch
         if inside.any():
             found.append(area_of(name, words, (grid.x[inside], grid.z[inside], height[inside]), laid,
-                                 concept))
+                                 concept, rough))
     return sorted(found, key=lambda area: float(np.hypot(area["at"][0], area["at"][2])))
 
 
@@ -160,7 +205,7 @@ def inventory_rows(place, found):
              "count": 1, "thing": f"prop:{place}_{area['id']}", "parent": "", "made": "made by the route",
              "prop": f"{place}_{area['id']}", "at": [{"x": area["at"][0], "y": area["at"][1], "z": area["at"][2],
                                                        "facing": 0.0, "level": "ground"}],
-             "area": {"landform": area["landform"], "plan_at": area["plan_at"]},
+             "area": {"landform": area["landform"], "plan_at": area["plan_at"], "rough": area["rough"]},
              "why": f"a detail area of the ground (#27): the plan's {area['landform']} reaches into the place's fine "
                     "patch, so its close-up is made into a model through the prop pipeline"} for area in found]
 
@@ -170,11 +215,11 @@ def take_of(area):
 
 
 def landed(inventory, props, surfaces, place, found):
-    """The place's inventory, prop data and surface data with every area's row, prop object and take added (rows and
-    takes already there kept as they are)."""
+    """The place's inventory, hand-in record (its prop data) and surface data with every area's row, terrain-layer
+    object and take added (rows and takes already there kept as they are)."""
     have = {row["id"] for row in inventory["rows"]}
     rows = [row for row in inventory_rows(place, found) if row["id"] not in have]
-    objects = {area["id"]: {"route": "prop", "take": take_of(area)} for area in found}
+    objects = {area["id"]: {"route": "prop", "take": take_of(area), "layer": LAYER} for area in found}
     takes = {take_of(area): {"places": [place], "place": place, "kind": f"{place}_{area['id']}",
                              "object": area["words"]} for area in found}
     return (dict(inventory, rows=inventory["rows"] + rows),
@@ -184,11 +229,11 @@ def landed(inventory, props, surfaces, place, found):
                                                             **surfaces.get("bake", {}).get("models", {})})))
 
 
-def write(place, data=REPO / "data"):
-    """Land the place's areas in its inventory, prop data and surface data (its surface data must exist: it names
-    the place's library)."""
+def write(place, registration, data=REPO / "data"):
+    """Land the place's areas, read over its registered rough model (a rough-align output folder), in its inventory,
+    hand-in record and surface data (its surface data must exist: it names the place's library)."""
     data = pathlib.Path(data)
-    found = detail_areas(place, data)
+    found = detail_areas(place, data, rough_points(registration))
     paths = (data / "inventory" / f"{place}.json", data / "props" / f"{place}.json",
              data / "surfaces" / f"{place}.json")
     props = read(paths[1]) or {"place": place, "order": "prop-first", "objects": {}, "fallback": {}}
@@ -198,7 +243,19 @@ def write(place, data=REPO / "data"):
     return found
 
 
+def accepted_registration(place):
+    """A read-only checkout of the place's accepted rough-align output in the default store; SystemExit with none."""
+    from score.store import Store
+    store = Store.default()
+    output = store.accepted(f"rough-align@{place}")
+    if output is None:
+        raise SystemExit(f"{place}: no accepted rough-align: the loop splits a place's parts only once its rough model "
+                         f"stands in its plan (python -m score run <environment> --place {place} --detach)")
+    return store.checkout(output)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3 or sys.argv[1] != "write":
+    if len(sys.argv) not in (3, 4) or sys.argv[1] != "write":
         raise SystemExit(__doc__)
-    print(f"{sys.argv[2]}: {len(write(sys.argv[2]))} detail areas landed")
+    registered = pathlib.Path(sys.argv[3]) if len(sys.argv) == 4 else accepted_registration(sys.argv[2])
+    print(f"{sys.argv[2]}: {len(write(sys.argv[2], registered))} detail areas landed")

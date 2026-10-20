@@ -36,6 +36,9 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   `rough_model`'s overlay). The turn is 0 or 90 degrees: a box alone cannot tell 180 from 0.
 - **The package is wiring only**: no make, judge or file map of its own, so it is in no row's code version; the
   loop's code is `align.py` and `made.py`.
-- **Not moved yet** (#41's other agents): terrain's code ground and `ground-join`, the Earth kit's bodies, people,
-  shell pieces and sections, the motion rows. Each joins as an adapter here; its side route goes.
+- **Adapters in**: `OBJECTS` (nothing after the model) and `TERRAIN` (terrain/areas.py hands in the detail areas,
+  split over the registered rough model; `ground-join` its one after-step; the plan's code ground the named
+  fallback). A terrain row lies round the floor, not on it: `fits the plan` counts it (`align.ROUND`).
+- **Not moved yet** (#41's other agents): the Earth kit's bodies, people, shell pieces and sections, the motion rows.
+  Each joins as an adapter here; its side route goes.
 - Test: `shapes_first_test.py` (`.venv/bin/python -m pytest score/stages/shapes_first`), no spend.

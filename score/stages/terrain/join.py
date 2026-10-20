@@ -1,10 +1,11 @@
-"""ground-join@<place> (#27, the terrain adapter's after-step; free, local, pxr and ray casts): a place's detail areas,
-each a model the shared prop pipeline made (its scene inventory row, areas.py; close-up, Pixal3D, the finish route,
-the bake), joined into its made ground. The plan's code ground (the terrain row's) stays only where a piece was not
-made: the named fallback.
+"""ground-join@<place> (#27, #41; the terrain adapter's one after-step in the shared loop, shapes_first.ADAPTERS; free,
+local, pxr and ray casts): a place's detail areas, each a model the shared loop made (the terrain-layer rows the place
+handed it, areas.py; close-up, Pixal3D, the finish route, the bake), joined into its made ground. The plan's code ground
+(the terrain row's) stays only where the loop made no piece: the named fallback, each with the loop's own why.
 
-    make     the terrain row's layer of the place's ground (<ground>/places/<place>.usdc) copied, and for each detail
-             area row of the place's inventory (its `area`) whose model the place's bake made:
+    make     the terrain row's layer of the place's ground (<ground>/places/<place>.usdc) copied, and for each terrain
+             row the loop made a model of (made.made: its baked model; a gap or the code route is left to the code
+             ground, named):
              cut       the code ground's faces wholly within CUT_SHARE of the piece's half size round its middle taken
                        out, so the ring left under its rim overlaps it and no gap opens at the seam
              seat      the piece (its baked mesh, in metres, foot on its origin) stood at its row's middle, let down
@@ -31,6 +32,7 @@ from pxr import Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, Vt
 
 from score import checks, contracts
 from score.stages.terrain import gates, outside, record, sight
+import score.stages.shapes_first.made as made
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 JOIN = "join.json"
@@ -43,22 +45,13 @@ RIM_SHARE = 0.9
 SEAM_STEP = 0.5
 OVER = 50.0  # a ray down starts this far over a seam spot
 NOT_GROUND = ("water", "ball", "Detail")  # what under /<place>/Outside is no code ground to cut
+LAYER = "terrain"  # areas.LAYER: the rows this after-step joins
 
 
 def files(place):
     """The place's inventory (its detail area rows), and the library and design tokens the looks are coloured from."""
     return {"inventory": "{data}/inventory/" + f"{place}.json", "library": "{data}/library/materials.json",
             "tokens": "{data}/../design/tokens/tokens.json"}
-
-
-def area_rows(inventory):
-    return [row for row in inventory["rows"] if row.get("area")]
-
-
-def applies(place):
-    """A place whose inventory has detail area rows (areas.write landed them)."""
-    path = REPO / "data/inventory" / f"{place}.json"
-    return place is not None and path.is_file() and bool(area_rows(json.loads(path.read_text())))
 
 
 def place_layer(terrain, place, out):
@@ -108,13 +101,14 @@ def export_tools():
     return export, baked
 
 
-def piece_geometry(bake, paint, row_id):
-    """A baked piece's mesh (export.model_geometry, metres, foot on its origin) and each face's library surface from
-    its paint's labelled parts."""
+def piece_geometry(model, paint):
+    """A baked piece's mesh (export.model_geometry, metres, foot on its origin; `model` the loop's baked .gltf) and
+    each face's library surface from its paint's labelled parts."""
     export, baked = export_tools()
-    entry = json.loads((bake / "baked.json").read_text())[row_id]
-    geometry = export.model_geometry(bake / "made" / f"{row_id}.gltf")
-    labelled, turn, size = baked.laid_parts(bake / "made", row_id, paint / "labelled" / entry["parts"], entry)
+    model = pathlib.Path(model)
+    entry = json.loads((model.parent.parent / "baked.json").read_text())[model.stem]
+    geometry = export.model_geometry(model)
+    labelled, turn, size = baked.laid_parts(model.parent, model.stem, paint / "labelled" / entry["parts"], entry)
     points, names = export.part_points(labelled, turn, size)
     return geometry, export.face_surfaces(geometry, points, names)
 
@@ -159,19 +153,26 @@ def piece_looks(stage, place, surfaces, inputs):
             for surface, colour in colours.items()}
 
 
-def made_pieces(inputs, rows):
-    """({row: why it is left to the code ground}, [rows the bake made]) of the detail area rows."""
-    bake = pathlib.Path(inputs["surfaces-bake"]) if "surfaces-bake" in inputs else None
-    baked = json.loads((bake / "baked.json").read_text()) if bake else {}
-    left, made = {}, []
-    for row in rows:
-        if bake is None:
-            left[row["id"]] = "the place has no surface line"
-        elif row["id"] not in baked or not (bake / "made" / f"{row['id']}.gltf").exists():
-            left[row["id"]] = "the place's bake made no model of it"
+def left_why(result):
+    """Why the loop's result for a row leaves it to the code ground: its gap, its pipeline failure, or no model file."""
+    if "gap" in result:
+        return result["gap"]
+    if result["route"] == "code":
+        return f"its pipeline failed and it went the code route ({result['model']}): the plan's code ground stays"
+    return f"the bake wrote no model file for it ({result['model']})"
+
+
+def made_pieces(inputs, inventory):
+    """({row: why it is left to the code ground}, [(inventory row, its baked model)]) of the terrain rows the place
+    handed the loop (made.made)."""
+    rows = {row["id"]: row for row in inventory["rows"]}
+    left, pieces = {}, []
+    for row_id, result in made.made(inputs, LAYER).items():
+        if result.get("route") == "prop" and pathlib.Path(result["model"]).exists():
+            pieces.append((rows[row_id], result["model"]))
         else:
-            made.append(row)
-    return left, made
+            left[row_id] = left_why(result)
+    return left, pieces
 
 
 def make(inputs, out, seed, params):
@@ -180,14 +181,13 @@ def make(inputs, out, seed, params):
     place = pathlib.Path(inputs["inventory"]).stem  # the file's own name (its `place` is the library's: the camp's)
     layer = place_layer(inputs["terrain"], place, out)
     stage = Usd.Stage.Open(str(layer))
-    left, made = made_pieces(inputs, area_rows(inventory))
+    left, pieces = made_pieces(inputs, inventory)
     rays = gates.caster(sight.gathered(stage))
     found = {}
-    shaped = {row["id"]: piece_geometry(pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]),
-                                        row["id"]) for row in made}
+    shaped = {row["id"]: piece_geometry(model, pathlib.Path(inputs["surfaces-paint"])) for row, model in pieces}
     looks = piece_looks(stage, place, {surface for _, surfaces in shaped.values() for surface in surfaces}, inputs) \
-        if made else {}
-    for row in made:
+        if pieces else {}
+    for row, _ in pieces:
         geometry, surfaces = shaped[row["id"]]
         half = np.array([row["size"][0], row["size"][1]]) / 2  # the row's across and along (areas.inventory_rows)
         middle = np.array([row["at"][0]["x"], row["at"][0]["z"]])
@@ -238,4 +238,4 @@ def judge_seam(output, inputs, evidence):
 
 CONTRACT = contracts.Contract("ground-join", 1, join_faults, {"length": "metre", "up axis": "Y"})
 CHECKS = (checks.Check("seam", judge_seam),)
-AFTER = {"terrain": ("grounds", 1), "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)}
+AFTER = {"terrain": ("grounds", 1), **made.ENDS, "surfaces-paint": ("surfaces-paint", 1)}
