@@ -225,6 +225,40 @@ def forecast_price(node, units):
             "unit_high_euros": entry["high_euros"], "runs": entry["runs"], "unit_source": entry["forecast"]["source"]}
 
 
+def unit_minutes(stage, units):
+    """How long `units` units of `stage` keep the run, on its measured time (PER_UNIT's `time`, the same ledger lines
+    as its euros) by the runner's own card rule (tools/props/cloud/preflight.py cards_for and minutes_for, capped at
+    capacity.run_cap): {likely_minutes, high_minutes, cards} (cards None for a stage of calls), or {minutes_why}
+    when its time is unmeasured or no units were counted."""
+    entry = per_unit(stage)
+    time = (entry or {}).get("time") or {}
+    if not units:
+        return {"minutes_why": "no units counted"}
+    if "unit_seconds" not in time:
+        return {"minutes_why": time.get("why", f"{stage}: no measured time in {PER_UNIT.name}")}
+    ledger()  # puts tools/props/cloud on the path
+    import capacity  # beside ledger.py
+    import preflight
+    numbers = {"job_seconds": time["unit_seconds"]["likely"], "high_job_seconds": time["unit_seconds"]["high"],
+               "setup_minutes": time["setup_minutes"]}
+    machines = time["holds"] == "machines"
+    cards = preflight.cards_for(units, numbers, capacity.run_cap() if machines else 1, time["slots"])
+    return {"likely_minutes": round(preflight.minutes_for(units, cards, numbers["job_seconds"],
+                                                          numbers["setup_minutes"], time["slots"]), 2),
+            "high_minutes": round(preflight.minutes_for(units, cards, numbers["high_job_seconds"],
+                                                        numbers["setup_minutes"], time["slots"]), 2),
+            "cards": cards if machines else None}
+
+
+def per_unit_run(price, node, cards):
+    """A per-unit price with its minutes (unit_minutes on its units) and cards: the run's sizing where the ledger's
+    ticketed runs give one, else the per-unit time's."""
+    timed = unit_minutes(node.partition("@")[0], price["units"])
+    return {**price, "likely_minutes": timed.get("likely_minutes"), "high_minutes": timed.get("high_minutes"),
+            **({"minutes_why": timed["minutes_why"]} if "minutes_why" in timed else {}),
+            "cards": cards if cards is not None else timed.get("cards")}
+
+
 def guess(euros, guess_from):
     """Not measured yet: no price, the stage's own estimate kept apart as `guess_euros` with where it is written."""
     return {"likely_euros": None, "high_euros": None, "guess_euros": euros,
@@ -240,7 +274,10 @@ def run_price(node, euros, store=None, units=None, guess_from=None):
     another make nor the units the last make counted says what this make makes. Else measured runs: its stage's
     runs in the cloud ledger, likely their median and high their HIGH quantile (high_euros is what its clearance
     reserves), and the cards a whole run of it is sized on. Else measured per unit times the units its accepted
-    output made (unit_price on `store`, basis "per unit × counted"). Else not measured yet: no price (likely and high
+    output made (unit_price on `store`, basis "per unit × counted"). A per-unit price's minutes and cards are its
+    units on its stage's measured time by the runner's card rule (unit_minutes; `minutes_why` where it has none):
+    the ledger's lines carry no ticket, so a stage's runs are found by its kind of batch, as its euros are. Else not
+    measured yet: no price (likely and high
     None), the stage's own estimate kept apart as `guess_euros` (with `guess_from`, where the row names it, when
     given), runs 0; a guess is never shown as a price (the owner, 2026-10-18)."""
     books = ledger()
@@ -250,8 +287,7 @@ def run_price(node, euros, store=None, units=None, guess_from=None):
     cards = preflight.run_cards(entries, stage, capacity.run_cap())
     forecast = forecast_price(node, units)
     if forecast is not None:
-        return {**forecast, "likely_minutes": None, "high_minutes": None, "cards": cards,
-                "basis": "per unit × forecast"}
+        return {**per_unit_run(forecast, node, cards), "basis": "per unit × forecast"}
     run = preflight.node_run(entries, stage)
     if run is not None:
         return {"likely_euros": round(run["euros"], 4), "high_euros": round(run["high_euros"], 4),
@@ -259,8 +295,8 @@ def run_price(node, euros, store=None, units=None, guess_from=None):
                 "cards": cards, "runs": run["runs"], "basis": "measured runs"}
     unit = unit_price(node, store)
     if unit is not None:
-        return {**unit, "likely_minutes": None, "high_minutes": None, "cards": cards, "basis": "per unit × counted"}
-    return {**guess(euros, guess_from), "cards": cards}
+        return {**per_unit_run(unit, node, cards), "basis": "per unit × counted"}
+    return {**guess(euros, guess_from), "cards": cards, "minutes_why": "not measured yet"}
 
 
 def books_now():
