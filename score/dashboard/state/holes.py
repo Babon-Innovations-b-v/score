@@ -155,8 +155,7 @@ def total_words(price, sums, after):
 def after_work(price):
     """{places: [{place, work, holes, models, words}], code: [{work, holes, models, words}], sums} of what the runner
     priced after code work: the prop route of the rows that wait on their place's prop data, every place's nodes
-    summed once, and the code work whose make is a Pixal3D one (the lost takes, the rough models), each basis
-    apart."""
+    summed once, and the code work whose make is a Pixal3D one (the lost takes), each basis apart."""
     nodes = {node: found for entry in [*price.after_work.values(), *price.code_work.values()]
              for node, found in entry["nodes"].items()}
     places = [{"place": place, "work": entry["work"], "holes": entry["holes"], "models": entry["models"],
@@ -480,7 +479,6 @@ WORK_TASKS = (
     (r"^an input under the work folder no row makes", "Inputs under the work folder no row makes"),
     (r"^an input the repository should hold", "Inputs the repository should hold"),
     (r"^no accepted body of their looks|no pilot look is made", "People: bodies for their looks"),
-    (r"^a rough-model stage", "A rough-model stage"),
     (r"still take their numbers from the source game", "Layouts still taken from the source game"),
     (r"^a plain code piece against a concept", "Plain code pieces against a concept drawn before the plan"),
     (r"^no effect of the ", "Effects on the follow-up list"),
@@ -495,7 +493,6 @@ OWNER = r"^the owner supplies "
 # the first pattern a work line matches, said with its lines' holes ({holes}) and their places ({places}, in words).
 # A line that names its paid node (the group) is left out while the runner's record prices that node.
 BRINGS = ((r"^Pixal3D take lost", "the lost Pixal3D takes made again ({holes})"),
-          (r"^a rough-model stage", "the rough-model stage at {places}"),
           (r"^ship seed lost: (\S+@\S+) \(paid", "the ship kits made again at {places}"))
 
 

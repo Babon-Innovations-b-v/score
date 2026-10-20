@@ -29,6 +29,8 @@ import subprocess
 
 from score import contracts
 import score.stages.props.prop_data as prop_data  # the module, not the package: the table stays out of the code
+import score.stages.scene_record.plan as plan_row
+from score.stages.rough_model import _cloud
 from score.stages.surfaces.prop_env import PROPS_PYTHON
 from score.stages.surfaces.surface_gates import guarded, verdict
 
@@ -48,12 +50,10 @@ TRIANGLES = 4  # a glTF primitive's mode for triangles, its default
 
 
 def files(place):
-    """The concept picture the place's plan names, its inventory (its plan's `inventory`, else the place's own: the
-    batch builds only from an approved one), the places' style texts and the tools the make runs."""
-    plan = json.loads((REPO / "data/plans" / f"{place}.json").read_text())
-    concept = plan.get("concept", {}).get("picture")
-    return {**({"concept": concept} if concept else {}),
-            "inventory": f"{{data}}/inventory/{plan.get('inventory', place)}.json",
+    """The concept picture and the inventory the place's plan row reads (scene_record.plan.files: the batch builds
+    only from an approved inventory), the places' style texts and the tools the make runs."""
+    read = plan_row.files(place)
+    return {**({"concept": read["concept"]} if "concept" in read else {}), "inventory": read["inventory"],
             "places": "{data}/definitions/place.json", **TOOLS}
 
 
@@ -96,9 +96,11 @@ def dispatch(take, picture, place, inventory, out):
 
 def finish(take, picture, out):
     """A take brought back raw whose finish never ran or failed, finished here as the batch finishes every take:
-    pixal.py --finish-only (Blender and the processor, no model), its log in the output folder."""
-    with (out / "finish.log").open("a") as log:
-        done = subprocess.run([str(REPO / ".venv/bin/python"), str(REPO / "tools/props/pixal.py"), str(picture), take,
+    pixal.py --finish-only (Blender and the processor, no model) in the batch's interpreter, under one of the PC's
+    finish slots the batches share (batch.finish_slot), its log in the output folder."""
+    batch = _cloud.load_batch()
+    with batch.finish_slot(), (out / "finish.log").open("a") as log:
+        done = subprocess.run([str(batch.VENV_PYTHON), str(REPO / "tools/props/pixal.py"), str(picture), take,
                                "--who", "score rough-model", "--finish-only"], cwd=REPO, stdout=log,
                               stderr=subprocess.STDOUT)
     if done.returncode:
