@@ -96,9 +96,22 @@ build_python() {
   say "runtime python: built at $runtime from uv.lock"
 }
 
+# --- 5. gltfpack for score_lib's web copies (#34) ---------------------------
+# score_lib's web3d/pack.py runs `npx --offline gltfpack@<pin>`: seed that pin into the npm cache.
+GLTFPACK_PIN="gltfpack@0.22.0"  # keep equal to GLTFPACK in score_lib's src/score_lib/web3d/pack.py
+seed_gltfpack() {
+  if ! command -v npm >/dev/null 2>&1; then
+    say "gltfpack: npm NOT INSTALLED. score_lib's web copies need Node.js"
+    return
+  fi
+  npm cache add "$GLTFPACK_PIN" >/dev/null
+  say "gltfpack: $GLTFPACK_PIN in the npm cache"
+}
+
 link_memory
 use_repo_hooks
 build_python
+seed_gltfpack
 # The agent tools: code graph, Bun for claude-mem, their settings.
 bash "$REPO/.claude/scripts/install-agent-tools.sh"
 check_gh
