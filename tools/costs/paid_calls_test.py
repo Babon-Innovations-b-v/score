@@ -28,6 +28,8 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 # anywhere else in the file fails as in any other. A new one is added only when it writes its ledger line first.
 ALLOWED = {
     "tools/props/cloud/google_spend.py": ("the Gemini client: a started line before every call", {"URL", "post"}),
+    "tools/props/cloud/google_batch.py": ("the Gemini Batch API client: a started line on google_spend's ledger for "
+                                          "each request before its job is sent", {"API", "send", "status"}),
     "tools/props/cloud/google_spend_test.py": ("the Gemini client's own lint names Google's hosts and clients",
                                                {"test_no_module_calls_google_another_way"}),
     "tools/props/cloud/backends/scaleway.py": (
