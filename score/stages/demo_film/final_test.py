@@ -67,7 +67,7 @@ def test_world1s_script_is_paced_and_names_the_cuts_no_row_makes_yet():
 
 
 def test_a_place_a_script_shows_needs_its_film_record_its_yes_and_two_shots():
-    """The film layer's holes (needs.py), worked out from the scripts and records alone."""
+    """The film layer's gaps (needs.py), worked out from the scripts and records alone."""
     data = pathlib.Path(tempfile.mkdtemp())
     for folder in ("films", "definitions/demo_films", "scene"):
         (data / folder).mkdir(parents=True)
@@ -77,9 +77,9 @@ def test_a_place_a_script_shows_needs_its_film_record_its_yes_and_two_shots():
     (data / "definitions/demo_films/beta.json").write_text(json.dumps({"place": "beta", "camera": "door",
                                                                        "then": "back", "final": True}))
     (data / "scene/alpha.json").write_text(json.dumps({"views": [{"name": "door"}]}))
-    assert [(hole["id"], hole["node"]) for hole in needs.holes("alpha", data)] == [
+    assert [(gap["id"], gap["node"]) for gap in needs.gaps("alpha", data)] == [
         ("film:yes:alpha", "demo-film@alpha"), ("film:shot:alpha", None), ("film:record:wing", None)]
-    assert needs.holes("beta", data) == [] and needs.holes("gamma", data) == []
+    assert needs.gaps("beta", data) == [] and needs.gaps("gamma", data) == []
 
 
 def a_film(folder, tone, volume):

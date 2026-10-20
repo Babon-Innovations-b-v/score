@@ -215,7 +215,7 @@ def test_parts_pass_only_when_every_part_is_named():
 
 
 def test_a_failed_tucks_record_refuses_the_body_before_any_machine():
-    """#21: a look whose settled tucks failed in every clip on the same inputs is Blocked, a predicted hole, never
+    """#21: a look whose settled tucks failed in every clip on the same inputs is Blocked, a predicted gap, never
     rented for."""
     from score import graph
     bodies.refused_on_record(None, "people-body-x")
@@ -223,7 +223,7 @@ def test_a_failed_tucks_record_refuses_the_body_before_any_machine():
         bodies.refused_on_record({"worst_tuck_out_mm": 9.32, "clips": 4}, "people-body-x")
         raise AssertionError("a failed tucks record was bought again")
     except graph.Blocked as blocked:
-        assert "predicted hole" in str(blocked) and "9.32" in str(blocked)
+        assert "predicted gap" in str(blocked) and "9.32" in str(blocked)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@
 First the paint, as paint_take.py runs it (place_line.py's `paint-take` in Blender's own Python with the pinned
 packages, its peak memory said); then route_bake.py's `bake-job` there too (the take's models' make_chunky entries
 over the labelled take); then make_chunky.py in a Blender of its own, Cycles on the card (blender_cloud.py sets
-FARM_CYCLES_GPU and PROPS_HOME for ProcFunc's site). Any step that fails fails the job: its models are a hole.
+FARM_CYCLES_GPU and PROPS_HOME for ProcFunc's site). Any step that fails fails the job: its models are a gap.
 """
 import json
 import os

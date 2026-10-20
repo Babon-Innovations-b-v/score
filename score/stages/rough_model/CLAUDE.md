@@ -25,7 +25,7 @@ the output and the gates. Bible: `architecture/components`.
 - **A take is never stuck.** One the cloud brought back raw whose finish failed is finished here with `pixal.py
   --finish-only`, as the batch finishes every take, under the batch's own `finish_slot` (the PC's cap on Blender
   finishes across every batch) and in its interpreter (`paths.VENV_PYTHON`); the batch refuses to make a raw take again.
-- Holes: a place whose `rough-model@<place>` does not stand accepted has the route hole `place:rough-model` with that
-  node (`score/stages/complete/holes`: `fill.py`, `route.py`).
+- Gaps: a place whose `rough-model@<place>` does not stand accepted has the route gap `place:rough-model` with that
+  node (`score/stages/complete/gaps`: `fill.py`, `route.py`).
 - Run: `python -m score run <world> --stage rough-model --detach` (it spends). Test: `rough_model_test.py` (a stand-in
   batch, no spend).

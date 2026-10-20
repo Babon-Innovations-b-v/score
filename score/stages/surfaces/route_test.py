@@ -2,11 +2,11 @@
 model (one textured red, one blue by its colour factor) is rendered from its base views plus what the coverage check
 adds, its colours split into regions the views share; one batch answer a take lists its finishes library first and
 labels each region of each view; the split votes the labels into one finish a face, and an unassigned face or views
-that disagree make the take a hole; the parts row writes the method's interface with each finish checked against
+that disagree make the take a gap; the parts row writes the method's interface with each finish checked against
 its colour, keeping the list's settings; the bake paints and bakes each take in one card job, each part with
 settings as its settings' surface, and the paint takes its painted takes over; the check reads the bake's specs; the
 recheck sorts one batch answer a take into pass or a
-named hole, a take off its colour not asked at all. The route is the default line: its rows are on every painting
+gap, a take off its colour not asked at all. The route is the default line: its rows are on every painting
 place's line and the finish-map method's rows are not.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/stages/surfaces/route_test.py
@@ -204,7 +204,7 @@ def test_one_batch_lists_every_take_library_first_and_the_split_gives_every_face
         assert route_split.judge_split(rows["finish-route-split"], rows, {}).answer == "pass"
 
 
-def test_an_unassigned_face_or_views_that_disagree_make_a_hole():
+def test_an_unassigned_face_or_views_that_disagree_make_a_gap():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         blue_left_out = lambda views, take: two_finish_answer(views, lambda view, colour: 1 if colour == RED else None)
@@ -219,7 +219,7 @@ def test_an_unassigned_face_or_views_that_disagree_make_a_hole():
     assert "disagree" in route_split.split_fault(found)
 
 
-def test_a_chosen_surface_off_what_any_view_shows_is_a_hole_before_the_bake():
+def test_a_chosen_surface_off_what_any_view_shows_is_a_gap_before_the_bake():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         far = lambda views, take: dict(two_finish_answer(views), finishes=[
@@ -235,7 +235,7 @@ def test_a_chosen_surface_off_what_any_view_shows_is_a_hole_before_the_bake():
     assert route_split.own_colour(glass) and not route_split.own_colour(dict(glass, family="painted"))
 
 
-def test_a_take_with_no_usable_answer_is_a_hole_named_by_the_list():
+def test_a_take_with_no_usable_answer_is_a_gap_named_by_the_list():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         lost = route_ask.google_batch.Unanswered("the batch ended JOB_STATE_EXPIRED")
@@ -383,7 +383,7 @@ def rechecked(folder, answer, wide=True):
         finish_parts.COLOUR_DELTA_E = kept
 
 
-def test_the_recheck_sorts_one_answer_into_pass_or_a_named_hole_its_suggestion_unapplied():
+def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_its_suggestion_unapplied():
     with tempfile.TemporaryDirectory() as temporary:
         record, verdict, asked = rechecked(pathlib.Path(temporary),
                                            {"finishes": [{"finish": 1, "matches": True, "why": "red"},
@@ -399,7 +399,7 @@ def test_the_recheck_sorts_one_answer_into_pass_or_a_named_hole_its_suggestion_u
         assert (pathlib.Path(temporary) / "recheck" / TAKE / "checked-front.png").exists()
 
 
-def test_the_recheck_makes_an_unanswered_take_a_hole_and_never_asks_a_take_off_its_colour():
+def test_the_recheck_makes_an_unanswered_take_a_gap_and_never_asks_a_take_off_its_colour():
     with tempfile.TemporaryDirectory() as temporary:
         record, verdict, asked = rechecked(pathlib.Path(temporary),
                                            route_ask.google_batch.Unanswered("the batch gave no answer for it"))

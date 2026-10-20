@@ -2,7 +2,7 @@
 rents (owner's lead, 2026-10-20, #18): nothing heavy runs on this PC, whose prop environment is capped at 14 GB
 (crane-r1's paint peaked at 34.8 GB on a rented machine, 2026-10-12). One job a take (its one model, or each model
 the place bakes from it, so a take is painted once) through blender_cloud.py on the bake's card classes
-(place_line.CLASSES), every job once: a job that fails is its models' hole.
+(place_line.CLASSES), every job once: a job that fails is its models' gap.
 
 Here, free, before anything is rented: each part's library surface from the parts row (place_line.method_surfaces,
 its proposals into the finish registry), with the list's settings where the part has them (route_settings: the

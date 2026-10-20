@@ -297,7 +297,7 @@ def guess(euros, guess_from):
 def run_price(node, euros, store=None, units=None, guess_from=None):
     """A paid node's price as the creator cockpit shows it, on the runner's own numbers (tools/props/cloud/preflight.py):
     {likely_euros, high_euros, likely_minutes, high_minutes, cards, runs, basis}. When the caller counted `units` by
-    its stage's forecast rule (the holes' price: a node in a hole's chain is made again, with what the hole adds),
+    its stage's forecast rule (the gaps' price: a node in a gap's chain is made again, with what the gap adds),
     measured per unit times those first (forecast_price, basis "per unit × forecast"): neither a whole run of
     another make nor the units the last make counted says what this make makes. Else measured runs: its stage's
     runs in the cloud ledger, likely their median and high their HIGH quantile (high_euros is what its clearance

@@ -38,11 +38,11 @@
   --color-idle: #8b939e;           /* not started */
   --color-on-status: #0b0d10;      /* text on a status colour */
 
-  /* ──────────────────  HOLES (CONTEXT.md "hole"): told apart from each other and the accent  ────────────────── */
-  --color-hole-missing: #ff453a;   /* not made yet */
-  --color-hole-gate: #ff9f0a;      /* failing a check */
-  --color-hole-route: #8b939e;     /* a route step not done at its place */
-  --color-hole-lost: #f472b6;      /* a lost input */
+  /* ──────────────────  GAPS (CONTEXT.md "gap"): told apart from each other and the accent  ────────────────── */
+  --color-gap-missing: #ff453a;   /* not made yet */
+  --color-gap-gate: #ff9f0a;      /* failing a check */
+  --color-gap-route: #8b939e;     /* a route step not done at its place */
+  --color-gap-lost: #f472b6;      /* a lost input */
 
   /* ──────────────────  OVER PICTURES, VIDEO AND 3D  ────────────────── */
   --color-media: #000000;          /* behind a picture, a video or a film shot */
@@ -56,7 +56,7 @@
   --color-view-light: #ffffff;     /* the viewer's light and glow: white, so a place keeps its own colours */
   --color-view-pick: #ffd400;      /* the measure's points and line, the readout, a lamp */
   --color-view-person: #e0782a;    /* the 1.8 m person */
-  --color-view-grid: #555555;      /* the holes' ground grid, its axes */
+  --color-view-grid: #555555;      /* the gaps' ground grid, its axes */
   --color-view-grid-fine: #2a2a2a; /* its metre lines */
   --color-view-ground: #3a3f47;    /* the library viewer's sky-to-ground light, from below */
   --color-view-plinth: #23272e;    /* the library viewer's floor */
@@ -66,7 +66,7 @@
   --color-mark-removed: #ff7b72;
   --color-mark-missing: #ff453a;
   --color-mark-gate: #ff9f0a;
-  --color-mark-framed: #ffffff;    /* the hole the page framed */
+  --color-mark-framed: #ffffff;    /* the gap the page framed */
   --color-mark-edge: #777777;      /* the framed key's edge on the page */
 
   /* ──────────────────  THE FILM'S OWN LOOK (film.css, film.js): a film shot, not the cockpit  ────────────────── */

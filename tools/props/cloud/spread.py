@@ -10,9 +10,9 @@ none is left, so a late or failed machine never holds the rest up (2026-10-08, a
 `prepare(machine)` sets one machine up (its host is machine["host"]); `do(machine, share, card)` works one share on
 it, `card` being the card it runs on (None on a processor machine), and raises JobFailed when the share's own command
 fails. Every share runs once, on one machine (a batch, CONTEXT.md, owner 2026-10-20): a share whose command failed,
-or whose machine broke under it (ssh, a copy), is a hole in `shares.failed`, never handed to another machine, and a
+or whose machine broke under it (ssh, a copy), is a gap in `shares.failed`, never handed to another machine, and a
 broken machine takes no more; a machine that fails while setting up ends with no machine rented in its place, its
-shares left to the others or in `shares.waiting` as holes. A machine runs capacity.runs_at_once shares on
+shares left to the others or in `shares.waiting` as gaps. A machine runs capacity.runs_at_once shares on
 each card at once. Every machine is armed to delete itself if this PC goes quiet, hears this PC's heartbeat each
 minute, and is deleted when it has no more work; the run's ledger rows are the runner's (run.machines and
 run.attempts, as for one machine).
@@ -116,10 +116,10 @@ def work_slot(machine, shares, do, card, broken):
         except JobFailed as error:
             batch.say(f"{machine['folder'].name}: a job failed ({error})")
             shares.failed_job(share)
-        except Exception as error:  # noqa: BLE001 - the share is a hole, this machine stops
+        except Exception as error:  # noqa: BLE001 - the share is a gap, this machine stops
             broken.set()
             shares.failed_job(share)
-            batch.say(f"{machine['folder'].name} failed ({error}); its share is a hole")
+            batch.say(f"{machine['folder'].name} failed ({error}); its share is a gap")
 
 
 @contextlib.contextmanager
@@ -188,7 +188,7 @@ def start_machine(run, account, found, number, kind, shares, prepare, do, disk_g
 
 def on_machines(run, account, found, count, kind, shares, prepare, do, disk_gb=batch.DISK_GB, at_once=None):
     """Claim `count` machines side by side and let each take shares as soon as it is set up; returns when every
-    machine is deleted. What was never done stays in `shares.waiting`, what failed in `shares.failed`: both holes."""
+    machine is deleted. What was never done stays in `shares.waiting`, what failed in `shares.failed`: both gaps."""
     threads = [start_machine(run, account, found, number, kind, shares, prepare, do, disk_gb, at_once)
                for number in range(1, count + 1)]
     for thread in threads:

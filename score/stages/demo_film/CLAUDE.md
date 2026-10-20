@@ -1,7 +1,7 @@
 # score/stages/demo_film/
 
 The demo-film and demo-film-extra rows (experimental, 2026-10-14): demo K9's walk-through films of a place, from its
-final stage once it passes complete or fails it only on its named gaps (`gapped`, the overseer 2026-10-15), with its
+final stage once it passes complete or fails it only on its accepted gaps (`gapped`, the overseer 2026-10-15), with its
 own sound; paid and cleared by the runner like any paid row.
 `__init__.py`'s docstring has the make, the output and the gate.
 
@@ -32,7 +32,7 @@ own sound; paid and cleared by the runner like any paid row.
   writes `final` once he has seen both. A film whose forecast's high passes the euros its run was cleared at is
   Blocked too: a dearer film is a new ask at the forecast's price. Never write it for him.
   The final is rendered once at 1280x720 over the cards `capacity.machines_for` sizes (no fixed card count), each
-  job's deadline its frames at the forecast's high; a job that dies or passes it is a hole, never run again inside
+  job's deadline its frames at the forecast's high; a job that dies or passes it is a gap, never run again inside
   the batch, and filming it again is a new batch and a new yes. The gate holds each film to the size its views.json
   planned.
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
@@ -47,11 +47,11 @@ own sound; paid and cleared by the runner like any paid row.
   `"final": true`; every segment names its `seconds` and is a cut it makes (title, text, walk-through, hero still),
   else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards, before and after need
   frames no row makes yet). The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
-  (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the holes
-  check's film holes: a film a script shows with no record, no yes, or one shot only.
+  (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the gaps
+  check's film gaps: a film a script shows with no record, no yes, or one shot only.
 - **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (a film starts a second before the
   first one-off moment of its place's motion record, `motion_start`: the launch's from 5 s, so its lift-off at 6 s
   lands 1 s into the shot; places whose motions loop start at 0); `stills.py` (the demo-stills row,
   `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film the creator said yes to starts by
-  itself once its place passes complete, or fails it only on its named gaps, in any environment run). Test: `demo_film_test.py`, `shots_test.py` and `final_test.py` (no Blender, no spend; one small local ffmpeg cut).
+  itself once its place passes complete, or fails it only on its accepted gaps, in any environment run). Test: `demo_film_test.py`, `shots_test.py` and `final_test.py` (no Blender, no spend; one small local ffmpeg cut).

@@ -14,7 +14,7 @@ a vision-language model on rented cards): the figure ringed in red on the pictur
 asked what it is (QUESTION: a person there, one outside the place behind glass, a picture of one, a reflection, an
 empty suit or something else; only a person there is counted, the others kept with their answer as the reason) and, for
 a person, what they are doing, once with each of SEEDS, a count fixed before the batch (#21); the answer most seeds
-give is the figure's, and a split vote (no answer most give) is a named unknown, a hole, never asked again inside the
+give is the figure's, and a split vote (no answer most give) is a named unknown, a gap, never asked again inside the
 batch. The output is `people.json`: {place: {view: {"picture",
 "size", "people", "instances"}}}, `people` counting the figures judged a person, each instance with its `judged`
 answer and `answers`, and for a person `doing` (the majority of `doings`; None on a tie).
@@ -229,7 +229,7 @@ def judge_judged(output, inputs, evidence):
                for view, found in views.items() for number, figure in enumerate(found["instances"])]
     open_figures = [name for name, figure in figures if figure["judged"] is None]
     answer = checks.UNKNOWN if open_figures else checks.PASS
-    reason = (f"split vote, a hole: {len(open_figures)} of {len(figures)} figures without a majority: "
+    reason = (f"split vote, a gap: {len(open_figures)} of {len(figures)} figures without a majority: "
               f"{', '.join(open_figures)}"
               if open_figures else f"{len(figures)} figures judged")
     return checks.Verdict("judged", answer, reason, {"figures": len(figures), "open": len(open_figures)})

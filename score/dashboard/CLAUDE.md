@@ -12,28 +12,28 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`state/`** where the pages read from. `local.py` reads the store beside it, read-only, through `index.py` (the
   small areas walked once with os.scandir, every folder store of that root answering `keys` from it, rebuilt when
   older than 60 s); `exported.py` reads a pushed state export; both give the pydantic models of `models.py`.
-  A place's problems are its stopped steps, its named gaps and every standalone check's findings
+  A place's problems are its stopped steps, its accepted gaps and every standalone check's findings
   (`WORK/checks/<check>/<place>/findings.json`, `check_findings`, read while the outputs it judged stay accepted).
-  Its holes (CONTEXT.md "hole") are the holes check's findings (`score/stages/complete/holes`), listed apart
-  (`holes`, `holes_total`). Their price is the runner's (`score price world1 --holes`, its record
-  `WORK/checks/holes-price/<world>.json` read as `HolesPrice`): `holes.py` only sums it, every paid node of any
-  hole's chain once, each basis in its own bucket (measured runs, per unit × counted, per unit × forecast, the
+  Its gaps (CONTEXT.md "gap") are the gaps check's findings (`score/stages/complete/gaps`), listed apart
+  (`gaps`, `gaps_total`). Their price is the runner's (`score price world1 --gaps`, its record
+  `WORK/checks/gaps-price/<world>.json` read as `GapsPrice`): `gaps.py` only sums it, every paid node of any
+  gap's chain once, each basis in its own bucket (measured runs, per unit × counted, per unit × forecast, the
   guesses with the file and line each is written on, never a price; the nodes with neither are unknown); no price
   is made and no unit counted here. A place never checked is named, never read as nothing to pay. A record made on
   another commit, on code not committed or on other per-unit prices than this checkout's (`priced_on`,
-  `code_moved`), or older than any accept or reject or any holes check shows no number (`price_stale`, the rule of
-  `current_findings`); the holes, their total and their price are read again as soon as a holes findings or the
-  price record is written (`holes_written`, a stat each per request), never after the 60 s index. `per_place` gives
-  each place's row (holes by kind, worst first: lost input, route step, missing, gate; its chains' paid nodes once,
-  `own` the ones no other place's chain has); `plan_of` the runner's milestones (`score/stages/complete/holes/
+  `code_moved`), or older than any accept or reject or any gaps check shows no number (`price_stale`, the rule of
+  `current_findings`); the gaps, their total and their price are read again as soon as a gaps findings or the
+  price record is written (`gaps_written`, a stat each per request), never after the 60 s index. `per_place` gives
+  each place's row (gaps by kind, worst first: lost input, route step, missing, gate; its chains' paid nodes once,
+  `own` the ones no other place's chain has); `plan_of` the runner's milestones (`score/stages/complete/gaps/
   milestones.py`) in its order with the remake's total, the set budgets apart (never in a figure); the time is the
-  record's `eta` (the runner's `holes/schedule.py`), shown only when every step has measured minutes. No plan is
+  record's `eta` (the runner's `gaps/schedule.py`), shown only when every step has measured minutes. No plan is
   made or reordered here. Places and steps are said by their titles (`groups.place_title`, `groups.label`), never
-  their keys. `present.prim_tree` gives a place's holes layer as a tree (no accepted assembly gives a whole scene
-  tree yet), `present.hole_marks` the boxes the viewer outlines (`/view/<place>?holes=1&hole=<id>`, holes alone over
+  their keys. `present.prim_tree` gives a place's gaps layer as a tree (no accepted assembly gives a whole scene
+  tree yet), `present.gap_marks` the boxes the viewer outlines (`/view/<place>?gaps=1&gap=<id>`, gaps alone over
   a grid while no web copy exists).
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` only says minutes in words (the
-  cockpit prices nothing: every price is the runner's, ADR-0006); `gaps.py` gives each named gap its step and a
+  cockpit prices nothing: every price is the runner's, ADR-0006); `accepted_gaps.py` gives each accepted gap its step and a
   picture of what it names (local source only), `plain.py` says each problem in one plain sentence (the step
   pages' and the viewer's; the five screens show numbers).
 - **The screens' data (#42): one small JSON object a screen, numbers, states, names and links, no sentences**
@@ -41,9 +41,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   - `/api/screens/environment`: `money` {month, cloud, models (None: not read, never the call ledger alone), total,
     whole, stop (the last batch's: its high plus 10%; None before one), against_stop (spent since the first stop line
     plus in flight), in_flight, refused}; `remake` {likely, high (prepare's whole prop route, takes waiting on lost
-    inputs counted, plus the holes price of every paid step off it), route {likely, high, unpriced, takes, bought,
+    inputs counted, plus the gaps price of every paid step off it), route {likely, high, unpriced, takes, bought,
     made, library (from the library: only models made under today's route or locked, prepare's rule; an older match
-    is remade and counted bought), predicted_holes, blocked}, rest {likely, high, priced, unpriced}, unpriced, eta {likely_minutes,
+    is remade and counted bought), predicted_gaps, blocked}, rest {likely, high, priced, unpriced}, unpriced, eta {likely_minutes,
     high_minutes (None unless every step is timed), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
     {kind: count}; `places` [{place, title, status, picture (its concept's thumbnail link; None when its concept is
     lost, never a render instead: owner, 2026-10-20), picture_from (concept, None), progress {made, needed}
@@ -57,9 +57,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     {node: FileRef}; the export carries their thumbnails before every other picture.
   - `/api/screens/place/<place>`: picture, `web3d` (`/web/<place>/<place>.glb`, else the library place entry's GLB at
     `/library-files/files/<sha>`) and `web3d_from`, `view`, progress, complete, gaps, worst, takes, `steps` [{node,
-    stage, label, state, paid, thumb}], `items` (its holes, the scene tree's leaves by `prim` path) [{id, prim, kind,
+    stage, label, state, paid, thumb}], `items` (its gaps, the scene tree's leaves by `prim` path) [{id, prim, kind,
     row, node, paid, work, picture}], `prices` {node: {likely, high, priced, unpriced}} (each filling node's chain
-    once; None while the holes price is stale), price_stale.
+    once; None while the gaps price is stale), price_stale.
   - `/api/screens/buy`: `items` [{id, title, place, places, layers, likely, high, guessed, nodes, unmeasured,
     blocked, choice (buy, later, None; a choice on another version is None)}], `chosen`, `total` (the chosen items,
     each node once) and `basket` (every item) {likely, high, guessed, nodes, unmeasured}, `eta` {likely_minutes,
@@ -127,9 +127,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   tree's top level only; each deeper branch loads as it opens from `/place/<place>/branch/?path=<names below the root>` (`views.
   place_branch`, `cockpit.branch_rows`), and an item's panel holds its picture, gap kind, its chain's price
   (`cockpit.chain_words`: "unknown" while a paid step of it has no measured price) and, for the owner, one action on
-  the step that fills it (`cockpit.hole_action`: accept its waiting output, reject one failing a check, waive the
+  the step that fills it (`cockpit.gap_action`: accept its waiting output, reject one failing a check, waive the
   failed check of its accepted one, as his JSON request to `/api/decisions` or `/api/waivers`); opening it frames
-  the hole in the 3D view (a `{hole}` message to the viewer frame). Buy shows the one batch (CONTEXT.md "batch"): the remake
+  the gap in the 3D view (a `{gap}` message to the viewer frame). Buy shows the one batch (CONTEXT.md "batch"): the remake
   (`screens.batch`), a step with neither a measured price nor prepare's estimate a grey "unknown" (a guess is never a
   price); its Buy button posts `/buy/yes/` {key, batch: now} (`basket.buy_yes`, `batch_items`: every basket item a
   run on main buys now but the Benchmarks, as shown, through the same checkout as the basket's, hosted queued; the
@@ -140,7 +140,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `measured_prices`, `spend_by_day`, `day_chart`), each None where the runner gives none, shown as a grey "unknown", never 0; the
   views are `views.environment`, `stats`, `buy`, `place_page` over `views.overview_of`. The components, each an
   include of `templates/pages/c/` with these arguments (every one ends without a newline, so it sits inline):
-  - `dot.html` `tone` (done, idle, bad, review, hole-lost, hole-route, hole-missing, hole-gate: the `.tone-*`
+  - `dot.html` `tone` (done, idle, bad, review, gap-lost, gap-route, gap-missing, gap-gate: the `.tone-*`
     classes of dash.css), `tip`.
   - `ring.html` `done`, `total`, `tip`: a progress ring with done/total in it.
   - `number.html` `label`, `value` (None: grey "unknown" with `unknown_tip`), `unit` ("EUR": to the cent), `of` a
@@ -153,11 +153,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   - `tree.html` `nodes` [{label, count, tone, tip, href, picture (a thumbnail link), open, panel, children,
     children_url}]: `children` drawn now,
     `children_url` fetched (GET, JSON [node] of the same fields) only when its branch first opens (dash.js); a
-    failed load turns its dot red and goes to the console. `panel` {title, state, tone, price, picture, hole,
+    failed load turns its dot red and goes to the console. `panel` {title, state, tone, price, picture, gap,
     action, action_label, body, reason} opens the side panel on a click or Enter.
   - `panel.html` `id` (default "panel"): one a page, filled by dash.js from the opener's data-title, data-state,
     data-tone, data-price ("unknown" grey), data-picture, data-action (a link, or with data-body the JSON its button
-    posts; data-reason asks why), data-action-label, and data-hole sent to `iframe[data-frames]`; Escape or its
+    posts; data-reason asks why), data-action-label, and data-gap sent to `iframe[data-frames]`; Escape or its
     close button shuts it. Any `form[data-yes]` (data-url, data-body, data-reload) posts the same way: a green or
     red dot, the answer as hover text, never on the page.
   Hover text is the native `title` attribute: every component takes `tip`; an explanation goes there, never on
@@ -176,11 +176,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the files the hosted side lacks, thumbnails first, one 2 MiB gzip chunk a request, then a commit swaps it in whole.
   Each pass first runs the library sweep (`score.stages.library.sweep`, the environment against its library), so its
   problems are in the export by construction; a failed sweep is said in the pass's words and the pass goes on.
-  The holes (`score.stages.complete.holes`, in a process of its own: it reads OpenUSD) are written right after it,
+  The gaps (`score.stages.complete.gaps`, in a process of its own: it reads OpenUSD) are written right after it,
   the same way, then prepare's remake figure (`score.stages.complete.prepare`, `remake_prepared`), its benchmarks as
   the basket's one Benchmarks item (`proposals/benchmarks.py`, `basket_benchmarks`) and the library's
   place pictures into the library cache (`score.stages.library.pictures`, `library_pictures`), each a line. A pass syncs nothing, and says why, from a checkout with tracked changes or a commit origin's main
-  does not hold (`tree_refusal`), or when the runner's price after the holes (`score price <environment> --holes`,
+  does not hold (`tree_refusal`), or when the runner's price after the gaps (`score price <environment> --gaps`,
   `runner_price`) fails, so no stale plan or price is ever sent; a pass whose checkout moved to another commit
   while it ran pushes no export (prepare's and the price's records would read stale) and still applies requests. The owner's money buttons and his waiver
   (`applying.OWNER_FIGURES`: the books' figure, the read-back, a waiver) are applied

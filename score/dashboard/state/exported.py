@@ -8,6 +8,20 @@ from score.dashboard.state.files import HERO_SIDE, SHA, THUMB_SIDE
 from score.dashboard.state.models import PlaceDetail, Spend, StepDetail, WorldState
 
 WORLD_FILE = "_world"
+# The format before the 2026-10-20 rename (CONTEXT.md "gap"): its `holes` are today's gaps and a place's `gaps` its
+# accepted gaps. The hosted side reads its last such export in today's words until the next one is swapped in.
+RENAMED_FORMAT = 2
+
+
+def in_todays_words(value):
+    """A record of a RENAMED_FORMAT export with its keys in today's words, at every depth."""
+    if isinstance(value, list):
+        return [in_todays_words(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    accepted = "holes" in value
+    return {("accepted_gaps" if accepted and key == "gaps" else key.replace("hole", "gap")): in_todays_words(item)
+            for key, item in value.items()}
 
 
 class ExportedSource:
@@ -31,6 +45,11 @@ class ExportedSource:
             self.cache[name] = read(path) if path.is_file() else None
         return self.cache[name]
 
+    def read_json(self, path):
+        """An export file's JSON, in today's words when the export is of RENAMED_FORMAT."""
+        found = json.loads(path.read_text())
+        return in_todays_words(found) if (self.manifest() or {}).get("format") == RENAMED_FORMAT else found
+
     def read_at(self):
         manifest = self.manifest()
         return manifest["made_at"] if manifest else "no export yet"
@@ -48,7 +67,7 @@ class ExportedSource:
         self.cache = {}
 
     def world_state(self, spend=None):
-        found = self.loaded("state.json", lambda path: WorldState.model_validate_json(path.read_text()))
+        found = self.loaded("state.json", lambda path: WorldState.model_validate(self.read_json(path)))
         return found or WorldState(made_at="", source="no export", world="world1", engines=[])
 
     def spend(self):
@@ -59,7 +78,7 @@ class ExportedSource:
                 for card in style.places]
 
     def bundle(self, place):
-        return self.loaded(f"places/{place or WORLD_FILE}.json", lambda path: json.loads(path.read_text()))
+        return self.loaded(f"places/{place or WORLD_FILE}.json", self.read_json)
 
     def place_detail(self, place):
         bundle = self.bundle(place)
@@ -103,7 +122,7 @@ class ExportedSource:
         return detail.web3d if detail else None
 
 
-    def holes(self, place):
-        """The place's holes as its exported detail carries them; [] for a place the export lacks."""
+    def gaps(self, place):
+        """The place's gaps as its exported detail carries them; [] for a place the export lacks."""
         detail = self.place_detail(place)
-        return detail.holes if detail else []
+        return detail.gaps if detail else []

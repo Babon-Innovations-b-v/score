@@ -250,7 +250,7 @@ def check_needs():
     (data / "scene/room.json").write_text(json.dumps({"environment": {"inside": True}, "views": []}))
 
     def ids(place):
-        return sorted(hole["id"] for hole in needs.holes(place, data) + ground_needs.holes(place, data))
+        return sorted(gap["id"] for gap in needs.gaps(place, data) + ground_needs.gaps(place, data))
     assert ids("yard") == ["ground:seat:yard", "sky:body:yard"], ids("yard")
     (data / "ground/plan/rock.json").write_text(json.dumps({"ground": "rock", "seats": {"yard": {}}}))
     assert ids("yard") == ["sky:body:rock"], ids("yard")  # no copied ground record places a detail area

@@ -144,12 +144,12 @@ def sha256_of(path):
 
 def world_files():
     """Every sound file the licence list names (data/sound/licences.json), from the library, by its name there; a
-    hole (a file the library does not hold) is left out."""
+    gap (a file the library does not hold) is left out."""
     found = {}
     for listing in json.loads(LICENCES.read_text()):
         path = library_files.resolve(listing["file"])
         if path is None:
-            library_files.say_hole(listing["file"], "the licence list")
+            library_files.say_gap(listing["file"], "the licence list")
         elif path.suffix.lower() in AUDIO_ENDINGS:
             found[listing["file"]] = path
     return found

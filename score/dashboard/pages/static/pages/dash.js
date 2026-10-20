@@ -172,7 +172,7 @@ function openPanel(opener) {
     slot("said").hidden = true;
   }
   const view = document.querySelector("iframe[data-frames]");
-  if (view && opener.dataset.hole) view.contentWindow.postMessage({ hole: opener.dataset.hole }, location.origin);
+  if (view && opener.dataset.gap) view.contentWindow.postMessage({ gap: opener.dataset.gap }, location.origin);
   panel.hidden = false;
 }
 
@@ -229,7 +229,7 @@ function treeRow(node) {
   if (node.panel) {
     Object.assign(row.dataset, { opens: "panel", title: node.panel.title || "", state: node.panel.state || "",
       tone: node.panel.tone || "", price: node.panel.price || "", action: node.panel.action || "",
-      actionLabel: node.panel.action_label || "", picture: node.panel.picture || "", hole: node.panel.hole || "",
+      actionLabel: node.panel.action_label || "", picture: node.panel.picture || "", gap: node.panel.gap || "",
       body: node.panel.body || "", reason: node.panel.reason ? "1" : "" });
     row.tabIndex = 0;
     row.setAttribute("role", "button");

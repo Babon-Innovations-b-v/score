@@ -435,9 +435,9 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
    panel, a step-2 placeholder; and the five screens' layouts */
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--idle); }
 .tone-done { --tone: var(--done); } .tone-idle { --tone: var(--idle); } .tone-bad { --tone: var(--bad); }
-.tone-review { --tone: var(--review); } .tone-hole-lost { --tone: var(--color-hole-lost); }
-.tone-hole-route { --tone: var(--color-hole-route); } .tone-hole-missing { --tone: var(--color-hole-missing); }
-.tone-hole-gate { --tone: var(--color-hole-gate); }
+.tone-review { --tone: var(--review); } .tone-gap-lost { --tone: var(--color-gap-lost); }
+.tone-gap-route { --tone: var(--color-gap-route); } .tone-gap-missing { --tone: var(--color-gap-missing); }
+.tone-gap-gate { --tone: var(--color-gap-gate); }
 .dot[class*="tone-"] { background: var(--tone); }
 [title] { cursor: help; } a[title], button[title], [role=button][title] { cursor: pointer; }
 .ring { width: 40px; height: 40px; flex: none; transform: rotate(-90deg); }

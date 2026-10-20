@@ -1,4 +1,4 @@
-"""The remake's plan in milestones, worked out by the runner from the holes record and the stage table, never written
+"""The remake's plan in milestones, worked out by the runner from the gaps record and the stage table, never written
 by hand: every node of the record's chains and lines (price.py) ordered by a dependency sort of the rows' reads,
 shapes first (CONTEXT.md "shapes first"), the stage table's order only breaking ties, then grouped by the step of the
 route each node is at. The cockpit only shows the list.
@@ -25,10 +25,10 @@ A milestone:
                                        nodes with no measured price: set, never measured, never in the sums)
      "unknown": [{"node", "why"}],     (each paid node with no measured price, with its reason)
      "after_work": {"likely_euros", "high_euros", "unknown", "nodes", "counts"},  (what the record prices after
-                                       code work whose holes wait at this step: the prop route, the Pixal3D code
+                                       code work whose gaps wait at this step: the prop route, the Pixal3D code
                                        work; `counts` each priced node's unit_source, how its count was made)
      "missing": [stages],              (the step's route stages no row of the table does yet)
-     "work": [{"work", "holes"}],       (the holes' code work no stage does yet that waits at this step, raw lines;
+     "work": [{"work", "gaps"}],       (the gaps' code work no stage does yet that waits at this step, raw lines;
                                        the cockpit folds them into its tasks and the owner's own)
      "owner": [words],                 (the owner's steps: the month's books before the first paid step)
      "reads": [keys of the earlier milestones its nodes read]}
@@ -40,7 +40,7 @@ import heapq
 
 from score import stages
 from score.graph import chain, node_name
-from score.stages.complete.holes import fill, inputs
+from score.stages.complete.gaps import fill, inputs
 
 GROUND = (stages.TERRAIN.name,)
 SHAPES = tuple(fill.FILLERS[kind][0] for kind in (fill.CONCEPT, fill.PLAN, fill.ROUGH_MODEL)) + (stages.OWN_RECORD,)
@@ -64,7 +64,7 @@ APPROVAL = "you approve the final video: nothing is accepted by hand, and the re
 
 
 def remake_nodes(record):
-    """Every node of the record's hole chains and line chains, each once."""
+    """Every node of the record's gap chains and line chains, each once."""
     return ({node for at in record["chains"].values() for nodes in at.values() for node in nodes}
             | {node for nodes in record["lines"].values() for node in nodes})
 
@@ -188,27 +188,27 @@ def stage_rows(names, paid):
     return list(found.values())
 
 
-def work_step(hole, readers, steps):
-    """The step of the route a hole no stage fills waits at: a lost input's at its earliest reader's (`readers`,
+def work_step(gap, readers, steps):
+    """The step of the route a gap no stage fills waits at: a lost input's at its earliest reader's (`readers`,
     lost_readers), a route step's at that step's stage, anything else at made."""
-    if inputs.is_lost(hole["id"]):
-        found = [steps[node] for node in readers.get(hole["id"], ()) if node in steps]
+    if inputs.is_lost(gap["id"]):
+        found = [steps[node] for node in readers.get(gap["id"], ()) if node in steps]
         return min(found, key=RANK.get) if found else "made"
-    if hole["rule"] == "place":
-        kind = hole["id"].partition(":")[2]
+    if gap["rule"] == "place":
+        kind = gap["id"].partition(":")[2]
         stage = (fill.FILLERS.get(kind) or (None,))[0] or kind
         return step_of(stage, False, False)
     return "made"
 
 
 def work_by_step(found, readers, steps):
-    """{step: {work line: holes}} of every hole no stage fills (`found`, {place: holes}), a lost input once."""
-    every = inputs.distinct([hole for listed in found.values() for hole in listed])
+    """{step: {work line: gaps}} of every gap no stage fills (`found`, {place: gaps}), a lost input once."""
+    every = inputs.distinct([gap for listed in found.values() for gap in listed])
     by_step = {}
-    for hole in every:
-        if hole.get("node") is None and hole.get("work"):
-            lines = by_step.setdefault(work_step(hole, readers, steps), {})
-            lines[hole["work"]] = lines.get(hole["work"], 0) + 1
+    for gap in every:
+        if gap.get("node") is None and gap.get("work"):
+            lines = by_step.setdefault(work_step(gap, readers, steps), {})
+            lines[gap["work"]] = lines.get(gap["work"], 0) + 1
     return by_step
 
 
@@ -239,7 +239,7 @@ def milestone(rows, key, names, record, extra):
                         for name in sums["unknown"]],
             "after_work": {"likely_euros": after["likely_euros"], "high_euros": after["high_euros"],
                            "unknown": len(after["unknown"]), "nodes": len(extra["after"]), "counts": counts},
-            "work": [{"work": line, "holes": holes} for line, holes in sorted(extra["work"].items(),
+            "work": [{"work": line, "gaps": gaps} for line, gaps in sorted(extra["work"].items(),
                                                                               key=lambda pair: -pair[1])],
             "owner": extra["owner"], "reads": extra["reads"], "missing": extra["missing"],
             **({"unpriced": f"no row of the stage table does this yet: {', '.join(extra['missing'])}"}
@@ -254,7 +254,7 @@ def missing_stages(runner, key):
 def milestones(runner, rows, record, found, readers, books):
     """[milestone] of the remake: each step of the route with nodes or code work, in the route's order, then the
     environment's film and the owner's approval. `rows` {stage: row} of the table and the tables of their own,
-    `found` the places' current holes ({place: holes}), `readers` lost_readers' {lost hole id: reader nodes},
+    `found` the places' current gaps ({place: gaps}), `readers` lost_readers' {lost gap id: reader nodes},
     `books` why paid work is refused now (None when it is not)."""
     edges = read_edges(runner, remake_nodes(record))
     steps = steps_of(edges, set(runner.stages))

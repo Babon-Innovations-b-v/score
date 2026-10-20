@@ -60,10 +60,10 @@ def quota_refusal(error):
 
 
 def draw(key, wording, crop, concept, path):
-    """One close-up into `path`; True when a picture came back, False for a hole: an answer with no picture, any other
+    """One close-up into `path`; True when a picture came back, False for a gap: an answer with no picture, any other
     refusal, or a free refusal (quota_refusal: the rate, the quota or an overloaded service, asked again after a
     wait) every attempt. The call runs once
-    (a batch): a hole is not asked again here, it goes to the basket and a new batch. Refused outside a cleared run
+    (a batch): a gap is not asked again here, it goes to the basket and a new batch. Refused outside a cleared run
     (compute.require_cleared). Each call's cost goes on the Google ledger (google_spend). The same request (same
     wording, crop and concept) is asked once: its answer is kept in google_spend's cache, so a re-keyed node re-draws
     nothing; an answer with no picture is dropped from the cache, so a new batch may ask again."""
@@ -74,7 +74,7 @@ def draw(key, wording, crop, concept, path):
             found = pictures_in(google_spend.generate(MODEL, body, key, 400, caller="pro", cache=True))
         except urllib.error.HTTPError as error:
             if not quota_refusal(error):
-                print(f"Nano Banana Pro refused ({error.code}); a hole", flush=True)
+                print(f"Nano Banana Pro refused ({error.code}); a gap", flush=True)
                 return False
             print(f"Nano Banana Pro refused for the rate, the quota or its load ({error.code}); asking again after a wait",
                   flush=True)
@@ -82,7 +82,7 @@ def draw(key, wording, crop, concept, path):
             continue
         if not found:
             google_spend.cache_path(MODEL, body).unlink(missing_ok=True)
-            print("Nano Banana Pro answered with no picture; a hole", flush=True)
+            print("Nano Banana Pro answered with no picture; a gap", flush=True)
             return False
         Image.open(io.BytesIO(base64.b64decode(found[-1]))).convert("RGB").save(path)
         return True

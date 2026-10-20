@@ -17,10 +17,10 @@ the out folder and is skipped when they are there, so a run that stops is run ag
 4. pro/<id>.png: Nano Banana Pro for each close-up the check failed (pro.py), one take a row, judged and checked
    the same way. Its wording is chosen free before it is drawn and kept on the row (`pro_wording`, pro_wording()):
    the crop alone (CROP_ONLY), or with the whole concept as a second reference (WORDING) when the row's crop is
-   under SHORTEST_CROP before it is scaled up. A row whose Pro take fails is a hole, never drawn again here (a
+   under SHORTEST_CROP before it is scaled up. A row whose Pro take fails is a gap, never drawn again here (a
    batch, CONTEXT.md, owner 2026-10-20). Skipped with --no-pro.
 5. closeups.json: per row the accepted picture and the model that made it (none when every take failed: those are
-   holes left for the creator to look at), every take's faults, its Pro wording and the row's cost; the batches'
+   gaps left for the creator to look at), every take's faults, its Pro wording and the row's cost; the batches'
    ledger entries and the totals.
 
 Printed words on a close-up do not matter: labels and print are put on the model as decals later.
@@ -208,7 +208,7 @@ def checked(row, out, take):
 
 def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):
     """One Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet, worded as the row's
-    `pro_wording` says (chosen first where the row has none). Each is asked once: one with no picture is a hole."""
+    `pro_wording` says (chosen first where the row has none). Each is asked once: one with no picture is a gap."""
     from secret_store import secret
 
     (out / take).mkdir(parents=True, exist_ok=True)
@@ -237,7 +237,7 @@ def share(entry, count):
 
 def accepted(row, out, faults, euros):
     """One row's record: every take's faults, the first take that passed (its picture and model; none when every take
-    failed, a hole left for the creator to look at), its Pro wording, the cloud's euros and Pro's dollars for the
+    failed, a gap left for the creator to look at), its Pro wording, the cloud's euros and Pro's dollars for the
     row."""
     takes = [take for take in ("qwen", *PRO_TAKES) if take in faults]
     passed = next((take for take in takes if not faults[take]), None)

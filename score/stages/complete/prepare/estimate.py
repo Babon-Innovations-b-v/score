@@ -1,5 +1,5 @@
 """The one figure a batch is said yes to (#21): euros (likely and high, every job run once), one ETA on the fixed fleet
-(schedule.py) and the predicted holes beside them. Free and local; it buys nothing.
+(schedule.py) and the predicted gaps beside them. Free and local; it buys nothing.
 
 Each take a group needs runs once through its route's layers (the prop route, price.route_stages: close-up, Pixal3D,
 the surface line, the bake); a shell piece takes its library surface with no maps, so only its close-up, model and
@@ -12,7 +12,7 @@ runner's card rule, capped at the run's cap), or named as unmeasured; the ETA wa
 import math
 
 from score.adapters import compute
-from score.stages.complete.holes import price, schedule
+from score.stages.complete.gaps import price, schedule
 
 SHELL_ROUTE = ("closeup", "pixal", "surfaces-bake")
 GOOGLE = "google calls"  # a per-unit entry's source of Google calls: the bill share does not apply
@@ -122,8 +122,8 @@ def totals(found):
             "unpriced": sorted(stage for stage, layer in found.items() if layer["price"]["likely_euros"] is None)}
 
 
-def expected_holes(bought):
-    """The holes the batch is expected to leave by its groups' measured pass shares (a group of no measured shape
+def expected_gaps(bought):
+    """The gaps the batch is expected to leave by its groups' measured pass shares (a group of no measured shape
     counts none), rounded; the measure is the close-up's, the first paid step."""
     return round(sum(1 - group["prediction"]["pass_share"] for group in bought
                      if group["prediction"]["pass_share"] is not None))
@@ -137,7 +137,7 @@ def line(record):
     unpriced = f", unpriced: {', '.join(money['unpriced'])}" if money["unpriced"] else ""
     return (f"remake batch (estimate): {counts['bought']} takes of {counts['groups']} models "
             f"({counts['library']} from the library (made under today's route), "
-            f"{counts['predicted_holes']} predicted holes not bought), "
+            f"{counts['predicted_gaps']} predicted gaps not bought), "
             f"EUR {money['likely_euros']:.2f} likely, {money['high_euros']:.2f} high, every job once{unpriced}; "
-            f"ETA {minutes}; about {record['expected_holes']} holes expected after; "
+            f"ETA {minutes}; about {record['expected_gaps']} gaps expected after; "
             f"{counts['inputs_missing']} takes wait on lost inputs")

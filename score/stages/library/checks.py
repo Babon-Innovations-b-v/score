@@ -11,7 +11,7 @@
     quality      every entry has its quality score (unknown, naming each, otherwise)
     saved        the library committed the handover (a failed push alone passes: the cockpit shows it)
 
-Unknown blocks like fail. A named gap does not apply here: the library rule has its own exceptions file.
+Unknown blocks like fail. An accepted gap does not apply here: the library rule has its own exceptions file.
 """
 import json
 import pathlib

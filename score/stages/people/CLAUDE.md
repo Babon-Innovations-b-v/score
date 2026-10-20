@@ -22,7 +22,7 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   people --detach` (it is no place of the environment's, so a whole run leaves it out). The people layer's after-step,
   `people-made@people` (`loop.py`), hands each look on (its take, its finishes, its labelled take) or names its gap;
   each look's parts row and dress row read it (beside, on the line) and are Blocked on the look's gap before
-  anything is bought. Never edit the surface stage for people. **Named gaps today:** no look's size is measured (the
+  anything is bought. Never edit the surface stage for people. **Accepted gaps today:** no look's size is measured (the
   inventory's `size` is null, so the close-up gate names the proportions unmeasured) and no bake entry is written (a
   run on the line refuses `bake entry <look>` before anything is cleared); a hair finish fails the paint's colour
   gate by name (the old people-paint left hair out, `hair.py`, deleted with it); `people-take-<look>` still makes

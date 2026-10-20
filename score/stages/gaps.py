@@ -1,4 +1,4 @@
-"""Named gaps: a fault the owner decided to ship with today, moved from the gate that stops a line to the completion
+"""Accepted gaps: a fault the owner decided to ship with today, moved from the gate that stops a line to the completion
 gate, which fails it by name. Never a loosened gate: only the objects a dated decision names move, the fault stays in
 complete's report with its measured numbers, and any other fault still stops the line.
 
@@ -64,13 +64,13 @@ def covers(entry, finding):
 
 def moved(verdict, gaps):
     """The gate's verdict with the faults of the named objects moved to the completion gate: a fail whose every
-    finding is a named object's passes, its findings and measures kept and each named gap said; any other fault
+    finding is a named object's passes, its findings and measures kept and each accepted gap said; any other fault
     keeps the fail. An unknown whose reason holds an entry's `unknown` phrase passes the same way. Another answer is
     as given."""
     named = [entry for entry in gaps if entry.get("unknown") and entry["unknown"] in verdict.reason]
     if verdict.answer == checks.UNKNOWN and named:
         said = "; ".join(f"{entry['name']} ({entry['decided']})" for entry in named)
-        return checks.Verdict(verdict.check, checks.PASS, f"{verdict.reason}; moved to complete as named gaps: {said}",
+        return checks.Verdict(verdict.check, checks.PASS, f"{verdict.reason}; moved to complete as accepted gaps: {said}",
                               {**verdict.measures, "moved": 1}, verdict.better, verdict.findings)
     if verdict.answer != checks.FAIL or not verdict.findings or not gaps:
         return verdict
@@ -78,17 +78,17 @@ def moved(verdict, gaps):
         return verdict
     said = "; ".join(f"{entry['name']} ({entry['decided']})" for entry in gaps
                      if any(covers(entry, finding) for finding in verdict.findings))
-    return checks.Verdict(verdict.check, checks.PASS, f"{verdict.reason}; moved to complete as named gaps: {said}",
+    return checks.Verdict(verdict.check, checks.PASS, f"{verdict.reason}; moved to complete as accepted gaps: {said}",
                           {**verdict.measures, "moved": len(verdict.findings)}, verdict.better, verdict.findings)
 
 
-def judge_named(output, inputs, evidence):
-    """The completion gate fails every named gap of the place by name, with the faults as measured when it was
+def judge_accepted(output, inputs, evidence):
+    """The completion gate fails every accepted gap of the place by name, with the faults as measured when it was
     decided; passes when the place has none."""
     gaps = entries(inputs)
     if not gaps:
-        return checks.Verdict("named gaps", checks.PASS, "no named gap", {"gaps": 0}, {"gaps": "lower"})
+        return checks.Verdict("accepted gaps", checks.PASS, "no accepted gap", {"gaps": 0}, {"gaps": "lower"})
     findings = tuple(f"{entry['name']}: {fault}" for entry in gaps for fault in entry["faults"])
-    return checks.Verdict("named gaps", checks.FAIL, "; ".join(f"{entry['name']} ({entry['reason']}; "
+    return checks.Verdict("accepted gaps", checks.FAIL, "; ".join(f"{entry['name']} ({entry['reason']}; "
                                                                f"{entry['decided']})" for entry in gaps),
                           {"gaps": len(gaps)}, {"gaps": "lower"}, findings)

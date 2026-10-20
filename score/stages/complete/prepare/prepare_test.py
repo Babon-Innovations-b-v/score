@@ -15,7 +15,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 
 from score import stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
-from score.stages.complete.holes import price  # noqa: E402
+from score.stages.complete.gaps import price  # noqa: E402
 from score.stages.complete.prepare import (__main__ as prepare, benchmarks, contract, estimate, groups,  # noqa: E402
                                            library, machines, predict)
 
@@ -75,12 +75,12 @@ def test_a_library_model_matches_by_kind_and_ratio_and_only_todays_route_or_lock
     assert len(index) == 5  # the model with no source row has no size and matches nothing
 
 
-def test_the_hub_table_makes_every_rod_a_predicted_hole_and_a_lone_sheet_only_a_risk():
+def test_the_hub_table_makes_every_rod_a_predicted_gap_and_a_lone_sheet_only_a_risk():
     rates = predict.hub_rates(REPO / "data")
     assert (rates["rod"]["failed"], rates["rod"]["of"]) == (5, 5), rates
     assert rates["sheet"]["of"] < predict.MIN_MEASURED
     rod = predict.predicted([0.1, 0.1, 1.0], rates)
-    assert rod["outcome"] == "predicted hole" and rod["pass_share"] == 0.0 and "5 of 5" in rod["measured"], rod
+    assert rod["outcome"] == "predicted gap" and rod["pass_share"] == 0.0 and "5 of 5" in rod["measured"], rod
     assert predict.predicted([1.4, 0.02, 0.9], rates)["outcome"] == "at risk"
     solid = predict.predicted([0.6, 0.6, 0.9], rates)
     assert solid["outcome"] == "pass" and 0 < solid["pass_share"] < 1, solid
@@ -112,7 +112,7 @@ def test_the_first_class_in_the_kinds_order_is_fixed_in_its_zone_with_the_best_b
     short = [Offer("gpu-24gb", "b", machines.SHORTAGE), Offer("gpu-24gb", "a", "available")]
     assert machines.fixed("pixal", records, cap, short)["zone"] == "a"
     none_stocked = machines.fixed("pixal", records, cap, [Offer("cpu-4c-32gb", "a", "available")])
-    assert none_stocked["class"] is None and "holes" in none_stocked["why"]
+    assert none_stocked["class"] is None and "gaps" in none_stocked["why"]
     assert machines.fixed("closeup", records, cap) is None  # Google calls rent nothing
 
 
@@ -187,7 +187,7 @@ def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
     counts = record["counts"]
     assert counts["groups"] == len(record["takes"])
     assert counts["library"] == 0 and record["library"]["root"] is None  # no library given: nothing matches
-    assert counts["bought"] + counts["predicted_holes"] + counts["made"] == counts["groups"], counts
+    assert counts["bought"] + counts["predicted_gaps"] + counts["made"] == counts["groups"], counts
     assert counts["inputs_missing"] == counts["bought"]  # a sandbox work folder holds no view picture
     assert record["line"].startswith("remake batch (estimate): ") and "every job once" in record["line"]
     assert record["moved"] == {"not_run": "--moved not given"}

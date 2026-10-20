@@ -252,7 +252,7 @@ class InTheGame:
         for name in self.current_files(need["name"])[:1]:
             listed = self.licences.get(name, {})
             local = library_files.resolve(name)
-            if local is None:  # a hole: no recording before to swap back to
+            if local is None:  # a gap: no recording before to swap back to
                 continue
             found.append(Candidate("game", f"game:{need['name']}", f"The recording before ({local.name})",
                                    listed.get("author", "?"), listed.get("licence", "?"), listed.get("source", ""),

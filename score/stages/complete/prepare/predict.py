@@ -1,5 +1,5 @@
 """Each take's predicted outcome before the batch, from a measured failure mode only (#21's batch contract): a group
-whose shape every measured row of that shape failed on is a predicted hole and is not bought; any other is bought,
+whose shape every measured row of that shape failed on is a predicted gap and is not bought; any other is bought,
 with its shape's measured close-up pass share beside it. No threshold is a guess at an outcome: the rates are counted
 here from the hub's prop-route table (paper/evidence/compare-hub/table.json, 13 objects, 2026-10) against the hub
 inventory's sizes, every time.
@@ -7,7 +7,7 @@ inventory's sizes, every time.
 Shapes by size alone (groups.sides, each side over the longest): a rod has its middle side at most ROD of its
 longest (a strut, a rib, a pipe), a sheet its shortest side at most SHEET (a mat, a panel), anything else is solid.
 On the hub every rod failed the close-up's shape check (the Pro takes), and so did the one sheet; a shape with fewer
-than MIN_MEASURED measured rows is `at risk`, never a predicted hole.
+than MIN_MEASURED measured rows is `at risk`, never a predicted gap.
 """
 import json
 import pathlib
@@ -57,7 +57,7 @@ def hub_rates(data):
 
 
 def predicted(size, rates):
-    """{outcome, shape, pass_share, mode, measured} of a take of this size: `predicted hole` when every one of at
+    """{outcome, shape, pass_share, mode, measured} of a take of this size: `predicted gap` when every one of at
     least MIN_MEASURED measured rows of its shape failed the close-up, `at risk` when its shape has fewer measured
     rows and some failed, else `pass` (pass_share its shape's measured close-up pass share, None unmeasured)."""
     shape = shape_of(size)
@@ -68,7 +68,7 @@ def predicted(size, rates):
     said = f"{counted['failed']} of {counted['of']} hub {shape}s failed the close-up ({TABLE.name})"
     share = round(1 - counted["failed"] / counted["of"], 3)
     if counted["failed"] == counted["of"] and counted["of"] >= MIN_MEASURED:
-        return {"outcome": "predicted hole", "shape": shape, "pass_share": share,
+        return {"outcome": "predicted gap", "shape": shape, "pass_share": share,
                 "mode": f"close-up: every Pro take of a {shape} failed the shape check", "measured": said}
     outcome = "at risk" if counted["failed"] and counted["of"] < MIN_MEASURED else "pass"
     return {"outcome": outcome, "shape": shape, "pass_share": share, "mode": None, "measured": said}

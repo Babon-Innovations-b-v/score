@@ -12,7 +12,7 @@
 # `loginctl enable-linger <you>` for the timer to run with no shell open.
 #
 # The pass refuses to sync, and says why in the journal, from a checkout with changes not committed or a commit
-# origin's main does not hold, and when the runner's price (`score price <environment> --holes`) fails.
+# origin's main does not hold, and when the runner's price (`score price <environment> --gaps`) fails.
 [Unit]
 Description=SCORE dashboard sync: price, push the state export, pull and apply the owner's requests
 

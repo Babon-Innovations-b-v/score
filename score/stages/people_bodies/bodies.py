@@ -125,10 +125,10 @@ def made(look, entry):
 
 def refused_on_record(foretold, who):
     """Blocked, before any machine is rented, when the look's settled tucks failed in every clip on the same inputs
-    (#21: prop_person.predicted_tucks): a predicted hole, never bought again. A body batch whose every look is foretold so
+    (#21: prop_person.predicted_tucks): a predicted gap, never bought again. A body batch whose every look is foretold so
     spends nothing."""
     if foretold:
-        raise graph.Blocked(f"{who}: a predicted hole, its settled tucks over the gate in all {foretold['clips']} clips "
+        raise graph.Blocked(f"{who}: a predicted gap, its settled tucks over the gate in all {foretold['clips']} clips "
                             f"({foretold['worst_tuck_out_mm']} mm at the worst) on these same inputs; change the take, "
                             "its parts or the maker first")
 

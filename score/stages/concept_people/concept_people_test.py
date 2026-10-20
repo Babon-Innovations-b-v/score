@@ -32,7 +32,7 @@ def test_counts_and_gate():
         unknown = concept_people.judge_measured(root, inputs, None)
         assert unknown.answer == checks.UNKNOWN and "lab.v1" in unknown.reason
         split = concept_people.judge_judged(root, inputs, None)
-        assert split.answer == checks.UNKNOWN and split.reason.startswith("split vote, a hole"), split.reason
+        assert split.answer == checks.UNKNOWN and split.reason.startswith("split vote, a gap"), split.reason
         assert "greenhouse.v1.2" in split.reason  # named, never asked again inside the batch (#21)
         instances["lab.v1"] = []
         judged["greenhouse.v1.2"] = [("suit", None), ("suit", None), (None, None)]

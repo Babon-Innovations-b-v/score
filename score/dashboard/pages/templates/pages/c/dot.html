@@ -1,1 +1,1 @@
-{% comment %}A state dot: `tone` a state colour (done, idle, bad, review, hole-lost, hole-route, hole-missing, hole-gate), `tip` its hover text.{% endcomment %}<i class="dot tone-{{ tone|default:'idle' }}"{% if tip %} title="{{ tip }}" aria-label="{{ tip }}"{% endif %}></i>
+{% comment %}A state dot: `tone` a state colour (done, idle, bad, review, gap-lost, gap-route, gap-missing, gap-gate), `tip` its hover text.{% endcomment %}<i class="dot tone-{{ tone|default:'idle' }}"{% if tip %} title="{{ tip }}" aria-label="{{ tip }}"{% endif %}></i>

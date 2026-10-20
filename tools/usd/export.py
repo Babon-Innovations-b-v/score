@@ -708,13 +708,13 @@ def reused_takes(parts, laid, inventory, stored):
 
 
 def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None, world=None,
-           scene=None, holes=None):
+           scene=None, gaps=None):
     """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path.
     `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read; without
     `parts`, the place's stored takes (data/parts). `ground` is the place's tools/usd/ground.Ground; without one the
     place is flat. `scene` is the place's scene record (tools/usd/scene.py; None writes only its made pieces) and
     `world` a folder holding the files its records name, read instead of the library (tools/library). Given a list as
-    `holes` (the earth-seed row's), a piece whose model is in none of `models` is left out and named there
+    `gaps` (the earth-seed row's), a piece whose model is in none of `models` is left out and named there
     ({"model"}), and so is each pick fault ({"row", "object", "why"}), instead of stopping the export."""
     out = pathlib.Path(out)
     if parts is None:
@@ -722,8 +722,8 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     elif isinstance(parts, dict):  # a kit room's run: a model its bake jobs do not name (laid later) by its stored take
         parts = {**stored_parts.takes_of(place), **parts}
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
-    if holes is not None:
-        kit = dict(kit, pieces=made_only(kit["pieces"], models, holes))
+    if gaps is not None:
+        kit = dict(kit, pieces=made_only(kit["pieces"], models, gaps))
     if scene:
         scene_record.refuse_rejected(scene, [piece.get("row") for piece in kit["pieces"]], "the kit")
     if kit["pieces"] and "x" in kit["pieces"][0]:
@@ -736,8 +736,8 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
                                if path.exists()), INVENTORIES / f"{place}.json")
     inventory = json.loads(pathlib.Path(inventory_path).read_text())
     children = child_pieces(place, kit, inventory, json.loads(COMPOSITES.read_text()))
-    if holes is not None:
-        children = {row: made_only(on_it, models, holes) for row, on_it in children.items()}
+    if gaps is not None:
+        children = {row: made_only(on_it, models, gaps) for row, on_it in children.items()}
     details = json.loads(DETAILS.read_text())
     variants = library.variants(library.theme_library())
     sounds = json.loads(SOUNDS.read_text())
@@ -758,10 +758,10 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
     hashes = {model: stage_inputs.model_hash(model_file(models, model)) for model in assets}
     broken = pick_faults(kit, children, inventory, hashes, scene_shown((scene or {}).get("objects", []), world))
-    if holes is None:
+    if gaps is None:
         refuse_broken(place, broken)
     else:
-        holes.extend(broken)
+        gaps.extend(broken)
     write_base(place, kit, inventory, assets, out, children, ground, scene, world, hashes)
     ensure_edit(out)
     stage = write_root(place, out)
@@ -779,7 +779,7 @@ def scene_shown(objects, world, parent="Fixtures", shown=None):
         path = f"{parent}/{entry['name']}" if parent == "Fixtures" else \
             f"{parent}/{pathlib.Path(entry['model']).stem}_{number}"
         found = scene_record.world_file(world, entry["model"])
-        if found is None:  # a hole: scene.fixture leaves it out, and what stands on it
+        if found is None:  # a gap: scene.fixture leaves it out, and what stands on it
             continue
         if "row" in entry:
             shown.setdefault(entry["row"], []).append((path, entry["model"], stage_inputs.model_hash(found)))
@@ -787,10 +787,10 @@ def scene_shown(objects, world, parent="Fixtures", shown=None):
     return shown
 
 
-def made_only(pieces, models, holes):
-    """The pieces whose model is in one of the `models` folders; each other model named once in `holes`."""
+def made_only(pieces, models, gaps):
+    """The pieces whose model is in one of the `models` folders; each other model named once in `gaps`."""
     missing = {piece["model"] for piece in pieces if not model_file(models, piece["model"]).exists()}
-    holes.extend({"model": model} for model in sorted(missing) if {"model": model} not in holes)
+    gaps.extend({"model": model} for model in sorted(missing) if {"model": model} not in gaps)
     return [piece for piece in pieces if piece["model"] not in missing]
 
 

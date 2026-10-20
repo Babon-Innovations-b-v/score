@@ -86,7 +86,7 @@ THREAD_VARIABLES = ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"
 # and never reads the variables again: each node resizes those pools by the first of these setters each one has.
 OPENBLAS_SETTERS = ("openblas_set_num_threads", "openblas_set_num_threads64_", "scipy_openblas_set_num_threads",
                     "scipy_openblas_set_num_threads64_")
-# The completion gate's check that fails a place's named gaps by name (score/review GAPPED).
+# The completion gate's check that fails a place's accepted gaps by name (score/review GAPPED).
 GAPPED = review.GAPPED
 # Each node runs in a forked process: its output (and its children's) goes to its own log, and the toy stages of the
 # tests need no import by name. The drive itself starts no threads, so forking it is safe.
@@ -94,7 +94,7 @@ FORK = multiprocessing.get_context("fork")
 FORK_WAIT = multiprocessing.connection.wait
 # A node that errors on a transient fault (a server's 5xx, a timeout, a dropped connection: eight places' maps on the
 # image model's HTTP 500s, 2026-10-12) runs again up to RETRIES times, waiting RETRY_WAIT seconds, doubled each try,
-# when it is free: a paid node's failure is a hole, never rerun inside the batch (ADR-0005, #30).
+# when it is free: a paid node's failure is a gap, never rerun inside the batch (ADR-0005, #30).
 RETRIES, RETRY_WAIT = 4, 30
 # Runs side by side on one store (17 agents' runs, 2026-10-12: people-segvigen bought twice) make a node's key one at a
 # time: a second run waits on the first's lock, then finds its record. One held longer than LOCK_WAIT seconds blocks
@@ -181,7 +181,7 @@ class Stage:
     optional: names in `after` the node reads only while usable (passed, accepted, on its current key); one that is
     not is left out of its reads and its key, so the node runs with what has passed and runs again once it is (the
     characters layer's dress rows: a place lays the people whose look is accepted and names the rest, 2026-10-13).
-    gapped: names in `after` the node also reads when their only blocking check is GAPPED, the place's named gaps
+    gapped: names in `after` the node also reads when their only blocking check is GAPPED, the place's accepted gaps
     (a dated decision): the output on its current key, which the runner never accepts as it fails, unless the owner
     rejected it; any other fault still stops the node (demo-film on complete, the overseer, 2026-10-15).
     upward: its `beside` reads go up to the outside shells that hold this place (an inside place reads its outside shell's
@@ -581,7 +581,7 @@ class Runner:
 
     def usable(self, before, place, wanted, gapped=False):
         """The output of an earlier node that passed its gates on its current evidence, that stands accepted, and
-        whose stamp is the (schema, version) wanted; `gapped`: or that fails only on its named gaps (Stage.gapped)
+        whose stamp is the (schema, version) wanted; `gapped`: or that fails only on its accepted gaps (Stage.gapped)
         and the owner did not reject."""
         stage = self.stages[before]
         node = node_name(stage, place)
@@ -821,7 +821,7 @@ class Runner:
         return f"{done}, accepted automatically" if accepted else done
 
     def rejudged_accepted(self, stage, place):
-        """The accepted output's scorecard judged now, by today's gates on today's environment files (its named gaps among
+        """The accepted output's scorecard judged now, by today's gates on today's environment files (its accepted gaps among
         them, so a gap moves the same faults on both sides), not kept: what a new output is compared with, so both
         are measured alike (assembly@lab, 2026-10-15: its accepted output was judged on 10-11 before the triage asked
         each foot, so the chairs' caster read as two new faults). None when nothing is accepted."""
@@ -1193,7 +1193,7 @@ class Runner:
                 time.sleep(wait)
 
     def standing(self, stage, place, gapped=False):
-        """None when the node's current output passed and stands accepted (`gapped`: or fails only on its named
+        """None when the node's current output passed and stands accepted (`gapped`: or fails only on its accepted
         gaps); else why not."""
         try:
             self.usable(stage.name, place, (stage.contract.schema, stage.contract.version), gapped)
@@ -1299,7 +1299,7 @@ class Runner:
         order = {node_name(*node): index for index, node in enumerate(chosen)}
         waiting = list(chosen)
         done, stopped, stood, running = {}, {}, set(), {}
-        on_gaps = set()  # stopped nodes that fail only on their named gaps: a stage's `gapped` reads them
+        on_gaps = set()  # stopped nodes that fail only on their accepted gaps: a stage's `gapped` reads them
         halted = {}  # {line: [(table index, node)]} of its stopped nodes: nothing later on the line starts
         beat_at = time.monotonic() + HEARTBEAT
         threads = node_threads(jobs)

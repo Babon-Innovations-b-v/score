@@ -401,7 +401,7 @@ DEMO_TURNTABLES = graph.Stage("demo-turntables", "world", demo_turntable.make, d
                               demo_turntable.CHECKS, files=demo_turntable.files, paid=True,
                               euros=demo_turntable.euros())
 # Experimental (2026-10-14): demo K9's walk-through film of a place from its final stage once it passes complete, or
-# fails it only on its named gaps (gapped: the overseer, 2026-10-15), only for the places with a film record in
+# fails it only on its accepted gaps (gapped: the overseer, 2026-10-15), only for the places with a film record in
 # data/definitions/demo_films/, paid.
 DEMO_FILM = graph.Stage("demo-film", "place", demo_film.make, demo_film.CONTRACT, demo_film.CHECKS,
                         files=demo_film.files, after={"assembly": ("openusd-stage", 1),
@@ -446,7 +446,7 @@ MOTION_LAYER = {"models": ("motion-models", "motion-models-boxes"),  # rigid mov
                 "growth": ("crops-layer",)}
 
 
-# The gates a named gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
+# The gates an accepted gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
 GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
              "surfaces-paint": ("colour against the close-up",),
@@ -475,7 +475,7 @@ def with_gap_files(files, row=None):
 
 
 def gap_moved(row, check):
-    """A gate of `row` with its place's named gaps moved (gaps.moved). Defined here, in the table, and unwrapping to
+    """A gate of `row` with its place's accepted gaps moved (gaps.moved). Defined here, in the table, and unwrapping to
     the gate's own judge, so no row's code version takes in gaps.py: moving a verdict changes no output, and a paid
     row (the paint) is never bought again for it."""
     def judged(output, inputs, evidence):
@@ -484,15 +484,15 @@ def gap_moved(row, check):
     return checks.Check(check.name, judged, check.evidence)
 
 
-def named_gaps(row):
-    """The rows the owner's named gaps reach (2026-10-14: the hangar's ship, the wreck's three pieces, the camp grounds'
+def accepted_gaps(row):
+    """The rows the owner's accepted gaps reach (2026-10-14: the hangar's ship, the wreck's three pieces, the camp grounds'
     crane ship today as named fails): a moving gate's faults on the named objects go down the line, and complete fails
     each gap by name with its numbers. Set here, in the table."""
     if row.name not in GAP_GATES and row.name != "complete":
         return row
     moving = GAP_GATES.get(row.name, ())
     kept = tuple(gap_moved(row.name, check) if check.name in moving else check for check in row.checks)
-    named = (checks.Check(graph.GAPPED, gaps.judge_named),) if row.name == "complete" else ()
+    named = (checks.Check(graph.GAPPED, gaps.judge_accepted),) if row.name == "complete" else ()
     reads = None if row.name == "complete" else row.name
     return dataclasses.replace(row, files=with_gap_files(row.files, reads), checks=(*kept, *named))
 
@@ -574,7 +574,7 @@ def ship_seeded(files):
     return declared
 
 
-STAGES = tuple(grained(named_gaps(layered(worn(row), {stage.name for stage in STAGES}))) for row in STAGES)
+STAGES = tuple(grained(accepted_gaps(layered(worn(row), {stage.name for stage in STAGES}))) for row in STAGES)
 # A process's code versions read the import folders it holds at its first key (score/graph/_code.py search_folders).
 # `score run` and `score status` reach tools/characters/cast.py (a dress row's `applies`: cast_looks) before that, and
 # the file puts its folder on the path; a process that keys a node first did not, and read every node whose code

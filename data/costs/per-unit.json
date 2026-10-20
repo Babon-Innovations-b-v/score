@@ -111,7 +111,7 @@
    "basis": "warm work time",
    "forecast": {
     "rule": "prop_takes",
-    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node is this stage's there, by their take"
+    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's gaps (score/stages/complete/gaps) whose node is this stage's there, by their take"
    }
   },
   "closeup": {
@@ -139,7 +139,7 @@
    "basis": "batch price of measured calls",
    "forecast": {
     "rule": "prop_takes",
-    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node is this stage's there, by their take",
+    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's gaps (score/stages/complete/gaps) whose node is this stage's there, by their take",
     "per_model": 1.1905,
     "per_model_from": "paper/evidence/cloud/forecast-2026-10-15.txt line 37: the ship's close-ups, 25 Pro pictures for 21 pieces (2026-10-14)"
    }

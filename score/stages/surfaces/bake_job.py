@@ -11,7 +11,7 @@ A model's entry is the one its surface data writes out, else the route's own ent
 code over the place's data: an outside place's (tools/props/library/place_route.py `chunky_entry`, its kit record has
 an `on_seat`: package.py's) sized by `place_route.made_size` over its labelled take and its inventory row, a kit
 room's (tools/props/library/route.py `jobs`) at its laid size in data/kit/<place>.json. A model with neither fails the
-make, by name: a hole, never a guessed size.
+make, by name: a gap, never a guessed size.
 
 The world files it reads are the bake row's (surface_data.job_files), its details and composites keyed on the
 entries `reads` names and each model `refusal` stops declared missing before anything is cleared (the table's

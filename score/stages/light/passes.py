@@ -6,7 +6,7 @@ lamp of the place in a Cycles light group of its own (inside/light_passes.py).
 
 One shot (#21, #27): every view once, at CHECK_SIZE only, since the passes feed the sweep and the gates and nothing
 ships from them (a film or still renders its own frames at their final size once); one card class, never a fallback
-to a larger card; a job that fails is a hole, never rendered again inside the batch.
+to a larger card; a job that fails is a gap, never rendered again inside the batch.
 """
 import json
 import pathlib

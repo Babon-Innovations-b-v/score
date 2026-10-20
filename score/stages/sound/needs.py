@@ -10,7 +10,7 @@
 
 Each need is in one state: `library` (every sound named has a library file), `make` (a sound named has a brief with
 prompts and no file: the sound row's batch makes it) or `none` (nothing named, or a name with neither file nor
-brief): the holes check (score/stages/complete/holes) shows make and none as the place's sound holes.
+brief): the gaps check (score/stages/complete/gaps) shows make and none as the place's sound gaps.
 """
 import json
 import pathlib
@@ -102,7 +102,7 @@ WORK = {"bed": "name the place's room tone in data/sound/places.json loops: a li
                  "else a brief in data/sound/sounds.json"}
 
 
-def holes(place, data):
+def gaps(place, data):
     """The place's sound needs not answered from the library: [{"id", "prim", "sentence", "node", "work"}], one the
     sound row makes naming its node (`sound@<place>`), one with nothing to make naming its work."""
     found = []

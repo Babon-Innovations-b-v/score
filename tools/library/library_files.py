@@ -4,10 +4,10 @@ model's or a sound's bytes.
 A record names a file of the library by a library reference, `<kind>/<id>@<version>/<file in the entry>`
 (`sound/habitat.recordings@1/audio/recordings/places/habitat.ogg`, `model/rover.gltf@1/gltf/rover.glb`), and a file
 kept in git by its path from the repository's root (`data/ground/moon_plan_relief.png`). A name that is neither, or a
-reference to an entry or file the library does not hold, is a hole: `resolve` gives None and the caller leaves the
+reference to an entry or file the library does not hold, is a gap: `resolve` gives None and the caller leaves the
 thing out (the remake fills it, #19), never a crash.
 
-    files.resolve(name)               # the file on disk, or None for a hole
+    files.resolve(name)               # the file on disk, or None for a gap
     files.reference(address, file)    # the name a record gives a library entry's file
 
 A referenced file is fetched once into the cache (`$PROPS_HOME/cache/library/score_lib/<kind>/<id>/<version>/<file>`)
@@ -47,7 +47,7 @@ STORE_PREFIX = "score_lib"
 BLOB_STORE = ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_ENDPOINT")
 # One file's fetch may take this long (a large model over a slow link).
 TIMEOUT = 600
-# The holes already named on this run.
+# The gaps already named on this run.
 SAID = set()
 
 
@@ -164,7 +164,7 @@ def fetched(values, parts, target):
 
 
 def from_library(name, parts):
-    """A referenced file from the cache, fetched when missing or changed and hash-checked; None for a hole."""
+    """A referenced file from the cache, fetched when missing or changed and hash-checked; None for a gap."""
     values = settings()
     root = values.get("SCORE_LIB_ROOT")
     if not root:
@@ -190,7 +190,7 @@ def from_folder(name, folder):
 
 def resolve(name, folder=None):
     """The file a record names on disk: a repository file (`data/...`), else from `folder` (or SCORE_LIB_FILES) when
-    given, else from the library; None when it is a hole (no library reference, or one the library does not hold).
+    given, else from the library; None when it is a gap (no library reference, or one the library does not hold).
     A repository file that is not there raises FileNotFoundError."""
     if name.startswith("data/"):
         path = REPO / name
@@ -204,8 +204,8 @@ def resolve(name, folder=None):
     return from_library(name, parts) if parts else None
 
 
-def say_hole(name, what):
-    """One line naming a hole, once per name and run."""
+def say_gap(name, what):
+    """One line naming a gap, once per name and run."""
     if name not in SAID:
         SAID.add(name)
-        print(f"hole: {what} names {name}, which the library does not hold (left out)", flush=True)
+        print(f"gap: {what} names {name}, which the library does not hold (left out)", flush=True)

@@ -28,7 +28,7 @@ import sys
 
 import numpy as np
 
-from score.stages.complete.holes import layer
+from score.stages.complete.gaps import layer
 from score.stages.scene_record import plan as plans
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -188,10 +188,10 @@ def ordered(rows):
 
 
 def box(place, row, number, placed, frame, under):
-    """One missing object: its prim path (under the Holes scope, or nested under its missing parent's box), its
+    """One missing object: its prim path (under the Gaps scope, or nested under its missing parent's box), its
     row, size, how it is placed and its frame."""
     name = f"{row['id']}_{number}"
-    return {"path": f"{under or f'/{place}/Holes'}/{name}", "name": name, "row": row, "placed": placed,
+    return {"path": f"{under or f'/{place}/Gaps'}/{name}", "name": name, "row": row, "placed": placed,
             "frame": frame}
 
 

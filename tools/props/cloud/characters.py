@@ -17,7 +17,7 @@ builds them; prop_chain.py, the prop route's steps) runs that program instead of
 
 --hold keeps the first machine after its people, for hands-on work over ssh, until the run folder holds `release`
 (or `--minutes`, the run's time limit, has passed). A machine whose set-up failed is deleted, never held to mend: its
-people are holes, and mending is a new batch (#21).
+people are gaps, and mending is a new batch (#21).
 The owner's limits, the self-delete, the watchdog, the delete and the ledger are batch.py's.
 """
 import argparse
@@ -148,21 +148,21 @@ def hold(run, host):
 
 
 def held(run, machine, makes):
-    """One machine kept for hands-on work: set up, its people made in turn (one that fails is a hole), then held until
+    """One machine kept for hands-on work: set up, its people made in turn (one that fails is a gap), then held until
     `release`. A set-up that fails ends the run: the machine is deleted, never held to mend (#21), and its people are
-    holes."""
+    gaps."""
     with spread.tended(run, machine) as host:
         (run.folder / "host").write_text(host)
         try:
             set_up(machine)
         except subprocess.CalledProcessError as failure:
             raise SystemExit(f"the setup failed ({failure}; see {machine['folder'] / 'setup.log'}): "
-                             f"{', '.join(make.name for make in makes)} are holes") from failure
+                             f"{', '.join(make.name for make in makes)} are gaps") from failure
         for make in makes:
             try:
                 make_one(run, machine, make, 0)
             except spread.JobFailed as failure:
-                batch.say(f"{make.name} failed, a hole: {failure}")
+                batch.say(f"{make.name} failed, a gap: {failure}")
         hold(run, host)
 
 

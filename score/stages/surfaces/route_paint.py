@@ -2,7 +2,7 @@
 rented card (route_bake.py, #18, 2026-10-20: this PC's 14 GB cap failed heavy takes, crane-r1 peaked at 34.8 GB), so
 this row takes the bake's painted takes over as its own output, which every reader of the paint reads (the check, the
 assembly, the machines, the prop makers), and holds its gates: one surface a part, colour against the close-up (a
-named gap's gate) and, set in the table, feet in one plane. The parts row's "off colour" measure names the colour
+accepted gap's gate) and, set in the table, feet in one plane. The parts row's "off colour" measure names the colour
 faults before the bake; the gates fail them here, after it.
 
 Output as the rented paint's: painted.json (with the takes the parts left out), labelled/<take>/.

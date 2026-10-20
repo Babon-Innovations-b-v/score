@@ -240,7 +240,7 @@ def one_shot_fleet(names):
     return batch.Fleet(models, pathlib.Path(tempfile.mkdtemp()), None, 0, "test", finish=False), models
 
 
-def test_a_failed_job_is_a_hole_and_never_sent_again():
+def test_a_failed_job_is_a_gap_and_never_sent_again():
     """A batch runs every job once (CONTEXT.md, owner 2026-10-20): retry_once sent a failed or out-of-memory job back
     for a second paid run."""
     fleet, models = one_shot_fleet(["crate", "barrel"])
@@ -252,7 +252,7 @@ def test_a_failed_job_is_a_hole_and_never_sent_again():
     assert not hasattr(fleet, "retry_once") and not hasattr(fleet, "give_back")
 
 
-def test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_hole():
+def test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_gap():
     status = {"jobs": {"slow": {"state": "running", "began": 0.0}, "quick": {"state": "running", "began": 900.0},
                        "made": {"state": "done", "began": 0.0}}}
     assert batch.overdue(status, set(), 500, 1000.0) == ["slow"]
@@ -275,7 +275,7 @@ def test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_hole():
 
 def test_a_fleet_whose_billed_machines_failed_rents_none_in_their_place():
     """A batch runs once (CONTEXT.md, owner 2026-10-20): a machine billed that did not start or broke was replaced by
-    a new rental, unpriced spend inside the batch. Its cards are lost and the jobs no machine took are holes."""
+    a new rental, unpriced spend inside the batch. Its cards are lost and the jobs no machine took are gaps."""
     import time
     fleet, models = one_shot_fleet(["crate", "barrel"])
     fleet.deadline = time.time() + 60
@@ -291,7 +291,7 @@ def test_a_fleet_whose_billed_machines_failed_rents_none_in_their_place():
     assert rented == [] and sorted(fleet.failed) == ["barrel", "crate"] and fleet.next_job() is None
 
 
-def test_a_billed_boot_that_fails_is_a_hole_and_out_of_stock_moves_on():
+def test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on():
     """claim_from moved to the next offer after a machine it rented (and was billed for) did not answer, renting a
     second; only an out-of-stock refusal, where no card ran, may move on."""
     import types

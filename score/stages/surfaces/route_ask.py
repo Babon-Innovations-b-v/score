@@ -1,7 +1,7 @@
 """The finish route's paid asks: Gemini 3.1 Pro through Google's Batch API at half price (tools/props/cloud/
 google_batch.py, on google_spend's ledger and cache; the key `gemini-api-key` by name through secret_store). One row
 run sends all its takes' asks as one batch, asked once: an ask asked before is read back free, one the batch gives no
-answer to is its take's hole, never asked again (a new batch is new spend). Refused outside a cleared run.
+answer to is its take's gap, never asked again (a new batch is new spend). Refused outside a cleared run.
 """
 import finish_ask  # puts google_spend's folder on the path
 import google_batch  # noqa: E402

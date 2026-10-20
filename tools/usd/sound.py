@@ -97,7 +97,7 @@ def gain(volume_db):
 
 
 def copied(names, out):
-    """The files copied once into the stage's assets/ (from the library); each as the layer's path. A hole (a file
+    """The files copied once into the stage's assets/ (from the library); each as the layer's path. A gap (a file
     the library does not hold) is left out."""
     found = []
     for name in names:
@@ -105,7 +105,7 @@ def copied(names, out):
         if not target.exists():
             source = library_files.resolve(name)
             if source is None:
-                library_files.say_hole(name, "a sound")
+                library_files.say_gap(name, "a sound")
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)

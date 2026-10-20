@@ -17,7 +17,7 @@ body. The stages, each a cloud job through the repo's runners (only plain CPU ge
            weights are moved from, never drawn) and the clips Kimodo made, against their parents
   mesh     Pixal3D on the one close-up that passed with its arms furthest apart (../../props/cloud/batch.py
            --characters, as the animals' meshes), finished here as every batch model is; its limbs checked apart on
-           the finished model, kept, or the look is a hole (#21: no second Pixal3D run inside the batch)
+           the finished model, kept, or the look is a gap (#21: no second Pixal3D run inside the batch)
   parts    SAM 2.1's regions of the close-up (segment.py), GeoSAM2 seeded with them on the raw model (meshparts.py),
            the judge naming each part's and each finish region's material (judge.py), the regions carried onto the
            faces the camera sees, laid onto the finished model (prop_parts.py)
@@ -308,7 +308,7 @@ def closeups(spec, outfit):
 def mesh(spec, outfit, who, held, dry_run):
     """Pixal3D on the chosen close-up only (`closeups`; batch.py --characters, as the animals' meshes), finished here;
     its finished take checked for limbs that stand apart (prop_rig.landmarks) and kept (<candidate>/take.txt), or the
-    look is a hole: no second close-up is bought inside the batch."""
+    look is a gap: no second close-up is bought inside the batch."""
     folder = folder_of(spec, outfit)
     specs_folder = folder / "mesh"
     specs_folder.mkdir(exist_ok=True)
@@ -653,7 +653,7 @@ def tucks_record(spec, outfit):
 
 
 def predicted_tucks(spec, outfit):
-    """The look's failed tucks record when it stands on the same inputs (tucks_inputs): a predicted hole, nothing to
+    """The look's failed tucks record when it stands on the same inputs (tucks_inputs): a predicted gap, nothing to
     buy (#21); None when there is none or anything it was made from has changed."""
     folder = folder_of(spec, outfit)
     written = folder / "checks" / "failed_tucks.json"

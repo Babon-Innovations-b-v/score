@@ -180,8 +180,8 @@ def test_the_waive_command_refuses_without_the_owners_terminal():
                            env={**os.environ, "PROPS_HOME": tempfile.mkdtemp()})
     assert found.returncode != 0 and "only the owner" in found.stderr, found.stderr
 
-def test_a_named_gaps_objects_leave_the_comparison_and_any_other_object_still_blocks():
-    """The got-worse comparison is a gate a named gap moves its objects' faults from (overseer 2026-10-16;
+def test_an_accepted_gaps_objects_leave_the_comparison_and_any_other_object_still_blocks():
+    """The got-worse comparison is a gate an accepted gap moves its objects' faults from (overseer 2026-10-16;
     assembly@wreck: resting objects 2 became 3, all three in "wreck: three pieces do not rest"). With the environment's own
     wreck gaps: the gap's objects at new faults pass; another object at a new fault still reads worse."""
     def resting(objects, findings):

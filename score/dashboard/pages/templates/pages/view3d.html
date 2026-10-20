@@ -6,7 +6,7 @@
 <title>{{ detail.place|capfirst }} in 3D</title>
 <link rel="icon" href="data:,">
 {% include "pages/tokens.html" %}
-{% if detail.web3d or holes_only %}
+{% if detail.web3d or gaps_only %}
 <script type="importmap">
 { "imports": {
   "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
@@ -32,12 +32,12 @@
   {% endif %}
   <p class="small soft">What it changes is outlined: <span class="mark-key added">added or changed</span> <span class="mark-key removed">taken out</span>.</p>
   {% endif %}
-  {% if detail.web3d or showing == "after" or holes_only %}
-  {% if framed %}<p class="panel small framed-hole">Framed: {{ framed.sentence }} <a href="{{ framed.url }}">its line on the place page</a></p>{% endif %}
-  {% if holes_only %}<p class="small soft">The place itself is not drawn: each hole's box stands over a ground grid a
-    metre a square. <span class="mark-key missing">not made yet</span>{% if gate_marks %} <span class="mark-key gate">failing a check</span>{% endif %}{% if framed %} <span class="mark-key framed">the framed hole</span>{% endif %}</p>
+  {% if detail.web3d or showing == "after" or gaps_only %}
+  {% if framed %}<p class="panel small framed-gap">Framed: {{ framed.sentence }} <a href="{{ framed.url }}">its line on the place page</a></p>{% endif %}
+  {% if gaps_only %}<p class="small soft">The place itself is not drawn: each gap's box stands over a ground grid a
+    metre a square. <span class="mark-key missing">not made yet</span>{% if gate_marks %} <span class="mark-key gate">failing a check</span>{% endif %}{% if framed %} <span class="mark-key framed">the framed gap</span>{% endif %}</p>
   {% else %}<p class="small soft">Made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage than the place's current one{% endif %}.</p>{% endif %}
-  <p id="status" class="small" role="status">{% if holes_only %}No 3D web copy of this place yet: only its holes are drawn.{% else %}Loading the preview...{% endif %}</p>
+  <p id="status" class="small" role="status">{% if gaps_only %}No 3D web copy of this place yet: only its gaps are drawn.{% else %}Loading the preview...{% endif %}</p>
 
   <h2>Move</h2>
   <label><input type="radio" name="move" value="orbit" checked> Orbit: drag, wheel</label>
@@ -45,10 +45,10 @@
   <label><input type="checkbox" id="hold" checked> Eyes 1.6 m over the floor while walking</label>
   <div class="views" id="views"></div>
 
-  {% if holes_only %}<h2>A click</h2>
-  <div id="hole-picked" class="panel small">Click a box to name its hole.</div>
+  {% if gaps_only %}<h2>A click</h2>
+  <div id="gap-picked" class="panel small">Click a box to name its gap.</div>
   <p class="small soft">Naming a part, measuring and the layers work once a 3D web copy of this place exists.</p>{% endif %}
-  <div{% if holes_only %} hidden{% endif %}>
+  <div{% if gaps_only %} hidden{% endif %}>
   <h2>A click</h2>
   <label><input type="radio" name="tool" value="name" checked> Names the part</label>
   <label><input type="radio" name="tool" value="measure"> Measures between two clicks</label>
@@ -67,6 +67,6 @@
   {% endif %}
 </aside>
 <div id="stage" class="view3d-stage"><div id="measure-label" class="measure-label" hidden></div>
-  <button type="button" id="to-changes" class="to-changes" hidden>{% if holes_mode %}Back to all holes{% else %}Look at what changes{% endif %}</button></div>
+  <button type="button" id="to-changes" class="to-changes" hidden>{% if gaps_mode %}Back to all gaps{% else %}Look at what changes{% endif %}</button></div>
 </body>
 </html>

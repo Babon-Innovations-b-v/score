@@ -16,7 +16,7 @@ Output: <take>.json per take (its finishes, each with surface, settings, fits, n
 colour, family; its labels, {view: {region: finish}}, 0-based), questions.json (the finishes with their own wear and
 why, the takes with no usable answer).
 Gate "library first": every cast take is listed, every finish names a library surface with settings inside the
-library's ranges, and one that does not fit proposes a surface; a take with no usable answer is a hole, named.
+library's ranges, and one that does not fit proposes a surface; a take with no usable answer is a gap, named.
 """
 import json
 import pathlib
@@ -214,7 +214,7 @@ def listed(answer, library, seed, shown):
 
 def make_list(inputs, out, seed, params):
     """Every cast take's finish list and labels from one batch, and the finishes with their own wear. Each take is
-    asked once; one with no usable answer gets no list, so judge_list names it a hole."""
+    asked once; one with no usable answer gets no list, so judge_list names it a gap."""
     import library
     views = pathlib.Path(inputs["finish-route-views"])
     place, takes = route_data.takes_written(out, inputs, params)

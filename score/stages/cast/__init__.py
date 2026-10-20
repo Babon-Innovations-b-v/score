@@ -16,7 +16,7 @@ shows, each placed in the place with a clip, and measured against the concept an
              clear     no person's body (knee to head, cast_check's BODY_RADIUS) runs into any solid of the place,
                        no two bodies overlap, and cast_check's own rules hold (nobody twice, walks clear)
              made      which looks have a usable dressed body of the SOMA-shell route (its dress row passed and stands
-                       accepted); a look with none is a named gap, never a stop: the gate passes with it as a finding,
+                       accepted); a look with none is an accepted gap, never a stop: the gate passes with it as a finding,
                        the characters layer names it, complete's people check fails it
 
 `drapes` (no body in the rejected Newton drapes) is retired, 2026-10-13: the SOMA-shell rig (the owner, 2026-10-12
@@ -292,7 +292,7 @@ def judge_clear(output, inputs, evidence):
 
 def judge_made(output, inputs, evidence):
     """Which looks have a usable dressed body (its dress row passed and stands accepted). A look without one is a
-    named gap carried down, never a stop: the cast passes with each gap as a finding, the characters layer leaves
+    accepted gap carried down, never a stop: the cast passes with each gap as a finding, the characters layer leaves
     that person out and names them, and complete's people check fails each gap by name (the owner's rule of
     2026-10-13: a place whose people fail ships with the people as a named fail; nothing waits on them)."""
     cast = read_json(output / "cast.json")

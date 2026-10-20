@@ -1,5 +1,5 @@
-"""What the motion layer needs at a place, worked out free from its records (CONTEXT.md "hole"; the holes check's layer
-source, score/stages/complete/holes/layers.py): every scene inventory row of a moving kind (data/checks/motion.json:
+"""What the motion layer needs at a place, worked out free from its records (CONTEXT.md "gap"; the gaps check's layer
+source, score/stages/complete/gaps/layers.py): every scene inventory row of a moving kind (data/checks/motion.json:
 a row named for a kind's prims) that no game motion or rigid move moves and no `still` reason keeps standing, and
 every motion need of the place (data/checks/contents.json `motion`: a word some motion's name must hold) that no record
 names. Each is code work in words (a move or a reason written in the place's rigid record), never a guessed node:
@@ -58,8 +58,8 @@ WORK = {"move": "a move for {item} in data/motion/rigid/{place}.json (a path, sw
                 "data/checks/contents.json with the concept's reason"}
 
 
-def holes(place, data):
-    """The place's motion holes: [{"id", "prim", "sentence", "node", "work"}], each code work in words."""
+def gaps(place, data):
+    """The place's motion gaps: [{"id", "prim", "sentence", "node", "work"}], each code work in words."""
     return [{"id": f"motion:{need['kind']}:{need['item']}", "prim": f"/{place}",
              "sentence": SENTENCES[need["kind"]].format(**need), "node": None,
              "work": WORK[need["kind"]].format(place=place, **need)} for need in needs(place, data)]

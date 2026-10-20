@@ -1,31 +1,31 @@
-"""The holes layer: an overlay over a place's accepted stage, never inside it (the accepted assembly's bytes, and every
+"""The gaps layer: an overlay over a place's accepted stage, never inside it (the accepted assembly's bytes, and every
 key after it, stay as they are).
 
-    stage = layer.opened(folder, place, laid)   # holes.usda: [layers/holes.usda, ./stage/<place>.usda], editing the first
+    stage = layer.opened(folder, place, laid)   # gaps.usda: [layers/gaps.usda, ./stage/<place>.usda], editing the first
     layer.write_box(stage, box, values)          # a missing object: a guide box at its size
-    layer.write_mark(stage, path, gates)         # an `over` on a made prim: score:hole "gate" and the gates it fails
-    layer.write_place(stage, place, kinds)       # the root's score:holes:place, the route's steps it lacks
+    layer.write_mark(stage, path, gates)         # an `over` on a made prim: score:gap "gate" and the gates it fails
+    layer.write_place(stage, place, kinds)       # the root's score:gaps:place, the route's steps it lacks
     low, high = layer.bounds(stage, path, purposes)
 
-A missing object is an Xform /<place>/Holes/<row>_<n> (nested under its missing parent's when it stands on one), its
+A missing object is an Xform /<place>/Gaps/<row>_<n> (nested under its missing parent's when it stands on one), its
 frame its spot's (no scale; no transform when unplaced), holding a UsdGeom.Cube `box` of size 1 scaled to the row's
 size (wide, tall, deep) with its foot on the frame, purpose guide so no render or game export draws it. It carries
-score:hole "missing", score:hole:row, score:hole:size, score:hole:placed, score:kind, score:anchor and
-score:hole:node or score:hole:work; never score:row, which the rows, contents, library and reach checks count as a
+score:gap "missing", score:gap:row, score:gap:size, score:gap:placed, score:kind, score:anchor and
+score:gap:node or score:gap:work; never score:row, which the rows, contents, library and reach checks count as a
 made object.
 """
 import pathlib
 
 from pxr import Gf, Sdf, Usd, UsdGeom
 
-ROOT = "holes.usda"
-LAYER = "layers/holes.usda"
+ROOT = "gaps.usda"
+LAYER = "layers/gaps.usda"
 BOX = "box"
 SEEN = [UsdGeom.Tokens.default_, UsdGeom.Tokens.render]  # the purposes a made object's world box is read under
 
 
 def opened(folder, place, laid):
-    """The holes root over the laid stage file (or none), its edit target the holes layer, both written new."""
+    """The gaps root over the laid stage file (or none), its edit target the gaps layer, both written new."""
     folder = pathlib.Path(folder)
     (folder / LAYER).parent.mkdir(parents=True, exist_ok=True)
     for name in (ROOT, LAYER):
@@ -42,8 +42,8 @@ def opened(folder, place, laid):
     stage.SetEditTarget(Usd.EditTarget(overlay))
     if not stage.GetPrimAtPath(f"/{place}"):
         UsdGeom.Xform.Define(stage, f"/{place}")
-    holes = UsdGeom.Scope.Define(stage, f"/{place}/Holes")
-    UsdGeom.Imageable(holes).CreatePurposeAttr(UsdGeom.Tokens.guide)
+    gaps = UsdGeom.Scope.Define(stage, f"/{place}/Gaps")
+    UsdGeom.Imageable(gaps).CreatePurposeAttr(UsdGeom.Tokens.guide)
     return stage
 
 
@@ -70,21 +70,21 @@ def write_box(stage, box, values):
     cube.AddScaleOp().Set(Gf.Vec3f(wide, tall, deep))
     prim = xform.GetPrim()
     strings(prim, values)
-    prim.CreateAttribute("score:hole:size", Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(wide, deep, tall))
+    prim.CreateAttribute("score:gap:size", Sdf.ValueTypeNames.Float3).Set(Gf.Vec3f(wide, deep, tall))
 
 
 def write_mark(stage, path, gates):
     """An `over` on a made prim: the gates it fails, merged with any already marked on it."""
     prim = stage.OverridePrim(path)
-    attribute = prim.GetAttribute("score:hole:gates")
+    attribute = prim.GetAttribute("score:gap:gates")
     before = list(attribute.Get() or []) if attribute else []
-    strings(prim, {"score:hole": "gate"})
-    prim.CreateAttribute("score:hole:gates", Sdf.ValueTypeNames.StringArray).Set(sorted(set(before) | set(gates)))
+    strings(prim, {"score:gap": "gate"})
+    prim.CreateAttribute("score:gap:gates", Sdf.ValueTypeNames.StringArray).Set(sorted(set(before) | set(gates)))
 
 
 def write_place(stage, place, kinds):
-    """The root's score:holes:place: the route's steps the place lacks."""
-    stage.OverridePrim(f"/{place}").CreateAttribute("score:holes:place", Sdf.ValueTypeNames.StringArray).Set(
+    """The root's score:gaps:place: the route's steps the place lacks."""
+    stage.OverridePrim(f"/{place}").CreateAttribute("score:gaps:place", Sdf.ValueTypeNames.StringArray).Set(
         list(kinds))
 
 
@@ -98,6 +98,6 @@ def bounds(stage, path, purposes):
 
 
 def saved(stage):
-    """Write the holes layer and the root."""
+    """Write the gaps layer and the root."""
     stage.GetEditTarget().GetLayer().Save()
     stage.GetRootLayer().Save()

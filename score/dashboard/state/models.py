@@ -133,20 +133,20 @@ class EngineGroup(BaseModel):
     styles: list[StyleGroup]
 
 
-class HolesTotal(BaseModel):
-    """Every place's holes in sum: how many of each kind (lost, route, missing, gate), and the code work no stage can
+class GapsTotal(BaseModel):
+    """Every place's gaps in sum: how many of each kind (lost, route, missing, gate), and the code work no stage can
     do yet (each line once)."""
     counts: dict[str, int] = {}
     unfillable: list[str] = []
 
 
-class HolesPrice(BaseModel):
-    """The runner's price of every hole's chain (`score price <world> --holes`, its record read as written): each
-    paid node priced once ({node: price with its basis}), each place's chains by the node a hole names, the free
-    nodes in them, the work no stage does with its hole count, the prop route priced for the rows that wait on their
+class GapsPrice(BaseModel):
+    """The runner's price of every gap's chain (`score price <world> --gaps`, its record read as written): each
+    paid node priced once ({node: price with its basis}), each place's chains by the node a gap names, the free
+    nodes in them, the work no stage does with its gap count, the prop route priced for the rows that wait on their
     place's prop data (`after_work`), the code work whose make is a Pixal3D one priced as if it had landed
     (`code_work`), the nodes outside the runner's table, the places not current and not checked, and why the record
-    is stale (None while current); and the remake's milestones (holes/milestones.py), shapes first, the owner's
+    is stale (None while current); and the remake's milestones (gaps/milestones.py), shapes first, the owner's
     approval last, with the runner's ETA of its rows on measured minutes."""
     made_at: str
     nodes: dict[str, dict] = {}
@@ -159,7 +159,7 @@ class HolesPrice(BaseModel):
     not_current: list[str] = []
     not_checked: list[str] = []
     milestones: list[dict] = []
-    eta: dict | None = None  # the runner's ETA (holes/schedule.py), None in a record made before it
+    eta: dict | None = None  # the runner's ETA (gaps/schedule.py), None in a record made before it
     stale: str | None = None
 
 
@@ -174,8 +174,8 @@ class Remake(BaseModel):
     high_euros: float | None = None
     unpriced: list[str] = []
     eta: dict = {}  # {likely_minutes, high_minutes, at_least_minutes, untimed}
-    counts: dict = {}  # {takes, bought, made, library, predicted_holes, blocked}
-    places: dict[str, dict] = {}  # {place: {takes, bought, made, library, predicted_holes, blocked}}
+    counts: dict = {}  # {takes, bought, made, library, predicted_gaps, blocked}
+    places: dict[str, dict] = {}  # {place: {takes, bought, made, library, predicted_gaps, blocked}}
     layers: dict[str, dict] = {}  # {stage: {takes, likely, high, places: {place: takes}}}: prepare's per-unit × count
     stale: str | None = None
 
@@ -187,8 +187,8 @@ class WorldState(BaseModel):
     engines: list[EngineGroup]
     world_line: list[StepCard] = []
     spend: Spend = Spend()
-    holes_total: HolesTotal | None = None
-    holes_price: HolesPrice | None = None
+    gaps_total: GapsTotal | None = None
+    gaps_price: GapsPrice | None = None
     remake: Remake | None = None
     within: dict[str, str] = {}  # {place or shell: the outside place or shell it sits within} (data/places/within.json)
     shells: dict[str, str] = {}  # {outside shell that is no place of its own: its short name}
@@ -249,9 +249,9 @@ class StepDetail(BaseModel):
     mark: str | None = None
 
 
-class NamedGap(BaseModel):
+class AcceptedGap(BaseModel):
     """A gap the owner named (data/checks/gaps/<place>.json): its words, one plain sentence of what is wrong and
-    where, its step, and a picture of what it names (state/gaps.py)."""
+    where, its step, and a picture of what it names (state/accepted_gaps.py)."""
     name: str
     sentence: str = ""
     reason: str = ""
@@ -283,12 +283,12 @@ class CheckFinding(BaseModel):
     kind: str | None = None  # what the finding is on (model, geometry, light, sound, sky...), for its step
     sentence: str
     picture: FileRef | None = None
-    # A hole's (score/stages/complete/holes): its stable id, row, failed gates, the node that fills it or the code
+    # A gap's (score/stages/complete/gaps): its stable id, row, failed gates, the node that fills it or the code
     # work it needs (and whether that node's stage is paid), how its box is placed, and its world box.
     id: str | None = None
     row: str | None = None
     gates: list[str] | None = None
-    source: str | None = None  # where the hole was read: inventory, gap:<name>, judgement:<node>, route or inputs
+    source: str | None = None  # where the gap was read: inventory, gap:<name>, judgement:<node>, route or inputs
     node: str | None = None
     paid: bool | None = None
     work: str | None = None
@@ -306,7 +306,7 @@ class PlaceDetail(BaseModel):
     usd_index: UsdIndex = UsdIndex()
     layers: list[LayerGroup] = []
     faults: list[StoppedStep] = []
-    gaps: list[NamedGap] = []
+    accepted_gaps: list[AcceptedGap] = []
 
     @field_validator("faults", mode="before")
     @classmethod
@@ -314,15 +314,15 @@ class PlaceDetail(BaseModel):
         """An export made before faults were records carries each as one line of words; read it as a stopped step."""
         return [{"label": fault, "why": fault, "sentence": fault} if isinstance(fault, str) else fault for fault in faults or []]
 
-    @field_validator("gaps", mode="before")
+    @field_validator("accepted_gaps", mode="before")
     @classmethod
-    def gaps_from_words(cls, gaps):
-        """An export made before gaps were records carries each as one line of words; read it as a named gap."""
-        return [{"name": gap, "sentence": gap} if isinstance(gap, str) else gap for gap in gaps or []]
+    def gaps_from_words(cls, accepted_gaps):
+        """An export made before gaps were records carries each as one line of words; read it as an accepted gap."""
+        return [{"name": gap, "sentence": gap} if isinstance(gap, str) else gap for gap in accepted_gaps or []]
     checks: list[CheckFinding] = []  # the standalone checks' findings on the outputs they judged
-    holes: list[CheckFinding] = []  # what the place's route still needs (the holes check's findings)
+    gaps: list[CheckFinding] = []  # what the place's route still needs (the gaps check's findings)
     concept: FileRef | None = None
-    skipped: list[str] = []  # loud: steps of the chain not done for this place, and named gaps
+    skipped: list[str] = []  # loud: steps of the chain not done for this place, and accepted gaps
     film_fps: float = 24.0
     film_view: dict | None = None  # the film's first frame's camera (eye, aim, fov across), for the 3D viewer
     web3d: dict | None = None  # the fresh web copy's sidecar facts, or None

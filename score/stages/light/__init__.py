@@ -102,7 +102,7 @@ def scene_of(place):
 
 def applies(place):
     """A place with a scene record in the repository (its views and lights; the door kits gdoor and hdoor have none). Its
-    seed is an input like any other: a lost one is the place's hole, never a reason to leave the place unlit."""
+    seed is an input like any other: a lost one is the place's gap, never a reason to leave the place unlit."""
     return place is not None and (REPO / "data/scene" / f"{place}.json").is_file()
 
 

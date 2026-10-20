@@ -238,7 +238,7 @@ def test_a_clean_label_border_passes_and_a_black_smudge_along_it_fails():
         smudge.append(row)
     faults = bake_check.surface_faults("seed_tray_1", paper_record(smudge))
     assert len(faults) == 1 and "printed_paper" in faults[0] and "near black" in faults[0], faults
-    # the table wraps the make (stages/gaps.py: a named gap moves a fault, the wrapper unwraps to the judge); the
+    # the table wraps the make (stages/gaps.py: an accepted gap moves a fault, the wrapper unwraps to the judge); the
     # finish route's check is bake_check's against the bake's specs (route_check.py)
     from score.stages.surfaces import route_check
     assert inspect.unwrap({stage.name: stage for stage in stages.STAGES}["surfaces-check"].make) \

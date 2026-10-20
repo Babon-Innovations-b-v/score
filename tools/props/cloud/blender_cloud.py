@@ -29,12 +29,12 @@ directly, as is any input the store path fails to bring. The script's own
 folder and tools/blender/inside go up with it. The jobs of one call are spread over as many machines as finish them
 in about the setup and the longest job (spread.py, capacity.machines_for): one machine for a short list, one a job for
 a long one, each set up once and taking the next job as it ends one. Every job runs once (a batch, CONTEXT.md, owner
-2026-10-20): one that fails, or whose machine is lost, is a hole (spread.py).
+2026-10-20): one that fails, or whose machine is lost, is a gap (spread.py).
 Classes: a processor machine for physics (settling: cpu-32c-128gb first,
 the default), a card for renders (`--classes gpu-24gb`, Cycles on the card; on a processor machine Cycles renders on
 its cores: FARM_CYCLES_GPU or FARM_CYCLES_CPU is set for the script). One class is fixed for the whole call by a stock
 read at price time, the first of those asked in stock (batch.one_class_in_stock); none in stock means the jobs are
-holes, never another class or a processor machine for a card job. Blender is 5.0.1 from blender.org, set up by
+gaps, never another class or a processor machine for a card job. Blender is 5.0.1 from blender.org, set up by
 library_setup.sh. The owner's limits, the self-delete, the watchdog, the delete and the ledger
 are batch.py's.
 
@@ -103,7 +103,7 @@ def price(jobs, account, classes):
     found = batch.one_class_in_stock(classes)
     if not found:
         raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend: the jobs are "
-                         "holes")
+                         "gaps")
     count, minutes = plan(jobs)
     what = f"{len(jobs)} Blender jobs on {count} machine{'s' if count > 1 else ''}"
     return found, count, batch.priced(found, minutes, count, what, account)

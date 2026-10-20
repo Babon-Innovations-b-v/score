@@ -238,8 +238,8 @@ def test_a_stage_measured_per_unit_is_priced_at_its_units_and_a_node_with_none_t
 
 
 def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it_is_a_guess_that_says_where():
-    """Units forecast before a make (holes' price) give per unit times them, a basis of their own, before the units
-    an older accepted output counted (the hole's make makes what it adds, not what the last make made); a stage with no forecast rule, an `also` stage, or no units is a guess with the
+    """Units forecast before a make (gaps' price) give per unit times them, a basis of their own, before the units
+    an older accepted output counted (the gap's make makes what it adds, not what the last make made); a stage with no forecast rule, an `also` stage, or no units is a guess with the
     file and line its row names its estimate on."""
     saved, kept = BOOKS.entries, compute.PER_UNIT
     folder = pathlib.Path(tempfile.mkdtemp())

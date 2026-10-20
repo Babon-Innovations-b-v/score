@@ -11,9 +11,9 @@ output names by hash (`meshes.py`, found one level under the work folder and che
 pictures its records point at, cut to their boxes (`crops.py`), else a tile per thing it names (`sheets.py`).
 `__init__.draw` picks the drawer from the files. Plans and whole OpenUSD stages (a top-level .usda that sublayers
 others) are drawn large with their labels spaced so none covers another (`labels.py`). `films.py` cuts pictures from
-a place's accepted film with ffmpeg, no render: the board tile's middle still, and a named gap's things ringed in the
+a place's accepted film with ffmpeg, no render: the board tile's middle still, and an accepted gap's things ringed in the
 frame that shows them best (their points carried through that frame's camera from the film's views.json);
-`state/gaps.py` falls back to them ringed on the plan, then to the gap's step picture.
+`state/accepted_gaps.py` falls back to them ringed on the plan, then to the gap's step picture.
 
 Rules:
 

@@ -2,14 +2,14 @@
 the shell's concept, plan and rough model, its split, then the inside place's own), then what the place holds, its
 completion, the film past it, the environment's film (no row: unpriced, with why) and the owner's approval last; each
 node after every node it reads; a paid node with no measured price unknown with its reason and its stage's set budget
-labelled set, never summed; the code work of the holes at the step it waits at (a lost input at its reader's); the
+labelled set, never summed; the code work of the gaps at the step it waits at (a lost input at its reader's); the
 month's books on the first paid step. A toy table in a store of its own, per-unit numbers written in the test. No
 cloud, no Blender.
 
     terrain (world, paid) -> plan -> rough-model (paid) -> shell-split -> scene-record -> pixal (paid) -> complete
     complete -> demo-film (paid, not measured: set EUR 3.2) -> library (an end: nothing reads it)
 
-Run: .venv/bin/python score/stages/complete/holes/milestones_test.py
+Run: .venv/bin/python score/stages/complete/gaps/milestones_test.py
 """
 import contextlib
 import json
@@ -21,7 +21,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 
 from score import checks, contracts, graph  # noqa: E402
 from score.adapters import compute  # noqa: E402
-from score.stages.complete.holes import WORLD, milestones, price  # noqa: E402
+from score.stages.complete.gaps import WORLD, milestones, price  # noqa: E402
 from score.store import Store  # noqa: E402
 
 compute.ledger().entries = lambda: []  # no measured runs: the per-unit numbers price
@@ -68,7 +68,7 @@ def per_unit():
 
 
 def planned(findings=(ROUGH, LOST, PROPS), books=BOOKS, table=TABLE):
-    """The toy hangar's holes record on `table`, its milestones worked out; `books` why paid work is refused (None:
+    """The toy hangar's gaps record on `table`, its milestones worked out; `books` why paid work is refused (None:
     it is not)."""
     data, root = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
     for place, listed in (("hangar", list(findings)), (WORLD, [])):
@@ -80,7 +80,7 @@ def planned(findings=(ROUGH, LOST, PROPS), books=BOOKS, table=TABLE):
     price.books_refused = lambda: books
     try:
         with per_unit():
-            return price.holes_price(runner, "toy", root, ["hangar"], runner.store, made_at="2026-10-20T09:00:00Z")
+            return price.gaps_price(runner, "toy", root, ["hangar"], runner.store, made_at="2026-10-20T09:00:00Z")
     finally:
         price.books_refused = kept
 
@@ -121,14 +121,14 @@ def test_measured_euros_are_summed_and_an_unmeasured_node_is_unknown_with_its_se
     assert (after["likely_euros"], after["measured"], after["paid"]) == (0, 0, ["demo-film@hangar"])
     assert after["unknown"][0]["node"] == "demo-film@hangar" and "no run of demo-film" in after["unknown"][0]["why"]
     assert (after["set"]["euros"], after["set"]["nodes"]) == (3.2, 1)
-    assert after["set"]["from"][0]["at"].startswith("score/stages/complete/holes/milestones_test.py:"), after["set"]
+    assert after["set"]["from"][0]["at"].startswith("score/stages/complete/gaps/milestones_test.py:"), after["set"]
 
 
 def test_the_code_work_waits_at_its_step_and_the_books_at_the_first_paid_one():
     found = by_key(planned())
-    assert found["shapes"]["work"] == [{"work": "a rough-model stage", "holes": 1}]
-    assert found["ground"]["work"] == [{"work": "an input no row makes", "holes": 1}]  # terrain reads it
-    assert {"work": "prop data for hangar", "holes": 1} in found["made"]["work"]
+    assert found["shapes"]["work"] == [{"work": "a rough-model stage", "gaps": 1}]
+    assert found["ground"]["work"] == [{"work": "an input no row makes", "gaps": 1}]  # terrain reads it
+    assert {"work": "prop data for hangar", "gaps": 1} in found["made"]["work"]
     assert found["ground"]["owner"] == [f"the month's books before any paid step: {BOOKS}"]
     assert all(not entry["owner"] for key, entry in found.items() if key not in ("ground", "approval"))
     assert by_key(planned(books=None))["ground"]["owner"] == []

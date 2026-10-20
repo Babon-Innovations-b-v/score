@@ -1,12 +1,12 @@
-"""What the pages show: a place's one status, the look groups and the place's holes as marks for the viewer and as
+"""What the pages show: a place's one status, the look groups and the place's gaps as marks for the viewer and as
 a tree. Presentation only: it reads the models of state/models.py and never the store."""
 import re
 from collections import Counter
 
 from score.dashboard.pages import seen
-from score.dashboard.state import groups, holes, plain
+from score.dashboard.state import groups, gaps, plain
 
-GAP_COUNT = re.compile(r"named gaps \((\d+)\)")
+GAP_COUNT = re.compile(r"accepted gaps \((\d+)\)")
 OWN_LOOKS = "Each in its own look"
 NO_LOOK = "Not given a look yet"
 STATE_WORDS = {"accepted": "done", "waiting": "to review", "stopped": "stopped", "not run": "not run"}
@@ -31,7 +31,7 @@ def field(item, name):
 # --- a place's one status ----------------------------------------------------------------------------------------
 
 def problem_count(status, layers):
-    """Stopped steps plus the named gaps the status counts."""
+    """Stopped steps plus the accepted gaps the status counts."""
     stopped = sum(1 for layer in layers for step in layer.steps if step.state == "stopped")
     found = GAP_COUNT.search(status or "")
     return stopped + (int(found.group(1)) if found else 0)
@@ -158,73 +158,73 @@ def look_of_place(world, place):
                  if any(card.place == place for card in style.places)), None)
 
 
-# --- the place: its holes in the viewer and as a tree --------------------------------------------------------------
+# --- the place: its gaps in the viewer and as a tree --------------------------------------------------------------
 
-def framed_hole(detail, ident):
-    """{sentence, url} of the hole the viewer frames (`ident`, its id): its plain sentence and its line on the place
-    page; None when no hole of the place has that id."""
-    hole = next((hole for hole in detail.holes if ident and hole.id == ident), None)
-    if hole is None:
+def framed_gap(detail, ident):
+    """{sentence, url} of the gap the viewer frames (`ident`, its id): its plain sentence and its line on the place
+    page; None when no gap of the place has that id."""
+    gap = next((gap for gap in detail.gaps if ident and gap.id == ident), None)
+    if gap is None:
         return None
-    return {"sentence": plain.hole_sentence(hole, detail.place),
-            "url": f"/place/{detail.place}/#{anchors_of(detail)[hole.id]}"}
+    return {"sentence": plain.gap_sentence(gap, detail.place),
+            "url": f"/place/{detail.place}/#{anchors_of(detail)[gap.id]}"}
 
 
-def hole_marks(detail):
-    """[{id, low, high, kind, sentence, url}] the viewer outlines: each hole with a box in space, by its rule (missing,
+def gap_marks(detail):
+    """[{id, low, high, kind, sentence, url}] the viewer outlines: each gap with a box in space, by its rule (missing,
     gate), its plain sentence and its line on the place page, so a click on its box names it."""
     anchors = anchors_of(detail)
-    return [{"id": hole.id, "low": hole.low, "high": hole.high, "kind": hole.rule,
-             "sentence": plain.hole_sentence(hole, detail.place),
-             "url": f"/place/{detail.place}/#{anchors[hole.id]}"} for hole in detail.holes
-            if hole.low is not None and hole.high is not None]
+    return [{"id": gap.id, "low": gap.low, "high": gap.high, "kind": gap.rule,
+             "sentence": plain.gap_sentence(gap, detail.place),
+             "url": f"/place/{detail.place}/#{anchors[gap.id]}"} for gap in detail.gaps
+            if gap.low is not None and gap.high is not None]
 
 
-def line_key(hole):
-    """The line a hole is listed on: a row's missing objects share one, every other hole its own."""
-    return (holes.kind_of(hole), hole.row if hole.rule == "missing" else hole.id)
+def line_key(gap):
+    """The line a gap is listed on: a row's missing objects share one, every other gap its own."""
+    return (gaps.kind_of(gap), gap.row if gap.rule == "missing" else gap.id)
 
 
 def anchors_of(detail):
-    """{hole id: the anchor of the line it is listed on}."""
+    """{gap id: the anchor of the line it is listed on}."""
     first = {}
-    for hole in detail.holes:
-        first.setdefault(line_key(hole), f"hole-{hole.id}")
-    return {hole.id: first[line_key(hole)] for hole in detail.holes}
+    for gap in detail.gaps:
+        first.setdefault(line_key(gap), f"gap-{gap.id}")
+    return {gap.id: first[line_key(gap)] for gap in detail.gaps}
 
 
-def tree_path(hole, place):
-    """The path a hole hangs at in the place's tree: a missing object's row beside its box (under /<place>/Objects
+def tree_path(gap, place):
+    """The path a gap hangs at in the place's tree: a missing object's row beside its box (under /<place>/Objects
     with no box), a failing object's prim, a route step or lost input at the place itself."""
-    if hole.rule == "missing":
-        folder = hole.prim.rsplit("/", 1)[0] if hole.prim else f"/{place}/Objects"
-        return f"{folder}/{hole.row}"
-    if hole.rule == "gate":
-        named = (hole.id or "").rsplit(":", 1)[-1].replace("/", " ")  # an object named by a path is one leaf
-        return hole.prim or f"/{place}/not on a prim/{named}"
+    if gap.rule == "missing":
+        folder = gap.prim.rsplit("/", 1)[0] if gap.prim else f"/{place}/Objects"
+        return f"{folder}/{gap.row}"
+    if gap.rule == "gate":
+        named = (gap.id or "").rsplit(":", 1)[-1].replace("/", " ")  # an object named by a path is one leaf
+        return gap.prim or f"/{place}/not on a prim/{named}"
     return f"/{place}"
 
 
 def tree_node(name):
     return {"name": name, "count": 0, "kinds": Counter(), "children": {}, "anchor": None, "placeholder": False,
-            "holes": []}
+            "gaps": []}
 
 
 def finished(node):
     """A tree node with its kinds as [(kind, count)] worst first and its children as a list."""
-    return {**node, "kinds": [(kind, node["kinds"][kind]) for kind, _ in holes.KINDS if node["kinds"][kind]],
+    return {**node, "kinds": [(kind, node["kinds"][kind]) for kind, _ in gaps.KINDS if node["kinds"][kind]],
             "children": [finished(child) for child in node["children"].values()]}
 
 
 def prim_tree(detail):
-    """The holes layer as a tree from the place's root: each node's holes below it by kind, a missing row a
-    placeholder leaf, each leaf linked to its line of the list, each node with the holes hanging at it (`holes`).
-    The holes layer only: no accepted assembly stands to give the whole scene's tree."""
+    """The gaps layer as a tree from the place's root: each node's gaps below it by kind, a missing row a
+    placeholder leaf, each leaf linked to its line of the list, each node with the gaps hanging at it (`gaps`).
+    The gaps layer only: no accepted assembly stands to give the whole scene's tree."""
     anchors = anchors_of(detail)
     root = tree_node(f"/{detail.place}")
-    for hole in detail.holes:
-        kind = holes.kind_of(hole)
-        parts = tree_path(hole, detail.place).strip("/").split("/")
+    for gap in detail.gaps:
+        kind = gaps.kind_of(gap)
+        parts = tree_path(gap, detail.place).strip("/").split("/")
         node = root
         node["count"] += 1
         node["kinds"][kind] += 1
@@ -232,8 +232,8 @@ def prim_tree(detail):
             node = node["children"].setdefault(part, tree_node(part))
             node["count"] += 1
             node["kinds"][kind] += 1
-        node["holes"].append(hole)
-        node["anchor"] = node["anchor"] or anchors.get(hole.id)
+        node["gaps"].append(gap)
+        node["anchor"] = node["anchor"] or anchors.get(gap.id)
         node["placeholder"] = node["placeholder"] or kind == "missing"
     return finished(root)
 

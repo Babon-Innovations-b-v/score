@@ -114,4 +114,4 @@ def fixed(stage, records, cap, stock=None):
         return {"kind": kind, "class": machine_class, "zone": zone, "boot": record,
                 "why": why if zone else why + "; no boot record of it in the ledgers, zone left to the claim"}
     return {"kind": kind, "class": None, "zone": None, "boot": None,
-            "why": "no class of the layer in stock: its jobs are holes unless stock comes back before the batch"}
+            "why": "no class of the layer in stock: its jobs are gaps unless stock comes back before the batch"}

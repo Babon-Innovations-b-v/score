@@ -152,7 +152,7 @@ def test_the_3d_viewer_loads_a_places_copy_with_its_layer_makers(world):
                                                                       "url": "/place/alpha/step/light/"}
     assert "edit" in given["order"] and "edit" not in given["layers"]  # the owner's own edits: no step made them
     assert NODE.search(outside_details(html)) is None
-    assert 'src="/view/alpha?holes=1&amp;embed=1"' in client.get("/place/alpha/").content.decode()
+    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in client.get("/place/alpha/").content.decode()
 
 
 def a_check_finding(world, judged):
@@ -173,21 +173,21 @@ MEASURED = {"likely_euros": 2.0, "high_euros": 3.0, "likely_minutes": 10.0, "hig
 PLAN_WORK = "data/plans/alpha.json with its leads"
 
 
-def a_holes_finding(world, settings, tmp_path):
-    """The holes check's findings.json for alpha over its accepted assembly: two objects of a row the close-up step
+def a_gaps_finding(world, settings, tmp_path):
+    """The gaps check's findings.json for alpha over its accepted assembly: two objects of a row the close-up step
     fills (a basket item carries it, measured), a gate on a step nothing buys now, and the plan no stage
     makes yet (its scene record names no leads); the basket made with that one item."""
     import json
     from score.dashboard.proposals import make, records
-    folder = world.root / "props/work/checks/holes/alpha"
+    folder = world.root / "props/work/checks/gaps/alpha"
     folder.mkdir(parents=True, exist_ok=True)
     missing = {"rule": "missing", "kind": "generate", "sentence": "a lamp: nothing made for it yet (made by the route)",
                "picture": None, "row": "lamp", "gates": [], "source": "inventory", "node": "closeup@alpha",
                "work": None, "placed": "spot"}
     (folder / "findings.json").write_text(json.dumps({"place": "alpha", "outputs": {
         "assembly@alpha": world.outputs["assembly@alpha"]}, "findings": [
-        dict(missing, id="missing:lamp_1", prim="/alpha/Holes/lamp_1", low=[0, 0, 0], high=[1, 1, 1]),
-        dict(missing, id="missing:lamp_2", prim="/alpha/Holes/lamp_2", low=[2, 0, 0], high=[3, 1, 1]),
+        dict(missing, id="missing:lamp_1", prim="/alpha/Gaps/lamp_1", low=[0, 0, 0], high=[1, 1, 1]),
+        dict(missing, id="missing:lamp_2", prim="/alpha/Gaps/lamp_2", low=[2, 0, 0], high=[3, 1, 1]),
         {"id": "gate:complete/painted:crate_1", "rule": "gate", "prim": "/alpha/Objects/crate_1", "kind": None,
          "sentence": "crate_1: still the rough paint", "picture": None, "row": "crate", "gates": ["complete/painted"],
          "source": "judgement:complete@alpha", "node": "complete@alpha", "work": None, "placed": None,
@@ -209,26 +209,26 @@ GUESSED = {"likely_euros": None, "high_euros": None, "guess_euros": 1.0, "guess_
            "likely_minutes": None, "high_minutes": None, "runs": 0, "basis": "not measured yet", "units": None}
 
 
-def a_holes_price(world, **more):
-    """The runner's price of alpha's holes (score price --holes), made now on this checkout's code, after the
+def a_gaps_price(world, **more):
+    """The runner's price of alpha's gaps (score price --gaps), made now on this checkout's code, after the
     findings: the close-up priced per unit times its forecast units, the sound it needs to complete only guessed,
     complete free (`more` over it)."""
     import json
     from score import graph
     from score.dashboard.state import local
-    folder = world.root / "props/work/checks/holes-price"
+    folder = world.root / "props/work/checks/gaps-price"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "world1.json").write_text(json.dumps({
         "world": "world1", "made_at": graph.now(), "priced_on": {**local.priced_here(), "uncommitted": False},
         "nodes": {"closeup@alpha": FORECAST, "sound@alpha": GUESSED},
         "chains": {"alpha": {"closeup@alpha": ["closeup@alpha", "complete@alpha", "sound@alpha"],
                              "complete@alpha": ["complete@alpha", "sound@alpha"]}},
-        "holes": {"alpha": {}}, "free": ["complete@alpha"], "totals": {},
-        "unfillable": [{"work": PLAN_WORK, "holes": 1}], "outside": [], "not_current": [], "not_checked": [], **more}))
+        "gaps": {"alpha": {}}, "free": ["complete@alpha"], "totals": {},
+        "unfillable": [{"work": PLAN_WORK, "gaps": 1}], "outside": [], "not_current": [], "not_checked": [], **more}))
 
 
-def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(world):
-    """The holes check writes the environment's own lost inputs as the pseudo-place `world`; the total counts it, and
+def test_a_lost_input_two_places_and_the_world_read_is_one_gap_of_the_total(world):
+    """The gaps check writes the environment's own lost inputs as the pseudo-place `world`; the total counts it, and
     one lost input read by alpha, beta and the world once."""
     import json
     lost = {"id": "place:lost:earth-seed:usd-r3", "rule": "place", "prim": None, "kind": None,
@@ -238,10 +238,10 @@ def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(wor
     for place, outputs, found in (("alpha", {"assembly@alpha": world.outputs["assembly@alpha"]}, [lost]),
                                   ("beta", {"assembly@beta": world.outputs["assembly@beta"]}, [lost]),
                                   ("world", {}, [lost, take])):
-        folder = world.root / "props/work/checks/holes" / place
+        folder = world.root / "props/work/checks/gaps" / place
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "findings.json").write_text(json.dumps({"place": place, "outputs": outputs, "findings": found}))
-    total = world.source.holes_total()
+    total = world.source.gaps_total()
     assert total.counts == {"lost": 2}, total
     assert total.unfillable == ["earth seed lost", "take lost"], total
 
@@ -258,7 +258,7 @@ def milestones():
          "set": {"euros": 6.0, "nodes": 1, "from": [{"at": "score/stages/__init__.py:46", "euros": 6.0, "nodes": 1}]},
          "unknown": [{"node": "terrain", "why": "not measured yet: no run of terrain in the cloud ledger"}],
          "after_work": {"likely_euros": 0, "high_euros": 0, "unknown": 0, "nodes": 0},
-         "work": [{"work": PIXAL, "holes": 2}, {"work": OWNERS, "holes": 1}], "owner": [BOOKS], "reads": []},
+         "work": [{"work": PIXAL, "gaps": 2}, {"work": OWNERS, "gaps": 1}], "owner": [BOOKS], "reads": []},
         {"key": "made", "title": "What each place holds", "stages": [{"stage": "closeup", "nodes": 1, "paid": 1},
                                                                      {"stage": "sound", "nodes": 1, "paid": 1}],
          "nodes": 2, "places": 1, "paid": ["closeup@alpha", "sound@alpha"], "likely_euros": 2.0, "high_euros": 3.0,
@@ -266,7 +266,7 @@ def milestones():
                                                                      "nodes": 1}]},
          "unknown": [{"node": "sound@alpha", "why": "not measured yet: no run of sound in the cloud ledger"}],
          "after_work": {"likely_euros": 4.0, "high_euros": 6.0, "unknown": 0, "nodes": 2,
-                        "counts": ["one Pixal3D model a hole of this work line"]}, "work": [], "owner": [],
+                        "counts": ["one Pixal3D model a gap of this work line"]}, "work": [], "owner": [],
          "reads": ["ground"]},
         {"key": "split", "title": "Shells split into inside places", "stages": [], "nodes": 0, "paid": [],
          "likely_euros": 0, "high_euros": 0, "measured": 0, "set": {"euros": 0, "nodes": 0, "from": []},
@@ -282,15 +282,15 @@ def test_the_plan_goes_through_the_export_whole(world, settings, tmp_path):
     from score.dashboard.state.exported import ExportedSource
     from score.dashboard.state.models import Spend
     from score.dashboard.sync import building
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world, milestones=milestones())
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world, milestones=milestones())
     world.source.refresh()
     building.build(world.source, tmp_path / "export", "2026-10-20T09:00:00+00:00", 50, Spend(), world.root)
-    assert ExportedSource(tmp_path / "export").world_state().holes_price.milestones == milestones()
+    assert ExportedSource(tmp_path / "export").world_state().gaps_price.milestones == milestones()
 
 
 PIXAL = ("Pixal3D take lost: pixal@<place>'s accepted output carries its takes and every reader reads them through an "
-         "`after` on it; then each lost take is a pixal hole, priced")
+         "`after` on it; then each lost take is a pixal gap, priced")
 OWNERS = "the owner supplies cockpit.png, his own reference picture (kept off the public repository)"
 
 
@@ -305,31 +305,31 @@ def test_every_priced_step_and_place_has_plain_words():
     assert plain.lost_words("place:lost:earth-seed:gdoor") == "garage door"  # its seed folder, by the kit's title
 
 
-def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):
+def test_the_viewer_outlines_the_gaps_when_asked(world, settings, tmp_path):
     import json
-    a_holes_finding(world, settings, tmp_path)
+    a_gaps_finding(world, settings, tmp_path)
     (world.root / "web/alpha").mkdir(parents=True)
     (world.root / "web/alpha/alpha.json").write_text(json.dumps({
         "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
         "objects": [], "bytes": 10, "light_bytes": 5, "triangles": 12}))
     client = signed_in()
-    assert 'src="/view/alpha?holes=1&amp;embed=1"' in client.get("/place/alpha/").content.decode()
+    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in client.get("/place/alpha/").content.decode()
 
     def marks(page):
         html = client.get(page).content.decode()
         return json.loads(re.search(r'<script id="view3d-data" type="application/json">(.*?)</script>', html,
                                     re.S).group(1))["marks"]
     assert marks("/view/alpha") == []
-    assert [{name: mark[name] for name in ("id", "low", "high", "kind")} for mark in marks("/view/alpha?holes=1")] == [
+    assert [{name: mark[name] for name in ("id", "low", "high", "kind")} for mark in marks("/view/alpha?gaps=1")] == [
         {"id": "missing:lamp_1", "low": [0, 0, 0], "high": [1, 1, 1], "kind": "missing"},
         {"id": "missing:lamp_2", "low": [2, 0, 0], "high": [3, 1, 1], "kind": "missing"},
         {"id": "gate:complete/painted:crate_1", "low": [4, 0, 0], "high": [5, 1, 1], "kind": "gate"}]
 
 
-def test_holes_are_not_repeated_among_the_check_findings(world, settings, tmp_path):
-    a_holes_finding(world, settings, tmp_path)
+def test_gaps_are_not_repeated_among_the_check_findings(world, settings, tmp_path):
+    a_gaps_finding(world, settings, tmp_path)
     assert [finding.check for finding in world.source.check_findings("alpha")] == []
-    assert [hole.id for hole in world.source.holes("alpha")][:1] == ["missing:lamp_1"]
+    assert [gap.id for gap in world.source.gaps("alpha")][:1] == ["missing:lamp_1"]
 
 
 def test_a_standalone_checks_findings_stand_only_while_the_output_they_judged_is_accepted(world):
@@ -344,15 +344,15 @@ def test_a_check_finding_on_an_assembly_no_longer_accepted_is_not_read(world):
 
 def test_the_runners_prices_are_summed_each_basis_apart():
     from score.dashboard.pages import cockpit
-    from score.dashboard.state import holes
-    from score.dashboard.state.models import HolesPrice
-    price = HolesPrice(made_at="2026-10-19T20:00:00+00:00", nodes={
+    from score.dashboard.state import gaps
+    from score.dashboard.state.models import GapsPrice
+    price = GapsPrice(made_at="2026-10-19T20:00:00+00:00", nodes={
         "pixal@alpha": {**MEASURED, "basis": "measured runs"},
         "bake@alpha": {**MEASURED, "basis": "per unit × counted"},
         "lists@alpha": {**FORECAST},
         "sound@alpha": GUESSED, "sound@beta": {**GUESSED, "guess_euros": 1.5},
         "film@alpha": {**GUESSED, "guess_euros": None, "guess_from": None}})
-    sums = holes.summed(price.nodes)
+    sums = gaps.summed(price.nodes)
     assert [(entry["basis"], entry["likely"], entry["high"], entry["nodes"]) for entry in sums["bases"]] == [
         ("measured runs", 2.0, 3.0, 1), ("per unit × counted", 2.0, 3.0, 1), ("per unit × forecast", 2.0, 3.0, 1)]
     assert sums["guessed"]["euros"] == 2.5 and sums["guessed"]["nodes"] == 2 and sums["unknown"] == ["film@alpha"]
@@ -414,8 +414,8 @@ def a_month(monkeypatch, **more):
 
 
 def test_every_screen_shows_numbers_not_prose(world, settings, tmp_path, monkeypatch):
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world, milestones=milestones())
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world, milestones=milestones())
     world.source.refresh()
     a_month(monkeypatch, paid_refused="the month's books are lost")
     client = signed_in()
@@ -428,8 +428,8 @@ def test_every_screen_shows_numbers_not_prose(world, settings, tmp_path, monkeyp
 
 def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, settings, tmp_path, monkeypatch):
     from score.dashboard.tests.screens_test import a_remake
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world, milestones=milestones(), eta={"likely_minutes": 95.0, "high_minutes": 130.0, "unknown": []})
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world, milestones=milestones(), eta={"likely_minutes": 95.0, "high_minutes": 130.0, "unknown": []})
     a_remake(world)
     world.source.refresh()
     a_month(monkeypatch)
@@ -437,25 +437,25 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     html = client.get("/").content.decode()
     tiles = dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', html, re.S))
     assert set(tiles) == {"alpha", "beta"}
-    assert "tone-hole-route" in tiles["alpha"] and "<b data-v>4</b>" in tiles["alpha"]  # its worst kind: a route step
+    assert "tone-gap-route" in tiles["alpha"] and "<b data-v>4</b>" in tiles["alpha"]  # its worst kind: a route step
     assert "tone-done" in tiles["beta"] and "<b data-v>0</b>" in tiles["beta"]
     assert all(re.search(r"<text [^>]*data-v>\d+/\d+</text>", tile) for tile in tiles.values())  # made / needed
     assert all(re.search(r"<title>made \d+ of \d+</title>", tile) for tile in tiles.values())  # said by hover
-    assert 'title="4 gaps"><svg class="gap-icon tone-hole-route"' in tiles["alpha"]
+    assert 'title="4 gaps"><svg class="gap-icon tone-gap-route"' in tiles["alpha"]
     assert '<img src="/thumbs/' in tiles["alpha"] and "concept missing" not in tiles["alpha"]  # its concept
     assert "<img" not in tiles["beta"] and "concept missing" in tiles["beta"]  # lost: never a render instead
     top = html[html.index('<section class="topbar">'):html.index('<section class="ptiles"')]
     # the cloud bill read, the model bill not: at least the cloud's, the missing line as hover text; no stop shown
     assert "<small>&ge;</small> <small>EUR</small> 12.50" in top and "not read: Model calls" in top
     assert "250" not in top and "stop" not in top
-    # prepare's figure (EUR 10 to 12) and the holes price off the prop route (none measured): prepare times no step
+    # prepare's figure (EUR 10 to 12) and the gaps price off the prop route (none measured): prepare times no step
     assert "<small>EUR</small> 10&ndash;12<small>, " in top and "&ge; 0.5 h</span>" in top  # at least its floor
     assert 'href="/buy/">Review and buy</a>' in top
 
 
 def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_inside_it(world, settings, tmp_path):
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world)
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world)
     (world.data / "places").mkdir(exist_ok=True)
     (world.data / "places/within.json").write_text(json.dumps({
         "shells": {"yard": {"name": "Yard"}, "empty": {"name": "Empty"}},
@@ -467,7 +467,7 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
         return re.findall(r'<a class="ptile" href="([^"]+)"(.*?)</a>', html, re.S), html
     found, _ = tiles("/")
     assert [href for href, _ in found] == ["/?in=yard"]  # one outside shell; a shell holding no place shows not
-    assert "<b data-v>Beta, 1 place</b>" in found[0][1] and "tone-hole-route" in found[0][1]  # alpha's gaps summed
+    assert "<b data-v>Beta, 1 place</b>" in found[0][1] and "tone-gap-route" in found[0][1]  # alpha's gaps summed
     assert "concept missing" in found[0][1]  # the yard has no concept, and never takes one from inside
     found, html = tiles("/?in=yard")
     assert [href for href, _ in found] == ["/?in=beta"] and '<a href="/" data-v>Environment</a>' in html
@@ -482,8 +482,8 @@ def test_the_remake_is_prepares_whole_figure_plus_the_rest_and_its_time_only_whe
         world, settings, tmp_path):
     from score.dashboard.pages import cockpit
     from score.dashboard.tests.screens_test import a_remake
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world, milestones=milestones())
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world, milestones=milestones())
     a_remake(world)
     world.source.refresh()
     remake = cockpit.remake(world.source.world_state())
@@ -491,7 +491,7 @@ def test_the_remake_is_prepares_whole_figure_plus_the_rest_and_its_time_only_whe
     assert (remake["low"], remake["high"], remake["hours"], remake["unknown"]) == (10.0, 12.0, None, 2), remake
     untimed = {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 45.0,
                "unknown": [{"node": "sound@alpha", "paid": True, "why": "no run of sound in the cloud ledger"}]}
-    a_holes_price(world, milestones=milestones(), eta=untimed)
+    a_gaps_price(world, milestones=milestones(), eta=untimed)
     world.source.refresh()
     remake = cockpit.remake(world.source.world_state())
     assert remake["hours"] is None and remake["at_least_hours"] == 0.8  # the longer floor of the two
@@ -500,17 +500,17 @@ def test_the_remake_is_prepares_whole_figure_plus_the_rest_and_its_time_only_whe
 def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, settings, tmp_path):
     from score.dashboard.pages import cockpit
     from score.dashboard.state import local
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world)
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world)
     world.source.refresh()
     assert cockpit.remake(world.source.world_state())["why"] == "prepare has not run"
     here = local.priced_here()
     for priced_on, said in (({**here, "commit": "0" * 40, "uncommitted": False}, "the code moved"),
                             ({**here, "per_unit_sha256": "0" * 64, "uncommitted": False}, "per-unit prices"),
                             ({**here, "uncommitted": True}, "code not committed"), (None, "before the price")):
-        a_holes_price(world, milestones=milestones(), priced_on=priced_on)
+        a_gaps_price(world, milestones=milestones(), priced_on=priced_on)
         world.source.refresh()
-        price = world.source.holes_price()
+        price = world.source.gaps_price()
         remake = cockpit.remake(world.source.world_state())
         assert remake["low"] is None and said in remake["why"], (said, remake)
         assert cockpit.measured_prices(price) == (None, None)
@@ -518,8 +518,8 @@ def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, set
 
 
 def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, settings, tmp_path, monkeypatch):
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world)
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world)
     world.source.refresh()
     a_month(monkeypatch, bill_days=[{"day": "2026-10-02", "cloud": 2.0, "models": 0.5},  # the bills as read
                                     {"day": "2026-10-03", "cloud": 3.5, "models": 0.5}],
@@ -562,30 +562,30 @@ def test_spend_by_day_takes_the_bills_growth_else_the_ledger_else_a_gap():
 
 
 def test_the_place_screen_is_its_3d_view_its_scene_tree_and_a_side_panel(world, settings, tmp_path):
-    a_holes_finding(world, settings, tmp_path)
+    a_gaps_finding(world, settings, tmp_path)
     world.source.refresh()
     html = signed_in().get("/place/alpha/").content.decode()
-    assert 'src="/view/alpha?holes=1&amp;embed=1"' in html and '<aside class="side-panel" id="panel" hidden>' in html
-    assert re.search(r'<span class="node-label" data-v>Holes</span><span class="node-count" data-v>2</span>', html)
+    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in html and '<aside class="side-panel" id="panel" hidden>' in html
+    assert re.search(r'<span class="node-label" data-v>Gaps</span><span class="node-count" data-v>2</span>', html)
     # only the top level is drawn: each branch loads its rows when it opens
-    assert '<details data-children="/place/alpha/branch/?path=Holes">' in html
+    assert '<details data-children="/place/alpha/branch/?path=Gaps">' in html
     assert '<details data-children="/place/alpha/branch/?path=Objects">' in html
     assert 'data-title="lamp"' not in html and 'data-title="crate_1"' not in html
-    # the place's own hole (its plan, a route step) hangs at the top, its panel with no price measured
-    assert 'data-title="place:plan" data-state="route" data-tone="hole-route" data-price="unknown"' in html
+    # the place's own gap (its plan, a route step) hangs at the top, its panel with no price measured
+    assert 'data-title="place:plan" data-state="route" data-tone="gap-route" data-price="unknown"' in html
     assert NODE.search(outside_details(html)) is None
 
 
 def test_a_scene_branch_loads_its_rows_with_each_items_panel(world, settings, tmp_path):
     import json
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world)
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world)
     world.source.refresh()
     client = signed_in()
-    [lamp] = client.get("/place/alpha/branch/?path=Holes").json()
-    assert (lamp["label"], lamp["count"], lamp["tone"]) == ("lamp", 2, "hole-missing")
+    [lamp] = client.get("/place/alpha/branch/?path=Gaps").json()
+    assert (lamp["label"], lamp["count"], lamp["tone"]) == ("lamp", 2, "gap-missing")
     panel = lamp["panel"]
-    assert (panel["title"], panel["state"], panel["hole"], panel["price"]) == (
+    assert (panel["title"], panel["state"], panel["gap"], panel["price"]) == (
         "lamp", "missing", "missing:lamp_1", "EUR 2.00–3.00 +")
     # the close-up has a waiting output: the owner's one action is its accept, his signed-in request
     assert (panel["action"], panel["action_label"], panel.get("reason", False)) == ("/api/decisions", "Accept", False)
@@ -593,7 +593,7 @@ def test_a_scene_branch_loads_its_rows_with_each_items_panel(world, settings, tm
                                          "decision": "accept"}
     [crate] = client.get("/place/alpha/branch/?path=Objects").json()
     assert crate["panel"]["state"] == "failing" and crate["panel"]["price"] == "unknown"
-    assert "action" not in signed_in("guest").get("/place/alpha/branch/?path=Holes").json()[0]["panel"]
+    assert "action" not in signed_in("guest").get("/place/alpha/branch/?path=Gaps").json()[0]["panel"]
     assert client.get("/place/alpha/branch/?path=Nowhere").status_code == 404
 
 
@@ -612,17 +612,17 @@ def chromium_runs():
 @pytest.mark.skipif(not chromium_runs(), reason="no headless Chromium that runs on this machine")
 def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(world, settings, tmp_path):
     """In a browser: the top level only, a branch loaded once when it opens, an item's panel filled, the 3D view
-    told to frame its hole, its Accept the owner's JSON request with the CSRF token."""
+    told to frame its gap, its Accept the owner's JSON request with the CSRF token."""
     import json
     import subprocess
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world)
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world)
     world.source.refresh()
     client = signed_in()
-    branch = "/place/alpha/branch/?path=Holes"
+    branch = "/place/alpha/branch/?path=Gaps"
     job = tmp_path / "click.json"
     job.write_text(json.dumps({
-        "page": "/place/alpha/", "html": client.get("/place/alpha/").content.decode(), "branch": "Holes",
+        "page": "/place/alpha/", "html": client.get("/place/alpha/").content.decode(), "branch": "Gaps",
         "item": "lamp", "branches": {branch: client.get(branch).json()},
         "dash": str(pathlib.Path(__file__).parents[1] / "pages/static/pages/dash.js")}))
     done = subprocess.run(["npx", "-y", "-p", PLAYWRIGHT, "node", str(pathlib.Path(__file__).with_name(
@@ -632,7 +632,7 @@ def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(
     assert seen["before"] == 0 and seen["fetched"] == [branch]
     assert (seen["open"], seen["title"], seen["state"], seen["price"], seen["button"]) == (
         True, "lamp", "missing", "EUR 2.00–3.00 +", "Accept")
-    assert json.loads(seen["framed"]) == {"hole": "missing:lamp_1"}
+    assert json.loads(seen["framed"]) == {"gap": "missing:lamp_1"}
     assert seen["posted"] == [{"url": "/api/decisions", "csrf": "token", "body": {
         "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}]
 
@@ -641,8 +641,8 @@ def test_the_buy_screen_is_one_batch_its_total_eta_layers_and_one_buy_yes(world,
     from score.dashboard.pages.models import Checkout
     from score.dashboard.tests.screens_test import SETTLE, a_remake
     a_month(monkeypatch)
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world, nodes={"settle@alpha": SETTLE, "sound@alpha": {
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world, nodes={"settle@alpha": SETTLE, "sound@alpha": {
         "likely_euros": None, "high_euros": None, "guess_euros": 1.0, "basis": "not measured yet"}},
         eta={"likely_minutes": None, "high_minutes": None, "at_least_minutes": 20.0, "unknown": [{"node": "sound"}]})
     a_remake(world)

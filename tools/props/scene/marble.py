@@ -79,7 +79,7 @@ def key():
 
 def call(method, path, body=None):
     """One call to the World API, answered as JSON. A read (GET) told to slow down (429: four worlds at once
-    was the most it took on 2026-10-02) waits and asks again; a paid call (POST) goes up at once, a hole."""
+    was the most it took on 2026-10-02) waits and asks again; a paid call (POST) goes up at once, a gap."""
     for attempt in range(RETRIES):
         request = urllib.request.Request(
             f"{API}{path}", method=method,

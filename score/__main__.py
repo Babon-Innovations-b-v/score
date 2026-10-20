@@ -153,8 +153,8 @@ def parse(argv):
     price = commands.add_parser("price")
     price.add_argument("world", metavar="environment", choices=sorted(stages.WORLDS), help=ENVIRONMENT_HELP)
     price.add_argument("--node", action="append", help="a paid node (repeat it)")
-    price.add_argument("--holes", action="store_true",
-                       help="every hole's chain priced, written to WORK/checks/holes-price/<environment>.json")
+    price.add_argument("--gaps", action="store_true",
+                       help="every gap's chain priced, written to WORK/checks/gaps-price/<environment>.json")
     price.add_argument("--json", action="store_true", help="the prices as one JSON object (the only form)")
     images = commands.add_parser("images").add_subparsers(dest="images_command", required=True)
     images.add_parser("publish").add_argument("kind", choices=stages.images.proved_kinds())
@@ -652,26 +652,26 @@ def price_json(world, nodes):
     return {"world": world, "nodes": found}
 
 
-HOLES_PRICE = "work/checks/holes-price"  # under PROPS_HOME: the holes' prices the cockpit reads, one file a world
+GAPS_PRICE = "work/checks/gaps-price"  # under PROPS_HOME: the gaps' prices the cockpit reads, one file a world
 
 
-def holes_record(world):
-    """Every place's holes priced through their chains (score/stages/complete/holes/price.py) on the framework store."""
-    from score.stages.complete.holes import OUT, price
+def gaps_record(world):
+    """Every place's gaps priced through their chains (score/stages/complete/gaps/price.py) on the framework store."""
+    from score.stages.complete.gaps import OUT, price
     from score.store import Store
     runner = stages.runner(world=stages.WORLDS[world]())
-    return price.holes_price(runner, world, OUT, stages.places(runner.world), counting_store(Store.default()))
+    return price.gaps_price(runner, world, OUT, stages.places(runner.world), counting_store(Store.default()))
 
 
-def holes_price(world):
-    """The holes' prices (holes_record) written whole to WORK/checks/holes-price/<world>.json for the cockpit, said
+def gaps_price(world):
+    """The gaps' prices (gaps_record) written whole to WORK/checks/gaps-price/<world>.json for the cockpit, said
     in one line: {written, totals, after_work, code_work, eta (its minutes and how many rows are untimed), nodes,
-    holes, unfillable, outside, not_current, not_checked}."""
+    gaps, unfillable, outside, not_current, not_checked}."""
     from score.dashboard.proposals.records import swapped_json
-    from score.stages.complete.holes import price
+    from score.stages.complete.gaps import price
     from score.store import PROPS_HOME
-    record = holes_record(world)
-    out = PROPS_HOME / HOLES_PRICE / f"{world}.json"
+    record = gaps_record(world)
+    out = PROPS_HOME / GAPS_PRICE / f"{world}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     swapped_json(out, record)
     after = {node: found for entry in record["after_work"].values() for node, found in entry["nodes"].items()}
@@ -680,9 +680,9 @@ def holes_price(world):
             "code_work": price.totals(coded), "eta": {name: value for name, value in record["eta"].items()
                                                       if name not in ("path", "high_path", "unknown")}
             | {"unknown": len(record["eta"]["unknown"])},
-            "nodes": len(record["nodes"]), "holes": sum(len(found) for found in record["holes"].values()),
-            "unfillable": sum(entry["holes"] for entry in record["unfillable"]),
-            "outside": sum(entry["holes"] for entry in record["outside"]), "not_current": record["not_current"],
+            "nodes": len(record["nodes"]), "gaps": sum(len(found) for found in record["gaps"].values()),
+            "unfillable": sum(entry["gaps"] for entry in record["unfillable"]),
+            "outside": sum(entry["gaps"] for entry in record["outside"]), "not_current": record["not_current"],
             "not_checked": record["not_checked"]}
 
 
@@ -880,9 +880,9 @@ def main(argv=None):
         spend_command(options)
         return
     if options.command == "price":
-        if bool(options.holes) == bool(options.node):
-            sys.exit("score price: give --node (repeat it) or --holes")
-        print(json.dumps(holes_price(options.world) if options.holes else price_json(options.world, options.node)))
+        if bool(options.gaps) == bool(options.node):
+            sys.exit("score price: give --node (repeat it) or --gaps")
+        print(json.dumps(gaps_price(options.world) if options.gaps else price_json(options.world, options.node)))
         return
     if options.command == "moved":
         signal.signal(signal.SIGTERM, stop_on_term)

@@ -13,10 +13,10 @@ adds what moves it. `stages.MOTION_LAYER` names each module's rows in the stage 
 | growth | `crops-layer` (`../crops`) | growth stages and sway of plants | formula |
 
 Every paid job of the layer is one shot in a batch: no paid retry, no fallback chain, no tweak loop; a job that fails
-is a hole. The free motion check (`check.py`, #23) judges every rigid move against its intended motion; the films'
+is a gap. The free motion check (`check.py`, #23) judges every rigid move against its intended motion; the films'
 gate (`../demo_film`, `seen_faults`) holds a place whose cast record stands people to showing one. What the layer
 needs at a place is worked out free in `needs.py` (a row of a moving kind nothing moves, a motion need no record
-names), the holes check's `motion` source (`../complete/holes/layers.py`), each a line of code work, never a guess.
+names), the gaps check's `motion` source (`../complete/gaps/layers.py`), each a line of code work, never a guess.
 
 The motion stage (the paper's Methods, "The canonical scene": motion; experimental, PRD #6): a place's motion layer,
 the game's own timed motions (`data/motion/<place>.json`) and the rigid moves SCORE gives the things that move there

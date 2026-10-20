@@ -207,11 +207,11 @@ def test_a_piece_no_row_made_is_left_out_and_named():
     root = pathlib.Path(tempfile.mkdtemp())
     try:
         (root / "wall_1.gltf").write_text("{}")
-        holes = []
+        gaps = []
         pieces = [{"model": "wall_1"}, {"model": "lamp_1"}, {"model": "lamp_1"}]
-        assert export.made_only(pieces, [root], holes) == [{"model": "wall_1"}]
-        export.made_only(pieces, [root], holes)
-        assert holes == [{"model": "lamp_1"}], holes
+        assert export.made_only(pieces, [root], gaps) == [{"model": "wall_1"}]
+        export.made_only(pieces, [root], gaps)
+        assert gaps == [{"model": "lamp_1"}], gaps
     finally:
         shutil.rmtree(root)
 
@@ -221,10 +221,10 @@ def test_the_seed_gates_fail_by_name():
     try:
         (root / "wreck").mkdir()
         (root / "wreck/wreck.usda").write_text("#usda 1.0\n")
-        (root / earth_seed.HOLES).write_text(json.dumps({"models": [], "picks": []}))
+        (root / earth_seed.GAPS).write_text(json.dumps({"models": [], "picks": []}))
         assert earth_seed.seed_faults(root) == []
         assert earth_seed.judge_laid(root, {}, {}).answer == checks.PASS
-        (root / earth_seed.HOLES).write_text(json.dumps({"models": ["cable_run_1p4"], "picks": [
+        (root / earth_seed.GAPS).write_text(json.dumps({"models": ["cable_run_1p4"], "picks": [
             {"row": "aft_section", "object": None, "why": "no object of this row is on the stage"}]}))
         laid, picked = earth_seed.judge_laid(root, {}, {}), earth_seed.judge_picks(root, {}, {})
         assert laid.answer == checks.FAIL and laid.findings == ("cable_run_1p4",), laid

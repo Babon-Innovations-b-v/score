@@ -6,7 +6,7 @@ recordings were "pretty bad").
 
 The jobs come from the repo's data: every sound on the page whose brief in data/sound/sounds.json has `prompts`
 gets one take, its first prompt at seed 1 (its `seconds` long; #29: no seed or prompt fan-out, a take under
-the floor is a hole and another is a new batch). The takes land in the picker's cache
+the floor is a gap and another is a new batch). The takes land in the picker's cache
 (`~/.cache/farm-factory/sound-picker/moss/<page>/`) with `manifest.json` naming each file's sound, prompt, seed and
 model, which is its credit; the picker's MOSS source offers them, levelled by the loudness rule like every take.
 MOSS-SoundEffect v2.0 is Apache-2.0, code and weights, both pinned below. Measured on the trial: about 6.3 s a clip

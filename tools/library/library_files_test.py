@@ -1,6 +1,6 @@
 """The library resolver (library_files.py) and the rule it keeps: the framework stands alone. No code or data in this
 repository reads a file of the game 2099's checkout (the owner, 2026-10-09: the game and SCORE are fully separate
-things); every file a record names is in git (`data/...`), a library reference, or a hole.
+things); every file a record names is in git (`data/...`), a library reference, or a gap.
 
 What fails:
 
@@ -12,7 +12,7 @@ What fails:
 - in the data: a value that is such a path, unless it sits under a key that only notes where something came from
   (`from`, `read_by`, `about`, `is`, ...);
 - the resolver: a reference fetched by the library's own command and checked against its entry's sha256, served from
-  the cache after, fetched again when the cached bytes changed; a name the library does not hold a hole (None);
+  the cache after, fetched again when the cached bytes changed; a name the library does not hold a gap (None);
 - the blob store: with none set, the command is handed the cloud backend's object store (a fake here) under the prefix
   score_lib, through its environment only.
 
@@ -178,7 +178,7 @@ def toy_library(folder, files):
     return root
 
 
-def check_the_library_is_fetched_once_checked_and_holes_are_none():
+def check_the_library_is_fetched_once_checked_and_gaps_are_none():
     reference = "sound/hum.recordings@1/audio/recordings/hum.ogg"
     with tempfile.TemporaryDirectory() as folder:
         folder = pathlib.Path(folder)
@@ -224,9 +224,9 @@ def check_a_folder_of_one_s_own_stands_in():
         assert library_files.resolve("models/box/none.glb", folder) is None
 
 
-def check_every_record_name_is_a_reference_a_repository_file_or_a_hole():
+def check_every_record_name_is_a_reference_a_repository_file_or_a_gap():
     """Every file name the data gives is a library reference, a repository file that is there, or an old release name
-    (`models/...`, `sound/...`): a hole the remake fills."""
+    (`models/...`, `sound/...`): a gap the remake fills."""
     named = set()
 
     def walk(value, key):
@@ -243,7 +243,7 @@ def check_every_record_name_is_a_reference_a_repository_file_or_a_hole():
         walk(json.loads(path.read_text()), None)
     odd = sorted(name for name in named if not (library_files.parsed(name) or name.startswith(("models/", "sound/"))
                                                 or (name.startswith("data/") and (REPO / name).exists())))
-    assert named and not odd, "names that are neither a reference, a repository file nor a hole:\n  " + "\n  ".join(odd)
+    assert named and not odd, "names that are neither a reference, a repository file nor a gap:\n  " + "\n  ".join(odd)
 
 
 def main():
@@ -251,9 +251,9 @@ def main():
     check_nothing_names_the_game()
     check_a_reference_reads_as_its_parts()
     check_a_repository_file_resolves_without_the_library()
-    check_the_library_is_fetched_once_checked_and_holes_are_none()
+    check_the_library_is_fetched_once_checked_and_gaps_are_none()
     check_a_folder_of_one_s_own_stands_in()
-    check_every_record_name_is_a_reference_a_repository_file_or_a_hole()
+    check_every_record_name_is_a_reference_a_repository_file_or_a_gap()
     print("library_files_test: ok")
 
 
