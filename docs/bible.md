@@ -612,7 +612,10 @@ unpredictable.
   model remembering. Today: the grill protocol on `SessionStart`, the soul rules on every prompt,
   `md_guard`, `issue_guard` and `accept_guard` (only the owner rejects, accepts by hand, waives or overrides; the runner accepts and clears by
   the gates) on
-  `PreToolUse`, and the memory commit-and-push on `Stop`.
+  `PreToolUse`, and the memory commit-and-push on `Stop`. A hook that crashes refuses nothing: the
+  harness lets the call through, so a guard that throws on every event fails open without a sign
+  (completion_guard did for nine days, 10-09 to 10-18). A hook change is tested by running its real
+  command from `settings.json` on a sample event, not only its functions.
 - **GitHub issues** hold the durable backlog. Anything that must survive the chat lives there.
 
 **Session roles.** One coordinating session, the overseer, runs the work directly with many
@@ -624,7 +627,8 @@ stand. Terms in `CONTEXT.md`.
 
 - **Overseer.** The one coordinating session. Plans each effort as stages from the paper; proves
   each stage on one place before fanning out; splits the work across parallel agents, briefs each
-  one, checks what it returns against the brief and merges it. Starts in this repository, so its
+  one (copying into the brief every owner rule that landed since the plan was written: the newest
+  commits marked `owner`), checks what it returns against the brief and merges it. Starts in this repository, so its
   hooks, tools and memory reach every agent. Guards drift: holds the paper, the owner's vision, the
   distilled owner prompts and every standing rule, and checks every result against them; corrects
   briefly and cites the rule or paper section, never steers by taste. Lets measured checks decide,
@@ -667,6 +671,16 @@ axis from the column; do not confuse them.
 works on `main` only (ADR-0001), so a push is visible to everyone immediately and there is no PR
 step to catch anything you skipped.
 
+**Moved rows.** A code edit can move the key of a paid row that already has an accepted output, and
+the next run then buys it again (17 turntables, 12 bodies, paid paint and 23 people bodies were
+nearly or really re-keyed between 10-12 and 10-18). Before pushing an edit to anything a stage
+hashes, run `python -m score moved`: it lists every keyed row the diff moves. A commit that moves a
+paid row on purpose names it in a `Moved-rows: <node> ...: <reason>` trailer (`moved.TRAILER`); one
+checked to move nothing may say so (`Moved-rows: none (...)`). The pre-push form
+(`.githooks/pre-push-moved`) refuses an unnamed move, and stays off until the owner turns it on
+with `git config score.movedCheck true` (`score.movedTimeout`, default 3600 s); git runs only his
+local `.githooks/pre-push`, which hands its input on to it.
+
 **Commits.** Imperative and scoped: `module: description`. The scope is the module or area, not the
 file. A commit that needs "and" in its subject line is two commits.
 
@@ -696,6 +710,10 @@ code they have not seen yet.
 - **Failures propagate.** A write that can fail raises; it does not log and continue. The two tiers
   are: a failure the caller can do something about (raise a typed error) and a failure nothing can
   be done about (crash loudly). Swallowing is neither.
+- **A paid step's failure is a hole.** Inside a batch a failed paid step is never retried, never
+  waited out and never sent to a bigger card class: it is recorded as a hole and priced into the
+  next batch (`CONTEXT.md`: batch, hole). A retry is a mend only on a free step, or on a read that
+  buys nothing (the Scaleway backend asks a failed read again and never a write).
 - **Every directory carries its overlay** (`CLAUDE.md`) once it has rules of its own.
 
 <Extend this chapter with the specifics this project needs: the layer names, the test command, the
