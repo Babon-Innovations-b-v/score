@@ -1,7 +1,9 @@
 """The benchmarks that settle #21's cuts, prepared and never launched from here: each one batch through the runner's
 own paid path (`score run ... --detach`, so the runner clears it, reserves its estimate and writes every euro to the
 ledgers), at most CAP_EUROS for all of them together. Their euros are #21's design estimates, said as estimates;
-`needs` names what must land before one can run.
+`needs` names what must land before one can run. None lowers a setting that ships on a guess: P2 lowers Pixal3D's steps
+for a shape only where every check sorts it the same (pixal_steps.py); a films benchmark of fewer samples is left out,
+since its samples ship and no check sorts them (#21, 2026-10-20).
 
 Before any of them starts, the month's guard (compute.month_refusal) is asked for the total: while the month's books
 are unknown it refuses, and the owner runs `score spend --read-back` and `score spend --google-month EUR` first.
@@ -19,10 +21,15 @@ BENCHMARKS = (
     {"id": "P3", "what": "Pixal3D: the same takes on one H100, euros a model against the L4", "euros": 1.5,
      "needs": "#21 track A, and SCORE_MAX_MACHINES='gpu-24gb=0' for this run only",
      "command": f"SCORE_MAX_MACHINES='gpu-24gb=0' {RUN} --place campgrounds --stage pixal"},
-    {"id": "P2", "what": "Pixal3D: 8 sampling steps against 12", "euros": 2.0,
-     "needs": "the owner's yes on the #55 lock of the generator's settings", "command": None},
-    {"id": "R1", "what": "films: 64 samples against 32, and the fog's volume step", "euros": 1.5,
-     "needs": "#21 track C: the free local preview first", "command": f"{RUN} --place garage --stage demo-film"},
+    # 6 chunky takes twice at pixal's measured likely EUR 0.167 a model (per-unit.json), and DINOv2's pairs
+    # (likeness_row LIKENESS_EUROS 1.0): EUR 3.01 likely, EUR 6.75 high (pixal_steps.benchmark_euros).
+    {"id": "P2", "what": "Pixal3D: 8 sampling steps against 12 on chunky takes, same seed; a shape runs lower only "
+                         "where the shape check, outline and DINOv2 likeness sort it the same", "euros": 3.1,
+     "needs": "the owner's yes on the #55 lock, at least 3 chunky close-ups, and his override yes for the node "
+              "override, key p2-steps, at EUR 3.1 (outside the runner, as similar.py's pairs are)",
+     "command": "python -m score.stages.complete.prepare.pixal_steps list <close-ups> <inventory.json> <out>; "
+                "SCORE_SPEND_TICKET='override p2-steps' tools/props/cloud/batch.py <out>/list.txt --who 'P2 benchmark' "
+                "--inventory <inventory.json> --no-finish"},
     {"id": "S1", "what": "settle: every drop of a place on one cpu-4c-32gb machine", "euros": 0.6,
      "needs": "#21 track C: settle on cpu-4c-32gb only", "command": f"{RUN} --place habitat --stage settle"},
     {"id": "F-B", "what": "finish lists: one ask on low thinking on the flex tier", "euros": 0.5,

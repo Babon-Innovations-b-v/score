@@ -22,6 +22,10 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as holes.
 - **Sharing a take across places is the owner's call** (a place's style may differ): `across_places` prices it
   beside the figure, never in it.
+- **Pixal3D's steps stay at the #55 lock until measured and allowed** (`pixal_steps.py`, the owner's ask of
+  2026-10-20). A shape runs at fewer steps only where P2 measured at least `MIN_TAKES` takes sort the same at both
+  settings on the shape check, outline and DINOv2 likeness, and the owner said yes on #55 (`OWNER_YES`, `ADOPTED`);
+  an untold check is never "the same". Never lower another setting that ships (film samples, resolutions) here.
 - **Benchmarks are listed, never launched here** (`benchmarks.py`, EUR 20 cap in all): each through `score run
   --detach` once its track has landed, after `benchmarks.guard()` (the month's guard) has room.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
