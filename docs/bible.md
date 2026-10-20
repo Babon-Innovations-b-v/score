@@ -82,7 +82,14 @@ the current backend). No model runs on the coordinating machine.
   in the store. The owner keeps a reject, a button on the cockpit's step page: the accepted output moves back to
   the one accepted before, every later node that read it is stale, and the runner never takes it again. He also
   keeps his own accept, for a worse output with his reason; a waiver (one check, one key, with his reason); and an
-  override, his yes for a run outside the runner. None is needed for a run. His accept, reject and waiver and the
+  override, his yes for a run outside the runner. None is needed for a run. A benchmark grant is his one yes given outside the
+  cockpit (his standing rule of 2026-10-20, root CLAUDE.md): a Claude Code session may ask him to approve one benchmark
+  batch of at most EUR 20, and on his yes writes it with `compute.grant_benchmark(answer, question, euros)` (his answer
+  and the question quoted, the time, single use, 24 h, and his Google month figure when he gave one, which goes into
+  the books as his); the batch is one `score run` tagged `SCORE_BENCHMARK_GRANT=<grant id>`, its paid nodes cleared by
+  the runner as ever (inputs passed, month ceiling, books), the grant standing in for the stop line: the first run to
+  clear under it takes it, and its clearances together stay within its euros. Any other purpose, anything over EUR 20,
+  an expired or used grant still needs his cockpit click. His accept, reject and waiver and the
   books' figure are buttons in the cockpit (there is no stop he sets: his checkout's yes to a batch writes its stop,
   the batch's high plus 10%, CONTEXT.md "batch"): each his signed-in request, applied on his
   PC by the sync pass only when its user is that PC's `SCORE_OWNER`, through the same owner-only functions

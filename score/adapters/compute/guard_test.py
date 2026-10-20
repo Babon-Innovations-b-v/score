@@ -261,6 +261,96 @@ def test_a_watch_whose_preflights_cannot_be_read_falls_back_to_its_stages_foreca
     assert watch.check() and stopped == [1]
 
 
+QUESTION = "Approve one benchmark batch, P1, of at most EUR 10?"
+
+
+def refused_grant(**given):
+    """Why grant_benchmark refused these arguments."""
+    arguments = {"answer": "Yes", "question": QUESTION, "euros": 10.0, "store": Store.in_folder(tempfile.mkdtemp()),
+                 **given}
+    return compute_test.refused(lambda: compute.grant_benchmark(**arguments))
+
+
+def as_benchmark(grant_id, run, call):
+    """Run `call` as a node of the `score run` named `run`, tagged with the benchmark grant `grant_id`."""
+    os.environ[compute.GRANT] = grant_id
+    if run:
+        os.environ[compute.RUN_ID] = run
+    try:
+        return call()
+    finally:
+        os.environ.pop(compute.GRANT)
+        os.environ.pop(compute.RUN_ID, None)
+
+
+def test_a_grant_is_a_quoted_benchmark_of_at_most_20_euros():
+    """The owner's standing rule of 2026-10-20: benchmarks only, at most EUR 20, his answer and the question quoted."""
+    assert "at most EUR 20" in refused_grant(euros=20.01)
+    assert "at most EUR 20" in refused_grant(euros=0) and "at most EUR 20" in refused_grant(euros=float("nan"))
+    assert "benchmark only" in refused_grant(purpose="a film")
+    assert "quotes" in refused_grant(answer="  ") and "quotes" in refused_grant(question="")
+    store = Store.in_folder(tempfile.mkdtemp())
+    grant = compute.grant_benchmark("Yes", QUESTION, 20, store=store)
+    assert store.read(f"grants/benchmark/{grant['id']}.json") == grant
+    assert grant["single_use"] and grant["answer"] == "Yes" and grant["question"] == QUESTION and grant["euros"] == 20.0
+    assert grant["expires"] > grant["at"] and grant["google_month"] is None
+
+
+def test_a_grant_may_carry_the_owners_google_month():
+    kept = BOOKS.BOOKS
+    BOOKS.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"
+    try:
+        assert "finite figure" in refused_grant(google_month=-1)
+        assert not BOOKS.BOOKS.exists()
+        grant = compute.grant_benchmark("Yes, and Google is at 412", QUESTION, 5, google_month=412.0,
+                                        store=Store.in_folder(tempfile.mkdtemp()))
+        books = BOOKS.this_months_books()
+        assert books["state"] == "known" and books["google_before"] == 412.0 and grant["id"] in books["google_by"]
+    finally:
+        BOOKS.BOOKS = kept
+
+
+def test_a_benchmark_batch_spends_under_its_grant_once_within_its_amount():
+    """The grant stands in for the stop line, for one score run, up to its euros; the month's ceiling still counts."""
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 90.0})
+    BILL["euros"] = 100.0  # nothing spent since the line
+    stop_at(runner, 1.0)
+    grant = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
+    clear = lambda euros: lambda: compute.clearance(runner, "render@hangar", euros)  # noqa: E731
+    assert "pass the EUR 1.00 stop" in compute_test.refused(clear(6.0))  # not tagged: the stop line as ever
+    ticket = as_benchmark(grant, "run-a", clear(6.0))
+    assert ticket["clearance"]["grant"] == grant and runner.store.read(f"grants/used/{grant}.json")["run"] == "run-a"
+    assert as_benchmark(grant, "run-a", clear(4.0))  # the same run, 10 of 10
+    assert "would pass its EUR 10.00" in compute_test.refused(lambda: as_benchmark(grant, "run-a", clear(0.5)))
+    assert "single use" in compute_test.refused(lambda: as_benchmark(grant, "run-b", clear(0.5)))
+    assert "one score run" in compute_test.refused(lambda: as_benchmark(grant, None, clear(0.5)))
+    assert "no benchmark grant" in compute_test.refused(lambda: as_benchmark("20991231T000000", "run-c", clear(0.5)))
+    BOOKS.entries = lambda: [{"started": f"{MONTH}-18T10:00:00Z", "euros": BOOKS.MONTH_EUROS}]
+    other = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
+    assert "ceiling" in compute_test.refused(lambda: as_benchmark(other, "run-d", clear(1.0)))
+
+
+def test_an_expired_or_unquoted_grant_clears_nothing():
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 0.0})
+    kept = compute.GRANT_HOURS
+    compute.GRANT_HOURS = 0
+    try:
+        expired = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
+    finally:
+        compute.GRANT_HOURS = kept
+    clear = lambda: compute.clearance(runner, "render@hangar", 1.0)  # noqa: E731
+    assert "expired" in compute_test.refused(lambda: as_benchmark(expired, "run-a", clear))
+    forged = {"id": "forged", "purpose": "benchmark", "euros": 10.0, "answer": "", "question": QUESTION,
+              "at": graph.now(), "expires": "2999-01-01T00:00:00+00:00", "single_use": True}
+    runner.store.write_once("grants/benchmark/forged.json", forged)
+    assert "not a quoted benchmark grant" in compute_test.refused(lambda: as_benchmark("forged", "run-a", clear))
+    runner.store.write_once("grants/benchmark/dear.json", {**forged, "id": "dear", "answer": "Yes", "euros": 50.0})
+    assert "not a quoted benchmark grant" in compute_test.refused(lambda: as_benchmark("dear", "run-a", clear))
+    assert runner.store.objects.keys("clearances/") == []
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
