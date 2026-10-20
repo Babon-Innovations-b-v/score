@@ -135,6 +135,18 @@ def kit_if_laid(files):
     return declared
 
 
+def creator_plan(files):
+    """The plan row's files with the creator's approved plan (his plan page's Approve, score/review/plans.py, kept
+    under {home}/design/plans) as its `plan` where he made one. Wrapped here, in the table, so a place without one
+    keeps its key and the plan's code version moves for none."""
+    @functools.wraps(files)
+    def declared(place):
+        found = files(place)
+        kept = PROPS_HOME / "design" / "plans" / f"{place}.json"
+        return {**found, "plan": "{home}/design/plans/{place}.json"} if kept.is_file() else found
+    return declared
+
+
 def plan_as_kit(function, position):
     """A plan row function (make, or a judge) reading a place with no kit laid: its `kit` input (argument `position`)
     is the plan itself, which lays no pieces and is named for the place, so the row reads a kit with nothing on it."""
@@ -156,7 +168,7 @@ def shell_of(place):
 PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scene_record.plan.PLACE_PLAN,
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
-                   files=kit_if_laid(scene_record.plan.files), applies=scene_record.written,
+                   files=creator_plan(kit_if_laid(scene_record.plan.files)), applies=scene_record.written,
                    beside={"shell-split": ("shell-split", 1)}, upward=True, neighbours=shell_of)
 # Shapes first (CONTEXT.md "shell split"): an outside shell's plan split into the shapes of its inside places, free and
 # local, for a place whose plan has a `split`; each inside place's plan reads its shell's split beside it (PLAN's

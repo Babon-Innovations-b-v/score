@@ -8,6 +8,8 @@
   <aside class="concept-side" aria-label="what to change">
     {% if holds %}<p class="soft small concept-holds" title="every first draw is asked to hold the places listed inside this one, joined as laid out"><span data-v>drawn to hold</span>: {% for held in holds %}<b data-v>{{ held }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
     {% if can and not picked %}
+    <label class="num-label" for="concept-inside" title="the places inside this one, named up front: the draw holds them, and its plan lays each out" data-v>inside places</label>
+    <div class="concept-actions"><input type="text" id="concept-inside" value="{{ named|join:', ' }}" placeholder="names, comma between" data-place="{{ place }}"><button type="button" class="button" id="concept-name" title="keeps these names for this place's draws and plan" data-v>name</button></div>
     <ol class="concept-notes" id="concept-notes"></ol>
     <label class="num-label" for="concept-note" data-v>note</label>
     <textarea id="concept-note" rows="4" title="what to change in the whole picture"></textarea>
@@ -20,7 +22,8 @@
     <button type="button" class="button" id="concept-pick" data-sha="" title="unlock it to mark and draw again (until the design is approved)" data-v>Unlock</button>
     <span class="dot" id="concept-said" hidden></span>
     {% endif %}
-    {% if reading %}<div class="concept-inventory concept-reading" id="concept-reading"><span class="num-label" data-v>read</span> <span class="soft small" title="rows read from this concept and found in it, {{ reading.at|slice:':16' }}; what it cost and took, the card's start included" data-v>{{ reading.rows|length }} rows, {{ reading.gaps|length }} gaps, EUR {{ reading.euros|floatformat:2 }}, {{ reading.minutes }} min</span> <button type="button" class="button" id="concept-boxes-quiet" aria-pressed="false" title="show only the boxes of the row or gap under the pointer" data-v>one at a time</button>
+    {% if plan %}<a class="button primary" href="/plan/{{ place }}/" title="its plan, made from this concept and its inventory: move, resize, note" data-v>Plan</a>{% endif %}
+    {% if reading %}<div class="concept-inventory concept-reading" id="concept-reading"><span class="num-label" data-v>read</span> <span class="soft small" title="rows read from this concept and found in it, {{ reading.at|slice:':16' }}; what it cost and took, the card's start included" data-v>{{ reading.rows|length }} rows, {{ reading.gaps|length }} gaps, EUR {{ reading.euros|floatformat:2 }}, {{ reading.minutes }} min</span>
       <ol class="concept-rows">{% for row in reading.rows %}<li data-row="{{ row.number }}" title="{{ row.kind }}{% if row.terrain %}, terrain{% endif %}, {{ row.anchor }}; {{ row.size_words }}; {{ row.where }}; found {{ row.boxes|length }}"><span data-v>{{ row.name }}</span>{% if row.count != 1 %} <span class="soft" data-v>&times;{{ row.count }}</span>{% endif %}</li>{% endfor %}</ol>
       {% if reading.gaps %}<span class="num-label" data-v>gaps</span><ul class="concept-gaps">{% for gap in reading.gaps %}<li{% if gap.number %} data-row="{{ gap.number }}"{% else %} data-gap="{{ forloop.counter }}"{% endif %} title="{{ gap.kind }}">{% include "pages/c/dot.html" with tone="gap-missing" tip=None %} <span data-v>{% if gap.number %}{{ gap.number }}. {% endif %}{{ gap.words }}</span></li>{% endfor %}</ul>{% endif %}
     </div>{% endif %}
@@ -39,4 +42,5 @@
 </section>{% endif %}
 {% if draws %}<section class="concept-history" aria-label="draws">{% for draw in draws %}<a class="concept-past{% if draw.picture.sha == shown.picture.sha %} shown{% endif %}" href="?draw={{ draw.picture.sha }}" title="{{ draw.at|slice:':16' }}, {{ draw.by }}{% if draw.euros is not None %}, EUR {{ draw.euros|floatformat:2 }}{% endif %}{% if draw.note %}: {{ draw.note }}{% endif %}"><img src="{{ draw.picture.thumb_url }}" alt="" loading="lazy">{% if draw.picture.sha == picked %}{% include "pages/c/dot.html" with tone="done" tip="picked" %}{% endif %}</a>{% endfor %}</section>{% endif %}
 <script src="/static/pages/concept.js"></script>
+<script src="/static/pages/inside.js"></script>
 {% endblock %}

@@ -49,10 +49,10 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   gap. Never start the batch from an agent.
 - **Design before the batch** (owner, 2026-10-20, CONTEXT.md "design"; `design.py`): each place's concept
   (missing, drawn, picked), inventory (None before the pick, made when `data/inventory/<place>.json` was read from the
-  picked draw, else to read; CONTEXT.md "scene inventory") and plan (remake, made, approved; remake while the
-  inventory is not made), read from the store (the concept review's draws and picks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
-  never judged. Approved is only the creator's own accept of `plan@<place>` given after his pick; the runner's
-  automatic accept is never an approval. The cockpit's batch buys only approved places' steps. The old plans'
+  picked draw, else to read; CONTEXT.md "scene inventory") and plan (remake while the inventory is not made, else
+  approved), read from the store (the concept review's draws and picks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
+  never judged. The pick is the approval (owner, 2026-10-21): its inventory and then its plan are made from it
+  automatically (`score/review/plans.py`; the plan page is for inspecting and fixing, his edits redoing what follows). The cockpit's batch buys only approved places' steps. The old plans'
   `concept.pick` is a hint for drawing, not a constraint.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
   `WORK/checks/prepare/remake.json`. Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python

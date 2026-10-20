@@ -475,3 +475,46 @@ def environment_reference(user, payload):
     source.refresh()
     return "added", record["concept"]["references"][-1]["picture"]
 
+# --- the plan review (score/review/plans.py): the owner's plan edits, named inside places, corrections -----------
+
+def plan_said(user, call, done):
+    """Run one of his plan review clicks on the store's machine (`call(store, by)`, a score.review.web function);
+    `done(record)` in words, or why it was refused."""
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    source = state.source()
+    try:
+        record = call(source.store, user)
+    except (review.Refused, PermissionError, FileExistsError, KeyError, TypeError, ValueError,
+            subprocess.TimeoutExpired) as refused:
+        return f"refused: {refused}"
+    source.refresh()
+    return done(record)
+
+
+def plan_edit(user, payload):
+    """His plan as he left it on its page, kept as his own (score.review.web.plan_edit); in words."""
+    from score.review import web
+    return plan_said(user, lambda store, by: web.plan_edit(store, str(payload["place"]), payload["plan"], by),
+                     lambda record: f"kept {len(record['plan']['items'])} items")
+
+
+def plan_named(user, payload):
+    """The inside places he named on a concept page (score.review.web.plan_named); in words."""
+    from score.review import web
+    names = payload.get("names") or []
+    return plan_said(user, lambda store, by: web.plan_named(store, str(payload["place"]), names, by),
+                     lambda record: f"{len(record['names'])} inside places named")
+
+
+def plan_revise(user, payload):
+    """His Correct with notes, his click its spend yes (score.review.web.plan_revise); in words."""
+    from score.review import web
+    asked = {"marks": payload.get("marks") or [], "context_marks": payload.get("context_marks") or [],
+             "note": str(payload.get("note") or "")}
+    return plan_said(user, lambda store, by: web.plan_revise(store, str(payload["place"]), asked,
+                                                             float(payload["euros"]), by),
+                     lambda record: f"corrected at {record['at']}")
+

@@ -500,17 +500,19 @@ def sent_picks(store, place):
 # button and the server ask `step_refusal`.
 
 def plan_made(store, place):
-    """Whether `place`'s plan is made: plan@<place> stands accepted, after its concept's pick standing now."""
-    picks = records(store, place, "picks")
-    accept = store.current_accept(f"plan@{place}")
-    return bool(picks and picks[-1]["sha"] and accept and accept["at"] > picks[-1]["at"])
+    """Whether `place`'s plan is made: plan@<place> stands accepted, after its concept's pick standing now (a place
+    with no plan row, a shell: its plan shown; score/review/plans.made)."""
+    from score.review import plans
+    return plans.made(store, place)
 
 
 def holding_row(store, place):
     """The scene inventory row of the layer above whose outline holds `place` on its plan (the ship for the ship's
-    rooms, a module for a base room, the block for the flat): the layer above's plan `holds` {place: row id}
-    (data/plans/<holder>.json, written by its plan's split), else None."""
-    return (plan_of(above(place)).get("holds") or {}).get(place)
+    rooms, a module for a base room, the block for the flat): the row its plan's inside places give it
+    (score/review/plans.holder_of), else the layer above's data/plans `holds` {place: row id}, else None."""
+    from score.review import plans
+    held = plans.holder_of(store, place)
+    return held["row"] if held and held["row"] else (plan_of(above(place)).get("holds") or {}).get(place)
 
 
 def holding_box(store, place):

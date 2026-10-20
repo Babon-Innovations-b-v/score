@@ -3,9 +3,9 @@ through score.review.web.decide and the owner's advance into this machine's mark
 local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
 marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
 owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py), and the
-owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, picks and back to the generated wording (CONCEPT_KINDS), and his
-environment concept's interview answers, versions and reference pictures (ENVIRONMENT_KINDS), each through the local
-cockpit's own owner-only function."""
+owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, picks and back to the generated wording (CONCEPT_KINDS), his
+environment concept's interview answers, versions and reference pictures (ENVIRONMENT_KINDS) and his plan review's clicks (PLAN_KINDS),
+each through the local cockpit's own owner-only function."""
 import dataclasses
 import json
 
@@ -20,6 +20,8 @@ from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 CONCEPT_KINDS = ("concept-draw", "concept-pick", "concept-wording")
 # the environment concept's (CONTEXT.md "environment concept"): an interview answer, a new version, a reference picture
 ENVIRONMENT_KINDS = ("environment-ask", "environment-save", "environment-reference")
+# The plan review's (score/review/plans.py): his plan kept, inside places named, a Correct with notes.
+PLAN_KINDS = {"plan-edit": actions.plan_edit, "plan-named": actions.plan_named, "plan-revise": actions.plan_revise}
 DRAWN = ("sha", "name", "at", "by", "euros", "base", "marks", "note")  # a draw's fields its answer carries
 
 
@@ -249,6 +251,8 @@ def apply(item, source, chosen=None):
         return apply_concept_said(item, actions.environment_save)
     if kind == "environment-reference":
         return apply_environment_reference(item, source)
+    if kind in PLAN_KINDS:
+        return apply_concept_said(item, PLAN_KINDS[kind])
     if kind in OWNER_FIGURES:
         return apply_owner_figure(item)
     return Applied("refused", f"unknown request kind {kind!r}")

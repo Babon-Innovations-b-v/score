@@ -19,7 +19,7 @@ from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, pa
 from score.dashboard.state.gaps import kind_of as gap_kind
 from score.dashboard.state.index import Fresh, answer_keys
 from score.dashboard.state.models import (CheckFinding, ConceptDraw, ConceptWording, EngineGroup, GateCounts, GateVerdict, GapsPrice,
-                                          GapsTotal, InputPicture, LayerGroup, PlaceCard, PlaceDetail, Remake, Spend,
+                                          GapsTotal, InputPicture, LayerGroup, PlaceCard, PlaceDetail, PlanReview, Remake, Spend,
                                           StepCard, StepDetail, StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
 from score.store import Store, stamp_key
 
@@ -502,7 +502,7 @@ class LocalSource:
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
                           gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
                           remake=self.remake(), concepts=self.concepts(), **self.concept_review(),
-                          **self.environment_concept(), **self.hierarchy())
+                          **self.environment_concept(), **self.plan_review(), **self.hierarchy())
 
     def environment_concept(self):
         """{environment_concept, environment_ask_euros, environment_pictures} (score/review/environment_concept.py):
@@ -592,6 +592,20 @@ class LocalSource:
                               context=[{"place": name, "sha": sha}
                                        for name, sha in concepts.sent_picks(self.store, node).items()])
 
+    def plan_review(self):
+        """{plan_reviews, plan_named, plan_revise_euros} of the plan review (score/review/plans.py): the plan each
+        place or shell shows once its scene inventory counts and the inside places he named."""
+        from score.review import plans
+        found, named = {}, {}
+        for node in [*self.places(), *self.hierarchy()["shells"]]:
+            if names := plans.named(self.store, node):
+                named[node] = names
+            shown = plans.current(self.store, node)
+            if shown is None:
+                continue
+            found[node] = PlanReview(**shown)
+        return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros()}
+
     def hierarchy(self):
         """{within, shells, parts} of data/places/within.json: what each place or shell sits within (a part of a place's
         outside, `parts`, sits within that place and has no card), and the shells that are no place of their own with
@@ -599,7 +613,9 @@ class LocalSource:
         path = self.data / "places" / "within.json"
         found = json.loads(path.read_text()) if path.is_file() else {}
         parts = {name: {"within": entry["of"]} for name, entry in found.get("parts", {}).items()}
-        return {"within": {name: entry["within"] for name, entry in {**found.get("within", {}), **parts}.items()},
+        from score.review import plans
+        within = {name: entry["within"] for name, entry in {**found.get("within", {}), **parts}.items()}
+        return {"within": plans.overlaid(self.store, within),
                 "shells": {name: entry["name"] for name, entry in found.get("shells", {}).items()},
                 "parts": sorted(parts)}
 

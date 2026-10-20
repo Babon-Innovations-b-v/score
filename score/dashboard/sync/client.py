@@ -285,10 +285,12 @@ def gaps_sweep():
     return (done.stdout.strip().splitlines() or ["gaps wrote nothing"])[-1]
 
 
-def step_line(module, failed):
-    """A free store-side step (`python -m <module>`, in a process of its own) run once; its last line, or `failed`
-    with its exit code and last error line. One that fails is said in the pass's words, and the pass goes on."""
-    done = subprocess.run([sys.executable, "-m", module], cwd=settings.SCORE_REPO, capture_output=True, text=True)
+def step_line(module, failed, *args):
+    """A free store-side step (`python -m <module> [args]`, in a process of its own) run once; its last line, or
+    `failed` with its exit code and last error line. One that fails is said in the pass's words, and the pass goes
+    on."""
+    done = subprocess.run([sys.executable, "-m", module, *args], cwd=settings.SCORE_REPO, capture_output=True,
+                          text=True)
     if done.returncode != 0:
         return f"{failed}: exit {done.returncode}: {(done.stderr.strip().splitlines() or ['no output'])[-1]}"
     return (done.stdout.strip().splitlines() or [f"{module} wrote nothing"])[0]
@@ -298,6 +300,12 @@ def remake_prepared():
     """Prepare's one-shot figure of the remake written where the pages read it (score.stages.complete.prepare,
     free, local, seconds), so the cockpit's remake price is this checkout's; its line."""
     return step_line("score.stages.complete.prepare", "prepare failed")
+
+
+def plans_kept():
+    """Every place's plan (made from its picked concept and its inventory, or his edit) where the plan stage reads
+    it (score.review.plans keep, free, local), so the batch is made from the plan his cockpit shows; its line."""
+    return step_line("score.review.plans", "plans failed", "keep")
 
 
 def basket_benchmarks():
@@ -378,11 +386,12 @@ def sync_pass(remote, source, chosen=None):
     chosen = chosen or guard.backend()
     swept = library_sweep()
     gaps = gaps_sweep()
+    planned = plans_kept()  # before prepare and the price: both read the plans the plan stage reads
     prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
     demos = library_demos()
     priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
     if failed:
-        return refused_words(f"{failed}; {swept}; {gaps}; {prepared}; {benched}; {pictured}; {demos}")
+        return refused_words(f"{failed}; {swept}; {gaps}; {planned}; {prepared}; {benched}; {pictured}; {demos}")
     now = head(settings.SCORE_REPO)
     pushed = pushed_words(remote, source, chosen) if now == started else (
         f"NOT PUSHED: the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass, so its remake and "
@@ -390,4 +399,4 @@ def sync_pass(remote, source, chosen=None):
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
     return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {gaps}; {priced}; "
-            f"{prepared}; {benched}; {pictured}; {demos}")
+            f"{planned}; {prepared}; {benched}; {pictured}; {demos}")

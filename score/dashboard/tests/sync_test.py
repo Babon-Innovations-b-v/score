@@ -29,7 +29,9 @@ PRICED = "priced by the runner: EUR 1.00 to 2.00 measured, 3 paid steps with no 
 
 
 def offline(monkeypatch):
-    """Prepare and the library's pictures as lines, so no test pass reads the real library or fetches a picture."""
+    """Prepare, the library's pictures and the plans kept as lines, so no test pass reads the real library, fetches
+    a picture or writes a plan where the plan stage reads it."""
+    monkeypatch.setattr(client, "plans_kept", lambda: "plans for the plan stage: test")
     monkeypatch.setattr(client, "remake_prepared", lambda: "remake batch (estimate): test")
     monkeypatch.setattr(client, "library_pictures", lambda: "library pictures: test")
     monkeypatch.setattr(client, "library_demos", lambda: "library demos: test")
@@ -412,7 +414,7 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     # and the gaps after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
     assert "gaps failed: exit 1: no store at " in said, said
     # priced before the push
-    assert said.endswith(f"{PRICED}; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")
+    assert said.endswith(f"{PRICED}; plans for the plan stage: test; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")
     assert priced == [world.source.world.name]
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 

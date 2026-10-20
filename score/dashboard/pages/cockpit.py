@@ -116,8 +116,18 @@ def place_tiles(world, names, rows):
                              "picture": screens.thumb(world.concepts.get(card.place)),
                              "made": made, "made_tip": f"made {made} of {needed}", "needed": needed,
                              "gaps": None if row is None or row["not_checked"] else row["gaps"],
-                             "tone": tone_of(row), "holds": [], "more": 0, **design_of(design)}
+                             "tone": tone_of(row), "holds": [], "more": 0, **design_of(design),
+                             **steps_of(world, card.place)}
     return found
+
+
+def steps_of(world, node):
+    """{steps, steps_done, steps_tip, plan} of a place's or shell's design steps (screens.design_steps): `plan` its plan
+    page once it has a plan (None before)."""
+    steps = screens.design_steps(world, node)
+    return {"steps": steps, "steps_done": sum(steps),
+            "steps_tip": " · ".join(f"{name} {'yes' if done else 'no'}" for name, done in zip(screens.DESIGN_STEPS, steps)),
+            "plan": f"/plan/{node}/" if steps[2] else None}
 
 
 def design_of(design):
@@ -169,7 +179,7 @@ def nested_tile(world, node, by_place, names):
             "picture": screens.thumb(world.concepts.get(node)),
             "made": made, "needed": needed, "made_tip": f"made {made} of {needed}",
             "gaps": sum(checked) if checked else None, "tone": tone, "holds": holds, "more": len(leaves),
-            **design_of(None if shown else "design")}
+            **design_of(None if shown else "design"), **steps_of(world, node)}
 
 
 def holder(world, node, by_place, names):

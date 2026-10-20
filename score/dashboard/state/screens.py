@@ -73,6 +73,18 @@ def design_state(world, place):
     return "review" if world.concepts.get(place) else "draw"  # a concept shown: none while lost or out of date
 
 
+DESIGN_STEPS = ("concept picked", "inventory read", "plan made")
+
+
+def design_steps(world, node):
+    """[done] of a place's or shell's design steps in order (DESIGN_STEPS, CONTEXT.md "design"): its concept picked
+    (the owner, 2026-10-21: the pick is the approval), its scene inventory read from it and its plan made from them
+    (score/review/plans.py); all three done, the design is approved."""
+    picked = world.concept_picked.get(node)
+    return [bool(picked), inventory_current(world, node, picked) or node in world.inventory_readings,
+            node in world.plan_reviews]
+
+
 def steps_of(card):
     return [step for group in card.layers for step in group.steps]
 

@@ -1,0 +1,33 @@
+{% extends "pages/base.html" %}
+{% block title %}{{ name }}: plan{% endblock %}
+{% block content %}
+<nav class="trail" aria-label="where"><a href="/" data-v>Environment</a> <span class="sep">&rsaquo;</span> <a href="/concept/{{ place }}/" data-v>{{ name }}</a> <span class="sep">&rsaquo;</span> <span data-v>plan</span>{% if review %} <span class="soft small" title="{% if review.how == 'derived' %}made from the picked concept and its inventory{% else %}{{ review.how }} by you{% endif %}" data-v>{% if review.how == "derived" %}made{% else %}{{ review.how }}{% endif %}</span>{% endif %}</nav>
+{% if review %}
+<div class="concept-layout" id="plan" data-place="{{ place }}" data-euros="{{ euros|default_if_none:'' }}"{% if pending %} data-pending="{{ pending }}"{% endif %}{% if can %} data-marking{% endif %}>
+  <div class="plan-pair">
+    <div class="concept-stage plan-stage" title="top down, north up, metres{% if can %}: drag a box to move it, its corner to resize it, a door along its wall; drag on the floor to mark an area{% endif %}"><span class="draw-busy" id="plan-busy" hidden><i class="spinner" aria-hidden="true"></i> <b data-v>working</b></span><div class="plan-canvas" id="plan-canvas"><svg id="plan-drawing" xmlns="http://www.w3.org/2000/svg"></svg><div class="concept-marks plan-marks" id="plan-marks"></div></div></div>
+    {% if picture %}<figure class="concept-stage plan-concept" title="the picked concept{% if can %}: drag on it to mark an area your notes are about (P1, P2, ...){% endif %}"><img src="{{ picture.url }}" alt="{{ name }}, the picked concept" draggable="false"><div class="concept-marks" data-on="{{ place }}"></div></figure>{% endif %}
+  </div>
+  <aside class="concept-side" aria-label="the plan">
+    <div class="plan-numbers soft small" id="plan-numbers" title="items, keep-clear zones, doors, standing spots, inside places"></div>
+    <div><span class="num-label" title="the places inside this one, each a box on the plan: rename, remove, or add one and drag it into place" data-v>inside places</span>
+      <ol class="plan-places" id="plan-places"></ol>
+      {% if can %}<button type="button" class="button" id="plan-add" title="drops a new inside place on the plan; drag it into place" data-v>add place</button>{% endif %}</div>
+    {% if can %}
+    <ol class="concept-notes" id="concept-notes"></ol>
+    <label class="num-label" for="concept-note" data-v>note</label>
+    <textarea id="concept-note" rows="3" title="what to change in the whole plan"></textarea>
+    <div class="concept-actions">
+      <button type="button" class="button primary" id="plan-keep" title="keeps the plan as you left it, as your own: what follows is made from it" data-v>Keep</button>
+      <button type="button" class="button" id="plan-revise"{% if euros is None or pending %} disabled{% endif %} title="your marks and notes go to the prompt model, which corrects the plan; your click is the spend yes for exactly that call{% if euros is None %}; its price is not measured{% endif %}"><span data-v>Correct with notes</span> <small data-v>{% if euros is None %}<span class="unknown">unknown</span>{% else %}EUR {{ euros|floatformat:2 }}{% endif %}</small></button>
+    </div>
+    <span class="dot{% if refused %} tone-bad{% endif %}" id="concept-said"{% if refused %} title="{{ refused }}"{% else %} hidden{% endif %}></span>
+    {% endif %}
+  </aside>
+</div>
+<script id="plan-data" type="application/json">{{ plan_json|safe }}</script>
+<script src="/static/pages/plan.js"></script>
+{% else %}
+<div class="node-row" title="a plan is drawn once the scene inventory is read from the picked concept">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span data-v>{% if inventory %}inventory from an older concept{% else %}inventory to read{% endif %}</span></div>
+{% endif %}
+{% endblock %}
