@@ -28,7 +28,7 @@ The record (`WORK/checks/prepare/remake.json` by default):
      "totals": {likely_euros, high_euros, unpriced}, "eta": schedule.schedule's, "expected_holes",
      "predicted_holes_if_bought": {likely_euros, high_euros},
      "moved": {"rows": [{node, euros, why, again}]} or {"not_run": why},
-     "pixal_steps": {locked, lower, owner_yes, adopted, benchmark, why},
-     "benchmarks": {"listed": [...], "guard": {total_euros, cap_euros, refusal}},
+     "pixal_steps": {locked, lower, owner_yes, benchmark, why},
+     "benchmarks": {"listed": [...], "guard": {total_euros, high_euros, cap_euros, refusal}},
      "not_in_figure": [what the figure leaves out], "line"}
 """

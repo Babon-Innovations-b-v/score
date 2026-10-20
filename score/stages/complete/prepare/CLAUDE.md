@@ -24,10 +24,13 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   beside the figure, never in it.
 - **Pixal3D's steps stay at the #55 lock until measured and allowed** (`pixal_steps.py`, the owner's ask of
   2026-10-20). A shape runs at fewer steps only where P2 measured at least `MIN_TAKES` takes sort the same at both
-  settings on the shape check, outline and DINOv2 likeness, and the owner said yes on #55 (`OWNER_YES`, `ADOPTED`);
-  an untold check is never "the same". Never lower another setting that ships (film samples, resolutions) here.
-- **Benchmarks are listed, never launched here** (`benchmarks.py`, EUR 20 cap in all): each through `score run
-  --detach` once its track has landed, after `benchmarks.guard()` (the month's guard) has room.
+  settings on the shape check, outline and DINOv2 likeness, judged as the route's check sees them (the model stood
+  upright and levelled, the close-up cut as likeness_row cuts it), and the owner said yes on #55 (`OWNER_YES`); an
+  untold check is never "the same". No take's batch line reads a lower setting until that yes and its wiring land.
+  Never lower another setting that ships (film samples, resolutions) here.
+- **Benchmarks are listed, never launched here** (`benchmarks.py`, EUR 20 cap in all, counted on their highs): each
+  through `score run --detach` once its track has landed, P2 through `tools/props/cloud/batch.py` under the owner's
+  override ticket at its high, after `benchmarks.guard()` (the month's guard) has room.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
   `WORK/checks/prepare/remake.json`. Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python
   score/stages/complete/prepare/prepare_test.py`.

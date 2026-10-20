@@ -81,16 +81,17 @@ def layers(route, groups_bought, rules, fixed):
 
 def layer_cost(stage, takes, rules):
     """{units, price, minutes} of a layer's takes: units None and its price and minutes named unmeasured when its
-    stage has no per unit (its unit is not known, so neither is the count); no units cost and take nothing."""
+    stage has no per unit (its unit is not known, so neither is the count); no units cost and take nothing, a free
+    row's (surfaces-names since #21, no per unit) included."""
+    units = layer_units(stage, takes, rules)
+    if not units:
+        return {"units": units, "price": {"likely_euros": 0.0, "high_euros": 0.0},
+                "minutes": {"likely_minutes": 0.0, "high_minutes": 0.0, "cards": None}}
     entry = compute.per_unit(stage)
     if entry is None or entry["stage"] != stage:
         why = f"{stage}: no measured per unit in per-unit.json"
         return {"units": None, "price": {"likely_euros": None, "high_euros": None, "why": why},
                 "minutes": {"minutes_why": why}}
-    units = layer_units(stage, takes, rules)
-    if not units:
-        return {"units": units, "price": {"likely_euros": 0.0, "high_euros": 0.0},
-                "minutes": {"likely_minutes": 0.0, "high_minutes": 0.0, "cards": None}}
     return {"units": units, "price": layer_price(stage, units), "minutes": compute.unit_minutes(stage, units)}
 
 

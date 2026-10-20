@@ -57,18 +57,27 @@ def test_both_failing_alike_still_sorts_the_same():
 
 
 def test_nothing_runs_lower_without_the_owners_yes():
-    assert pixal_steps.OWNER_YES is None and pixal_steps.ADOPTED == {}
-    assert pixal_steps.steps_for("solid") == pixal_steps.LOCKED
-    assert pixal_steps.record()["adopted"] == {} and pixal_steps.record()["locked"] == 12
+    assert pixal_steps.OWNER_YES is None
+    assert pixal_steps.record()["owner_yes"] is None and pixal_steps.record()["locked"] == 12
 
 
-def test_p2_is_priced_from_pixals_measured_per_unit_and_listed_at_that():
+def test_p2_is_priced_from_pixals_measured_per_unit_with_the_bill_share_and_capped_on_its_high():
+    from score.stages.complete.holes import price
     per_unit = json.loads((REPO / "data/costs/per-unit.json").read_text())["stages"]["pixal"]
     euros = pixal_steps.benchmark_euros(per_unit, 1.0)
-    listed = next(each for each in benchmarks.BENCHMARKS if each["id"] == "P2")
-    assert listed["euros"] >= euros["likely_euros"] and benchmarks.total() <= benchmarks.CAP_EUROS
+    runs = pixal_steps.MOST_TAKES * 2
+    assert abs(euros["likely_euros"] - (runs * per_unit["likely_euros"] * price.BILL_SHARE + 1.0)) < 0.01
+    assert abs(euros["high_euros"] - (runs * per_unit["high_euros"] * price.BILL_SHARE + 1.0)) < 0.01
+    listed = next(each for each in benchmarks.listed() if each["id"] == "P2")
+    assert (listed["euros"], listed["high_euros"]) == (euros["likely_euros"], euros["high_euros"])
+    assert f"EUR {euros['high_euros']:.2f}" in listed["needs"]  # the override yes is asked at the high
+    assert benchmarks.guard()["high_euros"] <= benchmarks.CAP_EUROS
     assert "pixal_steps list" in listed["command"] and "--no-finish" in listed["command"]
-    assert not any(each["id"] == "R1" for each in benchmarks.BENCHMARKS)  # its samples ship and no check sorts them
+    assert not any(each["id"] == "R1" for each in benchmarks.listed())  # its samples ship and no check sorts them
+
+
+def test_the_batch_p2_runs_through_sends_no_job_again():
+    assert "retry_once" not in (REPO / "tools/props/cloud/batch.py").read_text()
 
 
 def test_the_sort_measures_both_raw_models_of_each_take_free_and_waits_on_dinov2():
@@ -87,8 +96,13 @@ def test_the_sort_measures_both_raw_models_of_each_take_free_and_waits_on_dinov2
         picture[60:200, 50:210] = (120, 90, 60, 255)
         Image.fromarray(picture).save(closeups / f"{name}.png")
         rows.append({"id": name, "size": [1.0, 0.9, 0.8]})
+    (models / "crate-st12.svviews").mkdir()
+    Image.fromarray(picture).save(models / "crate-st12.svviews/input.png")  # Pixal3D's own cut-out, kept by the batch
     (folder / "inventory.json").write_text(json.dumps({"place": "hub", "rows": rows}))
+    raw = (models / "crate-st12.glb").read_bytes()
     pixal_steps.main(["sort", str(models), str(closeups), str(folder / "inventory.json"), str(folder / "out")])
+    assert (models / "crate-st12.glb").read_bytes() == raw and (folder / "out/stood/crate-st12.glb").exists()
+    assert (folder / "out/cuts/crate-st12.png").exists()  # the route's cut: Pixal3D's own, as likeness_row takes it
     result = json.loads((folder / "out/sorted.json").read_text())
     assert set(result["sorts"]) == {"crate", "drum", "chest"}
     assert all(arms[str(steps)]["outline"] in ("pass", "fail") for arms in result["sorts"].values()

@@ -17,6 +17,13 @@ P2, prepared here and never launched from here (benchmarks.py lists it under the
         (tools/props/cloud/similar.py, paid, part of P2); with its scores and the place's least, sorted.json
 
 Raw models on both sides (`--no-finish`): the finish is the same processor step for both, and it runs Blender here.
+Each is judged in the frame the route's own check sees: a copy turned back from image-to-3dlab's +Z, stood upright and
+levelled as pixal.stand_and_pad does (the shape check's spread reads the model's axis-aligned extents), against its
+close-up cut as likeness_row cuts it (Pixal3D's own cut-out when the batch brought its camera folder back, else
+likeness_row.cut_out; an uncut close-up dropped the engineroom core's outline from 0.76 to 0.46).
+
+The batch runs every job once (#21 track A, landed: batch.py has no retry); a failed arm is a take P2 cannot tell,
+never run again inside it.
 """
 import argparse
 import json
@@ -28,7 +35,6 @@ LOCKED = 12  # tools/props/pixal.py STEPS, the #55 lock (pixal_steps_test holds 
 LOWER = 8
 SEED = 1
 OWNER_YES = None  # the owner's dated yes on #55 to run a shape at LOWER where P2 sorted it the same; None: not given
-ADOPTED = {}  # {shape: steps}, written only from P2's sorted.json with OWNER_YES set
 MIN_TAKES = 3
 MOST_TAKES = 6
 CHUNKY = "solid"
@@ -60,10 +66,10 @@ def told(passed):
 def arm_sorts(entry, scores, least):
     """{check: "pass" | "fail" | None} of one model's measured entry ({shape_pass, outline}) and its DINOv2 score."""
     import score.stages.props.likeness as likeness
-    score =scores.get(entry["name"])
+    likeness_score = scores.get(entry["name"])
     return {"thin and in proportion": told(entry["shape_pass"]),
             "outline": told(entry["outline"] >= likeness.OUTLINE_LEAST),
-            "likeness": told(None if score is None or least is None else score >= least)}
+            "likeness": told(None if likeness_score is None or least is None else likeness_score >= least)}
 
 
 def take_verdict(locked, lower):
@@ -95,22 +101,20 @@ def sorted_same(sorts, shapes):
     return {shape: shape_verdict(takes) for shape, takes in by_shape.items()}
 
 
-def steps_for(shape):
-    """The steps a take of `shape` runs at: ADOPTED's only with the owner's yes, else LOCKED."""
-    return ADOPTED.get(shape, LOCKED) if OWNER_YES else LOCKED
-
-
 def benchmark_euros(per_unit, likeness_euros):
-    """{likely_euros, high_euros} of P2: MOST_TAKES takes twice at pixal's measured per unit, and DINOv2's pairs."""
-    runs = MOST_TAKES * 2
+    """{likely_euros, high_euros} of P2: MOST_TAKES takes twice at pixal's measured per unit with the bill share
+    (estimate.layer_price's rule for a card layer), and DINOv2's pairs."""
+    from score.stages.complete.holes import price
+    runs = MOST_TAKES * 2 * price.BILL_SHARE
     return {"likely_euros": round(runs * per_unit["likely_euros"] + likeness_euros, 2),
             "high_euros": round(runs * per_unit["high_euros"] + likeness_euros, 2)}
 
 
 def record():
-    """The prepare record's Pixal3D steps: the lock, the lower setting P2 tests, the owner's yes, what is adopted."""
-    return {"locked": LOCKED, "lower": LOWER, "owner_yes": OWNER_YES, "adopted": dict(ADOPTED) if OWNER_YES else {},
-            "benchmark": "P2", "why": "a shape runs lower only where P2 sorts it the same on " + ", ".join(CHECKS)
+    """The prepare record's Pixal3D steps: the lock, the lower setting P2 tests and the owner's yes. Nothing reads a
+    lower setting into a take's batch line yet: that wiring lands with the owner's yes; every take runs at LOCKED."""
+    return {"locked": LOCKED, "lower": LOWER, "owner_yes": OWNER_YES, "benchmark": "P2",
+            "why": "a shape runs lower only where P2 sorts it the same on " + ", ".join(CHECKS)
                    + " and the owner said yes on #55"}
 
 
@@ -127,15 +131,47 @@ def write_list(closeups, inventory_path, out):
     return out / "list.txt", [row["id"] for row in rows]
 
 
-def measure_arm(model, closeup, size, kind, pairs_folder):
-    """{name, shape_pass, outline, pair} of one raw model against its close-up: the free checks, no renderer."""
+def stood(raw, folder):
+    """A copy of a raw model in `folder` in the frame the route checks: turned back to Pixal3D's -Z
+    (pixal.facing_back), stood upright and levelled as pixal.stand_and_pad does with no --long, --feet or --tube (P2's
+    lines and the route's own pass none); its path."""
+    import shutil
+    from score.stages.props import prop_data
+    with prop_data.tools("props"):
+        import glb_file
+        import pixal
+    folder.mkdir(parents=True, exist_ok=True)
+    copy = folder / pathlib.Path(raw).name
+    shutil.copyfile(raw, copy)
+    pixal.facing_back(copy)
+    document, views = glb_file.read(copy)
+    glb_file.turned(document, views, glb_file.upright_turn(glb_file.positions(document, views)))
+    glb_file.turned(document, views, glb_file.level_turn(*glb_file.faces(document, views)))
+    glb_file.write(document, views, copy)
+    return copy
+
+
+def route_cut(closeup, model, folder):
+    """The close-up as likeness_row's check cuts it: Pixal3D's own cut-out of this take when its camera folder came
+    back (likeness_row.pixal_cut), else likeness_row.cut_out."""
+    import score.stages.props.likeness_row as likeness_row
+    name = pathlib.Path(model).stem
+    kept = pathlib.Path(model).with_suffix(".svviews") / "input.png"
+    return likeness_row.pixal_cut(kept, folder, name) if kept.exists() else likeness_row.cut_out(closeup, folder)
+
+
+def measure_arm(model, closeup, size, kind, out):
+    """{name, shape_pass, outline, pair} of one raw model against its close-up, both as the route's check sees them:
+    the free checks, no renderer."""
     import score.stages.props.likeness as likeness
     import score.stages.props.likeness_row as likeness_row
-    best = likeness.best_way(model, closeup)
-    checks = likeness_row.model_checks(model, size, kind, False)
     name = pathlib.Path(model).stem
+    cut = route_cut(closeup, model, out / "cuts")
+    upright = stood(model, out / "stood")
+    best = likeness.best_way(upright, cut)
+    checks = likeness_row.model_checks(upright, size, kind, False)
     return {"name": name, "shape_pass": checks["model_check"]["pass"], "outline": best["outline"],
-            "pair": likeness.write_pair(model, closeup, best["way"], pairs_folder, name)}
+            "pair": likeness.write_pair(upright, cut, best["way"], out / "pairs", name)}
 
 
 def measure(models, closeups, inventory_path, out):
@@ -148,8 +184,8 @@ def measure(models, closeups, inventory_path, out):
         if not all(path.exists() for path in arms.values()):
             continue
         closeup = pathlib.Path(closeups) / f"{row['id']}.png"
-        found[row["id"]] = {steps: measure_arm(path, closeup, row["size"], f"{inventory['place']}_{row['id']}",
-                                               out / "pairs") for steps, path in arms.items()}
+        found[row["id"]] = {steps: measure_arm(path, closeup, row["size"], f"{inventory['place']}_{row['id']}", out)
+                            for steps, path in arms.items()}
     (out / "pairs.json").write_text(json.dumps({arm["name"]: arm["pair"] for arms in found.values()
                                                 for arm in arms.values()}, indent=1) + "\n")
     return found

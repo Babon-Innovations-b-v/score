@@ -237,7 +237,8 @@ def test_a_fleet_short_of_cards_rents_more_as_stock_comes_up():
 
 def one_shot_fleet(names):
     import types
-    models = [types.SimpleNamespace(name=name, picture="/pics/p.png", seed=1) for name in names]
+    models = [types.SimpleNamespace(name=name, picture="/pics/p.png", seed=1, steps=batch.pixal.STEPS)
+              for name in names]
     return batch.Fleet(models, pathlib.Path(tempfile.mkdtemp()), None, 0, "test", finish=False), models
 
 
