@@ -204,7 +204,8 @@ def tree_path(hole, place):
 
 
 def tree_node(name):
-    return {"name": name, "count": 0, "kinds": Counter(), "children": {}, "anchor": None, "placeholder": False}
+    return {"name": name, "count": 0, "kinds": Counter(), "children": {}, "anchor": None, "placeholder": False,
+            "holes": []}
 
 
 def finished(node):
@@ -215,8 +216,8 @@ def finished(node):
 
 def prim_tree(detail):
     """The holes layer as a tree from the place's root: each node's holes below it by kind, a missing row a
-    placeholder leaf, each leaf linked to its line of the list. The holes layer only: no accepted assembly stands
-    to give the whole scene's tree."""
+    placeholder leaf, each leaf linked to its line of the list, each node with the holes hanging at it (`holes`).
+    The holes layer only: no accepted assembly stands to give the whole scene's tree."""
     anchors = anchors_of(detail)
     root = tree_node(f"/{detail.place}")
     for hole in detail.holes:
@@ -229,6 +230,7 @@ def prim_tree(detail):
             node = node["children"].setdefault(part, tree_node(part))
             node["count"] += 1
             node["kinds"][kind] += 1
+        node["holes"].append(hole)
         node["anchor"] = node["anchor"] or anchors.get(hole.id)
         node["placeholder"] = node["placeholder"] or kind == "missing"
     return finished(root)

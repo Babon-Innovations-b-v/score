@@ -77,9 +77,17 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `state/library.KINDS` with its count, a branch's children only when it opens, `/api/library/children?node=&page=`,
   `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/`: its picture, version, score
   and parts, files, takes, 3D link, the owner's lock, withdraw and refine; hosted, the same from the export's
-  `library/entries.json`, each entry's first `MAX_FILES` files with its file count and bytes). Step 1 built the shell,
-  Environment and Stats; Place and Buy hold `c/todo.html` placeholders (`data-step2`) that step 2 fills. The numbers come
-  from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `scene_tree`, `gaps_by_kind`, `places_complete`,
+  `library/entries.json`, each entry's first `MAX_FILES` files with its file count and bytes). Place draws its
+  tree's top level only; each deeper branch loads as it opens from `/place/<place>/branch/?path=<names below the root>` (`views.
+  place_branch`, `cockpit.branch_rows`), and an item's panel holds its picture, gap kind, its chain's price
+  (`cockpit.chain_words`: "unknown" while a paid step of it has no measured price) and, for the owner, one action on
+  the step that fills it (`cockpit.hole_action`: accept its waiting output, reject one failing a check, waive the
+  failed check of its accepted one, as his JSON request to `/api/decisions` or `/api/waivers`); opening it frames
+  the hole in the 3D view (a `{hole}` message to the viewer frame). Buy lists the basket's items by place with his
+  choice and each price; the total and ETA are the chosen items' (`screens.buy`); its one Buy button posts
+  `/buy/yes/` (`basket.buy_yes`: the same checkout as the basket's, hosted queued), and the last batch's stop (its
+  high plus 10%, `basket.last_batch`) shows after it. The numbers come
+  from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `branch_rows`, `gaps_by_kind`, `places_complete`,
   `measured_prices`, `timeline`), each None where the runner gives none, shown as a grey "unknown", never 0; the
   views are `views.environment`, `stats`, `buy`, `place_page` over `views.overview_of`. The components, each an
   include of `templates/pages/c/` with these arguments (every one ends without a newline, so it sits inline):
@@ -92,11 +100,13 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   - `tile.html` `href`, `picture`, `name`, `made`, `needed`, `gaps` (None: "?", not checked), `tone`, `tip`.
   - `tree.html` `nodes` [{label, count, tone, tip, href, open, panel, children, children_url}]: `children` drawn now,
     `children_url` fetched (GET, JSON [node] of the same fields) only when its branch first opens (dash.js); a
-    failed load turns its dot red and goes to the console. `panel` {title, state, tone, price, action,
-    action_label} opens the side panel on a click or Enter.
+    failed load turns its dot red and goes to the console. `panel` {title, state, tone, price, picture, hole,
+    action, action_label, body, reason} opens the side panel on a click or Enter.
   - `panel.html` `id` (default "panel"): one a page, filled by dash.js from the opener's data-title, data-state,
-    data-tone, data-price, data-action, data-action-label; Escape or its close button shuts it.
-  - `todo.html` `label`: a step-2 placeholder.
+    data-tone, data-price ("unknown" grey), data-picture, data-action (a link, or with data-body the JSON its button
+    posts; data-reason asks why), data-action-label, and data-hole sent to `iframe[data-frames]`; Escape or its
+    close button shuts it. Any `form[data-yes]` (data-url, data-body, data-reload) posts the same way: a green or
+    red dot, the answer as hover text, never on the page.
   Hover text is the native `title` attribute: every component takes `tip`; an explanation goes there, never on
   the page.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
@@ -176,3 +186,5 @@ Rules:
   `tests/viewer_look.py` runs by hand too, free: the 3D viewer in headless Chromium from each film shot's and light
   look's camera beside that picture (difference, structure, brightness, pink and black, its `THRESHOLDS`); run it on
   new web copies, or `--hosted <export>` on the export the hosted site serves, before calling the viewer fixed.
+  The Place screen's click test (`pages_test`, `tests/screens_click.mjs`) drives the same Chromium; it is skipped
+  where that Chromium cannot load its libraries (`ldd`; point `LD_LIBRARY_PATH` at them to run it).

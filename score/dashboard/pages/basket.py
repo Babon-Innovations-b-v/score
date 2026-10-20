@@ -10,13 +10,14 @@ answers.json on the store's machine: at once locally, hosted through a SyncReque
 checkout of what he bought (checkout/flow.py: each item's plan, the stop line, one batch) starts here: local at once,
 hosted queued as a SyncRequest of kind "checkout" with the items he saw, run by the store's machine when they still
 stand as he saw them."""
+import json
 import re
 import uuid
 from collections import Counter
 
 from django.conf import settings
 from django.contrib import messages
-from django.http import Http404, HttpResponseForbidden
+from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -332,6 +333,35 @@ def last_checkout():
     return f"Checkout {found.pk}: {found.state}. {found.detail}" if found else ""
 
 
+BATCH_TONES = {"launching": "review", "waiting": "review", "picked_up": "review", "running": "review",
+               "launched": "done", "done": "done", "refused": "bad", "failed": "bad"}
+
+
+def last_batch():
+    """{state, tone, stop, tip} of his last checkout, or None before one: `stop` the batch's own stop (its high plus
+    10%, flow.BUFFER) once its stop line is written here, None before that or while hosted (the store's machine
+    writes it)."""
+    if actions.hosted():
+        queued = SyncRequest.objects.filter(kind="checkout").first()
+        return queued and {"state": queued.state, "tone": BATCH_TONES.get(queued.state, "idle"), "stop": None,
+                           "tip": queued.detail}
+    from score.dashboard.checkout import flow
+    from score.dashboard.pages.models import Checkout
+    found = Checkout.objects.order_by("-pk").first()
+    if found is None:
+        return None
+    high = found.stop_line.get("high")
+    return {"state": found.state, "tone": BATCH_TONES.get(found.state, "idle"), "tip": found.detail,
+            "stop": round(high * flow.BUFFER, 2) if high is not None else None}
+
+
+def current_choices(items):
+    """{item id: buy or later} of his choices made on the version of each item shown now."""
+    versions = {item["id"]: item["version"] for item in items}
+    return {choice.item: choice.choice for choice in BasketChoice.objects.all()
+            if versions.get(choice.item) == choice.version}
+
+
 def basket_context():
     """The basket's part of the basket page."""
     root = basket_root()
@@ -411,6 +441,22 @@ def checked_out(user, key, seen):
         return "Checkout sent: the store's machine checks it and starts the batch on its next sync"
     from score.dashboard.checkout import flow
     return flow.start(user, key, True, seen)[1]
+
+
+@require_POST
+def buy_yes(request):
+    """The Buy screen's one yes (#42): his checkout of the items he chose, signed in, CSRF by Django; JSON {said},
+    or {detail} with 409 when refused. Its stop is the batch's high plus 10%, never asked."""
+    if not is_owner(request.user):
+        return JsonResponse({"detail": "only the owner checks out"}, status=403)
+    try:
+        key = str(json.loads(request.body or b"{}").get("key", ""))
+    except (ValueError, AttributeError):
+        key = ""
+    if not re.fullmatch(r"[0-9a-f]{32}", key):
+        return JsonResponse({"detail": "refused: no checkout key"}, status=422)
+    said = checked_out(request.user, key, seen_items())
+    return JsonResponse({"detail": said}, status=409) if said.startswith("refused") else JsonResponse({"said": said})
 
 
 @require_POST

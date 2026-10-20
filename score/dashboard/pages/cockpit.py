@@ -2,6 +2,7 @@
 models of state/models.py and the runner's price record through state/holes.py; nothing is priced or judged here.
 A number the runner does not give is None, which a page shows as a grey "unknown" state, never as 0."""
 import datetime
+import json
 from collections import defaultdict
 
 from score.dashboard.launch.backend import Billed
@@ -43,6 +44,11 @@ def remake(world):
             "unknown": found["unpriced"], "why": "; ".join(found["stale"]) or None}
 
 
+def eta_hours(eta):
+    """(likely, high) hours of a batch's ETA (screens.basket_eta), each None while a step is not timed."""
+    return tuple(None if eta[name] is None else round(eta[name] / 60, 1) for name in ("likely_minutes", "high_minutes"))
+
+
 def made_of(card):
     """(made, needed) of a place: its steps standing accepted, of all its steps."""
     steps = [step for layer in card.layers for step in layer.steps]
@@ -75,15 +81,79 @@ def tiles(world, names, rows):
     return found
 
 
-def scene_tree(node):
-    """A node of present.prim_tree as the tree component's (c/tree.html): its label and gap count, its worst kind's
-    colour, its counts by kind as hover text, its side panel's title and state; its children likewise."""
+def scene_row(node):
+    """A node of present.prim_tree as the tree component's row (c/tree.html): its label and gap count, its worst
+    kind's colour, its counts by kind as hover text and as its side panel's state."""
     worst = node["kinds"][0][0] if node["kinds"] else None
     tone = KIND_TONES[worst] if worst else "done"
     tip = ", ".join(f"{count} {KIND_LABELS[kind]}" for kind, count in node["kinds"])
-    return {"label": node["name"], "count": node["count"], "tone": tone, "tip": tip, "open": True,
-            "panel": {"title": node["name"], "state": tip, "tone": tone},
-            "children": [scene_tree(child) for child in node["children"]]}
+    return {"label": node["name"], "count": node["count"], "tone": tone, "tip": tip,
+            "panel": {"title": node["name"], "state": tip, "tone": tone}}
+
+
+def branch_at(tree, path):
+    """The node of a present.prim_tree at `path` (its names below the root, "/"-joined; "" the root), or None."""
+    node = tree
+    for name in [part for part in path.split("/") if part]:
+        node = next((child for child in node["children"] if child["name"] == name), None)
+        if node is None:
+            return None
+    return node
+
+
+def branch_rows(node, path, item_panel, url):
+    """[row] of a scene-tree branch, one level: a row per hole hanging at the branch itself, then a row per child;
+    a child with children loads them from `url(its path)` when it opens, a leaf opens `item_panel(hole, title)` of
+    its first hole."""
+    rows = []
+    if node["children"]:
+        for hole in node["holes"]:
+            row = scene_row({"name": hole.row or hole.id, "count": 1, "kinds": [(holes.kind_of(hole), 1)]})
+            rows.append({**row, "panel": {**row["panel"], **item_panel(hole, row["label"])}})
+    for child in node["children"]:
+        row = scene_row(child)
+        if child["children"]:
+            row["children_url"] = url(f"{path}/{child['name']}".lstrip("/"))
+        elif child["holes"]:
+            row["panel"] = {**row["panel"], **item_panel(child["holes"][0], child["name"])}
+        rows.append(row)
+    return rows
+
+
+def chain_words(chain, paid):
+    """A hole's price as its panel says it: the measured likely to high of its chain (a "+" while a node of it has
+    no measured price), "free" for an unpaid node with no paid node in its chain, else "unknown"."""
+    if chain and chain["priced"]:
+        return f"EUR {chain['likely']:.2f}–{chain['high']:.2f}{' +' if chain['unpriced'] else ''}"
+    return "free" if paid is False and not (chain and chain["unpriced"]) else "unknown"
+
+
+def hole_action(hole, step):
+    """{action, action_label, body, reason} of the one thing the owner may do for a hole on its filling step (a
+    StepDetail, None for none): accept its waiting output, reject one that fails a check, waive the failed check of
+    its accepted one; {} when there is nothing. `body` is the JSON the panel's button posts."""
+    if step is None:
+        return {}
+    if step.waiting and hole.rule == "gate":
+        taken, url, label, more, reason = step.waiting, "/api/decisions", "Reject", {"decision": "reject"}, True
+    elif step.waiting:
+        taken, url, label, more, reason = step.waiting, "/api/decisions", "Accept", {"decision": "accept"}, False
+    elif step.accepted and hole.rule == "gate" and hole.gates:
+        taken, url, label, more, reason = step.accepted, "/api/waivers", "Waive", {"check": hole.gates[0]}, True
+    else:
+        return {}
+    body = {"node": step.node, "output": taken.output, **more}
+    return {"action": url, "action_label": label, "body": json.dumps(body), "reason": reason}
+
+
+def hole_panel(hole, place, step, price):
+    """The side panel of one hole: its state, colour, picture, its chain's price, the box the 3D view frames and its
+    one action on `step` (hole_action; None: none). `price` the HolesPrice."""
+    kind = holes.kind_of(hole)
+    chain = screens.chain_price(price, place, hole.node) if hole.node else None
+    return {"state": KIND_LABELS[kind], "tone": KIND_TONES[kind], "picture": screens.thumb(hole.picture),
+            "price": chain_words(chain, hole.paid), "hole": hole.id if hole.low is not None else None,
+            **hole_action(hole, step)}
 
 
 def gaps_by_kind(total):

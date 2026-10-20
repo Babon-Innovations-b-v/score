@@ -1,6 +1,8 @@
 """The dashboard's pages: visual first (a picture per piece, labelled plans, few words); node ids only in a small
 details fold. Every page reads the source of this mode (state.source()); actions go through the owner's checks."""
 import json
+import uuid
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -18,7 +20,7 @@ from score.dashboard.pages import actions, cockpit, library, present, seen
 from score.dashboard.pages import basket as basket_items
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.proposals import records
-from score.dashboard.state import costs, groups, holes
+from score.dashboard.state import costs, groups, holes, screens
 from score.dashboard.state import money as month_money
 
 
@@ -84,16 +86,25 @@ def stats(request):
 
 
 def buy(request):
-    """Screen 3, its layout (#42 step 2 fills the batch): the batch's lines, its total and ETA, the Buy button; the
-    owner's books buttons while paid work is refused."""
+    """Screen 3: the basket's items by place with their prices and his choice, the chosen batch's total and ETA, the
+    Buy button (its yes sets the batch's stop at its high plus 10%), the last batch's state and stop; the owner's
+    books buttons while paid work is refused."""
     found = overview_of(state.source())
-    return render(request, "pages/buy.html", {"remake": cockpit.remake(found["world"]),
-                                             "money": found["view"]})
+    items = records.items(basket_items.basket_root())
+    screen = screens.buy(items, basket_items.current_choices(items), found["world"].spend)
+    places = {}
+    for item in screen["items"]:
+        places.setdefault(item["place"], []).append(item)
+    return render(request, "pages/buy.html", {
+        "screen": screen, "money": found["view"], "last": basket_items.last_batch(),
+        "groups": [{"name": present.place_title(place) if place else "several", "items": rows}
+                   for place, rows in places.items()],
+        "hours": cockpit.eta_hours(screen["eta"]), "key": uuid.uuid4().hex})
 
 
 def place_page(request, place):
-    """Screen 2, its layout (#42 step 2 fills the side panel): the place in 3D, its scene tree with each node's
-    gaps."""
+    """Screen 2: the place in 3D, its scene tree's top level with each node's gaps (deeper branches load as they
+    open, `place_branch`), a side panel per item."""
     source = state.source()
     if place not in source.places():
         raise Http404(f"no place {place}")
@@ -101,7 +112,43 @@ def place_page(request, place):
     names = present.place_names(present.look_groups(source.world_state(), set()))
     return render(request, "pages/place.html", {
         "detail": detail, "name": names.get(place, present.place_title(place)),
-        "tree": cockpit.scene_tree(present.prim_tree(detail)) if detail.holes else None})
+        "tree": scene_branch(request, source, detail, "") if detail.holes else None,
+        "checked": not holes.not_checked(place, detail.holes, source.world_state().holes_price)})
+
+
+def place_branch(request, place):
+    """GET ?path=<names below the root>: one branch of the place's scene tree as JSON [row] (c/tree.html's
+    children_url)."""
+    source = state.source()
+    if place not in source.places():
+        raise Http404(f"no place {place}")
+    rows = scene_branch(request, source, source.place_detail(place), request.GET.get("path", ""))
+    if rows is None:
+        raise Http404("no such branch")
+    return JsonResponse(rows, safe=False)
+
+
+def scene_branch(request, source, detail, path):
+    """[row] of one branch of a place's scene tree (cockpit.branch_rows), each item's panel with its price and, for
+    the owner, its action; None when no node stands at `path`."""
+    node = cockpit.branch_at(present.prim_tree(detail), path)
+    if node is None:
+        return None
+    price = source.world_state().holes_price
+    owner, steps = is_owner(request.user), {}
+
+    def step_of(hole):
+        """The owner's view of the step that fills the hole (its StepDetail, read once a branch), else None."""
+        if not owner or not hole.node:
+            return None
+        if hole.node not in steps:
+            stage, _, place = hole.node.partition("@")
+            steps[hole.node] = source.step_detail(place or None, stage)
+        return steps[hole.node]
+
+    return cockpit.branch_rows(
+        node, path, lambda hole, title: cockpit.hole_panel(hole, detail.place, step_of(hole), price),
+        lambda at: f"/place/{detail.place}/branch/?{urlencode({'path': at})}")
 
 
 def step_page(request, stage, place=None):

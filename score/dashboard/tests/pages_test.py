@@ -2,6 +2,7 @@
 stay inside the details fold; every POST needs its CSRF token; the five screens (#42) show numbers, not prose: at most
 WORD_BUDGET words outside data, hover text and scripts, and a number the runner does not give is a grey "unknown"."""
 import datetime
+import pathlib
 import re
 from html import unescape
 from html.parser import HTMLParser
@@ -519,17 +520,104 @@ def test_the_place_screen_is_its_3d_view_its_scene_tree_and_a_side_panel(world, 
     world.source.refresh()
     html = signed_in().get("/place/alpha/").content.decode()
     assert 'src="/view/alpha?holes=1&amp;embed=1"' in html and '<aside class="side-panel" id="panel" hidden>' in html
-    assert 'data-opens="panel" data-title="lamp" data-state="2 missing" data-tone="hole-missing"' in html
-    assert 'data-title="crate_1" data-state="1 failing" data-tone="hole-gate"' in html
     assert re.search(r'<span class="node-label" data-v>Holes</span><span class="node-count" data-v>2</span>', html)
+    # only the top level is drawn: each branch loads its rows when it opens
+    assert '<details data-children="/place/alpha/branch/?path=Holes">' in html
+    assert '<details data-children="/place/alpha/branch/?path=Objects">' in html
+    assert 'data-title="lamp"' not in html and 'data-title="crate_1"' not in html
+    # the place's own hole (its plan, a route step) hangs at the top, its panel with no price measured
+    assert 'data-title="place:plan" data-state="route" data-tone="hole-route" data-price="unknown"' in html
     assert NODE.search(outside_details(html)) is None
+
+
+def test_a_scene_branch_loads_its_rows_with_each_items_panel(world, settings, tmp_path):
+    import json
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world)
+    world.source.refresh()
+    client = signed_in()
+    [lamp] = client.get("/place/alpha/branch/?path=Holes").json()
+    assert (lamp["label"], lamp["count"], lamp["tone"]) == ("lamp", 2, "hole-missing")
+    panel = lamp["panel"]
+    assert (panel["title"], panel["state"], panel["hole"], panel["price"]) == (
+        "lamp", "missing", "missing:lamp_1", "EUR 2.00–3.00 +")
+    # the close-up has a waiting output: the owner's one action is its accept, his signed-in request
+    assert (panel["action"], panel["action_label"], panel.get("reason", False)) == ("/api/decisions", "Accept", False)
+    assert json.loads(panel["body"]) == {"node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"],
+                                         "decision": "accept"}
+    [crate] = client.get("/place/alpha/branch/?path=Objects").json()
+    assert crate["panel"]["state"] == "failing" and crate["panel"]["price"] == "unknown"
+    assert "action" not in signed_in("guest").get("/place/alpha/branch/?path=Holes").json()[0]["panel"]
+    assert client.get("/place/alpha/branch/?path=Nowhere").status_code == 404
+
+
+PLAYWRIGHT = "playwright@1.62.1"  # viewer_look.py's: its Chromium (1234) is the one installed in ~/.cache/ms-playwright
+SHELL = pathlib.Path.home() / ".cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64"
+
+
+def chromium_runs():
+    """Whether the headless Chromium is installed with every library it loads (LD_LIBRARY_PATH counted)."""
+    import subprocess
+    shell = SHELL / "chrome-headless-shell"
+    return shell.is_file() and "not found" not in subprocess.run(["ldd", str(shell)], capture_output=True,
+                                                                 text=True).stdout
+
+
+@pytest.mark.skipif(not chromium_runs(), reason="no headless Chromium that runs on this machine")
+def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(world, settings, tmp_path):
+    """In a browser: the top level only, a branch loaded once when it opens, an item's panel filled, the 3D view
+    told to frame its hole, its Accept the owner's JSON request with the CSRF token."""
+    import json
+    import subprocess
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world)
+    world.source.refresh()
+    client = signed_in()
+    branch = "/place/alpha/branch/?path=Holes"
+    job = tmp_path / "click.json"
+    job.write_text(json.dumps({
+        "page": "/place/alpha/", "html": client.get("/place/alpha/").content.decode(), "branch": "Holes",
+        "item": "lamp", "branches": {branch: client.get(branch).json()},
+        "dash": str(pathlib.Path(__file__).parents[1] / "pages/static/pages/dash.js")}))
+    done = subprocess.run(["npx", "-y", "-p", PLAYWRIGHT, "node", str(pathlib.Path(__file__).with_name(
+        "screens_click.mjs")), str(job)], capture_output=True, text=True, timeout=120)
+    assert done.returncode == 0, done.stderr[-3000:]
+    seen = json.loads(done.stdout.strip().splitlines()[-1])
+    assert seen["before"] == 0 and seen["fetched"] == [branch]
+    assert (seen["open"], seen["title"], seen["state"], seen["price"], seen["button"]) == (
+        True, "lamp", "missing", "EUR 2.00–3.00 +", "Accept")
+    assert json.loads(seen["framed"]) == {"hole": "missing:lamp_1"}
+    assert seen["posted"] == [{"url": "/api/decisions", "csrf": "token", "body": {
+        "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}]
+
+
+def test_the_buy_screen_lists_the_batch_its_total_eta_and_one_buy_yes(world, settings, tmp_path, monkeypatch):
+    from score.dashboard.pages.models import BasketChoice, Checkout
+    a_month(monkeypatch)
+    [item] = a_holes_finding(world, settings, tmp_path)
+    client = signed_in()
+    html = client.get("/buy/").content.decode()
+    assert f'href="/basket/item/{item["id"]}/"' in html and 'data-url="/buy/yes/"' in html
+    assert re.search(r'<button type="submit" class="primary big wide" data-slot="post-label" disabled', html)
+    assert client.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
+    refused = client.post("/buy/yes/", {"key": "a" * 32}, content_type="application/json")
+    assert refused.status_code == 409 and refused.json()["detail"].startswith("refused")
+    assert signed_in("guest").post("/buy/yes/", {"key": "a" * 32}, content_type="application/json").status_code == 403
+    assert 'data-url="/buy/yes/"' not in signed_in("guest2").get("/buy/").content.decode()
+    BasketChoice.objects.create(item=item["id"], version=item["version"], choice="buy")
+    html = client.get("/buy/").content.decode()
+    assert re.search(r'<span class="node-label" data-v>[^<]+</span><span class="buy-price" data-v><small>EUR</small> '
+                     r'\d+\.\d\d&ndash;\d+\.\d\d</span>', html)
+    assert "its stop: EUR" in html and "disabled" not in re.search(r"<form class=\"buy-yes\".*?</form>", html).group()
+    Checkout.objects.create(key="k" * 8, by="joey", state="launched", stop_line={"high": 10.0, "euros": 30.0})
+    assert '<small>stop EUR</small> 11.00' in client.get("/buy/").content.decode()
 
 
 def test_the_buy_screen_has_no_stop_control_and_the_books_buttons_while_paid_work_is_refused(world, monkeypatch):
     a_month(monkeypatch)
     client = signed_in()
     html = client.get("/buy/").content.decode()
-    assert "data-step2" in html and 'href="/basket/"' in html and "/api/money/read-back" not in html
+    assert "data-step2" not in html and 'href="/basket/"' in html and "/api/money/read-back" not in html
     a_month(monkeypatch, paid_refused="the month's books are lost")
     html = client.get("/buy/").content.decode()
     assert 'data-post="/api/money/read-back"' in html and 'data-post="/api/money/books-figure"' in html

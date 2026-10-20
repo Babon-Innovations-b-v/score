@@ -151,12 +151,63 @@ function openPanel(opener) {
   slot("state").textContent = opener.dataset.state || "";
   slot("tone").className = `dot tone-${opener.dataset.tone || "idle"}`;
   slot("price").textContent = opener.dataset.price || "";
-  const action = slot("action");
-  action.hidden = !opener.dataset.action;
+  slot("price").classList.toggle("unknown", opener.dataset.price === "unknown");
+  const picture = slot("picture");
+  if (picture) {
+    picture.hidden = !opener.dataset.picture;
+    if (opener.dataset.picture) picture.src = opener.dataset.picture; else picture.removeAttribute("src");
+  }
+  const posts = Boolean(opener.dataset.body), action = slot("action"), post = slot("post");
+  action.hidden = !opener.dataset.action || posts;
   action.href = opener.dataset.action || "#";
   action.textContent = opener.dataset.actionLabel || "";
+  if (post) {
+    post.hidden = !posts;
+    Object.assign(post.dataset, { url: opener.dataset.action || "", body: opener.dataset.body || "" });
+    slot("reason").hidden = !opener.dataset.reason;
+    slot("reason").required = Boolean(opener.dataset.reason);
+    slot("reason").value = "";
+    slot("post-label").textContent = opener.dataset.actionLabel || "";
+    slot("post-label").disabled = false;
+    slot("said").hidden = true;
+  }
+  const view = document.querySelector("iframe[data-frames]");
+  if (view && opener.dataset.hole) view.contentWindow.postMessage({ hole: opener.dataset.hole }, location.origin);
   panel.hidden = false;
 }
+
+// A yes form (form[data-yes]: the panel's one action, the Buy button) as the signed-in owner's request: data-body's
+// JSON to data-url with the reason when asked and the CSRF token; a green dot when done (the page read again with
+// data-reload), a red one when refused (the detail as hover text and in the log, never on the page).
+document.addEventListener("submit", async (event) => {
+  const post = event.target.closest?.("form[data-yes]");
+  if (!post) return;
+  event.preventDefault();
+  const said = post.querySelector('[data-slot="said"]'), button = post.querySelector('[data-slot="post-label"]');
+  const body = JSON.parse(post.dataset.body);
+  const reason = post.querySelector('[data-slot="reason"]');
+  if (reason && !reason.hidden) body.reason = reason.value;
+  button.disabled = true;
+  let detail = "";
+  try {
+    const answer = await fetch(post.dataset.url, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": cookie("csrftoken") },
+      body: JSON.stringify(body),
+    });
+    const found = await answer.json().catch(() => ({}));
+    detail = answer.ok ? found.said : String(found.detail || answer.status);
+    if (!answer.ok) throw new Error(detail);
+    said.className = "dot tone-done";
+    if ("reload" in post.dataset) setTimeout(() => location.reload(), 800);
+  } catch (error) {
+    console.error("panel action refused", post.dataset.url, error);
+    said.className = "dot tone-bad";
+    button.disabled = false;
+  }
+  said.title = detail;
+  said.hidden = false;
+});
 document.addEventListener("click", (event) => {
   const opener = event.target.closest("[data-opens]");
   if (opener) { event.preventDefault(); openPanel(opener); return; }
@@ -178,7 +229,8 @@ function treeRow(node) {
   if (node.panel) {
     Object.assign(row.dataset, { opens: "panel", title: node.panel.title || "", state: node.panel.state || "",
       tone: node.panel.tone || "", price: node.panel.price || "", action: node.panel.action || "",
-      actionLabel: node.panel.action_label || "" });
+      actionLabel: node.panel.action_label || "", picture: node.panel.picture || "", hole: node.panel.hole || "",
+      body: node.panel.body || "", reason: node.panel.reason ? "1" : "" });
     row.tabIndex = 0;
     row.setAttribute("role", "button");
   }
