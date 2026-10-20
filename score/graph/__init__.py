@@ -42,6 +42,7 @@ second run waits, then finds the first's record and makes nothing. A record or j
 taken as made.
 """
 import contextlib
+import contextvars
 import datetime
 import fcntl
 import inspect
@@ -145,6 +146,15 @@ def replaced_row():
     return None
 
 
+# The object filter's names while a selecting stage's files function runs (Runner.files_of), else None.
+SELECTED = contextvars.ContextVar("selected objects", default=None)
+
+
+def selected():
+    """The names the runner's object filter keeps, inside a selecting stage's files function; None otherwise."""
+    return SELECTED.get()
+
+
 @dataclass(frozen=True)
 class Stage:
     """One row of the stage table.
@@ -177,8 +187,9 @@ class Stage:
     down: the table's loop check leaves those reads out, and `neighbours` must refuse a place that holds itself.
     selects: its make takes the runner's object filter (`score run --object`, Runner.objects): the node's params
     gain `objects`, the sorted names it keeps, so a filtered output has a key of its own and its make handles only
-    those objects of its place; its files, when a function, are called with `objects` too, so another object's
-    files neither key nor block it. A stage without it runs whole under a filter.
+    those objects of its place; while its files function runs, `selected()` gives those names, so another object's
+    files neither key nor block it (the table's wrappers call files with the place alone). A stage without it runs
+    whole under a filter.
     euros_from: where the row naming its estimate is written, `<file>:<line>` (set when the row is built: the line
     that builds it, through a helper of the same file that passes its `euros` on), so a guess says where it comes
     from. Never in a key.
@@ -541,9 +552,13 @@ class Runner:
         """{name: path pattern} of the environment files the node reads."""
         if not callable(stage.files):
             return stage.files
-        if self.objects and stage.selects:
-            return stage.files(place, objects=self.objects)
-        return stage.files(place)
+        if not (self.objects and stage.selects):
+            return stage.files(place)
+        token = SELECTED.set(frozenset(self.objects))
+        try:
+            return stage.files(place)
+        finally:
+            SELECTED.reset(token)
 
     def file_path(self, stage, name, place):
         pattern = self.files_of(stage, place)[name]
