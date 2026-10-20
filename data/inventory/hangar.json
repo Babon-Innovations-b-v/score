@@ -67,14 +67,6 @@
 				"south"
 			],
 			"features": {},
-			"leaf": {
-				"size": [
-					13.8,
-					55.6
-				],
-				"lies": "roof",
-				"kit": "hdoor"
-			},
 			"ship": {
 				"x": 0.0,
 				"z": 0.0,
@@ -1763,6 +1755,39 @@
 			],
 			"made": "kit piece",
 			"group": "kit: ship"
+		},
+		{
+			"id": "roof_leaf",
+			"name": "one leaf of the hangar's sliding roof door: a flat steel leaf 13.8 x 55.6 m of bolted painted plates, braced across its underside by steel I-beam ribs, lying on the roof",
+			"kind": "generate",
+			"anchor": "roof",
+			"size": [
+				13.8,
+				55.6,
+				0.3
+			],
+			"count": 2,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -6.75,
+					"y": 15.25,
+					"z": 0.0,
+					"facing": 0
+				},
+				{
+					"x": 6.75,
+					"y": 15.25,
+					"z": 0.0,
+					"facing": 0
+				}
+			],
+			"view": "v1",
+			"box": null,
+			"unseen": "the concept shows the roof from inside, its leaves only as the roof over the hall",
+			"thing": "prop:hangar_roof_leaf",
+			"size_from": "the game's unpushed bay room (bay_room.gd:128-158 at dcb2954b): a roof leaf 11.3 x 0.3 x 40.6, sized to the ship's 27 x 55 opening, 13.8 x 55.6 (2026-10-18), shut over each half of it on the roof's top, its middle at 15.4 m, raised 0.15 m so the sliding leaves clear the wall tops (the motion stage's clear gate, 2026-10-12); an object of the hangar, its slide the motion layer's (data/motion/hangar.json), never a place of its own (owner, 2026-10-20, #10)"
 		}
 	]
 }

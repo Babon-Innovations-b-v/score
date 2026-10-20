@@ -49,14 +49,6 @@
 				"wall": "south",
 				"wide": 5.0,
 				"high": 4.0
-			},
-			"leaf": {
-				"size": [
-					2.5,
-					4.0
-				],
-				"lies": "wall",
-				"kit": "gdoor"
 			}
 		}
 	},
@@ -1629,6 +1621,39 @@
 			],
 			"needed": "the paper-vs-world 1 audit of 2026-10-11 (score-coordinator/refocus/paper-vs-world1.txt): the garage stood empty, its rover only in game_only, while the world release holds a made rover (take kit5-rover-3)",
 			"size_from": "the game's rover (2099 game/outside/rover/rover.gd: gauge 1.42 m with its tyres 1.72 m wide, wheelbase 1.69 m and wheels of 0.42 m radius 3.03 m long), its height the made rover's 1.66 m"
+		},
+		{
+			"id": "big_door_leaf",
+			"name": "one leaf of the garage's big sliding outer door: a steel leaf 2.5 m wide and 4 m tall of bolted painted plates, braced across its inner face by steel I-beam ribs",
+			"kind": "generate",
+			"anchor": "floor",
+			"size": [
+				2.5,
+				0.2,
+				4.0
+			],
+			"count": 2,
+			"group": "kit: door",
+			"made": "kit piece",
+			"at": [
+				{
+					"x": -1.25,
+					"y": 0.0,
+					"z": 6.0,
+					"facing": 0
+				},
+				{
+					"x": 1.25,
+					"y": 0.0,
+					"z": 6.0,
+					"facing": 0
+				}
+			],
+			"view": "v1",
+			"box": null,
+			"unseen": "the concept looks away from the south wall: its big door's two leaves are not in it",
+			"thing": "prop:garage_big_door_leaf",
+			"size_from": "the game's unpushed bay room (bay_room.gd:110-124, 142-158 at dcb2954b): each leaf 2.5 x 4.0 x 0.2, shut at (+-1.25, 2.0, 6.0) in the south wall's track; an object of the garage, its slide the motion layer's (data/motion/garage.json), never a place of its own (owner, 2026-10-20, #10)"
 		}
 	]
 }

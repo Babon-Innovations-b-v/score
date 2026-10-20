@@ -6,7 +6,6 @@ world (`world1`, grain "world"): renaming them would make every accepted node ag
 """
 ENGINE = "Blender (headless)"  # the only engine (score/adapters/engines); a level so a second one slots in
 UNASSIGNED = "unassigned"
-DOORS = "doors"
 STAGE_AND_FILMS = "stage and films"
 # The assembly input each layer is read through (score/stages/assembly/record.py ORDER, in words).
 LAYER_OF_INPUT = {"scene-record": "base", "terrain": "ground", "surfaces-bake": "pieces", "surfaces-paint": "pieces",
@@ -36,10 +35,6 @@ LABELS.update({"crops-boxes": "crop boxes", "crops-concept": "crop patches on th
                "crops-look": "crop renders"})
 # A person's rows, one a look: the step's words, then the look.
 PEOPLE = {"people-body-": "body", "people-dress-": "dressed body", "people-take-": "model"}
-# Door kits: places whose kit is a door, shown together, each by its title (data/checks/contents.json: the garage's
-# big door leaves, the hangar's roof leaves).
-DOOR_TITLES = {"gdoor": "garage door", "hdoor": "hangar door"}
-DOOR_KITS = tuple(DOOR_TITLES)
 
 
 def label(stage):
@@ -53,8 +48,8 @@ def label(stage):
 
 
 def place_title(place):
-    """A place's key in words: a door kit by its title, any other with its underscores as spaces."""
-    return DOOR_TITLES.get(place, place.replace("_", " "))
+    """A place's key in words, its underscores as spaces."""
+    return place.replace("_", " ")
 
 
 def short_name(place, style):
@@ -73,22 +68,22 @@ def short_names(world):
 
 def look_of(place, looks):
     """The look in place.json a place takes: one whose `scenes` lists it, else `prologue_<place>`, else `<place>`;
-    DOORS for a door kit; else UNASSIGNED."""
+    else UNASSIGNED."""
     for name, look in looks.items():
         if isinstance(look, dict) and place in (look.get("scenes") or []):
             return name
     for name in (f"prologue_{place}", place):
         if isinstance(looks.get(name), dict) and "style" in looks[name]:
             return name
-    return DOORS if place in DOOR_KITS else UNASSIGNED
+    return UNASSIGNED
 
 
 def styles(places, looks):
-    """{look: [place]} in the order of place.json, then doors, then unassigned; every place once."""
+    """{look: [place]} in the order of place.json, then unassigned; every place once."""
     found = {}
     for place in places:
         found.setdefault(look_of(place, looks), []).append(place)
-    order = [name for name in looks if name in found] + [name for name in (DOORS, UNASSIGNED) if name in found]
+    order = [name for name in looks if name in found] + ([UNASSIGNED] if UNASSIGNED in found else [])
     return {name: found[name] for name in order}
 
 

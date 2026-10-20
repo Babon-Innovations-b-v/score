@@ -1,6 +1,6 @@
 {
  "place": "hangar",
- "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 27 x 55 m opening and the two roof leaves shut over it (each its own kit's made plates and ribs, the hdoor stage), the room fill and the indoor sky. The ship on its pads is the kit's (rows ship, main_engine, lift_thruster, nose_thruster: built in code from the ship plan v7 at 46 m), not this record's. Sized to the ship (2026-10-18, PRD #10): 32 x 64 m, walls 15 m. Frame: the room's middle on its floor.",
+ "about": "The hangar as the game's (unpushed) bay room draws it beyond its kit: the shell's backing walls, its flat roof round the 27 x 55 m opening and the two roof leaves over it the kit's (row roof_leaf, objects of the hangar the motion layer slides), the room fill and the indoor sky. The ship on its pads is the kit's (rows ship, main_engine, lift_thruster, nose_thruster: built in code from the ship plan v7 at 46 m), not this record's. Sized to the ship (2026-10-18, PRD #10): 32 x 64 m, walls 15 m. Frame: the room's middle on its floor.",
  "floor": [
   [
    -16.0,
@@ -219,29 +219,5 @@
  ],
  "game_only": [
   "no game shot exists (the hangar is on an unpushed branch of the game)"
- ],
- "places": [
-  {
-   "name": "roof_leaf_west",
-   "stage": "hdoor",
-   "at": [
-    -6.75,
-    15.4,
-    0.0
-   ],
-   "yaw": 0.0,
-   "from": "bay_room.gd:128-158 (a roof leaf 11.3 x 0.3 x 40.6 shut at (+-5.5, 13.4, 0); sized to the ship's 27 x 55 opening, 13.8 x 55.6 at (+-6.75, 15.4, 0) (2026-10-18), drawn by its kit hdoor standing 0.15 down from the slab's middle; LEAF_KITS :37); the leaf's own made pieces (data/kit/hdoor.json: plates and ribs) as their own stage; raised 0.15 m (2026-10-12) so the sliding leaves clear the wall tops and corner posts they reached 0.08 m into (the motion stage's clear gate)"
-  },
-  {
-   "name": "roof_leaf_east",
-   "stage": "hdoor",
-   "at": [
-    6.75,
-    15.4,
-    0.0
-   ],
-   "yaw": 0.0,
-   "from": "bay_room.gd:128-158 (a roof leaf 11.3 x 0.3 x 40.6 shut at (+-5.5, 13.4, 0); sized to the ship's 27 x 55 opening, 13.8 x 55.6 at (+-6.75, 15.4, 0) (2026-10-18), drawn by its kit hdoor standing 0.15 down from the slab's middle; LEAF_KITS :37); the leaf's own made pieces (data/kit/hdoor.json: plates and ribs) as their own stage; raised 0.15 m (2026-10-12) so the sliding leaves clear the wall tops and corner posts they reached 0.08 m into (the motion stage's clear gate)"
-  }
  ]
 }

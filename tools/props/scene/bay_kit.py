@@ -1,17 +1,16 @@
 """The kit layout of a vehicle bay, the garage or the hangar (job place, 2026-10-07): room_kit.py's rounded room with
 what a bay needs on top of it.
 
-    python3 tools/props/scene/bay_kit.py <room> <out.json>             # the room
-    python3 tools/props/scene/bay_kit.py <room> <out.json> --leaf      # one leaf of its big door, in the leaf's frame
+    python3 tools/props/scene/bay_kit.py <room> <out.json>
 
 The room's numbers are its inventory's `room.layout`, as room_kit.py reads them, plus:
 - `bands`: the tops of the wall's bands of panels from the floor up (the lowest band is the lower panels, every other
   the upper ones), for walls taller than the two bands room_kit lays: the hangar's walls are 13 m;
 - `big_door`: the wall the big door is in and its opening (`wide`, `high`): a doorway wider and taller than a tube
-  hatch's, the wall's panels standing beside it and above it, its frame round it; its leaves are the game's moving
-  node, drawn from a kit of their own (`--leaf`);
+  hatch's, the wall's panels standing beside it and above it, its frame round it; its leaves are objects of the room,
+  an inventory row laid at its spots (`big_door_leaf`), which the motion layer slides;
 - `roof`: "flat" for a flat roof at the wall's top, lined with plates outside the roof door's `opening` (wide across,
-  long along, centred on the floor); its leaves are the game's moving node too. A domed room (the garage) keeps
+  long along, centred on the floor); its leaves are objects of the room too (`roof_leaf`). A domed room (the garage) keeps
   room_kit's dome.
 - `posts`: how far apart the posts standing up the walls are (the hangar's walls are framed), and `rails`: the bridge
   crane's two rails along the long walls, at a height (`high`), with its bridge of two girders on them where it is
@@ -24,8 +23,6 @@ The room's numbers are its inventory's `room.layout`, as room_kit.py reads them,
 
 Frame and pieces as room_kit.py's: the room's middle on its floor, x east, z south, y up; every piece a kind of the
 inventory (`<room>_<id>`), its origin, axes and laid size. The route (tools/props/library/route.py) makes the models.
-A leaf's frame: its middle on its foot (a wall leaf) or its middle (a roof leaf), its front toward -z, which is into
-the room.
 """
 import json
 import math
@@ -41,11 +38,8 @@ import room_kit  # noqa: E402
 import ship_outline  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-# How far apart the plates of a flat roof and a door leaf are laid, at most.
+# How far apart the plates of a flat roof are laid, at most.
 ROOF_PLATE = 2.4
-LEAF_PLATE = 1.25
-# A leaf's ribs: how far apart, how wide and how far they stand out of its plates.
-LEAF_RIB_EVERY = 2.0
 # How high a frame's header stands over the opening it is round, and how wide its posts are, as the hub's door kit.
 FRAME_POSTS = room_kit.FRAME_POSTS
 FRAME_HEADER = room_kit.FRAME_HEADER
@@ -113,8 +107,8 @@ def walls(room, layout, kinds):
 
 
 def big_doorways(layout):
-    """The big door's opening for the door check (gates/doors.py), which the kit lays no leaf in (its leaves are the
-    game's moving node, shut whenever the room holds air): its middle on the floor in the wall, its outward normal,
+    """The big door's opening for the door check (gates/doors.py), shut by the big door's leaves (the room's `big_door_leaf`
+    objects, which the motion layer slides, shut whenever the room holds air): its middle on the floor in the wall, its outward normal,
     its width and height."""
     big = layout.get("big_door")
     if not big:
@@ -342,66 +336,19 @@ def laid_out(room, inventory):
             if not room_kit.covered(laid)]
 
 
-def leaf(inventory):
-    """One leaf of the big door in its own frame: plates over its face and ribs across it, its front into the room.
-    A wall leaf stands on its foot's middle; a roof leaf lies on its middle, its front down. Its pieces are kinds of
-    the leaf's own kit (`leaf.kit`, a name with no underscore, so each kind keeps its plain builder's name: the game
-    draws the leaf from that kit, moving with the door)."""
-    layout = inventory["room"]["layout"]
-    kinds = {row["id"]: row for row in inventory["rows"] if row.get("made") == "kit piece"}
-    spec = layout["leaf"]
-    room = spec["kit"]
-    wide, long = spec["size"]
-    deep = room_kit.size_of(kinds, "wall_upper_plain")[2]
-    rib = room_kit.size_of(kinds, "lattice_ring_rib")
-    lying = spec.get("lies") == "roof"
-    if lying:
-        # x across the leaf (west, so the frame is right-handed), y along it (its length), z up: its front, -z,
-        # faces down into the room.
-        axes = (np.array([-1.0, 0.0, 0.0]), np.array([0.0, 0.0, 1.0]), np.array([0.0, 1.0, 0.0]))
-    else:
-        axes = (np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]), np.array([0.0, 0.0, 1.0]))
-    x_axis, y_axis, z_axis = axes
-    counts = [max(1, round(wide / LEAF_PLATE)), max(1, round(long / LEAF_PLATE))]
-    cell = (wide / counts[0], long / counts[1])
-    start = -long / 2 if lying else 0.0
-    found = []
-    for across in range(counts[0]):
-        for along in range(counts[1]):
-            middle = x_axis * (-wide / 2 + cell[0] * (across + 0.5)) + y_axis * (start + cell[1] * along)
-            laid = room_kit.piece(room, "wall_upper_plain", middle, axes, (cell[0] + room_kit.LAP, cell[1], deep))
-            found.append(laid)
-    ribs = max(2, round(long / LEAF_RIB_EVERY) + 1)
-    face = -z_axis * (deep / 2 + rib[2] / 2)
-    for index in range(ribs):
-        along = start + (long - rib[1]) * index / (ribs - 1)
-        middle = y_axis * along + face
-        found.append(room_kit.piece(room, "lattice_ring_rib", middle - x_axis * 0.0, axes, (wide, rib[1], rib[2])))
-    return found
-
-
-def leaf_kinds(inventory):
-    """A leaf kit's kinds, as the room's kinds table has them: plates and ribs, both hanging from the door."""
-    kit = inventory["room"]["layout"]["leaf"]["kit"]
-    return {f"{kit}_{own}": {"group": "hangs"} for own in ("wall_upper_plain", "lattice_ring_rib")}
-
-
 def main():
-    if len(sys.argv) not in (3, 4):
+    if len(sys.argv) != 3:
         raise SystemExit(__doc__)
     room = sys.argv[1]
     inventory = json.loads((REPO / f"data/inventory/{room}.json").read_text())
-    is_leaf = sys.argv[3:] == ["--leaf"]
-    pieces = leaf(inventory) if is_leaf else laid_out(room, inventory)
+    pieces = laid_out(room, inventory)
     counts = {}
     for found in pieces:
         counts[found["kind"]] = counts.get(found["kind"], 0) + 1
-    frame = ("the leaf's own: its middle on its foot (a roof leaf: its middle), x across, front -z into the room"
-             if is_leaf else "the room's own: its middle on its floor, x east, z south, y up")
     pathlib.Path(sys.argv[2]).write_text(json.dumps(
-        {"room": inventory["room"]["layout"]["leaf"]["kit"] if is_leaf else room, "frame": frame, "counts": counts,
-         "kinds": leaf_kinds(inventory) if is_leaf else room_kit.kinds_table(room, inventory), "pieces": pieces,
-         "doorways": [] if is_leaf else big_doorways(inventory["room"]["layout"])}, indent="\t") + "\n")
+        {"room": room, "frame": "the room's own: its middle on its floor, x east, z south, y up", "counts": counts,
+         "kinds": room_kit.kinds_table(room, inventory), "pieces": pieces,
+         "doorways": big_doorways(inventory["room"]["layout"])}, indent="\t") + "\n")
     print(len(pieces), "pieces of", len(counts), "kinds")
 
 

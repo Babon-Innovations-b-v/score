@@ -1,6 +1,6 @@
-"""Check the vehicle bays' kit layouts (bay_kit.py): every piece of the garage, the hangar and their big doors' leaves
-stands in a square, right-handed frame with a size, nothing reaches out of the room, the big door's opening is left
-open, the hangar's crane bridge is two girders lying on its rails with the trolley standing on them, and every kind
+"""Check the vehicle bays' kit layouts (bay_kit.py): every piece of the garage and the hangar
+stands in a square, right-handed frame with a size, nothing reaches out of the room, the big door's opening has no
+wall panel in it, each bay's door leaves are two objects of its own across its opening, the hangar's crane bridge is two girders lying on its rails with the trolley standing on them, and every kind
 laid is a row of the room's inventory.
 
 The checks need numpy, which only the prop environment has. Run by the gate with the system python, this hands itself to
@@ -31,12 +31,11 @@ import room_kit  # noqa: E402
 ROOMS = ("garage", "hangar")
 INVENTORIES = {room: json.loads((bay_kit.REPO / f"data/inventory/{room}.json").read_text()) for room in ROOMS}
 LAID = {room: bay_kit.laid_out(room, inventory) for room, inventory in INVENTORIES.items()}
-LEAVES = {room: bay_kit.leaf(inventory) for room, inventory in INVENTORIES.items()}
 
 
 def test_every_piece_stands_in_a_square_right_handed_frame():
     for room in ROOMS:
-        for laid in LAID[room] + LEAVES[room]:
+        for laid in LAID[room]:
             axes = np.array([laid["x"], laid["y"], laid["z"]])
             assert np.allclose(axes @ axes.T, np.eye(3), atol=1e-3), (room, laid["kind"])
             assert np.linalg.det(axes) > 0.99, (room, laid["kind"], "a mirrored frame draws its faces inside out")
@@ -54,7 +53,7 @@ def test_nothing_stands_outside_the_walls():
 
 
 def test_the_garage_s_big_door_opening_is_left_open():
-    """No wall panel stands in the big door's opening: its leaves are the game's moving node."""
+    """No wall panel stands in the big door's opening: its leaves (big_door_leaf) shut it, slid by the motion layer."""
     layout = INVENTORIES["garage"]["room"]["layout"]
     big = layout["big_door"]
     south = layout["inside"][1] / 2
@@ -66,6 +65,18 @@ def test_the_garage_s_big_door_opening_is_left_open():
         low = corners[:, 1].min()
         inside = across[1] > -big["wide"] / 2 + 0.02 and across[0] < big["wide"] / 2 - 0.02
         assert not (inside and low < big["high"] - 0.02), (laid["kind"], laid["at"])
+
+
+def test_each_bay_s_door_leaves_are_two_objects_of_its_own_shutting_its_opening():
+    """The garage's and the hangar's door leaves are objects of the room (owner, 2026-10-20: never places of their
+    own), two of one row each, side by side across the big door's or the roof's opening."""
+    for room, row, opening in (("garage", "big_door_leaf", INVENTORIES["garage"]["room"]["layout"]["big_door"]["wide"]),
+                               ("hangar", "roof_leaf", INVENTORIES["hangar"]["room"]["layout"]["opening"][0])):
+        leaves = [laid for laid in LAID[room] if laid["kind"] == f"{room}_{row}"]
+        assert len(leaves) == 2, (room, len(leaves))
+        across = sorted(edge for laid in leaves for edge in (laid["at"][0] - laid["size"][0] / 2,
+                                                             laid["at"][0] + laid["size"][0] / 2))
+        assert across[0] <= -opening / 2 and across[-1] >= opening / 2, (room, across, "a leaf leaves the opening open")
 
 
 def test_the_hangar_s_trolley_stands_on_its_bridge_on_the_rails():

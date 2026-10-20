@@ -215,7 +215,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   model, never its old paint: owner, 2026-10-12); each take is painted by one place only, and a place reads a claimed
   model from the claiming place's bake (`elsewhere.json` in its bake output; the bake gate fails a claim the other
   place does not bake). A place with no file blocks at `surfaces-inputs`; one with no `bake` blocks at
-  `surfaces-bake` before anything is cleared. A place with nothing to paint (code-built pieces only: gdoor, hdoor,
+  `surfaces-bake` before anything is cleared. A place with nothing to paint (code-built pieces only: the
   tube) has a file with no takes and a `nothing` line; its line has no surface rows (`Stage.applies`).
 - **Gates never crash or pass on what is missing** (`surface_gates.guarded`: unknown with the missing file named).
 - Steps needing trimesh run in the prop environment through their module's command line (`prop_env.py`), each make

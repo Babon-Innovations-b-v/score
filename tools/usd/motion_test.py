@@ -25,8 +25,9 @@ RATE = 24.0
 def base_of(place, out):
     """A stage of the place holding the prims its scene record writes where motions can reach them: each structure
     entry as a mesh with no transform, each object as a fixture's translate, turn and scale, each other place shown
-    (a door leaf's own kit) at its translate, each light as the record writes it, and each kit piece the game moves
-    (its `node`) as an object stood by a transform where the record's `moved` puts it, as export stands it."""
+    at its translate, each light as the record writes it, each kit piece the game moves (its `node`) as an object
+    stood by a transform where the record's `moved` puts it, as export stands it, and each inventory row laid at its
+    own spots as its objects there (the bays' door leaves, which the route lays once made)."""
     record = scene_record.record(place)
     (out / "layers").mkdir(parents=True)
     layer = Sdf.Layer.CreateNew(str(out / "layers/base.usda"))
@@ -52,6 +53,13 @@ def base_of(place, out):
                 stood = [float(at) + float(by) for at, by in zip(laid["at"], moved.get(laid["node"], [0.0, 0.0, 0.0]))]
                 piece = UsdGeom.Xform.Define(stage, f"/{place}/Objects/{name}")
                 piece.AddTransformOp().Set(Gf.Matrix4d(1.0).SetTranslate(Gf.Vec3d(*stood)))
+    inventory_path = export.INVENTORIES / f"{place}.json"
+    rows = json.loads(inventory_path.read_text())["rows"] if inventory_path.exists() else []
+    for row in rows:  # a row laid at its own spots, as the route lays it once made (the garage's door leaves)
+        for number, spot in enumerate((spot for spot in row.get("at", []) if "x" in spot), start=1):
+            if not stage.GetPrimAtPath(f"/{place}/Objects/{row['id']}_{number}"):
+                piece = UsdGeom.Xform.Define(stage, f"/{place}/Objects/{row['id']}_{number}")
+                piece.AddTranslateOp().Set(Gf.Vec3d(spot["x"], spot.get("y", 0.0), spot["z"]))
     layer.Save()
     Sdf.Layer.CreateNew(str(out / "layers/edit.usda")).Save()
     export.write_root(place, out)
@@ -114,14 +122,14 @@ def check_the_airlock_cycles_as_the_game_does(work):
 
 def check_the_bay_doors(work):
     garage = Usd.Stage.Open(str(work / "garage/garage.usda"))
-    west, east = "/garage/Places/big_door_west", "/garage/Places/big_door_east"  # shut at x -1.25 and 1.25
+    west, east = "/garage/Objects/big_door_leaf_1", "/garage/Objects/big_door_leaf_2"  # shut at x -1.25 and 1.25
     close(at(garage, west, 1.0 + 1.04)[0], -1.25 - 2.6, "the west leaf open, 2.6 m at 2.5 m/s")
     close(at(garage, east, 1.0 + 0.52)[0], 1.25 + 1.3, "the east leaf half way")
     close(at(garage, west, 7.0)[0], -1.25, "the leaves shut before the tanks fill")
     beacon = "/garage/Lights/big_door_beacon"
     assert lit(garage, beacon, 3.0) > 0.0 and lit(garage, beacon, 11.5) == 0.0, "the beacon dark only with air"
     hangar = Usd.Stage.Open(str(work / "hangar/hangar.usda"))
-    close(at(hangar, "/hangar/Places/roof_leaf_east", 1.0 + 11.2 / 3.0)[0], 5.5 + 11.2, "the roof leaf open at 3 m/s")
+    close(at(hangar, "/hangar/Objects/roof_leaf_2", 1.0 + 11.2 / 3.0)[0], 6.75 + 11.2, "the roof leaf open at 3 m/s")
     print("ok  the garage's leaves and beacon, the hangar's roof leaves")
 
 

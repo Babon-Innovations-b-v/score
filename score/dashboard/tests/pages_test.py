@@ -301,8 +301,8 @@ def test_every_priced_step_and_place_has_plain_words():
     assert groups.label("crops-boxes") == "crop boxes" and groups.label("crops-look") == "crop renders"
     assert groups.label("surface-tiles") == "surface tiles" and groups.label("ship_kit") == "ship kit"
     assert groups.label("people-dress-nev-work") == "dressed body of the nev-work look"
-    assert plain.place_words("gdoor") == "the garage door" and present.place_title("hdoor") == "Hangar door"
-    assert plain.lost_words("place:lost:earth-seed:gdoor") == "garage door"  # its seed folder, by the kit's title
+    assert plain.place_words("old_station") == "the old station" and present.place_title("old_station") == "Old station"
+    assert plain.lost_item("place:lost:earth-seed:usd-r3/flat:x") == "usd-r3/flat:x"  # an item may hold a colon
 
 
 def test_the_viewer_outlines_the_gaps_when_asked(world, settings, tmp_path):

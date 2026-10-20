@@ -19,7 +19,7 @@ def humane(key):
 
 
 def place_title(place):
-    """A place's title from its key alone: a door kit by its title (groups.DOOR_TITLES), else its key in words."""
+    """A place's title from its key alone, its key in words."""
     return humane(groups.place_title(place))
 
 
@@ -88,9 +88,9 @@ def family_of(look):
 
 
 def group_key(style, families):
-    """Which board group a style falls in: doors and no look by name, shared pictures together, a key family with no
+    """Which board group a style falls in: no look by name, shared pictures together, a key family with no
     picture together, else every place in its own look."""
-    if style.look in (groups.DOORS, groups.UNASSIGNED):
+    if style.look == groups.UNASSIGNED:
         return style.look
     if style.picture:
         return f"picture:{style.picture.sha}"
@@ -99,8 +99,6 @@ def group_key(style, families):
 
 
 def group_name(key, styles):
-    if key == groups.DOORS:
-        return "Doors"
     if key == groups.UNASSIGNED:
         return NO_LOOK
     if key.startswith("family:"):
@@ -115,7 +113,7 @@ def place_name(style, card, within=""):
     ship's galley" in the ship is "Galley"), else its title from its key (place_title); its look's `short` first."""
     if style.short:
         return groups.short_name(card.place, style)
-    if len(style.places) == 1 and style.look not in (groups.DOORS, groups.UNASSIGNED):
+    if len(style.places) == 1 and style.look != groups.UNASSIGNED:
         label = style.label
         prefix = f"{within.lower()}'s "
         if within and label.lower().startswith(prefix):
@@ -137,7 +135,7 @@ def look_groups(world, queued):
     picture_keys = [key for key, members in keyed.items() if key.startswith("picture:") and len(members) == 1]
     for key in picture_keys:  # a reference picture of one look alone: that place is in its own look
         keyed.setdefault(OWN_LOOKS, []).extend(keyed.pop(key))
-    last = (OWN_LOOKS, groups.DOORS, groups.UNASSIGNED)
+    last = (OWN_LOOKS, groups.UNASSIGNED)
     order = [key for key in keyed if key not in last] + [key for key in last if key in keyed]
     found = []
     for key in order:

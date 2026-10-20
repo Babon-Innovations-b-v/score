@@ -43,9 +43,6 @@ Light and neighbours read the scene record the stage was assembled from (scene.j
 assembly stage writes: the accepted scene-record output, else the seed's), and data/scene/<place>.json for a stage
 with none beside it. Game reads every one of them, so a record the stage was not built from still fails it.
 
-A place that is a part of another (contents.json `part_of`: the garage's and the hangar's door leaves) is judged
-on people, light, sound and neighbours on its host's stage, which shows it; its own stage on the rest.
-
 The world files are read from DATA (the repository's data; the runner's complete stage declares the same folders
 as its files) and built bodies from BODIES. Nothing here imports OpenUSD at the top, so complete.py's hook can import
 it.
@@ -573,19 +570,6 @@ def judge_game(stage, place, inventory, outputs):
     return outcome(faults, "no record cites the game")
 
 
-def of_a_part(judge):
-    """The judge, except on a place that is a part of another (contents.json `part_of`: a door's leaves, which the
-    garage and the hangar show under their Places): it has no cast, lamps, room tones or shown places of its own, and
-    those are judged on the host's stage, where it stands."""
-    def judged(stage, place, inventory, outputs):
-        host = (expected(place) or {}).get("part_of")
-        if host:
-            return PASS, [], f"a part of {host}: judged on {host}'s stage, where it stands"
-        return judge(stage, place, inventory, outputs)
-    judged.__doc__ = judge.__doc__
-    return judged
-
-
 def judge_waiting(stage, place, inventory, outputs):
     """Fail on every entry of the scene record the assembly laid nothing for because it waits on its model (the
     root prim's score:waiting): a gap, named."""
@@ -594,7 +578,7 @@ def judge_waiting(stage, place, inventory, outputs):
     return outcome([f"a gap: {entry}" for entry in waiting], "no entry of the scene record waits on its model")
 
 
-JUDGES = {"people": of_a_part(judge_people), "effects": judge_effects, "motion": judge_motion, "crops": judge_crops,
-          "likeness": judge_likeness, "painted": judge_painted, "light": of_a_part(judge_light),
-          "sound": of_a_part(judge_sound), "neighbours": of_a_part(judge_neighbours), "game": judge_game,
+JUDGES = {"people": judge_people, "effects": judge_effects, "motion": judge_motion, "crops": judge_crops,
+          "likeness": judge_likeness, "painted": judge_painted, "light": judge_light,
+          "sound": judge_sound, "neighbours": judge_neighbours, "game": judge_game,
           "waiting": judge_waiting}

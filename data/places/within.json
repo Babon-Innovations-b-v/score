@@ -15,8 +15,6 @@
   "hangar": {"within": "base", "from": "data/plans/hangar.json leads S to a tube"},
   "lab": {"within": "base", "from": "data/definitions/base.json modules; data/plans/lab.json leads N to a tube"},
   "workshop": {"within": "base", "from": "data/definitions/base.json modules; data/plans/workshop.json leads W to a tube"},
-  "gdoor": {"within": "garage", "from": "data/checks/contents.json: the garage's big door leaves"},
-  "hdoor": {"within": "hangar", "from": "data/checks/contents.json: the hangar's roof leaves"},
   "ship": {"within": "hangar", "from": "data/plans/hangar.json title: the hangar holds the ship"},
   "cockpit": {"within": "ship", "from": "data/definitions/ship_floor.json rooms"},
   "navigation": {"within": "ship", "from": "data/definitions/ship_floor.json rooms"},

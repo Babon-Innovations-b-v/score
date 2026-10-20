@@ -1,6 +1,6 @@
 {
  "place": "garage",
- "about": "The garage as the game's (unpushed) bay room draws it beyond its kit: the shell's backing with the big south door's opening, its two leaves shut (each its own kit's made plates and ribs, the gdoor stage), the room fill and the indoor sky. Frame: the room's middle on its floor.",
+ "about": "The garage as the game's (unpushed) bay room draws it beyond its kit: the shell's backing with the big south door's opening, its two leaves the kit's (row big_door_leaf, objects of the garage the motion layer slides), the room fill and the indoor sky. Frame: the room's middle on its floor.",
  "floor": [
   [
    -7.0,
@@ -166,29 +166,5 @@
  "game_only": [
   "no game shot exists (the garage is on an unpushed branch of the game)",
   "the rover (it parks by the airlock)"
- ],
- "places": [
-  {
-   "name": "big_door_west",
-   "stage": "gdoor",
-   "at": [
-    -1.25,
-    0.0,
-    6.0
-   ],
-   "yaw": 0.0,
-   "from": "bay_room.gd:110-124, 142-158 (a leaf 2.5 x 4.0 x 0.2 shut at (+-1.25, 2.0, 6.0), drawn by its kit gdoor standing 2.0 down from the slab's middle, on its foot; the south wall's door frame unturned, module_shell.gd:423-426; LEAF_KITS :37); the leaf's own made pieces (data/kit/gdoor.json: plates and ribs) as their own stage"
-  },
-  {
-   "name": "big_door_east",
-   "stage": "gdoor",
-   "at": [
-    1.25,
-    0.0,
-    6.0
-   ],
-   "yaw": 0.0,
-   "from": "bay_room.gd:110-124, 142-158 (a leaf 2.5 x 4.0 x 0.2 shut at (+-1.25, 2.0, 6.0), drawn by its kit gdoor standing 2.0 down from the slab's middle, on its foot; the south wall's door frame unturned, module_shell.gd:423-426; LEAF_KITS :37); the leaf's own made pieces (data/kit/gdoor.json: plates and ribs) as their own stage"
-  }
  ]
 }

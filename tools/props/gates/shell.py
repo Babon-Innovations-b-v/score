@@ -50,7 +50,7 @@ def is_hub(layout):
 
 
 def in_room_frame(layout):
-    """Whether every piece is a kind of the room itself, laid in its frame (a door leaf's kit is in the leaf's own)."""
+    """Whether every piece is a kind of the room itself, laid in its frame."""
     return all(laid["kind"].startswith(f"{layout.get('room')}_") for laid in layout["pieces"])
 
 

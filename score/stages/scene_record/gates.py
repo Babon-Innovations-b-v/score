@@ -14,8 +14,8 @@
                   no doorway at a shut door, no open doorway off the plan (one a kit piece fills, a shopfront, is
                   none). An outdoor place: the floor box the plan's site, no room shell, a light for each plan lamp,
                   each plan decal painted and each plan beam stood; its openings' viewers stand on the made ground
-    openings      every doorway leads somewhere: the record's shell with the places its doorways open onto (door_places; each door's leaves left out, as
-                  opened; a kit shell's own kit floors with it) composed over the made ground in the place's frame
+    openings      every doorway leads somewhere: the record's shell with the places its doorways open onto (door_places,
+                  a kit shell's own kit floors with it) composed over the made ground in the place's frame
                   (terrain outside.py), every cut doorway
                   has a floor on both sides and no view from inside runs out below the horizon into nothing
                   (terrain sight.py); a door that leads to a place has that place's floor past it
@@ -439,12 +439,10 @@ def judge_plan_matched(output, inputs, evidence):
 
 def stand_places(stage, place, entries, inputs):
     """The record's places, each its old stage referenced (the seed's, writer.seed_of), moved, turned and stretched as
-    the record says, its own shared things inactive; door leaves left out (the doors judged open)."""
+    the record says, its own shared things inactive."""
     from pxr import Gf, Sdf
     UsdGeom.Scope.Define(stage, f"/{place}/Places")
     for item in entries:
-        if item.get("door_leaf"):
-            continue
         xform = UsdGeom.Xform.Define(stage, f"/{place}/Places/{item['name']}")
         seed = writer.seed_of(inputs, item["stage"])
         xform.GetPrim().GetReferences().AddReference(str(seed / f"{item['stage']}.usda"))

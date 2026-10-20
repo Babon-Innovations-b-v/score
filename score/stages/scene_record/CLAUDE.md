@@ -5,7 +5,7 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
 
 - **The plan is the input** (`data/plans/<place>.json`): its walls, doors, items and standing spots, plus what the
   writer needs that the old plans lacked, written into the plan itself: `leads` (each door's side: `to` a place,
-  `outside` or `sealed`, `why`, and for a joined door `joins` and `door`, for a leafed one `leaves`), `rows` (each
+  `outside` or `sealed`, `why`, and for a joined door `joins` and `door`), `rows` (each
   plan item's inventory rows; a zone names none) and `elements` (the concept read element by element: `rows`, a plan
   `door`, or a `drop` with its reason). A place has the rows only when its plan has `leads` (`written`).
 - **The writer never reads the old record.** `data/scene/<place>.json` is an unverified seed that only `seed-matched`
@@ -42,9 +42,8 @@ transcribed from the game. `__init__.py`'s docstring has the rows; `plan.py`, `w
   name it as `item`), and an inventory row made by the route at its own spots (the hub's console) or naming an environment
   release model (`release_model`: the airlock's suit) an object, as is a door leaf a lead names (`leaf`: the airlock's
   outer door, which its cycle's motion moves and copies for the inner door). `flat` (the hangar: capsule walls and deck, a roof of
-  four slabs on the walls' top round the room layout's door `opening`, a `roof_door` plan item naming no rows, the
-  layout's roof leaf stood shut over each half of the opening, raised clear of the wall tops; the openings gate judges
-  the roof leaves open).
+  four slabs on the walls' top round the room layout's door `opening`, a `roof_door` plan item naming no rows; its roof
+  leaves are the hangar's own objects, row `roof_leaf`, laid by its kit, never places of the record).
 - **An object carries what its kit model stands on it** (`writer.kit_children`: the kit model's `children`, each with
   its glow parts, its row the inventory's, less removed rows): the camp's rack cases, desk screens and radio, the hub
   console's screens and tools. `seed-matched` compares a matched seed entry's children by model, so a dropped child

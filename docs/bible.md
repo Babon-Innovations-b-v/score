@@ -100,9 +100,9 @@ the current backend). No model runs on the coordinating machine.
   `.claude/hooks/accept_guard.py` blocks the other routes; an agent set on getting round them can (by editing the
   framework's code, say), and every accept names who gave it and when. Adapters for models, compute and engines
   (`score/adapters`) refuse a paid run without the runner's clearance. A node runs only on outputs that passed (or
-  whose failed checks he waived) and stand accepted. Step 0's worked example: `python -m score.stages run hangar
-  hdoor` brings the round-three stages in as unverified seeds; the hangar fails on its code-built ship and the door answers unknown with no drop run, so
-  neither completes. Every place that spends (`batch.rent`, the k8s submitter and the cluster's `up`, Nano Banana
+  whose failed checks he waived) and stand accepted. Step 0's worked example: `python -m score.stages run hangar`
+  brings the round-three stage in as an unverified seed; the hangar fails on its code-built ship, so it does not
+  complete. Every place that spends (`batch.rent`, the k8s submitter and the cluster's `up`, Nano Banana
   Pro's `pro.draw`, Marble's `generate` and `paint`) refuses unless SCORE_SPEND_TICKET names a node the runner
   cleared or the owner's override (`compute.require_cleared`), so the old paid entry points (blender_cloud.py,
   detached.py, the runners, demo.py, the close-up stage, marble.py) cannot spend round the runner. The job images
@@ -329,7 +329,7 @@ is meant to fix, where it is marked, and what proves it.
   glass dome, the airlock's ramp and the greenhouse's plot (2026-10-12: the Moon base's airlock, workshop, lab,
   habitat, greenhouse, hub and tube; the lab and the habitat stand beside the hub in `data/definitions/base.json`).
   A domed plan's `shape: flat` is the hangar's flat roof (2026-10-12): four slabs on the walls' top round its door
-  opening, its two roof leaves (the `hdoor` stage) shut over it; the hangar has its own seat on the Moon ground plan,
+  opening, its two roof leaves (the hangar's own objects, row `roof_leaf`, slid by the motion layer) shut over it; the hangar has its own seat on the Moon ground plan,
   north of the greenhouse, its tube joined to the greenhouse's north hatch, its yard held on its seat's flat plane
   (a level `on_seat`). An inventory row naming a model of the environment's release (`release_model`: the airlock's suit) stands as
   an object at its spots. The sky record's numbers are the

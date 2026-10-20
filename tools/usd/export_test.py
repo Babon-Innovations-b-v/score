@@ -417,12 +417,13 @@ def a_reused_row_reads_its_stored_take():
     return [] if found == wanted else [f"the takes read are {found}, not {wanted}"]
 
 
-def a_door_kit_s_kinds_are_its_room_s_rows():
-    """A door leaf's kit (gdoor, for the garage) names its kinds after itself: its rib is the garage's rib row, as a
-    room's own kind is its row without the room's name; a kind of neither keeps its whole name."""
-    found = [export.kind_row(kind, ("garage", "gdoor")) for kind in
-             ("gdoor_lattice_ring_rib", "garage_lattice_ring_rib", "hdoor_lattice_ring_rib")]
-    wanted = ["lattice_ring_rib", "lattice_ring_rib", "hdoor_lattice_ring_rib"]
+def a_kit_s_kinds_are_its_room_s_or_its_place_s_rows():
+    """A kit names its kinds after its room, or after its place when it has no room (the wreck's): its kind is its
+    row without that name; a kind of neither keeps its whole name."""
+    found = [export.kind_row(kind, prefixes) for kind, prefixes in
+             (("garage_lattice_ring_rib", ("garage", "garage")), ("wreck_hull_plate", ("", "wreck")),
+              ("hangar_lattice_ring_rib", ("garage", "garage")))]
+    wanted = ["lattice_ring_rib", "hull_plate", "hangar_lattice_ring_rib"]
     return [] if found == wanted else [f"the rows are {found}, not {wanted}"]
 
 
@@ -431,7 +432,7 @@ CHECKS = (an_edit_survives_a_regenerated_base, parts_become_subsets_by_surface,
           the_stage_is_in_metres_with_static_colliders, a_child_moves_with_the_object_it_stands_on,
           the_parts_are_found_where_the_run_recorded_them, a_kit_room_s_pieces_stand_in_their_frames,
           a_model_laid_later_is_found_in_a_further_folder, a_reused_row_reads_its_stored_take,
-          a_door_kit_s_kinds_are_its_room_s_rows)
+          a_kit_s_kinds_are_its_room_s_or_its_place_s_rows)
 
 
 if __name__ == "__main__":

@@ -235,7 +235,7 @@ def test_a_shared_take_that_fails_is_a_gap_on_every_place_and_never_asked_again(
 def test_moving_things_sound_off_their_own_moves():
     """A hatch's latch plays as it starts to open (the lab's; the hub's stand shut, so make no sound) and its bolts as it is shut tight (its swing's angle over its speed
     later), in the stage's seconds; the garage's big doors, silent in the game's record, start and stop in their own
-    round, at the leaves the place renamed them to, round by round; the rover's drive loops over its drive; the ship
+    round, at each leaf's own object, in its round's seconds; the rover's drive loops over its drive; the ship
     rooms hear their own machines; and moving.py's rounds are the assembly's (tools/usd/sound.rounds_of)."""
     lab = sound.uses_of("lab", inputs_for("lab", None))
     hatch = [(use["sound"], use["at"]) for use in lab if use["on"] == "/lab/Objects/hatch_leaf_1"]
@@ -243,8 +243,8 @@ def test_moving_things_sound_off_their_own_moves():
     hub = sound.uses_of("hub", inputs_for("hub", None))
     assert not [use for use in hub if "hatch" in str(use.get("on"))], "the hub's hatches stand shut, so stay silent"
     garage = sound.uses_of("garage", inputs_for("garage", None))
-    door = sorted((use["sound"], use["at"]) for use in garage if use["on"] == "/garage/Places/south_door_leaf_1")
-    assert door[:4] == [("lift_start", 1.0), ("lift_start", 5.0), ("lift_start", 18.0), ("lift_start", 22.0)], door
+    door = sorted((use["sound"], use["at"]) for use in garage if use["on"] == "/garage/Objects/big_door_leaf_1")
+    assert door == [("lift_start", 1.0), ("lift_start", 5.0), ("lift_stop", 2.04), ("lift_stop", 6.04)], door
     drive = [(use["at"], use["loops_until"]) for use in garage if use["sound"] == "rover_motor"]
     assert drive == [(1.0, 7.5)], drive
     sys.path.insert(0, str(REPO / "tools/usd"))

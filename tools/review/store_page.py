@@ -105,7 +105,7 @@ def flagged_surfaces(place):
     variants = {name: entry for family in library["families"].values()
                 for name, entry in family.get("variants", {}).items()}
     places = json.loads(PLACES.read_text())
-    entry_of = places.get(place) or places.get(host_of(place), {})  # a part takes its host's library surfaces
+    entry_of = places.get(place, {})
     taken = {entry["library"] for entry in entry_of.get("materials", {}).values() if "library" in entry}
     return {name: variants[name]["said"] for name in sorted(taken)
             if name in variants and OWNER_REVIEW in str(variants[name].get("said", ""))}
@@ -252,21 +252,9 @@ def head():
     return template[template.index("<link"):template.index("</style>") + len("</style>")]
 
 
-def host_of(place):
-    """The place a part belongs to (contents.json `part_of`: the garage's and the hangar's door leaves), or None."""
-    return json.loads((REPO / "data/checks/contents.json").read_text())["places"].get(place, {}).get("part_of")
-
-
 def place_name(place):
-    """The place's name (data/definitions/place.json); a part of another place, which has none of its own (the
-    garage's and the hangar's door leaves, contents.json `part_of`), named with its host."""
-    places = json.loads(PLACES.read_text())
-    if place in places:
-        return places[place].get("name", place)
-    host = host_of(place)
-    if host:
-        return f"{place}, part of {places.get(host, {}).get('name', host)}"
-    return place
+    """The place's name (data/definitions/place.json), else its key."""
+    return json.loads(PLACES.read_text()).get(place, {}).get("name", place)
 
 
 def page_html(store, place, stage, output, statuses, audit):

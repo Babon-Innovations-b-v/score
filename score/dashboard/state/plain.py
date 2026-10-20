@@ -3,7 +3,7 @@ where, never a gate's name or a node. An accepted gap is said by its check (data
 the things it names in words; a stopped step by what its fault report says stopped it."""
 import re
 
-from score.dashboard.state.groups import DOOR_TITLES, place_title
+from score.dashboard.state.groups import place_title
 
 NUMBERED = re.compile(r"(_\d+|-[a-z]\d+)$")  # an instance number or a take's suffix
 MOST_NAMED = 4
@@ -104,13 +104,6 @@ def lost_item(gap_id):
     return gap_id.removeprefix(LOST).split(":", 1)[-1]
 
 
-def lost_words(gap_id):
-    """A lost input's item in words: one named by a door kit's key ("gdoor", its seed folder) by the kit's title, any
-    other as it is."""
-    item = lost_item(gap_id)
-    return DOOR_TITLES.get(item, item)
-
-
 def gap_sentence(gap, place, count=1):
     """A gap in one plain sentence: a row with nothing made for it (`count` of its objects), a made thing that fails
     a check (said by that check as an accepted gap's is, else as the check found it), or a step the place has not been
@@ -121,7 +114,7 @@ def gap_sentence(gap, place, count=1):
         nowhere = "; the inventory gives it no spot" if gap.placed == "unplaced" else ""
         return capital(f"{name} should be in {place_words(place)} but nothing is made for it yet{many}{nowhere}.")
     if (gap.id or "").startswith(LOST):  # its words name the file and the steps reading it: kept for the fold
-        return f"An input {place_words(place)}'s steps read is lost: {lost_words(gap.id)}."
+        return f"An input {place_words(place)}'s steps read is lost: {lost_item(gap.id)}."
     gate = (gap.gates or ["/"])[0].split("/", 1)[1]
     if gap.rule == "gate" and gate in SAID:
         names = thing_names([gap.prim or (gap.id or "").split(":", 2)[-1]])  # the object its id names
