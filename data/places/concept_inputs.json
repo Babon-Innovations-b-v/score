@@ -1,11 +1,18 @@
 {
- "about": "What the creator gave a place's concept draw beyond its look (data/definitions/place.json), its floor plan's description (`for` in data/definitions/<shell>_floor.json, read for every place a floor plan names) and where it sits (within.json), read the same way for every place by score/review/concepts.py (CONTEXT.md \"concept\"): `says`, his words sent as they are (a measure he set stays: the ship's 46 m, data/definitions/ship_floor.json's length); `references`, his pictures sent for look only, each with what it `shows`, only with the place it shows (the owner, 2026-10-21: the cockpit's and the quarters' own; the other rooms take their look from the hangar's picked concept and the style) (`{home}`: the prop tools' home, whose references/ is the private bucket's references/ copied here, never this public repository); `people` (optional), whether its draw shows people, over its cast record. The ship is no layer of its own (the owner, 2026-10-20): the hangar holds it, and its rooms are the hangar's inside.",
+ "about": "What the creator gave a place's concept draw beyond its look (data/definitions/place.json), its floor plan's description (`for` in data/definitions/<shell>_floor.json, read for every place a floor plan names) and where it sits (within.json), read the same way for every place by score/review/concepts.py (CONTEXT.md \"concept\"): `says`, his words sent as they are (a measure he set stays: the ship's 46 m, data/definitions/ship_floor.json's length); `references`, his pictures sent for look only, each with what it `shows`, only with the place it shows (the owner, 2026-10-21: the cockpit's and the quarters' own; the other rooms take their look from the hangar's picked concept and the style) (`{home}`: the prop tools' home, whose references/ is the private bucket's references/ copied here, never this public repository); `people` (optional), whether its draw shows people, over its cast record; `holds`, the things inside a place that are no place of their own, each with its description; `outside`, the one of those a place's direct outside is when it is not the layer above itself (its draw then shows only its own inside as a cutaway of that thing, nothing of the layer above). The ship is no layer of its own (the owner, 2026-10-20): the hangar holds it, and its rooms are the hangar's inside, the ship their outside (the owner, 2026-10-21: \"the ship is the new outside\").",
  "places": {
   "hangar": {
    "says": "It holds the ship, a crew shuttle 46 m long, at its true size.",
+   "holds": {"ship": "a crew shuttle 46 m long, its rooms along one deck"},
    "references": [{"picture": "{home}/references/shuttle-screenshot.png", "shows": "the ship's look only (a much smaller ship)"}]
   },
-  "cockpit": {"references": [{"picture": "{home}/references/cockpit.png", "shows": "its look only"}]},
-  "quarters": {"references": [{"picture": "{home}/references/quarters.png", "shows": "its look only"}]}
+  "cockpit": {"outside": "ship", "references": [{"picture": "{home}/references/cockpit.png", "shows": "its look only"}]},
+  "navigation": {"outside": "ship"},
+  "quarters": {"outside": "ship", "references": [{"picture": "{home}/references/quarters.png", "shows": "its look only"}]},
+  "storage": {"outside": "ship"},
+  "galley": {"outside": "ship"},
+  "shiplock": {"outside": "ship"},
+  "engineroom": {"outside": "ship"},
+  "walkway": {"outside": "ship"}
  }
 }

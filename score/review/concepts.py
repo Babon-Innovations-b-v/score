@@ -252,7 +252,7 @@ PEOPLE_WORDS = re.compile(r"\b(people|person|crowd|crew)\b", re.IGNORECASE)
 COPIED_STYLE = re.compile(r"\bin the ([\w' ]+?)'s style\b")  # a look that says it copies another place's style
 FACING = re.compile(r"^(over|facing|towards|toward|across|to the|onto the) ")  # a lead's last clause that faces
 LOOK_MOST = 160  # characters of a place's look a draw sends
-LONGEST_GENERATED = 1000  # characters of a generated wording, the test's cap (under a third of 2026-10-20's longest)
+LONGEST_GENERATED = 1100  # characters of a generated wording, the test's cap (about a third of 2026-10-20's longest, 2992)
 
 
 def resolved(path):
@@ -345,8 +345,8 @@ def floor_words(place):
         plan = json.loads(path.read_text())
         for entry in [*plan.get("rooms", []), plan.get("walkway") or {}]:
             if entry.get("place") == place and entry.get("for"):
-                side = f", on the {entry['side']} side" if entry.get("side") in ("port", "starboard") else ""
-                return f"In the {path.stem.removesuffix('_floor')}{side}, for {no_sizes(entry['for'])}."
+                side = f" on the {entry['side']} side" if entry.get("side") in ("port", "starboard") else ""
+                return f"In the {path.stem.removesuffix('_floor')}{side}; for {no_sizes(entry['for'])}."
     return ""
 
 
@@ -421,6 +421,32 @@ def floor_and_walls(place):
     return plan["w"] * plan["d"], max(heights, default=None)
 
 
+def outside_of(place):
+    """(name, words) of the thing inside the layer above that is `place`'s direct outside, when its data names one
+    (concept_inputs `outside`, described by the layer above's `holds`: the ship rooms' ship, owner 2026-10-21: "the
+    ship is the new outside"); None when its outside is the layer above itself."""
+    name = inputs_of(place).get("outside")
+    return (name, inputs_of(above(place)).get("holds", {}).get(name, "")) if name else None
+
+
+def within_name(place):
+    """What `place` sits within, in words: its own outside when its data names one, else the layer above."""
+    outside = outside_of(place)
+    return f"the {outside[0]}" if outside else short_name(above(place))
+
+
+def outside_words(place):
+    """For a place whose outside is a thing inside the layer above: what that thing is, and that the draw shows only
+    this place's inside within it, nothing of the layer above; "" otherwise."""
+    outside = outside_of(place)
+    if not outside:
+        return ""
+    name, words = outside
+    return (f"Its outside is the {name}" + (f" ({words.rstrip('.')})" if words else "") + f": draw only its "
+            f"inside, cut away from the {name}'s hull, filling the frame; nothing of {short_name(above(place))}, its "
+            "floor or other rooms.")
+
+
 def size_words(place):
     """How big `place` is against the places beside it under the same layer above, in relative words only (ranked by
     its plan's floor area, its walls against a person's height); "" when its plan gives no floor."""
@@ -431,13 +457,13 @@ def size_words(place):
     words = []
     if others and own[0] > others[-1]:
         ratio = round(own[0] / others[-1])
-        words.append(f"the largest in {short_name(holder)}"
+        words.append(f"the largest in {within_name(place)}"
                      + (f", floor about {TIMES.get(ratio, 'many times')} any other's" if ratio >= 2 else ""))
     elif others and own[0] < others[0]:
-        words.append(f"the smallest in {short_name(holder)}")
+        words.append(f"the smallest in {within_name(place)}")
     elif others:
         words.append(f"one of the {'larger' if own[0] >= others[len(others) // 2] else 'smaller'} in "
-                     f"{short_name(holder)}")
+                     f"{within_name(place)}")
     if own[1]:
         tall = own[1] / PERSON
         words.append("walls towering over people" if tall >= 4 else
@@ -465,8 +491,10 @@ def sent_pictures(store, place):
     """[(what it is, its source)] a first draw of `place` sends, in order: the layer above's picked concept (source:
     that place's name) when it sits within one, each joined place's picked concept, then the creator's references
     (their paths)."""
-    holder = above(place)
-    found = [(f"{short_name(holder)}, picked: match how this place stands in it", holder)] if holder else []
+    holder, outside = above(place), outside_of(place)
+    how = (f"only for the look of the {outside[0]} (its hull, materials, windows)" if outside
+           else "match how this place stands in it")
+    found = [(f"{short_name(holder)}, picked: {how}", holder)] if holder else []
     found += [(f"{short_name(other)}, picked: match the door they share", other)
               for other in joined(place) if picked(store, other)]
     return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
@@ -496,7 +524,8 @@ def indoors(place):
 def view_words(place):
     """The fixed viewpoint (an outside place from above, an inside one as a cutaway keeping the roof the picture above
     shows), the frame and whether people show, in one line."""
-    view = INSIDE_VIEW + (ROOF_KEPT if above(place) else "") if indoors(place) else OUTSIDE_VIEW
+    view = (INSIDE_VIEW + (ROOF_KEPT if above(place) and not outside_of(place) else "") if indoors(place)
+            else OUTSIDE_VIEW)
     return f"{view}; {EVERY_DRAW}, {WITH_PEOPLE if has_people(place) else NO_PEOPLE}."
 
 
@@ -506,8 +535,8 @@ def generated(store, place):
     pictures = sent_pictures(store, place)
     listed = "Pictures: " + "; ".join(f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "."
     return " ".join(part for part in (
-        f"Concept painting of {short_name(place)}" + (f", inside {short_name(holder)}." if holder else "."),
-        floor_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "", holds_and_doors(place),
+        f"Concept painting of {short_name(place)}" + (f", inside {within_name(place)}." if holder else "."),
+        floor_words(place), outside_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "", holds_and_doors(place),
         size_words(place),
         listed if pictures else "", view_words(place), style()) if part)
 

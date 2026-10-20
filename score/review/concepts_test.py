@@ -227,8 +227,8 @@ def test_a_place_within_another_is_sent_its_picked_picture_first_and_its_wording
     assert not concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
     assert concepts.undrawn(store, ["base", "lab"])[0] == ["lab"]
     cockpit = concepts.generated(store, "cockpit")
-    assert "In the ship, for flying the ship: two pilot seats" in cockpit
-    assert cockpit.startswith("Concept painting of the cockpit, inside the hangar.")
+    assert "In the ship; for flying the ship: two pilot seats" in cockpit
+    assert cockpit.startswith("Concept painting of the cockpit, inside the ship.")
 
 
 def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
@@ -263,7 +263,7 @@ def test_the_ships_length_and_reference_come_from_the_hangars_data_and_reach_its
     monkeypatch.setattr(concepts, "inputs_of", lambda place: given.get(place, {}))
     hangar = concepts.generated(store, "hangar")
     assert "It holds a barge 80 m long." in hangar and "46 m" not in hangar
-    assert "inside the hangar." in concepts.generated(store, "galley")
+    assert "inside the hangar." in concepts.generated(store, "galley")  # its data names no outside here
     assert len(concepts.sent_pictures(store, "hangar")) == 1  # the base's pick only: no reference in its data now
 
 
@@ -272,7 +272,9 @@ def test_no_measure_is_generated_but_the_creators_own_says(store):
     for place in [*found["within"], *found["shells"], "square", "campgrounds"]:
         wording = concepts.generated(store, place)
         for name in filter(None, [place, *concepts.inside_of(place), concepts.above(place)]):
-            wording = wording.replace(concepts.inputs_of(name).get("says", "").rstrip("."), "")
+            said = [concepts.inputs_of(name).get("says", ""), *concepts.inputs_of(name).get("holds", {}).values()]
+            for words in said:
+                wording = wording.replace(words.rstrip("."), "")
         assert not re.search(r"\d+(\.\d+)? ?m\b", wording), (place, wording)
 
 
@@ -423,3 +425,13 @@ def test_no_two_ship_rooms_get_the_same_wording_or_references(store):
     references = {room: [source.name for _, source in concepts.sent_pictures(store, room) if not isinstance(source, str)]
                   for room in SHIP_ROOMS}
     assert references == {**{room: [] for room in SHIP_ROOMS}, "cockpit": ["cockpit.png"], "quarters": ["quarters.png"]}
+
+
+def test_a_room_whose_outside_is_a_thing_in_the_hangar_forgets_the_hangar(store):
+    cockpit = concepts.generated(store, "cockpit")
+    assert cockpit.startswith("Concept painting of the cockpit, inside the ship.")
+    assert "Its outside is the ship (a crew shuttle 46 m long, its rooms along one deck)" in cockpit
+    assert "nothing of the hangar, its floor or other rooms" in cockpit and "filling the frame" in cockpit
+    assert "1. the hangar, picked: only for the look of the ship (its hull, materials, windows)" in cockpit
+    assert "in the hangar" not in cockpit and concepts.ROOF_KEPT not in cockpit
+    assert "Its outside is" not in concepts.generated(store, "lab")  # the base itself is the lab's outside
