@@ -1,4 +1,6 @@
-# TEMPLATE: copy to ~/.config/systemd/user/score-sync.timer, then `systemctl --user enable --now score-sync.timer`.
+# TEMPLATE: the sync's systemd user timer, written to ~/.config/systemd/user/score-sync.timer and enabled by
+# `python -m score.dashboard install-sync` (score-sync.service.example says when and how). Its passes:
+# `journalctl --user -u score-sync.service`.
 [Unit]
 Description=SCORE dashboard sync every 5 minutes
 
