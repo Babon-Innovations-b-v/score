@@ -22,12 +22,14 @@
       <p class="small soft">{% if money.in_flight %}EUR {{ money.in_flight|floatformat:2 }} in flight; {% endif %}EUR {{ money.room|floatformat:2 }} of room left.{% if money.likely %} The basket's plan would take about EUR {{ money.likely|floatformat:2 }}.{% endif %}</p>
       {% else %}
       <div class="money-total stopless">No stop set: paid launches refused</div>
-      <p class="small soft">To set one, type in your own terminal:</p>
-      <pre class="command">{{ money.stop_line }}</pre>
       {% endif %}
+      {% if owner %}<details class="fold inner owner-costs"{% if not money.stop %} open{% endif %}><summary>{% if money.stop %}Move the stop{% else %}Set the stop{% endif %}</summary>{% include "pages/owner_forms.html" with form="stop" %}</details>{% endif %}
+      <p class="small soft">The month's stop: {% if money.month_stop %}EUR {{ money.month_stop|floatformat:2 }}{% else %}<span class="unknown">not set: nothing launches</span>{% endif %}.</p>
+      {% if owner %}<details class="fold inner owner-costs"{% if not money.month_stop %} open{% endif %}><summary>Set the month's stop</summary>{% include "pages/owner_forms.html" with form="month" %}</details>{% endif %}
     </div>
   </div>
   {% if owner %}
+  {% if money.paid_refused %}<details class="fold inner owner-costs" open><summary>The month's books are not known: paid work is refused</summary>{% include "pages/owner_forms.html" with form="books" %}</details>{% endif %}
   <details class="fold inner owner-costs"><summary>Enter a cost nothing reads for you</summary>
     <form class="cost-form" data-post="/api/money/owner-costs">
       <label>What<select name="source"><option value="models">model calls: this month's bill</option><option value="subscriptions">subscriptions: the fixed monthly figure</option></select></label>

@@ -2,7 +2,8 @@
 through score.review.web.decide and the owner's advance into this machine's marks (each only when its user is the
 local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
 marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
-owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py)."""
+owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py), and the
+owner's money figures and waivers (OWNER_FIGURES), each through the local cockpit's own owner-only function."""
 import dataclasses
 
 from django.conf import settings
@@ -136,6 +137,28 @@ def apply_answer(item):
     return Applied("refused" if said.startswith("refused") else "done", said)
 
 
+# The owner's money figures and waiver: each applied here only when its user is this machine's owner, through the
+# same owner-only function as on the local cockpit (pages/actions.py), whose words start "refused" when it was not.
+OWNER_FIGURES = {
+    "stop": lambda user, payload: actions.set_stop(user, payload.get("euros"), payload.get("reason", "")),
+    "month": lambda user, payload: actions.set_month(user, payload.get("euros")),
+    "books-figure": lambda user, payload: actions.set_books_figure(user, payload.get("euros")),
+    "read-back": lambda user, payload: actions.read_books_back(user),
+    "waiver": lambda user, payload: actions.waive_check(user, *place_and_stage(payload.get("node", "")),
+                                                        payload.get("output", ""), payload.get("check", ""),
+                                                        payload.get("reason", "")),
+}
+
+
+def apply_owner_figure(item):
+    """The owner's stop line, month's stop, books figure, read-back or waiver, applied here by his signed-in name;
+    refused for anyone else."""
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    said = OWNER_FIGURES[item["kind"]](item["user"], item["payload"])
+    return Applied("refused" if said.startswith(("refused", "decisions are off")) else "done", said)
+
+
 def apply(item, source, chosen=None):
     """Apply one hosted request; Applied."""
     kind = item["kind"]
@@ -153,4 +176,6 @@ def apply(item, source, chosen=None):
         return apply_checkout(item)
     if kind == "answer":
         return apply_answer(item)
+    if kind in OWNER_FIGURES:
+        return apply_owner_figure(item)
     return Applied("refused", f"unknown request kind {kind!r}")

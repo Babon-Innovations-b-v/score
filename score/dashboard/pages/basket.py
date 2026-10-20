@@ -117,7 +117,7 @@ def price_words(totals):
     measured = jobs - unmeasured
     return {"likely": totals["likely_euros"] if measured else None, "high": totals["high_euros"] if measured else None,
             "guessed": totals.get("guessed_euros", 0.0), "guessed_jobs": unmeasured, "jobs": jobs,
-            "measured": measured, "hours": hours(totals.get("high_minutes"))}
+            "measured": measured, "hours": hours(totals.get("high_minutes")), "minutes": totals.get("high_minutes")}
 
 
 # --- what changes -----------------------------------------------------------------------------------------------------
@@ -304,8 +304,8 @@ def place_groups(root, source):
 
 
 def chosen_total(found):
-    """{count, likely, high, guessed, guessed_jobs} of the items he chose to buy (high None while one has no
-    measured job)."""
+    """{count, likely, high, guessed, guessed_jobs, hours} of the items he chose to buy (high None while one has no
+    measured job; hours the runner's high minutes of every item end to end, None while one has none)."""
     bought = [each for group in found for each in group["tiles"]
               if each["choice"] and each["choice"]["choice"] == "buy"]
 
@@ -314,7 +314,8 @@ def chosen_total(found):
         return round(sum(values), 2) if values and None not in values else None
     return {"count": len(bought), "likely": summed("likely"), "high": summed("high"),
             "guessed": round(sum(each["price"]["guessed"] for each in bought), 2),
-            "guessed_jobs": sum(each["price"]["guessed_jobs"] for each in bought)}
+            "guessed_jobs": sum(each["price"]["guessed_jobs"] for each in bought),
+            "hours": hours(summed("minutes"))}
 
 
 def last_checkout():

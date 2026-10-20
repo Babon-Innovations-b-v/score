@@ -192,18 +192,20 @@ def books_refusal():
     if books:
         if books.get("state") == "known" and euro_figure(books.get("google_before", 0.0)) is None:
             return (f"the month's books hold no usable Google figure ({books.get('google_before')!r} in {BOOKS}): "
-                    f"paid work is refused until the owner gives it again (score spend --google-month EUR)")
+                    "paid work is refused until the owner gives it again (Enter it in the books, on the cockpit's "
+                    "money card)")
         if books.get("state") == "known":
             return None
         unread = f" (Google's bill was not read: {books['google_unread']})" if books.get("google_unread") else ""
         return (f"the month's books are {books.get('state', 'unknown')} ({BOOKS}){unread}: paid work is refused until "
-                f"`score spend --read-back` reads Google's bill from its billing export, the owner gives the Google "
-                f"month (score spend --google-month EUR) or the month ends")
+                f"the bills are read back (Read the bills back, on the cockpit's money card), the owner gives the Google "
+                f"month (Enter it in the books, there) or the month ends")
     if written_before(entries(), "started", month) and written_before(google_lines(), "time", month):
         return None
     return (f"the month's spend is unknown: the cloud ledger ({LEDGER}) and the Google ledger do not both run "
-            f"from before {month}; paid work is refused until `score spend --read-back` reads both bills (or the "
-            f"owner's `score spend --google-month EUR`), or the next month")
+            f"from before {month}; paid work is refused until both bills are read back (Read the bills back, on the "
+            f"cockpit's money card), or the owner gives the Google month (Enter it in the books, there), or the "
+            f"next month")
 
 
 def google_before():

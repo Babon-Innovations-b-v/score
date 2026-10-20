@@ -388,9 +388,6 @@ def prim_tree(detail):
 
 # --- money -------------------------------------------------------------------------------------------------------
 
-STOP_LINE = '.venv/bin/python -m score.review stop {world} <euros> --reason "what it is for"'
-
-
 def environment_name(stored):
     """An environment's id in the owner's words: `world1` (the stored id, kept so no node is made again) as
     "Environment 1"; any other id as it is."""
@@ -405,7 +402,7 @@ def share(part, whole):
 def money(view, planned):
     """The money card from the month's MoneyView (state/money.py): the month's total ("at least" while a line is
     partial or missing, "not known yet" when no line has a number), a line per source, and the environment
-    against its stop, or the terminal line that sets one."""
+    against its stop (the owner sets it, and the month's stop, with the money card's buttons)."""
     known = [line for line in view.lines if line.euros is not None]
     spent = view.world_spent or 0.0
     flight = view.in_flight or 0.0
@@ -415,14 +412,12 @@ def money(view, planned):
             "stop": view.stop, "spent": view.world_spent, "in_flight": view.in_flight,
             "spent_share": share(spent, view.stop), "flight_share": share(flight, view.stop),
             "room": round(view.stop - spent - flight, 2) if view.stop else None,
-            "stop_line": STOP_LINE.format(world=view.world or "<world>"),
+            "month_stop": view.month_stop, "paid_refused": view.paid_refused,
             "likely": (planned or {}).get("likely"), "credit_note": view.credit_note}
 
 
 # --- the environment overview ------------------------------------------------------------------------------------
 
-# Each owner's command a books refusal names, as it names it: "score spend --read-back", "score spend --<figure> EUR".
-OWNERS_COMMAND = re.compile(r"score spend[ ]+(--[a-z-]+(?: EUR)?)")
 STATUS_WORDS = {"lost": ("a lost input", "bad"), "route": ("route steps not done", "bad"),
                 "missing": ("objects not made", "review"), "gate": ("made, failing checks", "review")}
 
@@ -465,24 +460,22 @@ def with_holes(shown, places):
 
 
 def blockers(money_card, spend, lost, names=None, listed=()):
-    """[{title, words, commands, details, buys, bought}] of the steps that block every paid step, read from state: no
-    stop set (the money card's, as it says it, read or not), the month's books not known (or not read yet), and each
+    """[{title, words, form, details, buys, bought}] of the steps that block every paid step, read from state: no
+    stop set (its button the money card's stop form), the month's books not known (or not read yet; its buttons the
+    read-back and the owner's figure), and each
     kind of lost input with the places it blocks (lost_blocker; `names` the places' titles, `listed` the nodes of
     the buy-first list it links)."""
     found = []
     if not money_card["stop"]:
         found.append({"title": "Set a stop", "words": "No stop is set for this environment, so every paid step "
-                      "is refused. Type in your own terminal:", "commands": [money_card["stop_line"]],
-                      "details": []})
+                      "is refused. Set it here:", "form": "stop", "details": []})
     if spend.as_of is None:
         found.append({"title": "The month's books are not read yet",
                       "words": "Whether they are known is read with the month's spend; load the page again in a "
-                               "moment.", "commands": [], "details": [spend.note] if spend.note else []})
+                               "moment.", "form": None, "details": [spend.note] if spend.note else []})
     elif spend.paid_refused:
         found.append({"title": "The month's books are not known", "words": "Paid work is refused until they are. "
-                      "Only you can make them known, in your own terminal:",
-                      "commands": [f".venv/bin/python -m score spend {named}"
-                                   for named in dict.fromkeys(OWNERS_COMMAND.findall(spend.paid_refused))],
+                      "Read the bills back, or give the model calls' month yourself:", "form": "books",
                       "details": [spend.paid_refused]})
     return found + [lost_blocker(entry, names, listed) for entry in lost]
 
@@ -496,7 +489,7 @@ def lost_blocker(entry, names=None, listed=()):
     buys = [{"words": node_words(bought["node"], names), "inputs": bought["inputs"],
              "anchor": buy_anchor(bought["node"]) if bought["node"] in listed else None}
             for bought in entry["bought"]]
-    found = {"title": entry["words"], "commands": [], "details": entry["work"] + entry["ids"], "buys": buys,
+    found = {"title": entry["words"], "form": None, "details": entry["work"] + entry["ids"], "buys": buys,
              "bought": sum(bought["inputs"] for bought in entry["bought"])}
     if entry["owner"]:
         return {**found, "title": f"Only you can do this: {entry['words'][:1].lower()}{entry['words'][1:]}",

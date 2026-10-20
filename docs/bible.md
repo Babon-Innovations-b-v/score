@@ -79,10 +79,13 @@ the current backend). No model runs on the coordinating machine.
   logically). The runner accepts an output by itself when every gate passed and no score got worse than the accepted
   one, its accept marked as the runner's; it clears a paid run when every gate on its inputs passed (unknown blocks)
   and the ledger's month ceiling (`tools/props/cloud/ledger.py`) has room for its estimate, and keeps the clearance
-  in the store. The owner keeps a reject, from the page's command in his terminal: the accepted output moves back to
+  in the store. The owner keeps a reject, a button on the cockpit's step page: the accepted output moves back to
   the one accepted before, every later node that read it is stale, and the runner never takes it again. He also
   keeps his own accept, for a worse output with his reason; a waiver (one check, one key, with his reason); and an
-  override, his yes for a run outside the runner. None is needed for a run. Agents are kept from giving those, and
+  override, his yes for a run outside the runner. None is needed for a run. His accept, reject and waiver, his stop
+  line, the month's stop and the books' figure are buttons in the cockpit: each his signed-in request, applied on his
+  PC by the sync pass only when its user is that PC's `SCORE_OWNER`, through the same owner-only functions
+  (`score.review.web`; #39). Agents are kept from giving those, and
   from writing accepts or clearances by hand, by a barrier, not a lock: the commands want his terminal, the store
   refuses those writes in any process Claude Code started (the runner's automatic accept excepted), and
   `.claude/hooks/accept_guard.py` blocks the other routes; an agent set on getting round them can (by editing the
@@ -512,7 +515,9 @@ runner's key it was made under) survived. Recovery, in order:
    began. `score spend --read-back` (and the runner's month check, when an export is set) reads the Scaleway bill and
    Google's bill (Cloud Billing's usage cost export in BigQuery, `tools/props/cloud/google_bill.py`, its table named
    by SCORE_GOOGLE_BILLING_TABLE outside the repo) and makes it `known` once Google's was read, else leaves it as it
-   was with the reason; the owner's `score spend --google-month EUR` stays an override; else the next month opens it. `batch.rent` refuses without both keys, and `batch.ssh_key` never
+   was with the reason (the cockpit's **Read the bills back** button runs it on his PC); the owner's figure for the
+   model calls' month, his **Enter it in the books** button on the money card, stays an override; else the next
+   month opens it. `batch.rent` refuses without both keys, and `batch.ssh_key` never
    makes one: the owner makes the runner's key and deletes the stale IAM key.
 2. **The store comes back by today's standard, never by copying.** `python -m score.store.restore <environment>
    --library <score_lib>` (`score/store/restore`, its overlay) drives every line with a runner that spends nothing:
@@ -551,9 +556,9 @@ Nothing is released yet but the paper and the hosted cockpit. Commands, run loca
 - **The hosted cockpit** runs the dashboard at the commit its host repository pins (`SCORE_COMMIT` in the host's
   Dockerfile). After a push to `main` that changes `score/dashboard`, the release moves that pin: `.venv/bin/python
   -m score.dashboard release --host <host repository> --dockerfile <its Dockerfile> --subject "<host commit
-  subject>"` (a pushed commit only, from a worktree of its own, in the host's commit style). Once, after the first
-  release, the owner runs `install-sync` (the sync's systemd user timer, reading its token by name from his secret
-  manager each pass), so the cockpit is fed without a hand. Details: `score/dashboard/CLAUDE.md` (`sync/`).
+  subject>"` (a pushed commit only, from a worktree of its own, in the host's commit style). The sync's systemd user
+  timer (`install-sync`, installed 2026-10-20 with the owner's yes, every 5 min) reads its token by name from his
+  secret manager each pass, so the cockpit is fed, and his buttons applied, without a hand. Details: `score/dashboard/CLAUDE.md` (`sync/`).
 - `.githooks/pre-commit` (installed by `bootstrap.sh` as `core.hooksPath`) runs the same check on
   any commit that touches `paper/`. A green run means the committed PDF is the draft's.
 

@@ -79,7 +79,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   The holes (`score.stages.complete.holes`, in a process of its own: it reads OpenUSD) are written right after it,
   the same way. A pass syncs nothing, and says why, from a checkout with tracked changes or a commit origin's main
   does not hold (`tree_refusal`), or when the runner's price after the holes (`score price <environment> --holes`,
-  `runner_price`) fails, so no stale plan or price is ever sent. The owner's timer (`timer.py`, `install-sync`, the
+  `runner_price`) fails, so no stale plan or price is ever sent. The owner's money buttons and his waiver
+  (`applying.OWNER_FIGURES`: the stop line, the month's stop, the books' figure, the read-back, a waiver) are applied
+  like his decisions: only when the request's user is this machine's `SCORE_OWNER`, through the same
+  `pages/actions.py` function as the local cockpit, which refuses in an agent's process. Never tell the owner to
+  type a command: an owner-only action is a button (#39). The owner's timer (`timer.py`, `install-sync`, the
   deploy templates) reads the token by name from his secret manager each pass, inline, through the reader his env
   file names; it installs only once the cockpit runs this checkout's dashboard. `release.py` (`release`) moves the
   hosting repository's pinned `SCORE_COMMIT` to a pushed commit, from a worktree of its own, in the host's commit
@@ -102,12 +106,15 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 Rules:
 
 - **Read only, except the owner's own decisions.** The dashboard writes its SQLite and `$SCORE_DASHBOARD_HOME`
-  (thumbs, inbox, plans, status snapshots, exports). The store is written only through `score.review.web.decide`,
-  which the store itself refuses in a server an agent started. Never call `Runner.drive`, `rebuy.buys`,
+  (thumbs, inbox, plans, status snapshots, exports, the month's stop). The store and the books are written only
+  through `score.review.web` (`decide`, `waived`, `stop`, `google_month`), which the store, the guard and the books
+  refuse in a process an agent started. Never call `Runner.drive`, `rebuy.buys`,
   `compute.clearance` or `rejudged_accepted` in the web process: plans, spend and freshness are subprocesses of the
   `score` command.
 - **Never launch from a test or an agent against the real runner.** Tests use `tests/fixture.py:FakeBackend`; a launch
-  needs the owner signed in, `SCORE_MONTH_EUROS` set and every refusal of `guard.refusals` clear; the dashboard
+  needs the owner signed in, the month's stop set (`guard.month_stop`: his money card's figure, kept on the store's
+  machine in `$SCORE_DASHBOARD_HOME/month-stop.json`, else `SCORE_MONTH_EUROS`) and every refusal of
+  `guard.refusals` clear; the dashboard
   never stops a run.
 - **No module on sys.path, no stage imports this package.** Import dotted from `score.dashboard`; never a bare
   `views`, `models`, `urls`, `settings`, `apps` or `admin` (they would be hashed into stage keys). Do not edit

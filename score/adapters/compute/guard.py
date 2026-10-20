@@ -111,7 +111,7 @@ def refusal(line, spent, flight, forecast):
     return (f"world {line['world']}: EUR {spent:.2f} spent since its first stop line and EUR "
             f"{sum(flight.values()):.2f} in flight ({len(flight)} runs); this job's EUR {forecast:.2f} forecast would "
             f"pass the EUR {line['euros']:.2f} stop of {line['at'][:16]}. Nothing was started; the owner raises the "
-            f"stop with: python -m score.review stop {line['world']} <euros> --reason \"...\"")
+            "stop with Move the stop on the cockpit's money card")
 
 
 def tell_owner(folder, tag, text):

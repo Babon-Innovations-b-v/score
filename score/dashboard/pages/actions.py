@@ -67,6 +67,134 @@ def enter_cost(user, source, euros, words, month):
     return f"entered {source} EUR {amount:.2f} for {month}"
 
 
+# --- the owner's money figures: each his signed-in request, applied on the store's machine ----------------------
+
+def euro_amount(euros):
+    """A figure of euros at least 0 and under a million, or None."""
+    try:
+        amount = float(euros)
+    except (TypeError, ValueError):
+        return None
+    return amount if 0 <= amount < 1_000_000 else None
+
+
+def queued_for_store(kind, user, payload, words):
+    """Queue an owner's request for the store's machine (hosted); what the page says."""
+    SyncRequest.objects.create(kind=kind, user=user, payload=payload)
+    return f"queued: the store's machine {words} on its next sync"
+
+
+def owner_figure_off_why(user):
+    """Why the owner's money figure cannot be applied in this process, or None: not the owner, or a server an agent
+    started (the store, the guard and the books refuse there too)."""
+    if not is_owner_name(user):
+        return f"refused: {user} is not this store's owner"
+    if agent_started():
+        return "refused: this server was started from an agent's shell: only the owner's own process sets a figure"
+    return None
+
+
+def set_stop(user, euros, reason):
+    """The owner's stop line for the environment (score.review.web.stop, his money yes), in words: local written,
+    hosted queued."""
+    amount = euro_amount(euros)
+    if amount is None:
+        return f"refused: {euros!r} is not an amount in euros"
+    if not reason.strip():
+        return "refused: say what the stop is for"
+    if hosted():
+        return queued_for_store("stop", user, {"euros": amount, "reason": reason.strip()}, "writes the stop line")
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        line = web.stop(source.store, source.world.name, amount, reason.strip(), by=user)
+    except (review.Refused, PermissionError) as refused:
+        return f"refused: {refused}"
+    _spend["at"] = 0.0
+    return f"stop set at EUR {line['euros']:.2f} by {line['by']}"
+
+
+def set_books_figure(user, euros):
+    """The owner's figure for the model calls' month before their ledger began again, into the month's books
+    (score.review.web.google_month), in words: local written, hosted queued."""
+    amount = euro_amount(euros)
+    if amount is None:
+        return f"refused: {euros!r} is not an amount in euros"
+    if hosted():
+        return queued_for_store("books-figure", user, {"euros": amount}, "writes it into the month's books")
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    try:
+        books = web.google_month(amount, by=user)
+    except review.Refused as refused:
+        return f"refused: {refused}"
+    _spend["at"] = 0.0
+    return f"books known for {books['month']}: EUR {amount:.2f} entered by {user}"
+
+
+def read_books_back(user):
+    """Read the month's bills back into the books (`score spend --read-back`, read-only, free), in words: local run
+    here, hosted queued."""
+    if hosted():
+        return queued_for_store("read-back", user, {}, "reads the bills back")
+    if not is_owner_name(user):
+        return f"refused: {user} is not this store's owner"
+    done = subprocess.run([sys.executable, "-m", "score", "spend", "--read-back"], cwd=settings.SCORE_REPO,
+                          capture_output=True, text=True)
+    if done.returncode != 0:
+        return f"refused: the read-back failed: {(done.stderr.strip().splitlines() or ['no output'])[-1]}"
+    _spend["at"] = 0.0
+    books = json.loads(done.stdout.strip().splitlines()[-1])
+    unread = books.get("google_unread")
+    return f"bills read back: the books are {books.get('state')}" + (f" ({unread})" if unread else "")
+
+
+def set_month(user, euros):
+    """The owner's month's stop (launch.guard.month_stop: switches launching on and caps the runner's month), in
+    words: local kept on this machine, hosted queued."""
+    amount = euro_amount(euros)
+    if amount is None:
+        return f"refused: {euros!r} is not an amount in euros"
+    if hosted():
+        return queued_for_store("month", user, {"euros": amount}, "sets the month's stop")
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    record = {"euros": amount, "by": user, "at": timezone.now().isoformat(timespec="seconds")}
+    guard.month_file().write_text(json.dumps(record))
+    return f"the month's stop is EUR {amount:.2f}, set by {user}"
+
+
+def waive_check(user, place, stage, output, check, reason):
+    """The owner's waiver of one check of an output he saw (score.review.web.waived), in words: local written,
+    hosted queued."""
+    node = node_of(place, stage)
+    if not reason.strip():
+        return "refused: say why this check is wrong here"
+    if hosted():
+        return queued_for_store("waiver", user, {"node": node, "output": output, "check": check,
+                                                 "reason": reason.strip()}, f"waives {check}")
+    why = decisions_off_why()
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        web.waived(source.store, node, output, check, by=user, reason=reason.strip())
+    except (review.Refused, PermissionError, FileExistsError) as refused:
+        return f"refused: {refused}"
+    source.refresh()
+    return f"waived {check} of {output[:12]} of {node}"
+
+
 def read_spend():
     """Read the backend's spend now and keep it."""
     try:

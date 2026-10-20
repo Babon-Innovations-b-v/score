@@ -20,7 +20,7 @@
   {% endif %}
   {% if blockers %}<ol class="blockers">{% for step in blockers %}
     <li><b>{{ step.title }}.</b> {{ step.words }}{% if step.buys %} {{ step.bought }} come{{ step.bought|pluralize:"s," }} back by buying {% for buy_step in step.buys %}{% if buy_step.anchor %}<a href="#{{ buy_step.anchor }}">{{ buy_step.words }}</a>{% else %}{{ buy_step.words }}{% endif %} ({{ buy_step.inputs }}){% if not forloop.last %}, {% endif %}{% endfor %}, in the list below.{% endif %}
-      {% for command in step.commands %}<pre class="command">{{ command }}</pre>{% endfor %}
+      {% if step.form %}{% include "pages/owner_forms.html" with form=step.form %}{% endif %}
       {% if step.details %}<details class="ids"><summary>details</summary><ul class="fold-body">{% for line in step.details %}<li>{{ line }}</li>{% endfor %}</ul></details>{% endif %}</li>
   {% endfor %}</ol>{% endif %}
   {% if buy_ready %}

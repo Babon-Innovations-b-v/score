@@ -43,8 +43,10 @@ def plan_command(group):
 def run_env():
     """The runner's environment: the dashboard's secrets left out, the month's stop passed on."""
     env = {name: value for name, value in os.environ.items() if name not in SECRETS}
-    if settings.SCORE_MONTH_EUROS:
-        env["SCORE_MONTH_EUROS"] = settings.SCORE_MONTH_EUROS
+    from score.dashboard.launch import guard
+    month = guard.month_stop()
+    if month:
+        env["SCORE_MONTH_EUROS"] = month
     return env
 
 
@@ -108,8 +110,9 @@ class LocalBackend:
         done = self.call([sys.executable, "-m", "score", "spend", "--json"])
         if done.returncode != 0:
             return Spend(note=f"spend not read: {(done.stderr or done.stdout)[-300:]}")
-        found = last_json(done.stdout)
-        return Spend.model_validate(found)
+        from score.dashboard.launch import guard
+        month = guard.month_stop()
+        return Spend.model_validate({**last_json(done.stdout), "month_stop": float(month) if month else None})
 
     def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle:
         command = run_command(group, jobs, rebuy_reason)

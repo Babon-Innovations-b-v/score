@@ -140,7 +140,8 @@ order that waits least, and is never tied to one card or one zone.
 - **Several jobs on one big card.** A card runs as many Pixal3D jobs at once as its memory holds:
   three for every 24 GB (`RUNS_PER_24GB`), so an 80 GB card runs ten. `batch.py --per-card` overrides it.
   Other kinds run one job at a time until their memory per job is measured.
-- **Limits.** The month's ceiling is `SCORE_MONTH_EUROS` (EUR 1,500 by default). It is checked
+- **Limits.** The month's ceiling is `SCORE_MONTH_EUROS` (EUR 1,500 by default); the owner sets it with the
+  cockpit's **Set the month's stop** button, which every run the cockpit launches is given. It is checked
   against the ledger and the provider's bill before every machine is rented, and nothing more is
   rented once it is reached. A batch is also held to 4 h and EUR 60 (`ledger.py`).
 - **Forcing a class** for a measuring run: `batch.py --classes` and `library_bake.py --classes`.

@@ -3,12 +3,16 @@
     web.decide(store, node, output, "accept", by="joey", reason="", worse_reason=None)
     web.decide(store, node, output, "reject", by="joey", reason="the lamp floats")
     web.stop(store, "world1", 412.5, "checkout 7: fix-sound, fix-film-cut", by="joey")   # his checkout's money yes
+    web.waived(store, node, output, "resting", by="joey", reason="the cairn leans on purpose")
+    web.google_month(120.0, by="joey")   # what Google billed this month before its ledger began again
 
 The dashboard proves who the owner is by its own sign-in (the trusted proxy's single sign-on, or its owner account)
 in place of the terminal check of `python -m score.review` (owner_at_terminal), and passes his user name as `by`.
 `by` is never empty and never the runner's name: an accept by the runner skips the store's agent barrier. The store's
 own barrier still refuses these writes in a process an agent started (Store.write_once), so a dashboard started from
-an agent's shell records nothing. Waivers and spend yeses stay terminal-only.
+an agent's shell records nothing. His waiver (`waived`, one check of the output he saw) and his Google month
+(`google_month`, into the month's books, refused in an agent's process by compute itself) come the same way; the
+spend override (a yes for a run outside the runner) stays terminal-only.
 
 `stop` is his money yes from the cockpit's checkout: the signed-in owner on the trusted cockpit counts as the owner
 at his terminal (`python -m score.review stop`, C22), and the line is written by the same guard.set_line, which
@@ -55,6 +59,29 @@ def stop(store, world, euros, reason, by, books=None):
     name = checked_by(by)
     baseline = None if guard.current(store, world) else (books or books_now)()
     return guard.set_line(store, world, euros, reason, name, graph.now(), baseline)
+
+
+def google_month(euros, by):
+    """Write the owner's Google month into the month's books by his signed-in name (compute.owners_google_month, his
+    `score spend --google-month` from the cockpit); the books. review.Refused for an empty or the runner's name, in a
+    process an agent started and for a figure that is not finite and at least 0 (compute's refusal, in its words)."""
+    from score.adapters import compute
+    name = checked_by(by)
+    try:
+        return compute.owners_google_month(euros, by=name)
+    except compute.Refused as refused:
+        raise review.Refused(str(refused)) from refused
+
+
+def waived(store, node, output, check, by, reason):
+    """The owner's waiver of one check of the output he saw, under that output's key, by his signed-in name; the
+    waiver. review.Refused when the output has no record here, the check was not judged or the reason is empty;
+    PermissionError in a process an agent started (the store's own barrier)."""
+    name = checked_by(by)
+    record = review.record_of(store, node, output)
+    if record is None:
+        raise review.Refused(f"{node} has no output {output[:12]} here")
+    return review.waive(store, node, record["key"], check, name, reason)
 
 
 def stop_line(store, world):

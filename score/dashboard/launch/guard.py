@@ -19,12 +19,30 @@ from score.dashboard.launch.backend import RunGroup, load
 PLAN_MINUTES = 15
 REBUY_LIMIT = 5.0
 DEFAULT_JOBS = pricing.DEFAULT_JOBS
+MONTH_UNSET = "the month's stop is not set (on the money card): nothing launches without it"
 _planning = threading.Lock()
 _launching = threading.Lock()
 
 
 def backend():
     return load(settings.SCORE_COMPUTE_BACKEND)
+
+
+def month_file():
+    return settings.SCORE_HOME / "month-stop.json"
+
+
+def month_record():
+    """The owner's month's stop as he set it on the cockpit ({euros, by, at}), kept on the store's machine, or None."""
+    path = month_file()
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def month_stop():
+    """The month's stop that switches launching on and caps the runner's month, in euros as text: the owner's figure
+    from the cockpit (month_record), else SCORE_MONTH_EUROS; None when neither is set."""
+    record = month_record()
+    return f"{record['euros']:g}" if record else settings.SCORE_MONTH_EUROS
 
 
 def basket_hash(items):
@@ -118,8 +136,8 @@ def refusals(plan, user_is_owner, current_hash, running, confirmed, rebuy_reason
         found.append("this dashboard is hosted: a launch is queued for the store's machine, not started here")
     if not settings.SCORE_STORE_WRITABLE:
         found.append("the store is read-only here (SCORE_STORE_WRITABLE=0)")
-    if not settings.SCORE_MONTH_EUROS:
-        found.append("the month's stop is not set (SCORE_MONTH_EUROS): nothing launches without it")
+    if not month_stop():
+        found.append(MONTH_UNSET)
     if plan.state != "ready":
         found.append("the plan is not worked out")
         return found

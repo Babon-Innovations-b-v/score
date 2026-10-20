@@ -46,6 +46,13 @@ class DecisionIn(BaseModel):
     worse_reason: str | None = None
 
 
+class WaiverIn(BaseModel):
+    node: str
+    output: str
+    check: str
+    reason: str
+
+
 class AdvanceIn(BaseModel):
     node: str
     output: str
@@ -166,6 +173,50 @@ def owner_cost(body: OwnerCostIn, user=Depends(owner_only)):
     if not said.startswith("entered"):
         raise HTTPException(422, said)
     return Said(said=said)
+
+
+class FigureIn(BaseModel):
+    euros: float
+    reason: str = ""
+
+
+def said_or_refused(said):
+    """The page's words, or 409 with them when the action was refused."""
+    if said.startswith(("refused", "decisions are off")):
+        raise HTTPException(409, said)
+    return Said(said=said)
+
+
+@api.post("/money/stop", response_model=Said)
+def stop_line(body: FigureIn, user=Depends(owner_only)):
+    """The owner's stop line for the environment, his money yes (applied on the store's machine when hosted)."""
+    return said_or_refused(actions.set_stop(user.username, body.euros, body.reason))
+
+
+@api.post("/money/month", response_model=Said)
+def month_stop(body: FigureIn, user=Depends(owner_only)):
+    """The owner's month's stop, which switches launching on and caps the runner's month."""
+    return said_or_refused(actions.set_month(user.username, body.euros))
+
+
+@api.post("/money/books-figure", response_model=Said)
+def books_figure(body: FigureIn, user=Depends(owner_only)):
+    """The owner's figure for the model calls' month before their ledger began again, into the month's books."""
+    return said_or_refused(actions.set_books_figure(user.username, body.euros))
+
+
+@api.post("/money/read-back", response_model=Said)
+def read_back(user=Depends(owner_only)):
+    """Read the month's bills back into the books (read-only, free)."""
+    return said_or_refused(actions.read_books_back(user.username))
+
+
+@api.post("/waivers", response_model=Said)
+def waiver(body: WaiverIn, user=Depends(owner_only)):
+    """The owner's waiver of one check of an output he saw."""
+    place, stage = split_node(body.node)
+    step(place, stage)
+    return said_or_refused(actions.waive_check(user.username, place, stage, body.output, body.check, body.reason))
 
 
 @api.get("/requests", response_model=list[ChangeOut])

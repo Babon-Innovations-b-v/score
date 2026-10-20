@@ -277,6 +277,90 @@ def test_a_decision_from_someone_not_the_local_owner_is_refused(world):
     assert applied.state == "done", applied.detail
 
 
+def owner_figures(world):
+    """One request of each owner's money figure and waiver kind, by user name: {kind: payload}."""
+    return {"stop": {"euros": 40.0, "reason": "the October remake"}, "month": {"euros": 300.0},
+            "books-figure": {"euros": 12.5},
+            "waiver": {"node": "closeup@beta", "output": world.outputs["closeup@beta"], "check": "looks",
+                       "reason": "three faults are fine here"}}
+
+
+@pytest.fixture
+def owner_books(world, monkeypatch, settings):
+    """The fixture world with no agent marks, no books and no month's stop yet (both under this run's temp
+    PROPS_HOME and dashboard home), the stop's first books given; the month's stop taken away after."""
+    from score.dashboard.launch import guard
+    from score.review import web
+    from score.store import AGENT_MARKERS
+    for name in AGENT_MARKERS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(web, "books_now", lambda: {"month": "2026-10", "bill": 1.0, "ledger": 1.0})
+    world.books = settings.SCORE_PROPS_HOME / "cloud" / "books.json"
+    world.books.unlink(missing_ok=True)
+    guard.month_file().unlink(missing_ok=True)
+    yield world
+    guard.month_file().unlink(missing_ok=True)
+    world.books.unlink(missing_ok=True)
+
+
+def test_the_owners_figures_and_waiver_are_applied_for_him_and_refused_for_anyone_else(owner_books):
+    """Each owner request kind from the cockpit's buttons: someone not the local owner writes nothing; the owner's
+    goes through the same owner-only function as his local cockpit, recorded with his name."""
+    from score.dashboard.launch import guard
+    from score.review import web
+    world = owner_books
+    key = world.store.records("closeup@beta")[-1]["key"]
+    for kind, payload in owner_figures(world).items():
+        applied = applying.apply({"kind": kind, "user": "mallory", "payload": payload}, world.source)
+        assert applied.state == "refused" and "not this store's owner" in applied.detail, (kind, applied)
+    assert web.stop_line(world.store, "world1") is None and guard.month_record() is None
+    assert not world.books.exists() and not world.store.waivers("closeup@beta", key)
+    for kind, payload in owner_figures(world).items():
+        applied = applying.apply({"kind": kind, "user": "joey", "payload": payload}, world.source)
+        assert applied.state == "done", (kind, applied)
+    line = web.stop_line(world.store, "world1")
+    assert line["euros"] == 40.0 and line["by"] == "joey"
+    assert guard.month_record()["by"] == "joey" and guard.month_stop() == "300"
+    books = json.loads(world.books.read_text())
+    assert books["google_before"] == 12.5 and books["google_by"] == "joey" and books["state"] == "known"
+    assert world.store.waivers("closeup@beta", key)["looks"]["by"] == "joey"
+
+
+def test_the_owners_figures_are_refused_in_an_agents_process(owner_books, monkeypatch):
+    """The sync pass applies an owner request only outside an agent's process: the same barrier as his terminal."""
+    from score.dashboard.pages import actions
+    from score.review import web
+    monkeypatch.setattr(actions, "agent_started", lambda: True)
+    for kind in ("stop", "month", "books-figure", "waiver"):
+        applied = applying.apply({"kind": kind, "user": "joey", "payload": owner_figures(owner_books)[kind]},
+                                 owner_books.source)
+        assert applied.state == "refused", (kind, applied)
+    assert web.stop_line(owner_books.store, "world1") is None
+
+
+def test_the_hosted_buttons_queue_the_owners_request_and_refuse_anyone_else(world, settings):
+    """Hosted, each money button is a signed-in owner request in the outbox, with his name, the time and the
+    figure; anyone else's is refused at the door."""
+    from score.dashboard.pages import actions
+    settings.SCORE_MODE = settings.HOSTED
+    try:
+        assert actions.set_stop("joey", 40, "the October remake").startswith("queued")
+        assert actions.set_month("joey", 300).startswith("queued")
+        assert actions.set_books_figure("joey", 12.5).startswith("queued")
+        assert actions.read_books_back("joey").startswith("queued")
+        assert actions.waive_check("joey", "beta", "closeup", "abc", "looks", "fine").startswith("queued")
+        assert actions.set_stop("joey", "nan-ish", "x").startswith("refused")
+    finally:
+        settings.SCORE_MODE = settings.LOCAL
+    queued = {item.kind: item for item in SyncRequest.objects.all()}
+    assert set(queued) == {"stop", "month", "books-figure", "read-back", "waiver"}
+    assert queued["stop"].user == "joey" and queued["stop"].payload["euros"] == 40.0 and queued["stop"].created
+    user = get_user_model().objects.create_user("mallory", password="a long enough password")
+    pages = Client()
+    pages.force_login(user)
+    assert pages.post("/world/step/terrain/waive/", {"output": "x", "check": "looks", "reason": "r"}).status_code == 403
+
+
 def test_a_change_request_is_applied_into_the_inbox(world, settings):
     applied = applying.apply({"kind": "change", "user": "joey", "payload": {
         "place": "alpha", "stage": "closeup", "words": "redder"}}, world.source)

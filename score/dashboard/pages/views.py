@@ -221,6 +221,17 @@ def step_decide(request, stage, place=None):
 
 
 @require_POST
+def step_waive(request, stage, place=None):
+    """The owner's waiver of one check of the output he saw, with his reason."""
+    if not is_owner(request.user):
+        return HttpResponseForbidden("only the owner waives a check")
+    said = actions.waive_check(request.user.username, place, stage, request.POST.get("output", ""),
+                               request.POST.get("check", ""), request.POST.get("reason", ""))
+    (messages.success if said.startswith(("waived", "queued")) else messages.error)(request, said)
+    return redirect(step_url(place, stage))
+
+
+@require_POST
 def step_advance(request, stage, place=None):
     """The owner looked and presses advance: the paid steps reading this output may be launched."""
     if not is_owner(request.user):
