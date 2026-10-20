@@ -16,6 +16,7 @@ from score.dashboard.sync import applying, client
 LISTENED = applying.CONCEPT_KINDS
 WAIT_SECONDS = 25  # how long one call is held open; under the hosted side's LONGEST_WAIT and client.TIMEOUT
 RETRY_SECONDS = 5.0  # after the hosted side could not be reached
+SHORTEST_ROUND = 2.0  # an empty answer sooner than this waits this long before the next call
 
 
 def round_once(remote, source):
@@ -34,9 +35,14 @@ def listen(remote, source, rounds=None, log=print, pause=time.sleep):
     count = 0
     while rounds is None or count < rounds:
         count += 1
+        started = time.monotonic()
         try:
-            for request_id, state in round_once(remote, source):
-                log(f"request {request_id}: {state}")
+            answered = round_once(remote, source)
         except (urllib.error.URLError, TimeoutError, ConnectionError) as unreachable:
             log(f"the hosted side did not answer ({unreachable}); asking again in {RETRY_SECONDS:.0f} s")
             pause(RETRY_SECONDS)
+            continue
+        for request_id, state in answered:
+            log(f"request {request_id}: {state}")
+        if not answered and time.monotonic() - started < SHORTEST_ROUND:
+            pause(SHORTEST_ROUND)  # a hosted side that does not hold the call open is not asked in a tight loop
