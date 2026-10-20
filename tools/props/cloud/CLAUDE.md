@@ -156,20 +156,22 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   zone): each runner takes its offers from `capacity.py`'s list for its job kind (every capability
   class that holds the job), and gets its machine through `batch.claim` (a fleet through `rent_fleet`), which
   takes the best stocked offer in `SPEED_ORDER` (price barely matters: owner, 2026-10-08), drops an
-  offer that is refused, out of stock for a minute or whose machine does not answer within
-  `START_MINUTES`, and spreads a run's machines over the zones. A dropped offer is dropped for one round only: a claim that finds
+  offer that is refused or out of stock for a minute (nothing billed), and spreads a run's machines over the zones. A dropped offer is dropped for one round only: a claim that finds
   nothing in stock asks every class and zone again every `STOCK_RETRY_MINUTES` (3) until its run has no work for it,
   its deadline or the month's ceiling (2026-10-09: six of seven spread slots gave up on their first round and one L4
   did all the work), and a signal (`STOPPING`) ends every claim and deletes a machine that answers after it. A big card runs as many jobs at once
-  as `capacity.runs_at_once` says (measured kinds only). A new runner does the same and
+  as `capacity.runs_at_once` says (measured kinds only). A machine rented that does not answer within
+  `START_MINUTES`, or refuses the runner's key, was billed: it is deleted and its slot is a hole
+  (`batch.BootFailed`), with no machine rented in its place inside the batch; the Pixal3D fleet counts its cards, and
+  those of a machine that broke, as lost and makes the jobs no machine took holes (a batch, owner 2026-10-20). A new runner does the same and
   records its machines with `ledger.machines_record`, so `capacity.py report` can compare cards.
 - **Every kind spreads a batch over many machines** (`spread.py`, 2026-10-08, after the provider granted quotas
   for 20 H100, 50 L4 and 10 L40S machines; stock is still the real limit): `capacity.machines_for` rents enough
   that each machine works about as long as its setup takes (or one job, when a job is longer), so a small batch
   keeps one machine and a big one ends in about the setup and one job's time; machines are claimed side by side
   (each claim reserves its zone while it rents, an offer that gave nothing is dropped for the run), each takes the
-  next share from one queue as it finishes one, a share whose machine failed goes to another once, and a job whose
-  own command failed (`spread.JobFailed`) is recorded, not retried. Caps: `max_machines` a class (the backend's
+  next share from one queue as it finishes one, every share runs once: one whose machine failed or
+  whose own command failed (`spread.JobFailed`) is a hole, never handed to another machine. Caps: `max_machines` a class (the backend's
   `QUOTAS`, else 5) and `run_cap` in all (the largest class quota, at least 20: 50 with the L4 quota since #20); `SCORE_MAX_MACHINES="gpu-80gb=20,all=30"` overrides. A new
   runner gives `spread.on_machines` a set-up and a per-share function. `scene.py` stays on one card: its steps
   feed each other.
@@ -202,8 +204,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   Blender 5.0.1 from blender.org, Cycles on OptiX, ProcFunc and infinigen2 from the repo's vendored copies; jobs are
   `../library/inside/`'s (swatches, code-built pieces, re-materialed chunky pieces). A local bake took every core
   and WSL crashed the same day: no bake runs on the PC. A whole hub slice (28 pieces), the swatch sheet and three
-  habitat pieces took 7 minutes, €0.09. When no card is in stock, `--processor` takes a 32-core processor machine
-  (Cycles on its cores, about three times slower; the classes are tried in turn as their stock moves).
+  habitat pieces took 7 minutes, €0.09. One class is fixed for the whole call by a stock read at
+  price time; none in stock makes its jobs holes, never a processor machine in a card's place inside the batch. A
+  processor class asked for by `--classes` is its own estimate, priced at `PROCESSOR_SLOWER` (three times).
 - **Close-ups: Qwen-Image-Edit first, Nano Banana Pro for the failures** (owner, 2026-10-08): the close-up stage
   (`../closeup/stage.py`) draws every close-up with `pictures.py --model qwen-edit` (Qwen-Image-Edit-2511, 20B, an
   80 GB card, each card of a machine its own slice, about 58 s a picture), the shape check judges each with
