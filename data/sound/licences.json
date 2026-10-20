@@ -78,7 +78,7 @@
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/footsteps_boots_gravel.recordings@1/audio/recordings/footsteps/footsteps_boots_gravel.ogg",
+		"file": "sound/footsteps_gravel.recordings@1/audio/recordings/footsteps/footsteps_boots_gravel.ogg",
 		"source": "https://freesound.org/people/Nox_Sound/sounds/556002/",
 		"author": "Nox_Sound",
 		"licence": "CC0 1.0"
@@ -318,97 +318,97 @@
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_1.ogg",
+		"file": "sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_1.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_2.ogg",
+		"file": "sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_2.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_3.ogg",
+		"file": "sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_3.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_4.ogg",
+		"file": "sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_4.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_5.ogg",
+		"file": "sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_5.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_6.ogg",
+		"file": "sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_6.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_7.ogg",
+		"file": "sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_7.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_8.ogg",
+		"file": "sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_8.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps on an industrial metal mesh walkway with empty space underneath: hollow rattling metallic steps, one person, an even pace.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_1.ogg",
+		"file": "sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_1.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_2.ogg",
+		"file": "sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_2.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_3.ogg",
+		"file": "sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_3.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_4.ogg",
+		"file": "sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_4.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_5.ogg",
+		"file": "sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_5.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_6.ogg",
+		"file": "sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_6.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_7.ogg",
+		"file": "sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_7.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_8.ogg",
+		"file": "sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_8.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Footsteps of one person in work boots walking slowly on a thick ribbed rubber floor mat: soft, dull, muffled thumps with a slight squeak, clear gaps between steps, nothing else.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
@@ -636,7 +636,7 @@
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footsteps_boots_gravel.generated@1/audio/generated/machines/footsteps_boots_gravel.wav",
+		"file": "sound/footsteps_gravel.generated@1/audio/generated/machines/footsteps_boots_gravel.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps of heavy boots crunching on loose gravel and dust, muffled and dull as if heard through a thick suit, an even walking rhythm.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"

@@ -22,7 +22,8 @@ loudness rule every take and every game file is held to (`run.sh loudness` measu
 The picker and the loudness rule:
 
 - **Nothing loud reaches the owner or the game.** Every take goes through `loudness.normalise` (its category's
-  LUFS target, true peak under -3 dBTP, short fades) or is dropped; the page is not written if any file it plays
+  LUFS target, true peak under -3 dBTP, short fades; encoded bitexact, so a file levelled again is the same bytes and
+  a sound many places play is one library entry, #46) or is dropped; the page is not written if any file it plays
   measures over the limits. Never hand the owner a raw fetched file.
 - **Every sound the game names has a brief** in `data/sound/sounds.json` with its prompts (`run.sh needs` lists any
   without; the picker's check fails on one). Write a prompt from the thing's description, size, material and place,
