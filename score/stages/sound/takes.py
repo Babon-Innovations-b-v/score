@@ -6,6 +6,8 @@ A take is named by its sound, its prompt's and length's hash and its seed, and k
 same prompt, length, seed and weights make the same take, so a take made once is never paid for again (a rerun of
 the row, or another place's line asking the same brief). Each take is locked while its batch runs (`held`), so two
 places' lines side by side make a shared brief (crew_talk) on one card, the other line waiting and reading it (#29).
+A take its batch asked for and did not get (lost, failed, no card) is a named failure and a hole on every place that
+plays it: a waiting line never asks for it again (`asked_here`); new spend on it is a new batch, another run (#29).
 
 The takes are one batch (#21, #29): one job a sound, its brief's first prompt at seed 1, made once; the likeness gate
 sorts each take by its CLAP score against gates.CLAP_FLOOR into a pass or a hole, and a new take (another seed, the
@@ -15,6 +17,7 @@ import contextlib
 import fcntl
 import hashlib
 import json
+import os
 import pathlib
 import shutil
 import sys
@@ -35,6 +38,8 @@ MODELS = ["moss-soundeffect-v2", "clap-larger-general"]
 MINUTES_A_TAKE = 0.6
 FIRST_RESULT_MINUTES = 8
 REMOTE = "/root/sfx"
+ASKED = "asked"  # each take's last ask: the batch (the score run, else the process) that paid for it
+RUN_ID = "SCORE_RUN_ID"  # the run's id; every node of a score run inherits it (score/__main__.py)
 SEED = 1  # one take a sound (#29): a take under the floor is a hole, never another seed inside the batch
 
 
@@ -113,12 +118,38 @@ def held(jobs):
         yield
 
 
+def batch_id():
+    """This batch: the score run every place's line belongs to, else this process."""
+    return os.environ.get(RUN_ID) or f"process-{os.getpid()}"
+
+
+def asked_here(job):
+    """Whether this batch asked for the job's take already."""
+    path = TAKES / ASKED / f"{job['file']}.json"
+    return path.exists() and json.loads(path.read_text())["batch"] == batch_id()
+
+
+def mark_asked(jobs):
+    """Each job's take recorded as asked by this batch, before the card is asked for."""
+    (TAKES / ASKED).mkdir(parents=True, exist_ok=True)
+    for job in jobs:
+        (TAKES / ASKED / f"{job['file']}.json").write_text(json.dumps({"batch": batch_id()}))
+
+
 def made(jobs, work):
     """Every job's take made (on a card for those not kept yet; `work`, a folder in the output, carries the jobs up
     and the takes back, and is removed after) and kept in TAKES; {file: CLAP score} of the takes there, a take that
-    did not come back left out (a hole: its sound has no take, which the sources gate names)."""
+    did not come back left out (a hole: its sound has no take, which the sources gate names). A take this batch asked
+    for already and did not get (another place's line, #29) is never asked again: a named failure, a hole here too."""
     with held(jobs):
-        bought(missing(jobs), work)
+        wanted = missing(jobs)
+        lost_before = [job for job in wanted if asked_here(job)]
+        if lost_before:
+            print(f"{len(lost_before)} shared takes failed in this batch ({batch_id()}), holes, not asked again: "
+                  f"{[job['file'] for job in lost_before][:5]}", flush=True)
+        wanted = [job for job in wanted if job not in lost_before]
+        mark_asked(wanted)
+        bought(wanted, work)
     lost = missing(jobs)
     if lost:
         print(f"{len(lost)} takes did not come back, holes: {[job['file'] for job in lost][:5]}", flush=True)
