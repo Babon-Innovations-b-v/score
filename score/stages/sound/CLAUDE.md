@@ -33,7 +33,9 @@ gates; `takes.py` the paid part.
   either is a hole, and a new take (another seed, the brief's next prompt) is a new batch, never inside this one.
 - **One take across places** (#29): a brief several places play (crew_talk, in eight) is one take. Each take is
   locked while its batch runs (`takes.held`), so the first line to reach it makes it on its card and the others wait
-  and read it; `environment_takes` (free) lists the environment's takes still to make, each once with the places that
+  and read it; a take its batch asked for and did not get (lost, failed, no card) is a named failure and a hole on
+  every place that plays it, never asked again by a waiting line (`takes.asked_here`: one ask a take a score run, the
+  run's `SCORE_RUN_ID`); new spend on it is a new batch, another run. `environment_takes` (free) lists the environment's takes still to make, each once with the places that
   play it, and the price's `sound_takes` forecast rule counts each at its first place, so it is priced once.
 - **What a place needs is worked out free** (`needs.py`, #29): its bed (room tones), one event sound for each thing
   that moves (its motion and moving things records; things moving exactly together are one event) and a voice where its

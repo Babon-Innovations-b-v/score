@@ -202,6 +202,36 @@ def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
     assert asked == ["crew_talk"], asked
 
 
+def test_a_shared_take_that_fails_is_a_hole_on_every_place_and_never_asked_again():
+    """#29: two places' lines wait on one take whose card job fails: one card asked for, both lines get the hole."""
+    import threading
+    from score.stages.sound import takes
+    kept_folder = pathlib.Path(tempfile.mkdtemp())
+    real_takes, real_on_card = takes.TAKES, takes.on_card
+    asked, scored = [], {}
+
+    def on_card(plan):  # the job fails on its card: nothing comes back
+        asked.append(json.loads(pathlib.Path(plan["runs"][0]["inputs"][0]["from"]).read_text()))
+        time.sleep(0.3)
+
+    def line(place):
+        scored[place] = takes.made(takes.jobs_for("crew_talk", {"prompts": ["crew talk"]}, "rev"),
+                                   kept_folder / f"work-{place}")
+
+    try:
+        takes.TAKES, takes.on_card = kept_folder / "takes", on_card
+        lines = [threading.Thread(target=line, args=(place,)) for place in ("hub", "airlock")]
+        for each in lines:
+            each.start()
+        for each in lines:
+            each.join()
+    finally:
+        takes.TAKES, takes.on_card = real_takes, real_on_card
+        shutil.rmtree(kept_folder)
+    assert len(asked) == 1, asked
+    assert scored == {"hub": {}, "airlock": {}}, scored
+
+
 def test_moving_things_sound_off_their_own_moves():
     """A hatch's latch plays as it starts to open (the lab's; the hub's stand shut, so make no sound) and its bolts as it is shut tight (its swing's angle over its speed
     later), in the stage's seconds; the garage's big doors, silent in the game's record, start and stop in their own
