@@ -389,12 +389,13 @@ def test_a_picked_place_it_opens_into_is_sent_after_the_one_above_and_its_new_pi
                   "joey")
     words = [words for words, _ in concepts.sent_pictures(store, "flat")]
     assert words[0] == "a crop of the square's picked concept: draw the inside of what this crop shows"
-    assert words[1] == "the stairwell, picked: match the door they share"
+    assert words[1] == "the square's picked concept around it: through its windows, this view"  # its balcony door
+    assert words[2] == "the stairwell, picked: match the door they share"
     said_yes(store, monkeypatch, "flat")
     asked = []
     record = concepts.draw(store, "flat", {}, "joey", caller=stand_in(asked))
-    assert len(asked[0][1]) == 2 and set(record["picks"]) == {"square", "stairwell"}
-    assert "2. the stairwell, picked: match the door they share" in asked[0][0]
+    assert len(asked[0][1]) == 3 and set(record["picks"]) == {"square", "stairwell"}
+    assert "3. the stairwell, picked: match the door they share" in asked[0][0]
     assert concepts.current_draw(store, "flat", concepts.wording_now(store, "flat"))
     said_yes(store, monkeypatch, "stairwell")
     concepts.pick(store, "stairwell", concepts.draw(store, "stairwell", {}, "joey", caller=stand_in([1]))["sha"],
@@ -481,3 +482,15 @@ def test_a_part_of_a_places_outside_has_no_concept_of_its_own(store):
     assert "launch" not in concepts.undrawn(store, ["square", "launch"])[0]
     assert "launch" not in concepts.undrawn(store, ["square", "launch"])[1]
     assert "part of it: across the water in the distance, the rocket launch" in concepts.generated(store, "square")
+
+def test_a_place_with_windows_is_sent_the_view_around_what_holds_it_and_one_without_is_not(store, monkeypatch):
+    picked_draw(store, monkeypatch, "base", (200, 10, 10))
+    ready_above(monkeypatch, box=(16, 10, 32, 20))
+    hangar = picked_draw(store, monkeypatch, "hangar", (90, 90, 90))
+    cockpit = [source for _, source in concepts.sent_pictures(store, "cockpit")]
+    assert cockpit[:2] == [("crop", "hangar", [16, 10, 32, 20]), ("view", "hangar", [16, 10, 32, 20])]
+    assert "through its windows, this view" in concepts.generated(store, "cockpit")
+    assert [source for _, source in concepts.sent_pictures(store, "storage")] == [("crop", "hangar", [16, 10, 32, 20])]
+    assert "through its windows" not in concepts.generated(store, "storage")
+    assert concepts.sent_picture(store, cockpit[1]).size == (40, 26)  # 2.5 times the box about its middle, whole pixels
+    assert hangar
