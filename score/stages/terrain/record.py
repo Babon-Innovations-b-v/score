@@ -2,7 +2,7 @@
 surfaces by zone and its rocks:
 
     <ground>/ground.json   side, low, span, radius, plan_out, places (each place's seat), dug, heights, skin, zones,
-                           surfaces (each zone's library surface and its colour), rocks, the chosen picture
+                           surfaces (each zone's library surface and its colour), rocks
     <ground>/heights.png   sixteen bits in red and green: height = code / 65535 * span - low, metres
     <ground>/zones.png     each point's zone (an index into `surfaces`)
     <ground>/skin.png      each zone in its library surface's colour (the design token's), never a picture's colour
@@ -166,7 +166,7 @@ def skin(found, surfaces, colours):
     return Image.fromarray(palette[found])
 
 
-def write(folder, record, shaped, heights, laid_rocks, picture, inputs):
+def write(folder, record, shaped, heights, laid_rocks, inputs):
     """The made ground's record and pictures into `folder`; the record."""
     folder.mkdir(parents=True, exist_ok=True)
     points = record["heights_points"]
@@ -185,7 +185,7 @@ def write(folder, record, shaped, heights, laid_rocks, picture, inputs):
     (folder / "rocks.json").write_text(json.dumps(laid_rocks))
     written = {**ground_fields(record, "."), "ground": record["ground"], "zones": "zones.png",
                "surfaces": [{"surface": surface, "colour": colours[surface]} for surface in surfaces],
-               "rocks": "rocks.json", "places": record["seats"], "picture": picture,
+               "rocks": "rocks.json", "places": record["seats"],
                "water": {**water, "colour": colours[water["surface"]]} if water else None}
     written.pop("folder")
     (folder / "ground.json").write_text(json.dumps(written, indent=1))

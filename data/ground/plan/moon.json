@@ -419,15 +419,6 @@
   "seed": 31,
   "plain": 900
  },
- "relief": {
-  "amplitude": 0.25,
-  "fine": 2.0,
-  "quiet": 0.2
- },
- "picture": {
-  "candidates": 4,
-  "wording": "Image 1 is a shaded relief of a square patch of the Moon's surface 260 m across round a small base, seen straight down, north up, lit from the north-west: its light and shade are the landforms (craters of many sizes with their rims, walls and floors, low flat levelled ground in the middle). Repaint image 1 as one seamless orthographic photograph of that lunar ground taken straight down from high above (nadir, no perspective, no horizon, no tilt), filling the frame edge to edge with no border or margin, keeping every crater, rim and flat area exactly where and as big as image 1 has it, so the photograph lies exactly on image 1. Grey regolith and fine dust, crater walls with talus and chutes, small pits and pebbles, the flat ground smooth. Soft light from the north-west. No grid, lines, labels, text, buildings, vehicles or people."
- },
  "zones": [
   {
    "surface": "moon_regolith",
@@ -563,11 +554,6 @@
    ]
   }
  },
- "judged": [
-  "garage",
-  "wreck",
-  "old_station"
- ],
  "copied": {
   "record": "moon.json",
   "rocks": "moon_plan_rocks.json"

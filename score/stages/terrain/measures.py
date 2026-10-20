@@ -1,7 +1,7 @@
 """What a made ground measures, read off its record (heights picture, zones) against its plan: the scale of its named
 landforms and levels, the slope of its flats, paths and seats, and how far it lies from the ground copied in before.
 
-    measures.scale(made, plan_record, shaped)  # {"craters", "relief", "hills", "levels", "faults": [...]}
+    measures.scale(made, plan_record, shaped)  # {"craters", "hills", "levels", "faults": [...]}
     measures.slope(made, plan_record, inputs)  # {"flats_max", "paths_p99", "rooms": {place: ...}, "faults": [...]}
     measures.compared(made, plan_record, inputs)   # the copied ground's numbers beside the made one's
 """
@@ -11,24 +11,12 @@ import pathlib
 import numpy as np
 from scipy import ndimage
 
-from score.stages.terrain import landforms, outside, plan, record, relief
+from score.stages.terrain import landforms, outside, plan, record
 
 # A named crater's depth and rim diameter on the made ground within these shares of the same measure on the plan's
-# large shape: the relief may roughen a crater, never resize it.
+# large shape.
 CRATER_DEPTH_SHARE = 0.25
 CRATER_DIAMETER_SHARE = 0.1
-# How far the relief may move a crest or a floor, in multiples of its RMS amplitude (twice each way). A depth is never
-# let off by more than the relief's clip can move a crest up and a floor down (2 x relief.CLIP amplitudes): past that
-# the crater is resized, not roughened.
-RELIEF_SWING = 4.0
-# The relief's RMS (off the levelled yards, flats and paths) within these multiples of the plan's amplitude: the make
-# sets it to the amplitude where the relief applies, and this mask differs from that one only by the softened flats
-# and paths (0.92 to 1.03 of the amplitude on the three grounds made on 2026-10-12).
-RELIEF_LOW = 0.8
-RELIEF_HIGH = 1.2
-# The chosen picture's registered depth must follow the plan's large shape at least this well (its correlation), or
-# the relief it gives does not lie on the plan.
-FOLLOWS = 0.5
 LEVEL_HELD = 0.03
 # The record's sixteen-bit heights (record.heights_code): one step is span / CODES metres, the only slack a hill
 # range's highest point has past its plan.
@@ -70,18 +58,6 @@ def yards(grid, plan_record):
     return found
 
 
-def relief_mask(grid, plan_record, shaped):
-    """Where the made ground should differ from the plan's large shape by its relief alone: off the levelled yards'
-    boxes and their blends, and inside the plan's `only` landform when it names one."""
-    mask = ~yards(grid, plan_record)
-    only = plan_record["relief"].get("only")
-    if only:
-        weight = ndimage.zoom(shaped.masks[only["landform"]], grid.points / shaped.grid.points, order=1)
-        mask &= weight > 2 * only["over"]
-    quiet = ndimage.zoom(np.clip(shaped.held + shaped.on_path, 0, 1), grid.points / shaped.grid.points, order=1)
-    return mask & (quiet < 0.01)
-
-
 def hill_ranges(heights, grid, plan_record, rounding):
     """Every hill range's highest point beside its planned crest heights over the datum, with a fault when it stands
     outside them by more than `rounding` (the record's height step): {name: {"highest", "planned"[, "fault"]}}."""
@@ -99,40 +75,22 @@ def hill_ranges(heights, grid, plan_record, rounding):
 
 def scale(made, plan_record, shaped=None):
     """The made ground against the plan's large shape (`shaped`, made again when not given): every named crater's
-    depth and rim diameter beside the same measure on the plan's shape, the relief's RMS beside the plan's amplitude,
-    the hill ranges' crests, the held waterfront's level and the record's range; and the faults."""
+    depth and rim diameter beside the same measure on the plan's shape, the hill ranges' crests, the held
+    waterfront's level and the record's range; and the faults."""
     shaped = shaped or plan.shape(plan_record)
     heights, grid, held, _ = on_grid(made, plan_record)
     large = ndimage.zoom(shaped.heights, heights.shape[0] / shaped.heights.shape[0], order=1)
     planned_grid = plan.Shaped(grid, large, None, None)
     made_grid = plan.Shaped(grid, heights, None, None)
     faults, craters = [], {}
-    amplitude = plan_record["relief"]["amplitude"]
     for crater in plan_record.get("craters", []):
         measured, planned = plan.named_size(made_grid, crater), plan.named_size(planned_grid, crater)
-        # The relief moves a crest and a floor by up to about twice its RMS each: a depth is held to a share of
-        # itself or to that swing, whichever is more, never past what the relief's clip can move, and a rim lower
-        # than the swing cannot be found to measure.
-        swing = RELIEF_SWING * amplitude
-        located = crater["rim"] * crater["d"] >= swing
-        craters[crater["name"]] = {"measured": measured, "plan": planned, "rim_located": located}
-        reach = 2 * relief.CLIP * amplitude
-        deeper = abs(measured["depth"] - planned["depth"]) > \
-            min(max(CRATER_DEPTH_SHARE * planned["depth"], swing), reach)
-        wider = located and abs(measured["diameter"] - planned["diameter"]) > \
-            CRATER_DIAMETER_SHARE * planned["diameter"]
+        craters[crater["name"]] = {"measured": measured, "plan": planned}
+        deeper = abs(measured["depth"] - planned["depth"]) > CRATER_DEPTH_SHARE * planned["depth"]
+        wider = abs(measured["diameter"] - planned["diameter"]) > CRATER_DIAMETER_SHARE * planned["diameter"]
         if deeper or wider:
             faults.append(f"crater {crater['name']} measures {measured['depth']} m deep and {measured['diameter']} m "
                           f"across, its plan {planned['depth']} and {planned['diameter']}")
-    follows = (made.get("picture") or {}).get("correlation")
-    if follows is None or abs(follows) < FOLLOWS:
-        faults.append(f"the diorama picture's depth follows the plan's shape at a correlation of {follows} "
-                      f"(at least {FOLLOWS}): its relief cannot be laid on the plan")
-    mask = relief_mask(grid, plan_record, shaped)
-    rms = float((heights - large)[mask].std()) if mask.any() else 0.0
-    relief_found = {"rms_m": round(rms, 3), "planned_m": amplitude}
-    if not RELIEF_LOW * amplitude <= rms <= RELIEF_HIGH * amplitude:
-        faults.append(f"the relief measures {rms:.3f} m RMS, planned {amplitude} m")
     hills = hill_ranges(heights, grid, plan_record, made["span"] / CODES)
     faults += [found["fault"] for found in hills.values() if "fault" in found]
     levels = {}
@@ -149,7 +107,7 @@ def scale(made, plan_record, shaped=None):
     clipped = int(np.sum((heights <= -made["low"] + 1e-6) | (heights >= made["span"] - made["low"] - 1e-6)))
     if clipped:
         faults.append(f"{clipped} points clipped by the record's range")
-    return {"craters": craters, "relief": {**relief_found, "follows": follows}, "hills": hills, "levels": levels, "clipped": clipped,
+    return {"craters": craters, "hills": hills, "levels": levels, "clipped": clipped,
             "cell": round(made["side"] / (heights.shape[0] - 1), 3), "faults": faults}
 
 

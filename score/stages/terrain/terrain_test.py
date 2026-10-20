@@ -1,6 +1,7 @@
 """The terrain stage's own checks, with no spend: the Moon's and Mars's plans made in code give the grounds the game
-laid (the same rocks to the centimetre, heights within the old fine relief), and the sight and door measures find an
-opening onto nothing and lose it once ground lies outside.
+laid (the same rocks to the centimetre, heights within the old fine relief), the sight and door measures find an
+opening onto nothing and lose it once ground lies outside, and ground-fit's (fit.py) find a hole in the ground and an
+object hanging over it.
 
 Run: .venv/bin/python score/stages/terrain/terrain_test.py
 """
@@ -15,7 +16,7 @@ from scipy import ndimage
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from score.stages.terrain import gates, landforms, measures, plan, record, relief, rocks, sight  # noqa: E402
+from score.stages.terrain import fit, gates, landforms, measures, plan, record, rocks, sight  # noqa: E402
 
 GROUNDS = REPO / "data/ground"
 
@@ -72,15 +73,19 @@ def test_a_door_onto_nothing_is_found_and_ground_outside_clears_it():
     assert shut["void"] == 0, shut["void"]
 
 
-def test_a_picture_drawn_smaller_than_its_frame_is_found_on_the_plan():
-    made_plan = json.loads((GROUNDS / "plan" / "moon.json").read_text())
-    large = plan.shape(made_plan).heights
-    picture = np.full((1024, 1024), float(large.min()))
-    inner = ndimage.zoom(large, 870 / large.shape[0], order=1)
-    picture[77:77 + 870, 77:77 + 870] = inner  # drawn 0.85 of the frame across, a margin round it
-    placed = relief.registration(picture, large, made_plan["side"], made_plan["relief"]["fine"])
-    assert abs(placed["scale"] - 0.85) <= 0.021 and placed["correlation"] > 0.9, placed
-    assert abs(placed["shift_x"]) < 0.021 and abs(placed["shift_z"]) < 0.021, placed
+def test_a_hole_in_the_ground_is_found_and_ground_all_round_clears_it():
+    scene = {"floor": [[-2.0, -2.0], [2.0, 2.0]]}
+    for ground, holes in ((False, True), (True, False)):
+        found = fit.measure_continuous(gates.caster(room(True, ground)), scene, None, 10.0)
+        assert (found["holes"] > 0) is holes and found["rays"] > 400, (ground, found)
+
+
+def test_an_object_hanging_over_the_ground_floats_and_one_on_it_or_high_on_a_wall_does_not():
+    boxes = {"crate_1": (np.array([0.0, 0.12, 0.0]), np.array([1.0, 1.0, 1.0])),
+             "rock_1": (np.array([3.0, 0.01, 0.0]), np.array([4.0, 0.5, 1.0])),
+             "lamp_1": (np.array([5.0, 2.4, 0.0]), np.array([5.2, 2.6, 0.2]))}
+    found = fit.measure_floating(boxes, lambda low, high: np.zeros(9))
+    assert found["standing"] == 2 and len(found["faults"]) == 1 and found["faults"][0].startswith("crate_1"), found
 
 
 def test_hills_over_their_plan_fail_and_hills_within_it_pass():
@@ -103,9 +108,8 @@ def test_the_earths_hills_are_made_within_their_plan():
     rise, plain = np.array([495.0, 300.0, 0.5]), np.array([28.87, 20.0, 5.0])
     shaped = plan.Shaped(None, plain + rise, None, None, masks={"kowloon_hills": rise.copy()})
     plan.held_crests(shaped, made_plan)
-    reach = relief.CLIP * made_plan["relief"]["amplitude"]
     top = float(shaped.heights.max())
-    assert spec["low"] <= top and abs(top + reach - spec["high"]) < 1e-6, top  # its relief's clip added stays inside
+    assert spec["low"] <= top and abs(top - spec["high"]) < 1e-6, top
     assert np.allclose(shaped.heights - shaped.masks["kowloon_hills"], plain), "the plain stays where it was"
 
 
@@ -148,12 +152,12 @@ def test_a_layout_edit_terrain_never_reads_leaves_its_key_alone():
     from score.stages.terrain import inputs
     from score.store import Store
     root = pathlib.Path(tempfile.mkdtemp())
-    for folder in ("ground/plan", "scene", "kit", "motion"):
+    for folder in ("ground/plan", "scene", "kit"):
         shutil.copytree(REPO / "data" / folder, root / folder)
     plans = [json.loads(path.read_text()) for path in (root / "ground/plan").glob("*.json")]
-    seated = set().union(*({*plan["seats"], *plan.get("judged", [])} for plan in plans))
+    seated = set().union(*(set(plan["seats"]) for plan in plans))
     assert set().union(*(plan.get("dents", {}) for plan in plans)) <= seated  # dented reads a seated kit only
-    files = {name: inputs.FILES[name] for name in ("scenes", "kits", "motion")}
+    files = {name: inputs.FILES[name] for name in ("scenes", "kits")}
     stage = graph.Stage("terrain", "world", None, terrain.GROUNDS, files=files)
     runner = graph.Runner((stage,), graph.Environment("world1", 1, {"data": str(root)}), Store.in_folder(root / "store"))
     before = runner.file_keys(stage, None)
@@ -168,11 +172,11 @@ def test_a_layout_edit_terrain_never_reads_leaves_its_key_alone():
     edit("kit", "camp", lambda kit: kit.update(materials={"any": "thing"}))
     edit("kit", "lab", lambda kit: kit.update(on_seat=[9.0, 9.0]))  # no ground seats the lab (a base module)
     edit("kit", "camp", lambda kit: kit["pieces"].append({"kind": "lamp", "at": [0, 0, 0], "model": "lamp_a"}))
-    edit("motion", "launch", lambda motion: motion.setdefault("motions", []).append({"prim": "/launch/Fan", "spin": 1}))
-    assert runner.file_keys(stage, None) == before
-    edit("kit", "camp", lambda kit: kit.update(on_seat=[1.0, 1.0]))
     edit("scene", "launch", lambda scene: scene.update(places=scene.get("places", []) + [{"name": "x", "stage": "x",
                                                                                            "at": [0, 0, 0]}]))
+    assert runner.file_keys(stage, None) == before
+    edit("kit", "camp", lambda kit: kit.update(on_seat=[1.0, 1.0]))
+    edit("scene", "launch", lambda scene: scene.update(floor=[[-9.0, -9.0], [9.0, 9.0]]))
     after = runner.file_keys(stage, None)
     assert after["kits"] != before["kits"] and after["scenes"] != before["scenes"]  # what terrain reads moves it
     shutil.rmtree(root)
