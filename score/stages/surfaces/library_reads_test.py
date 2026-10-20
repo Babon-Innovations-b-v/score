@@ -92,7 +92,7 @@ def test_the_paint_and_bake_rows_and_their_twins_key_the_library_by_part():
         files = ROWS[name].files(place)
         assert isinstance(files["library"], tuple) and isinstance(files["places"], tuple), name
         assert ROWS[name].files.wide(place) if callable(ROWS[name].files.wide) else ROWS[name].files.wide
-    assert not isinstance(ROWS["surfaces-names"].files("hub")["library"], tuple)
+    assert not isinstance(ROWS["surfaces-parts"].files("hub")["library"], tuple)  # surfaces-names left the line
 
 
 class StubStore:

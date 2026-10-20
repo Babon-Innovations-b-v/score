@@ -248,15 +248,17 @@ is meant to fix, where it is marked, and what proves it.
   black, stripped and one-colour paint. No owner-accepted before and after on a model of the environment. Settled in step 1, the
   surface stage, on the hangar and the six named models, with numbers and his review.
 - **The finish route, the default surface line** (#18, owner 2026-10-20; rows `finish-route-views`, `-list`,
-  `-split`, `surfaces-parts`, the free `surfaces-paint`, `surfaces-bake`, `finish-route-recheck`, `surfaces-check` in
+  `-split`, `surfaces-parts`, `surfaces-bake`, the free `surfaces-paint`, `finish-route-recheck`, `surfaces-check` in
   `score/stages/surfaces`, its overlay). Every surface that faces the air is a library material carrying the look, so
   there is no paid paint step and no finish-map picture: free renders of the raw model (the six sides, then angles a
   free coverage check adds until every face it can see is seen), one Gemini 3.1 Pro answer a take through Google's
   Batch API at half price (`tools/props/cloud/google_batch.py`: the finish list matched library first with settings,
   a label for each colour region of each view), the labels voted into one finish a face (an unassigned face or views
-  that disagree is a hole, named), each finish checked free against its colour, the paint here, the bake, and one
+  that disagree is a hole, named; the 1% bound is unmeasured, its benchmark on #18), each finish checked free against
+  its colour, the paint and the bake in one job a take on the bake's warm card (nothing heavy on this PC), and one
   Gemini batch recheck a take sorted pass or the named fault "no library surface fits" (no tweak, no retry). The
-  list's settings (token, roughness, metal, seed) are row output; the bake still bakes each surface's library spec.
+  list's token, roughness and metal reach the bake as the variant's spec with them (`route_settings.py`); wear stays
+  the place's level, and the seed is recorded but not applied (the recipes take the job's one seed).
   Proven when a place's line passes through `surfaces-check` and `library surface fits` against its takes' own
   close-ups, and the owner has walked it; nothing has been spent on it yet.
 - **The finish-map method** (`score/stages/surfaces`' finish_*.py, turntable_row.py and segvigen_row.py, run today by

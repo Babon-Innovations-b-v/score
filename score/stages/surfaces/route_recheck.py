@@ -5,7 +5,7 @@ passed or a named fault, with no tweak and no ask again.
 First, free, the colour check: a take one of whose finishes the parts row's check left off its colour (no library
 surface lies within finish_parts.COLOUR_DELTA_E of its texture's colour, or the close-up's lightness order cannot be
 kept) is a hole with no ask. The rest are drawn from every view the views row cast, each part flat in its library
-surface's colour, shaded by angle, and asked once: Gemini, shown the close-up (its own, or the stand-in, said so) and
+surface's colour (in the list's token where the part carries its settings), shaded by angle, and asked once: Gemini, shown the close-up (its own, or the stand-in, said so) and
 the drawings, says per finish whether its library surface matches what the close-up shows for those parts. All
 match: passed. Else the take fails the gate "library surface fits" by name, "no library surface fits", a hole of its
 object (gate:finish-route-recheck/library surface fits:<take>); Gemini's token, roughness and metal for a failing
@@ -94,14 +94,23 @@ def colour_faults(finishes):
             if entry.get("by") == "off its colour"]
 
 
+def token_colour(token):
+    """A palette token's colour, sRGB 0-255 (finish_parts.surface_colours' way)."""
+    import labels
+    import library
+    return np.clip(labels.srgb(np.array(library.token_colours()[token], dtype=float)) * 255, 0, 255).astype(np.uint8)
+
+
 def drawn(folders, entry, record):
-    """Each view of the take drawn flat in its parts' library surface colours into folders["out"]
+    """Each view of the take drawn flat in its parts' library surface colours (a part with the list's settings in
+    its token's: the colour the bake gives it, route_settings) into folders["out"]
     (checked-<view>.png); the pictures by view."""
     from PIL import Image
     mesh = route_split.model_of(folders["views"])
     part_of = np.load(folders["parts"] / "parts.npy").astype(int)
     colours = finish_parts.surface_colours(entry, {row["judge"] for row in record["parts"]})
-    by_face = np.array([colours[row["judge"]] for row in record["parts"]], dtype=np.uint8)[part_of]
+    by_face = np.array([token_colour(row["settings"]["token"]) if row.get("settings") else colours[row["judge"]]
+                        for row in record["parts"]], dtype=np.uint8)[part_of]
     angles = json.loads((folders["views"].parent / "views.json").read_text())[folders["views"].name]["views"]
     faces = np.load(folders["views"] / "faces.npz")
     folders["out"].mkdir(parents=True)
