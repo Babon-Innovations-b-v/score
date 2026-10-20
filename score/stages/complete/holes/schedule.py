@@ -1,5 +1,5 @@
 """The runner's ETA for a plan: its rows walked in dependency order on their measured minutes, at most `jobs` rows
-at once (paid and free, as the runner's drive) and never more than the run's cap of cards held, the way the runner drives them. Free and local; it
+at once (paid and free, as the runner's drive) and never more than the run's cap of cards held. Free and local; it
 buys, keys and judges nothing.
 
     nodes = {node: schedule.timed_row(node, paid, price)}         # in the stage table's order (the tie-break)
@@ -128,6 +128,6 @@ def schedule(nodes, edges, jobs, run_cap):
                for node, row in nodes.items() if not has_time(row)]
     at_least = max((end for _, end in likely_times.values()), default=0.0)
     high = max((end for _, end in high_times.values()), default=0.0)
-    return {"likely_minutes": None if unknown else round(at_least, 2), "high_minutes": None if unknown else round(high, 2),
-            "at_least_minutes": round(at_least, 2), "path": path(likely_times, likely_cause),
+    return {"likely_minutes": None if unknown else round(at_least, 2),
+            "high_minutes": None if unknown else round(high, 2), "at_least_minutes": round(at_least, 2), "path": path(likely_times, likely_cause),
             "high_path": path(high_times, high_cause), "unknown": unknown}
