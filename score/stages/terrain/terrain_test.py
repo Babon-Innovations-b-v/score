@@ -178,6 +178,24 @@ def test_a_layout_edit_terrain_never_reads_leaves_its_key_alone():
     shutil.rmtree(root)
 
 
+def test_a_remade_ground_asks_one_candidate_and_a_kept_one_takes_all_its_own_free():
+    """#21: a ground whose pictures are all kept takes its plan's candidates (none bought); one being remade asks its
+    first candidate only, at the seed it always had."""
+    import shutil
+    import tempfile
+    from score.stages import terrain
+    jobs =[{"name": f"terrain-{ground}-x-c{candidate}", "ground": ground, "candidate": candidate}
+            for ground in ("moon", "mars") for candidate in range(4)]
+    kept = pathlib.Path(tempfile.mkdtemp())
+    for candidate in range(4):
+        (kept / f"terrain-moon-x-c{candidate}.png").write_bytes(b"")
+    (kept / "terrain-mars-x-c2.png").write_bytes(b"")  # one of mars's kept: still remade
+    asked = terrain.kept_or_first(jobs, kept)
+    assert [(job["ground"], job["candidate"]) for job in asked] == [("moon", 0), ("moon", 1), ("moon", 2), ("moon", 3),
+                                                                    ("mars", 0)], asked
+    shutil.rmtree(kept)
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
