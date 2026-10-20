@@ -11,12 +11,13 @@ Experimental (#5): the player fails tucks and pokes and Nev is not made, so it r
 Everything lands in ~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/, never in a kept look or a built
 body. The stages, each a cloud job through the repo's runners (only plain CPU geometry runs on this PC):
   closeup  on a characters machine (prop_chain.py): the bind pose measured on SOMA-X's skeleton, the close-up drawn
-           by klein in it (two seeds); no body is read off it (SAM3DBody-cpp is not used on this route)
+           by klein in it (one seed, the spec's `closeup_seeds` else [1]: #21); no body is read off it
+           (SAM3DBody-cpp is not used on this route)
   rig      on a characters machine (prop_skeleton.py): SOMA-X's mean skeleton, its surface's weights (the source the
            weights are moved from, never drawn) and the clips Kimodo made, against their parents
-  mesh     Pixal3D on every close-up that passed (../../props/cloud/batch.py --characters, as the animals' meshes),
-           finished here as every batch model is; the gaps between arms and body and between the legs checked on
-           its cut-out; the take with the most of its figure separated is kept
+  mesh     Pixal3D on the one close-up that passed with its arms furthest apart (../../props/cloud/batch.py
+           --characters, as the animals' meshes), finished here as every batch model is; its limbs checked apart on
+           the finished model, kept, or the look is a hole (#21: no second Pixal3D run inside the batch)
   parts    SAM 2.1's regions of the close-up (segment.py), GeoSAM2 seeded with them on the raw model (meshparts.py),
            the judge naming each part's and each finish region's material (judge.py), the regions carried onto the
            faces the camera sees, laid onto the finished model (prop_parts.py)
@@ -178,7 +179,7 @@ def closeup(spec, outfit, who, held, dry_run):
     folder = folder_of(spec, outfit)
     make = make_place(folder, "closeup")
     machine_spec = dict(spec, name=f"{spec['name']}-{outfit}", outfit=outfit, who=spec["description"],
-                        outfit_words=spec["outfit_words"][outfit], seeds=spec.get("closeup_seeds", [1, 2]))
+                        outfit_words=spec["outfit_words"][outfit], seeds=spec.get("closeup_seeds", [1]))
     files = {f"reference_{number}": pathlib.Path(path).expanduser()
              for number, path in enumerate(spec.get("references", []))}
     if "pose_picture" in spec:
@@ -294,15 +295,19 @@ def together(*steps):
 
 
 def closeups(spec, outfit):
-    """The candidate's close-ups that pass the picture check (all, where none was made): their take names."""
+    """The one close-up Pixal3D is bought for (#21, one take a look): of those that pass the picture check, the one
+    with its arms furthest apart (`arm_rows_apart`; the first by name where none was measured), as a list of its take
+    name, empty where none passes."""
     folder = folder_of(spec, outfit) / "closeup"
     checked = json.loads((folder / "checks.json").read_text()) if (folder / "checks.json").exists() else {}
-    return sorted(path.stem for path in folder.glob("pp-*.png") if checked.get(path.stem, {}).get("pass", True))
+    passing = sorted(path.stem for path in folder.glob("pp-*.png") if checked.get(path.stem, {}).get("pass", True))
+    return sorted(passing, key=lambda take: -checked.get(take, {}).get("arm_rows_apart", 0.0))[:1]
 
 
 def mesh(spec, outfit, who, held, dry_run):
-    """Pixal3D on every close-up (batch.py --characters, as the animals' meshes), finished here; each finished take
-    checked for limbs that stand apart (prop_rig.landmarks); the first that passes is kept (<candidate>/take.txt)."""
+    """Pixal3D on the chosen close-up only (`closeups`; batch.py --characters, as the animals' meshes), finished here;
+    its finished take checked for limbs that stand apart (prop_rig.landmarks) and kept (<candidate>/take.txt), or the
+    look is a hole: no second close-up is bought inside the batch."""
     folder = folder_of(spec, outfit)
     specs_folder = folder / "mesh"
     specs_folder.mkdir(exist_ok=True)

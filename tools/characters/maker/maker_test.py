@@ -175,3 +175,24 @@ def test_any_outfit_with_words_can_be_split_and_one_without_is_refused_on_the_pc
     assert subprocess.run(ask + ["uniform-olive"], capture_output=True).returncode == 0
     refused = subprocess.run(ask + ["driver-suit"], capture_output=True, text=True)
     assert refused.returncode != 0 and "no outfit_words" in refused.stderr
+
+
+def test_pixal3d_is_bought_for_the_one_passing_close_up_with_its_arms_furthest_apart(tmp_path, monkeypatch):
+    """#21: one close-up seed by default, and Pixal3D on one take a look: of the passing close-ups, the one whose arms
+    stand furthest apart; none passing, none bought."""
+    import prop_person
+    monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path)
+    folder = prop_person.folder_of(PERSON, "work") / "closeup"
+    folder.mkdir(parents=True)
+    checked = {"pp-a_s1": {"arm_rows_apart": 0.31, "pass": True}, "pp-a_s2": {"arm_rows_apart": 0.52, "pass": True},
+               "pp-a_s3": {"arm_rows_apart": 0.9, "pass": False}}
+    for take in checked:
+        (folder / f"{take}.png").write_bytes(b"")
+    (folder / "checks.json").write_text(json.dumps(checked))
+    assert prop_person.closeups(PERSON, "work") == ["pp-a_s2"]
+    for entry in checked.values():
+        entry["pass"] = False
+    (folder / "checks.json").write_text(json.dumps(checked))
+    assert prop_person.closeups(PERSON, "work") == []
+    words = (pathlib.Path(__file__).resolve().parent / "prop_person.py").read_text()
+    assert 'spec.get("closeup_seeds", [1])' in words
