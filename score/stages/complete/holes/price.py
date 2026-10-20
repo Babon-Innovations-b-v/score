@@ -27,7 +27,11 @@ The record:
                      (the runner's ETA of every chain's and after-work row, schedule.py on measured minutes: likely
                       and high null while any row is untimed, at_least the walk with those as no time)
      "not_current": [places whose findings stood over an output no longer accepted: run the holes check again],
-     "not_checked": [places (and WORLD) with no findings: the holes check never ran there]}
+     "not_checked": [places (and WORLD) with no findings: the holes check never ran there],
+     "lines": {place (and WORLD): [every node its line still needs to run to its end: chain.line_chain]},
+                     (the remake: past each place's completion to its line's ends, the films and the hand-over, and
+                      the environment's own nodes, people too; their paid nodes are priced in "nodes" and the totals)
+     "milestones": [milestones.py's milestones: the remake's plan, shapes first, the owner's approval last]}
 
 A node is priced once, however many holes share it. A Blocked node or a missing input is something to make, so it is
 in the chain and priced; nothing is skipped. A lost input read by several places (its id names the thing) counts
@@ -44,7 +48,7 @@ import re
 from score import graph
 from score.adapters import compute
 from score.graph import chain
-from score.stages.complete.holes import FINDINGS, WORLD, fill, inputs, schedule
+from score.stages.complete.holes import FINDINGS, WORLD, fill, inputs, milestones, schedule
 
 MISSING = "missing"
 # The code work whose make, once it lands, is Pixal3D's, a model a hole: (its work line's pattern, its label), priced
@@ -331,25 +335,58 @@ def priced_on():
             "per_unit_sha256": hashlib.sha256(compute.PER_UNIT.read_bytes()).hexdigest()}
 
 
+def line_chains(runner, places, reading):
+    """{place (and WORLD): {node: whether paid}} of every place's line to its ends and the environment's own
+    (chain.line_chain); a line with nothing left to run left out."""
+    found = {place: chain.line_chain(runner, place, reading) for place in places}
+    found[WORLD] = chain.line_chain(runner, None, reading)
+    return {place: nodes for place, nodes in found.items() if nodes}
+
+
+def lost_readers(runner, places):
+    """{lost input hole id: the nodes that read it} of every place's line and the environment's own (inputs.py's
+    declared files; the owner's pictures read by the concept views' node), so a milestone knows where it waits."""
+    found, concept = {}, fill.FILLERS[fill.CONCEPT][0]
+    for place in [*places, None]:
+        for (kind, item), entry in inputs.declared_lost(runner, place).items():
+            found.setdefault(f"place:lost:{kind}:{item}", set()).update(entry["nodes"])
+        for path in (inputs.lost_pictures(runner, place) if place and concept in runner.stages else {}):
+            found.setdefault(f"place:lost:{inputs.PICTURE}:{pathlib.Path(path).name}", set()).add(
+                fill.node_of(concept, place))
+    return found
+
+
+def books_refused():
+    """Why paid work is refused now (the month's books not known), or None."""
+    return compute.ledger().books_refusal()
+
+
 def holes_price(runner, world, root, places, store=None, made_at=None):
     """The holes record (this module's docstring) of every place's holes check under `root` and the environment's
-    own (WORLD), priced on `store`."""
+    own (WORLD), priced on `store`, with every place's line to its end and the remake's milestones."""
     with runner.still():
         found, stale, unchecked = read_places(runner, root, [*places, WORLD])
         record = chained(runner, found, places)
+        reading = chain.readers(runner, places)
+        lines = line_chains(runner, places, reading)
         every = {name: is_paid for at in record["chains"].values() for nodes in at.values()
                  for name, is_paid in nodes.items()}
+        every.update({name: is_paid for nodes in lines.values() for name, is_paid in nodes.items()})
         prices = {node: node_price(node, found.get(node.partition("@")[2], []), runner.world.roots["data"], store)
                   for node in sorted(name for name, is_paid in every.items() if is_paid)}
         route = after_work(runner, record["route"], prices, store)
         routed = {node: price for entry in route.values() for node, price in entry["nodes"].items()}
         eta = plan_eta(runner, {**every, **dict.fromkeys(routed, True)}, {**prices, **routed}, places)
-    return {"world": world, "made_at": made_at or graph.now(), "priced_on": priced_on(), "nodes": prices,
-            "chains": {place: {node: sorted(nodes) for node, nodes in at.items()}
-                       for place, at in record["chains"].items()},
-            "holes": record["holes"], "free": sorted(name for name, is_paid in every.items() if not is_paid),
-            "totals": totals(prices),
-            "unfillable": counted(({"work": text}, count) for text, count in record["work"].items()),
-            "after_work": route, "code_work": code_work(record["work"]),
-            "outside": counted(({"node": node}, count) for node, count in record["outside"].items()),
-            "eta": eta, "not_current": stale, "not_checked": unchecked}
+        priced = {"world": world, "made_at": made_at or graph.now(), "priced_on": priced_on(), "nodes": prices,
+                  "chains": {place: {node: sorted(nodes) for node, nodes in at.items()}
+                             for place, at in record["chains"].items()},
+                  "holes": record["holes"], "free": sorted(name for name, is_paid in every.items() if not is_paid),
+                  "totals": totals(prices),
+                  "unfillable": counted(({"work": text}, count) for text, count in record["work"].items()),
+                  "after_work": route, "code_work": code_work(record["work"]),
+                  "outside": counted(({"node": node}, count) for node, count in record["outside"].items()),
+                  "eta": eta, "not_current": stale, "not_checked": unchecked,
+                  "lines": {place: sorted(nodes) for place, nodes in lines.items()}}
+        priced["milestones"] = milestones.milestones(runner, {**runner.stages, **own_tables()}, priced, found,
+                                                     lost_readers(runner, places), books_refused())
+    return priced

@@ -49,4 +49,14 @@ findings.json's contract. Bible: `architecture/components`.
   are given only when every row has minutes. `price.plan_eta` runs it over every chain's and after-work row, and
   `score price <environment> --holes` writes it as the record's `eta`. The cockpit's launch guard still sums lines
   itself (`score/dashboard/state/costs.py` `time_of`); moving it onto `eta` is the cockpit's remake track (#10).
+- **The remake's plan is the runner's too** (`milestones.py`, in the same record): a hole's chain and each place's
+  line run past its completion gate to the line's ends (`chain.line_chain`: the nodes no node reads, the films and
+  the hand-over; an optional read walked like any other, so the people are in), and the environment's own line;
+  every paid node of them priced in the totals. `milestones` orders every node by a dependency sort of the reads,
+  shapes first (ground, the shell's concept, plan and rough model, the split, the inside places' own, then what each
+  place holds, completion, after it), the table's order only breaking ties; each milestone its stages, paid nodes,
+  measured euros, the table's set budgets apart (labelled set, never summed), each unknown node with why, the
+  holes' code work waiting at it (a lost input at its earliest reader) and the owner's steps (the month's books at
+  the first paid one), then the environment's film (no row: unpriced) and the owner's approval of the final video.
+  No plan is written by hand or by an agent; the cockpit only shows it. Test: `milestones_test.py`.
 - Run: `.venv/bin/python -m score.stages.complete.holes [--place P ...]`, seconds a place. Test: `holes_test.py`.

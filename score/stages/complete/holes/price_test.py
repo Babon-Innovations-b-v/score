@@ -48,6 +48,7 @@ PER_UNIT = {"stages": {
                       "likely_euros": 0.04, "high_euros": 0.2, "runs": 200, "sources": {},
                       "forecast": {"rule": "models", "source": "the takes and the models pixal makes"}}}}
 ROUTE_WORK = "prop data for square: data/props/square.json"
+LINE_PAID = ("pixal@hangar", "sound@hangar", "surfaces-bake@hangar")  # the paid nodes of the hangar's whole line
 
 
 def hole(number, node, work=None, row=None):
@@ -203,14 +204,15 @@ def test_a_hole_no_stage_fills_goes_to_the_unfillable_list_with_its_work():
 def test_findings_over_an_output_no_longer_accepted_are_not_current_and_price_nothing():
     found, _ = priced(outputs={"pixal@hangar": "an-output-no-longer-accepted"})
     assert found["not_current"] == ["hangar"]
-    assert found["chains"] == {} and found["holes"] == {} and found["nodes"] == {}
+    assert found["chains"] == {} and found["holes"] == {}
+    assert set(found["nodes"]) == set(LINE_PAID), "the line to the place's end is the table's, priced all the same"
 
 
 def test_a_place_never_checked_and_a_node_outside_every_table_are_named_not_dropped():
     found, _ = priced(places=("hangar", "lab"), findings=[hole(1, "drone@hangar")])
     assert found["not_checked"] == ["lab", WORLD]  # the environment's own findings were never written either
     assert found["outside"] == [{"node": "drone@hangar", "holes": 1}]
-    assert found["nodes"] == {}
+    assert set(found["nodes"]) == set(LINE_PAID) | {node.replace("hangar", "lab") for node in LINE_PAID}
 
 
 def test_a_ship_kit_is_priced_on_its_own_table():
@@ -220,7 +222,7 @@ def test_a_ship_kit_is_priced_on_its_own_table():
     assert found["outside"] == [] and found["chains"]["hangar"]["ship_kit@hangar"] == ["ship_kit@hangar"]
     kit = found["nodes"]["ship_kit@hangar"]
     assert (kit["basis"], kit["likely_euros"]) == ("not measured yet", None) and not kit.get("guess_euros"), kit
-    assert found["totals"]["unpriced"] == ["ship_kit@hangar"] and found["holes"]["hangar"] == {
+    assert "ship_kit@hangar" in found["totals"]["unpriced"] and found["holes"]["hangar"] == {
         "missing:crate_1": "ship_kit@hangar", "missing:crate_2": "ship_kit@hangar"}
 
 
