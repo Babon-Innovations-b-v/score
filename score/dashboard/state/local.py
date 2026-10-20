@@ -553,7 +553,7 @@ class LocalSource:
         drawn now, the creator's own wording and what a redraw sends."""
         from score.review import concepts
         try:
-            generated, refused = concepts.first_wording(node)[0], None
+            generated, refused = concepts.generated_now(self.store, node)[0], None
         except concepts.Refused as why:
             generated, refused = None, str(why)
         return ConceptWording(generated=generated, own=concepts.own_wording(self.store, node), refused=refused,
