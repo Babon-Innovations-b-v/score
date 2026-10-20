@@ -113,8 +113,12 @@ def test_a_lost_input_counts_once_and_marks_every_place_reading_it(cockpit):
     assert "tone-hole-lost" in tiles["alpha"] and "<b data-v>5</b>" in tiles["alpha"]  # the worst kind first
     assert "tone-hole-lost" in tiles["beta"] and "<b data-v>1</b>" in tiles["beta"]
     stats = client.get("/stats/").content.decode()
-    lost = re.search(r'<div class="num-label"><i [^>]*></i>lost</div>\s*<div class="num-value"[^>]*>(\d+)</div>', stats)
+    lost = re.search(r'<div class="num-label"><i [^>]*></i><span data-v>inputs lost</span></div>\s*'
+                     r'<div class="num-value"[^>]*>(\d+)</div>', stats)
     assert lost.group(1) == "1"  # one input, read by alpha, beta and the environment
+    only = client.get("/?kind=lost").content.decode()  # the Stats link: the places holding that kind, counting it
+    assert "<b data-v>inputs lost</b>" in only
+    assert dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', only, re.S)).keys() == {"alpha", "beta"}
 
 
 def test_a_lost_inputs_item_keeps_its_colons():

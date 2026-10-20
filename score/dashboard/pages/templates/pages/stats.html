@@ -1,23 +1,43 @@
 {% extends "pages/base.html" %}
 {% block title %}Stats{% endblock %}
 {% block content %}
-<section class="nums" aria-label="this month">
-  {% include "pages/c/number.html" with label=money.cloud_label value=money.cloud unit="EUR" of=None bar=None tone=None tip="the cloud bill this month" unknown_tip="the bill was not read" %}
-  {% include "pages/c/number.html" with label=money.models_label value=money.models unit="EUR" of=None bar=None tone=None tip="the model bill this month" unknown_tip="the bill is not known yet" %}
-  {% include "pages/c/number.html" with label="Total / stop" value=money.total unit="EUR" of=money.stop bar=money.share tone=None tip="this month against the stop line" unknown_tip="a bill is not known yet" %}
+<section class="stats-group" aria-label="money this month">
+  <h2 class="eyebrow">Money this month</h2>
+  <div class="nums">
+    {% include "pages/c/number.html" with label=money.cloud_label value=money.cloud unit="EUR" of=None bar=None tone=None tip="the cloud bill so far this month" unknown_tip="the cloud bill was not read" %}
+    {% include "pages/c/number.html" with label="AI calls" value=money.models unit="EUR" of=None bar=None tone=None tip=money.models_label unknown_tip="the AI calls' bill is not known yet" %}
+    {% include "pages/c/number.html" with label="Total" value=money.total unit="EUR" of=None bar=None tone=None tip="cloud and AI calls together, this month so far" unknown_tip="a bill is not known yet" %}
+    {% if so_far is not None %}{% include "pages/c/number.html" with label="This remake so far" value=so_far unit="EUR" of=None bar=None tone=None tip="spent since this remake's first batch was bought" unknown_tip="not read yet" %}{% endif %}
+  </div>
+  <div class="chart-card" title="what was spent each day; a bar from the bills where they were read that day and the day before, else a paler bar from the ledgers' own count (low), no bar where the day is not known">
+    <div class="num-label">Spent per day</div>
+    {% if chart is None %}<div class="num-value unknown" title="the month's days are read on the store's machine" data-v>unknown</div>
+    {% else %}<svg class="day-chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="euros spent per day">
+      {% for tick in chart.ticks %}<line class="chart-grid" x1="{{ chart.left }}" x2="{{ chart.width }}" y1="{{ tick.y }}" y2="{{ tick.y }}"/><text class="chart-tick" x="{{ chart.left|add:-8 }}" y="{{ tick.y }}" dy="4" text-anchor="end" data-v>{{ tick.euros|floatformat:"-2g" }}</text>{% endfor %}
+      <text class="chart-tick" x="4" y="14" data-v>EUR</text>
+      {% for bar in chart.bars %}<rect class="chart-bar{% if not bar.whole %} low{% endif %}" x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.w }}" height="{{ bar.h }}"><title>{{ bar.day }}: EUR {{ bar.euros|floatformat:"2g" }}{% if not bar.whole %}, at least (the ledgers' count){% endif %}</title></rect>{% endfor %}
+      {% for gap in chart.gaps %}<rect class="chart-gap" x="{{ gap.x }}" y="{{ chart.base|add:-3 }}" width="{{ gap.w }}" height="3"><title>{{ gap.day }}: not known</title></rect>{% endfor %}
+      {% for label in chart.labels %}<text class="chart-tick" x="{{ label.x }}" y="{{ chart.base|add:16 }}" text-anchor="middle" data-v>{{ label.day }}</text>{% endfor %}
+      <text class="chart-tick" x="{{ chart.width }}" y="{{ chart.height|add:-2 }}" text-anchor="end" data-v>{{ month_name }}</text>
+    </svg>
+    {% if unplaced is not None %}<div class="num-sub" title="the month's total less what the days above hold: spend the bills give no day for" data-v><small>EUR</small> {{ unplaced|floatformat:"2g" }} <small>on no day</small></div>{% endif %}{% endif %}
+  </div>
 </section>
-<section class="nums" aria-label="progress">
-  {% include "pages/c/number.html" with label="Measured prices" value=measured.0 unit="" of=measured.1 bar=None tone=None tip="paid steps with a measured price / all paid steps" unknown_tip="the runner's price is missing or stale" %}
-  {% include "pages/c/number.html" with label="Places complete" value=complete unit="" of=of bar=None tone=None tip="checked, no gaps" unknown_tip="" %}
+<section class="stats-group" aria-label="progress">
+  <h2 class="eyebrow">Progress</h2>
+  <div class="nums">
+    {% include "pages/c/number.html" with label="Places complete" value=complete unit="" of=of bar=None tone=None tip="a place is complete when its gap check has run and found no gap" unknown_tip="" %}
+    {% for kind in kinds %}<a class="num-card num-link" href="{{ kind.href }}" title="{{ kind.tip }}">
+      <div class="num-label">{% include "pages/c/dot.html" with tone=kind.tone tip=None %}<span data-v>{{ kind.label }}</span></div>
+      <div class="num-value{% if kind.count is None %} unknown{% endif %}" data-v>{% if kind.count is None %}unknown{% else %}{{ kind.count|floatformat:"0g" }}{% endif %}</div>
+    </a>{% endfor %}
+  </div>
 </section>
-<section class="nums" aria-label="gaps by kind">
-  {% for kind in kinds %}{% include "pages/c/number.html" with label=kind.label value=kind.count unit="" of=None bar=None tone=kind.tone tip="gaps" unknown_tip="" %}{% endfor %}
-</section>
-<section class="timeline-card" aria-label="spend by day" title="spend by day, this month">
-  <div class="num-label">by day</div>
-  {% if timeline is None %}<div class="num-value unknown" title="the ledger is read on the store's machine" data-v>unknown</div>
-  {% elif not timeline %}<div class="num-value" data-v><small>EUR</small> 0</div>
-  {% else %}<div class="timeline">{% for day in timeline %}<span class="timeline-day" title="{{ day.day }}: EUR {{ day.euros|floatformat:2 }}"><i style="height: {{ day.height }}%"></i></span>{% endfor %}</div>
-  <div class="timeline-axis" data-v><span>{{ timeline.0.day|slice:"5:" }}</span>{% with last=timeline|last %}<span>{{ last.day|slice:"5:" }}</span>{% endwith %}</div>{% endif %}
+<section class="stats-group" aria-label="prices">
+  <h2 class="eyebrow">Prices</h2>
+  <div class="nums">
+    {% include "pages/c/number.html" with label="Steps with a measured price" value=measured.0 unit="" of=measured.1 bar=None tone=None tip="paid steps priced from their own measured runs, of every paid step a gap needs" unknown_tip="the runner's price is missing or stale" %}
+    {% include "pages/c/number.html" with label="Remake measured" value=share unit="%" of=None bar=share tone=None tip="the share of the remake's likely euros priced from measured runs; the rest is estimated per unit times count" unknown_tip="the remake has no price yet" %}
+  </div>
 </section>
 {% endblock %}

@@ -3,9 +3,7 @@ models of state/models.py and the runner's price record through state/holes.py; 
 A number the runner does not give is None, which a page shows as a grey "unknown" state, never as 0."""
 import datetime
 import json
-from collections import defaultdict
 
-from score.dashboard.launch.backend import Billed
 from score.dashboard.state import holes, screens
 
 # a hole kind's state colour (design/tokens/colours.css) and its short label
@@ -247,11 +245,25 @@ def hole_panel(hole, place, step, price):
             **hole_action(hole, step)}
 
 
+# the Stats screen's gap kinds, most first in a remake: their plain words and hover text
+KIND_WORDS = {"missing": ("not made yet", "a part a place needs that no step has made yet"),
+              "gate": ("failing a check", "made, but a check fails on it"),
+              "route": ("steps of the route still to do", "a step of a place's route that has not run yet"),
+              "lost": ("inputs lost", "a file a step reads that is gone; counted once however many places read it")}
+
+
 def gaps_by_kind(total):
-    """[{kind, label, tone, count}] of the environment's holes (a HolesTotal: a lost input once however many places
-    read it), worst kind first; each count None before any holes check."""
-    return [{"kind": kind, "label": KIND_LABELS[kind], "tone": KIND_TONES[kind],
-             "count": None if total is None else total.counts.get(kind, 0)} for kind, _ in holes.KINDS]
+    """[{kind, label, tip, tone, href, count}] of the environment's holes (a HolesTotal: a lost input once however
+    many places read it) in KIND_WORDS' order, each opening the Environment filtered to it; each count None before
+    any holes check."""
+    return [{"kind": kind, "label": label, "tip": tip, "tone": KIND_TONES[kind], "href": f"/?kind={kind}",
+             "count": None if total is None else total.counts.get(kind, 0)} for kind, (label, tip) in KIND_WORDS.items()]
+
+
+def of_kind(rows, kind):
+    """The place rows (holes.per_place) counting only their gaps of `kind`: its count as the place's gaps, `kind` its
+    worst while it has any."""
+    return [{**row, "holes": row["counts"][kind], "worst": kind if row["counts"][kind] else None} for row in rows]
 
 
 def places_complete(rows):
@@ -268,33 +280,81 @@ def measured_prices(price):
     return (money["measured"], money["paid"]) if money else (0, 0)
 
 
-def billed_days(bill_days):
-    """[Billed] a day of the month's bills as read each day (MoneyView.bill_days, the month so far): each day what
-    the month grew by since the reading before, the cloud's and the model calls' known figures together."""
-    found, before = [], 0.0
-    for day in bill_days:
-        so_far = (day.get("cloud") or 0.0) + (day.get("models") or 0.0)
-        found.append(Billed(node="bill", euros=round(max(0.0, so_far - before), 2), minutes=None, started=day["day"]))
-        before = max(before, so_far)
-    return found
-
-
-def timeline(billed, month, today=None):
-    """[{day, euros, height}] of the month's paid runs (launch.backend.Billed) by day, every day from the month's
-    first to today (or the last billed day), `height` a percent of the costliest day; [] with nothing billed."""
-    days = defaultdict(float)
-    for line in billed:
-        days[line.started[:10]] += line.euros
-    if not days:
-        return []
-    day = datetime.date.fromisoformat(f"{month}-01")
-    last = max(datetime.date.fromisoformat(max(days)), min(today or datetime.date.today(),
-                                                           (day + datetime.timedelta(days=31)).replace(day=1)
-                                                           - datetime.timedelta(days=1)))
-    top = max(days.values()) or 1.0
-    found = []
-    while day <= last:
-        euros = days.get(day.isoformat(), 0.0)
-        found.append({"day": day.isoformat(), "euros": round(euros, 2), "height": round(100 * euros / top)})
+def spend_by_day(bill_days, ledger_days, month, today=None):
+    """[{day, euros, whole}] every day of `month` up to today (its last day for a past month): the bills' growth over
+    the day when its reading and the day before's both hold every line (`whole`; the 1st grows from 0), else the
+    ledgers' own count of the day when above 0 (low: they miss what the bills hold, so their 0 says nothing), else
+    euros None: not known, never 0."""
+    read = {row["day"]: row["cloud"] + row["models"] for row in bill_days
+            if row.get("cloud") is not None and row.get("models") is not None}
+    ledger = {row["day"]: (row.get("cloud") or 0.0) + (row.get("models") or 0.0) for row in ledger_days}
+    ledger = {day: euros for day, euros in ledger.items() if euros > 0}
+    first = datetime.date.fromisoformat(f"{month}-01")
+    end = (first + datetime.timedelta(days=31)).replace(day=1) - datetime.timedelta(days=1)
+    found, day = [], first
+    while day <= min(today or datetime.date.today(), end):
+        key = day.isoformat()
+        before = 0.0 if day == first else read.get((day - datetime.timedelta(days=1)).isoformat())
+        if key in read and before is not None:
+            found.append({"day": key, "euros": round(max(0.0, read[key] - before), 2), "whole": True})
+        else:
+            found.append({"day": key, "euros": round(ledger[key], 2) if key in ledger else None, "whole": False})
         day += datetime.timedelta(days=1)
     return found
+
+
+CHART = {"width": 1000, "height": 230, "left": 64, "bottom": 34, "top": 12}  # the day chart's SVG box, in its units
+
+
+def scale_top(highest):
+    """The day chart's one scale: the first 1, 2, 2.5 or 5 times a power of ten at or above `highest` (1 for 0)."""
+    if highest <= 0:
+        return 1.0
+    power = 1.0
+    while power * 10 < highest:
+        power *= 10
+    return next(step * power for step in (1, 2, 2.5, 5, 10) if step * power >= highest)
+
+
+def day_chart(days):
+    """The day chart of spend_by_day: {width, height, base, left, bars [{x, y, w, h, day, euros, whole}], gaps [{x,
+    w, day}] (the days not known), ticks [{y, euros}] (0, half and the top of the one scale), labels [{x, day}] (the
+    1st, every 5th and the last day)}; None with no day."""
+    if not days:
+        return None
+    box = CHART
+    base, tall = box["height"] - box["bottom"], box["height"] - box["bottom"] - box["top"]
+    top = scale_top(max((day["euros"] for day in days if day["euros"] is not None), default=0.0))
+    slot = (box["width"] - box["left"]) / len(days)
+    bars, gaps, labels = [], [], []
+    for index, day in enumerate(days):
+        x, width = round(box["left"] + index * slot + slot * 0.15, 1), round(slot * 0.7, 1)
+        if day["euros"] is None:
+            gaps.append({"x": x, "w": width, "day": day["day"]})
+        else:
+            height = round(tall * day["euros"] / top, 1)
+            bars.append({"x": x, "w": width, "y": round(base - height, 1), "h": height, **day})
+        number = int(day["day"][-2:])
+        if number == 1 or number % 5 == 0 or index == len(days) - 1:
+            labels.append({"x": round(box["left"] + (index + 0.5) * slot, 1), "day": number})
+    ticks = [{"y": round(base - tall * share, 1), "euros": top * share} for share in (0, 0.5, 1)]
+    return {"width": box["width"], "height": box["height"], "base": base, "left": box["left"],
+            "bars": bars, "gaps": gaps, "ticks": ticks, "labels": labels}
+
+
+def unplaced(total, days):
+    """The month's euros no day holds (its known total less the days' known euros); None while the total is not
+    known or every euro sits on a day."""
+    if total is None:
+        return None
+    left = round(total - sum(day["euros"] for day in days if day["euros"] is not None), 2)
+    return left if left >= 0.5 else None
+
+
+def measured_share(batch):
+    """The percent of the remake's likely euros (screens.batch) priced from measured runs (the rest estimated per
+    unit times count); None while the remake has no likely figure."""
+    likely = batch["total"]["likely"]
+    if not likely:
+        return None
+    return round(100 * (likely - batch["estimated"]["likely"]) / likely)

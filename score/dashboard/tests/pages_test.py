@@ -521,29 +521,44 @@ def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, se
     a_holes_finding(world, settings, tmp_path)
     a_holes_price(world)
     world.source.refresh()
-    a_month(monkeypatch, bill_days=[{"day": "2026-10-03", "cloud": 2.5, "models": None},  # the bills as read
-                                    {"day": "2026-10-05", "cloud": 3.5, "models": None}])
+    a_month(monkeypatch, bill_days=[{"day": "2026-10-02", "cloud": 2.0, "models": 0.5},  # the bills as read
+                                    {"day": "2026-10-03", "cloud": 3.5, "models": 0.5}],
+            days=[{"day": "2026-10-01", "cloud": 1.0, "models": 0.0}])  # the ledgers' own count
     html = signed_in().get("/stats/").content.decode()
-    cards = dict(re.findall(r'<div class="num-label">(?:<i [^>]*></i>)?([^<]+)</div>\s*<div class="num-value[^"]*"'
-                            r"[^>]*>(.*?)</div>", html, re.S))
+    cards = dict(re.findall(r'<div class="num-label">(?:<i [^>]*></i>)?(?:<span data-v>)?([^<]+)(?:</span>)?</div>\s*'
+                            r'<div class="num-value[^"]*"[^>]*>(.*?)</div>', html, re.S))
     assert cards["Cloud compute"] == "<small>EUR</small> 12.50"  # each line by its own label
-    assert cards["Model calls"] == "unknown" and cards["Total / stop"] == "unknown"  # a partial count is no figure
-    assert cards["Measured prices"] == "1<small> / 2</small>"  # the close-up measured, the sound guessed
-    assert cards["Places complete"] == "1<small> / 2</small>"  # beta, checked with no gap
-    assert [cards[label] for label in ("lost", "route", "missing", "failing")] == ["0", "1", "2", "1"]
-    assert 'title="2026-10-03: EUR 2.50"' in html and 'title="2026-10-05: EUR 1.00"' in html
+    assert cards["AI calls"] == "unknown" and cards["Total"] == "unknown"  # a partial count is no figure
+    assert "stop" not in html.lower()
+    assert cards["Steps with a measured price"] == "1<small> of 2</small>"  # the close-up measured, the sound guessed
+    assert cards["Places complete"] == "1<small> of 2</small>"  # beta, checked with no gap
+    assert [cards[label] for label in ("not made yet", "failing a check", "steps of the route still to do",
+                                       "inputs lost")] == ["2", "1", "1", "0"]
+    assert '<a class="num-card num-link" href="/?kind=missing"' in html
+    assert "<title>2026-10-01: EUR 1.00, at least" in html and "<title>2026-10-03: EUR 1.50</title>" in html
     main = html[html.index("<main>"):]
     assert "<form" not in main and "<button" not in main  # numbers only, no controls
 
 
-def test_the_spend_timeline_is_every_day_of_the_month_so_far():
-    from score.dashboard.launch.backend import Billed
+def test_spend_by_day_takes_the_bills_growth_else_the_ledger_else_a_gap():
     from score.dashboard.pages import cockpit
-    days = cockpit.timeline([Billed("a", 2.0, None, "2026-10-02T09:00:00"), Billed("b", 1.0, None, "2026-10-02T20:00"),
-                             Billed("c", 1.5, None, "2026-10-04T01:00:00")], "2026-10", datetime.date(2026, 10, 5))
-    assert [(day["day"][-2:], day["euros"], day["height"]) for day in days] == [
-        ("01", 0.0, 0), ("02", 3.0, 100), ("03", 0.0, 0), ("04", 1.5, 50), ("05", 0.0, 0)]
-    assert cockpit.timeline([], "2026-10") == []
+    bills = [{"day": "2026-10-02", "cloud": 2.0, "models": 0.5}, {"day": "2026-10-03", "cloud": 3.5, "models": 0.5},
+             {"day": "2026-10-05", "cloud": 5.0, "models": None}]  # a reading missing a line counts as none
+    ledger = [{"day": "2026-10-01", "cloud": 1.0, "models": 0.0}, {"day": "2026-10-02", "cloud": 0.3, "models": 0.0},
+              {"day": "2026-10-04", "cloud": 0.5, "models": 0.2},
+              {"day": "2026-10-06", "cloud": 0, "models": 0.0}]  # the ledgers' 0 says nothing: they miss the bills
+    days = cockpit.spend_by_day(bills, ledger, "2026-10", datetime.date(2026, 10, 6))
+    assert [(day["day"][-2:], day["euros"], day["whole"]) for day in days] == [
+        ("01", 1.0, False), ("02", 0.3, False), ("03", 1.5, True), ("04", 0.7, False), ("05", None, False),
+        ("06", None, False)]  # the 2nd's reading has no reading the day before: its growth is not known
+    first = cockpit.spend_by_day([{"day": "2026-10-01", "cloud": 1.0, "models": 1.0}], [], "2026-10",
+                                 datetime.date(2026, 10, 1))
+    assert first == [{"day": "2026-10-01", "euros": 2.0, "whole": True}]  # the month grows from 0 on the 1st
+    chart = cockpit.day_chart(days)
+    assert [tick["euros"] for tick in chart["ticks"]] == [0, 1.0, 2.0]  # one scale, a round top
+    assert len(chart["bars"]) == 4 and [gap["day"][-2:] for gap in chart["gaps"]] == ["05", "06"]
+    assert cockpit.unplaced(10.0, days) == 6.5 and cockpit.unplaced(None, days) is None
+    assert [cockpit.scale_top(value) for value in (0, 0.4, 3, 2119.85, 12408)] == [1.0, 1.0, 5, 2500, 20000]
 
 
 def test_the_place_screen_is_its_3d_view_its_scene_tree_and_a_side_panel(world, settings, tmp_path):
