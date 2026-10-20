@@ -3,8 +3,9 @@ creator before any batch (the concept drawn and picked on the place's concept re
 is bought only for a place whose design he approved, and runs from it to a finished place. Read, never judged:
 nothing here draws, makes or accepts.
 
-    concept   `missing`, `drawn` (its picture registered in data/places/concepts.json `concepts` under the place) or
-              `picked` (that entry holds the creator's `picked` date)
+    concept   `missing`, `drawn` (a draw of its concept review in the store, score/review/concepts.py, else its picture
+              registered in data/places/concepts.json `concepts` under the place) or `picked` (the review's pick
+              standing, its time the `picked` date, else that entry's `picked` date)
     plan      `remake` (to make again from the picked concept), `made` (picked and plan@<place> stands accepted) or
               `approved` (the creator's own accept of plan@<place>, given after the pick: his approval of the design,
               an owner-only accept like any other); `output` its accepted output once made, else None
@@ -38,12 +39,23 @@ def hint(data, place):
     return json.loads(path.read_text()).get("concept", {}).get("pick") if path.is_file() else None
 
 
+def registered(store, concepts, place):
+    """The place's concept entry ({picked} or None): its concept review's once it has a draw (`picked` the time of
+    the pick standing, None after an unlock), else data/places/concepts.json's."""
+    from score.review import concepts as review
+    if not review.draws(store, place):
+        return concepts.get(place)
+    picks = review.records(store, place, "picks")
+    return {"picked": picks[-1]["at"] if picks and picks[-1]["sha"] else None}
+
+
 def designs(store, data, places):
     """{places: {place: {concept, plan, output, hint}}, approved} of every place (module docstring)."""
     path = data / "places" / "concepts.json"
     concepts = json.loads(path.read_text()).get("concepts", {}) if path.is_file() else {}
-    found = {place: {"concept": concept_state(concepts.get(place)),
-                     **plan_state(store, place, (concepts.get(place) or {}).get("picked")), "hint": hint(data, place)}
+    entries = {place: registered(store, concepts, place) for place in places}
+    found = {place: {"concept": concept_state(entries[place]),
+                     **plan_state(store, place, (entries[place] or {}).get("picked")), "hint": hint(data, place)}
              for place in places}
     return {"places": found,
             "approved": sorted(place for place, design in found.items() if design["plan"] == "approved")}
