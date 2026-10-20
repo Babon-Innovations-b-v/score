@@ -102,6 +102,10 @@ def test_a_remake_priced_on_code_not_committed_says_it_is_stale(cockpit):
     a_remake(cockpit, priced_on={"commit": "6cdf4d40", "uncommitted": True, "per_unit_sha256": "x"})
     cockpit.source.refresh()
     assert screens.remake_money(cockpit.source.world_state())["stale"] == ["it was made on code not committed"]
+    from score.dashboard.tests.pages_test import signed_in
+    html = signed_in().get("/buy/").content.decode()
+    waiting = html[html.index(">Waiting<"):html.index('<ul class="buy-layers">')]
+    assert waiting.count(">unknown</span>") == 2 and "measured" not in waiting  # never 0.00 while stale
 
 
 def test_the_place_screen_lists_its_gaps_as_items_and_each_chain_priced_once(cockpit):

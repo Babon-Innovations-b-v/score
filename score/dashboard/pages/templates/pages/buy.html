@@ -13,14 +13,14 @@
       </div>
       <div class="topbar-num" title="waits on: {{ batch.waiting.why|join:'; ' }} (each layer's counts on its line)">
         <div class="num-label">Waiting</div>
-        <div class="num-value" data-v><small>EUR</small> {{ batch.waiting.likely|floatformat:2 }}&ndash;{{ batch.waiting.high|floatformat:2 }}</div>
+        <div class="num-value" data-v>{% if batch.stale %}<span class="unknown" title="{{ batch.stale|join:'; ' }}">unknown</span>{% else %}<small>EUR</small> {{ batch.waiting.likely|floatformat:2 }}&ndash;{{ batch.waiting.high|floatformat:2 }}{% endif %}</div>
         <div class="num-sub" data-v>{% if batch.waiting.why %}<small>on</small> {{ batch.waiting.why.0 }}{% if batch.waiting.why|length > 1 %}, {{ batch.waiting.why.1 }}{% endif %}{% if batch.waiting.why|length > 2 %} <small>+{{ batch.waiting.why|length|add:"-2" }}</small>{% endif %}{% endif %}</div>
       </div>
       <div class="topbar-num" title="Buy now plus Waiting, the sum of the lines below">
         <div class="num-label">Batch</div>
-        <div class="num-value" data-v><small>EUR</small> {{ batch.total.likely|floatformat:2 }}&ndash;{{ batch.total.high|floatformat:2 }}</div>
-        <div class="num-sub" data-v><span title="from measured runs">{{ batch.total.measured.high|floatformat:2 }} <small>measured</small></span> &middot; <span title="a measured price per unit times a count">{{ batch.total.estimated.high|floatformat:2 }} <small>estimated</small></span>{% if batch.total.guessed %} &middot; <span title="steps never run, at their own estimate">{{ batch.total.guessed|floatformat:2 }} <small>guessed</small></span>{% endif %}</div>
-        {% if batch.total.no_price %}<div class="num-sub unknown" data-v title="not in the figure, no price yet: {{ batch.total.no_price|join:', ' }}">+ {{ batch.total.no_price|length }} <small>kinds of step with no price</small></div>{% endif %}
+        <div class="num-value" data-v>{% if batch.stale %}<span class="unknown" title="{{ batch.stale|join:'; ' }}">unknown</span>{% else %}<small>EUR</small> {{ batch.total.likely|floatformat:2 }}&ndash;{{ batch.total.high|floatformat:2 }}{% endif %}</div>
+        {% if not batch.stale %}<div class="num-sub" data-v><span title="from measured runs">{{ batch.total.measured.high|floatformat:2 }} <small>measured</small></span> &middot; <span title="a measured price per unit times a count">{{ batch.total.estimated.high|floatformat:2 }} <small>estimated</small></span>{% if batch.total.guessed %} &middot; <span title="steps never run, at their own estimate">{{ batch.total.guessed|floatformat:2 }} <small>guessed</small></span>{% endif %}</div>
+        {% endif %}{% if batch.total.no_price and not batch.stale %}<div class="num-sub unknown" data-v title="not in the figure, no price yet: {{ batch.total.no_price|join:', ' }}">+ {{ batch.total.no_price|length }} <small>kinds of step with no price</small></div>{% endif %}
       </div>
     </div>
     <ul class="buy-layers">
