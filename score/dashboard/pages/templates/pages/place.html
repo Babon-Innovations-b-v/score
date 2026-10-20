@@ -4,9 +4,9 @@
 <div class="place-layout">
   <aside class="place-tree" aria-label="scene">
     <div class="num-label" data-v>{{ name }}</div>
-    {% if tree %}{% include "pages/c/tree.html" with nodes=tree.children %}{% else %}{% include "pages/c/todo.html" with label="scene tree" %}{% endif %}
+    {% if tree %}{% include "pages/c/tree.html" with nodes=tree %}{% elif checked %}<div class="node-row">{% include "pages/c/dot.html" with tone="done" tip="no gaps" %}<span class="node-count" data-v>0</span></div>{% else %}<div class="node-row unknown" title="not checked yet">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span data-v>unknown</span></div>{% endif %}
   </aside>
-  <div class="place-view"><iframe src="/view/{{ detail.place }}?holes=1&amp;embed=1" title="{{ name }} in 3D" loading="lazy"></iframe></div>
+  <div class="place-view"><iframe data-frames src="/view/{{ detail.place }}?holes=1&amp;embed=1" title="{{ name }} in 3D" loading="lazy"></iframe></div>
   {% include "pages/c/panel.html" with id="panel" %}
 </div>
 {% endblock %}

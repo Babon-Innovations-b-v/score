@@ -996,6 +996,15 @@ function holeView() {
   return { eye: [middle.x + reach, middle.y + reach * 0.7, middle.z + reach], aim: middle.toArray(), fov: 60 };
 }
 
+// The Place screen's panel frames the item it opened: a message {hole: <id>} from this site outlines and frames it.
+window.addEventListener("message", (event) => {
+  if (event.origin !== location.origin || !event.data?.hole) return;
+  given.hole = event.data.hole;
+  markChanges(given.marks || []);
+  const view = holeView();
+  if (view) goTo(view);
+});
+
 // No web copy yet (given.holes_only): only the holes' boxes, over a ground grid a metre a square, so a hole can be
 // framed today; the place itself is not drawn.
 const GRID_METRES = 200;

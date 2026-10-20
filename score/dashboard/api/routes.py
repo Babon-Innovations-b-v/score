@@ -9,7 +9,8 @@ from score.dashboard import state
 from score.dashboard.api.deps import owner_only, signed_in
 from score.dashboard.launch import guard
 from score.dashboard.pages import actions
-from score.dashboard.pages.models import BasketChoice, BasketItem, ChangeRequest, Launch, Plan
+from score.dashboard.pages import basket as basket_page
+from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan
 from score.dashboard.proposals import records as basket
 from score.dashboard.state import library, money, screens
 from score.dashboard.state.files import SHA, content_type
@@ -393,10 +394,7 @@ def place_screen(place: str, user=Depends(signed_in)):
 def buy_screen(user=Depends(signed_in), month: Spend = Depends(actions.spend)):
     """The basket's items with the owner's choice; a choice made on another version of its item counts as none."""
     items = basket.items(basket_root())
-    versions = {item["id"]: item["version"] for item in items}
-    choices = {choice.item: choice.choice for choice in BasketChoice.objects.all()
-               if versions.get(choice.item) == choice.version}
-    return screens.buy(items, choices, month)
+    return screens.buy(items, basket_page.current_choices(items), month)
 
 
 @api.get("/screens/stats")

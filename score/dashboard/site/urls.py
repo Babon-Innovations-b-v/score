@@ -14,7 +14,9 @@ STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide
 urlpatterns = [
     path("", views.environment),
     path("place/<slug:place>/", views.place_page),
+    path("place/<slug:place>/branch/", views.place_branch),
     path("buy/", views.buy),
+    path("buy/yes/", basket.buy_yes),
     path("stats/", views.stats),
     *[path(f"place/<slug:place>/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
     *[path(f"world/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],

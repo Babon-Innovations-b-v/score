@@ -3,11 +3,30 @@
 {% block content %}
 <div class="buy-layout">
   <section class="buy-list" aria-label="the batch">
-    {% include "pages/c/todo.html" with label="the batch: each item, its price" %}
+    {% for group in groups %}
+    <div class="buy-group">
+      <div class="num-label" data-v>{{ group.name }}</div>
+      <ul class="buy-items">{% for item in group.items %}
+        <li><a class="node-row buy-item" href="/basket/item/{{ item.id }}/" title="{% if item.blocked %}blocked: an input is missing{% elif item.choice == 'buy' %}in the batch{% elif item.choice == 'later' %}not now{% else %}not chosen yet{% endif %}">{% if item.blocked %}{% include "pages/c/dot.html" with tone="bad" tip=None %}{% elif item.choice == "buy" %}{% include "pages/c/dot.html" with tone="done" tip=None %}{% elif item.choice == "later" %}{% include "pages/c/dot.html" with tone="idle" tip=None %}{% else %}{% include "pages/c/dot.html" with tone="review" tip=None %}{% endif %}<span class="node-label" data-v>{{ item.title|default:item.id }}</span><span class="buy-price" data-v>{% if item.high is None %}<span class="unknown" title="{{ item.unmeasured }} step{{ item.unmeasured|pluralize }} not measured">unknown</span>{% else %}<small>EUR</small> {{ item.likely|floatformat:2 }}&ndash;{{ item.high|floatformat:2 }}{% endif %}</span></a></li>
+      {% endfor %}</ul>
+    </div>
+    {% empty %}<div class="node-row">{% include "pages/c/dot.html" with tone="done" tip="nothing to buy" %}<span class="node-count" data-v>0</span></div>{% endfor %}
   </section>
   <aside class="buy-side" aria-label="total">
-    {% include "pages/c/todo.html" with label="total, ETA" %}
-    <a class="button primary big wide" href="/basket/" title="checkout">Buy</a>
+    <div class="num-card" title="the chosen items, each step once; {{ screen.chosen }} of {{ screen.items|length }} chosen{% if screen.total.unmeasured %}; {{ screen.total.unmeasured }} step{{ screen.total.unmeasured|pluralize }} not measured{% endif %}">
+      <div class="num-label">total</div>
+      <div class="num-value" data-v>{% if not screen.chosen %}0{% elif screen.total.high is None %}<span class="unknown">unknown</span>{% else %}<small>EUR</small> {{ screen.total.likely|floatformat:2 }}&ndash;{{ screen.total.high|floatformat:2 }}{% endif %}<small> / {{ screen.chosen }}</small></div>
+    </div>
+    <div class="num-card" title="{% if screen.eta.untimed %}{{ screen.eta.untimed }} step{{ screen.eta.untimed|pluralize }} not timed{% else %}likely to high, the jobs side by side{% endif %}">
+      <div class="num-label">ETA</div>
+      <div class="num-value" data-v>{% if hours.1 is None %}<span class="unknown">unknown</span>{% else %}{{ hours.0|floatformat:"-1" }}&ndash;{{ hours.1|floatformat:"-1" }} <small>h</small>{% endif %}</div>
+    </div>
+    {% if owner %}<form class="buy-yes" data-yes data-reload data-url="/buy/yes/" data-body='{"key": "{{ key }}"}'><button type="submit" class="primary big wide" data-slot="post-label"{% if not screen.chosen %} disabled{% endif %} title="{% if screen.chosen %}its stop: EUR {{ screen.stop|floatformat:2 }}, the high plus 10%{% else %}choose items in the basket first{% endif %}">Buy</button><i class="dot" data-slot="said" hidden></i></form>{% endif %}
+    {% if last %}<div class="num-card" title="{{ last.tip }}">
+      <div class="num-label">{% include "pages/c/dot.html" with tone=last.tone tip=None %}<span data-v>{{ last.state }}</span></div>
+      <div class="num-value" data-v>{% if last.stop is None %}<span class="unknown" title="written on the store's machine">stop unknown</span>{% else %}<small>stop EUR</small> {{ last.stop|floatformat:2 }}{% endif %}</div>
+    </div>{% endif %}
+    <a class="button wide" href="/basket/" title="choose what to buy">Basket</a>
     {% if owner and money.paid_refused %}<div class="books" title="{{ money.paid_refused }}">{% include "pages/c/dot.html" with tone="bad" tip=None %}{% include "pages/owner_forms.html" with form="books" %}</div>{% endif %}
   </aside>
 </div>
