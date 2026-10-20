@@ -93,11 +93,14 @@ def test_the_parts_split_is_held_to_the_registered_floor(tmp_path):
     split = tmp_path / "split"
     split.mkdir()
     (split / "rows.json").write_text(json.dumps({"rows": [{"id": "crate", "size": [1.0, 3.9, 1.0]},
-                                                          {"id": "beam", "size": [9.0, 0.3, 0.3]}]}))
+                                                          {"id": "beam", "size": [9.0, 0.3, 0.3]},
+                                                          {"id": "ground_crater", "size": [30.0, 30.0, 2.0],
+                                                           "layer": "terrain"}]}))
     found = align.judge_rows_fit(split, {"rough-align": out}, {})
     assert found.answer == checks.FAIL and found.findings == (
         "beam: 9.0 by 0.3 m fits no way on the 8.00 by 4.00 m floor",)
     assert found.measures["rows past the rough model"] == 1
+    assert found.measures["rows round the floor"] == 1  # a detail area of the ground round the place
     assert align.judge_rows_fit(split, {}, {}).answer == checks.UNKNOWN
 
 
@@ -147,6 +150,14 @@ def test_the_table_runs_the_loop_in_its_order():
             earlier = "surfaces-bake"
         assert earlier in table[later].after, (earlier, later)
     assert "fits the plan" in {check.name for check in table["props-inputs"].checks}
+
+
+def test_the_terrain_adapter_only_joins_its_rows_into_the_ground_after_the_model():
+    table = {stage.name: stage for stage in stages.STAGES}
+    assert [stage.name for stage in stages.STAGES].count("ground-join") == 1
+    assert made.ENDS.keys() <= table["ground-join"].after.keys() and "ground-join" in table["assembly"].after
+    assert [step.name for step in shapes_first.TERRAIN.after] == ["ground-join"]
+    assert not table["ground-join"].applies("wreck")  # no terrain rows handed in until its rough model is registered
 
 
 def test_every_layer_the_hand_in_names_is_an_adapter_s():

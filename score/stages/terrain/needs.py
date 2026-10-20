@@ -6,8 +6,9 @@
     area     each detail area of an outdoor place (areas.py: a landform of its plan reaching into its fine patch) not
              yet a row of its scene inventory: a missing row of the prop route (rule `missing`, its row the area's
              id), filled as fill.py fills any prop-route row (pixal@<place>, else the place's prop data), so the price
-             check prices it through the pipeline's own units, one model an area; once landed
-             (`python -m score.stages.terrain.areas write <place>`) it is the route's own row and its holes the route's
+             check prices it through the pipeline's own units, one model an area; once landed from the place's
+             registered rough model (`python -m score.stages.terrain.areas write <place>`) it is a terrain row of the
+             shared loop and its holes the loop's
 
 Whether the made ground fits the place (under, floating, continuous, openings) is ground-fit's own (gate holes);
 where a detail area's model is not made, the join (join.py) keeps the plan's code ground there, named.
@@ -29,8 +30,8 @@ def area_holes(place, data):
     node, work = fill.filled(*fill.FILLERS[fill.ROUTE], place)
     return [{"id": f"ground:area:{place}:{area['id']}", "rule": MISSING, "row": area["id"], "prim": f"/{place}",
              "node": node, "work": work,
-             "sentence": f"a detail area of the ground not yet a row: {area['words']} (python -m "
-                         f"score.stages.terrain.areas write {place})"}
+             "sentence": f"a detail area of the ground not yet a row: {area['words']} (once rough-align@{place} "
+                         f"stands accepted: python -m score.stages.terrain.areas write {place})"}
             for area in areas.detail_areas(place, data) if area["id"] not in have]
 
 

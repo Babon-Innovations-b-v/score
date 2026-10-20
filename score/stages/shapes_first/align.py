@@ -174,6 +174,9 @@ def judge_registered(output, inputs, evidence):
 
 CHECKS = (guarded("registered", judge_registered),)
 AFTER = {"rough-model": ("rough-model", 1), "plan": ("place-plan", 2)}
+# The layers whose rows lie round the place's floor, not on it: a terrain detail area reaches out into the ground
+# round the place (terrain/areas.py), split from the ground plan within the place's fine patch.
+ROUND = ("terrain",)
 
 
 def fits(size, wide, deep):
@@ -184,16 +187,19 @@ def fits(size, wide, deep):
 def judge_rows_fit(output, inputs, evidence):
     """The parts split read against the registered rough model (props-inputs, #41): every row's footprint fits the
     floor the rough model was registered to; how many rows fit no footprint of the aligned rough model is measured.
-    Unknown without a registration: the loop splits a place's parts only once its rough model stands in its plan."""
+    A row of a layer that lies round the floor (ROUND) is counted, not held to it. Unknown without a registration:
+    the loop splits a place's parts only once its rough model stands in its plan."""
     if "rough-align" not in inputs:
         return unknown("fits the plan", "no registered rough model: the place has no plan to register one to")
     found = json.loads((pathlib.Path(inputs["rough-align"]) / REGISTRATION).read_text())
-    rows = json.loads((output / "rows.json").read_text())["rows"]
+    split = json.loads((output / "rows.json").read_text())["rows"]
+    rows = [row for row in split if row.get("layer") not in ROUND]
     if found["unregistrable"]:
         return unknown("fits the plan", "the rough model was not registered: " + "; ".join(found["unregistrable"]))
     plan, aligned = found["plan"], found["aligned"]
     failing = [f"{row['id']}: {row['size'][0]} by {row['size'][1]} m fits no way on the {plan['wide']:.2f} by "
                f"{plan['deep']:.2f} m floor" for row in rows if not fits(row["size"], plan["wide"], plan["deep"])]
     past = sum(not fits(row["size"], aligned["wide"], aligned["deep"]) for row in rows)
-    return verdict("fits the plan", failing, len(rows), "rows", {"rows past the rough model": past})
+    return verdict("fits the plan", failing, len(rows), "rows",
+                   {"rows past the rough model": past, "rows round the floor": len(split) - len(rows)})
 

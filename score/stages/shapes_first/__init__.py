@@ -30,6 +30,7 @@ import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.align as align
 import score.stages.shapes_first.made as made
 from score.stages.surfaces.surface_gates import guarded
+from score.stages.terrain import join as ground_join
 
 
 @dataclasses.dataclass(frozen=True)
@@ -42,7 +43,11 @@ class Adapter:
 
 # The object layer: the place's objects as inventory rows; nothing after the model (the reference user, #41).
 OBJECTS = Adapter("objects")
-ADAPTERS = (OBJECTS,)
+# The terrain layer: an outdoor place's detail areas (terrain/areas.py hands them in), joined into its ground with
+# collision and library finishes after the model (terrain/join.py, #27); the plan's code ground is the named fallback.
+TERRAIN = Adapter("terrain", after=(graph.Stage("ground-join", "place", ground_join.make, ground_join.CONTRACT,
+                                                ground_join.CHECKS, files=ground_join.files, after=ground_join.AFTER),))
+ADAPTERS = (OBJECTS, TERRAIN)
 
 ROUGH_MODEL = graph.Stage("rough-model", "place", rough_model.make, rough_model.CONTRACT, rough_model.CHECKS,
                           files=rough_model.files, after=rough_model.AFTER, paid=True, euros=rough_model.EUROS,

@@ -41,7 +41,7 @@ import score.stages.props.prop_data as prop_data
 import score.stages.complete.boxes as complete_boxes
 from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
-from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs, join as ground_join
+from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -846,15 +846,10 @@ def earth_seeded(row):
         gatherers={name: (with_seeds(gather, 1), euros) for name, (gather, euros) in row.gatherers.items()})
 
 
-# The terrain adapter's join (score/stages/terrain/join.py, #27): a place's detail area pieces, made by the prop
-# pipeline, joined into its made ground; only a place whose inventory has detail area rows has the row.
-GROUND_JOIN = graph.Stage("ground-join", "place", ground_join.make, ground_join.CONTRACT, ground_join.CHECKS,
-                          files=ground_join.files, after=ground_join.AFTER, applies=ground_join.applies)
-
-
 def joined_ground(row):
     """The assembly taking the ground-join's layer of the place's ground in place of the terrain row's, where the place
-    has the row (Runner.reads leaves it out elsewhere, so no other place's key moves)."""
+    has the row: the terrain adapter's after-step in the shared loop (shapes_first.TERRAIN), only where the place handed
+    the loop terrain rows (Runner.reads leaves it out elsewhere, so no other place's key moves)."""
     make = row.make
 
     def made(inputs, out, seed, params):
@@ -865,7 +860,7 @@ def joined_ground(row):
 
 
 STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) if row.name in EARTH_SEEDED else row
-            for row in STAGES), EARTH_KIT, EARTH_SEED, GROUND_JOIN)
+            for row in STAGES), EARTH_KIT, EARTH_SEED)
 # The library rows (score/stages/library), appended last: library@<place> hands every accepted output of its place's
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
 # is complete once its library node stands accepted, the environment once every one does (library.world_completion).
