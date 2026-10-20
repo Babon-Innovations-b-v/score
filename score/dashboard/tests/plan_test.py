@@ -39,6 +39,7 @@ def test_the_plan_page_shows_the_plan_made_from_the_pick_and_keeps_his_edit(plan
     owner = signed_in()
     html = owner.get("/plan/alpha/").content.decode()
     assert 'id="plan-drawing"' in html and "R1 1" in html and "Approve" not in html and 'id="plan-keep"' in html
+    assert "data-v>R1 1: no size</span>" in html  # its row gives no size: a gap shown, never hidden
     card = owner.get("/places/").content.decode()
     assert 'href="/plan/alpha/"' in card  # its card's Plan button
     plan = json.loads(html.split('<script id="plan-data" type="application/json">')[1].split("</script>")[0])

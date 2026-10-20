@@ -13,6 +13,8 @@
     <div><span class="num-label" title="the places inside this one, each a box on the plan: rename, remove, or add one and drag it into place" data-v>inside places</span>
       <ol class="plan-places" id="plan-places"></ol>
       {% if can %}<button type="button" class="button" id="plan-add" title="drops a new inside place on the plan; drag it into place" data-v>add place</button>{% endif %}</div>
+    {% if review.plan.gaps %}<div class="plan-gaps"><span class="num-label" title="what this concept's scene inventory does not give the plan: an item laid 1 x 1 m until it has a size (resize it), a lamp or beam left out whose row this concept does not hold" data-v>gaps</span>
+      <ul class="concept-gaps">{% for gap in review.plan.gaps %}<li title="{{ gap.kind }}, row {{ gap.row }}">{% include "pages/c/dot.html" with tone="gap-missing" tip=None %} <span data-v>{{ gap.words }}</span></li>{% endfor %}</ul></div>{% endif %}
     {% if can %}
     <ol class="concept-notes" id="concept-notes"></ol>
     <label class="num-label" for="concept-note" data-v>note</label>
