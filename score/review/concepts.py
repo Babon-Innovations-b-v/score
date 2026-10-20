@@ -204,8 +204,7 @@ def from_data(place):
     """A first draw's wording from the place's look and plan."""
     look = look_of(place) or {}
     name = look.get("name") or plan_of(place).get("title", place).lower()
-    return " ".join([f"One concept painting of {name}, a wide landscape view at standing eye height, the whole place "
-                     "in view.", *described(place), "No people, no text, no labels."])
+    return " ".join([f"One concept painting of {name}.", *described(place)])
 
 
 def described(place):
@@ -376,7 +375,10 @@ def first_wording(place):
     elif view is None and holds_inside(place):
         wording = shell_wording(place)
     else:
-        wording = view["wording"] if view else from_data(place)
+        wording = from_data(place)
+        if view:  # its old view's own wording is retired (the owner, 2026-10-20); its reference stays, for look only
+            wording += (" The attached picture gives its look only (shapes, materials, fittings), never its size, "
+                        "layout or viewpoint.")
     if view is None:
         return " ".join(part for part in (wording, framing(place), style()) if part), None
     reference = resolved(view["reference"])
