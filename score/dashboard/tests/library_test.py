@@ -150,6 +150,7 @@ def shelf(tmp_path):
     entry(root, blobs, "character", "walker", place=None, node="people-walker",
           files={"body.glb": ("gltf", glb())})
     entry(root, blobs, "place", "alpha", node="assembly@alpha", requires=["model/lamp_post.alpha@1"])
+    entry(root, blobs, "concept", "alpha", title="alpha concept", node=None, tags={"place": ["alpha"]})
     (root / "index").mkdir()
     (root / "index" / "catalogue.json").write_text("{}")
     command = tmp_path / "score_lib_command.py"
@@ -201,7 +202,7 @@ def node_of(tree, node_id):
 def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch_opens(world, shelf):
     html = signed_in().get("/library/").content.decode()
     for kind, count in (("Models", 3), ("Surfaces", 1), ("Kits", 1), ("Motion", 1), ("Effects", 1), ("Skies", 1),
-                        ("Lamps", 1), ("Sound", 1), ("Films", 1), ("Physics", 0), ("Places", 2)):
+                        ("Lamps", 1), ("Sound", 1), ("Films", 1), ("Physics", 0), ("Places", 3)):
         assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
     assert 'data-v>Algorithms<' not in html  # the shelf holds physics setups only: code sits where its work does
     assert 'data-v>Ground<' not in html and 'data-v>Layers<' not in html  # retired, and a layer sits under its place
@@ -220,12 +221,13 @@ def test_code_that_makes_something_sits_on_its_shelf_in_a_made_by_code_folder_be
     assert [node["href"] for node in skies] == ["/library/light/sky.alpha/1/"]  # no code here: no folder
 
 
-def test_the_places_shelf_holds_a_folder_a_place_with_its_own_layers(world, shelf):
+def test_the_places_shelf_holds_a_folder_a_place_with_its_own_layers_and_its_locked_concept(world, shelf):
     client = api()
     places = client.get("/api/library/children", params={"node": "place"}).json()
-    assert [(node["label"], node["count"]) for node in places] == [("Alpha", 2)]
+    assert [(node["label"], node["count"]) for node in places] == [("Alpha", 3)]
     held = client.get("/api/library/children", params={"node": "place/alpha"}).json()
-    assert [node["href"] for node in held] == ["/library/place/alpha/1/", "/library/layer/base.alpha/1/"]
+    assert [node["href"] for node in held] == ["/library/place/alpha/1/", "/library/concept/alpha/1/",
+                                               "/library/layer/base.alpha/1/"]
 
 
 def test_a_branch_answers_its_children_a_page_at_a_time(world, shelf, monkeypatch):
@@ -503,7 +505,7 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
     (tmp_path / "home/export/current").symlink_to("one")
     with override_settings(SCORE_MODE="hosted", SCORE_HOME=tmp_path / "home", SCORE_LIB_ROOT=None):
         hosted = lib.library()
-        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 14
+        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 15
         assert hosted.picture_path(next(iter(pictures)), 360) is not None
         client = api("joey3")
         assert [node["label"] for node in client.get("/api/library/children", params={"node": "model/piece"}).json()

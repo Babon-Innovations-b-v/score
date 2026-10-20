@@ -13,13 +13,15 @@ from PIL import Image
 from score import review
 from score.adapters import compute
 from score.review import concepts, web
-from score.store import Store
+from score.store import Store, runtime_store
 
 
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     monkeypatch.setattr(compute, "require_books", lambda what: None)  # the books are the ledger's own test's
     monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)
+    monkeypatch.setattr(concepts, "offsite_store", lambda: runtime_store.FolderStore(tmp_path / "bucket"))
+    monkeypatch.setattr(concepts, "handed_over", lambda store, place: "library: stand-in")
     return Store.in_folder(tmp_path / "store")
 
 
@@ -88,6 +90,52 @@ def test_a_pick_takes_only_a_draw_of_the_place_and_unlocks_again(store, monkeypa
     assert concepts.picked(store, "airlock") == drawn["sha"]
     concepts.pick(store, "airlock", None, "joey")
     assert concepts.picked(store, "airlock") is None
+    assert web.concept_pick(store, "airlock", drawn["sha"], "joey")["library"] == "library: stand-in"
+
+
+def test_every_draw_is_copied_off_this_pc_by_its_sha_and_a_failed_copy_keeps_the_draw_and_says_why(
+        store, monkeypatch, tmp_path):
+    said_yes(store, monkeypatch)
+    record = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    bucket = runtime_store.FolderStore(tmp_path / "bucket")
+    assert record["offsite"] == f"concept-draws/{record['sha']}.png"
+    assert bucket.read_bytes(record["offsite"]) == store.objects.read_bytes(f"blobs/{record['sha']}")
+    assert json.loads(bucket.read_bytes(f"concept-draws/{record['sha']}.json"))["wording"] == record["wording"]
+
+    class Down:
+        def exists(self, key):
+            raise ConnectionError("the bucket did not answer")
+    said_yes(store, monkeypatch)
+    failed = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([1]), offsite=Down())
+    assert failed["offsite"] is None and "did not answer" in failed["offsite_refused"]
+    assert concepts.draws(store, "airlock") == [record, failed]
+
+
+def test_a_pick_is_handed_to_the_library_by_its_own_concept_command(store, monkeypatch, tmp_path):
+    monkeypatch.undo()
+    monkeypatch.setattr(compute, "require_books", lambda what: None)
+    from score.stages.library import backend
+    monkeypatch.setattr(backend, "settings", lambda: {"SCORE_LIB_ROOT": str(tmp_path / "lib"),
+                                                      "SCORE_LIB_COMMAND": "score-lib",
+                                                      "SCORE_LIB_BLOBS_DIR": str(tmp_path / "blobs")})
+    ran = []
+
+    def run(words, **named):
+        ran.append((words, named))
+        said = {"place": "airlock", "did": "locked", "address": "concept/airlock@1",
+                "saved": {"committed": "c" * 40, "pushed": True, "why": ""}}
+        return subprocess.CompletedProcess(words, 0, json.dumps(said) + "\n", "")
+    assert concepts.handed_over(store, "airlock", run=run) == "library: locked concept/airlock@1"
+    words, named = ran[0]
+    assert words[:4] == ["score-lib", "--root", str(tmp_path / "lib"), "concept"]
+    assert words[words.index("--place") + 1] == "airlock" and words[words.index("--world") + 1] == "world1"
+    assert words[words.index("--store") + 1] == str(store.objects.root)
+    assert named["env"]["SCORE_LIB_BLOBS_DIR"] == str(tmp_path / "blobs") and named["cwd"] == str(tmp_path / "lib")
+
+    refused = lambda words, **named: subprocess.CompletedProcess(words, 1, "", "no SCORE store\n")  # noqa: E731
+    assert concepts.handed_over(store, "airlock", run=refused) == "not in the library: no SCORE store"
+    monkeypatch.setattr(backend, "settings", lambda: {"SCORE_LIB_BACKEND": "none"})
+    assert concepts.handed_over(store, "airlock", run=run).startswith("not in the library: no library")
 
 
 def test_the_price_is_the_measured_unit_at_the_standard_tier(tmp_path):

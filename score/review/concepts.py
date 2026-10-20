@@ -8,6 +8,17 @@ barrier for its owner areas, applied here, so score/store, which most stages' ke
     concepts/<place>/picks/<time>.json   {place, sha (None: unlocked again), by, at}
     blobs/<sha>                          the drawn picture (PNG)
 
+Every draw is also copied off this PC as soon as it is made (`kept_offsite`: the cloud backend's object store, the
+private bucket, content-addressed), so a disk loss never loses a paid draw (2026-10-19 lost all of them):
+
+    concept-draws/<sha>.png              the picture, put once
+    concept-draws/<sha>.json             its draw record
+
+A draw whose copy failed is kept here all the same; its record names why (`offsite_refused`) and its answer says so.
+A pick hands the place's concept to the creator's library through score_lib's own command (`handed_over`: `score-lib
+concept`, which locks the picked draw as `concept/<place>` and withdraws it on an unlock), so no work folder holds
+the only copy of a locked concept (CONTEXT.md "concept").
+
 A draw runs as a process of its own, inside the owner's yes for exactly that call (score.review.web.concept_draw, node
 `override`, key `concept-<place>-<time>`, at the price his button showed), started by the cockpit's owner process:
 
@@ -30,6 +41,8 @@ import io
 import json
 import math
 import pathlib
+import shlex
+import subprocess
 import sys
 import urllib.error
 
@@ -43,6 +56,9 @@ CALLER = "concept-review"
 TIMEOUT = 400
 LONGEST_SENT = 1600
 MARK_WIDTH = 6
+OFFSITE = "concept-draws"  # the bucket's prefix a draw is copied under
+LIBRARY_SECONDS = 300  # the library's concept command, its lock wait included
+LIBRARY_LOCK_WAIT = 120  # how long a pick waits for another handover to let go of the library
 
 
 class Refused(ValueError):
@@ -112,6 +128,37 @@ def pick(store, place, sha, by):
     record = {"place": place, "sha": sha, "by": by, "at": now()}
     recorded(store, f"{AREA}/{place}/picks/{stamp_key(record['at'])}.json", record)
     return record
+
+
+def handed_over(store, place, run=subprocess.run):
+    """Hand the place's standing pick to the creator's library with its own command (`score-lib concept`: the picked
+    draw locked as concept/<place>, or withdrawn on an unlock); what it did, in words. Never raises: the pick stands
+    in the store whatever the library answers, and the words say what did not happen."""
+    from score.stages.library import backend
+    values = backend.settings()
+    if backend.kind(values) == backend.NONE:
+        return "not in the library: no library is set (SCORE_LIB_ROOT)"
+    world = json.loads((DATA / "definitions/world.json").read_text())["name"]
+    commit = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True,
+                            text=True).stdout.strip()
+    words = [*shlex.split(values.get("SCORE_LIB_COMMAND") or backend.DEFAULT_COMMAND), "--root",
+             values["SCORE_LIB_ROOT"], "concept", "--world", world, "--place", place, "--commit", commit, "--store",
+             str(store.objects.root)]
+    try:
+        env = {**backend.command_environment(values, store.objects.root, REPO),
+               "SCORE_LIB_LOCK_WAIT": str(LIBRARY_LOCK_WAIT)}
+        done = run(words, env=env, cwd=values["SCORE_LIB_ROOT"], capture_output=True, text=True,
+                   timeout=LIBRARY_SECONDS)
+    except (OSError, subprocess.TimeoutExpired, RuntimeError, SystemExit) as failed:
+        return f"not in the library: {str(failed)[:300]}"
+    lines = (done.stdout or "").strip().splitlines()
+    if done.returncode != 0 or not lines:
+        said = ((done.stderr or done.stdout or "").strip().splitlines() or [f"exit {done.returncode}"])[-1]
+        return f"not in the library: {said[:300]}"
+    report = json.loads(lines[-1])
+    saved = report.get("saved") or {"pushed": True}
+    pushed = "" if saved.get("pushed") else f" (not pushed: {saved.get('why') or 'unknown'})"
+    return f"library: {report['did']} {report.get('address') or ''}".rstrip() + pushed
 
 
 def recorded(store, key, record):
@@ -307,17 +354,42 @@ def kept(store, png):
     return sha
 
 
-def draw(store, place, request, by, caller=call):
+def offsite_store():
+    """The private bucket: the cloud backend's object store, its key from the secret store."""
+    import submit  # tools/cloud/runtime, on the path through score.store
+    return submit.cloud_store()
+
+
+def copied_offsite(png, record, offsite):
+    """Copy one draw's picture (once) and its record into `offsite` under OFFSITE/<sha>; the picture's key."""
+    key = f"{OFFSITE}/{record['sha']}.png"
+    if not offsite.exists(key):
+        offsite.write_bytes(key, png)
+    offsite.write_bytes(f"{OFFSITE}/{record['sha']}.json", json.dumps(record, indent=1).encode())
+    return key
+
+
+def kept_offsite(png, record, offsite=None):
+    """The record with where its draw was copied off this PC (`offsite`), or why it was not (`offsite_refused`)."""
+    try:
+        return {**record, "offsite": copied_offsite(png, record, offsite or offsite_store())}
+    except Exception as failed:  # any failure of the copy: the paid draw stays kept here and its record says why
+        return {**record, "offsite": None, "offsite_refused": f"{type(failed).__name__}: {str(failed)[:300]}"}
+
+
+def draw(store, place, request, by, caller=call, offsite=None):
     """One draw of `place`'s concept inside the owner's yes (SCORE_SPEND_TICKET names it; compute.require_cleared
-    refuses otherwise, and while the month's books are unknown); its record. `caller(wording, pictures)` makes the
-    picture's PNG bytes."""
+    refuses otherwise, and while the month's books are unknown); its record, copied off this PC first (`offsite`: a
+    store with the bucket's calls, None the bucket). `caller(wording, pictures)` makes the picture's PNG bytes."""
     from score.adapters import compute
     yes = compute.require_cleared("a concept draw", store)
     wording, pictures = request_parts(store, place, request)
-    sha = kept(store, caller(wording, pictures))
+    png = caller(wording, pictures)
+    sha = kept(store, png)
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,
               "euros": yes["euros"], "yes": yes["key"], "base": request.get("base") or None,
               "marks": checked_marks(request.get("marks")), "note": str(request.get("note", "")), "wording": wording}
+    record = kept_offsite(png, record, offsite)
     recorded(store, f"{AREA}/{place}/draws/{stamp_key(record['at'])}.json", record)
     return record
 

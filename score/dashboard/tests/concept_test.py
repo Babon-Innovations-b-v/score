@@ -18,6 +18,7 @@ from score.dashboard.tests.pages_test import signed_in
 from score.dashboard.tests.sync_test import TOKEN, hosted_client, remote_of
 from score.review import concepts as drawing
 from score.review import web
+from score.store import runtime_store
 
 pytestmark = pytest.mark.django_db(transaction=True)
 PRICE = 0.15
@@ -36,6 +37,9 @@ def stand_in(world, monkeypatch):
     monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
     monkeypatch.setattr(drawing, "draw_euros", lambda per_unit=None: PRICE)
     monkeypatch.setattr(concepts, "in_background", concepts.applied_here)  # the thread's work, now
+    offsite = world.source.store.cache.parent / "bucket"  # the private bucket's stand-in
+    monkeypatch.setattr(drawing, "offsite_store", lambda: runtime_store.FolderStore(offsite))
+    monkeypatch.setattr(drawing, "handed_over", lambda store, place: "library: stand-in")
 
     def run(argv, env, **kwargs):
         monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])

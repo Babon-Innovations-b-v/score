@@ -193,7 +193,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   store's machine through `actions.concept_draw` / `concept_pick` and `score.review.web` (his yes for that one call
   at the price shown, refused when the price moved, then the call as its own process inside it; the store refuses
   both in an agent's process): local at once (a draw in a thread), hosted by the listener. The store keeps the draws
-  and picks (`score/review/concepts.py`); a place's card shows its picked draw, else its newest, else
+  and picks (`score/review/concepts.py`), each draw copied to the private bucket as it is made
+  (`concept-draws/<sha>`), and a pick or unlock is handed to score_lib (`score-lib concept`: the picked draw locked as
+  `concept/<place>`, withdrawn on an unlock), whose entry the Library shows in its place's folder on the Places shelf
+  (`shelf_of`); the pick's answer says what the library did. A place's card shows its picked draw, else its newest, else
   `data/places/concepts.json`'s. The page asks `/concept/<place>/state/` until the draw is answered. Hosted, the
   answered draw (its record as the request's detail, its pictures in `SCORE_HOME/request-files`, served by
   `ExportedSource` beside the export's) and a pick since the export show at once; the cards follow at the next export.

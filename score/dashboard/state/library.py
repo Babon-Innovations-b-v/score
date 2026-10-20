@@ -115,7 +115,10 @@ class LibraryEntry(BaseModel):
 
 def shelf_of(record):
     """The Library shelf of an entry record: a place's light layer is a lamp, any other layer sits under its place,
-    code that makes something on the shelf of what it makes, any other entry on its kind's shelf."""
+    code that makes something on the shelf of what it makes, a place's locked concept under its place, any other entry
+    on its kind's shelf."""
+    if record["kind"] == "concept":
+        return "place"
     if record["kind"] == "layer":
         return "lamp" if record["id"].startswith(LAMPS) else "place"
     if record["kind"] == "algorithm":

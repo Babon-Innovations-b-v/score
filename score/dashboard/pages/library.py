@@ -181,8 +181,9 @@ def shelf(entry):
 
 
 def played_as(entry):
-    """The kind an entry's viewer and numbers follow: its shelf's, but code is shown as code on any shelf."""
-    return entry.kind if entry.kind == "algorithm" else shelf(entry)
+    """The kind an entry's viewer and numbers follow: its shelf's, but code is shown as code on any shelf and a
+    concept as its picture alone."""
+    return entry.kind if entry.kind in ("algorithm", "concept") else shelf(entry)
 
 
 def view_of(shown, entry):

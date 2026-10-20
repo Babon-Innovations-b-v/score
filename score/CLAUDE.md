@@ -97,7 +97,9 @@ stage as each stage is built; nothing moves before.
   score.review ...` refuses those without a terminal, the store refuses their writes in an agent's process, and
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock. `concepts.py` is the concept
   review's (CONTEXT.md): a place's concept draws, each one direct Nano Banana Pro call inside the owner's yes his cockpit
-  click wrote (`web.concept_draw`), and his picks, kept in the store under `concepts/` (written only in the owner's process).
+  click wrote (`web.concept_draw`), and his picks, kept in the store under `concepts/` (written only in the owner's process);
+  each draw is copied to the private bucket as it is made (`concept-draws/<sha>.png` and `.json`; a failed copy is
+  named in its record), and each pick or unlock is handed to score_lib through its own `score-lib concept` command.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),
