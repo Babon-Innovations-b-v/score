@@ -2,7 +2,8 @@
 
 The `rough-model` row (CONTEXT.md "rough model", shapes first, issue #15): a place's concept put through the prop
 pipeline whole, one Pixal3D model in a cloud batch that gives its plan its proportions and shape; never shipped. One row
-of the stage table, right after `plan` (the shell split, #16, comes after it). `__init__.py`'s docstring has the reads,
+of the stage table, right after `plan` (the shell split, #16, comes after it): the shared loop's first row
+(`../shapes_first`, #41), registered to the plan by `rough-align`. `__init__.py`'s docstring has the reads,
 the output and the gates. Bible: `architecture/components`.
 
 - **Every place with a plan, in any environment.** It applies where `plan` does (`scene_record.written`), outside

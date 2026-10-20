@@ -142,7 +142,9 @@ stage as each stage is built; nothing moves before.
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
   apply only to a place with `data/props/<place>.json`, which only the camp grounds have (their cairn).
   `rough-model` (paid, `stages/rough_model`, its overlay) puts each place's concept through the prop pipeline whole,
-  after its plan: one Pixal3D model, its rough model, never shipped. `cast`
+  after its plan: one Pixal3D model, its rough model, never shipped. The shared loop (`stages/shapes_first`, its
+  overlay, #41) is every model layer's one way to a model: rough model, `rough-align` (its registration to the plan,
+  free), the parts split, close-up, Pixal3D, the finish route, likeness, then each layer adapter's after-steps. `cast`
   (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a
   environment node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed
