@@ -33,7 +33,7 @@ A milestone:
      "owner": [words],                 (the owner's steps: the month's books before the first paid step)
      "reads": [keys of the earlier milestones its nodes read]}
 
-then {"key": "environment-film", ...} (no row of the table makes it: unpriced, with why) and {"key": "approval",
+then, where the table has no FILM_ROW, {"key": "environment-film", ...} (unpriced, with why), and {"key": "approval",
 "owner": [...]}: the owner approves the final video, the last step.
 """
 import heapq
@@ -55,6 +55,9 @@ STEPS = (("ground", "The ground"),
 RANK = {key: rank for rank, (key, _) in enumerate(STEPS)}
 STEP_STAGES = {"ground": GROUND, "shapes": SHAPES, "split": SPLIT, "inside": SPLIT}  # the rows a step waits on
 MEASURED = ("measured runs", "per unit × counted", "per unit × forecast")
+# The environment's film's row (score/stages/demo_film/final.py): where the table has it, its node is an end of the
+# environment's line and sits in `after` with its chain's paid films; a table without it gets the unpriced step.
+FILM_ROW = "environment-film"
 ENVIRONMENT_FILM = ("no row of the stage table cuts the environment's film from its places' films (the world video "
                     "is cut outside the runner today), so the runner cannot price or time it")
 APPROVAL = "you approve the final video: nothing is accepted by hand, and the remake is done only then"
@@ -269,6 +272,7 @@ def milestones(runner, rows, record, found, readers, books):
         found_steps.append(milestone(rows, key, names, record, {"work": work.get(key, {}),
                                                                    "after": after.get(key, {}), "owner": owner,
                                                                    "reads": reads, "missing": missing}))
-    return found_steps + [{"key": "environment-film", "title": "The environment's film", "unpriced": ENVIRONMENT_FILM,
-                           "owner": []},
-                          {"key": "approval", "title": "Your approval of the final video", "owner": [APPROVAL]}]
+    unrowed = [] if FILM_ROW in runner.stages else [
+        {"key": "environment-film", "title": "The environment's film", "unpriced": ENVIRONMENT_FILM, "owner": []}]
+    return found_steps + unrowed + [{"key": "approval", "title": "Your approval of the final video",
+                                     "owner": [APPROVAL]}]

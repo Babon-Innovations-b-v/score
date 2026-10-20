@@ -157,6 +157,7 @@ def test_every_route_stage_is_a_row_of_the_real_table():
     names = {stage.name for stage in stages.STAGES}
     assert set(milestones.GROUND + milestones.SHAPES + milestones.SPLIT) <= names, (
         set(milestones.GROUND + milestones.SHAPES + milestones.SPLIT) - names)
+    assert milestones.FILM_ROW in names  # the environment's film is a row (#28): priced in `after`, no unpriced step
 
 
 if __name__ == "__main__":

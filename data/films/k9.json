@@ -21,7 +21,8 @@
    "transition": "fade-through-black",
    "sound": "bed",
    "text": "World 1: 2099",
-   "line": "26 places, every one walkable, every piece its own"
+   "line": "26 places, every one walkable, every piece its own",
+   "seconds": 4.0
   },
   {
    "cut": "step-card",
@@ -31,7 +32,8 @@
    },
    "transition": "push",
    "sound": "bed",
-   "line": "The look, from the creator's own pictures"
+   "line": "The look, from the creator's own pictures",
+   "seconds": 3.0
   },
   {
    "cut": "step-card",
@@ -41,7 +43,8 @@
    },
    "transition": "push",
    "sound": "bed",
-   "line": "One picture per place, picked by the creator"
+   "line": "One picture per place, picked by the creator",
+   "seconds": 3.0
   },
   {
    "cut": "step-card",
@@ -51,7 +54,8 @@
    },
    "transition": "push",
    "sound": "bed",
-   "line": "Measured in metres: walls, doors, every item"
+   "line": "Measured in metres: walls, doors, every item",
+   "seconds": 3.0
   },
   {
    "cut": "step-card",
@@ -61,7 +65,8 @@
    },
    "transition": "push",
    "sound": "bed",
-   "line": "Every object made as its own model"
+   "line": "Every object made as its own model",
+   "seconds": 3.0
   },
   {
    "cut": "walk-through",
@@ -71,7 +76,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The hangar",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "exploded",
@@ -81,7 +87,8 @@
    "transition": "cross-fade",
    "sound": "bed",
    "text": "Every piece its own model",
-   "line": "split apart, nothing baked together"
+   "line": "split apart, nothing baked together",
+   "seconds": 6.0
   },
   {
    "cut": "isolate",
@@ -92,7 +99,8 @@
    "transition": "cross-fade",
    "sound": "bed",
    "text": "The ship",
-   "line": "one part, ready to edit"
+   "line": "one part, ready to edit",
+   "seconds": 4.0
   },
   {
    "cut": "layer-split",
@@ -102,7 +110,8 @@
    "transition": "cross-fade",
    "sound": "bed",
    "text": "Built in OpenUSD layers",
-   "line": "ground, pieces, machines, light, sound, motion"
+   "line": "ground, pieces, machines, light, sound, motion",
+   "seconds": 6.0
   },
   {
    "cut": "before-after",
@@ -112,7 +121,8 @@
    "transition": "cross-fade",
    "sound": "bed",
    "text": "From the concept",
-   "line": "to the place you walk through"
+   "line": "to the place you walk through",
+   "seconds": 4.0
   },
   {
    "cut": "walk-through",
@@ -123,7 +133,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The ship",
-   "line": "The Moon base, the hangar"
+   "line": "The Moon base, the hangar",
+   "seconds": 7.0
   },
   {
    "cut": "text",
@@ -133,7 +144,8 @@
    "transition": "cross-fade",
    "sound": "bed",
    "text": "The world",
-   "line": "every place, in story order"
+   "line": "every place, in story order",
+   "seconds": 3.0
   },
   {
    "cut": "walk-through",
@@ -143,7 +155,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The flat",
-   "line": "Prologue, Hong Kong 2099"
+   "line": "Prologue, Hong Kong 2099",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -153,7 +166,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The stairwell",
-   "line": "Prologue"
+   "line": "Prologue",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -163,7 +177,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The street",
-   "line": "Prologue"
+   "line": "Prologue",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -173,7 +188,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The square",
-   "line": "Prologue"
+   "line": "Prologue",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -183,7 +199,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The launch view",
-   "line": "Prologue"
+   "line": "Prologue",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -193,7 +210,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The hub",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -203,7 +221,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The lab",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -213,7 +232,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The greenhouse",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -223,7 +243,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The workshop",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -233,7 +254,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The habitat",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -243,7 +265,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The airlock",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -253,7 +276,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The walkway tube",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -263,7 +287,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The garage",
-   "line": "The Moon base"
+   "line": "The Moon base",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -273,7 +298,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The wreck",
-   "line": "The Moon"
+   "line": "The Moon",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -283,7 +309,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The old station",
-   "line": "The Moon"
+   "line": "The Moon",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -293,7 +320,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The ship's lock",
-   "line": "The ship"
+   "line": "The ship",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -303,7 +331,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The walkway",
-   "line": "The ship"
+   "line": "The ship",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -313,7 +342,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The cockpit",
-   "line": "The ship"
+   "line": "The ship",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -323,7 +353,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "Navigation",
-   "line": "The ship"
+   "line": "The ship",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -333,7 +364,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The galley",
-   "line": "The ship"
+   "line": "The ship",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -343,7 +375,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The quarters",
-   "line": "The ship"
+   "line": "The ship",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -353,7 +386,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The storage room",
-   "line": "The ship"
+   "line": "The ship",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -363,7 +397,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The engine room",
-   "line": "The ship"
+   "line": "The ship",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -373,7 +408,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The camp",
-   "line": "Mars"
+   "line": "Mars",
+   "seconds": 7.0
   },
   {
    "cut": "walk-through",
@@ -383,7 +419,8 @@
    "transition": "cross-fade",
    "sound": "place",
    "text": "The camp grounds",
-   "line": "Mars"
+   "line": "Mars",
+   "seconds": 7.0
   },
   {
    "cut": "title",
@@ -393,7 +430,8 @@
    "transition": "fade-through-black",
    "sound": "bed",
    "text": "SCORE",
-   "line": "a complete, owned, editable world"
+   "line": "a complete, owned, editable world",
+   "seconds": 4.0
   }
  ]
 }

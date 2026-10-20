@@ -31,6 +31,7 @@ from score.stages import (assembly, cast, complete, concept_people, concept_view
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
+import score.stages.demo_film.final as demo_film_final
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
 import score.stages.motion.models as motion_models
@@ -443,9 +444,16 @@ DEMO_STILLS = dataclasses.replace(DEMO_FILM, name="demo-stills", make=demo_still
                                   checks=demo_stills.CHECKS, files=demo_stills.files, applies=demo_stills.applies,
                                   euros=demo_stills.euros())
 
+# The environment's own final film (#28), cut locally from its film script (data/films/) over the place films it
+# shows, read beside: an environment node the runner plans and prices with the paid films it reads, free itself.
+ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make, demo_film_final.CONTRACT,
+                               demo_film_final.CHECKS, files=demo_film_final.files,
+                               beside={"demo-film": ("demo-film", 1), "demo-film-extra": ("demo-film-extra", 1)},
+                               neighbours=demo_film_final.shown_places)
+
 
 STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS, SETTLE, SOUND, ASSEMBLY, NEIGHBOURS,
-          COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS,
+          COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS, ENVIRONMENT_FILM,
           GROUND_FIT, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
