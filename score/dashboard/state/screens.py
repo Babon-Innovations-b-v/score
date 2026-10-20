@@ -62,7 +62,7 @@ def design_state(world, place):
         return None
     if picked:
         return "read"
-    return "review" if world.concept_draws.get(place) or world.concepts.get(place) else "draw"
+    return "review" if world.concepts.get(place) else "draw"  # a concept shown: none while lost or out of date
 
 
 def steps_of(card):
