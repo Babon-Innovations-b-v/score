@@ -335,6 +335,7 @@ def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_run
     assert "data-v>fuel drum</span>" in page and "&times;2" in page and "1 rows, 2 gaps, EUR 0.13, 10.0 min" in page
     assert 'style="left:0.0%;top:0.0%;width:50.0%;height:50.0%"' in page
     assert 'class="concept-box unnamed"' in page and 'style="left:50.0%;top:50.0%' in page
+    assert 'id="concept-boxes-quiet"' in page  # concept.js wires it whenever the reading shows
     assert "inventories EUR</small> 0.13" in signed_in("joey2").get("/places/").content.decode()
     assert "Inventory readings" in signed_in("joey3").get("/stats/").content.decode()
     from score.dashboard.state import screens
