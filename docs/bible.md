@@ -586,7 +586,10 @@ Nothing is released yet but the paper and the hosted cockpit. Commands, run loca
   -m score.dashboard release --host <host repository> --dockerfile <its Dockerfile> --subject "<host commit
   subject>"` (a pushed commit only, from a worktree of its own, in the host's commit style). The sync's systemd user
   timer (`install-sync`, installed 2026-10-20 with the owner's yes, every 5 min) reads its token by name from his
-  secret manager each pass, so the cockpit is fed, and his buttons applied, without a hand. Details: `score/dashboard/CLAUDE.md` (`sync/`).
+  secret manager each pass, so the cockpit is fed, and his buttons applied, without a hand. His concept review's clicks
+  go faster: the listener (`score-listen.service`, beside the timer, installed 2026-10-20 by the concept review's
+  agent, not by the owner's own command) holds one call open to the hosted side and answers each within a second
+  (0.2 to 0.6 s measured from the request to its answer, 2026-10-20). Details: `score/dashboard/CLAUDE.md` (`sync/`).
 - `.githooks/pre-commit` (installed by `bootstrap.sh` as `core.hooksPath`) runs the same check on
   any commit that touches `paper/`. A green run means the committed PDF is the draft's.
 
