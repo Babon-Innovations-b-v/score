@@ -59,6 +59,7 @@ Fresh box: `bash .claude/scripts/bootstrap.sh` runs `.claude/scripts/install-age
 - For emails or external copy, draft minimal first; expand only when asked.
 - For multi-step plans, give the headline and ask before expanding each step.
 - Skip preamble. State results and decisions directly. End-of-turn summary is one or two sentences.
+- Technical plans and reports are working material for agents: keep them on the issue or in a scratch file, never a designed page for the owner. Give him only the decisions he must make, in a few plain lines (owner, 2026-10-20).
 
 ## Rules
 
