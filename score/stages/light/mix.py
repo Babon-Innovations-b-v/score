@@ -5,6 +5,8 @@ own tone curve, fitted on the render's look against its light.
 
     tone_curve(light, look) -> curve       the render's light (linear luminance) to its look's luminance (0 to 1)
     mixed(passes, scales) -> light         a view's light with each group at its scale
+    smoothed(values, guide) -> values      values (a look's ratio) smoothed where the guide (the denoised look) is
+                                           flat, kept across its edges
     sweep(views, swept, target) -> scale   the scale of the swept lamps that brings the place's brightness nearest
                                            its concept's
     lamp_faults(views, scales, seen)       each lamp unlit (on screen, lighting nothing) or blown out (where it is the
@@ -23,6 +25,7 @@ The rules were set on 2026-10-12, before any light pass was rendered:
   down by halves, at most HALVINGS times, before it is judged.
 """
 import numpy as np
+from scipy import ndimage
 
 BINS = 48
 SCALES = 2.0 ** np.arange(-5.0, 5.0 + 1e-9, 0.125)
@@ -35,6 +38,11 @@ WHITE = 0.98
 BLOWN_MOST = 0.2
 HALVINGS = 5
 FLOOR = 1e-6
+# The guided filter (He, Sun and Tang 2010) that keeps a lamp group's sampling noise out of a mixed look (only the
+# render's combined light is denoised; the owner, 2026-10-20: the camp's look full of specks): a window GUIDED_REACH
+# halved pixels out each way, and edges of the look whose variance passes GUIDED_EDGE (about 8 levels of 255) kept.
+GUIDED_REACH = 4
+GUIDED_EDGE = 1e-3
 
 
 def tone_curve(light, look):
@@ -62,6 +70,16 @@ def toned(curve, light):
         slope = (values[-1] - values[-1 - tail]) / (knots[-1] - knots[-1 - tail])
         found = np.where(logs > knots[-1], np.minimum(values[-1] + slope * (logs - knots[-1]), 1.0), found)
     return np.where(logs < knots[0], values[0] * np.exp(logs - knots[0]), found)
+
+
+def smoothed(values, guide):
+    """`values` filtered by the guided filter on `guide` (both the same shape): each window's values fitted as a line
+    of the guide, the fits averaged."""
+    def mean(field):
+        return ndimage.uniform_filter(field, 2 * GUIDED_REACH + 1, mode="nearest")
+    guide_mean, values_mean = mean(guide), mean(values)
+    slope = (mean(guide * values) - guide_mean * values_mean) / (mean(guide * guide) - guide_mean ** 2 + GUIDED_EDGE)
+    return mean(slope) * guide + mean(values_mean - slope * guide_mean)
 
 
 def mixed(passes, scales):

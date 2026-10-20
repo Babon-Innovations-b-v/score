@@ -269,9 +269,11 @@ def lamp_measures_again(views, scales, group):
 
 def look_at(held, curve, look, scales):
     """A view's look at the scales, from its rendered look: every pixel's colour times the ratio of its look luminance
-    mixed at the scales to the rendered one."""
+    mixed at the scales to the rendered one, that ratio smoothed on the rendered look (mix.smoothed: the lamp groups
+    are not denoised)."""
     rendered = mix.toned(curve, held["combined"])
     ratio = mix.toned(curve, mix.mixed(held, scales)) / np.maximum(rendered, 1.0 / 255.0)
+    ratio = mix.smoothed(ratio, luminance_of(look)[:ratio.shape[0], :ratio.shape[1]])
     rgb = np.asarray(Image.open(look).convert("RGB"), dtype=np.float64)
     full = np.repeat(np.repeat(ratio, 2, axis=0), 2, axis=1)
     full = np.pad(full, ((0, rgb.shape[0] - full.shape[0]), (0, rgb.shape[1] - full.shape[1])), mode="edge")

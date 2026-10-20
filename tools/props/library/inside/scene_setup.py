@@ -27,7 +27,7 @@ def use_card(scene):
 
 
 def empty_scene(size, samples):
-    """A factory-empty scene drawing with Cycles at `size` pixels square, transparent behind: on the card where
+    """A factory-empty scene drawing with Cycles at `size` pixels square, denoised, transparent behind: on the card where
     FARM_CYCLES_GPU is set (the rented machines), else on the processor."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
@@ -36,7 +36,7 @@ def empty_scene(size, samples):
     if os.environ.get("FARM_CYCLES_GPU"):
         use_card(scene)
     scene.cycles.samples = samples
-    scene.cycles.use_denoising = False
+    scene.cycles.use_denoising = True  # a picture that ships is clean (score/checks/grain.py); a bake ignores it
     scene.render.resolution_x = scene.render.resolution_y = size
     scene.render.film_transparent = True
     scene.view_settings.view_transform = "Standard"
