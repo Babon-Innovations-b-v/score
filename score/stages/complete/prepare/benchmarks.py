@@ -1,0 +1,50 @@
+"""The benchmarks that settle #21's cuts, prepared and never launched from here: each one batch through the runner's
+own paid path (`score run ... --detach`, so the runner clears it, reserves its estimate and writes every euro to the
+ledgers), at most CAP_EUROS for all of them together. Their euros are #21's design estimates, said as estimates;
+`needs` names what must land before one can run.
+
+Before any of them starts, the month's guard (compute.month_refusal) is asked for the total: while the month's books
+are unknown it refuses, and the owner runs `score spend --read-back` and `score spend --google-month EUR` first.
+"""
+from score.adapters import compute
+
+CAP_EUROS = 20.0
+RUN = ".venv/bin/python -m score run world1 --detach"
+BENCHMARKS = (
+    {"id": "F-A", "what": "finish maps: one draw a map on Gemini's flex tier against the measured 7.51 calls a take",
+     "euros": 4.5, "needs": "#21 track B: one draw a map and serviceTier sent by google_spend.post",
+     "command": f"{RUN} --place campgrounds --stage surfaces-maps"},
+    {"id": "P1", "what": "Pixal3D: a set of takes on one L4, slots from its peak memory", "euros": 1.5,
+     "needs": "#21 track A: one run a job, no retry_once", "command": f"{RUN} --place campgrounds --stage pixal"},
+    {"id": "P3", "what": "Pixal3D: the same takes on one H100, euros a model against the L4", "euros": 1.5,
+     "needs": "#21 track A, and SCORE_MAX_MACHINES='gpu-24gb=0' for this run only",
+     "command": f"SCORE_MAX_MACHINES='gpu-24gb=0' {RUN} --place campgrounds --stage pixal"},
+    {"id": "P2", "what": "Pixal3D: 8 sampling steps against 12", "euros": 2.0,
+     "needs": "the owner's yes on the #55 lock of the generator's settings", "command": None},
+    {"id": "R1", "what": "films: 64 samples against 32, and the fog's volume step", "euros": 1.5,
+     "needs": "#21 track C: the free local preview first", "command": f"{RUN} --place garage --stage demo-film"},
+    {"id": "S1", "what": "settle: every drop of a place on one cpu-4c-32gb machine", "euros": 0.6,
+     "needs": "#21 track C: settle on cpu-4c-32gb only", "command": f"{RUN} --place habitat --stage settle"},
+    {"id": "F-B", "what": "finish lists: one ask on low thinking on the flex tier", "euros": 0.5,
+     "needs": "#21 track B: ASKS = 1 and serviceTier", "command": f"{RUN} --place campgrounds --stage surfaces-lists"},
+    {"id": "C1", "what": "people: three looks packed on one L4", "euros": 1.5,
+     "needs": "#21 track C: packed looks, one close-up",
+     "command": f"{RUN} --stage people-dress-bram-work --stage people-dress-nev-work --stage people-dress-sefa-work"},
+    {"id": "M1", "what": "sound: MOSS seed 1 only, CLAP sorting pass or hole", "euros": 1.5,
+     "needs": "#21 track C: seed 1 in score/stages/sound/takes.py", "command": f"{RUN} --place garage --stage sound"},
+)
+
+
+def total(listed=BENCHMARKS):
+    return round(sum(each["euros"] for each in listed), 2)
+
+
+def guard(listed=BENCHMARKS):
+    """{total_euros, cap_euros, refusal}: refusal is why the benchmarks may not start (over the cap, or the month's
+    guard's reason), else None."""
+    euros = total(listed)
+    if euros > CAP_EUROS:
+        refusal = f"the benchmarks' EUR {euros:.2f} pass their EUR {CAP_EUROS:.0f} cap"
+    else:
+        refusal = compute.month_refusal(euros)
+    return {"total_euros": euros, "cap_euros": CAP_EUROS, "refusal": refusal}
