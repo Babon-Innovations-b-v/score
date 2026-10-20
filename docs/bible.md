@@ -187,8 +187,8 @@ from the hull's plan is the loop's first run.
 3. PartCrafter parts from each model's cut-out (`cloud/parts.py`), the painting unit.
 4. Labels: every part one allowed library material (`library/labels.py`), checked for patchy paint; a take too long
    for one piece is split (`place_route.py split`).
-5. The plan and the bake jobs (`place_route.py plan`), baked in the cloud (`cloud/library_bake.py`, `--processor`
-   when no card is in stock).
+5. The plan and the bake jobs (`place_route.py plan`), baked in the cloud (`cloud/library_bake.py`, one class fixed at
+   price time; a processor class only when asked for with `--classes cpu-32c-128gb`).
 6. The model gate and straightness (`place_route.py check`).
 7. The scene package and its check (`package.py`).
 8. The stage (`tools/usd/export.py`, then the cast, motion, effects and sound layers), the completion gate's checks

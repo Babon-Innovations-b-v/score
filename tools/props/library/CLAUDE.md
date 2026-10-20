@@ -77,7 +77,7 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
   density except those the room never sees (backs against a wall or roof, a twentieth), colour and metal-roughness
   at half the normal map's side. Pieces export as .gltf beside the shared pictures.
 - **No bake or render on this PC.** A local bake took every core and WSL crashed (2026-10-06). Everything under
-  `inside/` runs through `../cloud/library_bake.py` (a card, or `--processor` when no card is in stock). `tune.py`
+  `inside/` runs through `../cloud/library_bake.py` (one class fixed at price time; a processor class only when asked for with `--classes cpu-32c-128gb`). `tune.py`
   renders there too, a machine a round. `inside/runtime.py` maps the sockets Blender 5 renamed for ProcFunc.
 - **Never split a raw Pixal3D model into per-piece objects.** trimesh's `split` on a 950k-face raw model took
   43.5 GB and took WSL down (2026-10-06). Sample points (`register.py`). Every local Python step runs under

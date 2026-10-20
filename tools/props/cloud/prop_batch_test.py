@@ -47,7 +47,7 @@ def test_price_is_measured():
     plan = prop_batch.price(PROPS, lines, google)
     assert plan["unmeasured"] == [], plan["unmeasured"]
     assert plan["steps"]["closeup"]["likely"] == 0.28, plan["steps"]["closeup"]
-    assert plan["steps"]["image-to-3d"]["failed_share"] == 0.25
+    assert plan["steps"]["image-to-3d"]["hole_share"] is None  # the lines predate one-shot batches: no "holes"
     assert 0 < plan["likely"] <= plan["high"], plan
     assert plan["per_prop"]["likely"] == round(plan["likely"] / 2, 3)
 
@@ -56,14 +56,23 @@ def test_each_job_is_priced_once_with_its_predicted_holes_beside():
     """A batch runs every job once (CONTEXT.md, owner 2026-10-20): the close-up was priced at two asks and Pixal3D at
     its jobs times one plus the failure share, as reruns."""
     lines, google = measured_ledgers()
-    google += [{"caller": "pro", "state": "failed", "call": "pro-x"}] * 2
-    plan = prop_batch.price(PROPS * 2, lines, google)
+    lines += [{**card_line("pixal", [600], batch=f"o{index}", models=4, done=3), "holes": ["a", "z"], "unsent": ["z"]}
+              for index in range(4)]
+    google += [{"caller": "pro", "state": "failed", "call": "pro-x", "error": "HTTPError 429"}] * 6
+    earlier = {"props": {**{f"p{index}": {"status": "done", "steps": {"closeup": {"caller": "pro"}}}
+                            for index in range(9)},
+                         "lost": {"status": "failed", "at": "closeup", "steps": {}},
+                         "kept": {"status": "done", "steps": {"closeup": {"kept": True}}}}}
+    plan = prop_batch.price(PROPS * 2, lines, google, manifests=[earlier, earlier])
     assert plan["steps"]["closeup"]["high"] == round(4 * 0.14, 4), plan["steps"]["closeup"]  # four asks, never eight
-    assert plan["steps"]["closeup"]["predicted_holes"] == 1  # 2 failed of 12 ended calls, over four jobs
+    assert plan["steps"]["closeup"]["hole_share"] == 0.1  # 2 failed of 20 made or failed; the 429s asked again free
+    assert plan["steps"]["closeup"]["predicted_holes"] == 0
     one_run = prop_batch.preflight.batch(4, prop_batch.card_numbers(lines, "pixal", "L4"), prop_batch.CAP,
                                          prop_batch.STEPS[1].slots)
     assert plan["steps"]["image-to-3d"]["likely"] == round(one_run["euros"] * prop_batch.BILL_SHARE, 4)
-    assert plan["predicted_holes"]["image-to-3d"] == 1  # a quarter of four Pixal3D jobs
+    assert plan["steps"]["image-to-3d"]["hole_share"] == 0.333  # 4 holes of 12 sent; the unsent left out
+    assert plan["predicted_holes"]["image-to-3d"] == 1
+    assert plan["holes_unmeasured"] == ["finish-pick", "bake"], plan["holes_unmeasured"]
     assert not hasattr(prop_batch.STEPS[0], "tries")
 
 

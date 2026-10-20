@@ -22,8 +22,8 @@ MODEL = "gemini-3-pro-image"
 KEY_SECRET = "gemini-api-key"
 # The price of one 2K picture (Google's price list, as the close-ups were billed on 2026-10-08).
 DOLLARS_A_PICTURE = 0.134
-# A request refused for the rate or the quota (429) is asked again after a wait, up to this many times: a refusal is
-# free. Nothing else is asked again: a batch runs every call once (CONTEXT.md, owner 2026-10-20).
+# A request refused for the rate or the quota (429) or by an overloaded or failing service (500, 503, 504) is asked
+# again after a wait, up to this many times: a refusal bills nothing. Nothing else is asked again: a batch runs every call once (CONTEXT.md, owner 2026-10-20).
 ATTEMPTS = 4
 WAIT_SECONDS = 60
 
@@ -50,14 +50,19 @@ def pictures_in(answer):
             for piece in candidate.get("content", {}).get("parts", []) if "inlineData" in piece]
 
 
+FREE_REFUSALS = (429, 500, 503, 504)
+
+
 def quota_refusal(error):
-    """Whether an HTTP error is the service's refusal for the rate or the quota, which costs nothing."""
-    return error.code == 429 or "quota" in str(error.reason).lower()
+    """Whether an HTTP error is a refusal that bills nothing and passes: the rate or the quota (429), or an overloaded
+    or failing service (500, 503, 504)."""
+    return error.code in FREE_REFUSALS or "quota" in str(error.reason).lower()
 
 
 def draw(key, wording, crop, concept, path):
     """One close-up into `path`; True when a picture came back, False for a hole: an answer with no picture, any other
-    refusal, or a rate or quota refusal (quota_refusal, asked again after a wait) every attempt. The call runs once
+    refusal, or a free refusal (quota_refusal: the rate, the quota or an overloaded service, asked again after a
+    wait) every attempt. The call runs once
     (a batch): a hole is not asked again here, it goes to the basket and a new batch. Refused outside a cleared run
     (compute.require_cleared). Each call's cost goes on the Google ledger (google_spend). The same request (same
     wording, crop and concept) is asked once: its answer is kept in google_spend's cache, so a re-keyed node re-draws
@@ -71,7 +76,7 @@ def draw(key, wording, crop, concept, path):
             if not quota_refusal(error):
                 print(f"Nano Banana Pro refused ({error.code}); a hole", flush=True)
                 return False
-            print(f"Nano Banana Pro refused for the rate or the quota ({error.code}); asking again after a wait",
+            print(f"Nano Banana Pro refused for the rate, the quota or its load ({error.code}); asking again after a wait",
                   flush=True)
             time.sleep(WAIT_SECONDS * (attempt + 1))
             continue

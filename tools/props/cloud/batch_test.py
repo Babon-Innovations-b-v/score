@@ -274,7 +274,6 @@ def test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_hole():
     assert not re.search(pattern, f"bash -c pkill -f -- {pattern}")
 
 
-
 def test_a_fleet_whose_billed_machines_failed_rents_none_in_their_place():
     """A batch runs once (CONTEXT.md, owner 2026-10-20): a machine billed that did not start or broke was replaced by
     a new rental, unpriced spend inside the batch. Its cards are lost and the jobs no machine took are holes."""
@@ -321,10 +320,11 @@ def test_a_billed_boot_that_fails_is_a_hole_and_out_of_stock_moves_on():
     finally:
         batch.rent, batch.boot, batch.delete_machine, batch.ledger.machine_row, batch.time.sleep = kept
 
+
 def test_the_deadline_and_the_slots_come_from_measured_numbers():
     measured = json.loads(batch.PER_UNIT.read_text())["stages"]["pixal"]["time"]["unit_seconds"]["high"]
     assert batch.job_deadline_seconds() == batch.DEADLINE_FACTOR * measured
-    assert batch.slots_per_card("gpu-24gb") == 3  # 24 GB over a 7.1 GB peak
+    assert batch.capacity.runs_at_once("pixal", "gpu-24gb") == batch.PER_CARD
 
 
 def test_nothing_is_rented_outside_a_cleared_run():

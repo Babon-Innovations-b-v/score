@@ -97,7 +97,7 @@ def test_pro_draws_one_take_a_row_worded_before_it_is_drawn():
     assert stage.with_pro_wordings([dict(row, pro_wording="crop")])[0]["pro_wording"] == "crop"  # chosen once
 
 
-def test_pro_asks_again_only_for_a_rate_or_quota_refusal_and_an_empty_answer_is_a_hole():
+def test_pro_asks_again_only_for_a_free_refusal_and_an_empty_answer_is_a_hole():
     import urllib.error
     asked, waits = [], []
     answers = [urllib.error.HTTPError("u", 429, "Too Many Requests", {}, None), {"candidates": []}]
@@ -115,9 +115,12 @@ def test_pro_asks_again_only_for_a_rate_or_quota_refusal_and_an_empty_answer_is_
         path = pathlib.Path(tempfile.mkdtemp()) / "a.png"
         assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
         assert len(asked) == 2 and len(waits) == 1 and not path.exists()  # the empty answer is not asked again
-        answers[:] = [urllib.error.HTTPError("u", 500, "Internal", {}, None), {"candidates": []}]
+        answers[:] = [urllib.error.HTTPError("u", 503, "Service Unavailable", {}, None), {"candidates": []}]
         assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
-        assert len(asked) == 3 and len(waits) == 1  # any other refusal is a hole at once
+        assert len(asked) == 4 and len(waits) == 2  # an overloaded service bills nothing: asked again after a wait
+        answers[:] = [urllib.error.HTTPError("u", 400, "Bad Request", {}, None), {"candidates": []}]
+        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
+        assert len(asked) == 5 and len(waits) == 2  # any other refusal is a hole at once
     finally:
         stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep = kept
 

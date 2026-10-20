@@ -22,12 +22,14 @@ The cut-out and the raw Pixal3D step run in the cloud (#55): no model runs on th
 2026-10-03; local_models.py). The pictures go up as they are, each machine cuts its own out with
 the same BiRefNet-lite as the lab, and as many cards are rented as it takes to finish in about --minutes, across the
 zones and capability classes that hold Pixal3D (capacity.py), best stocked and fastest first, spread over the zones. A
-machine that does not answer within START_MINUTES is deleted and another rented from the next offer. Each machine
+machine that stays out of stock (nothing billed, OutOfStock) is dropped for the next offer; one that was billed and
+does not answer within START_MINUTES, or refuses the key, is deleted and is a hole (BootFailed), with nothing rented in
+its place. Each machine
 takes new work only
 when it has room, so a slow or late machine never holds up the rest. Every job runs once (a batch, CONTEXT.md, owner
 2026-10-20): a job that fails, runs out of memory, passes its deadline (job_deadline_seconds, from the measured high
 seconds) or is on a machine that is lost is a hole, never sent again; new spend on it is a new batch. Each card runs
-as many at once as one run's measured peak memory fits (slots_per_card). Every model comes back into WORK/pixal/ as if made here, with the camera
+as many at once as capacity.runs_at_once says (measured kinds only). Every model comes back into WORK/pixal/ as if made here, with the camera
 folder its finish paints from (<name>.svviews), and is finished here with `pixal.py --finish-only`
 (Blender and the processor, no model) while the machines are still working. This is the way to make
 every model, one or a hundred. Under SCORE_CLOUD=k8s the takes go to the Kubernetes cluster as Jobs of the pixal
@@ -78,9 +80,6 @@ from score.adapters import compute  # noqa: E402
 # Pixal3D runs at once on one card, measured on an L4 (2026-09-29): 3 at once made about 19 models an
 # hour at a 10.6 GB peak; 6 made about 20 at 17 to 20 GB and one run died, so the card is already full at 3.
 PER_CARD = 3
-# One Pixal3D run's peak card memory, measured 2026-09-28 (pixal.generate's docstring): a card runs as many at once
-# as this fits in its memory (slots_per_card), 3 on a 24 GB L4.
-PIXAL_PEAK_GB = 7.1
 # The measured seconds a Pixal3D job takes: per_unit.py's high quantile of the ledger's job seconds, kept in the repo.
 PER_UNIT = REPO / "data" / "costs" / "per-unit.json"
 # A job still running this many times its measured high seconds is stopped and is a hole (a batch runs every job
@@ -109,8 +108,9 @@ SETUP_MINUTES = 5.0
 MODEL_MINUTES = 5.0
 # How often each machine is looked at, its results brought back and its queue topped up.
 POLL_SECONDS = 15
-# A machine that has not answered over ssh this long after its order is given back and the next offer tried (24 GB
-# cards answered in about 2 min, 2026-09-29; on 2026-10-08 machines in one zone never started at all).
+# A machine billed that has not answered over ssh this long after its order is deleted and is a hole (BootFailed),
+# nothing rented in its place; only an out-of-stock refusal (nothing billed) moves on to the next offer (24 GB cards
+# answered in about 2 min, 2026-09-29; on 2026-10-08 machines in one zone never started at all).
 START_MINUTES = 5
 # How often a claim or a fleet short of machines asks every class and zone again when none was in stock (owner,
 # 2026-10-09: keep retrying every few minutes, never settle for one card).
@@ -241,11 +241,6 @@ def aimed_minutes(count, max_cards, per_card, per_model, minutes):
 def expected_minutes(count, cards, per_card, per_model):
     """How long a batch keeps its machines, on `cards` cards."""
     return SETUP_MINUTES + count * per_model / cards + per_model * per_card
-
-
-def slots_per_card(machine_class):
-    """How many Pixal3D runs one card of `machine_class` holds at once: its memory over one run's measured peak."""
-    return max(1, int(provider.card_gb(machine_class) // PIXAL_PEAK_GB))
 
 
 def job_deadline_seconds():
@@ -633,6 +628,7 @@ class Fleet:
         self.machines = []
         self.done, self.failed, self.finish_failed = [], [], []
         self.lost_cards = 0
+        self.unsent = []
         self.job_deadline = job_deadline_seconds()
         self.finishers = concurrent.futures.ThreadPoolExecutor(FINISHERS)
 
@@ -661,7 +657,8 @@ class Fleet:
         with self.lock:
             names = [job["name"] for job in self.ready]
             self.ready.clear()
-            self.failed.extend(name for name in names if name not in self.failed)
+            self.unsent.extend(names)
+        self.holes(names)
         return names
 
     def arrived(self, machine_folder, name):
@@ -884,7 +881,7 @@ def tend(fleet, machine):
             fleet.lose(machine)
             return
         arm_self_delete(folder, host, fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
-        machine["per_card"] = fleet.per_card or slots_per_card(machine["class"])
+        machine["per_card"] = fleet.per_card or capacity.runs_at_once("pixal", machine["class"])
         prepare(folder, host, machine["per_card"])
         machine["generating_began"] = time.time()
         say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min, "
@@ -1021,7 +1018,8 @@ def ledger_entry(fleet, models, started):
             "batch": fleet.folder.name, "kind": "pixal",
             "per_card": {machine["folder"].name: machine.get("per_card") for machine in fleet.machines},
             **ledger.machines_record(fleet.machines, fleet.attempts, started), "models": len(models),
-            "models_done": len(fleet.done), "card_minutes": card_minutes,
+            "models_done": len(fleet.done), "holes": sorted(fleet.failed),
+            "unsent": sorted(fleet.unsent), "card_minutes": card_minutes,
             "wall_minutes": (time.time() - started) / 60, "job_seconds": job_seconds}
 
 
