@@ -53,7 +53,8 @@ def made(take):
 
 
 def status_of(match, prediction, is_made):
-    """library (a pipeline-made model matches), made (its take stands), predicted hole, or bought."""
+    """library (a model made under today's route, or locked, matches), made (its take stands), predicted hole, or
+    bought."""
     if match["pipeline"]:
         return "library"
     if is_made:
@@ -78,6 +79,7 @@ def take_counts(takes):
     return {"library": sum(take["status"] == "library" for take in takes),
             "library_code_only": sum(not take["library"]["pipeline"] and bool(take["library"]["code"])
                                      for take in takes),
+            "library_old": sum(not take["library"]["pipeline"] and bool(take["library"]["old"]) for take in takes),
             "made": sum(take["status"] == "made" for take in takes), "bought": len(bought),
             "predicted_holes": sum(take["status"] == "predicted hole" for take in takes),
             "at_risk": sum(take["prediction"]["outcome"] == "at risk" for take in bought),

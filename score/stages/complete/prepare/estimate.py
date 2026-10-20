@@ -136,7 +136,8 @@ def line(record):
                else f"at least {time['at_least_minutes']:.0f} min ({len(time['unknown'])} layers untimed)")
     unpriced = f", unpriced: {', '.join(money['unpriced'])}" if money["unpriced"] else ""
     return (f"remake batch (estimate): {counts['bought']} takes of {counts['groups']} models "
-            f"({counts['library']} from the library, {counts['predicted_holes']} predicted holes not bought), "
+            f"({counts['library']} from the library (made under today's route), "
+            f"{counts['predicted_holes']} predicted holes not bought), "
             f"EUR {money['likely_euros']:.2f} likely, {money['high_euros']:.2f} high, every job once{unpriced}; "
             f"ETA {minutes}; about {record['expected_holes']} holes expected after; "
             f"{counts['inputs_missing']} takes wait on lost inputs")

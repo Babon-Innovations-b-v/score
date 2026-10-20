@@ -17,8 +17,10 @@ one ETA on the fixed fleet and the predicted holes beside them. Nothing here buy
 The record (`WORK/checks/prepare/remake.json` by default):
 
     {"made_at", "priced_on": {commit, uncommitted, per_unit_sha256},
-     "counts": {rows, instances, groups, reused, shell_groups, crops, across_places, library, library_code_only,
-                bought, predicted_holes, at_risk, inputs_missing},
+     "counts": {rows, instances, groups, reused, shell_groups, crops, across_places, library, library_old,
+                library_code_only, bought, predicted_holes, at_risk, inputs_missing},
+                                         (library: reused, made under today's route or locked; library_old and
+                                          library_code_only: a library model matched, but the take is remade)
      "rates": {shape: {failed, of, objects}},             (the measured close-up failures by shape, predict.py)
      "library": {"root", "models"} or {"root": null, "why"},
      "takes": [{place, rows, take, key, shell, instances, crop, library, prediction, inputs, upscale, status,

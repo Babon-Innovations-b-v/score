@@ -133,7 +133,10 @@ pattern, what it is, why, who allowed it and when, an optional expiry), read by 
 never only written; one without a reason or an owner is refused. The library check (`score/stages/complete/library`,
 its overlay) traces every bound material, referenced model or file, emitter, light, sound source and character of a
 place's accepted assembly to a library entry, by content hash or by a recorded provenance attribute, and the
-cockpit lists what does not trace as the place's problems.
+cockpit lists what does not trace as the place's problems. **Reuse needs today's route** (owner, 2026-10-20,
+#21/#41): a library entry is reused only when it was made under today's route (the current prop pipeline and finish
+route, named in its provenance, and accepted there by today's gates) or the owner locked it; everything else is
+remade (prepare's library match, `score/stages/complete/prepare/library.py`).
 
 **The library handover** (`score/stages/library`, its overlay): two free rows at the end of the stage table hand every
 accepted output of an environment to the creator's library, so what is in an environment is in the library by construction.
