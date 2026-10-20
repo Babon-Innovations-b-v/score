@@ -5,6 +5,9 @@ tools/cloud/images/prove.py's runner, each take scored against its prompt with C
 A take is named by its sound, its prompt's and length's hash and its seed, and kept in TAKES with its CLAP score: the
 same prompt, length, seed and weights make the same take, so a take made once is never paid for again (a rerun of
 the row, or another place's line asking the same brief).
+
+The takes are one batch (#21): each prompt once, at SEED, never a second seed to pick the best of; the likeness gate
+sorts each take by its CLAP score against gates.CLAP_FLOOR into a pass or a hole, and a new take is a new batch.
 """
 import fcntl
 import hashlib
@@ -27,6 +30,8 @@ MODELS = ["moss-soundeffect-v2", "clap-larger-general"]
 # from the card answering to the first result.
 MINUTES_A_TAKE = 0.6
 FIRST_RESULT_MINUTES = 8
+# Each prompt's one seed (#21): a brief's `seeds` is the picking page's, not the stage's.
+SEED = 1
 WAIT_MINUTES = 90
 RETRY_SECONDS = 180
 REMOTE = "/root/sfx"
@@ -39,11 +44,10 @@ def take_file(name, prompt, seconds, seed, weights):
 
 
 def jobs_for(name, brief, weights):
-    """Every take a brief asks for: each prompt at each seed, its length."""
+    """Every take a brief asks for: each prompt once at SEED, its length."""
     seconds = int(brief.get("seconds", 8))
-    return [{"file": take_file(name, prompt, seconds, seed, weights), "sound": name, "prompt": prompt,
-             "seconds": seconds, "seed": seed}
-            for prompt in brief["prompts"] for seed in range(1, int(brief.get("seeds", 2)) + 1)]
+    return [{"file": take_file(name, prompt, seconds, SEED, weights), "sound": name, "prompt": prompt,
+             "seconds": seconds, "seed": SEED} for prompt in brief["prompts"]]
 
 
 def scores():
@@ -92,31 +96,33 @@ def on_card(plan):
             raise graph.Blocked(f"no card of {', '.join(plan['classes'])} in {WAIT_MINUTES} min")
         time.sleep(RETRY_SECONDS)
     failed = [job for numbers in results.get(KIND, []) for job in numbers["jobs"].values() if job.get("failed")]
-    if failed:
-        raise RuntimeError(f"the moss job failed on its card: {failed}")
+    if failed:  # its takes are holes (made says which), never asked again inside the batch
+        print(f"the moss job failed on its card: {failed}", flush=True)
 
 
 def made(jobs, work):
     """Every job's take made (on a card for those not kept yet; `work`, a folder in the output, carries the jobs up
-    and the takes back, and is removed after) and kept in TAKES; {file: CLAP score}."""
+    and the takes back, and is removed after) and kept in TAKES; {file: CLAP score} of the takes there, a take that
+    did not come back left out (a hole: its sound has no take, which the sources gate names)."""
     wanted = missing(jobs)
     if wanted:
         TAKES.mkdir(parents=True, exist_ok=True)
         back = work / "back"
         back.mkdir(parents=True)
         (work / "jobs.json").write_text(json.dumps(wanted, indent=1))
-        on_card(plan_for(work / "jobs.json", back, round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted) * 2)))
+        on_card(plan_for(work / "jobs.json", back, round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted))))
         for job in wanted:
             if (back / job["file"]).exists():
                 shutil.copy2(back / job["file"], TAKES / job["file"])
         with (TAKES / "scores.lock").open("w") as lock:  # places' lines run side by side: no score is lost
             fcntl.flock(lock, fcntl.LOCK_EX)
             kept = scores()
-            kept.update(json.loads((back / "scores-0.json").read_text()))
+            if (back / "scores-0.json").exists():
+                kept.update(json.loads((back / "scores-0.json").read_text()))
             (TAKES / SCORES).write_text(json.dumps(kept, indent=1))
         shutil.rmtree(work)
     lost = missing(jobs)
     if lost:
-        raise RuntimeError(f"{len(lost)} takes did not come back: {[job['file'] for job in lost][:5]}")
+        print(f"{len(lost)} takes did not come back, holes: {[job['file'] for job in lost][:5]}", flush=True)
     known = scores()
-    return {job["file"]: known[job["file"]] for job in jobs}
+    return {job["file"]: known[job["file"]] for job in jobs if job not in lost}

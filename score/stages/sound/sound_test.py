@@ -124,6 +124,33 @@ def test_moving_things_sound_off_their_own_moves():
     assert len({tuple(found) for found in rooms.values()}) == len(rooms), rooms
 
 
+def test_a_brief_is_one_batch_of_one_take_a_prompt_and_a_lost_take_is_a_hole():
+    """#21: each prompt once at takes.SEED whatever the brief's `seeds`; the card's deadline is its takes' minutes, not
+    twice them; a take that did not come back is left out of the scores (its sound a hole), never asked again."""
+    from score.stages.sound import takes
+    jobs = takes.jobs_for("pump", {"prompts": ["a pump", "a pump, closer"], "seeds": 4, "seconds": 6}, "rev")
+    assert [(job["prompt"], job["seed"]) for job in jobs] == [("a pump", 1), ("a pump, closer", 1)], jobs
+    kept_folder = pathlib.Path(tempfile.mkdtemp())
+    real_takes, real_on_card = takes.TAKES, takes.on_card
+    asked = []
+
+    def on_card(plan):
+        asked.append(plan["minutes"])
+        back = pathlib.Path(plan["runs"][0]["jobs"][0]["outputs"][0]["to"])
+        (back / jobs[0]["file"]).write_bytes(b"RIFF")
+        (back / "scores-0.json").write_text(json.dumps({jobs[0]["file"]: 0.41}))
+
+    try:
+        takes.TAKES, takes.on_card = kept_folder / "takes", on_card
+        scored = takes.made(jobs, kept_folder / "work")
+    finally:
+        takes.TAKES, takes.on_card = real_takes, real_on_card
+        shutil.rmtree(kept_folder)
+    assert asked == [round(takes.FIRST_RESULT_MINUTES + takes.MINUTES_A_TAKE * 2)], asked
+    assert scored == {jobs[0]["file"]: 0.41}, scored
+    assert len(sound.candidates("pump", jobs, scored, "rev")) == 1
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
