@@ -12,6 +12,7 @@
     <textarea id="concept-note" rows="4" title="what to change in the whole picture"></textarea>
     <div class="concept-actions">
       <button type="button" class="button primary big" id="concept-draw"{% if euros is None or pending %} disabled{% endif %} title="one direct model call, your click is its spend yes{% if euros is None %}; its price is not measured{% endif %}"><span data-slot="label" data-v>{% if shown %}Redraw{% else %}Draw concept{% endif %}</span> <small data-v>{% if euros is None %}<span class="unknown">unknown</span>{% else %}EUR {{ euros|floatformat:2 }}{% endif %}</small></button>
+      {% if shown %}<button type="button" class="button big" id="concept-fresh"{% if euros is None or pending %} disabled{% endif %} title="a new first draw from this place's own wording and your note, not from this picture; one direct model call, your click is its spend yes; marked areas are left out: they need a picture to point at{% if euros is None %}; its price is not measured{% endif %}"><span data-v>Draw fresh</span> <small data-v>{% if euros is None %}<span class="unknown">unknown</span>{% else %}EUR {{ euros|floatformat:2 }}{% endif %}</small></button>{% endif %}
       <span class="dot{% if refused %} tone-bad{% endif %}" id="concept-said"{% if refused %} title="{{ refused }}"{% else %} hidden{% endif %}></span>
     </div>
     {% if shown %}<button type="button" class="button" id="concept-pick" data-sha="{{ shown.picture.sha }}" title="lock this concept for the design" data-v>Pick</button>{% endif %}
