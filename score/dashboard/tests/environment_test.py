@@ -144,3 +144,12 @@ def test_a_hosted_send_reaches_the_listener_and_shows_his_version_before_the_nex
         remote = remote_of(hosted_client())
         assert listen.round_once(remote, world.source) == [(SyncRequest.objects.get().pk, "done")]
     assert environment_concept.unlocked(world.source.store)
+
+
+def test_an_export_made_before_the_environment_concept_shows_an_empty_page_and_takes_no_click(world, monkeypatch):
+    monkeypatch.setattr(environment, "shown", lambda world_state: {})
+    owner = signed_in()
+    html = owner.get(PAGE).content.decode()
+    assert "Unlock" not in html and ">locked</b>" in html
+    assert posted(owner, "save", {"sure": True, "locked": False}).status_code == 409
+    assert SyncRequest.objects.count() == 0
