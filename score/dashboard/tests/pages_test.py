@@ -621,8 +621,10 @@ def test_the_buy_screen_has_no_stop_control_and_the_books_buttons_while_paid_wor
     client = signed_in()
     html = client.get("/buy/").content.decode()
     assert "data-step2" not in html and 'href="/basket/"' in html and "/api/money/read-back" not in html
+    assert ">Model calls figure</button>" in html  # the month's figure stays his to correct once the books are known
     a_month(monkeypatch, paid_refused="the month's books are lost")
     html = client.get("/buy/").content.decode()
     assert 'data-post="/api/money/read-back"' in html and 'data-post="/api/money/books-figure"' in html
     assert ">Model calls figure</button>" in html  # named by the model calls' cost line, as the money card names it
-    assert "/api/money/read-back" not in signed_in("guest").get("/buy/").content.decode()  # the owner's own buttons
+    guest = signed_in("guest").get("/buy/").content.decode()
+    assert "/api/money/read-back" not in guest and "/api/money/books-figure" not in guest  # the owner's own buttons
