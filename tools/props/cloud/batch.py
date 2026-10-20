@@ -719,7 +719,7 @@ def queue(fleet, models):
         job = {"name": options.name, "picture": options.picture,
                "arguments": pixal.generator_arguments(f"/root/batch/in/{options.name}.png",
                                                       f"/root/batch/out/{options.name}.glb",
-                                                      options.seed)}
+                                                      options.seed, options.steps)}
         with fleet.lock:
             fleet.ready.append(job)
     with fleet.lock:
@@ -1125,7 +1125,7 @@ def cluster_line(group):
     starts = []
     for turn, options in enumerate(group):
         arguments = pixal.generator_arguments(f"/work/in/{options.name}.png", f"/work/out/{options.name}.glb",
-                                              options.seed)
+                                              options.seed, options.steps)
         starts.append(f"(sleep {turn * CLUSTER_SPACING_SECONDS}; pixal-run {shlex.join(arguments)} "
                       f"> /work/out/{options.name}.log 2>&1) &")
     made = " || ".join(f"test -f /work/out/{options.name}.glb" for options in group)
