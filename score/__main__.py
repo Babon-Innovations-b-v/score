@@ -562,8 +562,8 @@ def spend_json(world):
     read_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     return {**world_spend(world, held, books), "month": books["month"], "as_of": read_at,
             "lines": cost_lines(books, read_at), "paid_refused": compute.ledger().books_refusal(),
-            "credit_note": f"the Scaleway account's EUR {compute.ledger().MONTH_EUROS:.0f} monthly credit is shared with "
-                           "Movalytics; it is not SCORE's budget"}
+            "credit_note": f"the cloud account's EUR {compute.ledger().MONTH_EUROS:.0f} monthly credit is shared with "
+                           "other projects; it is not SCORE's budget"}
 
 
 def world_spend(world, held, books):
@@ -586,7 +586,7 @@ def cost_lines(books, read_at):
     """This month's measured cost lines: the cloud bill of SCORE's own project, and the Google call ledger, which
     misses calls and so is partial (the owner enters the Google bill's figure on the cockpit)."""
     return [{"source": "cloud", "label": "Cloud compute", "euros": round(books["bill"], 2), "partial": False,
-             "origin": "Scaleway's bill of the SCORE project (farm-factory) only, never Movalytics; lags by hours",
+             "origin": "the cloud bill of SCORE's own project only; lags by hours",
              "read_at": read_at},
             {"source": "models", "label": "Google AI", "euros": round(books["google"], 2), "partial": True,
              "origin": "SCORE's own Google call ledger, which misses calls: the Google bill is higher",
