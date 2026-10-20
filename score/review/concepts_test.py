@@ -222,3 +222,10 @@ def test_a_shells_redraw_still_holds_its_inside_places(store, monkeypatch):
     concepts.draw(store, "base", {"note": "bigger hangar", "base": first["sha"]}, "joey", caller=stand_in(asked))
     assert "Overall: bigger hangar" in asked[0][0] and "It must still hold, as described:" in asked[0][0]
     assert "the greenhouse, 16 m by 18 m" in asked[0][0]
+
+
+def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway():
+    assert concepts.framing("base").startswith(concepts.OUTSIDE_VIEW)
+    assert concepts.framing("ship").startswith(concepts.OUTSIDE_VIEW)  # within the hangar, but holds rooms
+    assert concepts.framing("cockpit").startswith(concepts.INSIDE_VIEW)
+    assert concepts.EVERY_DRAW in concepts.first_wording("street")[0]
