@@ -133,7 +133,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the basket's one Benchmarks item (`proposals/benchmarks.py`, `basket_benchmarks`) and the library's
   place pictures into the library cache (`score.stages.library.pictures`, `library_pictures`), each a line. A pass syncs nothing, and says why, from a checkout with tracked changes or a commit origin's main
   does not hold (`tree_refusal`), or when the runner's price after the holes (`score price <environment> --holes`,
-  `runner_price`) fails, so no stale plan or price is ever sent. The owner's money buttons and his waiver
+  `runner_price`) fails, so no stale plan or price is ever sent; a pass whose checkout moved to another commit
+  while it ran pushes no export (prepare's and the price's records would read stale) and still applies requests. The owner's money buttons and his waiver
   (`applying.OWNER_FIGURES`: the books' figure, the read-back, a waiver) are applied
   like his decisions: only when the request's user is this machine's `SCORE_OWNER`, through the same
   `pages/actions.py` function as the local cockpit, which refuses in an agent's process. Never tell the owner to
