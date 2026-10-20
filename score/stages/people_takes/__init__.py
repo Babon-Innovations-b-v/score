@@ -5,7 +5,8 @@ finished here, each take checked for limbs apart, the first that passes kept). A
 data/people/takes.json: its spec and outfit. Its own package, so a new take re-keys none of the people line's or the
 bodies' rows (the people package is hashed into every body row's code version).
 
-Once a take row is accepted, its take joins data/people/surfaces.json (the people line paints it) and a body row
+Once a take row is accepted, its take joins data/surfaces/people.json and the people line's hand-in to the shared loop
+(data/props/people.json, data/inventory/people.json; the loop finishes it, #41) and a body row
 (data/people/bodies.json) like every look.
 
 Gates (unknown blocks): `close-ups` (at least one close-up with its arms apart), `take` (a kept take whose finished

@@ -91,7 +91,10 @@ def taken_as_drawn(row, out):
 
 
 def measured(path, row):
-    """The shape check's measured faults of one close-up at its row's size."""
+    """The shape check's measured faults of one close-up at its row's size; a row with no measured size (the people
+    line's looks, #41) is named, never measured against a made-up box."""
+    if row["size"] is None:
+        return ["no measured size: its proportions held to none"]
     _, check = closeup_tools()
     return check.measured_faults(check.measure(path, row["size"]))
 

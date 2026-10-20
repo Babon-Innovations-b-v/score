@@ -1,0 +1,146 @@
+{
+ "place": "people",
+ "order": "prop-first",
+ "why": "The people line's hand-in to the shared loop (score/stages/shapes_first, #41): every look a row of the people layer, its close-up and take made by its own take row (people-take-<look>), on the line `people`, which no place owns.",
+ "objects": {
+  "bram-work": {
+   "route": "prop",
+   "take": "pp-bram-work-s3",
+   "closeup": "{home}/work/pixal/pp-bram-work-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "bram_wide-work": {
+   "route": "prop",
+   "take": "pp-bram_wide-work-s1",
+   "closeup": "{home}/work/pixal/pp-bram_wide-work-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "driver-driver-suit": {
+   "route": "prop",
+   "take": "pp-driver-driver-suit-s3",
+   "closeup": "{home}/work/pixal/pp-driver-driver-suit-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "driver_wide-driver-suit": {
+   "route": "prop",
+   "take": "pp-driver_wide-driver-suit-s1",
+   "closeup": "{home}/work/pixal/pp-driver_wide-driver-suit-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "guard-guard-uniform": {
+   "route": "prop",
+   "take": "pp-guard-guard-uniform-s3",
+   "closeup": "{home}/work/pixal/pp-guard-guard-uniform-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "guard_wide-guard-uniform": {
+   "route": "prop",
+   "take": "pp-guard_wide-guard-uniform-s1",
+   "closeup": "{home}/work/pixal/pp-guard_wide-guard-uniform-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_m_avg-coat-grey": {
+   "route": "prop",
+   "take": "pp-kit_m_avg-coat-grey-s3",
+   "closeup": "{home}/work/pixal/pp-kit_m_avg-coat-grey-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_m_avg-uniform-olive": {
+   "route": "prop",
+   "take": "pp-kit_m_avg-uniform-olive-s3",
+   "closeup": "{home}/work/pixal/pp-kit_m_avg-uniform-olive-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_m_avg_wide-uniform-olive": {
+   "route": "prop",
+   "take": "pp-kit_m_avg_wide-uniform-olive-s1",
+   "closeup": "{home}/work/pixal/pp-kit_m_avg_wide-uniform-olive-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_m_broad-uniform-olive": {
+   "route": "prop",
+   "take": "pp-kit_m_broad-uniform-olive-s3",
+   "closeup": "{home}/work/pixal/pp-kit_m_broad-uniform-olive-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_m_broad_wide-uniform-olive": {
+   "route": "prop",
+   "take": "pp-kit_m_broad_wide-uniform-olive-s1",
+   "closeup": "{home}/work/pixal/pp-kit_m_broad_wide-uniform-olive-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_w_broad-uniform-olive": {
+   "route": "prop",
+   "take": "pp-kit_w_broad-uniform-olive-s3",
+   "closeup": "{home}/work/pixal/pp-kit_w_broad-uniform-olive-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_w_broad_wide-uniform-olive": {
+   "route": "prop",
+   "take": "pp-kit_w_broad_wide-uniform-olive-s1",
+   "closeup": "{home}/work/pixal/pp-kit_w_broad_wide-uniform-olive-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_w_slim-uniform-olive": {
+   "route": "prop",
+   "take": "pp-kit_w_slim-uniform-olive-s3",
+   "closeup": "{home}/work/pixal/pp-kit_w_slim-uniform-olive-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "kit_w_slim_wide-uniform-olive": {
+   "route": "prop",
+   "take": "pp-kit_w_slim_wide-uniform-olive-s1",
+   "closeup": "{home}/work/pixal/pp-kit_w_slim_wide-uniform-olive-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "leader-state-suit": {
+   "route": "prop",
+   "take": "pp-leader-state-suit-s3",
+   "closeup": "{home}/work/pixal/pp-leader-state-suit-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "leader_wide-state-suit": {
+   "route": "prop",
+   "take": "pp-leader_wide-state-suit-s1",
+   "closeup": "{home}/work/pixal/pp-leader_wide-state-suit-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "nev-work": {
+   "route": "prop",
+   "take": "pp-nev-work-s3",
+   "closeup": "{home}/work/pixal/pp-nev-work-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "nev_wide-work": {
+   "route": "prop",
+   "take": "pp-nev_wide-work-s3",
+   "closeup": "{home}/work/pixal/pp-nev_wide-work-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "player-work": {
+   "route": "prop",
+   "take": "pp-player-work-s1",
+   "closeup": "{home}/work/pixal/pp-player-work-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "player_wide-work": {
+   "route": "prop",
+   "take": "pp-player_wide-work-s1",
+   "closeup": "{home}/work/pixal/pp-player_wide-work-s1.svviews/input.png",
+   "layer": "people"
+  },
+  "sefa-work": {
+   "route": "prop",
+   "take": "pp-sefa-work-s3",
+   "closeup": "{home}/work/pixal/pp-sefa-work-s3.svviews/input.png",
+   "layer": "people"
+  },
+  "sefa_wide-work": {
+   "route": "prop",
+   "take": "pp-sefa_wide-work-s1",
+   "closeup": "{home}/work/pixal/pp-sefa_wide-work-s1.svviews/input.png",
+   "layer": "people"
+  }
+ },
+ "fallback": {}
+}

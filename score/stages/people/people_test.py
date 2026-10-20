@@ -1,5 +1,5 @@
-"""The people stage's checks on made-up records (no cloud, no models): the surface rows' renamed inputs, the body
-gates, the dress's glTF round trip and the clips' clearance easing."""
+"""The people stage's checks on made-up records (no cloud, no models): the shared loop's hand-on of the looks and
+their place in the table, the body gates, the dress's glTF round trip and the clips' clearance easing."""
 import json
 import pathlib
 import sys
@@ -11,14 +11,71 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "tools/characters/maker"))
 
-from score.stages.people import dress, renamed  # noqa: E402
+from score.stages.people import dress, loop  # noqa: E402
 from score.stages.people_bodies import bodies, clips, far  # noqa: E402
 import clearance  # noqa: E402
 
 
-def test_renamed_inputs():
-    found = renamed.as_surfaces({"people-parts": "a", "surfaces": "b", "people-body-x": "c"})
-    assert found == {"surfaces-parts": "a", "surfaces": "b", "surfaces-body-x": "c"}, found
+def loop_ends(folder):
+    """The shared loop's ends (made.ENDS) for two looks of the people line and one object: the player made and
+    painted, Nev's take never baked."""
+    ends = {name: folder / name for name in ("props-inputs", "surfaces-bake", "surfaces-parts", "likeness")}
+    for path in ends.values():
+        path.mkdir()
+    rows = [{"id": "player-work", "take": "pp-player", "layer": "people"},
+            {"id": "nev-space", "take": "pp-nev", "layer": "people"}, {"id": "crate", "take": "crate-s1"}]
+    (ends["props-inputs"] / "rows.json").write_text(json.dumps({"rows": [dict({"layer": "objects"}, **row)
+                                                                         for row in rows]}))
+    (ends["likeness"] / "likeness.json").write_text(json.dumps({"objects": {
+        row["id"]: {"route": "prop"} for row in rows}}))
+    (ends["surfaces-bake"] / "baked.json").write_text(json.dumps({"player-work": {"parts": "pp-player"}}))
+    (ends["surfaces-bake"] / "labelled" / "pp-player").mkdir(parents=True)
+    np.savez(ends["surfaces-bake"] / "labelled" / "pp-player" / "pp-player.npz", points=np.zeros((1, 3)))
+    (ends["surfaces-parts"] / "parts.json").write_text(json.dumps({"takes": {
+        "pp-player": {"parts": [{"part": 0, "surface": "navy_twill"}]}}}))
+    return ends
+
+
+def test_the_loop_hands_each_look_on_and_names_its_gap():
+    """#41: people-made@people hands on every look of the people layer the loop made, with its painted take, and
+    names the rest by their gap; it fails only when none came through. A body's parts are refused on a gap."""
+    from score import graph
+    with tempfile.TemporaryDirectory() as held:
+        ends, out = loop_ends(pathlib.Path(held)), pathlib.Path(held) / "out"
+        out.mkdir()
+        loop.make(ends, out, 0, {})
+        found = json.loads((out / "made.json").read_text())
+        assert sorted(found) == ["nev-space", "player-work"], found  # the object is not the people layer's
+        assert found["player-work"]["finishes"] == [{"part": 0, "surface": "navy_twill"}], found
+        assert (out / found["player-work"]["labelled"]).exists() and "no baked model" in found["nev-space"]["gap"]
+        verdict = loop.judge_made(out, ends, {})
+        assert verdict.answer == "pass" and verdict.measures["gaps"] == 1 and "nev-space" in verdict.findings[0]
+        inputs = {f"{bodies.MADE}@{bodies.LINE}": out}
+        assert dress.painted_take(inputs, "player-work") == out / "labelled" / "pp-player.npz"
+        for look in ("nev-space", "guard-guard-uniform"):
+            try:
+                bodies.refused_on_gap(out, look)
+                raise AssertionError(f"{look}: bought with no model from the loop")
+            except graph.Blocked as blocked:
+                assert "made no model" in str(blocked)
+
+
+def test_people_are_made_by_the_loop_on_a_line_no_place_owns():
+    """#41: no side route of the people's own; the loop's rows and its after-step run on the line `people`, where no
+    place's rows (assembly, complete, the library hand-over) apply, and the looks' parts and dress wait on it."""
+    from score import stages
+    from score.stages import shapes_first
+    table = {row.name: row for row in stages.STAGES}
+    assert not [name for name in table if name.startswith(("people-route", "people-parts", "people-paint"))]
+    assert table[loop.ROW].applies(bodies.LINE) and not table[loop.ROW].applies("hub")
+    for name in ("props-inputs", "closeup", "pixal", "finish-route-views", "surfaces-bake", "likeness"):
+        assert table[name].applies is None or table[name].applies(bodies.LINE), name
+    for name in ("assembly", "complete", "library"):
+        assert not table[name].applies(bodies.LINE) and table[name].applies("hub"), name
+    assert loop.ROW == bodies.MADE and shapes_first.no_place(bodies.LINE)
+    look = next(iter(bodies.looks()))
+    for row in (table[f"people-dress-{look}"], table[f"{bodies.PARTS}-{look}"]):
+        assert row.beside == {bodies.MADE: (bodies.MADE, 1)} and row.neighbours(None) == [bodies.LINE], row.name
 
 
 def write_checks(folder, deep, bind_deep, tuck_over=0):

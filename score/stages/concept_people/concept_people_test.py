@@ -8,7 +8,7 @@ from PIL import Image
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 from score import checks  # noqa: E402
-from score.stages import concept_people  # noqa: E402
+from score.stages import concept_people, shapes_first  # noqa: E402
 
 
 def test_counts_and_gate():
@@ -59,7 +59,8 @@ def test_figure_pictures():
 
 
 def test_every_place_has_views():
-    assert all(concept_people.VIEWS.values()), concept_people.VIEWS
+    assert all(views for place, views in concept_people.VIEWS.items() if not shapes_first.no_place(place)), \
+        concept_people.VIEWS
 
 
 if __name__ == "__main__":

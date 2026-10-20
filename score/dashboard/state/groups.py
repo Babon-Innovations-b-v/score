@@ -30,9 +30,7 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "surface-tiles": "surface tiles", "ship_kit": "ship kit", "concept_people": "people concepts",
           "concept-views": "concept views", "library": "library handover", "library-world": "library handover",
           "demo-turntables": "turntable films", "partition-proposals": "partition proposals",
-          "people-route-views": "people finish views", "people-route-list": "people finish lists",
-          "people-route-split": "people finish split", "people-parts": "people parts", "people-paint": "people paint",
-          "people-clips": "people clips"}
+          "people-made": "people from the loop", "people-clips": "people clips"}
 # The crops' own rows: their models are the place's own prop and surface rows (2026-10-20, #26).
 LABELS.update({"crops-boxes": "crop boxes", "crops-concept": "crop patches on the concept", "crops-layer": "crops",
                "crops-look": "crop renders"})

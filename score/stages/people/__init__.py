@@ -1,11 +1,12 @@
-"""The people stage (#5; experimental, docs/bible.md architecture/experimental): people made like every prop (owner,
-2026-10-11): Pixal3D's shape, split into parts, the clothing painted through the surface stage, the face by its own
-step (prop_prints.py's print), the hair as the mesh carries it, SOMA-X only for the skeleton so Kimodo's clips play.
-World rows, each look's data a take of data/people/surfaces.json:
+"""The people stage (#5; experimental, docs/bible.md architecture/experimental): people made like every model (owner,
+2026-10-11 and 2026-10-20): each look a row of the shared loop (score/stages/shapes_first, #41) on the line `people`,
+which no place owns, its take finished by the loop's finish route; the face by its own step (prop_prints.py's print),
+the hair as the mesh carries it, SOMA-X only for the skeleton so Kimodo's clips play. Each look's data a take of
+data/surfaces/people.json; after the loop:
 
-    people-route-views ... people-paint   the finish route and the paint on the looks' takes (line.py)
+    people-made@people               the looks the loop made, handed on (loop.py, the people layer's after-step)
     people-body-<look>               a look's body: rig, build, settle and every body gate (people_bodies/bodies.py)
-    people-dress-<look>              the paint's library surfaces laid on the body (dress.py)
+    people-dress-<look>              the loop's library surfaces laid on the body (dress.py)
     people-dress-<look>-in-<place>   the same in a coloured place: its fabrics the concept's colour (colours.json)
     people-clips                     each full body's passing clips; the casts held to them (people_bodies/clips.py)
     people-look                      the review page of the LOOKED looks (look.py)
@@ -13,7 +14,7 @@ World rows, each look's data a take of data/people/surfaces.json:
     .venv/bin/python -m score run world1 --stage people-look --detach
 """
 from score import contracts, graph
-from score.stages.people import dress, line, look
+from score.stages.people import dress, look
 from score.stages.people_bodies import bodies, clips
 from score.stages.people_bodies.bodies import guarded
 
@@ -30,7 +31,8 @@ def dress_row(name, place=None, surface=None):
                        files={"library": "{data}/library", "places": "{data}/definitions/place.json",
                               "tokens": "{repo}/design/tokens/tokens.json",
                               "skel_usd": "{repo}/tools/characters/skel_usd.py"},
-                       after={f"{bodies.BODY}-{name}": (bodies.BODY, 1), "people-paint": ("people-paint", 1)},
+                       after={f"{bodies.BODY}-{name}": (bodies.BODY, 1)},
+                       beside={bodies.MADE: (bodies.MADE, 1)}, neighbours=bodies.the_line,
                        params={"surface": surface} if surface else {})
 
 
@@ -79,4 +81,4 @@ def coloured_rows():
     return rows
 
 
-ROWS = (*line.ROWS, *bodies.rows(), *map(dress_row, bodies.looks()), *coloured_rows(), CLIPS, LOOK)
+ROWS = (*bodies.rows(), *map(dress_row, bodies.looks()), *coloured_rows(), CLIPS, LOOK)
