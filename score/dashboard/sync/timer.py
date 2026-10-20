@@ -19,7 +19,7 @@ import pathlib
 import subprocess
 
 from score.dashboard.sync.client import git
-from score.dashboard.sync.release import Refused, pinned, ran
+from score.dashboard.sync.release import Refused, inside, pinned, ran
 
 DEPLOY = pathlib.Path(__file__).resolve().parents[1] / "deploy"
 UNITS = ("score-sync.service", "score-sync.timer")
@@ -28,13 +28,18 @@ REPO_SLOT, ENV_SLOT, SECRET_SLOT = ("<path to the score repository>", "<path to 
                                     "<the sync token's name in your secret manager>")
 
 
+def unquoted(value):
+    """A value without the one pair of quotes round it that systemd's EnvironmentFile strips too."""
+    return value[1:-1] if len(value) > 1 and value[0] == value[-1] and value[0] in "'\"" else value
+
+
 def env_values(path):
     """{name: value} of an env file's NAME=value lines."""
     found = {}
     for line in pathlib.Path(path).read_text().splitlines():
         name, equals, value = line.partition("=")
         if equals and name.strip() and not name.lstrip().startswith("#"):
-            found[name.strip()] = value.strip()
+            found[name.strip()] = unquoted(value.strip())
     return found
 
 
@@ -55,9 +60,11 @@ def pin_refusal(repo, host, dockerfile):
     """Why the hosted cockpit cannot read this checkout's export yet, or None: the host's main pins a commit whose
     score/dashboard is not this checkout's."""
     ran(host, "fetch", "-q", "origin", "main")
-    pin = pinned(ran(host, "show", f"FETCH_HEAD:{dockerfile}"))
+    pin = pinned(ran(host, "show", f"FETCH_HEAD:{inside(dockerfile)}"))
     if git(repo, "cat-file", "-e", f"{pin}^{{commit}}").returncode != 0:
         ran(repo, "fetch", "-q", "origin", "main")
+    if git(repo, "cat-file", "-e", f"{pin}^{{commit}}").returncode != 0:
+        return f"the cockpit pins score {pin[:8]}, which neither this checkout nor origin's main holds"
     if git(repo, "diff", "--quiet", pin, "HEAD", "--", "score/dashboard").returncode != 0:
         return (f"the cockpit runs score {pin[:8]}, whose dashboard is not this checkout's: release this commit first "
                 f"(python -m score.dashboard release), then install the timer")
@@ -75,6 +82,12 @@ def unit_folder():
     return pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or pathlib.Path.home() / ".config") / "systemd" / "user"
 
 
+def user_manager(*args):
+    """Run `systemctl --user <args>`; why it failed in words, or None."""
+    done = subprocess.run(["systemctl", "--user", *args], capture_output=True, text=True)
+    return None if done.returncode == 0 else (done.stderr.strip().splitlines() or [f"exit {done.returncode}"])[-1]
+
+
 def install(repo, env_file, host, dockerfile, secret=SECRET, systemctl=None):
     """Write the units, reload the user manager and enable the timer; what it did, in words. Refused (nothing
     written) on env_refusal or pin_refusal."""
@@ -86,9 +99,12 @@ def install(repo, env_file, host, dockerfile, secret=SECRET, systemctl=None):
     for name in UNITS:
         (folder / name).write_text(unit_text(name, pathlib.Path(repo).resolve(), pathlib.Path(env_file).resolve(),
                                               secret))
-    run = systemctl or (lambda *args: subprocess.run(["systemctl", "--user", *args], check=True))
-    run("daemon-reload")
-    run("enable", "--now", UNITS[1])
+    run = systemctl or user_manager
+    for args in (("daemon-reload",), ("enable", "--now", UNITS[1])):
+        failed = run(*args)
+        if failed:
+            raise Refused(f"the units are written to {folder}, but systemctl --user {' '.join(args)} failed: {failed}; "
+                          f"on WSL turn systemd on and run `loginctl enable-linger`, then install again")
     return (f"install-sync: {', '.join(UNITS)} written to {folder}; the timer is enabled (systemctl --user list-timers "
             f"score-sync.timer); each pass reads the token {secret} by name and logs to journalctl --user -u "
             f"score-sync.service")

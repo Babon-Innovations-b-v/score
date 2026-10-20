@@ -3,7 +3,7 @@ by hand: every node of the record's chains and lines (price.py) ordered by a dep
 shapes first (CONTEXT.md "shapes first"), the stage table's order only breaking ties, then grouped by the step of the
 route each node is at. The cockpit only shows the list.
 
-    found = milestones.milestones(runner, record, found, lost, books)   # [milestone], the last one the owner's
+    found = milestones.milestones(runner, rows, record, found, readers, books)  # [milestone], the owner's last
 
 A node's step, first match:
     ground    its stage is GROUND's (the environment's ground)
@@ -102,12 +102,14 @@ def step_of(name, after_split, after_complete):
     return "after" if after_complete else "made"
 
 
-def steps_of(edges):
-    """{node: its step} of every node of `edges`."""
+def steps_of(edges, table):
+    """{node: its step} of every node of `edges`; `table` the stage table's stage names (a node of a table of its own,
+    the ship kits', reads none of them and none reads it, so it is never a line's end)."""
     after_split = reaching(edges, lambda name: stage_of(name) in SPLIT)
     after_complete = reaching(edges, lambda name: stage_of(name) == fill.COMPLETE)
     read = {before for reads in edges.values() for before in reads}
-    return {name: step_of(name, after_split[name], after_complete[name] or name not in read) for name in edges}
+    ends = {name for name in edges if name not in read and stage_of(name) in table}
+    return {name: step_of(name, after_split[name], after_complete[name] or name in ends) for name in edges}
 
 
 def ordered(runner, edges, steps):
@@ -239,7 +241,7 @@ def milestones(runner, rows, record, found, readers, books):
     `found` the places' current holes ({place: holes}), `readers` lost_readers' {lost hole id: reader nodes},
     `books` why paid work is refused now (None when it is not)."""
     edges = read_edges(runner, remake_nodes(record))
-    steps = steps_of(edges)
+    steps = steps_of(edges, set(runner.stages))
     order = ordered(runner, edges, steps)
     work = work_by_step(found, readers, steps)
     after = after_work_by_step(record, work)
