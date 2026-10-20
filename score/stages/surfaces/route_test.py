@@ -1,11 +1,13 @@
-"""The finish route's own checks, with no spend: a two-box model (one textured red, one blue by its colour factor)
-is cast from every side with its colours read from its own texture, split into two colour groups that the views
-agree on, its finish list parsed to library surfaces with settings (a group the answer leaves out joined by colour),
-filled and colour-checked against what its texture shows, a failing finish predicted (free) as the library token
-nearest its seen colour, then one recheck ask a take sorted pass or a hole; the paid rows refuse outside a cleared run, without an object filter and past the trial's cap; the
-route's rows are on no line unless asked for by name; the runner's object filter keys and narrows a selecting row only.
+"""The finish route's own checks, with no spend (Google faked, the paint's prop environment step faked): a two-box
+model (one textured red, one blue by its colour factor) is rendered from its base views plus what the coverage check
+adds, its colours split into regions the views share; one batch answer a take lists its finishes library first and
+labels each region of each view; the split votes the labels into one finish a face, and an unassigned face or views
+that disagree make the take a hole; the parts row writes the method's interface with each finish checked against
+its colour; the paint hands the parts' records to its step; the recheck sorts one batch answer a take into pass or a
+named hole, a take off its colour not asked at all. The route is the default line: its rows are on every painting
+place's line and the finish-map method's rows are not.
 
-Run: .venv/bin/python score/stages/surfaces/route_test.py
+Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/stages/surfaces/route_test.py
 """
 import json
 import pathlib
@@ -21,15 +23,16 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from score.stages import surfaces  # noqa: E402
-from score.stages.surfaces import (route_cap, route_cast, route_data, route_fill, route_list,  # noqa: E402
-                                   route_recheck, route_split, route_views)
+from score.stages.surfaces import (route_ask, route_cast, route_data, route_list, route_paint,  # noqa: E402
+                                   route_parts, route_recheck, route_split, route_views)
 
 RED, BLUE = (200, 30, 30), (30, 40, 200)
-TAKE = "two_boxes-t1"
+TAKE, OTHER = "two_boxes-t1", "other-t1"
 
 
 def two_boxes(folder):
-    """A glb of two boxes side by side: the left one textured red, the right one blue by its colour factor."""
+    """A glb of two boxes side by side, 0.2 apart: the left one textured red, the right one blue by its colour
+    factor."""
     left = trimesh.creation.box((1, 1, 1))
     left.apply_translation((-0.6, 0, 0))
     left.visual = trimesh.visual.TextureVisuals(uv=left.vertices[:, :2] + 0.5, material=PBRMaterial(
@@ -44,248 +47,277 @@ def two_boxes(folder):
 
 def place_data(folder):
     path = folder / "place.json"
-    path.write_text(json.dumps({"place": "cockpit", "takes": {
-        TAKE: {"places": ["cockpit"], "library_places": ["cockpit"], "place": "cockpit", "kind": "two_boxes",
-               "object": "two boxes"},
-        "other-t1": {"places": ["cockpit"], "library_places": ["cockpit"], "place": "cockpit", "kind": "other",
-                     "object": "another"}}}))
+    entry = {"places": ["cockpit"], "library_places": ["cockpit"], "place": "cockpit", "kind": "two_boxes",
+             "object": "two boxes"}
+    path.write_text(json.dumps({"place": "cockpit", "takes": {TAKE: entry, OTHER: dict(entry, object="another")}}))
     return path
 
 
-def cast_and_split(folder):
-    """The views and split rows' makes on the two boxes, the object filter keeping TAKE: their output folders."""
-    views, split = folder / "views", folder / "split"
+def cast_views(folder, takes=(TAKE,)):
+    """The views row's make on the two boxes (each take named the same model), the object filter keeping `takes`."""
+    views = folder / "views"
     views.mkdir()
-    split.mkdir()
-    inputs = {"surfaces": place_data(folder), f"model {TAKE}": two_boxes(folder)}
-    params = {"objects": [TAKE]}
-    route_views.make_views(inputs, views, 7, params)
-    route_split.make_split({**inputs, "finish-route-views": views}, split, 7, params)
-    return inputs, views, split
+    model = two_boxes(folder)
+    inputs = {"surfaces": place_data(folder), **{f"model {take}": model for take in takes}}
+    route_views.make_views(inputs, views, 7, {"objects": list(takes)})
+    return inputs, views
 
 
-def test_views_read_the_texture_and_the_split_finds_both_colours():
+def region_of(views, colour, take=TAKE):
+    """The views row's region (0-based) of a colour."""
+    regions = json.loads((views / "views.json").read_text())[take]["regions"]
+    return next(entry["region"] for entry in regions if entry["srgb"] == list(colour))
+
+
+def finish_entry(words, surface="M1", token="sign-red"):
+    return {"parts": words, "finish": words, "surface": surface, "token": token, "roughness": 1.4, "metal": 0.0,
+            "fits": True}
+
+
+def labelled(views, finish_of_colour, take=TAKE):
+    """Labels for every region showing in every view: the region of each colour takes finish_of_colour(view, colour)
+    (1-based, None to leave it out)."""
+    angles = json.loads((views / "views.json").read_text())[take]["views"]
+    shown = route_list.regions_shown(views / take, angles)
+    found = []
+    for view, regions in shown.items():
+        for colour in (RED, BLUE):
+            finish = finish_of_colour(view, colour)
+            if region_of(views, colour, take) in regions and finish is not None:
+                found.append({"view": view, "region": region_of(views, colour, take) + 1, "finish": finish})
+    return found
+
+
+def two_finish_answer(views, finish_of_colour=lambda view, colour: 1 if colour == RED else 2):
+    finishes = [finish_entry("red paint"), dict(finish_entry("blue paint", token="bay-three"), wear_wish="more worn")]
+    return {"finishes": finishes, "labels": labelled(views, finish_of_colour)}
+
+
+def listed(folder, answer, takes=(TAKE,)):
+    """The views and list rows made with the list's batch faked to answer `answer(views, take)` (a dict, or an
+    exception the batch holds): the rows' inputs and the batches asked."""
+    inputs, views = cast_views(folder, takes)
+    asked = []
+    original = route_list.ask
+    route_list.ask = lambda bodies: asked.append(bodies) or {
+        take: (answer(views, take) if isinstance(answer(views, take), Exception) else json.dumps(answer(views, take)))
+        for take in bodies}
+    try:
+        out = folder / "list"
+        out.mkdir()
+        route_list.make_list({**inputs, "finish-route-views": views}, out, 7, {"objects": list(takes)})
+    finally:
+        route_list.ask = original
+    return {**inputs, "finish-route-views": views, "finish-route-list": out}, asked
+
+
+def split(folder, rows):
+    out = folder / "split"
+    out.mkdir()
+    route_split.make_split(rows, out, 7, {})
+    return {**rows, "finish-route-split": out}
+
+
+def parted(folder, rows):
+    out = folder / "parts"
+    out.mkdir()
+    route_parts.make_parts(rows, out, 7, {"objects": [TAKE]})
+    return {**rows, "surfaces-parts": out}
+
+
+def test_the_views_cover_every_side_and_find_both_colours():
     with tempfile.TemporaryDirectory() as temporary:
-        inputs, views, split = cast_and_split(pathlib.Path(temporary))
+        inputs, views = cast_views(pathlib.Path(temporary))
         record = json.loads((views / "views.json").read_text())
         assert list(record) == [TAKE], record  # the filter left other-t1 out
+        assert set(route_cast.BASE) <= set(record[TAKE]["views"]), record[TAKE]["views"]
         assert record[TAKE]["close_up"] == route_data.STAND_IN
-        assert route_views.judge_views(views, inputs, {}).answer == "pass"
-        colours = np.load(views / TAKE / "colours.npz")["front"]
-        faces = np.load(views / TAKE / "faces.npz")["front"]
-        seen = {tuple(colour) for colour in colours[faces >= 0]}
-        assert seen == {RED, BLUE}, seen
-        groups = json.loads((split / "groups.json").read_text())[TAKE]["groups"]
-        assert sorted(tuple(entry["srgb"]) for entry in groups) == sorted([BLUE, RED]), groups
-        assert route_split.judge_split(split, {**inputs, "finish-route-views": views}, {}).answer == "pass"
+        assert record[TAKE]["paint_faces"] == record[TAKE]["faces"] == 24, record[TAKE]
+        assert record[TAKE]["unseen_faces"] == 0 and record[TAKE]["seen_share"] == 1.0, record[TAKE]
+        assert sorted(tuple(entry["srgb"]) for entry in record[TAKE]["regions"]) == sorted([BLUE, RED])
+        assert (views / TAKE / "regions-bottom.png").exists() and (views / TAKE / "right.png").exists()
+        verdict = route_views.judge_views(views, inputs, {})
+        assert verdict.answer == "pass" and verdict.measures["views_most"] == len(record[TAKE]["views"]), verdict
 
 
-def test_a_model_with_no_file_fails_by_name():
+def test_the_coverage_check_adds_a_view_for_faces_the_base_views_miss():
+    """An open tube standing up: the base views miss part of its inside, the check adds views until every face is
+    seen, each added view seeing faces no chosen view saw."""
+    mesh = trimesh.creation.annulus(0.3, 0.5, 1.0)
+    angles, casts = route_views.covering_views(mesh)
+    assert list(angles)[:len(route_cast.BASE)] == list(route_cast.BASE) and len(angles) > len(route_cast.BASE), angles
+    seen = np.zeros(len(mesh.faces), dtype=bool)
+    for view in list(angles)[:len(route_cast.BASE)]:
+        seen[casts[view][0][casts[view][0] >= 0]] = True
+    for view in list(angles)[len(route_cast.BASE):]:
+        found = casts[view][0]
+        assert (~seen[found[found >= 0]]).any(), view  # an added view saw something new
+        seen[found[found >= 0]] = True
+    assert seen.all()
+
+
+def test_a_model_with_no_file_or_no_take_fails_by_name():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         inputs = {"surfaces": place_data(folder)}
-        route_views.make_views(inputs, folder, 7, {"objects": ["other-t1"]})
+        route_views.make_views(inputs, folder, 7, {"objects": [OTHER]})
         verdict = route_views.judge_views(folder, inputs, {})
-        assert verdict.answer == "fail" and verdict.findings[0].startswith("other-t1: no model"), verdict
-
-
-def test_a_filter_that_keeps_no_take_fails_the_views():
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        inputs = {"surfaces": place_data(folder)}
+        assert verdict.answer == "fail" and verdict.findings[0].startswith(f"{OTHER}: no raw take"), verdict
+        folder = folder / "none"
+        folder.mkdir()
         route_views.make_views(inputs, folder, 7, {"objects": ["no-such-take"]})
         verdict = route_views.judge_views(folder, inputs, {})
         assert verdict.answer == "fail" and "no take to work on" in verdict.findings[0], verdict
 
 
-def answer_for(groups, red_token):
-    """A list answer naming the red group only (the blue one left out)."""
-    red = next(entry["group"] for entry in groups if entry["srgb"] == list(RED))
-    return {"finishes": [{"parts": "the left box", "finish": "red paint", "groups": [red + 1], "surface": "M1",
-                          "token": red_token, "roughness": 1.4, "metal": 0.0, "fits": True}]}
-
-
-def test_the_list_is_settled_fill_checks_colour_and_the_prediction_takes_the_nearest_token():
+def test_one_batch_lists_every_take_library_first_and_the_split_gives_every_face_one_finish():
     with tempfile.TemporaryDirectory() as temporary:
-        inputs, views, split = cast_and_split(pathlib.Path(temporary))
-        groups = json.loads((split / "groups.json").read_text())[TAKE]["groups"]
-        tokens = route_list.library_tokens()
-        surfaces = {"dark_panel": {"family": "painted"}}
-        far = max(tokens, key=lambda token: route_cast.lab_of(route_fill.token_srgb(token)[None])[0][0])  # lightest
-        answer = answer_for(groups, far)
-        finishes = route_list.grouped(route_list.finishes_of(answer, surfaces, 7), answer, groups)
-        assert sorted(finishes[0]["groups"]) == [0, 1] and "left out" in finishes[0]["by"], finishes
-        assert finishes[0]["settings"] == {"token": far, "roughness": 1.0, "metal": 0.0, "seed": 7}
-        out = pathlib.Path(temporary) / "fill"
-        filled = route_fill.fill_take({"views": views / TAKE, "split": split / TAKE, "out": out}, finishes,
-                                      {"dark_panel": "painted"}, len(groups))
-        assert not filled[0]["colour_fits"], filled  # one light token cannot be both red and blue
-        assert (out / "filled-front.png").exists()
-        finish_of = np.load(out / "finish.npy").astype(int)
-        settled, changed = route_recheck.predicted(views / TAKE, finish_of, filled,
-                                                   {"tokens": tokens, "families": {"dark_panel": "painted"}})
-        nearest = route_recheck.nearest_token(filled[0]["seen_lab"], tokens)
-        assert settled[0]["settings"]["token"] == nearest and changed == {"red paint": [far, nearest]}, changed
-        assert "colour_fits" in settled[0]
-        assert route_recheck.failed(filled, {0: {"matches": True}}) == [0]
+        folder = pathlib.Path(temporary)
+        rows, asked = listed(folder, lambda views, take: two_finish_answer(views), takes=(TAKE, OTHER))
+        assert len(asked) == 1 and sorted(asked[0]) == [OTHER, TAKE], asked  # one batch, one ask a take
+        body = asked[0][TAKE]
+        count = len(json.loads((rows["finish-route-views"] / "views.json").read_text())[TAKE]["views"])
+        assert "serviceTier" not in body and len(body["contents"][0]["parts"]) == 2 * count + 2  # close-up, views, text
+        found = json.loads((rows["finish-route-list"] / f"{TAKE}.json").read_text())
+        assert found["finishes"][0]["settings"] == {"token": "sign-red", "roughness": 1.0, "metal": 0.0, "seed": 7}
+        assert route_list.judge_list(rows["finish-route-list"], rows, {}).answer == "pass"
+        questions = json.loads((rows["finish-route-list"] / "questions.json").read_text())["wear_wishes"]
+        assert len(questions) == 2 and "more worn" in questions[0], questions
+        rows = split(folder, rows)
+        record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
+        assert record["fault"] is None and record["unassigned"] == record["disagree"] == 0, record
+        finish_of = np.load(rows["finish-route-split"] / TAKE / "finish.npy")
+        faces = np.load(rows["finish-route-views"] / TAKE / "faces.npz")["front"]
+        colours = np.load(rows["finish-route-views"] / TAKE / "colours.npz")["front"]
+        red = np.unique(faces[(faces >= 0) & (colours == RED).all(-1)])
+        assert set(finish_of[red]) == {0} and sorted(np.unique(finish_of)) == [0, 1], finish_of
+        assert sorted(np.bincount(finish_of)) == [12, 12], finish_of
+        assert route_split.judge_split(rows["finish-route-split"], rows, {}).answer == "pass"
 
 
-def group_of(groups, colour):
-    """The 1-based number of the split's group of a colour."""
-    return next(entry["group"] for entry in groups if entry["srgb"] == list(colour)) + 1
-
-
-def made_through_the_rows(folder, list_answer, recheck_answers):
-    """views, split, list, fill and recheck made on the two boxes with the two Gemini asks stubbed (no spend): the
-    list's ask answers `list_answer(groups)`, the recheck's each try's `recheck_answers(try)`; the recheck folder."""
-    inputs, views, split = cast_and_split(folder)
-    groups = json.loads((split / "groups.json").read_text())[TAKE]["groups"]
-    asked = []
-    route_list.ask = lambda body: json.dumps(list_answer(groups))
-    route_recheck.ask = lambda body: asked.append(body) or recheck_answers(len(asked))
-    rows = {"finish-route-views": views, "finish-route-split": split}
-    for name, make in (("list", route_list.make_list), ("fill", route_fill.make_fill),
-                       ("recheck", route_recheck.make_recheck)):
-        out = folder / name
-        out.mkdir()
-        make({**inputs, **rows}, out, 7, {"objects": [TAKE]})
-        rows[f"finish-route-{name}"] = out
-    return {**inputs, **rows}
-
-
-def two_finishes(groups):
-    return {"finishes": [
-        {"parts": "left box", "finish": "red paint", "groups": [group_of(groups, RED)], "surface": "M1",
-         "token": "sign-red", "roughness": 0.4, "metal": 0.0, "fits": True},
-        {"parts": "right box", "finish": "blue paint", "groups": [group_of(groups, BLUE)], "surface": "M1",
-         "token": "bay-three", "roughness": 0.4, "metal": 0.0, "fits": True, "wear_wish": "more worn"}]}
-
-
-def test_a_finish_no_library_token_fits_is_a_predicted_hole_never_asked():
-    """The red box's sign-red lies within COLOUR_DELTA_E of its texture; no library token lies within it of the blue
-    box's, so the free prediction (the nearest token) still fails it: the take is a hole named by the gate, and
-    Gemini is never asked."""
-    originals = route_list.ask, route_recheck.ask
-    try:
-        with tempfile.TemporaryDirectory() as temporary:
-            rows = made_through_the_rows(pathlib.Path(temporary), two_finishes,
-                                         lambda attempt: {0: {"matches": True}, 1: {"matches": True}})
-            record = json.loads((rows["finish-route-recheck"] / "recheck.json").read_text())[TAKE]
-            assert record["asked"] is False and not record["passed"], record
-            assert not list((rows["finish-route-recheck"] / TAKE).glob("checked-*.png"))
-            assert route_list.judge_list(rows["finish-route-list"], rows, {}).answer == "pass"
-            questions = json.loads((rows["finish-route-list"] / "questions.json").read_text())["wear_wishes"]
-            assert questions and "more worn" in questions[0], questions
-            assert route_fill.judge_fill(rows["finish-route-fill"], rows, {}).answer == "pass"
-            filled = json.loads((rows["finish-route-fill"] / "fill.json").read_text())[TAKE]
-            assert [entry["colour_fits"] for entry in filled] == [True, False], filled
-            verdict = route_recheck.judge_recheck(rows["finish-route-recheck"], rows, {})
-            assert verdict.answer == "fail", verdict
-            assert verdict.findings[0].startswith(f"{TAKE}: no library surface fits (predicted, not asked"), verdict
-            assert "blue paint: dE" in verdict.findings[0] and "red paint" not in verdict.findings[0], verdict
-            assert verdict.measures["asked"] == 0, verdict.measures
-    finally:
-        route_list.ask, route_recheck.ask = originals
-
-
-def asked_once(answer):
-    """The recheck made through the rows with every colour within the colour check (COLOUR_DELTA_E held wide), its
-    one ask answering `answer` (a dict, or an error raised): the take's record and how many asks it made."""
-    finish_parts = route_fill.finish_parts  # the module the fill reads, imported by its folder's name
-    asks = []
-
-    def answering(attempt):
-        asks.append(attempt)
-        if isinstance(answer, Exception):
-            raise answer
-        return answer
-    originals = route_list.ask, route_recheck.ask, finish_parts.COLOUR_DELTA_E
-    finish_parts.COLOUR_DELTA_E = 1000.0
-    try:
-        with tempfile.TemporaryDirectory() as temporary:
-            rows = made_through_the_rows(pathlib.Path(temporary), two_finishes, answering)
-            record = json.loads((rows["finish-route-recheck"] / "recheck.json").read_text())[TAKE]
-            verdict = route_recheck.judge_recheck(rows["finish-route-recheck"], rows, {})
-            drawn = (rows["finish-route-recheck"] / TAKE / "checked-front.png").exists()
-            return record, verdict, len(asks), drawn
-    finally:
-        route_list.ask, route_recheck.ask, finish_parts.COLOUR_DELTA_E = originals
-
-
-def test_the_recheck_asks_once_and_sorts_a_failing_answer_into_a_hole_with_its_suggestion_unapplied():
-    record, verdict, asks, drawn = asked_once({0: {"matches": False, "why": "too dull", "token": "alarm",
-                                                   "roughness": 0.2}, 1: {"matches": True}})
-    assert asks == 1 and drawn and record["asked"] and not record["passed"], record
-    assert record["suggested"] == {"red paint": {"token": "alarm", "roughness": 0.2}}, record["suggested"]
-    assert record["finishes"][0]["settings"]["token"] == "sign-red", record["finishes"][0]
-    assert verdict.answer == "fail" and "too dull" in verdict.findings[0], verdict
-
-
-def test_the_recheck_passes_on_one_matching_answer_and_makes_an_unanswered_ask_a_hole():
-    record, verdict, asks, _ = asked_once({0: {"matches": True}, 1: {"matches": True}})
-    assert asks == 1 and record["passed"] and verdict.answer == "pass", (record, verdict)
-    record, verdict, asks, _ = asked_once(TimeoutError("The read operation timed out"))
-    assert asks == 1 and not record["passed"] and record["fault"].startswith("no usable answer"), record
-    assert verdict.answer == "fail", verdict
-
-
-def test_a_list_ask_with_no_answer_is_a_hole_the_other_takes_still_asked_and_a_set_up_fault_stops_the_row():
-    """One take's ask times out: that take gets no list and the gate names it with why, the next take is still asked
-    once. An HTTP status that is not a refusal (403, a bad key) is a set-up fault: it stops the row, never a hole."""
-    import io
-    import shutil
-    import urllib.error
+def test_an_unassigned_face_or_views_that_disagree_make_a_hole():
     with tempfile.TemporaryDirectory() as temporary:
-        inputs, views, split = cast_and_split(pathlib.Path(temporary))
-        for folder, name in ((views, "views.json"), (split, "groups.json")):
-            record = json.loads((folder / name).read_text())
-            record["other-t1"] = record[TAKE]
-            (folder / name).write_text(json.dumps(record))
-            shutil.copytree(folder / TAKE, folder / "other-t1")
-        groups = json.loads((split / "groups.json").read_text())[TAKE]["groups"]
-        rows = {**inputs, "finish-route-views": views, "finish-route-split": split}
-        asked = []
+        folder = pathlib.Path(temporary)
+        blue_left_out = lambda views, take: two_finish_answer(views, lambda view, colour: 1 if colour == RED else None)
+        rows = split(folder, listed(folder, blue_left_out)[0])
+        verdict = route_split.judge_split(rows["finish-route-split"], rows, {})
+        assert verdict.answer == "fail" and "unassigned" in verdict.findings[0], verdict
+        assert not (rows["finish-route-split"] / TAKE).exists()
+    mesh = trimesh.creation.box((1, 1, 1))
+    tied = {"right": np.zeros(12, dtype=int), "left": np.ones(12, dtype=int)}  # two views, one vote each, apart
+    found = route_split.shares(mesh, tied, route_split.finish_parts.voted(tied, 2))
+    assert found == {"unassigned": 0.0, "disagree": 1.0, "unseen": 0.0}, found
+    assert "disagree" in route_split.split_fault(found)
 
-        def first_lost(body):
-            asked.append(body)
-            if len(asked) == 1:
-                raise TimeoutError("The read operation timed out")
-            return json.dumps(answer_for(groups, "sign-red"))
-        original = route_list.ask
+
+def test_a_take_with_no_usable_answer_is_a_hole_named_by_the_list():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        lost = route_ask.google_batch.Unanswered("the batch ended JOB_STATE_EXPIRED")
+        rows, _ = listed(folder, lambda views, take: lost if take == TAKE else two_finish_answer(views),
+                         takes=(TAKE, OTHER))
+        assert not (rows["finish-route-list"] / f"{TAKE}.json").exists()
+        assert (rows["finish-route-list"] / f"{OTHER}.json").exists()
+        verdict = route_list.judge_list(rows["finish-route-list"], rows, {})
+        assert verdict.answer == "fail" and list(verdict.findings) == [
+            f"{TAKE}: no finish list (no usable answer: Unanswered('the batch ended JOB_STATE_EXPIRED'))"], verdict
+
+
+def test_the_parts_row_writes_the_methods_interface_each_finish_checked_against_its_colour():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
+        found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())
+        record = found["takes"][TAKE]
+        assert record["method"] == "finish-route" and found["left_out"] == {}, found
+        assert {row["words"] for row in record["parts"]} == {"red paint", "blue paint"}, record["parts"]
+        assert all(entry["measured_lab"] is not None and entry["by"] for entry in record["finishes"]), record
+        assert len(np.load(rows["surfaces-parts"] / TAKE / "parts.npy")) == 24
+        assert surfaces.finish_parts.parts_faults(rows["surfaces-parts"]) == []
+        assert route_parts.judge_parts(rows["surfaces-parts"], rows, {}).answer == "pass"
+
+
+def test_the_paint_hands_each_takes_part_records_to_its_step_here():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
+        handed = {}
+
+        def handover(module, step, inputs, out):
+            handed.update(step=step, module=pathlib.Path(module).name,
+                          records=json.loads(pathlib.Path(inputs[route_paint.RECORDS]).read_text()))
+        original = route_paint.prop_env.handover
+        route_paint.prop_env.handover = handover
         try:
-            route_list.ask = first_lost
-            out = pathlib.Path(temporary) / "list"
+            out = folder / "paint"
             out.mkdir()
-            route_list.make_list(rows, out, 7, {"objects": [TAKE, "other-t1"]})
-            assert len(asked) == 2 and (out / "other-t1.json").exists() and not (out / f"{TAKE}.json").exists()
-            verdict = route_list.judge_list(out, rows, {})
-            assert verdict.answer == "fail", verdict
-            assert list(verdict.findings) == [f"{TAKE}: no finish list (no usable answer: TimeoutError('The read "
-                                              "operation timed out'))"], verdict.findings
-
-            def refused(body):
-                raise urllib.error.HTTPError("url", 403, "forbidden", {}, io.BytesIO())
-            route_list.ask = refused
-            again = pathlib.Path(temporary) / "again"
-            again.mkdir()
-            try:
-                route_list.make_list(rows, again, 7, {"objects": [TAKE, "other-t1"]})
-            except urllib.error.HTTPError:
-                pass
-            else:
-                raise AssertionError("a 403 is a set-up fault and stops the row")
+            route_paint.make_paint({"surfaces": rows["surfaces"], "surfaces-parts": rows["surfaces-parts"],
+                                    "resting rules": REPO / "data/checks/resting.json"}, out, 7, {})
         finally:
-            route_list.ask = original
+            route_paint.prop_env.handover = original
+        assert handed["step"] == "paint" and handed["module"] == "route_paint.py", handed
+        assert {row["surface"] for row in handed["records"][TAKE]} <= set(
+            surfaces.finish_parts.take_surfaces(json.loads(rows["surfaces"].read_text())["takes"][TAKE]))
+        assert not list(out.glob(".*.json"))  # the step's listing files are gone
 
 
-def test_paid_rows_refuse_outside_a_cleared_run():
+def rechecked(folder, answer, wide=True):
+    """The recheck made through the rows (the colour check held wide unless `wide` is False), its one batch faked to
+    answer `answer` (a dict, or an exception the batch holds): the take's record, its verdict and the batches asked."""
+    finish_parts = route_parts.finish_parts
+    kept = finish_parts.COLOUR_DELTA_E
+    finish_parts.COLOUR_DELTA_E = 1000.0 if wide else 0.5
+    asked = []
+    original = route_recheck.ask
+    route_recheck.ask = lambda bodies: asked.append(bodies) or {
+        take: answer if isinstance(answer, Exception) else json.dumps(answer) for take in bodies}
+    try:
+        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
+        out = folder / "recheck"
+        out.mkdir()
+        route_recheck.make_recheck(rows, out, 7, {"objects": [TAKE]})
+        record = json.loads((out / "recheck.json").read_text())[TAKE]
+        return record, route_recheck.judge_recheck(out, rows, {}), asked
+    finally:
+        route_recheck.ask = original
+        finish_parts.COLOUR_DELTA_E = kept
+
+
+def test_the_recheck_sorts_one_answer_into_pass_or_a_named_hole_its_suggestion_unapplied():
+    with tempfile.TemporaryDirectory() as temporary:
+        record, verdict, asked = rechecked(pathlib.Path(temporary),
+                                           {"finishes": [{"finish": 1, "matches": True, "why": "red"},
+                                                         {"finish": 2, "matches": True, "why": "blue"}]})
+        assert len(asked) == 1 and record["passed"] and verdict.answer == "pass", (record, verdict)
+    with tempfile.TemporaryDirectory() as temporary:
+        record, verdict, asked = rechecked(pathlib.Path(temporary), {"finishes": [
+            {"finish": 1, "matches": False, "why": "too dull", "token": "alarm", "roughness": 0.2},
+            {"finish": 2, "matches": True, "why": "blue"}]})
+        assert len(asked) == 1 and not record["passed"], record
+        assert record["suggested"] == {"red paint": {"token": "alarm", "roughness": 0.2}}, record["suggested"]
+        assert verdict.answer == "fail" and "too dull" in verdict.findings[0], verdict
+        assert (pathlib.Path(temporary) / "recheck" / TAKE / "checked-front.png").exists()
+
+
+def test_the_recheck_makes_an_unanswered_take_a_hole_and_never_asks_a_take_off_its_colour():
+    with tempfile.TemporaryDirectory() as temporary:
+        record, verdict, asked = rechecked(pathlib.Path(temporary),
+                                           route_ask.google_batch.Unanswered("the batch gave no answer for it"))
+        assert len(asked) == 1 and record["asked"] and record["fault"].startswith("no usable answer"), record
+        assert verdict.answer == "fail", verdict
+    with tempfile.TemporaryDirectory() as temporary:
+        record, verdict, asked = rechecked(pathlib.Path(temporary), {"finishes": []}, wide=False)
+        assert not asked and not record["asked"] and record["colour_faults"], (record, asked)
+        assert verdict.answer == "fail" and "the free colour check, not asked" in verdict.findings[0], verdict
+
+
+def test_paid_asks_refuse_outside_a_cleared_run():
     from score.adapters import compute
-    for ask in (route_list.ask, route_recheck.ask):
-        try:
-            ask({})
-        except compute.Refused:
-            continue
-        raise AssertionError(f"{ask.__module__} asked outside a cleared run")
+    try:
+        route_ask.asked({TAKE: {}}, "test")
+    except compute.Refused:
+        return
+    raise AssertionError("a Gemini batch was sent outside a cleared run")
 
 
 def test_the_object_filter_keys_only_a_selecting_row():
@@ -293,73 +325,30 @@ def test_the_object_filter_keys_only_a_selecting_row():
     from score.stages import world1
     from score.store import Store
     with tempfile.TemporaryDirectory() as temporary:
-        runner = graph.Runner(surfaces.ROUTE, world1(), Store.in_folder(temporary))
+        runner = graph.Runner(surfaces.ROWS, world1(), Store.in_folder(temporary))
         views = runner.stages["finish-route-views"]
-        plain = graph.Stage("plain", "place", lambda *args: None, views.contract)
         assert runner.params_of(views) == {}
         runner.objects = frozenset({"b", "a"})
         assert runner.params_of(views) == {"objects": ["a", "b"]}
-        assert runner.params_of(plain) == {}
+        assert runner.params_of(runner.stages["surfaces-bake"]) == {}
         assert not any(name.startswith("model ") for name in runner.files_of(views, "old_station"))
-        assert all(row.selects for row in surfaces.ROUTE)
-        assert [row.name for row in surfaces.ROUTE if row.paid] == ["finish-route-list", "finish-route-recheck"]
 
 
-def test_paid_rows_refuse_without_an_object_filter():
-    with tempfile.TemporaryDirectory() as temporary:
-        for make in (route_list.make_list, route_recheck.make_recheck):
-            try:
-                make({}, pathlib.Path(temporary), 7, {})
-            except ValueError as refused:
-                assert "--object" in str(refused)
-                continue
-            raise AssertionError(f"{make.__module__} ran without an object filter")
-
-
-def test_the_trial_cap_refuses_an_ask_past_its_euros():
-    import google_spend
-    model = route_list.finish_ask.LIST_MODEL
-    kept = google_spend.LEDGER, google_spend.CACHE
-    with tempfile.TemporaryDirectory() as temporary:
-        google_spend.LEDGER, google_spend.CACHE = pathlib.Path(temporary) / "ledger.jsonl", pathlib.Path(temporary)
-        try:
-            lines = [{"time": "2026-10-20T10:00:00", "call": "a", "state": "finished", "model": model,
-                      "caller": "finish-route-list", "euros": 4.92},
-                     {"time": "2026-10-20T10:01:00", "call": "b", "state": "finished", "model": "other",
-                      "caller": "surfaces-lists", "euros": 9.0}]
-            google_spend.LEDGER.write_text("".join(json.dumps(line) + "\n" for line in lines))
-            assert abs(route_cap.route_euros() - 4.92) < 1e-9
-            route_cap.require_room(model, {"ask": 1})  # 4.92 + 0.05 fits
-            started = {"time": "2026-10-20T10:02:00", "call": "c", "state": "started", "caller": "finish-route-recheck",
-                       "model": model, "estimate": 0.05}
-            with google_spend.LEDGER.open("a") as ledger:
-                ledger.write(json.dumps(started) + "\n")
-            try:
-                route_cap.require_room(model, {"ask": 1})
-            except RuntimeError as refused:
-                assert "trial cap" in str(refused)
-            else:
-                raise AssertionError("an ask past the trial's EUR 5 was let through")
-            google_spend.keep(google_spend.cache_path(model, {"ask": 1}), {})
-            route_cap.require_room(model, {"ask": 1})  # asked before: free
-        finally:
-            google_spend.LEDGER, google_spend.CACHE = kept
-
-
-def test_the_route_is_on_no_line_unless_asked_for():
+def test_the_route_is_the_default_line():
     from score import graph, stages
     from score.store import Store
+    assert [row.name for row in surfaces.ROWS] == [
+        "finish-route-views", "finish-route-list", "finish-route-split", "surfaces-parts", "surfaces-paint",
+        "surfaces-bake", "finish-route-recheck", "surfaces-check"]
+    assert [row.name for row in surfaces.ROWS if row.paid] == ["finish-route-list", "surfaces-bake",
+                                                               "finish-route-recheck"]
     with tempfile.TemporaryDirectory() as temporary:
         runner = graph.Runner(stages.STAGES, stages.world1(), Store.in_folder(temporary))
-        try:
-            graph.ask(None)
-            plain = [graph.node_name(*node) for node in runner.line_nodes(["cockpit"], False)]
-            assert not [name for name in plain if name.startswith("finish-route-")], plain
-            graph.ask(["finish-route-recheck"])
-            asked = [graph.node_name(*node) for node in runner.line_nodes(["cockpit"], False, ["finish-route-recheck"])]
-            assert asked == [f"{name}@cockpit" for name in surfaces.ROUTE_NAMES], asked
-        finally:
-            graph.ask(None)
+        line = [graph.node_name(*node) for node in runner.line_nodes(["cockpit"], False)]
+        assert all(f"{row.name}@cockpit" in line for row in surfaces.ROWS), line
+        gone = ("surfaces-inputs", "surfaces-turntable", "surfaces-lists", "surfaces-maps", "surfaces-names",
+                "surfaces-segvigen", "finish-route-fill")
+        assert not [name for name in line if name.split("@")[0] in gone], line
 
 
 if __name__ == "__main__":

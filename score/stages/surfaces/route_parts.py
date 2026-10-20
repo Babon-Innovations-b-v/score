@@ -1,0 +1,93 @@
+"""The finish route's parts row, `surfaces-parts` (free, on this PC's processor): the method's interface (PARTS in
+__init__.py) written from the route's split, so the framework's rows (paint, bake, check) and every reader of the
+parts (the likeness, the machines) take it as they took the finish-map method's.
+
+Each finish's surface is checked against its colour before the bake, free (finish_parts.checked_finishes, the same
+check the finish-map method ran): its colour here is the median CIELAB of the model's own texture over its faces'
+pixels in every view (route_views), never painted, only measured. A finish off its listed surface takes the nearest
+surface of its family that fits, or the room's own kit surface; one no surface fits is marked off its colour with a
+proposed surface, and the paint's gate "colour against the close-up" fails it by name. Each part takes its finish's
+checked surface (finish_parts.part_rows).
+
+Output: parts.json (per take its method, parts, finishes with the list's settings and the check's measure; the takes
+left out and why), <take>/parts.npy (one part per face of the raw take, the paint's face order), <take>/colours.npy
+(NaN: the paint joins parts on their surface alone). Gate "parts": every take the split split has its parts.
+"""
+import json
+import pathlib
+import sys
+
+HERE = pathlib.Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.append(str(HERE))
+
+import numpy as np  # noqa: E402
+
+import finish_parts  # noqa: E402
+import route_cast as cast  # noqa: E402
+import route_data  # noqa: E402
+import route_split  # noqa: E402
+import surface_gates as gates  # noqa: E402
+
+METHOD = "finish-route"
+
+
+def seen_colours(views, finish_of, count):
+    """Each finish's median CIELAB colour over the pixels of its faces in every view of the model's texture, or None
+    where no view shows it."""
+    faces = dict(np.load(views / "faces.npz"))
+    colours = dict(np.load(views / "colours.npz"))
+    found = []
+    for number in range(count):
+        pixels = np.concatenate([colours[view][(faces[view] >= 0) & (finish_of[np.maximum(faces[view], 0)] == number)]
+                                 for view in faces])
+        found.append(np.median(cast.lab_of(pixels), axis=0) if len(pixels) else None)
+    return found
+
+
+def parts_take(folders, entry, finishes, kit):
+    """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record."""
+    finish_of = np.load(folders["split"] / "finish.npy").astype(int)
+    part_of = np.load(folders["split"] / "parts.npy").astype(int)
+    mesh = route_split.model_of(folders["views"])
+    checked = finish_parts.checked_finishes(entry, finishes, seen_colours(folders["views"], finish_of, len(finishes)),
+                                            kit)
+    folders["out"].mkdir(parents=True)
+    np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
+    np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
+    rows = finish_parts.part_rows(mesh, part_of, finish_of, checked)
+    return {"method": METHOD, "parts": rows, "judge_unknown": [], "finishes": checked,
+            "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked)}}
+
+
+def make_parts(inputs, out, seed, params):
+    """Every split take's parts; parts.json, with the takes the split made holes (or the list left out) as left
+    out."""
+    import kit_surfaces
+    views, listed = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-list"])
+    split = pathlib.Path(inputs["finish-route-split"])
+    place, takes = route_data.takes_written(out, inputs, params)
+    kit = kit_surfaces.surfaces(place)
+    split_takes = json.loads((split / "split.json").read_text())
+    found, left = {}, {}
+    for take in takes:
+        record = split_takes.get(take)
+        if record is None or record["fault"]:
+            left[take] = record["fault"] if record else "not split: no finish list"
+            continue
+        finishes = json.loads((listed / f"{take}.json").read_text())["finishes"]
+        found[take] = parts_take({"views": views / take, "split": split / take, "out": out / take}, takes[take],
+                                 finishes, kit)
+    (out / "parts.json").write_text(json.dumps({"takes": found, "left_out": left}, indent=1))
+
+
+def judge_parts(output, inputs, evidence):
+    """Every take the split split has its parts; the takes left out (holes named by the rows before) and the
+    finishes off their colour as measures."""
+    found = json.loads((output / "parts.json").read_text())
+    split = json.loads((pathlib.Path(inputs["finish-route-split"]) / "split.json").read_text())
+    failing = [f"{take}: no parts" for take, record in split.items()
+               if not record["fault"] and take not in found["takes"]]
+    return gates.verdict("parts", failing, len(found["takes"]) + len(found["left_out"]), "takes", {
+        "left_out": len(found["left_out"]),
+        "off colour": sum(record["measures"]["off colour"] for record in found["takes"].values())})

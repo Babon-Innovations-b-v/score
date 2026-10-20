@@ -80,8 +80,8 @@ def test_each_take_is_painted_by_one_place_and_every_claim_is_baked_by_its_place
 
 def test_every_place_s_surface_line_is_rows_of_world_one():
     names = [stage.name for stage in stages.STAGES]
-    assert {"surfaces-inputs", "surfaces-maps", "surfaces-parts", "surfaces-paint", "surfaces-bake",
-            "surfaces-check"} <= set(names)
+    assert {"finish-route-views", "finish-route-list", "finish-route-split", "surfaces-parts", "surfaces-paint",
+            "surfaces-bake", "finish-route-recheck", "surfaces-check"} <= set(names)
     rows = {stage.name: stage for stage in surfaces.ROWS}
     assert all(stage.grain == "place" for stage in surfaces.ROWS)
     assert set(rows["surfaces-paint"].after) == {"surfaces-parts"}  # the method's interface
@@ -89,10 +89,9 @@ def test_every_place_s_surface_line_is_rows_of_world_one():
 
 
 def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
-    """Lists, names, parts, paint, bake and check read the library (and the finish route's list, fill and recheck;
-    its views and split do not); inputs, turntable, maps and SegviGen never do, so
-    a new surface re-asks the cheap lists and leaves the renders, the drawn maps and the split where they stood (maps
-    read the lists' answers: identical answers keep their key, the graph's own test)."""
+    """The finish route's list, parts, paint, bake, recheck and check read the library; its views and split never do,
+    so a new surface re-asks the list and leaves the renders and their regions where they stood (the split reads the
+    list's answers: identical answers keep its key, the graph's own test)."""
     data, home = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
     for folder in ("library", "definitions"):
         shutil.copytree(REPO / "data" / folder, data / folder)
@@ -111,8 +110,8 @@ def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
     library["families"]["plastic"]["variants"]["test_surface"] = {"recipe": "rubber", "token": "danger"}
     (data / "library" / "materials.json").write_text(json.dumps(library))
     moved = {stage.name for stage in surfaces.ROWS if runner.file_keys(stage, "greenhouse") != before[stage.name]}
-    assert moved == {"surfaces-lists", "surfaces-names", "surfaces-parts", "surfaces-paint", "surfaces-bake",
-                     "surfaces-check", "finish-route-list", "finish-route-fill", "finish-route-recheck"}, moved
+    assert moved == {"finish-route-list", "surfaces-parts", "surfaces-paint", "surfaces-bake", "finish-route-recheck",
+                     "surfaces-check"}, moved
     shutil.rmtree(data)
     shutil.rmtree(home)
 
@@ -140,7 +139,7 @@ def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothi
                                       "seeds": tempfile.mkdtemp()})
     runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
     rows = {stage.name: stage for stage in surfaces.ROWS}
-    assert "its input surfaces is missing" in runner.node_status(rows["surfaces-inputs"], "nowhere")
+    assert "its input surfaces is missing" in runner.node_status(rows["finish-route-views"], "nowhere")
     assert not any(node.endswith("@tube") for node in runner.status(["tube"]))  # code-built pieces only
     try:
         runner.file_keys(rows["surfaces-bake"], "nowhere")

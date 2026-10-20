@@ -98,10 +98,12 @@ the current backend). No model runs on the coordinating machine.
   lacks the layout stage's scene-record gates (every drawn mesh a plan shell piece or an inventory row, shell pieces
   bounded by the plan, a plain tag measured plain). Step 1, the surface stage (`score/stages/surfaces`, its
   overlay), is each place's own line of rows in environment 1's table (`python -m score run world1 --place <place>`), no
-  environment-wide barrier: the method's rows (the finish-map method, owner 2026-10-12: Gemini's finish list of the
-  close-up, Nano Banana Pro's finish maps of the close-up and of the raw model's sides and back, SegviGen guided by
-  the close-up's map, the maps' votes laid on the raw model) end in its interface, each model's parts with the
-  library surface named for each; the framework's rows paint every part from the library, bake and check it, and put
+  environment-wide barrier: the method's rows (the finish route, owner 2026-10-20, #18: free renders of the raw
+  model from every angle a free coverage check needs, one Gemini batch answer a take listing its finishes library
+  first and labelling each region of each view, the labels voted into one finish a face, every finish checked
+  against its colour) end in its interface, each model's parts with the library surface named for each; the
+  framework's rows paint every part from the library (free, on this PC), bake and check it, one Gemini batch recheck
+  a take sorts pass or a named hole, and put
   a new library surface the method proposed in the finish registry (an append-only store item, `registry/` in the
   store) for the owner. Every model is repainted, the owner's picks included (a pick chooses the model, never its
   paint), each by one place only: a place reads a model another place claims from that place's bake. What each place
@@ -245,19 +247,21 @@ is meant to fix, where it is marked, and what proves it.
   two-way split fit, round five's 3D split, `--face-parts` and `finish_masks.py`, `split_spread.py`; 5c66c2e). For
   black, stripped and one-colour paint. No owner-accepted before and after on a model of the environment. Settled in step 1, the
   surface stage, on the hangar and the six named models, with numbers and his review.
-- **The finish route** (#18; rows `finish-route-views`, `-split`, `-list`, `-fill`, `-recheck` in
-  `score/stages/surfaces/route_*.py`, `ROUTE` marked experimental in its `__init__.py`, its overlay). For finishes
-  drawn from pictures: library first, each finish of a take matched to a library surface with settings (palette token,
-  roughness, metal, seed) from views on every side and the close-up, the model's own texture colours voted into parts
-  across views, each part filled from its surface, a free prediction (a finish the colour check fails takes the token
-  nearest its seen colour; one still failing is a hole, not asked), then one Gemini recheck a take, sorted pass or
-  the named fault "no library surface fits" (a batch, #21: no tweak loop). Off by default: its rows have a node only when a command
-  asks for one by name (`score run|plan|status --stage finish-route-*`, `graph.asked_for`), so no line, plan, hole or
-  price carries them; its paid rows refuse without `--object` and refuse each new ask once the route's asks on the
-  Google ledger would pass the trial's EUR 5 in total (`route_cap.py`). Proven when the EUR 5 test on named takes
-  passes `library surface fits` against their own close-ups, not stand-ins, and the owner moves the line onto it.
-- **The surface stage's method, the finish map** (`score/stages/surfaces`, its overlay; the six-model re-test rows
-  `score/stages/finishmap/trial.py`). The owner chose it on 2026-10-12 ("finish map seed 1 looks great"); it replaced
+- **The finish route, the default surface line** (#18, owner 2026-10-20; rows `finish-route-views`, `-list`,
+  `-split`, `surfaces-parts`, the free `surfaces-paint`, `surfaces-bake`, `finish-route-recheck`, `surfaces-check` in
+  `score/stages/surfaces`, its overlay). Every surface that faces the air is a library material carrying the look, so
+  there is no paid paint step and no finish-map picture: free renders of the raw model (the six sides, then angles a
+  free coverage check adds until every face it can see is seen), one Gemini 3.1 Pro answer a take through Google's
+  Batch API at half price (`tools/props/cloud/google_batch.py`: the finish list matched library first with settings,
+  a label for each colour region of each view), the labels voted into one finish a face (an unassigned face or views
+  that disagree is a hole, named), each finish checked free against its colour, the paint here, the bake, and one
+  Gemini batch recheck a take sorted pass or the named fault "no library surface fits" (no tweak, no retry). The
+  list's settings (token, roughness, metal, seed) are row output; the bake still bakes each surface's library spec.
+  Proven when a place's line passes through `surfaces-check` and `library surface fits` against its takes' own
+  close-ups, and the owner has walked it; nothing has been spent on it yet.
+- **The finish-map method** (`score/stages/surfaces`' finish_*.py, turntable_row.py and segvigen_row.py, run today by
+  the crops' and people's lines; the six-model re-test rows `score/stages/finishmap/trial.py`). The place lines left
+  it for the finish route on 2026-10-20 (#18). The owner chose it on 2026-10-12 ("finish map seed 1 looks great"); it replaced
   g-texture (its record: branch `surface-first` and main before 6266414). Gemini lists the close-up's finishes as
   library surfaces, Nano Banana Pro draws the close-up's finish map and then maps of the raw model's sides and back
   against it, SegviGen is guided by the close-up's map, and every map votes on the faces its view sees. Re-test

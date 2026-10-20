@@ -19,57 +19,63 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `finish` null when nothing is measured; `<take>/parts.npy` one part per welded face; `<take>/colours.npy` each
   face's seen colour, NaN when none is measured). Another method replaces the method's rows and writes it; the
   framework's rows (`place_line.py`: paint, bake, check) do not change.
-- **The method is the finish-map method** (owner, 2026-10-12: "finish map seed 1 looks great"; it replaced g-texture,
-  whose record is branch `surface-first` and main before this change): `finish_parts.py` (inputs, parts),
+- **The finish-map method is the crops' and people's lines' method** (owner, 2026-10-12: "finish map seed 1 looks
+  great"; the place lines left it for the finish route on 2026-10-20, #18): `finish_parts.py` (inputs, parts),
   `turntable_row.py` (the raw model's texture unlit from the close-up's camera and the sides and back, with the face
   under each pixel; `inside/turntable.py`, `turntable_views.py`), `finish_rows.py` (Gemini 3.1 Pro's finish list of
   the close-up; Nano Banana Pro's finish map of the close-up, drawn once and asked strictly (`finish_ask.STRICT`), then
   of each turntable view against it, once; `finish_ask.py`, `finish_maps.py`), `segvigen_row.py` (SegviGen guided by the
   close-up's map). Each paid row has a module of its own, so a free change never pays again; every Google ask is
   cached by its input's hash. The six-model re-test rows are `../finishmap/trial.py`.
-- **The finish route** (owner, 2026-10-20, #18; library first): rows `finish-route-views`, `-split`, `-list`, `-fill`,
-  `-recheck` (`route_*.py`, `ROUTE` in `__init__.py`; experimental, bible `architecture/experimental`), beside the
-  method until its test passes and the owner moves the line onto it; no other row reads them, and they write no
-  `surfaces-parts` yet. **Off by default**: a route row has a node only when the command asks for one by name
-  (`score run|plan|status --stage finish-route-*`; `route_applies`, `graph.asked_for`), so no place's line, plan,
-  hole or price has them otherwise. **The trial's cap is enforced** (`route_cap.py`): the list and recheck refuse to
-  run without `--object <take>`, and refuse each ask not asked before once the route's asks on the Google ledger
-  (callers `finish-route-list`, `-recheck`, every month) and its estimate would pass `TRIAL_EUROS` (EUR 5 in total,
-  owner 2026-10-20). Run it: `python -m score run world1 --place <place> --stage finish-route-recheck --object
-  <take> --detach`. Generic for any take of any place:
-  a take's model is its raw take while it is there, else the release's made model its place's bake names
-  (`route_data.py`), else the views gate names it; its close-up is its own, else a **stand-in close-up** (the model's
+- **The line is the finish route** (owner, 2026-10-20, #18; library first): every surface that faces the air is a
+  library material carrying the look (palette colour, wear, shine, seed), so there is no paid paint step and no
+  finish-map picture. Rows, in `ROWS` (`__init__.py`), on every painting place's line: `finish-route-views` (free,
+  `route_views.py`), `finish-route-list` (paid, `route_list.py`), `finish-route-split` (free, `route_split.py`),
+  `surfaces-parts` (free, `route_parts.py`: the method's interface), `surfaces-paint` (free, `route_paint.py`),
+  `surfaces-bake` (paid), `finish-route-recheck` (paid, `route_recheck.py`; `surfaces-check` reads it, so a failed
+  recheck stops the line before the check), `surfaces-check`. Each route row selects (`score run --object <take>`).
+  A take's model is its raw take (`route_data.py`); one with none here, or whose faces the paint loads differently, is
+  named by the views gate before anything is asked. Its close-up is its own, else a **stand-in close-up** (the model's
   own texture from the front, `route_data.STAND_IN`), named so in every output, question and verdict that reads it.
-  Views (free, this PC's processor, no Blender): trimesh and Embree ray cast, orthographic, 384 px, seven sides with the
-  close-up's front (`route_cast.py`); pictures are flat colour shaded by angle only (no wear, bump or pattern).
-  Split (free): the labels are the model's own texture colours under each pixel in k-means groups (at most eight),
-  voted across views (`finish_parts.voted`, `walked`, `cleaned`, `merged_islands`); the texture is measured, never
-  painted. Paid maps (Nano Banana, about EUR 3 a model) are not drawn by the route; they stay the method's for a model
-  whose free labels fail. List (paid, Gemini 3.1 Pro, about EUR 0.05 an ask, EUR 0.5 a place as the row's guess): all
-  views, the groups and the close-up; each finish matched FIRST to a library surface with settings (a library token,
-  roughness, metal, the node's seed), a new surface only when none fits with any settings; wear stays the place's
-  level, a finish's wear wish goes to `questions.json` for the owner. Fill (free): each part its surface's token
-  colour, and the free colour check (CIE76 within `COLOUR_DELTA_E`, glass, glow, light and print by their own
-  colour). Recheck (paid, Gemini 3.1 Pro, one ask a take on the flex tier, EUR 1 a place as the row's guess; a batch,
-  #21): first, free, each finish the colour check fails takes the library token nearest its seen colour
-  (`predicted`); a take one still fails is a hole with no ask. The rest are asked once, Gemini on the filled views
-  against the close-up, and the answer is only sorted: all match passes, else (or no usable answer) the gate
-  "library surface fits" fails it by name, "no library surface fits", the holes'
-  `gate:finish-route-recheck/library surface fits:<take>`. Gemini's settings for a failing finish are kept as the
-  hole's `suggested`, never applied: trying them is a new batch and a new ask. Settings are row output, never a
-  materials.json edit. Each row selects (`score run --object <take>`).
-  Its rows run in the framework's Python (trimesh and Embree are in `.venv`), not through `prop_env.py`.
-- **Every paid ask runs once: the finishes layer is a batch** (CONTEXT.md, the owner, 2026-10-20; #21). One finish
+  Views (free, this PC's processor, no Blender): trimesh and Embree ray cast, orthographic, 384 px
+  (`route_cast.py`), the six `BASE` sides (front is the close-up's, back, right, left, top, bottom), then the
+  coverage check before the render (`route_views.covering_views`): from `CANDIDATES` the angle that sees the most area
+  no chosen view sees, again, until every face is seen, none sees more or `MOST_VIEWS`; a face no angle can see is
+  counted (`unseen_faces`) and the split walks its nearest seen face's finish onto it. Each view's colour regions:
+  the model's own texture under each pixel in k-means groups (at most eight, the same in every view); the texture is
+  measured, never painted. List (paid): one Gemini 3.1 Pro answer a take, all the place's takes in one batch through
+  Google's Batch API at half price (`route_ask.py`, `tools/props/cloud/google_batch.py`), seeing the close-up, every
+  view and every region view: the complete finish list, each finish matched FIRST to a library surface with settings
+  (a library token, roughness, metal, the node's seed), a new surface only when none fits with any settings; wear
+  stays the place's level, a wear wish goes to `questions.json` for the owner; and a label for each region in each
+  view. Split (free): the labels voted across views (`finish_parts.voted`, the front counting double); a seen face no
+  label reaches is unassigned, faces whose views disagree (no finish over half their votes) over `DISAGREE_MOST` of
+  the area are views that disagree: either is a hole, named in "one finish a face"; the rest smoothed and crumbs
+  joined (`cleaned`, `merged_islands`), each island a part. Parts (free): each finish checked against the median of
+  its faces' texture colour (`finish_parts.checked_finishes`: the nearest surface of its family or the room's kit
+  surface that fits, else off its colour with a proposal, which the paint's gate fails by name), then each part its
+  finish's surface (`part_rows`); the takes the split made holes are `left_out`. Paint (free, here): the rented
+  paint's `place_line.paint_take` run in the prop environment under `prop_env`'s 14 GB cap (crane-r1 peaked at 34.8 GB
+  on a rented machine, 2026-10-12: such a take fails the row by its error); `place_line.make_paint` (rented) stays
+  the crops' and people's. Recheck (paid, one batch): a take the parts left off its colour is a hole with no ask; the
+  rest are drawn from every view, each part flat in its library surface's colour, and asked once against the
+  close-up; all match passes, else "no library surface fits" names it (`gate:finish-route-recheck/library surface
+  fits:<take>`), Gemini's token, roughness and metal kept as the hole's `suggested`, never applied. The list's
+  settings are row output, never a materials.json edit; the bake still bakes each surface's library spec.
+- **Every paid ask runs once: the finishes layer is a batch** (CONTEXT.md, the owner, 2026-10-20; #21). The finish
+  route's asks go as one Batch API job a row run (`google_batch.py`: a started line each before the send, the job's
+  name kept so a run cut off mid-wait picks up the same job, never sends it again; a failed, cancelled or expired
+  job, an error answer or a send cut off is its takes' holes). The method's: one finish
   list a take, one draw of each map (`SEEDS`, `VIEW_SEEDS` one seed each), no paid naming, no ask again after a
   timeout or a dropped connection (`finish_ask.generated`): Google may bill a call cut off mid-way, and
   `google_spend` counts it at its estimate. Only a refusal that did no work (HTTP 429 or 503) is asked again, at most
-  `REFUSED_ASKS` times, the route's trial cap checked before every send (`room`). An ask with no usable answer
+  `REFUSED_ASKS` times. An ask with no usable answer
   (`finish_ask.UNANSWERED`: a timeout, a lost connection, refused every time, a reply that does not parse) makes its
   take or draw a hole, named in its row's gate (`judge_lists`, `judge_maps`, `judge_list`, `judge_recheck`); the takes
   after it are still asked once, and new spend on it is a new batch and a new ask. Any other HTTP status (400, 401,
   403, 404) is a set-up fault, not an output's: it stops the row once instead of making every take a hole and a
   ledger line. A refused send is on the Google ledger as started then failed and counted at its estimate
-  (`month_euros`, `route_cap.route_euros`) though Google billed nothing: the books lean high until Google's billing
+  (`month_euros`) though Google billed nothing: the books lean high until Google's billing
   export (#13) reads the month; `google_spend.py` stays unedited (an edit re-keys the close-up rows). The risk work is free
   and comes before: the close-up's measured colours (`close_up_regions`: k-means of its Lab colours, each region's
   share and median and the library surfaces within `COLOUR_DELTA_E`) go into the list ask (`finish_ask.REGIONS`),
@@ -80,8 +86,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   (`declared_list`, a hole when the take may not take it), its map the close-up's mask. No writer puts `surface` into
   a take entry yet (none of `data/surfaces/*.json` carries it, 2026-10-20): the saving waits for the writer of #19's
   shell and kit takes, and until then every such piece is asked and drawn like any model.
-- **A library change re-keys only the rows that read the library** (lists, names, parts, paint, bake, check:
-  `surface_data.line_files`); inputs, turntable, maps and SegviGen declare none (`shape_files`), the inputs'
+- **A library change re-keys only the rows that read the library** (the route's list, parts, paint, bake, recheck and
+  check: `route_data.library_files`, `surface_data.line_files`); its views and split declare none
+  (`route_data.shape_files`), so a new surface re-asks the list and leaves the renders where they stood. In the
+  method's lines: lists, names, parts, paint, bake, check; inputs, turntable, maps and SegviGen declare none, the inputs'
   output names no folder of its run, and the turntable renders on the processor with a fixed seed
   (`inside/turntable.py` `cycles_fixed`), its PNGs kept without Blender's date and render-time text
   (`turntable_row.without_text`: the same pixels are the same file). On 2026-10-12 the making folder in `job.json` and card renders that
@@ -147,7 +155,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   files. A model neither gives (`bake_job.refusal`, entry_of's own checks run without the take: the launch's far
   rocket) is declared as a file that is never there, naming it, so the run refuses before anything is cleared; the
   crops bake too.
-- **The paint runs on rented processor machines, a job a take** (`make_paint`, `inside/paint_take.py` through
+- **The crops' and people's paint runs on rented processor machines, a job a take** (the place lines' paints here,
+  `route_paint.py`; `make_paint`, `inside/paint_take.py` through
   `blender_cloud.py`; paid, cleared like the bake): heavy steps run in the cloud (owner, 2026-10-12); measured up there,
   campgrounds' takes peak at 1.5 to 3.4 GB and crane-r1 at 34.8 GB (the PC's cap is 14 GB). Up there Blender's own
   Python runs `place_line.py paint-take` with the prop environment's pinned packages and says its peak memory and any
@@ -225,4 +234,5 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **Gates never crash or pass on what is missing** (`surface_gates.guarded`: unknown with the missing file named).
 - Steps needing trimesh run in the prop environment through their module's command line (`prop_env.py`), each make
   defined in its step's own module so that module is its code version. Tests: `surfaces_test.py` (the framework
-  side) and `finish_test.py` (the method's steps), both on the framework's Python.
+  side), `route_test.py` (the finish route, Google and the paint's step faked) and `finish_test.py` (the method's
+  steps), all on the framework's Python.

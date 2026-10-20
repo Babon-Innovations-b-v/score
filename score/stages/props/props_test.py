@@ -36,7 +36,7 @@ def test_only_the_places_with_prop_data_have_prop_rows_and_a_place_without_them_
     with_data = {"campgrounds", "hangar", "cockpit", "quarters", "navigation", "galley", "storage", "engineroom",
                  "shiplock"}
     assert {node[1] for node in runner.nodes(places) if node[0].name in PROPS} == with_data
-    inputs = runner.stages["surfaces-inputs"]
+    inputs = runner.stages["finish-route-views"]
     assert "pixal" in inputs.after and "pixal" not in runner.reads(inputs, "hub")
     assert "pixal" in runner.reads(inputs, "campgrounds")
 
