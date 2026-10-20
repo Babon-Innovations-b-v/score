@@ -19,30 +19,12 @@ from score.dashboard.launch.backend import RunGroup, load
 PLAN_MINUTES = 15
 REBUY_LIMIT = 5.0
 DEFAULT_JOBS = pricing.DEFAULT_JOBS
-MONTH_UNSET = "the month's stop is not set (on the money card): nothing launches without it"
 _planning = threading.Lock()
 _launching = threading.Lock()
 
 
 def backend():
     return load(settings.SCORE_COMPUTE_BACKEND)
-
-
-def month_file():
-    return settings.SCORE_HOME / "month-stop.json"
-
-
-def month_record():
-    """The owner's month's stop as he set it on the cockpit ({euros, by, at}), kept on the store's machine, or None."""
-    path = month_file()
-    return json.loads(path.read_text()) if path.exists() else None
-
-
-def month_stop():
-    """The month's stop that switches launching on and caps the runner's month, in euros as text: the owner's figure
-    from the cockpit (month_record), else SCORE_MONTH_EUROS; None when neither is set."""
-    record = month_record()
-    return f"{record['euros']:g}" if record else settings.SCORE_MONTH_EUROS
 
 
 def basket_hash(items):
@@ -88,7 +70,7 @@ def plan_body(items, chosen, jobs=DEFAULT_JOBS, world="world1"):
     totals = pricing.totals(chosen.price(world, [buy["node"] for buy in buys]) if buys else {}, jobs)
     spend = chosen.spend()
     nodes = sorted({node for group in groups for node in [*group["to_run"], *(buy["node"] for buy in group["buys"])]})
-    ceiling = spend.ceiling  # the environment's stop line; SCORE_MONTH_EUROS only switches launching on, never raises it
+    ceiling = spend.ceiling  # the stop line the last batch's yes wrote (checkout: its high plus the buffer)
     room = None if None in (ceiling, spend.spent, spend.reserved) else round(ceiling - spend.spent - spend.reserved, 2)
     return {"groups": groups, "buys": buys, "jobs": jobs, "nodes": nodes,
             "money": {"high": pricing.cleared_high(totals), "likely": totals["likely_euros"],
@@ -136,8 +118,6 @@ def refusals(plan, user_is_owner, current_hash, running, confirmed, rebuy_reason
         found.append("this dashboard is hosted: a launch is queued for the store's machine, not started here")
     if not settings.SCORE_STORE_WRITABLE:
         found.append("the store is read-only here (SCORE_STORE_WRITABLE=0)")
-    if not month_stop():
-        found.append(MONTH_UNSET)
     if plan.state != "ready":
         found.append("the plan is not worked out")
         return found

@@ -19,8 +19,8 @@ from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, pa
 from score.dashboard.state.holes import kind_of as hole_kind
 from score.dashboard.state.index import Fresh, answer_keys
 from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, HolesPrice, HolesTotal,
-                                          InputPicture, LayerGroup, PlaceCard, PlaceDetail, Spend, StepCard, StepDetail,
-                                          StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
+                                          InputPicture, LayerGroup, PlaceCard, PlaceDetail, Remake, Spend, StepCard,
+                                          StepDetail, StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
 from score.store import Store, stamp_key
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -35,6 +35,7 @@ HOLE_FIELDS = ("id", "row", "gates", "source", "node", "work", "placed", "low", 
 HOLES_PRICE = "holes-price"  # every hole's chain priced: checks/holes-price/<world>.json (score price --holes)
 PER_UNIT = "data/costs/per-unit.json"  # the measured per-unit prices a holes price record is made on
 TIMED = ("accepts/", "rejects/")  # store areas whose keys carry their time: an accept or reject moves what stands
+REMAKE = "prepare/remake.json"  # prepare's one-shot figure of the remake (score/stages/complete/prepare)
 HOLES_WORLD = "world"  # the holes check's pseudo-place of the environment's own nodes' lost inputs (holes/__main__)
 
 
@@ -60,6 +61,32 @@ def code_moved(priced_on):
     if priced_on.get("per_unit_sha256") != here["per_unit_sha256"]:
         return f"the per-unit prices ({PER_UNIT}) changed since it was made"
     return None
+
+
+def take_counts(takes):
+    """{takes, bought, made, library, predicted_holes, blocked} of prepare's takes: each by its status, `blocked` the
+    bought ones that wait on a lost input."""
+    found = Counter(take["status"] for take in takes)
+    return {"takes": len(takes), "bought": found["bought"], "made": found["made"], "library": found["library"],
+            "predicted_holes": found["predicted hole"],
+            "blocked": sum(1 for take in takes if take["status"] == "bought" and take.get("inputs"))}
+
+
+def remake_of(written):
+    """A Remake of prepare's record: its figure, ETA and take counts, each place's takes, stale by its code."""
+    eta = written.get("eta") or {}
+    by_place = {}
+    for take in written.get("takes", []):
+        by_place.setdefault(take["place"], []).append(take)
+    totals = written.get("totals") or {}
+    return Remake(made_at=written["made_at"], priced_on=written.get("priced_on") or {},
+                  likely_euros=totals.get("likely_euros"), high_euros=totals.get("high_euros"),
+                  unpriced=totals.get("unpriced") or [],
+                  eta={"likely_minutes": eta.get("likely_minutes"), "high_minutes": eta.get("high_minutes"),
+                       "at_least_minutes": eta.get("at_least_minutes"), "untimed": len(eta.get("unknown") or [])},
+                  counts=take_counts(written.get("takes", [])),
+                  places={place: take_counts(takes) for place, takes in sorted(by_place.items())},
+                  stale=code_moved(written.get("priced_on")))
 
 
 def written_at(path):
@@ -441,7 +468,8 @@ class LocalSource:
         return WorldState(made_at=self.read_at(), source=self.name, world=self.world.name,
                           engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
-                          holes_total=self.holes_total(), holes_price=self.holes_price())
+                          holes_total=self.holes_total(), holes_price=self.holes_price(),
+                          remake=self.remake())
 
     # --- one place ---------------------------------------------------------------------------------------------
 
@@ -542,6 +570,15 @@ class LocalSource:
             fields = {name: written[name] for name in HolesPrice.model_fields if name in written}
             return HolesPrice(**fields, stale=self.price_stale(path, written))
         return self.remembered(("holes price", written_at(path), self.holes_written()), read)
+
+    def remake(self):
+        """Prepare's one-shot figure of the whole remake (REMAKE, read as written), with why it is stale; None before
+        prepare ran."""
+        path = self.props_home / "work" / CHECKS / REMAKE
+
+        def read():
+            return remake_of(json.loads(path.read_text())) if path.is_file() else None
+        return self.remembered(("remake", written_at(path)), read)
 
     def price_stale(self, path, written):
         """Why a holes price record no longer stands (made on other code or other per-unit prices than this

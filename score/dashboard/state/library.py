@@ -51,6 +51,7 @@ class LibraryEntry(BaseModel):
     state: str
     locked: str | None = None
     picture: str | None = None  # the picture's sha
+    picture_file: str | None = None  # the picture's name in the entry (where the library cache keeps it)
     world: str | None = None
     place: str | None = None  # the place it came from
     node: str | None = None  # the step that made it, `stage@place` or an environment stage
@@ -187,7 +188,8 @@ def entry_of(record):
     return LibraryEntry(
         address=record["address"], kind=record["kind"], entry_id=record["id"], version=record["version"],
         title=record.get("title") or record["id"], state=record["state"], locked=record.get("locked"),
-        picture=picture_sha(record), world=provenance.get("world"), place=provenance.get("place"),
+        picture=picture_sha(record), picture_file=(record.get("picture") or {}).get("file"),
+        world=provenance.get("world"), place=provenance.get("place"),
         node=made_by_node(provenance), source=provenance.get("source") or "", commit=provenance.get("commit"),
         seen_in=record.get("seen_in") or [], tags=record.get("tags") or {}, requires=record.get("requires") or [],
         takes=files_of_role(record, "audio", (".ogg", ".wav", ".mp3", ".flac")), glb=glbs[0] if glbs else None,
@@ -273,14 +275,17 @@ def three_d_files(entry):
 
 
 class LocalLibrary(Library):
-    """A library folder beside the cockpit, read only; entries re-read when its index changes."""
+    """A library folder beside the cockpit, read only; entries re-read when its index changes. A file's bytes come
+    from the blob folder, else from the library cache the store's machine fills (`cache`,
+    score/stages/library/pictures.py: <kind>/<id>/<version>/<file>)."""
 
     name = "local"
 
-    def __init__(self, root, blobs, thumbs):
+    def __init__(self, root, blobs, thumbs, cache=None):
         self.root = pathlib.Path(root).expanduser()
         self.blobs = pathlib.Path(blobs).expanduser() if blobs else None
         self.thumbs = pathlib.Path(thumbs)
+        self.cache = pathlib.Path(cache) if cache else None
         self.kept = {"signature": None, "entries": [], "files": {}}
 
     def signature(self):
@@ -315,11 +320,26 @@ class LocalLibrary(Library):
         return self.kept["files"]
 
     def blob(self, sha):
-        """The blob of a listed file, or None."""
-        if not self.blobs or not SHA.match(sha or "") or sha not in self.known():
+        """The bytes of a listed file: its blob, else its copy in the library cache; None when neither is here."""
+        if not SHA.match(sha or "") or sha not in self.known():
             return None
-        path = self.blobs / "blobs" / sha[:2] / sha
-        return path if path.is_file() else None
+        found = [self.blobs / "blobs" / sha[:2] / sha] if self.blobs else []
+        cached = self.cached_names().get(sha) if self.cache else None
+        found += [self.cache / cached] if cached else []
+        return next((path for path in found if path.is_file()), None)
+
+    def cached_names(self):
+        """{sha: <kind>/<id>/<version>/<file>} of every listed picture, take and GLB: where the cache keeps it."""
+        if self.kept.get("cached_of") is not self.entries():
+            found = {}
+            for entry in self.entries():
+                folder = f"{entry.kind}/{entry.entry_id}/{entry.version}"
+                if entry.picture and entry.picture_file:
+                    found[entry.picture] = f"{folder}/{entry.picture_file}"
+                for each in [*entry.takes, *three_d_files(entry)]:
+                    found[each.sha] = f"{folder}/{each.name}"
+            self.kept.update(cached_of=self.entries(), cached=found)
+        return self.kept["cached"]
 
     def picture_path(self, sha, side):
         """A JPEG of a listed picture at most `side` px, made once into the cockpit's thumbs folder; or None."""
@@ -393,7 +413,8 @@ def local_library(settings):
     """The library folder beside this cockpit, or None when SCORE_LIB_ROOT is not set."""
     if not settings.SCORE_LIB_ROOT:
         return None
-    return LocalLibrary(settings.SCORE_LIB_ROOT, settings.SCORE_LIB_BLOBS_DIR, settings.SCORE_HOME / "thumbs")
+    return LocalLibrary(settings.SCORE_LIB_ROOT, settings.SCORE_LIB_BLOBS_DIR, settings.SCORE_HOME / "thumbs",
+                        settings.SCORE_PROPS_HOME / "cache" / "library" / "score_lib")
 
 
 def for_export():

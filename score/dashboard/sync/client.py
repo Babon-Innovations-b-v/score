@@ -253,6 +253,27 @@ def holes_sweep():
     return (done.stdout.strip().splitlines() or ["holes wrote nothing"])[-1]
 
 
+def step_line(module, failed):
+    """A free store-side step (`python -m <module>`, in a process of its own) run once; its last line, or `failed`
+    with its exit code and last error line. One that fails is said in the pass's words, and the pass goes on."""
+    done = subprocess.run([sys.executable, "-m", module], cwd=settings.SCORE_REPO, capture_output=True, text=True)
+    if done.returncode != 0:
+        return f"{failed}: exit {done.returncode}: {(done.stderr.strip().splitlines() or ['no output'])[-1]}"
+    return (done.stdout.strip().splitlines() or [f"{module} wrote nothing"])[0]
+
+
+def remake_prepared():
+    """Prepare's one-shot figure of the remake written where the pages read it (score.stages.complete.prepare,
+    free, local, seconds), so the cockpit's remake price is this checkout's; its line."""
+    return step_line("score.stages.complete.prepare", "prepare failed")
+
+
+def library_pictures():
+    """The library's place pictures fetched into the library cache (score.stages.library.pictures: one object read
+    each the first time, then a hash check), so the tiles and the export have their bytes; its line."""
+    return step_line("score.stages.library.pictures", "library pictures failed")
+
+
 def git(repo, *args):
     """A git command's run in `repo` (its exit code and output kept, never raised)."""
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
@@ -303,10 +324,12 @@ def sync_pass(remote, source, chosen=None):
     chosen = chosen or guard.backend()
     swept = library_sweep()
     holes = holes_sweep()
+    prepared, pictured = remake_prepared(), library_pictures()
     priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
     if failed:
-        return refused_words(f"{failed}; {swept}; {holes}")
+        return refused_words(f"{failed}; {swept}; {holes}; {prepared}; {pictured}")
     pushed = pushed_words(remote, source, chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}; {priced}"
+    return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}; {priced}; "
+            f"{prepared}; {pictured}")

@@ -108,9 +108,6 @@ def test_every_refusal_in_words(shop, settings, monkeypatch):
     said = checked_out(client, "c", confirmed=False)["said"]
     assert "choose Buy on at least one item first" in said and "I buy these" in said
     bought(shop, "alpha-pieces")
-    settings.SCORE_MONTH_EUROS = None
-    assert "stop is not set" in checked_out(client, "c")["said"]
-    settings.SCORE_MONTH_EUROS = "250"
     from score.dashboard.pages import actions
     monkeypatch.setattr(actions, "agent_started", lambda: True)
     assert "started from an agent's shell" in checked_out(client, "c")["said"]
@@ -140,7 +137,7 @@ def test_the_checkout_plans_each_item_writes_the_line_and_launches_one_batch(sho
     record = checked_out(client, "d")["checkout"]
     assert record["state"] == "launched", record
     line = stop_line(shop)
-    assert line["euros"] == 100.0 + 10.0 + 30.0 and line["by"] == "joey"
+    assert line["euros"] == 100.0 + 10.0 + 33.0 and line["by"] == "joey"  # the batch's high plus 10%
     assert "alpha: pieces, beta: pieces" in line["reason"]
     assert record["stop_line"]["high"] == 30.0
     planned = [call[1] for call in FakeBackend.calls if call[0] == "plan"]

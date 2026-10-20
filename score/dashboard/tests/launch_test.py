@@ -68,9 +68,6 @@ def test_every_refusal_in_words(settings):
     rebuy.body["rebuys"] = 9.0
     assert any("write the reason" in why for why in refused(rebuy))
     assert not any("write the reason" in why for why in refused(rebuy, rebuy_reason="the lamp changed"))
-    settings.SCORE_MONTH_EUROS = None
-    assert any("stop is not set" in why for why in refused(plan))
-    settings.SCORE_MONTH_EUROS = "250"
     settings.SCORE_STORE_WRITABLE = False
     assert any("read-only" in why for why in refused(plan))
 
@@ -126,7 +123,6 @@ def test_a_launch_through_the_confirm_page(world, settings, tmp_path):
 
 
 def test_the_local_backends_command_line_and_environment(monkeypatch, settings):
-    settings.SCORE_MONTH_EUROS = "250"
     monkeypatch.setenv("SCORE_DASHBOARD_SECRET_KEY", "secret")
     monkeypatch.setenv("SCORE_SYNC_TOKEN", "token")
     seen = {}
@@ -138,7 +134,7 @@ def test_the_local_backends_command_line_and_environment(monkeypatch, settings):
     assert seen["command"][1:] == ["-m", "score", "run", "world1", "--place", "alpha", "--place", "beta", "--stage",
                                    "closeup", "--jobs", "4", "--detach", "--rebuy-reason", "lamp changed"]
     assert "SCORE_DASHBOARD_SECRET_KEY" not in seen["env"] and "SCORE_SYNC_TOKEN" not in seen["env"]
-    assert seen["env"]["SCORE_MONTH_EUROS"] == "250" and seen["cwd"] == settings.SCORE_REPO
+    assert seen["cwd"] == settings.SCORE_REPO
     assert handle.pid == 4242 and handle.log == "/tmp/x.log" and handle.refused is None
 
 

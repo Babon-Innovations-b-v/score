@@ -561,7 +561,8 @@ def spend_json(world):
     books = compute.books_now()
     read_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     return {**world_spend(world, held, books), "month": books["month"], "as_of": read_at,
-            "lines": cost_lines(books, read_at), "paid_refused": compute.ledger().books_refusal(),
+            "lines": cost_lines(books, read_at), "days": ledger_days(books["month"]),
+            "paid_refused": compute.ledger().books_refusal(),
             "credit_note": f"the cloud account's EUR {compute.ledger().MONTH_EUROS:.0f} monthly credit is shared with "
                            "other projects; it is not SCORE's budget"}
 
@@ -575,7 +576,7 @@ def world_spend(world, held, books):
     line = guard.current(store, world)
     if line is None:
         return {"spent": None, "reserved": None, "ceiling": None, "world": world, "stop_at": None,
-                "note": f"{world}: no stop set, paid launches refused (Set the stop on the cockpit's money card)"}
+                "note": f"{world}: no batch said yes to yet, so no stop: paid work is refused until a checkout"}
     spent = guard.spent_since(line["baseline"], compute.months_since(line["baseline"], books))
     flight = guard.in_flight({**compute.open_overrides(store), **held}, compute.ledger().entries())
     return {"spent": round(spent, 2), "reserved": round(sum(flight.values()), 2), "ceiling": line["euros"],
@@ -583,14 +584,40 @@ def world_spend(world, held, books):
 
 
 def cost_lines(books, read_at):
-    """This month's measured cost lines: the cloud bill of SCORE's own project, and the Google call ledger, which
-    misses calls and so is partial (the owner enters the Google bill's figure on the cockpit)."""
+    """This month's measured cost lines: the cloud bill of SCORE's own project, and Google's month (google_line)."""
     return [{"source": "cloud", "label": "Cloud compute", "euros": round(books["bill"], 2), "partial": False,
              "origin": "the cloud bill of SCORE's own project only; lags by hours",
-             "read_at": read_at},
-            {"source": "models", "label": "Google AI", "euros": round(books["google"], 2), "partial": True,
-             "origin": "SCORE's own Google call ledger, which misses calls: the Google bill is higher",
-             "read_at": read_at}]
+             "read_at": read_at}, google_line()]
+
+
+def google_line():
+    """Google's month as one cost line: the bill its billing export holds (the books' `google_bill`, read back), else
+    the owner's figure in the books (`google_before`, plus the Google ledger since), else no figure: the call ledger
+    alone misses calls, so it is never shown as the month (owner, 2026-10-20)."""
+    from score.adapters import compute
+    held = compute.ledger().this_months_books()
+    line = {"source": "models", "label": "Google AI", "partial": False}
+    if held.get("google_bill") is not None:
+        return {**line, "euros": round(held["google_bill"], 2), "read_at": held.get("google_bill_at"),
+                "origin": "Google's billing export, read back into the books; lags by hours"}
+    if held.get("google_before") is not None:
+        return {**line, "euros": round(compute.google_month(), 2), "read_at": held.get("google_at"),
+                "origin": "the owner's figure in the books, plus SCORE's Google call ledger since"}
+    return {**line, "euros": None, "partial": True, "read_at": None,
+            "origin": held.get("google_unread") or "the billing export was not read and the owner gave no figure"}
+
+
+def ledger_days(month):
+    """[{day, cloud, models}] of `month` up to today: what the cloud ledger and the Google call ledger count each day
+    (the ledgers only: the bills give no days, and the ledgers miss what the bills hold, so these read low)."""
+    from score.adapters import compute
+    books = compute.ledger()
+    import google_spend  # beside ledger.py, on the path compute.ledger() set
+    entries, today = books.entries(), datetime.datetime.now(datetime.timezone.utc).date()
+    first = datetime.date.fromisoformat(f"{month}-01")
+    days = [first + datetime.timedelta(days=offset) for offset in range((today - first).days + 1)]
+    return [{"day": day.isoformat(), "cloud": round(books.month_total(day.isoformat(), entries), 2),
+             "models": round(google_spend.month_euros(day.isoformat()), 2)} for day in days]
 
 
 def price_json(world, nodes):

@@ -11,6 +11,7 @@ import sys
 from django.conf import settings
 
 from score.dashboard.launch.backend import Billed, GroupPlan, LaunchHandle, LaunchState, RunGroup
+from score.dashboard.state import money
 from score.dashboard.state.models import Spend
 
 STARTED = re.compile(r"detached: started pid=(\d+) log=(\S+)")
@@ -41,13 +42,8 @@ def plan_command(group):
 
 
 def run_env():
-    """The runner's environment: the dashboard's secrets left out, the month's stop passed on."""
-    env = {name: value for name, value in os.environ.items() if name not in SECRETS}
-    from score.dashboard.launch import guard
-    month = guard.month_stop()
-    if month:
-        env["SCORE_MONTH_EUROS"] = month
-    return env
+    """The runner's environment: the dashboard's secrets left out."""
+    return {name: value for name, value in os.environ.items() if name not in SECRETS}
 
 
 def last_json(text):
@@ -110,9 +106,7 @@ class LocalBackend:
         done = self.call([sys.executable, "-m", "score", "spend", "--json"])
         if done.returncode != 0:
             return Spend(note=f"spend not read: {(done.stderr or done.stdout)[-300:]}")
-        from score.dashboard.launch import guard
-        month = guard.month_stop()
-        return Spend.model_validate({**last_json(done.stdout), "month_stop": float(month) if month else None})
+        return money.with_bill_days(Spend.model_validate(last_json(done.stdout)), settings.SCORE_HOME)
 
     def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle:
         command = run_command(group, jobs, rebuy_reason)
