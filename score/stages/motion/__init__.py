@@ -31,6 +31,9 @@ move, so two places that show each other never load each other round.
              covered   every prim of a moving kind in the place (its objects, fixtures and structure) moves in the
                        layer, or the rigid record says why it stands still (`still`); and every game motion's prim is
                        in the place
+             follows, steps, moving area
+                       the motion check (check.py, #23): each move keeps to its record's intended motion at any speed,
+                       never jumps from one frame to the next, and what moves is exactly what the records move
 
 Only places with a rigid record have the row. The assembly does not take the layer yet: the final assembly of each
 place picks it up in place of the seed's motion layer.
@@ -55,6 +58,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import motion as game_motion  # noqa: E402
 import motion_layer  # noqa: E402
+from score.stages.motion import check  # noqa: E402
 
 # How often the composed stage is read along the layer, seconds; a fast turn is read finer (TURN_STEP degrees a read).
 STEP = 0.25
@@ -630,6 +634,29 @@ def judge_covered(output, inputs, evidence):
                           tuple(missing) or tuple(said))
 
 
+# --- the motion check (check.py) ------------------------------------------------------------------------------------
+
+def judge_follows(output, inputs, evidence):
+    """Pass when every move keeps to its record's intended motion (check.judge_follows)."""
+    stage = composed(output, inputs)
+    return check.judge_follows(stage, bodies(inputs, output), rate_of(stage), seconds_of(output))
+
+
+def judge_steps(output, inputs, evidence):
+    """Pass when no move jumps from one frame to the next (check.judge_steps)."""
+    stage, entries = composed(output, inputs), bodies(inputs, output)
+    return check.judge_steps(entries, shapes(stage, {entry["prim"] for entry in entries}), rate_of(stage),
+                             seconds_of(output))
+
+
+def judge_moving_area(output, inputs, evidence):
+    """Pass when what moves is exactly what the records move (check.judge_moving_area)."""
+    stage, entries = composed(output, inputs), bodies(inputs, output)
+    return check.judge_moving_area(stage, place_of(inputs), entries,
+                                   shapes(stage, {entry["prim"] for entry in entries}), rate_of(stage),
+                                   seconds_of(output), MOVING_SCOPES)
+
+
 def layer_faults(folder):
     folder = pathlib.Path(folder)
     return [f"no {name}" for name in (game_motion.LAYER, "moved.json") if not (folder / name).exists()]
@@ -638,4 +665,5 @@ def layer_faults(folder):
 LAYER = contracts.Contract("motion-layer", 2, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
 CHECKS = (checks.Check("clear", on_built(judge_clear)), checks.Check("speeds", on_built(judge_speeds)),
           checks.Check("loops", on_built(judge_loops)), checks.Check("grounded", on_built(judge_grounded)),
-          checks.Check("covered", on_built(judge_covered)))
+          checks.Check("covered", on_built(judge_covered)), checks.Check("follows", on_built(judge_follows)),
+          checks.Check("steps", on_built(judge_steps)), checks.Check("moving area", on_built(judge_moving_area)))

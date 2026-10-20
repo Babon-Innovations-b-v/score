@@ -140,6 +140,8 @@ def common_files(place):
         found["motion"] = "{data}/motion/" + place + ".json"
     if (REPO / "data/review" / place / "viewpoints.json").exists():
         found["viewpoints"] = "{data}/review/" + place + "/viewpoints.json"
+    if (REPO / "data/characters" / f"{place}.json").exists():  # who the place's cast stands (seen_faults)
+        found["cast"] = "{data}/characters/" + place + ".json"
     return found
 
 
@@ -422,7 +424,7 @@ def planned_seconds(shots):
     return demo.TITLE_SECONDS + shots * (SECONDS - demo.FADE_SECONDS)
 
 
-def film_measures(folder, stage_folder):
+def film_measures(folder, stage_folder, people=0):
     """One film's video checks, at the size its views planned, its length within
     LENGTH_SLACK of its planned length for the shots its views hold, and its frames' clearance: (seconds, mean dB,
     size, faults)."""
@@ -435,10 +437,10 @@ def film_measures(folder, stage_folder):
     views = planned["views"]
     stage = stage_folder / f"{place_of(stage_folder)}.usda"
     _, near = film_checks.clearance_checks(stage, views)
-    return video["seconds"], video["mean_db"], size, video["failures"] + near + seen_faults(stage, views)
+    return video["seconds"], video["mean_db"], size, video["failures"] + near + seen_faults(stage, views, people)
 
 
-def seen_faults(stage, views):
+def seen_faults(stage, views, people=0):
     """What the film's frames fail to show (the owner's review of 2026-10-18): a shot shorter than SECONDS, nobody in
     view in any frame where the stage holds people, and a thing seen moving in a shot with no sound of its own
     (shots.py). A film with no frames planned shows nothing to judge here: the video checks fail it."""
@@ -453,15 +455,23 @@ def seen_faults(stage, views):
     seen = shots.people_seen(stage, views)
     if seen is not None and not any(seen.values()):
         found.append("the place holds people and no frame shows one")
+    elif seen is None and people:  # the motion layer's bodies: the cast stands people the stage never got (#26)
+        found.append(f"the place's cast stands {people} people and the film's stage holds none")
     found += [f"{shot}: {path} moves in view with no sound" for shot, paths in shots.silent_moving(stage, views).items()
               for path in paths]
     return found
 
 
+def cast_people(cast):
+    """How many people the place's cast record stands (data/characters/<place>.json `people`; 0 with none)."""
+    return len(json.loads(pathlib.Path(cast).read_text()).get("people", [])) if cast else 0
+
+
 def film_verdict(folders, inputs):
     """The `film` verdict over the given films' folders (module docstring)."""
     stage_folder = final_stage(inputs)
-    measured = {folder.name: film_measures(folder, stage_folder) for folder in folders}
+    people = cast_people(inputs.get("cast"))
+    measured = {folder.name: film_measures(folder, stage_folder, people) for folder in folders}
     faults = [fault for _, _, _, found in measured.values() for fault in found]
     reason = "; ".join(faults[:3]) if faults else "; ".join(
         f"{seconds} s at {size[0]}x{size[1]}, sound at {loud} dB, every frame clear"

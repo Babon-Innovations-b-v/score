@@ -58,6 +58,16 @@ def test_a_place_with_people_fails_where_no_frame_shows_one():
     assert shots.people_seen(a_stage(person_at=(0, 0.5, 6)), views()) == {"shot0": 0}
 
 
+def test_a_cast_that_stands_people_fails_a_stage_that_holds_none():
+    """The motion layer's bodies (#26): the cast record says who stands in the place; a film whose stage got none of
+    them fails, one whose cast stands nobody does not."""
+    from score.stages import demo_film
+    film = views(frames=range(round(demo_film.SECONDS * 24)))
+    assert "the place's cast stands 2 people and the film's stage holds none" in \
+        demo_film.seen_faults(a_stage(door_sound=True), film, people=2)
+    assert not any("cast" in fault for fault in demo_film.seen_faults(a_stage(door_sound=True), film, people=0))
+
+
 def test_a_thing_seen_moving_needs_a_sound_of_its_own():
     """The owner's review of 2026-10-18: the sound only ambient, no event sounds. A door seen sliding with no sound
     under it is named; with its sound, or looked away from, it is not."""

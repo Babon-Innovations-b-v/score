@@ -13,7 +13,10 @@ adds what moves it. `stages.MOTION_LAYER` names each module's rows in the stage 
 | growth | `crops-layer` (`../crops`) | growth stages and sway of plants | formula |
 
 Every paid job of the layer is one shot in a batch: no paid retry, no fallback chain, no tweak loop; a job that fails
-is a hole. The free motion check (`check.py`, #23) judges every rigid move against its intended motion.
+is a hole. The free motion check (`check.py`, #23) judges every rigid move against its intended motion; the films'
+gate (`../demo_film`, `seen_faults`) holds a place whose cast record stands people to showing one. What the layer
+needs at a place is worked out free in `needs.py` (a row of a moving kind nothing moves, a motion need no record
+names), the holes check's `motion` source (`../complete/holes/layers.py`), each a line of code work, never a guess.
 
 The motion stage (the paper's Methods, "The canonical scene": motion; experimental, PRD #6): a place's motion layer,
 the game's own timed motions (`data/motion/<place>.json`) and the rigid moves SCORE gives the things that move there
@@ -53,4 +56,4 @@ heights under a spot); `check.py` the motion check.
 - **Only places with a rigid record have the row.** The assembly takes the accepted layer (`assembly.LAYERS`) in
   place of the seed's `layers/motion.usda`.
 - Effects tied to motion (dust, exhaust) are the effects stage's (`follows`, `on`).
-- `motion_test.py` makes a small stage of its own, writes a path, a swing and a slide, and breaks each gate once.
+- `motion_test.py` runs the gates on the launch's and hub's seeds (absent since the work folder was lost, 2026-10-19); `check_test.py` makes a small place of its own, writes a path, a swing and a slide, and breaks the motion check's rules and `clear` once each.
