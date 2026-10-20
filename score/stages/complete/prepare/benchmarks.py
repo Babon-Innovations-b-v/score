@@ -3,7 +3,8 @@ paid path (`score run ... --detach`, so the runner clears it, reserves its estim
 ledgers). At most CAP_EUROS for all of them together, counted on their highs: each one's `euros` is its likely figure
 and `high_euros` its high, #21's design estimates said as estimates (high equal to the estimate until measured).
 `needs` names what must land before one can run. None lowers a setting that ships: quality is never a cost lever
-(owner, 2026-10-20), so a benchmark of fewer Pixal3D steps or fewer film samples is never listed (#21).
+(owner, 2026-10-20), so a benchmark of fewer Pixal3D steps, fewer film samples or a finish list on low thinking is
+never listed (#21).
 
 Before any of them starts, the month's guard (compute.month_refusal) is asked for the total: while the month's books
 are unknown it refuses, and the owner runs `score spend --read-back` and `score spend --google-month EUR` first.
@@ -23,8 +24,6 @@ ESTIMATED = (
      "command": f"SCORE_MAX_MACHINES='gpu-24gb=0' {RUN} --place campgrounds --stage pixal"},
     {"id": "S1", "what": "settle: every drop of a place on one cpu-4c-32gb machine", "euros": 0.6,
      "needs": "#21 track C: settle on cpu-4c-32gb only", "command": f"{RUN} --place habitat --stage settle"},
-    {"id": "F-B", "what": "finish lists: one ask on low thinking on the flex tier", "euros": 0.5,
-     "needs": "#21 track B: ASKS = 1 and serviceTier", "command": f"{RUN} --place campgrounds --stage surfaces-lists"},
     {"id": "C1", "what": "people: three looks packed on one L4", "euros": 1.5,
      "needs": "#21 track C: packed looks, one close-up",
      "command": f"{RUN} --stage people-dress-bram-work --stage people-dress-nev-work --stage people-dress-sefa-work"},
