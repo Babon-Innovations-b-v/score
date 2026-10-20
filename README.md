@@ -70,7 +70,7 @@ $py tools/props/library/labels.py <row>-s1 $W/parts/<row>-s1 --place wreck --kin
     --parts $W/cutouts/parts/<row>-s1-8
 # the torn leg (2.4 m) is labelled into $W/parts/torn_leg-s1 and split into its two pieces
 $py tools/props/library/place_route.py split $W/parts/torn_leg-s1 $W/parts/leg_strut-s1 $W/parts/leg_foot-s1
-# 4. The plan and the bake jobs, baked in the cloud (--processor when no card is in stock)
+# 4. The plan and the bake jobs, baked in the cloud (one class fixed at price time; --classes cpu-32c-128gb for a processor)
 $py tools/props/library/place_route.py plan wreck $W --take s1
 $py tools/props/cloud/library_bake.py $W/job-*.json --who me
 # 5. The model gate, then the scene package and its check

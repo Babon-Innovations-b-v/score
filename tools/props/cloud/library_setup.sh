@@ -11,7 +11,7 @@ if [ -f "$done_mark" ]; then
   exit 0
 fi
 
-# A processor machine (--processor) has no card; Cycles then bakes on its processor.
+# A processor machine (--classes cpu-32c-128gb) has no card; Cycles then bakes on its processor.
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader || nproc
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq

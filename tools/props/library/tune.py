@@ -86,23 +86,23 @@ def turned(spec, setting, direction):
     return dict(spec, **{setting: min(high, max(low, value))})
 
 
-def render(folder, candidates, processor):
-    """Every candidate spec close up at the working wear, in one cloud run (on a processor machine if asked)."""
+def render(folder, candidates):
+    """Every candidate spec close up at the working wear, in one cloud run on the class library_bake fixes at price
+    time."""
     job = {"script": "swatch.py", "out": str(folder), "materials": candidates, "wears": [WEAR], "dirt": 0.4,
            "seed": 3, "size": 256, "samples": 24, "views": ["-close"], "settings": False}
     path = folder / "job.json"
     folder.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(job))
     for attempt in range(RENT_TRIES):
-        done = subprocess.run([sys.executable, str(CLOUD), str(path), "--who", "tune.py"]
-                              + (["--processor"] if processor else []), stdout=subprocess.DEVNULL)
+        done = subprocess.run([sys.executable, str(CLOUD), str(path), "--who", "tune.py"], stdout=subprocess.DEVNULL)
         if done.returncode == 0:
             return
         time.sleep(RENT_WAIT_SECONDS)  # stock moves by the minute (2026-10-06: no card, then no processor machine)
     raise SystemExit(f"no machine could be rented for {folder} after {RENT_TRIES} tries")
 
 
-def tune(work, rounds, only=None, processor=False):
+def tune(work, rounds, only=None):
     """Round by round, each material's best settings and score; the report. A material is turned only on the
     settings its recipe has."""
     specs = {name: spec for name, spec in library.library_specs().items()
@@ -119,7 +119,7 @@ def tune(work, rounds, only=None, processor=False):
                 candidates[f"{name}@up"] = turned(spec, setting, 1)
                 candidates[f"{name}@down"] = turned(spec, setting, -1)
         folder = work / f"round{number}"
-        render(folder, candidates, processor)
+        render(folder, candidates)
         for name in specs:
             scored = {tag: match(swatch_features(folder / f"{name}@{tag}-w{WEAR}-close.png"), targets[name])
                       for tag in ("0", "up", "down") if f"{name}@{tag}" in candidates}
@@ -150,11 +150,9 @@ def main():
     parser.add_argument("work", type=pathlib.Path)
     parser.add_argument("--rounds", type=int, default=4)
     parser.add_argument("--write", action="store_true")
-    parser.add_argument("--processor", action="store_true", help="render on a processor machine (no card in stock)")
     parser.add_argument("--only", help="the variants to tune, comma separated (default: every one with a reference)")
     arguments = parser.parse_args()
-    specs = tune(arguments.work, arguments.rounds, set(arguments.only.split(",")) if arguments.only else None,
-                 arguments.processor)
+    specs = tune(arguments.work, arguments.rounds, set(arguments.only.split(",")) if arguments.only else None)
     if arguments.write:
         write_back(specs)
 

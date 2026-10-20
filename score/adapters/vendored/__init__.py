@@ -63,7 +63,7 @@ TOOLS = {
         "use": LEFT_OUT, "image": None, "names": (), "callers": (), "stages": (),
         "why": "its nature patch runner was retired on 2026-10-06, when Pixal3D's nature props won the comparison; "
                "only its idea of annotations from one Blender render lives on (tools/blender/inside/"
-               "annotate_stage.py, written fresh) and its processor-stock helper (tools/props/cloud/infinigen.py)"},
+               "annotate_stage.py, written fresh)"},
     "claude-mem": {"use": AGENT, "image": None, "names": (), "callers": (), "stages": (),
                    "why": "cross-session memory of agents (root CLAUDE.md, Agent tools), switched off"},
     "codebase-memory-mcp": {"use": AGENT, "image": None, "names": (), "callers": (), "stages": (),
