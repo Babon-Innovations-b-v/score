@@ -1,4 +1,4 @@
-\begin{thebibliography}{54}
+\begin{thebibliography}{60}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -157,6 +157,49 @@ Zhifei Yang, Guangyao Zhai, Keyang Lu, YuYang Yin, Chao Zhang, Zhen Xiao, Jieyi
 \newblock {FlowScene}: Style-consistent indoor scene generation with multimodal
   graph rectified flow.
 \newblock \emph{arXiv preprint arXiv:2603.19598}, 2026{\natexlab{a}}.
+
+\bibitem[He et~al.(2026)He, Luo, Ma, and Averbuch-Elor]{he2026thinking}
+Guangzhao He, Rundong Luo, Wei-Chiu Ma, and Hadar Averbuch-Elor.
+\newblock Thinking in {Blender}: Staged executable inverse graphics with
+  vision-language models.
+\newblock \emph{arXiv preprint arXiv:2606.02580}, 2026.
+
+\bibitem[Wang et~al.(2026)Wang, Cai, Chen, Chi, Sun, Dai, Hung, Guo, Ren, Yao,
+  Liu, Long, Duan, Gao, Lyu, Liu, and Wu]{wang2026codeasworlds}
+Hanyang Wang, Yimo Cai, Weiliang Chen, Jiawei Chi, Haowen Sun, Qiyu Dai,
+  Yi-Hsin Hung, Xingzhuo Guo, Jinshan Ren, Runmao Yao, Ziwei Liu, Mingsheng
+  Long, Yueqi Duan, Jun Gao, Jiangran Lyu, Fangfu Liu, and Jialong Wu.
+\newblock Code as worlds: Agentic discovery of executable world representations
+  for physical reasoning.
+\newblock \emph{arXiv preprint arXiv:2608.27549}, 2026.
+
+\bibitem[Zhang et~al.(2026)Zhang, Wang, Zhang, and Tang]{zhang2026code2worlds}
+Yi~Zhang, Yunshuang Wang, Zeyu Zhang, and Hao Tang.
+\newblock {Code2Worlds}: Empowering coding {LLMs} for {4D} world generation.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, 2026.
+
+\bibitem[Liu et~al.(2026)Liu, Wang, Chen, Zhao, Yang, and
+  Jeni]{liu2026simworlds}
+Chunjiang Liu, Xiaoyuan Wang, Haoyu Chen, Yizhou Zhao, Ming-Hsuan Yang, and
+  L{\'a}szl{\'o}~A. Jeni.
+\newblock {SimWorlds}: A multi-agent system for dynamic {3D} scene creation.
+\newblock \emph{arXiv preprint arXiv:2607.01766}, 2026.
+
+\bibitem[Gao et~al.(2026)Gao, Shu, Ye, Xiong, Makadia, Guo, Itti, and
+  Chen]{gao2026codebench3d}
+Yipeng Gao, Lei Shu, Genzhi Ye, Xi~Xiong, Ameesh Makadia, Meiqi Guo, Laurent
+  Itti, and Jindong Chen.
+\newblock {3DCodeBench}: Benchmarking agentic procedural {3D} modeling via
+  code.
+\newblock \emph{arXiv preprint arXiv:2606.01057}, 2026.
+
+\bibitem[Shen et~al.(2026)Shen, Kova{\v{c}}i{\v{c}}, Kulits, Wang, Li,
+  Tenenbaum, Yuille, Chen, and Wu]{shen2026codebench4d}
+Ruihong Shen, {\v{Z}}iga Kova{\v{c}}i{\v{c}}, Peter Kulits, Xingrui Wang,
+  Zizhang Li, Joshua~B. Tenenbaum, Alan Yuille, Jieneng Chen, and Jiajun Wu.
+\newblock {4DCodeBench}: Benchmarking agents on inverse graphics of dynamic
+  scenes.
+\newblock \emph{arXiv preprint arXiv:2610.03715}, 2026.
 
 \bibitem[{Pixar Animation Studios} and {Alliance for OpenUSD}(2026)]{openusd}
 {Pixar Animation Studios} and {Alliance for OpenUSD}.
