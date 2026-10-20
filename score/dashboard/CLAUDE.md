@@ -195,7 +195,9 @@ Rules:
   refuse in a process an agent started. Never call `Runner.drive`, `rebuy.buys`,
   `compute.clearance` or `rejudged_accepted` in the web process: plans, spend and freshness are subprocesses of the
   `score` command.
-- **Never launch from a test or an agent against the real runner.** Tests use `tests/fixture.py:FakeBackend`; a launch
+- **Never launch from a test or an agent against the real runner.** Tests use `tests/fixture.py:FakeBackend` (one
+  exception: `launch_test`'s start-line test runs the real `score run --detach` on a run with nothing to make, in the
+  test's own `PROPS_HOME`, so `localrun.STARTED` and the runner's line cannot drift apart); a launch
   needs the owner signed in, room under the stop his last checkout's yes wrote and every refusal of
   `guard.refusals` clear; there is no stop he sets (no month's stop, no stop button: owner, 2026-10-20); the dashboard
   never stops a run.

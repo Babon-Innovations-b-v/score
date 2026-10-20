@@ -191,8 +191,8 @@ def detach(argv):
                                    start_new_session=True, env=frozen.owner_env() if owned else None)
     if owned:  # the detached run drives from this frozen copy and removes it when it ends
         frozen.hand_on()
-    print(f"detached: started pid={process.pid} (it registers on the store itself and may still be refused: its "
-          f"result line says) log={log}", flush=True)
+    print("score run: detached; it registers on the store itself and may still be refused: its result line says")
+    print(f"detached: started pid={process.pid} log={log}", flush=True)  # the cockpit reads it: launch/localrun
 
 
 def publish(kind):

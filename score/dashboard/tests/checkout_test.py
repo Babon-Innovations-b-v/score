@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from score.dashboard.checkout import flow, pricing
 from score.dashboard.launch.backend import Billed, RunGroup
+from score.dashboard.pages import basket
 from score.dashboard.pages.models import BasketChoice, Checkout
 from score.dashboard.proposals import make, records
 from score.dashboard.tests import fixture
@@ -131,7 +132,8 @@ def test_an_item_changed_since_he_chose_it_or_waiting_or_missing_inputs_is_refus
 
 # --- the checkout ------------------------------------------------------------------------------------------------
 
-def test_the_checkout_plans_each_item_writes_the_line_and_launches_one_batch(shop):
+def test_the_checkout_plans_each_item_writes_the_line_and_launches_one_batch(shop, monkeypatch):
+    monkeypatch.setattr(FakeBackend, "log_folder", None)  # its run writes no result line: still running
     client = api()
     bought(shop, "alpha-pieces", "beta-pieces")
     record = checked_out(client, "d")["checkout"]
@@ -144,6 +146,7 @@ def test_the_checkout_plans_each_item_writes_the_line_and_launches_one_batch(sho
     assert planned == [RunGroup(("alpha",), ("closeup",)), RunGroup(("beta",), ("closeup",))]
     assert [call[1] for call in launches()] == planned and "the owner's checkout" in launches()[0][3]
     assert record["launch"] is not None and [item["id"] for item in record["items"]] == ["alpha-pieces", "beta-pieces"]
+    assert basket.last_batch()["state"] == "running"  # the Buy screen follows the launched run, not the checkout
 
 
 def test_the_same_key_is_the_same_checkout(shop):
