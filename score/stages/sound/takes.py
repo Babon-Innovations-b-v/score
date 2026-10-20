@@ -6,8 +6,9 @@ A take is named by its sound, its prompt's and length's hash and its seed, and k
 same prompt, length, seed and weights make the same take, so a take made once is never paid for again (a rerun of
 the row, or another place's line asking the same brief).
 
-The takes are one batch (#21): each prompt once, at SEED, never a second seed to pick the best of; the likeness gate
-sorts each take by its CLAP score against gates.CLAP_FLOOR into a pass or a hole, and a new take is a new batch.
+The takes are one batch (#21): each prompt at each of the brief's seeds, every take made once side by side (the
+picker chooses among them, so their number is a quality choice, not a re-ask); the likeness gate sorts each take by
+its CLAP score against gates.CLAP_FLOOR into a pass or a hole, and a new take is a new batch.
 """
 import fcntl
 import hashlib
@@ -29,8 +30,6 @@ MODELS = ["moss-soundeffect-v2", "clap-larger-general"]
 # from the card answering to the first result.
 MINUTES_A_TAKE = 0.6
 FIRST_RESULT_MINUTES = 8
-# Each prompt's one seed (#21): a brief's `seeds` is the picking page's, not the stage's.
-SEED = 1
 REMOTE = "/root/sfx"
 
 
@@ -41,10 +40,11 @@ def take_file(name, prompt, seconds, seed, weights):
 
 
 def jobs_for(name, brief, weights):
-    """Every take a brief asks for: each prompt once at SEED, its length."""
+    """Every take a brief asks for: each prompt at each seed, its length."""
     seconds = int(brief.get("seconds", 8))
-    return [{"file": take_file(name, prompt, seconds, SEED, weights), "sound": name, "prompt": prompt,
-             "seconds": seconds, "seed": SEED} for prompt in brief["prompts"]]
+    return [{"file": take_file(name, prompt, seconds, seed, weights), "sound": name, "prompt": prompt,
+             "seconds": seconds, "seed": seed}
+            for prompt in brief["prompts"] for seed in range(1, int(brief.get("seeds", 2)) + 1)]
 
 
 def scores():

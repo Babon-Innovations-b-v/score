@@ -8,7 +8,9 @@ tools/review/film_preview.py's; with both seen, the creator writes `"final": tru
 """
 import argparse
 import pathlib
+import shutil
 import sys
+import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
@@ -26,12 +28,23 @@ def accepted_final_stage(store, place):
     raise SystemExit(f"{place} has no accepted assembly in the store")
 
 
+def shots_of(record_path, film):
+    """The shots the film is made with, counted as film_one counts them (own_cameras), on a copy of the stage's scene
+    record so the accepted output is left as it is."""
+    with tempfile.TemporaryDirectory() as folder:
+        copy = pathlib.Path(folder) / "scene.json"
+        shutil.copy(record_path, copy)
+        copy.chmod(0o644)
+        return len(demo_film.own_cameras(copy, film))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="score.stages.demo_film", description=__doc__.split("\n")[0])
     parser.add_argument("command", choices=("forecast",))
     parser.add_argument("place")
     options = parser.parse_args(argv)
-    planned = demo_film.forecast(accepted_final_stage(Store.default(), options.place), demo_film.SHOTS)
+    stage = accepted_final_stage(Store.default(), options.place)
+    planned = demo_film.forecast(stage, shots_of(stage.parent / "scene.json", demo_film.films()[options.place]))
     print(f"{options.place}: {demo_film.forecast_line(planned)}")
 
 

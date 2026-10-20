@@ -178,7 +178,7 @@ def test_any_outfit_with_words_can_be_split_and_one_without_is_refused_on_the_pc
 
 
 def test_pixal3d_is_bought_for_the_one_passing_close_up_with_its_arms_furthest_apart(tmp_path, monkeypatch):
-    """#21: one close-up seed by default, and Pixal3D on one take a look: of the passing close-ups, the one whose arms
+    """#21: two close-up seeds by default, each drawn once, and Pixal3D on one take a look: of the passing close-ups, the one whose arms
     stand furthest apart; none passing, none bought."""
     import prop_person
     monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path)
@@ -195,12 +195,13 @@ def test_pixal3d_is_bought_for_the_one_passing_close_up_with_its_arms_furthest_a
     (folder / "checks.json").write_text(json.dumps(checked))
     assert prop_person.closeups(PERSON, "work") == []
     words = (pathlib.Path(__file__).resolve().parent / "prop_person.py").read_text()
-    assert 'spec.get("closeup_seeds", [1])' in words
+    assert 'spec.get("closeup_seeds", [1, 2])' in words
 
 
-def test_a_failed_bind_record_predicts_a_hole_only_on_the_same_inputs(tmp_path, monkeypatch):
-    """#21: a look's failed bind-pose tucks record, on the hash of its take, spec, parts and the maker's code, predicts
-    the same failure (nothing bought); a passing record, or any changed input, predicts nothing."""
+def test_a_failed_tucks_record_predicts_a_hole_only_on_the_same_inputs(tmp_path, monkeypatch):
+    """#21: the settled pokes.json with a tuck over the gate in every clip writes a record on the hash of the take,
+    spec, parts and the maker's and people tools' code, which predicts the same failure (nothing bought); a clip
+    that passed writes none, and any changed input, the people tools' code included, predicts nothing."""
     import prop_person
     monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path)
     folder = prop_person.folder_of(PERSON, "work")
@@ -208,12 +209,27 @@ def test_a_failed_bind_record_predicts_a_hole_only_on_the_same_inputs(tmp_path, 
     (folder / "checks").mkdir()
     (folder / "take.txt").write_text("pp-a_s1")
     (folder / "parts" / "pp-a_s1" / "parts.npz").write_bytes(b"first parts")
-    record = {"worst_tuck_out_mm": 9.32, "parts": {"boot_r": 9.32}, "pass": False,
-              "inputs": prop_person.bind_inputs(PERSON, folder, "pp-a_s1")}
-    (folder / "checks" / "bind_tucks.json").write_text(json.dumps(record))
-    assert prop_person.predicted_bind(PERSON, "work") == record
-    (folder / "checks" / "bind_tucks.json").write_text(json.dumps(dict(record, **{"pass": True})))
-    assert prop_person.predicted_bind(PERSON, "work") is None
-    (folder / "checks" / "bind_tucks.json").write_text(json.dumps(record))
+    clips = {"walk": {"worst_tuck_out_mm": 9.32, "frames_tuck_over": 40},
+             "idle": {"worst_tuck_out_mm": 6.1, "frames_tuck_over": 0}}
+    (folder / "checks" / "pokes.json").write_text(json.dumps({"clips": clips}))
+    assert prop_person.tucks_record(PERSON, "work") is None and prop_person.predicted_tucks(PERSON, "work") is None
+    clips["idle"]["frames_tuck_over"] = 3
+    (folder / "checks" / "pokes.json").write_text(json.dumps({"clips": clips}))
+    record = prop_person.tucks_record(PERSON, "work")
+    assert record["worst_tuck_out_mm"] == 9.32 and record["clips"] == 2, record
+    assert prop_person.predicted_tucks(PERSON, "work") == record
     (folder / "parts" / "pp-a_s1" / "parts.npz").write_bytes(b"new parts")
-    assert prop_person.predicted_bind(PERSON, "work") is None
+    assert prop_person.predicted_tucks(PERSON, "work") is None
+    (folder / "parts" / "pp-a_s1" / "parts.npz").write_bytes(b"first parts")
+    people = tmp_path / "tools" / "people"
+    people.mkdir(parents=True)
+    (people / "joins.py").write_text("# joins")
+    (people / "joins_test.py").write_text("# a test")
+    monkeypatch.setattr(prop_person, "HERE", tmp_path / "tools" / "maker")
+    (tmp_path / "tools" / "maker").mkdir()
+    prop_person.tucks_record(PERSON, "work")
+    assert prop_person.predicted_tucks(PERSON, "work") is not None
+    (people / "joins_test.py").write_text("# a test, edited")
+    assert prop_person.predicted_tucks(PERSON, "work") is not None, "a test edit moved the hash"
+    (people / "joins.py").write_text("# joins, fixed")
+    assert prop_person.predicted_tucks(PERSON, "work") is None, "a people tools fix left the old prediction"

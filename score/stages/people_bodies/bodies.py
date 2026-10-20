@@ -5,9 +5,9 @@ body fitted under it as its moving base (only the rig, so Kimodo's clips play), 
 through every clip, and its checks (tools/characters/maker/prop_person.py's stages build, settle and checks-cloud,
 the checks side by side on a rented processor machine), on the parts its own priced row made,
 `people-look-parts-<look>` (PARTS, #21: never a purchase hidden inside the body row; gated on `parts`, every part
-named with a role and a material). A full look's tucks are measured at the bind pose right after its build (pokes.py
---bind, free): over the tucks gate's 5 mm there, every clip fails, so the settle is not bought and the look is a
-hole; a look whose bind record failed on the same inputs is refused before any machine (prop_person.predicted_bind).
+named with a role and a material). When the paid checks find a tuck over the gate in every clip (pokes.json), the
+look's record of it (prop_person.tucks_record) carries its inputs' hash, and while that stands the row is refused
+before any machine (prop_person.predicted_tucks): the same failure is never bought twice.
 The maker works in its candidate folder (~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row
 copies the made body and every record the gates read into its output.
 
@@ -104,37 +104,29 @@ def made(look, entry):
         (folder / "take.txt").write_text(entry["take"])
         laid_parts(pathlib.Path(inputs[f"{PARTS}-{look}"]), folder / "parts" / entry["take"])
         if not entry.get("far_only"):
-            refused_on_record(prop_person.predicted_bind(spec, outfit), who)
+            refused_on_record(prop_person.predicted_tucks(spec, outfit), who)
         stages = ("build",) if entry.get("far_only") else ("build", "settle")
-        bind = None
         with prop_person.machine_held(spec, outfit, who) as held:  # one machine, set up once: shell, build, settle
             for stage in stages:
                 prop_person.record_stage(folder, stage, *timed(prop_person.STAGE_WORK[stage], spec, outfit, who,
                                                                held))
-                if stage == "build" and "settle" in stages:
-                    bind = prop_person.bind_tucks(spec, outfit)
-                    if not bind["pass"]:
-                        break  # every clip fails from its first frame: the settle is not bought
-        if bind is not None and not bind["pass"]:
-            raise RuntimeError(f"{who}: a hole, bind-pose tucks {bind['worst_tuck_out_mm']} mm out ({bind['parts']}),"
-                               " over the 5 mm the tucks gate allows in every frame of every clip; its settle not "
-                               "bought, a new body is a new batch")
         if entry.get("far_only"):
             kept_far(folder, spec["name"], entry, out)
             return
         prop_person.record_stage(folder, "checks-cloud", *timed(prop_person.checks_cloud, spec, outfit, who, None))
+        prop_person.tucks_record(spec, outfit)
         kept(folder, spec["name"], entry, out)
     return make
 
 
 def refused_on_record(foretold, who):
-    """Blocked, before any machine is rented, when the look's bind-pose tucks failed on the same inputs (#21:
-    prop_person.predicted_bind): a predicted hole, never bought again. A body batch whose every look is foretold so
+    """Blocked, before any machine is rented, when the look's settled tucks failed in every clip on the same inputs
+    (#21: prop_person.predicted_tucks): a predicted hole, never bought again. A body batch whose every look is foretold so
     spends nothing."""
     if foretold:
-        raise graph.Blocked(f"{who}: a predicted hole, its bind-pose tucks {foretold['worst_tuck_out_mm']} mm out "
-                            f"({foretold['parts']}) on these same inputs; change the take, its parts or the maker "
-                            "first")
+        raise graph.Blocked(f"{who}: a predicted hole, its settled tucks over the gate in all {foretold['clips']} clips "
+                            f"({foretold['worst_tuck_out_mm']} mm at the worst) on these same inputs; change the take, "
+                            "its parts or the maker first")
 
 
 def laid_parts(accepted, target):

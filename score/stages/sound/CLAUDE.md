@@ -26,10 +26,10 @@ gates; `takes.py` the paid part.
   card in the moss image (`takes.py`, through `tools/cloud/images/prove.py`), chosen by the picker's rule.
 - **Takes are kept in `~/.cache/farm-factory/sound-picker/moss/stage/`** named by sound, the hash of prompt, length and
   weights, and seed, with their CLAP scores: the same brief is never paid for twice. Change a prompt to get new takes.
-- **One batch, one take a prompt** (#21): each prompt once at `takes.SEED` (1; a brief's `seeds` is the picking
-  page's), the card's deadline its takes' minutes. The gates sort: a take under `CLAP_FLOOR` fails `likeness`, a take
+- **One batch** (#21): each prompt at each of the brief's `seeds` (2 by default), every take made once side by side
+  (the picker's choice among them is quality, not a re-ask), the card's deadline its takes' minutes. The gates sort: a take under `CLAP_FLOOR` fails `likeness`, a take
   that did not come back leaves its sound without one and fails `sources`; either is a hole, and a new take is a new
-  batch, never a second seed inside this one.
+  batch, never a further seed inside this one.
 - **Unit cost** (environment 1, 2026-10-12, ledger): one L4 a place, about 4 min from order to first take, about 28 s a
   take of 10 to 15 s; EUR 0.09 to 0.13 a place for one brief (8 takes), EUR 0.72 for environment 1's 7 new sounds (56 takes).
 - **The owner's recordings stay** (2026-10-06: the breathing, the sliding doors and the steel footsteps were better

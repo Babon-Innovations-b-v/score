@@ -23,12 +23,14 @@ own sound; paid and cleared by the runner like any paid row.
   `aim`, or `across` the record's floor as shares of it (the ship's rooms: the spot keeps its place when a room is
   built at another size), with `fov` and `stand` (a small room's shot stands and turns rather than walking into a
   wall). The planner keeps clear of people and movers (camera_paths), glides at one speed between eased ends and
-  rounds its corners (demo.py). About EUR 3.2 a place (twice a measured 96-frame film).
+  rounds its corners (demo.py). About EUR 3.2 a place likely and 3.5 high (twice a measured 96-frame film's 1.6 and 1.75).
 - **A film is one batch** (#21, owner 2026-10-20, replacing #20's paid preview): everything before the yes is free,
   the local preview (`tools/review/film_preview.py`) and the forecast (`python -m score.stages.demo_film forecast
   <place>`: frames, cards, card minutes and euros likely and high, from a scan of the accepted stage for fog,
-  volumes and glass, priced high at `FOG_FRAME_MINUTES` a frame). A film whose record lacks `"final": true` has no
-  node, so nothing is priced or bought; the creator writes `final` once he has seen both. Never write it for him.
+  volumes and glass, priced high at `FOG_FRAME_MINUTES` a frame). A film whose record lacks `"final": true` keeps
+  its node (the films page can put it in the basket), but the row is Blocked before anything is bought; the creator
+  writes `final` once he has seen both. A film whose forecast's high passes the euros its run was cleared at is
+  Blocked too: a dearer film is a new ask at the forecast's price. Never write it for him.
   The final is rendered once at 1280x720 over the cards `capacity.machines_for` sizes (no fixed card count), each
   job's deadline its frames at the forecast's high; a job that dies or passes it is a hole, never run again inside
   the batch, and filming it again is a new batch and a new yes. The gate holds each film to the size its views.json

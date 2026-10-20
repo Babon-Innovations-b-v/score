@@ -10,8 +10,10 @@ rules.
   `__init__`; in the people package that pulled in the whole surface stage, so every surface edit re-keyed (and
   re-bought) every body (2026-10-13). Import nothing here from `score.stages.people`.
 - Tests: `../people/people_test.py`.
-- **One batch a body, no buy on a known failure (#21).** A full look's tucks are measured at the bind pose right after
-  its build (`pokes.py --bind`, free, here): over 5 mm there every clip fails, so its settle is not bought and the row
-  fails, a hole. Its record (`checks/bind_tucks.json`) carries the hash of its inputs (`prop_person.bind_inputs`);
-  while that hash stands the row is Blocked before any machine is rented, so a body batch whose every look failed
-  at the bind spends nothing. A new body is a new batch once the take, its parts or the maker changed.
+- **One batch a body, no buy on a known failure (#21).** The build, settle and checks run once. When the paid
+  checks find a tuck over the gate in every clip of the settled body (`pokes.json`), the look's record
+  (`checks/failed_tucks.json`, `prop_person.tucks_record`) carries the hash of its inputs (`prop_person.tucks_inputs`:
+  take, spec, parts, the maker's and people tools' code); while that hash stands the row is Blocked before any
+  machine is rented, so the same failure is never bought twice. Not a bind-pose check on the unsettled build: the
+  settle pushes cloth back over a tuck, so only the settled measure predicts. A new body is a new batch once the
+  take, its parts or the code changed.

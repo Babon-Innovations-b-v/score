@@ -15,7 +15,7 @@ sys.path.insert(0, str(REPO))
 
 from PIL import Image  # noqa: E402
 
-from score import checks  # noqa: E402
+from score import checks, graph  # noqa: E402
 from score.stages import demo_film  # noqa: E402
 from score.store import PROPS_HOME  # noqa: E402
 
@@ -69,9 +69,10 @@ def folder():
 
 
 def test_only_the_named_places_have_the_row_and_it_declares_its_tools():
-    """#21: a film is a batch the creator said yes to (its record's `final`); one without it has no node."""
+    """#21: a film is a batch the creator said yes to (its record's `final`); one without it keeps its node (the
+    basket takes it) and its row is Blocked before anything is bought."""
     own = [name for name, film in demo_film.films().items() if film["place"] == name]
-    assert all(demo_film.applies(place) == (demo_film.films()[place].get("final") is True) for place in own)
+    assert all(demo_film.applies(place) for place in own)
     assert not demo_film.applies("no such place")
     root = folder()
     real = demo_film.FILMS
@@ -80,7 +81,25 @@ def test_only_the_named_places_have_the_row_and_it_declares_its_tools():
                            ("yard", {"place": "yard", "camera": "gate", "final": True})):
             (root / f"{name}.json").write_text(json.dumps(film))
         demo_film.FILMS = root
-        assert not demo_film.applies("hall") and demo_film.applies("yard")
+        assert demo_film.applies("hall") and demo_film.applies("yard")
+        made = []
+        real_one = demo_film.film_one
+        demo_film.film_one = lambda stage, name, film, out, log, start: made.append(name)
+        try:
+            (root / "stage").mkdir()
+            (root / "stage/hall.usda").write_text("#usda 1.0\n")
+            try:
+                demo_film.make({"assembly": root / "stage", "film hall": root / "hall.json"}, root / "out", 0, {})
+                raise AssertionError("a film with no yes was made")
+            except graph.Blocked as blocked:
+                assert "no yes yet for hall" in str(blocked), blocked
+            shutil.rmtree(root / "stage")
+            (root / "stage").mkdir()
+            (root / "stage/yard.usda").write_text("#usda 1.0\n")
+            demo_film.make({"assembly": root / "stage", "film yard": root / "yard.json"}, root / "out", 0, {})
+        finally:
+            demo_film.film_one = real_one
+        assert made == ["yard"], made
     finally:
         demo_film.FILMS = real
         shutil.rmtree(root)
@@ -109,9 +128,9 @@ def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alon
     try:
         for name, place, camera in (("hangar", "hangar", "across"), ("hull", "hangar", "ship")):
             (root / f"{name}.json").write_text(json.dumps({"place": place, "camera": camera, "final": True}))
-        (root / "nose.json").write_text(json.dumps({"place": "hangar", "camera": "ship"}))  # no yes: no film
+        (root / "nose.json").write_text(json.dumps({"place": "hangar", "camera": "ship"}))  # no yes: Blocked
         demo_film.FILMS = root
-        assert demo_film.extras("hangar") == ["hull"] and demo_film.applies_extra("hangar")
+        assert demo_film.extras("hangar") == ["hull", "nose"] and demo_film.applies_extra("hangar")
         assert not demo_film.applies_extra("hub") and not demo_film.applies("hull")
         assert "film hull" not in demo_film.files("hangar")
         assert demo_film.extra_files("hangar")["film hull"] == "{data}/definitions/demo_films/hull.json"
@@ -123,6 +142,12 @@ def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alon
             (root / "stage").mkdir()
             (root / "stage/hangar.usda").write_text("#usda 1.0\n")
             demo_film.make_extra({"assembly": root / "stage", "film hull": root / "hull.json"}, root / "out", 0, {})
+            try:
+                demo_film.make_extra({"assembly": root / "stage", "film hull": root / "hull.json",
+                                      "film nose": root / "nose.json"}, root / "out", 0, {})
+                raise AssertionError("a row holding a film with no yes was made")
+            except graph.Blocked as blocked:
+                assert "no yes yet for nose" in str(blocked), blocked
         finally:
             demo_film.film_one = real_one
         assert made == [("hull", "ship", "hull")], made
@@ -224,8 +249,9 @@ def test_the_forecast_prices_fog_and_glass_at_the_high_frame_time_and_a_plain_st
             (root / f"{name}.usda").write_text(text)
         plain, fog, glass = (demo_film.forecast(root / f"{name}.usda", demo_film.SHOTS)
                              for name in ("plain", "fog", "glass"))
-        assert plain["frames"] == 192 and plain["high_frame_minutes"] == demo.FRAME_MINUTES
-        assert plain["euros"] == plain["high_euros"] == demo_film.EUROS
+        assert plain["frames"] == 192 and plain["frame_minutes"] == demo.FRAME_MINUTES
+        assert plain["high_frame_minutes"] == demo.FRAME_MINUTES * demo_film.FRAME_SPREAD
+        assert plain["euros"] == demo_film.LIKELY_EUROS and plain["high_euros"] == demo_film.EUROS
         assert fog["slow"] == {"fog": 1, "volumes": 0, "glass": 0}, fog["slow"]
         assert glass["slow"] == {"fog": 0, "volumes": 0, "glass": 1}, glass["slow"]
         assert fog["high_frame_minutes"] == glass["high_frame_minutes"] == demo_film.FOG_FRAME_MINUTES
@@ -233,6 +259,49 @@ def test_the_forecast_prices_fog_and_glass_at_the_high_frame_time_and_a_plain_st
         assert "1 fog" in demo_film.forecast_line(fog), demo_film.forecast_line(fog)
     finally:
         shutil.rmtree(root)
+
+
+def test_a_film_whose_forecast_high_passes_its_clearance_is_blocked_before_its_frames_are_bought():
+    """#21: the yes is given on the cleared price; a fogged film's forecast high passes it and is a new ask, a plain
+    film's high is the row's estimate and passes; outside a cleared run nothing is compared."""
+    root = folder()
+    try:
+        (root / "plain.usda").write_text("#usda 1.0\ndef Xform \"hall\"\n{\n}\n")
+        (root / "fog.usda").write_text(FOGGED)
+        plain, fog = (demo_film.forecast(root / f"{name}.usda", demo_film.SHOTS) for name in ("plain", "fog"))
+        demo_film.refuse_over_clearance("hall", plain, demo_film.EUROS)
+        demo_film.refuse_over_clearance("hall", fog, None)
+        try:
+            demo_film.refuse_over_clearance("hall", fog, demo_film.EUROS)
+            raise AssertionError("a fogged film passed a plain film's clearance")
+        except graph.Blocked as blocked:
+            assert "a new ask" in str(blocked), blocked
+    finally:
+        shutil.rmtree(root)
+
+
+def test_the_forecast_counts_the_shots_film_one_makes_and_leaves_the_record_alone():
+    """#21: a place whose record holds one camera is forecast at one shot, as film_one plans it."""
+    from score.stages.demo_film import __main__ as forecast_cli
+    root = folder()
+    try:
+        record = {"views": [{"name": "door", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1]}]}
+        (root / "scene.json").write_text(json.dumps(record))
+        assert forecast_cli.shots_of(root / "scene.json", {"place": "hall", "camera": "door"}) == 1
+        record["views"].append({"name": "back", "eye": [5, 1.6, 5], "aim": [0, 1.6, 0]})
+        (root / "scene.json").write_text(json.dumps(record))
+        assert forecast_cli.shots_of(root / "scene.json", {"place": "hall", "camera": "door"}) == 2
+        assert json.loads((root / "scene.json").read_text()) == record
+    finally:
+        shutil.rmtree(root)
+
+
+def test_the_frames_ask_cards_only_so_no_card_in_stock_is_a_hole():
+    """#21: the frames' classes are cards; blender_cloud takes the first one in stock and never a processor machine in
+    a card's place (batch.one_class_in_stock), so a film priced on cards runs on cards or is a hole."""
+    sys.path.insert(0, str(REPO / "tools/props/cloud"))
+    import provider
+    assert all(provider.cards(name) for name in demo_film.CLASSES.split(","))
 
 
 def look_only_film(root):

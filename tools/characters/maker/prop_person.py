@@ -11,8 +11,8 @@ Experimental (#5): the player fails tucks and pokes and Nev is not made, so it r
 Everything lands in ~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/, never in a kept look or a built
 body. The stages, each a cloud job through the repo's runners (only plain CPU geometry runs on this PC):
   closeup  on a characters machine (prop_chain.py): the bind pose measured on SOMA-X's skeleton, the close-up drawn
-           by klein in it (one seed, the spec's `closeup_seeds` else [1]: #21); no body is read off it
-           (SAM3DBody-cpp is not used on this route)
+           by klein in it (two seeds, the spec's `closeup_seeds` else [1, 2], each drawn once; Pixal3D on the one
+           predicted best, #21); no body is read off it (SAM3DBody-cpp is not used on this route)
   rig      on a characters machine (prop_skeleton.py): SOMA-X's mean skeleton, its surface's weights (the source the
            weights are moved from, never drawn) and the clips Kimodo made, against their parents
   mesh     Pixal3D on the one close-up that passed with its arms furthest apart (../../props/cloud/batch.py
@@ -180,7 +180,7 @@ def closeup(spec, outfit, who, held, dry_run):
     folder = folder_of(spec, outfit)
     make = make_place(folder, "closeup")
     machine_spec = dict(spec, name=f"{spec['name']}-{outfit}", outfit=outfit, who=spec["description"],
-                        outfit_words=spec["outfit_words"][outfit], seeds=spec.get("closeup_seeds", [1]))
+                        outfit_words=spec["outfit_words"][outfit], seeds=spec.get("closeup_seeds", [1, 2]))
     files = {f"reference_{number}": pathlib.Path(path).expanduser()
              for number, path in enumerate(spec.get("references", []))}
     if "pose_picture" in spec:
@@ -623,41 +623,45 @@ def checks(spec, outfit, who, held, dry_run):
     return write_table(spec, outfit, folder, take)
 
 
-def bind_inputs(spec, folder, take):
-    """The hash of what a look's bind-pose tucks are made from: its take, its spec, its parts and this folder's code
-    (the rig, the shell's binding, the build, the tucks and their measure): a failed bind record on the same hash
-    predicts the same failure (#21)."""
+def tucks_inputs(spec, folder, take):
+    """The hash of what a look's tucks are made from: its take, its spec, its parts and the maker's and the people
+    tools' code (the rig, the shell's binding, the build, the settle, the tucks and their measure; their tests left
+    out): a failed tucks record on the same hash predicts the same failure (#21)."""
     digest = hashlib.sha256(json.dumps([take, spec], sort_keys=True).encode())
-    for path in (folder / "parts" / take / "parts.npz", *sorted(HERE.glob("*.py"))):
+    code = sorted(path for path in (*HERE.glob("*.py"), *(HERE.parent / "people").glob("*.py"))
+                  if not path.name.endswith("_test.py"))
+    for path in (folder / "parts" / take / "parts.npz", *code):
         digest.update(path.read_bytes())
     return digest.hexdigest()
 
 
-def bind_tucks(spec, outfit):
-    """The built body's tucks at the bind pose (pokes.py --bind, here, seconds, free): <candidate>/checks/
-    bind_tucks.json with the hash of its inputs, and the record."""
+def tucks_record(spec, outfit):
+    """After the paid checks, the look's tucks as its settled pokes.json measured them: when every clip had a frame
+    with a tuck over the gate (frames_tuck_over), <candidate>/checks/failed_tucks.json with the worst and the hash of
+    its inputs, the record; else any old record removed, None."""
     folder = folder_of(spec, outfit)
+    clips = json.loads((folder / "checks" / "pokes.json").read_text())["clips"]
+    written = folder / "checks" / "failed_tucks.json"
+    if not clips or not all(clip["frames_tuck_over"] > 0 for clip in clips.values()):
+        written.unlink(missing_ok=True)
+        return None
     take = (folder / "take.txt").read_text().strip()
-    written = folder / "checks" / "bind_tucks.json"
-    written.parent.mkdir(exist_ok=True)
-    local("pokes.py", folder / "out" / f"{spec['name']}.glb", "--out", written, "--bind")
-    record = dict(json.loads(written.read_text()), inputs=bind_inputs(spec, folder, take))
+    record = {"worst_tuck_out_mm": max(clip["worst_tuck_out_mm"] for clip in clips.values()), "clips": len(clips),
+              "inputs": tucks_inputs(spec, folder, take)}
     written.write_text(json.dumps(record, indent=1))
     return record
 
 
-def predicted_bind(spec, outfit):
-    """The look's last bind record when it failed on the same inputs (bind_inputs): a predicted hole, nothing to buy
-    (#21); None when there is none, it passed, or anything it was made from has changed."""
+def predicted_tucks(spec, outfit):
+    """The look's failed tucks record when it stands on the same inputs (tucks_inputs): a predicted hole, nothing to
+    buy (#21); None when there is none or anything it was made from has changed."""
     folder = folder_of(spec, outfit)
-    written = folder / "checks" / "bind_tucks.json"
+    written = folder / "checks" / "failed_tucks.json"
     if not written.exists():
         return None
     record = json.loads(written.read_text())
     take = (folder / "take.txt").read_text().strip()
-    if record.get("pass") or record.get("inputs") != bind_inputs(spec, folder, take):
-        return None
-    return record
+    return record if record.get("inputs") == tucks_inputs(spec, folder, take) else None
 
 
 CHECK_CLASSES = "cpu-16c-64gb,cpu-32c-64gb"  # four checks at once; the cheapest machine first

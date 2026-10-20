@@ -154,13 +154,14 @@ def test_parts_pass_only_when_every_part_is_named():
         assert bodies.judge_parts(pathlib.Path(held), {}, {}).answer == "pass"
 
 
-def test_a_failed_bind_record_refuses_the_body_before_any_machine():
-    """#21: a look whose bind-pose tucks failed on the same inputs is Blocked, a predicted hole, never rented for."""
+def test_a_failed_tucks_record_refuses_the_body_before_any_machine():
+    """#21: a look whose settled tucks failed in every clip on the same inputs is Blocked, a predicted hole, never
+    rented for."""
     from score import graph
     bodies.refused_on_record(None, "people-body-x")
     try:
-        bodies.refused_on_record({"worst_tuck_out_mm": 9.32, "parts": {"boot_r": 9.32}}, "people-body-x")
-        raise AssertionError("a failed bind record was bought again")
+        bodies.refused_on_record({"worst_tuck_out_mm": 9.32, "clips": 4}, "people-body-x")
+        raise AssertionError("a failed tucks record was bought again")
     except graph.Blocked as blocked:
         assert "predicted hole" in str(blocked) and "9.32" in str(blocked)
 
