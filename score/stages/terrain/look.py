@@ -32,7 +32,7 @@ VIEWS = "demo/world1-r4/views"
 FRAME = "-000"
 VIEWS_A_JOB = 2
 MINUTES_A_VIEW = 8
-CARDS = "gpu-24gb,gpu-48gb,gpu-80gb"
+CARDS = "gpu-24gb"  # one class, the L4 Blender was timed on; never a fallback to a larger card (#21, #27)
 WHO = "score terrain look"
 # Four views, each drawn twice (before and after), its look and two masks, on two to four rented cards.
 EUROS = 4.0
