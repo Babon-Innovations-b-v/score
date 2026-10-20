@@ -201,5 +201,10 @@
       element.addEventListener("mouseenter", () => lit(key, true));
       element.addEventListener("mouseleave", () => lit(key, false));
     });
+    const quiet = document.getElementById("concept-boxes-quiet");
+    quiet.addEventListener("click", () => {
+      const on = document.querySelector(".concept-boxes").classList.toggle("quiet");
+      quiet.setAttribute("aria-pressed", String(on));
+    });
   }
 })();
