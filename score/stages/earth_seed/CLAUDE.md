@@ -14,19 +14,23 @@ has the rows, the output and the gates.
   name), never stood in for.
 - **The kit is a layer on the shared loop** (#41, `shapes_first.KIT`, layer `kit`). A kit row goes to the loop by its
   entry in the place's hand-in record (`data/props/<place>.json`, `"layer": "kit"`, and its take in the place's
-  surface data, `bake.models` naming the kit's model names, so earth-seed lays the loop's bake under them). earth-kit
-  bakes only the rows not handed, each named in `fallbacks.json` with why (`NOT_HANDED`); a handed row is the loop's
+  surface data, `bake.models` naming the kit's model names, so earth-seed lays the loop's bake under them). Every kit
+  row not handed is named in earth-kit's `fallbacks.json` with its route (`code`, which earth-kit bakes, or `stored
+  take`, a picture-made model of the old prop route earth-seed lays from `data/parts`) and why (`NOT_HANDED`); both
+  sides read the hand-in record through the loop's own reader (`prop_data`, `closeup_row.layer_of`). A handed row is the loop's
   alone, and a model the loop makes none of is a gap (the batch rule), never a code bake here. earth-kit cannot read
   the loop's ends: `likeness` reads `surfaces-check`, which reads `scene-record` beside, which reads earth-seed.
-  `earth_seed_test.py` fails on a code piece earth-kit would bake without a why. No kit row is handed yet, for the
+  `earth_seed_test.py` fails on a kit row, code or stored take, that is neither handed nor named with a why. No kit row is handed yet, for the
   two core gaps `NOT_HANDED` names: the bake lays a kit take only at its turn into the kit frame
   (`data/library/details.json` `turn`), which no loop row measures, and a handed row the loop makes no model for
   fails `likeness` and stops the place's line instead of leaving a gap. Handing a row in before both close stops
   that place's line.
 - **Shell sections** (CONTEXT.md "shell section"): a plan's `sections` (`data/plans/<place>.json`: name, the concept
   element it was read from; surface; rows) are laid by the kit adapter's after-step `kit-sections@<place>` (free,
-  `kit_sections.py`, after the loop's ends and the place's earth seed): one style (the section's rows, each a
-  pipeline-made variant), one finish (the library surface over most of its rows' parts area) and one wear seed a
+  `kit_sections.py`, after the loop's ends, the place's earth seed and earth-kit; only an Earth kit place whose plan
+  marks sections): one style (the section's rows, each a
+  pipeline-made variant, else earth-kit's named fallback, else a gap row), one finish (the library surface over most
+  of its loop-made rows' parts, each row weighted by its pieces in the section) and one wear seed a
   section, each object's place in the section (`wear_at`, metres from the section's least corner in the base stage) so
   its wear runs across the seams, written as overs on the base's objects in `layers/sections.usda`, which the
   assembly takes (`assembly.LAYERS`; `score:section`, `score:finish`, `score:wear_seed`, `score:wear_at`). Drawing the

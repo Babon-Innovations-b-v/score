@@ -6,9 +6,11 @@ this row's output instead (the table's `earth_seeded`), so the runner can plan a
                                only where a record names why): of the place's installed kit (data/kit/<place>.json,
                                less its prop-route pieces and the glowing parts make_kit splits off), the pieces of
                                each row not handed to the loop (its hand-in record, data/props/<place>.json,
-                               `"layer": "kit"`), each named in fallbacks.json with why (NOT_HANDED); a handed row is
-                               the loop's alone, and a model it makes none of is a gap, not a code bake (the batch
-                               rule). Planned by route.py's
+                               `"layer": "kit"`); fallbacks.json names every kit row not handed, with its route
+                               (`code`, baked here, or `stored take`, a picture-made model of the old prop route that
+                               earth-seed lays from data/parts) and why (NOT_HANDED); a handed row is the loop's
+                               alone, and a model it makes none of is a gap, not a code bake (the batch rule).
+                               Planned by route.py's
                                late-plan into make_kit jobs and baked once with the material library on rented cards
                                (tools/props/cloud/library_bake.py), as the ship-kit and late-bake stages do; gates
                                `made` and `surfaces` are theirs
@@ -75,20 +77,36 @@ def code_built(piece, kit):
     return "part" not in piece and kit.get("models", {}).get(piece["model"], {}).get("route") == "code"
 
 
+def handed_in(objects):
+    """The rows a hand-in record's objects ({row: entry}) hand the shared loop on the kit layer, by the loop's own rule
+    (closeup_row.layer_of, as shapes_first.handed reads it)."""
+    import score.stages.props.closeup_row as closeup_row  # by its full name, as made.py: the table stays out
+    return {row for row, entry in objects.items() if closeup_row.layer_of(entry) == KIT_LAYER}
+
+
 def handed_rows(place):
-    """The rows the place handed the shared loop on the kit layer (its hand-in record, data/props/<place>.json); none
-    for a place with no record."""
-    path = REPO / "data/props" / f"{place}.json"
-    record = json.loads(path.read_text()) if path.exists() else {}
-    return {row for row, entry in record.get("objects", {}).items() if entry.get("layer") == KIT_LAYER}
+    """The rows the place handed the shared loop on the kit layer (its hand-in record, prop_data's); none for a place
+    with no record."""
+    import score.stages.props.prop_data as prop_data
+    return handed_in(prop_data.objects(place))
 
 
-def fallbacks(kit, place):
-    """{row: why} of every code-built row of the kit earth-kit bakes: each one not handed to the loop, NOT_HANDED. A
-    handed row is the loop's alone: a model it makes none of is a gap (the batch rule), never baked here."""
-    handed = handed_rows(place)
-    rows = {piece_row(piece, kit, place) for piece in kit["pieces"] if code_built(piece, kit)}
-    return {row: NOT_HANDED for row in sorted(rows - handed)}
+def piece_route(piece, kit):
+    """How earth-seed lays a kit piece the loop was not handed: its code build (earth-kit's bake), or a stored take
+    (a picture-made model of the old prop route, data/parts)."""
+    return "code" if code_built(piece, kit) else "stored take"
+
+
+def fallbacks(kit, place, handed):
+    """{row: {"route", "why"}} of every kit row not in `handed` (the rows the loop has on the kit layer), each laid by
+    its code build or its stored take and named NOT_HANDED; a glowing or screen part is its host's. A handed row is the
+    loop's alone: a model it makes none of is a gap (the batch rule), never baked or laid here."""
+    routes = {}
+    for piece in kit["pieces"]:
+        if "part" not in piece:
+            routes.setdefault(piece_row(piece, kit, place), set()).add(piece_route(piece, kit))
+    return {row: {"route": " and ".join(sorted(routes[row])), "why": NOT_HANDED}
+            for row in sorted(routes.keys() - handed)}
 
 
 def code_layout(kit, place, fallback_rows):
@@ -109,7 +127,7 @@ def kit_jobs(place):
     sys.path.insert(0, str(ROUTE.parent))
     try:
         import route
-        planned = route.late_plan(code_layout(kit, place, fallbacks(kit, place)))
+        planned = route.late_plan(code_layout(kit, place, fallbacks(kit, place, handed_rows(place))))
         return len(route.shared_sets(planned, {}))
     finally:
         sys.path[:] = kept
@@ -120,8 +138,9 @@ def kit_files(place):
     plans from (its details, wear and surfaces), and the route's and bake's files."""
     found = {"kit": "{data}/kit/" + f"{place}.json", "library folder": "{data}/library",
              "places": "{data}/definitions/place.json", **KIT_TOOLS}
-    if (REPO / "data/props" / f"{place}.json").exists():
-        found["props"] = "{data}/props/" + f"{place}.json"
+    import score.stages.props.prop_data as prop_data
+    if prop_data.applies(place):
+        found["props"] = prop_data.pattern(place)
     return found
 
 
@@ -136,10 +155,13 @@ def bake_jobs(out):
 
 
 def make_kit(inputs, out, seed, params):
-    """Plan the kit's named fallbacks (fallbacks.json) and bake them once on rented cards; the models into out/made."""
+    """Plan the kit's named fallbacks (fallbacks.json) and bake their code builds once on rented cards; the models into
+    out/made. The handed rows are read from the hand-in record the row declares (`props`), none without one."""
+    import score.stages.props.prop_data as prop_data
     kit_path = pathlib.Path(inputs["kit"])
     kit = json.loads(kit_path.read_text())
-    named = fallbacks(kit, kit_path.stem)
+    handed = handed_in(prop_data.record_at(inputs["props"])["objects"]) if "props" in inputs else set()
+    named = fallbacks(kit, kit_path.stem, handed)
     (out / FALLBACKS).write_text(json.dumps(named, indent=1))
     layout = out / "layout.json"
     layout.write_text(json.dumps(code_layout(kit, kit_path.stem, named), indent=1))

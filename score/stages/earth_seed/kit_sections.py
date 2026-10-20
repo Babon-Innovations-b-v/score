@@ -4,19 +4,22 @@
 concept element it was read from, its surface and the inventory rows of its pieces), one piece style and one finish a
 section with its wear running across the seams:
 
-    style    the section's rows, each a pipeline-made variant (made.made: the loop's baked model, or its gap)
-    finish   one library surface for the whole section: the one over the most area of its rows' parts (each row's
-             part rows from surfaces-parts, by share); none, a gap named, where the loop made none of its rows
+    style    the section's rows, each a pipeline-made variant (made.made: the loop's baked model, or its gap), or
+             earth-kit's named fallback (fallbacks.json: its route and why); a row neither handed nor named is a gap
+    finish   one library surface for the whole section: the one over the most area of its loop-made rows' parts
+             (each row's part shares from surfaces-parts, weighted by how many of its pieces the section lays); none
+             where the loop made none of its rows
     wear     the place's level, dirt and cause (data/definitions/place.json `wear` of the place's library) under one
              seed a section, read at each piece's place in the section (`wear_at`: metres from the section's origin,
              the least corner of its pieces' spots in the place's base stage), so it runs on across the seams instead
              of starting again on each piece
 
 Output: sections.json ({"place", "sections": [{name, surface, rows, made, finish, shares, seed, wear, origin,
-pieces, gap}]}) and layers/sections.usda, the assembly's layer of it (assembly.LAYERS): an over on each of the base
+pieces, gaps}]}) and layers/sections.usda, the assembly's layer of it (assembly.LAYERS): an over on each of the base
 stage's objects of a section's rows (earth-seed's, read after it), carrying score:section, score:finish,
 score:wear_seed and score:wear_at. Gate `sections`: every section's rows are laid in the base, no row in two sections;
-a section the loop made nothing of is a gap, counted and named, not a stop (the batch rule).
+each row made as a gap (handed and the loop made nothing of it, or neither handed nor a named fallback) is counted
+and named, not a stop (the batch rule).
 """
 import json
 import pathlib
@@ -28,7 +31,20 @@ import score.stages.shapes_first.made as made
 
 OUTPUT = "sections.json"
 LAYER = "layers/sections.usda"
-AFTER = {**made.ENDS, "earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version)}
+AFTER = {**made.ENDS, "earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version),
+         "earth-kit": (earth_seed.EARTH_KIT.schema, earth_seed.EARTH_KIT.version)}
+
+
+def applies(place):
+    """An Earth kit place whose plan marks shell sections: its kit laid (data/kit), no ship place (whose base is
+    usd-ship's, never earth-seed's) and `sections` in data/plans/<place>.json (stages.earth_place's rule, read here so
+    the table stays out of the code)."""
+    data = earth_seed.REPO / "data"
+    plan = data / "plans" / f"{place}.json"
+    if place is None or not (data / "kit" / f"{place}.json").exists() or not plan.exists():
+        return False
+    ship = read(data / "definitions/place.json").get(place, {})
+    return not (isinstance(ship, dict) and ship.get("ship")) and bool(read(plan).get("sections"))
 
 
 def files(place):
@@ -61,34 +77,55 @@ def laid_objects(seed):
     return found
 
 
-def finish_of(rows, made_rows):
-    """The section's one finish and every library surface's share of its made rows' parts: (surface or None, shares)."""
+def finish_of(rows, made_rows, counts):
+    """The section's one finish and every library surface's share of its made rows' parts, each row's shares weighted
+    by its piece count in the section (`counts`): (surface or None, shares)."""
     shares = {}
     for row in rows:
         for part in made_rows.get(row, {}).get("finishes", []):
             if part.get("judge"):
-                shares[part["judge"]] = round(shares.get(part["judge"], 0.0) + float(part["share"]), 4)
+                weighted = float(part["share"]) * counts.get(row, 0)
+                shares[part["judge"]] = round(shares.get(part["judge"], 0.0) + weighted, 4)
     return (max(sorted(shares), key=shares.get) if shares else None), shares
 
 
-def made_as(found):
-    """How the loop made one of a section's rows: its take, its code route, or its gap."""
-    if found is None:
-        return "gap: not handed to the loop on the kit layer"
-    return found.get("take") or (f"gap: {found['gap']}" if "gap" in found else found["route"])
+def made_as(found, fallback):
+    """How one of a section's rows was made: the loop's take, code route or gap, else earth-kit's named fallback, else
+    a gap (neither handed nor named)."""
+    if found is not None:
+        return found.get("take") or (f"gap: {found['gap']}" if "gap" in found else found["route"])
+    if fallback is not None:
+        return f"fallback: {fallback['route']}: {fallback['why']}"
+    return "gap: neither handed to the loop on the kit layer nor named in earth-kit's fallbacks"
 
 
-def laid_section(section, objects, place, made_rows, wear):
-    """One section's record and its objects with their places in it ([(path, wear_at)])."""
-    laid = [entry for row in section["rows"] for entry in objects.get(row, [])]
-    origin = [min(spot[axis] for _, spot in laid) for axis in range(3)] if laid else [0.0, 0.0, 0.0]
-    finish, shares = finish_of(section["rows"], made_rows)
-    record = {"name": section["name"], "surface": section["surface"], "rows": section["rows"],
-              "made": {row: made_as(made_rows.get(row)) for row in section["rows"]},
-              "finish": finish, "shares": shares, "seed": zlib.crc32(f"{place}/{section['name']}".encode()),
-              "wear": wear, "origin": origin, "pieces": len(laid),
-              "gap": None if finish else "the loop made no model of the section's rows: no finish to lay"}
-    return record, [(path, [round(spot[axis] - origin[axis], 4) for axis in range(3)]) for path, spot in laid]
+def laid_in(section, objects):
+    """The section's laid objects: [(object path, its spot in the place's frame)] of its rows."""
+    return [entry for row in section["rows"] for entry in objects.get(row, [])]
+
+
+def origin_of(laid):
+    """The section's origin: the least corner of its laid objects' spots."""
+    return [min(spot[axis] for _, spot in laid) for axis in range(3)] if laid else [0.0, 0.0, 0.0]
+
+
+def wear_offsets(laid, origin):
+    """Each laid object's place in its section ([(path, wear_at)]): metres from the section's origin."""
+    return [(path, [round(spot[axis] - origin[axis], 4) for axis in range(3)]) for path, spot in laid]
+
+
+def section_record(section, objects, place, ends, wear):
+    """One section's record: its rows as made, its finish, seed, wear, origin, piece count and gap rows. `ends` is
+    (the loop's made rows, earth-kit's named fallbacks)."""
+    made_rows, named = ends
+    laid = laid_in(section, objects)
+    counts = {row: len(objects.get(row, [])) for row in section["rows"]}
+    finish, shares = finish_of(section["rows"], made_rows, counts)
+    made_by = {row: made_as(made_rows.get(row), named.get(row)) for row in section["rows"]}
+    return {"name": section["name"], "surface": section["surface"], "rows": section["rows"], "made": made_by,
+            "finish": finish, "shares": shares, "seed": zlib.crc32(f"{place}/{section['name']}".encode()),
+            "wear": wear, "origin": origin_of(laid), "pieces": len(laid),
+            "gaps": {row: how for row, how in made_by.items() if how.startswith("gap: ")}}
 
 
 def write_layer(path, record, laid):
@@ -110,12 +147,13 @@ def make(inputs, out, seed, params):
     """sections.json and the sections layer: each plan section laid with one style, one finish and its wear across
     the seams."""
     place = earth_seed.place_in(inputs["earth-seed"]).name
-    made_rows = made.made(inputs, earth_seed.KIT_LAYER)
+    ends = made.made(inputs, earth_seed.KIT_LAYER), read(pathlib.Path(inputs["earth-kit"]) / earth_seed.FALLBACKS)
     objects, wear = laid_objects(inputs["earth-seed"]), wear_of(inputs)
-    laid = [laid_section(section, objects, place, made_rows, wear)
-            for section in read(inputs["plan"]).get("sections", [])]
-    write_layer(out / LAYER, [record for record, _ in laid], [objects for _, objects in laid])
-    (out / OUTPUT).write_text(json.dumps({"place": place, "sections": [record for record, _ in laid]}, indent=1))
+    sections = read(inputs["plan"]).get("sections", [])
+    records = [section_record(section, objects, place, ends, wear) for section in sections]
+    offsets = [wear_offsets(laid_in(section, objects), record["origin"]) for section, record in zip(sections, records)]
+    write_layer(out / LAYER, records, offsets)
+    (out / OUTPUT).write_text(json.dumps({"place": place, "sections": records}, indent=1))
 
 
 def faults(folder):
@@ -123,8 +161,8 @@ def faults(folder):
 
 
 def judge_sections(output, inputs, evidence):
-    """Every section's rows are laid in the base and no row is in two sections; the sections the loop made nothing of
-    are gaps, named."""
+    """Every section's rows are laid in the base and no row is in two sections; each gap row (handed and not made, or
+    neither handed nor a named fallback) is counted and named."""
     found = read(pathlib.Path(output) / OUTPUT)["sections"]
     seen, failing = {}, []
     for section in found:
@@ -134,9 +172,9 @@ def judge_sections(output, inputs, evidence):
             if row in seen:
                 failing.append(f"{row}: in two sections, {seen[row]!r} and {section['name']!r}")
             seen.setdefault(row, section["name"])
-    gaps = [f"gap: {section['name']}: {section['gap']}" for section in found if section["gap"]]
+    gaps = [f"{section['name']}: {row}: {how}" for section in found for row, how in section["gaps"].items()]
     reason = ("; ".join(failing[:3]) if failing else
-              f"{len(found)} sections, each one style and one finish ({len(gaps)} gaps)" if found else
+              f"{len(found)} sections, each one style and one finish ({len(gaps)} gap rows)" if found else
               "the plan marks no shell sections")
     return checks.Verdict("sections", checks.FAIL if failing else checks.PASS, reason,
                           {"sections": len(found), "faults": len(failing), "gaps": len(gaps)},
