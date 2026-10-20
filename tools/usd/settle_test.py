@@ -439,7 +439,35 @@ def a_stacked_box_begun_inside_its_support_starts_over_it():
         return problems
 
 
-CHECKS = (a_piece_on_a_slope_rests_flush_on_it, a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
+def a_cloud_drop_asks_a_small_processor_machine_first():
+    """#20: a drop asks the small processor class first and the 32-core ones after it, on a class the backend sells."""
+    sys.path.insert(0, str(HERE.parents[1] / "tools/props/cloud"))
+    import blender_cloud
+    from backends import scaleway
+
+    asked = []
+    real = blender_cloud.run_elsewhere
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = folder / "place.usda"
+        stage.write_text("#usda 1.0\n")
+
+        def run_elsewhere(script, arguments, inputs, outputs, classes, who, minutes=10):
+            asked.append(tuple(classes))
+            pathlib.Path(arguments[2]).write_text("{}")
+
+        blender_cloud.run_elsewhere = run_elsewhere
+        try:
+            settle.simulate(stage, {}, folder / "drop", cloud=True)
+        finally:
+            blender_cloud.run_elsewhere = real
+    wanted = (*settle.DROP_CLASSES, *blender_cloud.DEFAULT_CLASSES)
+    problems = [] if asked == [wanted] else [f"the drop asked {asked}, not {wanted}"]
+    return problems + [f"{name} is sold by no backend class" for name in settle.DROP_CLASSES
+                       if name not in scaleway.CLASSES]
+
+
+CHECKS = (a_cloud_drop_asks_a_small_processor_machine_first, a_piece_on_a_slope_rests_flush_on_it, a_tipped_piece_drops_from_upright_and_a_stacked_one_meets_its_holder,
           a_box_stacked_on_a_box_on_a_slope_meets_it,
           a_stacked_box_begun_inside_its_support_starts_over_it,
           a_crate_laid_across_two_starts_wholly_on_the_one_it_overlaps_most,

@@ -46,6 +46,10 @@ import resting  # noqa: E402
 
 SESSION = REPO / "tools/blender/session.py"
 INSIDE = REPO / "tools/blender/inside/settle_stage.py"
+# A drop takes a small processor machine first (#20; POP2-HM-4C-32G at about a sixth of a 32-core's hourly price), the
+# 32-core classes when none is in stock: Blender's rigid-body solve is taken to run on one core, not yet timed on one
+# (the first drop on it is that timing).
+DROP_CLASSES = ("cpu-4c-32gb",)
 KITS = REPO / "data/kit"
 # How far over the ground an object's lowest point starts its fall, in metres.
 SETTLE_DROP = 0.02
@@ -389,7 +393,7 @@ def simulate(stage_path, loose, folder, cloud=False, ignore=(), start=None, unde
         sys.path.insert(0, str(REPO / "tools/props/cloud"))
         import blender_cloud
         blender_cloud.run_elsewhere(INSIDE, [stage_path, job, out], [stage_path.parent, job], [out],
-                                    blender_cloud.DEFAULT_CLASSES, "settle", minutes=30)
+                                    (*DROP_CLASSES, *blender_cloud.DEFAULT_CLASSES), "settle", minutes=30)
         if kept is not None:
             kept.parent.mkdir(parents=True, exist_ok=True)
             kept.write_bytes(out.read_bytes())

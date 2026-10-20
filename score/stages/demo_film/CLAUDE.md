@@ -24,6 +24,11 @@ own sound; paid and cleared by the runner like any paid row.
   built at another size), with `fov` and `stand` (a small room's shot stands and turns rather than walking into a
   wall). The planner keeps clear of people and movers (camera_paths), glides at one speed between eased ends and
   rounds its corners (demo.py). About EUR 3.2 a place (twice a measured 96-frame film).
+- **A preview first, the final once** (#20, owner 2026-10-20): until a film's record says `"final": true`, its film
+  is a preview at 640x360 (`PREVIEW_SIZE`) with the review's 16 samples (its card time not yet measured). The
+  creator writes `final` after the film gate has passed the preview and he has said yes; that edit re-keys that one
+  film alone, which is then rendered once at 1280x720 with the films' own samples. Never write `final` for him. The
+  gate holds each film to the size its views.json planned.
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame. Whether a film reads well is the creator's call.
 - **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (a film starts a second before the
