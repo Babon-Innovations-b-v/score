@@ -25,7 +25,7 @@ from django.views.decorators.http import require_POST
 from score.dashboard import state
 from score.dashboard.pages import actions
 from score.dashboard.pages.models import BasketAnswer, BasketChoice, SyncRequest, is_owner
-from score.dashboard.proposals import records
+from score.dashboard.proposals import benchmarks, records
 from score.dashboard.state import groups
 
 CHOICES = {"buy": "Bought", "later": "Not now"}
@@ -371,12 +371,6 @@ def basket_context():
             "checkout_key": uuid.uuid4().hex, "last_checkout": last_checkout()}
 
 
-def unanswered():
-    """How many items of the basket wait for his answer (the menu's count)."""
-    choices = {choice.item: choice for choice in BasketChoice.objects.all()}
-    return sum(1 for item in records.items(basket_root()) if choice_of(item, choices) is None)
-
-
 # --- one item ---------------------------------------------------------------------------------------------------------
 
 def shown_place(item, asked, known, root):
@@ -443,19 +437,28 @@ def checked_out(user, key, seen):
     return flow.start(user, key, True, seen)[1]
 
 
+def batch_items(items, which):
+    """[{id, version}] of the basket items one yes of the Buy screen buys: every item a run on main buys now but the
+    Benchmarks (`which` "now"), or the Benchmarks item alone (`which` "benchmarks"), each as shown now."""
+    return [{"id": item["id"], "version": item["version"]} for item in items
+            if (item["id"] == benchmarks.ID) == (which == "benchmarks")]
+
+
 @require_POST
 def buy_yes(request):
-    """The Buy screen's one yes (#42): his checkout of the items he chose, signed in, CSRF by Django; JSON {said},
-    or {detail} with 409 when refused. Its stop is the batch's high plus 10%, never asked."""
+    """The Buy screen's one yes (#42): his checkout of the one batch (`batch` "now", the default) or of the
+    Benchmarks (`batch` "benchmarks"), signed in, CSRF by Django; JSON {said}, or {detail} with 409 when refused. Its
+    stop is the batch's high plus 10%, never asked."""
     if not is_owner(request.user):
         return JsonResponse({"detail": "only the owner checks out"}, status=403)
     try:
-        key = str(json.loads(request.body or b"{}").get("key", ""))
+        body = json.loads(request.body or b"{}")
+        key, which = str(body.get("key", "")), str(body.get("batch", "now"))
     except (ValueError, AttributeError):
-        key = ""
+        key, which = "", "now"
     if not re.fullmatch(r"[0-9a-f]{32}", key):
         return JsonResponse({"detail": "refused: no checkout key"}, status=422)
-    said = checked_out(request.user, key, seen_items())
+    said = checked_out(request.user, key, batch_items(records.items(basket_root()), which))
     return JsonResponse({"detail": said}, status=409) if said.startswith("refused") else JsonResponse({"said": said})
 
 

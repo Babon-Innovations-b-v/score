@@ -68,24 +68,94 @@ def tone_of(row):
     return KIND_TONES[row["worst"]] if row["worst"] else "done"
 
 
-def tiles(world, names, rows):
-    """[{place, href, name, about, picture, made, needed, gaps, tone}] of every place of the environment (a
-    WorldState), `names` their short names, `about` its look's long words (hover text), with its row of
+def place_tiles(world, names, rows):
+    """{place: {place, href, name, about, picture, made, needed, gaps, tone, inside}} of every place of the
+    environment (a WorldState), `names` their short names, `about` its look's long words (hover text), with its row of
     holes.per_place: gaps None while its holes are not known."""
     by_place = {row["place"]: row for row in rows}
     shelf = library.library()
-    found = []
+    found = {}
     for style, card in [(style, card) for engine in world.engines for style in engine.styles for card in style.places]:
         row = by_place.get(card.place)
         picture = card.still or card.hero
         made, needed = made_of(card)
-        found.append({"place": card.place, "href": f"/place/{card.place}/",
-                      "name": names.get(card.place, card.place),
-                      "about": style.label if style.short else None,
-                      "picture": screens.thumb(picture) or screens.library_picture(shelf, card.place),
-                      "made": made, "made_tip": f"made {made} of {needed}",
-                      "needed": needed, "gaps": None if row is None or row["not_checked"] else row["holes"],
-                      "tone": tone_of(row)})
+        found[card.place] = {"place": card.place, "href": f"/place/{card.place}/",
+                             "name": names.get(card.place, card.place),
+                             "about": style.label if style.short else None,
+                             "picture": screens.thumb(picture) or screens.library_picture(shelf, card.place),
+                             "made": made, "made_tip": f"made {made} of {needed}", "needed": needed,
+                             "gaps": None if row is None or row["not_checked"] else row["holes"],
+                             "tone": tone_of(row), "inside": 0}
+    return found
+
+
+def parent_of(world, node, known):
+    """The place or shell `node` sits within (WorldState.within), None for an outside one; a parent holding no place
+    of `known` counts as none, so the tiles never lead to an empty level."""
+    parent = world.within.get(node)
+    return parent if parent and inside_of(world, parent, known) else None
+
+
+def inside_of(world, node, known):
+    """The places of `known` (in their order) sitting within `node`, however deep."""
+    found = []
+    for place in known:
+        above = world.within.get(place)
+        seen = {place}
+        while above and above not in seen:
+            if above == node:
+                found.append(place)
+                break
+            seen.add(above)
+            above = world.within.get(above)
+    return found
+
+
+def nested_tile(world, node, by_place, names):
+    """A tile of a place or shell with places inside: its progress and gaps summed over itself and every place within
+    it, its worst tone, its own picture else the first one inside; it opens one level down (`/?in=<node>`)."""
+    inside = inside_of(world, node, by_place)
+    parts = [by_place[place] for place in ([node] if node in by_place else []) + inside]
+    checked = [part["gaps"] for part in parts if part["gaps"] is not None]
+    made, needed = sum(part["made"] for part in parts), sum(part["needed"] for part in parts)
+    tones = {part["tone"] for part in parts}
+    tone = next((tone for tone in KIND_TONES.values() if tone in tones), "done" if tones == {"done"} else "idle")
+    return {"place": node, "href": f"/?in={node}", "name": world.shells.get(node) or names.get(node, node),
+            "about": f"{len(inside)} places inside", "picture": next((part["picture"] for part in parts
+                                                                     if part["picture"]), None),
+            "made": made, "needed": needed, "made_tip": f"made {made} of {needed}",
+            "gaps": sum(checked) if checked else None, "tone": tone, "inside": len(inside)}
+
+
+def tiles(world, names, rows, at=None):
+    """[tile] of the places and shells sitting directly within `at` (None: the outside ones), shapes first: one
+    holding places is a nested_tile; when `at` is a place, its own tile (to its Place screen) comes first."""
+    by_place = place_tiles(world, names, rows)
+    level = [node for node in [*by_place, *world.shells] if node != at and parent_of(world, node, by_place) == at
+             and (node in by_place or inside_of(world, node, by_place))]
+    found = [by_place[at]] if at in by_place else []
+    for node in sorted(set(level), key=lambda node: first_index(world, node, by_place)):
+        found.append(nested_tile(world, node, by_place, names) if inside_of(world, node, by_place)
+                     else by_place[node])
+    return found
+
+
+def first_index(world, node, by_place):
+    """Where a node sorts among its level: its own place's place in the environment, else its first inside place's."""
+    order = list(by_place)
+    return min(order.index(place) for place in ([node] if node in by_place else []) + inside_of(world, node, by_place))
+
+
+def trail(world, names, at):
+    """[{name, href}] from the environment down to `at` (the places and shells holding it, outermost first); None
+    when `at` holds no place."""
+    known = [card.place for engine in world.engines for style in engine.styles for card in style.places]
+    if not inside_of(world, at, known):
+        return None
+    found, node = [], at
+    while node:
+        found.insert(0, {"name": world.shells.get(node) or names.get(node, node), "href": f"/?in={node}"})
+        node = parent_of(world, node, known)
     return found
 
 

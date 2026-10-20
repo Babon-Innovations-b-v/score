@@ -37,6 +37,8 @@ def a_remake(world, priced_on=None):
         "made_at": "2026-10-20T11:19:22+00:00",
         "priced_on": priced_on or {**local.priced_here(), "uncommitted": False},
         "takes": [take("alpha", "bought"), take("alpha", "bought"), take("alpha", "predicted hole")],
+        "layers": {"closeup": {"takes": 2, "price": {"likely_euros": 10.0, "high_euros": 12.0}},
+                   "likeness-calibration": {"takes": 2, "price": {"likely_euros": None, "high_euros": None}}},
         "totals": {"likely_euros": 10.0, "high_euros": 12.0, "unpriced": ["likeness-calibration"]},
         "eta": {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0, "path": [],
                 "unknown": [{"node": "closeup"}, {"node": "pixal"}]}}))
@@ -123,6 +125,21 @@ def test_the_buy_screen_totals_the_chosen_items_and_their_stop_is_the_high_plus_
     assert found["chosen"] == 1 and found["total"]["likely"] == 2.0 and found["total"]["high"] == 3.0
     assert found["stop"] == 3.3 and found["eta"] == {"likely_minutes": 10.0, "high_minutes": 20.0, "untimed": 0}
     assert found["items"][0]["choice"] == "buy" and found["items"][0]["likely"] == 2.0
+
+
+def test_the_batch_is_the_whole_remake_by_layer_its_estimate_apart_and_a_step_with_no_price_unknown(cockpit):
+    found = screens.batch(cockpit.source.world_state())
+    assert found["total"] == {"likely": 12.0, "high": 15.0}  # the remake: prepare's 10 to 12 plus settle's 2 to 3
+    assert found["estimated"] == {"likely": 10.0, "high": 12.0}  # prepare's per unit x count; settle is measured
+    assert (found["jobs"], found["unpriced"]) == (6, 3)  # two close-ups, two calibrations unpriced, settle, sound
+    models, motion, sound = found["layers"]
+    assert (models["layer"], models["likely"], models["high"], models["jobs"], models["unpriced"]) == (
+        "models", 10.0, 12.0, 4, 2)
+    assert models["places"] == [{"place": "alpha", "jobs": 4, "likely": None, "high": None}]
+    assert (motion["layer"], motion["likely"], motion["high"], motion["estimated"]) == (
+        "motion", 2.0, 3.0, {"likely": 0.0, "high": 0.0})
+    assert motion["places"] == [{"place": "alpha", "jobs": 1, "likely": 2.0, "high": 3.0}]
+    assert (sound["layer"], sound["likely"], sound["unpriced"]) == ("sound", None, 1)  # a guess is never a price
 
 
 def test_the_buy_route_counts_a_choice_on_another_version_as_none(cockpit, month_read):

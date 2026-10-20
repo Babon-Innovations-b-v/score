@@ -146,9 +146,10 @@ def environment(source, spend, library):
         places.append({"place": card.place, "title": names[card.place], "status": card.status,
                        "picture": link, "picture_from": origin, "progress": progress(card),
                        "complete": complete(card), "gaps": sum(counts.values()), "worst": worst(counts),
-                       "takes": takes.get(card.place)})
+                       "takes": takes.get(card.place), "within": world.within.get(card.place)})
     return {"made_at": world.made_at, "money": month_money(spend), "remake": remake_money(world),
-            "gaps": (world.holes_total.counts if world.holes_total else {}), "places": places}
+            "gaps": (world.holes_total.counts if world.holes_total else {}), "places": places,
+            "shells": world.shells}
 
 
 def chain_price(price, place, node):
@@ -213,6 +214,104 @@ def buy(items, choices, spend):
             "basket": total_of(pricing.totals(pricing.basket_prices(items))),
             "eta": basket_eta(nodes), "stop": round(pricing.cleared_high(totals) * BUFFER, 2) if nodes else None,
             "money": month_money(spend)}
+
+
+# The Buy screen's layers, each the stage prefixes it gathers, in the order shown; any other stage is "other".
+LAYERS = (("models", ("rough-model", "rough-align", "props-inputs", "closeup", "pixal", "likeness", "complete-boxes",
+                      "motion-models-boxes", "ship_kit", "earth-kit", "partition-proposals", "concept-views")),
+          ("finishes", ("finish-route-", "surfaces-", "surface-tiles")),
+          ("people", ("people-", "concept_people", "cast", "characters-")),
+          ("motion", ("settle", "physics-", "motion")), ("crops", ("crops-",)), ("light", ("light",)),
+          ("effects", ("effects-",)), ("sound", ("sound",)), ("films", ("demo-",)))
+ORDER = [name for name, _ in LAYERS] + ["other"]
+
+
+def layer_of(stage):
+    return next((name for name, prefixes in LAYERS if stage.startswith(prefixes)), "other")
+
+
+def layer_row(layers, name):
+    return layers.setdefault(name, {"layer": name, "likely": 0.0, "high": 0.0, "jobs": 0, "unpriced": 0,
+                                    "estimated": {"likely": 0.0, "high": 0.0}, "places": {}})
+
+
+def add_price(row, likely, high, estimated):
+    """Adds one priced part to a layer row (and to its estimated share when it is no measured run's)."""
+    row["likely"], row["high"] = round(row["likely"] + likely, 2), round(row["high"] + high, 2)
+    if estimated:
+        row["estimated"] = {"likely": round(row["estimated"]["likely"] + likely, 2),
+                            "high": round(row["estimated"]["high"] + high, 2)}
+
+
+def route_layers(remake, layers):
+    """Prepare's prop route into `layers`: each stage's takes as jobs, its per unit × count as an estimate (a stage
+    with no measured per unit unpriced), each place's takes."""
+    for stage, found in (remake.layers if remake else {}).items():
+        row = layer_row(layers, layer_of(stage))
+        row["jobs"] += found["takes"]
+        row["route"] = True
+        if found["likely"] is None or found["high"] is None:
+            row["unpriced"] += found["takes"]
+        else:
+            add_price(row, found["likely"], found["high"], True)
+        for place, takes in found.get("places", {}).items():
+            place_row = row["places"].setdefault(place, {"jobs": 0, "likely": None, "high": None})
+            place_row["jobs"] += takes
+
+
+def rest_layers(price, layers):
+    """The holes price's paid steps off the prop route into `layers`: a measured run's price as measured, a per-unit
+    one as an estimate, a step with neither unpriced (a guess is never a price); each place's steps and price."""
+    for node, found in (price.nodes if price else {}).items():
+        if on_route(node):
+            continue
+        stage, _, place = node.partition("@")
+        row = layer_row(layers, layer_of(stage))
+        place_row = row["places"].setdefault(place or "environment", {"jobs": 0, "likely": None, "high": None})
+        row["jobs"] += 1
+        place_row["jobs"] += 1
+        if found.get("basis") not in MEASURED:
+            row["unpriced"] += 1
+            continue
+        add_price(row, found["likely_euros"], found["high_euros"], found["basis"] != MEASURED[0])
+        place_row["likely"] = round((place_row["likely"] or 0.0) + found["likely_euros"], 2)
+        place_row["high"] = round((place_row["high"] or 0.0) + found["high_euros"], 2)
+
+
+def batch(world):
+    """The Buy screen's one batch, the remake (remake_money: prepare's prop route plus the holes price of every other
+    paid step) by layer: {total {likely, high}, estimated {likely, high} (per unit × count, not yet a measured run),
+    jobs, unpriced, eta, stale, layers [{layer, likely, high, jobs, unpriced, estimated, places [{place, jobs, likely,
+    high}]}]}; a layer's likely and high None while none of it is priced."""
+    whole = remake_money(world)
+    price = None if world.holes_price is None or world.holes_price.stale else world.holes_price
+    layers = {}
+    route_layers(None if whole["stale"] else world.remake, layers)
+    rest_layers(price, layers)
+    rows = [layers[name] for name in ORDER if name in layers]
+    known = {card.place for card in cards(world)}
+    for row in rows:
+        if row["unpriced"] == row["jobs"]:
+            row["likely"] = row["high"] = None
+        row["places"] = places_of(row.pop("places"), known, row.pop("route", False))
+    estimated = {key: round(sum(row["estimated"][key] for row in rows), 2) for key in ("likely", "high")}
+    return {"total": {"likely": whole["likely"], "high": whole["high"]}, "estimated": estimated,
+            "jobs": sum(row["jobs"] for row in rows), "unpriced": sum(row["unpriced"] for row in rows),
+            "eta": whole["eta"], "stale": whole["stale"], "layers": rows}
+
+
+def places_of(found, known, route):
+    """[{place, jobs, likely, high}] of a layer's places, most jobs first: prepare's look keys (`prologue_<place>`)
+    read as their place; no place's price in a layer prepare prices whole (its price is the layer's, not a place's)."""
+    merged = {}
+    for place, part in found.items():
+        name = place.removeprefix("prologue_") if place.removeprefix("prologue_") in known else place
+        into = merged.setdefault(name, {"jobs": 0, "likely": None, "high": None})
+        into["jobs"] += part["jobs"]
+        for key in ("likely", "high"):
+            if part[key] is not None and not route:
+                into[key] = round((into[key] or 0.0) + part[key], 2)
+    return [{"place": place, **part} for place, part in sorted(merged.items(), key=lambda pair: -pair[1]["jobs"])]
 
 
 def total_of(totals):

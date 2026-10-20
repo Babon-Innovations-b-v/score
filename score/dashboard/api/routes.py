@@ -394,7 +394,8 @@ def place_screen(place: str, user=Depends(signed_in)):
 def buy_screen(user=Depends(signed_in), month: Spend = Depends(actions.spend)):
     """The basket's items with the owner's choice; a choice made on another version of its item counts as none."""
     items = basket.items(basket_root())
-    return screens.buy(items, basket_page.current_choices(items), month)
+    return {**screens.buy(items, basket_page.current_choices(items), month),
+            "batch": screens.batch(state.source().world_state())}
 
 
 @api.get("/screens/stats")

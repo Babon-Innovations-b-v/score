@@ -86,7 +86,21 @@ def remake_of(written):
                        "at_least_minutes": eta.get("at_least_minutes"), "untimed": len(eta.get("unknown") or [])},
                   counts=take_counts(written.get("takes", [])),
                   places={place: take_counts(takes) for place, takes in sorted(by_place.items())},
-                  stale=code_moved(written.get("priced_on")))
+                  layers=layers_of(written), stale=code_moved(written.get("priced_on")))
+
+
+def layers_of(written):
+    """{stage: {takes, likely, high, places: {place: takes}}} of prepare's layers, its price as written (None while
+    the stage has no measured per unit). A layer runs every bought take or only the whole models (no shell piece)."""
+    bought = [take for take in written.get("takes", []) if take["status"] == "bought"]
+    found = {}
+    for stage, layer in (written.get("layers") or {}).items():
+        # prepare writes no layer's places: one with fewer takes than bought runs the whole models only (SHELL_ROUTE)
+        runs = bought if layer["takes"] == len(bought) else [take for take in bought if not take.get("shell")]
+        price = layer.get("price") or {}
+        found[stage] = {"takes": layer["takes"], "likely": price.get("likely_euros"), "high": price.get("high_euros"),
+                        "places": dict(Counter(take["place"] for take in runs))}
+    return found
 
 
 def written_at(path):
@@ -470,7 +484,15 @@ class LocalSource:
                           engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
                           holes_total=self.holes_total(), holes_price=self.holes_price(),
-                          remake=self.remake())
+                          remake=self.remake(), **self.hierarchy())
+
+    def hierarchy(self):
+        """{within, shells} of data/places/within.json: what each place or shell sits within, and the shells that are
+        no place of their own with their short names; empty while the file is not there."""
+        path = self.data / "places" / "within.json"
+        found = json.loads(path.read_text()) if path.is_file() else {}
+        return {"within": {name: entry["within"] for name, entry in found.get("within", {}).items()},
+                "shells": {name: entry["name"] for name, entry in found.get("shells", {}).items()}}
 
     # --- one place ---------------------------------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
-{% comment %}A place tile: `href`, `picture` (a URL or none), `name`, `made` of `needed` as a progress ring (`made_tip` its hover text), `gaps` (None: not checked) with its state colour `tone`, `tip` its hover text.{% endcomment %}<a class="ptile" href="{{ href }}"{% if tip %} title="{{ tip }}"{% endif %}>
-  <div class="ptile-pic">{% if picture %}<img src="{{ picture }}" alt="" loading="lazy">{% endif %}</div>
+{% comment %}A place tile: `href`, `picture` (a URL or none), `name`, `made` of `needed` as a progress ring (`made_tip` its hover text), `gaps` (None: not checked) with its state colour `tone`, `tip` its hover text, `inside` how many places sit within it (0: none, a leaf).{% endcomment %}<a class="ptile" href="{{ href }}"{% if tip %} title="{{ tip }}"{% endif %}>
+  <div class="ptile-pic">{% if picture %}<img src="{{ picture }}" alt="" loading="lazy">{% endif %}{% if inside %}<span class="ptile-inside" title="{{ inside }} places inside"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2"/><rect x="5" y="5" width="6" height="6" rx="1"/></svg><b data-v>{{ inside }}</b></span>{% endif %}</div>
   <div class="ptile-foot">
     {% include "pages/c/ring.html" with done=made total=needed tip=made_tip %}
     <span class="ptile-name" data-v>{{ name }}</span>

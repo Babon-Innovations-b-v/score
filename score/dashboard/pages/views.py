@@ -36,8 +36,9 @@ def everywhere(request):
 
 
 def basket_count():
-    """What waits in the basket: items waiting for his answer, steps queued by hand and library entries to refine."""
-    return basket_items.unanswered() + BasketItem.objects.count() + RefineItem.objects.count()
+    """What waits in the basket: steps queued by hand and library entries to refine (the Buy screen's one batch asks
+    no choice an item)."""
+    return BasketItem.objects.count() + RefineItem.objects.count()
 
 
 def money_bar(spent, reserved, likely, high, ceiling):
@@ -67,11 +68,16 @@ def every_place_holes(source):
 
 
 def environment(request):
-    """Screen 1: the month's spend against the stop, the remake's price and time, a tile per place."""
+    """Screen 1: the month's spend against the stop, the remake's price and time, a tile per outside place or shell;
+    `?in=<place or shell>` the places inside it, one level down (shapes first)."""
     found = overview_of(state.source())
+    world, at = found["world"], request.GET.get("in") or None
+    trail = cockpit.trail(world, found["names"], at) if at else []
+    if trail is None:
+        raise Http404(f"nothing sits within {at}")
     return render(request, "pages/environment.html", {
-        "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(found["world"]),
-        "tiles": cockpit.tiles(found["world"], found["names"], found["rows"])})
+        "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(world), "trail": trail,
+        "tiles": cockpit.tiles(world, found["names"], found["rows"], at)})
 
 
 def stats(request):
@@ -86,22 +92,27 @@ def stats(request):
 
 
 def buy(request):
-    """Screen 3: the basket's items by place with their prices and his choice, the chosen batch's total and ETA, the
-    Buy button (its yes sets the batch's stop at its high plus 10%), the last batch's state and stop; the owner's
+    """Screen 3: the one batch, the remake (screens.batch): its total, how much of it is estimated, its ETA and the
+    one Buy button (its yes buys what a run on main buys now, its stop that batch's high plus 10%), then its layers,
+    each opening to its places; the Benchmarks as a second small batch; the last batch's state and stop; the owner's
     books buttons while paid work is refused."""
     found = overview_of(state.source())
+    world, spend = found["world"], found["world"].spend
     items = records.items(basket_items.basket_root())
-    screen = screens.buy(items, basket_items.current_choices(items), found["world"].spend)
-    places = {}
-    for item in screen["items"]:
-        places.setdefault(item["place"], []).append({**item, "name": item["title"] or ", ".join(item["layers"])})
-    names = groups.short_names(found["world"])
+    now = basket_items.batch_items(items, "now")
+    bench = basket_items.batch_items(items, "benchmarks")
+    names = groups.short_names(world)
+    batch = screens.batch(world)
+    for row in batch["layers"]:
+        row["places"] = [{**place, "name": names.get(place["place"], present.place_title(place["place"]))}
+                         for place in row["places"]]
+    bench_screen = screens.buy(items, {each["id"]: "buy" for each in bench}, spend) if bench else None
     return render(request, "pages/buy.html", {
-        "screen": screen, "money": found["view"], "last": basket_items.last_batch(),
-        "total": screen["total"] if screen["chosen"] else screen["basket"],
-        "groups": [{"name": names.get(place, present.place_title(place)) if place else "several", "items": rows}
-                   for place, rows in places.items()],
-        "hours": cockpit.eta_hours(screen["eta"]), "key": uuid.uuid4().hex})
+        "batch": batch, "remake": cockpit.remake(world), "money": found["view"], "last": basket_items.last_batch(),
+        "now": screens.buy(items, {each["id"]: "buy" for each in now}, spend), "blocked": (
+            world.remake.counts.get("blocked") if world.remake else None),
+        "bench": bench_screen and {**bench_screen["total"], "stop": bench_screen["stop"]},
+        "key": uuid.uuid4().hex, "bench_key": uuid.uuid4().hex})
 
 
 def place_page(request, place):
