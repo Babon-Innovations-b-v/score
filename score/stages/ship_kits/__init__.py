@@ -29,9 +29,13 @@ PROPS_PYTHON = PROPS_HOME / "env/bin/python"
 EUROS = 0.3
 
 
-def code_only(layout, inventory):
-    """The layout less every piece of a row the inventory makes by the prop route (kind `generate`)."""
-    made = {f"{layout['room']}_{row['id']}" for row in inventory["rows"] if row["kind"] == "generate"}
+def code_only(layout):
+    """The layout less every piece whose kind the sorter sends to the shared loop (sorter.route `model`): the kit
+    plans and bakes only the named pipeline failures' code builds; every other row is the loop's."""
+    from score.stages.props import prop_data
+    with prop_data.tools("props/library"):
+        import sorter
+    made = {piece["kind"] for piece in layout["pieces"] if sorter.route(piece["kind"]) == "model"}
     return dict(layout, pieces=[piece for piece in layout["pieces"] if piece["kind"] not in made],
                 kinds={kind: entry for kind, entry in layout["kinds"].items() if kind not in made},
                 counts={kind: count for kind, count in layout["counts"].items() if kind not in made})
@@ -43,7 +47,7 @@ def make_kit(inputs, out, seed, params):
     full = out / "layout-full.json"
     subprocess.run([str(PROPS_PYTHON), str(inputs["ship kit"]), room, str(full), str(inputs["plan"]),
                     str(inputs["inventory"])], check=True)
-    layout = code_only(json.loads(full.read_text()), json.loads(pathlib.Path(inputs["inventory"]).read_text()))
+    layout = code_only(json.loads(full.read_text()))
     (out / "layout.json").write_text(json.dumps(layout, indent=1))
     subprocess.run([str(PROPS_PYTHON), str(inputs["route"]), "plan", str(out / "layout.json"), str(out)], check=True)
     jobs = sorted(out.glob("job-kit-*.json"))

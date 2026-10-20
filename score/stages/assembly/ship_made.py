@@ -26,12 +26,18 @@ SURFACES = REPO / "data/surfaces"
 # data the assembly declares.
 FILES = {"plan": "{data}/plans/{place}.json", "ship made": "{repo}/score/stages/assembly/ship_made.py",
          "ship kit": "{repo}/tools/props/scene/ship_kit.py", "room kit": "{repo}/tools/props/scene/room_kit.py",
-         "hub kit": "{repo}/tools/props/scene/hub_kit.py"}
+         "hub kit": "{repo}/tools/props/scene/hub_kit.py", "sorter": "{repo}/tools/props/library/sorter.py",
+         "pipeline failures": "{repo}/data/library/pipeline_failures.json"}
 
 
 def made_rows(inventory):
-    """The inventory's prop-route rows: {row: the take kind its `thing` names}."""
-    return {row["id"]: row["thing"].split(":", 1)[1] for row in inventory["rows"] if row["kind"] == "generate"}
+    """The inventory's prop-route rows, the ones the sorter sends to the shared loop (sorter.row_route `model`, whatever
+    the row's own kind): {row: the take kind its `thing` names}."""
+    import score.stages.props.prop_data as prop_data
+    with prop_data.tools("props/library"):
+        import sorter
+    return {row["id"]: row["thing"].split(":", 1)[1] for row in inventory["rows"]
+            if sorter.row_route(inventory["scene"], row) == "model"}
 
 
 def take_kinds(surfaces):

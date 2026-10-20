@@ -12,6 +12,11 @@ to code by default: neither plainness (PLAIN) nor a fitting's parts check (fitti
     code     a kind the pipeline-failure record names
     model    everything else
 
+A scene inventory row is routed by its kind's route (row_route), never by its own `kind` (`code` or `generate`). Not
+built yet: only the hand-in record's objects (data/props) reach the loop; no shell-section layer hands it kit kinds, so
+a model-routed kit kind is a gap in route.py's and place_route.py's plans (GAP) unless an old labelled take of it is
+stored, which route.py still makes by the old prop route (labels.py, inside/make_chunky.py).
+
 PLAIN stays a fact about a kind (plain plates, pipes and trims have no parts of their own to show), and method B's
 parts check (fittings.json, `missing_parts`) stays the check a code fallback's build must pass (route.py layout), until
 the builders and the sorter go per #19's clean-up map. The shape class (flat, slender, opening, repeat, chunky) is a
@@ -66,6 +71,8 @@ PLAIN = frozenset((
 
 FITTINGS = pathlib.Path(__file__).resolve().parents[3] / "data/library/fittings.json"
 FAILURES = pathlib.Path(__file__).resolve().parents[3] / "data/library/pipeline_failures.json"
+# Why a model-routed kind with no take is left out of a plan: a gap the plan names, never a code build (#41).
+GAP = "no take yet: the shared loop has not made this model (#41)"
 # The share of a part's front the room must see for the part to count as shown (a slat buried in its plate reads 0).
 SEEN_AT_LEAST = 0.1
 
@@ -109,6 +116,13 @@ def shape_class(kind, size):
     return "chunky"
 
 
+def fallback_parts_missing(kind, found=None):
+    """The parts a code fallback's last build does not show (missing_parts) by its fitting's entry in fittings.json;
+    none for a fallback fittings.json does not list (a plain piece, or a named exception with no close-up parts)."""
+    entry = (fittings() if found is None else found).get(own_name(kind))
+    return [] if entry is None else missing_parts(entry)
+
+
 def failures(path=FAILURES):
     """The pipeline-failure record: {kind: {"failure", "evidence", "on"}}, the only kinds built in code."""
     return json.loads(pathlib.Path(path).read_text())["kinds"]
@@ -118,6 +132,12 @@ def route(kind, found=None):
     """Where a kind is made: `code` only when the pipeline-failure record names its failure, `model` (the prop
     pipeline, the shared loop) for every other."""
     return "code" if kind in (failures() if found is None else found) else "model"
+
+
+def row_route(scene, row):
+    """Where a scene inventory row is made: its kind's route (route), whatever the row's own `kind` says (`code` or
+    `generate` route nothing since #19); `mechanic` for a mechanic row, made on its own line."""
+    return "mechanic" if row.get("kind") == "mechanic" else route(f"{scene}_{row['id']}")
 
 
 # Fittings that belong in a floor or a wall (vents, grates, drains, hatches, mats, light strips) are set into their host

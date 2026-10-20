@@ -224,9 +224,9 @@ def children(parents, composites):
 
 
 def plan(layout, takes, inventory=None):
-    """Every piece's made model: {"models": {name: {kind, route, size, laid, atlas}}, "pieces": [name per piece]}, and
-    the room's furniture as models placed by the game rather than the kit; stops on a generated kind with no labelled
-    parts."""
+    """Every piece's made model: {"models": {name: {kind, route, size, laid, atlas}}, "pieces": [name per piece, None
+    for a gap's], "gaps": {kind: why}}, and the room's furniture as models placed by the game rather than the kit; a
+    model-routed kind with no labelled take is a gap (gaps_of)."""
     models, by_key, pieces = {}, {}, []
     for laid in layout["pieces"]:
         kind = laid["kind"]
@@ -247,16 +247,22 @@ def plan(layout, takes, inventory=None):
                                           laid.get("foot", foot_of(laid["at"][1])))
         pieces.append(by_key[key])
     models.update(furniture(inventory) if inventory is not None else {})
-    missing = sorted({entry["kind"] for entry in models.values()
-                      if entry["route"] == "model" and own_name(entry["kind"]) not in takes})
-    if missing:
-        raise SystemExit(f"generated kinds with no labelled parts (labels.py): {', '.join(missing)}")
+    gaps = gaps_of(models, takes)
+    models = {name: entry for name, entry in models.items() if entry["kind"] not in gaps}
+    pieces = [name if name in models else None for name in pieces]
     patchy_paint = painted_badly(takes, {own_name(entry["kind"]) for entry in models.values() if entry["route"] == "model"})
     if patchy_paint:
         raise SystemExit("generated kinds whose paint is patchy or stripped (patchy.py; label them by parts, "
                          "labels.py): " +
                          "; ".join(f"{kind}: {', '.join(faults)}" for kind, faults in sorted(patchy_paint.items())))
-    return {"models": models, "pieces": pieces}
+    return {"models": models, "pieces": pieces, "gaps": gaps}
+
+
+def gaps_of(models, takes):
+    """{kind: why} of every model-routed kind with no labelled take: the shared loop has not made it yet, so it is a
+    gap the plan names (its pieces planned as None), never a code build and never a stop."""
+    return {entry["kind"]: sorter.GAP for entry in sorted(models.values(), key=lambda entry: entry["kind"])
+            if entry["route"] == "model" and own_name(entry["kind"]) not in takes}
 
 
 def painted_badly(takes, kinds):
@@ -534,12 +540,14 @@ def game_layout(layout, planned, reports, checks):
         made.update(report.get("pieces", report))
     fittings = sorter.fittings()
     failed = sorted({entry["kind"] for entry in planned["models"].values() if entry["route"] == "code"
-                     and sorter.missing_parts(fittings.get(sorter.own_name(entry["kind"]), {"parts": []}))})
+                     and sorter.fallback_parts_missing(entry["kind"], fittings)})
     if failed:
         raise SystemExit(f"code fallbacks whose build does not show every part their close-up has, or lays a print "
                          f"over a part (`route.py fittings` records them): {', '.join(failed)}")
     pieces, held_back, models = [], {}, {}
     for laid, name in zip(layout["pieces"], planned["pieces"]):
+        if name is None:  # a gap's piece (plan.json `gaps`): nothing made, nothing laid
+            continue
         if checks.get(name, {}).get("pass") is False:
             held_back[name] = held_back.get(name, 0) + 1
             continue
@@ -588,14 +596,23 @@ def game_layout(layout, planned, reports, checks):
     return dict(room, counts=counts, kinds=kinds, models=models, pieces=pieces), held_back
 
 
+def late_code(laid, layout):
+    """Whether a late piece is code-built: its kind a named pipeline failure, or its model a code build the layout's
+    own models record (a named fallback's)."""
+    recorded = layout.get("models", {}).get(laid["model"], {}).get("route")
+    return sorter.route(laid["kind"]) == "code" or recorded == "code"
+
+
 def late_plan(layout, made=()):
     """The code-built models of the pieces a room's layout lays after its run (each names its `model`: a row laid when
     an audit found it), one per model not among `made` (a model placed again from another room is made already), in a
     picture set of their own (`late`), as plan() makes a room's: {"models": {name: {kind, route, size, laid, atlas,
-    near, foot}}, "pieces": []}."""
+    near, foot}}, "pieces": []}. A piece is code-built when the sorter sends its kind to code (a named pipeline
+    failure) or when the layout's own models record its model as a code build (earth-seed's named fallbacks,
+    fallbacks.json, laid by earth_seed.code_layout)."""
     models = {}
     for laid in layout["pieces"]:
-        if "model" not in laid or laid["model"] in made or sorter.route(laid["kind"]) != "code":
+        if "model" not in laid or laid["model"] in made or not late_code(laid, layout):
             continue
         entry = models.setdefault(laid["model"], {"kind": laid["kind"], "route": "code", "size": list(laid["size"]),
                                                   "laid": shows(laid["kind"], laid), "atlas": "late", "near": False,
@@ -782,7 +799,8 @@ def main():
             (work / f"job-{name}.json").write_text(json.dumps(job, indent=1))
             print(name, len(job.get("pieces", job.get("chunky", []))))
         routes = [entry["route"] for entry in planned["models"].values()]
-        print(len(planned["models"]), "models:", {route: routes.count(route) for route in set(routes)})
+        print(len(planned["models"]), "models:", {route: routes.count(route) for route in set(routes)},
+              "gaps:", len(planned["gaps"]))
     elif step == "layout":
         layout = json.loads(pathlib.Path(sys.argv[2]).read_text())
         work = pathlib.Path(sys.argv[3])
