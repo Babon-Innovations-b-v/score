@@ -87,6 +87,29 @@ def layer_cost(stage, takes, rules):
     return {"units": units, "price": layer_price(stage, units), "minutes": compute.unit_minutes(stage, units)}
 
 
+def clip_layer(places, fixed_machine=None):
+    """The preview clips' layer (score/stages/library/clips): one clip a bought take, each a new model the handover
+    makes; `places` {place: bought takes}. At its measured per unit once library-clips has one; until then estimated
+    from the films' measured render seconds a frame (clips.per_item, marked `estimated_from`): one card a place's
+    node, its set-up once, the places side by side (the minutes are the busiest place's)."""
+    from score.stages.library import clips
+    items = sum(places.values())
+    if compute.per_unit(clips.ROW) is not None:
+        return layers([clips.ROW], [{"shell": False}] * items, {}, {clips.ROW: fixed_machine})[clips.ROW]
+    one, nodes = clips.per_item(), [clips.forecast(count) for count in places.values() if count]
+    busiest = max(places.values(), default=0)
+    return {"takes": items, "units": items,
+            "price": {"likely_euros": round(sum(node["likely_euros"] for node in nodes), 2),
+                      "high_euros": round(sum(node["high_euros"] for node in nodes), 2),
+                      "unit": "preview clip of a new item", "unit_likely_euros": one["likely_euros"],
+                      "unit_high_euros": one["high_euros"], "estimated_from": one["from"]},
+            "minutes": {"likely_minutes": round(busiest * one["likely_minutes"] + clips.SETUP_MINUTES, 1)
+                        if busiest else 0.0,
+                        "high_minutes": clips.forecast(busiest)["high_minutes"], "cards": len(nodes) or None},
+            "settings": {"seed": 1, "units_a_take": 1, "why": "one clip a new item, every frame once",
+                         "frames": one["frames"], "size": list(clips.SIZE), "machine": fixed_machine}}
+
+
 def route_edges(table, route):
     """[(before, after)] of the route's layers: a layer after each route layer it reads, directly or through stages
     outside the route (`table`, the runner's {name: Stage})."""
@@ -115,11 +138,13 @@ def eta(found, edges, jobs, cap):
 
 
 def totals(found):
-    """{likely_euros, high_euros, unpriced} of the layers."""
+    """{likely_euros, high_euros, unpriced, estimated} of the layers (estimated: priced from another stage's
+    measures, not their own)."""
     priced = [layer["price"] for layer in found.values() if layer["price"]["likely_euros"] is not None]
     return {"likely_euros": round(sum(each["likely_euros"] for each in priced), 2),
             "high_euros": round(sum(each["high_euros"] for each in priced), 2),
-            "unpriced": sorted(stage for stage, layer in found.items() if layer["price"]["likely_euros"] is None)}
+            "unpriced": sorted(stage for stage, layer in found.items() if layer["price"]["likely_euros"] is None),
+            "estimated": sorted(stage for stage, layer in found.items() if layer["price"].get("estimated_from"))}
 
 
 def expected_gaps(bought):
@@ -135,6 +160,8 @@ def line(record):
     minutes = (f"{time['likely_minutes']:.0f} to {time['high_minutes']:.0f} min" if time["likely_minutes"] is not None
                else f"at least {time['at_least_minutes']:.0f} min ({len(time['unknown'])} layers untimed)")
     unpriced = f", unpriced: {', '.join(money['unpriced'])}" if money["unpriced"] else ""
+    unpriced += (f", estimated from the films' frame time: {', '.join(money['estimated'])}"
+                 if money.get("estimated") else "")
     return (f"remake batch (estimate): {counts['bought']} takes of {counts['groups']} models "
             f"({counts['library']} from the library (made under today's route), "
             f"{counts['predicted_gaps']} predicted gaps not bought), "
