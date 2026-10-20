@@ -3,11 +3,13 @@ the place's records by the layer itself, as place holes on the place's root or t
 source to SOURCES: `holes(place, data)` giving [{"id" (generic: "<layer>:<kind>:<item>"), "prim", "sentence",
 "node" or "work"}]."""
 from score.stages.complete.holes import PLACE
+from score.stages.demo_film import needs as film_needs
 from score.stages.light import needs as light_needs
 from score.stages.sound import needs as sound_needs
 from score.stages.terrain import needs as ground_needs
 
-SOURCES = {"sound": sound_needs.holes, "light": light_needs.holes, "ground": ground_needs.holes}
+SOURCES = {"sound": sound_needs.holes, "light": light_needs.holes, "ground": ground_needs.holes,
+           "film": film_needs.holes}
 
 
 def holes(place, data):

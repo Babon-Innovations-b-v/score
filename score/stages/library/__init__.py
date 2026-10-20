@@ -32,7 +32,7 @@ from score.stages.library import backend, checks, handover
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACE_ROW, WORLD_ROW = "library", "library-world"
 # The showcase renders: read once they stand, never waited on.
-SHOWCASE = ("demo-film", "demo-film-extra", "demo-stills", "terrain-look", "effects-look")
+SHOWCASE = ("demo-film", "demo-film-extra", "demo-stills", "terrain-look", "effects-look", "environment-film")
 WORLD_RECORD, PLACE_RECORD = "world record", "place record"
 FREE, EXCEPTIONS = "library free", "exceptions"
 DECLARED = (WORLD_RECORD, PLACE_RECORD, FREE, EXCEPTIONS)
@@ -111,7 +111,8 @@ def rows(table, data, identity=None):
                         after=place_rows, optional=tuple(name for name in SHOWCASE if name in place_rows),
                         params=params)
     world = graph.Stage(WORLD_ROW, "world", make, handover.LIBRARY_HANDOVER, checks.CHECKS, files=files,
-                        after=world_rows, params=params)
+                        after=world_rows, optional=tuple(name for name in SHOWCASE if name in world_rows),
+                        params=params)
     return place, world
 
 

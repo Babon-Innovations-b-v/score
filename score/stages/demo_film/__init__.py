@@ -39,7 +39,9 @@ the gate, and a new film is a new batch and a new yes.
     gate   film    film_checks.video_checks on each film.mp4 (the size its views.json planned, a sound track that is not silent, no black or
                    frozen stretch after the title card, a length within LENGTH_SLACK of planned_seconds for its
                    shots) and clearance_checks on the final stage (no eye nearer a mesh, a person or a moving thing than the
-                   planner's clearance)
+                   planner's clearance, at each frame's own moment); every shot at least SECONDS; a frame showing a
+                   person where the stage holds people; no thing seen moving in a shot without a sound of its own
+                   (shots.py)
 """
 import json
 import os
@@ -51,6 +53,7 @@ import sys
 import numpy as np
 
 from score import checks, contracts, graph
+from score.stages.demo_film import shots
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FILMS = REPO / "data/definitions/demo_films"
@@ -70,8 +73,9 @@ ACROSS_AIM = 1.2
 # A film starts this long before the first one-off moment of its place's motion record (motion_start), so the moment
 # lands about a second into the shot (the launch's lift-off; overseer, 2026-10-15).
 LEAD = 1.0
-# Workbench and Cycles on a card; the cheapest first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
-CLASSES = "gpu-24gb,gpu-48gb"
+# Workbench and Cycles on a 24 GB card only: the forecast prices that card, and a dearer class taken when it is out
+# of stock would be a fallback chain inside the batch (#21); none in stock is a hole and a new ask.
+CLASSES = "gpu-24gb"
 # Two shots of 96 frames: a 96-frame film over 8 cards cost EUR 1.48 to 1.75 with parking (ledger 2026-10-18:
 # greenhouse, airlock, hangar, garage), most of it the frames' card time, so twice the measured 1.6 likely; the row's
 # estimate (what its clearance reserves while the stage is unmeasured) is twice the measured high, 1.75.
@@ -429,8 +433,29 @@ def film_measures(folder, stage_folder):
     video = film_checks.video_checks(folder / "film.mp4", length - LENGTH_SLACK, length + LENGTH_SLACK,
                                      demo.TITLE_SECONDS, size)
     views = planned["views"]
-    _, near = film_checks.clearance_checks(stage_folder / f"{place_of(stage_folder)}.usda", views)
-    return video["seconds"], video["mean_db"], size, video["failures"] + near
+    stage = stage_folder / f"{place_of(stage_folder)}.usda"
+    _, near = film_checks.clearance_checks(stage, views)
+    return video["seconds"], video["mean_db"], size, video["failures"] + near + seen_faults(stage, views)
+
+
+def seen_faults(stage, views):
+    """What the film's frames fail to show (the owner's review of 2026-10-18): a shot shorter than SECONDS, nobody in
+    view in any frame where the stage holds people, and a thing seen moving in a shot with no sound of its own
+    (shots.py). A film with no frames planned shows nothing to judge here: the video checks fail it."""
+    if not views:
+        return []
+    demo, _ = film_tools()
+    frames = {}
+    for view in views:
+        frames[demo.shot_of(view)] = frames.get(demo.shot_of(view), 0) + 1
+    found = [f"{shot}: {count / demo.RATE:.2f} s, under a steady shot's {SECONDS:g} s"
+             for shot, count in frames.items() if count < round(SECONDS * demo.RATE)]
+    seen = shots.people_seen(stage, views)
+    if seen is not None and not any(seen.values()):
+        found.append("the place holds people and no frame shows one")
+    found += [f"{shot}: {path} moves in view with no sound" for shot, paths in shots.silent_moving(stage, views).items()
+              for path in paths]
+    return found
 
 
 def film_verdict(folders, inputs):

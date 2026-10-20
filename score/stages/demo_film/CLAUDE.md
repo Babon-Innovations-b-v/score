@@ -36,10 +36,21 @@ own sound; paid and cleared by the runner like any paid row.
   the batch, and filming it again is a new batch and a new yes. The gate holds each film to the size its views.json
   planned.
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
-  frame. Whether a film reads well is the creator's call.
+  frame (meshes, people and moving things at the frame's own moment), and the owner's faults of 2026-10-18 (#28, `shots.py`):
+  every shot at least `SECONDS`, a frame showing a person where the stage holds people, and nothing seen moving in a
+  shot without a sound under it. Whether a film reads well is the creator's call. One card class (`CLASSES`
+  gpu-24gb): a dearer class taken when it is out of stock would be a fallback chain inside the batch.
+- **The environment's own film** (`final.py`, the environment-film row, #28): one environment node, free (a local
+  ffmpeg cut), reading every film script in `data/films/` and, beside it, the place films they show
+  (demo-film, demo-film-extra), so the runner plans and prices it with them. Blocked until the script says
+  `"final": true`; every segment names its `seconds` and is a cut it makes (title, text, walk-through, hero still),
+  else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards, before and after need
+  frames no row makes yet). The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
+  (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the holes
+  check's film holes: a film a script shows with no record, no yes, or one shot only.
 - **Stills come from the films first.** K5, K6 and K8 take frames of the places' films (a film starts a second before the
   first one-off moment of its place's motion record, `motion_start`: the launch's from 5 s, so its lift-off at 6 s
   lands 1 s into the shot; places whose motions loop start at 0); `stills.py` (the demo-stills row,
   `data/definitions/demo_stills/<place>.json`) renders a still only for a view no film shows (K3's tool board).
 - Run: `python -m score run world1 --place <place> --stage demo-film --detach` (a film the creator said yes to starts by
-  itself once its place passes complete, or fails it only on its named gaps, in any environment run). Test: `demo_film_test.py` (no Blender, no spend).
+  itself once its place passes complete, or fails it only on its named gaps, in any environment run). Test: `demo_film_test.py`, `shots_test.py` and `final_test.py` (no Blender, no spend; one small local ffmpeg cut).

@@ -30,7 +30,8 @@ findings.json's contract. Bible: `architecture/components`.
   `store/restore`'s key match.
 - **A layer without models adds its own holes** (`layers.py`, #29): its `holes(place, data)` in `SOURCES`, worked out
   free from the place's records by the layer itself (sound: `score/stages/sound/needs.py`; light and sky:
-  `score/stages/light/needs.py`; ground: `score/stages/terrain/needs.py`, #27), each a place hole with a
+  `score/stages/light/needs.py`; ground: `score/stages/terrain/needs.py`, #27; films:
+  `score/stages/demo_film/needs.py`, #28), each a place hole with a
   generic id (`place:<layer>:<kind>:<item>`), source `layer:<layer>`, and the layer's node or its work. Never a
   list of places or objects written here.
 - **The runner prices the holes, the cockpit only sums** (`price.py`, `score price world1 --holes --json`, free and
@@ -62,7 +63,9 @@ findings.json's contract. Bible: `architecture/components`.
   place holds, completion, after it), the table's order only breaking ties; each milestone its stages, paid nodes,
   measured euros, the table's set budgets apart (labelled set, never summed), each unknown node with why, the
   holes' code work waiting at it (a lost input at its earliest reader) and the owner's steps (the month's books at
-  the first paid one), then the environment's film (no row: unpriced) and the owner's approval of the final video.
+  the first paid one), then the owner's approval of the final video. The environment's film is a row
+  (`environment-film`, #28): an end of the environment's line, in `after` with the films it reads; a table without it
+  gets an unpriced step instead.
   A route step whose rows the table lacks (`STEP_STAGES`, its names from the table's constants) is still a milestone,
   its missing rows named, unpriced with why when it has no node.
   No plan is written by hand or by an agent; the cockpit only shows it. Test: `milestones_test.py`.
