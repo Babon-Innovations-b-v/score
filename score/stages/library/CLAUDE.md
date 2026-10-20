@@ -14,6 +14,9 @@ is in an environment shows up in the library by construction, never by an agent'
   and never fold their gate into `complete`: demo-film (paid) reads complete.
 - **The report's shape is a contract both ways.** A change is a new version (`handover.VERSION`), never an edit;
   `handover_example.json` holds one full report, and the library repository keeps its own copy of the shape.
+- **The library repository names files in this one.** Its `definitions/algorithms/*.toml` list score paths (roots,
+  constants, tests) read at the commit its world pins; deleting or renaming such a file under `score/` or `tools/`
+  breaks that definition at the next pin bump. Say so in the commit, and fix the definition in the library repository.
 - **`traced`** wraps the library-finish check (`score/stages/complete/library`, its overlay) in `traced.py`, taken
   as it landed: the place's assembled stage traced against the library folder after the handover and the store's
   accepted bakes, read only. A change of that check's rules is made there, never here.
