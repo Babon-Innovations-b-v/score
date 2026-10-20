@@ -130,3 +130,10 @@ def test_the_listener_says_an_unreachable_hosted_side_and_asks_again(world):
     said, paused = [], []
     listen.listen(Down(), world.source, rounds=2, log=said.append, pause=paused.append)
     assert len(said) == 2 and "did not answer" in said[0] and paused == [listen.RETRY_SECONDS] * 2
+
+    class Old:  # a hosted side that answers at once, not holding the call
+        def waiting(self, kinds, wait):
+            return []
+    paused.clear()
+    listen.listen(Old(), world.source, rounds=3, log=said.append, pause=paused.append)
+    assert paused == [listen.SHORTEST_ROUND] * 3
