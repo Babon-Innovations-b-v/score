@@ -6,13 +6,19 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.views.generic import RedirectView
 
-from score.dashboard.pages import basket, concepts, films, library, views
+from score.dashboard.pages import basket, concepts, environment, films, library, views
 
 STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide/", views.step_decide),
                ("queue/", views.step_queue), ("advance/", views.step_advance), ("waive/", views.step_waive)]
 
 urlpatterns = [
-    path("", views.environment),
+    path("", environment.home),
+    path("places/", views.environment),
+    path("environments/<slug:world>/", environment.concept_page),
+    path("environments/<slug:world>/save/", environment.save),
+    path("environments/<slug:world>/take/", environment.taken),
+    path("environments/<slug:world>/ask/", environment.ask),
+    path("environments/<slug:world>/reference/", environment.reference),
     path("place/<slug:place>/", views.place_page),
     path("place/<slug:place>/branch/", views.place_branch),
     path("buy/", views.buy),

@@ -19,7 +19,7 @@
 </head>
 <body class="view3d{% if embed %} embed{% endif %}">
 <aside class="view3d-panel">
-  <p class="small"><a href="/">Environment</a> / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a> / 3D</p>
+  <p class="small"><a href="/places/">Environment</a> / <a href="/place/{{ detail.place }}/">{{ detail.place }}</a> / 3D</p>
   <h1>{{ detail.place|capfirst }} in 3D</h1>
   {% if only %}<p class="panel small only-layer">Showing only <b>{{ only }}</b>, with the base for context{% if at_film %}, from the film's camera{% endif %}. <a href="/view/{{ detail.place }}">Show every layer</a></p>{% endif %}
   {% if after %}

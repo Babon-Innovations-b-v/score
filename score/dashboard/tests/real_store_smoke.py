@@ -177,7 +177,7 @@ def hosted_pages(source, shots):
     for path in ("/", "/place/hangar/", "/place/hangar/step/closeup/", "/requests/"):
         fetched(client, path, None, timings)
     if shots:
-        (shots / "hosted_board.html").write_bytes(client.get("/").content)
+        (shots / "hosted_board.html").write_bytes(client.get("/places/").content)
     print(f"hosted pages from the export: {len(timings)} pages; not 200 so far: {FAILED or 'none'}")
 
 

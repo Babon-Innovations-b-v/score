@@ -479,7 +479,7 @@ def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, sett
     user = get_user_model().objects.create_user("joey", password="a long enough password")
     pages = Client()
     pages.force_login(user)
-    for page in ("/", "/place/alpha/", "/place/alpha/step/closeup/", "/world/step/terrain/", "/requests/"):
+    for page in ("/", "/places/", "/environments/world1/", "/place/alpha/", "/place/alpha/step/closeup/", "/world/step/terrain/", "/requests/"):
         html = pages.get(page).content.decode()
         assert "state from 2026-10-18 12:00" in html, page
     html = pages.get("/place/alpha/").content.decode()

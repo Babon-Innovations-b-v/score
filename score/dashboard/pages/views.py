@@ -19,6 +19,7 @@ from score.dashboard import state
 from score.dashboard.launch import guard
 from score.dashboard.pages import actions, cockpit, concepts, library, present, seen
 from score.dashboard.pages import basket as basket_items
+from score.dashboard.pages.environment import title_of
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.proposals import records
 from score.dashboard.state import costs, groups, gaps, screens
@@ -85,7 +86,7 @@ def environment(request):
     tiles = cockpit.tiles(world, found["names"], rows, at)
     head = at and {**cockpit.head(world, found["names"], rows, at), "review": concepts.review_href(world, at)}
     if kind:
-        tiles = [{**tile, "href": tile["href"] + (f"&kind={kind}" if tile["href"].startswith("/?") else "")}
+        tiles = [{**tile, "href": tile["href"] + (f"&kind={kind}" if tile["href"].startswith(f"{cockpit.PLACES}?") else "")}
                  for tile in tiles if tile["gaps"]]
         trail = [{**step, "href": f"{step['href']}&kind={kind}"} for step in trail]
     tiles = [{**tile, "review": concepts.review_href(world, tile["place"]), **concepts.card_state(world, tile["place"])}
@@ -94,6 +95,7 @@ def environment(request):
         "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(world), "trail": trail,
         "kind": kind and {"kind": kind, "label": cockpit.KIND_WORDS[kind][0], "tone": cockpit.KIND_TONES[kind]},
         "head": head, "tiles": tiles, "draw_all": concepts.draw_all(world), "drawing": concepts.drawing(), "readings": world.inventory_spend,
+        "up": {"href": f"/environments/{world.world}/", "title": title_of(world.world)},
         "owner": is_owner(request.user) and actions.decisions_on()})
 
 

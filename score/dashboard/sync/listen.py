@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from score.dashboard.sync import applying, client
 
-LISTENED = applying.CONCEPT_KINDS
+LISTENED = applying.CONCEPT_KINDS + applying.ENVIRONMENT_KINDS
 WAIT_SECONDS = 25  # how long one call is held open; under the hosted side's LONGEST_WAIT and client.TIMEOUT
 RETRY_SECONDS = 5.0  # after the hosted side could not be reached
 SHORTEST_ROUND = 2.0  # an empty answer sooner than this waits this long before the next call

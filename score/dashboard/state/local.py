@@ -501,7 +501,25 @@ class LocalSource:
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
                           gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
                           remake=self.remake(), concepts=self.concepts(), **self.concept_review(),
-                          **self.hierarchy())
+                          **self.environment_concept(), **self.hierarchy())
+
+    def environment_concept(self):
+        """{environment_concept, environment_ask_euros, environment_pictures} (score/review/environment_concept.py):
+        the environment concept as its page shows it, one interview answer's euros and the pictures of its
+        references that stand on this machine (its local copy of the private bucket's references/)."""
+        from score.review import concepts, environment_concept
+        shown = environment_concept.current(self.store, self.world.name, self.places())
+        pictures = {}
+        for ref in shown["concept"]["references"]:
+            path = concepts.resolved(ref["picture"])
+            if path.is_file():
+                size = path.stat().st_size
+                sha = self.remembered(("reference", str(path), size, path.stat().st_mtime),
+                                      lambda path=path: hashlib.sha256(path.read_bytes()).hexdigest())
+                self.known.add(sha, path.name, path)
+                pictures[ref["picture"]] = file_ref(sha, path.name, size)
+        return {"environment_concept": shown, "environment_ask_euros": environment_concept.ask_euros(),
+                "environment_pictures": pictures}
 
     def concepts(self):
         """{place or shell: FileRef} of each concept picture: the concept review's picked draw, else its newest draw unless all its draws are from an older wording,
