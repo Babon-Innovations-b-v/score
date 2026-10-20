@@ -303,11 +303,14 @@ def named_by_rule(finish, colour, every):
     """One finish's surface decided free, with no ask: lamp light (glowing) takes the nearest light or screen surface
     by colour; a finish whose words name a material its surface's family is not (finish_parts.contradicts: black
     rubber as bare_steel) takes the nearest surface by colour, within COLOUR_DELTA_E, of a family its words allow,
-    else stays a hole. (its record, the hole's reason or None)."""
+    else stays a hole. A declared surface (declared_list) stands as declared. (its record, the hole's reason or
+    None)."""
     import finish_parts
     words = f"{finish['finish']} {finish['parts']}"
     spec = every.get(finish["surface"], {})
     record = dict(finish, listed_surface=finish["surface"], by=finish.get("by", "the list"))
+    if record["by"] == "its declared surface":
+        return record, None
     if glowing(words, colour, spec):
         light = nearest_surface(colour, every, lambda family: family in GLOW_FAMILIES, None)
         if light is not None:

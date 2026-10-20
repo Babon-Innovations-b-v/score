@@ -265,6 +265,8 @@ def test_a_finish_whose_words_name_another_material_takes_that_material_by_colou
     named, hole = finish_rows.named_by_rule(foot, black, steel_only)
     assert named["by"] == "off its material" and not named["fits"] and "black rubber" in hole, (named, hole)
     assert finish_rows.named_by_rule(foot, None, every)[1]  # no colour measured: a hole, never a guess
+    declared = finish_rows.named_by_rule(dict(foot, by="its declared surface"), black, steel_only)
+    assert declared[0]["surface"] == "bare_steel" and declared[1] is None, declared  # a shell piece's stands
 
 
 def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_asked_again():
