@@ -73,7 +73,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   stop shown), the remake's euros and hours, a Review and buy
   button, a tile per place), **Place** `/place/<place>/` (`place.html`: the 3D view, the scene tree with gap dots, a
   side panel), **Buy** `/buy/` (`buy.html`: the batch's list, total, ETA and the Buy button; the owner's books
-  buttons while paid work is refused, the read-back and the model calls' month figure, its button named by their cost
+  buttons: the read-back while paid work is refused, the model calls' month figure always, its button named by their cost
   line's label; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
   (`stats.html`: numbers only, no controls) and **Library** `/library/` (`pages/library.py`: every kind of
   `state/library.KINDS` with its count, a branch's children only when it opens, `/api/library/children?node=&page=`,

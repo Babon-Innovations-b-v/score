@@ -27,7 +27,7 @@
       <div class="num-value" data-v>{% if last.stop is None %}<span class="unknown" title="written on the store's machine">stop unknown</span>{% else %}<small>stop EUR</small> {{ last.stop|floatformat:2 }}{% endif %}</div>
     </div>{% endif %}
     <a class="button wide" href="/basket/" title="choose what to buy">Basket</a>
-    {% if owner and money.paid_refused %}<div class="books" title="{{ money.paid_refused }}">{% include "pages/c/dot.html" with tone="bad" tip=None %}{% include "pages/owner_forms.html" with form="books" %}</div>{% endif %}
+    {% if owner %}<div class="books"{% if money.paid_refused %} title="{{ money.paid_refused }}"{% endif %}>{% if money.paid_refused %}{% include "pages/c/dot.html" with tone="bad" tip=None %}{% endif %}{% include "pages/owner_forms.html" with refused=money.paid_refused %}</div>{% endif %}
   </aside>
 </div>
 {% endblock %}
