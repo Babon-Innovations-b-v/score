@@ -19,14 +19,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `finish` null when nothing is measured; `<take>/parts.npy` one part per welded face; `<take>/colours.npy` each
   face's seen colour, NaN when none is measured). Another method replaces the method's rows and writes it; the
   framework's rows (`place_line.py`: paint, bake, check) do not change.
-- **The finish-map method is the crops' and people's lines' method** (owner, 2026-10-12: "finish map seed 1 looks
-  great"; the place lines left it for the finish route on 2026-10-20, #18): `finish_parts.py` (inputs, parts),
-  `turntable_row.py` (the raw model's texture unlit from the close-up's camera and the sides and back, with the face
-  under each pixel; `inside/turntable.py`, `turntable_views.py`), `finish_rows.py` (Gemini 3.1 Pro's finish list of
-  the close-up; Nano Banana Pro's finish map of the close-up, drawn once and asked strictly (`finish_ask.STRICT`), then
-  of each turntable view against it, once; `finish_ask.py`, `finish_maps.py`), `segvigen_row.py` (SegviGen guided by the
-  close-up's map). Each paid row has a module of its own, so a free change never pays again; every Google ask is
-  cached by its input's hash. The six-model re-test rows are `../finishmap/trial.py`.
+- **The finish-map method is gone** (2026-10-20, #26): the crops are the places' own takes and the people's line
+  runs the route's rows (`../people/line.py`), so its turntable, maps, names and SegviGen rows and modules were
+  deleted. `finish_parts.py` keeps the route's shared steps on a take's faces and the finish check; `finish_ask.py`
+  the list ask and what the route shares of it.
 - **The line is the finish route** (owner, 2026-10-20, #18; library first): every surface that faces the air is a
   library material carrying the look (palette colour, wear, shine, seed), so there is no paid paint step and no
   finish-map picture. Rows, in `ROWS` (`__init__.py`), on every painting place's line: `finish-route-views` (free,
@@ -73,7 +69,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   surface-tiles, nothing accepted there). Paint (free, after the bake): the
   bake's labelled takes and painted.json copied over, so every reader of the paint stays, with its gates (one
   surface a part, colour against the close-up, feet), which now judge after the bake: the parts' "off colour"
-  measure names the colour faults before it. `place_line.make_paint` (rented) stays the crops' and people's. Check:
+  measure names the colour faults before it. `place_line.make_paint` (rented) stays the people's. Check:
   `route_check.py`, bake_check's against the bake's specs.json, a surface with its own wear held at that wear
   (`own_wear_checked`). Recheck (paid, one batch, the one-shot sort after the bake): a take the parts left off
   its colour is a hole with no ask; the rest are drawn from every view, each part flat in its library surface's
@@ -84,39 +80,28 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **Every paid ask runs once: the finishes layer is a batch** (CONTEXT.md, the owner, 2026-10-20; #21). The finish
   route's asks go as one Batch API job a row run (`google_batch.py`: a started line each before the send, the job's
   name kept so a run cut off mid-wait picks up the same job, never sends it again; a failed, cancelled or expired
-  job, an error answer or a send cut off is its takes' holes). The method's: one finish
-  list a take, one draw of each map (`SEEDS`, `VIEW_SEEDS` one seed each), no paid naming, no ask again after a
-  timeout or a dropped connection (`finish_ask.generated`): Google may bill a call cut off mid-way, and
+  job, an error answer or a send cut off is its takes' holes). A list ask (`finish_ask.finish_list`, the prop batch's finish pick) is made once, no ask again
+  after a timeout or a dropped connection (`finish_ask.generated`): Google may bill a call cut off mid-way, and
   `google_spend` counts it at its estimate. Only a refusal that did no work (HTTP 429 or 503) is asked again, at most
   `REFUSED_ASKS` times. An ask with no usable answer
   (`finish_ask.UNANSWERED`: a timeout, a lost connection, refused every time, a reply that does not parse) makes its
-  take or draw a hole, named in its row's gate (`judge_lists`, `judge_maps`, `judge_list`, `judge_recheck`); the takes
+  take a hole, named in its row's gate (`judge_list`, `judge_recheck`); the takes
   after it are still asked once, and new spend on it is a new batch and a new ask. Any other HTTP status (400, 401,
   403, 404) is a set-up fault, not an output's: it stops the row once instead of making every take a hole and a
   ledger line. A refused send is on the Google ledger as started then failed and counted at its estimate
   (`month_euros`) though Google billed nothing: the books lean high until Google's billing
-  export (#13) reads the month; `google_spend.py` stays unedited (an edit re-keys the close-up rows). The risk work is free
-  and comes before: the close-up's measured colours (`close_up_regions`: k-means of its Lab colours, each region's
-  share and median and the library surfaces within `COLOUR_DELTA_E`) go into the list ask (`finish_ask.REGIONS`),
-  asked with thinking held low from the start and on the flex tier (`LIST_TIER`, half price, a 900 s timeout: the
-  request's own `serviceTier`, never set in `google_spend`, which is in the close-up, crops and boxes rows' code
-  versions; Nano Banana Pro has no flex tier on Google's page, 2026-10-20, so the maps stay standard). A kit or shell piece
-  whose surfaces data names its `surface` (its shell section's or kit's finish) is asked nothing: that one finish
-  (`declared_list`, a hole when the take may not take it), its map the close-up's mask. No writer puts `surface` into
-  a take entry yet (none of `data/surfaces/*.json` carries it, 2026-10-20): the saving waits for the writer of #19's
-  shell and kit takes, and until then every such piece is asked and drawn like any model.
+  export (#13) reads the month; `google_spend.py` stays unedited (an edit re-keys the close-up rows). The list ask
+  (`finish_ask.finish_list`) takes the close-up's measured colours (`finish_ask.REGIONS`), with thinking held low and
+  on the flex tier (`LIST_TIER`, half price, a 900 s timeout: the request's own `serviceTier`, never set in
+  `google_spend`). 
 - **A library change re-keys only the rows that read the library** (the route's list, parts, paint, bake, recheck and
   check: `route_data.library_files`, `surface_data.line_files`); its views and split declare none
-  (`route_data.shape_files`), so a new surface re-asks the list and leaves the renders where they stood. In the
-  method's lines: lists, names, parts, paint, bake, check; inputs, turntable, maps and SegviGen declare none, the inputs'
-  output names no folder of its run, and the turntable renders on the processor with a fixed seed
-  (`inside/turntable.py` `cycles_fixed`), its PNGs kept without Blender's date and render-time text
-  (`turntable_row.without_text`: the same pixels are the same file). On 2026-10-12 the making folder in `job.json` and card renders that
-  differed run to run made one library change re-render every place and re-draw every view map (about EUR 50).
+  (`route_data.shape_files`), so a new surface re-asks the list and leaves the renders where they stood. On 2026-10-12 the making folder in `job.json` and card renders that differed run to run made one library change
+  re-render every place and re-draw every view map (about EUR 50).
   Before pushing a change, list the rows it moves with `python -m score.stages.moved <base> [<head>]` (code versions
   and every declared file: a code-only check missed the turntables' declared `blender_cloud.py`, 2026-10-14);
   `score run` lists the re-buys again before it starts and refuses over EUR 5 without `--rebuy-reason`.
-- **The paint and bake rows (and their crops and people twins) key only what they read of the library**
+- **The paint and bake rows (and the people's paint) key only what they read of the library**
   (`library_reads.py`, set in the table by `score/stages/__init__.py` `library_narrowed`): their library places'
   materials and wear in place.json, the variants those name and the bake job's specs, with their recipes, families,
   pictures and the kinds' details. A surface added for one place re-keys no other place's paint (2026-10-13: the
@@ -125,15 +110,6 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   committed record only); a row whose own code changed carries only with a proof stored as evidence on the output
   (`carry.proof_fault`: every changed file named with why, the free rows before it remade to their accepted outputs).
   `python -m score.stages.surfaces.carry` lists what carries and why not.
-- **A map that does not settle blocks its model, never passes**: measured (`finish_maps.check`: overlap, share near
-  a label colour, every finish used), filled from labelled neighbours only when its sole fault is a labelled share
-  between `FILL_LEAST` and `NEAR_LEAST`; a one-finish model is not drawn (its map is the close-up's object mask:
-  asked to paint one colour, the picture model tinted the photo); a close-up whose one draw fails is split by its own
-  colours and each region named by the draw's labelled pixels (`finish_maps.colour_split`, owner-approved fallback
-  2026-10-12, old_station's lab module: colours only split, the paint stays the library's); one that still loses a
-  finish counts as not settled. A model with no settled close-up map is named in `surfaces-maps`' fail and
-  stops its place's line (once the owner waives it, later rows leave it out). A part whose voted faces mix two
-  finishes fails `surfaces-parts` the same way.
 - **Each finish's surface is checked against the close-up's colour** (`finish_parts.checked_finishes`,
   `COLOUR_DELTA_E` 32 CIE76, set on round 4's six models): the colour only chooses among library surfaces (the
   nearest of the listed one's family); a finish none fits gets a tinted proposal in the registry and fails the paint
@@ -152,16 +128,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   inside, so the maps drew what lies behind it on the cover's own faces (the garage beacon's reflector on its red
   dome). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
   row's key, so an edit there repaints and rebakes every place.
-- **The names are decided by rule, free** (`surfaces-names`, `finish_rows.named_by_rule`; it asked Gemini again
-  until #21): a finish whose words say it gives off light (`GLOW_WORDS`) and whose close-up colour lies over
-  `GLOW_CHROMA` 40 takes the nearest light or screen surface by colour (the garage beacon's red light, chroma 57); a
-  finish whose words name a material its surface's family is not (`finish_parts.contradicts`: black rubber as
-  bare_steel) takes the nearest surface of a family its words allow within `COLOUR_DELTA_E`, else it is a hole and
-  fails the names gate by name. The paint's colour and order check (`finish_parts.checked_finishes`) runs ahead as a
-  prediction (`predicted_off`, a measure); the paint's gate still names those, where a named gap can move them. The
-  row is free in every stage table (`__init__.py`, `../people/line.py`, `../finishmap/trial.py`):
-  no clearance, no price, no basket line. New library surfaces are made the library's own way (a variant
-  in `data/library/materials.json` on a palette token, the place taking it in `place.json`), never a picture's colour.
+- **New library surfaces are made the library's own way** (a variant in `data/library/materials.json` on a palette
+  token, the place taking it in `place.json`), never a picture's colour.
 - **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture
   stops the bake before anything is rented. The job is written from git inside the bake (`bake_job.py`, 2026-10-19:
@@ -174,14 +142,14 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   files. A model neither gives (`bake_job.refusal`, entry_of's own checks run without the take: the launch's far
   rocket) is declared as a file that is never there, naming it, so the run refuses before anything is cleared; the
   crops bake too.
-- **The crops' and people's paint runs on rented processor machines, a job a take** (the place lines' paint runs in
+- **The people's paint runs on rented processor machines, a job a take** (the place lines' paint runs in
   their bake's card job, `route_bake.py`; `make_paint`, `inside/paint_take.py` through
   `blender_cloud.py`; paid, cleared like the bake): heavy steps run in the cloud (owner, 2026-10-12); measured up there,
   campgrounds' takes peak at 1.5 to 3.4 GB and crane-r1 at 34.8 GB (the PC's cap is 14 GB). Up there Blender's own
   Python runs `place_line.py paint-take` with the prop environment's pinned packages and says its peak memory and any
   signal; the registry proposals are written here first. `tools/props/heavy.py` refuses the step anywhere the
-  cloud runner's mark (FARM_LOCAL_MODELS=1) is not set. prop_env.py is left alone: the method's rows import it, and an
-  edit there re-keys every place's inputs.
+  cloud runner's mark (FARM_LOCAL_MODELS=1) is not set. prop_env.py is left alone: an edit there re-keys every row that
+  hands over to it.
 - **The check holds a bake against its surface worn and dirtied as its place wears and dirties it**
   (`bake_check.on_surface`: the library colour worn toward its recipe's `bare` as far as the place's wear, then
   toward the place's dirt colour as far as its dirt; the wreck's whites bake to L* 69 in regolith at 0.6 and pass,
@@ -197,9 +165,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   own colour (`cover`: the garage beacon's red_plastic dome), left out of `close_up_colours`; other finishes judged
   by their own colour stay in it for the order and one-look checks.
 - **The check is its own module** (`bake_check.py`, so its edits move the check row alone; wired in
-  `score/stages/__init__.py` until the 2026-10-12 fan-out ends). The turntable and SegviGen rows take their environment
-  files from `row_files.py`, so neither this folder's `__init__.py` nor `place_line.py` is in their code
-  version (`../stages_test.py` holds it). Each baked triangle is named by the bake's own ray (`bake_check.ray_surfaces`:
+  `score/stages/__init__.py` until the 2026-10-12 fan-out ends). Each baked triangle is named by the bake's own ray (`bake_check.ray_surfaces`:
   from its middle make_chunky's reach out along its normal, inward, the first labelled face hit), never the nearest
   part: the cut-down copy stands a wall proud, and beside a thin post the post lay nearer than the facade the bake
   met (far_city's pencil tower, 2026-10-13: post_dark failed at dE 45, baked right); the ray starts where the bake

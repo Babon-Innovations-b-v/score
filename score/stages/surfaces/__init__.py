@@ -16,8 +16,9 @@ A line runs the finish route (owner, 2026-10-20, #18; route_*.py), then the fram
         surfaces-check (route_check.py: bake_check.py's against the bake's specs)
 
 The method's interface is one contract, PARTS (per model its parts, each with the library surface the method named
-for it, parts.json and <take>/parts.npy, <take>/colours.npy). The finish-map method's modules (finish_parts.py,
-turntable_row.py, finish_rows.py, segvigen_row.py) stay the crops' and people's lines'.
+for it, parts.json and <take>/parts.npy, <take>/colours.npy). The people's line runs the same route rows
+(../people/line.py); the crops are the places' own takes. The finish-map method (its turntable, maps, names and
+SegviGen rows) was deleted on 2026-10-20 (#26), when the crops and people left it.
 """
 import pathlib
 import sys

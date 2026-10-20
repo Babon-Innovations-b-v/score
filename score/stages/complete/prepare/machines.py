@@ -20,8 +20,6 @@ SHORTAGE = "shortage"  # the backend's stock word for none to be had
 # Each card or processor layer of the remake: (its ledger kind, the classes its runner asks for, where they are set).
 LAYERS = {
     "pixal": ("pixal", None, "tools/props/cloud/capacity.py KINDS['pixal']"),
-    "surfaces-turntable": ("blender", ("cpu-32c-128gb",), "score/stages/surfaces/turntable_row.py CLASSES"),
-    "surfaces-segvigen": ("meshparts", None, "tools/props/cloud/capacity.py KINDS['meshparts']"),
     "surfaces-paint": ("blender", ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb"),
                        "score/stages/surfaces/place_line.py PAINT_CLASSES"),
     "surfaces-bake": ("library", ("gpu-24gb", "gpu-48gb", "gpu-80gb"), "score/stages/surfaces/place_line.py CLASSES"),

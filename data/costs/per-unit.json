@@ -8,48 +8,6 @@
  ],
  "high_quantile": 0.9,
  "stages": {
-  "surfaces-turntable": {
-   "stage": "surfaces-turntable",
-   "unit": "take turned (turntable render)",
-   "count": null,
-   "also": [],
-   "likely_euros": 0.2,
-   "high_euros": 0.2,
-   "runs": 1,
-   "sources": {
-    "recorded runs": [
-     "paper/evidence/cloud/forecast-2026-10-15.txt line 47: the ship's six rooms, surface line to paint, 12 takes (2026-10-14), turntables EUR 2.4"
-    ]
-   },
-   "forecast": {
-    "rule": "models",
-    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
-   },
-   "time": {
-    "why": "priced from runs written down when they ran, euros and units but no time; their ledger lines went with the old disk (2026-10-19)"
-   }
-  },
-  "surfaces-segvigen": {
-   "stage": "surfaces-segvigen",
-   "unit": "take split back (SegviGen)",
-   "count": null,
-   "also": [],
-   "likely_euros": 0.0525,
-   "high_euros": 0.0525,
-   "runs": 1,
-   "sources": {
-    "recorded runs": [
-     "paper/evidence/cloud/forecast-2026-10-15.txt line 47: the ship's six rooms, surface line to paint, 12 takes (2026-10-14), SegviGen EUR 0.63"
-    ]
-   },
-   "forecast": {
-    "rule": "models",
-    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
-   },
-   "time": {
-    "why": "priced from runs written down when they ran, euros and units but no time; their ledger lines went with the old disk (2026-10-19)"
-   }
-  },
   "surfaces-paint": {
    "stage": "surfaces-paint",
    "unit": "take painted",
@@ -185,57 +143,6 @@
     "per_model": 1.1905,
     "per_model_from": "paper/evidence/cloud/forecast-2026-10-15.txt line 37: the ship's close-ups, 25 Pro pictures for 21 pieces (2026-10-14)"
    }
-  },
-  "surfaces-maps": {
-   "stage": "surfaces-maps",
-   "unit": "finish map picture (Nano Banana Pro)",
-   "count": {
-    "map_attempts": "map.json"
-   },
-   "also": [
-    "crops-surfaces-maps",
-    "people-maps"
-   ],
-   "likely_euros": 0.14357,
-   "high_euros": 0.14732,
-   "runs": 2065,
-   "sources": {
-    "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-map, 2065 finished calls, 2026-10-11 to 2026-10-16"
-   },
-   "time": {
-    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
-   },
-   "forecast": {
-    "rule": "models",
-    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)",
-    "per_model": 4.0,
-    "per_model_from": "a bound from the code, not a measurement: one draw of the close-up and one of each of three views a model (finish_rows.SEEDS, VIEW_SEEDS, turntable_views.MAP_VIEWS; #21), at most; a declared or one-finish take draws none. Runs made under #21 measured on the ledger replace it"
-   }
-  },
-  "surfaces-lists": {
-   "stage": "surfaces-lists",
-   "unit": "finish list of a take (Gemini 3.1 Pro)",
-   "count": {
-    "take_files": ".json"
-   },
-   "also": [
-    "crops-surfaces-lists",
-    "people-lists"
-   ],
-   "likely_euros": 0.02244,
-   "high_euros": 0.03329,
-   "runs": 275,
-   "sources": {
-    "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-list, 275 finished calls, 2026-10-11 to 2026-10-16"
-   },
-   "time": {
-    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
-   },
-   "forecast": {
-    "rule": "models",
-    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
-   },
-   "price_note": "measured at Google's standard tier (2026-10-11 to 16); the list asks on the flex tier at about half price since #21, so flex calls on the ledger replace it once measured"
   },
   "light-passes": {
    "stage": "light-passes",
