@@ -21,7 +21,7 @@ Format rules: [`.claude/skills/grill/CONTEXT-FORMAT.md`](.claude/skills/grill/CO
 
 ## Architecture vocabulary (Pocock's laws)
 
-The core depth/seam vocabulary used by `improve-codebase-architecture`, `tdd`, `diagnose`, `to-prd`. Full definitions: [`.claude/skills/improve-codebase-architecture/LANGUAGE.md`](.claude/skills/improve-codebase-architecture/LANGUAGE.md).
+The core depth/seam vocabulary used by `improve-codebase-architecture`, `tdd`, `diagnose`, `to-prd`. Full definitions: the [`codebase-design`](.claude/skills/codebase-design/SKILL.md) skill.
 
 - **module** — anything with an interface and an implementation. _Avoid_: unit, component, service.
 - **interface** — everything a caller must know: types, invariants, ordering, errors, config, perf. _Avoid_: API, signature.
