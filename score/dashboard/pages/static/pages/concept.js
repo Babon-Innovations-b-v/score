@@ -8,7 +8,8 @@
   const page = document.getElementById("concept");
   if (!page) return;
   const place = page.dataset.place;
-  const layer = document.getElementById("concept-marks");
+  // the draw's mark layer, and one on each picked concept it is drawn on (data-on: that place; its marks P1, P2...)
+  const layers = [...page.querySelectorAll(".concept-marks")];
   const notes = document.getElementById("concept-notes");
   const draw = document.getElementById("concept-draw");
   const note = document.getElementById("concept-note");
@@ -35,7 +36,7 @@
   };
 
   // --- the marks: a box a drag, numbered, each with its note ---------------------------------------------------
-  const share = (event) => {
+  const share = (event, layer) => {
     const box = layer.getBoundingClientRect();
     return [Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)),
             Math.min(1, Math.max(0, (event.clientY - box.top) / box.height))];
@@ -46,12 +47,22 @@
   };
   const plain = () => !marks.length && !note.value.trim();  // nothing asked of the shown draw: draw fresh
   const named = () => (!page.dataset.base ? "Draw concept" : plain() ? "Draw fresh" : "Redraw with notes");
-  const relabel = () => { if (draw && !draw.disabled) draw.querySelector('[data-slot="label"]').textContent = named(); };
+  // a Redraw with notes is two calls (the prompt model corrects the prompt, then the draw): its own price
+  const euros = () => Number(!page.dataset.base || plain() ? page.dataset.euros : page.dataset.redrawEuros);
+  const relabel = () => {
+    if (!draw || draw.disabled) return;
+    draw.querySelector('[data-slot="label"]').textContent = named();
+    const price = draw.querySelector('[data-slot="price"]');
+    const shown = !page.dataset.base || plain() ? page.dataset.euros : page.dataset.redrawEuros;
+    if (price && shown) price.textContent = `EUR ${Number(shown).toFixed(2)}`;
+  };
   const renumber = () => {
-    marks.forEach((mark, index) => {
-      mark.box.dataset.n = index + 1;
-      mark.row.querySelector("b").textContent = index + 1;
-    });
+    for (const [prefix, own] of [["", marks.filter((mark) => !mark.on)], ["P", marks.filter((mark) => mark.on)]]) {
+      own.forEach((mark, index) => {
+        mark.box.dataset.n = `${prefix}${index + 1}`;
+        mark.row.querySelector("b").textContent = `${prefix}${index + 1}`;
+      });
+    }
     relabel();
   };
   const dropped = (mark) => {
@@ -69,18 +80,18 @@
     renumber();
     mark.row.querySelector("input").focus();
   };
-  if (layer && "marking" in page.dataset) {
+  for (const layer of "marking" in page.dataset ? layers : []) {
     let drawing = null;
     layer.addEventListener("pointerdown", (event) => {
-      const [x, y] = share(event);
-      drawing = { from: [x, y], x, y, w: 0, h: 0, box: document.createElement("div") };
+      const [x, y] = share(event, layer);
+      drawing = { from: [x, y], x, y, w: 0, h: 0, on: layer.dataset.on || null, box: document.createElement("div") };
       drawing.box.className = "concept-mark";
       layer.append(drawing.box);
       layer.setPointerCapture(event.pointerId);
     });
     layer.addEventListener("pointermove", (event) => {
       if (!drawing) return;
-      const [x, y] = share(event);
+      const [x, y] = share(event, layer);
       Object.assign(drawing, { x: Math.min(x, drawing.from[0]), y: Math.min(y, drawing.from[1]),
                                w: Math.abs(x - drawing.from[0]), h: Math.abs(y - drawing.from[1]) });
       place_box(drawing);
@@ -128,11 +139,13 @@
     draw.addEventListener("click", async () => {
       draw.disabled = true;
       const body = plain()
-        ? { marks: [], note: "", base: null, euros: Number(page.dataset.euros) }
+        ? { marks: [], note: "", base: null, euros: euros() }
         : {
-          marks: marks.map((mark) => ({ x: mark.x, y: mark.y, w: mark.w, h: mark.h,
-                                        note: mark.row.querySelector("input").value })),
-          note: note.value, base: page.dataset.base || null, euros: Number(page.dataset.euros),
+          marks: marks.filter((mark) => !mark.on).map((mark) => ({ x: mark.x, y: mark.y, w: mark.w, h: mark.h,
+                                                                    note: mark.row.querySelector("input").value })),
+          context_marks: marks.filter((mark) => mark.on).map((mark) => ({
+            on: mark.on, x: mark.x, y: mark.y, w: mark.w, h: mark.h, note: mark.row.querySelector("input").value })),
+          note: note.value, base: page.dataset.base || null, euros: euros(),
         };
       // a first draw sends the wording box when he edited it; untouched, the store's machine words it as it is now
       if (!body.base && wording && wording.value.trim() !== wording.defaultValue.trim()) body.wording = wording.value.trim();

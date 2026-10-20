@@ -487,6 +487,9 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .concept-stage img { display: block; width: 100%; height: auto; user-select: none; }
 .concept-none { position: relative; aspect-ratio: 16 / 10; }
 .concept-marks { position: absolute; inset: 0; touch-action: none; }
+.concept-context { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 0; }
+.concept-context-stage { margin: 0; flex: 1 1 220px; max-width: 360px; }
+.concept-context-stage figcaption { position: absolute; bottom: 4px; left: 8px; pointer-events: none; }
 [data-marking] .concept-marks { cursor: crosshair; }
 .concept-mark { position: absolute; border: 3px solid var(--bad); border-radius: var(--radius-small); }
 .concept-mark::before { content: attr(data-n); position: absolute; top: 2px; left: 4px; padding: 0 6px; border-radius: var(--radius-small); background: var(--bad); color: var(--bg); font-weight: 600; }

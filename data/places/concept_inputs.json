@@ -2,16 +2,16 @@
  "about": "What the creator gave a place's concept draw beyond its look (data/definitions/place.json) and where it sits (within.json), read the same way for every place by score/review/concepts.py (CONTEXT.md \"concept\"): `says`, his words sent as they are (a measure he set stays: the ship's 46 m, data/definitions/ship_floor.json's length); `references`, his pictures sent for look only, each with what it `shows` (`{home}`: the prop tools' home, whose references/ is the private bucket's references/ copied here, never this public repository); `people` (optional), whether its draw shows people, over its cast record. The references are the ones data/definitions/concept_views.json's views gave each place (2026-10-14 to 2026-10-19). The ship is no layer of its own (the owner, 2026-10-20): the hangar holds it, and its rooms are the hangar's inside.",
  "places": {
   "hangar": {
-   "says": "It holds the ship, a crew shuttle 46 m long standing on its pad, drawn as large as it truly is; the ship's rooms along one deck inside it are the places listed inside the hangar.",
-   "references": [{"picture": "{home}/references/shuttle-screenshot.png", "shows": "the look only of the ship it holds (its shape language, materials and landing legs); it shows a much smaller ship"}]
+   "says": "It holds the ship, a crew shuttle 46 m long, at its true size.",
+   "references": [{"picture": "{home}/references/shuttle-screenshot.png", "shows": "the ship's look only (a much smaller ship)"}]
   },
-  "cockpit": {"says": "A room inside the ship that stands in the hangar.", "references": [{"picture": "{home}/references/cockpit.png", "shows": "its look only (shapes, materials, fittings)"}]},
-  "navigation": {"says": "A room inside the ship that stands in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only (shapes, materials, fittings)"}]},
-  "quarters": {"says": "A room inside the ship that stands in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "its look only (shapes, materials, fittings)"}]},
-  "storage": {"says": "A room inside the ship that stands in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only (shapes, materials, fittings)"}]},
-  "galley": {"says": "A room inside the ship that stands in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only (shapes, materials, fittings)"}]},
-  "shiplock": {"says": "A room inside the ship that stands in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only (shapes, materials, fittings)"}]},
-  "engineroom": {"says": "A room inside the ship that stands in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only (shapes, materials, fittings)"}]},
-  "walkway": {"says": "The corridor inside the ship that stands in the hangar, joining its rooms.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only (shapes, materials, fittings)"}]}
+  "cockpit": {"says": "A room inside the ship in the hangar.", "references": [{"picture": "{home}/references/cockpit.png", "shows": "its look only"}]},
+  "navigation": {"says": "A room inside the ship in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only"}]},
+  "quarters": {"says": "A room inside the ship in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "its look only"}]},
+  "storage": {"says": "A room inside the ship in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only"}]},
+  "galley": {"says": "A room inside the ship in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only"}]},
+  "shiplock": {"says": "A room inside the ship in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only"}]},
+  "engineroom": {"says": "A room inside the ship in the hangar.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only"}]},
+  "walkway": {"says": "The corridor inside the ship in the hangar, joining its rooms.", "references": [{"picture": "{home}/references/quarters.png", "shows": "the ship's inside look only"}]}
  }
 }

@@ -199,6 +199,7 @@ class WorldState(BaseModel):
     concept_draws: dict[str, list["ConceptDraw"]] = {}
     concept_picked: dict[str, str] = {}
     concept_draw_euros: float | None = None
+    concept_redraw_euros: float | None = None  # a Redraw with notes: its prompt correction and its draw
     concept_undrawn: list[str] = []  # the places and shells with no draw yet whose first draw can be made now
     concept_unready: dict[str, str] = {}  # {place or shell with no draw yet: why its first draw cannot be made now}
     concept_wordings: dict[str, "ConceptWording"] = {}  # {place or shell: what its draws send, word for word}
@@ -216,6 +217,7 @@ class ConceptWording(BaseModel):
     refused: str | None = None
     redraw: str = ""
     pictures: list[str] = []
+    context: list[dict] = []  # [{place, sha}] the picked concepts it is drawn on, which the owner may mark too
 
 
 class ConceptDraw(BaseModel):

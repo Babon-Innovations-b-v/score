@@ -207,7 +207,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   none) button to `/concept/<place or shell>/`: the shown draw with areas marked by dragging, a note each and one for
   the whole, one draw button with its price per click (Draw concept while it has none; then, with no mark and
   no note, Draw fresh: a new first draw from the place's current first-draw wording, no base; with any, Redraw with
-  notes: the shown draw repainted as they say; the owner, 2026-10-20) (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
+  notes: the prompt model corrects the shown draw's prompt by them, then one draw repaints it, two calls at
+  `WorldState.concept_redraw_euros`, the corrected prompt then the place's own wording; the owner, 2026-10-20; the
+  picked concepts the draw is drawn on show beside it (`ConceptWording.context`), marked too, their boxes P1, P2, ...) (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
   picture at the standard tier, `score/review/concepts.draw_euros`), the place's draws, Pick (locks it: the card loses
   the button) and Unlock. A click is the owner's request (SyncRequest `concept-draw`, `concept-pick`), applied on the
   store's machine through `actions.concept_draw` / `concept_pick` and `score.review.web` (his yes for that one call

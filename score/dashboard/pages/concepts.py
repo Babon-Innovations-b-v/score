@@ -96,11 +96,20 @@ def wording_of(world, place):
         return found
     since = [item for item in sorted([*asked(place, DRAW), *asked(place, WORDING)], key=lambda item: item.created)
              if item.state != "refused" and item.created.isoformat() > (world.made_at or "")
-             and (item.kind == WORDING or (item.payload.get("wording") and not item.payload.get("base")))]
+             and (item.kind == WORDING or (item.payload.get("wording") and not item.payload.get("base"))
+                  or (item.payload.get("base") and item.state == "done" and corrected_in(item)))]
     if not since:
         return found
-    sent = since[-1].payload.get("wording") or None
+    sent = corrected_in(since[-1]) if since[-1].payload.get("base") else since[-1].payload.get("wording") or None
     return found.model_copy(update={"own": None if sent == found.generated else sent})
+
+
+def corrected_in(item):
+    """The corrected prompt an answered Redraw with notes carries (its detail), None without one."""
+    try:
+        return json.loads(item.detail or "{}").get("corrected")
+    except ValueError:
+        return None
 
 
 def pending_of(place):
@@ -137,6 +146,19 @@ def asked_to_hold(world, place, names):
             if holder == place]
 
 
+def context_pictures(world, wording, names):
+    """[{place, name, picture}] of the picked concepts a draw of the place is drawn on (the layer above's, a joined
+    place's: `wording.context`), each beside the draw so the owner can mark it too."""
+    found = []
+    for item in wording.context:
+        picture = next((draw.picture for draw in draws_of(world, item["place"]) if draw.picture.sha == item["sha"]),
+                       None)
+        if picture:
+            found.append({"place": item["place"], "picture": picture,
+                          "name": world.shells.get(item["place"]) or names.get(item["place"], item["place"])})
+    return found
+
+
 def concept_page(request, place):
     """The concept review page of one place (module docstring)."""
     source = state.source()
@@ -148,11 +170,12 @@ def concept_page(request, place):
     shown = next((draw for draw in draws if draw.picture.sha == wanted), draws[-1] if draws else None)
     names = groups.short_names(world)
     pending = pending_of(place)
+    wording = wording_of(world, place)
     return render(request, "pages/concept.html", {
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
-        "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "euros": world.concept_draw_euros,
+        "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "euros": world.concept_draw_euros, "redraw_euros": world.concept_redraw_euros,
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
-        "wording": wording_of(world, place),
+        "wording": wording, "context": context_pictures(world, wording, names),
         "can": is_owner(request.user) and actions.decisions_on(),
         "approved": place in screens.approved_places(world), "inventory": inventory_of(world, place, picked)})
 
@@ -216,7 +239,8 @@ def concept_draw(request, place):
         return JsonResponse({"detail": "refused: the concept is locked; unlock it first"}, status=409)
     if pending_of(place):
         return JsonResponse({"detail": "refused: a draw of this place is on its way"}, status=409)
-    payload = {"marks": body.get("marks") or [], "note": str(body.get("note") or "")[:2000],
+    payload = {"marks": body.get("marks") or [], "context_marks": body.get("context_marks") or [],
+               "note": str(body.get("note") or "")[:2000],
                "base": body.get("base") or None, "euros": body.get("euros")}
     if body.get("wording") and not payload["base"]:
         payload["wording"] = str(body["wording"])  # whole: the store's machine refuses one too long, never cut
