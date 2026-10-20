@@ -4,7 +4,8 @@
                 # library/ part; None when there is no library
 
 An entry is `<kind>/<id>@<version>` with `entries/<kind>/<id>/<version>/entry.json` (title, picture, files, provenance,
-tags, state draft/locked/withdrawn); file bytes live in a blob folder as blobs/<sha[:2]>/<sha>. Nothing of the library's
+tags, state draft/locked/withdrawn), read through `score.library` (ADR-0007); file bytes live in a blob folder as
+blobs/<sha[:2]>/<sha>. Nothing of the library's
 own code is imported here and no entry data is kept in this repository: the folder is the creator's, read only.
 """
 import json
@@ -15,6 +16,7 @@ from urllib.parse import quote
 
 from pydantic import BaseModel
 
+from score import library as score_library
 from score.dashboard.state.files import HERO_SIDE, SHA, THUMB_SIDE, thumbnail
 
 KINDS = [("model", "Models"), ("surface", "Surfaces"), ("effect", "Effects"), ("light", "Lights"),
@@ -291,8 +293,7 @@ class LocalLibrary(Library):
     def entries(self):
         signature = self.signature()
         if self.kept["signature"] != signature:
-            paths = (self.root / "entries").glob("*/*/*/entry.json")
-            found = sorted((self.read_entry(json.loads(path.read_text())) for path in paths), key=kind_order)
+            found = sorted((self.read_entry(record) for record in score_library.entries(self.root)), key=kind_order)
             self.kept = {"signature": signature, "entries": found, "files": None}
         return self.kept["entries"]
 

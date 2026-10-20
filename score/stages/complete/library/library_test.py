@@ -23,7 +23,7 @@ def entry(root, kind, entry_id, files=None, provenance=None, state="draft"):
     """Write one entry.json of the temp library."""
     folder = root / "entries" / kind / entry_id / "1"
     folder.mkdir(parents=True, exist_ok=True)
-    record = {"address": f"{kind}/{entry_id}@1", "kind": kind, "id": entry_id, "version": 1, "state": state,
+    record = {"schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1", "kind": kind, "id": entry_id, "version": 1, "state": state,
               "files": files or {}, "provenance": provenance or {}}
     (folder / "entry.json").write_text(json.dumps(record))
 

@@ -47,12 +47,13 @@ def test_a_library_model_matches_by_kind_and_ratio_and_code_built_ones_count_apa
     root = pathlib.Path(tmp or tempfile.mkdtemp())
     entries = [("chair_1", "prop", "hub", "chair"), ("rack_1", "piece", "hub", "rack"), ("lost_1", "prop", "x", "y")]
     (root / "index").mkdir(parents=True)
-    (root / "index" / "model.json").write_text(json.dumps({"entries": [
+    (root / "index" / "model.json").write_text(json.dumps({"schema": "score-lib-index/1", "entries": [
         {"address": f"model/{name}@1", "tags": {"model": [tag]}} for name, tag, _, _ in entries]}))
     for name, _, place, source in entries:
         folder = root / "entries" / "model" / name / "1"
         folder.mkdir(parents=True)
-        (folder / "entry.json").write_text(json.dumps({"provenance": {"place": place, "source_name": source}}))
+        (folder / "entry.json").write_text(json.dumps({"schema": "score-lib-entry/1",
+                                                       "provenance": {"place": place, "source_name": source}}))
     inventories = {"hub": {"rows": [a_row("chair", [0.6, 0.6, 0.9]), a_row("rack", [0.6, 0.6, 1.9])]}}
     index = library.index(library.library_models(root), inventories)
     lab = {"rows": [a_row("chair", [0.62, 0.6, 0.95]), a_row("rack", [0.6, 0.6, 1.9])]}

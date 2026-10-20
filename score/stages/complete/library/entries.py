@@ -7,17 +7,16 @@
     shelf.surface(name, place)             # the surface entry of that name (the place's own one first)
 
 An entry is `<kind>/<id>@<version>` with `entries/<kind>/<id>/<version>/entry.json` (files with their sha256,
-provenance), as the cockpit's `score/dashboard/state/library.py` reads it. Nothing of the library's own code is
+provenance), read through `score.library` (ADR-0007), as the cockpit reads it. Nothing of the library's own code is
 imported and no entry data is kept in this repository: score is public, the library is the creator's. A withdrawn
 entry traces nothing.
 """
 import dataclasses
-import json
-import os
 import pathlib
 import re
 
-ENTRY_FILES = "entries/*/*/*/entry.json"
+from score import library
+
 WITHDRAWN = "withdrawn"
 VARIANT = re.compile(r"\{[^}]*\}")
 
@@ -94,10 +93,8 @@ def shelve(shelf, record):
 def read(root):
     """The shelf of a library folder: every entry not withdrawn, the newest version of an id first."""
     shelf = Shelf(root=pathlib.Path(root).expanduser())
-    paths = sorted(shelf.root.glob(ENTRY_FILES),
-                   key=lambda path: (path.parts[-4], path.parts[-3], -int(path.parts[-2])))
-    for path in paths:
-        record = json.loads(path.read_text())
+    records = sorted(library.entries(shelf.root), key=lambda record: (record["kind"], record["id"], -record["version"]))
+    for record in records:
         if record.get("state") != WITHDRAWN:
             shelve(shelf, record)
     return shelf
@@ -105,5 +102,5 @@ def read(root):
 
 def from_environment():
     """The library SCORE_LIB_ROOT names, or None when it is not set."""
-    root = os.environ.get("SCORE_LIB_ROOT", "").strip()
+    root = library.root_from_environment()
     return read(root) if root else None

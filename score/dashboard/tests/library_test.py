@@ -73,7 +73,7 @@ def entry(root, blobs, kind, entry_id, state="draft", place="alpha", node="close
     described = {"preview.png": {"role": "picture", "bytes": 1, "sha256": stored(blobs, fixture.picture())}}
     for name, (role, data) in (files or {}).items():
         described[name] = {"role": role, "bytes": len(data), "sha256": stored(blobs, data)}
-    record = {"address": f"{kind}/{entry_id}@1", "id": entry_id, "kind": kind, "version": 1, "state": state,
+    record = {"schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1", "id": entry_id, "kind": kind, "version": 1, "state": state,
               "title": entry_id.split(".")[0].replace("_", " ").capitalize(), "files": described,
               "picture": {"file": "preview.png"}, "licence": {"spdx": "MIT", "commercial_ok": True},
               "provenance": {"world": "world1", "place": place, "node": node, "commit": "c" * 40},
