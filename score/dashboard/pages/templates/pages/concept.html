@@ -24,7 +24,7 @@
       <ol class="concept-rows">{% for row in reading.rows %}<li data-row="{{ row.number }}" title="{{ row.kind }}{% if row.terrain %}, terrain{% endif %}, {{ row.anchor }}; {{ row.size_words }}; {{ row.where }}; found {{ row.boxes|length }}"><span data-v>{{ row.name }}</span>{% if row.count != 1 %} <span class="soft" data-v>&times;{{ row.count }}</span>{% endif %}</li>{% endfor %}</ol>
       {% if reading.gaps %}<span class="num-label" data-v>gaps</span><ul class="concept-gaps">{% for gap in reading.gaps %}<li{% if gap.number %} data-row="{{ gap.number }}"{% else %} data-gap="{{ forloop.counter }}"{% endif %} title="{{ gap.kind }}">{% include "pages/c/dot.html" with tone="gap-missing" tip=None %} <span data-v>{% if gap.number %}{{ gap.number }}. {% endif %}{{ gap.words }}</span></li>{% endfor %}</ul>{% endif %}
     </div>{% endif %}
-    {% if inventory %}<div class="concept-inventory"><span class="num-label" data-v>scene inventory</span>
+    {% if inventory and not reading %}<div class="concept-inventory"><span class="num-label" data-v>scene inventory</span>
       {% if inventory.state == "made" %}<ul class="concept-rows">{% for row in inventory.rows %}<li><span data-v>{{ row.name }}</span>{% if row.count != 1 %} <span class="soft" data-v>&times;{{ row.count }}</span>{% endif %}</li>{% endfor %}</ul>
       {% else %}<div class="node-row" title="not read from this concept yet{% if inventory.older %}; the one there is from an older concept and counts for nothing{% endif %}">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span data-v>to read</span></div>{% endif %}
     </div>{% endif %}
