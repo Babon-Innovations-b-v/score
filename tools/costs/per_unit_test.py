@@ -125,10 +125,23 @@ def test_a_cloud_stages_time_is_read_from_its_machines_own_job_seconds():
     assert per_unit.cloud_times([], per_unit.SPECS["settle"])["why"].startswith("no ledger line")
 
 
-def test_a_line_without_machine_seconds_is_timed_by_its_wall_minutes_over_its_units():
-    line = {"batch": "b", "kind": "pixal", "models_done": 4, "wall_minutes": 20.0, "euros": 1.0}
+def test_a_line_without_machine_seconds_is_timed_by_its_working_minutes_and_slots_over_its_units():
+    """A job's time, not the batch's throughput: the machines' working minutes times the jobs each ran at once."""
+    line = {"batch": "b", "kind": "pixal", "models_done": 4, "machine_minutes": 20.0, "euros": 1.0}
     assert per_unit.unit_seconds(line, "models_done") == [300.0] * 4
-    assert per_unit.unit_seconds({**line, "wall_minutes": None}, "models_done") == []
+    two = {**line, "per_card": 2, "machines": [{"cards": 1, "work_minutes": 10.0, "minutes": 11.0},
+                                               {"cards": 1, "work_minutes": 10.0, "minutes": 11.0}]}
+    assert per_unit.unit_seconds(two, "models_done") == [600.0] * 4
+    assert per_unit.unit_seconds({**line, "machine_minutes": None}, "models_done") == []
+
+
+def test_writing_times_in_place_keeps_a_measured_time_the_ledgers_read_here_do_not_hold():
+    body = {"stages": {"closeup": {"time": {"unit_seconds": {"likely": 30.0, "high": 50.0}}},
+                       "pixal": {"time": {"why": "none"}}}, "node_minutes": {"plan": {"likely": 2.0}}}
+    stage_times, made = per_unit.kept_times(body, {"closeup": {"why": "no Google ledger read here"},
+                                                   "pixal": {"unit_seconds": {"likely": 9.0, "high": 9.0}}}, {})
+    assert stage_times["closeup"]["unit_seconds"]["likely"] == 30.0 and stage_times["pixal"]["unit_seconds"]
+    assert made == {"plan": {"likely": 2.0}}
 
 
 def test_a_google_stages_time_is_its_calls_started_to_finished_and_how_many_ran_at_once():

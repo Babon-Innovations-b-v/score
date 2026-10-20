@@ -1,5 +1,5 @@
-"""The runner's ETA for a plan: its rows walked in dependency order on their measured minutes, at most `jobs` paid
-rows at once and never more than the run's cap of cards held, the way the runner drives them. Free and local; it
+"""The runner's ETA for a plan: its rows walked in dependency order on their measured minutes, at most `jobs` rows
+at once (paid and free, as the runner's drive) and never more than the run's cap of cards held, the way the runner drives them. Free and local; it
 buys, keys and judges nothing.
 
     nodes = {node: schedule.timed_row(node, paid, price)}         # in the stage table's order (the tie-break)
@@ -30,6 +30,7 @@ def timed_row(node, paid, price=None):
     """A plan's row as schedule() takes it: {paid, likely_minutes, high_minutes, cards, why}; a paid row's from its
     price (compute.run_price), a free row's from its stage's measured makes."""
     if paid:
+        price = price or {"minutes_why": "no price given"}
         timed = {"likely_minutes": price.get("likely_minutes"), "high_minutes": price.get("high_minutes"),
                  "why": price.get("minutes_why")}
         return {"paid": True, "cards": price.get("cards"), **timed}
@@ -52,12 +53,12 @@ def links(nodes, edges):
     return after, before
 
 
-def fits(row, paid_running, held, jobs, run_cap):
-    """Whether a ready row can start now: a free row always; a paid one while fewer than `jobs` paid rows run and its
-    cards fit under `run_cap` with those held."""
-    if not row["paid"]:
-        return True
-    return paid_running < jobs and held + min(row.get("cards") or 0, run_cap) <= run_cap
+def fits(row, running, held, jobs, run_cap):
+    """Whether a ready row can start now: while fewer than `jobs` rows run (the runner's drive counts every node,
+    free and paid), and for a paid row while its cards fit under `run_cap` with those held."""
+    if running >= jobs:
+        return False
+    return not row["paid"] or held + min(row.get("cards") or 0, run_cap) <= run_cap
 
 
 def walk(nodes, edges, jobs, run_cap, field):
@@ -71,17 +72,17 @@ def walk(nodes, edges, jobs, run_cap, field):
     heapq.heapify(ready)
     ready_at, last_before = {node: 0.0 for node, count in waiting.items() if count == 0}, {}
     running, times, cause = [], {}, {}
-    now, paid_running, held, freed_by = 0.0, 0, 0, None
+    now, held, freed_by = 0.0, 0, None
     while ready or running:
         blocked = []
         while ready:
             node = names[heapq.heappop(ready)]
             row = nodes[node]
-            if not fits(row, paid_running, held, jobs, run_cap):
+            if not fits(row, len(running), held, jobs, run_cap):
                 blocked.append(order[node])
                 continue
             cards = min(row.get("cards") or 0, run_cap) if row["paid"] else 0
-            paid_running, held = paid_running + row["paid"], held + cards
+            held += cards
             times[node] = (now, now + (row[field] if has_time(row) else 0.0))
             cause[node] = last_before.get(node) if ready_at[node] == now else freed_by
             heapq.heappush(running, (times[node][1], order[node], node, cards))
@@ -90,7 +91,7 @@ def walk(nodes, edges, jobs, run_cap, field):
         if not running:
             break
         now, _, done, cards = heapq.heappop(running)
-        paid_running, held, freed_by = paid_running - nodes[done]["paid"], held - cards, done
+        held, freed_by = held - cards, done
         for then in after[done]:
             waiting[then] -= 1
             if waiting[then] == 0:
@@ -116,11 +117,11 @@ def path(times, cause):
 
 def schedule(nodes, edges, jobs, run_cap):
     """The plan's ETA: `nodes` {node: {paid, likely_minutes, high_minutes, cards, why}} in the stage table's order
-    (timed_row), `edges` [(before, after)], at most `jobs` paid rows at once and `run_cap` cards held. Returns
+    (timed_row), `edges` [(before, after)], at most `jobs` rows at once and `run_cap` cards held. Returns
     {likely_minutes, high_minutes (both None unless every row has its minutes), at_least_minutes (the walk with each
     untimed row as no time), path (the longest path's rows, first first), high_path, unknown [{node, paid, why}]}."""
     if jobs < 1 or run_cap < 1:
-        raise ValueError(f"jobs ({jobs}) and run_cap ({run_cap}) must be at least 1, or no paid row ever starts")
+        raise ValueError(f"jobs ({jobs}) and run_cap ({run_cap}) must be at least 1, or no row ever starts")
     likely_times, likely_cause = walk(nodes, edges, jobs, run_cap, "likely_minutes")
     high_times, high_cause = walk(nodes, edges, jobs, run_cap, "high_minutes")
     unknown = [{"node": node, "paid": row["paid"], "why": row.get("why") or "no minutes"}

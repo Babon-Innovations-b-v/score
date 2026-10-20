@@ -497,7 +497,7 @@
    "time": {
     "unit_seconds": {
      "likely": 548.0,
-     "high": 631.173
+     "high": 625.028
     },
     "setup_minutes": 0.371,
     "slots": 1,
@@ -797,8 +797,8 @@
    },
    "time": {
     "unit_seconds": {
-     "likely": 65.716,
-     "high": 255.697
+     "likely": 65.89,
+     "high": 260.039
     },
     "setup_minutes": 0.366,
     "slots": 1,

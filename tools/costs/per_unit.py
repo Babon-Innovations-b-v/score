@@ -226,13 +226,17 @@ def failed_starts(line):
 
 
 def unit_seconds(line, per_line):
-    """The seconds each unit of a cloud line took: its machines' own `unit_seconds`, else its wall minutes over its
-    units (one figure for each unit), else none."""
+    """The seconds each unit of a cloud line took: its machines' own `unit_seconds`, else its machines' working
+    minutes times the jobs each ran at once over its units (one figure for each unit: a job's time were the units
+    shared evenly), else none."""
     own = [seconds for row in started_rows(line) for seconds in row.get("unit_seconds") or ()]
     if own:
         return own
-    units = line_units(line, per_line)
-    return [line["wall_minutes"] * 60 / units] * units if units and line.get("wall_minutes") else []
+    units, rows = line_units(line, per_line), started_rows(line)
+    work = sum(row.get("work_minutes", row.get("minutes")) or 0.0 for row in rows) if rows else \
+        line.get("machine_minutes") or 0.0
+    slots = statistics.median_low(line_slots(line)) if line_slots(line) else 1
+    return [work * 60 * slots / units] * units if units and work else []
 
 
 def setups(line):
@@ -249,13 +253,14 @@ def setups(line):
 
 
 def line_slots(line):
-    """The jobs each machine of a cloud line ran at once: its per card (one figure, or one a machine) times its cards;
-    none where the line names no per card."""
-    per_card = line.get("per_card")
-    if isinstance(per_card, int):
-        return [per_card * max(1, row.get("cards") or 1) for row in started_rows(line)] or [per_card]
+    """The jobs each machine of a cloud line ran at once: its per card (one figure, or one a machine, whose machine
+    rows are not named: times the line's median cards) times its cards; none where the line names no per card."""
+    per_card, rows = line.get("per_card"), started_rows(line)
+    cards = statistics.median_low([max(1, row.get("cards") or 1) for row in rows]) if rows else 1
+    if isinstance(per_card, int) and per_card > 0:
+        return [per_card * max(1, row.get("cards") or 1) for row in rows] or [per_card]
     if isinstance(per_card, dict):
-        return [value for value in per_card.values() if value]
+        return [value * cards for value in per_card.values() if value and value > 0]
     return []
 
 
@@ -290,8 +295,11 @@ def call_spans(calls, caller):
 
 
 def in_flight(spans):
-    """How many of the calls were in flight as each began, itself included."""
-    return [sum(1 for other_start, other_end in spans if other_start <= start < other_end) for start, _ in spans]
+    """How many of the calls were in flight as each began, itself included (one that ended the second it began
+    too)."""
+    return [1 + sum(1 for other, (other_start, other_end) in enumerate(spans)
+                    if other != index and other_start <= start < other_end)
+            for index, (start, _) in enumerate(spans)]
 
 
 def google_times(calls, caller, google_path):
@@ -333,8 +341,17 @@ def node_minutes(records, store):
 
 def with_times(body, stage_times, made):
     """The per-unit file's body with each stage's `time` and the `node_minutes` written, nothing else touched."""
-    stages = {stage: {**found, "time": stage_times[stage]} for stage, found in body["stages"].items()}
+    stages = {stage: {**found, "time": stage_times.get(stage, {"why": "no rule in per_unit.py reads its time"})}
+              for stage, found in body["stages"].items()}
     return {**body, "stages": stages, "node_minutes": made}
+
+
+def kept_times(body, stage_times, made):
+    """The times to write in place: each stage's new time, else the file's measured one (a ledger or store not read
+    here takes no measure away), and the store's makes, else the file's."""
+    old = {stage: found.get("time") or {} for stage, found in body["stages"].items()}
+    return ({stage: found if "unit_seconds" in found or "unit_seconds" not in old.get(stage, {}) else old[stage]
+             for stage, found in stage_times.items()}, made if made else body.get("node_minutes", {}))
 
 
 def entry(stage, spec, each, sources):
@@ -405,11 +422,13 @@ def store_minutes(root):
 
 
 def write_times(options):
-    """Write the time fields into --out in place from the ledgers given (and the store's finish records), every
-    other field kept as it was."""
+    """Write the time fields into --out in place from the ledgers given (and the store's finish records), a measured
+    time those do not hold kept, every other field as it was."""
     out = pathlib.Path(options.out)
-    stage_times = times(ledger_lines(options.ledger or []), read_calls(options.google), options.google)
-    body = with_times(json.loads(out.read_text()), stage_times, store_minutes(options.store))
+    before = json.loads(out.read_text())
+    stage_times, made = kept_times(before, times(ledger_lines(options.ledger or []), read_calls(options.google),
+                                                 options.google), store_minutes(options.store))
+    body = with_times(before, stage_times, made)
     out.write_text(json.dumps(body, indent=1) + "\n")
     timed = sum(1 for found in stage_times.values() if "unit_seconds" in found)
     print(f"per unit: time of {timed} of {len(stage_times)} stages and {len(body['node_minutes'])} stages' makes "

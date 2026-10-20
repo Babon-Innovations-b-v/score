@@ -178,12 +178,14 @@ def entries(folder=RUNS):
 def node_times(store):
     """Every make's start and end as the store's finish records log them (graph.finish_record, written as each make
     ends, local and paid rows alike): [{node, stage, place, key, started, finished, minutes, machine}], oldest first.
-    A make that raised wrote no record, and a record carried over without a make is no make, so neither is here. tools/costs/per_unit.py --store reads them into the
+    A make that raised wrote no record, and a record carried over without a make is no make, so neither is here; nor
+    is one the store reads as absent (quarantined). tools/costs/per_unit.py --store reads them into the
     per-unit file's `node_minutes`, which the runner's schedule times a row by."""
     records = [store.read(key) for key in store.objects.keys("records/") if key.endswith(".json")]
     return sorted(({name: record.get(name) for name in ("node", "stage", "place", "key", "started", "finished",
                                                          "minutes", "machine")}
-                   for record in records if record.get("minutes") is not None and not record.get("carried")), key=lambda made: made["finished"])
+                   for record in records if record and record.get("minutes") is not None
+                   and not record.get("carried")), key=lambda made: made["finished"])
 
 
 def stranded(folder=RUNS):
