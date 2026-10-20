@@ -152,10 +152,10 @@ def nested_tile(world, node, by_place, names):
 
 
 def holder(world, node, by_place, names):
-    """{name, picture, count, unit} of a place or shell holding places, as the tile around it names it ("Ship, 8
-    rooms": a shell's places are its rooms), with its concept's thumbnail."""
+    """{name, picture, count, unit} of a place or shell holding places, as the tile around it names it ("Hangar, 8
+    rooms": the places of a shell, or of a place within another, are its rooms), with its concept's thumbnail."""
     count = len(inside_of(world, node, by_place))
-    unit = ("room" if node in world.shells else "place") + ("" if count == 1 else "s")
+    unit = ("room" if node in world.shells or node in world.within else "place") + ("" if count == 1 else "s")
     return {"name": world.shells.get(node) or names.get(node, node), "count": count, "unit": unit,
             "picture": screens.thumb(world.concepts.get(node))}
 

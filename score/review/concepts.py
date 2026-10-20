@@ -35,7 +35,8 @@ clean. A first draw is worded by one rule for every place at every layer (`gener
 look (data/definitions/place.json, no measures), the creator's says (data/places/concept_inputs.json), its own doors
 and openings from its plan's leads and that it has no others, its size against the places beside it in relative
 words, the places listed inside it (data/places/within.json) and how they join, the place it sits within as context,
-the pictures sent with it named in order, the fixed viewpoint and the environment's style
+the pictures sent with it named in order, the fixed viewpoint, people only where its data has them (`has_people`) and
+the environment's style
 (data/definitions/concept_views.json `style`). A place within another is sent that one's picked concept first, and
 cannot be drawn while it is not picked (`waits`); then the picked concept of each place beside it that it opens into,
 so their shared door matches; then its references (the owner's, kept in the private bucket's references/, never the
@@ -233,7 +234,10 @@ OUTSIDE_VIEW = ("Viewpoint: a high three-quarter view from one corner, looking d
 INSIDE_VIEW = ("Viewpoint: a cutaway, the roof and the near walls removed, seen from a high three-quarter view from one "
                "corner looking down about 35 to 45 degrees, so the whole floor and every remaining wall can be read; "
                "a long lens with little perspective distortion; clear, readable light within the place's own mood.")
-EVERY_DRAW = "One picture, 16:9, no text and no labels; people in view for scale."
+EVERY_DRAW = "One picture, 16:9, no text and no labels;"
+WITH_PEOPLE = "people in view for scale."
+NO_PEOPLE = "no people: its scale reads from its own objects and doors."
+PEOPLE_WORDS = re.compile(r"\b(people|person|crowd|crew)\b", re.IGNORECASE)
 ROOF_KEPT = (" Its roof features as the picture of the place it sits within shows them (openings, domes, glazing) stay "
              "visible along the cutaway's edges.")
 
@@ -342,13 +346,12 @@ def joins_of(place, inside):
 
 
 def holding_words(place):
-    """The places the creator listed inside `place` (within.json), each by its name and says, and how they join;
-    "" when it lists none."""
+    """The places the creator listed inside `place` (within.json), each by its name, and how they join; "" when it
+    lists none."""
     inside = inside_of(place)
     if not inside:
         return ""
-    parts = [name_of(name) + (f" ({says.rstrip('.')})" if (says := inputs_of(name).get("says")) else "")
-             for name in inside]
+    parts = [name_of(name) for name in inside]
     joins, said = [], set()
     for name in inside:
         for other, words in joins_of(name, inside):
@@ -467,6 +470,19 @@ def sent_pictures(store, place):
                     for ref in inputs_of(place).get("references", [])]
 
 
+def has_people(place):
+    """Whether `place`'s draw shows people (the owner, 2026-10-20: not in every concept): as the creator's `people`
+    says when set, else when its cast record (data/characters/<place>.json) holds people, groups or a crowd, or its
+    look names people."""
+    said = inputs_of(place).get("people")
+    if said is not None:
+        return said
+    cast_path = DATA / "characters" / f"{place}.json"
+    cast = json.loads(cast_path.read_text()) if cast_path.is_file() else {}
+    return bool(cast.get("people") or cast.get("groups") or cast.get("crowd")
+                or PEOPLE_WORDS.search(look_text(place)))
+
+
 def indoors(place):
     """Whether `place` is drawn as a cutaway: as its plan says (`inside`), else when it sits within another place
     and is no shell of its own."""
@@ -483,7 +499,8 @@ def generated(store, place):
     return " ".join(part for part in (
         f"One concept painting of {name_of(place)}.", *own_words(place), openings_words(place), size_words(place),
         holding_words(place), context_words(place), listed,
-        f"{INSIDE_VIEW if indoors(place) else OUTSIDE_VIEW}{roof} {EVERY_DRAW}", style()) if part)
+        f"{INSIDE_VIEW if indoors(place) else OUTSIDE_VIEW}{roof} {EVERY_DRAW} "
+        f"{WITH_PEOPLE if has_people(place) else NO_PEOPLE}", style()) if part)
 
 
 def waits(store, place):

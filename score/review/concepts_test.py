@@ -198,8 +198,9 @@ def test_a_place_within_another_is_sent_its_picked_picture_first_and_its_wording
     picked_draw(store, monkeypatch, "base", (10, 200, 10))  # a new pick above: the lab's draw is out of date
     assert not concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
     assert concepts.undrawn(store, ["base", "lab"])[0] == ["lab"]
-    assert ("This place sits within the ship: A crew shuttle 46 m long, drawn as large as it truly is, its rooms "
-            "along one deck inside; people beside it are small against it.") in concepts.generated(store, "cockpit")
+    cockpit = concepts.generated(store, "cockpit")
+    assert "A room inside the ship that stands in the hangar." in cockpit
+    assert "This place sits within the hangar: It holds the ship, a crew shuttle 46 m long" in cockpit
 
 
 def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
@@ -214,25 +215,28 @@ def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
 
 def test_a_reference_comes_from_the_places_data_and_waits_while_it_is_not_here(store, tmp_path, monkeypatch):
     monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
-    monkeypatch.setattr(concepts, "picked", lambda _store, place: "abc" if place == "ship" else None)
+    monkeypatch.setattr(concepts, "picked", lambda _store, place: "abc" if place == "hangar" else None)
     assert "is not on this machine" in concepts.waits(store, "galley")  # its reference, the owner's quarters picture
     (tmp_path / "references").mkdir()
     Image.new("RGB", (8, 8)).save(tmp_path / "references" / "quarters.png")
     assert concepts.waits(store, "galley") is None
-    assert [source for _, source in concepts.sent_pictures(store, "galley")] == ["ship", tmp_path / "references/quarters.png"]
+    sources = [source for _, source in concepts.sent_pictures(store, "galley")]
+    assert sources == ["hangar", tmp_path / "references/quarters.png"]  # the ship is no layer: the hangar's pick
     assert concepts.generated(store, "galley").endswith("The whole environment's style: 2099 space base, moon base, mars "
                                                  "base, SpaceX-type rockets, Chinese and American mixed.")
 
 
-def test_the_ships_length_and_reference_come_from_its_data_and_reach_the_hangar(store, monkeypatch):
-    assert "the ship (A crew shuttle 46 m long" in concepts.generated(store, "hangar")
-    assert concepts.generated(store, "ship").startswith("One concept painting of the ship. A crew shuttle 46 m long")
-    assert concepts.sent_pictures(store, "ship")[-1][1].name == "shuttle-screenshot.png"
-    given = {"ship": {"says": "A barge 80 m long.", "references": []}}
+def test_the_ships_length_and_reference_come_from_the_hangars_data_and_reach_its_rooms(store, monkeypatch):
+    assert "It holds the ship, a crew shuttle 46 m long" in concepts.generated(store, "hangar")
+    assert concepts.sent_pictures(store, "hangar")[-1][1].name == "shuttle-screenshot.png"
+    assert "ship" not in concepts.tree()["within"] and "ship" not in concepts.tree()["shells"]  # no layer of its own
+    assert concepts.above("cockpit") == "hangar"
+    given = {"hangar": {"says": "It holds a barge 80 m long.", "references": []}}
     monkeypatch.setattr(concepts, "inputs_of", lambda place: given.get(place, {}))
     hangar = concepts.generated(store, "hangar")
-    assert "the ship (A barge 80 m long)" in hangar and "46 m" not in hangar
-    assert len(concepts.sent_pictures(store, "ship")) == 1  # the hangar's pick only: no reference in its data now
+    assert "It holds a barge 80 m long." in hangar and "46 m" not in hangar
+    assert "This place sits within the hangar: It holds a barge 80 m long." in concepts.generated(store, "galley")
+    assert len(concepts.sent_pictures(store, "hangar")) == 1  # the base's pick only: no reference in its data now
 
 
 def test_no_measure_is_generated_but_the_creators_own_says(store):
@@ -245,9 +249,20 @@ def test_no_measure_is_generated_but_the_creators_own_says(store):
 
 
 def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway(store):
-    assert concepts.OUTSIDE_VIEW in concepts.generated(store, "base") and concepts.OUTSIDE_VIEW in concepts.generated(store, "ship")
-    assert concepts.INSIDE_VIEW in concepts.generated(store, "cockpit") and concepts.INSIDE_VIEW in concepts.generated(store, "hangar")
-    assert concepts.EVERY_DRAW in concepts.generated(store, "street") and concepts.OUTSIDE_VIEW in concepts.generated(store, "street")
+    assert concepts.OUTSIDE_VIEW in concepts.generated(store, "base")
+    assert concepts.OUTSIDE_VIEW in concepts.generated(store, "campgrounds")
+    assert concepts.INSIDE_VIEW in concepts.generated(store, "cockpit")
+    assert concepts.INSIDE_VIEW in concepts.generated(store, "hangar")
+    street = concepts.generated(store, "street")
+    assert concepts.EVERY_DRAW in street and concepts.OUTSIDE_VIEW in street
+
+
+def test_people_are_drawn_only_where_the_places_data_has_them(store, monkeypatch):
+    assert f"{concepts.EVERY_DRAW} {concepts.WITH_PEOPLE}" in concepts.generated(store, "street")  # its cast: two
+    hub = concepts.generated(store, "hub")  # its cast holds none and its look names none
+    assert f"{concepts.EVERY_DRAW} {concepts.NO_PEOPLE}" in hub and concepts.WITH_PEOPLE not in hub
+    monkeypatch.setattr(concepts, "inputs_of", lambda place: {"people": True} if place == "hub" else {})
+    assert concepts.WITH_PEOPLE in concepts.generated(store, "hub")  # the creator's say goes over the cast
 
 
 def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monkeypatch):

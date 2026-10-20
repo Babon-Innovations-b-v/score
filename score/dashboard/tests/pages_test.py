@@ -467,7 +467,7 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
         return re.findall(r'<a class="ptile" href="([^"]+)"(.*?)</a>', html, re.S), html
     found, _ = tiles("/")
     assert [href for href, _ in found] == ["/?in=yard"]  # one outside shell; a shell holding no place shows not
-    assert "<b data-v>Beta, 1 place</b>" in found[0][1] and "tone-gap-route" in found[0][1]  # alpha's gaps summed
+    assert "<b data-v>Beta, 1 room</b>" in found[0][1] and "tone-gap-route" in found[0][1]  # alpha's gaps summed
     assert "concept missing" in found[0][1]  # the yard has no concept, and never takes one from inside
     found, html = tiles("/?in=yard")
     assert [href for href, _ in found] == ["/?in=beta"] and '<a href="/" data-v>Environment</a>' in html
