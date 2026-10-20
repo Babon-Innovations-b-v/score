@@ -252,8 +252,9 @@ def test_lost_inputs_are_place_holes_with_their_code_work():
     from score.stages.complete.holes.__main__ import lost_holes
     runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
     cockpit = {hole["id"]: hole for hole in inputs.lost(runner, "cockpit")}
-    assert {"lost:ship-seed:cockpit", "lost:views:cockpit.json", "lost:earth-seed:usd-r3",
+    assert {"lost:ship-seed:cockpit", "lost:earth-seed:usd-r3",
             "lost:reference:cockpit.png", "lost:reference:reference-shuttle.png"} <= set(cockpit), sorted(cockpit)
+    assert "lost:views:cockpit.json" not in cockpit  # its light reads its views from its own scene record (#27)
     assert "ship_kit@cockpit" in cockpit["lost:ship-seed:cockpit"]["work"]
     assert not any("data/scene/cockpit.json" in hole["sentence"] for hole in cockpit.values())
     launch = {hole["id"] for hole in inputs.lost(runner, "launch")}
@@ -280,9 +281,7 @@ def test_an_earth_place_s_views_copy_names_the_rows_that_read_it():
     from score.stages.complete.holes import inputs
     runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
     views = {hole["id"]: hole for hole in inputs.lost(runner, "launch")}["lost:views:launch.json"]
-    assert "effects-look@launch" in views["work"] and "ship place" not in views["work"], views
-    cockpit = {hole["id"]: hole for hole in inputs.lost(runner, "cockpit")}["lost:views:cockpit.json"]
-    assert "ship place" in cockpit["work"], cockpit
+    assert "effects-look@launch" in views["work"] and "light" not in views["work"], views
 
 
 def test_a_lost_input_many_places_read_counts_once():

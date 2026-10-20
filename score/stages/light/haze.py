@@ -34,5 +34,5 @@ def make_haze(inputs, out, seed, params):
     tree.mkdir(parents=True)
     root = passes.lit_tree(place, layer_folder, tree, inputs)
     without_shafts(tree / place, place)
-    passes.render(passes.pass_jobs(root, tree, place, lamps, out), out)
+    passes.render(passes.pass_jobs(root, tree, place, lamps, out, layer_folder), out)
     shutil.rmtree(tree)

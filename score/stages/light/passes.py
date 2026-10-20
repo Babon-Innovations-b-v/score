@@ -1,7 +1,12 @@
 """The light stage's paid row, light-passes (its own module, so an edit of the sweep or the gates in __init__.py does
 not buy the render again): the place's stage as the assembly lays it before its layers (the seed with its
-accepted scene record) with its light layer, and the places it shows each with its own light layer written here, rendered on the demo's views on rented cards with every lamp of the place in a Cycles light group
-of its own (inside/light_passes.py).
+accepted scene record) with its light layer, and the places it shows each with its own light layer written here,
+rendered on its own scene record's views (the light layer's views.json, `record_views`) on rented L4 cards with every
+lamp of the place in a Cycles light group of its own (inside/light_passes.py).
+
+One shot (#21, #27): every view once, at CHECK_SIZE only, since the passes feed the sweep and the gates and nothing
+ships from them (a film or still renders its own frames at their final size once); one card class, never a fallback
+to a larger card; a job that fails is a hole, never rendered again inside the batch.
 """
 import json
 import pathlib
@@ -16,20 +21,17 @@ from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_PYTHON = PROPS_HOME / "env/bin/python"
-WORK = PROPS_HOME / "work"
-SEEDS = WORK / "usd-r3"
-DEMO = WORK / "demo/world1-r4"
-CARDS = "gpu-24gb,gpu-48gb,gpu-80gb"
+# One class, the card Blender's jobs were timed on (paper/evidence/cloud/capacity-2026-10.txt: L4, 116 s a job).
+CARDS = "gpu-24gb"
 WHO = "score light stage"
 SCRIPT = "score/stages/light/inside/light_passes.py"
-FRAME = "-000"
 VIEWS_A_JOB = 4
 MINUTES_A_VIEW = 5
+# The size the passes are rendered at: the sweep and the gates read them, nothing ships from them.
+CHECK_SIZE = [960, 540]
+VIEWS = "views.json"  # in the light layer's output: the views the place's light is rendered and judged on
 # Four to eight views of one stage on one or two rented cards, each set up once (the camp's first: EUR 0.18).
 EUROS = 2.0
-# The demo views a place's passes are rendered on, beside its own (the camp grounds' film is drawn on the camp's
-# stage, which holds their sky).
-ALSO_SHOWN = {"camp": ("campgrounds",)}
 
 
 def scene_of(place):
@@ -136,30 +138,33 @@ def unresolved(root):
 LAYER_SUFFIXES = (".usd", ".usda", ".usdc", ".usdz")
 
 
-def demo_views(name):
-    """The demo's views of a place on frame 000 of each shot: (size, views)."""
-    record = json.loads((DEMO / f"views/{name}.json").read_text())
-    return record["size"], [dict(view, look_only=True) for view in record["views"] if view["name"].endswith(FRAME)]
+def record_views(record):
+    """The views a place's light is rendered and judged on, from its scene record (its `views`: eye, aim, fov), at
+    CHECK_SIZE, as usd_views.py reads them: {"size", "views"}."""
+    return {"size": CHECK_SIZE, "views": [{"name": view["name"], "eye": view["eye"], "aim": view["aim"],
+                                           "up": view.get("up", [0.0, 1.0, 0.0]), "fov": view["fov"], "frame": 0,
+                                           "look_only": True} for view in record.get("views", [])]}
 
 
-def shown(place):
-    return (place, *ALSO_SHOWN.get(place, ()))
+def views_of(folder):
+    """The views a light layer's output (or a light output, which copies them) holds: (size, views)."""
+    record = json.loads((pathlib.Path(folder) / VIEWS).read_text())
+    return record["size"], record["views"]
 
 
-def pass_jobs(root, tree, place, lamps, out):
-    """blender_cloud jobs rendering every view the place's passes are taken on, VIEWS_A_JOB a job."""
+def pass_jobs(root, tree, place, lamps, out, layer_folder):
+    """blender_cloud jobs rendering every view of the place's light layer, VIEWS_A_JOB a job."""
     jobs = []
-    for name in shown(place):
-        size, views = demo_views(name)
-        for start in range(0, len(views), VIEWS_A_JOB):
-            part = views[start:start + VIEWS_A_JOB]
-            target = out / "passes" / f"{name}-{start // VIEWS_A_JOB}"
-            spec = out / "passes" / f"{name}-{start // VIEWS_A_JOB}.views.json"
-            spec.parent.mkdir(parents=True, exist_ok=True)
-            spec.write_text(json.dumps({"size": size, "views": part, "lamps": lamps}))
-            jobs.append({"script": SCRIPT, "args": [str(root), str(spec), str(target)],
-                         "inputs": [*(str(child) for child in tree.iterdir()), str(spec)], "outputs": [str(target)],
-                         "minutes": MINUTES_A_VIEW * len(part)})
+    size, views = views_of(layer_folder)
+    for start in range(0, len(views), VIEWS_A_JOB):
+        part = views[start:start + VIEWS_A_JOB]
+        target = out / "passes" / f"{place}-{start // VIEWS_A_JOB}"
+        spec = out / "passes" / f"{place}-{start // VIEWS_A_JOB}.views.json"
+        spec.parent.mkdir(parents=True, exist_ok=True)
+        spec.write_text(json.dumps({"size": size, "views": part, "lamps": lamps}))
+        jobs.append({"script": SCRIPT, "args": [str(root), str(spec), str(target)],
+                     "inputs": [*(str(child) for child in tree.iterdir()), str(spec)], "outputs": [str(target)],
+                     "minutes": MINUTES_A_VIEW * len(part)})
     return jobs
 
 
@@ -184,25 +189,25 @@ def make_passes(inputs, out, seed, params):
     tree = out / "stages"
     tree.mkdir(parents=True)
     root = lit_tree(place, layer_folder, tree, inputs)
-    render(pass_jobs(root, tree, place, lamps, out), out)
+    render(pass_jobs(root, tree, place, lamps, out, layer_folder), out)
     shutil.rmtree(tree)
 
 
 def judge_rendered(output, inputs, evidence):
     """Every view the passes are taken on came back with its look and its passes: the whole picture and every lamp."""
     groups = groups_of(output)
-    lamps = json.loads((pathlib.Path(inputs["light-layer"]) / "lamps.json").read_text())["lamps"]
+    layer_folder = pathlib.Path(inputs["light-layer"])
+    lamps = json.loads((layer_folder / "lamps.json").read_text())["lamps"]
     lacking = [f"lamp {lamp['path']} has no light group" for lamp in lamps if lamp["path"] not in groups.values()]
     views = 0
-    for name in shown(json.loads((pathlib.Path(inputs["light-layer"]) / "lamps.json").read_text())["place"]):
-        for view in demo_views(name)[1]:
-            views += 1
-            found = list(output.glob(f"passes/{name}-*/{view['name']}-passes.npz"))
-            if not found or not found[0].with_name(f"{view['name']}-look.png").exists():
-                lacking.append(f"{name} {view['name']}: not rendered")
-                continue
-            held = set(np.load(found[0]).files)
-            lacking += [f"{name} {view['name']}: no {group}" for group in ("combined", *groups) if group not in held]
+    for view in views_of(layer_folder)[1]:
+        views += 1
+        found = list(output.glob(f"passes/*/{view['name']}-passes.npz"))
+        if not found or not found[0].with_name(f"{view['name']}-look.png").exists():
+            lacking.append(f"{view['name']}: not rendered")
+            continue
+        held = set(np.load(found[0]).files)
+        lacking += [f"{view['name']}: no {group}" for group in ("combined", *groups) if group not in held]
     return checks.Verdict("rendered", checks.FAIL if lacking else checks.PASS,
                           f"{views} views, {len(groups)} lamps each: {len(lacking)} missing", {"missing": len(lacking)},
                           {"missing": "lower"}, tuple(lacking))
@@ -258,12 +263,12 @@ def place_files(name):
 
 
 def passes_files(place):
-    """What the render reads besides the layer: the seed, the places it shows with the files their light layers are
-    written from (theirs alone, never a whole folder: another place's record or kit edited moves no render here), the
-    planned grounds, the demo's views, the scripts."""
+    """What the render reads besides the layer (which holds its views): the seed, the places it shows with the files
+    their light layers are written from (theirs alone, never a whole folder: another place's record or kit edited
+    moves no render here), the planned grounds, the scripts."""
     found = {"scene": "{data}/scene/{place}.json", "seed": "{seeds}/usd-r3/{place}", "grounds": "{data}/ground",
-             "kit": "{data}/kit/{place}.json", "renderer": "{repo}/tools/blender/inside/usd_views.py", "passes script": "{repo}/" + SCRIPT}
-    found.update({f"views {name}": f"{{seeds}}/demo/world1-r4/views/{name}.json" for name in shown(place)})
+             "kit": "{data}/kit/{place}.json", "renderer": "{repo}/tools/blender/inside/usd_views.py",
+             "passes script": "{repo}/" + SCRIPT}
     for name in neighbours(place):
         found[f"neighbour {name}"] = f"{{seeds}}/usd-r3/{name}"
         if (REPO / f"data/scene/{name}.json").exists():
