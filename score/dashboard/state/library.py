@@ -101,6 +101,7 @@ class LibraryEntry(BaseModel):
     web3d: FileOf | None = None  # the web GLB copy the viewer opens (the record's `web3d`, or a file of role web3d)
     web3d_light: FileOf | None = None  # its light preview copy: what the item page loads first and the export carries
     closeup: FileOf | None = None  # a model's close-up, the picture it was made from (role closeup in score_lib)
+    clip: FileOf | None = None  # its preview clip, rendered as the films render at its handover (the record's `clip`)
     finish: dict | None = None  # a surface's own finish: colour, metallic, roughness, glow, see-through, its print
     score: int | float | None = None  # the entry's quality, 0 to 100 (or a fraction 0 to 1), its kind's own scoring
     score_parts: list[dict] = []  # what the score is made of: [{name, value (None: not measured), how, measured, unit}]
@@ -223,6 +224,12 @@ def refine_choices(given):
     return found
 
 
+def preview_clip(record):
+    """The preview clip the record's `clip` names (score/stages/library/clips), or None."""
+    said = record.get("clip")
+    return named_file(record, said.get("file")) if isinstance(said, dict) else None
+
+
 def light_copy(record):
     """The light preview web copy the record's `web3d` names (its `light`), or None."""
     said = record.get("web3d")
@@ -286,7 +293,8 @@ def entry_of(record):
         seen_in=record.get("seen_in") or [], tags=record.get("tags") or {}, requires=record.get("requires") or [],
         takes=files_of_role(record, "audio", (".ogg", ".wav", ".mp3", ".flac")), glb=glbs[0] if glbs else None,
         web3d=web_copy(record), web3d_light=light_copy(record), closeup=next(iter(files_of_role(
-            record, "closeup", (".png", ".jpg", ".jpeg", ".webp"))), None), finish=finish_print(record), score=score,
+            record, "closeup", (".png", ".jpg", ".jpeg", ".webp"))), None), clip=preview_clip(record),
+        finish=finish_print(record), score=score,
         score_parts=parts, refine_options=options, files=listed, file_count=len(listed),
         file_bytes=sum(each.bytes for each in listed), facts=kind_facts(record, parts))
 
@@ -454,8 +462,9 @@ class Library:
 
 
 def shown_files(entry):
-    """An entry's files a page shows besides its picture: a sound's takes, its 3D files and a model's close-up."""
-    return [*entry.takes, *three_d_files(entry), *([entry.closeup] if entry.closeup else [])]
+    """An entry's files a page shows besides its picture: a sound's takes, its 3D files, a model's close-up and its
+    preview clip."""
+    return [*entry.takes, *three_d_files(entry), *(each for each in (entry.closeup, entry.clip) if each)]
 
 
 def three_d_files(entry):
@@ -721,11 +730,11 @@ def export_takes(local, entries, filler):
 
 
 def export_three_d(local, entries, filler):
-    """Each entry's light web copy and each surface's print into the export's library/files/, last, while they fit;
-    a whole copy stays on the store's machine."""
+    """Each entry's preview clip, light web copy and each surface's print into the export's library/files/, last,
+    while they fit; a whole copy stays on the store's machine."""
     for entry in entries:
         printed = (entry.finish or {}).get("print")
-        for each in [entry.web3d_light, FileOf.model_validate(printed) if printed else None]:
+        for each in [entry.clip, entry.web3d_light, FileOf.model_validate(printed) if printed else None]:
             found = local.blob(each.sha) if each else None
             if found:
                 filler.place_copy(found, exported_file(each.sha, each.name), f"library 3D {each.name}")
