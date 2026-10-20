@@ -9,8 +9,9 @@ box the box gate passes, tools/props/scene/box_check.py).
            partition's own record, written by box_check.py --masks the same way). A box SAM 3 does not ground, and
            every row flagged `"ground_box": "judge"` (one SAM 3 finds under no word), goes to the box judge
            (box_check.judge_jobs, asked of Gemini through tools/props/cloud/gemini_judge.py, cents an ask: two seeds,
-           a third where they split), and its verdict is recorded the same way.
-    gate   grounded: every row's box is grounded by SAM 3 or passed by the judge.
+           asked once, in one round), and its verdict is recorded the same way. Two seeds that split decide nothing:
+           the box is a named hole (the batch rule, #21, #26: no third ask after the first answers came back).
+    gate   grounded: every row's box is grounded by SAM 3 or passed by the judge; a split judge names it.
 """
 import json
 import pathlib
@@ -47,8 +48,8 @@ def sam_rows(inventory):
 
 
 def judged(box_check, scene, inventory, rows, folder):
-    """The box judge's verdicts on rows' boxes ({`<scene>.<row>.<box>`: verdict}), asked of Gemini (two seeds, the
-    third where they split), its questions, pictures and answers under `folder`."""
+    """The box judge's verdicts on rows' boxes ({`<scene>.<row>.<box>`: verdict}), asked of Gemini once (two seeds,
+    one round; a split is no verdict), its questions, pictures and answers under `folder`."""
     import score.stages.props.prop_data as prop_data
     wanted = {"plan": inventory["plan"], "rows": rows}
     jobs = [dict(job, answer="box") for job in
@@ -56,11 +57,9 @@ def judged(box_check, scene, inventory, rows, folder):
     answers = folder / "answers"
     with prop_data.tools("props/cloud", "props"):  # gemini_judge reads its key's store when it asks
         import gemini_judge
-        for number, listed in ((1, jobs), (2, None)):
-            listed = listed if listed is not None else box_check.deciding_jobs(jobs, answers)
-            if listed:
-                (folder / f"questions-{number}.json").write_text(json.dumps(listed, indent=1))
-                gemini_judge.ask(folder / f"questions-{number}.json", answers)
+        if jobs:
+            (folder / "questions-1.json").write_text(json.dumps(jobs, indent=1))
+            gemini_judge.ask(folder / "questions-1.json", answers)
     return box_check.verdicts(jobs, answers)
 
 
