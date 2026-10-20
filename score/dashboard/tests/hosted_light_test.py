@@ -1,4 +1,5 @@
-"""A hosted dashboard stays light: in a process of its own in hosted mode, every page renders from an export, and
+"""A hosted dashboard stays light: in a process of its own in hosted mode, every page renders from an export, no score
+module outside score/dashboard is imported (the hosted image holds no other), and
 numpy, pxr, score.stages and score.store are never imported; its memory stays under 200 MB."""
 import json
 import os
@@ -28,8 +29,11 @@ client.force_login(user)
 pages = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/world/step/terrain/", "/basket/",
          "/runs/", "/requests/", "/healthz"]
 codes = {page: client.get(page, HTTP_HOST="127.0.0.1").status_code for page in pages[:-1]}
+import score.dashboard.site.asgi  # what the hosted image serves
 heavy = [name for name in ("numpy", "pxr", "score.stages", "score.store", "score.dashboard.previews", "matplotlib")
          if name in sys.modules]
+# the hosted image holds score/__init__.py and score/dashboard alone
+heavy += [name for name in sys.modules if name.startswith("score.") and not name.startswith("score.dashboard")]
 # VmHWM, this process's own peak (ru_maxrss keeps the forking parent's peak across exec)
 rss = int(next(line for line in open("/proc/self/status") if line.startswith("VmHWM")).split()[1]) / 1024
 print(json.dumps({"codes": codes, "heavy": heavy, "rss_mb": rss}))
