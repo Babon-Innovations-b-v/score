@@ -65,11 +65,15 @@ def answered_draws(place):
 
 def draws_of(world, place):
     """The place's draws, oldest first: the source's, and hosted, those answered since its export."""
-    found = list(world.concept_draws.get(place, []))
-    if actions.hosted():
-        held = {draw.picture.sha for draw in found}
-        found += [draw for draw in answered_draws(place) if draw.picture.sha not in held]
-    return found
+    return [*world.concept_draws.get(place, []), *since_export(world, place)]
+
+
+def since_export(world, place):
+    """Hosted, the place's draws answered since its export (the source holds none of them yet); local, none."""
+    if not actions.hosted():
+        return []
+    held = {draw.picture.sha for draw in world.concept_draws.get(place, [])}
+    return [draw for draw in answered_draws(place) if draw.picture.sha not in held]
 
 
 def picked_of(world, place):
@@ -193,9 +197,10 @@ def concept_draw(request, place):
 
 def draw_all(world):
     """The Environment's Draw all (owner, 2026-10-20): {places, count, each, euros (count times each), waiting (how
-    many with no draw cannot be drawn now)} of every place or shell with no draw yet whose first draw can be made now
-    and none on its way; None when there is none or no measured price."""
-    places = [node for node in world.concept_undrawn if not draws_of(world, node) and not pending_of(node)]
+    many with no draw cannot be drawn now)} of every place or shell with no first draw from its current wording
+    (the source's `concept_undrawn`) whose first draw can be made now, none answered since the export and none on its
+    way; None when there is none or no measured price."""
+    places = [node for node in world.concept_undrawn if not since_export(world, node) and not pending_of(node)]
     each = world.concept_draw_euros
     if not places or each is None:
         return None
@@ -216,6 +221,8 @@ def newest_pictures(world):
     for place in {*world.concept_draws, *(item.payload.get("place") for item in
                                           SyncRequest.objects.filter(kind=DRAW, state="done"))} - {None}:
         draws, picked = draws_of(world, place), picked_of(world, place)
+        if not picked and place in world.concept_undrawn and not since_export(world, place):
+            continue  # only draws from an older wording: out of date, never on its card
         if draws:
             found[place] = next((draw.picture for draw in draws if draw.picture.sha == picked), draws[-1].picture)
     return found
