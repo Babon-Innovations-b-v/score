@@ -46,7 +46,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     high_minutes (None unless every step is timed), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
     {kind: count}; `places` [{place, title, status, picture (a thumbnail link: the store's hero or still, else the
     library's place entry, else any entry made there), picture_from (store, library, None), progress {made, needed}
-    (its line's steps accepted), complete, gaps, worst (lost, route, missing, gate), takes (prepare's, by status)}].
+    (its line's steps accepted), complete, gaps, worst (lost, route, missing, gate), takes (prepare's, by status),
+    within (the outside place or shell holding it, None for an outside one)}], `shells` {shell: short name} (the
+    outside shells that are no place of their own). The hierarchy is `data/places/within.json` (shapes first: each
+    place's `within` and the data it was read from), read on the store's machine into the WorldState
+    (`within`, `shells`), so the export carries it; a place it does not name is an outside place.
   - `/api/screens/place/<place>`: picture, `web3d` (`/web/<place>/<place>.glb`, else the library place entry's GLB at
     `/library-files/files/<sha>`) and `web3d_from`, `view`, progress, complete, gaps, worst, takes, `steps` [{node,
     stage, label, state, paid, thumb}], `items` (its holes, the scene tree's leaves by `prim` path) [{id, prim, kind,
@@ -55,7 +59,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   - `/api/screens/buy`: `items` [{id, title, place, places, layers, likely, high, guessed, nodes, unmeasured,
     blocked, choice (buy, later, None; a choice on another version is None)}], `chosen`, `total` (the chosen items,
     each node once) and `basket` (every item) {likely, high, guessed, nodes, unmeasured}, `eta` {likely_minutes,
-    high_minutes, untimed}, `stop` (what the yes would write: the high with the guesses, plus 10%), `money`.
+    high_minutes, untimed}, `stop` (what the yes would write: the high with the guesses, plus 10%), `money`; `batch`
+    (`screens.batch`, the Buy screen's one batch: the remake by layer) {total {likely, high} (remake_money's),
+    estimated {likely, high} (prepare's per unit × count and the per-unit bases, not yet a measured run), jobs,
+    unpriced, eta, stale, layers [{layer (`screens.LAYERS`: models, finishes, people, motion, crops, light, effects,
+    sound, films, other), likely, high (None while none of it is priced), jobs, unpriced, estimated, places [{place,
+    jobs, likely, high (a place's price only in a layer prepare does not price whole)}]}]}.
   - `/api/screens/stats`: money, `bill_days` [{day, cloud, models}] (the bills as read each day on the store's
     machine), `days` (the ledgers' own counts, low), `prices` {measured, steps, by_basis, stale}, `remake_layers`,
     gaps, `places` {complete, total}.
@@ -72,8 +81,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **The cockpit app (#42): five screens under one top nav** (`templates/pages/base.html`): **Environment** `/`
   (`environment.html`: the month spent (the lines read, "at least" while one is not, each line as hover text; no
   stop shown), the remake's euros and hours, a Review and buy
-  button, a tile per place), **Place** `/place/<place>/` (`place.html`: the 3D view, the scene tree with gap dots, a
-  side panel), **Buy** `/buy/` (`buy.html`: the batch's list, total, ETA and the Buy button; the owner's books
+  button, a tile per outside place or shell (shapes first, `cockpit.tiles`: one holding places sums their progress
+  and gaps, shows how many sit inside and opens to them at `/?in=<place or shell>`, a place's own tile first, with a
+  trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: the 3D view, the scene
+  tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`: the one batch's total, how much of it is
+  estimated, ETA and the Buy button, its layers below, each opening to its places; the Benchmarks a second small
+  batch with its own Buy; the owner's books
   buttons: the read-back while paid work is refused, the model calls' month figure always, its button named by their cost
   line's label; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
   (`stats.html`: numbers only, no controls) and **Library** `/library/` (`pages/library.py`: every kind of
@@ -98,9 +111,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`cockpit.chain_words`: "unknown" while a paid step of it has no measured price) and, for the owner, one action on
   the step that fills it (`cockpit.hole_action`: accept its waiting output, reject one failing a check, waive the
   failed check of its accepted one, as his JSON request to `/api/decisions` or `/api/waivers`); opening it frames
-  the hole in the 3D view (a `{hole}` message to the viewer frame). Buy lists the basket's items by place with his
-  choice and each price; the total and ETA are the chosen items' (`screens.buy`); its one Buy button posts
-  `/buy/yes/` (`basket.buy_yes`: the same checkout as the basket's, hosted queued), and the last batch's stop (its
+  the hole in the 3D view (a `{hole}` message to the viewer frame). Buy shows the one batch (CONTEXT.md "batch"): the remake
+  (`screens.batch`), a step with neither a measured price nor prepare's estimate a grey "unknown" (a guess is never a
+  price); its Buy button posts `/buy/yes/` {key, batch: now} (`basket.buy_yes`, `batch_items`: every basket item a
+  run on main buys now but the Benchmarks, as shown, through the same checkout as the basket's, hosted queued; the
+  takes waiting on lost inputs are in the figure, not yet buyable), the Benchmarks' `{batch: benchmarks}`; no choice
+  an item is asked, so the nav's count is only the steps queued by hand and the refines; the last batch's stop (its
   high plus 10%, `basket.last_batch`) shows after it. The numbers come
   from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `branch_rows`, `gaps_by_kind`, `places_complete`,
   `measured_prices`, `timeline`), each None where the runner gives none, shown as a grey "unknown", never 0; the

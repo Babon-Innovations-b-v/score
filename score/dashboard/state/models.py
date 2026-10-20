@@ -176,6 +176,7 @@ class Remake(BaseModel):
     eta: dict = {}  # {likely_minutes, high_minutes, at_least_minutes, untimed}
     counts: dict = {}  # {takes, bought, made, library, predicted_holes, blocked}
     places: dict[str, dict] = {}  # {place: {takes, bought, made, library, predicted_holes, blocked}}
+    layers: dict[str, dict] = {}  # {stage: {takes, likely, high, places: {place: takes}}}: prepare's per-unit × count
     stale: str | None = None
 
 
@@ -189,6 +190,8 @@ class WorldState(BaseModel):
     holes_total: HolesTotal | None = None
     holes_price: HolesPrice | None = None
     remake: Remake | None = None
+    within: dict[str, str] = {}  # {place or shell: the outside place or shell it sits within} (data/places/within.json)
+    shells: dict[str, str] = {}  # {outside shell that is no place of its own: its short name}
 
 
 class GateVerdict(BaseModel):

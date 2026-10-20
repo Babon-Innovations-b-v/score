@@ -12,7 +12,8 @@
   </div>
   <a class="button primary big" href="/buy/">Review and buy</a>
 </section>
+{% if trail %}<nav class="trail" aria-label="where"><a href="/" data-v>Environment</a>{% for step in trail %} <span class="sep">&rsaquo;</span> {% if forloop.last %}<b data-v>{{ step.name }}</b>{% else %}<a href="{{ step.href }}" data-v>{{ step.name }}</a>{% endif %}{% endfor %}</nav>{% endif %}
 <section class="ptiles" aria-label="places">
-  {% for tile in tiles %}{% include "pages/c/tile.html" with href=tile.href picture=tile.picture name=tile.name made=tile.made needed=tile.needed made_tip=tile.made_tip gaps=tile.gaps tone=tile.tone tip=tile.about %}{% empty %}<p class="soft" data-v>0</p>{% endfor %}
+  {% for tile in tiles %}{% include "pages/c/tile.html" with href=tile.href picture=tile.picture name=tile.name made=tile.made needed=tile.needed made_tip=tile.made_tip gaps=tile.gaps tone=tile.tone tip=tile.about inside=tile.inside %}{% empty %}<p class="soft" data-v>0</p>{% endfor %}
 </section>
 {% endblock %}

@@ -2,6 +2,7 @@
 stay inside the details fold; every POST needs its CSRF token; the five screens (#42) show numbers, not prose: at most
 WORD_BUDGET words outside data, hover text and scripts, and a number the runner does not give is a grey "unknown"."""
 import datetime
+import json
 import pathlib
 import re
 from html import unescape
@@ -450,6 +451,29 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     assert 'href="/buy/">Review and buy</a>' in top
 
 
+def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_inside_it(world, settings, tmp_path):
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world)
+    (world.data / "places").mkdir()
+    (world.data / "places/within.json").write_text(json.dumps({
+        "shells": {"yard": {"name": "Yard"}, "empty": {"name": "Empty"}},
+        "within": {"alpha": {"within": "beta"}, "beta": {"within": "yard"}}}))
+    client = signed_in()
+
+    def tiles(page):
+        html = client.get(page).content.decode()
+        return re.findall(r'<a class="ptile" href="([^"]+)"(.*?)</a>', html, re.S), html
+    found, _ = tiles("/")
+    assert [href for href, _ in found] == ["/?in=yard"]  # one outside shell; a shell holding no place shows not
+    assert "<b data-v>2</b>" in found[0][1] and "tone-hole-route" in found[0][1]  # two inside; alpha's gaps summed
+    found, html = tiles("/?in=yard")
+    assert [href for href, _ in found] == ["/?in=beta"] and '<a href="/" data-v>Environment</a>' in html
+    found, html = tiles("/?in=beta")
+    assert [href for href, _ in found] == ["/place/beta/", "/place/alpha/"]  # itself first, then what it holds
+    assert '<a href="/?in=yard" data-v>Yard</a>' in html and "<b data-v>Beta</b>" in html
+    assert client.get("/?in=alpha").status_code == 404 and client.get("/?in=empty").status_code == 404
+
+
 def test_the_remake_is_prepares_whole_figure_plus_the_rest_and_its_time_only_when_every_step_is_timed(
         world, settings, tmp_path):
     from score.dashboard.pages import cockpit
@@ -594,24 +618,32 @@ def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(
         "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}]
 
 
-def test_the_buy_screen_lists_the_batch_its_total_eta_and_one_buy_yes(world, settings, tmp_path, monkeypatch):
-    from score.dashboard.pages.models import BasketChoice, Checkout
+def test_the_buy_screen_is_one_batch_its_total_eta_layers_and_one_buy_yes(world, settings, tmp_path, monkeypatch):
+    from score.dashboard.pages.models import Checkout
+    from score.dashboard.tests.screens_test import SETTLE, a_remake
     a_month(monkeypatch)
-    [item] = a_holes_finding(world, settings, tmp_path)
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world, nodes={"settle@alpha": SETTLE, "sound@alpha": {
+        "likely_euros": None, "high_euros": None, "guess_euros": 1.0, "basis": "not measured yet"}},
+        eta={"likely_minutes": None, "high_minutes": None, "at_least_minutes": 20.0, "unknown": [{"node": "sound"}]})
+    a_remake(world)
+    world.source.refresh()
     client = signed_in()
     html = client.get("/buy/").content.decode()
-    assert f'href="/basket/item/{item["id"]}/"' in html and 'data-url="/buy/yes/"' in html
-    assert re.search(r'<button type="submit" class="primary big wide" data-slot="post-label" disabled', html)
+    top = html[html.index('<div class="topbar">'):html.index('<ul class="buy-layers">')]
+    assert "<small>EUR</small> 12&ndash;15" in top and "<small>est.</small> 10&ndash;12" in top  # the remake, est.
+    assert "&ge;</small> 0.5 <small>h</small>" in top and '"batch": "now"' in top  # at least prepare's floor
+    assert "disabled" not in re.search(r'<form class="buy-yes".*?</form>', top).group()  # the run on main buys now
+    layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="node-count" data-v>(\d+)</span>'
+                        r'<span class="buy-price" data-v>(.*?)</span></summary>', html)
+    assert [(name, count) for name, count, _ in layers] == [("Models", "4"), ("Motion", "1"), ("Sound", "1")]
+    assert "<small>est.</small> <small>EUR</small> 10&ndash;12" in layers[0][2] and "+" in layers[0][2]
+    assert layers[1][2] == "<small>EUR</small> 2&ndash;3" and 'class="unknown">unknown' in layers[2][2]
     assert client.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
-    refused = client.post("/buy/yes/", {"key": "a" * 32}, content_type="application/json")
-    assert refused.status_code == 409 and refused.json()["detail"].startswith("refused")
+    refused = client.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")
+    assert refused.status_code == 409 and refused.json()["detail"].startswith("refused")  # no Benchmarks item
     assert signed_in("guest").post("/buy/yes/", {"key": "a" * 32}, content_type="application/json").status_code == 403
     assert 'data-url="/buy/yes/"' not in signed_in("guest2").get("/buy/").content.decode()
-    BasketChoice.objects.create(item=item["id"], version=item["version"], choice="buy")
-    html = client.get("/buy/").content.decode()
-    assert re.search(r'<span class="node-label" data-v>[^<]+</span><span class="buy-price" data-v title="[^"]*">'
-                     r'(<small>&ge;</small> )?<small>EUR</small> \d+\.\d\d&ndash;\d+\.\d\d</span>', html)
-    assert "its stop: EUR" in html and "disabled" not in re.search(r"<form class=\"buy-yes\".*?</form>", html).group()
     Checkout.objects.create(key="k" * 8, by="joey", state="launched", stop_line={"high": 10.0, "euros": 30.0})
     assert '<small>stop EUR</small> 11.00' in client.get("/buy/").content.decode()
 
