@@ -27,8 +27,10 @@ KIT = {"room": "x", "models": {"wall_1": {"route": "code"}, "lamp_1": {"route": 
 
 
 def test_the_kit_row_plans_its_named_code_fallbacks_only():
-    named = earth_seed.fallbacks(KIT, "x")  # no hand-in record: every code row is named not handed
-    assert named == {"lamp": earth_seed.NOT_HANDED, "wall": earth_seed.NOT_HANDED}, named
+    named = earth_seed.fallbacks(KIT, "x", set())  # nothing handed: every row is named, by its route
+    why = earth_seed.NOT_HANDED
+    assert named == {"crane": {"route": "stored take", "why": why}, "lamp": {"route": "code", "why": why},
+                     "wall": {"route": "code", "why": why}}, named
     pieces = earth_seed.code_layout(KIT, "x", named)["pieces"]
     assert [piece["model"] for piece in pieces] == ["wall_1", "lamp_1"], pieces
     assert pieces[0]["y"] == [0.0, 0.0, 1.0] and pieces[1]["y"] == earth_seed.UPRIGHT, pieces
@@ -37,12 +39,9 @@ def test_the_kit_row_plans_its_named_code_fallbacks_only():
 
 
 def test_a_row_handed_to_the_loop_leaves_the_kit_row():
-    kept = earth_seed.handed_rows
-    earth_seed.handed_rows = lambda place: {"wall"}
-    try:
-        assert earth_seed.fallbacks(KIT, "x") == {"lamp": earth_seed.NOT_HANDED}  # the wall's model is the loop's
-    finally:
-        earth_seed.handed_rows = kept
+    assert set(earth_seed.fallbacks(KIT, "x", {"wall", "crane"})) == {"lamp"}  # the wall's and crane's are the loop's
+    handed = earth_seed.handed_in({"wall": {"route": "prop", "layer": "kit"}, "chair": {"route": "prop"}})
+    assert handed == {"wall"}, handed  # a row with no layer is the objects layer's (closeup_row.layer_of)
 
 
 def test_every_earth_kit_code_piece_is_a_named_fallback():
@@ -50,12 +49,17 @@ def test_every_earth_kit_code_piece_is_a_named_fallback():
     leave its bake (#41)."""
     for place in (path.stem for path in sorted((REPO / "data/kit").glob("*.json")) if stages.earth_place(path.stem)):
         kit = json.loads((REPO / "data/kit" / f"{place}.json").read_text())
-        named = earth_seed.fallbacks(kit, place)
+        handed = earth_seed.handed_rows(place)
+        named = earth_seed.fallbacks(kit, place, handed)
         baked = earth_seed.code_layout(kit, place, named)["pieces"]
         assert all(named.get(earth_seed.piece_row(piece, kit, place)) for piece in baked), place
         code = {earth_seed.piece_row(piece, kit, place) for piece in kit["pieces"] if earth_seed.code_built(piece, kit)}
         left = code - {earth_seed.piece_row(piece, kit, place) for piece in baked}
-        assert left <= earth_seed.handed_rows(place), (place, left)
+        assert left <= handed, (place, left)
+        # a picture-made piece (route `model`, laid from a stored take) is the loop's or named too, never unrecorded
+        rows = {earth_seed.piece_row(piece, kit, place) for piece in kit["pieces"] if "part" not in piece}
+        assert rows - handed == set(named), (place, rows - handed - set(named))
+        assert all(entry["why"] for entry in named.values()), place
 
 
 def write(folder, name, record):
@@ -79,23 +83,30 @@ def base_stage(seed, objects):
 
 
 def section_inputs(root):
-    """Place x's base with two wall panels and a floor plate, its plan's two sections, and the loop's ends: the wall
-    made (take wall-k1, its parts two finishes), the floor a gap."""
-    sections = [{"name": "bolted walls", "surface": "walls", "rows": ["wall"]},
-                {"name": "deck plates", "surface": "floor", "rows": ["floor"]}]
-    rows = [{"id": "wall", "take": "wall-k1", "layer": "kit"}, {"id": "floor", "take": "floor-k1", "layer": "kit"}]
+    """Place x's base with two wall panels, a trim, a floor plate and a pipe, its plan's two sections, the loop's ends
+    (the wall made, take wall-k1, its parts two finishes; the trim made, take trim-k1, steel; the floor a gap) and
+    earth-kit's fallbacks (the pipe, code)."""
+    sections = [{"name": "bolted walls", "surface": "walls", "rows": ["wall", "trim"]},
+                {"name": "deck plates", "surface": "floor", "rows": ["floor", "pipe", "vent"]}]
+    rows = [{"id": "wall", "take": "wall-k1", "layer": "kit"}, {"id": "trim", "take": "trim-k1", "layer": "kit"},
+            {"id": "floor", "take": "floor-k1", "layer": "kit"}]
     parts = {"takes": {"wall-k1": {"parts": [{"judge": "dark_panel", "share": 0.3}, {"judge": "painted_panel",
-                                                                                        "share": 0.7}]}}}
+                                                                                        "share": 0.7}]},
+                       "trim-k1": {"parts": [{"judge": "steel", "share": 1.0}]}}}
     objects = {"wall_1": ("wall", (2.0, 0.0, 5.0)), "wall_2": ("wall", (3.2, 0.0, 5.0)),
-               "floor_1": ("floor", (0.0, 0.0, 0.0))}
+               "trim_1": ("trim", (2.6, 2.0, 5.0)), "floor_1": ("floor", (0.0, 0.0, 0.0)),
+               "pipe_1": ("pipe", (1.0, 0.0, 1.0))}
+    named = {"pipe": {"route": "code", "why": earth_seed.NOT_HANDED}}
     return {"earth-seed": base_stage(root / "seed", objects),
             "plan": write(root / "plan", "x.json", {"sections": sections}),
             "places": write(root, "place.json", {"x_library": {"wear": {"level": "worked", "dirt": 0.4}}}),
             "surfaces": write(root / "surfaces", "x.json", {"library": "x_library"}),
             "props-inputs": write(root / "inputs", "rows.json", {"rows": rows}).parent,
-            "likeness": write(root / "likeness", "likeness.json", {"objects": {"wall": {"route": "prop"}, "floor": {
-                "missing": "no model"}}}).parent,
-            "surfaces-bake": write(root / "bake", "baked.json", {"wall_1": {"parts": "wall-k1"}}).parent,
+            "likeness": write(root / "likeness", "likeness.json", {"objects": {"wall": {"route": "prop"}, "trim": {
+                "route": "prop"}, "floor": {"missing": "no model"}}}).parent,
+            "surfaces-bake": write(root / "bake", "baked.json", {"wall_1": {"parts": "wall-k1"},
+                                                                 "trim_1": {"parts": "trim-k1"}}).parent,
+            "earth-kit": write(root / "kit", earth_seed.FALLBACKS, named).parent,
             "surfaces-parts": write(root / "parts", "parts.json", parts).parent}
 
 
@@ -109,9 +120,13 @@ def test_kit_sections_lay_one_style_one_finish_and_wear_across_the_seams():
         kit_sections.make(inputs, out, 0, {})
         assert kit_sections.faults(out) == []
         walls, deck = json.loads((out / kit_sections.OUTPUT).read_text())["sections"]
-        assert walls["finish"] == "painted_panel" and walls["made"] == {"wall": "wall-k1"}, walls
-        assert walls["origin"] == [2.0, 0.0, 5.0] and walls["gap"] is None and walls["wear"]["level"] == "worked"
-        assert deck["finish"] is None and deck["gap"] and deck["made"]["floor"].startswith("gap: no model"), deck
+        # two wall panels at 0.7 painted panel outweigh one trim at 1.0 steel: shares weighted by pieces laid
+        assert walls["finish"] == "painted_panel" and walls["made"] == {"wall": "wall-k1", "trim": "trim-k1"}, walls
+        assert walls["shares"] == {"dark_panel": 0.6, "painted_panel": 1.4, "steel": 1.0}, walls
+        assert walls["origin"] == [2.0, 0.0, 5.0] and walls["gaps"] == {} and walls["wear"]["level"] == "worked"
+        assert deck["finish"] is None and deck["made"]["floor"].startswith("gap: no model"), deck
+        assert deck["made"]["pipe"] == f"fallback: code: {earth_seed.NOT_HANDED}", deck  # named, not a gap
+        assert set(deck["gaps"]) == {"floor", "vent"}, deck  # vent: neither handed nor named
         layer = Usd.Stage.Open(str(out / kit_sections.LAYER))
         first, second = (layer.GetPrimAtPath(f"/x/Objects/wall_{number}") for number in (1, 2))
         assert second.GetAttribute("score:section").Get() == "bolted walls"
@@ -119,7 +134,7 @@ def test_kit_sections_lay_one_style_one_finish_and_wear_across_the_seams():
         assert second.GetAttribute("score:wear_seed").Get() == first.GetAttribute("score:wear_seed").Get()
         assert second.GetAttribute("score:wear_at").Get() == Gf.Vec3f(1.2, 0.0, 0.0)  # wear runs on past the seam
         verdict = kit_sections.judge_sections(out, inputs, {})
-        assert verdict.answer == checks.PASS and verdict.measures["gaps"] == 1, verdict
+        assert verdict.answer == checks.PASS and verdict.measures["gaps"] == 2, verdict
         twice = [{"name": "a", "surface": "walls", "rows": ["wall"]}, {"name": "b", "surface": "walls",
                                                                         "rows": ["wall", "door"]}]
         write(root / "plan", "x.json", {"sections": twice})
@@ -137,6 +152,10 @@ def test_the_kit_adapter_is_on_the_loop_and_every_plan_section_is_laid():
     assert shapes_first.KIT in shapes_first.ADAPTERS and shapes_first.KIT.layer == earth_seed.KIT_LAYER
     step = next(row for row in shapes_first.rows() if row.name == "kit-sections")
     assert not step.applies("hangar")  # no kit row handed to the loop yet (earth_seed.NOT_HANDED)
+    from score.stages.earth_seed import kit_sections
+    assert kit_sections.applies("hangar") and not kit_sections.applies("wreck")  # wreck's plan marks no sections
+    ships = [place for place in ("shiplock", "cockpit", "engineroom") if stages.ship_place(place)]
+    assert ships and not any(kit_sections.applies(place) for place in ships), ships  # earth-seed never runs there
     assert "kit-sections" in assembly.LAYERS
     for path in sorted((REPO / "data/plans").glob("*.json")):
         sections = json.loads(path.read_text()).get("sections", [])

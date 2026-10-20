@@ -55,7 +55,8 @@ TERRAIN = Adapter(ground_join.LAYER, after=(graph.Stage("ground-join", "place", 
 # (earth_seed.fallbacks).
 KIT = Adapter(earth_seed.KIT_LAYER,
               after=(graph.Stage("kit-sections", "place", kit_sections.make, kit_sections.CONTRACT, kit_sections.CHECKS,
-                                 files=kit_sections.files, after=kit_sections.AFTER),))
+                                 files=kit_sections.files, after=kit_sections.AFTER,
+                                 applies=kit_sections.applies),))
 ADAPTERS = (OBJECTS, TERRAIN, KIT)
 
 ROUGH_MODEL = graph.Stage("rough-model", "place", rough_model.make, rough_model.CONTRACT, rough_model.CHECKS,
