@@ -139,14 +139,21 @@ def plan_as_kit(function, position):
     return read
 
 
+def shell_of(place):
+    """[the outside shell whose split names the place], or []: what an inside place's plan reads beside it. Here in
+    the table, so the plan row's code version never hashes the split's code (a neighbours function's file is part of
+    its row's code version, and the table is the framework's)."""
+    return shell_split.shell_of(place)
+
+
 PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scene_record.plan.PLACE_PLAN,
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
                    files=kit_if_laid(scene_record.plan.files), applies=scene_record.written,
-                   beside={"shell-split": ("shell-split", 1)}, nested=True, neighbours=shell_split.shell_of)
+                   beside={"shell-split": ("shell-split", 1)}, nested=True, neighbours=shell_of)
 # Shapes first (CONTEXT.md "shell split"): an outside shell's plan split into the shapes of its inside places, free and
 # local, for a place whose plan has a `split`; each inside place's plan reads its shell's split beside it (PLAN's
-# `beside`, nested: up to the shell, never back down), so the runner makes the shell's split before its inside places.
+# `beside`, nested: up to the shell, never back down), so the drive makes the shell's split before its inside places.
 SHELL_SPLIT = graph.Stage("shell-split", "place", shell_split.make, shell_split.CONTRACT, shell_split.CHECKS,
                           files=shell_split.files, after={"plan": ("place-plan", 2)}, applies=shell_split.applies)
 # The place's rough model (shapes first: the prop pipeline on its whole concept, the picture its plan names), after its

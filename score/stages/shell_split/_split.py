@@ -8,7 +8,7 @@ How it cuts (each rule a choice, said here so a different answer is a different 
 - **The inside's span** is the longest run of the outline's stations where a person stands (`least.clear` clear over
   the floor) and a whole-width room fits (`least.wide` across). What lies ahead of it and behind it is left out.
 - **Bands, front to back, in the room list's order.** A `whole` room is a band of its own, wall to wall. A run of
-  `left` and `right` rooms is one band with the spine (the corridor joining them) down its middle; when a whole room
+  `left` and `right` rooms (some of each) is one band with the spine (the corridor joining them) down its middle; when a whole room
   stands ahead of it, the spine opens with a hall (`spine.hall` long, wall to wall) behind that room's door.
 - **Lengths by one share of headroom.** Every room starts at its least length; the span left over is shared so each
   band grows the same fraction of its headroom (most less least) and the bands fill the span. A side band is as long
@@ -73,7 +73,15 @@ def bands(rooms):
             found.append(("side", [room]))
     if sum(kind == "side" for kind, _ in found) > 1:
         raise ValueError("side rooms in two runs: one spine per shell is all the split lays")
+    if any(kind == "side" and not (column(rooms, "left") and column(rooms, "right")) for kind, rooms in found):
+        raise ValueError("side rooms on one side only: the split lays the spine down the middle, with rooms both sides")
     return found
+
+
+def hall_before(found, index, spine):
+    """The hall at the front of band `index`: the spine's `hall` for a side band right behind a whole room, else 0."""
+    behind_whole = found[index][0] == "side" and index and found[index - 1][0] == "whole"
+    return spine.get("hall", 0.0) if behind_whole else 0.0
 
 
 def column(rooms, side):
@@ -174,7 +182,7 @@ def laid_bands(found, front, room_for, spine):
             laid.append(laid_whole(rooms[0], along, length))
             along += length
             continue
-        hall = spine.get("hall", 0.0) if index and found[index - 1][0] == "whole" else 0.0
+        hall = hall_before(found, index, spine)
         laid += laid_side(rooms, along, length, spine, hall)
         along += hall + length
     return laid, along
@@ -206,9 +214,8 @@ def split(shell, plan):
     spine = plan.get("spine")
     if spine is None and any(kind == "side" for kind, _ in found):
         raise ValueError("side rooms need a spine to open onto")
-    hall = sum(spine.get("hall", 0.0) for index, (kind, _) in enumerate(found)
-               if kind == "side" and index and found[index - 1][0] == "whole") if spine else 0.0
-    laid, end = laid_bands(found, front, back - front - hall, spine or {})
+    halls = sum(hall_before(found, index, spine or {}) for index in range(len(found)))
+    laid, end = laid_bands(found, front, back - front - halls, spine or {})
     laid = [measured(item, stations, spine or {}, plan.get("partition", 0.0)) for item in doors_into(laid, plan["door"])]
     left_out = [[round(stations[0][0], ROUND), round(front, ROUND)], [round(end, ROUND), round(stations[-1][0], ROUND)]]
     return {"shell": shell, "span": [round(front, ROUND), round(back, ROUND)],
