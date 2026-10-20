@@ -93,6 +93,20 @@ def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world
     assert 'href="/concept/beta/"' in owner.get("/").content.decode()
 
 
+def test_draw_fresh_makes_a_new_first_draw_from_the_places_wording_and_note_beside_the_others(world, stand_in):
+    owner = signed_in()
+    owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
+    page = owner.get("/concept/beta/").content.decode()
+    assert "Draw fresh" in page and "marked areas are left out" in page  # beside Redraw, at the same price
+    owner.post("/concept/beta/draw/", json.dumps({"marks": [], "note": "a dome", "base": None, "euros": PRICE}),
+               content_type="application/json")
+    first, fresh = drawing.draws(world.source.store, "beta")
+    assert fresh["base"] is None and fresh["marks"] == [] and fresh["sha"] != first["sha"]
+    assert stand_in[-1] == stand_in[0] + " The creator's note: a dome" and "Box" not in stand_in[-1]
+    assert fresh["yes"] != first["yes"] and fresh["euros"] == PRICE  # its own spend yes, one call
+    assert world.source.store.cache.parent.joinpath("bucket", f"concept-draws/{fresh['sha']}.png").is_file()
+
+
 def test_a_draw_at_another_price_or_by_anyone_else_is_refused(world, stand_in):
     owner = signed_in()
     owner.post("/concept/beta/draw/", json.dumps({"euros": 0.05}), content_type="application/json")

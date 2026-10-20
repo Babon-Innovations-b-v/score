@@ -1,6 +1,7 @@
 // The concept review page (pages/concepts.py): drag on the picture to mark an area, a note for each; Draw or Redraw
 // posts the marks, the note and the price the button shows (the owner's spend yes for that one call), then asks the
-// page's state until the draw is answered and shows it; Pick and Unlock post the shown draw (or none).
+// page's state until the draw is answered and shows it; Draw fresh posts only the note and the price (a new first
+// draw: no base, so no marks); Pick and Unlock post the shown draw (or none).
 (() => {
   const page = document.getElementById("concept");
   if (!page) return;
@@ -8,6 +9,7 @@
   const layer = document.getElementById("concept-marks");
   const notes = document.getElementById("concept-notes");
   const draw = document.getElementById("concept-draw");
+  const fresh = document.getElementById("concept-fresh");
   const said = document.getElementById("concept-said");
   const marks = [];
   const ASK_EVERY = 1500;
@@ -87,6 +89,7 @@
   // --- draw, then ask until it is answered ----------------------------------------------------------------------
   const waiting = (since) => {
     draw.disabled = true;
+    if (fresh) fresh.disabled = true;
     const label = draw.querySelector('[data-slot="label"]');
     const started = since ? Date.parse(since) : Date.now();
     const tick = () => { label.textContent = `drawing ${Math.round((Date.now() - started) / 1000)} s`; };
@@ -102,6 +105,7 @@
         console.error("concept draw refused", found.refused);
         label.textContent = page.dataset.base ? "Redraw" : "Draw concept";
         draw.disabled = false;
+        if (fresh) fresh.disabled = false;
         return;
       }
       location.search = `?draw=${found.newest}`;
@@ -110,14 +114,16 @@
   };
   if (draw) {
     if (page.dataset.pending) waiting(page.dataset.pending);
-    draw.addEventListener("click", async () => {
-      draw.disabled = true;
-      const body = {
-        marks: marks.map((mark) => ({ x: mark.x, y: mark.y, w: mark.w, h: mark.h,
-                                      note: mark.row.querySelector("input").value })),
-        note: document.getElementById("concept-note").value, base: page.dataset.base || null,
-        euros: Number(page.dataset.euros),
-      };
+    const asked = async (button, anew) => {
+      button.disabled = true;
+      const note = document.getElementById("concept-note").value;
+      const body = anew
+        ? { marks: [], note, base: null, euros: Number(page.dataset.euros) }
+        : {
+          marks: marks.map((mark) => ({ x: mark.x, y: mark.y, w: mark.w, h: mark.h,
+                                        note: mark.row.querySelector("input").value })),
+          note, base: page.dataset.base || null, euros: Number(page.dataset.euros),
+        };
       try {
         await post("draw", body);
         said.hidden = true;
@@ -125,9 +131,11 @@
       } catch (error) {
         tell("bad", error.message);
         console.error("concept draw refused", error);
-        draw.disabled = false;
+        button.disabled = false;
       }
-    });
+    };
+    draw.addEventListener("click", () => asked(draw, false));
+    if (fresh) fresh.addEventListener("click", () => asked(fresh, true));
   }
 
   // --- pick and unlock -----------------------------------------------------------------------------------------

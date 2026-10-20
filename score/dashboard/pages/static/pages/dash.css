@@ -490,7 +490,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .concept-notes b { flex: none; min-width: 24px; text-align: center; border-radius: var(--radius-small); background: var(--bad); color: var(--bg); }
 .concept-notes input { flex: 1; min-width: 0; }
 .concept-drop { flex: none; padding: 2px 8px; }
-.concept-actions { display: flex; gap: 10px; align-items: center; }
+.concept-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .concept-history { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; }
 .concept-past { position: relative; display: block; width: 160px; border: 2px solid var(--line); border-radius: var(--radius-small); overflow: hidden; }
 .concept-past.shown { border-color: var(--accent); }
