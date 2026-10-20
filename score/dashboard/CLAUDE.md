@@ -199,7 +199,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   and picks (`score/review/concepts.py`), each draw copied to the private bucket as it is made
   (`concept-draws/<sha>`), and a pick or unlock is handed to score_lib (`score-lib concept`: the picked draw locked as
   `concept/<place>`, withdrawn on an unlock), whose entry the Library shows in its place's folder on the Places shelf
-  (`shelf_of`); the pick's answer says what the library did. A place's card shows its picked draw, else its newest, else
+  (`shelf_of`); the pick's answer says what the library did. A place's card shows its picked draw, else its newest unless every draw is from an older wording (then none: out of date), else
   `data/places/concepts.json`'s. The page asks `/concept/<place>/state/` until the draw is answered. Hosted, the
   answered draw (its record as the request's detail, its pictures in `SCORE_HOME/request-files`, served by
   `ExportedSource` beside the export's) and a pick since the export show at once; the cards follow at the next export.

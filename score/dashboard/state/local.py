@@ -504,7 +504,7 @@ class LocalSource:
                           **self.hierarchy())
 
     def concepts(self):
-        """{place or shell: FileRef} of each concept picture: the concept review's picked draw, else its newest draw,
+        """{place or shell: FileRef} of each concept picture: the concept review's picked draw, else its newest draw unless all its draws are from an older wording,
         else the one data/places/concepts.json names, where its bytes stand in the store's blobs; a place it lists
         as lost with no draw, or whose blob is not here, has none."""
         path = self.data / "places" / "concepts.json"
@@ -518,6 +518,8 @@ class LocalSource:
         review = self.concept_review()
         for node, draws in review["concept_draws"].items():
             chosen = review["concept_picked"].get(node)
+            if not chosen and node in review["concept_undrawn"]:
+                continue  # only draws from an older wording: out of date, kept in its history, never on its card
             refs[node] = next((draw.picture for draw in draws if draw.picture.sha == chosen), draws[-1].picture)
         return refs
 
