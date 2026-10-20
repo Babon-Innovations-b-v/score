@@ -46,9 +46,11 @@ import resting  # noqa: E402
 
 SESSION = REPO / "tools/blender/session.py"
 INSIDE = REPO / "tools/blender/inside/settle_stage.py"
-# A drop takes a small processor machine first (#20; POP2-HM-4C-32G at about a sixth of a 32-core's hourly price), the
-# 32-core classes when none is in stock: Blender's rigid-body solve is taken to run on one core, not yet timed on one
-# (the first drop on it is that timing).
+# A drop takes a small processor machine and nothing else (#20; POP2-HM-4C-32G at about a sixth of a 32-core's hourly
+# price; #21: one class decided before the batch, no chain to the 32-core classes): Blender's rigid-body solve is taken
+# to run on one core, not yet timed on one (the first drop on it is that timing). None in stock: the claim keeps
+# asking (free), and a drop that never gets one is a hole. The machine is parked for its billed hour after its drop
+# (blender_cloud's kind is in park.CLEANUPS), so the places' drops after the free triage share one rental within it.
 DROP_CLASSES = ("cpu-4c-32gb",)
 KITS = REPO / "data/kit"
 # How far over the ground an object's lowest point starts its fall, in metres.
@@ -393,7 +395,7 @@ def simulate(stage_path, loose, folder, cloud=False, ignore=(), start=None, unde
         sys.path.insert(0, str(REPO / "tools/props/cloud"))
         import blender_cloud
         blender_cloud.run_elsewhere(INSIDE, [stage_path, job, out], [stage_path.parent, job], [out],
-                                    (*DROP_CLASSES, *blender_cloud.DEFAULT_CLASSES), "settle", minutes=30)
+                                    DROP_CLASSES, "settle", minutes=30)
         if kept is not None:
             kept.parent.mkdir(parents=True, exist_ok=True)
             kept.write_bytes(out.read_bytes())
