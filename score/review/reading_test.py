@@ -65,8 +65,11 @@ def test_a_picked_place_is_read_once_with_its_boxes_and_gaps(store, tmp_path, mo
     def clear(store, places, euros):
         cleared.append((places, euros))
         return compute.reading_clearance(store, places, euros)
-    [record] = reading.read(store, ["wreck", "lab"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes)
-    assert cleared == [(["wreck"], 0.05)]  # the lab has no pick: not read
+    with pytest.raises(concepts.Refused, match="lab: no picked concept"):  # read only after its own pick
+        reading.read(store, ["wreck", "lab"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes)
+    assert cleared == []
+    [record] = reading.read(store, ["wreck"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes)
+    assert cleared == [(["wreck"], 0.05)]
     assert record["concept"] == sha and record["inventory"]["concept_pick"]["sha256"] == sha
     rows = {row["id"]: row for row in record["inventory"]["rows"]}
     assert rows["drum"]["boxes"] == [[0, 0, 20, 20], [40, 0, 60, 20]] and rows["drum"]["box"] == [0, 0, 20, 20]
@@ -81,6 +84,9 @@ def test_a_picked_place_is_read_once_with_its_boxes_and_gaps(store, tmp_path, mo
     assert reading.reading_of(store, "wreck") == record and reading.spent(store, ["wreck", "lab"]) == 0.15
     assert reading.read(store, ["wreck"], "joey", clear=clear, ask=stand_in_rows, boxes=stand_in_boxes) == []
     assert len(cleared) == 1  # read from this pick already: nothing asked, nothing cleared
+    assert reading.row_boxes(store, "wreck", "drum_right") == [[150, 10, 170, 30]]
+    assert reading.row_boxes(store, "wreck", "lamp") == [] and reading.row_boxes(store, "wreck", "nothing") is None
+    assert reading.row_boxes(store, "lab", "drum") is None
 
 
 def test_a_new_pick_has_no_reading_until_read(store, tmp_path):

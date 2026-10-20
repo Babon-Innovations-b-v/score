@@ -115,6 +115,15 @@ def to_read(store, places):
     return [place for place in places if concepts.picked(store, place) and not reading_of(store, place)]
 
 
+def row_boxes(store, place, row):
+    """The pixel boxes [left, top, right, bottom] on the place's picked concept of every instance of its inventory row
+    `row` (its id) that SAM 3 found, surest first; [] when it found none; None while the place's picked draw has no
+    reading or the reading has no such row."""
+    found = reading_of(store, place)
+    rows = {item["id"]: item for item in (found["inventory"]["rows"] if found else [])}
+    return rows[row]["boxes"] if row in rows else None
+
+
 def spent(store, places):
     """The euros every reading of `places` cost, in sum (the cockpit's running total)."""
     return round(sum(found["euros"]["total"] for place in places for found in readings(store, place)), 4)
@@ -352,6 +361,10 @@ def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of):
     compute.reading_clearance by default) and one SAM 3 card; the readings kept. concepts.Refused or
     compute.Refused when it may not run or a step fails (the steps already paid stay on their ledgers)."""
     from score.adapters import compute
+    unpicked = [place for place in places if not concepts.picked(store, place)]
+    if unpicked:
+        raise concepts.Refused(f"{', '.join(unpicked)}: no picked concept; a place's inventory is read only after its "
+                               "own pick")
     places = to_read(store, places)
     if not places:
         return []

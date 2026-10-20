@@ -102,7 +102,8 @@ stage as each stage is built; nothing moves before.
   named in its record), and each pick or unlock is handed to score_lib through its own `score-lib concept` command.
   `reading.py` reads a picked concept into its scene inventory, started on its own by the pick (`web.reading_started`):
   Gemini 3.1 Pro's rows, then SAM 3's boxes of each row on one rented card, their disagreements its gaps, each
-  reading and its cost kept under `inventory-readings/<place>/`.
+  reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no pick of its own.
+  `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the picked concept.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),
