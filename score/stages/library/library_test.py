@@ -1,6 +1,7 @@
 """The library rows at the runner's seams, with a fake library: a toy table of one environment row, one place row and one
 showcase render that never passes, the two library rows made from it by `library.rows`, a store of its own and a
-PROPS_HOME of its own (the framework's store and the machine's library.env are never read or written).
+PROPS_HOME of its own (the framework's store, the machine's score_lib checkout and the cloud are never read or
+written: the defaults and the cloud backend are fakes).
 
     no library configured     library@garage says so, `configured` fails, the place is not complete
     library-free environment        the same environment named in library-free.json passes, and the environment is complete
@@ -35,6 +36,13 @@ from score import checks, contracts, graph  # noqa: E402
 from score.stages import library  # noqa: E402
 from score.stages.library import backend, checks as library_checks, handover  # noqa: E402
 from score.store import Store  # noqa: E402
+
+# Fakes: no score_lib checkout beside score's, and a cloud backend whose object store is a fixed dict.
+backend.library_files.defaults = lambda: {}
+FAKE_STORE = {"endpoint": "https://store.example", "region": "region-1", "bucket": "a-bucket", "access_key": "AK",
+              "secret_key": "SK"}
+sys.modules["provider"] = type(sys)("provider")
+sys.modules["provider"].cloud = type("Cloud", (), {"object_store": staticmethod(lambda: FAKE_STORE)})
 
 PLACE, WORLD = "garage", "toyworld"
 TOY = contracts.Contract("toy-text", 1, lambda folder: [] if any(folder.glob("*.txt")) else ["no text file"])
@@ -284,22 +292,27 @@ def test_slow_library_is_transient():
         backend.TIMEOUT = kept
 
 
-def test_settings_file():
+def test_defaults_and_the_cloud_store():
     no_library()
-    path = backend.settings_file()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("# the machine's library\nSCORE_LIB_ROOT=/a/library\nSCORE_LIB_COMMAND='lib --x'\n")
+    kept = backend.library_files.defaults
+    backend.library_files.defaults = lambda: {"SCORE_LIB_ROOT": "/a/library", "SCORE_LIB_COMMAND": "lib --x"}
     try:
         found = backend.settings()
         assert found == {"SCORE_LIB_ROOT": "/a/library", "SCORE_LIB_COMMAND": "lib --x"}, found
         assert backend.kind(found) == backend.COMMAND
         os.environ["SCORE_LIB_ROOT"] = "/the/environment"
-        assert backend.settings()["SCORE_LIB_ROOT"] == "/the/environment", "the file won over the environment"
+        assert backend.settings()["SCORE_LIB_ROOT"] == "/the/environment", "the default won over the environment"
         words = backend.arguments(backend.settings(), {"world": "w", "place": None, "seed": 1, "commit": "c",
                                                        "store": "s", "repo": "r", "out": "o"})
         assert words[:4] == ["lib", "--x", "--root", "/the/environment"] and "--place" not in words, words
+        environment = backend.command_environment(backend.settings(), "s", "r")
+        assert environment["SCORE_LIB_S3_BUCKET"] == "a-bucket" and environment["SCORE_LIB_S3_PREFIX"] == "score_lib"
+        assert environment["AWS_ACCESS_KEY_ID"] == "AK" and environment["AWS_SECRET_ACCESS_KEY"] == "SK"
+        os.environ["SCORE_LIB_BLOBS_DIR"] = "/the/blobs"
+        environment = backend.command_environment(backend.settings(), "s", "r")
+        assert "SCORE_LIB_S3_BUCKET" not in environment, "the cloud store was read over a blob store that was set"
     finally:
-        path.unlink()
+        backend.library_files.defaults = kept
         no_library()
 
 

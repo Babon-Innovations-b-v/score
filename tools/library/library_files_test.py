@@ -12,7 +12,9 @@ What fails:
 - in the data: a value that is such a path, unless it sits under a key that only notes where something came from
   (`from`, `read_by`, `about`, `is`, ...);
 - the resolver: a reference fetched by the library's own command and checked against its entry's sha256, served from
-  the cache after, fetched again when the cached bytes changed; a name the library does not hold a hole (None).
+  the cache after, fetched again when the cached bytes changed; a name the library does not hold a hole (None);
+- the blob store: with none set, the command is handed the cloud backend's object store (a fake here) under the prefix
+  score_lib, through its environment only.
 
 Run: .venv/bin/python tools/library/library_files_test.py   (make tests runs it with the framework's environment)
 """
@@ -44,7 +46,7 @@ TEXT_ENDINGS = (".py", ".sh", ".json", ".md", ".html", ".js", ".toml", ".txt", "
 # A fake library command: `fetch <address> --file <file> --into <cache>` copies the file from a blob folder named by
 # the entry's sha256, as score-lib fetch does from its blob store.
 FAKE_COMMAND = '''
-import json, pathlib, shutil, sys
+import json, os, pathlib, shutil, sys
 words = sys.argv[1:]
 root = pathlib.Path(words[words.index("--root") + 1])
 address, file = words[words.index("fetch") + 1], words[words.index("--file") + 1]
@@ -56,6 +58,7 @@ target = into / "score_lib" / kind / entry_id / version / file
 target.parent.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(root / "blobs" / record["files"][file]["sha256"], target)
 (root / "fetches.txt").open("a").write(address + "\\n")
+(root / "store.txt").write_text(os.environ.get("SCORE_LIB_S3_BUCKET", "") + "/" + os.environ.get("SCORE_LIB_S3_PREFIX", ""))
 '''
 
 
@@ -182,8 +185,16 @@ def check_the_library_is_fetched_once_checked_and_holes_are_none():
         root = toy_library(folder, {reference: b"a hum"})
         os.environ.update({"PROPS_HOME": str(folder / "home"), "SCORE_LIB_ROOT": str(root),
                            "SCORE_LIB_COMMAND": f"{sys.executable} {folder / 'fetch.py'}"})
-        os.environ.pop("SCORE_LIB_FILES", None)
+        for variable in ("SCORE_LIB_FILES", *library_files.BLOB_STORE):
+            os.environ.pop(variable, None)
+        provider = type(sys)("provider")  # a fake cloud backend: its object store a fixed dict
+        provider.cloud = type("Cloud", (), {"object_store": staticmethod(lambda: {
+            "endpoint": "https://store.example", "region": "region-1", "bucket": "a-bucket", "access_key": "AK",
+            "secret_key": "SK"})})
+        sys.modules["provider"] = provider
+        library_files.cloud_store.cache_clear()
         found = library_files.resolve(reference)
+        assert (root / "store.txt").read_text() == "a-bucket/score_lib", "the cloud's store was not handed on"
         assert found.read_bytes() == b"a hum"
         assert found == folder / "home/cache/library/score_lib/sound/hum.recordings/1/audio/recordings/hum.ogg"
         assert library_files.resolve(reference) == found

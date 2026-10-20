@@ -161,7 +161,7 @@ stage as each stage is built; nothing moves before.
   (`Runner.reads`). Environment 1's record is `data/definitions/world.json`. The `images` environment (`stages/images`, its own table in `stages.TABLES`, no places) rebuilds and proves the job images: `image-pins-<kind>` free, `image-proof-<kind>` paid and cleared like any row, `python -m score images publish <kind>` writes an accepted proof into images.json.
   `library@<place>` and `library-world` (free, the table's last rows, `stages/library`, its overlay) hand every
   accepted output of the place's line and of the environment to the creator's library through its own command
-  (`SCORE_LIB_*`, else `$PROPS_HOME/library.env`) and gate on the report it writes (`handover.json`): a place is
+  (`SCORE_LIB_*`, else the score_lib checkout beside score and the cloud's object store, its key from the secret store, in the command's environment only) and gate on the report it writes (`handover.json`): a place is
   complete when its library node stands accepted, the environment when every one does (`status` prints it).
 
 Rules:
