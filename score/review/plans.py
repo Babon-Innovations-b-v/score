@@ -1,0 +1,677 @@
+"""Plan review (CONTEXT.md "plan", "design", "shell split"): a place's plan, the second half of its design, made
+automatically once its concept is picked and its scene inventory read from it (owner, 2026-10-21: picking the
+concept is the approval; the plan page is for inspecting and fixing it, his edits redoing what follows).
+
+A plan is drawn free from data already there (`derived`): the place's plan in data/plans (its shell, frame, walls,
+doors and where each leads, the neighbours' joined doors in its leads), its outline from the layer above's plan (its
+box in that plan's `holds`), and its items from its scene inventory, each item tied to its inventory row (a row laid
+at a spot stands there; one with none is laid along the walls for him to drag), a keep-clear zone in front of every
+door, its standing spots. A place holding others (a shell, the Square, the Hangar, the Campgrounds) lays out its
+inside places in it (`holds`: each a box with its name and the holder's inventory row it stands in, None for the
+holder's own walls: the shell split): those listed now (within.json, then his edits), plus those he named on its
+concept page.
+
+The store keeps his work, written only in the owner's process (`concepts.recorded`'s barrier):
+
+    plans/<place>/edits/<time>.json      {place, plan, concept (the pick it was made on), by, at, how, calls}
+    plans/<place>/named/<time>.json      {place, names, by, at}: inside places he named on the concept page
+
+The plan shown is his newest edit made on the current pick, else the derived one; the plan stage reads it (`keep`:
+{home}/design/plans/<place>.json, written on his edit and by the sync pass, stages.creator_plan). An inside place's
+concept waits for the layer above's plan (`waits`) and is drawn to its shape there (`shape_sent`, `holder_of`: the
+row and box holding it). His notes go to Gemini 3.1 Pro (`revised`: one direct call, his click its spend yes at
+`revise_euros`, run as its own process like a concept draw):
+
+    SCORE_SPEND_TICKET="override <key>" python -m score.review.plans <place> <request.json> <by>
+    python -m score.review.plans keep      # every place's plan where the plan stage reads it (the sync pass)
+"""
+import copy
+import hashlib
+import io
+import json
+import math
+import pathlib
+import re
+import sys
+
+from score.review import concepts
+from score.store import PROPS_HOME, stamp_key
+
+AREA = "plans"
+DATA = concepts.DATA
+KEPT = PROPS_HOME / "design" / "plans"  # the plan the plan stage reads in place of data/plans (stages.creator_plan)
+SIDES = ("N", "S", "E", "W")
+FACINGS = {0: "N", 90: "E", 180: "S", 270: "W"}
+WALLS_ITEM = "ON THE WALLS AND CEILING"
+GAP = 0.3  # metres between items laid along the walls, and round inside places laid in their holder
+CLEAR = 1.2  # metres a door's keep-clear zone reaches into the room
+BIGGEST = 2000.0  # metres: no plan is wider or deeper
+NAME = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+PIXELS = 900  # the drawing's longer side
+
+
+class Refused(ValueError):
+    pass
+
+
+def records(store, place, kind):
+    """The records of one place's `kind` (edits or named), oldest first."""
+    return [store.read(key) for key in sorted(store.objects.keys(f"{AREA}/{place}/{kind}/"))]
+
+
+def kept_record(store, place, kind, record):
+    """Write one of his records once (the owner's process only); the record."""
+    concepts.recorded(store, f"{AREA}/{place}/{kind}/{stamp_key(record['at'])}.json", record)
+    return record
+
+
+# --- where places sit -----------------------------------------------------------------------------------------
+
+def within_file():
+    path = DATA / "places/within.json"
+    found = json.loads(path.read_text()) if path.is_file() else {}
+    return ({name: entry["within"] for name, entry in found.get("within", {}).items()},
+            {name: entry["name"] for name, entry in found.get("shells", {}).items()})
+
+
+def tree(store):
+    """{within, shells}: data/places/within.json (environment 1's starting list) with the inside places his edits
+    laid out (`overlaid`)."""
+    within, shells = within_file()
+    return {"within": overlaid(store, within), "shells": shells}
+
+
+def overlaid(store, within):
+    """{place: what holds it} with each holder's inside places replaced by the ones his newest edit of its plan lays
+    out (CONTEXT.md "shell split", owner 2026-10-21)."""
+    within = dict(within)
+    for holder in sorted({key.split("/")[1] for key in store.objects.keys(f"{AREA}/")}):
+        edit = newest_edit(store, holder)
+        if edit is None or "holds" not in edit["plan"]:
+            continue
+        within = {place: above for place, above in within.items() if above != holder}
+        within.update({hold["place"]: holder for hold in edit["plan"]["holds"]})
+    return within
+
+
+def named(store, place):
+    """The inside places he named on `place`'s concept page, newest list ([] when none)."""
+    found = records(store, place, "named")
+    return found[-1]["names"] if found else []
+
+
+def proposed_inside(store, place):
+    """The inside places `place`'s derived plan lays out: those listed in it now, then those he named."""
+    listed = [name for name, above in tree(store)["within"].items() if above == place]
+    return listed + [name for name in named(store, place) if name not in listed]
+
+
+def checked_names(names):
+    """Inside place names as given: short lowercase words (a-z, 0-9, _), no repeats; Refused otherwise."""
+    found = []
+    for name in names or []:
+        name = str(name).strip().lower().replace(" ", "_")
+        if not NAME.match(name):
+            raise Refused(f"{name!r} is no place name (a-z, 0-9 and _, up to 40)")
+        if name not in found:
+            found.append(name)
+    return found
+
+
+# --- the pick and the inventory ---------------------------------------------------------------------------------
+
+def pick_of(store, place):
+    return concepts.picked(store, place)
+
+
+def inventory_of(store, place):
+    """The place's scene inventory read from its picked concept, else None (CONTEXT.md "scene inventory": none counts
+    before the pick, an older one never does): its reading (score/review/reading.py), else a data/inventory file
+    whose concept_pick is that pick."""
+    from score.review import reading
+    found = reading.reading_of(store, place)
+    if found and found.get("inventory"):
+        return found["inventory"]
+    plan_path = DATA / "plans" / f"{place}.json"
+    name = json.loads(plan_path.read_text()).get("inventory", place) if plan_path.is_file() else place
+    path = DATA / "inventory" / f"{name}.json"
+    filed = json.loads(path.read_text()) if path.is_file() else {}
+    pick = pick_of(store, place)
+    return filed if pick and (filed.get("concept_pick") or {}).get("sha256") == pick else None
+
+
+def counts(store, place):
+    """Whether `place`'s scene inventory counts: read from its picked concept."""
+    return inventory_of(store, place) is not None
+
+
+def made(store, place):
+    """Whether `place`'s plan is made (the step a place within it waits for, concepts.step_refusal): plan@<place>
+    accepted after its pick for a place with a plan row, else its plan shown here."""
+    if not has_row(place):
+        return current(store, place) is not None
+    picks = concepts.records(store, place, "picks")
+    accept = store.current_accept(f"plan@{place}")
+    return bool(picks and picks[-1]["sha"] and accept and accept["at"] > picks[-1]["at"])
+
+
+def newest_edit(store, place):
+    """His newest edit of `place`'s plan made on its current pick, else None."""
+    pick = pick_of(store, place)
+    found = [record for record in records(store, place, "edits") if pick and record["concept"] == pick]
+    return found[-1] if found else None
+
+
+def waits(store, place):
+    """Why `place`'s concept cannot be drawn yet for its plan (owner, 2026-10-21: an inside place is drawn to its
+    shape on the layer above's plan, made once that one is picked and its inventory read), or None."""
+    holder = tree(store)["within"].get(place)
+    if holder and current(store, holder) is None:
+        return f"waits for {holder}'s plan"
+    return None
+
+
+def holder_of(store, place):
+    """{holder, row, box, view, outline} of `place` on the layer above's plan, None while that has no plan or does
+    not lay it out: the holder, its inventory row the place stands in (None: the holder's own walls), that row's box
+    on the holder's picked concept and its view (the inventory's SAM box, None when it has none), and the place's
+    outline in the holder's plan [x, y, w, d] in metres."""
+    holder = tree(store)["within"].get(place)
+    shown = current(store, holder) if holder else None
+    hold = next((hold for hold in (shown or {}).get("plan", {}).get("holds", []) if hold["place"] == place), None)
+    if hold is None:
+        return None
+    row = next((row for row in inventory_of(store, holder).get("rows", []) if row["id"] == hold.get("row")), {})
+    box = (row.get("boxes") or [None])[0] if "boxes" in row else row.get("box")  # a reading's surest SAM box first
+    return {"holder": holder, "row": hold.get("row"), "box": box, "view": row.get("view"),
+            "outline": [hold["x"], hold["y"], hold["w"], hold["d"]]}
+
+
+# --- the plan drawn from data --------------------------------------------------------------------------------
+
+def base_plan(place):
+    """The place's plan in data/plans (a deep copy), else a bare one of the house schema."""
+    path = DATA / "plans" / f"{place}.json"
+    if path.is_file():
+        return json.loads(path.read_text())
+    return {"title": place.upper(), "shell": "kit", "w": 0.0, "d": 0.0, "height": "", "doors": [], "leads": {},
+            "items": [], "rows": {}, "people": []}
+
+
+def to_plan(plan, spot):
+    """A place-frame spot {x, z} as plan metres (x east, y south from its north-west corner)."""
+    from score.stages.scene_record.plan import frame_of
+    corner, east, south = frame_of(plan)
+    offset = [spot.get("x", 0.0) - corner[0], 0.0, spot.get("z", 0.0) - corner[2]]
+    return (round(sum(a * b for a, b in zip(offset, east)), 3), round(sum(a * b for a, b in zip(offset, south)), 3))
+
+
+def footprint(row, facing):
+    """(wide, deep) of a row on the floor, turned with its facing (a row facing east or west lies across); 1 x 1 m
+    for a row whose size is words (a reading's: its metres are the close-ups' to find)."""
+    size = list(row["size"] if isinstance(row.get("size"), list) else [1.0, 1.0, 1.0]) + [1.0, 1.0]
+    wide, deep = abs(float(size[0])) or 0.5, abs(float(size[1])) or 0.5
+    return (deep, wide) if facing in ("E", "W") else (wide, deep)
+
+
+def facing_of(spot):
+    """A spot's facing in degrees as a side (N, E, S, W), None when it names none."""
+    degrees = spot.get("facing")
+    return None if degrees is None else FACINGS[int(round(float(degrees) / 90.0)) % 4 * 90]
+
+
+def anchor_of(row):
+    """A row's anchor: floor, wall, ... or the id of the row it stands on (a reading's `on:<id>`)."""
+    anchor = row.get("anchor") or "floor"
+    return anchor[3:] if anchor.startswith("on:") else anchor
+
+
+def row_items(rows):
+    """[(name, row id, spot or None)] of every floor instance of the inventory's rows: one per laid spot, else one
+    per count; rows on the walls, the ceiling or another row are left to `walls_rows` and `children`."""
+    found = []
+    for row in rows:
+        if anchor_of(row) not in ("floor", "ground"):
+            continue
+        label = str(row.get("id")).replace("_", " ").upper()
+        spots = row.get("at") or [None] * int(row.get("count", 1) or 1)
+        found += [(f"{label} {number}", row["id"], spot) for number, spot in enumerate(spots, 1)]
+    return found
+
+
+def walls_rows(rows):
+    """The row ids anchored on a wall or the ceiling (and none on another row): the plan's walls-and-ceiling item."""
+    ids = {row["id"] for row in rows}
+    return [row["id"] for row in rows if anchor_of(row) not in {"floor", "ground"} | ids]
+
+
+def children(rows):
+    """{parent row id: [child row ids]} of rows anchored on another row (they ride on its item)."""
+    ids, found = {row["id"] for row in rows}, {}
+    for row in rows:
+        if anchor_of(row) in ids:
+            found.setdefault(anchor_of(row), []).append(row["id"])
+    return found
+
+
+def laid_along(boxes, wide):
+    """Positions for boxes (wide, deep) laid in rows from the north-west corner, GAP apart, wrapping at `wide`."""
+    found, x, y, row_deep = [], GAP, GAP, 0.0
+    for box_wide, box_deep in boxes:
+        if x + box_wide > wide - GAP and x > GAP:
+            x, y, row_deep = GAP, y + row_deep + GAP, 0.0
+        found.append((round(x, 3), round(y, 3)))
+        x, row_deep = x + box_wide + GAP, max(row_deep, box_deep)
+    return found
+
+
+def items_from(plan, inventory):
+    """(items, rows) of the plan from its scene inventory: each floor instance a box at its laid spot (else laid
+    along the walls), tied to its row and the rows riding on it; one walls-and-ceiling item over the whole floor."""
+    rows, riders = inventory.get("rows", []), children(inventory.get("rows", []))
+    instances = row_items(rows)
+    by_id = {row["id"]: row for row in rows}
+    unplaced = [footprint(by_id[row_id], None) for _, row_id, spot in instances if spot is None]
+    free = iter(laid_along(unplaced, plan["w"]))
+    items, tied = [], {}
+    for name, row_id, spot in instances:
+        facing = facing_of(spot) if spot else None
+        wide, deep = footprint(by_id[row_id], facing)
+        if spot:
+            middle_x, middle_y = to_plan(plan, spot)
+            x, y = middle_x - wide / 2, middle_y - deep / 2
+        else:
+            x, y = next(free)
+        items.append([name, round(x, 3), round(y, 3), round(wide, 3), round(deep, 3), facing, "item"])
+        tied[name] = [row_id, *riders.get(row_id, [])]
+    if on_walls := walls_rows(rows):
+        items.append([WALLS_ITEM, 0.0, 0.0, plan["w"], plan["d"], None, "item"])
+        tied[WALLS_ITEM] = on_walls
+    return items, tied
+
+
+def keep_clear(plan):
+    """A keep-clear zone reaching CLEAR into the room in front of each wall door (N, S, E, W)."""
+    found = []
+    for door in plan.get("doors", []):
+        side, at, wide = door[0], float(door[1]), float(door[2])
+        if side not in SIDES:
+            continue
+        span = wide + 0.4
+        x, y, zone_wide, zone_deep = {"N": (at - span / 2, 0.0, span, CLEAR),
+                                      "S": (at - span / 2, plan["d"] - CLEAR, span, CLEAR),
+                                      "W": (0.0, at - span / 2, CLEAR, span),
+                                      "E": (plan["w"] - CLEAR, at - span / 2, CLEAR, span)}[side]
+        found.append([f"KEEP CLEAR {side} {at:g}", round(x, 3), round(y, 3), round(zone_wide, 3),
+                      round(zone_deep, 3), None, "zone"])
+    return found
+
+
+def held_size(place):
+    """(wide, deep) of an inside place from its own plan, else 6 x 6 m."""
+    path = DATA / "plans" / f"{place}.json"
+    plan = json.loads(path.read_text()) if path.is_file() else {}
+    return float(plan.get("w") or 6.0), float(plan.get("d") or 6.0)
+
+
+def holding_row(rows, place):
+    """The id of the holder's inventory row an inside place stands in: one named as the place, else one whose id
+    within.json's reading of the place names (the hangar's `ship` for its rooms); None: the holder's own walls."""
+    ids = [row["id"] for row in rows]
+    if place in ids:
+        return place
+    said = json.loads((DATA / "places/within.json").read_text()).get("within", {}).get(place, {}).get("from", "") \
+        if (DATA / "places/within.json").is_file() else ""
+    named = [row_id for row_id in ids if re.search(rf"\b{re.escape(row_id)}\b", said)]
+    return max(named, key=len) if named else None
+
+
+def holds_of(store, place, plan, rows):
+    """The plan's inside places, each a box {place, row, x, y, w, d}: those standing in one of its rows laid in rows
+    inside that row's item (the hangar's rooms in its ship), the others in the outline."""
+    names = proposed_inside(store, place)
+    boxes = {plan["rows"][item[0]][0]: item[1:5] for item in plan["items"] if plan["rows"].get(item[0])}
+    found = []
+    for row in dict.fromkeys(holding_row(rows, name) for name in names):
+        group = [name for name in names if holding_row(rows, name) == row]
+        sizes = [held_size(name) for name in group]
+        x0, y0, wide = (*boxes[row][:2], boxes[row][2]) if row in boxes else (0.0, 0.0, plan["w"] or square(sizes))
+        found += [{"place": name, "row": row, "x": round(x0 + x, 3), "y": round(y0 + y, 3), "w": size[0],
+                   "d": size[1]} for name, (x, y), size in zip(group, laid_along(sizes, wide), sizes)]
+    return sorted(found, key=lambda hold: names.index(hold["place"]))
+
+
+def square(sizes):
+    """The width of an outline about square round boxes of `sizes` (a holder with no outline of its own: a shell
+    with no plan)."""
+    return max([sum(size[0] + GAP for size in sizes) / max(1, math.ceil(len(sizes) ** 0.5))]
+               + [size[0] + GAP * 2 for size in sizes] + [1.0])
+
+
+def outline_from_holder(store, place, plan):
+    """The plan's w and d as the layer above's plan lays the place out (its box there), else its own."""
+    held = holder_of(store, place)
+    return tuple(held["outline"][2:]) if held else (plan["w"], plan["d"])
+
+
+def derived(store, place):
+    """The place's plan drawn free from data (module docstring): None while its scene inventory does not count."""
+    if not counts(store, place):
+        return None
+    plan = copy.deepcopy(base_plan(place))
+    plan.pop("holds", None)  # a hand plan's {place: row} (concepts.holding_row's fallback): laid out here instead
+    plan["w"], plan["d"] = outline_from_holder(store, place, plan)
+    inventory = inventory_of(store, place)
+    items, tied = items_from(plan, inventory)
+    plan["items"] = items + keep_clear(plan)
+    plan["rows"] = tied
+    plan["elements"] = [{"element": row.get("name") or row["id"], "rows": [row["id"]]}
+                        for row in inventory.get("rows", [])]
+    plan["people"] = plan.get("people") or [[round(plan["w"] / 2, 3), round(plan["d"] / 2, 3)]]
+    holds = holds_of(store, place, plan, inventory.get("rows", []))
+    if holds:
+        plan["holds"] = holds
+        plan["w"] = plan["w"] or round(max(hold["x"] + hold["w"] for hold in holds) + GAP, 3)
+        plan["d"] = plan["d"] or round(max(hold["y"] + hold["d"] for hold in holds) + GAP, 3)
+    return plan
+
+
+def current(store, place):
+    """{plan, how, at, by} of the plan shown: his newest edit made on the current pick (how: edited or revised),
+    else the derived one (how: derived, at and by None); None while its inventory does not count."""
+    edit = newest_edit(store, place)
+    if edit and counts(store, place):
+        return {key: edit.get(key) for key in ("plan", "how", "at", "by")}
+    plan = derived(store, place)
+    return None if plan is None else {"plan": plan, "how": "derived", "at": None, "by": None}
+
+
+# --- his edits --------------------------------------------------------------------------------------------------
+
+def number(value, what, low=0.0, high=BIGGEST):
+    try:
+        found = float(value)
+    except (TypeError, ValueError) as broken:
+        raise Refused(f"{what} is not a number: {value!r}") from broken
+    if not (low <= found <= high) or math.isnan(found):
+        raise Refused(f"{what} {found:g} lies outside {low:g} to {high:g}")
+    return round(found, 3)
+
+
+def checked_items(items):
+    found = []
+    for item in items:
+        name, x, y, item_wide, item_deep, facing, kind = item
+        if facing not in (None, *SIDES) or kind not in ("item", "zone", "plot", "roof_door"):
+            raise Refused(f"{name}: facing {facing!r} or kind {kind!r} is not a plan item's")
+        found.append([str(name)[:80], number(x, f"{name} x", -BIGGEST), number(y, f"{name} y", -BIGGEST),
+                      number(item_wide, f"{name} wide", 0.01), number(item_deep, f"{name} deep", 0.01), facing, kind])
+    return found
+
+
+def checked_doors(doors, base):
+    """His doors: those of the derived plan, each a wall door moved along its wall or onto another (N, S, E, W);
+    a faceted or tube door stays as it was."""
+    if len(doors) != len(base):
+        raise Refused("a plan keeps its doors: move them, never add or drop one here")
+    found = []
+    for door, was in zip(doors, base):
+        if was[0] not in SIDES:
+            found.append(was)
+            continue
+        if door[0] not in SIDES:
+            raise Refused(f"door side {door[0]!r} is none of {SIDES}")
+        found.append([door[0], number(door[1], "a door's place on its wall"), *was[2:]])
+    return found
+
+
+def checked_plan(plan, base):
+    """His plan as sent from the page, checked against the derived one (`base`): its items, doors, standing spots and
+    inside places edited, everything else kept from `base`; Refused otherwise."""
+    if not isinstance(plan, dict):
+        raise Refused("not a plan")
+    found = copy.deepcopy(base)
+    names = {item[0] for item in plan.get("items", [])}
+    rows = {name: base.get("rows", {}).get(name, []) for name in names}
+    for name in names - set(base.get("rows", {})):
+        rows[name] = [str(row) for row in plan.get("rows", {}).get(name, [])]
+    found["items"] = checked_items(plan.get("items", []))
+    found["rows"] = {name: tied for name, tied in rows.items() if tied}
+    found["doors"] = checked_doors(plan.get("doors", base.get("doors", [])), base.get("doors", []))
+    found["people"] = [[number(x, "a standing spot", -BIGGEST), number(y, "a standing spot", -BIGGEST), *rest]
+                       for x, y, *rest in plan.get("people", [])]
+    ids = {row for tied in base.get("rows", {}).values() for row in tied}
+    holds = [{"place": checked_names([hold["place"]])[0], "row": checked_row(hold.get("row"), ids),
+              **{key: number(hold[key], f"{hold['place']} {key}", -BIGGEST if key in "xy" else 0.5)
+                 for key in ("x", "y", "w", "d")}}
+             for hold in plan.get("holds", [])]
+    if holds or "holds" in base:
+        found["holds"] = holds
+    return found
+
+
+def checked_row(row, ids):
+    """An inside place's holding row as given: one of the holder's inventory rows, or None (its own walls)."""
+    if row is not None and row not in ids:
+        raise Refused(f"{row!r} is no inventory row of this place")
+    return row
+
+
+def edited(store, place, plan, by, how="edited", calls=None):
+    """Keep his plan for `place` (checked against the derived one) as his own, and where the plan stage reads it;
+    the record."""
+    base = derived(store, place)
+    if base is None:
+        raise Refused(f"{place}'s scene inventory is not read from its picked concept: no plan yet")
+    record = kept_record(store, place, "edits", {
+        "place": place, "plan": checked_plan(plan, base), "concept": pick_of(store, place), "by": by,
+        "at": concepts.now(), "how": how, "calls": calls or []})
+    if has_row(place):
+        kept_for_stage(place, record["plan"])
+    return record
+
+
+def name_inside(store, place, names, by):
+    """Keep the inside places he named on `place`'s concept page; the record."""
+    return kept_record(store, place, "named", {"place": place, "names": checked_names(names), "by": by,
+                                               "at": concepts.now()})
+
+
+def has_row(place):
+    """Whether `place` has a plan@ row: its plan in data/plans says where its doors lead (scene_record.written)."""
+    path = DATA / "plans" / f"{place}.json"
+    return path.is_file() and "leads" in json.loads(path.read_text())
+
+
+def plan_sha(plan):
+    return hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest()
+
+
+def kept_for_stage(place, plan):
+    """The plan where the plan stage reads it in place of data/plans/<place>.json (stages.creator_plan), unless it
+    stands there already; its path."""
+    path = KEPT / f"{place}.json"
+    text = json.dumps(plan, indent=1)
+    if not path.is_file() or path.read_text() != text:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    return path
+
+
+def keep(store, places):
+    """Every place's plan shown where the plan stage reads it, a place with none (its pick unlocked, its inventory
+    not read from it) taken out there, so the stage reads data/plans again; ([kept], [changed]): the places whose
+    plan the plan stage reads now, and those whose file was written or taken out."""
+    kept, changed = [], []
+    for place in places:
+        path = KEPT / f"{place}.json"
+        before = path.read_text() if path.is_file() else None
+        shown = current(store, place) if has_row(place) else None
+        if shown is not None:
+            kept_for_stage(place, shown["plan"])
+            kept.append(place)
+        elif path.is_file():
+            path.unlink()
+        if (path.read_text() if path.is_file() else None) != before:
+            changed.append(place)
+    return kept, changed
+
+
+def made_again(places, start=None):
+    """The plan row made again for `places` (free, local, its own detached run: `score run`); its result line."""
+    import subprocess
+    words = [sys.executable, "-m", "score", "run", "world1", *[part for place in places for part in ("--place", place)],
+             "--stage", "plan", "--detach"]
+    done = (start or subprocess.run)(words, capture_output=True, text=True, cwd=str(concepts.REPO))
+    return (done.stdout.strip().splitlines() or done.stderr.strip().splitlines() or ["no output"])[-1]
+
+
+# --- the drawing ------------------------------------------------------------------------------------------------
+
+def drawn(plan, highlight=None, labelled=()):
+    """A top-down drawing (PIL) of `plan`: its outline, doors with where each leads, items as labelled boxes, keep-
+    clear zones, standing spots and inside places (`highlight` the one filled), plus (label, mark) boxes."""
+    from PIL import Image, ImageDraw
+    wide, deep = max(plan["w"], 0.5), max(plan["d"], 0.5)
+    scale = (PIXELS - 80) / max(wide, deep)
+    picture = Image.new("RGB", (int(wide * scale) + 80, int(deep * scale) + 80), (250, 250, 247))
+    pen = ImageDraw.Draw(picture)
+    at = lambda x, y: (40 + x * scale, 40 + y * scale)  # noqa: E731
+    pen.rectangle([*at(0, 0), *at(wide, deep)], outline=(30, 30, 30), width=4)
+    for hold in plan.get("holds", []):
+        fill = (255, 214, 102) if hold["place"] == highlight else (232, 236, 242)
+        pen.rectangle([*at(hold["x"], hold["y"]), *at(hold["x"] + hold["w"], hold["y"] + hold["d"])], fill=fill,
+                      outline=(60, 60, 60), width=3)
+        pen.text(at(hold["x"] + 0.2, hold["y"] + 0.2), hold["place"], fill=(20, 20, 20), font_size=22)
+    for name, x, y, item_wide, item_deep, _, kind in plan.get("items", []):
+        if name == WALLS_ITEM:
+            continue
+        colour = (200, 70, 70) if kind == "zone" else (40, 90, 160)
+        pen.rectangle([*at(x, y), *at(x + item_wide, y + item_deep)], outline=colour, width=2)
+        pen.text(at(x + 0.05, y + 0.05), name.title(), fill=colour, font_size=14)
+    for door in plan.get("doors", []):
+        if door[0] in SIDES:
+            middle = {"N": (door[1], 0), "S": (door[1], deep), "W": (0, door[1]), "E": (wide, door[1])}[door[0]]
+            half = float(door[2]) / 2
+            ends = ((middle[0] - half, middle[1]), (middle[0] + half, middle[1])) if door[0] in "NS" else \
+                ((middle[0], middle[1] - half), (middle[0], middle[1] + half))
+            pen.line([*at(*ends[0]), *at(*ends[1])], fill=(0, 150, 80), width=10)
+            lead = plan.get("leads", {}).get(door[0], {})
+            pen.text(at(*middle), f"to {lead.get('to', '?')}", fill=(0, 120, 60), font_size=16)
+    for spot in plan.get("people", []):
+        x, y = at(spot[0], spot[1])
+        pen.ellipse([x - 7, y - 7, x + 7, y + 7], fill=(120, 60, 160))
+    width, height = picture.size
+    for label, mark in labelled:
+        box = (mark["x"] * width, mark["y"] * height, (mark["x"] + mark["w"]) * width, (mark["y"] + mark["h"]) * height)
+        pen.rectangle(box, outline=(255, 0, 0), width=concepts.MARK_WIDTH)
+        pen.text((box[0] + 8, box[1] + 8), label, fill=(255, 0, 0), font_size=24)
+    pen.text((10, 8), "N", fill=(30, 30, 30), font_size=20)
+    return picture
+
+
+def png_of(picture):
+    buffer = io.BytesIO()
+    picture.save(buffer, "PNG")
+    return buffer.getvalue()
+
+
+def shape_sent(store, place):
+    """[(what it is, its path)] for `place`'s first draw (owner, 2026-10-21): its shape on the layer above's plan,
+    the place filled among the places beside it, the doors marked; [] while that plan does not lay it out."""
+    held = holder_of(store, place)
+    if held is None:
+        return []
+    holder_plan = current(store, held["holder"])["plan"]
+    path = store.cache / AREA / "shapes" / f"{place}-{plan_sha(holder_plan)[:12]}.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(png_of(drawn(holder_plan, highlight=place)))
+    holder = held["holder"]
+    return [(f"its shape on the {holder}'s plan (top down, north up, it is the yellow box): match its "
+             "outline and doors", path)]
+
+
+# --- notes through Gemini -------------------------------------------------------------------------------------
+
+def revise_euros(per_unit=DATA / "costs/per-unit.json"):
+    """The euros of one Correct with notes: the measured Gemini 3.1 Pro answer on pictures; None while unmeasured."""
+    return concepts.draw_euros(per_unit, (concepts.MEASURED_ASK,))
+
+
+def yes_key(place, at):
+    return f"plan-{place}-{stamp_key(at)}"
+
+
+def plan_question(plan, marks, context, note):
+    """What Gemini is asked: the plan as JSON corrected by his notes, answered as JSON of the same keys."""
+    edited_keys = {key: plan.get(key) for key in ("w", "d", "items", "doors", "people", "holds") if key in plan}
+    return ("Image 1 is a place's plan drawn top down (north up, metres; blue boxes its items, red its keep-clear "
+            "zones, green its doors, purple dots its standing spots, grey its inside places) with numbered red boxes "
+            "marking areas to change; image 2 is its concept painting, its boxes labelled P. Correct the plan's JSON "
+            "below so it makes exactly the changes the creator's notes ask and keeps everything else: move, resize, "
+            "add or drop items (keep each item's name), move doors along their walls, move standing spots, lay out "
+            "inside places. Answer with the corrected JSON only, the same keys.\n\n"
+            f"The creator's notes: {concepts.notes_words(marks, context, note)}\n\nThe plan:\n"
+            f"{json.dumps(edited_keys)}")
+
+
+def answered_plan(text):
+    """The JSON object in Gemini's answer (its first { to its last }); Refused when there is none."""
+    start, end = text.find("{"), text.rfind("}")
+    try:
+        return json.loads(text[start:end + 1])
+    except ValueError as broken:
+        raise Refused("the model answered with no plan") from broken
+
+
+def revised(store, place, request, by, reviser=concepts.revise):
+    """His Correct with notes inside the owner's yes (SCORE_SPEND_TICKET names it; compute.require_cleared refuses
+    otherwise): Gemini (`reviser(question, pictures)`) corrects the plan shown by his marks on the plan and the
+    concept and his note; the corrected plan is kept as his own edit (how: revised); the record."""
+    from PIL import Image
+    from score.adapters import compute
+    yes = compute.require_cleared("a plan correction", store)
+    shown = current(store, place)
+    if shown is None:
+        raise Refused(f"{place} has no plan yet")
+    marks = concepts.checked_marks(request.get("marks"))
+    context = concepts.checked_marks(request.get("context_marks"), on={place: True})
+    if not marks and not context and not str(request.get("note", "")).strip():
+        raise Refused("no note to correct the plan by")
+    labelled = concepts.numbered(marks, context)
+    pictures = [drawn(shown["plan"], labelled=[(label, mark) for label, mark in labelled if "on" not in mark]),
+                concepts.boxed(Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{pick_of(store, place)}"))),
+                               [(label, mark) for label, mark in labelled if "on" in mark])]
+    question = plan_question(shown["plan"], marks, context, str(request.get("note", "")))
+    answer = reviser(question, pictures)
+    corrected = {**shown["plan"], **answered_plan(answer)}
+    calls = [{"model": concepts.PROMPT_MODEL, "asked": question, "answered": answer, "euros": yes["euros"],
+              "yes": yes["key"]}]
+    return edited(store, place, corrected, by, how="revised", calls=calls)
+
+
+def main(argv):
+    """`<place> <request.json> <by>`: one Correct with notes inside the owner's yes (its ticket in the environment);
+    its record as the last line, or `refused: <why>` on stderr. `keep`: every place's plan where the plan stage
+    reads it; one line."""
+    import os
+    from score.adapters.compute import STORE, Refused as NotCleared
+    from score.store import Store
+    store = Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default()
+    if argv == ["keep"]:
+        kept, changed = keep(store, sorted(path.stem for path in (DATA / "plans").glob("*.json")))
+        print(f"plans for the plan stage: {len(kept)} kept, {len(changed)} changed"
+              + (f"; plan rows made again: {made_again(changed)}" if changed else ""))
+        return 0
+    place, request, by = argv
+    try:
+        record = revised(store, place, json.loads(pathlib.Path(request).read_text()), by)
+    except (Refused, concepts.Refused, NotCleared) as refused:
+        print(f"refused: {refused}", file=sys.stderr)
+        return 1
+    print(json.dumps({key: record[key] for key in ("place", "at", "by", "how")}))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

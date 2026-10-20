@@ -6,7 +6,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.views.generic import RedirectView
 
-from score.dashboard.pages import basket, concepts, environment, films, library, views
+from score.dashboard.pages import basket, concepts, environment, films, library, plans, views
 
 STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide/", views.step_decide),
                ("queue/", views.step_queue), ("advance/", views.step_advance), ("waive/", views.step_waive)]
@@ -30,6 +30,11 @@ urlpatterns = [
     path("concept/<slug:place>/pick/", concepts.concept_pick),
     path("concept/<slug:place>/generated/", concepts.concept_generated),
     path("concept/<slug:place>/state/", concepts.concept_state),
+    path("plan/<slug:place>/", plans.plan_page),
+    path("plan/<slug:place>/keep/", plans.plan_edit),
+    path("plan/<slug:place>/revise/", plans.plan_revise),
+    path("plan/<slug:place>/named/", plans.plan_named),
+    path("plan/<slug:place>/state/", plans.plan_state),
     *[path(f"place/<slug:place>/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
     *[path(f"world/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
     path("changes/", RedirectView.as_view(url="/basket/")),

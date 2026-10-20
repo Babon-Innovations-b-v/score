@@ -173,6 +173,15 @@ the place's own: rows made only there stay missing (the completion gate's rows c
 sync pass writes them after the library sweep. The boxes stay out of the accepted assembly: putting them inside would
 move assembly's, complete's and every later paid row's key.
 
+**The design** (CONTEXT.md "design", "plan review"; owner, 2026-10-21): per layer, concept, pick, scene inventory,
+plan. The pick is the approval; the inventory and then the plan are made from it with no further yes. The plan
+(`score/review/plans.py`) is drawn free from data: the place's `data/plans` record (shell, frame, doors, leads), its
+outline from the layer above's plan, its items from its inventory rows (each tied to its row), keep-clear zones,
+standing spots, and for a place holding others the inside places it lays out (`holds`: name, the holder's row it
+stands in, box). His edits on the plan page are his own (store `plans/<place>/`, his process only) and redo what
+follows: the plan stage reads the plan shown (`{home}/design/plans/<place>.json`, `stages.creator_plan`, written on
+his edit and by the sync pass), and an inside place's concept waits for that plan and is sent its shape on it.
+
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's
 Godot adapter stays in 2099. OpenUSD as the canonical scene format is the next task.

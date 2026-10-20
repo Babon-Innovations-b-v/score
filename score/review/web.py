@@ -29,6 +29,10 @@ click is the spend yes): his yes for exactly that one call at the price the butt
 price moved since), written as an override (node `override`, key `concept-<place>-<time>`, its purpose said), then the
 one draw run as its own process inside it (score/review/concepts.py). The store refuses the yes in an agent's process.
 
+    web.plan_edit(store, "airlock", plan, by="joey")              # his plan kept as his own (plans.py)
+    web.plan_named(store, "hangar", ["galley", "lab"], by="joey") # inside places named on the concept page
+    web.plan_revise(store, "airlock", {"marks": [...], "note": ""}, 0.05, by="joey")   # his yes, then one Gemini call
+
 `stop` is his money yes from the cockpit's checkout: the signed-in owner on the trusted cockpit counts as the owner
 at his terminal (`python -m score.review stop`, C22), and the line is written by the same guard.set_line, which
 refuses in any process an agent started, so no agent can trigger it by any route through here.
@@ -241,3 +245,52 @@ def environment_reference(store, world, data, name, shows, place, by):
         return environment_concept.referenced(store, world, data, name, shows, place, by_name)
     except environment_concept.Refused as refused:
         raise review.Refused(str(refused)) from refused
+
+
+# --- the plan review (score/review/plans.py): his edits, named inside places, notes through Gemini ---------------
+
+def plan_edit(store, place, plan, by):
+    """His plan for `place` as he left it on its plan page, kept as his own; the record."""
+    from score.review import plans
+    try:
+        return plans.edited(store, place, plan, checked_by(by))
+    except plans.Refused as refused:
+        raise review.Refused(str(refused)) from refused
+
+
+def plan_named(store, place, names, by):
+    """The inside places he named up front on `place`'s concept page; the record."""
+    from score.review import plans
+    try:
+        return plans.name_inside(store, place, names, checked_by(by))
+    except plans.Refused as refused:
+        raise review.Refused(str(refused)) from refused
+
+
+def plan_revise(store, place, request, euros, by, run=None):
+    """His Correct with notes on a plan page: his yes for exactly that one Gemini call at `euros` (refused when the
+    measured price moved), then the call as its own process inside it (score.review.plans); its record."""
+    import json
+    import os
+    import subprocess
+    import sys
+    from score.review import concepts, plans
+    name = checked_by(by)
+    price = plans.revise_euros()
+    if price is None or abs(float(euros) - price) > 0.005:
+        shown = "not measured" if price is None else f"EUR {price:.2f}"
+        raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
+                             "read the page again")
+    key = plans.yes_key(place, review.now())
+    review.spend(store, "override", key, price, name, purpose=f"plan review: one correction of {place}'s plan by "
+                                                               "the creator's notes (Gemini)")
+    asked = store.cache / plans.AREA / "asked" / f"{key}.json"
+    asked.parent.mkdir(parents=True, exist_ok=True)
+    asked.write_text(json.dumps(request))
+    env = {**os.environ, "SCORE_SPEND_TICKET": f"override {key}", "SCORE_SPEND_STORE": str(store.cache.parent)}
+    done = (run or subprocess.run)([sys.executable, "-m", "score.review.plans", place, str(asked), name],
+                                   env=env, capture_output=True, text=True, timeout=concepts.TIMEOUT + 60)
+    if done.returncode != 0:
+        raise review.Refused((done.stderr.strip().splitlines() or ["the correction failed"])[-1]
+                             .removeprefix("refused: "))
+    return json.loads(done.stdout.strip().splitlines()[-1])

@@ -115,8 +115,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the scene tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`, owner 2026-10-20, CONTEXT.md "design":
   design first: how many places' designs are approved and a row a place, its concept and plan state, "game layout"
   where its layout still takes the source game's numbers, its old pick as hover text, linking to the place, where
-  the design is made (its concept review, outside any batch: no concept is bought here), and the owner's Approve
-  once its plan is made (his accept of `plan@<place>` through `/api/decisions`); then After design: how many places await design while none is
+  the design is made (its concept review, outside any batch: no concept is bought here), and a Plan link to its plan
+  review once its design is approved (the pick is the approval, owner 2026-10-21: no Approve); then After design: how many places await design while none is
   approved (no euros, no layers), else the approved places' figure and a line a layer, how many it makes and its euros, no step's own name and no dropdown; its Buy only
   once a design is approved, buying only those places; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
   month figure while it is not read, its button named by their cost line's label; no Basket link, no stop control:
@@ -203,8 +203,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   store's `WorldState.inventories` read by `score/review/concepts.inventory_read`; prepare's `design.py` the same rule,
   its `inventory` state), and its numbers only once its gaps findings are not older than the pick (`screens.counted`,
   `local.inventory_reads` `checked`: earlier ones were read from an older inventory). Until then its tile and head
-  show its design state in words (`cockpit.DESIGN_WORDS`: to draw, in review, inventory to read, plan to make, gaps to check, in
-  design for a tile none of whose places count) in place of the ring and gaps, its tile opens its concept page and
+  show its design steps done as pips and a number (`pages/c/steps.html`, `screens.design_steps`: concept picked,
+  inventory read, plan made; owner 2026-10-21, numbers not prose), its design state in words (`cockpit.DESIGN_WORDS`:
+  to draw, in review, inventory to read, plan to make, gaps to check, in design for a tile none of whose places count) as their
+  hover text, in place of the ring and gaps, a Plan button once it has a plan, its tile opens its concept page and
   its head has no Open (owner, 2026-10-20), its Place screen shows only its concept, that state and a link to its
   concept page (no scene tree, no 3D, no gaps), and its gaps are in no total (`views.overview_of` rows,
   `local.gaps_total`: only `counted_places`). An unlock makes it out of date at once (no
@@ -279,6 +281,18 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   turns it so at once, `data-busy`), a card whose draw, or a place within it whose draw, is on its way carries a
   spinner over its picture and one whose newest draw was refused a red "refused" with the reason as hover text
   (`concepts.card_state`); the concept review shows the same spinner over its picture while its draw is on its way.
+- **The plan review** (CONTEXT.md "plan review", owner 2026-10-21; `pages/plans.py`, `plan.html`,
+  `static/pages/plan.js`, the store side `score/review/plans.py`): `/plan/<place>/`, reached from its card's and
+  head's Plan button and its concept page once its scene inventory counts. The plan, made from the pick with no
+  Approve (the pick is the approval), drawn top down as an SVG laid out like the picture the prompt model is sent,
+  beside the picked concept: he drags and resizes items, zones and inside places, moves doors along their walls and
+  standing spots; a list of inside places (rename, remove, add place, the row each stands in); marks on the plan or
+  the concept with a note each. Keep (SyncRequest `plan-edit`) keeps his plan as his own and where the plan stage
+  reads it; Correct with notes (`plan-revise`) is one prompt-model call at `WorldState.plan_revise_euros` (the measured
+  answer), his click its spend yes (`web.plan_revise`, an override yes like a concept draw). The concept page names
+  inside places up front (`plan-named`, `static/pages/inside.js`). Hosted, a plan kept since the export shows at once
+  (`plans.review_of`); the listener answers all three (`applying.PLAN_KINDS`). The sync pass writes every place's plan
+  where the plan stage reads it (`client.plans_kept`, before prepare).
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the

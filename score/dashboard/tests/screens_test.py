@@ -279,7 +279,9 @@ def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_re
     shown = alpha()
     assert (shown["design"], shown["progress"], shown["gaps"]) == ("review", None, None)  # drawn, not picked
     html = signed_in().get("/places/").content.decode()
-    assert "data-v>in review</span>" in html and "data-v>to draw</span>" in html and 'class="ring' not in html
+    # its design steps done in place of the ring and gaps (owner, 2026-10-21: numbers, not prose)
+    assert 'class="design-steps" title="concept picked no' in html and "data-v>0/3</b>" in html
+    assert "its concept is not picked" in html and 'class="ring' not in html
     assert 'href="/place/alpha/"' not in html and 'class="ptile" href="/concept/alpha/"' in html  # no Place screen
     page = signed_in("joey2").get("/place/alpha/").content.decode()
     assert "<iframe" not in page and 'href="/concept/alpha/"' in page and "data-v>in review</span>" in page

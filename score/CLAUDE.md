@@ -108,6 +108,10 @@ stage as each stage is built; nothing moves before.
   Gemini 3.1 Pro's rows, then SAM 3's boxes of each row on one rented card, their disagreements its gaps, each
   reading and its cost kept under `inventory-readings/<place>/`; refused for a place with no pick of its own.
   `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the picked concept.
+  `plans.py` is the plan review's (CONTEXT.md): a place's plan made free from its pick, inventory and the layer
+  above's plan, his edits and named inside places kept under `plans/` (his process only), a Correct with notes one
+  direct Gemini call inside his click's yes (`web.plan_revise`), `waits`, `shape_sent` and `holder_of` for an inside
+  place's draw, `keep` the plans where the plan stage reads them (`stages.creator_plan`).
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),

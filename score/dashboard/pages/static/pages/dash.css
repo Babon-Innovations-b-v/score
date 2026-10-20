@@ -620,3 +620,34 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .ec-send { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; } .ec-send textarea { width: 100%; box-sizing: border-box; font: inherit; }
 .ec-rows td:has(.ec-wide) { width: 68%; }
 [data-concept] input:disabled { background: transparent; border-color: var(--line); color: var(--ink); cursor: default; }
+/* the plan review (pages/plans.py, plan.js): the plan top down beside the picked concept */
+.plan-pair { display: flex; gap: 12px; flex-wrap: wrap; align-items: start; }
+.plan-pair > .concept-stage { flex: 1 1 340px; min-width: 0; margin: 0; }
+.draw-busy[hidden] { display: none; }
+.plan-canvas { position: relative; margin: 0 auto; }
+.plan-stage svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; }
+.plan-marks { pointer-events: none; }
+[data-marking] .plan-stage svg { cursor: crosshair; }
+.plan-floor { fill: var(--surface); stroke: var(--ink); stroke-width: 0.08; vector-effect: non-scaling-stroke; }
+.plan-item rect, .plan-zone rect, .plan-hold rect { vector-effect: non-scaling-stroke; stroke-width: 1.5; }
+.plan-item rect { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: var(--accent); }
+.plan-zone rect { fill: color-mix(in srgb, var(--bad) 8%, transparent); stroke: var(--bad); stroke-dasharray: 4 3; }
+.plan-hold rect { fill: color-mix(in srgb, var(--review) 16%, transparent); stroke: var(--review); stroke-width: 2; }
+.plan-hold > .plan-label { font-weight: 600; }
+.plan-corner { fill: var(--ink) !important; stroke: none !important; cursor: nwse-resize; }
+.plan-door line { stroke: var(--done); stroke-width: 6; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.plan-spot { fill: var(--new); }
+.plan-label { fill: var(--ink); pointer-events: none; font-family: inherit; }
+.plan-label.zone { fill: var(--bad); }
+.plan-label.door { fill: var(--done); }
+.plan-label.north { fill: var(--soft); font-weight: 600; }
+.plan-drag { cursor: grab; }
+.plan-places { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.plan-places li { display: flex; gap: 6px; align-items: center; }
+.plan-places input { flex: 1; min-width: 0; }
+/* a place's design steps (pages/c/steps.html): four pips, concept to approved */
+.design-steps { display: inline-flex; gap: 3px; align-items: center; font-size: var(--fs-sm); }
+.design-steps .pip { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--line-strong); }
+.design-steps .pip.done { background: var(--done); border-color: var(--done); }
+.design-steps b { margin-left: 4px; font-weight: 600; }
+.plan-places select { flex: 0 1 120px; min-width: 0; }

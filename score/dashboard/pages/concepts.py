@@ -198,7 +198,8 @@ def concept_page(request, place):
         "wording": wording, "context": context_pictures(world, wording, names),
         "can": is_owner(request.user) and actions.decisions_on(),
         "approved": place in screens.approved_places(world), "inventory": inventory_of(world, place, picked),
-        "reading": shown and shown.picture.sha == picked and reading_view(world, place, picked)})
+        "reading": shown and shown.picture.sha == picked and reading_view(world, place, picked),
+        "plan": place in world.plan_reviews, "named": world.plan_named.get(place, [])})
 
 
 def approved(source, place):

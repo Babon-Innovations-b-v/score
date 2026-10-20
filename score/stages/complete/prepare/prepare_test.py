@@ -299,7 +299,7 @@ def test_a_concept_review_draw_is_drawn_and_its_pick_picked_until_unlocked():
     assert design.designs(store, data, ["a"])["places"]["a"]["inventory"] is None
 
 
-def test_a_design_is_approved_only_by_the_creators_own_accept_of_its_plan_after_his_pick():
+def test_a_design_is_approved_once_its_pick_has_its_inventory_and_so_its_plan():
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "places").mkdir()
     (data / "places" / "concepts.json").write_text(json.dumps({"concepts": {
@@ -317,10 +317,11 @@ def test_a_design_is_approved_only_by_the_creators_own_accept_of_its_plan_after_
                      "plan@f": {**plan, "by": "joey", "at": "2026-10-21T10:00"}})  # read from an older inventory
     found = design.designs(store, data, ["a", "b", "c", "d", "e", "f"])
     states = {place: (row["concept"], row["inventory"], row["plan"]) for place, row in found["places"].items()}
-    assert states == {"a": ("picked", "made", "approved"), "b": ("picked", "made", "made"),
-                      "c": ("picked", "made", "made"), "d": ("drawn", None, "remake"),
+    # the pick is the approval (owner, 2026-10-21): its inventory and plan made from it, the design stands approved
+    assert states == {"a": ("picked", "made", "approved"), "b": ("picked", "made", "approved"),
+                      "c": ("picked", "made", "approved"), "d": ("drawn", None, "remake"),
                       "e": ("missing", None, "remake"), "f": ("picked", "to read", "remake")}, states
-    assert found["approved"] == ["a"] and found["places"]["b"]["output"] == "p" * 64
+    assert found["approved"] == ["a", "b", "c"] and found["places"]["b"]["output"] == "p" * 64
     assert found["places"]["d"]["output"] is None and found["places"]["e"]["hint"] is None
 
 

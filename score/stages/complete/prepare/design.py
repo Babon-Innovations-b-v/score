@@ -8,15 +8,12 @@ nothing here draws, makes or accepts.
               standing, its time the `picked` date, else that entry's `picked` date)
     inventory None while the concept is not picked, `made` (its data/inventory/<place>.json read from the picked draw:
               its `concept_pick.sha256`) or `to read` (none, or one from an older concept, which counts for nothing)
-    plan      `remake` (to make again from the picked concept and its inventory; always while the inventory is not
-              made), `made` (picked and plan@<place> stands accepted) or
-              `approved` (the creator's own accept of plan@<place>, given after the pick: his approval of the design,
-              an owner-only accept like any other); `output` its accepted output once made, else None
+    plan      `remake` (while the inventory is not made) or `approved` (the owner, 2026-10-21: picking the concept is
+              the approval; its inventory and then its plan are made from the pick automatically, the plan page,
+              score/review/plans.py, for inspecting and fixing it); `output` the plan row's accepted output, else None
     hint      the old plan's recorded pick (data/plans/<place>.json `concept.pick`): a hint for drawing, not a constraint
 """
 import json
-
-from score.store import RUNNER
 
 
 def concept_state(entry):
@@ -27,13 +24,13 @@ def concept_state(entry):
 
 
 def plan_state(store, place, picked):
-    """{plan, output} of the place's plan: remake, made or approved (module docstring), and its accepted output once
-    made (the one the creator's approval accepts); `picked` the date the creator picked its concept, or None."""
-    accept = store.current_accept(f"plan@{place}") if picked else None
-    if accept is None:
+    """{plan, output} of the place's plan: remake or approved (module docstring), and the plan row's accepted output
+    (None while it has none); `picked` the date the creator picked its concept, or None while its inventory is not
+    read from the pick."""
+    if not picked:
         return {"plan": "remake", "output": None}
-    approved = accept.get("by") != RUNNER and accept["at"] > picked
-    return {"plan": "approved" if approved else "made", "output": accept["output"]}
+    accept = store.current_accept(f"plan@{place}")
+    return {"plan": "approved", "output": accept["output"] if accept else None}
 
 
 def hint(data, place):
@@ -53,13 +50,16 @@ def registered(store, concepts, place):
     return {"picked": picks[-1]["at"] if sha else None, "sha256": sha}
 
 
-def inventory_state(data, place, entry):
+def inventory_state(store, data, place, entry):
     """The place's scene inventory (CONTEXT.md "scene inventory"): None while its concept is not picked, `made` when
-    its inventory was read from the picked concept, else `to read` (none, or one from an older concept: it counts for
-    nothing)."""
+    its inventory was read from the picked concept (its reading in the store, score/review/reading.py, or its
+    data/inventory file), else `to read` (none, or one from an older concept: it counts for nothing)."""
     from score.review import concepts as review
+    from score.review import reading
     if not (entry or {}).get("picked"):
         return None
+    if reading.reading_of(store, place):
+        return "made"
     read = review.inventory_read(place, data / "inventory")
     return "made" if read and read["concept"] and read["concept"] == entry.get("sha256") else "to read"
 
@@ -69,7 +69,7 @@ def designs(store, data, places):
     path = data / "places" / "concepts.json"
     concepts = json.loads(path.read_text()).get("concepts", {}) if path.is_file() else {}
     entries = {place: registered(store, concepts, place) for place in places}
-    inventories = {place: inventory_state(data, place, entries[place]) for place in places}
+    inventories = {place: inventory_state(store, data, place, entries[place]) for place in places}
     # A plan read from an inventory that does not count is no plan of this design: it is made again.
     found = {place: {"concept": concept_state(entries[place]), "inventory": inventories[place],
                      **plan_state(store, place, (entries[place] or {}).get("picked")
