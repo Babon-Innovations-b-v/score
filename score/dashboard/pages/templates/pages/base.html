@@ -13,6 +13,7 @@
 <header class="top">
   <a class="brand" href="/">SCORE</a>
   {% if user.is_authenticated %}
+  <span class="steps"><button type="button" class="quiet" data-step="back" title="back" aria-label="back">&#8592;</button><button type="button" class="quiet" data-step="forward" title="forward" aria-label="forward">&#8594;</button></span>
   <nav>
     <a href="/"{% if request.path == "/" %} class="here"{% endif %}>Environment</a>
     {% if request.path|slice:":7" == "/place/" %}<a href="{{ request.path }}" class="here">Place</a>{% endif %}
