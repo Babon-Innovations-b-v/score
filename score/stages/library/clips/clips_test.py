@@ -74,6 +74,18 @@ def fake_render(manifest, frames, minutes, log):
     log.write_text("fake render")
 
 
+def blank_render(manifest, frames, minutes, log):
+    """Each item's frames one flat grey, as the blank clips of 2026-10-20 came back."""
+    items = json.loads(manifest.read_text())["items"]
+    for item in items:
+        folder = frames / item["slug"]
+        folder.mkdir(parents=True)
+        for number in range(framing.FRAMES):
+            Image.new("RGB", (64, 36), (89, 87, 84)).save(folder / f"f{number:03d}-look.png")
+    (frames / "rendered.json").write_text(json.dumps({item["slug"]: {"rendered": True} for item in items}))
+    log.write_text("fake blank render")
+
+
 def test_framing():
     turn = framing.views("turn", [-1, 0, -1], [1, 2, 1])
     assert len(turn) == framing.FRAMES and all(view["aim"] == [0.0, 1.0, 0.0] and view["look_only"] for view in turn)
@@ -113,6 +125,8 @@ def test_sample_shapes():
     stage = Usd.Stage.Open(str(sample.item_stage(folder / "surface", row)))
     bound = UsdShade.MaterialBindingAPI(stage.GetPrimAtPath("/Sample/Ball")).ComputeBoundMaterial()[0]
     assert bound and str(bound.GetPath()) == "/steel" and stage.GetDefaultPrim().GetName() == "steel"
+    from pxr import UsdGeom
+    assert UsdGeom.GetStageMetersPerUnit(stage) == 1.0 and UsdGeom.GetStageUpAxis(stage) == "Y"  # metres, y up
     lamps = {**row, "shelf": "lamp", "points": [[0, 3, 0], [4, 3.5, 2]]}
     stage = Usd.Stage.Open(str(sample.item_stage(folder / "lamp", lamps)))
     assert stage.GetPrimAtPath("/Sample/Ground") and stage.GetPrimAtPath("/Sample/BackWall")
@@ -149,6 +163,11 @@ def test_make_and_gate():
     (out / "model-crate-1.mp4").unlink()
     verdict = clips.judge_clipped(out, {}, {})
     assert verdict.answer == checks.FAIL and "None of 96 frames" in verdict.reason, verdict.reason
+    clips.render = blank_render
+    blank = made("blank", {"model/crate@1": "new"})
+    assert json.loads((blank / clips.ATTACH).read_text())["attached"] == []  # a failed gate never attaches
+    verdict = clips.judge_clipped(blank, {}, {})
+    assert verdict.answer == checks.FAIL and "model/crate@1: blank" in verdict.reason, verdict.reason
     print("make and gate: ok")
 
 
