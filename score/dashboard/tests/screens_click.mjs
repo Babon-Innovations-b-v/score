@@ -53,5 +53,16 @@ await panel.locator('[data-slot="said"].tone-done:not([hidden])').waitFor({ stat
 await page.locator(`details[data-children] > summary:has-text("${job.branch}")`).click();
 await page.locator(`details[data-children] > summary:has-text("${job.branch}")`).click();
 await page.waitForTimeout(300);  // a second load, if the branch asked again
-console.log(JSON.stringify({ before, fetched, posted, ...shown }));
+const loads = [...fetched];
+// back and forward: the panel is a step of its own; a reload opens the branch and the panel again
+await page.goBack();
+const back = { open: await panel.isVisible(), hash: await page.evaluate(() => location.hash) };
+await page.goForward();
+const forward = { open: await panel.isVisible(), title: await panel.locator("h3").textContent() };
+await page.reload();
+await item.waitFor();
+await panel.waitFor();
+const reloaded = { open: await panel.isVisible(), title: await panel.locator("h3").textContent(),
+                   steps: await page.evaluate(() => history.length) };
+console.log(JSON.stringify({ before, fetched: loads, posted, ...shown, back, forward, reloaded }));
 await browser.close();
