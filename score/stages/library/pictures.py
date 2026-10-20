@@ -46,7 +46,8 @@ def role_files(record, role, suffixes):
 def viewer_files(record):
     """The files of one record its item page's viewer reads."""
     copy = record.get("web3d") if isinstance(record.get("web3d"), dict) else {}
-    named = [copy.get("light")]
+    clip = record.get("clip") if isinstance(record.get("clip"), dict) else {}
+    named = [clip.get("file"), copy.get("light")]  # the preview clip the page plays first, then its 3D tab's copy
     if record["kind"] == "surface":
         named += role_files(record, "usd", (".usda",))[:1] + role_files(record, "texture", (".png", ".jpg", ".jpeg"))[:1]
     elif record["kind"] == "sound":

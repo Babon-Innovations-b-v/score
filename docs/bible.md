@@ -150,6 +150,12 @@ the report it writes, `handover.json` (contract `library-handover` v1). Its gate
 or a written exception, when the library refused or did not commit, and answers unknown on a missing 3D copy or
 quality score. A place is complete when its library node stands accepted, the environment when every one does (`python -m
 score status` prints that line); `complete@<place>` keeps its meaning and its key, so no paid row moves.
+After it, `library-clips@<place>` (paid, `score/stages/library/clips`) gives each entry the handover made new its
+preview clip (CONTEXT.md "preview clip"; owner, 2026-10-20): the library's `clip-plan` says what each opens, one
+Blender job on one card renders them all with the films' drawer, size and samples, and the library's `clip-attach`
+puts each into its draft entry. The cockpit's item page plays the clip first and its 3D viewer second. Never a
+re-render of the library as it stands; priced per item in prepare's figure, from the films' measured seconds a frame
+until the clips are measured (`library-clips-sample` is their benchmark).
 
 **Gaps** (`score/stages/complete/gaps`, its overlay; CONTEXT.md "gap", #12): what each place's route still needs,
 shown in its OpenUSD scene and in the creator cockpit. A free, local, standalone check (not a row, so no key moves)
