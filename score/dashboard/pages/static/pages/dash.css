@@ -33,6 +33,8 @@ header.top { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wr
              backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
 header.top .brand { font-weight: 750; letter-spacing: .08em; color: var(--ink); font-size: 14px; }
 header.top nav { display: flex; gap: 4px; flex-wrap: wrap; }
+header.top .steps { display: flex; gap: 2px; }
+header.top .steps button { font-size: 16px; padding: 4px 9px; }
 header.top nav a { color: var(--soft); padding: 6px 10px; border-radius: var(--radius-small); font-size: 14px; }
 header.top nav a:hover { background: var(--raised); color: var(--ink); text-decoration: none; }
 header.top nav a.here { color: var(--ink); background: var(--raised); }

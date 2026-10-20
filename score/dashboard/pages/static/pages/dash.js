@@ -379,3 +379,9 @@ addEventListener("pagehide", () => { clearTimeout(rereadTimer); reading?.abort()
 addEventListener("pageshow", (event) => {
   reread(event.persisted || performance.getEntriesByType("navigation")[0]?.type === "back_forward");
 });
+
+// The top bar's back and forward buttons: the browser's own history, so they match its arrows.
+document.addEventListener("click", (event) => {
+  const step = event.target.closest("[data-step]");
+  if (step) history[step.dataset.step]();
+});
