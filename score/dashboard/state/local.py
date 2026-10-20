@@ -544,7 +544,7 @@ class LocalSource:
             if concepts.picked(self.store, node):
                 picked[node] = concepts.picked(self.store, node)
         nodes = [*self.places(), *self.hierarchy()["shells"]]
-        reads = {place: concepts.inventory_read(place, self.data / "inventory") for place in self.places()}
+        reads = self.inventory_reads()
         ready, waiting = concepts.undrawn(self.store, nodes)
         return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
                 "concept_undrawn": ready, "concept_unready": waiting,
@@ -652,16 +652,26 @@ class LocalSource:
                               unfillable=sorted({gap.work for gap in gaps if gap.node is None}))
         return self.remembered(("gaps total", self.gaps_written(), counted), read)
 
-    def counted_places(self):
-        """The places whose scene inventory counts: read from their picked draw (CONTEXT.md "scene inventory"; the
-        rule of screens.inventory_current)."""
+    def inventory_reads(self):
+        """{place: {concept, rows, checked} or None} of each place's scene inventory file
+        (score/review/concepts.inventory_read), `checked` False when its gaps findings were written before the pick
+        standing: those were read from an older inventory."""
         from score.review import concepts
-        found = []
+        found = {}
         for place in self.places():
             read = concepts.inventory_read(place, self.data / "inventory")
-            if read and read["concept"] and read["concept"] == concepts.picked(self.store, place):
-                found.append(place)
-        return tuple(found)
+            picks = concepts.records(self.store, place, "picks")
+            written = written_at(self.props_home / "work" / CHECKS / GAPS / place / "findings.json")
+            picked_ns = datetime.datetime.fromisoformat(picks[-1]["at"]).timestamp() * 1e9 if picks else None
+            found[place] = read and {**read, "checked": not (written and picked_ns and written < picked_ns)}
+        return found
+
+    def counted_places(self):
+        """The places whose scene inventory counts and whose gaps were checked from it: read from their picked draw
+        (CONTEXT.md "scene inventory"; the rule of screens.counted)."""
+        from score.review import concepts
+        return tuple(place for place, read in self.inventory_reads().items()
+                     if read and read["checked"] and read["concept"] == concepts.picked(self.store, place))
 
     def gaps_written(self):
         """(place, when its findings were written) of every gaps check's findings, read on each call (a stat each):

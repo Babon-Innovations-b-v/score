@@ -190,10 +190,13 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   can't exist" before the pick): a place's scene inventory counts only while it was read from its picked draw
   (`data/inventory/<place>.json` `concept_pick.sha256` equal to the pick's sha: `screens.inventory_current`, the
   store's `WorldState.inventories` read by `score/review/concepts.inventory_read`; prepare's `design.py` the same rule,
-  its `inventory` state). Until then its tile, head and Place screen show its design state in words
-  (`cockpit.DESIGN_WORDS`: to draw, in review, inventory to read, in design for a tile none of whose places count)
-  in place of the ring and gaps, its Place screen no scene tree and no gaps in 3D, and its gaps are in no total
-  (`views.overview_of` rows, `local.gaps_total`: only `counted_places`). An unlock makes it out of date at once (no
+  its `inventory` state), and its numbers only once its gaps findings are not older than the pick (`screens.counted`,
+  `local.inventory_reads` `checked`: earlier ones were read from an older inventory). Until then its tile and head
+  show its design state in words (`cockpit.DESIGN_WORDS`: to draw, in review, inventory to read, gaps to check, in
+  design for a tile none of whose places count) in place of the ring and gaps, its tile opens its concept page and
+  its head has no Open (owner, 2026-10-20), its Place screen shows only its concept, that state and a link to its
+  concept page (no scene tree, no 3D, no gaps), and its gaps are in no total (`views.overview_of` rows,
+  `local.gaps_total`: only `counted_places`). An unlock makes it out of date at once (no
   write: the rule is read against the pick standing). No step reads a concept into an inventory yet: the concept
   page shows a picked place's inventory as made (its rows) or to read (and whether the one there is older).
 - **The concept review** (CONTEXT.md "concept review", owner 2026-10-20; `pages/concepts.py`, `concept.html`,

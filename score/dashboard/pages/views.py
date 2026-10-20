@@ -140,7 +140,7 @@ def buy(request):
 def place_page(request, place):
     """Screen 2: its concept as the header, the place in 3D, its scene tree's top level with each node's gaps (deeper
     branches load as they open, `place_branch`), a side panel per item; while its scene inventory does not count, its
-    design state in place of the tree and no gaps in 3D."""
+    design state and its concept page link only (no tree, no 3D)."""
     source = state.source()
     if place not in source.places():
         raise Http404(f"no place {place}")

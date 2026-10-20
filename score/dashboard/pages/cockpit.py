@@ -72,6 +72,7 @@ def tone_of(row):
 DESIGN_WORDS = {"draw": ("to draw", "no concept yet: draw it"),
                 "review": ("in review", "its concept is not picked: no scene inventory before it is"),
                 "read": ("inventory to read", "picked; its scene inventory is not read from this concept yet"),
+                "check": ("gaps to check", "its scene inventory is read; its gaps are not checked from it yet"),
                 "design": ("in design", "no place in it has a scene inventory read from its picked concept yet")}
 
 
@@ -87,7 +88,8 @@ def place_tiles(world, names, rows):
         row = by_place.get(card.place)
         design = screens.design_state(world, card.place)
         made, needed = made_of(card) if design is None else (None, None)
-        found[card.place] = {"place": card.place, "href": f"/place/{card.place}/",
+        found[card.place] = {"place": card.place,
+                             "href": f"/place/{card.place}/" if design is None else f"/concept/{card.place}/",
                              "name": names.get(card.place, card.place),
                              "about": style.label if style.short else None,
                              "picture": screens.thumb(world.concepts.get(card.place)),
@@ -163,7 +165,9 @@ def head(world, names, rows, at):
     a card beside its inside places, owner 2026-10-20): its concept, progress and gaps as its tile one level up sums
     them; `href` its Place screen, None for a shell (no place of its own)."""
     by_place = place_tiles(world, names, rows)
-    return {**nested_tile(world, at, by_place, names), "href": f"/place/{at}/" if at in by_place else None}
+    own = by_place.get(at)
+    return {**nested_tile(world, at, by_place, names),
+            "href": f"/place/{at}/" if own and own["design"] is None else None}
 
 
 def tiles(world, names, rows, at=None):

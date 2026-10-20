@@ -87,7 +87,7 @@ def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world
     assert "Box 1: a window." in stand_in[-1]
     newest = owner.get("/concept/beta/state/").json()["newest"]
     assert owner.post("/concept/beta/pick/", json.dumps({"sha": newest}), content_type="application/json").json()
-    assert 'href="/concept/beta/"' not in owner.get("/").content.decode()  # locked: no review button
+    assert 'ptile-review" href="/concept/beta/"' not in owner.get("/").content.decode()  # locked: no review button
     assert owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}),
                       content_type="application/json").status_code == 409
     owner.post("/concept/beta/pick/", json.dumps({"sha": None}), content_type="application/json")
