@@ -13,8 +13,9 @@ reflection in glass or an empty suit on its hook, so every figure is then put to
 a vision-language model on rented cards): the figure ringed in red on the picture round it, beside its own crop,
 asked what it is (QUESTION: a person there, one outside the place behind glass, a picture of one, a reflection, an
 empty suit or something else; only a person there is counted, the others kept with their answer as the reason) and, for
-a person, what they are doing, once with each of SEEDS and once more with each of MORE_SEEDS when those split; the
-answer most seeds give is the figure's (a tie is unknown). The output is `people.json`: {place: {view: {"picture",
+a person, what they are doing, once with each of SEEDS, a count fixed before the batch (#21); the answer most seeds
+give is the figure's, and a split vote (no answer most give) is a named unknown, a hole, never asked again inside the
+batch. The output is `people.json`: {place: {view: {"picture",
 "size", "people", "instances"}}}, `people` counting the figures judged a person, each instance with its `judged`
 answer and `answers`, and for a person `doing` (the majority of `doings`; None on a tie).
 
@@ -36,9 +37,6 @@ NOUN = "person"
 # SAM 3 on one L4 (about 5 minutes) and the judge on one 48 or 80 GB card (its set-up about 20 minutes), rounded up.
 EUROS = 3.0
 SEEDS = (1, 2, 3)
-# A figure the first seeds split on (its answer or what it is doing) is asked again with these, and the majority of
-# all its answers taken.
-MORE_SEEDS = (4, 5, 6, 7)
 # A figure whose spot is on no floor of the place (behind glass, past its walls) is `outside`: not counted.
 ANSWERS = ("person", "outside", "picture", "reflection", "suit", "other")
 DOINGS = ("walking", "standing", "sitting", "crouching", "lying", "working")
@@ -134,11 +132,6 @@ def asked(figure, target, seeds):
              "images": [f"{target}-around.jpg", f"{target}-close.jpg"]} for seed in seeds]
 
 
-def split(replies):
-    """Whether a figure's replies disagree on what it is or on what it is doing."""
-    return len({reply[0] for reply in replies}) > 1 or len({reply[1] for reply in replies}) > 1
-
-
 def said(text, label, words):
     """The word a judge's reply gives on its last `label:` line, or None when it names none of `words`."""
     lines = [line for line in text.splitlines() if f"{label}:" in line.upper()]
@@ -166,20 +159,14 @@ def majority(answers):
 
 
 def judge_figures(jobs, instances, out):
-    """{figure key: [(answer, doing) of each seed]} from the judge on every figure; a split figure asked again."""
+    """{figure key: [(answer, doing) of each seed]} from the judge on every figure, asked once (#21)."""
     import judge
     folder = out / "figures"
     questions = figure_questions(jobs, instances, folder)
     (folder / "questions.json").write_text(json.dumps(questions, indent=1))
     if questions:
         judge.ask(folder / "questions.json", folder / "answers")
-    found = replies_of(questions, folder)
-    again = [question for figure, replies in found.items() if split(replies)
-             for question in asked(figure, folder / figure, MORE_SEEDS)]
-    if again:
-        (folder / "again.json").write_text(json.dumps(again, indent=1))
-        judge.ask(folder / "again.json", folder / "answers")
-    return replies_of(questions + again, folder)
+    return replies_of(questions, folder)
 
 
 def replies_of(questions, folder):
@@ -242,7 +229,8 @@ def judge_judged(output, inputs, evidence):
                for view, found in views.items() for number, figure in enumerate(found["instances"])]
     open_figures = [name for name, figure in figures if figure["judged"] is None]
     answer = checks.UNKNOWN if open_figures else checks.PASS
-    reason = (f"{len(open_figures)} of {len(figures)} figures without a majority: {', '.join(open_figures)}"
+    reason = (f"split vote, a hole: {len(open_figures)} of {len(figures)} figures without a majority: "
+              f"{', '.join(open_figures)}"
               if open_figures else f"{len(figures)} figures judged")
     return checks.Verdict("judged", answer, reason, {"figures": len(figures), "open": len(open_figures)})
 
