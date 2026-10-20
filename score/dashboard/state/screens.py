@@ -336,12 +336,13 @@ def stats(source, spend):
 
 
 def library_counts(library):
-    """The Library screen's counts: each kind's entries, by state, pictured and scored."""
+    """The Library screen's counts: each shelf's entries (a kind, lamps, a place with its layers), by state,
+    pictured and scored."""
     if library is None:
         return {"kinds": [], "total": 0}
     by_kind = {}
     for entry in library.entries():
-        counts = by_kind.setdefault(entry.kind, Counter())
+        counts = by_kind.setdefault(entry.shelf or entry.kind, Counter())
         counts.update({"count": 1, entry.state: 1, "pictured": bool(entry.picture), "scored": entry.score is not None})
     from score.dashboard.state.library import KINDS
     order = [kind for kind, _ in KINDS] + sorted(set(by_kind) - {kind for kind, _ in KINDS})

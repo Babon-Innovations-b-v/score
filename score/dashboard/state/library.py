@@ -19,23 +19,24 @@ from pydantic import BaseModel
 from score.dashboard.state.files import HERO_SIDE, SHA, THUMB_SIDE, thumbnail
 from score.dashboard.state.names import plain
 
-# The Library's shelves: a kind, or (lamp) a place's light layer (owner, 2026-10-20: a sky is no light; the lamps
-# are). The kind ids stay; only what the owner reads changes.
-KINDS = [("model", "Models"), ("surface", "Surfaces"), ("effect", "Effects"), ("light", "Skies"), ("lamp", "Lamps"),
-         ("sound", "Sound"), ("character", "Characters"), ("ground", "Ground"), ("kit", "Kits"),
-         ("algorithm", "Algorithms"), ("layer", "Layers"), ("place", "Places")]
-WHAT = {"model": "a model", "surface": "a surface and the material a place writes for it",
+# The Library's shelves follow the framework's layers (#47): a kind, (lamp) a place's light layer (owner, 2026-10-20:
+# a sky is no light; the lamps are), the motion layer's people, and a place with its own layers under it (a layer is a
+# part of its place, no shelf of its own). Ground is retired: a terrain piece is a model, a ground finish a surface.
+# The kind ids stay; only what the owner reads changes.
+KINDS = [("model", "Models"), ("surface", "Surfaces"), ("kit", "Kits"), ("character", "Motion"), ("effect", "Effects"),
+         ("light", "Skies"), ("lamp", "Lamps"), ("sound", "Sound"), ("algorithm", "Algorithms"), ("place", "Places")]
+WHAT = {"model": "a model made through the prop pipeline (a terrain piece too)",
+        "surface": "a surface and the material a place writes for it (a ground finish too)",
         "effect": "a particle emitter with its settings and one baked clip",
         "light": "a sky dome or a planet's backdrop, seen from inside", "lamp": "a place's lamps and their strengths",
-        "sound": "a sound source with its takes and levels", "character": "a body look or a dress",
-        "ground": "a planet's terrain or one place's ground cut from it", "kit": "a place's kit of pieces",
+        "sound": "a sound source with its takes and levels",
+        "character": "the motion layer's people: a body look or a dress", "kit": "a set of shell-piece variants",
         "algorithm": "an engine algorithm with its settings, preset, tests and run line",
-        "layer": "one layer of one place", "place": "a place's root, its layers, plan and cast"}
+        "place": "a place's root with its own layers, plan and cast"}
 SCORE_MEANS = {  # what a kind's score measures, said as its hover text; a kind not here shows no score
     "model": "how sound its mesh is: holes, crowded edges, seams", "kit": "the mean score of its pieces",
     "character": "how well its clothes fit its body and are painted", "place": "how many of its steps' checks pass",
     "layer": "how many checks of the step that made it pass", "effect": "how its particles look in its place's film",
-    "ground": "how clean its terrain is and how well it follows its plan",
     "light": "how sharp and well exposed its sky picture is", "surface": "how close its colours are to its palette",
     "sound": "its loudness, peaks and clipping against the target"}
 LAMPS = "light."  # a layer entry whose id starts so is a place's lamps: the Lamps shelf
@@ -100,8 +101,11 @@ class LibraryEntry(BaseModel):
 
 
 def shelf_of(record):
-    """The Library shelf of an entry record: a place's light layer is a lamp, any other entry its kind."""
-    return "lamp" if record["kind"] == "layer" and record["id"].startswith(LAMPS) else record["kind"]
+    """The Library shelf of an entry record: a place's light layer is a lamp, any other layer sits under its place,
+    any other entry on its kind's shelf."""
+    if record["kind"] == "layer":
+        return "lamp" if record["id"].startswith(LAMPS) else "place"
+    return record["kind"]
 
 
 def score_meaning(entry):
@@ -498,20 +502,20 @@ class LocalLibrary(Library):
         if not SHA.match(sha or "") or sha not in self.known():
             return None
         found = [self.blobs / "blobs" / sha[:2] / sha] if self.blobs else []
-        cached = self.cached_names().get(sha) if self.cache else None
-        found += [self.cache / cached] if cached else []
+        found += [self.cache / name for name in self.cached_names().get(sha, [])] if self.cache else []
         return next((path for path in found if path.is_file()), None)
 
     def cached_names(self):
-        """{sha: <kind>/<id>/<version>/<file>} of every listed picture, take and GLB: where the cache keeps it."""
+        """{sha: [<kind>/<id>/<version>/<file>, ...]} of every listed picture, take and GLB: where the cache keeps it
+        (one sha may be listed by several entries, a place and its layer)."""
         if self.kept.get("cached_of") is not self.entries():
             found = {}
             for entry in self.entries():
                 folder = f"{entry.kind}/{entry.entry_id}/{entry.version}"
                 if entry.picture and entry.picture_file:
-                    found[entry.picture] = f"{folder}/{entry.picture_file}"
+                    found.setdefault(entry.picture, []).append(f"{folder}/{entry.picture_file}")
                 for each in [*entry.takes, *three_d_files(entry)]:
-                    found[each.sha] = f"{folder}/{each.name}"
+                    found.setdefault(each.sha, []).append(f"{folder}/{each.name}")
             self.kept.update(cached_of=self.entries(), cached=found)
         return self.kept["cached"]
 

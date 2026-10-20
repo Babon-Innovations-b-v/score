@@ -195,12 +195,21 @@ def node_of(tree, node_id):
 
 def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch_opens(world, shelf):
     html = signed_in().get("/library/").content.decode()
-    for kind, count in (("Models", 3), ("Surfaces", 1), ("Sound", 1), ("Characters", 1), ("Places", 1), ("Kits", 1),
-                        ("Algorithms", 1), ("Layers", 1), ("Effects", 1), ("Skies", 1), ("Ground", 1)):
+    for kind, count in (("Models", 3), ("Surfaces", 1), ("Kits", 1), ("Motion", 1), ("Effects", 1), ("Skies", 1),
+                        ("Lamps", 1), ("Sound", 1), ("Algorithms", 1), ("Places", 2)):
         assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
+    assert 'data-v>Ground<' not in html and 'data-v>Layers<' not in html  # retired, and a layer sits under its place
     assert 'data-children="/api/library/children?node=model"' in html
     assert "Lamp post" not in html and "Wrench" not in html  # entries load only when their branch opens
     assert html.count(">MIT<") == 1 and "library.js" not in html
+
+
+def test_the_places_shelf_holds_a_folder_a_place_with_its_own_layers(world, shelf):
+    client = api()
+    places = client.get("/api/library/children", params={"node": "place"}).json()
+    assert [(node["label"], node["count"]) for node in places] == [("Alpha", 2)]
+    held = client.get("/api/library/children", params={"node": "place/alpha"}).json()
+    assert [node["href"] for node in held] == ["/library/place/alpha/1/", "/library/layer/base.alpha/1/"]
 
 
 def test_a_branch_answers_its_children_a_page_at_a_time(world, shelf, monkeypatch):
@@ -514,7 +523,7 @@ def test_names_are_everyday_words_with_the_library_title_kept_as_hover_text():
     from score.dashboard.state.names import plain
     assert plain("algorithm", "camera_paths", "Camera moves: RRT* walk paths (the render needs a GPU)") == (
         "Camera paths", "Camera moves: RRT* walk paths (the render needs a GPU)")
-    assert plain("ground", "earth.flat", "Flat ground (earth)")[0] == "Earth ground at Flat"
+    assert plain("ground", "earth.flat", "Flat ground (earth)")[0] == "Flat ground, earth"
     assert plain("model", "ac_unit_1", "Ac unit 1")[0] == "Air conditioner 1"
     assert plain("model", "apron_2p6", "Apron 2p6")[0] == "Apron 2.6 m"
     assert plain("effect", "drift_0_3.camp", "Drift 0 3")[0] == "Drift, row 1 spot 4"
