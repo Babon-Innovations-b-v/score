@@ -116,25 +116,33 @@ def picked(store, place):
 
 
 def undrawn(store, nodes):
-    """The Environment's Draw all (owner, 2026-10-20): ([node] of `nodes` with no draw yet whose first draw can be
-    made now, {node: why not} for the others with none). A part of another place's outside (the square, the launch)
+    """The Environment's Draw all (owner, 2026-10-20): ([node] of `nodes`, none picked, with no first draw from its
+    current wording yet, whose first draw can be made now, {node: why not} for the others with none). A part of another place's outside (the square, the launch)
     is never drawn on its own; an inside place waits for its outside's pick, so it is drawn to fit it (CONTEXT.md
     "concept")."""
     ready, waiting, found = [], {}, tree()
     for node in nodes:
-        if store.objects.keys(f"{AREA}/{node}/draws/") or node in found["parts"]:
+        if node in found["parts"] or picked(store, node):
             continue
         holder = found["within"].get(node)
         if holder and not picked(store, holder):
             waiting[node] = f"waits for {holder}'s concept to be picked"
             continue
         try:
-            first_wording(node)
+            wording = first_wording(node)[0]
         except Refused as refused:
             waiting[node] = str(refused)
-        else:
+            continue
+        if not current_draw(store, node, wording):
             ready.append(node)
     return ready, waiting
+
+
+def current_draw(store, place, wording):
+    """Whether `place` has a first draw made from `wording`, its current first-draw wording; a draw from an older
+    wording (its data or the draw rules changed since) does not count, so Draw all draws it again."""
+    return any(draw.get("base") in (None, "None") and str(draw.get("wording", "")).startswith(wording)
+               for draw in draws(store, place))
 
 
 def placed(store):

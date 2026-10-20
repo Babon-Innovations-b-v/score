@@ -236,3 +236,12 @@ def test_draw_all_skips_parts_and_holds_an_inside_place_for_its_outsides_pick(tm
     ready, waiting = concepts.undrawn(store, ["base", "hub", "square"])
     assert ready == ["base"] and "square" not in waiting
     assert waiting["hub"] == "waits for base's concept to be picked"
+
+
+def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monkeypatch):
+    store = Store.in_folder(tmp_path)
+    older = [{"base": None, "wording": "an older wording"}]
+    monkeypatch.setattr(concepts, "draws", lambda _store, _place: older)
+    assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]
+    older.append({"base": None, "wording": concepts.first_wording("old_station")[0]})
+    assert concepts.undrawn(store, ["old_station"])[0] == []
