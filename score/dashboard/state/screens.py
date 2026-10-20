@@ -138,11 +138,12 @@ def environment(source, spend, library):
     place (picture, progress, gap count, worst kind, its takes)."""
     world = source.world_state(spend)
     takes = world.remake.places if world.remake else {}
+    names = groups.short_names(world)
     places = []
     for card in cards(world):
         counts = gap_counts(source.holes(card.place))
         link, origin = picture_of(card, library)
-        places.append({"place": card.place, "title": groups.place_title(card.place), "status": card.status,
+        places.append({"place": card.place, "title": names[card.place], "status": card.status,
                        "picture": link, "picture_from": origin, "progress": progress(card),
                        "complete": complete(card), "gaps": sum(counts.values()), "worst": worst(counts),
                        "takes": takes.get(card.place)})
@@ -179,7 +180,7 @@ def place(source, place, library):
     price = world.holes_price
     nodes = sorted({hole.node for hole in found if hole.node})
     counts = gap_counts(found)
-    return {"place": place, "title": groups.place_title(place), "status": card.status, "picture": link,
+    return {"place": place, "title": groups.short_names(world)[place], "status": card.status, "picture": link,
             "picture_from": origin, "web3d": model, "web3d_from": model_from, "view": f"/view/{place}",
             "progress": progress(card), "complete": complete(card), "gaps": counts, "worst": worst(counts),
             "takes": (world.remake.places.get(place) if world.remake else None),

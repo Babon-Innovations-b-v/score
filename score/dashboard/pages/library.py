@@ -59,9 +59,10 @@ def folder_node(node):
 
 
 def item_node(entry):
-    """An entry as a tree leaf: its state's dot, its name, its score; a link to its page."""
+    """An entry as a tree leaf: its state's dot, its thumbnail, its name, its score; a link to its page."""
     score = lib.percent(entry.score)
     return {"label": entry.title, "count": score, "tone": TONES.get(entry.state, "idle"), "href": lib.entry_url(entry),
+            "picture": f"/library-files/thumbs/{entry.picture}.jpg" if entry.picture else None,
             "tip": f"{entry.state}, version {entry.version}" + (f", score {score}" if score is not None else "")}
 
 

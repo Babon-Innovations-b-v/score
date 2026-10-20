@@ -300,7 +300,7 @@ def test_every_priced_step_and_place_has_plain_words():
     assert groups.label("crops-boxes") == "crop boxes" and groups.label("crops-look") == "crop renders"
     assert groups.label("surface-tiles") == "surface tiles" and groups.label("ship_kit") == "ship kit"
     assert groups.label("people-dress-nev-work") == "dressed body of the nev-work look"
-    assert plain.place_words("gdoor") == "the garage door" and present.place_title("hdoor") == "Hangar roof door"
+    assert plain.place_words("gdoor") == "the garage door" and present.place_title("hdoor") == "Hangar door"
     assert plain.lost_words("place:lost:earth-seed:gdoor") == "garage door"  # its seed folder, by the kit's title
 
 
@@ -438,12 +438,15 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     assert "tone-hole-route" in tiles["alpha"] and "<b data-v>4</b>" in tiles["alpha"]  # its worst kind: a route step
     assert "tone-done" in tiles["beta"] and "<b data-v>0</b>" in tiles["beta"]
     assert all(re.search(r"<text [^>]*data-v>\d+/\d+</text>", tile) for tile in tiles.values())  # made / needed
+    assert all(re.search(r"<title>made \d+ of \d+</title>", tile) for tile in tiles.values())  # said by hover
+    assert 'title="4 gaps"><svg class="gap-icon tone-hole-route"' in tiles["alpha"]
     assert all("/thumbs/" in tile for tile in tiles.values())  # each place's best picture
     top = html[html.index('<section class="topbar">'):html.index('<section class="ptiles"')]
-    assert '<span class="unknown" title="a bill is not known yet">unknown</span>' in top  # the model bill: no figure
-    assert "<small> / 250</small>" in top
+    # the cloud bill read, the model bill not: at least the cloud's, the missing line as hover text; no stop shown
+    assert "<small>&ge;</small> <small>EUR</small> 12.50" in top and "not read: Model calls" in top
+    assert "250" not in top and "stop" not in top
     # prepare's figure (EUR 10 to 12) and the holes price off the prop route (none measured): prepare times no step
-    assert "<small>EUR</small> 10&ndash;12<small>, " in top and "? h</span>" in top
+    assert "<small>EUR</small> 10&ndash;12<small>, " in top and "&ge; 0.5 h</span>" in top  # at least its floor
     assert 'href="/buy/">Review and buy</a>' in top
 
 
@@ -606,8 +609,8 @@ def test_the_buy_screen_lists_the_batch_its_total_eta_and_one_buy_yes(world, set
     assert 'data-url="/buy/yes/"' not in signed_in("guest2").get("/buy/").content.decode()
     BasketChoice.objects.create(item=item["id"], version=item["version"], choice="buy")
     html = client.get("/buy/").content.decode()
-    assert re.search(r'<span class="node-label" data-v>[^<]+</span><span class="buy-price" data-v><small>EUR</small> '
-                     r'\d+\.\d\d&ndash;\d+\.\d\d</span>', html)
+    assert re.search(r'<span class="node-label" data-v>[^<]+</span><span class="buy-price" data-v title="[^"]*">'
+                     r'(<small>&ge;</small> )?<small>EUR</small> \d+\.\d\d&ndash;\d+\.\d\d</span>', html)
     assert "its stop: EUR" in html and "disabled" not in re.search(r"<form class=\"buy-yes\".*?</form>", html).group()
     Checkout.objects.create(key="k" * 8, by="joey", state="launched", stop_line={"high": 10.0, "euros": 30.0})
     assert '<small>stop EUR</small> 11.00' in client.get("/buy/").content.decode()

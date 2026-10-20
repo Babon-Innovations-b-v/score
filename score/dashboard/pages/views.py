@@ -94,10 +94,12 @@ def buy(request):
     screen = screens.buy(items, basket_items.current_choices(items), found["world"].spend)
     places = {}
     for item in screen["items"]:
-        places.setdefault(item["place"], []).append(item)
+        places.setdefault(item["place"], []).append({**item, "name": item["title"] or ", ".join(item["layers"])})
+    names = groups.short_names(found["world"])
     return render(request, "pages/buy.html", {
         "screen": screen, "money": found["view"], "last": basket_items.last_batch(),
-        "groups": [{"name": present.place_title(place) if place else "several", "items": rows}
+        "total": screen["total"] if screen["chosen"] else screen["basket"],
+        "groups": [{"name": names.get(place, present.place_title(place)) if place else "several", "items": rows}
                    for place, rows in places.items()],
         "hours": cockpit.eta_hours(screen["eta"]), "key": uuid.uuid4().hex})
 

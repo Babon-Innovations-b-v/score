@@ -414,7 +414,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 [title] { cursor: help; } a[title], button[title], [role=button][title] { cursor: pointer; }
 .ring { width: 40px; height: 40px; flex: none; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 3.5; }
-.ring-track { stroke: var(--raised); } .ring-fill { stroke: var(--done); stroke-linecap: round; }
+.ring-track { stroke: var(--line-strong); } .ring-fill { stroke: var(--done); stroke-linecap: round; }
 .ring text { transform: rotate(90deg); transform-origin: 18px 18px; font-size: 8px; font-weight: 600; fill: var(--ink); text-anchor: middle; }
 .nums { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin: 0 0 24px; }
 .num-card, .topbar-num, .timeline-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; }
@@ -435,12 +435,15 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .ptile-foot { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
 .ptile-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ptile-gaps { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.gap-icon { width: 14px; height: 14px; flex: none; fill: var(--tone); }
+.gap-icon .gap-mark { stroke: var(--bg); stroke-width: 1.8; stroke-linecap: round; fill: none; }
 .tree { list-style: none; margin: 0; padding-left: 14px; }
 .place-tree > .tree { padding-left: 0; }
 .tree summary { list-style: none; cursor: pointer; } .tree summary::-webkit-details-marker { display: none; }
 .tree summary::before { content: "\25B8"; color: var(--faint); display: inline-block; width: 12px; }
 .tree details[open] > summary::before { content: "\25BE"; }
 .node-row { display: inline-flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: var(--radius-small); color: var(--ink); }
+.node-thumb { width: 48px; height: 36px; object-fit: cover; border-radius: var(--radius-small); background: var(--raised); flex: none; }
 .node-row[role=button]:hover, a.node-row:hover { background: var(--raised); text-decoration: none; }
 .node-count { font-size: 12px; color: var(--soft); font-variant-numeric: tabular-nums; }
 .side-panel { position: fixed; top: 72px; right: 16px; width: min(320px, calc(100vw - 32px)); z-index: 20; background: var(--raised);

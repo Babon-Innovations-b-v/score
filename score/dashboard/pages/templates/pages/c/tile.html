@@ -1,8 +1,8 @@
-{% comment %}A place tile: `href`, `picture` (a URL or none), `name`, `made` of `needed` as a progress ring, `gaps` (None: not checked) with its state colour `tone`, `tip` its hover text.{% endcomment %}<a class="ptile" href="{{ href }}"{% if tip %} title="{{ tip }}"{% endif %}>
-  <div class="ptile-pic">{% if picture %}<img src="{{ picture }}" alt="{{ name }}" loading="lazy">{% endif %}</div>
+{% comment %}A place tile: `href`, `picture` (a URL or none), `name`, `made` of `needed` as a progress ring (`made_tip` its hover text), `gaps` (None: not checked) with its state colour `tone`, `tip` its hover text.{% endcomment %}<a class="ptile" href="{{ href }}"{% if tip %} title="{{ tip }}"{% endif %}>
+  <div class="ptile-pic">{% if picture %}<img src="{{ picture }}" alt="" loading="lazy">{% endif %}</div>
   <div class="ptile-foot">
-    {% include "pages/c/ring.html" with done=made total=needed tip="steps made / needed" %}
+    {% include "pages/c/ring.html" with done=made total=needed tip=made_tip %}
     <span class="ptile-name" data-v>{{ name }}</span>
-    <span class="ptile-gaps" title="{% if gaps is None %}gaps not checked{% else %}gaps{% endif %}">{% include "pages/c/dot.html" with tip=None %}<b data-v>{% if gaps is None %}?{% else %}{{ gaps }}{% endif %}</b></span>
+    <span class="ptile-gaps" title="{% if gaps is None %}gaps not checked{% else %}{{ gaps }} gap{{ gaps|pluralize }}{% endif %}"><svg class="gap-icon tone-{{ tone|default:'idle' }}" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 15 14.5H1z"/><path class="gap-mark" d="M8 6v4.2M8 11.8v.4"/></svg><b data-v>{% if gaps is None %}?{% else %}{{ gaps }}{% endif %}</b></span>
   </div>
 </a>
