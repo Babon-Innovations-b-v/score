@@ -151,6 +151,34 @@ def test_a_brief_is_one_batch_of_one_take_a_prompt_and_a_lost_take_is_a_hole():
     assert len(sound.candidates("pump", jobs, scored, "rev")) == 1
 
 
+def test_no_card_in_stock_is_a_hole_asked_once():
+    """#21: the card is asked for once; none in stock blocks the row at once (its takes holes), never waited out."""
+    import types
+    from score import graph
+    from score.stages.sound import takes
+    attempts = []
+    batch = types.SimpleNamespace(sweep=lambda account: None, ssh_key=lambda: "key")
+    prove = types.SimpleNamespace(batch=batch, one_attempt=lambda *args: attempts.append(args) or False)
+    cloud = types.SimpleNamespace(account=lambda: "account", allow_key=lambda *args: None, registry=lambda: None,
+                                  object_store=lambda: None)
+    real_tool, real_provider = takes.prove_tool, sys.modules.get("provider")
+    try:
+        takes.prove_tool = lambda: prove
+        sys.modules["provider"] = types.SimpleNamespace(cloud=cloud)
+        try:
+            takes.on_card({"classes": ["L4-1-24G"]})
+            raise AssertionError("no card in stock was not a hole")
+        except graph.Blocked as blocked:
+            assert "in stock" in str(blocked), blocked
+    finally:
+        takes.prove_tool = real_tool
+        if real_provider is None:
+            sys.modules.pop("provider", None)
+        else:
+            sys.modules["provider"] = real_provider
+    assert len(attempts) == 1, attempts
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
