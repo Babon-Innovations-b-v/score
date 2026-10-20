@@ -53,9 +53,11 @@ def close_up_path(take):
     return found if found.exists() else None
 
 
-def model_files(place, objects=None):
+def model_files(place):
     """{name: path} of every take's model and own close-up that is there (of the takes the runner's object filter
-    keeps, `objects`); a take with no model here is left out and named by the views row."""
+    keeps, graph.selected); a take with no model here is left out and named by the views row."""
+    from score import graph
+    objects = graph.selected()
     found = {}
     for take in data.takes(place):
         if objects is not None and take not in objects:
@@ -69,14 +71,14 @@ def model_files(place, objects=None):
     return found
 
 
-def shape_files(place, objects=None):
+def shape_files(place):
     """The views and split rows' files: the place's data, its takes' models and close-ups, the release's manifest."""
-    return {"surfaces": data.pattern(place), "assets": "{data}/assets/world1.json", **model_files(place, objects)}
+    return {"surfaces": data.pattern(place), "assets": "{data}/assets/world1.json", **model_files(place)}
 
 
-def library_files(place, objects=None):
+def library_files(place):
     """The rows that read the library (list, fill, recheck): shape_files, the library, the places and the palette."""
-    return {**shape_files(place, objects), "library": "{data}/library", "places": "{data}/definitions/place.json",
+    return {**shape_files(place), "library": "{data}/library", "places": "{data}/definitions/place.json",
             "tokens": "{repo}/design/tokens/tokens.json"}
 
 
