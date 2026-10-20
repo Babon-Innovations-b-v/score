@@ -6,9 +6,9 @@ A take is named by its sound, its prompt's and length's hash and its seed, and k
 same prompt, length, seed and weights make the same take, so a take made once is never paid for again (a rerun of
 the row, or another place's line asking the same brief).
 
-The takes are one batch (#21): each prompt at each of the brief's seeds, every take made once side by side (the
-picker chooses among them, so their number is a quality choice, not a re-ask); the likeness gate sorts each take by
-its CLAP score against gates.CLAP_FLOOR into a pass or a hole, and a new take is a new batch.
+The takes are one batch (#21, #29): one job a sound, its brief's first prompt at seed 1, made once; the likeness gate
+sorts each take by its CLAP score against gates.CLAP_FLOOR into a pass or a hole, and a new take (another seed, the
+brief's next prompt) is a new batch.
 """
 import fcntl
 import hashlib
@@ -16,12 +16,14 @@ import json
 import pathlib
 import shutil
 import sys
+import time
 
 from score import graph
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 TAKES = pathlib.Path.home() / ".cache/farm-factory/sound-picker/moss/stage"
 SCORES = "scores.json"
+TIMINGS = "timings"  # each batch's moss_generate timings (its takes' work seconds on the card), kept beside the takes
 WHO = "score runner, sound stage"
 KIND = "moss"
 MODEL_PAGE = "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0"
@@ -31,6 +33,7 @@ MODELS = ["moss-soundeffect-v2", "clap-larger-general"]
 MINUTES_A_TAKE = 0.6
 FIRST_RESULT_MINUTES = 8
 REMOTE = "/root/sfx"
+SEED = 1  # one take a sound (#29): a take under the floor is a hole, never another seed inside the batch
 
 
 def take_file(name, prompt, seconds, seed, weights):
@@ -40,11 +43,10 @@ def take_file(name, prompt, seconds, seed, weights):
 
 
 def jobs_for(name, brief, weights):
-    """Every take a brief asks for: each prompt at each seed, its length."""
-    seconds = int(brief.get("seconds", 8))
-    return [{"file": take_file(name, prompt, seconds, seed, weights), "sound": name, "prompt": prompt,
-             "seconds": seconds, "seed": seed}
-            for prompt in brief["prompts"] for seed in range(1, int(brief.get("seeds", 2)) + 1)]
+    """The one take a brief asks for: its first prompt at SEED, its length."""
+    seconds, prompt = int(brief.get("seconds", 8)), brief["prompts"][0]
+    return [{"file": take_file(name, prompt, seconds, SEED, weights), "sound": name, "prompt": prompt,
+             "seconds": seconds, "seed": SEED}]
 
 
 def scores():
@@ -111,6 +113,9 @@ def made(jobs, work):
         for job in wanted:
             if (back / job["file"]).exists():
                 shutil.copy2(back / job["file"], TAKES / job["file"])
+        if (back / "timings-0.json").exists():  # each take's warm seconds, what the per-unit price reads (#29)
+            (TAKES / TIMINGS).mkdir(exist_ok=True)
+            shutil.copy2(back / "timings-0.json", TAKES / TIMINGS / f"{time.strftime('%Y%m%dT%H%M%S')}.json")
         with (TAKES / "scores.lock").open("w") as lock:  # places' lines run side by side: no score is lost
             fcntl.flock(lock, fcntl.LOCK_EX)
             kept = scores()
