@@ -2,7 +2,7 @@
  "place": "stairwell",
  "about": "The stairwell's moving kind is its flats' doors.",
  "seconds": 60.0,
- "movers": [],
+ "moves": [],
  "still": {
   "timber_door_leaf_1": "A neighbour's flat door on the landing: shut, as the prologue's walk down passes it and nobody comes out.",
   "timber_door_leaf_2": "A neighbour's flat door on the landing: shut, as the prologue's walk down passes it and nobody comes out."

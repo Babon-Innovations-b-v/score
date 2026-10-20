@@ -1070,7 +1070,7 @@ class Runner:
     def line_nodes(self, places, whole, only=None):
         """The nodes a drive runs: every one of `nodes` for the whole environment, else the places' own and only the environment
         nodes they read (directly or through another environment node); `only` (stage names) keeps those stages' nodes and
-        the nodes they read, place by place: a stage one place reads (the garage's motion its machines layer, and so
+        the nodes they read, place by place: a stage one place reads (the garage's motion its motion models layer, and so
         its surface line) is not run for a place that does not read it."""
         found = list(self.nodes(places))
         if only:

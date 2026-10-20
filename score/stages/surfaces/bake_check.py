@@ -354,7 +354,7 @@ def close_up_colours(labelled):
 
 def seen_degrees(inputs, baked_sizes=None):
     """Each kit model's middle size in degrees of visual angle from the place's nearest view (its scene record's
-    eyes) to its nearest spot (the kit's pieces, the scene record's objects and the machines record's machines, in
+    eyes) to its nearest spot (the kit's pieces, the scene record's objects and the motion models record's models, in
     the record's frame): {model: degrees}; {} with no kit or view. `baked_sizes`: {model: its bake entry's size}."""
     kit, scene = inputs.get("kit"), inputs.get("scene record")
     if kit is None or scene is None or not kit.exists() or not scene.exists():
@@ -364,10 +364,10 @@ def seen_degrees(inputs, baked_sizes=None):
     found = json.loads(kit.read_text())
     spots = [(piece["model"], piece["at"], piece["size"]) for piece in found.get("pieces", [])]
     spots += list(object_spots(record.get("objects", []), found.get("models", {})))
-    machines = inputs.get("machines")
-    if machines is not None and machines.exists():
-        spots += list(machine_spots(json.loads(machines.read_text())["machines"], found.get("pieces", []),
-                                    baked_sizes or {}))
+    models = inputs.get("models")
+    if models is not None and models.exists():
+        spots += list(model_spots(json.loads(models.read_text())["models"], found.get("pieces", []),
+                                  baked_sizes or {}))
     nearest = {}
     for model, spot, size in spots if eyes else []:
         near = min(math.dist(spot, eye) for eye in eyes)
@@ -392,20 +392,19 @@ def object_spots(objects, sizes, origin=(0.0, 0.0, 0.0), yaw=0.0):
         yield from object_spots(entry.get("children", []), sizes, spot, yaw + entry.get("yaw", 0.0))
 
 
-def machine_spots(machines, pieces, sizes):
-    """(model, spot, size) of each machine of the place's machines record (data/machines: the hangar's ship and its
-    thrusters) the bake sizes: one standing on a kit piece at that piece's spot (the machines stage centres it on its
-    support), one mounted on another at its host's spot.
+def model_spots(models, pieces, sizes):
+    """(model, spot, size) of each model of the place's motion models record (data/motion/models) the bake sizes: one
+    standing on a kit piece at that piece's spot (the motion models step centres it on its support), one mounted on another at its host's spot.
     shortcut: a mounted piece is seen at its host's middle, not its mount point (that needs the host's `nose`, which
     the record may not have yet), so a long host's far-end piece reads nearer than it is; upgrade with
-    machines.mount_point once every host names its nose."""
+    motion.models.mount_point once every host names its nose."""
     at = {piece["model"]: piece["at"] for piece in pieces}
 
     def spot_of(name):
-        entry = machines[name]
+        entry = models[name]
         return spot_of(entry["mounted"]["on"]) if "mounted" in entry else at.get(entry["on"])
 
-    for name, entry in machines.items():
+    for name, entry in models.items():
         model, spot = entry.get("model", name), spot_of(name)
         if spot is not None and model in sizes:
             yield model, spot, sizes[model]

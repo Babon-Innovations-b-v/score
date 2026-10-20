@@ -9,7 +9,7 @@ beside it from the place's accepted neighbours output, as the films see them. Me
 are read by tools/review/viewer/export.py's own functions, loaded by path and never edited (it is part of the films'
 key). Unlike that export, each object stays its own named node (gltfpack -kn), so the viewer can show or hide each
 OpenUSD layer and name what is clicked; each object's layer is the sublayer of the place's stage that defines it
-(web3d/facts.py, which also reads the lamps, the effects' points, the movers' motion and the film's cameras).
+(web3d/facts.py, which also reads the lamps, the effects' points, the moving things' motion and the film's cameras).
 
 gltfpack (meshoptimizer, MIT; npx at export.py's pinned version) compresses the meshes with meshopt, positions kept
 as floats (16-bit positions over a place whose far ground ring is kilometres across moved surfaces by most of a

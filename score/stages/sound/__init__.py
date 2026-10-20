@@ -4,8 +4,8 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
 
     make     every source the place names (data/sound/places.json: its room tones, what the suit lets through, its
              `objects` and its `voices`, each on a person of its cast; its inventory rows' `sound`; its motions'
-             `sounds`; the sounds data/sound/movers.json gives its movers and its silent motions, timed off their
-             moves (movers.py); every surface's footstep, impact and scrape in data/sound/surfaces.json) answered by
+             `sounds`; the sounds data/sound/moving.json gives its moving things and its silent motions, timed off their
+             moves (moving.py); every surface's footstep, impact and scrape in data/sound/surfaces.json) answered by
              one sound: the world's file of a sound already picked (a MOSS take, a file tools/sound/made.py makes, or
              a recording the owner chose over the takes), else one MOSS take of its brief (its first prompt, seed 1)
              made in the moss image on a rented card (PAID, takes.py), brought to its category's loudness and judged
@@ -17,7 +17,7 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
                        target (tools/sound/loudness), its length within its brief
              likeness  every MOSS-made sound's CLAP match to its prompt at least gates.CLAP_FLOOR
              no freesound  no file is a Freesound recording but those the owner chose over the generated takes
-             events    every thing that moves in the place (needs.events: its motion and movers records) plays a sound
+             events    every thing that moves in the place (needs.events: its motion and moving things records) plays a sound
              voices    a place whose cast stands people plays a voice on one of them (#29: voices where people are)
 
 Only places with an entry in data/sound/places.json have the row.
@@ -29,7 +29,7 @@ import sys
 
 from score import checks, contracts
 from score.stages.sound import gates
-from score.stages.sound import movers as moving
+from score.stages.sound import moving
 from score.stages.sound import takes as moss_takes
 from score.stages.sound.gates import FREESOUND, RECORD, read_json
 
@@ -69,9 +69,9 @@ def files(place):
         found["inventory"] = "{data}/inventory/" + inventory.name
     if (REPO / f"data/motion/{place}.json").exists():
         found["motion"] = "{data}/motion/{place}.json"
-    if (REPO / f"data/movers/{place}.json").exists():
-        found["movers"] = "{data}/movers/{place}.json"
-    found["moving sounds"] = "{data}/sound/movers.json"
+    if (REPO / f"data/motion/rigid/{place}.json").exists():
+        found["moves"] = "{data}/motion/rigid/{place}.json"
+    found["moving sounds"] = "{data}/sound/moving.json"
     if (REPO / f"data/characters/{place}.json").exists():
         found["cast"] = "{data}/characters/{place}.json"
     return found
@@ -104,15 +104,15 @@ def uses_of(place, inputs):
 
 
 def moving_uses(inputs):
-    """The sounds of the place's moving things that play none of their own (data/sound/movers.json): its silent game
-    motions' and its movers'."""
+    """The sounds of the place's moving things that play none of their own (data/sound/moving.json): its silent game
+    motions' and its moving things'."""
     if "moving sounds" not in inputs:
         return []
     table = read_json(inputs["moving sounds"])
-    movers = read_json(inputs["movers"]) if "movers" in inputs else {}
-    uses = moving.motion_uses(read_json(inputs["motion"]).get("motions", []), table, movers.get("renamed", {})) \
+    moves = read_json(inputs["moves"]) if "moves" in inputs else {}
+    uses = moving.motion_uses(read_json(inputs["motion"]).get("motions", []), table, moves.get("renamed", {})) \
         if "motion" in inputs else []
-    return uses + moving.mover_uses(movers.get("movers", []), table)
+    return uses + moving.move_uses(moves.get("moves", []), table)
 
 
 def bank_uses(surfaces):

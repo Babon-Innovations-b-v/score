@@ -300,7 +300,7 @@ def layer_paths(name, path):
 
 
 def drawn_route(axes, name, route, colour, named=True):
-    """A mover's route: a line through its places, a dot where it starts, an arrow to the farthest it goes, named
+    """A moving thing's route: a line through its places, a dot where it starts, an arrow to the farthest it goes, named
     beside its start unless its label is placed with the others."""
     across, down = [x for x, _ in route], [z for _, z in route]
     axes.plot(across, down, color=colour, linewidth=1.2)

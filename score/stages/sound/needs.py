@@ -1,9 +1,9 @@
 """What a place needs to be heard, worked out free from its own records (#29), and what answers each need:
 
     bed     its room tone: data/sound/places.json `loops` (or what the suit lets through, `heard_through`)
-    event   each thing that moves (data/motion/<place>.json motions and data/movers/<place>.json movers with a move: a
+    event   each thing that moves (data/motion/<place>.json motions and data/motion/rigid/<place>.json moving things with a move: a
             slide, swing, path, spin, climb or turn; a motion that only lights is none): its own `sounds`, else the
-            sounds data/sound/movers.json gives its name. Things moving exactly together (a hatch's wheel and window
+            sounds data/sound/moving.json gives its name. Things moving exactly together (a hatch's wheel and window
             riding its leaf) are one event
     voice   the people of its cast (data/characters/<place>.json, counted off the concept): a sound of the place's
             `voices` (data/sound/places.json, each on one of them)
@@ -15,7 +15,7 @@ brief): the holes check (score/stages/complete/holes) shows make and none as the
 import json
 import pathlib
 
-from score.stages.sound import movers as moving
+from score.stages.sound import moving
 
 MOVES = ("slide", "swing", "path", "spin", "climb", "turn")
 LIBRARY, MAKE, NONE = "library", "make", "none"
@@ -26,12 +26,12 @@ def read(path):
     return json.loads(path.read_text()) if path.exists() else {}
 
 
-def events(motions, movers, renamed):
+def events(motions, rigid, renamed):
     """Each thing that moves, as one event: [{"name", "prims", "entries"}], a thing moving exactly as one before it
     joining that one's event; its prims are its record's and the one the place renamed it to."""
     found, by_move = [], {}
     for entry in [*(dict(motion, table="motions") for motion in motions),
-                  *(dict(mover, table="movers") for mover in movers)]:
+                  *(dict(move, table="moves") for move in rigid)]:
         moves = {key: entry[key] for key in MOVES if key in entry}
         if not moves:
             continue
@@ -78,14 +78,14 @@ def needs(place, data):
     record = read(data / "sound/places.json").get("places", {}).get(place, {})
     catalogue = read(data / "sound/catalogue.json").get("sounds", {})
     sounds = read(data / "sound/sounds.json").get("sounds", {})
-    movers_record = read(data / f"movers/{place}.json")
+    rigid_record = read(data / f"motion/rigid/{place}.json")
     found = []
     bed = record.get("loops", []) + record.get("heard_through", [])
     found.append({"kind": "bed", "item": "room", "prim": f"/{place}", "sounds": bed})
-    for event in events(read(data / f"motion/{place}.json").get("motions", []), movers_record.get("movers", []),
-                        movers_record.get("renamed", {})):
+    for event in events(read(data / f"motion/{place}.json").get("motions", []), rigid_record.get("moves", []),
+                        rigid_record.get("renamed", {})):
         found.append({"kind": "event", "item": event["name"], "prim": event["prims"][0],
-                      "sounds": event_sounds(event, read(data / "sound/movers.json"))})
+                      "sounds": event_sounds(event, read(data / "sound/moving.json"))})
     cast = people(read(data / f"characters/{place}.json"))
     if cast:
         found.append({"kind": "voice", "item": "people", "prim": f"/{place}/Characters/{cast[0]}",
@@ -96,7 +96,7 @@ def needs(place, data):
 SENTENCES = {"bed": "no room tone", "event": "{item} moves without a sound", "voice": "people here, no voice"}
 WORK = {"bed": "name the place's room tone in data/sound/places.json loops: a library sound first, else a brief in "
                 "data/sound/sounds.json",
-        "event": "name {item}'s sound in data/sound/movers.json: a library sound first, else a brief in "
+        "event": "name {item}'s sound in data/sound/moving.json: a library sound first, else a brief in "
                  "data/sound/sounds.json",
         "voice": "name a voice on one of the place's people in data/sound/places.json voices: a library sound first, "
                  "else a brief in data/sound/sounds.json"}

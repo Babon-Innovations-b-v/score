@@ -17,7 +17,7 @@ from score.dashboard.pages.views import money_bar
 
 # The OpenUSD layers bottom up, as a layer split stacks them: the ground under everything, then the stage's sublayers
 # weakest first (state/local.py LAYER_FILES, strongest first, reversed).
-STACK_ORDER = ("ground", "base", "settle", "machines", "crops", "effects", "motion", "light", "sound", "characters",
+STACK_ORDER = ("ground", "base", "settle", "motion-models", "crops", "effects", "motion", "light", "sound", "characters",
                "edit")
 
 

@@ -1,6 +1,6 @@
 {
- "is": "what the things that move sound like, where neither the game nor a record plays a sound with them: the movers SCORE gives the things the game left standing (data/movers, by the mover's name) and the game's own motions that play none (data/motion with `sounds: []`, by the motion's name; a name may end in * for every one it starts). Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path mover's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound) plays them in every round of the mover's or motion's loop. Only sounds with a picked file are named here: one that still needs making is said in `wanted`, never named until its take is picked.",
- "movers": {
+ "is": "what the things that move sound like, where neither the game nor a record plays a sound with them: the moving things SCORE gives the things the game left standing (data/motion/rigid, by the moving thing's name) and the game's own motions that play none (data/motion with `sounds: []`, by the motion's name; a name may end in * for every one it starts). Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path moving thing's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound) plays them in every round of the moving thing's or motion's loop. Only sounds with a picked file are named here: one that still needs making is said in `wanted`, never named until its take is picked.",
+ "moves": {
   "hatch_door_leaf_*": {
    "sounds": [
     {
@@ -97,7 +97,7 @@
   }
  },
  "wanted": {
-  "ferry_engine": "the harbour ferries (data/movers/launch.json): a diesel ferry's engine and wash heard from a few hundred metres",
+  "ferry_engine": "the harbour ferries (data/motion/rigid/launch.json): a diesel ferry's engine and wash heard from a few hundred metres",
   "ceiling_fan": "the flat's ceiling fan at 120 rpm: a soft rhythmic whoosh and a faint motor hum",
   "irrigation_boom_motor": "the greenhouse's 16 irrigation booms: a small geared motor creeping along a rail, very quiet",
   "footstep_wood": "the flat's floorboards: steps on old wooden boards, a light creak",

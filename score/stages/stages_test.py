@@ -26,7 +26,7 @@ from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
 
 SEEDS = PROPS_HOME / "work"
 PLACES = ("hangar", "hdoor")
-DATA = ("kit", "inventory", "library", "checks", "effects", "scene", "motion", "movers", "ground",
+DATA = ("kit", "inventory", "library", "checks", "effects", "scene", "motion", "ground",
         "sound/surfaces.json", "sound/places.json", "characters", "surfaces", "definitions/place.json",
         "people/bodies.json")
 
@@ -72,13 +72,13 @@ def made(output, inputs, evidence):
 
 
 # The surface rows and the layer rows the assembly and complete read, and the likeness complete reads, applying to
-# neither place here (their own checks are beside their modules): the machines layer too, since the hangar's machines
+# neither place here (their own checks are beside their modules): the motion models layer too, since the hangar's models
 # record lays the ship from its bake (2026-10-15), a surface row this example does not run.
 NO_SURFACES = tuple(graph.Stage(name, "place", no_ground, contracts.Contract(name, 1, lambda folder: []),
                                 (checks.Check("made", made),), applies=lambda place: False)
                     for name in ("surfaces-paint", "surfaces-bake", "surfaces-check", "likeness", "surfaces-parts",
                                  "sound", "scene-record", "motion", "light", "crops-layer", "settle",
-                                 "characters-layer", "machines-layer", "complete-boxes", "surface-tiles"))
+                                 "characters-layer", "motion-models", "complete-boxes", "surface-tiles"))
 NO_GROUND = graph.Stage("terrain", "world", no_ground,
                         contracts.Contract("grounds", 1, lambda folder: [], {"length": "metre", "up axis": "Y"}),
                         (checks.Check("made", made),))
@@ -344,6 +344,16 @@ def test_the_environment_data_names_no_new_path_into_the_work_folder():
     assert not grown, f"new paths into the work folder (make them a row's output, or a hole): {grown}"
     shrunk = {path: counts.get(path, 0) for path, count in WORK_PATHS_LEFT.items() if counts.get(path, 0) < count}
     assert not shrunk, f"fewer paths into the work folder than WORK_PATHS_LEFT allows: lower it to {shrunk}"
+
+
+def test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer():
+    import fnmatch
+    names = [row.name for row in stages.STAGES]
+    empty = [pattern for patterns in stages.MOTION_LAYER.values() for pattern in patterns
+             if not fnmatch.filter(names, pattern)]
+    assert not empty, f"motion layer patterns that name no row of the table: {empty}"
+    old = [name for name in names if name.startswith("machines")]
+    assert not old, f"rows under the old machines name (the motion layer's models now): {old}"
 
 
 if __name__ == "__main__":

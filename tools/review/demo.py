@@ -97,7 +97,7 @@ STEEPEST = 0.6
 MOVE_MOST = 1.5
 MOVE_STEP = 0.1
 MOVE_HEADINGS = 16
-# While a shot's move is planned its people and movers stand where they are at every this many of its frames and its
+# While a shot's move is planned its people and moving things stand where they are at every this many of its frames and its
 # last, so a walking person's or a driving rover's box is swept over the shot (the checks measure every frame).
 PEOPLE_EVERY = 6
 # Minutes a frame's ink lines alone take on a 24 GB card (a one-sample pass render and the ink rule), the import aside
@@ -342,7 +342,7 @@ def shot_times(number, time_rate, seconds=SHOT_SECONDS, start=0.0):
 
 
 def people_over(stage, time_rate, seconds=SHOT_SECONDS, start=0.0):
-    """For a shot's number, the place's people's and movers' boxes at every PEOPLE_EVERY of its frames and its last."""
+    """For a shot's number, the place's people's and moving things' boxes at every PEOPLE_EVERY of its frames and its last."""
     def boxes(number):
         times = shot_times(number, time_rate, seconds, start)
         return camera_paths.moving_boxes(stage, times[::PEOPLE_EVERY] + times[-1:])

@@ -125,7 +125,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   point: ground, Structure, Fixtures or an object such as a kit room's floor plate, never a person; a step rising or
   dropping more than a stair's 0.6 m is not taken) from a start to a goal or round a loop of waypoints, an edge valid
   only when every point of it, its ends too, keeps the clearance (0.25 m) from the meshes, the place's people and its
-  movers (a ball swept along it in FCL; the people and what the motion layer moves, a rover or a hatch's leaf, as
+  moving things (a ball swept along it in FCL; the people and what the motion layer moves, a rover or a hatch's leaf, as
   solid boxes where they stand at the moments asked for, so one who walks or drives is followed: the garage's rover
   drove through a film's camera planned on the stage at rest, 2026-10-18), seeded, cut short where straight edges are clear, and laid out as the review walk's views (renders.py's
   format: `walk-NNN`, eye, aim, up, fov, look_only). FCL drops a triangle with no area from its tree: it takes any
@@ -246,8 +246,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   the game moves but the base does not draw while it rests (the airlock's sunk inner door, a dark warning light) is
   the motion's `adds`, the layer's only defs. A game motion keeps the game's own speeds and lengths; a rest
   the player's pace decides is the record's and says so. `motion_test.py` checks it without Blender.
-- **Movers** (`movers.py`, experimental): what the game left standing set moving in its place from
-  `data/movers/<place>.json` (a closed path, a swing on a hinge, a spin, or a motion record's slide), written into the
+- **Moving things** (`motion_layer.py`, experimental): what the game left standing set moving in its place from
+  `data/motion/rigid/<place>.json` (a closed path, a swing on a hinge, a spin, or a motion record's slide), written into the
   same `layers/motion.usda` with the game's motions over a stage folder's own layers. Every number has a source (its
   `from`; the kind's speed range in `data/checks/motion.json`); the motion stage (`score/stages/motion`) gates it.
 - **Framework shaders** (`shaders.py`): a surface the library's flat colour cannot carry gets a UsdPreviewSurface

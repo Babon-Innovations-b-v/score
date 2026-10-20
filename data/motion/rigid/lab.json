@@ -2,7 +2,7 @@
  "place": "lab",
  "about": "The lab's two hatches open each in turn, as people pass through.",
  "seconds": 60.0,
- "movers": [
+ "moves": [
   {
    "name": "hatch_door_leaf_1",
    "prim": "/lab/Objects/hatch_leaf_1",

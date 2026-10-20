@@ -73,12 +73,12 @@ def judge_sources(output, inputs, evidence):
 # --- events and voices (#29) ----------------------------------------------------------------------------------------
 
 def judge_events(output, inputs, evidence):
-    """Pass when every thing that moves in the place (needs.events over its motion and movers records) plays a sound
+    """Pass when every thing that moves in the place (needs.events over its motion and moving things records) plays a sound
     at one of its prims; a place where nothing moves passes with nothing to judge."""
     record = record_of(output)
-    movers = read_json(inputs["movers"]) if "movers" in inputs else {}
+    moves = read_json(inputs["moves"]) if "moves" in inputs else {}
     motions = read_json(inputs["motion"]).get("motions", []) if "motion" in inputs else []
-    found = needs.events(motions, movers.get("movers", []), movers.get("renamed", {}))
+    found = needs.events(motions, moves.get("moves", []), moves.get("renamed", {}))
     sounding = {use["on"] for use in record["uses"] if use["role"] == "motion"}
     silent = [f"{event['name']} ({event['prims'][0]}) moves without a sound" for event in found
               if not sounding & set(event["prims"])]

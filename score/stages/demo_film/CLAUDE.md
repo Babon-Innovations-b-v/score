@@ -22,7 +22,7 @@ own sound; paid and cleared by the runner like any paid row.
   or a spot of its own), else the record camera standing furthest from the first. A spot of its own is `eye` and
   `aim`, or `across` the record's floor as shares of it (the ship's rooms: the spot keeps its place when a room is
   built at another size), with `fov` and `stand` (a small room's shot stands and turns rather than walking into a
-  wall). The planner keeps clear of people and movers (camera_paths), glides at one speed between eased ends and
+  wall). The planner keeps clear of people and moving things (camera_paths), glides at one speed between eased ends and
   rounds its corners (demo.py). About EUR 3.2 a place likely and 3.5 high (twice a measured 96-frame film's 1.6 and 1.75).
 - **A film is one batch** (#21, owner 2026-10-20, replacing #20's paid preview): everything before the yes is free,
   the local preview (`tools/review/film_preview.py`) and the forecast (`python -m score.stages.demo_film forecast

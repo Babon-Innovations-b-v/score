@@ -15,7 +15,7 @@ own accepted assembly. The prop route (props: close-up, Pixal3D, then the surfac
 only for a place with prop data. Plan and scene-record (experimental) write a place's scene record from its plan and
 concept. Cast (experimental) places each place's people and measures them against its concept's count
 (concept_people) and its geometry. Motion (experimental) makes each place's motion layer from its game motions
-and its movers. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
+and its rigid moves. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
 import contextlib
 import dataclasses
@@ -25,7 +25,7 @@ import pathlib
 
 from score import checks, contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
-                          effects, gaps, images, library, light, machines, motion, people, people_takes, physics,
+                          effects, gaps, images, library, light, motion, people, people_takes, physics,
                           props, proposals, rough_model, scene_record, settling, shell_split, sound, surface_tiles,
                           surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
@@ -33,7 +33,8 @@ import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import neighbours
-import score.stages.machines.boxes as machine_boxes
+import score.stages.motion.models as motion_models
+import score.stages.motion.models.boxes as model_boxes
 import score.stages.props.prop_data as prop_data
 import score.stages.complete.boxes as complete_boxes
 from score.stages.assembly import ship_made
@@ -55,12 +56,12 @@ GROUND_FIT = graph.Stage("ground-fit", "place", ground_fit.make, ground_fit.FIT,
 # assembly takes.
 EFFECTS = graph.Stage("effects-layer", "place", effects.make, effects.LAYER, effects.CHECKS, files=effects.files,
                       after={"scene-record": ("scene-record", 1)}, applies=lambda place: place in effects.STAGED)
-# Experimental (PRD #6) until the owner reviews it: each place's motion layer, the game's timed motions and the movers
-# SCORE gives the things that move there (data/movers), over its seed with its accepted scene record written in (the
+# Experimental (PRD #6) until the owner reviews it: each place's motion layer, the game's timed motions and the rigid
+# moves SCORE gives the things that move there (data/motion/rigid), over its seed with its accepted scene record written in (the
 # seed alone where the place has no scene-record row); the final assembly takes it.
 MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER, motion.CHECKS, files=motion.files,
                      after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 1),
-                            "machines-layer": ("machines-layer", 1)},
+                            "motion-models": ("motion-models", 1)},
                      applies=motion.applies)
 # Experimental (PRD #6) until the owner reviews it: where each place's objects come to rest on its made ground,
 # which its assembly takes (assembly.LAYERS). A place joins SETTLED once its settle row has passed (resting track).
@@ -80,14 +81,15 @@ ASSEMBLY = graph.Stage("assembly", "place", assembly.make_from_seed, contracts.O
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        neighbours=assembly.claiming_places)
-# Experimental (PRD #6) until the owner reviews it: each place's machines (data/machines/<place>.json), made models laid
-# on what holds them up, as a layer the assembly takes.
-MACHINES = graph.Stage("machines-layer", "place", machines.make, machines.LAYER_CONTRACT, machines.CHECKS,
-                       files=machines.files, after=machines.AFTER, applies=machines.applies)
-# Experimental (PRD #6): SAM 3's grounding of a place's machine rows' boxes, so the prop route may draw them.
-MACHINE_BOXES = graph.Stage("machines-boxes", "place", machine_boxes.make_boxes, machine_boxes.CONTRACT,
-                            machine_boxes.CHECKS, files=machine_boxes.files, paid=True, euros=machine_boxes.EUROS,
-                            applies=machine_boxes.applies)
+# Experimental (PRD #6) until the owner reviews it: the motion layer's models (data/motion/models/<place>.json), the
+# prop pipeline's models of its rigid moving things laid on what holds them up, as a layer the assembly takes.
+MOTION_MODELS = graph.Stage("motion-models", "place", motion_models.make, motion_models.LAYER_CONTRACT,
+                            motion_models.CHECKS, files=motion_models.files, after=motion_models.AFTER,
+                            applies=motion_models.applies)
+# Experimental (PRD #6): SAM 3's grounding of a place's ground_box rows' boxes, so the prop route may draw them.
+MOTION_MODEL_BOXES = graph.Stage("motion-models-boxes", "place", model_boxes.make_boxes, model_boxes.CONTRACT,
+                                 model_boxes.CHECKS, files=model_boxes.files, paid=True, euros=model_boxes.EUROS,
+                                 applies=model_boxes.applies)
 # Experimental (PRD #6) until the owner reviews it: each place's assembly with the places its scene record shows,
 # each read beside as its own accepted assembly. Complete reads it: a place whose shown places do not stand is not
 # complete, so a neighbour whose assembly fails (the hub's) stops every place that shows it.
@@ -277,11 +279,11 @@ def bake_checked(row):
 
 def check_files(place):
     """The check's environment files: the paint's (its line's, the inventories, the resting rules), the stance rules, and
-    the place's kit, scene record and machines record (each model's spots and the views, its view distance)."""
+    the place's kit, scene record and motion models record (each model's spots and the views, its view distance)."""
     # A place the game never had (the ship's rooms) has no old scene record, and no kit until its shell is laid: the
     # check reads none then (bake_check.seen_degrees does without), as scene-record's seed (78243df1).
     views = {"kit": REPO / "data/kit" / f"{place}.json", "scene record": REPO / "data/scene" / f"{place}.json",
-             "machines": REPO / "data/machines" / f"{place}.json"}
+             "models": REPO / "data/motion/models" / f"{place}.json"}
     return {**paint_files(place),
             "stance rules": "{data}/checks/stance.json",
             **{name: "{data}/" + path.relative_to(REPO / "data").as_posix() for name, path in views.items()
@@ -366,7 +368,7 @@ def library_narrowed(row):
 
 def box_checked(files):
     """props-inputs' environment files with the box gate's decided boxes (WORK/partition/<scene>/boxes.json, which
-    machines-boxes writes), so a box check that passes later re-runs the inputs row (the cockpit, 2026-10-14: it read
+    motion-models-boxes writes), so a box check that passes later re-runs the inputs row (the cockpit, 2026-10-14: it read
     the old failed boxes and stayed failed with its key unmoved). Wrapped here, in the table, so no row's code moves."""
     @functools.wraps(files)
     def declared(place):
@@ -437,9 +439,17 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
           props.CALIBRATION, props.LIKENESS,
-          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, ROUGH_MODEL, SHELL_SPLIT, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, ROUGH_MODEL, SHELL_SPLIT, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
           *light.ROWS, *map(library_narrowed, map(crops_bake_checked, crops.ROWS)), COMPLETE_BOXES,
           surface_tiles.STAGE)
+
+# The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
+# patterns) that make each. Every model comes from the prop pipeline; each module only adds what moves it.
+MOTION_LAYER = {"models": ("motion-models", "motion-models-boxes"),  # rigid moving things' models laid
+                "rigid": ("motion",),  # joints and paths: hinge, rail, lane, spin; the motion check
+                "physics": ("settle", "physics-layer", "physics-trial"),  # settling, falling, cloth
+                "bodies": ("cast", "characters-layer", "people-body-*", "people-dress-*", "people-clips"),
+                "growth": ("crops-layer",)}
 
 
 # The gates a named gap may move a fault from (score/stages/gaps.py: a dated decision in data/checks/gaps/<place>.json)

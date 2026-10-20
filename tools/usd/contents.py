@@ -15,7 +15,7 @@ blocks like fail.
                 No cast: unknown
     effects     every need the place has (data/checks/contents.json) is an entry of its effects record that stands
                 under /<place>/Effects (in any variant), under its name or as its cells (`<name>_<row>_<column>`)
-    motion      every motion of its records (data/motion, and data/movers: what SCORE moves that the game left
+    motion      every motion of its records (data/motion, and data/motion/rigid: what SCORE moves that the game left
                 standing) moves on the stage (time samples), and every need is one of them
     crops       where crops apply: the share of soil tiles (meshes said `soil`) with a plant of the crops layer
                 (/<place>/Crops, a point instancer a kind) over them, at least the place's planted share
@@ -33,7 +33,7 @@ blocks like fail.
     neighbours  every place the scene record shows stands under /<place>/Places, its references resolve to files,
                 and it has children
     game        no record the place is made from (its scene records: the one beside the stage, data/scene's and the
-                accepted scene-record output's; its cast, effects, motions, movers, room tones) cites the game 2099
+                accepted scene-record output's; its cast, effects, motions, moving things, room tones) cites the game 2099
                 as where its numbers come from (a `from` or `source`: the game, 2099, a .gd or .tscn file); each
                 fault counts the citing fields and the positions (at, centre, position, placed_at) so taken
     waiting     no entry of the scene record waits on its model (the assembly lays nothing for one and names it on
@@ -298,18 +298,18 @@ def moving(prim):
 
 
 def judge_motion(stage, place, inventory, outputs):
-    """Every motion and mover of the place's records moving on the stage, and every need of the place one of them or
-    covered: a thing of the moving kind its movers record writes down as rightly still, with why (`still`)."""
+    """Every motion and moving thing of the place's records moving on the stage, and every need of the place one of them or
+    covered: a thing of the moving kind its rigid record writes down as rightly still, with why (`still`)."""
     wants = expected(place)
     if wants is None:
         return UNKNOWN, [], f"{EXPECTED} lists no expectations for {place}"
-    movers = record("movers", place) or {}
-    names = movers.get("renamed", {})  # the game's prims as the scene record names them, as the motion layer writes them
+    moves = record("motion/rigid", place) or {}
+    names = moves.get("renamed", {})  # the game's prims as the scene record names them, as the motion layer writes them
     motions = [dict(motion, prim=names.get(motion["prim"], motion["prim"]))
-               for motion in (record("motion", place) or {}).get("motions", [])] + movers.get("movers", [])
+               for motion in (record("motion", place) or {}).get("motions", [])] + moves.get("moves", [])
     made = {motion["name"] for motion in motions
             if stage.GetPrimAtPath(motion["prim"]) and moving(stage.GetPrimAtPath(motion["prim"]))}
-    covered = {name.rsplit("/", 1)[-1] for name, why in movers.get("still", {}).items() if str(why).strip()}
+    covered = {name.rsplit("/", 1)[-1] for name, why in moves.get("still", {}).items() if str(why).strip()}
     still = [f"{motion['name']}: {motion['prim']} does not move on the stage" for motion in motions
              if motion["name"] not in made]
     faults = still + [f"{need}: no motion of the records moves with it in its name"
@@ -425,11 +425,11 @@ LAID_FROM_BAKE = "; laid by the assembly with the surface line's baked "
 
 def repainted(prim, from_bake=frozenset()):
     """Whether an object carries the bake's paint: repainted over its seed's (score:repaint_of), laid from the bake
-    (a waiting entry's score:from), a ship place's made piece (`from_bake`, made_pieces), or a machine the machines
-    layer lays from its take's bake (score:machine: the garage's rover, the hangar's ship and its thrusters)."""
+    (a waiting entry's score:from), a ship place's made piece (`from_bake`, made_pieces), or a model the motion
+    models layer lays from its take's bake (score:motion_model: the garage's rover, the hangar's ship and its thrusters)."""
     said = prim.GetAttribute("score:from").Get() if prim.HasAttribute("score:from") else ""
     return (prim.HasAttribute("score:repaint_of") or LAID_FROM_BAKE in (said or "")
-            or prim.HasAttribute("score:machine") or prim.GetAttribute("score:model").Get() in from_bake)
+            or prim.HasAttribute("score:motion_model") or prim.GetAttribute("score:model").Get() in from_bake)
 
 
 def judge_painted(stage, place, inventory, outputs):
@@ -551,7 +551,7 @@ def game_records(stage, place, outputs):
                f"data/scene/{place}.json": record("scene", place),
                f"scene-record output {made}": json.loads(made.read_text()) if made and made.exists() else None}
     records.update({f"data/{kind}/{place}.json": record(kind, place)
-                    for kind in ("characters", "effects", "motion", "movers")})
+                    for kind in ("characters", "effects", "motion", "moves")})
     records["data/sound/places.json"] = json.loads((DATA / "sound/places.json").read_text())["places"].get(place)
     return records
 

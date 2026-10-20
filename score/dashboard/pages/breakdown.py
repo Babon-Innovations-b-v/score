@@ -1,5 +1,5 @@
 """A place's breakdown, "How it was made", in the paper's order: the reference and concept, the plan, the pieces, each
-OpenUSD layer (ground, base, settle, light, motion, effects, sound, characters, machines, crops), then the result.
+OpenUSD layer (ground, base, settle, light, motion, effects, sound, characters, crops), then the result.
 Each step large, beside the pictures of what it read; a "show in 3D" per layer; a before and after slider where a
 step changes a picture from the same camera; each problem beside the step it belongs to. Presentation only: it reads
 the models of state/models.py."""
@@ -12,11 +12,10 @@ LAYERS = (("ground", "Ground", "The ground under and around the place."),
           ("base", "Base", "The room itself, and where each thing stands."),
           ("settle", "Settle", "Things dropped to rest, so nothing floats or sinks."),
           ("light", "Light", "The lamps, and how the place is lit."),
-          ("motion", "Motion", "What moves: doors, cranes, fans."),
+          ("motion", "Motion", "What moves: doors, cranes, fans, the rover and its working parts."),
           ("effects", "Effects", "Fog, steam, dust and sparks."),
           ("sound", "Sound", "What the place sounds like."),
           ("characters", "People", "The people in the place."),
-          ("machines", "Machines", "The machines and their working parts."),
           ("crops", "Crops", "What grows here."))
 SECTIONS = ((REFERENCE, "Reference and concept", "The look it is made in, and the picture of this place."),
             (PLAN, "Plan", "Where everything stands, read from the concept."),
@@ -30,7 +29,7 @@ PLAN_STAGES = ("plan",)
 # What a standalone check's finding is on, in the section that made it.
 FINDING_SECTION = {"model": PIECES, "geometry": "base", "structure": "base", "place": "base", "light": "light",
                    "sound": "sound", "sky": "ground", "effect": "effects", "character": "characters",
-                   "machine": "machines", "crop": "crops"}
+                   "crop": "crops"}
 FROM_SHOWN = 4
 GROUP_PICTURES = 6  # the pictures a group of one check's findings shows
 WORST = ("stopped", "waiting", "not run", "accepted")

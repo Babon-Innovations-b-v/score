@@ -396,10 +396,10 @@ def test_one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view
     spots = list(bake_check.object_spots(desk, {"headset_1": {"size": [0.2, 0.2, 0.1]}}))
     assert [model for model, _, _ in spots] == ["headset_1"], "a model laid on a desk the kit does not size is found"
     assert [round(value, 6) for value in spots[0][1]] == [2.0, 0.5, -1.0], spots  # turned by the desk's yaw
-    machines = {"ship_1": {"on": "bay_plate_1"}, "engine_1": {"mounted": {"on": "ship_1", "at": [1, 2, 3]}},
-                "engine_2": {"model": "engine_1", "mounted": {"on": "ship_1", "at": [-1, 2, 3]}}}
-    spots = list(bake_check.machine_spots(machines, [{"model": "bay_plate_1", "at": [0.0, 0.0, 12.5]}],
-                                          {"ship_1": [9, 5, 31], "engine_1": [1, 1, 2]}))
+    models = {"ship_1": {"on": "bay_plate_1"}, "engine_1": {"mounted": {"on": "ship_1", "at": [1, 2, 3]}},
+              "engine_2": {"model": "engine_1", "mounted": {"on": "ship_1", "at": [-1, 2, 3]}}}
+    spots = list(bake_check.model_spots(models, [{"model": "bay_plate_1", "at": [0.0, 0.0, 12.5]}],
+                                        {"ship_1": [9, 5, 31], "engine_1": [1, 1, 2]}))
     assert [(model, spot) for model, spot, _ in spots] == [("ship_1", [0.0, 0.0, 12.5]), ("engine_1", [0.0, 0.0, 12.5]),
                                                           ("engine_1", [0.0, 0.0, 12.5])], spots
 

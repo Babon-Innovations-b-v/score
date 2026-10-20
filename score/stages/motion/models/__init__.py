@@ -1,12 +1,12 @@
-"""The machines stage (experimental, PRD #6, until the owner reviews it): a place's machines (the garage's rover, the
+"""The motion layer's models step (experimental, PRD #6, until the owner reviews it): a place's models (the garage's rover, the
 hangar's ship, the workshop's robot), each a model the prop route made and the surface line painted, laid in the place
-on what holds it up, as the place's machines layer, which the assembly stage puts into the place's stage. Code lays
-the machines out only; what shows is the made model (owner, 2026-10-05). Their motion and effects are the motion and
-effects stages' (captain, 2026-10-12): they ride the machine's prim, /<place>/Objects/<model>.
+on what holds it up, as the place's motion models layer, which the assembly stage puts into the place's stage. Code lays
+the models out only; what shows is the made model (owner, 2026-10-05). Their motion and effects are the motion and
+effects stages' (captain, 2026-10-12): they ride the model's prim, /<place>/Objects/<model>.
 
-    make     each machine of the place's record (data/machines/<place>.json) written as the assembly writes a baked
+    make     each model of the place's record (data/motion/models/<place>.json) written as the assembly writes a baked
              model (export.write_asset: the surface line's bake, its paint's labelled parts) under assets/, and laid
-             in layers/machines.usda: turned across or along what it stands on (`turn`: its long side against the
+             in layers/motion-models.usda: turned across or along what it stands on (`turn`: its long side against the
              support's long side, or "x" or "z": along the place's axis), centred on the support's footprint (`off`
              metres off it in x and z) and let down from `drop_from` metres over the
              ground to the first thing under it; placed.json holds each pose, the drop and the outline measure
@@ -14,7 +14,7 @@ effects stages' (captain, 2026-10-12): they ride the machine's prim, /<place>/Ob
                             close-up (the prop route's likeness gate, its free half) at least OUTLINE_LEAST
              parts present  every finish the take's close-up lists is owned by a part of its split (surfaces-parts,
                             likeness_row.finishes_missing)
-             resting        resting.py's verdict on the machine in the composed stage (the machines layer over the
+             resting        resting.py's verdict on the model in the composed stage (the motion models layer over the
                             place's seed): no gap over what is under it, its weight over what it touches, nothing of
                             it sunk, and it lies in no other object deeper than resting.TOLERANCE
 
@@ -35,19 +35,19 @@ from score.store import PROPS_HOME
 import score.stages.props.likeness as likeness
 import score.stages.props.likeness_row as likeness_row
 
-REPO = pathlib.Path(__file__).resolve().parents[3]
+REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "tools/usd"))  # already on the path by the assembly stage's import: no new folder
 import resting  # noqa: E402
 
-FOLDER = REPO / "data/machines"
-LAYER = "layers/machines.usda"
+FOLDER = REPO / "data/motion/models"
+LAYER = "layers/motion-models.usda"
 SCRATCH = "scratch"  # the laid place, in the output's own folder while the make runs (laid_stage), then removed
-# The settle stage's layer in its output (settling.LAYER; not imported, so a settle edit moves no machines key).
+# The settle stage's layer in its output (settling.LAYER; not imported, so a settle edit moves no models key).
 SETTLE_LAYER = "layers/settle.usda"
-# How far over the ground a machine is let down from when its record names none, in metres: above a lift's arms and
+# How far over the ground a model is let down from when its record names none, in metres: above a lift's arms and
 # a pad's deck, under a lift's top beam.
 DROP_FROM = 0.5
-# Points of a machine looked down from to find what it lands on.
+# Points of a model looked down from to find what it lands on.
 DROP_SAMPLES = 6000
 
 
@@ -60,14 +60,14 @@ def record_of(place):
 
 
 def files(place):
-    """The place's machines record, its seed (the layout the machines are laid in), what the asset writer reads (the
-    library, the surfaces' sounds, the design tokens) and each machine's close-up (its take's Pixal3D input)."""
-    found = {"record": "{data}/machines/{place}.json", "seed": "{seeds}/usd-r3/{place}", "library": "{data}/library",
+    """The place's models record, its seed (the layout the models are laid in), what the asset writer reads (the
+    library, the surfaces' sounds, the design tokens) and each model's close-up (its take's Pixal3D input)."""
+    found = {"record": "{data}/motion/models/{place}.json", "seed": "{seeds}/usd-r3/{place}", "library": "{data}/library",
              "sounds": "{data}/sound/surfaces.json", "tokens": "{repo}/design/tokens/tokens.json",
              "kit": "{data}/kit/{place}.json", "surfaces": "{data}/surfaces/{place}.json"}
     if (REPO / "data/scene" / f"{place}.json").exists():  # the laid place's (grounded.py), as the settle reads them
         found["scene"] = "{data}/scene/{place}.json"
-    for model, entry in record_of(place)["machines"].items() if applies(place) else ():
+    for model, entry in record_of(place)["models"].items() if applies(place) else ():
         found[f"close-up {model}"] = "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
     return found
 
@@ -80,7 +80,7 @@ def read_json(path):
 
 def seed_stage(seed, settled=None):
     """The place's seed stage, with its accepted settle layer over it where the place is settled (`settled`, the
-    settle output): a machine stands on its support where the assembly stands it (assembly@garage, 2026-10-15: the
+    settle output): a model stands on its support where the assembly stands it (assembly@garage, 2026-10-15: the
     settle let the rover's lift down 14 cm off and 3 degrees round, and the rover laid on the seed's lift lay 8.8 cm
     inside it)."""
     from pxr import Usd
@@ -127,7 +127,7 @@ def drawn(prim):
 
 
 def support_mesh(stage, place, name):
-    """The drawn mesh of the object a machine stands on, in the stage's frame."""
+    """The drawn mesh of the object a model stands on, in the stage's frame."""
     prim = stage.GetPrimAtPath(f"/{place}/Objects/{name}")
     if not (prim and prim.GetChild("geo").IsValid()):
         raise KeyError(f"/{place}/Objects/{name}: the support the record names is not in the place")
@@ -149,7 +149,7 @@ def long_axis(extent):
 
 
 def turned(points, turn, support):
-    """The machine's points and yaw (degrees) turned about y so its long side lies across or along the support's, or
+    """The model's points and yaw (degrees) turned about y so its long side lies across or along the support's, or
     along the place's own x or z (`turn` "x" or "z": a square support has no long side, and the hangar's 31 m ship
     laid "along" its 7.2 m square pad lay across the 26 m hangar, 1.4 m in its walls, 2026-10-15).
     shortcut: the sides are read off world-axis boxes, so a support laid off the axes needs its own frame first."""
@@ -178,13 +178,13 @@ def drop_to_first(points, others, ground):
 
 
 def pose(points, entry, stage, place):
-    """A machine's placement: its 4x4 matrix (row vectors, as USD writes it), its yaw and how far it was let down."""
+    """A model's placement: its 4x4 matrix (row vectors, as USD writes it), its yaw and how far it was let down."""
     support = support_mesh(stage, place, entry["on"])
     spun, yaw, rotation = turned(points, entry.get("turn", "along"), support)
     middle = (support.bounds[0] + support.bounds[1]) / 2
     ground = resting.ground_height(stage, place)
     centre = (spun.min(axis=0) + spun.max(axis=0)) / 2
-    off = entry.get("off", (0.0, 0.0))  # metres off the support's middle in x and z: a machine longer than its room
+    off = entry.get("off", (0.0, 0.0))  # metres off the support's middle in x and z: a model longer than its room
     move = np.array([middle[0] - centre[0] + off[0], 0.0, middle[2] - centre[2] + off[1]])
     move[1] = float(np.nanmax(ground((spun + move)[:, [0, 2]]))) + entry.get("drop_from", DROP_FROM) - spun[:, 1].min()
     placed = spun + move
@@ -242,10 +242,10 @@ def mounted_pose(points, entry, hosts, record):
     down (its host holds it).
     shortcut: the piece keeps its host's turn, so a take modelled off the ship's axes needs a `turn` of its own."""
     host = entry["mounted"]["on"]
-    nose = record["machines"][host].get("nose")
+    nose = record["models"][host].get("nose")
     if nose not in NOSES:
         raise ValueError(f"{host}: its nose's direction in the place (`nose`: +x, -x, +z or -z) is not in the "
-                         "machines record; read it off the placed host's baked model")
+                         "models record; read it off the placed host's baked model")
     low, high, rotation, _, hull = hosts[host]
     spun = points @ rotation
     move = mount_point(low, high, nose, entry["mounted"]["at"]) - (spun.min(axis=0) + spun.max(axis=0)) / 2
@@ -274,12 +274,12 @@ def write_model(model, bake, paint, out):
 
 
 def held_by(entry):
-    """What holds a machine up: the support it stands on, or the host a mounted piece is set into."""
+    """What holds a model up: the support it stands on, or the host a mounted piece is set into."""
     return entry["mounted"]["on"] if "mounted" in entry else entry["on"]
 
 
 def lay(layer, place, model, entry, matrix, sha256):
-    """One machine's prim in the layer: the model's asset referenced (a piece laid more than once, the asset of the
+    """One model's prim in the layer: the model's asset referenced (a piece laid more than once, the asset of the
     one model the bake made of its take: `model` in its entry), its record's words, its placement; its row is
     the record's inventory row (`row`), as every laid object's is, never the model's name: the garage's rover_idle sound
     plays at row rover, and the completion gate counts rows (assembly@garage, 2026-10-15: the rover laid as row rover_1
@@ -291,7 +291,7 @@ def lay(layer, place, model, entry, matrix, sha256):
     spec = Sdf.PrimSpec(objects, model, Sdf.SpecifierDef, "Xform")
     spec.referenceList.Prepend(Sdf.Reference(f"../assets/{entry.get('model', model)}.usdc"))
     values = {"score:kind": entry["kind"], "score:model": model, "score:model_sha256": sha256, "score:anchor": "floor",
-              "score:row": entry["row"], "score:machine": entry["take"], "score:on": held_by(entry)}
+              "score:row": entry["row"], "score:motion_model": entry["take"], "score:on": held_by(entry)}
     for name, value in values.items():
         Sdf.AttributeSpec(spec, name, Sdf.ValueTypeNames.String).default = value
     Sdf.AttributeSpec(spec, "score:fixed", Sdf.ValueTypeNames.Bool).default = False
@@ -303,7 +303,7 @@ def lay(layer, place, model, entry, matrix, sha256):
 
 
 def make(inputs, out, seed, params):
-    """Every machine of the place's record made into its asset and laid in the machines layer; placed.json."""
+    """Every model of the place's record made into its asset and laid in the motion models layer; placed.json."""
     import trimesh
     from pxr import Sdf
     import stage_inputs
@@ -314,7 +314,7 @@ def make(inputs, out, seed, params):
     layer = Sdf.Layer.CreateNew(str(out / LAYER))
     placed, hosts, written = {}, {}, {}
     # Hosts first, so a mounted piece finds its host laid.
-    for model, entry in sorted(record["machines"].items(), key=lambda item: ("mounted" in item[1], item[0])):
+    for model, entry in sorted(record["models"].items(), key=lambda item: ("mounted" in item[1], item[0])):
         asset = entry.get("model", model)
         if asset not in written:
             written[asset] = write_model(asset, pathlib.Path(inputs["surfaces-bake"]),
@@ -334,7 +334,7 @@ def make(inputs, out, seed, params):
                          **({"mounted": True} if "mounted" in entry else {}),
                          **likeness.best_way(gltf, inputs[f"close-up {model}"])}
     layer.Save()
-    (out / "placed.json").write_text(json.dumps({"place": place, "machines": placed}, indent=1) + "\n")
+    (out / "placed.json").write_text(json.dumps({"place": place, "models": placed}, indent=1) + "\n")
     del stage
     shutil.rmtree(out / SCRATCH, ignore_errors=True)
 
@@ -343,18 +343,18 @@ def layer_faults(folder):
     folder = pathlib.Path(folder)
     if not (folder / LAYER).exists() or not (folder / "placed.json").exists():
         return [f"no {LAYER} or placed.json"]
-    return [f"{model}: no asset" for model, entry in read_json(folder / "placed.json")["machines"].items()
+    return [f"{model}: no asset" for model, entry in read_json(folder / "placed.json")["models"].items()
             if not (folder / "assets" / f"{entry.get('asset', model)}.usdc").exists()]
 
 
 # --- the gates ----------------------------------------------------------------------------------------------------
 
 def placed_of(output):
-    return read_json(pathlib.Path(output) / "placed.json")["machines"]
+    return read_json(pathlib.Path(output) / "placed.json")["models"]
 
 
 def composed(output, inputs, folder):
-    """The machines layer over the place as the assembly lays it (laid_stage, written in `folder`), as one stage."""
+    """The motion models layer over the place as the assembly lays it (laid_stage, written in `folder`), as one stage."""
     from pxr import Usd
     return Usd.Stage.Open(layered([pathlib.Path(output) / LAYER, *laid_layers(inputs, folder)],
                                   pathlib.Path(inputs["seed"]).name))
@@ -362,12 +362,12 @@ def composed(output, inputs, folder):
 
 def verdict(name, failing, total, measures):
     return checks.Verdict(name, checks.FAIL if failing else checks.PASS,
-                          f"{len(failing)} of {total} machines fail" if failing else f"all {total} pass",
+                          f"{len(failing)} of {total} models fail" if failing else f"all {total} pass",
                           {"failing": len(failing), **measures}, {"failing": "lower"}, tuple(failing))
 
 
 def judge_outline(output, inputs, evidence):
-    """Each machine's best outline against its close-up at least likeness.OUTLINE_LEAST."""
+    """Each model's best outline against its close-up at least likeness.OUTLINE_LEAST."""
     placed = placed_of(output)
     failing = [f"{model}: outline {entry['outline']:.3f} under {likeness.OUTLINE_LEAST}"
                for model, entry in sorted(placed.items()) if entry["outline"] < likeness.OUTLINE_LEAST]
@@ -375,7 +375,7 @@ def judge_outline(output, inputs, evidence):
 
 
 def judge_parts(output, inputs, evidence):
-    """Every finish each machine's close-up lists is owned by a part of its take's split."""
+    """Every finish each model's close-up lists is owned by a part of its take's split."""
     parts = read_json(pathlib.Path(inputs["surfaces-parts"]) / "parts.json")
     placed, failing, untold = placed_of(output), [], []
     for model, entry in sorted(placed.items()):
@@ -390,7 +390,7 @@ def judge_parts(output, inputs, evidence):
 
 
 def overlapped(stage, place, name, mesh):
-    """[(other object, depth)] of the objects the machine lies in deeper than resting.TOLERANCE."""
+    """[(other object, depth)] of the objects the model lies in deeper than resting.TOLERANCE."""
     found = []
     for path, prim in resting.objects_of(stage, place).items():
         if path == name or path.startswith(name + "/"):
@@ -406,7 +406,7 @@ def overlapped(stage, place, name, mesh):
 
 
 def rested(stage, place, model):
-    """resting.py's verdict on one machine in the composed stage, with what it lies in."""
+    """resting.py's verdict on one model in the composed stage, with what it lies in."""
     name = f"/{place}/Objects/{model}"
     prim = stage.GetPrimAtPath(name)
     mesh = drawn(prim)
@@ -417,8 +417,8 @@ def rested(stage, place, model):
 
 
 def judge_resting(output, inputs, evidence):
-    """Every machine rests on what is under it and lies in nothing (resting.py, on the composed stage)."""
-    with tempfile.TemporaryDirectory(prefix="machines-", dir=PROPS_HOME / "store/cache") as folder:
+    """Every model rests on what is under it and lies in nothing (resting.py, on the composed stage)."""
+    with tempfile.TemporaryDirectory(prefix="models-", dir=PROPS_HOME / "store/cache") as folder:
         return resting_verdict(output, composed(output, inputs, pathlib.Path(folder)))
 
 
@@ -442,7 +442,7 @@ def resting_verdict(output, stage):
     return verdict("resting", failing, len(placed_of(output)), {"largest gap": max(gaps)})
 
 
-LAYER_CONTRACT = contracts.Contract("machines-layer", 1, layer_faults, {"length": "metre", "up axis": "Y"})
+LAYER_CONTRACT = contracts.Contract("motion-models", 1, layer_faults, {"length": "metre", "up axis": "Y"})
 AFTER = {"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
          "surfaces-parts": ("surfaces-parts", 1), "settle": ("settle-layer", 1),
          "scene-record": ("scene-record", 1), "terrain": ("grounds", 1)}

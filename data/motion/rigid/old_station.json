@@ -2,7 +2,7 @@
  "place": "old_station",
  "about": "The old station's one moving kind is its rover.",
  "seconds": 60.0,
- "movers": [],
+ "moves": [],
  "still": {
   "rover_1": "Docked tail-first to the walkway tube (its inventory row): a docked rover does not drive."
  }

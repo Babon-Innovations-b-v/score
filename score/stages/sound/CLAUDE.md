@@ -15,8 +15,8 @@ gates; `takes.py` the paid part.
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Every source has a sound.** A place's sources are its room tones, what the suit lets through, its `objects` and
   `voices` (`data/sound/places.json`), its inventory rows' `sound`, its motions' `sounds`, the sounds
-  `data/sound/movers.json` gives its movers and silent motions (`movers.py`: a hatch's latch as it opens, a rover's
-  drive over its drive, timed off the record's own moves, so a mover that stops moving stops sounding) and the whole
+  `data/sound/moving.json` gives its moving things and silent motions (`moving.py`: a hatch's latch as it opens, a rover's
+  drive over its drive, timed off the record's own moves, so a moving thing that stops moving stops sounding) and the whole
   surface bank (`data/sound/surfaces.json`). That table names only picked sounds; one still to make is in its
   `wanted` until its brief is written and made. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
@@ -32,7 +32,7 @@ gates; `takes.py` the paid part.
   `CLAP_FLOOR` fails `likeness`, a take that did not come back leaves its sound without one and fails `sources`;
   either is a hole, and a new take (another seed, the brief's next prompt) is a new batch, never inside this one.
 - **What a place needs is worked out free** (`needs.py`, #29): its bed (room tones), one event sound for each thing
-  that moves (its motion and movers records; things moving exactly together are one event) and a voice where its
+  that moves (its motion and moving things records; things moving exactly together are one event) and a voice where its
   cast stands people (`voices` in `data/sound/places.json`, each on a person, played at `/<place>/Characters/<name>`).
   Each need is answered from the library, by a brief this row makes, or not at all; the holes check shows the last
   two (`score/stages/complete/holes/layers.py`), and the `events` and `voices` gates fail a place's output that

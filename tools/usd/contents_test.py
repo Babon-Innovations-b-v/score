@@ -111,27 +111,27 @@ def effects_and_motion_both_ways():
         path = bare_stage(folder)
         cases = [("an effect needed with no record", judged("effects", path), contents.FAIL),
                  ("a motion needed with no record", judged("motion", path), contents.FAIL)]
-        (data / "movers").mkdir()
-        (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": [], "still": {"door": " "}}))
+        (data / "motion/rigid").mkdir(parents=True)
+        (data / "motion/rigid" / f"{PLACE}.json").write_text(json.dumps({"moves": [], "still": {"door": " "}}))
         cases.append(("a still entry with no reason", judged("motion", path), contents.FAIL))
-        (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": [], "still": {"door": "parked"}}))
+        (data / "motion/rigid" / f"{PLACE}.json").write_text(json.dumps({"moves": [], "still": {"door": "parked"}}))
         cases.append(("a need written down as still, with why", judged("motion", path), contents.PASS))
         (data / "motion" / f"{PLACE}.json").write_text(json.dumps({"motions": [{"name": "door",
                                                                                  "prim": f"/{PLACE}/game_door"}]}))
-        (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": [], "renamed": {
+        (data / "motion/rigid" / f"{PLACE}.json").write_text(json.dumps({"moves": [], "renamed": {
             f"/{PLACE}/game_door": f"/{PLACE}/door_leaf_1"}}))
         stage = Usd.Stage.Open(str(path))
         leaf = UsdGeom.Xform.Define(stage, f"/{PLACE}/door_leaf_1").AddTranslateOp()
         leaf.Set(Gf.Vec3d(0, 0, 0), 0)
         leaf.Set(Gf.Vec3d(1, 0, 0), 24)
         stage.GetRootLayer().Save()
-        cases.append(("a game motion's prim moving under the name the movers record renames it to",
+        cases.append(("a game motion's prim moving under the name the rigid record renames it to",
                       judged("motion", path), contents.PASS))
-        (data / "movers" / f"{PLACE}.json").write_text(json.dumps({"movers": []}))
+        (data / "motion/rigid" / f"{PLACE}.json").write_text(json.dumps({"moves": []}))
         cases.append(("the same motion without the rename", judged("motion", path), contents.FAIL))
         stage.RemovePrim(f"/{PLACE}/door_leaf_1")
         stage.GetRootLayer().Save()
-        (data / "movers" / f"{PLACE}.json").unlink()
+        (data / "motion/rigid" / f"{PLACE}.json").unlink()
         (data / "effects" / f"{PLACE}.json").write_text(json.dumps({"effects": [{"name": "kettle_steam"}]}))
         (data / "motion" / f"{PLACE}.json").write_text(json.dumps({"motions": [{"name": "door",
                                                                                  "prim": f"/{PLACE}/door"}]}))
@@ -218,11 +218,11 @@ def likeness_and_paint_both_ways():
                                                                        {**NONE, "surfaces-check": check}),
                       contents.FAIL))
         chair.GetAttribute("score:model").Set("chair-b")
-        chair.CreateAttribute("score:machine", Sdf.ValueTypeNames.String).Set("chair-s1")
+        chair.CreateAttribute("score:motion_model", Sdf.ValueTypeNames.String).Set("chair-s1")
         stage.GetRootLayer().Save()
-        cases.append(("a machine the machines layer lays from its take's bake", judged(
+        cases.append(("a model the motion models layer lays from its take's bake", judged(
             "painted", path, inventory, {**NONE, "surfaces-check": check}), contents.PASS))
-        chair.RemoveProperty("score:machine")
+        chair.RemoveProperty("score:motion_model")
         stage.GetRootLayer().Save()
         chair.CreateAttribute("score:from", Sdf.ValueTypeNames.String).Set(
             f"plan item{contents.LAID_FROM_BAKE}chair")

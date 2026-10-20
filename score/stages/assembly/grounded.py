@@ -1,6 +1,6 @@
 """A place's seed as the assembly lays it, in a folder of its own: its accepted scene record written in, each kit
 piece at its kit spot, the surface line's bakes over its models and the place on its made ground. The settle drops
-it and the machines layer lays its machines on it (2026-10-15: the machines layer laid the hangar's ship on the
+it and the motion models layer lays its models on it (2026-10-15: the motion models layer, then named machines, laid the hangar's ship on the
 seed, whose structure still held the game's old ship, which the scene record no longer lays, and the hull stood 48
 cm up on it in the assembly).
 """

@@ -7,14 +7,14 @@
    "objects": [
     "data/scene/workshop.json",
     "data/motion/workshop.json",
-    "data/movers/workshop.json"
+    "data/motion/rigid/workshop.json"
    ],
    "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
    "decided": "the creator's decision, 2026-10-15 (his answer \"A\" at 09:00: named gaps now, the layouts rebuilt next month); written by the overseer, 2026-10-15",
    "faults": [
     "data/scene/workshop.json: 25 entries take their numbers from the game (from), 21 positions placed from it",
     "data/motion/workshop.json: 1 entries take their numbers from the game (from), 0 positions placed from it",
-    "data/movers/workshop.json: 9 entries take their numbers from the game (from), 0 positions placed from it"
+    "data/motion/rigid/workshop.json: 9 entries take their numbers from the game (from), 0 positions placed from it"
    ]
   },
   {

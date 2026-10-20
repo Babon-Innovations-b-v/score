@@ -2,7 +2,7 @@
  "place": "hangar",
  "about": "The hangar moves by the game's own roof cycle (data/motion/hangar.json, written twice so the layer loops whole) and its bridge crane's trolley runs along the crane rails and back.",
  "seconds": 86.0,
- "movers": [
+ "moves": [
   {
    "name": "crane_trolley_1",
    "prim": "/hangar/Objects/crane_trolley_1",

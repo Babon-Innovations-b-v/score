@@ -23,13 +23,13 @@
    "check": "game",
    "objects": [
     "data/scene/lab.json",
-    "data/movers/lab.json"
+    "data/motion/rigid/lab.json"
    ],
    "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
    "decided": "the creator's decision, 2026-10-15 (his answer \"A\" at 09:00: named gaps now, the layouts rebuilt next month); written by the overseer, 2026-10-15",
    "faults": [
     "data/scene/lab.json: 6 entries take their numbers from the game (from), 2 positions placed from it",
-    "data/movers/lab.json: 6 entries take their numbers from the game (from), 0 positions placed from it"
+    "data/motion/rigid/lab.json: 6 entries take their numbers from the game (from), 0 positions placed from it"
    ]
   },
   {
