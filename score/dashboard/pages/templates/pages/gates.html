@@ -2,5 +2,10 @@
   <div class="gate"><span class="answer {{ gate.answer }}">{{ gate.answer }}</span> <b>{{ gate.name }}</b>{% if gate.waived %} <span class="soft">(waived: {{ gate.waived }})</span>{% endif %}
     <div class="small">{{ gate.reason }}</div>
     {% if gate.measures %}<div class="measures">{% for name, value in gate.measures.items %}{{ name }} {{ value }}{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
+    {% if waive_output and gate.answer != "pass" and not gate.waived %}<form method="post" action="waive/" class="inline">{% csrf_token %}
+      <input type="hidden" name="output" value="{{ waive_output }}"><input type="hidden" name="check" value="{{ gate.name }}">
+      <input type="text" name="reason" placeholder="why this check is wrong here" required>
+      <button>Waive this check</button>
+    </form>{% endif %}
   </div>{% empty %}<div class="soft small">no checks judged</div>{% endfor %}
 </div>

@@ -1,0 +1,29 @@
+{% comment %}The owner's money buttons, each his signed-in request: applied here on the store's machine, queued for it when hosted. `form` picks stop, month or books.{% endcomment %}
+{% if owner %}
+{% if form == "stop" %}
+<form class="cost-form" data-post="/api/money/stop">
+  <label>Stop at EUR<input type="number" name="euros" min="0" step="0.01" required{% if money.stop %} value="{{ money.stop|stringformat:'.2f' }}"{% endif %}></label>
+  <label class="wide">What it is for<input type="text" name="reason" required placeholder="for example: the October remake"></label>
+  <button class="primary">Set the stop</button>
+  <output class="small"></output>
+</form>
+{% elif form == "month" %}
+<form class="cost-form" data-post="/api/money/month">
+  <label>The month's stop, EUR<input type="number" name="euros" min="0" step="0.01" required{% if money.month_stop %} value="{{ money.month_stop|stringformat:'.2f' }}"{% endif %}></label>
+  <button class="primary">Set the month's stop</button>
+  <output class="small"></output>
+</form>
+{% elif form == "books" %}
+<form class="cost-form" data-post="/api/money/read-back">
+  <button class="primary">Read the bills back</button>
+  <output class="small"></output>
+</form>
+<form class="cost-form" data-post="/api/money/books-figure">
+  <label class="wide">What the model calls cost this month before their ledger began again, EUR<input type="number" name="euros" min="0" step="0.01" required></label>
+  <button class="primary">Enter it in the books</button>
+  <output class="small"></output>
+</form>
+{% endif %}
+{% else %}
+<p class="small soft">Only the owner sets this, signed in.</p>
+{% endif %}

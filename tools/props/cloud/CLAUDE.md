@@ -53,7 +53,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `known` once Google's was read; the Google month is then the higher of that bill and the Google ledger. The table
   is named by SCORE_GOOGLE_BILLING_TABLE, else one line in `cloud/google-billing-table`, never in this repo; an
   unset, missing or empty table leaves the books as they were and the refusal says why. The owner's `score spend
-  --google-month EUR` (his terminal only) stays an override. `compute.month_refusal`, `compute.require_cleared` (so
+  --google-month EUR` (refused in an agent's process; the owner gives it with the cockpit's money card button,
+  applied by his sync) stays an override. `compute.month_refusal`, `compute.require_cleared` (so
   `batch.rent`, `park`, the cluster and every Google and World Labs caller) and `compute.submit` ask it before anything
   is ordered; `google_spend.py` and `tools/cloud/runtime/submit.py` are left alone, as one is in the surface rows' code
   version and the other in every job image's tag. Under SCORE_FREE_ONLY=1 the same points raise `ledger.FreeOnly`.

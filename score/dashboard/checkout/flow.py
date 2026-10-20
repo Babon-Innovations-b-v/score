@@ -42,8 +42,8 @@ def place_refusals():
         found.append("this cockpit was started from an agent's shell: only the owner's own server checks out")
     if not settings.SCORE_STORE_WRITABLE:
         found.append("the store is read-only here (SCORE_STORE_WRITABLE=0)")
-    if not settings.SCORE_MONTH_EUROS:
-        found.append("the month's stop is not set (SCORE_MONTH_EUROS): nothing launches without it")
+    if not guard.month_stop():
+        found.append(guard.MONTH_UNSET)
     return found
 
 

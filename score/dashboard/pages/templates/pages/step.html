@@ -90,7 +90,7 @@
     <button class="primary">Accept this output</button>
   </form>
   {% endif %}{% endif %}{% endif %}
-  <details class="fold"><summary>its checks</summary><div class="fold-body">{% include "pages/gates.html" with gates=detail.waiting_judgement %}</div></details>
+  <details class="fold"{% if owner and detail.waiting.answer != "pass" %} open{% endif %}><summary>its checks</summary><div class="fold-body">{% if owner and decisions_on or owner and hosted %}{% include "pages/gates.html" with gates=detail.waiting_judgement waive_output=detail.waiting.output %}{% else %}{% include "pages/gates.html" with gates=detail.waiting_judgement %}{% endif %}</div></details>
 </section>
 {% endif %}
 

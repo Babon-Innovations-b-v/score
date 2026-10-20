@@ -37,6 +37,7 @@ class Spend(BaseModel):
     lines: list[CostLine] = []
     credit_note: str = ""  # the shared cloud account's credit, a note only, never SCORE's budget
     paid_refused: str | None = None  # why paid work is refused while the month's books are not known (score spend)
+    month_stop: float | None = None  # the owner's month's stop on the store's machine (launch.guard.month_stop)
 
 
 class MonthTotal(BaseModel):
@@ -58,6 +59,8 @@ class MoneyView(BaseModel):
     in_flight: float | None = None
     note: str = ""
     credit_note: str = ""
+    month_stop: float | None = None  # the owner's month's stop, which switches launching on
+    paid_refused: str | None = None  # why paid work is refused while the month's books are not known
 
 
 class GateCounts(BaseModel):

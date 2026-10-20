@@ -10,11 +10,12 @@
     <div class="eyebrow">You chose to buy</div>
     <div class="money-total">{% if chosen_items.count %}{% if chosen_items.high is not None %}at most EUR {{ chosen_items.high|floatformat:2 }}{% else %}<span class="unknown">not measured yet</span>{% endif %}{% else %}nothing yet{% endif %}</div>
     <p class="soft small">{{ chosen_items.count }} item{{ chosen_items.count|pluralize }} chosen{% if chosen_items.likely is not None and chosen_items.count %}, likely EUR {{ chosen_items.likely|floatformat:2 }}{% endif %}; {{ waiting }} still to look at.</p>
+    {% if chosen_items.count %}<p class="soft small">{% if chosen_items.hours %}Ready in up to {{ chosen_items.hours }}: the runner's high time of each item, end to end.{% else %}<span class="unknown">How long it takes is not measured yet</span> for every item.{% endif %}</p>{% endif %}
     {% if chosen_items.count and chosen_items.guessed_jobs %}<p class="soft small">Not in this price: {{ chosen_items.guessed_jobs }} job{{ chosen_items.guessed_jobs|pluralize }} never measured, guessed at EUR {{ chosen_items.guessed|floatformat:2 }}.</p>{% endif %}
     {% if owner and chosen_items.count %}
     <form method="post" action="/basket/checkout/" class="checkout-form">{% csrf_token %}
       <input type="hidden" name="key" value="{{ checkout_key }}">
-      <label class="tick"><input type="checkbox" name="confirm" value="yes"> I buy these{% if chosen_items.high is not None %}, at most EUR {{ chosen_items.high|floatformat:2 }}{% endif %}</label>
+      <label class="tick"><input type="checkbox" name="confirm" value="yes"> I buy these{% if chosen_items.high is not None %}, at most EUR {{ chosen_items.high|floatformat:2 }}{% endif %}{% if chosen_items.hours %}, ready in up to {{ chosen_items.hours }}{% endif %}</label>
       <button type="submit" class="primary wide">Check out</button>
     </form>
     {% endif %}

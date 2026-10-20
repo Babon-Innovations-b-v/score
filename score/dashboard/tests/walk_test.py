@@ -55,8 +55,9 @@ def test_the_overview_lists_every_place_its_holes_by_kind_and_what_to_buy_first(
     assert re.search(r'<details class="fold"><summary>Every paid step \(2\), by how many holes have it in their '
                      r'chain</summary>\s*<ol class="buy-list">', first)  # every step folded, none shown open
     assert REFUSED in first  # the refusal in its details fold
-    assert "score spend --read-back" not in first  # only the commands the refusal names
-    assert '<pre class="command">.venv/bin/python -m score spend --owners-month EUR</pre>' in first  # as it names it
+    assert '<pre class="command">' not in first  # no command to type: each blocker is a button
+    for button in ("/api/money/stop", "/api/money/read-back", "/api/money/books-figure"):
+        assert f'data-post="{button}"' in first, button
     buys = re.findall(r'<ol class="buy-list".*?</ol>', first, re.S)[0]
     # the sound is in the chains of the lamps and of the crate, the close-up in the lamps' only: a count, not a price
     # each step by its place's title on the board, never its key

@@ -9,7 +9,7 @@ from django.views.generic import RedirectView
 from score.dashboard.pages import basket, films, library, views
 
 STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide/", views.step_decide),
-               ("queue/", views.step_queue), ("advance/", views.step_advance)]
+               ("queue/", views.step_queue), ("advance/", views.step_advance), ("waive/", views.step_waive)]
 
 urlpatterns = [
     path("", views.board),

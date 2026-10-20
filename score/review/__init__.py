@@ -407,8 +407,7 @@ def origin_banner(store, record):
 
 def reject_line(node, output):
     """How the owner rejects the accepted output."""
-    return ("<p>The owner may reject it in his own terminal: <code>.venv/bin/python -m score.review reject "
-            f"{escaped(node)} {escaped(output)} --reason &quot;why&quot;</code></p>")
+    return (f"<p>The owner may reject it with the Reject button on the cockpit's page of {escaped(node)}.</p>")
 
 
 def accept_section(store, record, judgement):
@@ -425,9 +424,8 @@ def accept_section(store, record, judgement):
     worse = worse_than_accepted(store, node, judgement) if judgement else []
     lines += [f"<p class=fail>Worse than the accepted output: {escaped(line)}</p>" for line in worse]
     if judgement and checks.standing(judgement["verdicts"], store.waivers(node, record["key"])) == checks.PASS:
-        lines.append("<p>The runner did not accept it; the owner may, in his own terminal: <code>.venv/bin/python -m "
-                     "score.review accept "
-                     f"{escaped(node)} {escaped(output)}</code>{' --worse &quot;why&quot;' if worse else ''}</p>")
+        lines.append("<p>The runner did not accept it; the owner may, with the Accept button on the cockpit's page of "
+                     f"{escaped(node)}{', saying why it may be worse' if worse else ''}.</p>")
     else:
         lines.append("<p class=soft>It cannot be accepted: its gates did not pass.</p>")
     return "".join(lines)

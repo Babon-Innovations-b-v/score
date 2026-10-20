@@ -110,10 +110,10 @@ def test_the_page_shows_the_record_the_gates_and_the_accept():
     assert "Unverified seed." in text and "an old output brought in" in text
     assert "1 faults, at most 3 pass" in text and "fault 0" in text
     assert "The runner accepted this output automatically" in text
-    assert f"score.review reject tally@hangar {first}" in text
+    assert "reject it with the Reject button on the cockpit's page of tally@hangar" in text
     _, _, second = made(2, store, data)
     text = review.page(store, "tally@hangar").read_text()
-    assert f"score.review accept tally@hangar {second}</code> --worse" in text
+    assert "with the Accept button on the cockpit's page of tally@hangar, saying why it may be worse" in text
     review.accept(store, "tally@hangar", second, "owner", worse_reason="one fault is a false alarm")
     assert "The owner accepted it" in review.page(store, "tally@hangar").read_text()
 
@@ -146,7 +146,7 @@ def test_the_reject_command_refuses_without_the_owners_terminal():
 def test_a_failed_output_page_offers_no_accept():
     store, _, _ = made(9)
     text = review.page(store, "tally@hangar").read_text()
-    assert "It cannot be accepted" in text and "score.review accept" not in text
+    assert "It cannot be accepted" in text and "Accept button" not in text
 
 
 def test_the_accept_command_refuses_without_the_owners_terminal():

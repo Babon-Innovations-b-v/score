@@ -373,18 +373,20 @@ def read_back_books():
     return read
 
 
-def owners_google_month(euros):
+def owners_google_month(euros, by=None):
     """The owner's figure for what Google billed this month before the Google ledger began again, an override of the
-    bill read from Google's billing export (read_back_books): the books' known state; the books. Refused in a process an agent started (only the owner knows the Google bill) and for a figure
-    that is not finite and at least 0 (`nan` passed every ceiling, a negative one lowered the month)."""
+    bill read from Google's billing export (read_back_books): the books' known state; the books, with who gave it
+    (`by`, his signed-in name from the cockpit; None from his terminal) and when. Refused in a process an agent
+    started (only the owner knows the Google bill) and for a figure that is not finite and at least 0 (`nan` passed
+    every ceiling, a negative one lowered the month)."""
     if running_under_agent():
-        raise Refused("the Google month is the owner's figure: he enters it from his own terminal")
+        raise Refused("the Google month is the owner's figure: he enters it on the cockpit's money card")
     books = ledger()
     figure = books.euro_figure(euros)
     if figure is None:
         raise Refused(f"the Google month must be a finite figure of at least EUR 0, not {euros!r}")
     known = {**books.this_months_books(), "month": books.this_month(), "state": "known", "google_before": figure,
-             "google_at": graph.now()}
+             "google_at": graph.now(), "google_by": by}
     books.write_books(known)
     return known
 

@@ -575,8 +575,7 @@ def world_spend(world, held, books):
     line = guard.current(store, world)
     if line is None:
         return {"spent": None, "reserved": None, "ceiling": None, "world": world, "stop_at": None,
-                "note": f"{world}: no stop set, paid launches refused (python -m score.review stop {world} <euros> "
-                        f"--reason ...)"}
+                "note": f"{world}: no stop set, paid launches refused (Set the stop on the cockpit's money card)"}
     spent = guard.spent_since(line["baseline"], compute.months_since(line["baseline"], books))
     flight = guard.in_flight({**compute.open_overrides(store), **held}, compute.ledger().entries())
     return {"spent": round(spent, 2), "reserved": round(sum(flight.values()), 2), "ceiling": line["euros"],
