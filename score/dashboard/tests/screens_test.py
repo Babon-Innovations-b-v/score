@@ -39,7 +39,7 @@ def a_design(approved):
     return {"places": {place: one(place) for place in ("alpha", "beta")}, "approved": list(approved)}
 
 
-def a_remake(world, priced_on=None, approved=("alpha", "beta")):
+def a_remake(world, priced_on=None, approved=("alpha", "beta"), inventory=None):
     """Prepare's record (WORK/checks/prepare/remake.json) as the real one is shaped: alpha's three takes, two bought
     waiting on a lost input and one a predicted gap, priced EUR 10 to 12 with the likeness calibration unpriced; the
     designs of `approved` approved."""
@@ -53,7 +53,8 @@ def a_remake(world, priced_on=None, approved=("alpha", "beta")):
                    "likeness-calibration": {"takes": 2, "price": {"likely_euros": None, "high_euros": None}}},
         "totals": {"likely_euros": 10.0, "high_euros": 12.0, "unpriced": ["likeness-calibration"]},
         "eta": {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0, "path": [],
-                "unknown": [{"node": "closeup"}, {"node": "pixal"}]}, "design": a_design(approved)}))
+                "unknown": [{"node": "closeup"}, {"node": "pixal"}]}, "design": a_design(approved),
+        **({"inventory": inventory} if inventory else {})}))
 
 
 @pytest.fixture
@@ -108,6 +109,32 @@ def test_a_places_picture_is_its_concept_and_none_when_its_concept_is_lost(cockp
     assert screens.picture_of(world, "alpha") == (f"/thumbs/{concept.sha}.jpg", "concept")
     assert screens.picture_of(world, "beta") == (None, None)  # its store hero and library entry are no concept
     assert cockpit.source.file(concept.sha)[1].is_file()  # served from the store's blobs
+
+
+def test_before_any_design_is_approved_the_remake_is_estimated_from_the_read_inventories(cockpit):
+    """The owner, 2026-10-21: prepare's whole figure over the places with a current reading, how many places that
+    covers, its ETA floor and its unpriced layers, on the Environment's remake tile and the Buy screen; none stale."""
+    a_remake(cockpit, approved=(), inventory={"read": ["alpha"], "waiting": ["beta"]})
+    cockpit.source.refresh()
+    found = screens.remake_money(cockpit.source.world_state())["estimate"]
+    assert found == {"likely": 10.0, "high": 12.0, "unpriced": ["likeness-calibration"], "places": 1, "waiting": 1,
+                     "eta": {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0, "untimed": 2},
+                     "stale": None}
+    from score.dashboard.tests.pages_test import signed_in
+    client = signed_in()
+    for page, start, end in (("/buy/", ">After design<", '<ul class="buy-layers buy-design">'),
+                             ("/places/", ">remake<", "Review and buy")):
+        html = client.get(page).content.decode()
+        tile = html[html.index(start):html.index(end)]
+        assert "<small>EUR</small> 10&ndash;12<small>, " in tile and "&ge; 0.5 h" in tile, tile
+        assert "1 <small>of</small> 2 <small>places</small>" in tile and "+ 1 <small>unpriced</small>" in tile
+        assert "likeness-calibration" in tile  # its name as hover text
+    assert 'data-url="/buy/yes/"' not in client.get("/buy/").content.decode()  # an estimate buys nothing
+    a_remake(cockpit, approved=(), inventory={"read": ["alpha"], "waiting": ["beta"]},
+             priced_on={"commit": "6cdf4d40", "uncommitted": True, "per_unit_sha256": "x"})
+    cockpit.source.refresh()
+    stale = screens.remake_money(cockpit.source.world_state())["estimate"]
+    assert stale["likely"] is None and stale["stale"] == "it was made on code not committed"
 
 
 def test_a_remake_priced_on_code_not_committed_says_it_is_stale(cockpit):

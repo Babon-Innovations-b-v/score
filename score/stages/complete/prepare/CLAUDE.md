@@ -4,10 +4,17 @@ Prepare a batch (CONTEXT.md "batch", #21): the free risk work before a paid batc
 the one figure the creator says yes to. Today it prepares the environment's remake through the prop pipeline (#19).
 `__init__.py`'s docstring has the modules and the record's shape. Bible: `architecture/components`.
 
-- **Free, local, never a row.** Reads the scene inventories, the library's index (read only: score never imports the
+- **Free, local, never a row.** Reads the scene inventory readings, the library's index (read only: score never imports the
   library), `data/costs/per-unit.json`, the cloud ledgers and the store; nothing in the stage table imports it, so no
   key moves. No Blender, no model, nothing judged or bought. `--stock` is the provider's free listing; `--moved` is
   `score moved`'s dry run (minutes).
+- **The rows are the scene inventory readings** (owner, 2026-10-21; `groups.current`): each place's and outside
+  shell's current reading (`score/review/reading.reading_of`: read from its picked draw by today's method), never
+  `data/inventory/` (still read for the library models' sizes and the hub's measured rates only). A place with none
+  waits on inventory, no euros (`inventory.waiting`). A reading measures no size, so each row is its own take
+  (only `_<n>` copies share one), every take waits on "no size" and matches the library by kind alone; a code row
+  of a shell noun (`groups.SHELL_NOUNS`) is a shell piece; every other row, terrain and people too, is a model
+  through the prop pipeline. Plans may refine positions later, never the count.
 - **Every job once.** The figure prices each take's layers one run each (`estimate.one_shot`: one Pro wording a row,
   one draw a map, no finish asked again); no retry share, no second take, no fallback class. A shell piece takes its
   library surface with no maps (`estimate.SHELL_ROUTE`). Card and processor layers carry the bill share

@@ -4,7 +4,8 @@ only from the library's own model index (`<SCORE_LIB_ROOT>/index/model.json`) an
 
 A library model matches a group by object kind and size ratio (groups.model_key without the kit). The index names
 no size, so a model's size is its source row's in the scene inventory it was made for (its record's `place` and
-`source_name`, or that name's object kind); a model with no such row has no size and matches nothing.
+`source_name`, or that name's object kind); a model with no such row has no size and matches nothing. A scene
+inventory reading measures no size, so its rows match a model with a size by object kind alone.
 
 Reused only when made under today's route (owner, 2026-10-20, #21/#41): a model is reused when the owner locked it
 (index state `locked`), or when its provenance names today's route (`route` == todays_route(): the hash of the
@@ -55,7 +56,8 @@ def source_row(model, rows_by_place):
 
 def index(models, inventories):
     """{(object kind, size ratio): {"pipeline": [address], "old": [address], "code": [address]}} of the library
-    models with a size: `pipeline` the reusable ones (today's route, or locked), the others remade."""
+    models with a size: `pipeline` the reusable ones (today's route, or locked), the others remade; each under
+    (object kind, None) too: a row with no size (a reading's) matches by its kind alone."""
     rows_by_place = {place: {row["id"]: row for row in record.get("rows", [])}
                      for place, record in inventories.items()}
     found = {}
@@ -65,8 +67,8 @@ def index(models, inventories):
         if ratio is None:
             continue
         made = "pipeline" if model["today"] else "old" if model["tag"] in PIPELINE_TAGS else "code"
-        key = (groups.object_kind(model["source"]), ratio)
-        found.setdefault(key, {name: [] for name in NO_MATCH})[made].append(model["address"])
+        for key in ((groups.object_kind(model["source"]), ratio), (groups.object_kind(model["source"]), None)):
+            found.setdefault(key, {name: [] for name in NO_MATCH})[made].append(model["address"])
     return found
 
 

@@ -87,6 +87,7 @@ def remake_of(written):
                   counts=take_counts(written.get("takes", [])),
                   places={place: take_counts(takes) for place, takes in sorted(by_place.items())},
                   layers=layers_of(written), design=written.get("design") or {},
+                  inventory=written.get("inventory") or {},
                   stale=code_moved(written.get("priced_on")))
 
 

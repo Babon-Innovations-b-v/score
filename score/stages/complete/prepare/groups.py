@@ -1,5 +1,6 @@
 """Free counts of a remake's rows (#19: every scene inventory row through the prop pipeline): the unique models the
-rows need, one take each, read from the environment's scene inventories alone. Nothing is judged or bought.
+rows need, one take each, read from the environment's scene inventories alone (each place's current reading,
+`current`). Nothing is judged or bought.
 
 A row's model is its object kind (the row id with any trailing `_<n>`), the ratio of its sides (sorted, each over the
 longest, bucketed in RATIO_STEP steps of log2, so a stool and a taller stool of the same build share one take while a
@@ -18,6 +19,8 @@ import pathlib
 import re
 
 SHELL = ("kit: wall", "kit: floor", "kit: ceiling", "kit: under floor")
+# A reading's code row of one of these nouns (" panel" or " plate" after it too) is that shell piece (read_row).
+SHELL_NOUNS = {"wall": "kit: wall", "floor": "kit: floor", "ceiling": "kit: ceiling", "roof": "kit: ceiling"}
 RATIO_STEP = 0.5  # log2: sides within about 41% of each other's ratio share a bucket
 
 
@@ -25,6 +28,32 @@ def inventories(data):
     """{place: its scene inventory record} of every data/inventory/<place>.json under `data`."""
     folder = pathlib.Path(data) / "inventory"
     return {path.stem: json.loads(path.read_text()) for path in sorted(folder.glob("*.json"))}
+
+
+def current(store, places):
+    """({place: its scene inventory}, [place waiting on inventory]) of `places`: each place's current reading
+    (score/review/reading.reading_of: read from its picked draw by today's method), its rows as read_row gives them;
+    a place with none waits, with no rows and no euros (the old data/inventory files count for nothing here)."""
+    from score.review import reading
+    found = {place: reading.reading_of(store, place) for place in places}
+    return ({place: {**record["inventory"], "rows": [read_row(record, row) for row in record["inventory"]["rows"]],
+                     "plan": {"views": [{"id": "v1", "picture": str(blob_path(store, record["concept"]))}]}}
+             for place, record in found.items() if record},
+            sorted(place for place, record in found.items() if not record))
+
+
+def blob_path(store, sha):
+    """The picked concept's file in the store's blob folder (contract.faults reads it), or its key elsewhere."""
+    return store.objects.path(f"blobs/{sha}") if hasattr(store.objects, "path") else f"blobs/{sha}"
+
+
+def read_row(record, row):
+    """A reading's row as a take's: its take named by its place, row and concept (a take made from another concept
+    never counts as made), and a code row whose noun is a shell word (SHELL_NOUNS) that shell piece's kit; every
+    other row, a terrain feature's too, a model through the prop pipeline. A reading measures no size, so none."""
+    noun = SHELL_NOUNS.get(row["noun"].removesuffix(" panel").removesuffix(" plate")) if row["kind"] == "code" else None
+    return {**row, "thing": f"prop:{record['place']}_{row['id']}_{record['concept'][:8]}",
+            **({"group": noun} if noun else {})}
 
 
 def object_kind(row_id):

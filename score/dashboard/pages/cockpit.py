@@ -48,7 +48,24 @@ def remake(world):
             "in_design": found["in_design"],
             "hours": round(eta["likely_minutes"] / 60, 1) if eta["likely_minutes"] is not None else None,
             "at_least_hours": round(eta["at_least_minutes"] / 60, 1) if eta["at_least_minutes"] else None,
-            "unknown": found["unpriced"], "why": "; ".join(found["stale"]) or None}
+            "unknown": found["unpriced"], "why": "; ".join(found["stale"]) or None,
+            "estimate": estimate(found["estimate"])}
+
+
+def estimate(found):
+    """{low, high, hours, at_least_hours, untimed, unknown, unknown_names, places, waiting, of, why} of the remake's
+    estimate from the scene inventories (screens.estimate), None before prepare read them: its likely and high euros,
+    its likely hours only when every layer is timed, else the floor, its layers with no price, how many places it
+    covers of all, `why` while it is stale (no figure then)."""
+    if found is None:
+        return None
+    eta = found["eta"]
+    return {"low": found["likely"], "high": found["high"],
+            "hours": round(eta["likely_minutes"] / 60, 1) if eta.get("likely_minutes") is not None else None,
+            "at_least_hours": round(eta["at_least_minutes"] / 60, 1) if eta.get("at_least_minutes") else None,
+            "untimed": eta.get("untimed") or 0, "unknown": len(found["unpriced"]),
+            "unknown_names": ", ".join(found["unpriced"]), "places": found["places"], "waiting": found["waiting"],
+            "of": found["places"] + found["waiting"], "why": found["stale"]}
 
 
 def eta_hours(eta):

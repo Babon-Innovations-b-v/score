@@ -171,7 +171,21 @@ def remake_money(world):
             "unpriced": sum(part["unpriced"] for part in parts),
             "eta": eta_of(remake, price) if approved == every else eta_of(None, None),
             "made_at": remake.made_at if remake else None, "stale": stale, "approved": approved,
-            "in_design": every - approved}
+            "in_design": every - approved, "estimate": estimate(world.remake)}
+
+
+def estimate(remake):
+    """The remake's estimate from the scene inventories (owner, 2026-10-21): prepare's whole one-shot figure of the
+    prop route over the places with a current reading, before any design is approved. {likely, high (None while
+    stale), unpriced [stage], places (read), waiting (places waiting on inventory: no euros), eta (prepare's: likely
+    and high only when every layer is timed, else at_least_minutes, `untimed` its untimed layers), stale}; None
+    before prepare read the readings."""
+    if remake is None or not remake.inventory:
+        return None
+    current = remake.stale is None
+    return {"likely": remake.likely_euros if current else None, "high": remake.high_euros if current else None,
+            "unpriced": remake.unpriced, "places": len(remake.inventory.get("read", [])),
+            "waiting": len(remake.inventory.get("waiting", [])), "eta": remake.eta, "stale": remake.stale}
 
 
 def eta_of(remake, price):
@@ -479,7 +493,8 @@ def batch(world, items):
     for row in shown:
         row["places"] = sorted(row["places"])
     return {"total": total_of_rows(shown), "now": now_of(shown, now, buying), "waiting": waiting_of(shown),
-            "gets": gets(world, now), "eta": whole["eta"], "stale": whole["stale"], "layers": shown}
+            "gets": gets(world, now), "eta": whole["eta"], "stale": whole["stale"], "layers": shown,
+            "estimate": whole["estimate"]}
 
 
 def total_of_rows(rows):

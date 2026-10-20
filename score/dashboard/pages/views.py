@@ -134,8 +134,9 @@ def buy(request):
     design = screens.design(source, world)
     for row in design["places"]:
         row["name"] = names.get(row["place"], present.place_title(row["place"]))
+    batch = screens.batch(world, items)
     return render(request, "pages/buy.html", {
-        "design": design, "batch": screens.batch(world, items), "money": found["view"],
+        "design": design, "batch": batch, "estimate": cockpit.estimate(batch["estimate"]), "money": found["view"],
         "last": basket_items.last_batch(), "figure": cockpit.month_money(found["view"])["models"] is None,
         "key": uuid.uuid4().hex})
 

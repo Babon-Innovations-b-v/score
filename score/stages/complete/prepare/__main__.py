@@ -27,7 +27,9 @@ WORK = PROPS_HOME / "work"
 OUT = WORK / "checks" / "prepare" / "remake.json"
 WORLD = "world1"
 NOT_IN_FIGURE = ("the places' own paid rows (settle, light passes, effects look, tiles): `score price world1 --gaps`",
-                 "films, people, sound and terrain: their layers' prepare steps are #21 tracks C's",
+                 "the places waiting on inventory (no reading of their picked concept yet): no euros until read",
+                 "films, sound and the ground: their layers' prepare steps are #21 tracks C's (a reading's people and "
+                 "terrain rows are priced as models through the prop pipeline)",
                  "the likeness calibration and any layer listed unpriced: no measured per unit")
 
 
@@ -126,11 +128,19 @@ def across_places(route, takes, fixed):
     return {"takes": len(shared), "totals": estimate.totals(estimate.layers(route, shared, estimate.one_shot(), fixed))}
 
 
+def inventoried_places(world_places):
+    """The places a scene inventory is read for: the environment's places and its outside shells, its places' parts
+    (no concept of their own) left out (data/places/within.json)."""
+    from score.review import concepts
+    tree = concepts.tree()
+    return sorted({*world_places, *tree["shells"]} - set(tree["parts"]))
+
+
 def remake(runner, data, root, work, stock=None, moved=None):
     """The remake's prepare record (this package's docstring)."""
-    inventories = groups.inventories(data)
+    inventories, waiting = groups.current(runner.store, inventoried_places(stages.places(runner.world)))
     by_place = {place: groups.place_groups(place, record) for place, record in inventories.items()}
-    index, library_entry = read_library(root, inventories)
+    index, library_entry = read_library(root, groups.inventories(data))
     rates = predict.hub_rates(data)
     takes = [take_entry(group, inventories[place], index, rates, work)
              for place, found in by_place.items() for group in found if not group["reuse"]]
@@ -141,6 +151,7 @@ def remake(runner, data, root, work, stock=None, moved=None):
                                                                if take["status"] == "bought"))
     edges = estimate.route_edges(runner.stages, [*route, clips.ROW])
     record = {"made_at": graph.now(), "priced_on": price.priced_on(),
+              "inventory": {"read": sorted(inventories), "waiting": waiting},
               "counts": {**groups.counts(by_place), **take_counts(takes)}, "rates": rates, "library": library_entry,
               "takes": takes, "layers": found, "totals": estimate.totals(found),
               "eta": estimate.eta(found, edges, graph.JOBS, price.run_cap()),

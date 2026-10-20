@@ -162,7 +162,10 @@ def line(record):
     unpriced = f", unpriced: {', '.join(money['unpriced'])}" if money["unpriced"] else ""
     unpriced += (f", estimated from the films' frame time: {', '.join(money['estimated'])}"
                  if money.get("estimated") else "")
-    return (f"remake batch (estimate): {counts['bought']} takes of {counts['groups']} models "
+    inventory = record["inventory"]
+    return (f"remake batch (estimate) of the {len(inventory['read'])} places with a scene inventory "
+            f"({len(inventory['waiting'])} waiting on inventory, no euros): "
+            f"{counts['bought']} takes of {counts['groups']} models "
             f"({counts['library']} from the library (made under today's route), "
             f"{counts['predicted_gaps']} predicted gaps not bought), "
             f"EUR {money['likely_euros']:.2f} likely, {money['high_euros']:.2f} high, every job once{unpriced}; "

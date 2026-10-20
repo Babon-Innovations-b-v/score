@@ -73,7 +73,9 @@ def test_a_library_model_matches_by_kind_and_ratio_and_only_todays_route_or_lock
     assert library.match(lamp, index) == {"pipeline": [], "old": ["model/lamp_1@1"], "code": []}  # older route
     assert library.match(bin_group, index)["pipeline"] == ["model/bin_1@1"]  # the owner locked it
     assert library.match(box, index)["old"] == ["model/box_1@1"]  # today's route named, never accepted there
-    assert len(index) == 5  # the model with no source row has no size and matches nothing
+    assert len(index) == 10  # each by its ratio and by kind alone; the model with no source row matches nothing
+    read = groups.place_groups("lab", {"rows": [a_row("chair", None)]})[0]  # a reading's row: no size
+    assert library.match(read, index)["pipeline"] == ["model/chair_1@1"]
 
 
 def test_the_hub_table_makes_every_rod_a_predicted_gap_and_a_lone_sheet_only_a_risk():
@@ -192,16 +194,71 @@ def test_a_benchmark_whose_inputs_do_not_stand_is_a_gap_and_the_rest_run_once():
     assert found["pixal-l4"]["exit"] == 0 and calls.count("run") == 6 and calls.count("plan") == 7
 
 
+def a_read_row(row_id, kind, noun, count=1, terrain=False):
+    """A scene inventory reading's row (score/review/reading.py's shape: no size, SAM 3's boxes)."""
+    boxes = [[10.0 * number, 0.0, 10.0 * number + 8, 8.0] for number in range(count)]
+    return {"id": row_id, "name": row_id, "noun": noun, "kind": kind, "terrain": terrain, "count": count,
+            "anchor": "floor", "where": "here", "region": [0, 0, 100, 100], "view": "v1", "box": boxes[0],
+            "boxes": boxes, "size": None, "size_words": "waist high", "thing": ""}
+
+
+def a_read_store(place, sha, rows, concept=None):
+    """A store with `place`'s draw `sha` picked and one reading of `concept` (else of the pick) by today's method."""
+    from score.review import concepts, reading
+    from score.store import Store
+    store = Store.in_folder(tempfile.mkdtemp())
+    store.write_once(f"concepts/{place}/draws/1.json", {"place": place, "sha": sha, "at": "2026-10-21T09:00"})
+    concepts.pick(store, place, sha, "joey")
+    store.objects.path(f"blobs/{sha}").parent.mkdir(parents=True, exist_ok=True)
+    store.objects.path(f"blobs/{sha}").write_bytes(b"the picked draw")
+    read = concept or sha
+    reading.kept(store, {"place": place, "concept": read, "at": "2026-10-21T10:00:00Z", "method": reading.METHOD,
+                         "inventory": {"scene": place, "place": place, "concept_pick": {"sha256": read},
+                                       "rows": rows},
+                         "gaps": [], "euros": {"rows": 0.03, "boxes": 0.01, "total": 0.04}})
+    return store
+
+
+def test_a_places_current_reading_is_its_inventory_and_a_place_with_none_waits():
+    rows = [a_read_row("wooden_crate", "generate", "crate", 3), a_read_row("crate_2", "generate", "crate"),
+            a_read_row("floor_plate", "code", "floor plate"), a_read_row("wall_lamp", "code", "wall lamp"),
+            a_read_row("boulder", "generate", "boulder", 2, terrain=True)]
+    store = a_read_store("wreck", "a" * 64, rows)
+    found, waiting = groups.current(store, ["wreck", "lab"])
+    assert waiting == ["lab"] and list(found) == ["wreck"]
+    taken = {group["rows"][0]: group for group in groups.place_groups("wreck", found["wreck"])}
+    assert set(taken) == {"wooden_crate", "crate_2", "floor_plate", "wall_lamp", "boulder"}  # no size: a row a take
+    assert taken["floor_plate"]["shell"] and not taken["wall_lamp"]["shell"] and not taken["boulder"]["shell"]
+    assert taken["wooden_crate"]["take"] == "wreck_wooden_crate_aaaaaaaa" and taken["wooden_crate"]["instances"] == 3
+    old = a_read_store("wreck", "a" * 64, rows, concept="b" * 64)  # read from an older concept: counts for nothing
+    assert groups.current(old, ["wreck"]) == ({}, ["wreck"])
+
+
+def test_the_remake_record_prices_the_read_places_and_counts_the_rest_as_waiting():
+    store = a_read_store("wreck", "a" * 64, [a_read_row("fuel_drum", "generate", "drum", 6),
+                                              a_read_row("wall_panel", "code", "wall")])
+    runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
+    record = prepare.remake(runner, REPO / "data", None, pathlib.Path(tempfile.mkdtemp()))
+    assert record["inventory"]["read"] == ["wreck"] and "base" in record["inventory"]["waiting"]
+    assert "launch" not in record["inventory"]["waiting"] + record["inventory"]["read"]  # a part: no concept
+    assert {take["place"] for take in record["takes"]} == {"wreck"} and record["counts"]["shell_groups"] == 1
+    assert record["counts"]["groups"] == 2 and record["counts"]["instances"] == 7
+    assert record["line"].startswith("remake batch (estimate) of the 1 places with a scene inventory (")
+
+
 def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
-    runner = stages.runner(world=stages.WORLDS["world1"]())
+    store = a_read_store("wreck", "a" * 64, [a_read_row("fuel_drum", "generate", "drum", 6),
+                                              a_read_row("wall_panel", "code", "wall")])
+    runner = stages.runner(store=store, world=stages.WORLDS["world1"]())
     work = pathlib.Path(tempfile.mkdtemp())
     record = prepare.remake(runner, REPO / "data", None, work)
     counts = record["counts"]
     assert counts["groups"] == len(record["takes"])
     assert counts["library"] == 0 and record["library"]["root"] is None  # no library given: nothing matches
     assert counts["bought"] + counts["predicted_gaps"] + counts["made"] == counts["groups"], counts
-    assert counts["inputs_missing"] == counts["bought"]  # a sandbox work folder holds no view picture
-    assert record["line"].startswith("remake batch (estimate): ") and "every job once" in record["line"]
+    assert counts["inputs_missing"] == counts["bought"]  # a reading measures no size
+    assert all(take["inputs"] == ["no size of three sides"] for take in record["takes"])  # its picture is the blob
+    assert "every job once" in record["line"]
     assert record["moved"] == {"not_run": "--moved not given"}
     assert record["across_places"]["takes"] <= counts["bought"]
     assert record["design"]["places"]["garage"]["hint"] == "K04"  # the old plan's pick, a hint only
