@@ -5,7 +5,7 @@ the place does not hold; a file made too loud fails `level`; a MOSS sound under 
 Freesound recording the owner did not choose fails `no freesound`.
 
 Run: .venv/bin/python -m pytest score/stages/sound/sound_test.py   (reads the sounds' bytes from the library; a
-test that plays them is skipped where no library is configured, SCORE_LIB_* or $PROPS_HOME/library.env)
+test that plays them is skipped where no library is configured: SCORE_LIB_*, or no score_lib checkout beside score)
 """
 import json
 import pathlib

@@ -13,8 +13,12 @@ thing out (the remake fills it, #19), never a crash.
 A referenced file is fetched once into the cache (`$PROPS_HOME/cache/library/score_lib/<kind>/<id>/<version>/<file>`)
 by the library's own command (`<SCORE_LIB_COMMAND> --root <SCORE_LIB_ROOT> fetch <address> --file <file> --into
 <cache>`; score never imports the library's code) and checked against the sha256 the entry records, every time it is
-resolved. The library's settings are the SCORE_LIB_* environment variables, else the lines of `$PROPS_HOME/library.env`
-(score/stages/library/backend.py), which may also hold the blob store's variables the command needs.
+resolved. The library's settings are the SCORE_LIB_* environment variables; when they are not set, `defaults()` gives
+the score_lib checkout beside score's own and its command, and when no blob store is set (SCORE_LIB_BLOBS_DIR,
+SCORE_LIB_S3_*), `blob_store()` gives the cloud backend's object store (provider.py object_store(): its endpoint,
+region and bucket, the prefix score_lib, and the runtime key from the backend's secret store), read once a run and
+handed to the command through its environment only, never written or printed. No settings file holds any of it
+(owner, 2026-10-20).
 
 A test or a check with its own files gives `folder` (or SCORE_LIB_FILES): a folder holding each file under the name
 the records give, read instead of the library.
@@ -22,6 +26,7 @@ the records give, read instead of the library.
 Files a tool makes for an environment (route.py install, the sound tools) go to `made_folder()`; `score-lib take-in`
 takes them into the library, and the records then name their references.
 """
+import functools
 import hashlib
 import json
 import os
@@ -29,12 +34,17 @@ import pathlib
 import re
 import shlex
 import subprocess
+import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 REFERENCE = re.compile(r"^(?P<address>(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(?:\.[a-z0-9_]+)?)@(?P<version>[1-9][0-9]*))"
                        r"/(?P<file>[^@]+)$")
-SETTINGS_FILE = "library.env"
 DEFAULT_COMMAND = "score-lib"
+CLOUD = REPO / "tools/props/cloud"
+# The library's blobs sit under this prefix of the cloud backend's bucket (blobs/<sha[:2]>/<sha>).
+STORE_PREFIX = "score_lib"
+# Either of these set means the blob store is chosen already, and the cloud's is not read.
+BLOB_STORE = ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_ENDPOINT")
 # One file's fetch may take this long (a large model over a slow link).
 TIMEOUT = 600
 # The holes already named on this run.
@@ -58,23 +68,47 @@ def cache_folder():
     return props_home() / "cache" / "library"
 
 
-def file_settings():
-    """{KEY: VALUE} of $PROPS_HOME/library.env (blank lines and # comments skipped); empty when it is not there."""
-    path = props_home() / SETTINGS_FILE
-    if not path.is_file():
+def default_root():
+    """score_lib's checkout beside score's main checkout (found from a worktree too), or None when there is none."""
+    found = subprocess.run(["git", "-C", str(REPO), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                           capture_output=True, text=True)
+    root = pathlib.Path(found.stdout.strip()).parent.parent / "score_lib" if found.returncode == 0 else None
+    return root if root and (root / "entries").is_dir() else None
+
+
+def defaults():
+    """SCORE_LIB_ROOT and SCORE_LIB_COMMAND when no variable sets them: the checkout beside score's and its own
+    command (its .venv's score-lib, else score-lib on the PATH); empty when there is no such checkout."""
+    root = default_root()
+    if root is None:
         return {}
-    found = {}
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, _, value = line.partition("=")
-            found[key.strip()] = value.strip().strip("'\"")
-    return found
+    command = root / ".venv/bin/score-lib"
+    return {"SCORE_LIB_ROOT": str(root), "SCORE_LIB_COMMAND": str(command) if command.is_file() else DEFAULT_COMMAND}
 
 
 def settings():
-    """The library's settings: library.env's lines with this process's environment over them."""
-    return {**file_settings(), **os.environ}
+    """The library's settings: the defaults with this process's environment over them."""
+    return {**defaults(), **os.environ}
+
+
+@functools.lru_cache(maxsize=1)
+def cloud_store():
+    """The blob store's variables of the library's command for the cloud backend's object store, its key from the
+    backend's secret store; read once a run, held in memory only."""
+    for folder in (CLOUD / "backends", CLOUD):
+        if str(folder) not in sys.path:
+            sys.path.insert(0, str(folder))
+    from provider import cloud
+
+    store = cloud.object_store()
+    return {"SCORE_LIB_S3_ENDPOINT": store["endpoint"], "SCORE_LIB_S3_REGION": store["region"],
+            "SCORE_LIB_S3_BUCKET": store["bucket"], "SCORE_LIB_S3_PREFIX": STORE_PREFIX,
+            "AWS_ACCESS_KEY_ID": store["access_key"], "AWS_SECRET_ACCESS_KEY": store["secret_key"]}
+
+
+def blob_store(values):
+    """The command's environment `values`, with the cloud's object store added when no blob store is set in it."""
+    return values if any(values.get(name) for name in BLOB_STORE) else {**values, **cloud_store()}
 
 
 def reference(address, file):
@@ -121,7 +155,7 @@ def fetched(values, parts, target):
     if target.exists():
         target.unlink()  # its bytes no longer match the entry: fetched again
     try:
-        done = subprocess.run(words, env=values, cwd=values["SCORE_LIB_ROOT"], capture_output=True, text=True,
+        done = subprocess.run(words, env=blob_store(values), cwd=values["SCORE_LIB_ROOT"], capture_output=True, text=True,
                               timeout=TIMEOUT)
     except (FileNotFoundError, subprocess.TimeoutExpired) as failed:
         raise LibraryUnreachable(f"{shlex.join(words)}: {failed}") from failed
@@ -134,7 +168,8 @@ def from_library(name, parts):
     values = settings()
     root = values.get("SCORE_LIB_ROOT")
     if not root:
-        raise LibraryUnreachable(f"{name}: no library is configured (SCORE_LIB_ROOT, or {props_home() / SETTINGS_FILE})")
+        raise LibraryUnreachable(f"{name}: no library is configured (SCORE_LIB_ROOT, and no score_lib checkout "
+                                 "beside score's)")
     expected = recorded_sha(root, parts)
     if expected is None:
         return None

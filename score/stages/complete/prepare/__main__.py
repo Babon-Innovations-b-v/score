@@ -2,7 +2,7 @@
 
     .venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved] [--out FILE] [--data DIR]
 
---library  the creator's library folder (default SCORE_LIB_ROOT, from the environment or $PROPS_HOME/library.env);
+--library  the creator's library folder (default SCORE_LIB_ROOT, else the score_lib checkout beside score);
            without one, nothing matches and the record says why
 --stock    read where each layer's classes are in stock now (the provider's free listing); without it the class is
            the runner's first and the zone the best boot record

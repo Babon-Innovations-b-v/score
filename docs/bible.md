@@ -127,7 +127,7 @@ cockpit lists what does not trace as the place's problems.
 accepted output of an environment to the creator's library, so what is in an environment is in the library by construction.
 `library@<place>` reads every place row of its line (the showcase renders, demo films and looks, only once they
 stand) and `library-world` every environment row; each runs the library's own handover command once (configured by
-`SCORE_LIB_*` environment variables, else `$PROPS_HOME/library.env`; score never imports the library's code) and keeps
+`SCORE_LIB_*` environment variables, else the score_lib checkout beside score, its blobs in the cloud backend's object store under `score_lib/` with the runtime key from the secret store, handed to the command in its environment only, never a settings file; score never imports the library's code) and keeps
 the report it writes, `handover.json` (contract `library-handover` v1). Its gate fails when no library is configured
 (unless the owner named the environment in `data/checks/library-free.json`), when an output read is not covered by an entry
 or a written exception, when the library refused or did not commit, and answers unknown on a missing 3D copy or

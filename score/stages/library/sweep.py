@@ -3,7 +3,7 @@
     .venv/bin/python -m score.stages.library.sweep [--out FOLDER]
 
 Reads, never writes: the framework's store (each library node's accepted output and its handover.json, the accepted
-output of every node an entry names), the library folder SCORE_LIB_ROOT (else `$PROPS_HOME/library.env`) and its
+output of every node an entry names), the library folder SCORE_LIB_ROOT (else the score_lib checkout beside score) and its
 pictures (SCORE_LIB_BLOBS_DIR). Writes, for each place and for the environment's own nodes, <out>/<place>/findings.json
 ({"place", "answer", "reason", "outputs": {library node: the output judged}, "findings": [{"rule", "prim", "name",
 "sentence", "picture"}]}) with each entry's picture beside it, and <out>/summary.json. The default out is

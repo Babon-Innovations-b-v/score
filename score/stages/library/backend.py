@@ -1,6 +1,6 @@
 """The library backend: which library a world's outputs are handed to, and the one command that hands them.
 
-    values = backend.settings()              # SCORE_LIB_* from the environment, else from $PROPS_HOME/library.env
+    values = backend.settings()              # SCORE_LIB_* from the environment, else the checkout beside score's
     backend.kind(values)                     # "command" or "none"
     backend.identity(values)                 # {"backend", "library"}: the library rows' params, so a new library re-keys them
     backend.arguments(values, run)           # the handover command, word for word, from SCORE_LIB_HANDOVER
@@ -16,18 +16,21 @@ cockpit already uses (score/dashboard/site/settings.py), so any library with a c
     SCORE_LIB_BLOBS_DIR  the library's blob folder, handed on to the command's environment
     SCORE_LIB_HANDOVER   the command template (DEFAULT_TEMPLATE); {command} is the command's own words
 
-A run an agent starts without these variables still finds the library: $PROPS_HOME/library.env holds the machine's
-own settings as KEY=VALUE lines, read for each variable the environment does not set.
+A run an agent starts without these variables still finds the library: SCORE_LIB_ROOT and SCORE_LIB_COMMAND default to
+the score_lib checkout beside score's own, and the command's blob store, when none is set, to the cloud backend's
+object store with its key from the secret store, in the command's environment only (tools/library/library_files.py
+`defaults`, `blob_store`). No settings file (owner, 2026-10-20).
 """
 import os
 import pathlib
 import shlex
 import subprocess
+import sys
 
-from score.store import PROPS_HOME
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/library"))
+import library_files  # noqa: E402
 
 VARIABLES = ("SCORE_LIB_BACKEND", "SCORE_LIB_ROOT", "SCORE_LIB_COMMAND", "SCORE_LIB_BLOBS_DIR", "SCORE_LIB_HANDOVER")
-SETTINGS_FILE = "library.env"
 COMMAND, NONE = "command", "none"
 DEFAULT_COMMAND = "score-lib"
 DEFAULT_TEMPLATE = ("{command} --root {root} handover --world {world} --place {place} --seed {seed} --commit {commit} "
@@ -40,28 +43,10 @@ class Misconfigured(RuntimeError):
     """The library settings name a backend that cannot run as set."""
 
 
-def settings_file():
-    return PROPS_HOME / SETTINGS_FILE
-
-
-def file_settings(path):
-    """{KEY: VALUE} of a KEY=VALUE file (blank lines and # comments skipped); empty when the file is not there."""
-    path = pathlib.Path(path)
-    if not path.is_file():
-        return {}
-    found = {}
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            name, _, value = line.partition("=")
-            found[name.strip()] = value.strip().strip("'\"")
-    return found
-
-
 def settings():
-    """The SCORE_LIB_* settings: each from the environment, else from $PROPS_HOME/library.env, else unset."""
-    written = file_settings(settings_file())
-    found = {name: os.environ.get(name, "").strip() or written.get(name, "") for name in VARIABLES}
+    """The SCORE_LIB_* settings: each from the environment, else its default (library_files.defaults), else unset."""
+    defaults = library_files.defaults()
+    found = {name: os.environ.get(name, "").strip() or defaults.get(name, "") for name in VARIABLES}
     return {name: value for name, value in found.items() if value}
 
 
@@ -114,8 +99,9 @@ def arguments(values, run):
 
 
 def command_environment(values, store, repo):
-    """This process's environment with the store, the repository and the library settings named for the command."""
-    return {**os.environ, **values, "SCORE_STORE": str(store), "SCORE_REPO": str(repo)}
+    """This process's environment with the store, the repository and the library settings named for the command, and
+    the cloud's blob store when none is set."""
+    return library_files.blob_store({**os.environ, **values, "SCORE_STORE": str(store), "SCORE_REPO": str(repo)})
 
 
 def run(words, values, store, repo):

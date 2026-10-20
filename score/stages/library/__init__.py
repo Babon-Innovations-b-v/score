@@ -10,7 +10,7 @@ world shows up in the library by construction, never by an agent's hand.
     library.world_completion(runner, places)            # [(node, why it does not stand)]: empty when the world is complete
 
 The make (`make`) writes `reads.json`, every accepted output the node read as {node, output}, then runs the library's
-handover command once (backend.py: SCORE_LIB_* from the environment, else $PROPS_HOME/library.env), which writes
+handover command once (backend.py: SCORE_LIB_* from the environment, else the checkout beside score), which writes
 `handover.json` (contract library-handover v1, handover.py) into the node's output folder. With no library configured
 it writes a report that says so, and the gate fails unless the world is library-free (data/checks/library-free.json,
 an owner's dated decision). The node never locks, withdraws or deletes an entry: drafts only; locking is the owner's.
