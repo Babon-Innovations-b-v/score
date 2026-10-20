@@ -304,7 +304,8 @@ def remake_prepared():
 
 def plans_kept():
     """Every place's plan (made from its picked concept and its inventory, or his edit) where the plan stage reads
-    it (score.review.plans keep, free, local), so the batch is made from the plan his cockpit shows; its line."""
+    it, and the plan row made again for those that changed or are not made yet (score.review.plans keep, free,
+    local, its run detached), so the batch is made from the plan his cockpit shows; its line."""
     return step_line("score.review.plans", "plans failed", "keep")
 
 

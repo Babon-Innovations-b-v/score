@@ -102,9 +102,20 @@ def named(store, place):
 
 
 def proposed_inside(store, place):
-    """The inside places `place`'s derived plan lays out: those listed in it now, then those he named."""
+    """The inside places `place`'s derived plan lays out: those listed in it now, then those the locked environment
+    concept says it holds (environment_concept.places_in_force), then those he named."""
     listed = [name for name, above in tree(store)["within"].items() if above == place]
-    return listed + [name for name in named(store, place) if name not in listed]
+    return list(dict.fromkeys([*listed, *concept_holds(store, place, listed), *named(store, place)]))
+
+
+def concept_holds(store, place, listed):
+    """The inside places the environment concept in force lists under `place`, as place names, less those `listed`
+    already (matched by their names as the cockpit says them)."""
+    from score.review import environment_concept
+    entry = next((entry for entry in environment_concept.places_in_force(store, sorted(within_file()[0]))
+                  if entry["place"] == place), {})
+    said = {environment_concept.name_in(name, concepts.tree()).lower() for name in listed}
+    return checked_names([name for name in entry.get("holds", []) if name.lower() not in said])
 
 
 def checked_names(names):
@@ -724,8 +735,10 @@ def main(argv):
     store = Store.in_folder(os.environ[STORE]) if os.environ.get(STORE) else Store.default()
     if argv == ["keep"]:
         kept, changed = keep(store, sorted(path.stem for path in (DATA / "plans").glob("*.json")))
+        # changed, or not made yet (a run refused while another held the store is asked again next pass)
+        again = [place for place in sorted({*changed, *kept}) if place in changed or not made(store, place)]
         print(f"plans for the plan stage: {len(kept)} kept, {len(changed)} changed"
-              + (f"; plan rows made again: {made_again(changed)}" if changed else ""))
+              + (f"; plan rows of {len(again)} made again: {made_again(again)}" if again else ""))
         return 0
     place, request, by = argv
     try:
