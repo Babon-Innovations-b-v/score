@@ -187,8 +187,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **The concept review** (CONTEXT.md "concept review", owner 2026-10-20; `pages/concepts.py`, `concept.html`,
   `static/pages/concept.js`): each Environment card whose concept is not locked carries a Review (Draw while it has
   none) button to `/concept/<place or shell>/`: the shown draw with areas marked by dragging, a note each and one for
-  the whole, Draw or Redraw with its price per click, and beside Redraw Draw fresh (a new first draw from the
-  place's current first-draw wording and the free note, no base and so no marks; same price, same yes) (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
+  the whole, one draw button with its price per click (Draw concept while it has none; then, with no mark and
+  no note, Draw fresh: a new first draw from the place's current first-draw wording, no base; with any, Redraw with
+  notes: the shown draw repainted as they say; the owner, 2026-10-20) (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
   picture at the standard tier, `score/review/concepts.draw_euros`), the place's draws, Pick (locks it: the card loses
   the button) and Unlock. A click is the owner's request (SyncRequest `concept-draw`, `concept-pick`), applied on the
   store's machine through `actions.concept_draw` / `concept_pick` and `score.review.web` (his yes for that one call
