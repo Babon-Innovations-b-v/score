@@ -7,7 +7,7 @@
 
 Step 0 holds the worked example: assembly (P5) on environment 1's round-three stages as unverified seeds, and complete
 (P11). Terrain (the paper's Methods, "Terrain") makes every ground of the environment from its plan, one environment node,
-free (the code fallback until its prop-pipeline adapter lands), and ground-fit judges each seated place on it. The surface stage (step 1, its overlay) is each place's
+free (the code fallback under its prop-pipeline adapter, ground-join), and ground-fit judges each seated place on it. The surface stage (step 1, its overlay) is each place's
 own line of rows, split to checked bake, beside the environment's seed of the finish registry. Effects (experimental) makes
 each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
 after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
@@ -25,9 +25,9 @@ import pathlib
 
 from score import checks, contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
-                          effects, gaps, images, library, light, motion, people, people_takes, physics,
-                          props, proposals, rough_model, scene_record, settling, shell_split, sound, surface_tiles,
-                          surfaces, terrain)
+                          earth_seed, effects, gaps, images, late_bake, library, light, motion, people, people_takes,
+                          physics, props, proposals, rough_model, scene_record, settling, shell_split, sound,
+                          surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
@@ -40,7 +40,7 @@ import score.stages.props.prop_data as prop_data
 import score.stages.complete.boxes as complete_boxes
 from score.stages.assembly import ship_made
 from score.stages.effects import look as effects_look
-from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs, look
+from score.stages.terrain import fit as ground_fit, inputs as terrain_inputs, join as ground_join, look
 from score.store import PROPS_HOME, Store
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -769,7 +769,111 @@ def ship_completed(row):
 STAGES = tuple(ship_assembled(row) if row.name == "assembly" else ship_seen(row) if row.name == "surfaces-check"
                else ship_completed(row) if row.name == "complete" else ship_cast(row) if row.name == "cast" else row
                for row in STAGES)
+# The assembly reading the round-three seed itself, before earth_seeded below: the worked example's (stages_test.py).
 ASSEMBLY = next(row for row in STAGES if row.name == "assembly")
+
+
+def earth_place(place):
+    """A place of the earth seed rows: its kit is laid and it is no ship place (whose base is usd-ship's)."""
+    return place is not None and kit_laid(place) and not ship_place(place)
+
+
+EARTH_KIT = graph.Stage("earth-kit", "place", earth_seed.make_kit, earth_seed.EARTH_KIT,
+                        (checks.Check("made", late_bake.judge_made),
+                         checks.Check("surfaces", late_bake.judge_surfaces)),
+                        files=earth_seed.kit_files, paid=True, euros=earth_seed.EUROS, applies=earth_place)
+EARTH_SEED = graph.Stage("earth-seed", "place", earth_seed.make_seed, earth_seed.EARTH_SEED, earth_seed.SEED_CHECKS,
+                         files=earth_seed.seed_files,
+                         after={"earth-kit": ("earth-kit", 1), "surfaces-bake": ("surfaces-bake", 1)},
+                         beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
+                         neighbours=assembly.claiming_places, applies=earth_place)
+SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version)}
+# Every row that read a place's round-three seed (`{seeds}/usd-r3/<place>`), each now reading earth-seed instead
+# (earth_seeded); stages_test.py holds the list to the declared files. terrain-look keeps its own: its paid horizon
+# check waits on the owner's decision (#27).
+EARTH_SEEDED = ("assembly", "settle", "effects-layer", "effects-look", "physics-trial", "cast", "motion",
+                "motion-models", "light-layer", "light-passes", "light-haze", "light", "scene-record")
+
+
+def seed_named(pattern, place):
+    """The earth place whose round-three seed a declared file pattern is (`{place}` the node's own), else None."""
+    start = f"{{seeds}}/{OLD_SEED}/"
+    if not isinstance(pattern, str) or not pattern.startswith(start):
+        return None
+    named = pattern[len(start):].replace("{place}", str(place))
+    return named if "/" not in named and earth_place(named) else None
+
+
+def seed_inputs(inputs, found, place):
+    """`inputs` with each declared seed (`found`, the row's own files) read from earth-seed: the place's own from its
+    after, another place's from beside (`earth-seed@<other>`), each its stage folder (earth_seed.place_in's form)."""
+    taken = dict(inputs)
+    for name, pattern in found.items():
+        named = seed_named(pattern, place)
+        if named is not None:
+            node = "earth-seed" if named == place else f"earth-seed@{named}"
+            taken[name] = pathlib.Path(inputs[node]) / named
+    return taken
+
+
+def seeded_place(inputs):
+    """The place a node reading its own earth seed is made for (the seed output's one stage folder), else None."""
+    return earth_seed.place_in(inputs["earth-seed"]).name if "earth-seed" in inputs else None
+
+
+def earth_seeded(row):
+    """A row that read round-three seeds reading each from its earth-seed row (#27: the work folder's usd-r3 was lost
+    on 2026-10-19 and blocked every line behind it): the place's own as an `after`, another place's beside; its make,
+    judges and gatherers given the seed folders under their old names. A seed of a place with no earth-seed row (no kit
+    laid) stays a declared file, so it is still named lost."""
+    files, place_files = row.files, row.files if callable(row.files) else (lambda place: row.files)
+
+    def declared(place):
+        found = place_files(place)
+        return {name: path for name, path in found.items() if seed_named(path, place) is None}
+
+    def others(place):  # a row reading beside already (the assembly's claims) reads no other place's seed
+        return sorted({seed_named(path, place) for path in place_files(place).values()} - {None, place})
+
+    def with_seeds(function, position):
+        @functools.wraps(function)
+        def read(*arguments):
+            arguments = list(arguments)
+            place = seeded_place(arguments[position])
+            if place is not None:
+                arguments[position] = seed_inputs(arguments[position], place_files(place), place)
+            return function(*arguments)
+        return read
+
+    beside = row.beside or SEED_READ
+    return dataclasses.replace(
+        row, files=functools.wraps(files)(declared) if callable(files) else declared,
+        after={**row.after, **SEED_READ}, beside=beside, neighbours=row.neighbours or others,
+        make=with_seeds(row.make, 0),
+        checks=tuple(dataclasses.replace(check, judge=with_seeds(check.judge, 1)) for check in row.checks),
+        gatherers={name: (with_seeds(gather, 1), euros) for name, (gather, euros) in row.gatherers.items()})
+
+
+# The terrain adapter's join (score/stages/terrain/join.py, #27): a place's detail area pieces, made by the prop
+# pipeline, joined into its made ground; only a place whose inventory has detail area rows has the row.
+GROUND_JOIN = graph.Stage("ground-join", "place", ground_join.make, ground_join.CONTRACT, ground_join.CHECKS,
+                          files=ground_join.files, after=ground_join.AFTER, applies=ground_join.applies)
+
+
+def joined_ground(row):
+    """The assembly taking the ground-join's layer of the place's ground in place of the terrain row's, where the place
+    has the row (Runner.reads leaves it out elsewhere, so no other place's key moves)."""
+    make = row.make
+
+    def made(inputs, out, seed, params):
+        return make(dict(inputs, terrain=inputs["ground-join"]) if "ground-join" in inputs else inputs, out, seed,
+                    params)
+    return dataclasses.replace(row, after={**row.after, "ground-join": ("ground-join", 1)},
+                               make=functools.wraps(make)(made))
+
+
+STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) if row.name in EARTH_SEEDED else row
+            for row in STAGES), EARTH_KIT, EARTH_SEED, GROUND_JOIN)
 # The library rows (score/stages/library), appended last: library@<place> hands every accepted output of its place's
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
 # is complete once its library node stands accepted, the environment once every one does (library.world_completion).

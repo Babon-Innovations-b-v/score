@@ -245,21 +245,25 @@ def test_every_filler_is_a_stage_of_the_table_or_the_ship_kit():
 
 
 def test_lost_inputs_are_place_holes_with_their_code_work():
-    """On a home whose work folder is gone: the cockpit's ship seed, its views copy and the owner's pictures, the
-    earth seeds the scene record reads, and the launch's far rocket whose bake entry went with its old job, each a
-    place hole with its code work and no node; the cockpit's cast no longer asks for a scene record it never had."""
+    """On a home whose work folder is gone: the cockpit's ship seed, its views copy and the owner's pictures, and the
+    launch's far rocket whose bake entry went with its old job, each a place hole with its code work and no node; the
+    cockpit's cast no longer asks for a scene record it never had. A kit-laid place's earth seed is no lost input: its
+    readers wait on earth-seed@<place> (#27); only a place with no kit (the far city) is still lost."""
     from score.stages.complete.holes import inputs
     from score.stages.complete.holes.__main__ import lost_holes
     runner = stages.runner(store=Store.in_folder(PROPS_HOME / "store"))
     cockpit = {hole["id"]: hole for hole in inputs.lost(runner, "cockpit")}
-    assert {"lost:ship-seed:cockpit", "lost:earth-seed:usd-r3",
+    assert {"lost:ship-seed:cockpit",
             "lost:reference:cockpit.png", "lost:reference:reference-shuttle.png"} <= set(cockpit), sorted(cockpit)
+    assert not any(hole.startswith("lost:earth-seed") for hole in cockpit), sorted(cockpit)
     assert "lost:views:cockpit.json" not in cockpit  # its light reads its views from its own scene record (#27)
     assert "ship_kit@cockpit" in cockpit["lost:ship-seed:cockpit"]["work"]
     assert not any("data/scene/cockpit.json" in hole["sentence"] for hole in cockpit.values())
-    launch = {hole["id"] for hole in inputs.lost(runner, "launch")}
-    assert {"lost:data:surfaces/launch.json:bake entry far_rocket_1", "lost:earth-seed:launch"} <= launch, \
-        sorted(launch)
+    launch = {hole["id"]: hole for hole in inputs.lost(runner, "launch")}
+    assert "lost:data:surfaces/launch.json:bake entry far_rocket_1" in launch, sorted(launch)
+    # terrain-look keeps the round-three seeds until the owner decides its horizon check (#27)
+    assert launch["lost:earth-seed:launch"]["sentence"].endswith("read by terrain-look@launch"), launch
+    assert "lost:earth-seed:far_city" in launch
     found = [dict(hole, low=None, high=None) for hole in lost_holes(runner, "launch")]
     assert holes_faults({"findings": found}) == [] and all(hole["rule"] == "place" for hole in found)
 

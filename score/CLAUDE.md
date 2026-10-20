@@ -112,7 +112,9 @@ stage as each stage is built; nothing moves before.
   their schema version (ADR-0007, its overlay); nothing else in score parses them.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
-  `complete`. `terrain` (one environment node, free, the code fallback until its prop-pipeline adapter lands) makes
+  `complete`. `earth-kit` (paid) and `earth-seed` (free, `stages/earth_seed`, its overlay) make each kit-laid earth
+  place's base stage again from git and the rows' outputs, and every row that read the lost round-three seed reads it
+  (`stages.earth_seeded`; terrain-look excepted until the owner decides it). `terrain` (one environment node, free, the code fallback under its prop-pipeline adapter, `ground-join`) makes
   every ground from its plan in `data/ground/plan/`, gated on scale and slope; `ground-fit@<place>` (free) judges each
   seated place's stage on it: ground under objects, nothing floating, no hole, openings (its overlay). `surfaces` (step 1) is each place's own line of
   rows, the finish route to checked bake (its overlay; per-place data in

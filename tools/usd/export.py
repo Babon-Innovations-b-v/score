@@ -708,18 +708,22 @@ def reused_takes(parts, laid, inventory, stored):
 
 
 def export(place, models, out, parts=None, kit_path=None, inventory_path=None, take=None, ground=None, world=None,
-           scene=None):
+           scene=None, holes=None):
     """Write the place's stage under `out` (base and assets rewritten, the edit layer kept) and return its path.
     `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read; without
     `parts`, the place's stored takes (data/parts). `ground` is the place's tools/usd/ground.Ground; without one the
     place is flat. `scene` is the place's scene record (tools/usd/scene.py; None writes only its made pieces) and
-    `world` a folder holding the files its records name, read instead of the library (tools/library)."""
+    `world` a folder holding the files its records name, read instead of the library (tools/library). Given a list as
+    `holes` (the earth-seed row's), a piece whose model is in none of `models` is left out and named there
+    ({"model"}), and so is each pick fault ({"row", "object", "why"}), instead of stopping the export."""
     out = pathlib.Path(out)
     if parts is None:
         parts = stored_parts.takes_of(place)
     elif isinstance(parts, dict):  # a kit room's run: a model its bake jobs do not name (laid later) by its stored take
         parts = {**stored_parts.takes_of(place), **parts}
     kit = json.loads(pathlib.Path(kit_path or KITS / f"{place}.json").read_text())
+    if holes is not None:
+        kit = dict(kit, pieces=made_only(kit["pieces"], models, holes))
     if scene:
         scene_record.refuse_rejected(scene, [piece.get("row") for piece in kit["pieces"]], "the kit")
     if kit["pieces"] and "x" in kit["pieces"][0]:
@@ -732,6 +736,8 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
                                if path.exists()), INVENTORIES / f"{place}.json")
     inventory = json.loads(pathlib.Path(inventory_path).read_text())
     children = child_pieces(place, kit, inventory, json.loads(COMPOSITES.read_text()))
+    if holes is not None:
+        children = {row: made_only(on_it, models, holes) for row, on_it in children.items()}
     details = json.loads(DETAILS.read_text())
     variants = library.variants(library.theme_library())
     sounds = json.loads(SOUNDS.read_text())
@@ -751,7 +757,11 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
         largest = write_asset(model, models, parts, take, turn, piece["size"], out, variants, sounds, glows.get(model))
         assets[model] = None if largest is None else sound_of(largest, variants, sounds)
     hashes = {model: stage_inputs.model_hash(model_file(models, model)) for model in assets}
-    lock_picks(place, kit, children, inventory, hashes, scene_shown((scene or {}).get("objects", []), world))
+    broken = pick_faults(kit, children, inventory, hashes, scene_shown((scene or {}).get("objects", []), world))
+    if holes is None:
+        refuse_broken(place, broken)
+    else:
+        holes.extend(broken)
     write_base(place, kit, inventory, assets, out, children, ground, scene, world, hashes)
     ensure_edit(out)
     stage = write_root(place, out)
@@ -777,16 +787,27 @@ def scene_shown(objects, world, parent="Fixtures", shown=None):
     return shown
 
 
-def lock_picks(place, kit, children, inventory, hashes, from_scene=None):
-    """Refuse the export when a row the owner picked a model for would show another (picks.py), naming each; the
-    scene record's objects that stand for a row (`from_scene`, scene_shown) count as that row's."""
+def made_only(pieces, models, holes):
+    """The pieces whose model is in one of the `models` folders; each other model named once in `holes`."""
+    missing = {piece["model"] for piece in pieces if not model_file(models, piece["model"]).exists()}
+    holes.extend({"model": model} for model in sorted(missing) if {"model": model} not in holes)
+    return [piece for piece in pieces if piece["model"] not in missing]
+
+
+def pick_faults(kit, children, inventory, hashes, from_scene=None):
+    """Every way the laid objects break the owner's picks (picks.faults); the scene record's objects that stand for a
+    row (`from_scene`, scene_shown) count as that row's."""
     shown = {row: list(objects) for row, objects in (from_scene or {}).items()}
     for name, piece in zip(object_names(kit["pieces"]), kit["pieces"]):
         shown.setdefault(piece["row"], []).append((name, piece["model"], hashes.get(piece["model"])))
         on_it = children.get(piece["row"], [])
         for child_name, child in zip(object_names(on_it), on_it):
             shown.setdefault(child["row"], []).append((f"{name}/{child_name}", child["model"], hashes.get(child["model"])))
-    broken = picks.faults(inventory["rows"], shown)
+    return picks.faults(inventory["rows"], shown)
+
+
+def refuse_broken(place, broken):
+    """Refuse the export when a row the owner picked a model for would show another (picks.py), naming each."""
     if broken:
         raise picks.PickBroken(f"{place}: the owner's picks would be replaced without a written decision "
                                "(the row's pick_replaced): " + "; ".join(f"{fault['row']}: {fault['why']}"

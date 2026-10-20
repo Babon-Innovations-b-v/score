@@ -14,7 +14,14 @@ seated place's own stage standing on it. `__init__.py`'s and `fit.py`'s docstrin
 - **Terrain is a model layer (owner, 2026-10-20; CONTEXT.md "layer adapter").** Its shape comes from the place's rough
   model and its detail areas (outcrops, craters, cliffs, the ground round an outside building) from close-ups made into
   models through the prop pipeline, the same shapes-first loop as a building, joined into one continuous ground with
-  collision and library finishes. That adapter is #27's to build. Never add another way of making ground (a picture
+  collision and library finishes. The adapter (#27): `areas.py` works out each outdoor place's detail areas from its
+  ground plan alone (a landform reaching into its fine patch) and lands them (`python -m score.stages.terrain.areas
+  write <place>`) as scene inventory rows of the prop route, prop objects and surface takes, so the shared pipeline
+  makes them; until landed each is a `missing` hole of the prop route (`needs.py`), priced through the pipeline's own
+  units. `join.py`'s `ground-join@<place>` (free, only where area rows are landed) cuts the code ground under each
+  made piece, seats its rim into it, gives each face its library surface and the mesh itself as collider, gated on
+  `seam`; the assembly takes its layer in place of terrain's (`stages.joined_ground`), and ground-fit judges the
+  whole. A piece the pipeline did not make leaves the code ground there, named. Never add another way of making ground (a picture
   model, a depth reading, a height field from anything but the plan's code): the plan's code shape here is the named
   fallback, said so in every ground's `measures.json` (`made_by`, `MADE_BY`). The diorama pictures and their depth
   (Qwen-Image-Edit, Depth Anything) were retired on 2026-10-20 for this rule.

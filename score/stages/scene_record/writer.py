@@ -78,13 +78,34 @@ LEAF_YAW = {"north": 0.0, "south": 0.0, "east": 90.0, "west": 90.0}
 def files(place):
     """The world files the writer reads: the place's inventory and kit, every plan and kit (joined and seated places),
     the sky record, the place definitions (the eye's height), the tube's record (only its length: the stage a tube
-    shows); and for the gates the old record (the seed) and the old stages (the neighbours the openings compose)."""
+    shows); and for the gates the old record (the seed) and the old stages of the place and of each place a door leads
+    to (`seed <stage>`, seed_stages: what the views are cut by and the openings compose; the table reads each from its
+    earth-seed row)."""
     return {"inventory": f"{{data}}/inventory/{place_plan.inventory_name(place)}.json", "kits": "{data}/kit",
             "plans": "{data}/plans",
             "sky": "{data}/definitions/sky.json", "base": "{data}/definitions/base.json", "tube length": "{data}/scene/tube.json",
             "places": "{data}/definitions/place.json",
             "seed record": "{data}/scene/{place}.json",
-            "seeds": "{seeds}/usd-r3", "tokens": "{data}/../design/tokens/tokens.json"}
+            **{f"seed {stage}": f"{{seeds}}/usd-r3/{stage}" for stage in seed_stages(place)},
+            "tokens": "{data}/../design/tokens/tokens.json"}
+
+
+# What a door may lead to that is no place with a stage.
+NOT_PLACES = {"outside", "sealed"}
+
+
+def seed_stages(place):
+    """The places whose old stage the writer and its gates stand: the place's own (its stage in the base, for a module
+    of it: data/definitions/base.json) and each place a door of its plan leads to."""
+    path = REPO / "data/plans" / f"{place}.json"
+    leads = read(path).get("leads", {}) if path.exists() else {}
+    own = read(REPO / "data/definitions/base.json")["modules"].get(place, {}).get("stage", place)
+    return sorted({own, *(lead["to"] for lead in leads.values())} - NOT_PLACES)
+
+
+def seed_of(inputs, stage):
+    """A place's old stage folder (`seed <stage>`, files)."""
+    return pathlib.Path(inputs[f"seed {stage}"])
 
 
 def read(path):
@@ -704,7 +725,7 @@ def shown_only(place, plan, record, inputs):
     kit = read(kit_path) if kit_path.exists() else None
     zoned, _ = outside.meshes(here.made, here.entry, on_seat_of(inputs["kits"], here.stage),
                               ground_gates.footprint(record, kit))
-    rays = ground_gates.caster(seen.occluders(here.stage, inputs["seeds"], zoned))
+    rays = ground_gates.caster(seen.occluders(seed_of(inputs, here.stage), zoned))
     kept = seen.visible(record["views"], candidates, inputs["plans"], rays, VIEW_FOV)
     return {**record, "places": [entry for entry in record["places"]
                                  if entry not in candidates or entry["name"] in kept]}

@@ -4,8 +4,10 @@ the repository alone: the plans, the library, the design tokens and the seated p
 
 Terrain is a model layer (CONTEXT.md "layer adapter", the owner, 2026-10-20): its shape is to come from the place's
 rough model and its detail areas (outcrops, craters, cliffs, the ground round a building) from close-ups made into
-models through the prop pipeline, joined into one continuous ground (#27). Until that adapter lands this row is the
-code fallback, and every ground's measures.json says so (`made_by`, MADE_BY): the plan's large shape in code.
+models through the prop pipeline, joined into one continuous ground (#27: areas.py lands the detail areas as scene
+inventory rows of the prop route, join.py's ground-join row joins their made pieces into this row's ground). This
+row is the code fallback under them, and every ground's measures.json says so (`made_by`, MADE_BY): the plan's large
+shape in code, standing wherever no piece was made.
 
     make     for each plan in data/ground/plan/: the plan's large shape in code (plan.py, landforms.py: flats, paths,
              craters of every kind, ridges, buttes, dunes, canyons, hills, a coastline); the plan's levelled yards and
@@ -33,10 +35,10 @@ FILES = {"grounds": "{data}/ground", "library": ("{data}/library/materials.json"
          "tokens": "{data}/../design/tokens/tokens.json", "scenes": "{data}/scene", "kits": "{data}/kit"}
 DRAWING_SIDE = 1024
 CHECKS = gates.CHECKS
-# What made every ground until the terrain adapter on the prop pipeline lands (#27): the code fallback, named.
+# What made every ground here (#27): the code fallback, named; the terrain adapter's pieces join over it.
 MADE_BY = {"made_by": "code fallback: the plan's large shape (plan.py, landforms.py)",
-           "why": "the terrain adapter (the rough model's ground and the detail areas' close-ups through the prop "
-                  "pipeline, joined into one ground) is not built yet (#27)"}
+           "why": "the terrain adapter's detail pieces (the prop pipeline's models of the plan's detail areas) are "
+                  "joined over it by ground-join@<place> (join.py); where none was made this ground stands (#27)"}
 
 
 def place_layers(folder, made, record_plan, inputs):
