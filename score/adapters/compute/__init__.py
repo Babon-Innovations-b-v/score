@@ -138,6 +138,12 @@ def per_unit(stage):
     return None
 
 
+def node_minutes():
+    """{stage: {likely, high, makes, from}} of the makes the store's finish records timed (PER_UNIT's `node_minutes`,
+    written by tools/costs/per_unit.py --store), read once for a whole plan."""
+    return json.loads(PER_UNIT.read_text()).get("node_minutes", {})
+
+
 def take_files(listing, ending):
     """The output's own files ending in `ending` at its top level, its contract left out (one a take)."""
     return [name for name in listing if "/" not in name and name.endswith(ending) and name != "contract.json"]
@@ -228,25 +234,29 @@ def forecast_price(node, units):
 def unit_minutes(stage, units):
     """How long `units` units of `stage` keep the run, on its measured time (PER_UNIT's `time`, the same ledger lines
     as its euros) by the runner's own card rule (tools/props/cloud/preflight.py cards_for and minutes_for, capped at
-    capacity.run_cap): {likely_minutes, high_minutes, cards} (cards None for a stage of calls), or {minutes_why}
-    when its time is unmeasured or no units were counted."""
+    capacity.run_cap; the high minutes on the high job time and the high set-up): {likely_minutes, high_minutes,
+    cards} (cards None for a stage of calls), or {minutes_why} when its time or set-up is unmeasured or no units were
+    counted."""
     entry = per_unit(stage)
     time = (entry or {}).get("time") or {}
     if not units:
         return {"minutes_why": "no units counted"}
     if "unit_seconds" not in time:
         return {"minutes_why": time.get("why", f"{stage}: no measured time in {PER_UNIT.name}")}
+    setup = time.get("setup_minutes") or {}
+    if "likely" not in setup:
+        return {"minutes_why": setup.get("why", f"{stage}: no measured set-up in {PER_UNIT.name}")}
     ledger()  # puts tools/props/cloud on the path
     import capacity  # beside ledger.py
     import preflight
     numbers = {"job_seconds": time["unit_seconds"]["likely"], "high_job_seconds": time["unit_seconds"]["high"],
-               "setup_minutes": time["setup_minutes"]}
+               "setup_minutes": setup["likely"]}
     machines, slots = time["holds"] == "machines", max(1, time.get("slots") or 1)
     cards = preflight.cards_for(units, numbers, capacity.run_cap() if machines else 1, slots)
-    return {"likely_minutes": round(preflight.minutes_for(units, cards, numbers["job_seconds"],
-                                                          numbers["setup_minutes"], slots), 2),
-            "high_minutes": round(preflight.minutes_for(units, cards, numbers["high_job_seconds"],
-                                                        numbers["setup_minutes"], slots), 2),
+    return {"likely_minutes": round(preflight.minutes_for(units, cards, numbers["job_seconds"], setup["likely"],
+                                                          slots), 2),
+            "high_minutes": round(preflight.minutes_for(units, cards, numbers["high_job_seconds"], setup["high"],
+                                                        slots), 2),
             "cards": cards if machines else None}
 
 

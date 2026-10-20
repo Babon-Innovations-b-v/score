@@ -2,7 +2,8 @@
 at once (paid and free, as the runner's drive) and never more than the run's cap of cards held. Free and local; it
 buys, keys and judges nothing.
 
-    nodes = {node: schedule.timed_row(node, paid, price)}         # in the stage table's order (the tie-break)
+    made = compute.node_minutes()                                  # read once
+    nodes = {node: schedule.timed_row(node, paid, price, made)}   # in the stage table's order (the tie-break)
     eta = schedule.schedule(nodes, [(before, after), ...], jobs=4, run_cap=20)
 
 A row's minutes are measured or absent, never guessed: a paid row's are compute.run_price's (its units on its stage's
@@ -12,30 +13,28 @@ why and counted as no time, so the walk gives only a lower bound (`at_least_minu
 given only when every row of the plan has its minutes, as an untimed row anywhere could be the longest.
 """
 import heapq
-import json
-
-from score.adapters import compute
 
 
-def local_minutes(stage):
-    """{likely_minutes, high_minutes} of a free row from its stage's measured makes (PER_UNIT's `node_minutes`), or
-    {why} with none."""
-    made = json.loads(compute.PER_UNIT.read_text()).get("node_minutes", {}).get(stage)
-    if made is None:
+def local_minutes(stage, made):
+    """{likely_minutes, high_minutes} of a free row from its stage's measured makes (`made`, compute.node_minutes),
+    or {why} with none."""
+    timed = made.get(stage)
+    if timed is None:
         return {"why": f"no make of {stage} timed in the store's finish records"}
-    return {"likely_minutes": made["likely"], "high_minutes": made["high"]}
+    return {"likely_minutes": timed["likely"], "high_minutes": timed["high"]}
 
 
-def timed_row(node, paid, price=None):
+def timed_row(node, paid, price=None, made=None):
     """A plan's row as schedule() takes it: {paid, likely_minutes, high_minutes, cards, why}; a paid row's from its
-    price (compute.run_price), a free row's from its stage's measured makes."""
+    price (compute.run_price), a free row's from its stage's measured makes (`made`, compute.node_minutes() read once
+    by the caller for every row)."""
     if paid:
         price = price or {"minutes_why": "no price given"}
         timed = {"likely_minutes": price.get("likely_minutes"), "high_minutes": price.get("high_minutes"),
                  "why": price.get("minutes_why")}
         return {"paid": True, "cards": price.get("cards"), **timed}
     return {"paid": False, "cards": None, "likely_minutes": None, "high_minutes": None, "why": None,
-            **local_minutes(node.partition("@")[0])}
+            **local_minutes(node.partition("@")[0], made or {})}
 
 
 def has_time(row):
@@ -129,5 +128,8 @@ def schedule(nodes, edges, jobs, run_cap):
     at_least = max((end for _, end in likely_times.values()), default=0.0)
     high = max((end for _, end in high_times.values()), default=0.0)
     return {"likely_minutes": None if unknown else round(at_least, 2),
-            "high_minutes": None if unknown else round(high, 2), "at_least_minutes": round(at_least, 2), "path": path(likely_times, likely_cause),
-            "high_path": path(high_times, high_cause), "unknown": unknown}
+            "high_minutes": None if unknown else round(high, 2),
+            "at_least_minutes": round(at_least, 2),
+            "path": path(likely_times, likely_cause),
+            "high_path": path(high_times, high_cause),
+            "unknown": unknown}

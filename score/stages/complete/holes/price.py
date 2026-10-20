@@ -23,6 +23,9 @@ The record:
                      (the code work whose make is a Pixal3D one, priced at pixal's per unit as if it had landed: the
                       lost takes a model each, a rough model one a place)
      "outside": [{"node", "holes"}],                  (a node outside this runner's table and every own table)
+     "eta": {jobs, run_cap, likely_minutes, high_minutes, at_least_minutes, path, high_path, unknown},
+                     (the runner's ETA of every chain's and after-work row, schedule.py on measured minutes: likely
+                      and high null while any row is untimed, at_least the walk with those as no time)
      "not_current": [places whose findings stood over an output no longer accepted: run the holes check again],
      "not_checked": [places (and WORLD) with no findings: the holes check never ran there]}
 
@@ -41,7 +44,7 @@ import re
 from score import graph
 from score.adapters import compute
 from score.graph import chain
-from score.stages.complete.holes import FINDINGS, WORLD, fill, inputs
+from score.stages.complete.holes import FINDINGS, WORLD, fill, inputs, schedule
 
 MISSING = "missing"
 # The code work whose make, once it lands, is Pixal3D's: (its work line's pattern, a model a hole or a place, its
@@ -287,6 +290,42 @@ def code_work(work, places_of):
     return found
 
 
+def run_cap():
+    """The most cards one run holds at once (tools/props/cloud/capacity.py run_cap), as the runner sizes its runs."""
+    compute.ledger()  # puts tools/props/cloud on the path
+    import capacity  # beside ledger.py
+    return capacity.run_cap()
+
+
+def plan_rows(runner, every, places):
+    """[node] of the plan's rows (`every`, {node: whether paid}) in the stage table's order (runner.nodes, the walk's
+    tie-break), a row of a table of its own (own_tables) after them."""
+    order = [graph.node_name(*node) for node in runner.nodes(places)]
+    return [node for node in order if node in every] + sorted(node for node in every if node not in order)
+
+
+def plan_edges(runner, rows):
+    """[(before, after)] of the plan's rows: each row of the stage table after every row of the plan it reads."""
+    wanted = set(rows)
+    edges = []
+    for node in rows:
+        if node.partition("@")[0] not in runner.stages:
+            continue
+        stage, place = next(runner.nodes_named([node]))
+        edges.extend((name, node) for name in (graph.node_name(*before) for before in runner.read_nodes(stage, place))
+                     if name in wanted)
+    return edges
+
+
+def plan_eta(runner, every, prices, places):
+    """The plan's ETA (schedule.schedule) over its rows `every` ({node: whether paid}) with their `prices`, at most
+    graph.JOBS rows at once (the runner's default drive) and run_cap() cards held: {jobs, run_cap, likely_minutes,
+    high_minutes, at_least_minutes, path, high_path, unknown}."""
+    rows, made, cap = plan_rows(runner, every, places), compute.node_minutes(), run_cap()
+    nodes = {node: schedule.timed_row(node, every[node], prices.get(node), made) for node in rows}
+    return {"jobs": graph.JOBS, "run_cap": cap, **schedule.schedule(nodes, plan_edges(runner, rows), graph.JOBS, cap)}
+
+
 def priced_on():
     """{commit, uncommitted, per_unit_sha256}: the code and the per-unit prices a record is made on, so the cockpit
     can tell an old record from a current one."""
@@ -306,6 +345,8 @@ def holes_price(runner, world, root, places, store=None, made_at=None):
         prices = {node: node_price(node, found.get(node.partition("@")[2], []), runner.world.roots["data"], store)
                   for node in sorted(name for name, is_paid in every.items() if is_paid)}
         route = after_work(runner, record["route"], prices, store)
+        routed = {node: price for entry in route.values() for node, price in entry["nodes"].items()}
+        eta = plan_eta(runner, {**every, **dict.fromkeys(routed, True)}, {**prices, **routed}, places)
     return {"world": world, "made_at": made_at or graph.now(), "priced_on": priced_on(), "nodes": prices,
             "chains": {place: {node: sorted(nodes) for node, nodes in at.items()}
                        for place, at in record["chains"].items()},
@@ -314,4 +355,4 @@ def holes_price(runner, world, root, places, store=None, made_at=None):
             "unfillable": counted(({"work": text}, count) for text, count in record["work"].items()),
             "after_work": route, "code_work": code_work(record["work"], record["places_of"]),
             "outside": counted(({"node": node}, count) for node, count in record["outside"].items()),
-            "not_current": stale, "not_checked": unchecked}
+            "eta": eta, "not_current": stale, "not_checked": unchecked}

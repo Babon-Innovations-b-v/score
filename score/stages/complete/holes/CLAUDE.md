@@ -42,8 +42,10 @@ findings.json's contract. Bible: `architecture/components`.
   node is priced, never dropped, and the plan and the run keep their refusals.
 - **The runner's ETA is `schedule.py`** (#14): `schedule(nodes, edges, jobs, run_cap)` walks a plan's rows in
   dependency order (the stage table's order breaking ties), at most `jobs` rows at once (free ones too, as the
-  runner's drive) and never more than `run_cap` cards held, each row on its measured minutes (`timed_row`: a paid row's from `compute.run_price`, a free
-  row's from `node_minutes`). A row without minutes is listed with why and walked as no time, so the walk is only a
-  lower bound (`at_least_minutes`); likely and high are given only when every row has minutes. It replaces the
-  cockpit's own line sums (`score/dashboard/state/costs.py` `time_of`) once the cockpit reads it.
+  runner's drive) and never more than `run_cap` cards held, each row on its measured minutes (`timed_row`: a paid
+  row's from `compute.run_price`, a free row's from `compute.node_minutes`, read once a plan). A row without minutes
+  is listed with why and walked as no time, so the walk is only a lower bound (`at_least_minutes`); likely and high
+  are given only when every row has minutes. `price.plan_eta` runs it over every chain's and after-work row, and
+  `score price <environment> --holes` writes it as the record's `eta`. The cockpit's launch guard still sums lines
+  itself (`score/dashboard/state/costs.py` `time_of`); moving it onto `eta` is the cockpit's remake track (#10).
 - Run: `.venv/bin/python -m score.stages.complete.holes [--place P ...]`, seconds a place. Test: `holes_test.py`.

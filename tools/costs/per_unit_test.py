@@ -119,10 +119,21 @@ def test_a_cloud_stages_time_is_read_from_its_machines_own_job_seconds():
     """Real lines: a settle run's one job and its card's start wait; a Pixal3D batch of three at once on one card."""
     settle = per_unit.cloud_times([paper_line("blender-20261008-165605-2054366")], per_unit.SPECS["settle"])
     assert settle["unit_seconds"] == {"likely": 539.6, "high": 539.6} and settle["slots"] == 1, settle
-    assert settle["setup_minutes"] == 0.369 and settle["failed_start_share"] == 0 and settle["holds"] == "machines"
+    # set-up: the card's 0.37 min start wait and its 2.93 min in the machine before its 539.6 s job (11.93 working)
+    assert settle["setup_minutes"] == {"likely": 3.304, "high": 3.304}, settle
+    assert settle["failed_start_share"] == 0 and settle["holds"] == "machines"
     pixal = per_unit.cloud_times([paper_line("batch-20261008-134426-1833430")], per_unit.SPECS["pixal"])
-    assert pixal["unit_seconds"]["likely"] == 629.98 and pixal["slots"] == 3 and pixal["setup_minutes"] == 0.601
+    assert pixal["unit_seconds"]["likely"] == 629.98 and pixal["slots"] == 3, pixal
+    # 0.60 start wait and 13.33 working minutes less three jobs' 1589 s run three at once
+    assert pixal["setup_minutes"] == {"likely": 5.102, "high": 5.102}, pixal
     assert per_unit.cloud_times([], per_unit.SPECS["settle"])["why"].startswith("no ledger line")
+
+
+def test_a_stage_whose_lines_time_no_set_up_says_so_and_never_writes_a_zero():
+    line = {"batch": "b", "kind": "pixal", "models_done": 2, "machine_minutes": 20.0, "euros": 1.0}
+    found = per_unit.cloud_times([(line, "here line 1")], per_unit.SPECS["pixal"])
+    assert found["unit_seconds"]["likely"] == 600.0 and found["setup_minutes"] == {
+        "why": "no line read here timed a machine's set-up"}, found
 
 
 def test_a_line_without_machine_seconds_is_timed_by_its_working_minutes_and_slots_over_its_units():

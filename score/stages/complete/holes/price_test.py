@@ -180,6 +180,16 @@ def test_the_pixal_code_work_is_priced_at_pixals_unit_a_lost_take_a_model_a_roug
     assert rough["nodes"]["pixal: a rough model a place"]["likely_euros"] == 0.4
 
 
+def test_the_record_carries_the_runners_eta_over_every_chain_row_in_table_order():
+    """The ETA walks every row of the chains, paid and free; a row with no measured minutes is listed with why, so
+    likely and high stay null and only the lower bound is given."""
+    found, _ = priced()
+    eta, every = found["eta"], {node for at in found["chains"].values() for nodes in at.values() for node in nodes}
+    assert {row["node"] for row in eta["unknown"]} <= every and eta["path"], eta
+    assert eta["unknown"] and eta["likely_minutes"] is None and eta["high_minutes"] is None, eta
+    assert eta["at_least_minutes"] >= 0 and eta["jobs"] >= 1 and eta["run_cap"] >= 1, eta
+
+
 def test_a_hole_no_stage_fills_goes_to_the_unfillable_list_with_its_work():
     found, _ = priced()
     assert found["unfillable"] == [{"work": "a rough-model stage", "holes": 1}]

@@ -235,14 +235,38 @@ def unit_seconds(line, per_line):
     units, rows = line_units(line, per_line), started_rows(line)
     work = sum(row.get("work_minutes", row.get("minutes")) or 0.0 for row in rows) if rows else \
         line.get("machine_minutes") or 0.0
-    slots = statistics.median_low(line_slots(line)) if line_slots(line) else 1
+    found = line_slots(line)
+    slots = statistics.median_low(found) if found else 1
     return [work * 60 * slots / units] * units if units and work else []
 
 
+def row_slots(line, row):
+    """The jobs one machine row of a cloud line ran at once: its per card times its cards, else the line's median
+    (line_slots), else one."""
+    per_card = line.get("per_card")
+    if isinstance(per_card, int) and per_card > 0:
+        return per_card * max(1, row.get("cards") or 1)
+    found = line_slots(line)
+    return statistics.median_low(found) if found else 1
+
+
+def in_machine_setup(line, row):
+    """The minutes a started machine worked before its jobs (install, sync, model load): its own `setup_minutes`,
+    else its working minutes less its jobs' seconds over the jobs it ran at once, floored at 0; 0 where it timed no
+    job (its units are then timed by its working minutes whole, unit_seconds)."""
+    if row.get("setup_minutes") is not None:
+        return row["setup_minutes"]
+    jobs = row.get("unit_seconds") or ()
+    work = row.get("work_minutes")
+    if not jobs or work is None:
+        return 0.0
+    return max(0.0, work - sum(jobs) / row_slots(line, row) / 60)
+
+
 def setups(line):
-    """The minutes each fresh machine of a cloud line took from its order to its first job (start wait and set-up);
-    the line's own figure where its machines wrote none."""
-    own = [row["start_wait_minutes"] + (row.get("setup_minutes") or 0.0) for row in started_rows(line)
+    """The minutes each fresh machine of a cloud line took from its order to its first job: its start wait and its
+    in-machine set-up (in_machine_setup); the line's own figure where its machines wrote none."""
+    own = [row["start_wait_minutes"] + in_machine_setup(line, row) for row in started_rows(line)
            if row.get("start_wait_minutes") is not None and not row.get("adopted")]
     if own:
         return own
@@ -265,8 +289,9 @@ def line_slots(line):
 
 
 def cloud_times(lines, spec):
-    """The `time` of a cloud stage from its lines (kind and `who`, as its euros): {unit_seconds, setup_minutes,
-    slots, slots_from, failed_start_share, holds, lines, from}, or {why} with no unit timed."""
+    """The `time` of a cloud stage from its lines (kind and `who`, as its euros): {unit_seconds, setup_minutes
+    ({likely, high} of its fresh machines' set-ups, or {why} where no line timed one), slots, slots_from,
+    failed_start_share, holds, lines, from}, or {why} with no unit timed."""
     found = [(line, source) for line, source in lines if matches(line, spec["cloud"])]
     seconds = [value for line, _ in found for value in unit_seconds(line, spec["per_line"])]
     if not seconds:
@@ -275,7 +300,8 @@ def cloud_times(lines, spec):
     slots = [value for line, _ in found for value in line_slots(line)]
     started = sum(len(started_rows(line)) for line, _ in found)
     failed = sum(len(failed_starts(line)) for line, _ in found)
-    return {"unit_seconds": spread(seconds), "setup_minutes": round(statistics.median(starts), 3) if starts else 0.0,
+    setup = spread(starts) if starts else {"why": "no line read here timed a machine's set-up"}
+    return {"unit_seconds": spread(seconds), "setup_minutes": setup,
             "slots": statistics.median_low(slots) if slots else 1,
             "slots_from": "per card times cards, the median machine" if slots else
                           "one a machine: no line names jobs at once",
@@ -303,8 +329,9 @@ def in_flight(spans):
 
 
 def google_times(calls, caller, google_path):
-    """The `time` of a Google stage from its calls' started and finished lines: {unit_seconds, setup_minutes 0,
-    slots, slots_from, failed_start_share, holds, lines, from}, or {why} with none timed."""
+    """The `time` of a Google stage from its calls' started and finished lines: {unit_seconds, setup_minutes
+    (none: a call holds no machine), slots, slots_from, failed_start_share, holds, lines, from}, or {why} with none
+    timed."""
     if google_path is None:
         return {"why": "no Google ledger read here (the one its euros were read from went with the old disk, "
                        "2026-10-19)"}
@@ -312,7 +339,8 @@ def google_times(calls, caller, google_path):
     if not spans:
         return {"why": f"no call of {caller} in {costs.scrub(str(google_path))} has its started and finished times"}
     failed = sum(1 for call in calls if call.get("caller") == caller and call.get("state") == "failed")
-    return {"unit_seconds": spread([(end - start).total_seconds() for start, end in spans]), "setup_minutes": 0.0,
+    return {"unit_seconds": spread([(end - start).total_seconds() for start, end in spans]),
+            "setup_minutes": {"likely": 0.0, "high": 0.0},
             "slots": statistics.median_low(in_flight(spans)),
             "slots_from": "the calls of the caller in flight as each began, the median",
             "failed_start_share": round(failed / (failed + len(spans)), 3), "holds": "calls", "lines": len(spans),
