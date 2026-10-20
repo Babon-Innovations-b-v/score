@@ -94,7 +94,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   batch with its own Buy; the owner's books
   buttons: the read-back while paid work is refused, the model calls' month figure always, its button named by their cost
   line's label; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
-  (`stats.html`: numbers only, no controls) and **Library** `/library/` (`pages/library.py`: every kind of
+  (`stats.html`: numbers only, no controls, three groups: money this month (cloud, AI calls, total, no stop; the
+  remake's spend so far once a batch's stop line is written; a bar a day on one labelled scale, `cockpit.spend_by_day`:
+  the bills' growth over a day read that day and the day before, else the ledgers' count when above 0 as a paler
+  bar, else a gap, never 0, and the euros on no day), progress (places complete, the gaps by kind in plain words,
+  each opening the Environment at `/?kind=<kind>`: only the tiles holding that kind, counting it) and prices (paid
+  steps measured, the remake's measured share)) and **Library** `/library/` (`pages/library.py`: every kind of
   `state/library.KINDS` with its count, a branch's children only when it opens, `/api/library/children?node=&page=`,
   `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/` is the item on its own
   (owner, 2026-10-20: "experiencing the item in isolation"), its kind's viewer first (`library.view_of`,
@@ -132,7 +137,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   an item is asked, so the nav's count is only the steps queued by hand and the refines; the last batch's stop (its
   high plus 10%, `basket.last_batch`) shows after it. The numbers come
   from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `branch_rows`, `gaps_by_kind`, `places_complete`,
-  `measured_prices`, `timeline`), each None where the runner gives none, shown as a grey "unknown", never 0; the
+  `measured_prices`, `spend_by_day`, `day_chart`), each None where the runner gives none, shown as a grey "unknown", never 0; the
   views are `views.environment`, `stats`, `buy`, `place_page` over `views.overview_of`. The components, each an
   include of `templates/pages/c/` with these arguments (every one ends without a newline, so it sits inline):
   - `dot.html` `tone` (done, idle, bad, review, hole-lost, hole-route, hole-missing, hole-gate: the `.tone-*`

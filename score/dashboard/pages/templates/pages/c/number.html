@@ -1,6 +1,6 @@
 {% comment %}A number card: `label`, `value` (None shows a grey "unknown", `unknown_tip` its hover text), `unit` "EUR" for euros to the cent, `of` a denominator, `bar` a percent drawn under it, `tone` a state dot beside the label, `tip` the card's hover text.{% endcomment %}<div class="num-card"{% if tip %} title="{{ tip }}"{% endif %}>
   <div class="num-label">{% if tone %}{% include "pages/c/dot.html" with tip=None %}{% endif %}{{ label }}</div>
   {% if value is None %}<div class="num-value unknown" title="{{ unknown_tip|default:'not known' }}" data-v>unknown</div>
-  {% else %}<div class="num-value" data-v>{% if unit == "EUR" %}<small>EUR</small> {{ value|floatformat:2 }}{% else %}{{ value }}{% if unit %} <small>{{ unit }}</small>{% endif %}{% endif %}{% if of is not None %}<small> / {% if unit == "EUR" %}{{ of|floatformat:0 }}{% else %}{{ of }}{% endif %}</small>{% endif %}</div>{% endif %}
+  {% else %}<div class="num-value" data-v>{% if unit == "EUR" %}<small>EUR</small> {{ value|floatformat:"2g" }}{% else %}{{ value }}{% if unit %} <small>{{ unit }}</small>{% endif %}{% endif %}{% if of is not None %}<small> of {% if unit == "EUR" %}{{ of|floatformat:0 }}{% else %}{{ of }}{% endif %}</small>{% endif %}</div>{% endif %}
   {% if bar is not None %}<div class="num-bar" aria-hidden="true"><span style="width: {{ bar }}%"></span></div>{% endif %}
 </div>

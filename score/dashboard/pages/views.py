@@ -1,5 +1,6 @@
 """The dashboard's pages: visual first (a picture per piece, labelled plans, few words); node ids only in a small
 details fold. Every page reads the source of this mode (state.source()); actions go through the owner's checks."""
+import datetime
 import json
 import uuid
 from urllib.parse import urlencode
@@ -69,26 +70,40 @@ def every_place_holes(source):
 
 def environment(request):
     """Screen 1: the month's spend against the stop, the remake's price and time, a tile per outside place or shell;
-    `?in=<place or shell>` the places inside it, one level down (shapes first)."""
+    `?in=<place or shell>` the places inside it, one level down (shapes first); `?kind=<gap kind>` (the Stats
+    screen's links) only the tiles holding gaps of that kind, each counting those."""
     found = overview_of(state.source())
     world, at = found["world"], request.GET.get("in") or None
+    kind = request.GET.get("kind") if request.GET.get("kind") in cockpit.KIND_WORDS else None
     trail = cockpit.trail(world, found["names"], at) if at else []
     if trail is None:
         raise Http404(f"nothing sits within {at}")
+    tiles = cockpit.tiles(world, found["names"], cockpit.of_kind(found["rows"], kind) if kind else found["rows"], at)
+    if kind:
+        tiles = [{**tile, "href": tile["href"] + (f"&kind={kind}" if tile["href"].startswith("/?") else "")}
+                 for tile in tiles if tile["gaps"]]
+        trail = [{**step, "href": f"{step['href']}&kind={kind}"} for step in trail]
     return render(request, "pages/environment.html", {
         "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(world), "trail": trail,
-        "tiles": cockpit.tiles(world, found["names"], found["rows"], at)})
+        "kind": kind and {"kind": kind, "label": cockpit.KIND_WORDS[kind][0], "tone": cockpit.KIND_TONES[kind]},
+        "tiles": tiles})
 
 
 def stats(request):
-    """Screen 4: numbers only, no controls."""
+    """Screen 4, numbers only, no controls, in three groups: the month's money (its lines, total, spend per day and,
+    once a batch's stop line is written, the remake's spend so far), progress (places complete, gaps by kind, each
+    opening the Environment filtered to it) and prices (paid steps measured, the remake's measured share)."""
     found = overview_of(state.source())
     world, view = found["world"], found["view"]
     complete, of = cockpit.places_complete(found["rows"])
+    money = cockpit.month_money(view)
+    days = cockpit.spend_by_day(view.bill_days, world.spend.days if world.spend else [], view.month)
     return render(request, "pages/stats.html", {
-        "money": cockpit.month_money(view), "measured": cockpit.measured_prices(world.holes_price),
-        "kinds": cockpit.gaps_by_kind(world.holes_total), "complete": complete, "of": of,
-        "timeline": cockpit.timeline(cockpit.billed_days(view.bill_days), view.month)})
+        "money": money, "so_far": view.world_spent if view.stop is not None else None, "in_flight": view.in_flight,
+        "chart": cockpit.day_chart(days), "month_name": datetime.date.fromisoformat(f"{view.month}-01").strftime("%B"),
+        "unplaced": cockpit.unplaced(money["total"], days),
+        "measured": cockpit.measured_prices(world.holes_price), "share": cockpit.measured_share(screens.batch(world)),
+        "kinds": cockpit.gaps_by_kind(world.holes_total), "complete": complete, "of": of})
 
 
 def buy(request):
