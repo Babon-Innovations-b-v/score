@@ -333,6 +333,8 @@ def test_a_stale_holes_price_shows_no_total(world, settings, tmp_path):
 
 
 BOOKS = "the month's books before any paid step: the month's spend is unknown"
+
+
 def milestones():
     """A plan the runner wrote: the ground (its set budget, code work and the owner's steps), what alpha holds,
     the environment's film unpriced, the owner's approval."""
@@ -342,15 +344,21 @@ def milestones():
          "set": {"euros": 6.0, "nodes": 1, "from": [{"at": "score/stages/__init__.py:46", "euros": 6.0, "nodes": 1}]},
          "unknown": [{"node": "terrain", "why": "not measured yet: no run of terrain in the cloud ledger"}],
          "after_work": {"likely_euros": 0, "high_euros": 0, "unknown": 0, "nodes": 0},
-         "work": [{"work": ROUGH, "holes": 2}, {"work": OWNERS, "holes": 1}], "owner": [BOOKS], "reads": []},
+         "work": [{"work": PIXAL, "holes": 2}, {"work": OWNERS, "holes": 1}], "owner": [BOOKS], "reads": []},
         {"key": "made", "title": "What each place holds", "stages": [{"stage": "closeup", "nodes": 1, "paid": 1},
                                                                      {"stage": "sound", "nodes": 1, "paid": 1}],
          "nodes": 2, "places": 1, "paid": ["closeup@alpha", "sound@alpha"], "likely_euros": 2.0, "high_euros": 3.0,
          "measured": 1, "set": {"euros": 1.0, "nodes": 1, "from": [{"at": "score/stages/__init__.py:243", "euros": 1.0,
                                                                      "nodes": 1}]},
          "unknown": [{"node": "sound@alpha", "why": "not measured yet: no run of sound in the cloud ledger"}],
-         "after_work": {"likely_euros": 4.0, "high_euros": 6.0, "unknown": 0, "nodes": 2}, "work": [], "owner": [],
+         "after_work": {"likely_euros": 4.0, "high_euros": 6.0, "unknown": 0, "nodes": 2,
+                        "counts": ["one Pixal3D model a hole of this work line"]}, "work": [], "owner": [],
          "reads": ["ground"]},
+        {"key": "split", "title": "Shells split into inside places", "stages": [], "nodes": 0, "paid": [],
+         "likely_euros": 0, "high_euros": 0, "measured": 0, "set": {"euros": 0, "nodes": 0, "from": []},
+         "unknown": [], "after_work": {"likely_euros": 0, "high_euros": 0, "unknown": 0, "nodes": 0}, "work": [],
+         "owner": [], "reads": [], "missing": ["shell-split"],
+         "unpriced": "no row of the stage table does this yet: shell-split"},
         {"key": "environment-film", "title": "The environment's film", "unpriced": "no row of the stage table cuts it",
          "owner": []},
         {"key": "approval", "title": "Your approval of the final video", "owner": ["you approve the final video"]}]
@@ -363,17 +371,42 @@ def test_the_board_shows_the_runners_plan_in_its_order_with_subtotals_set_budget
     world.source.refresh()
     board = signed_in().get("/").content.decode()
     section = unescape(re.search(r'<section class="money-card remake-plan".*?</section>', board, re.S).group(0))
-    titles = [title for title in re.findall(r'<li class="milestone"><b>(.*?)</b>', section)]
-    assert titles == ["The ground", "What each place holds", "The environment's film",
-                      "Your approval of the final video"], titles
+    titles = re.findall(r'<li class="milestone"><b>(.*?)</b>', section)
+    assert titles == ["The ground", "What each place holds", "Shells split into inside places",
+                      "The environment's film", "Your approval of the final video"], titles
     assert "EUR 2.00 to EUR 3.00 measured" in section and "so far EUR 2.00 to 3.00" in section
     assert "Set, not measured</span>: EUR 6.00 for 1 step" in section and "in no figure" in section
-    assert "After the code work, more: EUR 4.00 to 6.00 measured" in section
-    assert "Waits on code work: A rough-model stage (2 holes)" in section
+    assert ("After the code work, more: EUR 4.00 to 6.00, a measured price per unit times a count <span "
+            "class=\"unknown\">not measured</span> (one Pixal3D model a hole of this work line)") in section
+    assert "not priced</span>, no row of the stage table does this yet: shell-split" in section
+    assert "Waits on code work: no row of the stage table does" in section
+    assert "Time: <span class=\"unknown\">unknown</span>, this price record holds no ETA" in section
+    assert "Waits on code work: Lost Pixal3D takes made again (2 holes)" in section
     assert "Only you can do this:</b> " + BOOKS + "; " + OWNERS in section  # the owner's own file, never code work
     assert "not priced</span>, no row of the stage table cuts it" in section
     assert "you approve the final video" in section
     assert NODE.search(outside_details(section)) is None  # step ids only inside the details
+
+
+def test_the_plan_says_the_runners_eta_only_when_every_step_has_measured_minutes(world, settings, tmp_path):
+    a_holes_finding(world, settings, tmp_path)
+    timed = {"jobs": 8, "run_cap": 50, "likely_minutes": 95.0, "high_minutes": 130.0, "at_least_minutes": 95.0,
+             "path": [], "high_path": [], "unknown": []}
+    a_holes_price(world, milestones=milestones(), eta=timed)
+    world.source.refresh()
+    client = signed_in()
+    section = unescape(re.search(r'<section class="money-card remake-plan".*?</section>',
+                                 client.get("/").content.decode(), re.S).group(0))
+    assert "Time: 1 h 35 min to 2 h 10 min, the runner's ETA from measured run times, at most 8 steps" in section
+    untimed = {**timed, "likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0,
+               "unknown": [{"node": "sound@alpha", "paid": True, "why": "no run of sound in the cloud ledger"}]}
+    a_holes_price(world, milestones=milestones(), eta=untimed)
+    world.source.refresh()
+    section = unescape(re.search(r'<section class="money-card remake-plan".*?</section>',
+                                 client.get("/").content.decode(), re.S).group(0))
+    assert "Time: <span class=\"unknown\">unknown</span>, 1 step with no measured run time" in section
+    assert "at least 30 min" in section and "1 h" not in section
+    assert NODE.search(outside_details(section)) is None
 
 
 def test_the_plan_goes_through_the_export_whole(world, settings, tmp_path):

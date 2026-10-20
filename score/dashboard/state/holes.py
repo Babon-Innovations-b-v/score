@@ -14,6 +14,7 @@ the models only, so a hosted process sums them too.
 import re
 from collections import Counter
 
+from score.dashboard.state.costs import hours
 from score.dashboard.state.groups import label  # a stage in words
 from score.dashboard.state.plain import LOST, lost_item  # a lost input's id: place:lost:<kind>:<item>
 
@@ -636,18 +637,20 @@ def plan_code(work):
 def plan_step(entry, titles, running):
     """One milestone of the runner's plan for the page: its stages in words, its measured euros and the running
     subtotal (`running`, {likely, high} before it), the set budgets apart, the unknown steps with why, the code work
-    folded into tasks, the owner's steps and the earlier milestones it reads; the record's words, never new ones."""
+    folded into tasks, the route rows no row of the table does yet, the owner's steps and the earlier milestones it
+    reads; the record's words, never new ones."""
     code, owners = plan_code(entry.get("work", []))
     likely, high = entry.get("likely_euros") or 0.0, entry.get("high_euros") or 0.0
     after = entry.get("after_work") or {}
-    return {"key": entry["key"], "title": entry["title"], "unpriced": entry.get("unpriced"),
-            "stages": [{"label": label(stage["stage"]), "stage": stage["stage"], "nodes": stage["nodes"],
-                        "paid": stage["paid"]} for stage in entry.get("stages", [])],
-            "nodes": entry.get("nodes", 0), "places": entry.get("places", 0), "paid": len(entry.get("paid", [])),
+    return {"title": entry["title"], "unpriced": entry.get("unpriced"),
+            "stages": [{"label": label(stage["stage"]), "nodes": stage["nodes"], "paid": stage["paid"]}
+                       for stage in entry.get("stages", [])],
+            "nodes": entry.get("nodes", 0), "paid": len(entry.get("paid", [])),
             "measured": entry.get("measured", 0), "likely": likely, "high": high,
             "subtotal": {"likely": round(running["likely"] + likely, 2), "high": round(running["high"] + high, 2)},
             "set": entry.get("set") or {"euros": 0, "nodes": 0, "from": []}, "unknown": entry.get("unknown", []),
             "after": after if after.get("nodes") else None, "code": code,
+            "missing": [label(stage) for stage in entry.get("missing", [])],
             "owner": [*entry.get("owner", []), *owners],
             "reads": [titles.get(key, key) for key in entry.get("reads", [])]}
 
@@ -660,11 +663,26 @@ def plan_said(price, world):
     return said
 
 
+def eta_of(eta):
+    """{known, likely, high, at_least, unknown, why} of the runner's ETA (`eta`, the record's: holes/schedule.py) in
+    words: its range only when every row has measured minutes, else unknown with why (the rows without them, the
+    walk with them as no time a floor); None-safe for a record made before the runner had one."""
+    if eta is None:
+        return {"known": False, "why": "this price record holds no ETA: run score price --holes again"}
+    untimed = eta.get("unknown") or []
+    if eta.get("likely_minutes") is None or untimed:
+        return {"known": False, "at_least": hours(eta.get("at_least_minutes")), "unknown": len(untimed),
+                "why": f"{len(untimed)} step{'s' if len(untimed) != 1 else ''} with no measured run time",
+                "steps": untimed}
+    return {"known": True, "likely": hours(eta["likely_minutes"]), "high": hours(eta["high_minutes"]),
+            "jobs": eta.get("jobs"), "run_cap": eta.get("run_cap")}
+
+
 def plan_of(price):
     """{steps, total} of the runner's milestones (`price.milestones`, holes/milestones.py), in its order, each with
     its running subtotal, and the whole: measured likely and high, the set budgets apart, the paid steps with no
-    measured price, what is priced after code work; None with no current record or one without milestones
-    (said_of_price says why). Nothing is priced, ordered or judged here."""
+    measured price, what is priced after code work, the runner's ETA (eta_of); None with no current record or one
+    without milestones (said_of_price says why). Nothing is priced, ordered or judged here."""
     if price is None or price.stale or not price.milestones:
         return None
     titles = {entry["key"]: entry["title"] for entry in price.milestones}
@@ -674,7 +692,7 @@ def plan_of(price):
         running = step["subtotal"]
         steps.append(step)
     after = [step["after"] for step in steps if step["after"]]
-    return {"steps": steps,
+    return {"steps": steps, "eta": eta_of(price.eta),
             "total": {"likely": running["likely"], "high": running["high"],
                       "measured": sum(step["measured"] for step in steps), "paid": sum(step["paid"] for step in steps),
                       "set": round(sum(step["set"]["euros"] for step in steps), 2),
@@ -682,4 +700,5 @@ def plan_of(price):
                       "unknown": sum(len(step["unknown"]) for step in steps),
                       "after_likely": round(sum(entry["likely_euros"] for entry in after), 2),
                       "after_high": round(sum(entry["high_euros"] for entry in after), 2),
-                      "after_unknown": sum(entry["unknown"] for entry in after)}}
+                      "after_unknown": sum(entry["unknown"] for entry in after),
+                      "after_counts": sorted({count for entry in after for count in entry.get("counts", [])})}}

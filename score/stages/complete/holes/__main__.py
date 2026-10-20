@@ -38,14 +38,14 @@ import shutil
 from pxr import UsdGeom
 
 from score.stages.assembly import stage_file
-from score.stages.complete.holes import FINDINGS, OUT, WORLD, fill, inputs, layer, marks, route, rows
+from score.stages.complete.holes import (FINDINGS, GATE, MISSING, OUT, PLACE, WORLD, fill, inputs, layer, marks, route,
+                                        rows)
 from score.stages.complete.library import stored
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
 DATA = REPO / "data"
 STAGE = "stage"
-MISSING, GATE, PLACE = "missing", "gate", "place"
 RULES = (MISSING, GATE, PLACE)
 SOURCES = ("neighbours", "assembly")  # the stage the holes stand over: the first accepted
 STEP_SENTENCES = {fill.CONCEPT: "no concept is picked for this place",

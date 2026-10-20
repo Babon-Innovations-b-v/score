@@ -122,6 +122,11 @@ def lost_pictures(runner, place):
     return found
 
 
+def lost_id(kind, item):
+    """A lost input's hole id (its rule's prefix apart): it names the thing, so every place that reads it shares it."""
+    return f"lost:{kind}:{item}"
+
+
 def declared_hole(kind, item, entry, place, makers):
     """One declared lost thing as a hole: a take a pixal row makes with that node, anything else with its code work."""
     nodes, paths = sorted(entry["nodes"]), sorted(entry["paths"])
@@ -133,7 +138,7 @@ def declared_hole(kind, item, entry, place, makers):
         work = DATA_WORK.format(name=item.split(":", 1)[1], path=paths[0])
     else:
         work = work_of(kind, place, nodes)
-    return {"id": f"lost:{kind}:{item}", "sentence": f"lost input {item} ({paths[0]}), read by {nodes[0]}{more}",
+    return {"id": lost_id(kind, item), "sentence": f"lost input {item} ({paths[0]}), read by {nodes[0]}{more}",
             "node": node, "work": work}
 
 
@@ -145,7 +150,7 @@ def lost(runner, place):
              for (kind, item), entry in sorted(declared_lost(runner, place).items())]
     for path, views in sorted((lost_pictures(runner, place) if place else {}).items()):
         name = pathlib.Path(path).name
-        found.append({"id": f"lost:{PICTURE}:{name}",
+        found.append({"id": lost_id(PICTURE, name),
                       "sentence": f"owner's reference picture {name} missing ({path}), for the concept views "
                                   f"{', '.join(views)}", "node": None, "work": PICTURE_WORK.format(name=name)})
     return found

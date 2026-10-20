@@ -142,7 +142,7 @@ class HolesPrice(BaseModel):
     place's prop data (`after_work`), the code work whose make is a Pixal3D one priced as if it had landed
     (`code_work`), the nodes outside the runner's table, the places not current and not checked, and why the record
     is stale (None while current); and the remake's milestones (holes/milestones.py), shapes first, the owner's
-    approval last."""
+    approval last, with the runner's ETA of its rows on measured minutes."""
     made_at: str
     nodes: dict[str, dict] = {}
     chains: dict[str, dict[str, list[str]]] = {}
@@ -154,6 +154,7 @@ class HolesPrice(BaseModel):
     not_current: list[str] = []
     not_checked: list[str] = []
     milestones: list[dict] = []
+    eta: dict | None = None  # the runner's ETA (holes/schedule.py), None in a record made before it
     stale: str | None = None
 
 
