@@ -24,11 +24,9 @@
   "engineroom": {"within": "ship", "from": "data/definitions/ship_floor.json rooms"},
   "walkway": {"within": "ship", "from": "data/definitions/ship_floor.json walkway"},
   "camp": {"within": "campgrounds", "from": "data/plans/campgrounds.json notes: the habitat stands in the middle, its own place; data/plans/camp.json inside"},
-  "stairwell": {"within": "street", "from": "data/plans/stairwell.json block: the block on the west of the street, whose outside is the street's own (the owner, 2026-10-20: one place, no Block level)"},
-  "flat": {"within": "street", "from": "data/plans/flat.json block; leads E to the stairwell"}
- },
- "parts": {
-  "square": {"of": "street", "as": "below the flat's balcony, a crowd of people on the square on the Hong Kong shoreline, seen and never walked", "from": "the owner, 2026-10-20: the square is no place of its own, the Street's seen-not-walked area (data/plans/square.json: seen from the balcony, never walked)"},
-  "launch": {"of": "street", "as": "across the water in the distance, the rocket launch, the Street's far view", "from": "the owner, 2026-10-20: the launch view is no place of its own, the Street's far view (data/plans/launch.json: from the balcony across the harbour)"}
+  "stairwell": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it; data/plans/stairwell.json: the block on the west of the street"},
+  "flat": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it; data/plans/flat.json leads E to the stairwell"},
+  "street": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it"},
+  "launch": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it"}
  }
 }
