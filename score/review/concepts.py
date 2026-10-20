@@ -125,6 +125,20 @@ def picked(store, place):
     return found[-1]["sha"] if found else None
 
 
+def inventory_read(place, folder=DATA / "inventory"):
+    """{concept, rows} of the place's scene inventory file (CONTEXT.md "scene inventory"), None with none: the sha of
+    the concept draw it was read from (its `concept_pick.sha256`; None when it names none) and its rows as [{name,
+    count}]. It counts only while `concept` is the place's picked draw: none counts while its concept is not
+    locked, and one from an older concept, or naming none, never does (the owner, 2026-10-20)."""
+    path = pathlib.Path(folder) / f"{place}.json"
+    if not path.is_file():
+        return None
+    found = json.loads(path.read_text())
+    return {"concept": (found.get("concept_pick") or {}).get("sha256"),
+            "rows": [{"name": row.get("name") or row["id"], "count": row.get("count", 1)}
+                     for row in found.get("rows", [])]}
+
+
 def undrawn(store, nodes):
     """The Environment's Draw all (owner, 2026-10-20): ([node] of `nodes`, none picked, with no first draw from its
     current wording yet, whose first draw can be made now, {node: why not} for the others with none): layer by layer,

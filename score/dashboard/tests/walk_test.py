@@ -31,7 +31,7 @@ def view_data(html):
                                 re.S).group(1))
 
 
-def test_the_viewer_frames_one_gap_with_or_without_a_web_copy(cockpit):
+def test_the_viewer_frames_one_gap_with_or_without_a_web_copy(cockpit, read):
     client = signed_in()
     answer = client.get("/view/alpha?gaps=1&gap=missing:lamp_2")
     assert answer.status_code == 200
@@ -104,7 +104,7 @@ def a_shared_step(world):
 
 
 
-def test_a_lost_input_counts_once_and_marks_every_place_reading_it(cockpit):
+def test_a_lost_input_counts_once_and_marks_every_place_reading_it(cockpit, read):
     a_lost_input(cockpit)
     a_gaps_price(cockpit, unfillable=[{"work": PLAN_WORK, "gaps": 1}, {"work": EARTH, "gaps": 1}])
     cockpit.source.refresh()

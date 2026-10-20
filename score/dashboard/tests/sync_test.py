@@ -470,7 +470,7 @@ def test_the_tree_check_wants_every_tracked_file_committed_and_the_commit_on_ori
     assert "is not on origin's main: push it first" in client.tree_refusal(clone)
 
 
-def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, settings, monkeypatch):
+def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, settings, monkeypatch, read):
     exported(world, tmp_path / "export")
     from score.dashboard import state
     source = ExportedSource(tmp_path / "export")

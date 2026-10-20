@@ -279,3 +279,18 @@ def test_draws_on_their_way_show_on_the_button_and_their_cards_until_they_land(w
     html = owner.get("/").content.decode()
     assert "data-drawing" not in html and "draw-busy" not in html
     assert 'class="draw-refused" title="refused: the price moved"' in html
+
+
+def test_a_picked_concepts_page_shows_its_scene_inventory_made_or_to_read(world):
+    from score.dashboard.tests import fixture
+    alpha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
+    assert "scene inventory" not in signed_in().get("/concept/alpha/").content.decode()  # not picked: none
+    fixture.an_inventory_read(world.store, world.data, "alpha", alpha)
+    world.source.refresh()
+    page = signed_in("joey2").get("/concept/alpha/").content.decode()
+    assert "scene inventory" in page and "data-v>lamp</span>" in page and "&times;2" in page
+    older = world.data / "inventory/alpha.json"
+    older.write_text(older.read_text().replace(alpha, "o" * 64))  # read from an older concept: counts for nothing
+    world.source.refresh()
+    page = signed_in("joey3").get("/concept/alpha/").content.decode()
+    assert "data-v>lamp</span>" not in page and "data-v>to read</span>" in page and "older concept" in page

@@ -54,10 +54,12 @@ def money_bar(spent, reserved, likely, high, ceiling):
 
 def overview_of(source):
     """{world, names, rows, view} every screen of the environment reads: the WorldState with the month's spend, the
-    places' titles, each place's row of gaps (gaps.per_place) and the month's MoneyView."""
+    places' titles, each place's row of gaps (gaps.per_place; only the places whose scene inventory counts,
+    screens.counted) and the month's MoneyView."""
     world = source.world_state(actions.spend())
     names = present.place_names(present.look_groups(world, set()))
-    rows = gaps.per_place(world.gaps_price, every_place_gaps(source))
+    rows = gaps.per_place(world.gaps_price, {place: found for place, found in every_place_gaps(source).items()
+                                             if screens.counted(world, place)})
     return {"world": world, "names": names, "rows": rows, "view": month_money.view(world.spend)}
 
 
@@ -101,7 +103,8 @@ def stats(request):
     opening the Environment filtered to it) and prices (paid steps measured, the remake's measured share)."""
     found = overview_of(state.source())
     world, view = found["world"], found["view"]
-    complete, of = cockpit.places_complete(found["rows"])
+    complete, _ = cockpit.places_complete(found["rows"])
+    of = len(screens.cards(world))
     money = cockpit.month_money(view)
     days = cockpit.spend_by_day(view.bill_days, world.spend.days if world.spend else [], view.month)
     return render(request, "pages/stats.html", {
@@ -135,17 +138,19 @@ def buy(request):
 
 def place_page(request, place):
     """Screen 2: its concept as the header, the place in 3D, its scene tree's top level with each node's gaps (deeper
-    branches load as they open, `place_branch`), a side panel per item."""
+    branches load as they open, `place_branch`), a side panel per item; while its scene inventory does not count, its
+    design state in place of the tree and no gaps in 3D."""
     source = state.source()
     if place not in source.places():
         raise Http404(f"no place {place}")
     detail = source.place_detail(place)
     world = source.world_state()
     names = present.place_names(present.look_groups(world, set()))
+    design = cockpit.design_of(screens.design_state(world, place))
     return render(request, "pages/place.html", {
         "detail": detail, "name": names.get(place, present.place_title(place)), "concept": world.concepts.get(place),
-        "tree": scene_branch(request, source, detail, "") if detail.gaps else None,
-        "checked": not gaps.not_checked(place, detail.gaps, world.gaps_price)})
+        "tree": scene_branch(request, source, detail, "") if detail.gaps and not design["design"] else None,
+        "checked": not gaps.not_checked(place, detail.gaps, world.gaps_price), **design})
 
 
 def place_branch(request, place):
@@ -375,7 +380,8 @@ def viewer(request, place):
     base = after["web3d_base"] if showing == "after" else f"/web/{place}/"
     only = only_layer(request.GET.get("only"), detail.usd_index.layers)
     film_view = detail.film_view if request.GET.get("at") == "film" else None
-    gap_marks = present.gap_marks(detail) if request.GET.get("gaps") == "1" else []
+    counted = screens.counted(source.world_state(), place)  # no gap of an inventory that does not count
+    gap_marks = present.gap_marks(detail) if request.GET.get("gaps") == "1" and counted else []
     gaps_only = bool(gap_marks) and not detail.web3d and showing != "after"
     framed = present.framed_gap(detail, request.GET.get("gap")) if gap_marks else None
     return render(request, "pages/view3d.html", {"detail": detail, "after": after, "showing": showing,

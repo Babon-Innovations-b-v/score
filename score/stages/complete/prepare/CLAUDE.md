@@ -41,7 +41,9 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   never substituted; the rest each one `score run`, one after another. A benchmark with no paid path is listed as a
   gap. Never start the batch from an agent.
 - **Design before the batch** (owner, 2026-10-20, CONTEXT.md "design"; `design.py`): each place's concept
-  (missing, drawn, picked) and plan (remake, made, approved), read from the store (the concept review's draws and picks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
+  (missing, drawn, picked), inventory (None before the pick, made when `data/inventory/<place>.json` was read from the
+  picked draw, else to read; CONTEXT.md "scene inventory") and plan (remake, made, approved; remake while the
+  inventory is not made), read from the store (the concept review's draws and picks, `score/review/concepts.py`, first) and `data/places/concepts.json`,
   never judged. Approved is only the creator's own accept of `plan@<place>` given after his pick; the runner's
   automatic accept is never an approval. The cockpit's batch buys only approved places' steps. The old plans'
   `concept.pick` is a hint for drawing, not a constraint.

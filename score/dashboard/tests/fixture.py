@@ -128,6 +128,18 @@ def a_concept(store, data, folder, node):
     found = json.loads(listed.read_text()) if listed.is_file() else {"concepts": {}}
     found["concepts"][node] = {"sha256": sha, "name": path.name}
     listed.write_text(json.dumps(found))
+    return sha
+
+
+def an_inventory_read(store, data, node, sha):
+    """`node`'s concept `sha` picked (its concepts.json picture: a pick record, no draw) and its scene inventory read
+    from it, so its numbers count (CONTEXT.md "scene inventory")."""
+    from score.review import concepts
+    concepts.recorded(store, f"concepts/{node}/picks/2026-10-20T09-00-00.json",
+                      {"place": node, "sha": sha, "by": "joey", "at": "2026-10-20T09:00:00+00:00"})
+    (data / "inventory").mkdir(parents=True, exist_ok=True)
+    (data / "inventory" / f"{node}.json").write_text(json.dumps({
+        "scene": node, "concept_pick": {"sha256": sha}, "rows": [{"id": "r1", "name": "lamp", "count": 2}]}))
 
 
 def build(root):
