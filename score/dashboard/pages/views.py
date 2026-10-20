@@ -146,6 +146,7 @@ def place_page(request, place):
         raise Http404(f"no place {place}")
     detail = source.place_detail(place)
     world = source.world_state()
+    world = world.model_copy(update={"concepts": {**world.concepts, **concepts.newest_pictures(world)}})  # as its tile
     names = present.place_names(present.look_groups(world, set()))
     design = cockpit.design_of(screens.design_state(world, place))
     return render(request, "pages/place.html", {
