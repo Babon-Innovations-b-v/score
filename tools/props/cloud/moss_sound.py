@@ -5,7 +5,8 @@ recordings were "pretty bad").
     ~/.farm-factory-props/env/bin/python tools/props/cloud/moss_sound.py <page> --who "<session>" [--dry-run]
 
 The jobs come from the repo's data: every sound on the page whose brief in data/sound/sounds.json has `prompts`
-gets each prompt at `seeds` seeds (its `seconds` long). The takes land in the picker's cache
+gets one take, its first prompt at seed 1 (its `seconds` long; #29: no seed or prompt fan-out, a take under
+the floor is a hole and another is a new batch). The takes land in the picker's cache
 (`~/.cache/farm-factory/sound-picker/moss/<page>/`) with `manifest.json` naming each file's sound, prompt, seed and
 model, which is its credit; the picker's MOSS source offers them, levelled by the loudness rule like every take.
 MOSS-SoundEffect v2.0 is Apache-2.0, code and weights, both pinned below. Measured on the trial: about 6.3 s a clip
@@ -46,16 +47,13 @@ BUDGET_EUROS = 8.0
 
 
 def jobs_for(page, sounds_path=SOUNDS):
-    """Every take to make for a page: each briefed prompt at each of its seeds."""
+    """The one take each briefed sound of a page asks for (#29): its first prompt at seed 1."""
     jobs = []
     for name, entry in json.loads(pathlib.Path(sounds_path).read_text())["sounds"].items():
         brief = entry.get("pick", {})
-        if brief.get("page") != page:
-            continue
-        for number, prompt in enumerate(brief.get("prompts", []), start=1):
-            for seed in range(1, int(brief.get("seeds", 2)) + 1):
-                jobs.append({"file": f"{name}__p{number}__s{seed}.wav", "sound": name, "prompt": prompt,
-                             "seconds": int(brief.get("seconds", 8)), "seed": seed})
+        if brief.get("page") == page and brief.get("prompts"):
+            jobs.append({"file": f"{name}__p1__s1.wav", "sound": name, "prompt": brief["prompts"][0],
+                         "seconds": int(brief.get("seconds", 8)), "seed": 1})
     return jobs
 
 

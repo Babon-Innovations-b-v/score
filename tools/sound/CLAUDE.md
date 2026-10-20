@@ -4,7 +4,8 @@ The game's sound tools (#35). `made.py`: the sounds the game makes itself (base 
 tone, the geiger ticks, the low oxygen beep); `bash tools/sound/run.sh` writes them to `sound/made/` in the made folder
 (`tools/library/library_files.py`; `score-lib take-in` takes a changed file into the library, and the records name
 its reference).
-`picker/`: every sound the game needs, made by MOSS on a rented card (`tools/props/cloud/moss_sound.py game`),
+`picker/`: every sound the game needs, made by MOSS on a rented card (`tools/props/cloud/moss_sound.py game`: one
+take a sound, its brief's first prompt at seed 1, #29),
 then scored, levelled and put in (`run.sh auto game`); the page to listen and swap is optional. `loudness/`: the
 loudness rule every take and every game file is held to (`run.sh loudness` measures them all again).
 

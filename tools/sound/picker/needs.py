@@ -6,9 +6,9 @@ already plays:
 3. **Things** (data/inventory/<room>.json): every row's `sound`, the hum, buzz or whir its things make.
 
 A sound's brief is its `pick` in data/sound/sounds.json: the page it is on (`game`: every sound the game needs), its
-category (which sets the loudness its takes are brought to), where it plays, the prompts MOSS is given with their
-seeds and length, and the searches the optional CC0 sources are asked. Every sound the layers and the catalogue name
-has a brief (the catalogue is data/sound/catalogue.json), but the warning tone and the low-oxygen beep, which the game makes itself to an exact shape
+category (which sets the loudness its takes are brought to), where it plays, the prompts MOSS is given (the first
+made, one take a sound) and their length, and the searches the optional CC0 sources are asked. Every sound the
+layers and the catalogue name has a brief (the catalogue is data/sound/catalogue.json), but the warning tone and the low-oxygen beep, which the game makes itself to an exact shape
 (tools/sound/made.py); `needs` lists any that has none.
 """
 import json
