@@ -11,7 +11,7 @@ root and its own layers in it.
 """
 import re
 
-from score.dashboard.state.library import KINDS, kind_label
+from score.dashboard.state.library import KINDS, MADE_BY_CODE, kind_label, made_by_code
 from score.dashboard.state.names import everyday
 
 TAG_LEVELS = {"model": ["model"], "surface": ["family", "recipe"], "sound": ["category"], "effect": ["effect"],
@@ -127,14 +127,20 @@ class Builder:
 
 def folders(entries):
     """The Library's tree of kinds and categories, and each node's entries; a withdrawn entry is in none (its page
-    stays reachable from its versions: withdrawn copies folded into one entry are no shelf of their own, #46)."""
+    stays reachable from its versions: withdrawn copies folded into one entry are no shelf of their own, #46). A
+    shelf's code that makes what it holds sits in its own "Made by code" folder, after the shelf's own folders (a
+    shelf with none lists its own entries beside it)."""
     builder = Builder()
     tree = []
     entries = [entry for entry in entries if entry.state != "withdrawn"]
     for kind, _ in KINDS:
         of_kind = [entry for entry in entries if (entry.shelf or entry.kind) == kind]
         if of_kind:
-            children = builder.by_own_place(kind, of_kind) if kind == "place" else \
-                builder.by_tags(kind, of_kind, TAG_LEVELS.get(kind, []))
+            code = [entry for entry in of_kind if made_by_code(entry)]
+            own = [entry for entry in of_kind if not made_by_code(entry)]
+            children = builder.by_own_place(kind, own) if kind == "place" else \
+                builder.by_tags(kind, own, TAG_LEVELS.get(kind, [])) if own else []
+            if code:
+                children.append(builder.node(f"{kind}/{MADE_BY_CODE}", "Made by code", code, []))
             tree.append(builder.node(kind, kind_label(kind), of_kind, children))
     return {"tree": tree, "members": builder.members}

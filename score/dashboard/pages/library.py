@@ -82,14 +82,16 @@ def node_by_id(tree, node_id):
 
 
 def children(shown, node_id, page=0):
-    """One page of a folder's children as tree nodes: its sub-folders, else its entries; a "more" branch holds the
-    next page. None for an unknown folder."""
+    """One page of a folder's children as tree nodes: its sub-folders, then its entries no sub-folder holds; a "more"
+    branch holds the next page. None for an unknown folder."""
     folders = shown.folders()
     node = node_by_id(folders["tree"], node_id)
     if node is None:
         return None
-    rows = [folder_node(child) for child in node["children"]] or [
-        item_node(entry) for entry in sorted(folders["members"][node_id], key=lambda entry: entry.title.lower())]
+    held = {entry.address for child in node["children"] for entry in folders["members"][child["id"]]}
+    loose = [entry for entry in folders["members"][node_id] if entry.address not in held]
+    rows = [folder_node(child) for child in node["children"]] + [
+        item_node(entry) for entry in sorted(loose, key=lambda entry: entry.title.lower())]
     shown_rows = rows[page * PAGE:(page + 1) * PAGE]
     left = len(rows) - (page + 1) * PAGE
     if left > 0:
@@ -178,6 +180,11 @@ def shelf(entry):
     return entry.shelf or entry.kind
 
 
+def played_as(entry):
+    """The kind an entry's viewer and numbers follow: its shelf's, but code is shown as code on any shelf."""
+    return entry.kind if entry.kind == "algorithm" else shelf(entry)
+
+
 def view_of(shown, entry):
     """Which viewer the page holds: 3d (item3d.js), sound (takes.js), demo (an algorithm's work on a real example,
     demo.js), diagram (what an algorithm reads and makes, while it has no example), place (the place viewer in a
@@ -225,7 +232,7 @@ def closeup_url(shown, entry):
 def viewer_of(shown, entry):
     """What item3d.js plays: {mode (copy, kit, surface, effect, light), light (the light copy's url), full (the whole
     copy's, when this cockpit holds it), finish, print, token, palette, settings, lamps, inside (a kit cut open)}."""
-    mode = "kit" if entry.kind == "kit" else PLAYED.get(shelf(entry), "copy")
+    mode = "kit" if entry.kind == "kit" else PLAYED.get(played_as(entry), "copy")
     found = {"mode": mode, "light": file_url(shown, entry.web3d_light), "full": file_url(shown, entry.web3d)}
     if mode == "surface":
         printed = (entry.finish or {}).get("print")
@@ -283,7 +290,7 @@ def numbers_of(entry, copy_here):
         "sound": [number("loudness", facts.get("lufs"), "LUFS", "integrated loudness"),
                   number("length", facts.get("seconds"), "s", "its first take")],
         "effect": effect_numbers(facts.get("settings")), "lamp": lamp_numbers(facts.get("lamps") or [])}
-    return by_kind.get(shelf(entry), [])
+    return by_kind.get(played_as(entry), [])
 
 
 def demo_of(shown, entry):
@@ -318,7 +325,8 @@ def item_page(request, kind, entry_id, version):
     shown, entry = found_entry(kind, entry_id, version)
     missing, view = shown.missing(entry), view_of(shown, entry)
     return render(request, "pages/library_item.html", {
-        "entry": entry, "kind_label": lib.kind_label(shelf(entry)), "tone": TONES.get(entry.state, "idle"),
+        "entry": entry, "kind_label": lib.kind_label(shelf(entry)), "made_by_code": lib.made_by_code(entry),
+        "tone": TONES.get(entry.state, "idle"),
         "picture": picture_url(shown, entry), "picture_absent": absent(missing, [entry.picture_file]),
         "closeup": closeup_url(shown, entry),
         "absent": absent(missing, viewer_names(entry)),

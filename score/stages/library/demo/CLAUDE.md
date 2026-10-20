@@ -1,6 +1,6 @@
 # score/stages/library/demo/
 
-One module an algorithm entry of the library (`<module>.py`, its `ALGORITHM` the entry's id): `made(inputs)` returns
+One module an algorithm entry of the library (`<module>.py`, its `ALGORITHM` the entry's id; a module named `_<name>.py` is a helper the demos share, `_trial.py` the habitat's physics trial for the physics setups): `made(inputs)` returns
 what the cockpit's item page plays for it (`score/dashboard/pages/static/pages/demo.js`, owner 2026-10-20: "an item
 page is about experiencing the item in isolation"; a still from a film is not the algorithm). The runner
 (`score/stages/library/demos.py`, each sync pass) writes every module's demo into

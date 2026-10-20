@@ -1,0 +1,55 @@
+"""What the physics setups' demos share (not a demo: `demos.modules` skips a module whose name starts with _): the
+habitat's physics trial (physics-trial@habitat, recorded in the library's physics layer entry), its trial record and
+its scene, and the plan drawing of them."""
+import json
+
+import numpy as np
+
+PLACE = "habitat"
+ENTRY = f"layer/physics.{PLACE}@1"
+
+
+def trial(inputs):
+    """The trial as it ran: {rate, frames, gravity, bodies {name: {mass, world, motions, lowest, ...}}, hinges}."""
+    return inputs.json(ENTRY, "physics-trial/trial.json")
+
+
+def record(inputs):
+    """The trial record (data/physics/habitat.json): body, material, drops, hinges, pushes, moved."""
+    return json.loads((inputs.repo / "data/physics" / f"{PLACE}.json").read_text())
+
+
+def scene(inputs):
+    return json.loads((inputs.repo / "data/scene" / f"{PLACE}.json").read_text())
+
+
+def seconds(ran):
+    """[the time of each frame] of the trial."""
+    return [frame / ran["rate"] for frame in range(ran["frames"])]
+
+
+def plan_point(east, south):
+    return [round(float(east), 2), round(float(-south), 2)]
+
+
+def track(body):
+    """[(x, y, z)] of the body's middle frame by frame: its motions (column vectors) applied to where it starts."""
+    start = np.append(np.asarray(body["world"])[3, :3], 1.0)
+    return [(np.asarray(motion) @ start)[:3] for motion in body["motions"]]
+
+
+def floor(the_scene):
+    """The room's floor as an area shape."""
+    (low_x, low_z), (high_x, high_z) = the_scene["floor"]
+    return {"kind": "area", "tone": "ground", "label": "the floor",
+            "points": [plan_point(x, z) for x, z in ((low_x, low_z), (high_x, low_z), (high_x, high_z),
+                                                      (low_x, high_z))]}
+
+
+def plan_bounds(the_scene):
+    (low_x, low_z), (high_x, high_z) = the_scene["floor"]
+    return [*plan_point(low_x, high_z), *plan_point(high_x, low_z)]
+
+
+def said(name):
+    return name.replace("_", " ")

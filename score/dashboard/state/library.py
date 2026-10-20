@@ -22,16 +22,27 @@ from score.dashboard.state.names import plain
 # The Library's shelves follow the framework's layers (#47): a kind, (lamp) a place's light layer (owner, 2026-10-20:
 # a sky is no light; the lamps are), the motion layer's people, and a place with its own layers under it (a layer is a
 # part of its place, no shelf of its own). Ground is retired: a terrain piece is a model, a ground finish a surface.
-# The kind ids stay; only what the owner reads changes.
+# The kind ids stay; only what the owner reads changes. The algorithm kind's shelf is Physics: only physics setups
+# (CONTEXT.md "physics setup", owner 2026-10-20); code that makes other things sits on the shelf of what it makes,
+# marked made by code (CODE_SHELF), the code that makes films on Films.
 KINDS = [("model", "Models"), ("surface", "Surfaces"), ("kit", "Kits"), ("character", "Motion"), ("effect", "Effects"),
-         ("light", "Skies"), ("lamp", "Lamps"), ("sound", "Sound"), ("algorithm", "Algorithms"), ("place", "Places")]
+         ("light", "Skies"), ("lamp", "Lamps"), ("sound", "Sound"), ("film", "Films"), ("algorithm", "Physics"),
+         ("place", "Places")]
+CODE_SHELF = {  # an algorithm entry that is no physics setup, by its id: the shelf of what it makes
+    "camera_paths": "film", "cast_spread": "model", "crops_spots": "model", "far_city": "model",
+    "ground_detail": "model", "light_rig": "lamp", "machines_lay": "model", "mars_sky": "light", "motion": "character",
+    "motion_movers": "character", "particle_effects": "effect", "room_layout": "model", "sky_dust_stars_haze": "light",
+    "sky_orbits": "light", "sound_layer": "sound", "surface_recipes": "surface", "terrain_landforms": "model"}
+MADE_BY_CODE = "made_by_code"  # the folder a shelf's code entries sit in (state/library_tree.py)
 WHAT = {"model": "a model made through the prop pipeline (a terrain piece too)",
         "surface": "a surface and the material a place writes for it (a ground finish too)",
         "effect": "a particle emitter with its settings and one baked clip",
         "light": "a sky dome or a planet's backdrop, seen from inside", "lamp": "a place's lamps and their strengths",
         "sound": "a sound source with its takes and levels",
         "character": "the motion layer's people: a body look or a dress", "kit": "a set of shell-piece variants",
-        "algorithm": "an engine algorithm with its settings, preset, tests and run line",
+        "film": "the code that makes a film's camera paths",
+        "algorithm": "a physics setup with its settings, preset, tests and run line: a body's weight, a hinge and its "
+                     "motor, a drop, a push, settling, snapping, a planet's gravity",
         "place": "a place's root with its own layers, plan and cast"}
 SCORE_MEANS = {  # what a kind's score measures, said as its hover text; a kind not here shows no score
     "model": "how sound its mesh is: holes, crowded edges, seams", "kit": "the mean score of its pieces",
@@ -72,7 +83,7 @@ class LibraryEntry(BaseModel):
     version: int
     title: str  # the name the owner sees (state/names.py)
     about: str = ""  # the library's own title when it differs: the name's hover text
-    shelf: str = ""  # the Library shelf it sits on: its kind, or lamp
+    shelf: str = ""  # the Library shelf it sits on: its kind, lamp, or what its code makes (CODE_SHELF)
     state: str
     locked: str | None = None
     picture: str | None = None  # the picture's sha
@@ -103,10 +114,17 @@ class LibraryEntry(BaseModel):
 
 def shelf_of(record):
     """The Library shelf of an entry record: a place's light layer is a lamp, any other layer sits under its place,
-    any other entry on its kind's shelf."""
+    code that makes something on the shelf of what it makes, any other entry on its kind's shelf."""
     if record["kind"] == "layer":
         return "lamp" if record["id"].startswith(LAMPS) else "place"
+    if record["kind"] == "algorithm":
+        return CODE_SHELF.get(record["id"], "algorithm")
     return record["kind"]
+
+
+def made_by_code(entry):
+    """Whether an entry is code that makes what its shelf holds: an algorithm off the Physics shelf."""
+    return entry.kind == "algorithm" and entry.shelf not in ("", "algorithm")
 
 
 def score_meaning(entry):
