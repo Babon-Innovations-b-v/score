@@ -21,10 +21,11 @@ scene.background = new THREE.Color(token("--color-view-plinth"));
 const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 5000);
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.enableDamping = true;
-orbit.autoRotate = given.mode !== "effect";
+orbit.autoRotate = given.mode !== "effect" && given.mode !== "surface";  // a surface's sphere spins on its own
 orbit.addEventListener("start", () => { orbit.autoRotate = false; });
 const studio = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 const clock = { playing: true, at: 0, length: 0, show: null };  // an effect's or a clip's time
+const spinning = [];  // objects turned slowly about their own up axis (a surface's sphere)
 const KIT_GAP = 0.25;  // metres between a kit's pieces laid side by side
 
 function resize() {
@@ -34,11 +35,11 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 
-// Look at a box whole, from a little above one corner.
-function frame(box) {
+// Look at a box whole, from `toward` it (by default a little above one corner).
+function frame(box, toward = new THREE.Vector3(0.7, 0.45, 0.9)) {
   if (box.isEmpty()) return box;
   const middle = box.getCenter(new THREE.Vector3()), reach = box.getSize(new THREE.Vector3()).length() || 1;
-  camera.position.copy(middle).add(new THREE.Vector3(0.7, 0.45, 0.9).multiplyScalar(reach));
+  camera.position.copy(middle).add(toward.clone().multiplyScalar(reach));
   camera.near = reach / 500;
   camera.far = reach * 50;
   camera.updateProjectionMatrix();
@@ -193,10 +194,12 @@ async function openSurface() {
   const print = given.print ? (await new THREE.TextureLoader().loadAsync(given.print).catch(() => null))?.image : null;
   const form = document.getElementById("surface-controls");
   form.shine.value = String(1 - (finish.roughness ?? 0.5));
+  form.metal.value = String(finish.metallic ?? 0);
   const update = () => {
     const chosen = form.token.value;
     material.color = chosen === given.token && own ? own.clone() : new THREE.Color(given.palette[chosen] || token("--color-view-light"));
     const pictures = wornPictures(print, Number(form.wear.value), Number(form.seed.value), 1 - Number(form.shine.value));
+    material.metalness = Number(form.metal.value);
     material.map?.dispose();
     material.roughnessMap?.dispose();
     material.map = pictures.map;
@@ -206,12 +209,13 @@ async function openSurface() {
   form.addEventListener("input", update);
   update();
   const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5, 96, 64), material);
-  const tile = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.04), material);
+  const tile = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.04), material);  // a flat swatch facing the eye
   sphere.position.x = -0.6;
   tile.position.x = 0.6;
   const pair = new THREE.Group().add(sphere, tile);
   scene.add(pair);
-  frame(new THREE.Box3().setFromObject(pair));
+  spinning.push(sphere);
+  frame(new THREE.Box3().setFromObject(pair), new THREE.Vector3(0, 0.15, 1.1));
   shown();
 }
 
@@ -286,17 +290,24 @@ function openEffect() {
     .multiplyScalar(settings.brightness ?? 1);
   const gravity = new THREE.Vector3(...(settings.gravity || [0, 0, 0])), wind = new THREE.Vector3(...(settings.wind || [0, 0, 0]));
   const place = new THREE.Vector3(), positions = geometry.attributes.position, colours = geometry.attributes.color;
+  // A burst (`once`: from its first second for its second's length) lets each card out once; else they stream.
+  const [burstFrom, burstFor] = settings.once || [0, 0];
+  const damping = settings.damping ? (settings.damping[0] + settings.damping[1]) / 2 : 0;
+  const ageOf = (card, at) => (burstFor > 0 ? at - burstFrom - card.birth * burstFor
+    : (((at - card.birth * life * (1 - (settings.explosiveness || 0))) % life) + life) % life);
   const show = (at) => {
     made.forEach((card, rank) => {
-      const age = (((at - card.birth * life * (1 - (settings.explosiveness || 0))) % life) + life) % life;
-      place.copy(card.start).addScaledVector(card.velocity, age).addScaledVector(gravity, 0.5 * age * age).addScaledVector(wind, age);
+      const age = ageOf(card, at);
+      if (age < 0 || age >= life) { colours.setW(rank, 0); return; }
+      const moved = damping > 0 ? (1 - Math.exp(-damping * age)) / damping : age;  // slowed by its damping
+      place.copy(card.start).addScaledVector(card.velocity, moved).addScaledVector(gravity, 0.5 * age * age).addScaledVector(wind, age);
       place.applyAxisAngle(THREE.Object3D.DEFAULT_UP, (settings.spin || 0) * age);
       positions.setXYZ(rank, place.x, place.y, place.z);
       colours.setXYZW(rank, colour.r, colour.g, colour.b, (settings.opacity ?? 1) * curveAt(settings.opacity_over_life, age / life));
     });
     positions.needsUpdate = colours.needsUpdate = true;
   };
-  show(life / 2);
+  show(burstFor > 0 ? burstFrom + burstFor / 2 + life / 4 : life / 2);
   geometry.computeBoundingBox();
   frame(geometry.boundingBox.clone());
   startClock(length, show);
@@ -346,6 +357,7 @@ function draw(now) {
   const seconds = Math.min((now - last) / 1000, 0.1);
   last = now;
   if (clock.playing && clock.length > 0) { clock.at = (clock.at + seconds) % clock.length; showTime(); }
+  spinning.forEach((object) => { object.rotation.y += seconds * 0.4; });
   orbit.update();
   renderer.render(scene, camera);
   requestAnimationFrame(draw);

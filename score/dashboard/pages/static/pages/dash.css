@@ -343,6 +343,8 @@ body.view3d.embed #status { margin: 0; padding: 4px 10px; border-radius: 999px; 
 .item-controls { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px 16px;
                  align-items: center; padding: 8px 12px; border-radius: var(--radius); background: var(--color-scrim); }
 .item-controls label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.item-controls[hidden] { display: none; }
+.item-only { max-width: 640px; } .item-only figcaption { margin-top: 6px; }
 .item-controls input[type=range] { flex: 1; min-width: 120px; }
 .item-pic { margin: 0; } .item-pic .pic { width: 100%; border-radius: var(--radius); display: block; }
 .item-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 16px; }
