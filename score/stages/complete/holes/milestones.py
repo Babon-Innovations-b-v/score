@@ -224,7 +224,8 @@ def milestone(rows, key, names, record, extra):
             "places": len({name.partition("@")[2] for name in names if "@" in name}), "paid": paid,
             "likely_euros": sums["likely_euros"], "high_euros": sums["high_euros"], "measured": sums["measured"],
             "set": set_budgets(rows, sums["unknown"]),
-            "unknown": [{"node": name, "why": unknown_why(name, record["nodes"].get(name))} for name in sums["unknown"]],
+            "unknown": [{"node": name, "why": unknown_why(name, record["nodes"].get(name))}
+                        for name in sums["unknown"]],
             "after_work": {"likely_euros": after["likely_euros"], "high_euros": after["high_euros"],
                            "unknown": len(after["unknown"]), "nodes": len(extra["after"])},
             "work": [{"work": line, "holes": holes} for line, holes in sorted(extra["work"].items(),

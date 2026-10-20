@@ -3,7 +3,8 @@ the shell's concept, plan and rough model, its split, then the inside place's ow
 completion, the film past it, the environment's film (no row: unpriced, with why) and the owner's approval last; each
 node after every node it reads; a paid node with no measured price unknown with its reason and its stage's set budget
 labelled set, never summed; the code work of the holes at the step it waits at (a lost input at its reader's); the
-month's books on the first paid step. A toy table in a store of its own, per-unit numbers written in the test. No cloud, no Blender.
+month's books on the first paid step. A toy table in a store of its own, per-unit numbers written in the test. No
+cloud, no Blender.
 
     terrain (world, paid) -> plan -> rough-model (paid) -> shell-split -> scene-record -> pixal (paid) -> complete
     complete -> demo-film (paid, not measured: set EUR 3.2) -> library (an end: nothing reads it)
