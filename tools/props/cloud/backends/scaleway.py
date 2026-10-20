@@ -43,6 +43,7 @@ CLASSES = {
     "cpu-32c-256gb": ("POP2-HM-32C-256G",),
     "cpu-16c-64gb": ("POP2-16C-64G",),
     "cpu-16c-128gb": ("POP2-HM-16C-128G",),
+    "cpu-4c-32gb": ("POP2-HM-4C-32G",),
 }
 # How many machines of a class the project may hold at once, where Scaleway granted a quota (2026-10-08: H100-1-80G 20,
 # L4-1-24G 50, L40S-1-48G 10, across fr-par-1, fr-par-2 and pl-waw-2). Stock is still the real limit; a class not

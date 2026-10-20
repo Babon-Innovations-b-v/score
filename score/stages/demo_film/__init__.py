@@ -6,7 +6,8 @@ tools/review/demo.py plans them).
     data/definitions/demo_films/<film>.json   {"place", "camera" (a camera of the place's scene record), "why",
                                                and optionally "eye" and "aim" or "across" (a spot of its own for
                                                that camera, own_cameras), "then" (its second shot's camera: a
-                                               record camera's name or a spot of its own), "start", "leave_out"}
+                                               record camera's name or a spot of its own), "start", "leave_out",
+                                               "final" (the creator's yes to its preview: true)}
 
 A film named for its place (<place>.json) is the place's own film, the demo-film row; any other film of a place (the
 ship's hull through the hangar: hull.json, place hangar) is the demo-film-extra row's, which makes all of them for
@@ -16,14 +17,16 @@ that place. One file a film, so adding a film moves no other film's key; a place
            of its own; demo.py's plan with a camera path a shot, SHOTS shots: the first starting at the film's camera
            and the second at its `then`, else at the record camera standing furthest from the first (its first frame that
            camera's view, unless the planner had to move its start clear or level it: views.json's moves say),
-           SIZE frames over SECONDS at demo.RATE, look only (no ink); the frames rendered;
+           frames over SECONDS at demo.RATE, look only (no ink); the frames rendered: a preview at PREVIEW_SIZE with
+           the review's samples (usd_views.py "review") until the film's record says `final` (the creator's yes,
+           after the film gate passed its preview), then once at SIZE with the films' samples (#20);
            demo.py's cut with the stage's sound layer. Per film:
            film.mp4, views.json (each frame's view, the moves, the planner's commit) and concept.png, the first frame
            (for the place's own film, demo K8's still beside the concept), and bed.wav where the stage has sound (what
            the camera hears standing at its first view before it walks, demo.BED_SECONDS, which the showcase lays under
            the place's cards); the other frames are not kept. The own
            film's files lie in the output's root, each extra film's in a folder of its name.
-    gate   film    film_checks.video_checks on each film.mp4 (SIZE, a sound track that is not silent, no black or
+    gate   film    film_checks.video_checks on each film.mp4 (the size its views.json planned, a sound track that is not silent, no black or
                    frozen stretch after the title card, a length within LENGTH_SLACK of planned_seconds for its
                    shots) and clearance_checks on the final stage (no eye nearer a mesh, a person or a mover than the
                    planner's clearance)
@@ -41,6 +44,9 @@ from score import checks, contracts
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FILMS = REPO / "data/definitions/demo_films"
 SIZE = (1280, 720)
+# A film before the creator's yes (#20): a quarter of the pixels at the review's 16 samples, so a reshoot of a place's
+# film costs its preview, and the final is rendered once.
+PREVIEW_SIZE = (640, 360)
 # Two shots a place, each from its own camera, so a finished place stays on screen about 7 s unbroken instead of 3.5 s
 # (the finish plan for world 1, 2026-10-18); a place whose record holds one camera only gets one.
 SHOTS = 2
@@ -178,8 +184,11 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     cameras = own_cameras(work / "stages" / place / "scene.json", film)
     leave_out(work / "stages" / place / f"{place}.usda", film)
     given = f"{place}={','.join(cameras)}" if name == place else f"{name}@{place}={','.join(cameras)}"
-    jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE, ink=False, shots=len(cameras),
-                     seconds=SECONDS, start=start)
+    final = bool(film.get("final"))
+    jobs = demo.plan(work, work / "stages", [given], jobs_each=JOBS, size=SIZE if final else PREVIEW_SIZE, ink=False,
+                     shots=len(cameras), seconds=SECONDS, start=start)
+    if not final:
+        as_preview(jobs)
     render(jobs, log_folder)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(work / "frames" / name / "shot0-000-look.png", out / "concept.png")
@@ -190,6 +199,13 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     planned = json.loads((work / "views" / f"{name}.json").read_text())
     (out / "views.json").write_text(json.dumps(dict(planned, stage=f"{place}/{place}.usda"), indent=1))
     shutil.rmtree(work)
+
+
+def as_preview(jobs):
+    """Each frame job's views drawn at the review's samples (usd_views.py "review")."""
+    for job_path in jobs:
+        views_path = pathlib.Path(json.loads(pathlib.Path(job_path).read_text())["args"][1])
+        views_path.write_text(json.dumps(dict(json.loads(views_path.read_text()), review=True), indent=1))
 
 
 def own_cameras(record_path, film):
@@ -295,26 +311,28 @@ def planned_seconds(shots):
 
 
 def film_measures(folder, stage_folder):
-    """One film's video checks, its length within LENGTH_SLACK of its planned length for the shots its views hold,
-    and its frames' clearance: (seconds, mean dB, faults)."""
+    """One film's video checks, at the size its views planned (a preview's or the final's), its length within
+    LENGTH_SLACK of its planned length for the shots its views hold, and its frames' clearance: (seconds, mean dB,
+    size, faults)."""
     demo, film_checks = film_tools()
     planned = json.loads((folder / "views.json").read_text())
     length = planned_seconds(len(planned.get("moves", [])))
+    size = tuple(planned.get("size", SIZE))
     video = film_checks.video_checks(folder / "film.mp4", length - LENGTH_SLACK, length + LENGTH_SLACK,
-                                     demo.TITLE_SECONDS, SIZE)
+                                     demo.TITLE_SECONDS, size)
     views = planned["views"]
     _, near = film_checks.clearance_checks(stage_folder / f"{place_of(stage_folder)}.usda", views)
-    return video["seconds"], video["mean_db"], video["failures"] + near
+    return video["seconds"], video["mean_db"], size, video["failures"] + near
 
 
 def film_verdict(folders, inputs):
     """The `film` verdict over the given films' folders (module docstring)."""
     stage_folder = final_stage(inputs)
     measured = {folder.name: film_measures(folder, stage_folder) for folder in folders}
-    faults = [fault for _, _, found in measured.values() for fault in found]
+    faults = [fault for _, _, _, found in measured.values() for fault in found]
     reason = "; ".join(faults[:3]) if faults else "; ".join(
-        f"{seconds} s at {SIZE[0]}x{SIZE[1]}, sound at {loud} dB, every frame clear"
-        for seconds, loud, _ in measured.values())
+        f"{seconds} s at {size[0]}x{size[1]}, sound at {loud} dB, every frame clear"
+        for seconds, loud, size, _ in measured.values())
     return checks.Verdict("film", checks.FAIL if faults else checks.PASS, reason,
                           {"films": len(measured), "faults": len(faults)}, {"faults": "lower"}, tuple(faults))
 

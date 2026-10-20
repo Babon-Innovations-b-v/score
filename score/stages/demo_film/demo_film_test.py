@@ -94,6 +94,68 @@ def test_the_plan_asks_look_only_frames_at_its_size():
         shutil.rmtree(root)
 
 
+def test_a_film_is_a_small_preview_until_the_creator_says_final():
+    """#20: a film before the creator's yes is drawn at PREVIEW_SIZE with the review's samples; its record's `final`
+    makes it once at SIZE with the films' own; the gate holds each film to the size its views planned."""
+    demo, film_checks = demo_film.film_tools()
+    root = folder()
+    real_plan, real_render, real_cut = demo.plan, demo_film.render, demo.cut
+    planned = []
+
+    def plan(work, stages, given, jobs_each, size, ink, shots, seconds, start):
+        planned.append(tuple(size))
+        (work / "views").mkdir(parents=True, exist_ok=True)
+        (work / "jobs").mkdir(parents=True, exist_ok=True)
+        views = [{"name": "shot0-000", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1], "fov": 70}]
+        written = demo.film_jobs(work, "hall", stages / "hall/hall.usda", [], views, "look", 1, size, ink)
+        (work / "views/hall.json").write_text(json.dumps({"size": list(size), "views": views, "moves": []}))
+        return written
+
+    def render(jobs, log_folder):
+        asked = [json.loads(pathlib.Path(json.loads(path.read_text())["args"][1]).read_text()) for path in jobs]
+        rendered.append([view.get("review", False) for view in asked])
+        frames = log_folder / ".work/frames/hall"
+        frames.mkdir(parents=True)
+        Image.new("RGB", tuple(asked[0]["size"]), (90, 90, 90)).save(frames / "shot0-000-look.png")
+
+    def cut(work, names):
+        (work / "videos").mkdir()
+        (work / "videos/hall.mp4").write_bytes(b"")
+
+    rendered = []
+    try:
+        demo.plan, demo_film.render, demo.cut = plan, render, cut
+        (root / "stage").mkdir()
+        (root / "stage/hall.usda").write_text("#usda 1.0\n")
+        (root / "stage/scene.json").write_text(json.dumps({"views": [{"name": "door", "eye": [0, 1.6, 0],
+                                                                      "aim": [0, 1.6, -1]}]}))
+        for name, film in (("preview", {"place": "hall", "camera": "door"}),
+                           ("final", {"place": "hall", "camera": "door", "final": True})):
+            demo_film.film_one(root / "stage", "hall", film, root / name, root / f"log-{name}")
+        assert planned == [demo_film.PREVIEW_SIZE, demo_film.SIZE], planned
+        assert rendered == [[True], [False]], rendered  # the review's samples for the preview only
+        assert Image.open(root / "preview/concept.png").size == demo_film.PREVIEW_SIZE
+    finally:
+        demo.plan, demo_film.render, demo.cut = real_plan, real_render, real_cut
+        shutil.rmtree(root)
+
+    root = folder()
+    clearance = film_checks.clearance_checks
+    try:
+        video = look_only_film(root / "cut")  # cut at SMALL, as its views planned
+        (root / "out").mkdir()
+        shutil.copy(video, root / "out/film.mp4")
+        (root / "out/views.json").write_text(json.dumps({"size": list(SMALL), "views": [], "moves": []}))
+        (root / "stage").mkdir()
+        (root / "stage/hall.usda").write_text("#usda 1.0\n")
+        film_checks.clearance_checks = lambda stage, views: ({}, [])
+        _, _, size, faults = demo_film.film_measures(root / "out", root / "stage")
+        assert size == SMALL and not any("size" in fault for fault in faults), faults
+    finally:
+        film_checks.clearance_checks = clearance
+        shutil.rmtree(root)
+
+
 def look_only_film(root):
     """A planned look-only film of SHOTS shots whose frames are all one colour, cut by demo.py: its video."""
     demo, _ = demo_film.film_tools()
