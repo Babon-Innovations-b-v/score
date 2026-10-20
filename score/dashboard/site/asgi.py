@@ -43,6 +43,7 @@ def docs(user=Depends(signed_in)):
     return get_swagger_ui_html(openapi_url="/api/openapi.json", title="SCORE dashboard API")
 
 
+inner.mount("/static/design", StaticFiles(directory=settings.DESIGN_ROOT), name="design")
 inner.mount("/static", StaticFiles(directory=settings.STATIC_ROOT), name="static")
 inner.mount("/", django_app)
 app = TrustedProxyGuard(inner, settings.SCORE_TRUSTED_PROXIES)

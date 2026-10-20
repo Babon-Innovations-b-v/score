@@ -121,6 +121,7 @@ USE_TZ = True
 TIME_ZONE = "UTC"
 STATIC_URL = "/static/"
 STATIC_ROOT = PACKAGE / "pages" / "static"
+DESIGN_ROOT = REPO / "design"  # the design tokens and font, served at /static/design/
 LOGGING = {"version": 1, "disable_existing_loggers": False,
            "handlers": {"console": {"class": "logging.StreamHandler"}},
            "root": {"handlers": ["console"], "level": "WARNING"}}

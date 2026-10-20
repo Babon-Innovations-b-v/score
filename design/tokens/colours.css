@@ -1,0 +1,89 @@
+/* ============================================================================
+   SCORE COCKPIT COLOURS: the one place a colour of the cockpit (score/dashboard) is written. Dark only.
+   One concern: colours. Type, space, radii and shadows are in scale.css; the font in ../fonts/poppins/.
+   Every page, dash.css, film.css and the 3D views (static/pages/tokens.js) read these names; a hosted build
+   may replace this whole file with its own colours on the same names, so a replacement names every token here.
+   Text tokens hold WCAG AA (4.5:1) on --color-bg, --color-bg-section and --color-bg-raised
+   (score/dashboard/tests/theme_test.py). The 3D views read the --color-view-* and --color-mark-* tokens through
+   three.js: write them as 6-digit hex.
+   design/tokens/tokens.json is a stage input (a place's palette), never the cockpit's.
+   ============================================================================ */
+
+:root {
+  /* ──────────────────  GROUND AND SURFACES  ────────────────── */
+  --color-bg: #0c0e11;             /* the page's ground */
+  --color-bg-section: #14171c;     /* panels and cards on the ground */
+  --color-bg-raised: #1b1f26;      /* what sits on a panel: buttons, a selected row, the 3D backdrop */
+  --color-stroke: #262b34;         /* hairlines, decoration only */
+  --color-stroke-strong: #363d49;  /* borders that carry meaning: inputs, buttons */
+
+  /* ──────────────────  TEXT  ────────────────── */
+  --color-primary: #f3f4f7;        /* headings, the brand word */
+  --color-text-body: #e4e7ec;      /* body copy */
+  --color-text-light: #a9b0bc;     /* secondary text, labels */
+  --color-text-faint: #8a919e;     /* the quietest text still read: eyebrows, unknowns */
+
+  /* ──────────────────  THE ONE ACCENT  ────────────────── */
+  --color-accent: #b49cff;         /* links, the primary button, focus, the selected */
+  --color-accent-dark: #9b7ff7;    /* its hover */
+  --color-accent-ink: #160f2e;     /* text on the accent */
+  --color-accent-10: rgba(180, 156, 255, 0.10);
+  --color-accent-20: rgba(180, 156, 255, 0.20);
+
+  /* ──────────────────  STATUS  ────────────────── */
+  --color-bad: #ff7b72;            /* stopped, failed */
+  --color-review: #f2c14e;         /* waiting on the owner */
+  --color-new: #79b8ff;            /* new since last seen */
+  --color-done: #4fd18b;           /* accepted, done */
+  --color-idle: #8b939e;           /* not started */
+  --color-on-status: #0b0d10;      /* text on a status colour */
+
+  /* ──────────────────  HOLES (CONTEXT.md "hole"): told apart from each other and the accent  ────────────────── */
+  --color-hole-missing: #ff453a;   /* not made yet */
+  --color-hole-gate: #ff9f0a;      /* failing a check */
+  --color-hole-route: #8b939e;     /* a route step not done at its place */
+  --color-hole-lost: #f472b6;      /* a lost input */
+
+  /* ──────────────────  OVER PICTURES, VIDEO AND 3D  ────────────────── */
+  --color-media: #000000;          /* behind a picture, a video or a film shot */
+  --color-on-media: #ffffff;       /* text and lines laid over a picture */
+  --color-media-line: rgba(255, 255, 255, 0.16);
+  --color-scrim: rgba(10, 12, 16, 0.78);         /* a label's ground over a picture */
+  --color-scrim-strong: rgba(6, 8, 10, 0.92);    /* a picture opened over the page */
+  --color-shadow: rgba(0, 0, 0, 0.6);
+
+  /* ──────────────────  THE 3D VIEWS (view3d.js, libview.js, film.js)  ────────────────── */
+  --color-view-light: #ffffff;     /* the viewer's light and glow: white, so a place keeps its own colours */
+  --color-view-pick: #ffd400;      /* the measure's points and line, the readout, a lamp */
+  --color-view-person: #e0782a;    /* the 1.8 m person */
+  --color-view-grid: #555555;      /* the holes' ground grid, its axes */
+  --color-view-grid-fine: #2a2a2a; /* its metre lines */
+  --color-view-ground: #3a3f47;    /* the library viewer's sky-to-ground light, from below */
+  --color-view-plinth: #23272e;    /* the library viewer's floor */
+  --color-mark-added: #4fd18b;
+  --color-mark-moved: #f2c14e;
+  --color-mark-refinished: #79b8ff;
+  --color-mark-removed: #ff7b72;
+  --color-mark-missing: #ff453a;
+  --color-mark-gate: #ff9f0a;
+  --color-mark-framed: #ffffff;    /* the hole the page framed */
+  --color-mark-edge: #777777;      /* the framed key's edge on the page */
+
+  /* ──────────────────  THE FILM'S OWN LOOK (film.css, film.js): a film shot, not the cockpit  ────────────────── */
+  --film-ink: #ecece8;
+  --film-caption: #f0f0ec;
+  --film-caption-small: #d6ceba;
+  --film-card: #111215;
+  --film-card-words: #cecec4;
+  --film-step: #787a80;
+  --film-step-done: #b0b0ac;
+  --film-track: #3a3c42;
+  --film-progress: #e8aa5a;
+  --film-title-from: #1d2128;
+  --film-title-to: #0b0c0f;
+  --film-cut-layer: rgba(138, 100, 30, 0.9);
+  --film-cut-step: rgba(40, 80, 140, 0.9);
+  --film-plate: #8ab4ff;
+
+  color-scheme: dark;
+}

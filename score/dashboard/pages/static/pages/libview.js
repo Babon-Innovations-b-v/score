@@ -6,8 +6,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-
-const BACKDROP = 0x1c2027;  // the cockpit's raised surface colour
+import { token } from "./tokens.js";
 let current = null;
 
 function linear(values) { return new THREE.Color().setRGB(values[0], values[1], values[2], THREE.LinearSRGBColorSpace); }
@@ -15,14 +14,14 @@ function linear(values) { return new THREE.Color().setRGB(values[0], values[1], 
 // The studio: an even room light for reflections, one soft key light from above the camera's left, and a dim floor.
 function studio(renderer) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(BACKDROP);
+  scene.background = new THREE.Color(token("--color-bg-raised"));  // the cockpit's raised surface
   const rooms = new THREE.PMREMGenerator(renderer);
   scene.environment = rooms.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.6;
   rooms.dispose();
-  const key = new THREE.DirectionalLight(0xffffff, 1.0);
+  const key = new THREE.DirectionalLight(token("--color-view-light"), 1.0);
   key.position.set(-3, 5, 4);
-  scene.add(key, new THREE.HemisphereLight(0xffffff, 0x3a3f47, 0.2));
+  scene.add(key, new THREE.HemisphereLight(token("--color-view-light"), token("--color-view-ground"), 0.2));
   return scene;
 }
 
@@ -63,7 +62,7 @@ function frame(view, object) {
 function floorUnder(view, box) {
   const size = box.getSize(new THREE.Vector3());
   const floor = new THREE.Mesh(new THREE.CircleGeometry(Math.max(size.x, size.z) * 0.8 + 0.01, 64),
-                               new THREE.MeshStandardMaterial({ color: 0x23272e, roughness: 1 }));
+                               new THREE.MeshStandardMaterial({ color: token("--color-view-plinth"), roughness: 1 }));
   floor.rotation.x = -Math.PI / 2;
   floor.position.set((box.min.x + box.max.x) / 2, box.min.y - size.y * 0.002, (box.min.z + box.max.z) / 2);
   view.scene.add(floor);
@@ -149,7 +148,7 @@ export async function showFinish(holder, finish, printUrl) {
   if (printed) {
     printed.colorSpace = THREE.SRGBColorSpace;
     material.map = printed;
-    material.color.set(0xffffff);
+    material.color.set(token("--color-view-light"));  // white: the print's own colours
     material.side = THREE.DoubleSide;
   }
   const shape = printed ? printCard(printed) : new THREE.SphereGeometry(0.5, 96, 64);
