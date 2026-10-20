@@ -15,7 +15,7 @@ ASSEMBLY = "assembly@{place}"
 # The bakes that paint every part of a model from the library surfaces: the surface stage's, the crops' and the ship
 # kits' (score/stages/ship_kits: every slot a library surface) and the late bake's; each lists its models as
 # made/<name>.gltf.
-BAKES = ("surfaces-bake", "crops-surfaces-bake", "ship_kit", "late_bake")
+BAKES = ("surfaces-bake", "ship_kit", "late_bake")
 
 
 class NodeFolders(runtime_store.FolderStore):

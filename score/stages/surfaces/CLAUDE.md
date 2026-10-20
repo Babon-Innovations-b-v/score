@@ -151,7 +151,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   bare_steel) takes the nearest surface of a family its words allow within `COLOUR_DELTA_E`, else it is a hole and
   fails the names gate by name. The paint's colour and order check (`finish_parts.checked_finishes`) runs ahead as a
   prediction (`predicted_off`, a measure); the paint's gate still names those, where a named gap can move them. The
-  row is free in every stage table (`__init__.py`, `../crops/line.py`, `../people/line.py`, `../finishmap/trial.py`):
+  row is free in every stage table (`__init__.py`, `../people/line.py`, `../finishmap/trial.py`):
   no clearance, no price, no basket line. New library surfaces are made the library's own way (a variant
   in `data/library/materials.json` on a palette token, the place taking it in `place.json`), never a picture's colour.
 - **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's

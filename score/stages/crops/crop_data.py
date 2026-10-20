@@ -36,6 +36,12 @@ def pattern(place):
     return "{data}/crops/" + f"{place}.json"
 
 
+def boxes_files(place):
+    """crops-boxes' files: the crop data, the place's inventory, the box check and the SAM 3 runner."""
+    return {"crops": pattern(place), "inventory": "{data}/inventory/" + f"{place}.json",
+            "box check": "{repo}/tools/props/scene/box_check.py", **MASKS_TOOLS}
+
+
 def applies(place):
     """Whether the place's concept shows crops (it has a file)."""
     return (FOLDER / f"{place}.json").exists()

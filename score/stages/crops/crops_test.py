@@ -187,8 +187,9 @@ def test_the_foliage_bakes_pack_face_by_face():
     it on; the potato, a solid, keeps the island packing."""
     sys.path.append(str(crop_data.REPO / "score/stages/surfaces"))
     import place_line
-    surfaces = crop_data.FOLDER / "greenhouse-surfaces.json"
-    labelled = {take: pathlib.Path("/labelled") / take for take in json.loads(surfaces.read_text())["takes"]}
+    surfaces = crop_data.REPO / "data/surfaces/greenhouse.json"  # the crops are the greenhouse's own takes
+    labelled = {take: pathlib.Path("/labelled") / take for take in json.loads(surfaces.read_text())["takes"]
+                if take.startswith("crop_") and not take.startswith("crop_crate")}
     _, chunky = place_line.bake_entries({"surfaces": surfaces}, labelled)
     per_face = {entry["name"]: entry.get("per_face", False) for entry in chunky}
     assert per_face == {"crop_lettuce_1": True, "crop_potato_1": False, "crop_herb_1": True,

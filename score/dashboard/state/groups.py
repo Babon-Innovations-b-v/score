@@ -37,10 +37,7 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "people-maps": "people finish maps", "people-names": "people finish names",
           "people-segvigen": "people segmentation", "people-parts": "people parts", "people-paint": "people paint",
           "people-clips": "people clips"}
-# The crop rows run the prop and surface line again on the crops: each in its own step's words, for the crops.
-LABELS.update({f"crops-{stage}": f"crop {LABELS[stage]}" for stage in (
-    "closeup", "pixal", "props-inputs", "surfaces-inputs", "surfaces-turntable", "surfaces-lists", "surfaces-maps",
-    "surfaces-names", "surfaces-segvigen", "surfaces-parts", "surfaces-paint", "surfaces-bake", "surfaces-check")})
+# The crops' own rows: their models are the place's own prop and surface rows (2026-10-20, #26).
 LABELS.update({"crops-boxes": "crop boxes", "crops-concept": "crop patches on the concept", "crops-layer": "crops",
                "crops-look": "crop renders"})
 # A person's rows, one a look: the step's words, then the look.

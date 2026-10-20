@@ -1,0 +1,12 @@
+{
+ "place": "greenhouse",
+ "order": "prop-first",
+ "why": "the greenhouse's crop kinds are models like any other (the owner, 2026-10-20: plants are made through the one shared prop pipeline and the finish route; the motion layer only grows and sways them): the prop route's close-up and Pixal3D, then the greenhouse's own surface line (data/surfaces/greenhouse.json); until 2026-10-20 they had a line of their own on the finish-map method",
+ "objects": {
+  "crop_lettuce": {"route": "prop", "take": "crop_lettuce-c1"},
+  "crop_potato": {"route": "prop", "take": "crop_potato-c1"},
+  "crop_herb": {"route": "prop", "take": "crop_herb-c1"},
+  "crop_greens": {"route": "prop", "take": "crop_greens-c1"}
+ },
+ "fallback": {}
+}

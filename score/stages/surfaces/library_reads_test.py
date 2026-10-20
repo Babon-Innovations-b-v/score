@@ -87,8 +87,7 @@ def test_a_surface_the_row_takes_or_its_own_materials_move_its_key():
 
 
 def test_the_paint_and_bake_rows_and_their_twins_key_the_library_by_part():
-    for name, place in (("surfaces-paint", "hub"), ("surfaces-bake", "hub"), ("crops-surfaces-paint", "greenhouse"),
-                        ("crops-surfaces-bake", "greenhouse"), ("people-paint", None)):
+    for name, place in (("surfaces-paint", "hub"), ("surfaces-bake", "hub"), ("people-paint", None)):
         files = ROWS[name].files(place)
         assert isinstance(files["library"], tuple) and isinstance(files["places"], tuple), name
         assert ROWS[name].files.wide(place) if callable(ROWS[name].files.wide) else ROWS[name].files.wide

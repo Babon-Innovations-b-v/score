@@ -631,8 +631,8 @@ def test_the_pixal_code_work_the_record_prices_leaves_the_unpriced_lines_and_joi
 def test_every_priced_step_and_place_has_plain_words():
     from score.dashboard.pages import present
     from score.dashboard.state import groups, plain
-    assert groups.label("crops-surfaces-segvigen") == "crop segmentation"
-    assert groups.label("crops-boxes") == "crop boxes" and groups.label("crops-pixal") == "crop models"
+    assert groups.label("crops-layer") == "crops"
+    assert groups.label("crops-boxes") == "crop boxes" and groups.label("crops-look") == "crop renders"
     assert groups.label("surface-tiles") == "surface tiles" and groups.label("ship_kit") == "ship kit"
     assert groups.label("people-dress-nev-work") == "dressed body of the nev-work look"
     assert plain.place_words("gdoor") == "the garage door" and present.place_title("hdoor") == "Hangar roof door"

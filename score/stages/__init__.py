@@ -292,18 +292,6 @@ def check_files(place):
                if path.exists()}}
 
 
-def crops_check_files(place):
-    """The crops twin's check files: its line's naming files and the stance rules check_step reads, as check_files
-    gives the place's surfaces-check. Set here, in the table, so the crops line's paid rows (whose file maps are in
-    crops/line.py) do not move."""
-    return {**crops.line.naming_files(place), "stance rules": "{data}/checks/stance.json"}
-
-
-def crops_bake_checked(row):
-    """crops-surfaces-check with the stance rules among its files (crops_check_files)."""
-    return dataclasses.replace(row, files=crops_check_files) if row.name == "crops-surfaces-check" else row
-
-
 def paint_baked(row):
     """surfaces-bake with the paint's files beside its own (paint_files: the paint runs in its job on the rented card,
     route_bake.py, #18) and the job's scripts (inside/, run up there, never imported; the folder's overlay left out)."""
@@ -363,7 +351,6 @@ def people_surfaces(place):
 
 # The rows keyed on the library parts they read (surfaces/library_reads.py), each with its surface data's reader.
 LIBRARY_READERS = {"surfaces-paint": surfaces.data.record, "surfaces-bake": surfaces.data.record,
-                   "crops-surfaces-paint": crops.line.line_record, "crops-surfaces-bake": crops.line.line_record,
                    "people-paint": people_surfaces}
 
 
@@ -460,7 +447,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           *map(library_narrowed, map(prop_fed, map(paint_baked, map(feet_checked, map(bake_checked, surfaces.ROWS))))),
           props.CALIBRATION, props.LIKENESS,
           *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, ROUGH_MODEL, SHELL_SPLIT, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
-          *light.ROWS, *map(library_narrowed, map(crops_bake_checked, crops.ROWS)), COMPLETE_BOXES,
+          *light.ROWS, *crops.ROWS, COMPLETE_BOXES,
           surface_tiles.STAGE)
 
 # The motion layer (CONTEXT.md "motion", #26): one layer for everything that moves, its modules and the rows (fnmatch
