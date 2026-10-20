@@ -1,5 +1,6 @@
 # score/dashboard/
 
+- **Look before you say done (owner, 2026-10-20).** A cockpit change is done only after its pages were opened in a real browser (headless Chromium; its libraries are under /tmp/cockpit-check, LD_LIBRARY_PATH) and the screenshots were looked at: a play button that plays, a surface that shows its surface, a model that shows its model. Tests that read JSON or HTML are not enough.
 SCORE's dashboard: one ASGI app (`site/asgi.py`): Django renders the pages, sign-in and admin; FastAPI serves a typed
 JSON API under `/api` and the file routes (`/files`, `/thumbs`, `/web`, `/healthz`); one sign-in for both. Commands in
 `__main__.py` (`serve`, `owner`, `export`, `sync`, `check`, `web3d`: a place's 3D web copy for the viewer at `/view/<place>`,
