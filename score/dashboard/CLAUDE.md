@@ -217,7 +217,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   places with what each may hold, editable only while unlocked, and the set interview beside it: the fixed questions
   (`QUESTIONS`, the same as `score/review/environment_concept.QUESTIONS`) one at a time (`?q=<topic>`, links, so back
   and forward step through them), his answers and each answer's proposed fields with its price and a Take. Send is his
-  spend yes for that one Gemini 3.1 Pro call at the price it shows (`WorldState.environment_ask_euros`, the measured
+  spend yes for that one model call at the price it shows (`WorldState.environment_ask_euros`, the measured
   ask; `web.environment_ask`, refused when it moved), Save, Take, Lock and Unlock each a new version (`web.environment_saved`),
   Add a reference picture into the private bucket's references/ and his local copy, never this repository
   (`web.environment_reference`). Locked it is for looking at; Unlock opens a second, in-page ask (no `confirm()`:
