@@ -50,6 +50,7 @@ seated place's own stage standing on it. `__init__.py`'s and `fit.py`'s docstrin
   every object that stood on the old ground with the made one; `floating` fails an object hanging over the ground;
   `continuous` casts rays straight down round the place for holes; `openings` casts rays from inside (`sight.py`). On a
   small environment the horizon dips with a viewer's height: a ray between level and that dip sees sky, not a void.
-- **`terrain-look@<place>` (`look.py`, experimental, paid)** renders the place before (its seed) and after (the
-  assembly output) on its round-three review cameras and gates on `horizon`. Only `look.LOOKED` places have the row
-  until the owner has reviewed them; it still reads the lost seed and views copy (#27).
+- **No paid horizon check (owner, 2026-10-20, #27).** `terrain-look` and its paid `horizon` gate are retired from
+  the table: `ground-fit`'s free `openings` covers a view onto nothing. `look.py` stays for what `effects-look` and
+  `physics-trial` import from it (`tree`, `render`, `rendered`, `neighbours`); its own make and horizon judge are
+  unread, kept unedited only so those two rows' keys do not move. Delete them when either row is next re-keyed.

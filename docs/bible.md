@@ -321,13 +321,11 @@ is meant to fix, where it is marked, and what proves it.
   unknown while a layer the place needs (`data/checks/contents.json`; sound and light everywhere) has none, never
   letting the seed's stand in. The neighbours stage reads the record the assembly built from (`scene.json` beside the
   stage). Proven when every place's assembly passes `layers` and complete passes on it.
-- **The made ground in each place's stage, and its look** (`score/stages/assembly` `take_ground`,
-  `score/stages/terrain/look.py`, its overlay). For Earth's flat 320 m disc and the grounds the game laid: the
-  terrain stage makes every ground from its plan; the assembly stage now sublayers the place's made ground over its
-  seed, and `terrain-look@launch` and `@street` (paid, only the places in `look.LOOKED`) render the place before and after on its
-  review cameras, gated on `horizon` (no view looks out under the horizon onto nothing). Run with `python -m score
-  run world1 --place launch --stage terrain-look`. Proven when the owner has seen the launch's and the street's before and after;
-  then the other Earth places, and the Moon's and Mars's plans (still the game's plans in `data/ground/plan/`, made by
+- **The made ground in each place's stage** (`score/stages/assembly` `take_ground`, `score/stages/terrain`, its
+  overlay). For Earth's flat 320 m disc and the grounds the game laid: the terrain stage makes every ground from its
+  plan; the assembly stage now sublayers the place's made ground over its seed, and `ground-fit`'s free `openings`
+  gate fails a view onto nothing (the paid `terrain-look` and its `horizon` gate were retired for it, owner,
+  2026-10-20, #27). Proven when the launch and the street pass `ground-fit`; then the other Earth places, and the Moon's and Mars's plans (still the game's plans in `data/ground/plan/`, made by
   the game's builders moved here) drawn again from their concepts.
 - **The settle stage** (`score/stages/settling`, its overlay; `tools/usd/settle.py`'s drop_job and rest_poses, the
   stage's held.py). For the resting faults no other track covered (2026-10-12): desks, shelves and chairs an old
