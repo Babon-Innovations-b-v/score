@@ -119,7 +119,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   steps measured, the remake's measured share)) and **Library** `/library/` (`pages/library.py`: every kind of
   `state/library.KINDS` with its count, a branch's children only when it opens (a withdrawn entry in none), `/api/library/children?node=&page=`,
   `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/` is the item on its own
-  (owner, 2026-10-20: "experiencing the item in isolation"), its kind's viewer first (`library.view_of`,
+  (owner, 2026-10-20: "experiencing the item in isolation"), its preview clip first where the cockpit holds one
+  (CONTEXT.md "preview clip": rendered as the films render, so what it plays is what ships; owner, 2026-10-20), its
+  kind's viewer the second tab (`?tab=3d`), else its kind's viewer first (`library.view_of`,
   `viewer_of`): a model, kit or character's web copy turned in `static/pages/item3d.js` (its light copy, then its
   whole copy where this cockpit holds it, a model's close-up, the picture it was made from, beside it (its `closeup`
   file, owner 2026-10-20); a kit as its place lays it (its own set where it lays the kit again in places of its

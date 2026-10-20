@@ -77,6 +77,9 @@ print(f"{action} {len(addresses)}")
 """
 
 
+CLIP = b"\x00\x00\x00\x18ftypmp42 a clip's bytes"
+
+
 def glb():
     """A GLB of one triangle's facts: its JSON chunk, no buffers."""
     facts = json.dumps({"asset": {"version": "2.0"}, "accessors": [{"count": 3}],
@@ -123,7 +126,8 @@ def shelf(tmp_path):
           refine_options=["remesh", {"id": "repaint", "label": "paint it again"}])
     entry(root, blobs, "model", "crate", state="locked", place="beta", node="assembly@beta", score=0.91,
           score_parts={"finish": 0.6})
-    entry(root, blobs, "model", "wrench", tags={"model": ["prop"]})
+    entry(root, blobs, "model", "wrench", tags={"model": ["prop"]}, files={"clip/clip.mp4": ("clip", CLIP)},
+          clip={"file": "clip/clip.mp4", "shelf": "model", "frames": 96, "seconds": 4.0})
     entry(root, blobs, "surface", "brushed_steel.alpha", node=None,
           tags={"family": ["steel"], "recipe": ["bare_metal"]},
           files={"material.usda": ("usd", MATERIAL), "print.png": ("texture", fixture.picture())})
@@ -308,6 +312,20 @@ def test_a_model_turns_in_3d_from_its_light_copy_with_its_size_parts_and_score(w
     assert client.get("/library/model/nothing/1/").status_code == 404
 
 
+def test_an_item_with_a_preview_clip_plays_it_first_and_its_viewer_is_the_second_tab(world, shelf):
+    client = signed_in()
+    wrench = an_item_page(client, "/library/model/wrench/1/")
+    found = lib.library().entry("model/wrench@1")
+    assert f'<video src="/library-files/files/{found.clip.sha}"' in wrench and 'href="?tab=3d"' in wrench
+    assert 'id="item3d"' not in wrench and "item3d.js" not in wrench
+    served = api("ann").get(f"/library-files/files/{found.clip.sha}")
+    assert served.status_code == 200 and served.headers["content-type"] == "video/mp4"
+    second = an_item_page(client, "/library/model/wrench/1/?tab=3d")
+    assert "<video" not in second and 'href="?tab=clip"' in second
+    lamp = an_item_page(client, "/library/model/lamp_post.alpha/1/")
+    assert "<video" not in lamp and "?tab=" not in lamp  # no clip: its viewer alone, no tabs
+
+
 def test_a_kit_is_laid_as_its_place_lays_it_and_a_character_plays_its_clips(world, shelf):
     client = signed_in()
     kit = an_item_page(client, "/library/kit/alpha/1/")
@@ -478,8 +496,9 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
     assert first["written"] == again["written"] and "library/entries.json" in first["written"]
     pictures = {entry.picture for entry in lib.library().entries()}
     assert all(f"files/{sha}-360.jpg" in first["written"] for sha in pictures)
-    # the two takes, the light copies of the lamp post and the kit, the surface's print; never a whole copy
-    assert sum(path.startswith("library/files/") for path in first["written"]) == 5
+    # the two takes, the wrench's clip, the light copies of the lamp post and the kit, the surface's print; never a
+    # whole copy
+    assert sum(path.startswith("library/files/") for path in first["written"]) == 6
     assert "library/palette.json" in first["written"]
     (tmp_path / "home/export/current").symlink_to("one")
     with override_settings(SCORE_MODE="hosted", SCORE_HOME=tmp_path / "home", SCORE_LIB_ROOT=None):
@@ -500,6 +519,8 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
         assert steel["token"] == "steel" and steel["print"] and steel["palette"]["sign-gold"].startswith("#")
         assert item_data(pages.get("/library/effect/devil.alpha/1/").content.decode())["settings"]["count"] == 15000
         assert "/3d/" not in pages.get("/library/character/walker/1/").content.decode()  # its raw GLB is not sent
+        wrench = pages.get("/library/model/wrench/1/").content.decode()
+        assert f'<video src="/library-files/files/{hosted.entry("model/wrench@1").clip.sha}"' in wrench
 
 
 HOSTED_CHILD = """
