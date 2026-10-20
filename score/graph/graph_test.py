@@ -500,6 +500,28 @@ def test_a_stage_reads_other_places_beside_without_a_cycle():
     a_runner(world, store, (CLEAN, COUNT, SHOW, shown_again))
 
 
+def make_whole(inputs, out, seed, params):
+    """Every place's clean text read beside, in order."""
+    (out / "whole.txt").write_text(" ".join((inputs[name] / "clean.txt").read_text() for name in sorted(inputs)
+                                            if name.startswith("clean@")))
+
+
+def test_an_environment_stage_reads_the_places_it_names_beside_where_each_row_applies():
+    """#28: the environment's own film reads every place film its script shows; a row read beside only where it
+    applies (the hull's extra film is the hangar's alone), so the environment node is planned with what it reads."""
+    world, store, outputs = ready_world()
+    hangar_only = dataclasses.replace(COUNT, name="hangar only", applies=lambda place: place == "hangar")
+    whole = graph.Stage("whole", "world", make_whole, TEXT, (checks.Check("counted", judge_count),),
+                        beside={"clean": ("toy-text", 1), "hangar only": ("toy-text", 1)},
+                        neighbours=lambda place: list(PLACES))
+    runner = a_runner(world, store, (CLEAN, COUNT, hangar_only, whole))
+    assert runner.earlier(whole, None) == ["clean@hangar", "hangar only@hangar", "clean@station"]
+    found = runner.drive(list(PLACES), say=lambda line: None, jobs=1)
+    assert found["whole"] == "made: pass, accepted automatically", found
+    assert (store.checkout(store.accepted("whole")) / "whole.txt").read_text() == "A SHIP IN A HALL A HUB"
+    assert runner.key(whole, None)["beside"]["clean@station"] == outputs["station"]
+
+
 def make_outlined(inputs, out, seed, params):
     """Its own clean text, after its shell's split where it has one."""
     shells = [(inputs[name] / "split.txt").read_text() for name in sorted(inputs) if name.startswith("split@")]
