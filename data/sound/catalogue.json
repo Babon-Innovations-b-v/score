@@ -187,7 +187,7 @@
 			"file": "sound/lift_stop.recordings@1/audio/recordings/doors/lift_stop.ogg",
 			"volume_db": -30.0
 		},
-		"footsteps_metal": {
+		"footsteps_steel_plate": {
 			"file": [
 				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_1.ogg",
 				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_2.ogg",
@@ -201,8 +201,8 @@
 			"volume_db": -22.0,
 			"note": "Footsteps. On the Moon the player's own boots are felt, so the outside steps are a thud."
 		},
-		"footsteps_boots_gravel": {
-			"file": "sound/footsteps_boots_gravel.recordings@1/audio/recordings/footsteps/footsteps_boots_gravel.ogg",
+		"footsteps_gravel": {
+			"file": "sound/footsteps_gravel.recordings@1/audio/recordings/footsteps/footsteps_boots_gravel.ogg",
 			"ground_thud": true,
 			"loops": true,
 			"volume_db": -6.0

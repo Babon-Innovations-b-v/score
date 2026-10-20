@@ -30,6 +30,13 @@ def check_a_full_scale_blast_is_brought_under_the_ceiling(folder):
     assert abs(again["lufs"] - loudness.TARGETS["shot"]) <= 1.0, again
 
 
+def check_the_same_take_levelled_twice_is_the_same_bytes(folder):
+    hum = synthetic(folder / "hum.wav", "sine=frequency=220", 2)
+    loudness.normalise(hum, folder / "first.ogg", loudness.TARGETS["room"])
+    loudness.normalise(hum, folder / "second.ogg", loudness.TARGETS["room"])
+    assert loudness.sha256_of(folder / "first.ogg") == loudness.sha256_of(folder / "second.ogg")
+
+
 def check_a_short_click_is_measured_and_kept_safe(folder):
     click = synthetic(folder / "click.wav", "sine=frequency=2000", 0.05)
     measured = loudness.normalise(click, folder / "click.ogg", loudness.TARGETS["shot"])
@@ -59,6 +66,7 @@ def main():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         check_a_full_scale_blast_is_brought_under_the_ceiling(folder)
+        check_the_same_take_levelled_twice_is_the_same_bytes(folder)
         check_a_short_click_is_measured_and_kept_safe(folder)
         check_silence_is_dropped(folder)
     print("loudness: all checks passed")

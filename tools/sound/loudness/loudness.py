@@ -126,7 +126,9 @@ def normalise(source, out, target, fade_ms=8):
              f":attack=1:release=50:latency=1,aresample=48000")
     if fade_ms > 0:
         chain += f",afade=t=in:d={fade},afade=t=out:st={max(length - fade, 0):.3f}:d={fade}"
+    # bitexact: Ogg's stream serial is random otherwise, so every place's copy of one sound got bytes of its own (#40)
     subprocess.run([ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", "-i", str(source), "-af", chain,
+                    "-fflags", "+bitexact", "-flags:a", "+bitexact",
                     *CODECS[pathlib.Path(out).suffix.lower()], str(out)], check=True)
     after = measure(out)
     if not is_kept(after, target):

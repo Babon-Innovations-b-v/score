@@ -26,7 +26,7 @@
 			"file": "sound/habitat@1/audio/generated/places/habitat.wav",
 			"volume_db": -21.4
 		},
-		"footstep_steel_plate": {
+		"footsteps_steel_plate": {
 			"file": [
 				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_1.ogg",
 				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_2.ogg",
@@ -61,16 +61,16 @@
 				}
 			}
 		},
-		"footstep_grating": {
+		"footsteps_grating": {
 			"file": [
-				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_1.ogg",
-				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_2.ogg",
-				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_3.ogg",
-				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_4.ogg",
-				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_5.ogg",
-				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_6.ogg",
-				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_7.ogg",
-				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_8.ogg"
+				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_1.ogg",
+				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_2.ogg",
+				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_3.ogg",
+				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_4.ogg",
+				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_5.ogg",
+				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_6.ogg",
+				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_7.ogg",
+				"sound/footsteps_grating@1/audio/generated/footsteps/footstep_grating_8.ogg"
 			],
 			"volume_db": -35.0,
 			"pick": {
@@ -95,16 +95,16 @@
 				}
 			}
 		},
-		"footstep_rubber": {
+		"footsteps_rubber": {
 			"file": [
-				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_1.ogg",
-				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_2.ogg",
-				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_3.ogg",
-				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_4.ogg",
-				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_5.ogg",
-				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_6.ogg",
-				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_7.ogg",
-				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_8.ogg"
+				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_1.ogg",
+				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_2.ogg",
+				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_3.ogg",
+				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_4.ogg",
+				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_5.ogg",
+				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_6.ogg",
+				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_7.ogg",
+				"sound/footsteps_rubber@1/audio/generated/footsteps/footstep_rubber_8.ogg"
 			],
 			"volume_db": -35.3,
 			"pick": {
@@ -945,23 +945,7 @@
 			"file": "sound/lift_stop.generated@1/audio/generated/doors/lift_stop.ogg",
 			"volume_db": -26.1
 		},
-		"footsteps_metal": {
-			"pick": {
-				"page": "game",
-				"category": "steps",
-				"where": "boots on the base's deck where no surface says otherwise",
-				"prompts": [
-					"Footsteps of one person in heavy boots walking at a steady pace on a metal floor inside a building: clear separate metallic steps with short pauses between them, nothing else."
-				],
-				"seconds": 8,
-				"chosen": {
-					"take": "game:footsteps_metal",
-					"by": "owner",
-					"decided": "owner, 2026-10-06 17:55 UTC, on the sound page: the old recordings for the breathing, the sliding door and the steel footsteps were better than the generated takes; the generated airlock and the rest stay (the coordinator's record of the owner's messages, jobs/3326150f/tmp/tokens/out/owner.json #317 and #318); put back on the recordings in 1015f9f (jobs/3326150f/tmp/playtest3/progress-soundtool.txt line 11)"
-				}
-			}
-		},
-		"footsteps_boots_gravel": {
+		"footsteps_gravel": {
 			"pick": {
 				"page": "game",
 				"category": "loop",
@@ -977,7 +961,7 @@
 					"clap": 0.4725
 				}
 			},
-			"file": "sound/footsteps_boots_gravel.generated@1/audio/generated/machines/footsteps_boots_gravel.wav",
+			"file": "sound/footsteps_gravel.generated@1/audio/generated/machines/footsteps_boots_gravel.wav",
 			"volume_db": -17.0
 		},
 		"bench_tool": {

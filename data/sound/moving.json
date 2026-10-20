@@ -100,8 +100,8 @@
   "ferry_engine": "the harbour ferries (data/motion/rigid/launch.json): a diesel ferry's engine and wash heard from a few hundred metres",
   "ceiling_fan": "the flat's ceiling fan at 120 rpm: a soft rhythmic whoosh and a faint motor hum",
   "irrigation_boom_motor": "the greenhouse's 16 irrigation booms: a small geared motor creeping along a rail, very quiet",
-  "footstep_wood": "the flat's floorboards: steps on old wooden boards, a light creak",
-  "footstep_concrete": "the stairwell, street and square: steps on concrete and paving",
+  "footsteps_wood": "the flat's floorboards: steps on old wooden boards, a light creak",
+  "footsteps_concrete": "the stairwell, street and square: steps on concrete and paving",
   "glass_door_slide": "the flat's glass balcony door sliding open on its track (the base's sliding door recording is a heavy pressure door, wrong for it)"
  }
 }

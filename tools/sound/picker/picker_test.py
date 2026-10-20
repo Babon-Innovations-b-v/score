@@ -92,7 +92,7 @@ def check_a_levelled_loop_file_still_joins_itself(folder):
 
 def check_the_data_names_every_layer():
     named = needs.layer_names()
-    assert "footstep_grating" in named["surface"] and "lamp_buzz" in named["thing"], named
+    assert "footsteps_grating" in named["surface"] and "lamp_buzz" in named["thing"], named
 
 
 def check_a_clean_steady_loop_has_no_faults():
