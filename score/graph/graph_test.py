@@ -232,6 +232,32 @@ def test_a_changed_input_reruns_only_what_it_reaches_and_the_accepted_output_sta
     assert store.accepted("clean@hangar") == outputs["hangar"]  # the newest output did not replace the accepted one
 
 
+def make_while_the_checkout_moves(inputs, out, seed, params):
+    """A make during which another agent's pull writes files: one outside the node's key, then (with `brief` in
+    params) its own brief."""
+    (inputs["brief"].parent / "notes.txt").write_text("pulled in mid-run")
+    if params.get("brief"):
+        inputs["brief"].write_text("pulled in mid-run")
+    (out / "clean.txt").write_text("made")
+
+
+def test_a_finished_make_is_stored_when_only_files_outside_its_key_changed_and_dropped_when_a_key_input_did():
+    """#45: earth-kit@airlock's 14 paid bake jobs were thrown away when the checkout moved under its run. A file the
+    node does not read (not in Stage.files) moving under a make voids nothing; a key input moving does."""
+    counted = (checks.Check("counted", judge_count),)
+    files = {"brief": "{data}/{place}/brief.txt"}
+    world, store = a_world({"hangar": "a ship"}), Store.in_folder(tempfile.mkdtemp())
+    moved_elsewhere = graph.Stage("clean", "place", make_while_the_checkout_moves, TEXT, counted, files=files)
+    assert a_runner(world, store, (moved_elsewhere,)).run(["hangar"])["clean@hangar"].startswith("made: pass")
+    moved_its_input = graph.Stage("clean", "place", make_while_the_checkout_moves, TEXT, counted, files=files,
+                                  params={"brief": True})
+    try:
+        a_runner(world, store, (moved_its_input,)).run(["hangar"])
+        raise AssertionError("a make whose key input moved under it was stored")
+    except RuntimeError as error:
+        assert "an input changed while it ran" in str(error)
+
+
 def test_an_output_that_comes_out_the_same_reruns_nothing_after_it():
     world, store, outputs = ready_world()
     (world.roots["data"] / "station" / "brief.txt").write_text("A HUB")  # the same once cleaned

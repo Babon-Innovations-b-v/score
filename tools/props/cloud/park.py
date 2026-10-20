@@ -35,6 +35,10 @@ the one that parked a card its minutes until then. Taking one is renting: it nee
 Under a `score run` (SCORE_RUN_ID) a parked machine's record names its run, so it stays in the run's count for the
 run-wide cap (capacity.reserve_run_slot) until it is taken or gone, and taking one counts it for the taker's run first.
 
+A `score run` that ends with machines it parked still listed outlives them (`outlive`, from its releaser process): each
+one still listed at its time is released then, so a dead or late --expire process never leaves it to the machine's own
+self-delete (#45: three L4s of an ended run stayed parked until removed by hand, 2026-10-20).
+
 `reap` deletes the machines a run left behind: its run's process gone on this PC, or its heartbeat older than
 batch.QUIET_MINUTES, each machine's own project checked first. It is built and checked against a fake backend only
 (2026-10-17): no backend lists machines with their project yet, so no run calls it.
@@ -310,8 +314,38 @@ def reap(backend, project, host, now):
 
 
 def expire(server_id, zone, token, until):
-    """Sleep until `until`, then delete the machine if it is still parked under `token`."""
+    """Sleep until `until`, then release the machine if it is still parked under `token`."""
     time.sleep(max(0.0, until - time.time()))
+    release(server_id, zone, token)
+
+
+def parked_by(run_id):
+    """The records of the machines `run_id` parked that are still listed."""
+    with locked():
+        records = [json.loads(path.read_text()) for path in PARKED.glob("*.json")]
+    return [record for record in records if record.get("run") == run_id]
+
+
+def outlive(run_id, poll=PARKED_POLL_SECONDS):
+    """Wait until no machine `run_id` parked is listed: one another run took, or its --expire process deleted, is
+    gone; one still listed at its time is released here (its --expire process is gone or late: 2026-10-20, three L4s
+    of an ended run parked past their time until removed by hand), never left to the machine's own self-delete. The
+    run's releaser calls it once the run has ended (score/__main__.py release_once_ended)."""
+    while True:
+        records = parked_by(run_id)
+        if not records:
+            return
+        now = time.time()
+        for record in records:
+            if record["until"] <= now:
+                release(record["id"], record["zone"], record["token"])
+        soonest = min(record["until"] for record in records) - now
+        time.sleep(min(poll, soonest) if soonest > 0 else poll)
+
+
+def release(server_id, zone, token):
+    """Delete the machine and strike its record if it is still parked under `token` (a card's idle minutes into the
+    ledger); nothing when another run took it or another releaser was first."""
     path = PARKED / f"{server_id}.json"
     with locked():
         record = json.loads(path.read_text()) if path.exists() else {}

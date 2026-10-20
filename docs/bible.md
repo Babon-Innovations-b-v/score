@@ -542,6 +542,19 @@ runner's key it was made under) survived. Recovery, in order:
 3. Never put back by hand: records, judgements, evidence, accepts, rejects, waivers, clearances, spend yeses, the
    registry or stop lines; the library's own `accept{}` is not an accept in the store.
 
+**A checkout that moves under a run** (#45, 2026-10-20): `earth-kit@airlock` ran 14 bake jobs on 3 L4s (EUR 0.53)
+from the main checkout, which agents and the sync timer pull and push all the time; `data/library`, one of its
+declared inputs, moved mid-run, and the runner stored nothing ("an input changed while it ran"). Its three cards then
+stayed parked until removed by hand. Now every `score run` (the cockpit's, the sync timer's, the benchmarks', a
+`score resume`) drives from a frozen copy of the code (`score/graph/frozen.py`): a git worktree under
+`$PROPS_HOME/frozen` at one commit (HEAD for a clean tree, else one commit of the whole working tree, index and stash
+untouched), made as the run starts and removed once it ends; its finish records and registry entry name that commit,
+and a pull elsewhere reaches no run already going. The runner's mid-run check compares only the node's own key
+inputs (its declared files), so a file outside them moving never voids a finished paid job. A run that ends with
+machines it parked still listed outlives them in its releaser process (`park.outlive`), deleting each still listed
+at its time, and only then removes its frozen copy, which their `--expire` processes run from. Left open: the copy of
+a run killed outright (SIGKILL, OOM) stays under `$PROPS_HOME/frozen` until removed (`git worktree remove`).
+
 ## build/release
 
 Nothing is released yet but the paper and the hosted cockpit. Commands, run locally (there is no CI and no GitHub Actions):

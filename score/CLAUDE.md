@@ -51,7 +51,12 @@ stage as each stage is built; nothing moves before.
   nodes (a node standing accepted is not made, so one run per place goes side by side once the world nodes stand); an
   entry whose pid is gone or now another process's is dropped. A worktree with tracked changes not committed is
   refused when the run would buy a paid row, unless given `--uncommitted`. A detached run registers itself: refused
-  there, its result line is `detached: refused: ...`.
+  there, its result line is `detached: refused: ...`. Every `run` drives from its own frozen copy of the code
+  (`graph/frozen.py`, #45): a git worktree under `$PROPS_HOME/frozen` at one commit (HEAD when clean, else one commit
+  of the whole working tree; the run still registers as uncommitted), the running venv linked in as `.venv`, made
+  as it starts (the command starts itself again inside it) and removed once it ends, after the machines it parked
+  are gone (`park.outlive`); a pull or push in the checkout it came from never reaches it. Never point a run at a
+  checkout to "pick up" a fix mid-run: start a new run.
 - **`python -m score resume [--dry]`** starts again, each from its own worktree and detached, every `score run` in
   the run registry (`graph/runs.py`, `$PROPS_HOME/runs/<id>.json`) an earlier boot cut off (one the owner stopped is marked `stopped` and never resumed), one resume at a time, and clears an earlier boot's `.partial` files. It starts a run only at the commit that registered it with nothing uncommitted, and only one alive (its entry touched every minute while it drives) within 12 h before the boot; any other, or one whose restart fails, is marked `unresumable` with why and listed by `score status`; a
   detached run's log is under `$PROPS_HOME/logs`. `.claude/scripts/score-resume.service` runs it at boot once the
