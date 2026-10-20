@@ -320,6 +320,70 @@ def test_a_run_at_its_cap_leaves_another_runs_parked_machine_listed():
         os.environ.pop("SCORE_MAX_MACHINES")
 
 
+def test_every_step_of_a_batch_is_parked_and_cleans_only_its_runs_files():
+    """#20: one warm queue per step. Pixal3D, finish-masks, segment and meshparts register a clean-up beside library,
+    blender, depth and judge; each removes its run's inputs and outputs and keeps the set-up."""
+    import finish_masks
+    import segment
+
+    for kind in ("pixal", "meshparts", segment.KIND, finish_masks.KIND):
+        assert kind in park.CLEANUPS, kind
+    held = machine(20, unit_minutes=1)
+    assert park.CLEANUPS["segment"](held) == "rm -rf /root/seg/in /root/seg/out"
+    assert park.CLEANUPS["finish-masks"](held) == "rm -rf /root/finish/in /root/finish/out"
+    assert park.CLEANUPS["meshparts"](held) == "rm -rf /root/mp/in /root/mp/out"
+    pixal = park.CLEANUPS["pixal"](held)
+    assert "[m]achine_run" in pixal and "in out queue logs closed status.json" in pixal
+    assert "self_delete" not in pixal and "heartbeat" not in pixal  # the watcher and its key stay
+
+
+def test_a_taken_machine_keeps_only_its_newest_set_up_mark():
+    """Most kinds install into /root/venv: after depth set up on a parked pixal card, pixal's own older mark would
+    skip a set-up whose environment is gone, so only the newest mark (the set-up that ran last) stays."""
+    import shlex
+
+    def clear(folder):  # through the shell, as on the machine (the checks above stand in for subprocess.Popen)
+        assert os.system(f"bash -c {shlex.quote(park.STALE_MARKS.replace('/root', str(folder)))}") == 0
+
+    root = pathlib.Path(tempfile.mkdtemp(prefix="park-marks-"))
+    for age, name in ((300, ".pixal-setup-aaaa"), (200, ".library-setup-done"), (100, ".depth-setup-bbbb")):
+        (root / name).touch()
+        os.utime(root / name, (time.time() - age, time.time() - age))
+    (root / "venv").mkdir()
+    clear(root)
+    assert sorted(path.name for path in root.iterdir()) == [".depth-setup-bbbb", "venv"]
+    empty = pathlib.Path(tempfile.mkdtemp(prefix="park-marks-"))
+    clear(empty)  # no mark at all: no failure
+
+    calls = fresh()
+    batch.delete_machine(machine(20, unit_minutes=1, server_id="c-marks"))
+    assert park.adopt(run_of("marks"), CARD_OFFERS, 1, KIND, 60)["id"] == "c-marks"
+    assert calls.remote[-1] == park.STALE_MARKS  # run on the taken machine, which also proves it answers
+
+
+def test_a_pixal_fleet_takes_a_parked_card_before_it_orders_one():
+    calls = fresh()
+    batch.delete_machine(machine(20, unit_minutes=1, kind="pixal", server_id="c-pixal"))
+    assert "[m]achine_run" in calls.remote[-1]  # parked with Pixal3D's own clean-up
+    ordered, tended = [], []
+    real_rent, real_tend = batch.rent, batch.tend
+    batch.rent = lambda *arguments, **_: ordered.append(arguments) or None
+    batch.tend = lambda fleet, taken: tended.append(taken["id"])
+    try:
+        folder = _SANDBOX / "runs" / "pixal-fleet"
+        folder.mkdir(parents=True, exist_ok=True)
+        fleet = batch.Fleet([], folder, 3, time.time() + 3600, "park-test", False)
+        fleet.offers = list(CARD_OFFERS)
+        assert batch.rent_fleet(fleet, 1) == 1
+        assert not ordered and [taken["id"] for taken in fleet.machines] == ["c-pixal"]  # listed once, none rented
+        deadline = time.time() + 5
+        while not tended and time.time() < deadline:
+            time.sleep(0.05)
+        assert tended == ["c-pixal"]
+    finally:
+        batch.rent, batch.tend = real_rent, real_tend
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import park  # noqa: E402
 import provider  # noqa: E402
 import spread  # noqa: E402
 from paths import REPO  # noqa: E402
@@ -68,6 +69,14 @@ def set_up(machine):
     with (log_folder / "setup.log").open("w") as log:
         batch.remote(log_folder, host, f"env SAM2={SAM2} SAM2_WEIGHTS={WEIGHTS} bash {REMOTE}/segment_setup.sh",
                      check=True, stdout=log, stderr=subprocess.STDOUT)
+
+
+def cleanup(_machine):
+    """The command that removes a run's own files from its card before it is parked for the next run (park.py)."""
+    return f"rm -rf {REMOTE / 'in'} {REMOTE / 'out'}"
+
+
+park.CLEANUPS[KIND] = cleanup
 
 
 def segment(machine, number, pictures, card, folder):

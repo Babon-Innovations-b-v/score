@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE.parent))
 import batch  # noqa: E402
 import capacity  # noqa: E402
 import ledger  # noqa: E402
+import park  # noqa: E402
 import spread  # noqa: E402
 from provider import cloud  # noqa: E402
 
@@ -66,6 +67,14 @@ def set_up(machine):
     with (log_folder / "setup.log").open("w") as log:
         batch.remote(log_folder, host, f"env SAM3_WEIGHTS={WEIGHTS} bash {REMOTE}/finish_masks_setup.sh",
                      check=True, stdout=log, stderr=subprocess.STDOUT)
+
+
+def cleanup(_machine):
+    """The command that removes a run's own files from its card before it is parked for the next run (park.py)."""
+    return f"rm -rf {REMOTE / 'in'} {REMOTE / 'out'}"
+
+
+park.CLEANUPS[KIND] = cleanup
 
 
 def find_finishes(machine, number, pictures, card, folder):

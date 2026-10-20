@@ -13,9 +13,9 @@ the runners and the ledgered clients that already make these outputs, so the bat
 Limit, one machine per step: the owner's shape is one rented machine for a prop's whole route, but the steps cannot
 share one with the runners as they are. Pixal3D runs on batch.py's own set-up (the lab's image) while the bake runs
 Blender 5.0.1 from library_setup.sh; the finish (pixal.py --finish-only) stays on this PC until a byte-for-byte match
-up there is measured (cloud overlay); the finish pick, a Google ask, sits between the model and the bake on this PC;
-and a Pixal3D card is not parked for another kind (pixal is not in park.CLEANUPS). So each step is one warm batch for
-all its props, never one rent per place, and a bake card is parked for the next claim of its kind as park.py does.
+up there is measured (cloud overlay); and the finish pick, a Google ask, sits between the model and the bake on this
+PC. So each step is one warm batch for all its props, never one rent per place, and each step's card (Pixal3D's and
+the bake's) is parked for the next claim of its kind as park.py does.
 
 Parts: the bake (make_chunky) bakes a prop's labelled parts folder (<library surface>.ply). A prop that names its
 `parts` bakes that folder. A bodied prop (`body`: its take in bodies.BODIES) has its re-made take's parts written,
