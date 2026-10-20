@@ -292,7 +292,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   answer), his click its spend yes (`web.plan_revise`, an override yes like a concept draw). The concept page names
   inside places up front (`plan-named`, `static/pages/inside.js`). Hosted, a plan kept since the export shows at once
   (`plans.review_of`); the listener answers all three (`applying.PLAN_KINDS`). The sync pass writes every place's plan
-  where the plan stage reads it (`client.plans_kept`, before prepare).
+  where the plan stage reads it and makes the plan row again, detached, for those that changed (`client.plans_kept`,
+  before prepare).
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the

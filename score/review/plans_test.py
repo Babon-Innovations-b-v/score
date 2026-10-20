@@ -1,8 +1,8 @@
 """The plan review (score/review/plans.py) on stand-in data, with a stand-in for Gemini and for the plan stage's run
 (no call is made, nothing is spent, no row runs): a plan is drawn from the picked concept's inventory, each item tied
-to its row; none before the inventory counts; his edits are kept as his own and checked; an inside place waits for
-the layer above's plan and is then sent its shape; his inside places and their rows redo what follows; the plan
-stage reads his plan; a correction runs only inside his yes."""
+to its row; none before the inventory counts; his edits are kept as his own and checked; an inside place has its
+holder, row and shape once the layer above's plan is made; his inside places and their rows redo what follows; a
+reading in the store is the inventory; the plan stage reads his plan; a correction runs only inside his yes."""
 import json
 import subprocess
 
@@ -47,6 +47,7 @@ def store(tmp_path, monkeypatch, data):
     monkeypatch.setattr(concepts, "handed_over", lambda store, place: "library: stand-in")
     monkeypatch.setattr(plans, "DATA", data)
     monkeypatch.setattr(plans, "KEPT", tmp_path / "kept")
+    monkeypatch.setattr(plans, "KEPT_INVENTORY", tmp_path / "kept-inventory")
     found = Store.in_folder(tmp_path / "store")
     picture = tmp_path / "pick.png"
     Image.new("RGB", (64, 40), (40, 90, 160)).save(picture)
@@ -91,12 +92,12 @@ def test_his_edit_is_kept_as_his_own_and_checked(store):
 
 
 def test_an_inside_place_waits_for_the_holders_plan_then_gets_its_shape_and_its_row(store):
-    assert plans.waits(store, "shed") == "waits for yard's plan"
+    assert plans.holder_of(store, "shed") is None and not plans.made(store, "yard")
     plans.name_inside(store, "yard", ["Tool Hut"], "joey")
     picked(store, "yard")  # the pick is the approval: its inventory read, its plan is made
     holds = plans.current(store, "yard")["plan"]["holds"]
     assert [hold["place"] for hold in holds] == ["shed", "tool_hut"] and holds[0]["w"] == 4.0
-    assert plans.waits(store, "shed") is None
+    assert plans.made(store, "yard")  # the yard has no plan row: its plan shown is its plan made
     words, path = plans.shape_sent(store, "shed")[0]
     assert "yellow box" in words and Image.open(path).size[0] > 100
     assert plans.holder_of(store, "shed") == {"holder": "yard", "row": None, "box": None, "view": None,
@@ -122,7 +123,7 @@ def test_a_reading_of_the_pick_is_the_inventory_its_rows_on_their_parents_and_it
     from score.review import reading
     (data / "inventory/yard.json").unlink()  # no file: the reading in the store is the inventory
     picked(store, "yard")
-    assert plans.current(store, "yard") is None and plans.waits(store, "shed") == "waits for yard's plan"
+    assert plans.current(store, "yard") is None and not plans.made(store, "yard")
     rows = [{"id": "barn", "name": "a barn", "kind": "generate", "anchor": "ground", "size": "two storeys",
              "count": 1, "boxes": [[5, 6, 70, 80], [1, 1, 2, 2]]},
             {"id": "bell", "name": "a bell", "kind": "generate", "anchor": "on:barn", "size": "small", "count": 1}]
@@ -141,12 +142,14 @@ def test_the_plan_stage_reads_his_plan_and_drops_it_once_the_pick_goes(store, tm
     assert plans.keep(store, ["shed", "yard"]) == (["shed"], ["shed"])  # the yard has no plan row: none kept
     kept = tmp_path / "kept/shed.json"
     assert json.loads(kept.read_text()) == plans.current(store, "shed")["plan"]
+    assert json.loads((tmp_path / "kept-inventory/shed.json").read_text())["rows"][0]["id"] == "bench"
     plan = plans.current(store, "shed")["plan"]
     plan["people"] = [[3.0, 2.0]]
     plans.edited(store, "shed", plan, "joey")
     assert json.loads(kept.read_text())["people"] == [[3.0, 2.0]]  # his edit, at once
     concepts.pick(store, "shed", None, "joey")
     assert plans.keep(store, ["shed"]) == ([], ["shed"]) and not kept.exists()
+    assert not (tmp_path / "kept-inventory/shed.json").exists()
 
 
 def test_a_correction_runs_only_inside_his_yes_and_keeps_the_answer_as_his_edit(store, monkeypatch):
