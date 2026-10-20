@@ -1,5 +1,5 @@
-"""The Library explorer's JSON under /api/library: the tree, a folder's entries, one entry, and the owner's choices
-(lock or withdraw, and refine items into the basket). What each answer holds is made in pages/library.py."""
+"""The Library screen's JSON under /api/library: a branch's children a page at a time, and the owner's choices (lock or
+withdraw, and refine items into the basket). What each answer holds is made in pages/library.py."""
 from django.db import IntegrityError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -15,11 +15,15 @@ library_api = APIRouter()
 
 class ChoiceIn(BaseModel):
     action: str
-    addresses: list[str]
+    addresses: list[str] = []
+    address: str = ""  # one entry, from its page's form
+
+    def chosen(self):
+        return [*self.addresses, self.address] if self.address else self.addresses
 
 
-class RefineIn(BaseModel):
-    addresses: list[str]
+class RefineIn(ChoiceIn):
+    action: str = "refine"
     option: str = ""
 
 
@@ -30,36 +34,19 @@ def shown():
     return found
 
 
-@library_api.get("/tree")
-def tree(user=Depends(signed_in)):
-    """The kinds and their categories with counts, the places entries came from, and whether this user decides."""
-    return {**pages.tree_of(shown()), "owner": is_owner(user)}
-
-
-@library_api.get("/list")
-def folder(node: str = "", q: str = "", place: str = "", state: str = "", band: str = "", sort: str = "name",
-           user=Depends(signed_in)):
-    """One folder's entries (the whole library for no folder), filtered, narrowed to a score band and sorted."""
-    found = pages.folder_list(shown(), node, {"q": q, "place": place, "state": state, "band": band, "sort": sort})
+@library_api.get("/children")
+def branch(node: str, page: int = 0, user=Depends(signed_in)):
+    """One page of a folder's children as tree nodes (templates/pages/c/tree.html), loaded when its branch opens."""
+    found = pages.children(shown(), node, max(page, 0))
     if found is None:
         raise HTTPException(404, f"no folder {node}")
     return found
 
 
-@library_api.get("/entry")
-def entry(address: str, user=Depends(signed_in)):
-    """One entry for the explorer's panel: its 3D view, pictures, takes, where it came from, its score."""
-    library = shown()
-    found = library.entry(address)
-    if found is None:
-        raise HTTPException(404, f"no library entry {address}")
-    return pages.entry_detail(library, found)
-
-
 @library_api.post("/ask")
 def ask(body: ChoiceIn, user=Depends(owner_only)):
     """The owner's lock or withdraw of the chosen entries (pages/library_actions.py)."""
-    return {"said": library_actions.ask(user.username, body.action, body.addresses, actions.hosted())}
+    return {"said": library_actions.ask(user.username, body.action, body.chosen(), actions.hosted())}
 
 
 def refine_refusal(library, addresses, option):
@@ -87,7 +74,7 @@ def added_refine(address, option, user):
 @library_api.post("/refine")
 def refine(body: RefineIn, user=Depends(owner_only)):
     """The chosen entries into the basket as refine items (owner only)."""
-    addresses = sorted(set(body.addresses))
+    addresses = sorted(set(body.chosen()))
     why = refine_refusal(shown(), addresses, body.option)
     if why:
         raise HTTPException(400, why)

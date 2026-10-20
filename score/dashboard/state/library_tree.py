@@ -1,4 +1,4 @@
-"""The Library explorer's folders: each kind, then the categories inside it, built from the entries themselves.
+"""The Library's folders: each kind, then the categories inside it, built from the entries themselves.
 
     folders(entries)  # {"tree": [kind node, ...], "members": {node id: [entry, ...]}}
 
@@ -119,7 +119,7 @@ class Builder:
 
 
 def folders(entries):
-    """The explorer's tree of kinds and categories, and each node's entries."""
+    """The Library's tree of kinds and categories, and each node's entries."""
     builder = Builder()
     tree = []
     for kind, _ in KINDS:

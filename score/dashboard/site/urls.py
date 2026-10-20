@@ -30,6 +30,7 @@ urlpatterns = [
     path("runs/<int:run_id>/", views.run_page),
     path("requests/", views.requests_page),
     path("library/", library.library_page),
+    path("library/<slug:kind>/<str:entry_id>/<int:version>/", library.item_page),
     path("library/<slug:kind>/<str:entry_id>/<int:version>/3d/", library.entry_viewer),
     path("film/", films.film_list),
     path("film/new/", films.film_new),

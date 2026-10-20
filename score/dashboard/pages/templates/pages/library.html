@@ -1,55 +1,16 @@
 {% extends "pages/base.html" %}
 {% block title %}Library{% endblock %}
-{% block head %}<script type="importmap">
-{ "imports": {
-  "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-} }
-</script>{% endblock %}
 {% block content %}
-<div class="page-head lib-head">
-  {% if total %}<span class="soft" title="entries, locked" data-v>{{ total }} / {{ locked }}</span>{% endif %}
-  <div class="grow">{% include "pages/c/todo.html" with label="tree by layer, item page" %}</div>
-  <span class="licence-note" title="every entry in the library is MIT">MIT</span>
-</div>
-{% if missing %}<p class="notice">{{ missing }}</p>{% else %}
-{% csrf_token %}
-<div class="lib-explorer" id="lib-explorer" data-pane="tree">
-  <aside class="lib-pane lib-tree-pane" aria-label="kinds and categories">
-    <input type="search" id="lib-search" placeholder="Search the library by name" aria-label="search by name">
-    <nav id="lib-tree" class="lib-tree" role="tree"></nav>
+{% if missing %}{% include "pages/c/dot.html" with tone="idle" tip=missing %} <span class="unknown" title="{{ missing }}" data-v>no library</span>{% else %}
+<div class="place-layout">
+  <aside class="place-tree" aria-label="the library by kind">
+    <div class="num-label"><span data-v>score_lib</span> <span class="licence-note" title="every entry in the library is MIT" data-v>MIT</span></div>
+    {% include "pages/c/tree.html" with nodes=nodes %}
   </aside>
-  <section class="lib-pane lib-list-pane" aria-label="the folder's entries">
-    <div class="lib-list-head">
-      <button type="button" class="quiet lib-back" data-pane-to="tree">&lsaquo; Folders</button>
-      <div class="lib-where" id="lib-where"></div>
-      <div class="lib-tools">
-        <select id="lib-sort" aria-label="order">
-          <option value="name">A-Z</option>
-          <option value="score_low">Score &uarr;</option>
-          <option value="score_high">Score &darr;</option>
-        </select>
-        <select id="lib-place" aria-label="the place it came from"><option value="">Place</option></select>
-        <select id="lib-state" aria-label="state"><option value="">State</option></select>
-      </div>
-      <div class="lib-bands" id="lib-bands" role="group" aria-label="score"></div>
-    </div>
-    <div class="lib-grid" id="lib-grid"></div>
-    <div class="lib-bar" id="lib-bar" hidden>
-      <span><b data-picked>0</b> chosen</span>
-      <select id="lib-refine-option" aria-label="how to refine"></select>
-      <button type="button" class="primary" data-act="refine" title="add to the basket as refine items">Refine</button>
-      <button type="button" data-act="lock" title="approve the chosen drafts as final">Lock</button>
-      <button type="button" class="danger" data-act="withdraw" title="take the chosen locked entries out of use">Withdraw</button>
-      <button type="button" class="quiet" data-act="unpick">Clear</button>
-      <output class="small" id="lib-said"></output>
-    </div>
-  </section>
-  <section class="lib-pane lib-entry-pane" id="lib-entry" aria-label="the chosen entry">
-    
+  <section class="nums lib-nums" aria-label="entries by state">
+    {% include "pages/c/number.html" with label="entries" value=total unit="" of=None bar=None tone=None tip="every entry, every version" unknown_tip="" %}
+    {% for each in states %}{% include "pages/c/number.html" with label=each.label value=each.count unit="" of=None bar=None tone=each.tone tip=None unknown_tip="" %}{% endfor %}
   </section>
 </div>
-{{ first_view|json_script:"lib-first" }}
-<script type="module" src="/static/pages/library.js"></script>
 {% endif %}
 {% endblock %}
