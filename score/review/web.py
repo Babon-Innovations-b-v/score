@@ -116,7 +116,7 @@ def concept_draw(store, place, request, euros, by, run=None, first=False, purpos
         shown = "not measured" if price is None else f"EUR {price:.2f}"
         raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
                              "read the page again")
-    if first and concepts.current_draw(store, place, concepts.wording_now(store, place)[0]):
+    if first and concepts.current_draw(store, place, concepts.wording_now(store, place)):
         raise review.Refused(f"{place} has a draw from its current wording since the click: the places to draw "
                              "changed; read the page again")
     key = concepts.yes_key(place, review.now())

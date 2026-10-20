@@ -59,14 +59,15 @@ def test_each_card_not_locked_opens_its_concept_review(world, stand_in):
     assert page.status_code == 200 and signed_in("joey3").get("/concept/nowhere/").status_code == 404
 
 
-def test_a_shells_page_names_the_inside_places_its_draw_is_asked_to_hold(world, stand_in):
+def test_a_places_page_names_the_places_listed_inside_it_that_its_draw_holds(world, stand_in):
     (world.data / "places").mkdir(exist_ok=True)
     (world.data / "places/within.json").write_text(json.dumps({
         "shells": {"yard": {"name": "Yard"}}, "within": {"alpha": {"within": "beta"}, "beta": {"within": "yard"}}}))
     owner = signed_in()
     page = owner.get("/concept/yard/").content.decode()
     assert "drawn to hold" in page and "data-v>Beta</b>" in page and "data-v>Alpha</b>" not in page  # direct only
-    assert "drawn to hold" not in owner.get("/concept/beta/").content.decode()  # an inside place: from inside
+    assert "data-v>Alpha</b>" in owner.get("/concept/beta/").content.decode()  # every place: what is listed in it
+    assert "drawn to hold" not in owner.get("/concept/alpha/").content.decode()  # it holds nothing
 
 
 def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world, stand_in):
@@ -110,7 +111,7 @@ def test_with_no_mark_and_no_note_the_one_button_draws_fresh_from_the_places_wor
 def test_the_page_shows_the_wording_a_draw_sends_and_his_edit_is_sent_and_kept_until_back_to_generated(world,
                                                                                                     stand_in):
     owner = signed_in()
-    generated = escape(drawing.first_wording("beta")[0])
+    generated = escape(drawing.generated("beta"))
     page = owner.get("/concept/beta/").content.decode()
     assert 'id="concept-wording"' in page and generated in page and "back to generated" not in page
     owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
@@ -232,14 +233,20 @@ def test_draw_all_is_refused_when_the_total_or_the_places_changed_or_for_anyone_
     assert len(drawing.draws(world.source.store, "beta")) == 1
 
 
-def test_draw_all_leaves_out_a_place_that_cannot_be_drawn_now_and_says_how_many(world, stand_in, monkeypatch):
-    wording = drawing.first_wording
+def test_the_page_lists_the_pictures_a_draw_sends_and_why_it_waits(world, stand_in, monkeypatch):
+    sent = ["the picked concept of the yard this place sits within", "a reference for its look only"]
+    monkeypatch.setattr(drawing, "sent_pictures", lambda place: [(words, None) for words in sent]
+                        if place == "beta" else [])
+    monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be picked")
+    page = signed_in().get("/concept/beta/").content.decode()
+    assert all(f"<li data-v>{words}</li>" in page for words in sent)
+    assert "waits for yard&#x27;s concept to be picked" in page
 
-    def no_reference(place):
-        if place == "alpha":
-            raise drawing.Refused("its reference is not on this machine")
-        return wording(place)
-    monkeypatch.setattr(drawing, "first_wording", no_reference)
+
+def test_draw_all_leaves_out_a_place_that_cannot_be_drawn_now_and_says_how_many(world, stand_in, monkeypatch):
+    waits = drawing.waits
+    monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be picked"
+                        if place == "alpha" else waits(store, place))
     html = signed_in().get("/").content.decode()
     assert "Draw all 1, EUR 0.15" in html and "1 more with none cannot be drawn now" in html
 
