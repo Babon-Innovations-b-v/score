@@ -3,7 +3,7 @@
 step (prop_prints.py's print), the hair as the mesh carries it, SOMA-X only for the skeleton so Kimodo's clips play.
 World rows, each look's data a take of data/people/surfaces.json:
 
-    people-inputs ... people-paint   the surface stage's method and paint on the looks' takes (line.py)
+    people-route-views ... people-paint   the finish route and the paint on the looks' takes (line.py)
     people-body-<look>               a look's body: rig, build, settle and every body gate (people_bodies/bodies.py)
     people-dress-<look>              the paint's library surfaces laid on the body (dress.py)
     people-dress-<look>-in-<place>   the same in a coloured place: its fabrics the concept's colour (colours.json)

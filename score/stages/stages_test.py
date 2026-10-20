@@ -188,19 +188,6 @@ def test_a_coloured_place_reads_its_own_dress_rows():
     assert "people-dress-bram-work-in-camp" in table["characters-layer"].after
 
 
-def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
-    """Editing turntable_row.py (its PNGs written without text, 2026-10-12) moves the turntable rows of the lines that
-    still run the finish-map method (people, crops), and no other paid row: the maps read its pictures, never its
-    code."""
-    table = {stage.name: stage for stage in stages.STAGES}
-    edited = "score/stages/surfaces/turntable_row.py"
-    moved = {name for name, stage in table.items() if stage.paid
-             and code_after_editing(stage, edited) != code_after_editing(stage, "nothing")}
-    # The people line's turntable runs the same make (score/stages/people/line.py), so it moves with it. The crops
-    # are the places' own models since 2026-10-20 (#26): no crops row runs it.
-    assert moved == {"people-turntable"}, moved
-
-
 def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
     """A new place (the ship's bridge) has its plan before its kit is laid; the runner lists it with the laid ones."""
     (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
