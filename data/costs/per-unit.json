@@ -246,50 +246,36 @@
    "also": [
     "light-haze"
    ],
-   "likely_euros": 0.11375,
-   "high_euros": 1.23136,
-   "runs": 30,
+   "likely_euros": 0.02789,
+   "high_euros": 0.19059,
+   "runs": 486,
    "sources": {
-    "cloud batches": [
-     "blender-20261011-152801-3190979",
-     "blender-20261011-152837-3193069",
-     "blender-20261011-152836-3192947",
-     "blender-20261011-152822-3192451",
-     "blender-20261011-154332-3217996",
-     "blender-20261011-154516-3220941",
-     "blender-20261011-154629-3224250",
-     "blender-20261011-154630-3224307",
-     "blender-20261011-155754-3246902",
-     "blender-20261011-155934-3251393",
-     "blender-20261011-155944-3251705",
-     "blender-20261011-161109-3284302",
-     "blender-20261011-161317-3292117",
-     "blender-20261011-161254-3290755",
-     "blender-20261011-161313-3292002",
-     "blender-20261011-162747-3356982",
-     "blender-20261011-162745-3356887",
-     "blender-20261011-164332-3429650",
-     "blender-20261011-164331-3429549",
-     "blender-20261011-171554-3518889",
-     "blender-20261011-171614-3519091",
-     "blender-20261011-171643-3521400",
-     "blender-20261011-171647-3521577",
-     "blender-20261011-171915-3524874",
-     "blender-20261011-173548-3538170",
-     "blender-20261011-180417-3643160",
-     "blender-20261011-180409-3641921",
-     "blender-20261011-180913-3664697",
-     "blender-20261011-180616-3651526",
-     "blender-20261011-180614-3651590"
-    ]
+    "warm work": "paper/evidence/cloud/ledger.jsonl: 486 jobs of kind blender timed on 212 L4-1-24G machines (unit_seconds; capacity.py report's s/unit)",
+    "machine price": "paper/evidence/cloud/bill-2026-10-10T0136Z.json: L4-1-24G EUR 0.7875 an hour (costs.unit_prices, the lowest zone), by the minute",
+    "overhead": "10% for time outside jobs on warm parked cards, the owner's target (2026-10-20) until runs record it"
    },
    "time": {
-    "why": "no ledger line read here timed a unit of {'kind': 'blender', 'who': 'score light stage'}"
+    "why": "no ledger line read here timed a unit of {'kind': 'blender', 'who': 'score light stage'}",
+    "unit_seconds": {
+     "likely": 115.9,
+     "high": 792.05
+    },
+    "slots": 1,
+    "slots_from": "capacity.runs_at_once(blender, gpu-24gb)",
+    "setup_minutes": {
+     "why": "no line read here timed a machine's set-up"
+    },
+    "holds": "machines",
+    "lines": 212,
+    "from": [
+     "paper/evidence/cloud/ledger.jsonl"
+    ]
    },
    "forecast": {
     "rule": "light_jobs",
-    "source": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job (the views of the place's scene record, data/scene/<place>.json, while the demo's copy of them is lost)"
-   }
+    "source": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record (data/scene/<place>.json), VIEWS_A_JOB a job"
+   },
+   "basis": "warm work time"
   },
   "settle": {
    "stage": "settle",

@@ -71,9 +71,8 @@ FORECASTS = {
                   "is this stage's there, by their take",
     "models": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast "
               "to make at the place (prop_takes)",
-    "light_jobs": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job "
-                  "(the views of the place's scene record, data/scene/<place>.json, while the demo's copy of them is "
-                  "lost)",
+    "light_jobs": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record "
+                  "(data/scene/<place>.json), VIEWS_A_JOB a job",
     "one": "one a place (one for an environment node)",
 }
 CLOSEUPS_15 = "paper/evidence/cloud/forecast-2026-10-15.txt"
@@ -153,6 +152,10 @@ OVERHEAD = 0.10  # the owner's target share (2026-10-20): replace it with the me
 WARM = {
     "pixal": {"kind": "pixal", "type": "L4-1-24G", "class": "gpu-24gb"},
     "surfaces-bake": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
+    # A light-passes (and light-haze) job is one Blender render job of up to VIEWS_A_JOB views on one L4
+    # (passes.CARDS); priced at every timed Blender job on L4 (116 s median in the capacity report), not at light
+    # jobs' own seconds: the ledger copy names no job's stage. Its own runs' timings replace it once recorded.
+    "light-passes": {"kind": "blender", "type": "L4-1-24G", "class": "gpu-24gb"},
 }
 # Measured standard-tier calls a BATCH stage is priced from (their Google ledger went with the old disk, 2026-10-19:
 # the figures as this file wrote them from it at commit 71b1ccc4, data/costs/per-unit.json).
