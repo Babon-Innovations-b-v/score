@@ -12,11 +12,13 @@ Free and local: reads the scene inventories, the library's index, the per-unit p
 buys, keys and judges nothing. Prints the one line and the record's path.
 """
 import argparse
+import collections
 import json
 import pathlib
 
 from score import graph, stages
 from score.stages.complete.gaps import price
+from score.stages.library import clips
 from score.stages.complete.prepare import benchmarks, contract, design, estimate, groups, library, machines, predict
 from score.store import PROPS_HOME
 
@@ -135,7 +137,9 @@ def remake(runner, data, root, work, stock=None, moved=None):
     route = price.route_stages(runner)
     fixed = fixed_machines(route, stock)
     found, gaps = priced_layers(route, takes, fixed)
-    edges = estimate.route_edges(runner.stages, route)
+    found[clips.ROW] = estimate.clip_layer(collections.Counter(take["place"] for take in takes
+                                                               if take["status"] == "bought"))
+    edges = estimate.route_edges(runner.stages, [*route, clips.ROW])
     record = {"made_at": graph.now(), "priced_on": price.priced_on(),
               "counts": {**groups.counts(by_place), **take_counts(takes)}, "rates": rates, "library": library_entry,
               "takes": takes, "layers": found, "totals": estimate.totals(found),

@@ -134,6 +134,17 @@ def test_layers_run_each_take_once_shells_skip_the_surface_line_and_cards_carry_
     assert estimate.totals(found)["unpriced"] == ["likeness-calibration"]
 
 
+def test_the_clips_layer_is_estimated_from_the_films_frames_one_card_a_place_and_said_so():
+    from score.stages.library import clips
+    found = estimate.clip_layer({"hub": 2, "lab": 1, "flat": 0})
+    assert found["units"] == 3 and found["minutes"]["cards"] == 2
+    assert found["price"]["high_euros"] == round(clips.forecast(2)["high_euros"] + clips.forecast(1)["high_euros"], 2)
+    assert found["minutes"]["high_minutes"] == clips.forecast(2)["high_minutes"]  # the places side by side
+    assert "films" in found["price"]["estimated_from"]
+    assert estimate.totals({clips.ROW: found})["estimated"] == [clips.ROW]
+    assert estimate.clip_layer({})["price"]["likely_euros"] == 0
+
+
 def test_the_eta_walks_the_layers_in_the_routes_order_and_a_layer_of_no_units_takes_no_time():
     runner = stages.runner(world=stages.WORLDS["world1"]())
     route = price.route_stages(runner)

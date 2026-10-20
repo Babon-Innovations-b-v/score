@@ -17,7 +17,10 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   gap, not bought, and priced apart (`predicted_gaps_if_bought`); fewer measured rows is `at risk`, still bought.
   The crop's upscale is said, never a prediction (no failure was measured against it).
 - **Unmeasured stays unknown.** A layer with no per unit is unpriced and named; one with no measured minutes is
-  untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`).
+  untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`). One exception, the owner's
+  (2026-10-20): the preview clips' layer (`estimate.clip_layer`, one clip a bought take) is priced from the films'
+  measured seconds a frame until library-clips has its own per unit, marked `estimated_from` and named in
+  `totals.estimated` and the line.
 - **One class and zone a layer** (`machines.py`): the runner's first class in its kind's order, the zone with the
   best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as gaps.
 - **Library reuse only under today's route** (owner, 2026-10-20, #21/#41: "wouldn't lock anything"): a matching
