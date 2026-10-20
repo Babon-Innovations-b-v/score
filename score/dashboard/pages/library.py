@@ -224,7 +224,7 @@ def closeup_url(shown, entry):
 
 def viewer_of(shown, entry):
     """What item3d.js plays: {mode (copy, kit, surface, effect, light), light (the light copy's url), full (the whole
-    copy's, when this cockpit holds it), finish, print, token, palette, settings, lamps}."""
+    copy's, when this cockpit holds it), finish, print, token, palette, settings, lamps, inside (a kit cut open)}."""
     mode = "kit" if entry.kind == "kit" else PLAYED.get(shelf(entry), "copy")
     found = {"mode": mode, "light": file_url(shown, entry.web3d_light), "full": file_url(shown, entry.web3d)}
     if mode == "surface":
@@ -235,6 +235,8 @@ def viewer_of(shown, entry):
         found["settings"] = entry.facts.get("settings")
     elif mode == "light":
         found["lamps"] = entry.facts.get("lamps") or []
+    elif mode == "kit":
+        found["inside"] = "inside" in entry.tags.get("place_kind", [])
     elif mode == "sky":
         found.update(sky=entry.facts.get("sky"), picture=picture_url(shown, entry))
     return found

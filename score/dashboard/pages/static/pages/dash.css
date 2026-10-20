@@ -356,6 +356,7 @@ body.view3d.embed #status { margin: 0; padding: 4px 10px; border-radius: 999px; 
 .demo-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 .demo-steps li { cursor: pointer; color: var(--soft); }
 .demo-steps li.on { color: inherit; }
+.kit-pieces { list-style: none; padding-left: 0; max-height: 62vh; overflow-y: auto; }
 .demo-slider { display: flex; gap: 8px; align-items: center; width: 100%; font-size: 13px; }
 .demo-slider input { flex: 1; }
 .diagram { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; max-width: none; }

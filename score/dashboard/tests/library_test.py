@@ -136,7 +136,7 @@ def shelf(tmp_path):
     entry(root, blobs, "light", "sky.alpha", files={"sky.usda": ("usd", SKY)})
     entry(root, blobs, "layer", "light.alpha", title="Alpha light layer", files={"lamps.json": ("record", LAMPS)})
     entry(root, blobs, "kit", "alpha", files={"web3d/light.glb": ("web3d", glb() + b" " * 8)},
-          web3d={"light": "web3d/light.glb", "objects": 12})
+          web3d={"light": "web3d/light.glb", "objects": 12}, tags={"place_kind": ["inside", "moon"]})
     entry(root, blobs, "algorithm", "camera_paths", title="Camera moves: walk paths and film shots",
           provenance={"stage": "demo-film", "nodes": ["demo-film@alpha", "demo-film@beta"]},
           requires=["algorithm/terrain@1"], score=25, files={"presets/world1/data/definitions/demo_films/alpha.json":
@@ -289,10 +289,11 @@ def test_a_model_turns_in_3d_from_its_light_copy_with_its_size_parts_and_score(w
     assert client.get("/library/model/nothing/1/").status_code == 404
 
 
-def test_a_kit_lays_its_pieces_out_and_a_character_plays_its_clips(world, shelf):
+def test_a_kit_is_laid_as_its_place_lays_it_and_a_character_plays_its_clips(world, shelf):
     client = signed_in()
     kit = an_item_page(client, "/library/kit/alpha/1/")
-    assert item_data(kit)["mode"] == "kit" and number_shown(kit, "pieces", "12")
+    assert item_data(kit)["mode"] == "kit" and item_data(kit)["inside"]  # an inside kit is cut open
+    assert number_shown(kit, "pieces", "12") and 'id="kit-pieces"' in kit  # its kinds of piece, filled once loaded
     walker = an_item_page(client, "/library/character/walker/1/")  # its raw body only: its picture, a 3D link
     assert item_data(walker) is None and 'href="/library/character/walker/1/3d/"' in walker
 

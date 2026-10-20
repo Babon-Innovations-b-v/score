@@ -1,5 +1,5 @@
 // A library item on its own (pages/library.py viewer_of): a model, kit or character's web copy turned and zoomed
-// (its light copy first, its whole copy after when this cockpit holds it; a kit's pieces laid side by side; a copy's
+// (its light copy first, its whole copy after when this cockpit holds it; a kit as its place lays it; a copy's
 // clips played), a surface on a lit sphere and tile with its settings on sliders, an effect's emitter played from its
 // settings with a time scrubber, a place's lamps over a neutral test scene, and a sky: its dome looked around in from
 // inside, or a planet's backdrop as its globe. Colours come from design tokens.
@@ -16,6 +16,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.AgXToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.localClippingEnabled = true;  // an inside kit cut open
 holder.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(token("--color-view-plinth"));
@@ -27,7 +28,6 @@ orbit.addEventListener("start", () => { orbit.autoRotate = false; });
 const studio = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 const clock = { playing: true, at: 0, length: 0, show: null };  // an effect's or a clip's time
 const spinning = [];  // objects turned slowly about their own up axis (a surface's sphere)
-const KIT_GAP = 0.25;  // metres between a kit's pieces laid side by side
 
 function resize() {
   const { clientWidth: width, clientHeight: height } = holder;
@@ -81,31 +81,103 @@ function showTime() {
   controls.querySelector("[data-play]").innerHTML = clock.playing ? "&#10074;&#10074;" : "&#9654;";
 }
 
-// --- a web copy: a model, a character, a kit's pieces ------------------------------------------------------------
+// --- a web copy: a model, a character, a kit --------------------------------------------------------------------
 
-// A kit's pieces in rows side by side, each on the floor, in their order.
-function layOut(root) {
-  const pieces = root.children.length === 1 ? [...root.children[0].children] : [...root.children];
-  const laid = new THREE.Group();
-  scene.add(laid);
-  root.updateMatrixWorld(true);
-  const boxes = pieces.map((piece) => new THREE.Box3().setFromObject(piece));
-  const footprint = boxes.filter((box) => !box.isEmpty()).map((box) => box.getSize(new THREE.Vector3()))
-    .reduce((sum, size) => sum + (size.x + KIT_GAP) * (size.z + KIT_GAP), 0);
-  const across = Math.sqrt(footprint) * 1.2;  // rows about as long as the laid pieces are deep
-  let x = 0, z = 0, row = 0;
-  pieces.forEach((piece, rank) => {
-    const box = boxes[rank];
-    if (box.isEmpty()) return;
-    const size = box.getSize(new THREE.Vector3());
-    if (x > 0 && x + size.x > across) { x = 0; z += row + KIT_GAP; row = 0; }
-    laid.attach(piece);
-    piece.position.add(new THREE.Vector3(x - box.min.x, -box.min.y, z - box.min.z));
-    x += size.x + KIT_GAP;
-    row = Math.max(row, size.z);
+// A kit as its place lays it (its copy is the place's base layer with only the kit's objects) and its kinds of piece
+// listed beside it, one opened showing one piece of that kind alone. A node is named for its prim,
+// ".../Objects/<piece>_<n>" (a glowing piece's glow half "<piece>_glow_<n>"); its kind is that name less the number.
+// An inside place's kit is cut open above CUT of its height, so its room shows, not its roof.
+const CUT = 0.7;
+const kitList = document.getElementById("kit-pieces");
+const cut = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+
+// The glTF node name of a mesh's piece: its own, or its node's when the piece has several materials (a group).
+function pieceName(object) {
+  while (object.parent && !object.userData.name) object = object.parent;
+  return (object.userData.name || "").replace(/_glow(_\d+)$/, "$1");
+}
+
+// The meshes of the place's own laid set: a place laying its kit again in places of its own (the tube's three
+// others, "/tube/Places/<other>/Objects/...") shows its own set only, so one tube fills the view, not four small.
+function ownSet(root) {
+  const sets = new Map();
+  root.traverse((object) => {
+    if (!object.isMesh) return;
+    const set = pieceName(object).replace(/\/[^/]*$/, "");
+    if (!sets.has(set)) sets.set(set, []);
+    sets.get(set).push(object);
   });
-  scene.remove(root);
-  return laid;
+  const shortest = [...sets.keys()].sort((one, other) => one.length - other.length)[0];
+  return { meshes: sets.get(shortest) || [], sets: sets.size };
+}
+
+// {kind: [[the meshes of one laid piece]]}, in the copy's order.
+function kitKinds(meshes) {
+  const pieces = new Map();
+  meshes.forEach((object) => {
+    const name = pieceName(object);
+    if (!pieces.has(name)) pieces.set(name, []);
+    pieces.get(name).push(object);
+  });
+  const kinds = new Map();
+  for (const [name, meshes] of pieces) {
+    const kind = name.split("/").pop().replace(/_\d+$/, "");
+    if (!kinds.has(kind)) kinds.set(kind, []);
+    kinds.get(kind).push(meshes);
+  }
+  return kinds;
+}
+
+function clipped(root, planes) {
+  root.traverse((object) => {
+    if (!object.isMesh) return;
+    for (const material of [object.material].flat()) material.clippingPlanes = planes;
+  });
+}
+
+// The whole kit (`kind` empty), or the first laid piece of `kind` alone, framed.
+function showKit(root, own, kinds, kind) {
+  const shown = new Set(kind ? kinds.get(kind)[0] : own);
+  const box = new THREE.Box3();
+  root.traverse((object) => {
+    if (!object.isMesh) return;
+    object.visible = shown.has(object);
+    if (object.visible) box.expandByObject(object);
+  });
+  const opened = !kind && given.inside;
+  cut.constant = box.min.y + (box.max.y - box.min.y) * CUT;
+  clipped(root, opened ? [cut] : []);
+  if (opened) box.max.y = cut.constant;
+  // an open room seen from above, a thin piece from a little further, so all of it shows
+  frame(box, opened ? new THREE.Vector3(0.55, 0.9, 0.75) : new THREE.Vector3(0.9, 0.55, 1.15));
+  [...kitList.children].forEach((row) => row.classList.toggle("on", row.dataset.kind === kind));
+}
+
+function kitRow(kind, label, count) {
+  const row = document.createElement("li");
+  row.dataset.kind = kind;
+  row.tabIndex = 0;
+  row.title = kind ? "one alone" : "as its place lays it";
+  row.append(Object.assign(document.createElement("span"), { textContent: label }), " ",
+    Object.assign(document.createElement("span"), { textContent: `× ${count}`, className: "small" }));
+  row.querySelectorAll("span").forEach((span) => span.setAttribute("data-v", ""));
+  return row;
+}
+
+function listKit(root) {
+  const own = ownSet(root), kinds = kitKinds(own.meshes);
+  const total = [...kinds.values()].reduce((sum, laid) => sum + laid.length, 0);
+  const whole = kitRow("", "whole kit", total);
+  if (own.sets > 1) whole.title += `, one of the ${own.sets} sets it lays`;
+  kitList.replaceChildren(whole,
+    ...[...kinds].map(([kind, laid]) => kitRow(kind, kind.replaceAll("_", " "), laid.length)));
+  const open = (event) => {
+    const row = event.target.closest("[data-kind]");
+    if (row && (event.type === "click" || event.key === "Enter")) showKit(root, own.meshes, kinds, row.dataset.kind);
+  };
+  kitList.onclick = open;
+  kitList.onkeydown = open;
+  showKit(root, own.meshes, kinds, "");
 }
 
 function playClips(root, clips) {
@@ -122,11 +194,12 @@ async function loadCopy(loader, url) {
   const loaded = await loader.loadAsync(url);
   if (current) scene.remove(current);
   scene.add(loaded.scene);
-  current = given.mode === "kit" ? layOut(loaded.scene) : loaded.scene;
+  current = loaded.scene;
   const box = frame(new THREE.Box3().setFromObject(current));
   const size = box.getSize(new THREE.Vector3());
   fill("size", `${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`);
   playClips(loaded.scene, loaded.animations);
+  if (given.mode === "kit") listKit(current);
   shown();
 }
 
