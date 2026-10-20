@@ -46,6 +46,27 @@ def test_a_batch_is_read_once_and_priced_over_the_units_it_finished():
     assert each == [0.0] and batches == ["blender-2"]  # a free drop counts; another `who` is another job
 
 
+def test_a_ticketed_line_is_the_stage_its_ticket_names_and_a_warm_stage_is_priced_on_its_own_timed_jobs():
+    """A line whose ticket names earth-kit is no bake's, whatever its kind; sound's run is its one take; earth-kit's
+    own jobs price it in place of every library job in the paper's copy, and the add mode keeps every other stage."""
+    kit = {"batch": "kit-1", "kind": "library", "ticket": "earth-kit@airlock abc", "jobs": ["a", "b"], "euros": 0.5,
+           "machines": [{"type": "L4-1-24G", "started": True, "unit_seconds": [60.0, 120.0], "work_minutes": 4.0}]}
+    take = {"batch": "prove-1", "kind": "prove", "who": "score runner, sound stage", "ticket": "sound@airlock abc",
+            "euros": 0.23, "machines": []}
+    lines = per_unit.ledger_lines([written([kit, take])])
+    assert per_unit.cloud_measures(lines, per_unit.SPECS["surfaces-bake"]) == ([], [])
+    assert per_unit.cloud_measures(lines, per_unit.SPECS["sound"]) == ([0.23], ["prove-1"])
+    out = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
+    settle = {"stage": "settle", "likely_euros": 0.59, "high_euros": 1.6, "runs": 3, "sources": {}}
+    out.write_text(json.dumps({"read": [], "high_quantile": 0.9, "stages": {"settle": settle}}))
+    per_unit.main(["--add", "--ledger", str(written([kit, take])), "--out", str(out)])
+    found = json.loads(out.read_text())["stages"]
+    assert found["settle"] == settle and found["sound"]["likely_euros"] == 0.23
+    assert found["sound"]["forecast"]["rule"] == "sound_takes"
+    assert found["earth-kit"]["runs"] == 2 and found["earth-kit"]["time"]["unit_seconds"]["likely"] == 90.0
+    assert "of its own jobs" in found["earth-kit"]["sources"]["warm work"]
+
+
 def test_google_units_are_finished_calls_of_the_stages_caller():
     """A call counts once it finished (or in the first format, written only then); started and failed do not."""
     each, days = per_unit.google_measures(CALLS, "pro")

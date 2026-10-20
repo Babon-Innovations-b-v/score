@@ -381,19 +381,19 @@
     "files": "job-*.json"
    },
    "also": [],
-   "likely_euros": 0.01452,
-   "high_euros": 0.07856,
-   "runs": 208,
+   "likely_euros": 0.01376,
+   "high_euros": 0.06002,
+   "runs": 15,
    "sources": {
-    "warm work": "paper/evidence/cloud/ledger.jsonl: 208 jobs of kind library timed on 70 L4-1-24G machines (unit_seconds; capacity.py report's s/unit)",
+    "warm work": "$PROPS/cloud/ledger.jsonl: 15 of its own jobs timed on 3 L4-1-24G machines (unit_seconds; capacity.py report's s/unit)",
     "machine price": "paper/evidence/cloud/bill-2026-10-10T0136Z.json: L4-1-24G EUR 0.7875 an hour (costs.unit_prices, the lowest zone), by the minute",
     "overhead": "10% for time outside jobs on warm parked cards, the owner's target (2026-10-20) until runs record it"
    },
    "basis": "warm work time",
    "time": {
     "unit_seconds": {
-     "likely": 60.35,
-     "high": 326.5
+     "likely": 57.2,
+     "high": 249.44
     },
     "slots": 1,
     "slots_from": "capacity.runs_at_once(library, gpu-24gb)",
@@ -401,9 +401,9 @@
      "why": "no line read here timed a machine's set-up"
     },
     "holds": "machines",
-    "lines": 70,
+    "lines": 3,
     "from": [
-     "paper/evidence/cloud/ledger.jsonl"
+     "$PROPS/cloud/ledger.jsonl"
     ]
    },
    "forecast": {
@@ -454,6 +454,42 @@
     "batch tier": "google_spend.TIER_PRICE['batch'] = 0.5"
    },
    "basis": "batch price of measured calls"
+  },
+  "sound": {
+   "stage": "sound",
+   "unit": "MOSS take (one brief and seed, its card rented for it)",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.23047,
+   "high_euros": 0.23047,
+   "runs": 1,
+   "sources": {
+    "cloud batches": [
+     "prove-20261020-181655-1467389"
+    ]
+   },
+   "forecast": {
+    "rule": "sound_takes",
+    "source": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief and seed, each counted once at the first place in data/sound/places.json that plays it"
+   },
+   "time": {
+    "unit_seconds": {
+     "likely": 161.68,
+     "high": 161.68
+    },
+    "setup_minutes": {
+     "likely": 0.873,
+     "high": 0.873
+    },
+    "slots": 1,
+    "slots_from": "one a machine: no line names jobs at once",
+    "failed_start_share": 0.5,
+    "holds": "machines",
+    "lines": 1,
+    "from": [
+     "$PROPS/cloud/ledger.jsonl"
+    ]
+   }
   }
  },
  "node_minutes": {}

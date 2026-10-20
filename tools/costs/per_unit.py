@@ -103,6 +103,11 @@ SPECS = {
     "earth-kit": {"unit": "make_kit job of an earth place's code-built kit (library_bake.py, one picture set)",
                   "cloud": {"kind": "library", "who": "score earth_kit stage"}, "per_line": "jobs",
                   "count": {"files": "job-*.json"}, "forecast": "kit_jobs"},
+    # A sound line names no takes: one take a line, as sound@airlock's first run made one (2026-10-20, its log in the
+    # store), until the stage writes its takes into its line.
+    "sound": {"unit": "MOSS take (one brief and seed, its card rented for it)",
+              "cloud": {"kind": "prove", "who": "score runner, sound stage"}, "per_line": "one",
+              "forecast": "sound_takes"},
 }
 # Measured runs of today's route whose ledger lines went with the old disk (2026-10-19), their euros and the units they
 # made written down in git when they ran: per stage, its unit, its forecast rule and each run (euros, units, where it
@@ -140,7 +145,8 @@ WARM = {
     "pixal": {"kind": "pixal", "type": "L4-1-24G", "class": "gpu-24gb"},
     "surfaces-bake": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
     # An earth-kit job is one make_kit picture set on the bake's card; priced at every timed library job on L4 (make_kit
-    # sets and one-model bakes alike: the ledger copy names no job's script), until its own runs are timed.
+    # sets and one-model bakes alike: the ledger copy names no job's script), until a ledger read holds its own timed
+    # jobs (own_rows: earth-kit@airlock's 15, 2026-10-20).
     "earth-kit": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
     # A light-passes (and light-haze) job is one Blender render job of up to VIEWS_A_JOB views on one L4
     # (passes.CARDS); priced at every timed Blender job on L4 (116 s median in the capacity report), not at light
@@ -204,12 +210,22 @@ def matches(line, wanted):
     return all(line.get(field) == value for field, value in wanted.items())
 
 
+def of_spec(line, spec):
+    """Whether a cloud ledger line did the work of `spec`'s stage: a line whose ticket names its node by its stage (or
+    one of its `also`) and its kind; an older line with no ticket by its fields (kind and `who`)."""
+    named = (line.get("ticket") or "").partition("@")[0]
+    if not named:
+        return matches(line, spec["cloud"])
+    owner = next((found for stage, found in SPECS.items() if named == stage or named in found.get("also", ())), None)
+    return owner is spec and line.get("kind") == spec["cloud"]["kind"]
+
+
 def cloud_measures(lines, spec):
     """([euros a unit], [batch names]) of the cloud lines that did the stage's work and finished a unit."""
     each, batches = [], []
     for line, _ in lines:
         units = line_units(line, spec["per_line"])
-        if matches(line, spec["cloud"]) and units and line.get("euros") is not None:
+        if of_spec(line, spec) and units and line.get("euros") is not None:
             each.append(line["euros"] / units)
             batches.append(line["batch"])
     return each, batches
@@ -322,7 +338,7 @@ def cloud_times(lines, spec):
     """The `time` of a cloud stage from its lines (kind and `who`, as its euros): {unit_seconds, setup_minutes
     ({likely, high} of its fresh machines' set-ups, or {why} where no line timed one), slots, slots_from,
     failed_start_share, holds, lines, from}, or {why} with no unit timed."""
-    found = [(line, source) for line, source in lines if matches(line, spec["cloud"])]
+    found = [(line, source) for line, source in lines if of_spec(line, spec)]
     seconds = [value for line, _ in found for value in unit_seconds(line, spec["per_line"])]
     if not seconds:
         return {"why": f"no ledger line read here timed a unit of {spec['cloud']}"}
@@ -496,20 +512,32 @@ def warm_price(spec, seconds):
     return seconds / slots_of(spec) * hourly(spec["type"]) / 3600 * (1 + OVERHEAD)
 
 
-def warm_time(spec, seconds, machines, old):
+def own_rows(stage, spec, lines):
+    """([machine row], [ledger]) of the lines read here whose ticket names `stage` that ran on the spec's type and
+    timed their jobs: the stage's own work, which prices it in place of every job of its kind once read."""
+    named = [(line, source) for line, source in lines if (line.get("ticket") or "").partition("@")[0] == stage]
+    rows = [row for row in cloud_module("capacity").machine_rows([line for line, _ in named])
+            if row["kind"] == spec["kind"] and row.get("type") == spec["type"] and row.get("started", True)
+            and row.get("unit_seconds")]
+    return rows, sorted({source.rpartition(" line ")[0] for _, source in named})
+
+
+def warm_time(spec, seconds, machines, old, origin):
     """A warm stage's `time`: its work seconds and the jobs a card runs at once, the set-up and failed starts of its
     file's `time` kept (a fresh fleet still sets up), {why} for a set-up never measured."""
     return {**old, "unit_seconds": spread(seconds), "slots": slots_of(spec),
             "slots_from": f"capacity.runs_at_once({spec['kind']}, {spec['class']})",
             "setup_minutes": old.get("setup_minutes") or {"why": "no line read here timed a machine's set-up"},
-            "holds": "machines", "lines": machines, "from": [costs.scrub(str(EVIDENCE_LEDGER))]}
+            "holds": "machines", "lines": machines, "from": origin}
 
 
-def warm_entry(found, spec):
-    """A stage's entry priced by the owner's warm-card method (WARM), its rules and count kept."""
-    rows = warm_rows(spec)
+def warm_entry(found, spec, own=((), ())):
+    """A stage's entry priced by the owner's warm-card method (WARM), its rules and count kept: on its own timed jobs
+    (`own`, own_rows) where a ledger read here holds them, else every job of its kind in the paper's ledger copy."""
+    rows, origin = own if own[0] else (warm_rows(spec), [costs.scrub(str(EVIDENCE_LEDGER))])
+    whose = "of its own jobs" if own[0] else f"jobs of kind {spec['kind']}"
     seconds = [value for row in rows for value in row["unit_seconds"]]
-    sources = {"warm work": f"{costs.scrub(str(EVIDENCE_LEDGER))}: {len(seconds)} jobs of kind {spec['kind']} timed "
+    sources = {"warm work": f"{', '.join(origin)}: {len(seconds)} {whose} timed "
                             f"on {len(rows)} {spec['type']} machines (unit_seconds; capacity.py report's s/unit)",
                "machine price": f"{costs.scrub(str(SAVED_BILL))}: {spec['type']} EUR {hourly(spec['type']):.4f} an "
                                 "hour "
@@ -518,7 +546,7 @@ def warm_entry(found, spec):
                            "(2026-10-20) until runs record it"}
     return {**found, "likely_euros": round(warm_price(spec, statistics.median(seconds)), 5),
             "high_euros": round(warm_price(spec, quantile(seconds, HIGH)), 5), "runs": len(seconds),
-            "sources": sources, "basis": "warm work time", "time": warm_time(spec, seconds, len(rows), found.get("time") or {})}
+            "sources": sources, "basis": "warm work time", "time": warm_time(spec, seconds, len(rows), found.get("time") or {}, origin)}
 
 
 def batch_entry(stage, found, spec):
@@ -540,13 +568,23 @@ def bare_entry(stage):
             **forecast(spec)}
 
 
-def with_warm(body):
-    """The per-unit file's body with every WARM and BATCH stage priced by the owner's method of 2026-10-20, every
-    other stage as it was."""
+def priced_own(found):
+    """Whether a stage's entry was priced warm on its own timed jobs (its time read from a ledger other than the
+    paper's copy)."""
+    return bool(found) and found.get("basis") == "warm work time" and \
+        (found.get("time") or {}).get("from") not in (None, [costs.scrub(str(EVIDENCE_LEDGER))])
+
+
+def with_warm(body, lines=()):
+    """The per-unit file's body with every WARM and BATCH stage priced by the owner's method of 2026-10-20 (a WARM
+    stage on its own timed jobs where `lines` hold them), every other stage as it was."""
     stages = dict(body["stages"])
     for stage, spec in WARM.items():
+        own = own_rows(stage, spec, lines)
+        if not own[0] and priced_own(stages.get(stage)):
+            continue  # its own jobs were read from a ledger not given here: kept, never priced back on its kind's
         if stage in stages or stage in SPECS:  # a SPECS stage no ledger line measured is priced warm from its rules
-            stages[stage] = warm_entry(stages.get(stage) or bare_entry(stage), spec)
+            stages[stage] = warm_entry(stages.get(stage) or bare_entry(stage), spec, own)
     for stage, spec in BATCH.items():
         stages[stage] = batch_entry(stage, stages.get(stage), spec)
     return {**body, "stages": stages}
@@ -577,7 +615,7 @@ def write_times(options):
     stage_times, made = kept_times(before, times(ledger_lines(options.ledger or []), read_calls(options.google),
                                                  options.google), store_minutes(options.store))
     body = with_times(before, stage_times, made)
-    out.write_text(json.dumps(with_warm(body), indent=1) + "\n")
+    out.write_text(json.dumps(with_warm(body, ledger_lines(options.ledger or [])), indent=1) + "\n")
     timed = sum(1 for found in stage_times.values() if "unit_seconds" in found)
     print(f"per unit: time of {timed} of {len(stage_times)} stages and {len(body['node_minutes'])} stages' makes "
           f"written into {options.out}, its euros kept")
@@ -590,9 +628,28 @@ def write_measures(options):
     body = with_times({"read": [costs.scrub(path) for path in options.ledger] + [costs.scrub(options.google)],
                        "high_quantile": HIGH, "stages": found},
                       times(lines, calls, options.google), store_minutes(options.store))
-    pathlib.Path(options.out).write_text(json.dumps(with_warm(body), indent=1) + "\n")
+    pathlib.Path(options.out).write_text(json.dumps(with_warm(body, lines), indent=1) + "\n")
     print(f"per unit: {len(found)} stages priced ({len(SPECS)} measured from ledgers when they hold lines, "
           f"{len(RECORDED)} recorded) -> {options.out}")
+
+
+def write_added(options):
+    """Write into --out in place what the ledgers given hold of each cloud stage outside WARM (its euros, rules and
+    time) and every WARM stage's own timed jobs, every stage they hold no line of kept as it was: the ledgers the rest
+    were read from went with the old disk (2026-10-19)."""
+    out = pathlib.Path(options.out)
+    before, lines = json.loads(out.read_text()), ledger_lines(options.ledger)
+    found = {}
+    for stage, spec in SPECS.items():
+        each, batches = cloud_measures(lines, spec) if "cloud" in spec and stage not in WARM else ([], [])
+        if each:
+            found[stage] = {**entry(stage, spec, each, {"cloud batches": batches}), **forecast(spec),
+                            "time": cloud_times(lines, spec)}
+    read = before["read"] + [path for path in map(costs.scrub, options.ledger) if path not in before["read"]]
+    body = {**before, "read": read, "stages": {**before["stages"], **found}}
+    out.write_text(json.dumps(with_warm(body, lines), indent=1) + "\n")
+    print(f"per unit: {', '.join(found) or 'no stage'} measured from {len(options.ledger)} ledgers, the warm stages' "
+          f"own jobs read, every other stage kept -> {options.out}")
 
 
 def main(argv=None):
@@ -605,6 +662,8 @@ def main(argv=None):
                         help="write only the forecast rules into --out, its measured numbers kept (no ledger read)")
     parser.add_argument("--times-only", action="store_true",
                         help="write only the time fields into --out, its euros kept")
+    parser.add_argument("--add", action="store_true",
+                        help="write the stages the --ledger files hold lines of into --out, every other stage kept")
     options = parser.parse_args(argv)
     if options.rules_only:
         out = pathlib.Path(options.out)
@@ -613,6 +672,11 @@ def main(argv=None):
         return
     if options.times_only:
         write_times(options)
+        return
+    if options.add:
+        if not options.ledger:
+            parser.error("--add reads the --ledger files given")
+        write_added(options)
         return
     if not options.ledger or not options.google:
         parser.error("--ledger and --google are needed unless --rules-only or --times-only")
