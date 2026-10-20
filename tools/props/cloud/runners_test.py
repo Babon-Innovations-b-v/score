@@ -7,6 +7,7 @@ Plain python: python3 tools/props/cloud/runners_test.py
 import json
 import os
 import pathlib
+import subprocess
 import sys
 import tempfile
 import time
@@ -47,7 +48,7 @@ ESTIMATES = {
     "box_masks_cloud": (lambda: box_masks_cloud.price([{}] * 9, "acct"),
                         "9 pictures on 1 card: about 13 min, €0.65; €100.00 spent this month", (3, 240.0)),
     "characters": (lambda: characters.price(["p1", "p2", "p3"], "acct", None),
-                   "3 people on 3 machines: about 100 min, €15.00; €100.00 spent this month", (3, 3, 240.0)),
+                   "3 people on 3 machines: about 56 min, €8.40; €100.00 spent this month", (3, 3, 240.0)),
     "closeups_cloud": (lambda: closeups_cloud.price(40, "acct", 20),
                        "40 close-ups on 1 card: about 24 min, €1.20; €100.00 spent this month", (3, 1, 240.0)),
     "delight": (lambda: delight.price(30, "acct"),
@@ -187,6 +188,30 @@ def test_a_held_character_machine_is_armed_and_deleted():
             characters.held(run, machine, [])
         assert armed_beaten_deleted(tended.done), tended.done
         assert (run.folder / "host").read_text() == "10.0.0.1"
+    finally:
+        characters.set_up, characters.hold = kept
+
+
+def test_a_held_character_machine_whose_set_up_failed_is_deleted_not_held_to_mend():
+    """#21: a set-up that fails ends the run with its people as holes; the machine is never held to mend."""
+    machine, run = machine_and_run()
+    kept = characters.set_up, characters.hold
+    held = []
+
+    def failed_set_up(machine):
+        raise subprocess.CalledProcessError(1, "characters_setup.sh")
+
+    characters.set_up = failed_set_up
+    characters.hold = lambda run, host: held.append(host)
+    try:
+        with Tended() as tended:
+            try:
+                characters.held(run, machine, [pathlib.Path("/tmp/made/nev")])
+            except SystemExit as stopped:
+                assert "nev are holes" in str(stopped), stopped
+            else:
+                raise AssertionError("a failed set-up was held to mend")
+        assert not held and armed_beaten_deleted(tended.done), tended.done
     finally:
         characters.set_up, characters.hold = kept
 

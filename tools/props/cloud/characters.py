@@ -10,13 +10,14 @@ A make folder is ~/.farm-factory-motion/made/<name>/, written by tools/character
 and every file the chain reads (the pictures, the shared look parts, the clips already made). Up there the chain is
 tools/characters/maker/chain.py; what it makes comes back into the folder's `out/`, with `out/make.json` saying what
 each step did and how long it took. The people are spread over machines (spread.py), one person a machine at a
-time; characters_setup.sh sets each machine up once (about half an hour: six environments side by side).
+time; characters_setup.sh sets each machine up once (about 14 minutes: six environments side by side).
 
 A make folder whose spec names another maker program (`program`: rebuild.py, which drapes kept looks again and
 builds them; prop_chain.py, the prop route's steps) runs that program instead of chain.py, on the same machines.
 
 --hold keeps the first machine after its people, for hands-on work over ssh, until the run folder holds `release`
-(or `--minutes`, the run's time limit, has passed).
+(or `--minutes`, the run's time limit, has passed). A machine whose set-up failed is deleted, never held to mend: its
+people are holes, and mending is a new batch (#21).
 The owner's limits, the self-delete, the watchdog, the delete and the ledger are batch.py's.
 """
 import argparse
@@ -44,10 +45,11 @@ KIND = "characters"
 REMOTE = pathlib.PurePosixPath("/root/make")
 # What of the repository the chain needs up there.
 SHIPPED = ("tools", "vendor/kimodo", "vendor/sam3dbody-cpp", "data/characters")
-SETUP_MINUTES = 40
-# One person's chain, a first guess before the first measured run: the picture, the body, two drapes, the hair, the
-# face drawings and the build.
-PERSON_MINUTES = 60
+# Measured (paper/evidence/cloud/ledger.jsonl, the characters runs of 2026-10-09 on L4s): a machine's set-up took 14.1
+# min at the median of 36; one person's chain 33 min at the median of 37 chains and 43 at the longest, so 42 a person
+# (the chain's high) sizes the fleet and the deadline.
+SETUP_MINUTES = 14
+PERSON_MINUTES = 42
 # Room for six environments, CUDA, the Llama 3 encoder, the picture models and Hi3DGen's weights.
 DISK_GB = 200
 POLL_SECONDS = 30
@@ -144,19 +146,21 @@ def hold(run, host):
 
 
 def held(run, machine, makes):
-    """One machine kept for hands-on work: set up, its people made in turn, then held until `release`."""
+    """One machine kept for hands-on work: set up, its people made in turn (one that fails is a hole), then held until
+    `release`. A set-up that fails ends the run: the machine is deleted, never held to mend (#21), and its people are
+    holes."""
     with spread.tended(run, machine) as host:
         (run.folder / "host").write_text(host)
         try:
             set_up(machine)
-            for make in makes:
-                try:
-                    make_one(run, machine, make, 0)
-                except spread.JobFailed as failure:
-                    batch.say(f"{make.name} failed: {failure}")
         except subprocess.CalledProcessError as failure:
-            batch.say(f"the setup failed ({failure}; see {machine['folder'] / 'setup.log'}); holding the machine to "
-                      "mend it")
+            raise SystemExit(f"the setup failed ({failure}; see {machine['folder'] / 'setup.log'}): "
+                             f"{', '.join(make.name for make in makes)} are holes") from failure
+        for make in makes:
+            try:
+                make_one(run, machine, make, 0)
+            except spread.JobFailed as failure:
+                batch.say(f"{make.name} failed, a hole: {failure}")
         hold(run, host)
 
 
