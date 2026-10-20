@@ -179,6 +179,9 @@ def test_configured_library_runs_once():
     value = place_words.__getitem__
     assert value(place_words.index("--world") + 1) == WORLD and value(place_words.index("--place") + 1) == PLACE
     assert value(place_words.index("--seed") + 1) == "7"
+    route = library.runner_route(runner)
+    assert value(place_words.index("--route") + 1) == route == world_words[world_words.index("--route") + 1]
+    assert runner.key(runner.stages[library.PLACE_ROW], PLACE)["params"]["route"] == route  # in the key
     assert value(place_words.index("--store") + 1) == str((HOME / "configured/store/objects").resolve())
     assert value(place_words.index("handover") - 1) == str(HOME / "configured/library")  # --root
     assert "--world" in world_words, world_words
@@ -189,6 +192,16 @@ def test_configured_library_runs_once():
     assert again[f"library@{PLACE}"] == "fresh", again
     assert len(calls.read_text().splitlines()) == 2, "a second run called the library again"
     assert library.world_completion(runner, [PLACE]) == []
+
+
+def test_route():
+    rows = [graph.Stage(name, "place", make_text, TOY) for name in ("pixal", "surfaces-bake", "made")]
+    codes = {"pixal": "a", "surfaces-bake": "b", "made": "c"}
+    before = library.route(lambda stage: codes[stage.name], rows)
+    codes["made"] = "c2"
+    assert library.route(lambda stage: codes[stage.name], rows) == before, "a stage off the route moved the route"
+    codes["surfaces-bake"] = "b2"
+    assert library.route(lambda stage: codes[stage.name], rows) != before, "a route stage's code did not move it"
 
 
 def test_coverage():
@@ -302,7 +315,7 @@ def test_defaults_and_the_cloud_store():
         assert backend.kind(found) == backend.COMMAND
         os.environ["SCORE_LIB_ROOT"] = "/the/environment"
         assert backend.settings()["SCORE_LIB_ROOT"] == "/the/environment", "the default won over the environment"
-        words = backend.arguments(backend.settings(), {"world": "w", "place": None, "seed": 1, "commit": "c",
+        words = backend.arguments(backend.settings(), {"world": "w", "place": None, "seed": 1, "commit": "c", "route": "r",
                                                        "store": "s", "repo": "r", "out": "o"})
         assert words[:4] == ["lib", "--x", "--root", "/the/environment"] and "--place" not in words, words
         environment = backend.command_environment(backend.settings(), "s", "r")

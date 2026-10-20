@@ -42,7 +42,7 @@ def read_library(root, inventories):
     """(the library index, its record entry) of the library at `root`; an empty index with why when there is none."""
     if root is None or not (root / "index" / "model.json").is_file():
         return {}, {"root": str(root) if root else None, "why": "no library folder with index/model.json"}
-    models = library.library_models(root)
+    models = library.library_models(root, library.todays_route())
     return library.index(models, inventories), {"root": str(root), "models": len(models)}
 
 

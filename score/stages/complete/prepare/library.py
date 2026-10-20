@@ -7,21 +7,28 @@ no size, so a model's size is its source row's in the scene inventory it was mad
 `source_name`, or that name's object kind); a model with no such row has no size and matches nothing.
 
 Reused only when made under today's route (owner, 2026-10-20, #21/#41): a model is reused when the owner locked it
-(index state `locked`), or when its provenance names today's route (`route` == ROUTE: the shared loop's prop
-pipeline and the finish route) and the runner accepted it there, so today's gates passed. Any other match is remade:
+(index state `locked`), or when its provenance names today's route (`route` == todays_route(): the hash of the
+prop pipeline's and finish route's code and gates, worked out as the library rows' key works it out and stamped by
+their handover) and the runner accepted it there, so today's gates passed. Any other match is remade:
 one the pipeline made from a picture (tags `prop`, `machine`, `crop`) under an older route counts as `old`, a
 code-built one (`piece`, or no tag) as `code`.
 """
-from score import library
+from score import graph, library, stages
+from score.stages import library as library_rows
 from score.stages.complete.prepare import groups
 
 PIPELINE_TAGS = ("prop", "machine", "crop")
-ROUTE = "shapes-first+finish-route"  # today's route; bump it when the prop pipeline, finish route or their gates change
 NO_MATCH = {"pipeline": [], "old": [], "code": []}
 
 
-def library_models(root):
-    """[{address, id, place, source, tag, today}] of the library's models, from its index and each entry's record."""
+def todays_route():
+    """Today's route: the stage table's route stages' code and gates, hashed as the library rows' key hashes them."""
+    return library_rows.route(graph.stage_code, stages.STAGES)
+
+
+def library_models(root, route):
+    """[{address, id, place, source, tag, today}] of the library's models, from its index and each entry's record;
+    `today` when reusable under `route`."""
     found = []
     for entry in library.index(root, "model")["entries"]:
         name, _, version = entry["address"].partition("/")[2].partition("@")
@@ -30,13 +37,13 @@ def library_models(root):
         found.append({"address": entry["address"], "id": name, "place": provenance.get("place"),
                       "source": provenance.get("source_name") or name,
                       "tag": ((entry.get("tags") or {}).get("model") or [None])[0],
-                      "today": reusable(entry, provenance)})
+                      "today": reusable(entry, provenance, route)})
     return found
 
 
-def reusable(entry, provenance):
-    """Whether a model may be reused: the owner locked it, or the runner took it under today's route."""
-    return entry.get("state") == "locked" or (provenance.get("route") == ROUTE and bool(provenance.get("accept")))
+def reusable(entry, provenance, route):
+    """Whether a model may be reused: the owner locked it, or the runner took it under `route` (today's)."""
+    return entry.get("state") == "locked" or (provenance.get("route") == route and bool(provenance.get("accept")))
 
 
 def source_row(model, rows_by_place):
