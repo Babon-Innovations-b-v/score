@@ -11,6 +11,7 @@ each came from. Groups smaller than GROUP_MIN go together in "Other".
 import re
 
 from score.dashboard.state.library import KINDS, kind_label
+from score.dashboard.state.names import everyday
 
 TAG_LEVELS = {"model": ["model"], "surface": ["family", "recipe"], "sound": ["category"], "effect": ["effect"],
               "character": ["character"], "layer": ["layer"]}
@@ -39,7 +40,7 @@ def tag_key(entry, tag):
 
 
 def label_of(key):
-    return "Other" if key == OTHER else key.replace("_", " ").capitalize()
+    return "Other" if key == OTHER else everyday(key.replace("_", " ").capitalize())
 
 
 def tag_label(tag, key):
@@ -123,7 +124,7 @@ def folders(entries):
     builder = Builder()
     tree = []
     for kind, _ in KINDS:
-        of_kind = [entry for entry in entries if entry.kind == kind]
+        of_kind = [entry for entry in entries if (entry.shelf or entry.kind) == kind]
         if of_kind:
             tree.append(builder.node(kind, kind_label(kind), of_kind,
                                      builder.by_tags(kind, of_kind, TAG_LEVELS.get(kind, []))))

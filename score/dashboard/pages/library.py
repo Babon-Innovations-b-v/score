@@ -62,10 +62,12 @@ def folder_node(node):
 
 def item_node(entry):
     """An entry as a tree leaf: its state's dot, its thumbnail, its name, its score; a link to its page."""
-    score = lib.percent(entry.score)
+    means = lib.score_meaning(entry)
+    score = lib.percent(entry.score) if means else None
     return {"label": entry.title, "count": score, "tone": TONES.get(entry.state, "idle"), "href": lib.entry_url(entry),
             "picture": f"/library-files/thumbs/{entry.picture}.jpg" if entry.picture else None,
-            "tip": f"{entry.state}, version {entry.version}" + (f", score {score}" if score is not None else "")}
+            "tip": (f"{entry.about}; " if entry.about else "") + f"{entry.state}, version {entry.version}"
+            + (f"; score {score}: {means}" if score is not None else "")}
 
 
 def node_by_id(tree, node_id):
@@ -139,10 +141,11 @@ def entry_viewer(request, kind, entry_id, version):
 
 
 def score_tip(entry):
-    """The score's parts as hover text: "holes 100, seams 92, by eye not measured"."""
-    return ", ".join(f"{part['name'].replace('_', ' ')} "
-                     + (str(lib.percent(part["value"])) if part["value"] is not None else "not measured")
-                     for part in entry.score_parts) or "its kind's own scoring"
+    """What the score measures, then its parts, as hover text: "how sound its mesh is: ...; holes 100, seams 92"."""
+    parts = ", ".join(f"{part['name'].replace('_', ' ')} "
+                      + (str(lib.percent(part["value"])) if part["value"] is not None else "not measured")
+                      for part in entry.score_parts)
+    return "; ".join(each for each in (lib.score_meaning(entry), parts) if each)
 
 
 def versions_of(shown, entry):
@@ -157,7 +160,7 @@ def takes_of(shown, entry):
 
 # --- each kind's viewer and numbers ------------------------------------------------------------------------------
 
-PLAYED = {"surface": "surface", "effect": "effect", "light": "light"}  # drawn by the item viewer from their facts
+PLAYED = {"surface": "surface", "effect": "effect", "light": "sky", "lamp": "light"}  # item3d.js draws these from facts
 
 
 def file_url(shown, each):
@@ -165,21 +168,29 @@ def file_url(shown, each):
 
 
 def played(entry):
-    """Whether this cockpit has what item3d.js draws a surface, effect or light from: its finish, settings or lamps."""
+    """Whether this cockpit has what item3d.js draws a surface, effect, sky or lamps from: its finish, settings, its
+    sky picture, or its lamps."""
     return {"surface": bool((entry.finish or {}).get("colour")), "effect": bool(entry.facts.get("settings")),
-            "light": bool(entry.facts.get("lamps"))}[entry.kind]
+            "light": bool(entry.facts.get("sky") and entry.picture), "lamp": bool(entry.facts.get("lamps"))}[shelf(entry)]
+
+
+def shelf(entry):
+    return entry.shelf or entry.kind
 
 
 def view_of(shown, entry):
-    """Which viewer the page holds: 3d (item3d.js), sound (takes.js), place (the place viewer in a frame), facts (an
-    algorithm's purpose, what it reads and makes) or picture (what it plays is not in this cockpit)."""
+    """Which viewer the page holds: 3d (item3d.js), sound (takes.js), demo (an algorithm's work on a real example,
+    demo.js), diagram (what an algorithm reads and makes, while it has no example), place (the place viewer in a
+    frame) or picture (what it plays is not in this cockpit)."""
     if entry.kind == "sound":
         return "sound"
     if entry.kind == "algorithm":
-        return "facts"
+        return "demo" if "missing" not in (shown.demo(entry.entry_id) or {"missing": ""}) else "diagram"
+    if shelf(entry) in PLAYED:
+        return "3d" if played(entry) else "picture"
     if entry.kind in ("place", "layer"):
         return "place" if place_copy(entry) else "picture"
-    if played(entry) if entry.kind in PLAYED else file_url(shown, entry.web3d_light) or file_url(shown, entry.web3d):
+    if file_url(shown, entry.web3d_light) or file_url(shown, entry.web3d):
         return "3d"
     return "picture"
 
@@ -208,7 +219,7 @@ def picture_url(shown, entry):
 def viewer_of(shown, entry):
     """What item3d.js plays: {mode (copy, kit, surface, effect, light), light (the light copy's url), full (the whole
     copy's, when this cockpit holds it), finish, print, token, palette, settings, lamps}."""
-    mode = "kit" if entry.kind == "kit" else PLAYED.get(entry.kind, "copy")
+    mode = "kit" if entry.kind == "kit" else PLAYED.get(shelf(entry), "copy")
     found = {"mode": mode, "light": file_url(shown, entry.web3d_light), "full": file_url(shown, entry.web3d)}
     if mode == "surface":
         printed = (entry.finish or {}).get("print")
@@ -218,6 +229,8 @@ def viewer_of(shown, entry):
         found["settings"] = entry.facts.get("settings")
     elif mode == "light":
         found["lamps"] = entry.facts.get("lamps") or []
+    elif mode == "sky":
+        found.update(sky=entry.facts.get("sky"), picture=picture_url(shown, entry))
     return found
 
 
@@ -261,8 +274,34 @@ def numbers_of(entry, copy_here):
         "surface": [number("token", facts.get("token"), "", "its palette token")],
         "sound": [number("loudness", facts.get("lufs"), "LUFS", "integrated loudness"),
                   number("length", facts.get("seconds"), "s", "its first take")],
-        "effect": effect_numbers(facts.get("settings")), "light": lamp_numbers(facts.get("lamps") or [])}
-    return by_kind.get(entry.kind, [])
+        "effect": effect_numbers(facts.get("settings")), "lamp": lamp_numbers(facts.get("lamps") or [])}
+    return by_kind.get(shelf(entry), [])
+
+
+def demo_of(shown, entry):
+    """An algorithm's demo, or None while it has none."""
+    found = shown.demo(entry.entry_id) if entry.kind == "algorithm" else None
+    return found if found and "missing" not in found else None
+
+
+def diagram_of(shown, entry):
+    """What an algorithm reads and makes, for the plain diagram shown while it has no example: {reads, makes, steps,
+    why (hover text: why there is no example)}."""
+    found = shown.demo(entry.entry_id) or {"missing": "its example has not been made on the store's machine yet"}
+    stage = entry.facts.get("stage") or "its output"
+    return {"reads": entry.facts.get("reads") or [], "makes": stage.replace("-", " "),
+            "steps": entry.facts.get("steps") or 0, "why": found.get("missing", "")}
+
+
+def step_labels(demo):
+    """The names of a demo's steps, in order: a relief's, else its shapes'."""
+    steps = (demo.get("relief") or {}).get("steps") if demo.get("view") == "relief" else demo.get("steps")
+    return [step["label"] for step in steps or []]
+
+
+def demo_numbers(demo):
+    return [number(each["label"], each.get("value"), each.get("unit", ""), each.get("tip")) for each in
+            (demo or {}).get("numbers", [])[:4]]
 
 
 def item_page(request, kind, entry_id, version):
@@ -271,11 +310,14 @@ def item_page(request, kind, entry_id, version):
     shown, entry = found_entry(kind, entry_id, version)
     missing, view = shown.missing(entry), view_of(shown, entry)
     return render(request, "pages/library_item.html", {
-        "entry": entry, "kind_label": lib.kind_label(entry.kind), "tone": TONES.get(entry.state, "idle"),
+        "entry": entry, "kind_label": lib.kind_label(shelf(entry)), "tone": TONES.get(entry.state, "idle"),
         "picture": picture_url(shown, entry), "picture_absent": absent(missing, [entry.picture_file]),
         "absent": absent(missing, viewer_names(entry)),
-        "score": lib.percent(entry.score), "score_tip": score_tip(entry), "versions": versions_of(shown, entry),
-        "view": view, "viewer": viewer_of(shown, entry), "numbers": numbers_of(entry, view == "3d"),
+        "score": lib.percent(entry.score) if lib.score_meaning(entry) else None,
+        "score_tip": score_tip(entry), "versions": versions_of(shown, entry),
+        "view": view, "viewer": viewer_of(shown, entry),
+        "numbers": numbers_of(entry, view == "3d") + demo_numbers(demo_of(shown, entry)),
+        "demo": demo_of(shown, entry), "steps": step_labels(demo_of(shown, entry) or {}), "diagram": diagram_of(shown, entry) if view == "diagram" else None,
         "takes": takes_of(shown, entry), "place": place_copy(entry),
         "three_d": lib.viewer_url(entry) if model_file(entry) else None,
         "owner": is_owner(request.user), "asked": library_actions.waiting().get(entry.address)})

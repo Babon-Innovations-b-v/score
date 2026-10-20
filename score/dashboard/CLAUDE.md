@@ -96,11 +96,19 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `viewer_of`): a model, kit or character's web copy turned in `static/pages/item3d.js` (its light copy, then its
   whole copy where this cockpit holds it; a kit's pieces side by side; a copy's clips on a time scrubber), a surface
   on a lit sphere and tile with palette colour, shine, wear and seed sliders (a preview's variants, not its recipe's
-  bake), an effect played from its settings with a scrubber, a light's lamps over a neutral test scene, a sound's
-  takes as waveforms played side by side (`static/pages/takes.js`), a place or layer's place viewer in a frame, an
-  algorithm's purpose, what it reads and what it makes; else its picture. Beside it at most three numbers of its kind
-  (`numbers_of`, hover text each; size and clips filled once its copy loads) and its score (its parts as hover
-  text); its versions, 3D link and the owner's lock, withdraw and refine kept small. No file list, ids or blobs on the
+  bake), an effect played from its settings with a scrubber, a sky (kind `light`, shown as Skies: a sky is no light,
+  owner 2026-10-20) as its dome looked around in from inside or a planet's backdrop as its globe, a place's lamps (the
+  Lamps shelf: a `light.<place>` layer, `library.shelf_of`; its `lamps.json`) at their spots over a neutral test
+  scene, a sound's takes as waveforms played side by side (`static/pages/takes.js`), a place or layer's place viewer
+  in a frame, an algorithm's own work on one real example (`static/pages/demo.js`: its steps played on a plan, a side
+  chart or a raised relief, a path flown as a camera, a slider showing its output at another setting; the demo made
+  on the store's machine by `score/stages/library/demos.py`, read from the library cache's `demos.json`, hosted
+  the export's `library/demos.json`), else a plain diagram of what it reads and makes, with why there is no example
+  as hover text; else its picture. Every entry is named in everyday words (`state/names.py`: no asides, brackets or
+  technical terms; the library's own title is the name's hover text, ids unchanged). Beside it at most four numbers
+  of its kind (`numbers_of`, a demo's own; hover text each; size and clips filled once its copy loads) and its score
+  only where its kind's score means something (`library.SCORE_MEANS`, what it measures and its parts as hover text;
+  never an algorithm's, which measures its code snapshot); its versions, 3D link and the owner's lock, withdraw and refine kept small. No file list, ids or blobs on the
   page (they stay in `/api/library/entry`). What a viewer plays is the entry's `facts` (`state/library.py`
   `kind_facts`, `viewer_facts`: read from the record, and from a surface's material, an effect's settings or a
   light's OpenUSD in the blob folder or library cache, which the sync pass fills: `score.stages.library.pictures`

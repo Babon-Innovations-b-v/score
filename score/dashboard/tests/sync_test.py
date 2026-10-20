@@ -32,6 +32,7 @@ def offline(monkeypatch):
     """Prepare and the library's pictures as lines, so no test pass reads the real library or fetches a picture."""
     monkeypatch.setattr(client, "remake_prepared", lambda: "remake batch (estimate): test")
     monkeypatch.setattr(client, "library_pictures", lambda: "library pictures: test")
+    monkeypatch.setattr(client, "library_demos", lambda: "library demos: test")
 
 
 def fed(monkeypatch):
@@ -404,7 +405,7 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     # and the holes after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
     assert "holes failed: exit 1: no store at " in said, said
     # priced before the push
-    assert said.endswith(f"{PRICED}; remake batch (estimate): test; benchmarks: none listed; library pictures: test")
+    assert said.endswith(f"{PRICED}; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")
     assert priced == [world.source.world.name]
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 
@@ -431,7 +432,7 @@ def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_p
     monkeypatch.setattr(client, "runner_price", lambda repo, environment: (None, "the runner's price failed: exit 1"))
     said = client.sync_pass(hosted, world.source, FakeBackend())
     assert said.startswith("REFUSED: nothing synced: the runner's price failed: exit 1; ") and "holes" in said
-    assert said.endswith("; remake batch (estimate): test; benchmarks: none listed; library pictures: test")
+    assert said.endswith("; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")
     assert hosted.commits == [] and hosted.chunks == [] and hosted.reports == []
 
 

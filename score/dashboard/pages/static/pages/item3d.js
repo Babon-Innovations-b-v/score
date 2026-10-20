@@ -1,7 +1,8 @@
 // A library item on its own (pages/library.py viewer_of): a model, kit or character's web copy turned and zoomed
 // (its light copy first, its whole copy after when this cockpit holds it; a kit's pieces laid side by side; a copy's
 // clips played), a surface on a lit sphere and tile with its settings on sliders, an effect's emitter played from its
-// settings with a time scrubber, and a light's lamps over a neutral test scene. Colours come from design tokens.
+// settings with a time scrubber, a place's lamps over a neutral test scene, and a sky: its dome looked around in from
+// inside, or a planet's backdrop as its globe. Colours come from design tokens.
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
@@ -327,14 +328,31 @@ function lampOf(lamp) {
   }
   const point = new THREE.PointLight(colour, lamp.power, 0, 2);
   point.position.set(1.2, 2.2, 1.2);
+  if (lamp.spot) {  // a place's lamp where it stands, its rig's middle over the test scene, with a bulb to see it by
+    point.position.set(lamp.spot[0] - rigMiddle.x, lamp.spot[1], lamp.spot[2] - rigMiddle.z);
+    point.add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 8), new THREE.MeshBasicMaterial({ color: colour })));
+  }
   point.castShadow = true;
   return point;
 }
 
+// The middle of a place's lamps across the floor, and how far they reach from it.
+const rigMiddle = new THREE.Vector3();
+let rigReach = 0;
+function measureRig(lamps) {
+  const spots = lamps.filter((lamp) => lamp.spot).map((lamp) => new THREE.Vector3(...lamp.spot));
+  if (!spots.length) return;
+  const box = new THREE.Box3().setFromPoints(spots);
+  box.getCenter(rigMiddle);
+  rigReach = Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
+}
+
 function openLight() {
   renderer.shadowMap.enabled = true;
+  measureRig(given.lamps || []);
   const neutral = new THREE.MeshStandardMaterial({ color: token("--color-view-light"), roughness: 0.55 });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshStandardMaterial({ color: token("--color-view-plinth"), roughness: 0.9 }));
+  const side = Math.max(8, rigReach + 4);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(side, side), new THREE.MeshStandardMaterial({ color: token("--color-view-plinth"), roughness: 0.9 }));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   const shapes = [new THREE.SphereGeometry(0.4, 64, 32), new THREE.BoxGeometry(0.7, 0.7, 0.7), new THREE.CylinderGeometry(0.3, 0.3, 1, 48)]
@@ -346,7 +364,30 @@ function openLight() {
     });
   const objects = new THREE.Group().add(...shapes);
   scene.add(floor, objects, ...(given.lamps || []).map(lampOf));
-  frame(new THREE.Box3().setFromObject(objects));
+  frame(new THREE.Box3().setFromObject(rigReach ? floor : objects));
+  shown();
+}
+
+// --- a sky: its picture as a dome round the viewer, looked around in; a planet's backdrop as its globe ---------------
+
+async function openSky() {
+  const picture = await new THREE.TextureLoader().loadAsync(given.picture);
+  picture.colorSpace = THREE.SRGBColorSpace;
+  if (given.sky === "dome") {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(50, 64, 32), new THREE.MeshBasicMaterial({ map: picture, side: THREE.BackSide }));
+    scene.add(dome);
+    camera.position.set(0, 0, 0.01);  // inside it: dragging turns the view
+    orbit.target.set(0, 0, 0);
+    orbit.enableZoom = false;
+    orbit.rotateSpeed = -0.35;
+    orbit.autoRotateSpeed = 0.4;
+  } else {
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 48), new THREE.MeshBasicMaterial({ map: picture }));
+    scene.add(globe);
+    scene.background = new THREE.Color(token("--color-bg"));
+    frame(new THREE.Box3().setFromObject(globe), new THREE.Vector3(0, 0.2, 1.2));
+  }
+  orbit.update();
   shown();
 }
 
@@ -363,7 +404,7 @@ function draw(now) {
   requestAnimationFrame(draw);
 }
 
-const OPEN = { copy: openCopy, kit: openCopy, surface: openSurface, effect: openEffect, light: openLight };
+const OPEN = { copy: openCopy, kit: openCopy, surface: openSurface, effect: openEffect, light: openLight, sky: openSky };
 resize();
 new ResizeObserver(resize).observe(holder);
 requestAnimationFrame(draw);

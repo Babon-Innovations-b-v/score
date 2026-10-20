@@ -349,8 +349,19 @@ body.view3d.embed #status { margin: 0; padding: 4px 10px; border-radius: 999px; 
 .item-pic { margin: 0; } .item-pic .pic { width: 100%; border-radius: var(--radius); display: block; }
 .item-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 16px; }
 .item-actions form { margin: 0; }
-.item-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0 0 16px; }
-.item-facts dt { color: var(--soft); }
+.demo-view { cursor: crosshair; }
+.demo-tip { position: absolute; left: 12px; top: 12px; padding: 4px 8px; border-radius: var(--radius); font-size: 13px;
+            background: var(--color-scrim); pointer-events: none; }
+.demo-side { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.demo-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.demo-steps li { cursor: pointer; color: var(--soft); }
+.demo-steps li.on { color: inherit; }
+.demo-slider { display: flex; gap: 8px; align-items: center; width: 100%; font-size: 13px; }
+.demo-slider input { flex: 1; }
+.diagram { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; max-width: none; }
+.diagram-box { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.diagram-it { border-color: var(--color-accent); }
+.diagram-arrow { font-size: 24px; color: var(--soft); }
 .takes { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .take { margin: 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
 .take canvas { display: block; width: 100%; height: 96px; cursor: pointer; }
