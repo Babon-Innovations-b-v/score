@@ -1,5 +1,6 @@
 """Every dashboard test runs in temp folders: PROPS_HOME and the dashboard's home are made here before Django's
 settings are read, so no test can reach the real store or write beside it."""
+import json
 import os
 import pathlib
 import sys
@@ -37,3 +38,15 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(actions, "agent_started", lambda: False)
     fixture.FakeBackend.calls.clear()
     return built
+
+
+@pytest.fixture
+def read(world):
+    """alpha's and beta's concepts picked and their scene inventories read from them, so their numbers count
+    (CONTEXT.md "scene inventory"; alpha's its concepts.json picture, beta's a sha of its own: its picture is lost)."""
+    from score.dashboard.tests import fixture
+    alpha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
+    for place, sha in (("alpha", alpha), ("beta", "b" * 64)):
+        fixture.an_inventory_read(world.store, world.data, place, sha)
+    world.source.refresh()
+    return world

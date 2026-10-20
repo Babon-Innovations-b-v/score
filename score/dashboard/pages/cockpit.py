@@ -68,24 +68,39 @@ def tone_of(row):
     return KIND_TONES[row["worst"]] if row["worst"] else "done"
 
 
+# What a place shows while its scene inventory does not count (screens.design_state), and its hover text.
+DESIGN_WORDS = {"draw": ("to draw", "no concept yet: draw it"),
+                "review": ("in review", "its concept is not picked: no scene inventory before it is"),
+                "read": ("inventory to read", "picked; its scene inventory is not read from this concept yet"),
+                "design": ("in design", "no place in it has a scene inventory read from its picked concept yet")}
+
+
 def place_tiles(world, names, rows):
-    """{place: {place, href, name, about, picture, made, needed, gaps, tone, holds, more}} of every place of the
-    environment (a WorldState), `names` their short names, `about` its look's long words (hover text), `picture` its
-    concept's thumbnail (None: its concept is lost, never a render instead), with its row of gaps.per_place: gaps
-    None while its gaps are not known."""
+    """{place: {place, href, name, about, picture, made, needed, gaps, tone, holds, more, design, design_tip}} of every
+    place of the environment (a WorldState), `names` their short names, `about` its look's long words (hover text),
+    `picture` its concept's thumbnail (None: its concept is lost, never a render instead), with its row of
+    gaps.per_place: gaps None while its gaps are not known; made, needed and gaps None and its design state in words
+    while its scene inventory does not count (CONTEXT.md "scene inventory": no number from an older one)."""
     by_place = {row["place"]: row for row in rows}
     found = {}
     for style, card in [(style, card) for engine in world.engines for style in engine.styles for card in style.places]:
         row = by_place.get(card.place)
-        made, needed = made_of(card)
+        design = screens.design_state(world, card.place)
+        made, needed = made_of(card) if design is None else (None, None)
         found[card.place] = {"place": card.place, "href": f"/place/{card.place}/",
                              "name": names.get(card.place, card.place),
                              "about": style.label if style.short else None,
                              "picture": screens.thumb(world.concepts.get(card.place)),
                              "made": made, "made_tip": f"made {made} of {needed}", "needed": needed,
                              "gaps": None if row is None or row["not_checked"] else row["gaps"],
-                             "tone": tone_of(row), "holds": [], "more": 0}
+                             "tone": tone_of(row), "holds": [], "more": 0, **design_of(design)}
     return found
+
+
+def design_of(design):
+    """{design, design_tip} of a design state (DESIGN_WORDS), both None once the place's inventory counts."""
+    words, tip = DESIGN_WORDS.get(design, (None, None))
+    return {"design": words, "design_tip": tip}
 
 
 def parent_of(world, node, known):
@@ -112,13 +127,15 @@ def inside_of(world, node, known):
 
 def nested_tile(world, node, by_place, names):
     """A tile of a place or shell with places inside: its progress and gaps summed over itself and every place within
-    it, its worst tone, its own concept (None when it has none, never one from inside), `holds` what sits directly in
+    it whose scene inventory counts (none: "in design"), its worst tone, its own concept (None when it has none, never one from inside), `holds` what sits directly in
     it holding places itself (`holder`), `more` how many others sit directly in it; it opens one level down
     (`/?in=<node>`)."""
     inside = inside_of(world, node, by_place)
     parts = [by_place[place] for place in ([node] if node in by_place else []) + inside]
     checked = [part["gaps"] for part in parts if part["gaps"] is not None]
-    made, needed = sum(part["made"] for part in parts), sum(part["needed"] for part in parts)
+    shown = [part for part in parts if part["design"] is None]
+    made = sum(part["made"] for part in shown) if shown else None
+    needed = sum(part["needed"] for part in shown) if shown else None
     tones = {part["tone"] for part in parts}
     tone = next((tone for tone in KIND_TONES.values() if tone in tones), "done" if tones == {"done"} else "idle")
     children = [child for child in [*by_place, *world.shells] if parent_of(world, child, by_place) == node]
@@ -128,7 +145,8 @@ def nested_tile(world, node, by_place, names):
             "about": ", ".join([f"{held['name']} ({held['count']} {held['unit']})" for held in holds] + leaves),
             "picture": screens.thumb(world.concepts.get(node)),
             "made": made, "needed": needed, "made_tip": f"made {made} of {needed}",
-            "gaps": sum(checked) if checked else None, "tone": tone, "holds": holds, "more": len(leaves)}
+            "gaps": sum(checked) if checked else None, "tone": tone, "holds": holds, "more": len(leaves),
+            **design_of(None if shown else "design")}
 
 
 def holder(world, node, by_place, names):

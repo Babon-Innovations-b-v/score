@@ -19,6 +19,10 @@
     <button type="button" class="button" id="concept-pick" data-sha="" title="unlock it to mark and draw again (until the design is approved)" data-v>Unlock</button>
     <span class="dot" id="concept-said" hidden></span>
     {% endif %}
+    {% if inventory %}<div class="concept-inventory"><span class="num-label" data-v>scene inventory</span>
+      {% if inventory.state == "made" %}<ul class="concept-rows">{% for row in inventory.rows %}<li><span data-v>{{ row.name }}</span>{% if row.count != 1 %} <span class="soft" data-v>&times;{{ row.count }}</span>{% endif %}</li>{% endfor %}</ul>
+      {% else %}<div class="node-row" title="not read from this concept yet{% if inventory.older %}; the one there is from an older concept and counts for nothing{% endif %}">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span data-v>to read</span></div>{% endif %}
+    </div>{% endif %}
   </aside>
 </div>
 {% if can and not picked %}<section class="concept-wording" aria-label="what a draw sends">

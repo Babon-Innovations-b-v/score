@@ -66,7 +66,7 @@ def month_read():
 
 
 @pytest.fixture
-def cockpit(world, settings, tmp_path):
+def cockpit(world, read, settings, tmp_path):
     """The fixture environment with alpha's gaps priced (the close-up on the prop route, settle off it and measured,
     the sound guessed), prepare's record, and the basket made."""
     items = a_gaps_finding(world, settings, tmp_path)
@@ -238,3 +238,32 @@ def test_each_read_of_the_month_keeps_its_day_so_the_stats_show_how_the_month_gr
     assert first.bill_days == [{"day": today, "cloud": 2118.87, "models": None}]
     unread = MONTH.model_copy(update={"month": today[:7], "lines": []})
     assert money.with_bill_days(unread, tmp_path).bill_days == first.bill_days  # a line not read keeps the day's
+
+
+def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_read_from_its_picked_concept(world):
+    from score.dashboard.tests import fixture
+    from score.dashboard.tests.pages_test import signed_in
+    from score.review import concepts
+
+    def alpha():
+        world.source.refresh()
+        return next(place for place in screens.environment(world.source, MONTH)["places"] if place["place"] == "alpha")
+    shown = alpha()
+    assert (shown["design"], shown["progress"], shown["gaps"]) == ("review", None, None)  # drawn, not picked
+    html = signed_in().get("/").content.decode()
+    assert "data-v>in review</span>" in html and "data-v>to draw</span>" in html and 'class="ring' not in html
+    sha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
+    fixture.an_inventory_read(world.store, world.data, "alpha", sha)
+    shown = alpha()
+    assert shown["design"] is None and shown["progress"]["needed"] > 0 and shown["gaps"] is not None
+    assert screens.place(world.source, "alpha", None)["progress"] is not None
+    inventory = world.data / "inventory/alpha.json"
+    inventory.write_text(inventory.read_text().replace(sha, "o" * 64))  # read from an older concept
+    shown = alpha()
+    assert (shown["design"], shown["progress"], shown["gaps"]) == ("read", None, None)
+    assert screens.place(world.source, "alpha", None)["items"] == []  # no gap of it, in 3D either
+    inventory.write_text(inventory.read_text().replace("o" * 64, sha))
+    concepts.recorded(world.store, "concepts/alpha/picks/2026-10-20T10-00-00.json",
+                      {"place": "alpha", "sha": None, "by": "joey", "at": "2026-10-20T10:00:00+00:00"})
+    shown = alpha()  # unlocked: its inventory counts for nothing again
+    assert (shown["design"], shown["progress"]) == ("review", None)

@@ -135,7 +135,7 @@ def test_the_3d_viewer_without_a_copy_says_so(world):
     assert signed_in("other").get("/view/nowhere").status_code == 404
 
 
-def test_the_3d_viewer_loads_a_places_copy_with_its_layer_makers(world):
+def test_the_3d_viewer_loads_a_places_copy_with_its_layer_makers(world, read):
     import json
     folder = world.root / "web" / "alpha"
     folder.mkdir(parents=True)
@@ -305,7 +305,7 @@ def test_every_priced_step_and_place_has_plain_words():
     assert plain.lost_item("place:lost:earth-seed:usd-r3/flat:x") == "usd-r3/flat:x"  # an item may hold a colon
 
 
-def test_the_viewer_outlines_the_gaps_when_asked(world, settings, tmp_path):
+def test_the_viewer_outlines_the_gaps_when_asked(world, settings, tmp_path, read):
     import json
     a_gaps_finding(world, settings, tmp_path)
     (world.root / "web/alpha").mkdir(parents=True)
@@ -426,7 +426,7 @@ def test_every_screen_shows_numbers_not_prose(world, settings, tmp_path, monkeyp
         assert "Traceback" not in html and "/api/money/stop" not in html and "/api/money/month" not in html, page
 
 
-def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, settings, tmp_path, monkeypatch):
+def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, settings, tmp_path, monkeypatch, read):
     from score.dashboard.tests.screens_test import a_remake
     a_gaps_finding(world, settings, tmp_path)
     a_gaps_price(world, milestones=milestones(), eta={"likely_minutes": 95.0, "high_minutes": 130.0, "unknown": []})
@@ -453,7 +453,7 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     assert 'href="/buy/">Review and buy</a>' in top
 
 
-def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_inside_it(world, settings, tmp_path):
+def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_inside_it(world, settings, tmp_path, read):
     a_gaps_finding(world, settings, tmp_path)
     a_gaps_price(world)
     (world.data / "places").mkdir(exist_ok=True)
@@ -477,7 +477,7 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
     assert "Outside" not in html
     head = html[html.index('<section class="phead"'):html.index('<section class="ptiles"')]
     assert '<h1 class="phead-name" data-v>Beta</h1>' in head and 'href="/place/beta/"' in head  # itself, on top
-    assert 'href="/concept/beta/"' in head and "tone-gap-route" in head  # its Draw, its and alpha's gaps summed
+    assert 'href="/concept/beta/"' not in head and "tone-gap-route" in head  # picked: locked; its and alpha's gaps summed
     assert '<a href="/?in=yard" data-v>Yard</a>' in html and "<b data-v>Beta</b>" in html
     assert client.get("/?in=alpha").status_code == 404 and client.get("/?in=empty").status_code == 404
 
@@ -521,7 +521,7 @@ def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, set
     assert said in unescape(signed_in().get("/").content.decode())  # the why is the hover text
 
 
-def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, settings, tmp_path, monkeypatch):
+def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, settings, tmp_path, monkeypatch, read):
     a_gaps_finding(world, settings, tmp_path)
     a_gaps_price(world)
     world.source.refresh()
@@ -565,7 +565,7 @@ def test_spend_by_day_takes_the_bills_growth_else_the_ledger_else_a_gap():
     assert [cockpit.scale_top(value) for value in (0, 0.4, 3, 2119.85, 12408)] == [1.0, 1.0, 5, 2500, 20000]
 
 
-def test_the_place_screen_is_its_3d_view_its_scene_tree_and_a_side_panel(world, settings, tmp_path):
+def test_the_place_screen_is_its_3d_view_its_scene_tree_and_a_side_panel(world, settings, tmp_path, read):
     a_gaps_finding(world, settings, tmp_path)
     world.source.refresh()
     html = signed_in().get("/place/alpha/").content.decode()

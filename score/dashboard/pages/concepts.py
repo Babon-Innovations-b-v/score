@@ -119,6 +119,17 @@ def review_href(world, place):
     return None if picked_of(world, place) else f"/concept/{place}/"
 
 
+def inventory_of(world, place, picked):
+    """The place's scene inventory as its concept page shows it once picked (CONTEXT.md "scene inventory"): None
+    before a pick; {state: made, rows [{name, count}]} when read from the picked draw; else {state: to read, older:
+    whether the one there is from an older concept, which counts for nothing}."""
+    if not picked:
+        return None
+    if screens.inventory_current(world, place, picked):
+        return {"state": "made", "rows": world.inventories[place]["rows"]}
+    return {"state": "to read", "older": place in world.inventories}
+
+
 def asked_to_hold(world, place, names):
     """[short name] of the places listed directly inside `place` (within.json), which its draw is asked to hold
     (score/review/concepts.py holding_words, the same for every place)."""
@@ -143,7 +154,7 @@ def concept_page(request, place):
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
         "wording": wording_of(world, place),
         "can": is_owner(request.user) and actions.decisions_on(),
-        "approved": place in screens.approved_places(world)})
+        "approved": place in screens.approved_places(world), "inventory": inventory_of(world, place, picked)})
 
 
 def approved(source, place):

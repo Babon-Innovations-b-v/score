@@ -49,8 +49,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     high_minutes (None unless every step is timed; all None until every design is approved: the runner times the
     whole remake only), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
     {kind: count}; `places` [{place, title, status, picture (its concept's thumbnail link; None when its concept is
-    lost, never a render instead: owner, 2026-10-20), picture_from (concept, None), progress {made, needed}
-    (its line's steps accepted), complete, gaps, worst (lost, route, missing, gate), takes (prepare's, by status),
+    lost, never a render instead: owner, 2026-10-20), picture_from (concept, None), design (`screens.design_state`:
+    draw, review, read, or None once its scene inventory counts), progress {made, needed} (its line's steps accepted;
+    None, like gaps, while its inventory does not count), complete, gaps, worst (lost, route, missing, gate), takes (prepare's, by status),
     within (the outside place or shell holding it, None for an outside one)}], `shells` {shell: short name} (the
     outside shells that are no place of their own). The hierarchy is `data/places/within.json` (shapes first: each
     place's `within` and the data it was read from; `parts`, a part of a place's own outside that is no place to the creator, the Street's square and launch view, sits within that place), read on the store's machine into the WorldState
@@ -185,6 +186,16 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     red dot, the answer as hover text, never on the page.
   Hover text is the native `title` attribute: every component takes `tip`; an explanation goes there, never on
   the page.
+- **No number from an inventory that does not count** (CONTEXT.md "scene inventory", owner 2026-10-20: "inventory
+  can't exist" before the pick): a place's scene inventory counts only while it was read from its picked draw
+  (`data/inventory/<place>.json` `concept_pick.sha256` equal to the pick's sha: `screens.inventory_current`, the
+  store's `WorldState.inventories` read by `score/review/concepts.inventory_read`; prepare's `design.py` the same rule,
+  its `inventory` state). Until then its tile, head and Place screen show its design state in words
+  (`cockpit.DESIGN_WORDS`: to draw, in review, inventory to read, in design for a tile none of whose places count)
+  in place of the ring and gaps, its Place screen no scene tree and no gaps in 3D, and its gaps are in no total
+  (`views.overview_of` rows, `local.gaps_total`: only `counted_places`). An unlock makes it out of date at once (no
+  write: the rule is read against the pick standing). No step reads a concept into an inventory yet: the concept
+  page shows a picked place's inventory as made (its rows) or to read (and whether the one there is older).
 - **The concept review** (CONTEXT.md "concept review", owner 2026-10-20; `pages/concepts.py`, `concept.html`,
   `static/pages/concept.js`): each Environment card whose concept is not locked carries a Review (Draw while it has
   none) button to `/concept/<place or shell>/`: the shown draw with areas marked by dragging, a note each and one for

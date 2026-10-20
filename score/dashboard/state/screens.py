@@ -41,6 +41,30 @@ def picture_of(world, place):
     return (thumb(concept), "concept") if concept else (None, None)
 
 
+def inventory_current(world, place, picked):
+    """Whether the place's scene inventory counts (CONTEXT.md "scene inventory"): read from `picked`, its picked
+    draw's sha. None counts while its concept is not locked, and one from an older concept, or naming none, never
+    does; until one counts the place shows its design state only, no number made from an inventory."""
+    read = world.inventories.get(place)
+    return bool(picked and read and read["concept"] == picked)
+
+
+def counted(world, place):
+    """inventory_current against the WorldState's own pick."""
+    return inventory_current(world, place, world.concept_picked.get(place))
+
+
+def design_state(world, place):
+    """What a place whose scene inventory does not count shows instead of its numbers: `draw` (no concept), `review`
+    (drawn, not picked), `read` (picked, its inventory not read from it yet); None once its inventory counts."""
+    picked = world.concept_picked.get(place)
+    if inventory_current(world, place, picked):
+        return None
+    if picked:
+        return "read"
+    return "review" if world.concept_draws.get(place) or world.concepts.get(place) else "draw"
+
+
 def steps_of(card):
     return [step for group in card.layers for step in group.steps]
 
@@ -169,17 +193,20 @@ def month_money(spend):
 
 def environment(source, spend):
     """The Environment screen: the month against the stop, the remake's price and ETA, the gaps by kind, a tile a
-    place (picture, progress, gap count, worst kind, its takes)."""
+    place (picture, progress, gap count, worst kind, its takes; its design state instead of progress and gaps while
+    its scene inventory does not count)."""
     world = source.world_state(spend)
     takes = world.remake.places if world.remake else {}
     names = groups.short_names(world)
     places = []
     for card in cards(world):
-        counts = gap_counts(source.gaps(card.place))
+        shown = counted(world, card.place)
+        counts = gap_counts(source.gaps(card.place)) if shown else {}
         link, origin = picture_of(world, card.place)
         places.append({"place": card.place, "title": names[card.place], "status": card.status,
-                       "picture": link, "picture_from": origin, "progress": progress(card),
-                       "complete": complete(card), "gaps": sum(counts.values()), "worst": worst(counts),
+                       "picture": link, "picture_from": origin, "design": design_state(world, card.place),
+                       "progress": progress(card) if shown else None, "complete": complete(card),
+                       "gaps": sum(counts.values()) if shown else None, "worst": worst(counts),
                        "takes": takes.get(card.place), "within": world.within.get(card.place)})
     return {"made_at": world.made_at, "money": month_money(spend), "remake": remake_money(world),
             "gaps": (world.gaps_total.counts if world.gaps_total else {}), "places": places,
@@ -209,7 +236,8 @@ def place(source, place, library):
     path, kind, the node that fills it) and each filling node's chain price once (`prices`)."""
     world = source.world_state()
     card = next(found for found in cards(world) if found.place == place)
-    found = source.gaps(place)
+    shown = counted(world, place)
+    found = source.gaps(place) if shown else []
     link, origin = picture_of(world, card.place)
     model, model_from = web3d_link(source, place, library)
     price = world.gaps_price
@@ -217,7 +245,8 @@ def place(source, place, library):
     counts = gap_counts(found)
     return {"place": place, "title": groups.short_names(world)[place], "status": card.status, "picture": link,
             "picture_from": origin, "web3d": model, "web3d_from": model_from, "view": f"/view/{place}",
-            "progress": progress(card), "complete": complete(card), "gaps": counts, "worst": worst(counts),
+            "design": design_state(world, place), "progress": progress(card) if shown else None,
+            "complete": complete(card), "gaps": counts if shown else None, "worst": worst(counts),
             "takes": (world.remake.places.get(place) if world.remake else None),
             "steps": [{"node": step.node, "stage": step.stage, "label": step.label, "state": step.state,
                        "paid": step.paid, "thumb": step.thumb} for step in steps_of(card)],

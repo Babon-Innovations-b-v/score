@@ -202,6 +202,9 @@ class WorldState(BaseModel):
     concept_undrawn: list[str] = []  # the places and shells with no draw yet whose first draw can be made now
     concept_unready: dict[str, str] = {}  # {place or shell with no draw yet: why its first draw cannot be made now}
     concept_wordings: dict[str, "ConceptWording"] = {}  # {place or shell: what its draws send, word for word}
+    # {place: {concept, rows}} of each scene inventory file (score/review/concepts.inventory_read): it counts only while
+    # `concept` is the place's picked draw (screens.inventory_current).
+    inventories: dict[str, dict] = {}
 
 
 class ConceptWording(BaseModel):

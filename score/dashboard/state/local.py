@@ -524,9 +524,10 @@ class LocalSource:
         return refs
 
     def concept_review(self):
-        """{concept_draws, concept_picked, concept_draw_euros, concept_undrawn, concept_unready, concept_wordings} of the concept review
-        (score/review/concepts.py): each place's draws whose bytes stand in the store's blobs, oldest first, its picked
-        draw's sha, and the places and shells with no draw yet that Draw all draws now, and why the others wait."""
+        """{concept_draws, concept_picked, concept_draw_euros, concept_undrawn, concept_unready, concept_wordings,
+        inventories} of the concept review (score/review/concepts.py): each place's draws whose bytes stand in the
+        store's blobs, oldest first, its picked draw's sha, the places and shells with no draw yet that Draw all draws
+        now, why the others wait, and each place's scene inventory with the concept it was read from."""
         from score.review import concepts
         draws, picked = {}, {}
         for node in concepts.placed(self.store):
@@ -543,10 +544,12 @@ class LocalSource:
             if concepts.picked(self.store, node):
                 picked[node] = concepts.picked(self.store, node)
         nodes = [*self.places(), *self.hierarchy()["shells"]]
+        reads = {place: concepts.inventory_read(place, self.data / "inventory") for place in self.places()}
         ready, waiting = concepts.undrawn(self.store, nodes)
         return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
                 "concept_undrawn": ready, "concept_unready": waiting,
-                "concept_wordings": {node: self.concept_wording(node) for node in nodes}}
+                "concept_wordings": {node: self.concept_wording(node) for node in nodes},
+                "inventories": {place: read for place, read in reads.items() if read}}
 
     def concept_wording(self, node):
         """What `node`'s draws send (score/review/concepts.py): its generated first-draw wording, why it cannot be
@@ -639,13 +642,26 @@ class LocalSource:
         return bool(row.paid) if row else None
 
     def gaps_total(self):
-        """Every place's gaps and the environment's own lost inputs (GAPS_WORLD) in sum, a lost input once
-        (lost_once): counts by kind (gaps.KINDS: lost, route, missing, gate) and the work no stage does."""
+        """Every place's gaps whose scene inventory counts (counted_places) and the environment's own lost inputs
+        (GAPS_WORLD) in sum, a lost input once (lost_once): counts by kind (gaps.KINDS: lost, route, missing, gate) and the work no stage does."""
+        counted = self.counted_places()
+
         def read():
-            gaps = lost_once([gap for place in [*self.places(), GAPS_WORLD] for gap in self.gaps(place)])
+            gaps = lost_once([gap for place in [*counted, GAPS_WORLD] for gap in self.gaps(place)])
             return GapsTotal(counts=dict(Counter(gap_kind(gap) for gap in gaps)),
                               unfillable=sorted({gap.work for gap in gaps if gap.node is None}))
-        return self.remembered(("gaps total", self.gaps_written()), read)
+        return self.remembered(("gaps total", self.gaps_written(), counted), read)
+
+    def counted_places(self):
+        """The places whose scene inventory counts: read from their picked draw (CONTEXT.md "scene inventory"; the
+        rule of screens.inventory_current)."""
+        from score.review import concepts
+        found = []
+        for place in self.places():
+            read = concepts.inventory_read(place, self.data / "inventory")
+            if read and read["concept"] and read["concept"] == concepts.picked(self.store, place):
+                found.append(place)
+        return tuple(found)
 
     def gaps_written(self):
         """(place, when its findings were written) of every gaps check's findings, read on each call (a stat each):

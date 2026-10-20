@@ -233,8 +233,13 @@ def test_a_concept_review_draw_is_drawn_and_its_pick_picked_until_unlocked():
     assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "drawn"
     concepts.pick(store, "a", "f" * 64, "joey")
     assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "picked"
-    concepts.pick(store, "a", None, "joey")
+    assert design.designs(store, data, ["a"])["places"]["a"]["inventory"] == "to read"
+    (data / "inventory").mkdir()
+    (data / "inventory" / "a.json").write_text(json.dumps({"concept_pick": {"sha256": "f" * 64}, "rows": []}))
+    assert design.designs(store, data, ["a"])["places"]["a"]["inventory"] == "made"
+    concepts.pick(store, "a", None, "joey")  # an unlock: its inventory is out of date again
     assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "drawn"
+    assert design.designs(store, data, ["a"])["places"]["a"]["inventory"] is None
 
 
 def test_a_design_is_approved_only_by_the_creators_own_accept_of_its_plan_after_his_pick():
@@ -242,16 +247,22 @@ def test_a_design_is_approved_only_by_the_creators_own_accept_of_its_plan_after_
     (data / "places").mkdir()
     (data / "places" / "concepts.json").write_text(json.dumps({"concepts": {
         "a": {"sha256": "1", "picked": "2026-10-21T09:00"}, "b": {"sha256": "2", "picked": "2026-10-21T09:00"},
-        "c": {"sha256": "3", "picked": "2026-10-21T09:00"}, "d": {"sha256": "4"}}}))
+        "c": {"sha256": "3", "picked": "2026-10-21T09:00"}, "d": {"sha256": "4"},
+        "f": {"sha256": "6", "picked": "2026-10-21T09:00"}}}))
+    (data / "inventory").mkdir()
+    for place, sha in {"a": "1", "b": "2", "c": "3", "f": "an older concept's"}.items():
+        (data / "inventory" / f"{place}.json").write_text(json.dumps({"concept_pick": {"sha256": sha}, "rows": []}))
     plan = {"output": "p" * 64}
     store = Accepts({"plan@a": {**plan, "by": "joey", "at": "2026-10-21T10:00"},
                      "plan@b": {**plan, "by": "runner", "at": "2026-10-21T10:00"},
                      "plan@c": {**plan, "by": "joey", "at": "2026-10-20T10:00"},  # before the pick: an old plan
-                     "plan@d": {**plan, "by": "joey", "at": "2026-10-21T10:00"}})
-    found = design.designs(store, data, ["a", "b", "c", "d", "e"])
-    states = {place: (row["concept"], row["plan"]) for place, row in found["places"].items()}
-    assert states == {"a": ("picked", "approved"), "b": ("picked", "made"), "c": ("picked", "made"),
-                      "d": ("drawn", "remake"), "e": ("missing", "remake")}, states
+                     "plan@d": {**plan, "by": "joey", "at": "2026-10-21T10:00"},
+                     "plan@f": {**plan, "by": "joey", "at": "2026-10-21T10:00"}})  # read from an older inventory
+    found = design.designs(store, data, ["a", "b", "c", "d", "e", "f"])
+    states = {place: (row["concept"], row["inventory"], row["plan"]) for place, row in found["places"].items()}
+    assert states == {"a": ("picked", "made", "approved"), "b": ("picked", "made", "made"),
+                      "c": ("picked", "made", "made"), "d": ("drawn", None, "remake"),
+                      "e": ("missing", None, "remake"), "f": ("picked", "to read", "remake")}, states
     assert found["approved"] == ["a"] and found["places"]["b"]["output"] == "p" * 64
     assert found["places"]["d"]["output"] is None and found["places"]["e"]["hint"] is None
 
