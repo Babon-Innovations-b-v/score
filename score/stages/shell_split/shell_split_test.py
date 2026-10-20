@@ -179,7 +179,7 @@ def test_an_inside_place_reads_its_shells_split_beside_its_plan():
     assert with_plans(plans, lambda: shell_split.shell_of("toyship")) == []
     assert with_plans(plans, lambda: list(runner.besides(plan_row, "bunks"))) == ["shell-split@toyship"]
     names = [row.name for row in stages.STAGES]
-    assert names.index("shell-split") == names.index("rough-model") + 1  # the route's order: plan, rough model, split
+    assert names.index("plan") < names.index("rough-model") < names.index("shell-split")  # plan, rough model, split
     assert runner.stages["shell-split"].after == {"plan": ("place-plan", 2)} and not runner.stages["shell-split"].paid
 
 

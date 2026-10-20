@@ -11,9 +11,10 @@ free (the code fallback under its prop-pipeline adapter, ground-join), and groun
 own line of rows, split to checked bake, beside the environment's seed of the finish registry. Effects (experimental) makes
 each staged place's effects layer from its record, which its assembly takes; effects-look renders it before and
 after. Neighbours (experimental) stands the places a place's scene record shows in its assembly, each read as its
-own accepted assembly. The prop route (props: close-up, Pixal3D, then the surface line, then the likeness gate) runs
-only for a place with prop data. Plan and scene-record (experimental) write a place's scene record from its plan and
-concept. Cast (experimental) places each place's people and measures them against its concept's count
+own accepted assembly. The shared loop (shapes_first, #41: rough model, its registration to the plan, the parts split,
+close-up, Pixal3D, the finish route, the likeness gate, then each layer adapter's after-steps) is every model layer's
+one way to a model; its prop rows run only for a place with prop data. Plan and scene-record (experimental) write a
+place's scene record from its plan and concept. Cast (experimental) places each place's people and measures them against its concept's count
 (concept_people) and its geometry. Motion (experimental) makes each place's motion layer from its game motions
 and its rigid moves. Each stage joins the table when it is built in its step (docs/bible.md, architecture/components).
 """
@@ -26,7 +27,7 @@ import pathlib
 from score import checks, contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
                           earth_seed, effects, gaps, images, late_bake, library, light, motion, people, people_takes,
-                          physics, props, proposals, rough_model, scene_record, settling, shell_split, sound,
+                          physics, proposals, scene_record, settling, shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
 import score.stages.cast.layer as characters_layer
@@ -160,11 +161,6 @@ PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scen
 # `beside`, upward: up to the shell, never back down), so the drive makes the shell's split before its inside places.
 SHELL_SPLIT = graph.Stage("shell-split", "place", shell_split.make, shell_split.CONTRACT, shell_split.CHECKS,
                           files=shell_split.files, after={"plan": ("place-plan", 2)}, applies=shell_split.applies)
-# The place's rough model (shapes first: the prop pipeline on its whole concept, the picture its plan names), after its
-# plan (score/stages/rough_model, its overlay); paid, for every place with a plan.
-ROUGH_MODEL = graph.Stage("rough-model", "place", rough_model.make, rough_model.CONTRACT, rough_model.CHECKS,
-                          files=rough_model.files, after=rough_model.AFTER, paid=True, euros=rough_model.EUROS,
-                          applies=scene_record.written)
 # The openings gate's finding for a place no made ground seats (scene_record/gates.py judge_openings).
 NO_GROUND = "no made ground seats this place: its outside cannot be judged"
 
@@ -389,12 +385,12 @@ def scene_inventory_read(files):
     return declared
 
 
-def prop_fed(row):
-    """finish-route-views waiting on the prop route's Pixal3D row (props.FEEDS), whose takes its line paints. A place
-    with no prop data reads without it (Runner.reads), so its key does not move."""
-    if row.name != "finish-route-views":
+def boxed_split(row):
+    """props-inputs, the loop's parts split, with the box gate's decided boxes and its scene's inventory declared
+    (box_checked, scene_inventory_read)."""
+    if row.name != "props-inputs":
         return row
-    return dataclasses.replace(row, after={**row.after, **props.FEEDS})
+    return dataclasses.replace(row, files=box_checked(scene_inventory_read(row.files)))
 
 
 # Experimental (2026-10-14) until the owner reviews it: concept views drawn by Pro from a creator's reference and a
@@ -439,10 +435,11 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           COMPLETE, DEMO_FILM, DEMO_FILM_EXTRA, DEMO_STILLS, ENVIRONMENT_FILM,
           GROUND_FIT, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
-          dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
-          *map(library_narrowed, map(prop_fed, map(paint_baked, map(feet_checked, map(bake_checked, surfaces.ROWS))))),
-          props.CALIBRATION, props.LIKENESS,
-          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, ROUGH_MODEL, SHELL_SPLIT, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
+          # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
+          # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
+          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(boxed_split,
+                                                                                         shapes_first.rows()))))),
+          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, SHELL_SPLIT, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
           *light.ROWS, *crops.ROWS, COMPLETE_BOXES,
           surface_tiles.STAGE)
 

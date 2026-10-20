@@ -34,7 +34,7 @@ def test_only_the_places_with_prop_data_have_prop_rows_and_a_place_without_them_
     runner = stages.runner()
     places = stages.places(runner.world)
     with_data = {"campgrounds", "hangar", "cockpit", "quarters", "navigation", "galley", "storage", "engineroom",
-                 "shiplock"}
+                 "shiplock", "greenhouse"}
     assert {node[1] for node in runner.nodes(places) if node[0].name in PROPS} == with_data
     inputs = runner.stages["finish-route-views"]
     assert "pixal" in inputs.after and "pixal" not in runner.reads(inputs, "hub")
@@ -49,7 +49,8 @@ def test_the_inputs_row_declares_its_scenes_inventory_not_the_whole_folder():
     row = runner.stages["props-inputs"]
     for place in ("campgrounds", "hangar", "shiplock"):
         assert runner.files_of(row, place)["inventories"] == "{data}/inventory/" + f"{place}.json", place
-    assert _code.source_files(graph.code_functions(row)) == _code.source_files(graph.code_functions(props.INPUTS))
+    loop_split = stages.shapes_first.SPLIT  # the loop's parts split: props-inputs with its registration gate (#41)
+    assert _code.source_files(graph.code_functions(row)) == _code.source_files(graph.code_functions(loop_split))
 
 
 def test_a_take_s_faces_come_from_the_bake_model_made_from_it_whatever_its_name():

@@ -2,8 +2,9 @@
 
 props-inputs@<place> writes rows.json, one row per object of the place's prop data in the close-up stage's form
 (tools/props/closeup/stage.py: id, scene, words, size, concept picture, box), with the close-up already drawn where
-the data names one. Its gate, `boxed or drawn`, is the close-up stage's own box gate (stage.gate_problems): every
-object without a drawn close-up needs a box the gate passes, so nothing is drawn of the wrong thing.
+the data names one, its route, take and the model layer that handed it (the shared loop's hand-in, #41). Its gate,
+`boxed or drawn`, is the close-up stage's own box gate (stage.gate_problems): every object without a drawn close-up
+needs a box the gate passes, so nothing is drawn of the wrong thing.
 
 closeup@<place> draws every missing close-up with Nano Banana Pro through tools/props/closeup/pro.py (google_spend
 prices each call): first from the crop alone, then, for what still fails, with the whole concept beside (the stage's
@@ -37,6 +38,12 @@ def closeup_tools():
     return stage, check
 
 
+def layer_of(entry):
+    """The model layer that handed a prop data object to the shared loop (score/stages/shapes_first): its `layer`,
+    else "objects", the layer every prop data file was first written for."""
+    return entry.get("layer", "objects")
+
+
 def inventory_rows(inventory, wanted):
     """The close-up stage's rows of `wanted` objects: name, size, concept view and box from the inventory (the view's
     picture is filled in by make_inputs, from the row's declared file)."""
@@ -53,7 +60,8 @@ def make_inputs(inputs, out, seed, params):
         row["concept"] = str(inputs[f"view {row['view']}"]) if row["view"] else None
         named = inputs.get(f"close-up {row['id']}")
         row["drawn"] = str(named) if named else None
-        row["route"] = record["objects"][row["id"]]["route"]
+        entry = record["objects"][row["id"]]
+        row.update(route=entry["route"], take=entry.get("take"), layer=layer_of(entry))
     missing = sorted(set(record["objects"]) - {row["id"] for row in rows})
     (out / "rows.json").write_text(json.dumps({"rows": rows, "not_in_inventory": missing}, indent=1))
 
