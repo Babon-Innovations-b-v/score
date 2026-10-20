@@ -33,6 +33,7 @@ ADDRESS = re.compile(r"^(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(\.[a-z0-9_]+)?)@(?P<v
 MAX_TAKES = 4  # a sound's takes sent to the hosted cockpit
 MAX_FILES = 8  # an entry's files listed in the export (its count and bytes always go)
 EXPORT_ROWS = "library/entries.json"
+EXPORT_PALETTE = "library/palette.json"
 CHOSEN = {}  # the library made for the current settings
 
 
@@ -70,13 +71,15 @@ class LibraryEntry(BaseModel):
     takes: list[FileOf] = []  # a sound's recordings
     glb: FileOf | None = None
     web3d: FileOf | None = None  # the web GLB copy the viewer opens (the record's `web3d`, or a file of role web3d)
+    web3d_light: FileOf | None = None  # its light preview copy: what the item page loads first and the export carries
     finish: dict | None = None  # a surface's own finish: colour, metallic, roughness, glow, see-through, its print
     score: int | float | None = None  # the entry's quality, 0 to 100 (or a fraction 0 to 1), its kind's own scoring
-    score_parts: list[dict] = []  # what the score is made of: [{name, value (None: not measured), how}]
+    score_parts: list[dict] = []  # what the score is made of: [{name, value (None: not measured), how, measured, unit}]
     refine_options: list[dict] = []  # [{id, label}] the ways it can be made better
     files: list[Listed] = []  # its files by name (the export sends the first MAX_FILES)
     file_count: int = 0
     file_bytes: int = 0
+    facts: dict = {}  # what its kind's viewer plays and the few numbers it shows (kind_facts, viewer_facts)
 
 
 def kind_label(kind):
@@ -152,7 +155,8 @@ def score_parts(given):
     was not measured)."""
     if isinstance(given, dict):
         return [{"name": str(name), "value": number_or_none(value), "how": ""} for name, value in given.items()]
-    return [{"name": str(part["name"]), "value": number_or_none(part.get("value")), "how": str(part.get("how") or "")}
+    return [{"name": str(part["name"]), "value": number_or_none(part.get("value")), "how": str(part.get("how") or ""),
+             "measured": number_or_none(part.get("measured")), "unit": str(part.get("unit") or "")}
             for part in given or [] if isinstance(part, dict) and part.get("name")]
 
 
@@ -165,6 +169,38 @@ def refine_choices(given):
         elif isinstance(option, dict) and option.get("id"):
             found.append({"id": str(option["id"]), "label": str(option.get("label") or option["id"])})
     return found
+
+
+def light_copy(record):
+    """The light preview web copy the record's `web3d` names (its `light`), or None."""
+    said = record.get("web3d")
+    return named_file(record, said.get("light")) if isinstance(said, dict) else None
+
+
+# --- what an item page's viewer shows, by kind ----------------------------------------------------------------
+
+COPIED = ("model", "kit", "character", "place")  # the kinds the library gives a web copy
+LUFS = re.compile(r"(-?\d+(?:\.\d+)?) LUFS")
+
+
+def part_of(parts, name):
+    return next((part for part in parts if part["name"] == name), {})
+
+
+def kind_facts(record, parts):
+    """The numbers an item page shows from the record alone: a copy's parts and triangles; a sound's length and
+    integrated loudness (its quality parts); an algorithm's stage, the steps it runs in and the entries it reads."""
+    kind, copy = record["kind"], record.get("web3d") if isinstance(record.get("web3d"), dict) else {}
+    if kind in COPIED:
+        return {"parts": number_or_none(copy.get("objects")), "triangles": number_or_none(copy.get("triangles"))}
+    if kind == "sound":
+        loud = LUFS.search(part_of(parts, "loudness").get("how", ""))
+        return {"seconds": part_of(parts, "length").get("measured"), "lufs": float(loud.group(1)) if loud else None}
+    if kind == "algorithm":
+        provenance = record.get("provenance") or {}
+        return {"stage": provenance.get("stage"), "steps": len(provenance.get("nodes") or []),
+                "reads": list(record.get("requires") or [])}
+    return {}
 
 
 def entry_of(record):
@@ -182,8 +218,9 @@ def entry_of(record):
         node=made_by_node(provenance), source=provenance.get("source") or "", commit=provenance.get("commit"),
         seen_in=record.get("seen_in") or [], tags=record.get("tags") or {}, requires=record.get("requires") or [],
         takes=files_of_role(record, "audio", (".ogg", ".wav", ".mp3", ".flac")), glb=glbs[0] if glbs else None,
-        web3d=web_copy(record), finish=finish_print(record), score=score, score_parts=parts,
-        refine_options=options, files=listed, file_count=len(listed), file_bytes=sum(each.bytes for each in listed))
+        web3d=web_copy(record), web3d_light=light_copy(record), finish=finish_print(record), score=score,
+        score_parts=parts, refine_options=options, files=listed, file_count=len(listed),
+        file_bytes=sum(each.bytes for each in listed), facts=kind_facts(record, parts))
 
 
 # --- a surface's finish ----------------------------------------------------------------------------------------
@@ -214,9 +251,76 @@ def finish_of(material_text):
             if name in FINISH_INPUTS}
 
 
-def material_sha(entry_record):
-    return next((described["sha256"] for name, described in sorted(entry_record.get("files", {}).items())
+USD_TOKEN = re.compile(r'score:token\s*=\s*"([^"]*)"')
+
+
+def first_usda(record):
+    """The name of a record's first OpenUSD text file (a surface's material, a light's sky), or None."""
+    return next((name for name, described in sorted(record.get("files", {}).items())
                  if described.get("role") == "usd" and name.endswith(".usda")), None)
+
+
+# --- a light's lamps, an effect's settings ----------------------------------------------------------------------
+
+LAMP = re.compile(r'def (DomeLight|DistantLight|SphereLight|RectLight|DiskLight|CylinderLight) "(\w+)"')
+LAMP_INPUT = re.compile(r"(?:color3f|float|bool)\s+inputs:(color|intensity|exposure|colorTemperature|"
+                        r"enableColorTemperature)\s*=\s*(\([^)]*\)|[-0-9.e]+|true|false)")
+LAMP_TYPES = {"DomeLight": "dome", "DistantLight": "sun", "SphereLight": "point", "RectLight": "area",
+              "DiskLight": "area", "CylinderLight": "area"}
+
+
+def kelvin_of(colour):
+    """A linear sRGB colour's correlated colour temperature in kelvin (McCamy's formula over its CIE xy)."""
+    red, green, blue = colour
+    x_sum = 0.4124 * red + 0.3576 * green + 0.1805 * blue
+    y_sum = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+    total = x_sum + y_sum + 0.0193 * red + 0.1192 * green + 0.9505 * blue
+    if total <= 0:
+        return None
+    slope = (x_sum / total - 0.3320) / (0.1858 - y_sum / total)
+    return round(449 * slope ** 3 + 3525 * slope ** 2 + 6823.3 * slope + 5520.33)
+
+
+def lamp_of(kind, name, block):
+    """One lamp from its OpenUSD block: {type, name, colour, power (intensity times two to its exposure), kelvin}."""
+    given = dict(LAMP_INPUT.findall(block))
+    colour = usd_value(given["color"]) if "color" in given else [1.0, 1.0, 1.0]
+    power = float(given.get("intensity", 1)) * 2 ** float(given.get("exposure", 0))
+    kelvin = float(given["colorTemperature"]) if given.get("enableColorTemperature") in ("1", "true") \
+        and "colorTemperature" in given else kelvin_of(colour)
+    return {"type": LAMP_TYPES[kind], "name": name, "colour": colour, "power": round(power, 4), "kelvin": kelvin}
+
+
+def lamps_of(usda_text):
+    """Every lamp an OpenUSD text defines, in its order."""
+    found = list(LAMP.finditer(usda_text))
+    ends = [match.start() for match in found[1:]] + [len(usda_text)]
+    return [lamp_of(match.group(1), match.group(2), usda_text[match.end():end]) for match, end in zip(found, ends)]
+
+
+SETTING_WORDS = 40  # an effect setting longer than this (its sources in words) stays in the library
+
+
+def effect_settings(text):
+    """An effect's emitter settings the item page plays: its numbers, lists and short words."""
+    return {key: value for key, value in json.loads(text).items()
+            if not isinstance(value, (str, dict)) or (isinstance(value, str) and len(value) <= SETTING_WORDS)}
+
+
+def viewer_facts(record, text_of):
+    """What an item page plays that a small file of the entry holds (`text_of(name)`: its text, or None): a
+    surface's finish and palette token, a light's lamps, an effect's settings. {} when the file is not here."""
+    kind = record["kind"]
+    named = first_usda(record) if kind in ("surface", "light") else "settings.json" if kind == "effect" else None
+    text = text_of(named) if named and named in record.get("files", {}) else None
+    if text is None:
+        return {}
+    if kind == "surface":
+        token = USD_TOKEN.search(text)
+        return {"finish": finish_of(text), "facts": {"token": token.group(1) if token else None}}
+    if kind == "light":
+        return {"facts": {"lamps": lamps_of(text)}}
+    return {"facts": {"settings": effect_settings(text)}}
 
 
 def kind_order(entry):
@@ -258,9 +362,10 @@ class Library:
 
 
 def three_d_files(entry):
-    """An entry's files for 3D: its GLB, its web copy, a surface's print."""
+    """An entry's files for 3D: its GLB, its web copy and light preview, a surface's print."""
     printed = (entry.finish or {}).get("print")
-    return [each for each in (entry.glb, entry.web3d, FileOf.model_validate(printed) if printed else None) if each]
+    return [each for each in (entry.glb, entry.web3d, entry.web3d_light,
+                              FileOf.model_validate(printed) if printed else None) if each]
 
 
 class LocalLibrary(Library):
@@ -292,15 +397,24 @@ class LocalLibrary(Library):
         return self.kept["entries"]
 
     def read_entry(self, record):
-        """An entry with a surface's finish read from its material in the blob folder."""
+        """An entry with what its viewer plays from its small files here: a surface's finish, a light's lamps, an
+        effect's settings."""
         entry = entry_of(record)
-        if entry.finish is None:
+        found = viewer_facts(record, lambda name: self.text_of(record, name))
+        if not found:
             return entry
-        sha = material_sha(record)
-        path = self.blobs / "blobs" / sha[:2] / sha if self.blobs and sha and SHA.match(sha) else None
-        if path is None or not path.is_file():
-            return entry
-        return entry.model_copy(update={"finish": {**entry.finish, **finish_of(path.read_text())}})
+        update = {"facts": {**entry.facts, **found["facts"]}}
+        if "finish" in found:
+            update["finish"] = {**(entry.finish or {}), **found["finish"]}
+        return entry.model_copy(update=update)
+
+    def text_of(self, record, name):
+        """One file of an entry as text: its blob, else its copy in the library cache; None when neither is here."""
+        sha = record["files"][name].get("sha256") or ""
+        found = [self.blobs / "blobs" / sha[:2] / sha] if self.blobs and SHA.match(sha) else []
+        found += [self.cache / record["kind"] / record["id"] / str(record["version"]) / name] if self.cache else []
+        path = next((path for path in found if path.is_file()), None)
+        return path.read_text() if path else None
 
     def known(self):
         self.entries()
@@ -423,13 +537,31 @@ def exported_rows(entries):
 
 
 def export_rows(local, out, filler):
-    """Write library/entries.json into the export first; the entries."""
+    """Write library/entries.json and the palette a surface's page offers into the export first; the entries."""
     entries = local.entries()
-    path = pathlib.Path(out) / EXPORT_ROWS
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(exported_rows(entries), separators=(",", ":"), sort_keys=True))
-    filler.wrote(path, path.stat().st_size)
+    for name, rows in ((EXPORT_ROWS, exported_rows(entries)), (EXPORT_PALETTE, palette())):
+        path = pathlib.Path(out) / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(rows, separators=(",", ":"), sort_keys=True))
+        filler.wrote(path, path.stat().st_size)
     return entries
+
+
+# --- the palette a surface's page offers --------------------------------------------------------------------------
+
+def palette_of(tokens):
+    """{name: colour} of the palette tokens (design/tokens/tokens.json's colours with one value, not a theme's)."""
+    return {token["name"]: token["value"] for token in tokens["color"]["tokens"] if isinstance(token["value"], str)}
+
+
+def palette():
+    """The palette tokens a surface's page offers: hosted, the export's copy; local, this checkout's tokens."""
+    from django.conf import settings
+    shown = library()
+    path = shown.folder / EXPORT_PALETTE if isinstance(shown, ExportedLibrary) else None
+    if path is not None:
+        return json.loads(path.read_text()) if path.is_file() else {}
+    return palette_of(json.loads((settings.SCORE_REPO / "design/tokens/tokens.json").read_text()))
 
 
 def export_pictures(local, entries, filler, side):
@@ -450,10 +582,11 @@ def export_takes(local, entries, filler):
 
 
 def export_three_d(local, entries, filler):
-    """Each entry's web GLB copy and each surface's print into the export's library/files/, last, while they fit."""
+    """Each entry's light web copy and each surface's print into the export's library/files/, last, while they fit;
+    a whole copy stays on the store's machine."""
     for entry in entries:
         printed = (entry.finish or {}).get("print")
-        for each in [entry.web3d, FileOf.model_validate(printed) if printed else None]:
+        for each in [entry.web3d_light, FileOf.model_validate(printed) if printed else None]:
             found = local.blob(each.sha) if each else None
             if found:
                 filler.place_copy(found, exported_file(each.sha, each.name), f"library 3D {each.name}")

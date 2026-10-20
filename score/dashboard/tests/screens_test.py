@@ -143,7 +143,7 @@ def test_the_library_counts_each_kind(world, shelf):  # noqa: F811
     from score.dashboard.state import library
     found = screens.library_counts(library.library())
     kinds = {row["kind"]: row for row in found["kinds"]}
-    assert found["total"] == 7 and kinds["model"]["count"] == 3 and kinds["model"]["locked"] == 1
+    assert found["total"] == 13 and kinds["model"]["count"] == 3 and kinds["model"]["locked"] == 1
     assert kinds["place"]["count"] == 1 and kinds["model"]["pictured"] == 3 and kinds["model"]["scored"] == 2
     assert screens.library_counts(None) == {"kinds": [], "total": 0}
 

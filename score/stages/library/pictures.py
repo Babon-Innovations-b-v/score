@@ -1,5 +1,6 @@
-"""The library's pictures the cockpit shows, fetched into the library cache on the store's machine, so its tiles and
-the state export have their bytes (#42: every place showed "no picture yet" while score_lib held each one).
+"""The library's pictures the cockpit shows, and the small files its item pages play, fetched into the library cache on
+the store's machine, so its tiles, its viewers and the state export have their bytes (#42: every place showed "no
+picture yet" while score_lib held each one).
 
     .venv/bin/python -m score.stages.library.pictures [--kind place ...]
 
@@ -8,6 +9,10 @@ picture is fetched once by the library's own command into `$PROPS_HOME/cache/lib
 (tools/library/library_files.py `from_library`; a cached file that still hashes right is not fetched again). The
 cockpit's library reads that cache when it has no blob folder (score/dashboard/state/library.py). Read only on the
 library side; never a row, so nothing keys on it. A fetch costs one object read.
+
+The viewer files (`viewed`) are what an item page plays: a light web copy, a surface's material and print, a
+sound's first takes, an effect's settings, a light's OpenUSD. One the blob store answers 404 for is marked lost
+(`<file>.lost` beside it, holding the sha the entry records) and not asked for again until the entry names other bytes.
 """
 import argparse
 
@@ -15,6 +20,7 @@ from score import library
 from score.stages.library import backend
 
 KINDS = None  # every kind
+TAKES = 4  # a sound's takes an item page plays (score/dashboard/state/library.py MAX_TAKES)
 
 
 def pictured(root, kinds):
@@ -27,32 +33,82 @@ def pictured(root, kinds):
     return found
 
 
+def role_files(record, role, suffixes):
+    """The names of a record's files of `role` ending in `suffixes`, sorted (the order the cockpit reads them in)."""
+    return sorted(name for name, described in record.get("files", {}).items()
+                  if described.get("role") == role and name.lower().endswith(suffixes))
+
+
+def viewer_files(record):
+    """The files of one record its item page's viewer reads."""
+    copy = record.get("web3d") if isinstance(record.get("web3d"), dict) else {}
+    named = [copy.get("light")]
+    if record["kind"] == "surface":
+        named += role_files(record, "usd", (".usda",))[:1] + role_files(record, "texture", (".png", ".jpg", ".jpeg"))[:1]
+    elif record["kind"] == "sound":
+        named += role_files(record, "audio", (".ogg", ".wav", ".mp3", ".flac"))[:TAKES]
+    elif record["kind"] == "effect":
+        named.append("settings.json")
+    elif record["kind"] == "light":
+        named += role_files(record, "usd", (".usda",))
+    return [name for name in named if name in record.get("files", {})]
+
+
+def viewed(root, kinds):
+    """[(entry address, file)] of every file an item page's viewer reads, for the entries of `kinds`."""
+    return [(record["address"], named) for record in library.entries(root)
+            if kinds is None or record["kind"] in kinds for named in viewer_files(record)]
+
+
 def fetched(address, named):
     """The picture's path in the library cache, fetched when missing or changed; None when the library lost it."""
     files = backend.library_files
     return files.from_library(files.reference(address, named), files.parsed(files.reference(address, named)))
 
 
-def held_or_why(address, named):
-    """(True, None) when the picture is in the cache, (False, why) when the library lost it or its fetch failed."""
+def lost_marker(root, address, named):
+    """(the marker's path, the sha the entry records) of one file; the path None when the entry records none."""
+    files = backend.library_files
+    parts = files.parsed(files.reference(address, named))
+    sha = files.recorded_sha(root, parts) if parts else None
+    if sha is None:
+        return None, None
+    folder = files.cache_folder() / "score_lib" / parts["kind"] / parts["id"] / parts["version"]
+    return folder / f"{parts['file']}.lost", sha
+
+
+def held_or_why(address, named, root=None):
+    """(True, None) when the file is in the cache, (False, why) when the library lost it or its fetch failed. A file
+    the blob store answered 404 for is marked lost and not asked for again while its entry names the same bytes."""
+    marker, sha = lost_marker(root, address, named) if root else (None, None)
+    if marker and marker.is_file() and marker.read_text() == sha:
+        return False, f"{address}: {named} lost (404 before)"
     try:
         return fetched(address, named) is not None, None
     except backend.library_files.LibraryUnreachable as failed:
+        if marker and "(404)" in str(failed):
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text(sha)
         return False, f"{address}: {str(failed).splitlines()[-1][-160:]}"
 
 
+def fetched_line(label, wanted, root):
+    """Fetch each (address, file) into the cache; its words: how many are there, how many not, the first error."""
+    found = [held_or_why(address, named, root) for address, named in wanted]
+    failed = [why for _, why in found if why]
+    return f"{label}: {sum(held for held, _ in found)} of {len(wanted)}" + (
+        f" ({len(failed)} not fetched, first: {failed[0]})" if failed else "")
+
+
 def run(kinds=KINDS):
-    """Fetch every picture of `kinds` into the library cache; the summary line, naming how many could not be
-    fetched and the first one's error (one lost picture never stops the others)."""
+    """Fetch every picture and viewer file of `kinds` into the library cache; the summary line, naming how many
+    could not be fetched and the first one's error (one lost file never stops the others)."""
     root = backend.settings().get("SCORE_LIB_ROOT")
     if not root:
         return "library pictures: no library folder (SCORE_LIB_ROOT, or the score_lib checkout beside score)"
-    wanted = pictured(root, kinds)
-    found = [held_or_why(address, named) for address, named in wanted]
-    failed = [why for _, why in found if why]
-    said = (f"library pictures: {sum(held for held, _ in found)} of {len(wanted)} "
-            f"({', '.join(kinds) if kinds else 'every kind'}) in the cache")
-    return said + (f"; {len(failed)} not fetched (first: {failed[0]})" if failed else "")
+    which = ", ".join(kinds) if kinds else "every kind"
+    return (fetched_line(f"library pictures ({which}) in the cache", pictured(root, kinds), root) + "; "
+            + fetched_line("viewer files", viewed(root, kinds), root))
 
 
 def main(argv=None):

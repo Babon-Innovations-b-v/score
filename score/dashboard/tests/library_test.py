@@ -1,5 +1,6 @@
 """The Library screen reads a tiny library folder (entries, an index, a blob folder): the tree of kinds with counts,
-a branch's children only when it opens, a page at a time, an item's page (picture, version, score, files, 3D), the
+a branch's children only when it opens, a page at a time, an item's page (the item in its kind's viewer: a copy
+turned, a surface on sliders, a sound's takes, an effect played, a light's test scene; a few numbers), the
 owner's lock and withdraw (queued when hosted, applied with the library's own command, committed and pushed, refused
 for anyone else and in an agent's process), refine items into the basket, and the library in the state export, read
 back by a hosted cockpit that imports nothing its image lacks."""
@@ -7,6 +8,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import struct
 import subprocess
 import sys
@@ -30,11 +32,28 @@ pytestmark = pytest.mark.django_db(transaction=True)
 ORIGIN = "http://127.0.0.1:8780"
 REPO = pathlib.Path(__file__).resolve().parents[3]
 MATERIAL = b"""#usda 1.0
-def Material "steel" { def Shader "surface" {
+def Material "steel" {
+    custom string score:token = "steel"
+    def Shader "surface" {
     color3f inputs:diffuseColor = (0.5, 0.25, 0.125)
     float inputs:metallic = 1
     float inputs:roughness = 0.35
 } }"""
+SKY = b"""#usda 1.0
+def Xform "sky" {
+    def DomeLight "Environment" {
+        color3f inputs:color = (0.35, 0.48, 0.79)
+        float inputs:intensity = 0.22
+    }
+    def SphereLight "lamp" {
+        float inputs:colorTemperature = 2700
+        bool inputs:enableColorTemperature = true
+        float inputs:exposure = 1
+        float inputs:intensity = 3
+    }
+}"""
+SETTINGS = json.dumps({"emitter": "ring", "emitter_size": [4.2, 2.5, 0.6], "count": 15000, "lifetime": 10.0,
+                       "loop": 10.0, "speed": [3, 5], "from": "footage: " + "a long source in words " * 20}).encode()
 MADE = "2026-10-18T12:00:00+00:00"
 # The library's own lock and withdraw, as small as the test needs: the entry's state, and the index rewritten.
 FAKE_COMMAND = """
@@ -79,7 +98,7 @@ def entry(root, blobs, kind, entry_id, state="draft", place="alpha", node="close
     for name, (role, data) in (files or {}).items():
         described[name] = {"role": role, "bytes": len(data), "sha256": stored(blobs, data)}
     record = {"schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1", "id": entry_id, "kind": kind, "version": 1, "state": state,
-              "title": entry_id.split(".")[0].replace("_", " ").capitalize(), "files": described,
+              "title": more.pop("title", entry_id.split(".")[0].replace("_", " ").capitalize()), "files": described,
               "picture": {"file": "preview.png"}, "licence": {"spdx": "MIT", "commercial_ok": True},
               "provenance": {"world": "world1", "place": place, "node": node, "commit": "c" * 40},
               "seen_in": [place] if place else [], "tags": {"model": ["piece"]}, "requires": [], **more}
@@ -93,18 +112,32 @@ def entry(root, blobs, kind, entry_id, state="draft", place="alpha", node="close
 def shelf(tmp_path):
     """A tiny library in a git folder with a bare remote, and its blob folder."""
     root, blobs = tmp_path / "lib", tmp_path / "blobs"
-    entry(root, blobs, "model", "lamp_post.alpha", files={"web/lamp_post.glb": ("web3d", glb())},
-          web3d={"file": "web/lamp_post.glb"}, score=42, score_parts=[{"name": "shape", "value": 30, "how": "edges"},
-                                             {"name": "likeness", "value": None, "how": "needs a paid judge"}],
+    entry(root, blobs, "model", "lamp_post.alpha",
+          files={"web/lamp_post.glb": ("web3d", glb()), "web/lamp_light.glb": ("web3d", glb() + b" " * 4)},
+          web3d={"file": "web/lamp_post.glb", "light": "web/lamp_light.glb", "objects": 3, "triangles": 1},
+          score=42, score_parts=[{"name": "shape", "value": 30, "how": "edges"},
+                                 {"name": "likeness", "value": None, "how": "needs a paid judge"}],
           refine_options=["remesh", {"id": "repaint", "label": "paint it again"}])
     entry(root, blobs, "model", "crate", state="locked", place="beta", node="assembly@beta", score=0.91,
           score_parts={"finish": 0.6})
     entry(root, blobs, "model", "wrench", tags={"model": ["prop"]})
     entry(root, blobs, "surface", "brushed_steel.alpha", node=None,
           tags={"family": ["steel"], "recipe": ["bare_metal"]},
-          files={"material.usda": ("usd", MATERIAL)})
+          files={"material.usda": ("usd", MATERIAL), "print.png": ("texture", fixture.picture())})
     entry(root, blobs, "sound", "hum.alpha", files={"audio/hum_1.ogg": ("audio", b"OggS one"),
-                                                   "audio/hum_2.ogg": ("audio", b"OggS two")})
+                                                   "audio/hum_2.ogg": ("audio", b"OggS two")}, score=95,
+          score_parts=[{"name": "loudness", "measured": -2.0, "unit": "LU off target", "value": 90,
+                        "how": "integrated loudness -22.0 LUFS against its shot target -20.0 LUFS"},
+                       {"name": "length", "measured": 4.3, "unit": "s", "value": 100, "how": "within"}])
+    entry(root, blobs, "effect", "devil.alpha", files={"settings.json": ("record", SETTINGS)})
+    entry(root, blobs, "light", "sky.alpha", files={"sky.usda": ("usd", SKY)})
+    entry(root, blobs, "kit", "alpha", files={"web3d/light.glb": ("web3d", glb() + b" " * 8)},
+          web3d={"light": "web3d/light.glb", "objects": 12})
+    entry(root, blobs, "algorithm", "camera_paths", title="Camera moves: walk paths and film shots",
+          provenance={"stage": "demo-film", "nodes": ["demo-film@alpha", "demo-film@beta"]},
+          requires=["algorithm/terrain@1"])
+    entry(root, blobs, "ground", "earth.alpha")
+    entry(root, blobs, "layer", "base.alpha")
     entry(root, blobs, "character", "walker", place=None, node="people-walker",
           files={"body.glb": ("gltf", glb())})
     entry(root, blobs, "place", "alpha", node="assembly@alpha", requires=["model/lamp_post.alpha@1"])
@@ -158,10 +191,10 @@ def node_of(tree, node_id):
 
 def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch_opens(world, shelf):
     html = signed_in().get("/library/").content.decode()
-    for kind, count in (("Models", 3), ("Surfaces", 1), ("Sound", 1), ("Characters", 1), ("Places", 1), ("Kits", 0),
-                        ("Algorithms", 0), ("Layers", 0), ("Effects", 0), ("Lights", 0), ("Ground", 0)):
+    for kind, count in (("Models", 3), ("Surfaces", 1), ("Sound", 1), ("Characters", 1), ("Places", 1), ("Kits", 1),
+                        ("Algorithms", 1), ("Layers", 1), ("Effects", 1), ("Lights", 1), ("Ground", 1)):
         assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
-    assert 'data-children="/api/library/children?node=model"' in html and "node=kit" not in html  # an empty kind
+    assert 'data-children="/api/library/children?node=model"' in html
     assert "Lamp post" not in html and "Wrench" not in html  # entries load only when their branch opens
     assert html.count(">MIT<") == 1 and "library.js" not in html
 
@@ -199,23 +232,105 @@ def test_a_large_folder_is_split_by_name_words_then_by_place_and_small_groups_go
     assert len(made["members"]["model/wall/wall_upper/@beta"]) == 20
 
 
-def test_an_item_page_shows_its_picture_version_score_files_and_3d(world, shelf):
+def item_data(html):
+    """The viewer's JSON the item page carries (item3d.js reads it), or None."""
+    found = re.search(r'<script id="item-data" type="application/json">(.*?)</script>', html, re.S)
+    return json.loads(found.group(1)) if found else None
+
+
+def an_item_page(client, path):
+    """An item page that keeps to the 40-word rule and shows no file list, ids or blobs."""
+    html = client.get(path).content.decode()
+    words = prose(html)
+    assert len(words) <= WORD_BUDGET, (path, len(words), words)
+    for gone in ('class="files"', 'class="ids"', "preview.png", "<table", "sha256"):
+        assert gone not in html, (path, gone)
+    return html
+
+
+def number_shown(html, label, value):
+    """A number card of `label` showing `value`."""
+    return re.search(rf'<div class="num-label">{re.escape(label)}</div>\s*<div class="num-value" data-v>'
+                     rf'{re.escape(value)}', html) is not None
+
+
+def test_a_model_turns_in_3d_from_its_light_copy_with_its_size_parts_and_score(world, shelf):
     client = signed_in()
-    lamp = client.get("/library/model/lamp_post.alpha/1/").content.decode()
+    lamp = an_item_page(client, "/library/model/lamp_post.alpha/1/")
     found = lib.library().entry("model/lamp_post.alpha@1")
-    assert f"/library-files/pictures/{found.picture}.jpg" in lamp and 'href="/library/model/lamp_post.alpha/1/3d/"' in lamp
-    for shown in (">42 <small>%</small>", ">30 <small>%</small>", "shape", "likeness", "web/lamp_post.glb",
-                  "preview.png", 'value="lock"', 'value="repaint"'):
-        assert shown in lamp, shown
-    crate = client.get("/library/model/crate/1/").content.decode()
-    assert ">91 <small>%</small>" in crate and 'value="withdraw"' in crate and "/3d/" not in crate
-    hum = client.get("/library/sound/hum.alpha/1/").content.decode()
-    assert hum.count("<audio") == 2
-    guest = signed_in("guest").get("/library/model/crate/1/").content.decode()
-    assert "data-post" not in guest  # only the owner decides
+    viewer = item_data(lamp)
+    assert viewer["mode"] == "copy" and viewer["light"] == f"/library-files/files/{found.web3d_light.sha}"
+    assert viewer["full"] == f"/library-files/files/{found.web3d.sha}"
+    assert 'id="item3d"' in lamp and '<script type="module" src="/static/pages/item3d.js">' in lamp
+    assert '"three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js"' in lamp
+    assert f"/library-files/pictures/{found.picture}.jpg" in lamp  # beside it, and under it while it loads
+    assert number_shown(lamp, "parts", "3") and number_shown(lamp, "score", "42") and 'data-fact="size"' in lamp
+    assert 'title="shape 30, likeness not measured"' in lamp  # the score's parts as hover text
+    assert 'href="/library/model/lamp_post.alpha/1/3d/"' in lamp and 'value="lock"' in lamp and 'value="repaint"' in lamp
+    crate = an_item_page(client, "/library/model/crate/1/")
+    assert item_data(crate) is None and 'class="pic"' in crate and 'value="withdraw"' in crate and "/3d/" not in crate
+    assert "data-post" not in an_item_page(signed_in("guest"), "/library/model/crate/1/")  # only the owner decides
     assert client.get("/library/model/nothing/1/").status_code == 404
-    words = prose(lamp)
-    assert len(words) <= WORD_BUDGET, (len(words), words)
+
+
+def test_a_kit_lays_its_pieces_out_and_a_character_plays_its_clips(world, shelf):
+    client = signed_in()
+    kit = an_item_page(client, "/library/kit/alpha/1/")
+    assert item_data(kit)["mode"] == "kit" and number_shown(kit, "pieces", "12")
+    walker = an_item_page(client, "/library/character/walker/1/")  # its raw body only: its picture, a 3D link
+    assert item_data(walker) is None and 'href="/library/character/walker/1/3d/"' in walker
+
+
+def test_a_surface_is_lit_on_a_sphere_with_its_settings_on_sliders(world, shelf):
+    steel = an_item_page(signed_in(), "/library/surface/brushed_steel.alpha/1/")
+    viewer = item_data(steel)
+    assert viewer["mode"] == "surface" and viewer["token"] == "steel"
+    assert viewer["finish"]["colour"] == [0.5, 0.25, 0.125] and viewer["finish"]["roughness"] == 0.35
+    assert viewer["print"].startswith("/library-files/files/") and viewer["palette"]["sign-gold"].startswith("#")
+    for slider in ('name="token"', 'name="shine"', 'name="wear"', 'name="seed"', '<option value="steel" selected>'):
+        assert slider in steel, slider
+    assert number_shown(steel, "token", "steel")
+
+
+def test_a_sound_plays_its_takes_side_by_side_with_its_loudness_and_length(world, shelf):
+    hum = an_item_page(signed_in(), "/library/sound/hum.alpha/1/")
+    assert hum.count("data-wave=") == 2 and '<script src="/static/pages/takes.js">' in hum and "item3d.js" not in hum
+    assert number_shown(hum, "loudness", "-22.0 <small>LUFS</small>") and number_shown(hum, "length", "4.3 <small>s</small>")
+
+
+def test_an_effect_plays_from_its_settings_with_a_time_scrubber(world, shelf):
+    devil = an_item_page(signed_in(), "/library/effect/devil.alpha/1/")
+    viewer = item_data(devil)
+    assert viewer["mode"] == "effect" and viewer["settings"]["emitter"] == "ring" and viewer["settings"]["count"] == 15000
+    assert "from" not in viewer["settings"]  # its sources in words stay in the library
+    assert 'id="clock"' in devil and "data-time" in devil
+    assert number_shown(devil, "length", "10.0 <small>s</small>") and number_shown(devil, "loop", "10.0 <small>s</small>")
+
+
+def test_a_light_lights_a_neutral_test_scene_with_its_temperature_and_power(world, shelf):
+    sky = an_item_page(signed_in(), "/library/light/sky.alpha/1/")
+    lamps = item_data(sky)["lamps"]
+    assert [(lamp["type"], lamp["name"]) for lamp in lamps] == [("dome", "Environment"), ("point", "lamp")]
+    assert lamps[1]["kelvin"] == 2700 and lamps[1]["power"] == 6 and 9000 < lamps[0]["kelvin"] < 20000
+    assert number_shown(sky, "temperature", "2700.0 <small>K</small>") and number_shown(sky, "power", "6.0")
+
+
+def test_an_algorithm_shows_its_purpose_what_it_reads_and_what_it_makes(world, shelf):
+    paths = an_item_page(signed_in(), "/library/algorithm/camera_paths/1/")
+    assert "Camera moves: walk paths and film shots" in paths and "algorithm/terrain@1" in paths
+    assert "demo-film &times; 2" in paths and item_data(paths) is None
+
+
+def test_a_place_or_layer_shows_its_places_3d_copy_and_a_ground_its_picture(world, shelf):
+    client = signed_in()
+    assert "<iframe" not in an_item_page(client, "/library/place/alpha/1/")  # no web copy yet: its picture
+    copy = world.source.web_copies / "alpha"
+    copy.mkdir(parents=True)
+    (copy / "alpha.json").write_text(json.dumps({"objects": []}))
+    for path in ("/library/place/alpha/1/", "/library/layer/base.alpha/1/"):
+        assert '<iframe src="/view/alpha?embed=1"' in an_item_page(client, path), path
+    ground = an_item_page(client, "/library/ground/earth.alpha/1/")
+    assert item_data(ground) is None and 'class="pic"' in ground
 
 
 def test_the_full_screen_viewer_and_the_file_routes_serve_only_listed_files(world, shelf):
@@ -289,11 +404,13 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
     assert first["written"] == again["written"] and "library/entries.json" in first["written"]
     pictures = {entry.picture for entry in lib.library().entries()}
     assert all(f"files/{sha}-360.jpg" in first["written"] for sha in pictures)
-    assert sum(path.startswith("library/files/") for path in first["written"]) == 3  # the two takes, the web copy
+    # the two takes, the light copies of the lamp post and the kit, the surface's print; never a whole copy
+    assert sum(path.startswith("library/files/") for path in first["written"]) == 5
+    assert "library/palette.json" in first["written"]
     (tmp_path / "home/export/current").symlink_to("one")
     with override_settings(SCORE_MODE="hosted", SCORE_HOME=tmp_path / "home", SCORE_LIB_ROOT=None):
         hosted = lib.library()
-        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 7
+        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 13
         assert hosted.picture_path(next(iter(pictures)), 360) is not None
         client = api("joey3")
         assert [node["label"] for node in client.get("/api/library/children", params={"node": "model/piece"}).json()
@@ -301,9 +418,13 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
         pages = signed_in("joey4")
         assert 'data-children="/api/library/children?node=model"' in pages.get("/library/").content.decode()
         hum = pages.get("/library/sound/hum.alpha/1/").content.decode()
-        assert hum.count("<audio") == 2 and "audio/hum_1.ogg" in hum
-        lamp = pages.get("/library/model/lamp_post.alpha/1/").content.decode()
-        assert 'href="/library/model/lamp_post.alpha/1/3d/"' in lamp  # its web copy travelled
+        assert hum.count("data-wave=") == 2 and "hum_1.ogg" in hum
+        lamp = item_data(pages.get("/library/model/lamp_post.alpha/1/").content.decode())
+        found = hosted.entry("model/lamp_post.alpha@1")
+        assert lamp["light"] == f"/library-files/files/{found.web3d_light.sha}" and lamp["full"] is None  # light only
+        steel = item_data(pages.get("/library/surface/brushed_steel.alpha/1/").content.decode())
+        assert steel["token"] == "steel" and steel["print"] and steel["palette"]["sign-gold"].startswith("#")
+        assert item_data(pages.get("/library/effect/devil.alpha/1/").content.decode())["settings"]["count"] == 15000
         assert "/3d/" not in pages.get("/library/character/walker/1/").content.decode()  # its raw GLB is not sent
 
 
@@ -319,7 +440,10 @@ from score.dashboard.pages import library
 from score.dashboard.state import library as lib
 client = Client()
 client.force_login(get_user_model().objects.create_user("joey", password="a long enough password"))
-codes = [client.get(page, HTTP_HOST="127.0.0.1").status_code for page in ("/library/", "/library/model/crate/1/")]
+codes = [client.get(page, HTTP_HOST="127.0.0.1").status_code for page in (
+    "/library/", "/library/model/crate/1/", "/library/model/lamp_post.alpha/1/", "/library/surface/brushed_steel.alpha/1/",
+    "/library/sound/hum.alpha/1/", "/library/effect/devil.alpha/1/", "/library/light/sky.alpha/1/",
+    "/library/algorithm/camera_paths/1/", "/library/place/alpha/1/")]
 branch = [node["label"] for node in library.children(lib.library(), "model")]
 import score.dashboard.site.asgi  # what the hosted image serves
 heavy = [name for name in sys.modules if name.startswith("score.") and not name.startswith("score.dashboard")]
@@ -337,7 +461,7 @@ def test_a_hosted_library_screen_imports_nothing_the_hosted_image_lacks(world, s
     done = subprocess.run([sys.executable, "-c", HOSTED_CHILD], env=env, cwd=tmp_path, capture_output=True, text=True)
     assert done.returncode == 0, done.stderr[-3000:]
     found = json.loads(done.stdout.strip().splitlines()[-1])
-    assert found == {"codes": [200, 200], "branch": ["Pieces", "Props"], "heavy": []}, found
+    assert found == {"codes": [200] * 9, "branch": ["Pieces", "Props"], "heavy": []}, found
 
 
 def test_the_library_screen_shows_numbers_not_prose(world, shelf):

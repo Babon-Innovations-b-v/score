@@ -336,15 +336,49 @@ def test_a_lost_picture_never_stops_the_others():
             raise backend.library_files.LibraryUnreachable("fetch ground/lost@1 exited 1: 404 Not Found")
         return pathlib.Path(named)
 
-    saved = (pictures.fetched, pictures.pictured, backend.settings)
+    saved = (pictures.fetched, pictures.pictured, pictures.viewed, backend.settings)
     pictures.fetched, backend.settings = fetched, lambda: {"SCORE_LIB_ROOT": "lib"}
     pictures.pictured = lambda root, kinds: [("place/flat@1", "a.png"), ("ground/lost@1", "b.png")]
+    pictures.viewed = lambda root, kinds: [("place/flat@1", "web3d/light.glb")]
     try:
         said = pictures.run()
     finally:
-        pictures.fetched, pictures.pictured, backend.settings = saved
-    assert said == ("library pictures: 1 of 2 (every kind) in the cache; 1 not fetched "
-                    "(first: ground/lost@1: fetch ground/lost@1 exited 1: 404 Not Found)"), said
+        pictures.fetched, pictures.pictured, pictures.viewed, backend.settings = saved
+    assert said == ("library pictures (every kind) in the cache: 1 of 2 (1 not fetched, first: ground/lost@1: fetch "
+                    "ground/lost@1 exited 1: 404 Not Found); viewer files: 1 of 1"), said
+
+
+def test_an_item_pages_viewer_files_are_fetched_and_a_404_is_not_asked_again():
+    from score.stages.library import backend, pictures
+    files = {"web3d/light.glb": "web3d", "web3d/full.glb": "web3d", "material.usda": "usd", "print.png": "texture",
+             "settings.json": "record", "a.ogg": "audio", "b.ogg": "audio", "c.ogg": "audio", "d.ogg": "audio",
+             "e.ogg": "audio", "sky.usda": "usd"}
+    record = {"files": {name: {"role": role, "sha256": "f" * 64} for name, role in files.items()},
+              "web3d": {"file": "web3d/full.glb", "light": "web3d/light.glb"}}
+    assert pictures.viewer_files({**record, "kind": "model"}) == ["web3d/light.glb"]
+    assert pictures.viewer_files({**record, "kind": "surface"}) == ["web3d/light.glb", "material.usda", "print.png"]
+    assert pictures.viewer_files({**record, "kind": "sound"})[1:] == ["a.ogg", "b.ogg", "c.ogg", "d.ogg"]
+    assert pictures.viewer_files({**record, "kind": "effect"})[1:] == ["settings.json"]
+    root = pathlib.Path(tempfile.mkdtemp(dir=HOME)) / "lib"
+    entry = root / "entries/model/crate/1/entry.json"
+    entry.parent.mkdir(parents=True)
+    entry.write_text(json.dumps({"files": {"web3d/light.glb": {"sha256": "a" * 64}}}))
+    asked = []
+
+    def lost(address, named):
+        asked.append(named)
+        raise backend.library_files.LibraryUnreachable("HeadObject: An error occurred (404) when calling it")
+
+    saved = (backend.library_files.cache_folder, pictures.fetched)
+    backend.library_files.cache_folder, pictures.fetched = (lambda: root.parent / "cache"), lost
+    try:
+        assert pictures.held_or_why("model/crate@1", "web3d/light.glb", root)[0] is False
+        assert "404 before" in pictures.held_or_why("model/crate@1", "web3d/light.glb", root)[1] and len(asked) == 1
+        entry.write_text(json.dumps({"files": {"web3d/light.glb": {"sha256": "b" * 64}}}))  # new bytes: asked again
+        pictures.held_or_why("model/crate@1", "web3d/light.glb", root)
+    finally:
+        backend.library_files.cache_folder, pictures.fetched = saved
+    assert len(asked) == 2
 
 
 if __name__ == "__main__":
