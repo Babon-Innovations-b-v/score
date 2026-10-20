@@ -82,6 +82,11 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
 - **Never split a raw Pixal3D model into per-piece objects.** trimesh's `split` on a 950k-face raw model took
   43.5 GB and took WSL down (2026-10-06). Sample points (`register.py`). Every local Python step runs under
   `systemd-run --user --scope -q -p MemoryMax=16G`.
+- **Rule change, not built yet (the owner, 2026-10-20, #19): the prop pipeline first for every object and every
+  shell piece; code builds a kind only when the pipeline fails on that object, named in its record.** Purely
+  code-built pieces look generated and copied shell pieces look like tiles. Shell pieces come as a few pipeline-made
+  variants per kit, laid by shell section (CONTEXT.md). Big objects keep their code body below. Until #19 lands,
+  the sorter still routes as follows.
 - **Code or pipeline, by the parts check (method B, the owner's pick 2026-10-07).** `sorter.py`: plain plates,
   pipes and trims (`PLAIN`) go to `inside/pieces.py`; so does every kind listed in `data/library/fittings.json` (the
   room's shell and fittings, furniture holders, plain manufactured objects) whose last code build shows every part
