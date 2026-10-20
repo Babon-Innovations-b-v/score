@@ -166,9 +166,12 @@ scale, starting big with a new place inside an existing environment:
 
 How the pieces fit is the framework's and its tools' work. Where the runner stands today: the stage table's
 `rough-model` row (`score/stages/rough_model`, #15) makes each place's rough model after its plan, from the concept the
-plan names, but no plan is drawn to its rough model yet; there is no stage that
-splits a shell's plan into the shapes of its inside places, and a plan does not name its outside shell; each place's
-concept, plan and inventory are made on their own. The ship is the first place run
+plan names, but no plan is drawn to its rough model yet. The shell split is a row (`shell-split`,
+`score/stages/shell_split`, free): a place whose plan has a `split` (its outline and room list) is an outside shell,
+its node cuts the inside into its inside places' shapes, gated on `tiled`, `reached` and `bounded`, and each inside
+place's plan reads its shell's split beside it (a nested read, `graph.Stage.nested`), so the runner makes the split
+first. No plan of environment 1 has a `split` yet, so the ship's rooms are still the hand-made
+`data/definitions/ship_floor.json`; each place's concept and inventory are made on their own. The ship is the first place run
 through the loop: its rooms' concepts were drawn before its hull was planned; drawing them again to the shapes split
 from the hull's plan is the loop's first run.
 

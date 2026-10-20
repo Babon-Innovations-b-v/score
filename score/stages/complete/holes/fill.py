@@ -15,7 +15,7 @@ ROUTE, CROP, MECHANIC, CODE = "route", "crop", "mechanic", "code"
 # The ship kits' own table (score/stages/ship_kits), not in STAGES: its node runs a ship place.
 SHIP_KIT = "ship_kit"
 ASSEMBLY = "assembly"  # lays a place's kit pieces from its seed
-CONCEPT, PLAN, ROUGH_MODEL = "concept", "plan", "rough-model"
+CONCEPT, PLAN, ROUGH_MODEL, SHELL_SPLIT = "concept", "plan", "rough-model", "shell-split"
 FILLERS = {
     ROUTE: ("pixal", "prop data for {place}: data/props/{place}.json"),
     CROP: ("crops-layer", None),
@@ -24,6 +24,7 @@ FILLERS = {
     CONCEPT: ("concept-views", "a concept view request for {place}"),
     PLAN: ("plan", "data/plans/{place}.json with its leads"),
     ROUGH_MODEL: (ROUGH_MODEL, None),
+    SHELL_SPLIT: (SHELL_SPLIT, "a `split` in data/plans/{place}.json: the shell's outline and its room list"),
 }
 # complete's gates by the stage that can fix what they find; the rest of its gates by the work they need.
 COMPLETE = "complete"

@@ -56,7 +56,9 @@ stage as each stage is built; nothing moves before.
   detached run's log is under `$PROPS_HOME/logs`. `.claude/scripts/score-resume.service` runs it at boot once the
   owner installs it (needs systemd in WSL).
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
-  leaves out the places its environment data says it has nothing to do for), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
+  leaves out the places its environment data says it has nothing to do for; `nested`: its beside reads go up to the
+  place holding this one, an inside place's plan reading its outside shell's split, so the table's loop check leaves
+  them out), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
   stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved
