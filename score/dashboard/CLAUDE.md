@@ -117,7 +117,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   bar, else a gap, never 0, and the euros on no day), progress (places complete, the gaps by kind in plain words,
   each opening the Environment at `/?kind=<kind>`: only the tiles holding that kind, counting it) and prices (paid
   steps measured, the remake's measured share)) and **Library** `/library/` (`pages/library.py`: every kind of
-  `state/library.KINDS` with its count, a branch's children only when it opens, `/api/library/children?node=&page=`,
+  `state/library.KINDS` with its count, a branch's children only when it opens (a withdrawn entry in none), `/api/library/children?node=&page=`,
   `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/` is the item on its own
   (owner, 2026-10-20: "experiencing the item in isolation"), its kind's viewer first (`library.view_of`,
   `viewer_of`): a model, kit or character's web copy turned in `static/pages/item3d.js` (its light copy, then its

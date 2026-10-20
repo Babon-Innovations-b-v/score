@@ -246,6 +246,14 @@ def test_a_large_folder_is_split_by_name_words_then_by_place_and_small_groups_go
     assert len(made["members"]["model/wall/wall_upper/@beta"]) == 20
 
 
+def test_a_withdrawn_entry_is_in_no_folder():
+    entries = named(2, "crate")
+    entries[1] = entries[1].model_copy(update={"state": "withdrawn"})
+    made = folders(entries)
+    assert node_of(made["tree"], "model")["count"] == 1
+    assert [entry.state for entry in made["members"]["model"]] == ["draft"]
+
+
 def item_data(html):
     """The viewer's JSON the item page carries (item3d.js reads it), or None."""
     found = re.search(r'<script id="item-data" type="application/json">(.*?)</script>', html, re.S)
