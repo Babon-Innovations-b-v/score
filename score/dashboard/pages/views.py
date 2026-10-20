@@ -116,17 +116,18 @@ def buy(request):
 
 
 def place_page(request, place):
-    """Screen 2: the place in 3D, its scene tree's top level with each node's gaps (deeper branches load as they
-    open, `place_branch`), a side panel per item."""
+    """Screen 2: its concept as the header, the place in 3D, its scene tree's top level with each node's gaps (deeper
+    branches load as they open, `place_branch`), a side panel per item."""
     source = state.source()
     if place not in source.places():
         raise Http404(f"no place {place}")
     detail = source.place_detail(place)
-    names = present.place_names(present.look_groups(source.world_state(), set()))
+    world = source.world_state()
+    names = present.place_names(present.look_groups(world, set()))
     return render(request, "pages/place.html", {
-        "detail": detail, "name": names.get(place, present.place_title(place)),
+        "detail": detail, "name": names.get(place, present.place_title(place)), "concept": world.concepts.get(place),
         "tree": scene_branch(request, source, detail, "") if detail.holes else None,
-        "checked": not holes.not_checked(place, detail.holes, source.world_state().holes_price)})
+        "checked": not holes.not_checked(place, detail.holes, world.holes_price)})
 
 
 def place_branch(request, place):

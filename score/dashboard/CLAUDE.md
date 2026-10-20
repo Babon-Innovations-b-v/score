@@ -44,13 +44,16 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     inputs counted, plus the holes price of every paid step off it), route {likely, high, unpriced, takes, bought,
     made, library, predicted_holes, blocked}, rest {likely, high, priced, unpriced}, unpriced, eta {likely_minutes,
     high_minutes (None unless every step is timed), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
-    {kind: count}; `places` [{place, title, status, picture (a thumbnail link: the store's hero or still, else the
-    library's place entry, else any entry made there), picture_from (store, library, None), progress {made, needed}
+    {kind: count}; `places` [{place, title, status, picture (its concept's thumbnail link; None when its concept is
+    lost, never a render instead: owner, 2026-10-20), picture_from (concept, None), progress {made, needed}
     (its line's steps accepted), complete, gaps, worst (lost, route, missing, gate), takes (prepare's, by status),
     within (the outside place or shell holding it, None for an outside one)}], `shells` {shell: short name} (the
     outside shells that are no place of their own). The hierarchy is `data/places/within.json` (shapes first: each
     place's `within` and the data it was read from), read on the store's machine into the WorldState
-    (`within`, `shells`), so the export carries it; a place it does not name is an outside place.
+    (`within`, `shells`), so the export carries it; a place it does not name is an outside place. The concepts are
+    `data/places/concepts.json` (each place's or shell's concept picture: its sha256 in the store's blobs and where
+    its bytes were found, hash-checked; the lost ones named with why), read into the WorldState's `concepts`
+    {node: FileRef}; the export carries their thumbnails before every other picture.
   - `/api/screens/place/<place>`: picture, `web3d` (`/web/<place>/<place>.glb`, else the library place entry's GLB at
     `/library-files/files/<sha>`) and `web3d_from`, `view`, progress, complete, gaps, worst, takes, `steps` [{node,
     stage, label, state, paid, thumb}], `items` (its holes, the scene tree's leaves by `prim` path) [{id, prim, kind,
@@ -82,9 +85,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`environment.html`: the month spent (the lines read, "at least" while one is not, each line as hover text; no
   stop shown), the remake's euros and hours, a Review and buy
   button, a tile per outside place or shell (shapes first, `cockpit.tiles`: one holding places sums their progress
-  and gaps, shows how many sit inside and opens to them at `/?in=<place or shell>`, a place's own tile first, with a
-  trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: the 3D view, the scene
-  tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`: the one batch's total, how much of it is
+  and gaps, shows what sits directly inside that holds places itself over its concept ("Ship, 8 rooms") and "+N"
+  for the rest, and opens to them at `/?in=<place or shell>`, a place's own tile first, with a
+  trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: its concept as the header, the 3D view,
+  the scene tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`: the one batch's total, how much of it is
   estimated, ETA and the Buy button, its layers below, each opening to its places; the Benchmarks a second small
   batch with its own Buy; the owner's books
   buttons: the read-back while paid work is refused, the model calls' month figure always, its button named by their cost
@@ -136,7 +140,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   - `number.html` `label`, `value` (None: grey "unknown" with `unknown_tip`), `unit` ("EUR": to the cent), `of` a
     denominator, `bar` a percent under it, `tone` a dot beside the label, `tip`. Pass every argument (None where
     unused): an include inherits its caller's names.
-  - `tile.html` `href`, `picture`, `name` (the place's short name, place.json `short`; its look's long words are
+  - `tile.html` `href`, `picture` (the concept; none: "concept missing"), `holds` [{name, picture, count, unit}],
+    `more`, `name` (the place's short name, place.json `short`; its look's long words are
     `tip`), `made`, `needed`, `made_tip` ("made 0 of 30"), `gaps` (None: "?", not checked) with a gap icon in its
     `tone` and "781 gaps" as hover text, `tone`, `tip`.
   - `tree.html` `nodes` [{label, count, tone, tip, href, picture (a thumbnail link), open, panel, children,

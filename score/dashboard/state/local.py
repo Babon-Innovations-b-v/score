@@ -484,7 +484,20 @@ class LocalSource:
                           engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
                           holes_total=self.holes_total(), holes_price=self.holes_price(),
-                          remake=self.remake(), **self.hierarchy())
+                          remake=self.remake(), concepts=self.concepts(), **self.hierarchy())
+
+    def concepts(self):
+        """{place or shell: FileRef} of the concept pictures data/places/concepts.json names whose bytes stand in
+        the store's blobs; a place it lists as lost, or whose blob is not here, has none."""
+        path = self.data / "places" / "concepts.json"
+        found = json.loads(path.read_text())["concepts"] if path.is_file() else {}
+        refs = {}
+        for node, concept in found.items():
+            blob = self.blob_path(concept["sha256"])
+            if blob.is_file():
+                self.known.add(concept["sha256"], concept["name"], blob)
+                refs[node] = file_ref(concept["sha256"], concept["name"], blob.stat().st_size)
+        return refs
 
     def hierarchy(self):
         """{within, shells} of data/places/within.json: what each place or shell sits within, and the shells that are

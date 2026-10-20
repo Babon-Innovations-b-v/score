@@ -433,7 +433,8 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     a_remake(world)
     world.source.refresh()
     a_month(monkeypatch)
-    html = signed_in().get("/").content.decode()
+    client = signed_in()
+    html = client.get("/").content.decode()
     tiles = dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', html, re.S))
     assert set(tiles) == {"alpha", "beta"}
     assert "tone-hole-route" in tiles["alpha"] and "<b data-v>4</b>" in tiles["alpha"]  # its worst kind: a route step
@@ -441,7 +442,8 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     assert all(re.search(r"<text [^>]*data-v>\d+/\d+</text>", tile) for tile in tiles.values())  # made / needed
     assert all(re.search(r"<title>made \d+ of \d+</title>", tile) for tile in tiles.values())  # said by hover
     assert 'title="4 gaps"><svg class="gap-icon tone-hole-route"' in tiles["alpha"]
-    assert all("/thumbs/" in tile for tile in tiles.values())  # each place's best picture
+    assert '<img src="/thumbs/' in tiles["alpha"] and "concept missing" not in tiles["alpha"]  # its concept
+    assert "<img" not in tiles["beta"] and "concept missing" in tiles["beta"]  # lost: never a render instead
     top = html[html.index('<section class="topbar">'):html.index('<section class="ptiles"')]
     # the cloud bill read, the model bill not: at least the cloud's, the missing line as hover text; no stop shown
     assert "<small>&ge;</small> <small>EUR</small> 12.50" in top and "not read: Model calls" in top
@@ -454,7 +456,7 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
 def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_inside_it(world, settings, tmp_path):
     a_holes_finding(world, settings, tmp_path)
     a_holes_price(world)
-    (world.data / "places").mkdir()
+    (world.data / "places").mkdir(exist_ok=True)
     (world.data / "places/within.json").write_text(json.dumps({
         "shells": {"yard": {"name": "Yard"}, "empty": {"name": "Empty"}},
         "within": {"alpha": {"within": "beta"}, "beta": {"within": "yard"}}}))
@@ -465,9 +467,11 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
         return re.findall(r'<a class="ptile" href="([^"]+)"(.*?)</a>', html, re.S), html
     found, _ = tiles("/")
     assert [href for href, _ in found] == ["/?in=yard"]  # one outside shell; a shell holding no place shows not
-    assert "<b data-v>2</b>" in found[0][1] and "tone-hole-route" in found[0][1]  # two inside; alpha's gaps summed
+    assert "<b data-v>Beta, 1 place</b>" in found[0][1] and "tone-hole-route" in found[0][1]  # alpha's gaps summed
+    assert "concept missing" in found[0][1]  # the yard has no concept, and never takes one from inside
     found, html = tiles("/?in=yard")
     assert [href for href, _ in found] == ["/?in=beta"] and '<a href="/" data-v>Environment</a>' in html
+    assert "<b data-v>+1</b>" in found[0][1]  # alpha sits in beta, a leaf
     found, html = tiles("/?in=beta")
     assert [href for href, _ in found] == ["/place/beta/", "/place/alpha/"]  # itself first, then what it holds
     assert '<a href="/?in=yard" data-v>Yard</a>' in html and "<b data-v>Beta</b>" in html

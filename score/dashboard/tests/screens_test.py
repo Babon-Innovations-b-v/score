@@ -2,7 +2,7 @@
 priced by the runner, a prepare record shaped like the real one (takes by status, those waiting on lost inputs
 counted in its figure), the month's spend as `score spend` writes it and a tiny library: the remake is prepare's
 figure plus the holes price off the prop route, the ETA a range only when both parts have one, a place's picture
-from the store else the library, the model calls' month None when not read, the basket's stop its high plus 10%, and the
+its concept, the model calls' month None when not read, the basket's stop its high plus 10%, and the
 library's counts by kind."""
 import json
 
@@ -72,8 +72,7 @@ def cockpit(world, settings, tmp_path):
 
 
 def test_the_environment_shows_the_whole_remake_its_eta_floor_and_each_places_tile(cockpit, shelf):  # noqa: F811
-    from score.dashboard.state import library
-    found = screens.environment(cockpit.source, MONTH, library.library())
+    found = screens.environment(cockpit.source, MONTH)
     remake = found["remake"]
     assert remake["route"]["likely"] == 10.0 and remake["route"]["blocked"] == 2
     assert remake["route"]["predicted_holes"] == 1
@@ -87,19 +86,16 @@ def test_the_environment_shows_the_whole_remake_its_eta_floor_and_each_places_ti
     alpha = next(place for place in found["places"] if place["place"] == "alpha")
     assert alpha["gaps"] == 4 and alpha["worst"] == "route" and alpha["takes"]["takes"] == 3
     assert alpha["progress"]["needed"] >= alpha["progress"]["made"] > 0
-    assert all(place["picture"] for place in found["places"])  # the store's, else the library's
+    assert [bool(place["picture"]) for place in found["places"]] == [True, False]  # alpha's concept; beta's is lost
     assert found["gaps"] == {"missing": 2, "gate": 1, "route": 1}
 
 
-def test_a_place_with_no_stored_picture_takes_the_librarys_and_none_without_a_library(cockpit, shelf):  # noqa: F811
-    from score.dashboard.state import library
-    shown = library.library()
-    place_entry = shown.entry("place/alpha@1")
-    assert screens.library_picture(shown, "alpha") == f"/library-files/thumbs/{place_entry.picture}.jpg"
-    assert screens.library_picture(None, "alpha") is None
-    card = next(card for card in screens.cards(cockpit.source.world_state()) if card.place == "alpha")
-    bare = card.model_copy(update={"hero": None, "still": None})
-    assert screens.picture_of(bare, shown) == (f"/library-files/thumbs/{place_entry.picture}.jpg", "library")
+def test_a_places_picture_is_its_concept_and_none_when_its_concept_is_lost(cockpit, shelf):  # noqa: F811
+    world = cockpit.source.world_state()
+    concept = world.concepts["alpha"]
+    assert screens.picture_of(world, "alpha") == (f"/thumbs/{concept.sha}.jpg", "concept")
+    assert screens.picture_of(world, "beta") == (None, None)  # its store hero and library entry are no concept
+    assert cockpit.source.file(concept.sha)[1].is_file()  # served from the store's blobs
 
 
 def test_a_remake_priced_on_code_not_committed_says_it_is_stale(cockpit):

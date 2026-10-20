@@ -2,7 +2,7 @@
 Read from the same source as the pages (state.source(): the store or the export), the runner's spend, the library
 and the basket; nothing is priced, counted or judged here that the runner did not write (ADR-0006).
 
-    environment(source, spend, library)        # GET /api/screens/environment
+    environment(source, spend)                 # GET /api/screens/environment
     place(source, place, library)              # GET /api/screens/place/<place>
     buy(items, choices, spend)                 # GET /api/screens/buy
     stats(source, spend)                       # GET /api/screens/stats
@@ -33,24 +33,11 @@ def thumb(ref):
     return (ref.thumb_url or ref.url) if ref else None
 
 
-def library_picture(library, place):
-    """The thumbnail link of the library's picture of a place: its place entry, else the first pictured entry made
-    there; None when the library has none."""
-    if library is None:
-        return None
-    entries = [entry for entry in library.entries() if entry.picture]
-    found = next((entry for entry in entries if entry.kind == "place" and entry.entry_id == place), None) or \
-        next((entry for entry in entries if entry.place == place), None)
-    return f"/library-files/thumbs/{found.picture}.jpg" if found else None
-
-
-def picture_of(card, library):
-    """(link, where from) of a place's picture: the store's (its hero, else its film's still), else the library's."""
-    stored = thumb(card.hero) or thumb(card.still)
-    if stored:
-        return stored, "store"
-    found = library_picture(library, card.place)
-    return (found, "library") if found else (None, None)
+def picture_of(world, place):
+    """(link, where from) of a place's picture: its concept's thumbnail, else (None, None): a lost concept is a gap,
+    never filled with a render (owner, 2026-10-20)."""
+    concept = world.concepts.get(place)
+    return (thumb(concept), "concept") if concept else (None, None)
 
 
 def steps_of(card):
@@ -133,7 +120,7 @@ def month_money(spend):
             "in_flight": spend.reserved, "refused": spend.paid_refused is not None}
 
 
-def environment(source, spend, library):
+def environment(source, spend):
     """The Environment screen: the month against the stop, the remake's price and ETA, the gaps by kind, a tile a
     place (picture, progress, gap count, worst kind, its takes)."""
     world = source.world_state(spend)
@@ -142,7 +129,7 @@ def environment(source, spend, library):
     places = []
     for card in cards(world):
         counts = gap_counts(source.holes(card.place))
-        link, origin = picture_of(card, library)
+        link, origin = picture_of(world, card.place)
         places.append({"place": card.place, "title": names[card.place], "status": card.status,
                        "picture": link, "picture_from": origin, "progress": progress(card),
                        "complete": complete(card), "gaps": sum(counts.values()), "worst": worst(counts),
@@ -176,7 +163,7 @@ def place(source, place, library):
     world = source.world_state()
     card = next(found for found in cards(world) if found.place == place)
     found = source.holes(place)
-    link, origin = picture_of(card, library)
+    link, origin = picture_of(world, card.place)
     model, model_from = web3d_link(source, place, library)
     price = world.holes_price
     nodes = sorted({hole.node for hole in found if hole.node})

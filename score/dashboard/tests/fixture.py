@@ -13,7 +13,7 @@ from score import graph, review, stages
 from score.dashboard.launch.backend import GroupPlan, LaunchHandle, LaunchState
 from score.dashboard.state.local import LocalSource
 from score.dashboard.state.models import Spend
-from score.store import Store
+from score.store import Store, file_hash
 
 PLACES = ("alpha", "beta")
 ROW_NAMES = ("terrain", "plan", "scene-record", "closeup", "assembly", "complete", "demo-film")
@@ -116,6 +116,20 @@ def data_root(root):
     return data
 
 
+def a_concept(store, data, folder, node):
+    """A concept picture of `node` in the store's blobs, named in data/places/concepts.json."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{node}.png"
+    path.write_bytes(picture((123, 45, 67)))  # a colour no output of the fixture has
+    sha = file_hash(path)
+    store.put_blob(path, sha)
+    listed = data / "places" / "concepts.json"
+    listed.parent.mkdir(parents=True, exist_ok=True)
+    found = json.loads(listed.read_text()) if listed.is_file() else {"concepts": {}}
+    found["concepts"][node] = {"sha256": sha, "name": path.name}
+    listed.write_text(json.dumps(found))
+
+
 def build(root):
     """The fixture environment under `root`: its data, its store (not the framework's: owner writes are allowed), its
     source and its ledger."""
@@ -143,6 +157,7 @@ def build(root):
     ledger.write_text("\n".join(json.dumps(row) for row in (
         {"ticket": "closeup@alpha key-1", "euros": 10.0, "wall_minutes": 30},
         {"ticket": "closeup@beta key-2", "euros": 12.0, "wall_minutes": 40})) + "\n")
+    a_concept(store, data, root / "concepts", "alpha")  # beta's concept is lost
     world = graph.Environment("world1", 3, {"data": str(data)})
     source = LocalSource(props, root / "dashboard", root / "web", store_root=root / "store", world=world,
                          rows=rows())
