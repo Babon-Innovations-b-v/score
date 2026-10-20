@@ -12,10 +12,10 @@
     <label class="num-label" for="concept-note" data-v>note</label>
     <textarea id="concept-note" rows="4" title="what to change in the whole picture"></textarea>
     <div class="concept-actions">
-      <button type="button" class="button primary big" id="concept-draw"{% if euros is None or pending %} disabled{% endif %} title="{% if shown %}with no mark and no note: a new first draw from this place's own wording; with them: the prompt model corrects this picture's prompt by them, then one draw redraws it (two calls). {% endif %}Your click is the spend yes for exactly its calls{% if euros is None %}; its price is not measured{% endif %}"><span data-slot="label" data-v>{% if shown %}Draw fresh{% else %}Draw concept{% endif %}</span> <small data-slot="price" data-v>{% if euros is None %}<span class="unknown">unknown</span>{% else %}EUR {{ euros|floatformat:2 }}{% endif %}</small></button>
+      <button type="button" class="button primary big" id="concept-draw"{% if euros is None or pending or wording.refused %} disabled{% endif %} title="{% if wording.refused %}{{ wording.refused }}. {% endif %}{% if shown %}with no mark and no note: a new first draw from this place's own wording; with them: the prompt model corrects this picture's prompt by them, then one draw redraws it (two calls). {% endif %}Your click is the spend yes for exactly its calls{% if euros is None %}; its price is not measured{% endif %}"><span data-slot="label" data-v>{% if shown %}Draw fresh{% else %}Draw concept{% endif %}</span> <small data-slot="price" data-v>{% if euros is None %}<span class="unknown">unknown</span>{% else %}EUR {{ euros|floatformat:2 }}{% endif %}</small></button>
       <span class="dot{% if refused %} tone-bad{% endif %}" id="concept-said"{% if refused %} title="{{ refused }}"{% else %} hidden{% endif %}></span>
     </div>
-    {% if shown %}<button type="button" class="button" id="concept-pick" data-sha="{{ shown.picture.sha }}" title="lock this concept for the design" data-v>Pick</button>{% endif %}
+    {% if shown %}<button type="button" class="button" id="concept-pick" data-sha="{{ shown.picture.sha }}"{% if wording.unpickable %} disabled title="{{ wording.unpickable }}"{% else %} title="lock this concept for the design"{% endif %} data-v>Pick</button>{% endif %}
     {% elif can and picked and not approved %}
     <button type="button" class="button" id="concept-pick" data-sha="" title="unlock it to mark and draw again (until the design is approved)" data-v>Unlock</button>
     <span class="dot" id="concept-said" hidden></span>

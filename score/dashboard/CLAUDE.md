@@ -231,8 +231,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   A place's page names the places listed inside it that its draw is asked to hold (`asked_to_hold`). Under the
   picture the page shows, editable, word for word what Draw fresh or Draw concept sends (`WorldState.concept_wordings`,
   `ConceptWording`: the wording `score/review/concepts.py` `generated` makes by its one rule for every place, or the
-  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: the picked concept of the
-  place it sits within, then of each place beside it that it opens into, then its references), why it waits (`refused`), and, folded, what Redraw with notes sends (its notes as
+  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: a crop of the picked concept of
+  the place it sits within to what holds it, then the picked concept of each place beside it that it opens into, then its references), why it waits
+  (`refused`: Draw disabled with it as hover text; `unpickable`: Pick the same; both refused on the store's machine
+  by `concepts.step_refusal`, the design steps' one rule), a part of another place's outside (within.json `parts`, the
+  Launch of the Square) no card, no Draw and no Draw all entry, and, folded, what Redraw with notes sends (its notes as
   placeholders). A first draw sent with the box edited sends exactly that text (his note after it) and the store's
   machine keeps it as the place's own wording (`concepts/<place>/wordings/`, his process only), used by every later
   first draw and Draw all and by the stale rule (`current_draw`), so his edit puts the old draw out of date on the

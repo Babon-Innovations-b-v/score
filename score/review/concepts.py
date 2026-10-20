@@ -41,8 +41,11 @@ and openings from its plan's leads and that it has no others, its size against t
 words, the places listed inside it (data/places/within.json) and how they join, the place it sits within as context,
 the pictures sent with it named in order, the fixed viewpoint, people only where its data has them (`has_people`) and
 the environment's style
-(data/definitions/concept_views.json `style`). A place within another is sent that one's picked concept first, and
-cannot be drawn while it is not picked (`waits`); then the picked concept of each place beside it that it opens into,
+(data/definitions/concept_views.json `style`). A place within another is sent first a crop of that one's picked concept
+to the scene inventory row its plan says holds it ("the inside of what this crop shows": the ship for its rooms, the
+block for the flat), never the whole scene; the design steps are strict, in one place (`step_refusal`, owner
+2026-10-21): it is drawn or picked only once the layer above is picked (the pick is the approval), its inventory read,
+its plan made and that row outlined; then the picked concept of each place beside it that it opens into,
 so their shared door matches; then its references (the owner's, kept in the private bucket's references/, never the
 public repository; read from the local copy under {home}/references; a draw whose reference is not here waits). A
 draw's record keeps the picks it was sent (`picks`), so a new pick of one puts it out of date (`current_draw`). A draw's
@@ -163,7 +166,7 @@ def undrawn(store, nodes):
     a place within another waits for that one's pick, so it is drawn on it (CONTEXT.md "concept")."""
     ready, waiting = [], {}
     for node in nodes:
-        if picked(store, node):
+        if picked(store, node) or node in tree()["parts"]:
             continue
         if why := waits(store, node):
             waiting[node] = why
@@ -189,9 +192,11 @@ def placed(store):
 
 def pick(store, place, sha, by):
     """Lock `place`'s concept on its draw `sha` (None: unlock it); the record. Refused for a sha that is no draw of
-    the place."""
+    the place, and while its design step may not be taken (step_refusal's pick)."""
     if sha is not None and sha not in {draw["sha"] for draw in draws(store, place)}:
         raise Refused(f"{sha[:12]} is no draw of {place}")
+    if sha is not None and (why := step_refusal(store, place, "pick")):
+        raise Refused(f"{place} {why}")
     record = {"place": place, "sha": sha, "by": by, "at": now()}
     recorded(store, f"{AREA}/{place}/picks/{stamp_key(record['at'])}.json", record)
     return record
@@ -290,10 +295,13 @@ def style():
 
 
 def tree():
-    """data/places/within.json: {within: {place: what holds it}, shells: {shell: its short name}}."""
+    """data/places/within.json: {within: {place: what holds it}, shells: {shell: its short name}, parts: {part: (the
+    place whose outside it is part of, its words in that place's draw)}}: a part has no concept of its own (the
+    owner, 2026-10-21: the launch, now the Square's)."""
     found = json.loads((DATA / "places/within.json").read_text())
     return {"within": {name: entry["within"] for name, entry in found["within"].items()},
-            "shells": {name: entry["name"] for name, entry in found["shells"].items()}}
+            "shells": {name: entry["name"] for name, entry in found["shells"].items()},
+            "parts": {name: (entry["of"], entry["as"]) for name, entry in found.get("parts", {}).items()}}
 
 
 def above(place):
@@ -398,7 +406,9 @@ def holds_and_doors(place):
     """One sentence: the places listed inside `place` and its own doors from its plan's leads, no others; ""
     with neither."""
     inside, leads = inside_of(place), plan_of(place).get("leads") or {}
+    shown = [words for of, words in tree()["parts"].values() if of == place]
     parts = [f"inside: {', '.join(short_name(name) for name in inside)}" if inside else "",
+             f"part of it: {'; '.join(shown)}" if shown else "",
              (f"its doors: {'; '.join(door_words(place, side, lead) for side, lead in leads.items())}; no other doors "
               "or openings") if leads else ""]
     said = "; ".join(part for part in parts if part)
@@ -421,32 +431,6 @@ def floor_and_walls(place):
     return plan["w"] * plan["d"], max(heights, default=None)
 
 
-def outside_of(place):
-    """(name, words) of the thing inside the layer above that is `place`'s direct outside, when its data names one
-    (concept_inputs `outside`, described by the layer above's `holds`: the ship rooms' ship, owner 2026-10-21: "the
-    ship is the new outside"); None when its outside is the layer above itself."""
-    name = inputs_of(place).get("outside")
-    return (name, inputs_of(above(place)).get("holds", {}).get(name, "")) if name else None
-
-
-def within_name(place):
-    """What `place` sits within, in words: its own outside when its data names one, else the layer above."""
-    outside = outside_of(place)
-    return f"the {outside[0]}" if outside else short_name(above(place))
-
-
-def outside_words(place):
-    """For a place whose outside is a thing inside the layer above: what that thing is, and that the draw shows only
-    this place's inside within it, nothing of the layer above; "" otherwise."""
-    outside = outside_of(place)
-    if not outside:
-        return ""
-    name, words = outside
-    return (f"Its outside is the {name}" + (f" ({words.rstrip('.')})" if words else "") + f": draw only its "
-            f"inside, cut away from the {name}'s hull, filling the frame; nothing of {short_name(above(place))}, its "
-            "floor or other rooms.")
-
-
 def size_words(place):
     """How big `place` is against the places beside it under the same layer above, in relative words only (ranked by
     its plan's floor area, its walls against a person's height); "" when its plan gives no floor."""
@@ -457,13 +441,13 @@ def size_words(place):
     words = []
     if others and own[0] > others[-1]:
         ratio = round(own[0] / others[-1])
-        words.append(f"the largest in {within_name(place)}"
+        words.append(f"the largest in {short_name(holder)}"
                      + (f", floor about {TIMES.get(ratio, 'many times')} any other's" if ratio >= 2 else ""))
     elif others and own[0] < others[0]:
-        words.append(f"the smallest in {within_name(place)}")
+        words.append(f"the smallest in {short_name(holder)}")
     elif others:
         words.append(f"one of the {'larger' if own[0] >= others[len(others) // 2] else 'smaller'} in "
-                     f"{within_name(place)}")
+                     f"{short_name(holder)}")
     if own[1]:
         tall = own[1] / PERSON
         words.append("walls towering over people" if tall >= 4 else
@@ -487,14 +471,75 @@ def sent_picks(store, place):
     return {other: sha for other in [above(place), *joined(place)] if other and (sha := picked(store, other))}
 
 
+# --- the design steps, in one place (the owner, 2026-10-21) ----------------------------------------------------
+# A place's concept is drawn only once the layer above is picked (the pick is the approval), its scene inventory read
+# and its plan made; its scene inventory is read only after its own pick; its plan made only after that reading. Every
+# button and the server ask `step_refusal`.
+
+def plan_made(store, place):
+    """Whether `place`'s plan is made: plan@<place> stands accepted, after its concept's pick standing now."""
+    picks = records(store, place, "picks")
+    accept = store.current_accept(f"plan@{place}")
+    return bool(picks and picks[-1]["sha"] and accept and accept["at"] > picks[-1]["at"])
+
+
+def holding_row(store, place):
+    """The scene inventory row of the layer above whose outline holds `place` on its plan (the ship for the ship's
+    rooms, a module for a base room, the block for the flat): the layer above's plan `holds` {place: row id}
+    (data/plans/<holder>.json, written by its plan's split), else None."""
+    return (plan_of(above(place)).get("holds") or {}).get(place)
+
+
+def holding_box(store, place):
+    """The pixel box [left, top, right, bottom] on the layer above's picked concept of the row that holds `place`
+    (its surest SAM box, score/review/reading.row_boxes), or None while there is none."""
+    from score.review import reading
+    row = holding_row(store, place)
+    boxes = reading.row_boxes(store, above(place), row) if row else None
+    return boxes[0] if boxes else None
+
+
+def step_refusal(store, place, step):
+    """Why `place` may not take its design `step` now ("draw", "pick", "read" its scene inventory, "plan"), in words,
+    or None. Draw and pick: the layer above picked, its inventory read, its plan made and the row holding this place
+    outlined (a draw also needs its references here); read: its own pick; plan: its own reading."""
+    from score.review import reading
+    holder = above(place)
+    if place in tree()["parts"]:
+        return f"is part of the {tree()['parts'][place][0]}'s concept, with none of its own"
+    if step == "read":
+        return None if picked(store, place) else "its concept is not picked"
+    if step == "plan":
+        return None if reading.reading_of(store, place) else "its scene inventory is not read"
+    if holder and not picked(store, holder):
+        return f"waits for {holder}'s concept to be picked"
+    if holder and not reading.reading_of(store, holder):
+        return f"waits for {holder}'s scene inventory to be read"
+    if holder and not plan_made(store, holder):
+        return f"waits for {holder}'s plan to be made"
+    if holder and holding_box(store, place) is None:
+        return f"waits for {holder}'s plan to outline what holds it"
+    missing = [ref["picture"] for ref in inputs_of(place).get("references", [])
+               if not resolved(ref["picture"]).is_file()] if step == "draw" else []
+    if missing:
+        return (f"its reference {missing[0]} is not on this machine (the private bucket's references/, copied to "
+                f"{PROPS_HOME / 'references'})")
+    return None
+
+
+def waits(store, place):
+    """Why a first draw of `place` cannot be made now (step_refusal's draw), or None."""
+    return step_refusal(store, place, "draw")
+
+
 def sent_pictures(store, place):
-    """[(what it is, its source)] a first draw of `place` sends, in order: the layer above's picked concept (source:
-    that place's name) when it sits within one, each joined place's picked concept, then the creator's references
-    (their paths)."""
-    holder, outside = above(place), outside_of(place)
-    how = (f"only for the look of the {outside[0]} (its hull, materials, windows)" if outside
-           else "match how this place stands in it")
-    found = [(f"{short_name(holder)}, picked: {how}", holder)] if holder else []
+    """[(what it is, its source)] a first draw of `place` sends, in order: a crop of the layer above's picked concept
+    showing only what holds it (source: ("crop", the place above, its box)), each joined place's picked concept
+    (source: that place's name), then the creator's references (their paths)."""
+    holder = above(place)
+    box = holding_box(store, place) if holder else None
+    found = [(f"a crop of {short_name(holder)}'s picked concept: draw the inside of what this crop shows",
+              ("crop", holder, box))] if box else []
     found += [(f"{short_name(other)}, picked: match the door they share", other)
               for other in joined(place) if picked(store, other)]
     return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
@@ -524,35 +569,20 @@ def indoors(place):
 def view_words(place):
     """The fixed viewpoint (an outside place from above, an inside one as a cutaway keeping the roof the picture above
     shows), the frame and whether people show, in one line."""
-    view = (INSIDE_VIEW + (ROOF_KEPT if above(place) and not outside_of(place) else "") if indoors(place)
-            else OUTSIDE_VIEW)
+    view = INSIDE_VIEW + (ROOF_KEPT if above(place) else "") if indoors(place) else OUTSIDE_VIEW
     return f"{view}; {EVERY_DRAW}, {WITH_PEOPLE if has_people(place) else NO_PEOPLE}."
 
 
 def generated(store, place):
     """The first-draw wording of `place` by the one rule, short, every part from data and the picks it is sent."""
-    holder, look = above(place), short_look(place)
+    look = short_look(place)
     pictures = sent_pictures(store, place)
     listed = "Pictures: " + "; ".join(f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "."
     return " ".join(part for part in (
-        f"Concept painting of {short_name(place)}" + (f", inside {within_name(place)}." if holder else "."),
-        floor_words(place), outside_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "", holds_and_doors(place),
-        size_words(place),
-        listed if pictures else "", view_words(place), style()) if part)
-
-
-def waits(store, place):
-    """Why a first draw of `place` cannot be made now (its layer above not picked, a reference not on this
-    machine), or None."""
-    holder = above(place)
-    if holder and not picked(store, holder):
-        return f"waits for {holder}'s concept to be picked"
-    missing = [ref["picture"] for ref in inputs_of(place).get("references", [])
-               if not resolved(ref["picture"]).is_file()]
-    if missing:
-        return (f"its reference {missing[0]} is not on this machine (the private bucket's references/, copied to "
-                f"{PROPS_HOME / 'references'})")
-    return None
+        f"Concept painting of {short_name(place)}" + (": the inside of what picture 1 shows." if pictures
+                                                       and isinstance(pictures[0][1], tuple) else "."),
+        floor_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "",
+        holds_and_doors(place), size_words(place), listed if pictures else "", view_words(place), style()) if part)
 
 
 def own_wording(store, place):
@@ -690,9 +720,20 @@ def first_parts(store, place, request):
     if why := waits(store, place):
         raise Refused(f"{place} {why}")
     sent = checked_wording(request.get("wording")) or wording_now(store, place)
-    pictures = [Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{picked(store, source)}")))
-                if isinstance(source, str) else Image.open(source) for _, source in sent_pictures(store, place)]
+    pictures = [sent_picture(store, source) for _, source in sent_pictures(store, place)]
     return with_note(sent, str(request.get("note", ""))), pictures
+
+
+def sent_picture(store, source):
+    """The PIL picture of one of sent_pictures' sources: a crop of a place's picked concept to its box, a place's
+    picked concept, or a file."""
+    from PIL import Image
+    if isinstance(source, tuple):
+        _, holder, box = source
+        return blob_picture(store, picked(store, holder)).crop(tuple(box))
+    if isinstance(source, str):
+        return blob_picture(store, picked(store, source))
+    return Image.open(source)
 
 
 def blob_picture(store, sha):
@@ -709,6 +750,8 @@ def redrawn(store, place, request, by, reviser):
     found = [record for record in draws(store, place) if record["sha"] == base]
     if not found:
         raise Refused(f"{base[:12]} is no draw of {place}")
+    if why := waits(store, place):
+        raise Refused(f"{place} {why}")
     picks = sent_picks(store, place)
     marks, note = checked_marks(request.get("marks")), str(request.get("note", ""))
     context = checked_marks(request.get("context_marks"), on=picks)
