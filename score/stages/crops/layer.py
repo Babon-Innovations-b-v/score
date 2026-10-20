@@ -1,7 +1,7 @@
 """crops-layer@<place>: the crops on the place's beds, one point instancer a kind, as a layer the assembly takes.
 
-    make     each kind's baked model (the crops' own line bakes it like any made model: crops-surfaces-bake and its
-             paint's labelled parts, line.py) written as an asset the exporter's way (tools/usd/export.write_asset)
+    make     each kind's baked model (the place's own surface line bakes it like any made model: surfaces-bake
+             and its paint's labelled parts) written as an asset the exporter's way (tools/usd/export.write_asset)
              under assets/; the beds (the scene record's boxes named with the crop data's `beds` prefix) shared out
              among the kinds by their patches' shares of the concept's plot (crops-concept), whole beds each, in the
              record's order; on each bed a kind's plants at the concept's spacing (in plant widths, times the made
@@ -142,7 +142,7 @@ def write_layer(place, record, assets, spots, path):
         prototype = UsdGeom.Xform.Define(stage, f"/{place}/Crops/{kind}/Prototypes/{model}")
         prototype.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(entry["row"])
         # what made it, as the made-only check reads it; a kind, not score:model, so the place's painted check (its
-        # seed-repaint rule) does not take the crops' own line's bake for a seed's paint
+        # seed-repaint rule) does not take a crop's bake for a seed's paint
         prototype.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set(KIND)
         prototype.GetPrim().GetReferences().AddReference(f"../assets/{model}.usdc")
         instancer.GetPrototypesRel().AddTarget(prototype.GetPath())
@@ -164,8 +164,7 @@ def make_layer(inputs, out, seed, params):
     scene = json.loads(pathlib.Path(inputs["scene"]).read_text())
     measured = json.loads((pathlib.Path(inputs["crops-concept"]) / "concept.json").read_text())["kinds"]
     with crop_data.tools("usd"):
-        assets = write_assets(record, pathlib.Path(inputs["crops-surfaces-bake"]),
-                              pathlib.Path(inputs["crops-surfaces-paint"]),
+        assets = write_assets(record, pathlib.Path(inputs["surfaces-bake"]), pathlib.Path(inputs["surfaces-paint"]),
                               out)
     beds = beds_of(scene, record["beds"])
     shared = shared_out(beds, {kind: measured[kind]["share"] for kind in record["kinds"]})

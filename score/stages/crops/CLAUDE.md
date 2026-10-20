@@ -21,15 +21,13 @@ prop and grown on its beds as the concept grows them, as a layer of point instan
   them, so a kind's measure is its spacing in plant widths (nearest-neighbour distance over the plant's box width),
   laid as that spacing times the made model's width, and checked again on the laid spots (`spacing`) and on the
   render (`density`, the look).
-- **A line of its own.** The crop kinds go through the prop route's close-up and Pixal3D rows and the surface
-  stage's method, paint, bake and check unchanged (`line.py`, inputs renamed by `renamed.py`), on
-  `data/crops/<place>-props.json` and `<place>-surfaces.json`. In the place's own prop and surface data they would
-  re-make every model of the place's line, the owner's reviewed ones included.
-- **Known coupling, to undo the next time the line is made again anyway**: the line's rows take their files
-  functions from `line.py`, which imports the turntable, SegviGen and the method, so an edit of any of those re-makes
-  every paid row of the line (`stages_test.py` lists them). Moving the files functions into a module of their own
-  (and the turntable's and SegviGen's into a `row_files.py`, as the surface stage does) re-keys the whole line once,
-  about EUR 2; it was not done on 2026-10-12 so the greenhouse's first line was paid once.
+- **Plants are models like any other** (the owner, 2026-10-20, #26). The crop kinds are rows of the place's own
+  prop data (`data/props/<place>.json`: props-inputs, closeup, pixal) and takes of its own surface data
+  (`data/surfaces/<place>.json`: the finish route to surfaces-bake), so one shared prop pipeline and one finish route
+  make them. This package is the motion layer's growth module, a layer adapter: its own inputs (the concept's kinds
+  and spacing, `crops-concept`; the crop rows' boxes, `crops-boxes`) and its own steps after the model (laid on the
+  beds, `crops-layer`; seen again on a render, `crops-look`). Until 2026-10-20 the crops had a line of their own on
+  the finish-map method (`line.py`, `renamed.py`), deleted with it.
 - **The box gate first.** `crops-boxes` runs box_check's own SAM 3 measure on the crop rows' boxes inside the runner
   (box_check.py --masks rents outside it and is refused); each crop row's box is its partition proposal's.
 - **What the owner decides.** The crop state (the concept's mid-season beds, not the game's bare start) is his open

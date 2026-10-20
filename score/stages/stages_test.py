@@ -196,13 +196,9 @@ def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
     edited = "score/stages/surfaces/turntable_row.py"
     moved = {name for name, stage in table.items() if stage.paid
              and code_after_editing(stage, edited) != code_after_editing(stage, "nothing")}
-    # The people line's turntable runs the same make (score/stages/people/line.py), so it moves with it. The crops'
-    # line keeps its rows' files functions in score/stages/crops/line.py, which imports the turntable, so every paid
-    # row of it moves too (its overlay: they move to a module of their own the next time that line is made again),
-    # but paint and bake, which key only the library surfaces they read (library_reads.py) since 2026-10-13.
-    crops = {"crops-boxes", "crops-closeup", "crops-pixal", *(f"crops-surfaces-{step}" for step in (
-        "turntable", "lists", "maps", "segvigen"))}  # its names row is free since #21
-    assert moved == {"people-turntable", *crops}, moved
+    # The people line's turntable runs the same make (score/stages/people/line.py), so it moves with it. The crops
+    # are the places' own models since 2026-10-20 (#26): no crops row runs it.
+    assert moved == {"people-turntable"}, moved
 
 
 def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():
@@ -291,17 +287,14 @@ def inputs_read(function):
             and isinstance(node.value, ast.Name) and node.value.id == "inputs" and isinstance(node.slice, ast.Constant)}
 
 
-def test_the_crops_check_reads_every_input_check_step_reads():
-    """crops-surfaces-check hands check_step every key it reads (its stance rules were missing, 2026-10-16: KeyError
-    at greenhouse), each crops-<row> under its stage's name (crops/renamed.py) and shortened as the prop environment
-    hands them over (prop_env.short), as the place's surfaces-check does."""
-    from score.stages.crops import renamed
+def test_the_check_reads_every_input_check_step_reads():
+    """surfaces-check hands check_step every key it reads (the crops' twin's stance rules were missing, 2026-10-16:
+    KeyError at greenhouse), shortened as the prop environment hands them over (prop_env.short)."""
     bake_check, prop_env = sys.modules["bake_check"], sys.modules["prop_env"]
     read = inputs_read(bake_check.check_step) | inputs_read(bake_check.data_of)
-    for name, place in (("crops-surfaces-check", "greenhouse"), ("surfaces-check", "greenhouse")):
-        row = next(row for row in stages.STAGES if row.name == name)
-        handed = prop_env.short(renamed.as_theirs({**row.files(place), **dict.fromkeys(row.after, ".")}))
-        assert read <= set(handed), (name, read - set(handed))
+    row = next(row for row in stages.STAGES if row.name == "surfaces-check")
+    handed = prop_env.short({**row.files("greenhouse"), **dict.fromkeys(row.after, ".")})
+    assert read <= set(handed), read - set(handed)
 
 
 def test_a_ship_place_is_read_from_git_and_reads_its_own_scene_record():

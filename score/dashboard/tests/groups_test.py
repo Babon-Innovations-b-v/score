@@ -44,7 +44,7 @@ def test_the_real_table_maps_every_place_stage_to_a_known_layer():
     assert set(found.values()) <= set(groups.LAYER_ORDER)
     assert found["closeup"] == found["pixal"] == found["surfaces-paint"] == "pieces"
     assert found["light-passes"] == "light" and found["cast"] == "characters" and found["plan"] == "base"
-    assert found["crops-closeup"] == "crops"
+    assert found["crops-layer"] == "crops"
     assert {name for name, row in ((row.name, row) for row in stages.STAGES) if row.grain == "place"} == set(found)
 
 

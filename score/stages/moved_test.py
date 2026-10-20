@@ -28,7 +28,7 @@ from score.store import Store  # noqa: E402
 
 def test_8b402226_moves_the_turntables_by_the_file_they_declare():
     found = moved.moved("8b402226^", "8b402226")
-    assert {"surfaces-turntable", "people-turntable", "crops-surfaces-turntable"} <= set(found), sorted(found)
+    assert {"surfaces-turntable", "people-turntable"} <= set(found), sorted(found)
     turntable = found["surfaces-turntable"]
     assert not turntable["code"] and len(turntable["files"]["tools/props/cloud/blender_cloud.py"]) >= 17
 
