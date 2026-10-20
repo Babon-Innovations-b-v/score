@@ -14,9 +14,9 @@ from score.dashboard.launch.backend import Billed, GroupPlan, LaunchHandle, Laun
 from score.dashboard.state import money
 from score.dashboard.state.models import Spend
 
-STARTED = re.compile(r"detached: started pid=(\d+) log=(\S+)")
-RESULT = re.compile(r"^detached: (ok|failed|stopped)\b")
-RESULT_STATES = {"ok": "done", "failed": "failed", "stopped": "stopped"}
+STARTED = re.compile(r"^detached: started pid=(\d+) log=(.+)$", re.MULTILINE)  # `score run --detach`'s own line
+RESULT = re.compile(r"^detached: (ok|failed|stopped|refused)\b")
+RESULT_STATES = {"ok": "done", "failed": "failed", "stopped": "stopped", "refused": "refused"}
 SECRETS = ("SCORE_DASHBOARD_SECRET_KEY", "SCORE_SYNC_TOKEN")
 TAIL_LINES = 40
 BENCHMARKS = "score.stages.complete.prepare.benchmarks"  # the Benchmarks item's batch, a subprocess like `score`

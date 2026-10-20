@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from score.dashboard import state
+from score.dashboard.launch import guard
 from score.dashboard.pages import actions
 from score.dashboard.pages.models import BasketAnswer, BasketChoice, SyncRequest, is_owner
 from score.dashboard.proposals import benchmarks, records
@@ -334,7 +335,16 @@ def last_checkout():
 
 
 BATCH_TONES = {"launching": "review", "waiting": "review", "picked_up": "review", "running": "review",
-               "launched": "done", "done": "done", "refused": "bad", "failed": "bad"}
+               "launched": "done", "done": "done", "refused": "bad", "failed": "bad", "stopped": "bad"}
+
+
+def batch_state(found):
+    """(state, tip) of a checkout: once launched, its run's own (running, done, failed, stopped, refused: its result
+    line), else the checkout's."""
+    if found.state != "launched" or found.launch is None:
+        return found.state, found.detail
+    run = guard.polled(found.launch)
+    return run.state, run.result or found.detail
 
 
 def last_batch():
@@ -351,7 +361,8 @@ def last_batch():
     if found is None:
         return None
     high = found.stop_line.get("high")
-    return {"state": found.state, "tone": BATCH_TONES.get(found.state, "idle"), "tip": found.detail,
+    state, tip = batch_state(found)
+    return {"state": state, "tone": BATCH_TONES.get(state, "idle"), "tip": tip,
             "stop": round(high * flow.BUFFER, 2) if high is not None else None}
 
 

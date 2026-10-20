@@ -544,7 +544,7 @@ def test_detach_returns_at_once_with_the_log_its_result_line_last():
     assert time.time() - started < 2.5, time.time() - started
     log = pathlib.Path(printed.getvalue().strip().rpartition("log=")[2])
     assert log.parent == logs, log
-    assert printed.getvalue().startswith("detached: started pid=") and log.exists(), printed.getvalue()
+    assert printed.getvalue().splitlines()[-1].startswith("detached: started pid=") and log.exists(), printed.getvalue()
     deadline = time.time() + 60
     while "detached:" not in log.read_text() and time.time() < deadline:
         time.sleep(0.5)

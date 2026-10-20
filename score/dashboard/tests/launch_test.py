@@ -1,6 +1,7 @@
 """The launch basket's plan and guard: money and time priced by the runner (the backend's price), every refusal in words, the local backend's
 command line and environment (subprocess replaced), and its result line read into states."""
 import datetime
+import pathlib
 import subprocess
 import types
 
@@ -149,7 +150,8 @@ def test_a_runner_refusal_before_detaching_is_refused_by_the_guard():
 def test_the_result_line_gives_the_state(tmp_path):
     backend = localrun.LocalBackend()
     for line, state in (("detached: ok exit=0 minutes=3 log=x", "done"), ("detached: failed exit=1", "failed"),
-                        ("detached: stopped by signal 15 exit=143", "stopped")):
+                        ("detached: stopped by signal 15 exit=143", "stopped"),
+                        ("detached: refused: another run holds the store exit=1", "refused")):
         log = tmp_path / f"{state}.log"
         log.write_text(f"working\n{line}\n")
         assert backend.poll(LaunchHandle(command=[], pid=None, log=str(log))).state == state
@@ -158,3 +160,16 @@ def test_the_result_line_gives_the_state(tmp_path):
     import os
     assert backend.poll(LaunchHandle(command=[], pid=os.getpid(), log=str(log))).state == "running"
     assert backend.poll(LaunchHandle(command=[], pid=None, log=str(log))).state == "failed"
+
+
+def test_the_real_detached_start_line_is_read_and_followed_to_its_result_line():
+    """The real `score run --detach` in this test's own PROPS_HOME (conftest), a run with nothing to make and nothing
+    paid: the backend reads its start line, sees it running or ended, and ends on its result line."""
+    import time
+    backend = localrun.LocalBackend()
+    handle = backend.launch(RunGroup(("camp",), ("terrain",)), 1, None)
+    assert handle.refused is None and handle.pid and pathlib.Path(handle.log).is_file(), handle
+    deadline = time.time() + 120
+    while (found := backend.poll(handle)).state == "running" and time.time() < deadline:
+        time.sleep(1)
+    assert found.state == "done" and found.result.startswith("detached: ok exit=0"), found
