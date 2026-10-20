@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 import pytest
 
@@ -138,8 +139,67 @@ def test_a_low_match_fails_likeness_and_a_fetched_pick_fails_no_freesound():
         stepped = next(name for name, entry in record["sounds"].items() if entry["chosen_by"] == "owner")
         record["sounds"][stepped]["chosen_by"] = "scoring"
         (out / gates.RECORD).write_text(json.dumps(record))
+        inputs = dict(inputs, licences=pathlib.Path(folder) / "licences.json")  # its CC0 row gone
+        inputs["licences"].write_text("[]")
         assert gates.judge_likeness(out, inputs, None).answer == checks.FAIL
         assert gates.judge_no_freesound(out, inputs, None).answer == checks.FAIL
+
+
+def test_a_cc0_freesound_file_passes_with_its_licence_row_and_fails_without_or_under_another_licence():
+    """The owner's exception (2026-10-20, #29): a Freesound recording under CC0 with its row in
+    data/sound/licences.json passes `no freesound`; with no row, or a row of another licence, it fails."""
+    row = next(row for row in read("licences") if gates.FREESOUND in row["source"])
+    record = {"place": "toy", "uses": [], "sounds": {"roar": {"credits": [row], "chosen_by": "scoring"}}}
+    with tempfile.TemporaryDirectory() as folder:
+        folder = pathlib.Path(folder)
+        (folder / gates.RECORD).write_text(json.dumps(record))
+        licences = folder / "licences.json"
+
+        def answer(rows):
+            licences.write_text(json.dumps(rows))
+            return gates.judge_no_freesound(folder, {"licences": licences}, None).answer
+        assert answer([row]) == checks.PASS
+        assert answer([]) == checks.FAIL
+        assert answer([dict(row, licence="CC BY 4.0")]) == checks.FAIL
+
+
+def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
+    """#29: crew_talk, played in several places, is one take of the environment's plan, counted once by the price's
+    forecast rule; two places' lines side by side make it on one card, the second waiting and reading it."""
+    import threading
+    from score.stages.complete.holes import price
+    from score.stages.sound import takes
+    kept_folder = pathlib.Path(tempfile.mkdtemp())
+    real_takes, real_on_card = takes.TAKES, takes.on_card
+    asked = []
+
+    def on_card(plan):
+        wanted = json.loads(pathlib.Path(plan["runs"][0]["inputs"][0]["from"]).read_text())
+        asked.extend(job["sound"] for job in wanted)
+        time.sleep(0.3)  # the card at work while the other line asks
+        back = pathlib.Path(plan["runs"][0]["jobs"][0]["outputs"][0]["to"])
+        for job in wanted:
+            (back / job["file"]).write_bytes(b"RIFF")
+        (back / "scores-0.json").write_text(json.dumps({job["file"]: 0.4 for job in wanted}))
+
+    try:
+        takes.TAKES, takes.on_card = kept_folder / "takes", on_card
+        plan = sound.environment_takes(REPO / "data", sound.moss_weights())
+        shared = [places for job, places in plan.values() if job["sound"] == "crew_talk"]
+        assert len(shared) == 1 and len(shared[0]) > 1, shared
+        places = sound.read_json(REPO / "data/sound/places.json")["places"]
+        assert sum(price.rule_units("sound_takes", [], REPO / "data", place) for place in places) == len(plan)
+        brief = sound.brief_of("crew_talk", {"sounds": REPO / "data/sound/sounds.json"})
+        lines = [threading.Thread(target=takes.made, args=(takes.jobs_for("crew_talk", brief, "rev"),
+                                                            kept_folder / f"work-{place}")) for place in shared[0][:2]]
+        for line in lines:
+            line.start()
+        for line in lines:
+            line.join()
+    finally:
+        takes.TAKES, takes.on_card = real_takes, real_on_card
+        shutil.rmtree(kept_folder)
+    assert asked == ["crew_talk"], asked
 
 
 def test_moving_things_sound_off_their_own_moves():

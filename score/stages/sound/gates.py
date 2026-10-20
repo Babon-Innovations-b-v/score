@@ -188,18 +188,31 @@ def judge_likeness(output, inputs, evidence):
 
 # --- no freesound ---------------------------------------------------------------------------------------------------
 
+def cc0_rows(inputs):
+    """The files data/sound/licences.json lists as Freesound recordings under CC0."""
+    return {row["file"] for row in read_json(inputs["licences"])
+            if FREESOUND in row.get("source", "") and row.get("licence", "").startswith("CC0")}
+
+
 def judge_no_freesound(output, inputs, evidence):
     """Pass when no file is a Freesound recording, but those the owner chose over the generated takes (its brief's
-    `chosen.by` is the owner, with his decision), which are listed."""
+    `chosen.by` is the owner, with his decision) and those under CC0 with their licence row in
+    data/sound/licences.json (the owner's exception, 2026-10-20, #29), each listed; any other Freesound file fails."""
     record = record_of(output)
     fetched = {name: sound for name, sound in record["sounds"].items()
                if any(FREESOUND in credit.get("source", "") for credit in sound["credits"])}
     owners = {name: sound for name, sound in fetched.items() if sound.get("chosen_by") == "owner" and sound.get("decided")}
-    left = sorted(set(fetched) - set(owners))
-    kept = tuple(f"{name}: the owner's pick ({sound['decided'][:80]})" for name, sound in owners.items())
+    rows = cc0_rows(inputs)
+    licensed = {name for name, sound in fetched.items() if name not in owners and
+                all(credit["file"] in rows for credit in sound["credits"] if FREESOUND in credit.get("source", ""))}
+    left = sorted(set(fetched) - set(owners) - licensed)
+    kept = tuple(f"{name}: the owner's pick ({sound['decided'][:80]})" for name, sound in owners.items()) + tuple(
+        f"{name}: CC0 with its licence row" for name in sorted(licensed))
     if left:
         return checks.Verdict("no freesound", checks.FAIL, f"{len(left)} sounds are Freesound picks: {left}",
                               {"freesound": len(left)}, {"freesound": "lower"}, tuple(left) + kept)
     return checks.Verdict("no freesound", checks.PASS,
-                          "no Freesound pick" + (f" but the owner's {len(owners)} chosen recordings" if owners else ""),
-                          {"freesound": 0, "owner's recordings": len(owners)}, {"freesound": "lower"}, kept)
+                          "no Freesound pick" + (f" but {len(kept)} the owner allows (his picks, CC0 with a licence "
+                                                 "row)" if kept else ""),
+                          {"freesound": 0, "owner's recordings": len(owners), "cc0 with a row": len(licensed)},
+                          {"freesound": "lower"}, kept)
