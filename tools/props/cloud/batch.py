@@ -354,6 +354,16 @@ def copy(folder, sources, destination, *extra):
                     str(destination)], check=True, capture_output=True)
 
 
+class OutOfStock(TimeoutError):
+    """A stopped machine that kept answering "out of stock": its card never ran, so it was not billed for one, and
+    the claim may move on to the next offer."""
+
+
+class BootFailed(Exception):
+    """A machine was rented and billed and did not answer: a hole, and no other machine is rented in its place inside
+    the batch (a batch, CONTEXT.md, owner 2026-10-20)."""
+
+
 def wait_for_machine(folder, server_id, zone):
     """The machine's address once it answers over ssh."""
     give_up = time.time() + START_MINUTES * 60
@@ -365,7 +375,7 @@ def wait_for_machine(folder, server_id, zone):
             if "out of stock" in refused.lower():
                 out_of_stock = out_of_stock or time.time()
                 if time.time() - out_of_stock > OUT_OF_STOCK_SECONDS:
-                    raise TimeoutError(f"out of stock for {OUT_OF_STOCK_SECONDS} s")
+                    raise OutOfStock(f"out of stock for {OUT_OF_STOCK_SECONDS} s")
         host = host or cloud.address(server_id, zone)
         if host:
             answer = remote(folder, host, "true", capture_output=True, text=True)
@@ -388,25 +398,36 @@ def boot(machine):
 
 
 def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None):
-    """One machine that answers, for a job of `kind`, with a root disk of `disk_gb`; None only when the run no longer
-    wants one. A round that finds no stock anywhere is tried again every STOCK_RETRY_MINUTES with the backend's
-    offers read afresh, across every class the offers named and every zone, for as long as `still_wanted` (the run's
-    deadline, the month's ceiling and the caller's `wanted`) says: a slot never gives up on its first round (six of
-    seven spread slots did on 2026-10-09 and one L4 did all the work). While it waits the claim is on its kind's
-    queue (park.wanting), and a machine of its kind parked meanwhile is taken at once (park.py)."""
+    """One machine that answers, for a job of `kind`, with a root disk of `disk_gb`; None when the run no longer wants
+    one, or when a machine it rented was billed and did not answer (BootFailed: the slot is a hole, nothing is
+    rented in its place). A round that finds no stock anywhere is tried again every STOCK_RETRY_MINUTES with the
+    backend's offers read afresh, across every class the offers named and every zone, for as long as `still_wanted`
+    (the run's deadline, the month's ceiling and the caller's `wanted`) says: a slot never gives up on its first
+    round (six of seven spread slots did on 2026-10-09 and one L4 did all the work). While it waits the claim is on
+    its kind's queue (park.wanting), and a machine of its kind parked meanwhile is taken at once (park.py)."""
     import park
 
     with park.wanting(kind):
-        machine = (park_taken(run, offers, number, kind, disk_gb)
-                   or claim_round(run, account, offers, number, kind, disk_gb))
-        while machine is None and still_wanted(run, account, wanted):
-            say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again "
-                f"in {STOCK_RETRY_MINUTES} min")
-            machine = parked_within(run, offers, number, kind, disk_gb, STOCK_RETRY_MINUTES * 60)
-            if machine is not None or not still_wanted(run, account, wanted):
-                break
-            offers = fresh_offers(run, offers)
-            machine = claim_round(run, account, offers, number, kind, disk_gb)
+        try:
+            return claim_rounds(run, account, offers, number, kind, disk_gb, wanted)
+        except BootFailed as error:
+            say(f"{error}; a hole, no machine rented in its place")
+            return None
+
+
+def claim_rounds(run, account, offers, number, kind, disk_gb, wanted):
+    """claim's rounds: a parked machine first, else one round of offers, asked again every STOCK_RETRY_MINUTES while
+    the run still wants one; BootFailed passes through."""
+    machine = (park_taken(run, offers, number, kind, disk_gb)
+               or claim_round(run, account, offers, number, kind, disk_gb))
+    while machine is None and still_wanted(run, account, wanted):
+        say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again "
+            f"in {STOCK_RETRY_MINUTES} min")
+        machine = parked_within(run, offers, number, kind, disk_gb, STOCK_RETRY_MINUTES * 60)
+        if machine is not None or not still_wanted(run, account, wanted):
+            break
+        offers = fresh_offers(run, offers)
+        machine = claim_round(run, account, offers, number, kind, disk_gb)
     return machine
 
 
@@ -475,12 +496,13 @@ def claim_round(run, account, offers, number, kind=None, disk_gb=DISK_GB):
 
 def claim_from(run, account, offers, number, kind, disk_gb=DISK_GB):
     """One machine that answers, with a root disk of `disk_gb`, from the first of `offers` that gives one; None when
-    none does. An offer refused,
-    out of stock or whose machine does not answer within START_MINUTES is left for the next, the machine deleted
-    and its row kept on `run.attempts` for the ledger. The kind's order and the zone with fewest of the run's
-    machines decide the next offer (capacity.next_offer), so machines claimed side by side spread over the zones: the
-    offer is chosen under the run's `choosing` lock and counted in its `pending` until the machine is on its list, and
-    an offer that gave no machine is in the run's `dropped` for every claim after."""
+    none does. An offer refused or out of stock (nothing billed) is left for the next; a machine rented that does
+    not answer within START_MINUTES, or refuses the runner's key, was billed: it is deleted, its row kept on
+    `run.attempts` for the ledger, and BootFailed is raised so no other machine is rented in its place. The kind's
+    order and the zone with fewest of the run's machines decide the next offer (capacity.next_offer), so machines
+    claimed side by side spread over the zones: the offer is chosen under the run's `choosing` lock and counted in
+    its `pending` until the machine is on its list, and an offer that gave no machine is in the run's `dropped` for
+    every claim after."""
     remaining = list(offers)
     lock, pending = getattr(run, "choosing", None) or contextlib.nullcontext(), getattr(run, "pending", [])
     dropped = getattr(run, "dropped", set())
@@ -516,11 +538,14 @@ def claim_from(run, account, offers, number, kind, disk_gb=DISK_GB):
                 return None
             return machine
         except (TimeoutError, PermissionError) as error:
-            say(f"{machine['folder'].name}: {machine['type']} in {machine['zone']} did not start ({error}); "
-                "trying the next offer")
             delete_machine(machine)
             run.machines.remove(machine)
             run.attempts.append(ledger.machine_row(machine))
+            if not isinstance(error, OutOfStock):
+                raise BootFailed(f"{machine['folder'].name}: {machine['type']} in {machine['zone']} was rented and "
+                                 f"did not start ({error})") from error
+            say(f"{machine['folder'].name}: {machine['type']} in {machine['zone']} is out of stock; trying the next "
+                "offer")
     return None
 
 
@@ -607,6 +632,7 @@ class Fleet:
         self.stop = threading.Event()
         self.machines = []
         self.done, self.failed, self.finish_failed = [], [], []
+        self.lost_cards = 0
         self.job_deadline = job_deadline_seconds()
         self.finishers = concurrent.futures.ThreadPoolExecutor(FINISHERS)
 
@@ -624,6 +650,19 @@ class Fleet:
         was lost): holes, never sent again; new spend on them is a new batch."""
         with self.lock:
             self.failed.extend(name for name in names if name not in self.failed)
+
+    def lose(self, machine):
+        """A machine billed that failed (did not start, or broke): its cards are not rented again inside the batch."""
+        with self.lock:
+            self.lost_cards += machine["cards"]
+
+    def unsent_holes(self):
+        """The jobs no machine took, once no machine is left to take them: holes, for a new batch and a new ask."""
+        with self.lock:
+            names = [job["name"] for job in self.ready]
+            self.ready.clear()
+            self.failed.extend(name for name in names if name not in self.failed)
+        return names
 
     def arrived(self, machine_folder, name):
         """A raw model is here: move it where pixal.py looks, and finish it while others work."""
@@ -803,7 +842,10 @@ def keep_the_fleet(fleet, found, cards):
         alive = [machine for machine in list(fleet.machines) if not machine["deleted"]]
         if not alive and fleet.no_more_work():
             return
-        short = cards - sum(machine["cards"] for machine in alive)
+        short = cards - fleet.lost_cards - sum(machine["cards"] for machine in alive)
+        if not alive and short <= 0:
+            say(f"no machine left (its cards were billed and failed); holes: {', '.join(fleet.unsent_holes())}")
+            return
         if short > 0 and not fleet.no_more_work() and time.time() - asked >= STOCK_RETRY_MINUTES * 60:
             asked = time.time()
             with fleet.renting:
@@ -814,9 +856,11 @@ def keep_the_fleet(fleet, found, cards):
 
 
 def replace(fleet, machine):
-    """Rent another machine for one that never answered, from any offer but its type in its zone."""
+    """Rent another machine for one that stayed out of stock (never billed for a card), from any offer but its type
+    in its zone."""
     with fleet.renting:
-        fleet.offers = [offer for offer in fleet.offers if (offer.type, offer.zone) != (machine["type"], machine["zone"])]
+        fleet.offers = [offer for offer in fleet.offers
+                        if (offer.type, offer.zone) != (machine["type"], machine["zone"])]
     if fleet.no_more_work() or fleet.stop.is_set():
         return
     added = rent_fleet(fleet, machine["cards"])
@@ -830,9 +874,14 @@ def tend(fleet, machine):
     try:
         try:
             host = machine["host"] if machine.get("adopted") else boot(machine)  # a parked card answered when taken
-        except (TimeoutError, PermissionError) as error:
+        except OutOfStock as error:
             say(f"{folder.name}: {machine['type']} in {machine['zone']} did not start ({error})")
             replace(fleet, machine)
+            return
+        except (TimeoutError, PermissionError) as error:
+            say(f"{folder.name}: {machine['type']} in {machine['zone']} was rented and did not start ({error}); "
+                "a hole, no machine rented in its place")
+            fleet.lose(machine)
             return
         arm_self_delete(folder, host, fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
         machine["per_card"] = fleet.per_card or slots_per_card(machine["class"])
@@ -862,7 +911,8 @@ def tend(fleet, machine):
                 break
             time.sleep(POLL_SECONDS)
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the fleet
-        say(f"{folder.name} failed: {error}")
+        say(f"{folder.name} failed: {error}; no machine rented in its place")
+        fleet.lose(machine)
     finally:
         lost = sorted(set(sent) - finished)
         if lost:

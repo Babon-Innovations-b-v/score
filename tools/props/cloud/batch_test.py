@@ -210,7 +210,7 @@ def test_a_fleet_short_of_cards_rents_more_as_stock_comes_up():
     class Fleet:
         def __init__(self):
             self.stop, self.renting, self.deadline = threading.Event(), threading.Lock(), time.time() + 60
-            self.machines, self.offers, self.work = [], [], True
+            self.machines, self.offers, self.work, self.lost_cards = [], [], True, 0
 
         def no_more_work(self):
             return not self.work
@@ -273,6 +273,53 @@ def test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_hole():
     assert re.search(pattern, "python scripts/pixal3d_generate.py in.png /root/batch/out/slow.glb --seed 1")
     assert not re.search(pattern, f"bash -c pkill -f -- {pattern}")
 
+
+
+def test_a_fleet_whose_billed_machines_failed_rents_none_in_their_place():
+    """A batch runs once (CONTEXT.md, owner 2026-10-20): a machine billed that did not start or broke was replaced by
+    a new rental, unpriced spend inside the batch. Its cards are lost and the jobs no machine took are holes."""
+    import time
+    fleet, models = one_shot_fleet(["crate", "barrel"])
+    fleet.deadline = time.time() + 60
+    batch.queue(fleet, models)
+    fleet.lose({"cards": 1})
+    rented = []
+    kept = batch.rent_fleet, batch.time.sleep
+    batch.rent_fleet, batch.time.sleep = lambda fleet, cards: rented.append(cards) or 0, lambda seconds: None
+    try:
+        batch.keep_the_fleet(fleet, [], 1)
+    finally:
+        batch.rent_fleet, batch.time.sleep = kept
+    assert rented == [] and sorted(fleet.failed) == ["barrel", "crate"] and fleet.next_job() is None
+
+
+def test_a_billed_boot_that_fails_is_a_hole_and_out_of_stock_moves_on():
+    """claim_from moved to the next offer after a machine it rented (and was billed for) did not answer, renting a
+    second; only an out-of-stock refusal, where no card ran, may move on."""
+    import types
+    import provider
+    offers = [provider.Offer(0.01, 0, "L4", zone, 0.01, "gpu-24gb", 0, "available") for zone in ("zone-a", "zone-b")]
+    rented, failures = [], []
+
+    def rent(run, account, offer, number, disk_gb):
+        rented.append(offer.zone)
+        return {"zone": offer.zone, "type": offer.type, "class": offer.machine_class, "cards": 1,
+                "folder": pathlib.Path(tempfile.mkdtemp()), "deleted": None}
+
+    def boot(machine):
+        raise failures.pop(0)
+    kept = batch.rent, batch.boot, batch.delete_machine, batch.ledger.machine_row, batch.time.sleep
+    batch.rent, batch.boot, batch.delete_machine = rent, boot, lambda machine: None
+    batch.ledger.machine_row, batch.time.sleep = lambda machine: {}, lambda seconds: None
+    try:
+        run = types.SimpleNamespace(machines=[], attempts=[], deadline=0)
+        failures.append(TimeoutError("did not answer"))
+        assert batch.claim(run, None, offers, 1, "parts") is None and rented == ["zone-a"]
+        rented.clear()
+        failures.extend([batch.OutOfStock("out of stock"), TimeoutError("did not answer")])
+        assert batch.claim(run, None, offers, 1, "parts") is None and rented == ["zone-a", "zone-b"]
+    finally:
+        batch.rent, batch.boot, batch.delete_machine, batch.ledger.machine_row, batch.time.sleep = kept
 
 def test_the_deadline_and_the_slots_come_from_measured_numbers():
     measured = json.loads(batch.PER_UNIT.read_text())["stages"]["pixal"]["time"]["unit_seconds"]["high"]
