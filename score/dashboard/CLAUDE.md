@@ -74,7 +74,13 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   Each pass first runs the library sweep (`score.stages.library.sweep`, the environment against its library), so its
   problems are in the export by construction; a failed sweep is said in the pass's words and the pass goes on.
   The holes (`score.stages.complete.holes`, in a process of its own: it reads OpenUSD) are written right after it,
-  the same way.
+  the same way. A pass syncs nothing, and says why, from a checkout with tracked changes or a commit origin's main
+  does not hold (`tree_refusal`), or when the runner's price after the holes (`score price <environment> --holes`,
+  `runner_price`) fails, so no stale plan or price is ever sent. The owner's timer (`timer.py`, `install-sync`, the
+  deploy templates) reads the token by name from his secret manager each pass, inline, through the reader his env
+  file names; it installs only once the cockpit runs this checkout's dashboard. `release.py` (`release`) moves the
+  hosting repository's pinned `SCORE_COMMIT` to a pushed commit, from a worktree of its own, in the host's commit
+  style; never run by a test against a real host (`tests/release_test.py` makes its repositories).
 - **`proposals/`** the basket's details (its own overlay): what a run on main would buy (the runner's plan), grouped
   into items by place and by what changes (a department's declared item may span places), each place's free after
   assembled over the store's accepted outputs as a 3D web copy, what changes read from the two stages, each paid

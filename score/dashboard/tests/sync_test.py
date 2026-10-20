@@ -25,6 +25,15 @@ pytestmark = pytest.mark.django_db(transaction=True)
 TOKEN = "t" * 40
 MADE = "2026-10-18T12:00:00+00:00"
 SPEND = Spend(spent=100.0, reserved=10.0, ceiling=250.0, as_of=MADE)
+PRICED = "priced by the runner: EUR 1.00 to 2.00 measured, 3 paid steps with no measured price"
+
+
+def fed(monkeypatch):
+    """A clean checkout origin's main holds, and the runner's price made: [the environments priced]."""
+    priced = []
+    monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
+    monkeypatch.setattr(client, "runner_price", lambda repo, environment: priced.append(environment) or (PRICED, None))
+    return priced
 
 
 def exported(world, folder, cap_mb=50):
@@ -229,6 +238,7 @@ def test_an_export_of_a_format_the_hosted_side_cannot_read_is_refused_in_the_syn
     from score.dashboard.tests.fixture import FakeBackend
     shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
     monkeypatch.setattr(versions, "FORMAT", 1)  # an old store side: gaps and stops as words
+    fed(monkeypatch)
     said = client.sync_pass(remote_of(hosted_client()), world.source, FakeBackend())
     assert said.startswith("REFUSED") and "export format 1 cannot be read here" in said, said
     assert not (settings.SCORE_HOME / "export/current").exists()
@@ -296,8 +306,9 @@ class Hosted:
         self.reports.append((request_id, state))
 
 
-def test_a_sync_pass_pushes_the_export_and_reports_each_request(world):
+def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypatch):
     from score.dashboard.tests.fixture import FakeBackend
+    priced = fed(monkeypatch)
     hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}},
                      {"id": 8, "kind": "decision", "user": "mallory", "payload": {
                          "node": "closeup@alpha", "output": "o", "decision": "reject"}}])
@@ -306,7 +317,48 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world):
     assert "library problems" in said, said  # the library sweep ran before the export was built
     # and the holes after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
     assert "holes failed: exit 1: no store at " in said, said
+    assert said.endswith(PRICED) and priced == [world.source.world.name]  # the runner priced it before the push
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
+
+
+def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_price_fails(world, monkeypatch):
+    from score.dashboard.tests.fixture import FakeBackend
+    hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}}])
+    monkeypatch.setattr(client, "tree_refusal", lambda repo: "commit 0123abcd is not on origin's main: push it first")
+    said = client.sync_pass(hosted, world.source, FakeBackend())
+    assert said == "REFUSED: nothing synced: commit 0123abcd is not on origin's main: push it first"
+    monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
+    monkeypatch.setattr(client, "runner_price", lambda repo, environment: (None, "the runner's price failed: exit 1"))
+    said = client.sync_pass(hosted, world.source, FakeBackend())
+    assert said.startswith("REFUSED: nothing synced: the runner's price failed: exit 1; ") and "holes" in said
+    assert hosted.commits == [] and hosted.chunks == [] and hosted.reports == []
+
+
+def a_checkout(tmp_path):
+    """A clone of a bare origin with one commit pushed to its main: (origin, clone)."""
+    import subprocess
+
+    def run(*args, cwd=tmp_path):
+        subprocess.run(args, cwd=cwd, check=True, capture_output=True)
+    origin, clone = tmp_path / "origin.git", tmp_path / "clone"
+    run("git", "init", "-q", "--bare", "-b", "main", str(origin))
+    run("git", "clone", "-q", str(origin), str(clone))
+    (clone / "a.txt").write_text("a")
+    run("git", "add", "a.txt", cwd=clone)
+    run("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "a", cwd=clone)
+    run("git", "push", "-q", "origin", "HEAD:main", cwd=clone)
+    return origin, clone
+
+
+def test_the_tree_check_wants_every_tracked_file_committed_and_the_commit_on_origins_main(tmp_path):
+    import subprocess
+    _, clone = a_checkout(tmp_path)
+    assert client.tree_refusal(clone) is None
+    (clone / "a.txt").write_text("b")
+    assert "has changes not committed" in client.tree_refusal(clone)
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-am", "b"], cwd=clone,
+                   check=True)
+    assert "is not on origin's main: push it first" in client.tree_refusal(clone)
 
 
 def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, settings, monkeypatch):

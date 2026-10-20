@@ -1,10 +1,23 @@
-# TEMPLATE: a systemd user service on the store's machine; copy to ~/.config/systemd/user/score-sync.service and
-# fill in. The owner installs it himself: decisions are applied only from his own process, never an agent's.
+# TEMPLATE: the sync's systemd user service on the store's machine. Never copied by hand: the owner installs it with
+# `python -m score.dashboard install-sync` (sync/timer.py), which fills in the three <slots>, writes it to
+# ~/.config/systemd/user/score-sync.service beside its timer and enables the timer; decisions are applied only from
+# his own process, never an agent's. Install it only once the hosted cockpit runs this checkout's dashboard
+# (`python -m score.dashboard release` first; install-sync refuses before that).
+#
+# Each pass reads the sync token from the owner's secret manager by its name, inline, into this one process's
+# environment, never into a file: SCORE_SECRET_READER (set in the env file, outside the repo) is an executable that
+# prints the value of the secret its one argument names. The unit runs as the owner with his HOME, so the reader
+# finds his own credentials where his shell does (his CLI's configuration under ~/.config); systemd's PATH is short,
+# so the reader names its tools by full path. On WSL the user manager needs systemd on and
+# `loginctl enable-linger <you>` for the timer to run with no shell open.
+#
+# The pass refuses to sync, and says why in the journal, from a checkout with changes not committed or a commit
+# origin's main does not hold, and when the runner's price (`score price <environment> --holes`) fails.
 [Unit]
-Description=SCORE dashboard sync: push the state export, pull and apply the owner's requests
+Description=SCORE dashboard sync: price, push the state export, pull and apply the owner's requests
 
 [Service]
 Type=oneshot
 WorkingDirectory=<path to the score repository>
 EnvironmentFile=<path to the env file kept outside the repo>
-ExecStart=<path to the score repository>/.venv/bin/python -m score.dashboard sync
+ExecStart=/bin/sh -c 'SCORE_SYNC_TOKEN="$$("$$SCORE_SECRET_READER" "<the sync token's name in your secret manager>")" && [ -n "$$SCORE_SYNC_TOKEN" ] && export SCORE_SYNC_TOKEN && exec "<path to the score repository>/.venv/bin/python" -m score.dashboard sync'

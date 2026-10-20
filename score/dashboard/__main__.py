@@ -10,6 +10,10 @@
     .venv/bin/python -m score.dashboard basket-item <id> [--title T] [--says S] [--node PATTERN ...] [--picture P ...]
         [--file F ...] [--ask Q --recommend A ...]   # a department's basket item, its words and questions
     .venv/bin/python -m score.dashboard basket-answers   # the owner's answers to the basket's questions, as JSON
+    .venv/bin/python -m score.dashboard release --host REPO --dockerfile PATH --subject S [--commit SHA] [--trailer T]
+        # move the hosted cockpit's pinned SCORE_COMMIT to a pushed commit (sync/release.py)
+    .venv/bin/python -m score.dashboard install-sync --env-file F --host REPO --dockerfile PATH [--secret NAME]
+        # the owner's one command: the sync's systemd user timer, once the cockpit runs this dashboard (sync/timer.py)
 """
 import argparse
 import os
@@ -27,6 +31,16 @@ def parse(argv):
     commands.add_parser("export").add_argument("--out", required=True)
     commands.add_parser("sync")
     commands.add_parser("check")
+    release = commands.add_parser("release", help="move the hosted cockpit's pinned SCORE_COMMIT to a pushed commit")
+    install = commands.add_parser("install-sync", help="the sync's systemd user timer (the owner's one command)")
+    for command in (release, install):
+        command.add_argument("--host", required=True, help="the repository that hosts the cockpit")
+        command.add_argument("--dockerfile", required=True, help="its Dockerfile with ARG SCORE_COMMIT, in it")
+    release.add_argument("--subject", required=True, help="the host's commit subject, {short} the score commit")
+    release.add_argument("--commit", help="the score commit to release (default: this checkout's HEAD)")
+    release.add_argument("--trailer", action="append", default=[], help="a trailer line of the host's commit")
+    install.add_argument("--env-file", required=True, help="the env file outside the repo the timer reads")
+    install.add_argument("--secret", help="the sync token's name in the secret manager")
     web3d = commands.add_parser("web3d", help="a place's fresh 3D web copy from its accepted OpenUSD stage")
     web3d.add_argument("place")
     web3d.add_argument("--store", help="the store folder (default $PROPS_HOME/store)")
@@ -110,6 +124,31 @@ def sync():
     print(sync_pass(Remote(settings.SCORE_SYNC_URL, settings.SCORE_SYNC_TOKEN), state.source()))
 
 
+def release(options):
+    """Pin the host's Dockerfile to a pushed score commit and push it (sync/release.py); its words, or why not."""
+    from django.conf import settings
+
+    from score.dashboard.sync import release as releasing
+    try:
+        print(releasing.release(settings.SCORE_REPO, pathlib.Path(options.host), options.dockerfile, options.subject,
+                                options.commit, options.trailer))
+    except releasing.Refused as refused:
+        sys.exit(f"refused: {refused}")
+
+
+def install_sync(options):
+    """Write and enable the sync's systemd user timer (sync/timer.py); its words, or why not."""
+    from django.conf import settings
+
+    from score.dashboard.sync import release as releasing
+    from score.dashboard.sync import timer
+    try:
+        print(timer.install(settings.SCORE_REPO, options.env_file, pathlib.Path(options.host), options.dockerfile,
+                            options.secret or timer.SECRET))
+    except releasing.Refused as refused:
+        sys.exit(f"refused: {refused}")
+
+
 def check():
     from django.core.management import call_command
     call_command("check")
@@ -190,6 +229,10 @@ def main(argv=None):
         basket_item(options)
     elif options.command == "basket-answers":
         basket_answers()
+    elif options.command == "release":
+        release(options)
+    elif options.command == "install-sync":
+        install_sync(options)
     else:
         check()
 

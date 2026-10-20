@@ -7,7 +7,12 @@ there.
 The export is sent content-addressed (sync/endpoints.py): only the files the hosted side lacks, in the builder's
 priority order, CHUNK bytes of a file per request, so no request nears TIMEOUT on a slow link; files not started within
 PASS_SECONDS wait for the next pass and the export committed meanwhile names them "still uploading". An export the
-hosted side refuses (a format it cannot read) is said in the pass's words, and the requests are still applied."""
+hosted side refuses (a format it cannot read) is said in the pass's words, and the requests are still applied.
+
+A pass feeds the cockpit only from a checkout whose tracked files are committed and whose commit origin's main holds
+(tree_refusal), and only once the runner has priced the holes and the remake on it (`score price <environment>
+--holes`, after the holes check): when either fails the pass syncs nothing and says why, so no stale record is ever
+sent."""
 import datetime
 import gzip
 import hashlib
@@ -248,12 +253,57 @@ def holes_sweep():
     return (done.stdout.strip().splitlines() or ["holes wrote nothing"])[-1]
 
 
+def git(repo, *args):
+    """A git command's run in `repo` (its exit code and output kept, never raised)."""
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+
+
+def tree_refusal(repo):
+    """Why the checkout may not feed the cockpit, or None: a tracked file changed and not committed, origin's main
+    not read, or a commit origin's main does not hold (not pushed)."""
+    changed = git(repo, "status", "--porcelain", "--untracked-files=no")
+    if changed.returncode != 0 or changed.stdout.strip():
+        return f"{repo} has changes not committed: commit and push them first"
+    fetched = git(repo, "fetch", "-q", "origin", "main")
+    if fetched.returncode != 0:
+        return f"origin's main could not be read ({(fetched.stderr.strip().splitlines() or ['no output'])[-1]})"
+    head = git(repo, "rev-parse", "--short=8", "HEAD").stdout.strip()
+    if git(repo, "merge-base", "--is-ancestor", "HEAD", "FETCH_HEAD").returncode != 0:
+        return f"commit {head} is not on origin's main: push it first"
+    return None
+
+
+def runner_price(repo, world):
+    """(its words, why it failed or None) of the runner's price of the environment's holes and remake (`score price
+    <world> --holes --json`, free and local, in a process of its own), written where the pages read it."""
+    done = subprocess.run([sys.executable, "-m", "score", "price", world, "--holes", "--json"], cwd=repo,
+                          capture_output=True, text=True)
+    if done.returncode != 0:
+        return None, f"the runner's price failed: exit {done.returncode}: " + (
+            (done.stderr.strip().splitlines() or ["no output"])[-1])
+    totals = json.loads(done.stdout)["totals"]
+    return (f"priced by the runner: EUR {totals['likely_euros']:.2f} to {totals['high_euros']:.2f} measured, "
+            f"{len(totals['unpriced'])} paid steps with no measured price"), None
+
+
+def refused_words(why):
+    """A pass that synced nothing, in words."""
+    return f"REFUSED: nothing synced: {why}"
+
+
 def sync_pass(remote, source, chosen=None):
-    """One pass; what it did, in words."""
+    """One pass; what it did, in words. Nothing is synced from a checkout not clean and pushed, or when the runner's
+    price fails."""
+    refused = tree_refusal(settings.SCORE_REPO)
+    if refused:
+        return refused_words(refused)
     chosen = chosen or guard.backend()
     swept = library_sweep()
     holes = holes_sweep()
+    priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
+    if failed:
+        return refused_words(f"{failed}; {swept}; {holes}")
     pushed = pushed_words(remote, source, chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}"
+    return f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}; {priced}"
