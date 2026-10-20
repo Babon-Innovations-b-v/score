@@ -260,7 +260,8 @@ def parts_words(place):
     """The parts of `place`'s own outside (within.json `parts`: seen, never walked, no place of their own), each as
     its `as` words; "" when it has none."""
     found = [entry["as"] for entry in tree()["parts"].values() if entry["of"] == place]
-    return f"Its outside also takes in: {'; '.join(found)}." if found else ""
+    return (f"The view is wide enough to take in its whole outside, these parts in view as much as the place itself: "
+            f"{'; '.join(found)}.") if found else ""
 
 
 def inside_of(place):
