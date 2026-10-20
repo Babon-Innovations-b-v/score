@@ -77,11 +77,11 @@
     {% if asked %}<span class="unknown" title="asked, waiting for the owner's sync" data-v>{{ asked }}</span>{% endif %}
     {% if entry.state == "draft" %}<button type="submit" name="action" value="lock" title="approve it as final">Lock</button>{% endif %}
     {% if entry.state == "locked" %}<button type="submit" class="danger" name="action" value="withdraw" title="take it out of use">Withdraw</button>{% endif %}
-    <output class="small"></output></form>
+    <output class="small"></output></form>{% if entry.kind != "concept" %}
   <form class="item-actions" data-post="/api/library/refine"><input type="hidden" name="address" value="{{ entry.address }}">
     {% if entry.refine_options %}<select name="option" aria-label="how to refine" title="how to refine" data-v><option value="">auto</option>{% for choice in entry.refine_options %}<option value="{{ choice.id }}">{{ choice.label }}</option>{% endfor %}</select>{% endif %}
     <button type="submit" title="add it to the basket as a refine item">Refine</button>
-    <output class="small"></output></form>{% endif %}
+    <output class="small"></output></form>{% endif %}{% endif %}
 </div>
 {% if view == "3d" %}<script type="module" src="/static/pages/item3d.js"></script>{% elif view == "demo" %}<script type="module" src="/static/pages/demo.js"></script>{% elif view == "sound" %}<script src="/static/pages/takes.js"></script>{% endif %}
 {% endblock %}

@@ -377,7 +377,8 @@ def concept_draw(user, payload):
             subprocess.TimeoutExpired) as refused:
         return f"refused: {refused}", None
     source.refresh()
-    return f"drawn: {record['sha'][:12]} for EUR {record['euros']:.2f}", record
+    kept = "" if record.get("offsite") else f"; not copied off this PC: {record.get('offsite_refused')}"
+    return f"drawn: {record['sha'][:12]} for EUR {record['euros']:.2f}{kept}", record
 
 
 def concept_pick(user, payload):
@@ -393,5 +394,5 @@ def concept_pick(user, payload):
     except (review.Refused, PermissionError, FileExistsError, KeyError) as refused:
         return f"refused: {refused}"
     source.refresh()
-    return f"picked {record['sha'][:12]}" if record["sha"] else "unlocked"
+    return (f"picked {record['sha'][:12]}" if record["sha"] else "unlocked") + f"; {record['library']}"
 

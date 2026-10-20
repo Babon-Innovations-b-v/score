@@ -127,11 +127,13 @@ def concept_draw(store, place, request, euros, by, run=None):
 
 
 def concept_pick(store, place, sha, by):
-    """His Pick (or, with sha None, his unlock) of a place's concept; the record. review.Refused for an empty or the
-    runner's name or a sha that is no draw of the place; PermissionError in an agent's process."""
+    """His Pick (or, with sha None, his unlock) of a place's concept, then the place handed to the creator's library
+    (concepts.handed_over); the record with what the library did in words (`library`). review.Refused for an empty
+    or the runner's name or a sha that is no draw of the place; PermissionError in an agent's process."""
     from score.review import concepts
     name = checked_by(by)
     try:
-        return concepts.pick(store, place, sha, name)
+        record = concepts.pick(store, place, sha, name)
     except concepts.Refused as refused:
         raise review.Refused(str(refused)) from refused
+    return {**record, "library": concepts.handed_over(store, place)}
