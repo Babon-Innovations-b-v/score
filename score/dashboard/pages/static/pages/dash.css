@@ -601,7 +601,10 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .holes .group-head h2 { margin: 0; }
 .hole-list { margin: 4px 0 16px; padding-left: 20px; }
 .hole-list li { margin: 4px 0; }
-.holes-total, .work-total { margin-top: 12px; }
+.holes-total, .work-total, .remake-plan { margin-top: 12px; }
+.milestones { margin: 8px 0 0; padding-left: 22px; }
+.milestones .milestone { margin: 10px 0; }
+.milestones .milestone p { margin: 2px 0; }
 .headline { font-size: 16px; font-weight: 550; }
 .buy-first, .places-overview { margin: 24px 0 32px; }
 .blockers li, .buy-list li, .work-list li { margin: 6px 0; }

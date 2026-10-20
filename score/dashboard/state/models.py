@@ -141,7 +141,8 @@ class HolesPrice(BaseModel):
     nodes in them, the work no stage does with its hole count, the prop route priced for the rows that wait on their
     place's prop data (`after_work`), the code work whose make is a Pixal3D one priced as if it had landed
     (`code_work`), the nodes outside the runner's table, the places not current and not checked, and why the record
-    is stale (None while current)."""
+    is stale (None while current); and the remake's milestones (holes/milestones.py), shapes first, the owner's
+    approval last."""
     made_at: str
     nodes: dict[str, dict] = {}
     chains: dict[str, dict[str, list[str]]] = {}
@@ -152,6 +153,7 @@ class HolesPrice(BaseModel):
     outside: list[dict] = []
     not_current: list[str] = []
     not_checked: list[str] = []
+    milestones: list[dict] = []
     stale: str | None = None
 
 

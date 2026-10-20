@@ -14,6 +14,7 @@ the models only, so a hosted process sums them too.
 import re
 from collections import Counter
 
+from score.dashboard.state.groups import label  # a stage in words
 from score.dashboard.state.plain import LOST, lost_item  # a lost input's id: place:lost:<kind>:<item>
 
 BASES = (("measured runs", "measured runs"), ("per unit × counted", "per unit × the units its last make counted"),
@@ -614,3 +615,71 @@ def work_groups(unfillable, details, price=None):
                     "after": sum_words(summed(task["nodes"])) if task["nodes"] else None}
                    for name, task in found.items()),
                   key=lambda entry: (-(entry["holes"] + entry["inputs"]), entry["task"]))
+
+
+# --- the remake's plan: the runner's milestones, only shown ------------------------------------------------------
+
+def plan_code(work):
+    """([{task, holes}], [owner's lines]) of a milestone's code work lines ([{work, holes}]): each folded into its
+    task (work_task), the most holes first; the owner's own actions (owners_own) apart, never code."""
+    tasks, owners = {}, []
+    for entry in work:
+        if owners_own(entry["work"]):
+            owners.append(entry["work"])
+        else:
+            task = work_task(entry["work"])
+            tasks[task] = tasks.get(task, 0) + entry["holes"]
+    return ([{"task": task, "holes": holes} for task, holes in sorted(tasks.items(), key=lambda pair: -pair[1])],
+            owners)
+
+
+def plan_step(entry, titles, running):
+    """One milestone of the runner's plan for the page: its stages in words, its measured euros and the running
+    subtotal (`running`, {likely, high} before it), the set budgets apart, the unknown steps with why, the code work
+    folded into tasks, the owner's steps and the earlier milestones it reads; the record's words, never new ones."""
+    code, owners = plan_code(entry.get("work", []))
+    likely, high = entry.get("likely_euros") or 0.0, entry.get("high_euros") or 0.0
+    after = entry.get("after_work") or {}
+    return {"key": entry["key"], "title": entry["title"], "unpriced": entry.get("unpriced"),
+            "stages": [{"label": label(stage["stage"]), "stage": stage["stage"], "nodes": stage["nodes"],
+                        "paid": stage["paid"]} for stage in entry.get("stages", [])],
+            "nodes": entry.get("nodes", 0), "places": entry.get("places", 0), "paid": len(entry.get("paid", [])),
+            "measured": entry.get("measured", 0), "likely": likely, "high": high,
+            "subtotal": {"likely": round(running["likely"] + likely, 2), "high": round(running["high"] + high, 2)},
+            "set": entry.get("set") or {"euros": 0, "nodes": 0, "from": []}, "unknown": entry.get("unknown", []),
+            "after": after if after.get("nodes") else None, "code": code,
+            "owner": [*entry.get("owner", []), *owners],
+            "reads": [titles.get(key, key) for key in entry.get("reads", [])]}
+
+
+def plan_said(price, world):
+    """Why there is no plan to show, in words, or None when plan_of has one."""
+    said = said_of_price(price)
+    if said is None and not price.milestones:
+        return f"the runner's last price holds no plan: run score price {world} --holes again"
+    return said
+
+
+def plan_of(price):
+    """{steps, total} of the runner's milestones (`price.milestones`, holes/milestones.py), in its order, each with
+    its running subtotal, and the whole: measured likely and high, the set budgets apart, the paid steps with no
+    measured price, what is priced after code work; None with no current record or one without milestones
+    (said_of_price says why). Nothing is priced, ordered or judged here."""
+    if price is None or price.stale or not price.milestones:
+        return None
+    titles = {entry["key"]: entry["title"] for entry in price.milestones}
+    steps, running = [], {"likely": 0.0, "high": 0.0}
+    for entry in price.milestones:
+        step = plan_step(entry, titles, running)
+        running = step["subtotal"]
+        steps.append(step)
+    after = [step["after"] for step in steps if step["after"]]
+    return {"steps": steps,
+            "total": {"likely": running["likely"], "high": running["high"],
+                      "measured": sum(step["measured"] for step in steps), "paid": sum(step["paid"] for step in steps),
+                      "set": round(sum(step["set"]["euros"] for step in steps), 2),
+                      "set_nodes": sum(step["set"]["nodes"] for step in steps),
+                      "unknown": sum(len(step["unknown"]) for step in steps),
+                      "after_likely": round(sum(entry["likely_euros"] for entry in after), 2),
+                      "after_high": round(sum(entry["high_euros"] for entry in after), 2),
+                      "after_unknown": sum(entry["unknown"] for entry in after)}}

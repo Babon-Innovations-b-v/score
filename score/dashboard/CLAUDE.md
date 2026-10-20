@@ -40,7 +40,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   high plus the guesses, the measured share in euros, steps and its bases; the prop route after its code work said
   apart and added in, `whole_plus`), and the paid work the code work brings that no record prices yet named with
   the holes it holds back (`unpriced_work`, `BRINGS`), then `headline`: only the holes no figure holds (outside
-  the table, waiting on code work), never the figures again. A lost input kind's blocker splits its inputs by what brings
+  the table, waiting on code work), never the figures again. Under it the whole remake's plan (`plan_of`,
+  `pages/remake_plan.html`): the runner's milestones from the same record (`score/stages/complete/holes/
+  milestones.py`), in its order, each with its measured euros and the running subtotal, the stage table's set budgets
+  apart (set, never in a figure), its unknown steps with why in the details, its code work folded into tasks, the
+  owner's own steps; none while the record is stale or has none (`plan_said`). No plan is made or reordered here. A lost input kind's blocker splits its inputs by what brings
   them back: code work, or a paid step (linked to its buy-first line). Places and steps are said by their titles
   (`groups.place_title`, `groups.label`), never their keys, outside a details fold. Counts are by kind (lost input once, route step, missing, gate);
   a board card carries its place's holes and worst kind beside its steps' status. A place page shows its holes layer as a tree
