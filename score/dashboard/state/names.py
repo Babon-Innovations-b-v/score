@@ -27,13 +27,11 @@ GRID = re.compile(r"^(?P<name>.*\D) (?P<row>\d+) (?P<spot>\d+)$")  # an effect l
 ASIDE = re.compile(r"^(?P<name>.*?) \((?P<aside>[^()]*)\)$")  # "Flat ground (earth)"
 
 
-def without_aside(kind, title):
-    """A trailing bracketed aside said in words: a ground's planet before it, any other after a comma."""
+def without_aside(title):
+    """A trailing bracketed aside said in words, after a comma."""
     found = ASIDE.match(title)
     if not found:
         return title
-    if kind == "ground":
-        return f"{found['aside'].capitalize()} ground at {found['name'].removesuffix(' ground')}"
     return f"{found['name']}, {found['aside']}"
 
 
@@ -50,6 +48,6 @@ def everyday(title):
 def plain(kind, entry_id, title):
     """(the name the owner sees, the library's own title when it differs from it, else "")."""
     shown = ALGORITHMS.get(entry_id) if kind == "algorithm" else None
-    shown = shown or everyday(without_aside(kind, title.replace(" light layer", " lamps")))
+    shown = shown or everyday(without_aside(title.replace(" light layer", " lamps")))
     shown = shown[:1].upper() + shown[1:]
     return shown, (title if shown != title else "")

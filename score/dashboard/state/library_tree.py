@@ -6,7 +6,8 @@ A node is {id, label, count, children}; its id is the path of keys from the kind
 kind the entries are split first by the tags that name what they are (a model's type, a surface's family then its
 recipe, a sound's category, ...), skipping a level that would make one folder; a folder still larger than LEAF_MAX is
 split by the words of the entries' names (wall, wall upper, ...), and one whose names are all the same by the place
-each came from. Groups smaller than GROUP_MIN go together in "Other".
+each came from. Groups smaller than GROUP_MIN go together in "Other". The Places shelf is a folder a place, its
+root and its own layers in it.
 """
 import re
 
@@ -14,7 +15,7 @@ from score.dashboard.state.library import KINDS, kind_label
 from score.dashboard.state.names import everyday
 
 TAG_LEVELS = {"model": ["model"], "surface": ["family", "recipe"], "sound": ["category"], "effect": ["effect"],
-              "character": ["character"], "layer": ["layer"]}
+              "character": ["character"]}
 PLURAL_TAGS = {"model"}  # a model's type reads as a folder of many: Pieces, Props
 LEAF_MAX = 36
 SPLIT_MORE = 12  # a folder made by a tag is split by the next tag only when it holds more than this
@@ -113,6 +114,11 @@ class Builder:
                           [] if key == OTHER else self.by_name(f"{parent}/{key}", members, used))
                 for key, members in in_order(small_ones_together(groups))]
 
+    def by_own_place(self, parent, entries):
+        """The Places shelf: a folder a place, holding its root and its own layers (`<layer>.<place>`)."""
+        groups = grouped(entries, lambda entry: entry.entry_id.split(".")[-1])
+        return [self.node(f"{parent}/{key}", label_of(key), members, []) for key, members in sorted(groups.items())]
+
     def by_place(self, parent, entries):
         groups = small_ones_together(grouped(entries, lambda entry: entry.place or OTHER))
         return [self.node(f"{parent}/@{key}", f"from {label_of(key).lower()}" if key != OTHER else "Other places",
@@ -126,6 +132,7 @@ def folders(entries):
     for kind, _ in KINDS:
         of_kind = [entry for entry in entries if (entry.shelf or entry.kind) == kind]
         if of_kind:
-            tree.append(builder.node(kind, kind_label(kind), of_kind,
-                                     builder.by_tags(kind, of_kind, TAG_LEVELS.get(kind, []))))
+            children = builder.by_own_place(kind, of_kind) if kind == "place" else \
+                builder.by_tags(kind, of_kind, TAG_LEVELS.get(kind, []))
+            tree.append(builder.node(kind, kind_label(kind), of_kind, children))
     return {"tree": tree, "members": builder.members}

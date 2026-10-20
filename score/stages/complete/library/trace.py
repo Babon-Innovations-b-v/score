@@ -26,9 +26,10 @@ from score.stages.complete.library import exceptions as written
 
 LIBRARY_ATTR = "score:library"
 KIND_ATTR = "score:kind"
-LIBRARY_KINDS = {"model": ("model",), "place": ("place",), "ground": ("ground",), "structure": ("model", "kit"),
+# ground: a terrain piece is a model (the ground kind is retired, #47)
+LIBRARY_KINDS = {"model": ("model",), "place": ("place",), "ground": ("model",), "structure": ("model", "kit"),
                  "character": ("character",), "effect": ("effect",), "light": ("light",), "sky": ("light",),
-                 "sound": ("sound",), "geometry": ("model", "ground", "light")}
+                 "sound": ("sound",), "geometry": ("model", "light")}
 PRUNED = ("model", "place", "character", "effect", "light", "sound")  # their prims below are theirs
 FINISHED = ("model", "structure", "ground", "character", "geometry", "sky")  # the things whose finishes are judged
 SHOWN_PURPOSES = (UsdGeom.Tokens.default_, UsdGeom.Tokens.render)
