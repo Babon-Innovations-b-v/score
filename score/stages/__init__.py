@@ -25,6 +25,7 @@ import json
 import pathlib
 
 from score import checks, contracts, graph
+from score.checks import grain
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
                           earth_seed, effects, gaps, images, late_bake, library, light, motion, people, people_takes,
                           physics, proposals, scene_record, settling, shapes_first, shell_split, sound,
@@ -496,6 +497,27 @@ def named_gaps(row):
     return dataclasses.replace(row, files=with_gap_files(row.files, reads), checks=(*kept, *named))
 
 
+# The rendered pictures of each row that ship (to the library, the films, the paper), relative to its output: the grain
+# check fails a grainy one (the owner, 2026-10-20: the Library's Camp picture full of specks). Left out: the paid
+# light-passes (its looks ship only through light's mix), the Workbench turntables (no sampling noise) and the
+# people's close-ups (an image model's, not a render).
+GRAIN_PICTURES = {"light": "looks/*/*-look.png", "demo-film": "concept.png", "demo-film-extra": "*/concept.png",
+                  "demo-stills": "*.png", "effects-look": "*/*/*-look.png", "crops-look": "render/*-look.png",
+                  "physics-trial": "frames/*-look.png"}
+
+
+def grained(row):
+    """A row of GRAIN_PICTURES with the grain check over its pictures; its judge unwraps to grain.verdict, so the
+    check's rules are in the row's code version."""
+    if row.name not in GRAIN_PICTURES:
+        return row
+
+    def judged(output, inputs, evidence):
+        return grain.verdict("grain", pathlib.Path(output).glob(GRAIN_PICTURES[row.name]), output)
+    judged.__wrapped__ = grain.verdict
+    return dataclasses.replace(row, checks=(*row.checks, checks.Check("grain", judged)))
+
+
 def layered(row, names):
     """The assembly reading every layer stage of assembly.READS the table holds (`names`): a layer stage joins its
     reads the day it joins the table, and one not built yet is never silently stood in for by the seed's (the
@@ -552,7 +574,7 @@ def ship_seeded(files):
     return declared
 
 
-STAGES = tuple(named_gaps(layered(worn(row), {stage.name for stage in STAGES})) for row in STAGES)
+STAGES = tuple(grained(named_gaps(layered(worn(row), {stage.name for stage in STAGES}))) for row in STAGES)
 # A process's code versions read the import folders it holds at its first key (score/graph/_code.py search_folders).
 # `score run` and `score status` reach tools/characters/cast.py (a dress row's `applies`: cast_looks) before that, and
 # the file puts its folder on the path; a process that keys a node first did not, and read every node whose code

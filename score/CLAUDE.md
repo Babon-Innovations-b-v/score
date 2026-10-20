@@ -8,7 +8,8 @@ stage as each stage is built; nothing moves before.
 
 - **`checks/`** the gate rules every stage shares: `Verdict` (pass, fail or unknown, a reason, measures, findings),
   `Check` (a judge and the evidence it needs), `judge` (missing evidence is unknown without asking), `overall`
-  (fail, else unknown, else pass; nothing judged is unknown), `regressions` (what got worse than the accepted one).
+  (fail, else unknown, else pass; nothing judged is unknown), `regressions` (what got worse than the accepted one);
+  `grain.py` (a shipping render's specks on its flat area; the table adds it to the rows of `stages.GRAIN_PICTURES`).
 - **`contracts/`** every output's schema, version and units, checked both ways: `Contract` (a schema, its version,
   the house units it uses, its faults check; other units than metres, seconds, degrees and Y up are refused),
   `stamp` (the runner checks an output and writes `contract.json` into it before storing; one off its contract is

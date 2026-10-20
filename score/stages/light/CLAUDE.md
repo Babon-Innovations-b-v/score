@@ -34,6 +34,10 @@ its own runner (`python -m score.stages.light run lightkit`).
   frames are not inputs): a floodlight's head, beam and veil with its lamps off and on, against K04; the Earth's
   smooth share against C4; an outdoor place's sky colour against its own concepts' sky; every view's black and blown
   shares against its concepts' (`exposure`, the owner's "no black or blown areas").
+- **A mixed look is clean** (owner, 2026-10-20: the Library's Camp picture full of specks): only the render's
+  combined light is denoised, never a lamp group, so a look's mix ratio is smoothed on the rendered look
+  (`mix.smoothed`, a guided filter) before it scales the look, and the table's grain check
+  (`score/checks/grain.py`, `stages.GRAIN_PICTURES`) fails a grainy look by name.
 - **Lamps are measured where they shine** (2026-10-13): a lamp inside its fixture moves out of it when the fixture's
   solid parts stop 90% of its rays, or stands just outside its lens otherwise (`layer.lamps_through_fixtures`, each
   lamp's rule in lamps.json); under the open sky the suns are swept after the lamps when the lamps cannot reach the

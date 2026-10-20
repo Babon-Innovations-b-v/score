@@ -70,11 +70,15 @@ SKY_LIGHT = 0.04
 PLAIN_COLOUR = (0.6, 0.6, 0.6, 1.0)
 # How many see-through particles a ray passes on its way through an effect (tools/usd/effects.py) before it stops.
 EFFECT_BOUNCES = 256
-SAMPLES = 16
+# Eevee's samples on the processor here (film_preview.py's before-after, shown to the owner): Blender's own default,
+# not 16, so its soft shadows and reflections come out clean (2026-10-20).
+SAMPLES = 64
 CARD_SAMPLES = 64
 # A review picture's samples (views.json "review": true), denoised as the films' are: on an L4 (2026-10-11) a 1080p
 # film frame of the hangar and the greenhouse took 17.7 to 18.1 s against 25 to 29 s at CARD_SAMPLES, and differed from
 # the final look by 1.0 and 7.6 levels of 255 on average, about what a second seed of the final does (1.0 and 6.5).
+# Denoised, they pass the grain check (score/checks/grain.py, 2026-10-20: the greenhouse's crops look 0.2 and the
+# launch's effects look 1.3 specks per mille, under 3), as CARD_SAMPLES' film concept (1.5) does.
 REVIEW_SAMPLES = 16
 # The game's ink lines (2099's ink_edges.gdshader and ink_edges.tres), its numbers as it has them: a pixel is inked
 # where its neighbours `reach` pixels out average further away than it by DEPTH_BREAK (in one over the distance, so a
