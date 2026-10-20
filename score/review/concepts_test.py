@@ -483,7 +483,13 @@ def test_a_part_of_a_places_outside_has_no_concept_of_its_own(store):
     assert "launch" not in concepts.undrawn(store, ["square", "launch"])[1]
     assert "part of it: across the water in the distance, the rocket launch" in concepts.generated(store, "square")
 
-def test_a_place_with_windows_is_sent_the_view_around_what_holds_it_and_one_without_is_not(store, monkeypatch):
+def test_a_place_with_windows_is_sent_the_view_around_what_holds_it_and_one_without_is_not(store, monkeypatch,
+                                                                                           tmp_path):
+    # the hangar's reference is the owner's private picture: a stand-in in this test's home, never the machine's copy
+    monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
+    for ref in concepts.references_of(store, "hangar"):
+        concepts.resolved(ref["picture"]).parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (8, 8)).save(concepts.resolved(ref["picture"]))
     picked_draw(store, monkeypatch, "base", (200, 10, 10))
     ready_above(monkeypatch, box=(16, 10, 32, 20))
     hangar = picked_draw(store, monkeypatch, "hangar", (90, 90, 90))
