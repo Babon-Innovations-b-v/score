@@ -31,6 +31,10 @@ gates; `takes.py` the paid part.
   at seed 1 (`takes.SEED`), made once, the card's deadline its takes' minutes. The gates sort: a take under
   `CLAP_FLOOR` fails `likeness`, a take that did not come back leaves its sound without one and fails `sources`;
   either is a hole, and a new take (another seed, the brief's next prompt) is a new batch, never inside this one.
+- **One take across places** (#29): a brief several places play (crew_talk, in eight) is one take. Each take is
+  locked while its batch runs (`takes.held`), so the first line to reach it makes it on its card and the others wait
+  and read it; `environment_takes` (free) lists the environment's takes still to make, each once with the places that
+  play it, and the price's `sound_takes` forecast rule counts each at its first place, so it is priced once.
 - **What a place needs is worked out free** (`needs.py`, #29): its bed (room tones), one event sound for each thing
   that moves (its motion and moving things records; things moving exactly together are one event) and a voice where its
   cast stands people (`voices` in `data/sound/places.json`, each on a person, played at `/<place>/Characters/<name>`).
@@ -42,8 +46,10 @@ gates; `takes.py` the paid part.
   about 4 min to the first take and about 28 s a take of 10 to 15 s, EUR 0.72 for 56 takes, was written here, its
   ledger lost with the old disk). The benchmark that settles it is on #29.
 - **The owner's recordings stay** (2026-10-06: the breathing, the sliding doors and the steel footsteps were better
-  than the generated takes). `no freesound` passes them by their `chosen.by` owner with his decision and lists them;
-  any other Freesound file fails it. Replacing them is his call, not the stage's.
+  than the generated takes). `no freesound` passes them by their `chosen.by` owner with his decision and lists them,
+  and passes a Freesound recording under CC0 with its licence row in `data/sound/licences.json` (the owner's
+  exception, 2026-10-20, #29; the row read from that file, never the record's own credit); any other Freesound file
+  fails it. Replacing them is his call, not the stage's.
 - **Never lower `gates.CLAP_FLOOR` to pass a sound**: write a better prompt (what it is, its size, material and
   place, and what is not in it). The floor is the tenth percentile of the environment's 55 MOSS picks.
 - `sound_test.py` runs the make and the gates on the hub and the airlock (nothing rented: the airlock's voice, still

@@ -119,6 +119,13 @@ def light_jobs(place):
     return math.ceil(len(passes.scene_of(place).get("views") or []) / passes.VIEWS_A_JOB)
 
 
+def sound_takes(data, place):
+    """The MOSS takes the place's sound make is counted for: the environment's takes still to make, each once, at the
+    first place that plays it (sound.environment_takes, #29)."""
+    from score.stages import sound
+    return sum(1 for _, places in sound.environment_takes(data, sound.moss_weights()).values() if places[0] == place)
+
+
 def rule_units(rule, found, data, place):
     """The units a forecast rule counts at a place (PER_UNIT's `forecast` rule), before any per-model factor."""
     if rule == "one":
@@ -131,6 +138,8 @@ def rule_units(rule, found, data, place):
         return len(surface_takes(data, place) | pixal_models(found, data, place))
     if rule == "light_jobs":
         return light_jobs(place)
+    if rule == "sound_takes":
+        return sound_takes(data, place)
     raise ValueError(f"unknown forecast rule {rule!r} in {compute.PER_UNIT}")
 
 

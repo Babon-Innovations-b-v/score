@@ -74,6 +74,8 @@ FORECASTS = {
     "light_jobs": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record "
                   "(data/scene/<place>.json), VIEWS_A_JOB a job",
     "one": "one a place (one for an environment node)",
+    "sound_takes": "score/stages/sound environment_takes: the environment's MOSS takes still to make, one a brief "
+                   "and seed, each counted once at the first place in data/sound/places.json that plays it",
 }
 CLOSEUPS_15 = "paper/evidence/cloud/forecast-2026-10-15.txt"
 # The finish maps a model draws at most under the batch rule (#21): the close-up's one seed and one seed of each of

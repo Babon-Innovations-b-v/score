@@ -433,7 +433,8 @@ is meant to fix, where it is marked, and what proves it.
   their moves) with a sound: the environment's picked file, or MOSS takes of its brief made in the moss image on
   one rented card (paid), chosen by the picker's rule; gated on `sources`, `level` (loudness and length, measured),
   `likeness` (CLAP to its prompt at least 0.30, the tenth percentile of the environment's MOSS picks) and `no freesound`
-  (the owner's 2026-10-06 recordings excepted, listed). The layer is data (`sound.json` and its files); the assembly
+  (the owner's 2026-10-06 recordings excepted, and, by his decision of 2026-10-20, a CC0 recording with its row in
+  `data/sound/licences.json`; each listed). The layer is data (`sound.json` and its files); the assembly
   does not read it yet. Proven when every place passes and the owner has heard the new sounds.
 - **The render-and-compare** (`tools/usd/compare.py`). A candidate check: no gate reads it. Proven when it ranks a
   model from the fault corpus worst.

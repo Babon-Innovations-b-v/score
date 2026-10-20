@@ -16,7 +16,8 @@ OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions
              level     every file, measured: its true peak under the ceiling, its loudness within its category's
                        target (tools/sound/loudness), its length within its brief
              likeness  every MOSS-made sound's CLAP match to its prompt at least gates.CLAP_FLOOR
-             no freesound  no file is a Freesound recording but those the owner chose over the generated takes
+             no freesound  no file is a Freesound recording but those the owner chose over the generated takes and
+                       those under CC0 with their row in data/sound/licences.json (the owner, 2026-10-20, #29)
              events    every thing that moves in the place (needs.events: its motion and moving things records) plays a sound
              voices    a place whose cast stands people plays a voice on one of them (#29: voices where people are)
 
@@ -271,15 +272,39 @@ def sound_of(name, inputs, out, weights, scored):
             "category": brief.get("category"), "brief_seconds": brief.get("seconds")}
 
 
+def moss_weights():
+    """The pinned MOSS weights' revision (a take's name hashes it)."""
+    from score.adapters import models
+    return next(model["revision"] for model in models.record(moss_takes.KIND)["models"]
+                if model["name"] == moss_takes.MODELS[0])
+
+
+def jobs_of(names, inputs, weights):
+    """The take jobs of the sounds among `names` made here."""
+    return [job for name in to_make(names, inputs) for job in moss_takes.jobs_for(name, brief_of(name, inputs), weights)]
+
+
+def environment_takes(data, weights):
+    """The environment's takes still to make, each once (#29): {take file: (job, [the places that play it])}, in
+    data/sound/places.json's order. A brief several places play is one take: the first of their lines to reach it
+    makes it in its batch (takes.made locks it), the others wait and read it, so it is made and counted once."""
+    found = {}
+    for place in read_json(pathlib.Path(data) / "sound/places.json")["places"]:
+        inputs = {name: pathlib.Path(pattern.format(place=place, data=str(data)))
+                  for name, pattern in files(place).items()}
+        names = list(dict.fromkeys(use["sound"] for use in uses_of(place, inputs)))
+        for job in moss_takes.missing(jobs_of(names, inputs, weights)):
+            found.setdefault(job["file"], (job, []))[1].append(place)
+    return found
+
+
 def make(inputs, out, seed, params):
     """The place's sound layer data: sound.json and every file it names under files/."""
-    from score.adapters import models
     place = place_of(inputs)
-    weights = next(model["revision"] for model in models.record(moss_takes.KIND)["models"]
-                   if model["name"] == moss_takes.MODELS[0])
+    weights = moss_weights()
     uses = uses_of(place, inputs)
     names = list(dict.fromkeys(use["sound"] for use in uses))
-    jobs = [job for name in to_make(names, inputs) for job in moss_takes.jobs_for(name, brief_of(name, inputs), weights)]
+    jobs = jobs_of(names, inputs, weights)
     scored = moss_takes.made(jobs, out / "cloud") if jobs else {}  # every new brief's takes on one card
     sounds = {}
     for name in names:

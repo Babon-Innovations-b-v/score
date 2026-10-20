@@ -4,12 +4,14 @@ tools/cloud/images/prove.py's runner, each take scored against its prompt with C
 
 A take is named by its sound, its prompt's and length's hash and its seed, and kept in TAKES with its CLAP score: the
 same prompt, length, seed and weights make the same take, so a take made once is never paid for again (a rerun of
-the row, or another place's line asking the same brief).
+the row, or another place's line asking the same brief). Each take is locked while its batch runs (`held`), so two
+places' lines side by side make a shared brief (crew_talk) on one card, the other line waiting and reading it (#29).
 
 The takes are one batch (#21, #29): one job a sound, its brief's first prompt at seed 1, made once; the likeness gate
 sorts each take by its CLAP score against gates.CLAP_FLOOR into a pass or a hole, and a new take (another seed, the
 brief's next prompt) is a new batch.
 """
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -99,11 +101,33 @@ def on_card(plan):
         print(f"the moss job failed on its card: {failed}", flush=True)
 
 
+@contextlib.contextmanager
+def held(jobs):
+    """Each job's take locked, in name order so two lines never wait on each other: a take another place's batch is
+    making is waited for and then read, never made on a second card (#29)."""
+    (TAKES / "locks").mkdir(parents=True, exist_ok=True)
+    with contextlib.ExitStack() as stack:
+        for name in sorted({job["file"] for job in jobs}):
+            lock = stack.enter_context((TAKES / "locks" / name).open("w"))
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
 def made(jobs, work):
     """Every job's take made (on a card for those not kept yet; `work`, a folder in the output, carries the jobs up
     and the takes back, and is removed after) and kept in TAKES; {file: CLAP score} of the takes there, a take that
     did not come back left out (a hole: its sound has no take, which the sources gate names)."""
-    wanted = missing(jobs)
+    with held(jobs):
+        bought(missing(jobs), work)
+    lost = missing(jobs)
+    if lost:
+        print(f"{len(lost)} takes did not come back, holes: {[job['file'] for job in lost][:5]}", flush=True)
+    known = scores()
+    return {job["file"]: known[job["file"]] for job in jobs if job not in lost}
+
+
+def bought(wanted, work):
+    """The wanted takes made on one card and kept in TAKES with their scores and the batch's timings."""
     if wanted:
         TAKES.mkdir(parents=True, exist_ok=True)
         back = work / "back"
@@ -123,8 +147,3 @@ def made(jobs, work):
                 kept.update(json.loads((back / "scores-0.json").read_text()))
             (TAKES / SCORES).write_text(json.dumps(kept, indent=1))
         shutil.rmtree(work)
-    lost = missing(jobs)
-    if lost:
-        print(f"{len(lost)} takes did not come back, holes: {[job['file'] for job in lost][:5]}", flush=True)
-    known = scores()
-    return {job["file"]: known[job["file"]] for job in jobs if job not in lost}
