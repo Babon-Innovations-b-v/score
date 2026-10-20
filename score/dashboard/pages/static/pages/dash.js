@@ -106,7 +106,8 @@ for (const button of document.querySelectorAll("[data-full]")) {
 // A basket item's 3D view: the before and after switch loads the other side into the frame.
 for (const button of document.querySelectorAll(".item-3d-bar [data-src]")) {
   button.addEventListener("click", () => {
-    document.getElementById("item-3d").src = button.dataset.src;
+    // replace, not src: a frame's own navigation would add a step to the page's back button
+    document.getElementById("item-3d").contentWindow.location.replace(new URL(button.dataset.src, location.href));
     for (const other of document.querySelectorAll(".item-3d-bar [data-src]")) other.classList.toggle("on", other === button);
   });
 }
@@ -211,15 +212,41 @@ document.addEventListener("submit", async (event) => {
   said.title = detail;
   said.hidden = false;
 });
+// Back and forward (owner, 2026-10-20: "go back and forward through the pages nicely"): an open side panel is a
+// step of its own (#item=<its gap, else its title>, pushed), so back shuts it, forward opens it again and a reload
+// shows it; opening another item while one is open replaces that step, and shutting the panel steps back.
+const panelKey = (opener) => opener.dataset.gap || opener.dataset.title || "";
+const openerOf = (key) => [...document.querySelectorAll("[data-opens]")].find((opener) => panelKey(opener) === key);
+const remember = (change, url) => history.replaceState({ ...history.state, ...change }, "", url);
+function showPanel(opener) {
+  openPanel(opener);
+  const key = panelKey(opener), url = `#item=${encodeURIComponent(key)}`;
+  if (history.state?.panel) remember({ panel: key }, url);
+  else history.pushState({ ...history.state, panel: key, pushed: true }, "", url);
+}
+function shutPanels() {
+  if (history.state?.pushed) { history.back(); return; }  // popstate shuts it
+  for (const panel of document.querySelectorAll(".side-panel")) panel.hidden = true;
+  if (history.state?.panel) remember({ panel: null }, location.pathname + location.search);
+}
+let wantedPanel = history.state?.panel || decodeURIComponent((location.hash.match(/^#item=(.*)$/) || [])[1] || "");
+function panelIfShown() {
+  const opener = wantedPanel && openerOf(wantedPanel);
+  if (opener) { openPanel(opener); wantedPanel = ""; }
+}
+window.addEventListener("popstate", (event) => {
+  wantedPanel = event.state?.panel || "";
+  if (!wantedPanel) for (const panel of document.querySelectorAll(".side-panel")) panel.hidden = true;
+  panelIfShown();
+});
 document.addEventListener("click", (event) => {
   const opener = event.target.closest("[data-opens]");
-  if (opener) { event.preventDefault(); openPanel(opener); return; }
-  const close = event.target.closest("[data-panel-close]");
-  if (close) close.closest(".side-panel").hidden = true;
+  if (opener) { event.preventDefault(); showPanel(opener); return; }
+  if (event.target.closest("[data-panel-close]")) shutPanels();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") for (const panel of document.querySelectorAll(".side-panel")) panel.hidden = true;
-  if (event.key === "Enter" && event.target.matches?.("[data-opens]")) openPanel(event.target);
+  if (event.key === "Escape" && document.querySelector(".side-panel:not([hidden])")) shutPanels();
+  if (event.key === "Enter" && event.target.matches?.("[data-opens]")) showPanel(event.target);
 });
 
 // A tree branch with data-children="URL" (templates/pages/c/tree.html) loads its children when it first opens: the
@@ -277,10 +304,39 @@ function treeList(nodes) {
   }
   return list;
 }
+// The tree's open branches and how far the page and the tree's own box are scrolled are kept in this page's own
+// history step (replaced, never a step of their own), so back, forward and a reload open the same branches again
+// and stand at the same place.
+const openBranches = new Set(history.state?.open || []);
+let restoring = openBranches.size > 0;
+const treeBox = () => document.querySelector(".place-tree");
+function reopen(within) {
+  for (const branch of within.querySelectorAll("details[data-children]")) {
+    if (openBranches.has(branch.dataset.children)) branch.open = true;
+  }
+  panelIfShown();
+  if (!restoring || document.querySelector("details[data-children][open]:not([data-loaded]):not([data-failed])")) return;
+  restoring = false;
+  const { scroll, treeScroll } = history.state || {};
+  if (treeScroll && treeBox()) treeBox().scrollTop = treeScroll;
+  if (scroll) scrollTo(0, scroll);
+}
+let scrollTimer = 0;
+document.addEventListener("scroll", () => {  // capture: the tree's box scrolls on its own
+  if (restoring || !document.querySelector("details[data-children]")) return;
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(() => remember({ scroll: Math.round(scrollY), treeScroll: treeBox()?.scrollTop || 0 }), 200);
+}, true);
 document.addEventListener("toggle", async (event) => {
   const branch = event.target;
-  if (!branch.open || !branch.dataset?.children || branch.dataset.loaded) return;
+  if (!branch.dataset?.children) return;
+  if (!restoring || branch.open) {
+    openBranches[branch.open ? "add" : "delete"](branch.dataset.children);
+    remember({ open: [...openBranches] });
+  }
+  if (!branch.open || branch.dataset.loaded) return;
   branch.dataset.loaded = "1";
+  delete branch.dataset.failed;
   try {
     const answer = await fetch(branch.dataset.children, { credentials: "same-origin" });
     if (!answer.ok) throw new Error(`${answer.status}`);
@@ -289,25 +345,37 @@ document.addEventListener("toggle", async (event) => {
     console.error("tree branch not loaded", branch.dataset.children, error);
     branch.querySelector("summary .dot").className = "dot tone-bad";
     delete branch.dataset.loaded;
+    branch.dataset.failed = "1";
   }
+  reopen(branch);
 }, true);
+reopen(document);
 
 // While a concept draw is on its way ([data-reread][data-drawing], the Environment) the page reads itself again
-// every few seconds and swaps in what it gets, so each card shows its draw as it lands; it stops once none is.
+// every few seconds and swaps in what it gets, so each card shows its draw as it lands; it stops once none is. The
+// swap never touches the history. Shown again by back or forward (the browser's kept copy), it reads itself once at
+// once, so it shows the draws and picks made since.
 const REREAD_EVERY = 3000;
-function reread() {
-  const live = document.querySelector("[data-reread][data-drawing]");
-  if (!live) return;
-  setTimeout(async () => {
+let rereadTimer = 0, reading = null;
+function reread(now) {
+  clearTimeout(rereadTimer);
+  if (!document.querySelector(now ? "[data-reread]" : "[data-reread][data-drawing]")) return;
+  rereadTimer = setTimeout(async () => {
+    reading = new AbortController();
     try {
-      const answer = await fetch(location.href, { credentials: "same-origin" });
+      const answer = await fetch(location.href, { credentials: "same-origin", cache: "no-store", signal: reading.signal });
       const fresh = new DOMParser().parseFromString(await answer.text(), "text/html").querySelector("[data-reread]");
       if (!answer.ok || !fresh) throw new Error(`page read again: ${answer.status}`);
-      live.replaceWith(fresh);
+      document.querySelector("[data-reread]").replaceWith(fresh);
     } catch (error) {
+      if (error.name === "AbortError") return;  // the page was left: pageshow starts it again on the way back
       console.error("draws on their way: page not read again", error);
     }
-    reread();
-  }, REREAD_EVERY);
+    reread(false);
+  }, now ? 0 : REREAD_EVERY);
 }
-reread();
+// a read still under way when the page is left would keep it out of the browser's back cache
+addEventListener("pagehide", () => { clearTimeout(rereadTimer); reading?.abort(); });
+addEventListener("pageshow", (event) => {
+  reread(event.persisted || performance.getEntriesByType("navigation")[0]?.type === "back_forward");
+});

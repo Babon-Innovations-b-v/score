@@ -178,11 +178,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     children_url}]: `children` drawn now,
     `children_url` fetched (GET, JSON [node] of the same fields) only when its branch first opens (dash.js); a
     failed load turns its dot red and goes to the console. `panel` {title, state, tone, price, picture, gap,
-    action, action_label, body, reason} opens the side panel on a click or Enter.
+    action, action_label, body, reason} opens the side panel on a click or Enter. Its open branches and the page's
+    and tree box's scroll are kept in the page's own history step (`history.state`, replaced), so back, forward and
+    a reload open them again.
   - `panel.html` `id` (default "panel"): one a page, filled by dash.js from the opener's data-title, data-state,
     data-tone, data-price ("unknown" grey), data-picture, data-action (a link, or with data-body the JSON its button
     posts; data-reason asks why), data-action-label, and data-gap sent to `iframe[data-frames]`; Escape or its
-    close button shuts it. Any `form[data-yes]` (data-url, data-body, data-reload) posts the same way: a green or
+    close button shuts it. An open panel is a history step of its own (`#item=<its gap, else its title>`, pushed;
+    another item while one is open replaces it; shutting it steps back), so back shuts it and a reload shows it. Any `form[data-yes]` (data-url, data-body, data-reload) posts the same way: a green or
     red dot, the answer as hover text, never on the page.
   Hover text is the native `title` attribute: every component takes `tip`; an explanation goes there, never on
   the page.

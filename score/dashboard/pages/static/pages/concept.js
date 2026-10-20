@@ -118,7 +118,7 @@
         relabel();
         return;
       }
-      location.search = `?draw=${found.newest}`;
+      location.replace(`?draw=${found.newest}`);  // the answered draw in this step's place: no extra back step
     };
     setTimeout(ask, ASK_EVERY);
   };

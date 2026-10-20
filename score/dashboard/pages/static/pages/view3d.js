@@ -1047,7 +1047,10 @@ function pickGap(screen) {
   link.href = chosen.url;
   link.textContent = "its line on the place page";
   $("gap-picked").replaceChildren(`${chosen.sentence} `, link);
-  history.replaceState(null, "", `?gaps=1&gap=${encodeURIComponent(chosen.id)}`);
+  const linked = new URLSearchParams(location.search);  // its other words (embed) kept: back to its page restores this
+  linked.set("gaps", "1");
+  linked.set("gap", chosen.id);
+  history.replaceState(null, "", `?${linked}`);
 }
 
 // From `from` (a camera), looking at the middle of what changes; `from` itself when nothing is outlined.

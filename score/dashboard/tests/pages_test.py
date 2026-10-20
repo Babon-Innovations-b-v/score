@@ -614,9 +614,10 @@ def chromium_runs():
 
 
 @pytest.mark.skipif(not chromium_runs(), reason="no headless Chromium that runs on this machine")
-def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(world, settings, tmp_path):
+def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(world, settings, tmp_path, read):
     """In a browser: the top level only, a branch loaded once when it opens, an item's panel filled, the 3D view
-    told to frame its gap, its Accept the owner's JSON request with the CSRF token."""
+    told to frame its gap, its Accept the owner's JSON request with the CSRF token; the panel a step of its own (back
+    shuts it, forward opens it, a reload opens its branch and it again, no step added)."""
     import json
     import subprocess
     a_gaps_finding(world, settings, tmp_path)
@@ -637,6 +638,9 @@ def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(
     assert (seen["open"], seen["title"], seen["state"], seen["price"], seen["button"]) == (
         True, "lamp", "missing", "EUR 2.00–3.00 +", "Accept")
     assert json.loads(seen["framed"]) == {"gap": "missing:lamp_1"}
+    assert seen["back"] == {"open": False, "hash": ""}
+    assert seen["forward"] == {"open": True, "title": "lamp"}
+    assert seen["reloaded"] == {"open": True, "title": "lamp", "steps": 3}  # the blank tab, the page, its panel
     assert seen["posted"] == [{"url": "/api/decisions", "csrf": "token", "body": {
         "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}]
 
