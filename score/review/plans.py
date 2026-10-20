@@ -5,7 +5,9 @@ concept is the approval; the plan page is for inspecting and fixing it, his edit
 A plan is drawn free from data already there (`derived`): the place's plan in data/plans (its shell, frame, walls,
 doors and where each leads, the neighbours' joined doors in its leads), its outline from the layer above's plan (its
 box in that plan's `holds`), and its items from its scene inventory, each item tied to its inventory row (a row laid
-at a spot stands there; one with none is laid along the walls for him to drag), a keep-clear zone in front of every
+at a spot stands there; one with none is laid along the walls for him to drag; each sized off its SAM box against
+the outline, else its reading's size words; what nothing sizes, and a lamp or beam on a row this concept's inventory
+lacks, is named in the plan's `gaps`, shown on his page), a keep-clear zone in front of every
 door, its standing spots. A place holding others (a shell, the Square, the Hangar, the Campgrounds) lays out its
 inside places in it (`holds`: each a box with its name and the holder's inventory row it stands in, None for the
 holder's own walls: the shell split): those listed now (within.json, then his edits), plus those he named on its
@@ -216,11 +218,45 @@ def to_plan(plan, spot):
     return (round(sum(a * b for a, b in zip(offset, east)), 3), round(sum(a * b for a, b in zip(offset, south)), 3))
 
 
-def footprint(row, facing):
-    """(wide, deep) of a row on the floor, turned with its facing (a row facing east or west lies across); 1 x 1 m
-    for a row whose size is words (a reading's: its metres are the close-ups' to find)."""
-    size = list(row["size"] if isinstance(row.get("size"), list) else [1.0, 1.0, 1.0]) + [1.0, 1.0]
-    wide, deep = abs(float(size[0])) or 0.5, abs(float(size[1])) or 0.5
+SMALLEST = 0.3  # metres: no item measured off its box is narrower or shallower
+UNSIZED = (1.0, 1.0)  # an item nothing gives a size: laid 1 x 1 m, and named a gap
+STRIDE = 0.75  # metres of a stride or pace in a reading's size words
+WORD_NUMBERS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+                "eight": 8, "nine": 9, "ten": 10}
+METRES = re.compile(r"(\d+(?:\.\d+)?)(?:\s*(?:x|by)\s*(\d+(?:\.\d+)?))?\s*m(?:etres?)?\b(?!\s*(?:tall|high))")
+STRIDES = re.compile(r"\b(\d+(?:\.\d+)?|" + "|".join(WORD_NUMBERS) + r")\s+(?:strides?|paces?)\b")
+
+
+def from_words(words):
+    """(wide, deep) metres a reading's size words give the floor ("2 x 3 m", "1.5 m across", "two strides long"),
+    None when they give no length on the floor (a height alone, "waist high", or none)."""
+    words = str(words or "").lower()
+    if found := METRES.search(words):
+        wide = float(found.group(1))
+        return wide, float(found.group(2) or wide)
+    if found := STRIDES.search(words):
+        long = float(WORD_NUMBERS.get(found.group(1), found.group(1))) * STRIDE
+        return long, long
+    return None
+
+
+def measured(row, box=None, picture=None, plan=None):
+    """(wide, deep) of a row's floor footprint in metres, None when nothing gives it: its inventory size in metres,
+    else its SAM box on the picked concept against the place's outline (the picture spans the outline, as
+    `from_picture` reads it: a first guess he drags), else its reading's size words (`from_words`)."""
+    if isinstance(row.get("size"), list):
+        size = list(row["size"]) + [1.0, 1.0]
+        return abs(float(size[0])) or 0.5, abs(float(size[1])) or 0.5
+    if box and picture and plan and plan.get("w") and plan.get("d"):
+        return (max(SMALLEST, (box[2] - box[0]) / picture[0] * plan["w"]),
+                max(SMALLEST, (box[3] - box[1]) / picture[1] * plan["d"]))
+    return from_words(row.get("size_words") or row.get("size"))
+
+
+def footprint(row, facing, box=None, picture=None, plan=None):
+    """(wide, deep) of a row on the floor (`measured`, else UNSIZED), turned with its facing (a row facing east or
+    west lies across)."""
+    wide, deep = measured(row, box, picture, plan) or UNSIZED
     return (deep, wide) if facing in ("E", "W") else (wide, deep)
 
 
@@ -295,9 +331,10 @@ def laid_along(boxes, wide):
 
 
 def items_from(plan, inventory):
-    """(items, rows) of the plan from its scene inventory: each floor instance a box at its laid spot, else where its
-    box on the picked concept stands (`from_picture`), else laid along the walls, tied to its row and the rows riding
-    on it; one walls-and-ceiling item over the whole floor, the rows that are the place itself (`whole`) on it."""
+    """(items, rows, unsized) of the plan from its scene inventory: each floor instance a box at its laid spot, else
+    where its box on the picked concept stands (`from_picture`), else laid along the walls, sized by `measured`, tied
+    to its row and the rows riding on it; one walls-and-ceiling item over the whole floor, the rows that are the place
+    itself (`whole`) on it; `unsized` [(item, row id)] the items nothing gives a size."""
     picture = inventory.get("picture")
     rows = [row for row in inventory.get("rows", []) if not whole(row, picture)]
     riders = children(rows)
@@ -306,10 +343,13 @@ def items_from(plan, inventory):
     unplaced = [footprint(by_id[row_id], None) for _, row_id, spot, box in instances if spot is None
                 and not (box and picture)]
     free = iter(laid_along(unplaced, plan["w"]))
-    items, tied = [], {}
+    items, tied, unsized = [], {}, []
     for name, row_id, spot, box in instances:
         facing = facing_of(spot) if spot else None
-        wide, deep = footprint(by_id[row_id], facing)
+        sized_by = box or (by_id[row_id].get("boxes") or [None])[0]  # an instance SAM missed: its row's surest box
+        wide, deep = footprint(by_id[row_id], facing, sized_by, picture, plan)
+        if measured(by_id[row_id], sized_by, picture, plan) is None:
+            unsized.append((name, row_id))
         if spot:
             middle_x, middle_y = to_plan(plan, spot)
             x, y = middle_x - wide / 2, middle_y - deep / 2
@@ -323,7 +363,26 @@ def items_from(plan, inventory):
     if on_walls:
         items.append([WALLS_ITEM, 0.0, 0.0, plan["w"], plan["d"], None, "item"])
         tied[WALLS_ITEM] = on_walls
-    return items, tied
+    return items, tied, unsized
+
+
+def unlit(plan, ids):
+    """(lamps, beams, gaps) of the plan: its outdoor lamps and beams standing on a row of its scene inventory (`ids`)
+    or another place's, and a gap for each whose row this concept's reading does not hold (the plan stage's `mapped`
+    gate refuses a lamp or beam on a row the inventory lacks: data/plans' lamps were written for an older concept)."""
+    kept, gaps = {}, []
+    for kind in ("lamps", "beams"):
+        kept[kind] = [entry for entry in plan.get(kind, []) if entry["row"] in ids or entry.get("place")]
+        gaps += [{"kind": kind[:-1], "item": entry["name"], "row": entry["row"],
+                  "words": f"{kind[:-1]} {entry['name']}: no {entry['row'].replace('_', ' ')} in this concept"}
+                 for entry in plan.get(kind, []) if entry not in kept[kind]]
+    return kept["lamps"], kept["beams"], gaps
+
+
+def size_gaps(unsized):
+    """A gap for each item nothing gives a size (laid UNSIZED): the batch needs its size."""
+    return [{"kind": "size", "item": name, "row": row_id, "words": f"{name.title()}: no size"}
+            for name, row_id in unsized]
 
 
 def sized_doors(plan, filed):
@@ -436,7 +495,10 @@ def derived(store, place):
     plan["w"], plan["d"] = outline_from_holder(store, place, plan)
     plan["doors"] = sized_doors(plan, filed_inventory(place))
     inventory = inventory_of(store, place)
-    items, tied = items_from(plan, inventory)
+    items, tied, unsized = items_from(plan, inventory)
+    lamps, beams, unlit_gaps = unlit(plan, {row["id"] for row in inventory.get("rows", [])})
+    plan.update({key: found for key, found in (("lamps", lamps), ("beams", beams)) if key in plan})
+    plan["gaps"] = unlit_gaps + size_gaps(unsized)  # what this concept's inventory does not give: shown, never hidden
     zones = keep_clear(plan)
     plan["items"] = items + zones
     plan["rows"] = {**tied, **{zone[0]: [] for zone in zones}}  # a zone names no rows, and says so
@@ -512,6 +574,7 @@ def checked_plan(plan, base):
         rows[name] = [str(row) for row in plan.get("rows", {}).get(name, [])]
     found["items"] = checked_items(plan.get("items", []))
     found["rows"] = rows
+    found["gaps"] = sized_by_him(base, found["items"])
     found["doors"] = checked_doors(plan.get("doors", base.get("doors", [])), base.get("doors", []))
     found["people"] = [[number(x, "a standing spot", -BIGGEST), number(y, "a standing spot", -BIGGEST), *rest]
                        for x, y, *rest in plan.get("people", [])]
@@ -523,6 +586,14 @@ def checked_plan(plan, base):
     if holds or "holds" in base:
         found["holds"] = holds
     return found
+
+
+def sized_by_him(base, items):
+    """The derived plan's gaps less the size gaps of the items he resized or removed (his size is its size)."""
+    was = {item[0]: item[3:5] for item in base.get("items", [])}
+    now = {item[0]: item[3:5] for item in items}
+    return [gap for gap in base.get("gaps", [])
+            if gap["kind"] != "size" or now.get(gap["item"]) == was.get(gap["item"])]
 
 
 def checked_row(row, ids):

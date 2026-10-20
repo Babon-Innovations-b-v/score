@@ -140,6 +140,32 @@ def test_a_reading_of_the_pick_is_the_inventory_its_rows_on_their_parents_and_it
     assert plans.made(store, "yard") and concepts.holding_row(store, "shed") == "barn"  # the concept review's
 
 
+def test_items_are_sized_off_their_boxes_or_words_and_what_has_no_size_or_row_is_a_gap(store, data):
+    from score.review import reading
+    yard = json.loads((data / "plans/yard.json").read_text())
+    (data / "plans/yard.json").write_text(json.dumps({**yard, "lamps": [{"name": "post", "row": "lamp_post"}],
+                                                      "beams": [{"name": "far", "row": "mast", "place": "camp"}]}))
+    (data / "inventory/yard.json").unlink()
+    picked(store, "yard")
+    rows = [{"id": "barn", "name": "a barn", "anchor": "ground", "size": None, "size_words": "two storeys",
+             "count": 1, "boxes": [[10, 10, 60, 35]]},
+            {"id": "cart", "name": "a cart", "anchor": "ground", "size": None, "size_words": "two strides long",
+             "count": 1, "boxes": []},
+            {"id": "rock", "name": "a rock", "anchor": "ground", "size": None, "size_words": "waist high",
+             "count": 1, "boxes": []}]
+    reading.kept(store, {"place": "yard", "concept": PICK, "at": concepts.now(), "method": reading.METHOD,
+                         "size": [100, 50], "inventory": {"concept_pick": {"sha256": PICK}, "rows": rows}})
+    plan = plans.current(store, "yard")["plan"]
+    items = {item[0]: item for item in plan["items"]}
+    assert items["BARN 1"][3:5] == [10.0, 6.0]  # its box, half the picture wide and deep, of a 20 x 12 m yard
+    assert items["CART 1"][3:5] == [1.5, 1.5] and items["ROCK 1"][3:5] == [1.0, 1.0]  # two strides; none: 1 m
+    assert [gap["words"] for gap in plan["gaps"]] == ["lamp post: no lamp post in this concept", "Rock 1: no size"]
+    assert plan["lamps"] == [] and plan["beams"] == [{"name": "far", "row": "mast", "place": "camp"}]
+    plan["items"] = [[*item[:3], 2.0, 2.0, *item[5:]] if item[0] == "ROCK 1" else item for item in plan["items"]]
+    plans.edited(store, "yard", plan, "joey")  # he sized the rock: its gap is gone
+    assert [gap["kind"] for gap in plans.current(store, "yard")["plan"]["gaps"]] == ["lamp"]
+
+
 def test_the_plan_stage_reads_his_plan_and_drops_it_once_the_pick_goes(store, tmp_path):
     picked(store, "shed")
     assert plans.keep(store, ["shed", "yard"]) == (["shed"], ["shed"])  # the yard has no plan row: none kept
