@@ -152,7 +152,8 @@ def pictures_of(views, split, take):
 
 
 def ask(body):
-    """One cleared, ledgered Gemini 3.1 Pro ask (finish_ask.generated: asked again on a dropped connection)."""
+    """One cleared, ledgered Gemini 3.1 Pro ask (finish_ask.generated: asked again only on a refusal that did no
+    work; a timeout or a dropped connection reaches the caller)."""
     from score.adapters import compute
     compute.require_cleared("a Gemini finish list (finish route)")
     route_cap.require_room(finish_ask.LIST_MODEL, body)
