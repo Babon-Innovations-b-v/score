@@ -40,6 +40,13 @@ disk took the ledgers its euros were read from:
     python3 tools/costs/per_unit.py --times-only --ledger paper/evidence/cloud/ledger.jsonl [--google G] \
         [--store $PROPS_HOME/store] --out data/costs/per-unit.json
 
+The remake's stages are priced by the owner's method of 2026-10-20 (#21), written by every mode above (with_warm):
+a WARM stage's unit at its jobs' measured work seconds on a warm card (no set-up, no idle; the paper's ledger copy, as
+`capacity.py report`'s s/unit) over the jobs a card runs at once, at the saved bill's price a minute for the type,
+plus OVERHEAD for warm parked cards' time outside jobs; a BATCH stage's at the Batch API's share of its measured
+standard-tier calls, the finish route's asks from the method's list asks with a price_note until their own are on
+the ledger. Its `basis` says which; every other stage keeps its fields byte for byte.
+
 Several ledgers can hold the same batch (a backup, a reconstruction, the paper's scrubbed copy): a batch is read
 once, from the first ledger that holds it. Paths are written with the local roots replaced, as the paper's copies are.
 """
@@ -131,6 +138,38 @@ RECORDED = {
                        "runs": [{"euros": 2.41, "units": 1,
                                  "source": f"{STAGE_EUROS_13} line 12 (world 1's ticketed run, 16 rows), its re-buy "
                                            f"priced at it in {CLOSEUPS_15} line 55"}]},
+}
+
+
+# The owner's method for the remake (2026-10-20, #21), which replaces a WARM or BATCH stage's ledger-measured price: a
+# card stage's unit at its measured work seconds on a warm card (no set-up, no idle: its machines' own `unit_seconds`
+# of its kind on its machine type in the paper's ledger copy, the capacity report's s/unit) over the jobs a card runs
+# at once (capacity.runs_at_once), at the saved bill's euros a minute for that type (costs.unit_prices, the lowest
+# zone), plus OVERHEAD for the time warm parked cards spend outside jobs; a Google stage's at the Batch API's share
+# of the measured standard-tier calls (google_spend.TIER_PRICE, its euros already counted from dollars there).
+EVIDENCE_LEDGER = REPO / "paper/evidence/cloud/ledger.jsonl"
+SAVED_BILL = REPO / "paper/evidence/cloud/bill-2026-10-10T0136Z.json"
+OVERHEAD = 0.10  # the owner's target share (2026-10-20): replace it with the measured one once runs record it
+WARM = {
+    "pixal": {"kind": "pixal", "type": "L4-1-24G", "class": "gpu-24gb"},
+    "surfaces-bake": {"kind": "library", "type": "L4-1-24G", "class": "gpu-24gb"},
+}
+# Measured standard-tier calls a BATCH stage is priced from (their Google ledger went with the old disk, 2026-10-19:
+# the figures as this file wrote them from it at commit 71b1ccc4, data/costs/per-unit.json).
+PRO_PICTURES = {"likely": 0.13991, "high": 0.14096, "runs": 135,
+                "from": "$PROPS/cloud/google-ledger.jsonl, caller pro, 135 finished calls, 2026-10-12 to 2026-10-16 "
+                        "(standard tier), as data/costs/per-unit.json held them at commit 71b1ccc4"}
+LIST_ASKS = {"likely": 0.02244, "high": 0.03329, "runs": 275,
+             "from": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-list, 275 finished calls, 2026-10-11 to "
+                     "2026-10-16 (standard tier), as data/costs/per-unit.json held them at commit 71b1ccc4"}
+ROUTE_ASK = ("the finish route's ask sends every view and the split's groups beside the close-up, so it reads more "
+             "than the method's list asks it is priced from; its own batch calls on the ledger replace them")
+BATCH = {
+    "closeup": {"calls": PRO_PICTURES},
+    "finish-route-list": {"calls": LIST_ASKS, "unit": "finish list and labels of a take (Gemini 3.1 Pro, batch)",
+                          "forecast": "models", "price_note": ROUTE_ASK},
+    "finish-route-recheck": {"calls": LIST_ASKS, "unit": "recheck of a take (Gemini 3.1 Pro, batch)",
+                             "forecast": "models", "price_note": ROUTE_ASK},
 }
 
 
@@ -431,6 +470,88 @@ def measure(lines, calls, google_path):
     return with_forecasts(found)
 
 
+def warm_rows(spec):
+    """The machine rows of the paper's ledger copy that ran the stage's kind on its machine type and timed their jobs
+    (capacity.machine_rows: a row with its line's kind)."""
+    capacity = cloud_module("capacity")
+    lines = [json.loads(text) for text in EVIDENCE_LEDGER.read_text().splitlines() if text.strip()]
+    return [row for row in capacity.machine_rows(lines) if row["kind"] == spec["kind"]
+            and row.get("type") == spec["type"] and row.get("started", True) and row.get("unit_seconds")]
+
+
+def cloud_module(name):
+    """A module of tools/props/cloud (capacity, google_spend), its folder put on the path."""
+    folder = str(costs.CLOUD_TOOLS / "cloud")
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
+    return __import__(name)
+
+
+def hourly(machine_type):
+    """The saved bill's euros an hour for `machine_type` (costs.unit_prices, the lowest zone)."""
+    return costs.hourly_price(costs.unit_prices(json.loads(SAVED_BILL.read_text())), machine_type)
+
+
+def slots_of(spec):
+    """The jobs one card of the spec's class runs of its kind at once (capacity.runs_at_once)."""
+    return cloud_module("capacity").runs_at_once(spec["kind"], spec["class"])
+
+
+def warm_price(spec, seconds):
+    """Euros of one unit of `seconds` work on a warm card of the spec's type: over the jobs a card runs at once, at
+    the saved bill's euros a second, plus OVERHEAD."""
+    return seconds / slots_of(spec) * hourly(spec["type"]) / 3600 * (1 + OVERHEAD)
+
+
+def warm_time(spec, seconds, machines, old):
+    """A warm stage's `time`: its work seconds and the jobs a card runs at once, the set-up and failed starts of its
+    file's `time` kept (a fresh fleet still sets up), {why} for a set-up never measured."""
+    return {**old, "unit_seconds": spread(seconds), "slots": slots_of(spec),
+            "slots_from": f"capacity.runs_at_once({spec['kind']}, {spec['class']})",
+            "setup_minutes": old.get("setup_minutes") or {"why": "no line read here timed a machine's set-up"},
+            "holds": "machines", "lines": machines, "from": [costs.scrub(str(EVIDENCE_LEDGER))]}
+
+
+def warm_entry(found, spec):
+    """A stage's entry priced by the owner's warm-card method (WARM), its rules and count kept."""
+    rows = warm_rows(spec)
+    seconds = [value for row in rows for value in row["unit_seconds"]]
+    sources = {"warm work": f"{costs.scrub(str(EVIDENCE_LEDGER))}: {len(seconds)} jobs of kind {spec['kind']} timed "
+                            f"on {len(rows)} {spec['type']} machines (unit_seconds; capacity.py report's s/unit)",
+               "machine price": f"{costs.scrub(str(SAVED_BILL))}: {spec['type']} EUR {hourly(spec['type']):.4f} an "
+                                "hour "
+                                "(costs.unit_prices, the lowest zone), by the minute",
+               "overhead": f"{OVERHEAD:.0%} for time outside jobs on warm parked cards, the owner's target "
+                           "(2026-10-20) until runs record it"}
+    return {**found, "likely_euros": round(warm_price(spec, statistics.median(seconds)), 5),
+            "high_euros": round(warm_price(spec, quantile(seconds, HIGH)), 5), "runs": len(seconds),
+            "sources": sources, "basis": "warm work time", "time": warm_time(spec, seconds, len(rows), found.get("time") or {})}
+
+
+def batch_entry(stage, found, spec):
+    """A Google stage's entry at the Batch API's share of its measured standard-tier calls (BATCH)."""
+    share, calls = cloud_module("google_spend").TIER_PRICE["batch"], spec["calls"]
+    rules = {**SPECS.get(stage, {}), **spec}
+    base = found or {"stage": stage, "unit": rules["unit"], "count": rules.get("count"), "also": rules.get("also", []),
+                     **forecast(rules), "time": {"why": "no batch call of it timed yet"}}
+    return {**base, "likely_euros": round(calls["likely"] * share, 5), "high_euros": round(calls["high"] * share, 5),
+            "runs": calls["runs"], "sources": {"google calls": calls["from"],
+                                               "batch tier": f"google_spend.TIER_PRICE['batch'] = {share}"},
+            "basis": "batch price of measured calls"}
+
+
+def with_warm(body):
+    """The per-unit file's body with every WARM and BATCH stage priced by the owner's method of 2026-10-20, every
+    other stage as it was."""
+    stages = dict(body["stages"])
+    for stage, spec in WARM.items():
+        if stage in stages:
+            stages[stage] = warm_entry(stages[stage], spec)
+    for stage, spec in BATCH.items():
+        stages[stage] = batch_entry(stage, stages.get(stage), spec)
+    return {**body, "stages": stages}
+
+
 def read_calls(path):
     """The Google ledger's lines, [] with no ledger given."""
     if path is None:
@@ -456,7 +577,7 @@ def write_times(options):
     stage_times, made = kept_times(before, times(ledger_lines(options.ledger or []), read_calls(options.google),
                                                  options.google), store_minutes(options.store))
     body = with_times(before, stage_times, made)
-    out.write_text(json.dumps(body, indent=1) + "\n")
+    out.write_text(json.dumps(with_warm(body), indent=1) + "\n")
     timed = sum(1 for found in stage_times.values() if "unit_seconds" in found)
     print(f"per unit: time of {timed} of {len(stage_times)} stages and {len(body['node_minutes'])} stages' makes "
           f"written into {options.out}, its euros kept")
@@ -469,7 +590,7 @@ def write_measures(options):
     body = with_times({"read": [costs.scrub(path) for path in options.ledger] + [costs.scrub(options.google)],
                        "high_quantile": HIGH, "stages": found},
                       times(lines, calls, options.google), store_minutes(options.store))
-    pathlib.Path(options.out).write_text(json.dumps(body, indent=1) + "\n")
+    pathlib.Path(options.out).write_text(json.dumps(with_warm(body), indent=1) + "\n")
     print(f"per unit: {len(found)} stages priced ({len(SPECS)} measured from ledgers when they hold lines, "
           f"{len(RECORDED)} recorded) -> {options.out}")
 
@@ -487,7 +608,7 @@ def main(argv=None):
     options = parser.parse_args(argv)
     if options.rules_only:
         out = pathlib.Path(options.out)
-        out.write_text(json.dumps(with_rules(json.loads(out.read_text())), indent=1) + "\n")
+        out.write_text(json.dumps(with_warm(with_rules(json.loads(out.read_text()))), indent=1) + "\n")
         print(f"per unit: forecast rules written into {options.out}, its measured numbers kept")
         return
     if options.times_only:
