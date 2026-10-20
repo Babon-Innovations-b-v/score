@@ -34,6 +34,7 @@ MAX_TAKES = 4  # a sound's takes sent to the hosted cockpit
 MAX_FILES = 8  # an entry's files listed in the export (its count and bytes always go)
 EXPORT_ROWS = "library/entries.json"
 EXPORT_PALETTE = "library/palette.json"
+LOST = ".lost"  # beside a file in the library cache: the blob store answered 404 for it (score.stages.library.pictures)
 CHOSEN = {}  # the library made for the current settings
 
 
@@ -80,6 +81,7 @@ class LibraryEntry(BaseModel):
     file_count: int = 0
     file_bytes: int = 0
     facts: dict = {}  # what its kind's viewer plays and the few numbers it shows (kind_facts, viewer_facts)
+    missing: list[str] = []  # its files the library's blob store does not hold (hosted: as the export found them)
 
 
 def kind_label(kind):
@@ -454,6 +456,24 @@ class LocalLibrary(Library):
         found = self.blob(sha)
         return (self.known()[sha], found) if found else None
 
+    def missing(self, entry):
+        """The names of an entry's files the library's blob store answered 404 for: marked lost in the library cache
+        (score/stages/library/pictures.py), the mark naming the bytes the entry still records where it knows them."""
+        if self.cache is None:
+            return []
+        folder = self.cache / entry.kind / entry.entry_id / str(entry.version)
+        known = known_shas(entry)
+        return [listed.name for listed in entry.files if (folder / f"{listed.name}{LOST}").is_file()
+                and (listed.name not in known or (folder / f"{listed.name}{LOST}").read_text() == known[listed.name])]
+
+
+def known_shas(entry):
+    """{file name: sha} of the files whose bytes an entry names: its picture, takes, copies and print."""
+    found = {each.name: each.sha for each in [*entry.takes, *three_d_files(entry)]}
+    if entry.picture and entry.picture_file:
+        found[entry.picture_file] = entry.picture
+    return found
+
 
 class ExportedLibrary(Library):
     """The library part of a pushed state export (built by `export_rows` and the pictures beside it)."""
@@ -490,6 +510,10 @@ class ExportedLibrary(Library):
         name = self.listed_files().get(sha)
         path = self.folder / exported_file(sha, name or "")
         return (name, path) if name and path.is_file() else None
+
+    def missing(self, entry):
+        """The names of an entry's files the library's blob store did not hold when the export was made."""
+        return entry.missing
 
 
 def exported_file(sha, name):
@@ -529,17 +553,18 @@ def for_export():
 
 # --- into the state export (sync/building.py) ------------------------------------------------------------------
 
-def exported_rows(entries):
-    """The rows the hosted cockpit reads: each entry with a sound's first takes, its first files and no raw GLB;
-    the web copies and a surface's print go as files while they fit (export_three_d)."""
-    return [entry.model_copy(update={"takes": entry.takes[:MAX_TAKES], "glb": None, "files": entry.files[:MAX_FILES]})
-            .model_dump() for entry in entries]
+def exported_rows(entries, missing):
+    """The rows the hosted cockpit reads: each entry with a sound's first takes, its first files, no raw GLB and
+    the names of its files the library lost (`missing(entry)`); the light copies and a surface's print go as files
+    while they fit (export_three_d)."""
+    return [entry.model_copy(update={"takes": entry.takes[:MAX_TAKES], "glb": None, "files": entry.files[:MAX_FILES],
+                                     "missing": missing(entry)}).model_dump() for entry in entries]
 
 
 def export_rows(local, out, filler):
     """Write library/entries.json and the palette a surface's page offers into the export first; the entries."""
     entries = local.entries()
-    for name, rows in ((EXPORT_ROWS, exported_rows(entries)), (EXPORT_PALETTE, palette())):
+    for name, rows in ((EXPORT_ROWS, exported_rows(entries, local.missing)), (EXPORT_PALETTE, palette())):
         path = pathlib.Path(out) / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(rows, separators=(",", ":"), sort_keys=True))

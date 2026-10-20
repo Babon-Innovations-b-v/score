@@ -11,6 +11,7 @@ from score.dashboard import state
 from score.dashboard.pages import actions, library_actions
 from score.dashboard.pages.models import is_owner
 from score.dashboard.state import library as lib
+from score.dashboard.state.files import HERO_SIDE
 
 PAGE = 60  # a branch's children sent at a time
 TONES = {"locked": "done", "draft": "review", "withdrawn": "idle"}
@@ -163,18 +164,45 @@ def file_url(shown, each):
     return f"/library-files/files/{each.sha}" if each and shown.file_path(each.sha) else None
 
 
+def played(entry):
+    """Whether this cockpit has what item3d.js draws a surface, effect or light from: its finish, settings or lamps."""
+    return {"surface": bool((entry.finish or {}).get("colour")), "effect": bool(entry.facts.get("settings")),
+            "light": bool(entry.facts.get("lamps"))}[entry.kind]
+
+
 def view_of(shown, entry):
     """Which viewer the page holds: 3d (item3d.js), sound (takes.js), place (the place viewer in a frame), facts (an
-    algorithm's purpose, what it reads and makes) or picture (no web copy here)."""
+    algorithm's purpose, what it reads and makes) or picture (what it plays is not in this cockpit)."""
     if entry.kind == "sound":
         return "sound"
     if entry.kind == "algorithm":
         return "facts"
     if entry.kind in ("place", "layer"):
         return "place" if place_copy(entry) else "picture"
-    if entry.kind in PLAYED or file_url(shown, entry.web3d_light) or file_url(shown, entry.web3d):
+    if played(entry) if entry.kind in PLAYED else file_url(shown, entry.web3d_light) or file_url(shown, entry.web3d):
         return "3d"
     return "picture"
+
+
+VIEWER_FILES = {"surface": (".usda",), "effect": ("settings.json",), "light": (".usda",)}
+
+
+def viewer_names(entry):
+    """The names of the files an entry's viewer plays: its copies, its takes, its material, settings or OpenUSD."""
+    ends = VIEWER_FILES.get(entry.kind, ())
+    return [each.name for each in (entry.web3d_light, entry.web3d, *entry.takes) if each] + [
+        listed.name for listed in entry.files if ends and listed.name.endswith(ends)]
+
+
+def absent(missing, names):
+    """How a file the page cannot show is said: missing when the library's blob store lost it, else not here."""
+    return "missing" if any(name in missing for name in names) else "not here"
+
+
+def picture_url(shown, entry):
+    """The entry's large picture when this cockpit holds it, else None."""
+    held = entry.picture and shown.picture_path(entry.picture, HERO_SIDE)
+    return f"/library-files/pictures/{entry.picture}.jpg" if held else None
 
 
 def viewer_of(shown, entry):
@@ -206,23 +234,29 @@ def lamp_numbers(lamps):
             number("power", brightest["power"], "", f"{brightest['name']}: intensity times 2 to its exposure")]
 
 
+def tenths(value):
+    return round(value, 1) if isinstance(value, (int, float)) else value
+
+
 def effect_numbers(settings):
     settings = settings or {}
     loop = settings.get("loop")
-    return [number("length", settings.get("lifetime"), "s", "a card's life"),
-            number("loop", loop if loop else ("no" if "loop" in settings else None), "s" if loop else "",
+    return [number("length", tenths(settings.get("lifetime")), "s", "a card's life"),
+            number("loop", tenths(loop) if loop else ("no" if "loop" in settings else None), "s" if loop else "",
                    "it plays again after this long")]
 
 
-def numbers_of(entry):
+def numbers_of(entry, copy_here):
     """The few numbers of an item's kind, its hover text with each; a value item3d.js reads off the loaded copy
-    (size, clips) starts unknown."""
+    (size, clips) starts unknown, and is left out while its copy is not here (`copy_here`)."""
     facts = entry.facts
-    size = number("size", None, "m", "width, height and depth of its copy", "size", "measured once its copy loads")
+    size = [number("size", None, "m", "width, height and depth of its copy", "size", "measured once its copy loads")]
+    clips = [number("clips", None, "", "clips its copy plays", "clips", "counted once its copy loads")]
+    size, clips = (size, clips) if copy_here else ([], [])
     parts = number("parts", facts.get("parts"), "", "objects in its web copy")
     by_kind = {
-        "model": [size, parts], "kit": [number("pieces", facts.get("parts"), "", "pieces in its kit"), size],
-        "character": [parts, number("clips", None, "", "clips its copy plays", "clips", "counted once its copy loads")],
+        "model": [*size, parts], "kit": [number("pieces", facts.get("parts"), "", "pieces in its kit"), *size],
+        "character": [parts, *clips],
         "place": [parts],
         "surface": [number("token", facts.get("token"), "", "its palette token")],
         "sound": [number("loudness", facts.get("lufs"), "LUFS", "integrated loudness"),
@@ -235,11 +269,13 @@ def item_page(request, kind, entry_id, version):
     """An item's page: the item in its kind's viewer, a few numbers of its kind and its score, its versions, a link
     to its full-screen 3D view; the owner's lock, withdraw and refine."""
     shown, entry = found_entry(kind, entry_id, version)
+    missing, view = shown.missing(entry), view_of(shown, entry)
     return render(request, "pages/library_item.html", {
         "entry": entry, "kind_label": lib.kind_label(entry.kind), "tone": TONES.get(entry.state, "idle"),
-        "picture": f"/library-files/pictures/{entry.picture}.jpg" if entry.picture else None,
+        "picture": picture_url(shown, entry), "picture_absent": absent(missing, [entry.picture_file]),
+        "absent": absent(missing, viewer_names(entry)),
         "score": lib.percent(entry.score), "score_tip": score_tip(entry), "versions": versions_of(shown, entry),
-        "view": view_of(shown, entry), "viewer": viewer_of(shown, entry), "numbers": numbers_of(entry),
+        "view": view, "viewer": viewer_of(shown, entry), "numbers": numbers_of(entry, view == "3d"),
         "takes": takes_of(shown, entry), "place": place_copy(entry),
         "three_d": lib.viewer_url(entry) if model_file(entry) else None,
         "owner": is_owner(request.user), "asked": library_actions.waiting().get(entry.address)})

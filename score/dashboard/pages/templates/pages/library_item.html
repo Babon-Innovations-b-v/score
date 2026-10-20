@@ -15,6 +15,7 @@
     {% if viewer.mode == "surface" %}<form class="item-controls" id="surface-controls">
       <label title="its palette token, or another from the palette">colour <select name="token" data-v>{% for name in viewer.palette %}<option value="{{ name }}"{% if name == viewer.token %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
       <label title="how glossy: one less its roughness">shine <input type="range" name="shine" min="0" max="1" step="0.01"></label>
+      <label title="how metallic">metal <input type="range" name="metal" min="0" max="1" step="0.01"></label>
       <label title="worn, darker and rougher patches over it">wear <input type="range" name="wear" min="0" max="1" step="0.01" value="0"></label>
       <label title="where the wear falls">seed <input type="range" name="seed" min="1" max="99" step="1" value="1"></label>
     </form>{% endif %}
@@ -30,11 +31,12 @@
   <div class="takes">{% for take in takes %}<figure class="take">
     <canvas data-wave="{{ take.url }}" height="96" aria-label="{{ take.name }}"></canvas>
     <figcaption><button type="button" data-play title="play or stop">&#9654;</button> <span data-v>{{ take.name }}</span></figcaption>
-  </figure>{% empty %}<p class="unknown" title="its takes are not in this cockpit yet" data-v>0 takes</p>{% endfor %}</div>
+  </figure>{% empty %}<p class="unknown" title="its takes are not in this cockpit; missing: the library's blob store has none of them" data-v>takes {{ absent }}</p>{% endfor %}</div>
   {% elif view == "place" %}
   <div class="item-view"><iframe src="{{ place }}?embed=1" title="{{ entry.title }} in 3D" loading="lazy"></iframe></div>
   {% else %}
-  <figure class="item-pic">{% include "pages/pic.html" with src=picture name=entry.title bare=1 %}</figure>
+  <figure class="item-pic item-only">{% if picture %}{% include "pages/pic.html" with src=picture name=entry.title bare=1 %}{% else %}<div class="pic empty" title="missing: the library's blob store has no picture of it"><span data-v>picture {{ picture_absent }}</span></div>{% endif %}
+    {% if entry.kind in "model kit character surface effect light" %}<figcaption class="unknown" title="what its viewer plays is not in this cockpit; missing: the library's blob store has no copy of it" data-v>3D {{ absent }}</figcaption>{% endif %}</figure>
   {% endif %}
 </div>
 {% if view == "facts" %}<dl class="item-facts">

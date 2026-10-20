@@ -281,13 +281,33 @@ def test_a_kit_lays_its_pieces_out_and_a_character_plays_its_clips(world, shelf)
     assert item_data(walker) is None and 'href="/library/character/walker/1/3d/"' in walker
 
 
+def test_a_copy_the_library_lost_is_said_missing_and_travels_so_in_the_export(world, shelf, tmp_path):
+    shown = lib.library()
+    kit = shown.entry("kit/alpha@1")
+    (shelf.parent / "blobs" / "blobs" / kit.web3d_light.sha[:2] / kit.web3d_light.sha).unlink()
+    marked = shown.cache / "kit/alpha/1/web3d/light.glb.lost"
+    marked.parent.mkdir(parents=True)
+    marked.write_text("0" * 64)  # a mark of other bytes than the entry names: not this file
+    client = signed_in()
+    page = an_item_page(client, "/library/kit/alpha/1/")
+    assert item_data(page) is None and ">3D not here<" in page and "data-fact" not in page
+    marked.write_text(kit.web3d_light.sha)
+    page = an_item_page(client, "/library/kit/alpha/1/")
+    assert ">3D missing<" in page and "sync" not in page.lower().replace("score-sync", "")
+    building.build(world.source, tmp_path / "home/export/one", MADE, 50, Spend(spent=1.0, reserved=0.0, ceiling=250.0),
+                   world.root)
+    rows = json.loads((tmp_path / "home/export/one" / lib.EXPORT_ROWS).read_text())
+    assert next(row["missing"] for row in rows if row["address"] == "kit/alpha@1") == ["web3d/light.glb"]
+
+
 def test_a_surface_is_lit_on_a_sphere_with_its_settings_on_sliders(world, shelf):
     steel = an_item_page(signed_in(), "/library/surface/brushed_steel.alpha/1/")
     viewer = item_data(steel)
     assert viewer["mode"] == "surface" and viewer["token"] == "steel"
     assert viewer["finish"]["colour"] == [0.5, 0.25, 0.125] and viewer["finish"]["roughness"] == 0.35
     assert viewer["print"].startswith("/library-files/files/") and viewer["palette"]["sign-gold"].startswith("#")
-    for slider in ('name="token"', 'name="shine"', 'name="wear"', 'name="seed"', '<option value="steel" selected>'):
+    for slider in ('name="token"', 'name="shine"', 'name="metal"', 'name="wear"', 'name="seed"',
+                   '<option value="steel" selected>'):
         assert slider in steel, slider
     assert number_shown(steel, "token", "steel")
 

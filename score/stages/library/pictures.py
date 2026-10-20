@@ -12,15 +12,19 @@ library side; never a row, so nothing keys on it. A fetch costs one object read.
 
 The viewer files (`viewed`) are what an item page plays: a light web copy, a surface's material and print, a
 sound's first takes, an effect's settings, a light's OpenUSD. One the blob store answers 404 for is marked lost
-(`<file>.lost` beside it, holding the sha the entry records) and not asked for again until the entry names other bytes.
+(`<file>.lost` beside it, holding the sha the entry records) and not asked for again until the entry names other bytes;
+the cockpit says such a file is missing. `FETCHES` fetches run side by side (each a process of the library's command
+waiting on one object read).
 """
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 
 from score import library
 from score.stages.library import backend
 
 KINDS = None  # every kind
 TAKES = 4  # a sound's takes an item page plays (score/dashboard/state/library.py MAX_TAKES)
+FETCHES = 8  # fetches at once: a lone fetch waits about 1.6 s on its read (2026-10-20), so 3,000 took over an hour
 
 
 def pictured(root, kinds):
@@ -94,7 +98,8 @@ def held_or_why(address, named, root=None):
 
 def fetched_line(label, wanted, root):
     """Fetch each (address, file) into the cache; its words: how many are there, how many not, the first error."""
-    found = [held_or_why(address, named, root) for address, named in wanted]
+    with ThreadPoolExecutor(FETCHES) as pool:
+        found = list(pool.map(lambda pair: held_or_why(*pair, root), wanted))
     failed = [why for _, why in found if why]
     return f"{label}: {sum(held for held, _ in found)} of {len(wanted)}" + (
         f" ({len(failed)} not fetched, first: {failed[0]})" if failed else "")
