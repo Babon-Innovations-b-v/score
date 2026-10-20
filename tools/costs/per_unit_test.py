@@ -72,19 +72,6 @@ def test_a_recorded_stage_is_priced_from_its_runs_with_their_sources_and_no_coun
     assert found["forecast"]["rule"] == "models"
 
 
-def test_a_maps_units_a_model_are_the_codes_bound_and_the_lists_price_says_its_tier():
-    """Under the batch rule (#21) a model draws one close-up map and one of each map view, at most: the forecast is
-    that bound from the code, said so, never a ratio of the old method's draws."""
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
-    from score.stages.surfaces import finish_rows, turntable_views
-    assert per_unit.MAP_DRAWS == len(finish_rows.SEEDS) + len(finish_rows.VIEW_SEEDS) * len(turntable_views.MAP_VIEWS)
-    found = per_unit.forecast(per_unit.SPECS["surfaces-maps"])
-    assert found["forecast"]["per_model"] == per_unit.MAP_DRAWS
-    assert "not a measurement" in found["forecast"]["per_model_from"], found
-    assert "standard tier" in per_unit.forecast(per_unit.SPECS["surfaces-lists"])["price_note"]
-    assert "surfaces-names" not in per_unit.SPECS  # names by rule: free since #21
-
-
 def test_every_stage_has_a_forecast_rule_with_its_source():
     for stage, spec in {**per_unit.SPECS, **per_unit.RECORDED}.items():
         found = per_unit.forecast(spec)

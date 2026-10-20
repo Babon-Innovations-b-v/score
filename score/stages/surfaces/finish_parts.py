@@ -1,29 +1,10 @@
-"""The finish-map method's free steps, run in the prop environment (trimesh) through this module's command line
-(prop_env.py): its inputs, and its parts, the method's interface (PARTS in __init__.py). No model runs here.
-
-Rows (place grain, surfaces-<step>@<place>):
-    inputs  (free)  flat/takes.json from the place's data (each take's place, kind, object and library places) and the
-                    turntable's cameras (turntable_views.cameras)
-    parts   (free)  every take whose close-up map settled, its finish maps laid onto the raw Pixal3D model (its
-                    geometry kept), every face one finish:
-                    1. each map votes on the faces its view sees (the close-up's FRONT_VOTE, each turntable view's 1)
-                    2. each part of SegviGen's guided split takes its voted faces' finish when they hold SEEN_LEAST of
-                       its area and are pure (the second finish under MIX_SHARE of them): SegviGen merged the
-                       lander's gold and silver foil into one part, so a mixed part names nothing
-                    3. a voted face keeps its own vote; any other face its SegviGen part's finish, else the finish of
-                       the nearest voted face along the surface (walked)
-                    4. smoothed over the surface and its crumbs joined (cleaned), then every island under
-                       ISLAND_LEAST of the area, joined to the rest or loose, taken into the nearest larger island of
-                       its own finish, its finish's crumbs one part when it has none and they reach ISLAND_LEAST
-                       together, else the nearest larger island with its finish (merged_islands): the aft section's
-                       ~9,600 loose bits were parts
-                    5. measured against the maps: per map the share of the faces it sees painted its finish, the
-                       parts whose voted faces mix two finishes (MIX_SHARE), the parts; front and back pictures
-                    parts.json per take: each part's share, its finish's library surface (`judge`) and words, the new
-                    surface Gemini proposed for it (`proposed`); `finish` null: nothing is measured from the texture.
-                    <take>/parts.npy, <take>/colours.npy (NaN: no colour measured, neighbours of one surface join on
-                    the surface alone), <take>/front.png and back.png (each part in its surface's colour).
-                    Gate: no part mixes two finishes by the maps (a take that does is named and stops the line).
+"""The finish route's shared steps on a take's faces (route_split.py and route_parts.py run them): each face's votes
+over the views that see it (voted), a face no view reaches given the finish of the nearest voted face along the
+surface (walked), smoothed with its crumbs joined (cleaned), every island under ISLAND_LEAST taken into the nearest
+larger island of its own finish (merged_islands: the aft section's ~9,600 loose bits were parts), and each finish's
+library surface checked against its colour (checked_finishes) before each part takes it (part_rows). The method's
+interface's faults (parts_faults: PARTS in __init__.py). The finish-map method these came from (its maps, turntable
+and SegviGen rows) was deleted on 2026-10-20 (#26), when the crops and people left it.
 """
 import json
 import pathlib
@@ -38,15 +19,8 @@ for folder in (HERE, PROPS, PROPS / "library", PROPS / "cloud"):
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-import prop_env  # noqa: E402
-import surface_gates as gates  # noqa: E402
-
 FRONT_VOTE = 2.0  # the close-up's map is the one the owner checked (2026-10-12: "finish map seed 1 looks great")
-SEEN_LEAST = 0.05  # a SegviGen part names itself from its voted faces when they hold this share of its area
-MIX_SHARE = 0.2  # a part mixes finishes when its second finish holds this share of its voted area
-PART_LEAST = 0.01  # parts under this share of the model are not judged for mixing
 ISLAND_LEAST = 0.002  # split_compare.CRUMB: an island under this share of the area joins the nearest larger one
-BORDER = (0, 0, 0)
 # A finish's library surface must lie within this (CIE76) of its colour in the close-up. A photo's light, dirt and
 # muted saturation move a right surface far: on round 4's six models the right ones lay up to dE 29.7 from it (the
 # lander's light paint, its gold foil 29.5, black rubber 29.4), the wrong ones 33.2 to 44.9 (the power unit's grey
@@ -55,65 +29,7 @@ BORDER = (0, 0, 0)
 COLOUR_DELTA_E = 32.0
 
 
-def takes_of(inputs):
-    return json.loads((inputs["inputs"] / "flat" / "takes.json").read_text())
-
-
-def passed(inputs):
-    import segvigen_row
-    return segvigen_row.passed(inputs)
-
-
-# --- inputs --------------------------------------------------------------------------------------------------------
-
-def make_inputs(inputs, out, seed, params):
-    prop_env.handover(__file__, "inputs", inputs, out)
-
-
-def inputs_step(inputs, out):
-    """The prop environment's side: flat/takes.json and multiview/job.json."""
-    import turntable_views as views
-    takes = json.loads(inputs["surfaces"].read_text())["takes"]
-    (out / "flat").mkdir(parents=True)
-    (out / "flat" / "takes.json").write_text(json.dumps(takes, indent=1))
-    views.cameras(out, sorted(takes))
-
-
-def inputs_faults(folder):
-    present = (folder / "flat" / "takes.json").exists() and (folder / "multiview" / "job.json").exists()
-    return [] if present else ["no flat/takes.json or multiview/job.json"]
-
-
-def judge_inputs(output, inputs, evidence):
-    """Every take has its row and its cameras."""
-    takes = json.loads((output / "flat" / "takes.json").read_text())
-    job = json.loads((output / "multiview" / "job.json").read_text())
-    named = {entry["take"] for entry in job["takes"]}
-    return gates.verdict("inputs", [take for take in takes if take not in named], len(takes), "takes without cameras")
-
-
-# --- the maps on the model -----------------------------------------------------------------------------------------
-
-def map_labels(mesh, take, inputs):
-    """{map name: label per face, -1 where its view does not see the face or the map has no label}: the close-up's
-    ("front") and each settled view map's."""
-    import numpy as np
-    import labels
-    import turntable_views as views
-    folder = inputs["maps"] / take
-    _, seen, row, column = labels.picture_view(mesh, take)
-    front = np.load(folder / "front.npy").astype(int)
-    found = {"front": np.where(seen, front[row, column], -1)}
-    job = json.loads((inputs["inputs"] / "multiview" / "job.json").read_text())
-    renders = inputs["turntable"] / "renders" / take
-    for view in views.MAP_VIEWS:
-        if not (folder / f"{view}.npy").exists():
-            continue
-        drawn = np.load(folder / f"{view}.npy").astype(int)
-        seen, row, column = views.seen_in_view(renders, views.camera_of(job, take, view), mesh,
-                                               views.face_map(renders, view, mesh))
-        found[view] = np.where(seen, drawn[row, column], -1)
-    return found
+# --- the finishes on the model ----------------------------------------------------------------------------------------
 
 
 def voted(per_map, count):
@@ -149,34 +65,6 @@ def walked(mesh, face_label):
     if lost.any():
         found[lost] = face_label[sources[cKDTree(middles[sources]).query(middles[lost])[1]]]
     return found
-
-
-def segvigen_split(mesh, take_folder):
-    """SegviGen's guided split on the faces (its voxels laid on the model turned half round, as it was given),
-    cleaned as the parts test cleaned it (split_compare)."""
-    import trimesh
-    import labels
-    import split_compare
-    turned = trimesh.Trimesh(mesh.vertices @ labels.VIEW_TURN.T, mesh.faces, process=False)
-    return split_compare.cleaned(mesh, split_compare.segvigen_parts(turned, take_folder, "guided"))
-
-
-def segvigen_labels(mesh, part_of, votes):
-    """Each SegviGen part's finish per face: its voted faces' (area-weighted) when they hold SEEN_LEAST of its area
-    and its second finish stays under MIX_SHARE of them; -1 for a part that names nothing."""
-    import numpy as np
-    areas = mesh.area_faces
-    weighted = votes * areas[:, None]
-    parts = int(part_of.max()) + 1
-    by_part = np.zeros((parts, votes.shape[1]))
-    np.add.at(by_part, part_of, weighted)
-    seen_area = np.bincount(part_of, weights=areas * (votes.sum(1) > 0), minlength=parts)
-    size = np.bincount(part_of, weights=areas, minlength=parts)
-    ordered = np.sort(by_part, axis=1)
-    second = ordered[:, -2] if by_part.shape[1] > 1 else np.zeros(parts)
-    pure = second < MIX_SHARE * np.maximum(by_part.sum(1), 1e-12)
-    chosen = np.where((seen_area >= SEEN_LEAST * size) & pure, by_part.argmax(1), -1)
-    return chosen[part_of]
 
 
 def cleaned(mesh, face_label, count):
@@ -238,25 +126,6 @@ def merged_islands(mesh, face_label):
     return np.unique(part_of, return_inverse=True)[1], label
 
 
-def laid(mesh, take, inputs, count, within):
-    """One take's maps laid, each finish seen within a cover laid as its cover (`within`: seen_within): (part per face,
-    finish per face, the maps' labels per face)."""
-    import numpy as np
-    per_map = {name: taken_in(label, within) for name, label in map_labels(mesh, take, inputs).items()}
-    votes = voted(per_map, count)
-    own = np.where(votes.sum(1) > 0, votes.argmax(1), -1)
-    from_parts = segvigen_labels(mesh, segvigen_split(mesh, inputs["segvigen"] / take), votes)
-    walked_label = walked(mesh, own)
-    face_label = np.where(own >= 0, own, np.where(from_parts >= 0, from_parts, walked_label))
-    part_of, face_label = merged_islands(mesh, cleaned(mesh, face_label, count))
-    mixed = [part for part, _ in mixing_parts(mesh, part_of, face_label, per_map, count)]
-    if mixed:  # the smoothing ran a part across the votes (the seed tray, 2026-10-12): cut it along them
-        inside = np.isin(part_of, mixed)
-        face_label = np.where(inside, np.where(own >= 0, own, walked_label), face_label)
-        part_of, face_label = merged_islands(mesh, face_label)
-    return part_of, face_label, per_map
-
-
 # --- measures and pictures -----------------------------------------------------------------------------------------
 
 def agreement(mesh, face_label, per_map):
@@ -269,45 +138,6 @@ def agreement(mesh, face_label, per_map):
     return found
 
 
-def mixing_parts(mesh, part_of, face_label, per_map, count):
-    """The parts over PART_LEAST of the area whose voted faces give another finish than the part's on MIX_SHARE of
-    their area: [(part, share of the other finish)]."""
-    import numpy as np
-    votes = voted(per_map, count)
-    own = np.where(votes.sum(1) > 0, votes.argmax(1), -1)
-    areas = mesh.area_faces
-    found = []
-    for part in range(int(part_of.max()) + 1):
-        members = part_of == part
-        if areas[members].sum() < PART_LEAST * mesh.area:
-            continue
-        seen = members & (own >= 0)
-        total = areas[seen].sum()
-        other = areas[seen & (own != face_label)].sum()
-        if total > 0 and other >= MIX_SHARE * total:
-            found.append((part, round(float(other / total), 3)))
-    return found
-
-
-def part_picture(mesh, renders, view, part_of, colours):
-    """A turntable view of the painted model: each pixel its part's surface colour (sRGB 0-255), part borders black,
-    off the model clear (RGBA)."""
-    import numpy as np
-    from PIL import Image
-    import turntable_views as views
-    faces = views.face_map(renders, view, mesh)
-    inside = faces >= 0
-    part = np.where(inside, part_of[np.maximum(faces, 0)], -1)
-    painted = np.zeros((*faces.shape, 4), dtype=np.uint8)
-    painted[inside, :3] = colours[part[inside]]
-    painted[inside, 3] = 255
-    edge = np.zeros(faces.shape, dtype=bool)
-    edge[:-1] |= part[:-1] != part[1:]
-    edge[:, :-1] |= part[:, :-1] != part[:, 1:]
-    painted[edge & inside, :3] = BORDER
-    return Image.fromarray(painted)
-
-
 def surface_colours(entry, names):
     """Each surface's library colour, sRGB 0-255."""
     import numpy as np
@@ -318,31 +148,6 @@ def surface_colours(entry, names):
 
 
 # --- each finish's surface against the close-up's colour -----------------------------------------------------------
-
-# A finish whose library surface is darker than this (L*) is measured on its darker pixels (finish_colour).
-DARK_L = 35.0
-
-
-def measured_colours(take, front, surfaces):
-    """Each finish's colour in the close-up (CIELAB) over its label's pixels in the close-up's map (`surfaces`: each
-    finish's library spec, or None), None for a finish with no pixel (finish_colour)."""
-    import labels
-    import split_compare
-    lab = labels.picture_lab(split_compare.picture(take))
-    return [finish_colour(lab[front == label], spec) for label, spec in enumerate(surfaces)]
-
-
-def finish_colour(pixels, spec):
-    """One finish's colour from its label's pixels (CIELAB): the median of the brighter half by L* (the shaded half
-    left out); for a finish whose library surface lies under DARK_L, the median of all its pixels: the close-up's light
-    lifts a black finish's brighter half to L* 40 to 45 (old_station's black rubber, garage's tyres), and its darker
-    quarter is shadow (launch's dark wood at L* 2, flat's soil at 3; 2026-10-12). None with no pixel."""
-    import numpy as np
-    if not len(pixels):
-        return None
-    if spec and "colour" in spec and library_lab(spec)[0] < DARK_L:
-        return np.median(pixels, axis=0)
-    return np.median(pixels[pixels[:, 0] >= np.median(pixels[:, 0])], axis=0)
 
 
 def library_lab(spec):
@@ -363,44 +168,15 @@ def take_surfaces(entry):
     return every
 
 
-# The material words a finish list uses, by class, and the classes each library family is: a finish whose words name
-# a class its surface's family is not (black rubber named bare_steel) is named again.
-CLASS_WORDS = {"rubber": ("rubber",), "plastic": ("plastic", "vinyl", "bakelite", "leather"),
-               "paper": ("paper", "card", "label"), "glass": ("glass", "lens", "screen"), "water": ("water",),
-               "wood": ("wood", "timber", "plank"), "fabric": ("fabric", "canvas", "cloth", "textile"),
-               "foil": ("foil",), "soil": ("soil", "seed", "potting"), "plant": ("plant", "leaf", "seedling"),
-               "metal": ("steel", "metal", "aluminium", "aluminum", "iron", "chrome", "tin"),
-               "paint": ("paint",)}
-FAMILY_CLASSES = {"painted": ("paint", "metal"), "steel": ("metal",), "aluminium": ("metal",), "rusted": ("metal",),
-                  "rubber": ("rubber",), "plastic": ("plastic", "rubber"), "cable": ("rubber", "plastic"),
-                  "fabric": ("fabric",), "composite": ("plastic",), "glass": ("glass", "water"),
-                  "screen": ("glass",), "light": ("glass",), "print": ("paper",), "paper": ("paper",),
-                  "wood": ("wood",), "foil": ("foil", "metal"), "growing": ("soil", "plant"), "ground": ("soil",),
-                  "water": ("water",)}
-
-
-def contradicts(words, family):
-    """Whether a finish's words name a material class and none of them is one its surface's family is."""
-    import re
-    named = {name for name, keys in CLASS_WORDS.items()
-             if any(re.search(rf"\b{key}", words.lower()) for key in keys)}
-    return bool(named) and family in FAMILY_CLASSES and not named & set(FAMILY_CLASSES[family])
-
-
 # Not paint (owner, #8, 2026-10-12): glass, screen glow, lamp light and print are judged by their own colour, so one
 # off the close-up's lit colour keeps its surface. A finish the close-up shows over ORDER_L lighter than another is
 # named again when it lies over ORDER_LIBRARY darker in the library (bake_check's ORDER_L and ORDER_BAKED), and its
 # parts keep the order in the library itself (ORDER_KEPT): the bake moves a surface's L* on its own (the hangar's parts
 # shelving, 2026-10-13: plastic_grey 1.5 under galvanized_steel in the library, the steel baked 3.0 over its colour, so
 # the plastic seen 27.7 L* lighter baked 4.5 darker).
-# A finish seen through (see_through): its surface's family, or these words in its finish or parts. A see-through
-# part's pixels cover what lies behind it, grown by COVER_GROW pixels (face middles land a pixel or two apart).
+# A finish seen through (see_through): its surface's family, or these words in its finish or parts.
 SEEN_THROUGH_FAMILIES = ("glass", "screen", "light")
 SEEN_THROUGH_WORDS = ("transparent", "translucent")
-COVER_GROW = 2
-# An opaque finish whose outline in the close-up's map (OUTLINE pixels round it) is at least SEEN_WITHIN one
-# see-through finish is seen through it (seen_within): the garage beacon's reflector, 97.6% its red dome.
-OUTLINE, SEEN_WITHIN = 3, 0.9
 OWN_COLOUR = ("glass", "screen", "light", "print")
 ORDER_L, ORDER_LIBRARY, ORDER_KEPT = 10.0, 3.0, 0.0
 
@@ -577,138 +353,9 @@ def see_through(finish, every):
             or any(word in words for word in SEEN_THROUGH_WORDS))
 
 
-def see_through_cover(mesh, take, face_label, listed, every):
-    """The close-up's pixels whose first face from its camera belongs to a see-through finish (see_through): each seen
-    face of such a finish marks the pixel its middle lands on, grown by COVER_GROW pixels to close the gaps between
-    face middles."""
-    import numpy as np
-    from scipy import ndimage
-    import labels
-    picture, seen, row, column = labels.picture_view(mesh, take)
-    through = [number for number, finish in enumerate(listed) if see_through(finish, every)]
-    cover = np.zeros((picture.size[1], picture.size[0]), dtype=bool)
-    if through:
-        faces = seen & np.isin(face_label, through)
-        cover[row[faces], column[faces]] = True
-        cover = ndimage.binary_dilation(cover, iterations=COVER_GROW)
-    return cover
-
-
-def seen_within(front, listed, every):
-    """{finish: the see-through finish round it} for each opaque finish whose outline in the close-up's map (OUTLINE
-    pixels round it, off the object counted) is at least SEEN_WITHIN that one see-through finish: the model is the
-    cover's shell with nothing inside it, so the maps drew what lies behind the cover on the cover's own faces (the
-    garage beacon's reflector on its red dome's front, measured red and painted cast_steel, 2026-10-13)."""
-    import numpy as np
-    from scipy import ndimage
-    found = {}
-    for number, finish in enumerate(listed):
-        here = front == number
-        if see_through(finish, every) or not here.any():
-            continue
-        outline = front[ndimage.binary_dilation(here, iterations=OUTLINE) & ~here]
-        covers, counts = np.unique(outline[outline >= 0], return_counts=True)
-        for cover, count in zip(covers, counts):
-            if see_through(listed[cover], every) and count >= SEEN_WITHIN * len(outline):
-                found[number] = int(cover)
-    return found
-
-
-def taken_in(label, within):
-    """The labels (a map's pixels or faces) with each finish seen within a cover given its cover's (seen_within)."""
-    found = label.copy()
-    for finish, cover in within.items():
-        found[label == finish] = cover
-    return found
-
-
-def behind_left_out(front, cover, listed, every):
-    """The close-up map with each opaque finish's pixels under a see-through part (`cover`) left out of its measure:
-    its colour there is the cover's (the garage beacon's reflector measured its red dome's colour, 2026-10-13). A
-    finish with every pixel behind the cover is left unmeasured; one with none behind comes back as it was."""
-    import numpy as np
-    found = front.copy()
-    for number, finish in enumerate(listed):
-        if not see_through(finish, every):
-            found[(front == number) & cover] = -1
-    return found
-
-
-def parts_take(inputs, take, entry, out):
-    """One take's parts, its arrays and pictures under <out>/<take>/; its parts.json record."""
-    import numpy as np
-    import split_compare
-    import turntable_views as views
-    listed = json.loads((inputs["names"] / f"{take}.json").read_text())["finishes"]
-    front = np.load(inputs["maps"] / take / "front.npy").astype(int)
-    every = take_surfaces(entry)
-    mesh = split_compare.raw_model(take)
-    within = seen_within(front, listed, every)
-    part_of, face_label, per_map = laid(mesh, take, inputs, len(listed), within)
-    front = behind_left_out(taken_in(front, within), see_through_cover(mesh, take, face_label, listed, every), listed,
-                            every)
-    import kit_surfaces
-    finishes = checked_finishes(entry, listed,
-                                measured_colours(take, front, [every.get(finish["surface"]) for finish in listed]),
-                                kit_surfaces.surfaces(pathlib.Path(inputs["surfaces"]).stem))
-    for number, cover in within.items():
-        finishes[number]["seen_within"] = listed[cover]["finish"]
-    rows = part_rows(mesh, part_of, face_label, finishes)
-    folder = out / take
-    folder.mkdir(parents=True)
-    np.save(folder / "parts.npy", part_of.astype(np.int32))
-    np.save(folder / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
-    colours = surface_colours(entry, {row["judge"] for row in rows})
-    by_part = np.array([colours[row["judge"]] for row in rows])
-    renders = inputs["turntable"] / "renders" / take
-    for name, view in (("front", views.FRONT), ("back", views.BACK)):
-        if (renders / f"{view}-id.npz").exists():
-            part_picture(mesh, renders, view, part_of, by_part).save(folder / f"{name}.png")
-    measures = {"agreement": agreement(mesh, face_label, per_map),
-                "mixing_parts": mixing_parts(mesh, part_of, face_label, per_map, len(finishes)),
-                "parts": len(rows), "maps": sorted(per_map)}
-    return {"method": "finish-map", "parts": rows, "judge_unknown": [], "measures": measures, "finishes": finishes}
-
-
-def make_parts(inputs, out, seed, params):
-    prop_env.handover(__file__, "parts", inputs, out)
-
-
-def parts_step(inputs, out):
-    """The prop environment's side: every take whose map settled, its parts (parts.json and its arrays); a take
-    without one is listed as left out."""
-    takes = takes_of(inputs)
-    painted = passed(inputs)
-    found = {take: parts_take(inputs, take, takes[take], out) for take in painted}
-    left = {take: "no finish map settled" for take in takes if take not in painted}
-    (out / "parts.json").write_text(json.dumps({"takes": found, "left_out": left}, indent=1))
-
-
 def parts_faults(folder):
     if not (folder / "parts.json").exists():
         return ["no parts.json"]
     missing = [take for take in json.loads((folder / "parts.json").read_text())["takes"]
                if not (folder / take / "parts.npy").exists()]
     return [f"no parts.npy for {missing}"] if missing else []
-
-
-def judge_parts(output, inputs, evidence):
-    """Every take whose map settled has its parts, and none has a part mixing two finishes by the maps; the maps'
-    agreement and the parts as measures."""
-    found = json.loads((output / "parts.json").read_text())["takes"]
-    takes = passed(prop_env.short(inputs))
-    failing = [f"{take}: no parts" for take in takes if take not in found]
-    failing += [f"{take}: parts {record['measures']['mixing_parts']} mix two finishes (part, other share)"
-                for take, record in found.items() if record["measures"]["mixing_parts"]]
-    front = [record["measures"]["agreement"].get("front", 0.0) for record in found.values()]
-    return gates.verdict("parts", failing, len(takes), "models", {
-        "front agreement least": min(front, default=0.0),
-        "parts": sum(record["measures"]["parts"] for record in found.values()),
-        "off colour": sum(finish["by"] == "off its colour" for record in found.values()
-                          for finish in record.get("finishes", []))})
-
-
-STEPS = {"inputs": inputs_step, "parts": parts_step}
-
-if __name__ == "__main__":
-    prop_env.main(STEPS)

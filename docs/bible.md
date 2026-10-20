@@ -267,9 +267,9 @@ is meant to fix, where it is marked, and what proves it.
   its own library level where the views show a cause (walked paths, edges, round doors), and the check holds it there.
   Proven when a place's line passes through `surfaces-check` and `library surface fits` against its takes' own
   close-ups, and the owner has walked it; nothing has been spent on it yet.
-- **The finish-map method** (`score/stages/surfaces`' finish_*.py, turntable_row.py and segvigen_row.py, run today by
-  the crops' and people's lines; the six-model re-test rows `score/stages/finishmap/trial.py`). The place lines left
-  it for the finish route on 2026-10-20 (#18). The owner chose it on 2026-10-12 ("finish map seed 1 looks great"); it replaced
+- **The finish-map method** (deleted on 2026-10-20, #26, once the crops became the places' own takes and the people's
+  line took the route's rows; its code is in git before that day). The place lines left it for the finish route on
+  2026-10-20 (#18). The owner chose it on 2026-10-12 ("finish map seed 1 looks great"); it replaced
   g-texture (its record: branch `surface-first` and main before 6266414). Gemini lists the close-up's finishes as
   library surfaces, Nano Banana Pro draws the close-up's finish map and then maps of the raw model's sides and back
   against it, SegviGen is guided by the close-up's map, and every map votes on the faces its view sees. Re-test

@@ -18,8 +18,6 @@ LAYER_ORDER = ("base", "ground", "pieces", "settle", "light", "motion", "effects
 # Display words for a stage; any other stage shows its own name.
 LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop list", "closeup": "close-ups",
           "pixal": "models", "likeness-calibration": "likeness calibration", "likeness": "likeness",
-          "surfaces-inputs": "surface list", "surfaces-turntable": "turntables", "surfaces-lists": "finish lists",
-          "surfaces-maps": "finish maps", "surfaces-names": "finish names", "surfaces-segvigen": "segmentation",
           "surfaces-parts": "parts", "surfaces-paint": "paint", "surfaces-bake": "bake",
           "surfaces-check": "surface check", "finish-route-views": "finish views", "finish-route-list": "finish lists",
           "finish-route-split": "finish split", "finish-route-recheck": "finish recheck", "light-layer": "lamps", "light-passes": "light renders",

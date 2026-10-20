@@ -14,9 +14,6 @@ from score.adapters import compute
 CAP_EUROS = 20.0
 RUN = ".venv/bin/python -m score run world1 --detach"
 ESTIMATED = (
-    {"id": "F-A", "what": "finish maps: one draw a map on Gemini's flex tier against the measured 7.51 calls a take",
-     "euros": 4.5, "needs": "#21 track B: one draw a map and serviceTier sent by google_spend.post",
-     "command": f"{RUN} --place campgrounds --stage surfaces-maps"},
     {"id": "P1", "what": "Pixal3D: a set of takes on one L4, slots from its peak memory", "euros": 1.5,
      "needs": "#21 track A: one run a job, no retry_once", "command": f"{RUN} --place campgrounds --stage pixal"},
     {"id": "P3", "what": "Pixal3D: the same takes on one H100, euros a model against the L4", "euros": 1.5,

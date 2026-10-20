@@ -1,4 +1,5 @@
-"""The surface stage's two paid Google asks (the finish-map method), both through google_spend.generate
+"""The surface stage's paid Google ask and what the finish route shares of it (route_ask.py, route_list.py,
+route_split.py, route_views.py, route_recheck.py: the labels, the reply, the key), through google_spend.generate
 (tools/props/cloud; priced on the Google ledger, each request cached by its input's hash).
 
 Each is asked once (the batch rule, #21): no second draw, no second naming, no ask again after a timeout. A call cut
@@ -13,13 +14,11 @@ nothing for it: the books lean high until Google's billing export (#13) reads th
 - finish_list: Gemini 3.1 Pro (temperature 0, structured output, thinking held low, on the flex tier at half price)
   looks at a model's close-up and lists its finishes (few, only finishes that truly differ), each mapped to one of the
   take's allowed library surfaces, given the close-up's measured colours (CIELAB) and the library surfaces within
-  COLOUR_DELTA_E of each, measured free before the ask (finish_rows.close_up_regions). Where none fits it gives the
-  closest and proposes a new library surface (name, description, why), which the paint records in the finish
-  registry as proposed, never in the library.
-- draw_map: Nano Banana Pro redraws the close-up as a finish map, each finish one flat label colour (LABELS) on plain
-  white, asked strictly (STRICT) on its one draw. Nano Banana Pro has no flex tier (Google's flex page, 2026-10-20).
-- draw_view_map: the same for a turntable view of the raw model (its own texture, unlit), given the close-up and its
-  finish map as the reference, so each finish keeps its label colour on the sides the close-up does not show.
+  COLOUR_DELTA_E of each, measured free before the ask. Where none fits it gives the closest and proposes a new
+  library surface (name, description, why), which the paint records in the finish registry as proposed, never in the
+  library. The prop batch's finish pick asks it (tools/props/cloud/prop_makers.py).
+- LABELS: the flat label colours a finish is drawn in on the route's views (the finish-map method's maps, which first
+  used them, were deleted on 2026-10-20, #26).
 
 Refused outside a cleared run or the owner's override (score.adapters.compute.require_cleared), as every paid call.
 """
@@ -37,9 +36,7 @@ for folder in (REPO / "tools/props", REPO / "tools/props/cloud", REPO / "tools/p
         sys.path.append(str(folder))  # appended: the prop tools must not shadow the framework's
 
 LIST_MODEL = "gemini-3.1-pro-preview"
-MAP_MODEL = "gemini-3-pro-image"
 KEY_SECRET = "gemini-api-key"
-TIMEOUT = 300
 # The list asks on Google's flex tier, half price: the request's own `serviceTier` (google_spend.TIER_PRICE prices the
 # tier the answer's usageMetadata names; one that names none is priced at standard, high, never low). Set here, not in
 # google_spend, which is in many rows' code versions (closeup, crops, boxes). The flex tier answers slower: Google's
@@ -66,29 +63,12 @@ these library surfaces it is:
 {surfaces}
 Choose by what the part is and how such a part is made, not only by its colour in the picture. If no surface on the
 list fits the finish, still give the closest code, set "fits" to false and propose a new library surface for it.{regions}"""
-# Added to the list question when the close-up's colours were measured (finish_rows.close_up_regions).
+# Added to the list question when the close-up's colours were measured.
 REGIONS = """
 The object's main colours in this picture, measured (CIELAB, as lit), each with the library surfaces whose colour lies
 within {delta:.0f} (CIE76) of it, nearest first. A finish whose colour is one of these should take a surface near it;
 glass, lamp light, screens and print are judged by what they are, not by this colour:
 {lines}"""
-MAP_WORDING = """Redraw this picture as a flat-colour finish map for a 3D painter.
-Keep exactly the same object, the same outline, pose, size and position in the frame; do not move, crop, add or
-remove anything. Paint every visible part of the object one solid flat colour by its finish:
-{finishes}
-Use only these colours, fully saturated and flat: no shading, no light, no texture, no gradients, no outlines, no
-lines, no text. Every pixel of the object takes one of these colours. The background is plain pure white."""
-STRICT = """
-Not one pixel of the photograph may remain: doors, handles, grilles, louvres, vents, panels and their edges are all
-painted flat in their finish's colour too, with nothing photographic left anywhere on the object."""
-VIEW_WORDING = """The first picture is a photograph of an object. The second is its finish map: the same picture with
-every finish painted one flat colour:
-{finishes}
-The third picture shows the same object from another side. Redraw the third picture as a finish map in exactly the
-same way: keep its outline, pose, size and position in the frame; paint every visible part one solid flat colour by
-its finish, the same colour that finish has in the second picture. Use only these colours, fully saturated and flat:
-no shading, no light, no texture, no gradients, no outlines, no lines, no text. Every pixel of the object takes one of
-these colours; not one pixel of the photograph may remain. The background is plain pure white."""
 
 
 class NoAnswer(Exception):
@@ -213,49 +193,3 @@ def finish_list(picture, object_words, surfaces, regions=None):
     response = generated(LIST_MODEL, list_body(picture, object_words, surfaces, regions), secret_key(), FLEX_TIMEOUT,
                          caller="finishmap-list", cache=True)
     return parsed_list(reply_text(response), surfaces)
-
-
-def finish_lines(finishes):
-    """Each finish's label colour in words and its parts, one line each."""
-    return "\n".join(f"- {LABEL_WORDS[number]} (RGB {LABELS[number][0]}, {LABELS[number][1]}, {LABELS[number][2]}): "
-                     f"{entry['finish']}, on {entry['parts']}" for number, entry in enumerate(finishes))
-
-
-def image_body(parts, seed):
-    """A Nano Banana Pro request: its parts, one square 2K picture back."""
-    return {"contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {"responseModalities": ["IMAGE"], "seed": seed,
-                                 "imageConfig": {"imageSize": "2K", "aspectRatio": "1:1"}}}
-
-
-def map_body(picture, finishes, seed):
-    """The finish-map request: each finish's label colour in words, asked strictly (STRICT) on its one draw, the
-    close-up."""
-    text = MAP_WORDING.format(finishes=finish_lines(finishes)) + STRICT
-    return image_body([{"text": text}, picture_part(picture, 1600)], seed)
-
-
-def view_body(picture, front_map, view, finishes, seed):
-    """The view-map request: the words, the close-up, its finish map and a turntable view of the raw model."""
-    return image_body([{"text": VIEW_WORDING.format(finishes=finish_lines(finishes))}, picture_part(picture, 1024),
-                       picture_part(front_map, 1024), picture_part(view, 1024)], seed)
-
-
-def drawn(body, what):
-    """One finish map (RGB) from Nano Banana Pro, or None when the answer held no picture."""
-    from score.adapters import compute
-    compute.require_cleared(what)
-    response = generated(MAP_MODEL, body, secret_key(), TIMEOUT, caller="finishmap-map", cache=True)
-    found = [piece["inlineData"]["data"] for candidate in response.get("candidates", [])
-             for piece in candidate.get("content", {}).get("parts", []) if "inlineData" in piece]
-    return Image.open(io.BytesIO(base64.b64decode(found[-1]))).convert("RGB") if found else None
-
-
-def draw_map(picture, finishes, seed):
-    """The close-up's finish map, or None."""
-    return drawn(map_body(picture, finishes, seed), "a Nano Banana Pro finish map")
-
-
-def draw_view_map(picture, front_map, view, finishes, seed):
-    """A turntable view's finish map, or None."""
-    return drawn(view_body(picture, front_map, view, finishes, seed), "a Nano Banana Pro view finish map")

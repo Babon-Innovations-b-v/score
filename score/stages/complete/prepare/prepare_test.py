@@ -106,13 +106,12 @@ def test_the_first_class_in_the_kinds_order_is_fixed_in_its_zone_with_the_best_b
 
 def test_layers_run_each_take_once_shells_skip_the_surface_line_and_cards_carry_the_bill_share():
     rules = estimate.one_shot()
-    route = ["closeup", "pixal", "surfaces-maps", "surfaces-names", "surfaces-bake", "likeness-calibration"]
+    route = ["closeup", "pixal", "finish-route-list", "surfaces-bake", "likeness-calibration"]
     bought = [{"shell": False}, {"shell": False}, {"shell": True}]
     found = estimate.layers(route, bought, rules, {})
     assert {stage: layer["takes"] for stage, layer in found.items()} == {
-        "closeup": 3, "pixal": 3, "surfaces-maps": 2, "surfaces-names": 2, "surfaces-bake": 3,
-        "likeness-calibration": 2}
-    assert found["surfaces-maps"]["units"] == 2 * estimate.map_calls() and found["surfaces-names"]["units"] == 0
+        "closeup": 3, "pixal": 3, "finish-route-list": 2, "surfaces-bake": 3, "likeness-calibration": 2}
+    assert found["finish-route-list"]["units"] == 2  # one list ask a take
     unmeasured = found["likeness-calibration"]
     assert unmeasured["units"] is None and unmeasured["price"]["likely_euros"] is None
     pixal = compute.per_unit("pixal")
@@ -127,8 +126,9 @@ def test_the_eta_walks_the_layers_in_the_routes_order_and_a_layer_of_no_units_ta
     route = price.route_stages(runner)
     edges = estimate.route_edges(runner.stages, route)
     assert ("closeup", "pixal") in edges and ("finish-route-list", "surfaces-bake") in edges, edges
-    found = estimate.layers(["pixal", "surfaces-names"], [{"shell": False}] * 30, estimate.one_shot(), {})
-    walked = estimate.eta(found, [("pixal", "surfaces-names")], 8, 50)
+    none_asked = {**estimate.one_shot(), "surfaces-parts": (0, "a layer that makes no units")}
+    found = estimate.layers(["pixal", "surfaces-parts"], [{"shell": False}] * 30, none_asked, {})
+    walked = estimate.eta(found, [("pixal", "surfaces-parts")], 8, 50)
     assert walked["unknown"] == [] and walked["likely_minutes"] == found["pixal"]["minutes"]["likely_minutes"], walked
 
 

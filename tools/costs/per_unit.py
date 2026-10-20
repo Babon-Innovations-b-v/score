@@ -80,12 +80,10 @@ FORECASTS = {
                    "and seed, each counted once at the first place in data/sound/places.json that plays it",
 }
 CLOSEUPS_15 = "paper/evidence/cloud/forecast-2026-10-15.txt"
-# The finish maps a model draws at most under the batch rule (#21): the close-up's one seed and one seed of each of
-# turntable_views.MAP_VIEWS (per_unit_test checks it against the code).
-MAP_DRAWS = 4
 # Per stage: the unit, the ledger lines of its work, the units a line made, how a node's units are counted in its
 # accepted output, and how they are forecast before a make (a FORECASTS rule and, where a model makes more than one
-# unit, `per_model`). `also` are the stages that make the same unit by the same code (the crops' and people's lines).
+# unit, `per_model`). `also` are the stages that made the same unit by the same code (the crops' and people's own
+# lines until 2026-10-20: their ledger lines still measure it).
 SPECS = {
     "pixal": {"unit": "model", "cloud": {"kind": "pixal"}, "per_line": "models_done",
               "count": {"json_keys": "takes.json"}, "also": ["crops-pixal"], "forecast": "prop_takes"},
@@ -94,20 +92,6 @@ SPECS = {
                 "forecast": "prop_takes",
                 "per_model": {"units": 25, "models": 21, "from": f"{CLOSEUPS_15} line 37: the ship's close-ups, 25 "
                                                                  "Pro pictures for 21 pieces (2026-10-14)"}},
-    "surfaces-maps": {"unit": "finish map picture (Nano Banana Pro)", "google": "finishmap-map",
-                      "count": {"map_attempts": "map.json"}, "also": ["crops-surfaces-maps", "people-maps"],
-                      "forecast": "models",
-                      "per_model": {"units": MAP_DRAWS, "models": 1,
-                                    "from": "a bound from the code, not a measurement: one draw of the close-up and "
-                                            "one of each of three views a model (finish_rows.SEEDS, VIEW_SEEDS, "
-                                            "turntable_views.MAP_VIEWS; #21), at most; a declared or one-finish take "
-                                            "draws none. Runs made under #21 measured on the ledger replace it"}},
-    "surfaces-lists": {"unit": "finish list of a take (Gemini 3.1 Pro)", "google": "finishmap-list",
-                       "count": {"take_files": ".json"}, "also": ["crops-surfaces-lists", "people-lists"],
-                       "forecast": "models",
-                       "price_note": "measured at Google's standard tier (2026-10-11 to 16); the list asks on the "
-                                     "flex tier at about half price since #21, so flex calls on the ledger replace "
-                                     "it once measured"},
     "light-passes": {"unit": "render job of the light stage", "cloud": {"kind": "blender", "who": "score light stage"},
                      "per_line": "jobs", "count": {"files": "passes/*.views.json"}, "also": ["light-haze"],
                      "forecast": "light_jobs"},
@@ -127,10 +111,6 @@ SPECS = {
 STAGE_EUROS_13 = "paper/evidence/cloud/stage-euros-2026-10-13.txt"
 SHIP_ROOMS = f"{CLOSEUPS_15} line 47: the ship's six rooms, surface line to paint, 12 takes (2026-10-14)"
 RECORDED = {
-    "surfaces-turntable": {"unit": "take turned (turntable render)", "forecast": "models",
-                           "runs": [{"euros": 2.4, "units": 12, "source": f"{SHIP_ROOMS}, turntables EUR 2.4"}]},
-    "surfaces-segvigen": {"unit": "take split back (SegviGen)", "forecast": "models",
-                          "runs": [{"euros": 0.63, "units": 12, "source": f"{SHIP_ROOMS}, SegviGen EUR 0.63"}]},
     "surfaces-paint": {"unit": "take painted", "forecast": "models",
                        "runs": [{"euros": 5.83, "units": 12, "source": "commit b11c282f (2026-10-12): the campgrounds' "
                                                                        "cloud paint, twelve takes, EUR 5.83"},

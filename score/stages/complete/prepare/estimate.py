@@ -19,17 +19,9 @@ GOOGLE = "google calls"  # a per-unit entry's source of Google calls: the bill s
 DEADLINE_TIMES = 2  # a job's watchdog deadline: twice its measured high seconds (guard.py's runaway limit)
 
 
-def map_calls():
-    """One draw a finish map: the close-up's map and one a turntable view (turntable_views.MAP_VIEWS)."""
-    from score.stages.surfaces import turntable_views
-    return 1 + len(turntable_views.MAP_VIEWS)
-
-
 def one_shot():
     """{stage: (units a take, why)} where a batch's one run of a take differs from one unit a take."""
-    return {"closeup": (1, "one Pro wording a row, one take: the two-take chain goes (#21)"),
-            "surfaces-maps": (map_calls(), "one draw a map: the close-up's and one a turntable view (#21)"),
-            "surfaces-names": (0, "no finish asked again: Lab colours and candidate surfaces go in the list ask (#21)")}
+    return {"closeup": (1, "one Pro wording a row, one take: the two-take chain goes (#21)")}
 
 
 def takes_a_layer(route, groups_bought):
@@ -82,7 +74,7 @@ def layers(route, groups_bought, rules, fixed):
 def layer_cost(stage, takes, rules):
     """{units, price, minutes} of a layer's takes: units None and its price and minutes named unmeasured when its
     stage has no per unit (its unit is not known, so neither is the count); no units cost and take nothing, a free
-    row's (surfaces-names since #21, no per unit) included."""
+    row's (no per unit) included."""
     units = layer_units(stage, takes, rules)
     if not units:
         return {"units": units, "price": {"likely_euros": 0.0, "high_euros": 0.0},

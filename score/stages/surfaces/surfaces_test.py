@@ -19,7 +19,7 @@ sys.path.insert(0, str(REPO))
 
 from score import checks, graph, stages  # noqa: E402
 from score.stages import surfaces  # noqa: E402
-from score.stages.surfaces import finish_rows, registry, surface_data, surface_gates  # noqa: E402
+from score.stages.surfaces import registry, surface_data, surface_gates  # noqa: E402
 from score.store import Store  # noqa: E402
 
 
@@ -117,24 +117,6 @@ def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
     shutil.rmtree(home)
 
 
-def test_the_turntable_job_names_no_folder_of_the_run_that_made_it():
-    from score.stages.surfaces import turntable_views
-    import split_compare
-    saved = turntable_views.views_of, split_compare.raw_model
-    turntable_views.views_of = lambda take, mesh: [{"name": "c"}]
-    split_compare.raw_model = lambda take: None
-    try:
-        made = []
-        for _ in range(2):
-            folder = pathlib.Path(tempfile.mkdtemp())
-            turntable_views.cameras(folder, ["box"])
-            made.append((folder / "multiview" / "job.json").read_bytes())
-            assert str(folder).encode() not in made[-1]
-    finally:
-        turntable_views.views_of, split_compare.raw_model = saved
-    assert made[0] == made[1]
-
-
 def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothing_to_paint_has_no_rows():
     world = graph.Environment("world1", 1, {"data": str(REPO / "data"), "home": tempfile.mkdtemp(), "repo": str(REPO),
                                       "seeds": tempfile.mkdtemp()})
@@ -152,27 +134,11 @@ def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothi
 
 def test_a_gate_that_cannot_read_its_evidence_answers_unknown():
     folder = pathlib.Path(tempfile.mkdtemp())
-    check = surface_gates.guarded("maps checked", finish_rows.judge_maps)
-    found = checks.judge(check, folder, {"surfaces-inputs": str(folder)}, None)
+    def judge_takes(output, inputs, evidence):  # a gate that reads its output's takes.json, as the route's do
+        return json.loads((pathlib.Path(output) / "takes.json").read_text())
+    check = surface_gates.guarded("views cast", judge_takes)
+    found = checks.judge(check, folder, {}, None)
     assert found.answer == checks.UNKNOWN and "takes.json" in found.reason
-    shutil.rmtree(folder)
-
-
-def test_a_model_whose_finish_map_never_settled_is_named_and_blocks():
-    folder = pathlib.Path(tempfile.mkdtemp())
-    (folder / "flat").mkdir()
-    (folder / "flat" / "takes.json").write_text(json.dumps({"chair-b": {}, "power_unit-r3": {}}))
-    (folder / "chair-b").mkdir()
-    (folder / "chair-b" / "map.json").write_text(json.dumps(
-        {"take": "chair-b", "passes": True, "front": {"attempts": [], "passes": True}, "views": {}}))
-    (folder / "power_unit-r3").mkdir()
-    attempt = {"seed": 3, "iou": 0.99, "near_label": 0.6, "labels_used": 3, "labels_listed": 3, "passes": False}
-    (folder / "power_unit-r3" / "map.json").write_text(json.dumps(
-        {"take": "power_unit-r3", "passes": False, "front": {"attempts": [attempt], "passes": False}, "views": {}}))
-    found = checks.judge(surface_gates.guarded("maps checked", finish_rows.judge_maps), folder,
-                         {"surfaces-inputs": str(folder)}, None)
-    assert found.answer == checks.FAIL and checks.blocks(found.answer)
-    assert len(found.findings) == 1 and found.findings[0].startswith("power_unit-r3: no finish map settled")
     shutil.rmtree(folder)
 
 
