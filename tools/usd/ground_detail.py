@@ -26,8 +26,8 @@ from PIL import Image
 
 import builders
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "assets"))
-import world as world_assets  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "library"))
+import library_files  # noqa: E402
 
 # ground.gdshaderinc
 LAYING_SHARPNESS = 8.0
@@ -228,7 +228,7 @@ class Scans:
     """The two scans of real ground the shader lays (wide and close, shade and bumps), at the bake's texel."""
 
     def __init__(self, detail, world, texel):
-        found = {name: world_assets.resolve(path, world) for name, path in detail["scans"].items()}
+        found = {name: library_files.resolve(path, world) for name, path in detail["scans"].items()}
         self.wide_shade = Picture(found["wide_shade"], WIDE_ACROSS, texel)
         self.slow_shade = Picture(found["wide_shade"], SLOW_ACROSS, texel)
         self.close_shade = Picture(found["close_shade"], CLOSE_ACROSS, texel)
@@ -303,7 +303,7 @@ class Bake:
         self.pebbles_share = float(detail.get("pebbles_share", 1.0))
         self.scans = Scans(detail, world, texel)
         self.skin = Picture(ground.skin)
-        self.relief = Picture(world_assets.resolve(detail["relief"], world), mode="RGB")
+        self.relief = Picture(library_files.resolve(detail["relief"], world), mode="RGB")
 
     def rows(self, xs, zs):
         """The colour (linear) and the tipped facing (place frame) of a block of texels at xs across and zs along."""

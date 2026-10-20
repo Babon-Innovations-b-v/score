@@ -28,8 +28,10 @@ import trimesh
 
 import builders
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "assets"))
-import world as world_assets  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "library"))
+import library_files  # noqa: E402
+
+DRAWS_A_ROCK = 5  # its spin, its tip and its stretch's three
 
 
 def rodrigues(axis, angle):
@@ -135,18 +137,26 @@ def lying(rng, planned, up, size, box, entry):
 
 
 def laid_rocks(entry, world, ground):
-    """Every planned rock the place shows, lying as the game lays it, in the place's frame."""
-    boxes = {path: model_box(world_assets.resolve(path, world)) for path in entry["boulders"]}
-    plan = json.loads(world_assets.resolve(entry["plan"], world).read_text())["rocks"]
+    """Every planned rock the place shows, lying as the game lays it, in the place's frame; a rock whose model is a
+    hole (not in the library) is left out."""
+    resolved = {path: library_files.resolve(path, world) for path in entry["boulders"] + entry["stones"]}
+    for path in sorted(path for path, found in resolved.items() if found is None):
+        library_files.say_hole(path, "the planned rocks")
+    boxes = {path: model_box(resolved[path]) for path in entry["boulders"] if resolved[path] is not None}
+    plan = json.loads(library_files.resolve(entry["plan"], world).read_text())["rocks"]
     planned = PlannedGround(ground)
     base = ground.plan
     out = base[1]
-    rng = Draws(int(entry["seed"]), 5 * len(plan))  # five draws a rock: its spin, its tip and its stretch
+    rng = Draws(int(entry["seed"]), DRAWS_A_ROCK * len(plan))
     plan_reach, reach = float(entry["plan_reach"]), float(entry["reach"])
     found = []
     for rock in plan:
         size, kind = float(rock["size"]), int(rock["kind"])
         up = normalised(out * planned.radius + base[0] * float(rock["x"]) + base[2] * float(rock["z"]))
+        if entry["boulders"][kind] not in boxes:  # a hole: its draws taken all the same, so the others lie as before
+            for _ in range(DRAWS_A_ROCK):
+                rng.randf_range(0.0, 1.0)
+            continue
         turn, stretch, landed = lying(rng, planned, up, size, boxes[entry["boulders"][kind]], entry)
         if max(abs(float(rock["x"])), abs(float(rock["z"]))) >= plan_reach:
             continue
@@ -155,5 +165,7 @@ def laid_rocks(entry, world, ground):
         if max(abs(at[0]), abs(at[2])) > reach or math.hypot(at[0], at[2]) > seen:
             continue
         model = (entry["stones"] if size < float(entry["pebble"]) else entry["boulders"])[kind]
+        if resolved[model] is None:
+            continue
         found.append({"model": model, "at": at, "turn": ground.frame @ turn, "stretch": stretch, "size": size})
     return found

@@ -24,19 +24,19 @@
 					"clap": 0.478
 				}
 			},
-			"file": "sound/generated/places/habitat.wav",
+			"file": "sound/habitat@1/audio/generated/places/habitat.wav",
 			"volume_db": -21.4
 		},
 		"footstep_steel_plate": {
 			"file": [
-				"sound/recordings/footsteps/footsteps_metal_1.ogg",
-				"sound/recordings/footsteps/footsteps_metal_2.ogg",
-				"sound/recordings/footsteps/footsteps_metal_3.ogg",
-				"sound/recordings/footsteps/footsteps_metal_4.ogg",
-				"sound/recordings/footsteps/footsteps_metal_5.ogg",
-				"sound/recordings/footsteps/footsteps_metal_6.ogg",
-				"sound/recordings/footsteps/footsteps_metal_7.ogg",
-				"sound/recordings/footsteps/footsteps_metal_8.ogg"
+				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_1.ogg",
+				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_2.ogg",
+				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_3.ogg",
+				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_4.ogg",
+				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_5.ogg",
+				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_6.ogg",
+				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_7.ogg",
+				"layer/sound.gdoor@1/assets/sound/recordings/footsteps/footsteps_metal_8.ogg"
 			],
 			"volume_db": -22.0,
 			"pick": {
@@ -65,14 +65,14 @@
 		},
 		"footstep_grating": {
 			"file": [
-				"sound/generated/footsteps/footstep_grating_1.ogg",
-				"sound/generated/footsteps/footstep_grating_2.ogg",
-				"sound/generated/footsteps/footstep_grating_3.ogg",
-				"sound/generated/footsteps/footstep_grating_4.ogg",
-				"sound/generated/footsteps/footstep_grating_5.ogg",
-				"sound/generated/footsteps/footstep_grating_6.ogg",
-				"sound/generated/footsteps/footstep_grating_7.ogg",
-				"sound/generated/footsteps/footstep_grating_8.ogg"
+				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_1.ogg",
+				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_2.ogg",
+				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_3.ogg",
+				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_4.ogg",
+				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_5.ogg",
+				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_6.ogg",
+				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_7.ogg",
+				"sound/footstep_grating@1/audio/generated/footsteps/footstep_grating_8.ogg"
 			],
 			"volume_db": -35.0,
 			"pick": {
@@ -100,14 +100,14 @@
 		},
 		"footstep_rubber": {
 			"file": [
-				"sound/generated/footsteps/footstep_rubber_1.ogg",
-				"sound/generated/footsteps/footstep_rubber_2.ogg",
-				"sound/generated/footsteps/footstep_rubber_3.ogg",
-				"sound/generated/footsteps/footstep_rubber_4.ogg",
-				"sound/generated/footsteps/footstep_rubber_5.ogg",
-				"sound/generated/footsteps/footstep_rubber_6.ogg",
-				"sound/generated/footsteps/footstep_rubber_7.ogg",
-				"sound/generated/footsteps/footstep_rubber_8.ogg"
+				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_1.ogg",
+				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_2.ogg",
+				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_3.ogg",
+				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_4.ogg",
+				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_5.ogg",
+				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_6.ogg",
+				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_7.ogg",
+				"sound/footstep_rubber@1/audio/generated/footsteps/footstep_rubber_8.ogg"
 			],
 			"volume_db": -35.3,
 			"pick": {
@@ -134,7 +134,7 @@
 			}
 		},
 		"impact_steel_plate": {
-			"file": "sound/generated/doors/impact_steel_plate.ogg",
+			"file": "sound/impact_steel_plate@1/audio/generated/doors/impact_steel_plate.ogg",
 			"volume_db": -23.0,
 			"pick": {
 				"page": "game",
@@ -153,7 +153,7 @@
 			}
 		},
 		"impact_grating": {
-			"file": "sound/generated/doors/impact_grating.ogg",
+			"file": "sound/impact_grating@1/audio/generated/doors/impact_grating.ogg",
 			"volume_db": -22.8,
 			"pick": {
 				"page": "game",
@@ -172,7 +172,7 @@
 			}
 		},
 		"impact_rubber": {
-			"file": "sound/generated/doors/impact_rubber.ogg",
+			"file": "sound/impact_rubber@1/audio/generated/doors/impact_rubber.ogg",
 			"volume_db": -22.2,
 			"pick": {
 				"page": "game",
@@ -191,7 +191,7 @@
 			}
 		},
 		"scrape_steel_plate": {
-			"file": "sound/generated/doors/scrape_steel_plate.ogg",
+			"file": "sound/scrape_steel_plate@1/audio/generated/doors/scrape_steel_plate.ogg",
 			"volume_db": -22.7,
 			"pick": {
 				"page": "game",
@@ -210,7 +210,7 @@
 			}
 		},
 		"scrape_grating": {
-			"file": "sound/generated/doors/scrape_grating.ogg",
+			"file": "sound/scrape_grating@1/audio/generated/doors/scrape_grating.ogg",
 			"volume_db": -22.7,
 			"pick": {
 				"page": "game",
@@ -229,7 +229,7 @@
 			}
 		},
 		"scrape_rubber": {
-			"file": "sound/generated/doors/scrape_rubber.ogg",
+			"file": "sound/scrape_rubber@1/audio/generated/doors/scrape_rubber.ogg",
 			"volume_db": -23.0,
 			"pick": {
 				"page": "game",
@@ -315,11 +315,11 @@
 					"clap": 0.5127
 				}
 			},
-			"file": "sound/generated/doors/airlock_hatch_seal_clunk.ogg",
+			"file": "sound/airlock_hatch_seal_clunk@1/audio/generated/doors/airlock_hatch_seal_clunk.ogg",
 			"volume_db": -18.4
 		},
 		"console_hum": {
-			"file": "sound/generated/machines/console_hum.wav",
+			"file": "sound/console_hum@1/audio/generated/machines/console_hum.wav",
 			"loops": true,
 			"volume_db": -28.0,
 			"reach": 6.0,
@@ -348,7 +348,7 @@
 			}
 		},
 		"glovebox_hum": {
-			"file": "sound/generated/machines/glovebox_hum.wav",
+			"file": "sound/glovebox_hum@1/audio/generated/machines/glovebox_hum.wav",
 			"loops": true,
 			"volume_db": -30.0,
 			"reach": 5.0,
@@ -379,7 +379,7 @@
 			}
 		},
 		"lamp_buzz": {
-			"file": "sound/generated/machines/lamp_buzz.wav",
+			"file": "sound/lamp_buzz@1/audio/generated/machines/lamp_buzz.wav",
 			"loops": true,
 			"volume_db": -36.0,
 			"reach": 3.0,
@@ -408,7 +408,7 @@
 			}
 		},
 		"junction_hum": {
-			"file": "sound/generated/machines/junction_hum.wav",
+			"file": "sound/junction_hum@1/audio/generated/machines/junction_hum.wav",
 			"loops": true,
 			"volume_db": -34.0,
 			"reach": 3.0,
@@ -437,7 +437,7 @@
 			}
 		},
 		"vent_air": {
-			"file": "sound/generated/machines/vent_air.wav",
+			"file": "sound/vent_air@1/audio/generated/machines/vent_air.wav",
 			"loops": true,
 			"volume_db": -32.0,
 			"reach": 4.0,
@@ -482,7 +482,7 @@
 					"clap": 0.3945
 				}
 			},
-			"file": "sound/generated/places/base_hum.wav",
+			"file": "sound/base_hum@1/audio/generated/places/base_hum.wav",
 			"volume_db": -20.6
 		},
 		"greenhouse": {
@@ -502,7 +502,7 @@
 					"clap": 0.4527
 				}
 			},
-			"file": "sound/generated/places/greenhouse.wav",
+			"file": "sound/greenhouse@1/audio/generated/places/greenhouse.wav",
 			"volume_db": -32.3
 		},
 		"garage": {
@@ -522,7 +522,7 @@
 					"clap": 0.3943
 				}
 			},
-			"file": "sound/generated/places/garage.wav",
+			"file": "sound/garage@1/audio/generated/places/garage.wav",
 			"volume_db": -18.9
 		},
 		"workshop": {
@@ -542,7 +542,7 @@
 					"clap": 0.4484
 				}
 			},
-			"file": "sound/generated/places/workshop.wav",
+			"file": "sound/workshop@1/audio/generated/places/workshop.wav",
 			"volume_db": -19.9
 		},
 		"link_tube": {
@@ -562,7 +562,7 @@
 					"clap": 0.3885
 				}
 			},
-			"file": "sound/generated/places/link_tube.wav",
+			"file": "sound/link_tube@1/audio/generated/places/link_tube.wav",
 			"volume_db": -19.1
 		},
 		"ship_inside": {
@@ -582,7 +582,7 @@
 					"clap": 0.4399
 				}
 			},
-			"file": "sound/generated/places/ship_inside.wav",
+			"file": "sound/ship_inside@1/audio/generated/places/ship_inside.wav",
 			"volume_db": -17.9
 		},
 		"mars_wind": {
@@ -602,7 +602,7 @@
 					"clap": 0.4951
 				}
 			},
-			"file": "sound/generated/places/mars_wind.wav",
+			"file": "sound/mars_wind.generated@1/audio/generated/places/mars_wind.wav",
 			"volume_db": -25.7
 		},
 		"mars_dust_storm_wind": {
@@ -622,7 +622,7 @@
 					"clap": 0.4646
 				}
 			},
-			"file": "sound/generated/places/mars_dust_storm_wind.wav",
+			"file": "sound/mars_dust_storm_wind.generated@1/audio/generated/places/mars_dust_storm_wind.wav",
 			"volume_db": -13.0
 		},
 		"earth_flat": {
@@ -642,7 +642,7 @@
 					"clap": 0.474
 				}
 			},
-			"file": "sound/generated/places/earth_flat.wav",
+			"file": "sound/earth_flat@1/audio/generated/places/earth_flat.wav",
 			"volume_db": -22.9
 		},
 		"prologue_crowd": {
@@ -662,7 +662,7 @@
 					"clap": 0.5228
 				}
 			},
-			"file": "sound/generated/places/prologue_crowd.wav",
+			"file": "sound/prologue_crowd@1/audio/generated/places/prologue_crowd.wav",
 			"volume_db": -15.7
 		},
 		"suit_breathing_calm": {
@@ -718,7 +718,7 @@
 					"clap": 0.4523
 				}
 			},
-			"file": "sound/generated/machines/suit_fans.wav",
+			"file": "sound/suit_fans@1/audio/generated/machines/suit_fans.wav",
 			"volume_db": -30.9
 		},
 		"radio_click_in": {
@@ -737,7 +737,7 @@
 					"clap": 0.1316
 				}
 			},
-			"file": "sound/generated/doors/radio_click_in.ogg",
+			"file": "sound/radio_click_in.generated@1/audio/generated/doors/radio_click_in.ogg",
 			"volume_db": -19.7
 		},
 		"radio_click_out": {
@@ -756,7 +756,7 @@
 					"clap": 0.2058
 				}
 			},
-			"file": "sound/generated/doors/radio_click_out.ogg",
+			"file": "sound/radio_click_out.generated@1/audio/generated/doors/radio_click_out.ogg",
 			"volume_db": -20.2
 		},
 		"radio_beep": {
@@ -775,7 +775,7 @@
 					"clap": 0.2783
 				}
 			},
-			"file": "sound/generated/doors/radio_beep.ogg",
+			"file": "sound/radio_beep.generated@1/audio/generated/doors/radio_beep.ogg",
 			"volume_db": -20.2
 		},
 		"radio_squelch": {
@@ -794,7 +794,7 @@
 					"clap": 0.4101
 				}
 			},
-			"file": "sound/generated/doors/radio_squelch.ogg",
+			"file": "sound/radio_squelch.generated@1/audio/generated/doors/radio_squelch.ogg",
 			"volume_db": -20.9
 		},
 		"cockpit_switch": {
@@ -813,7 +813,7 @@
 					"clap": 0.2997
 				}
 			},
-			"file": "sound/generated/doors/cockpit_switch.ogg",
+			"file": "sound/cockpit_switch.generated@1/audio/generated/doors/cockpit_switch.ogg",
 			"volume_db": -9.3
 		},
 		"desk_locked": {
@@ -832,7 +832,7 @@
 					"clap": 0.1215
 				}
 			},
-			"file": "sound/generated/doors/desk_locked.ogg",
+			"file": "sound/desk_locked.generated@1/audio/generated/doors/desk_locked.ogg",
 			"volume_db": -16.2
 		},
 		"geiger_ticks": {
@@ -852,7 +852,7 @@
 					"clap": 0.4542
 				}
 			},
-			"file": "sound/generated/machines/geiger_ticks.wav",
+			"file": "sound/geiger_ticks.generated@1/audio/generated/machines/geiger_ticks.wav",
 			"volume_db": -13.0
 		},
 		"hatch_open": {
@@ -871,7 +871,7 @@
 					"clap": 0.3331
 				}
 			},
-			"file": "sound/generated/doors/hatch_open.ogg",
+			"file": "sound/hatch_open.generated@1/audio/generated/doors/hatch_open.ogg",
 			"volume_db": -20.0
 		},
 		"airlock_pump_down": {
@@ -891,7 +891,7 @@
 					"clap": 0.4292
 				}
 			},
-			"file": "sound/generated/machines/airlock_pump_down.wav",
+			"file": "sound/airlock_pump_down@1/audio/generated/machines/airlock_pump_down.wav",
 			"volume_db": -20.6
 		},
 		"airlock_air_hiss": {
@@ -910,7 +910,7 @@
 					"clap": 0.4107
 				}
 			},
-			"file": "sound/generated/doors/airlock_air_hiss.ogg",
+			"file": "sound/airlock_air_hiss@1/audio/generated/doors/airlock_air_hiss.ogg",
 			"volume_db": -15.3
 		},
 		"airlock_pressure_equalise": {
@@ -929,7 +929,7 @@
 					"clap": 0.5283
 				}
 			},
-			"file": "sound/generated/doors/airlock_pressure_equalise.ogg",
+			"file": "sound/airlock_pressure_equalise@1/audio/generated/doors/airlock_pressure_equalise.ogg",
 			"volume_db": -12.6
 		},
 		"lift_start": {
@@ -948,7 +948,7 @@
 					"clap": 0.387
 				}
 			},
-			"file": "sound/generated/doors/lift_start.ogg",
+			"file": "sound/lift_start.generated@1/audio/generated/doors/lift_start.ogg",
 			"volume_db": -19.3
 		},
 		"lift_travel": {
@@ -968,7 +968,7 @@
 					"clap": 0.306
 				}
 			},
-			"file": "sound/generated/machines/lift_travel.wav",
+			"file": "sound/lift_travel.generated@1/audio/generated/machines/lift_travel.wav",
 			"volume_db": -18.2
 		},
 		"lift_stop": {
@@ -987,7 +987,7 @@
 					"clap": 0.4104
 				}
 			},
-			"file": "sound/generated/doors/lift_stop.ogg",
+			"file": "sound/lift_stop.generated@1/audio/generated/doors/lift_stop.ogg",
 			"volume_db": -26.1
 		},
 		"footsteps_metal": {
@@ -1024,7 +1024,7 @@
 					"clap": 0.4725
 				}
 			},
-			"file": "sound/generated/machines/footsteps_boots_gravel.wav",
+			"file": "sound/footsteps_boots_gravel.generated@1/audio/generated/machines/footsteps_boots_gravel.wav",
 			"volume_db": -17.0
 		},
 		"bench_tool": {
@@ -1044,7 +1044,7 @@
 					"clap": 0.4064
 				}
 			},
-			"file": "sound/generated/machines/bench_tool.wav",
+			"file": "sound/bench_tool.generated@1/audio/generated/machines/bench_tool.wav",
 			"volume_db": -19.7
 		},
 		"digger": {
@@ -1064,7 +1064,7 @@
 					"clap": 0.4378
 				}
 			},
-			"file": "sound/generated/machines/digger.wav",
+			"file": "sound/digger.generated@1/audio/generated/machines/digger.wav",
 			"volume_db": -20.3
 		},
 		"robot_planting": {
@@ -1083,7 +1083,7 @@
 					"clap": 0.293
 				}
 			},
-			"file": "sound/generated/doors/robot_planting.ogg",
+			"file": "sound/robot_planting.generated@1/audio/generated/doors/robot_planting.ogg",
 			"volume_db": -23.9
 		},
 		"robot_servo": {
@@ -1103,7 +1103,7 @@
 					"clap": 0.409
 				}
 			},
-			"file": "sound/generated/machines/robot_servo.wav",
+			"file": "sound/robot_servo.generated@1/audio/generated/machines/robot_servo.wav",
 			"volume_db": -21.0
 		},
 		"drone_hover": {
@@ -1123,7 +1123,7 @@
 					"clap": 0.3529
 				}
 			},
-			"file": "sound/generated/machines/drone_hover.wav",
+			"file": "sound/drone_hover.generated@1/audio/generated/machines/drone_hover.wav",
 			"volume_db": -27.3
 		},
 		"drone_thrust_burst": {
@@ -1143,7 +1143,7 @@
 					"clap": 0.3625
 				}
 			},
-			"file": "sound/generated/machines/drone_thrust_burst.wav",
+			"file": "sound/drone_thrust_burst.generated@1/audio/generated/machines/drone_thrust_burst.wav",
 			"volume_db": -23.8
 		},
 		"rover_motor": {
@@ -1163,7 +1163,7 @@
 					"clap": 0.4012
 				}
 			},
-			"file": "sound/generated/machines/rover_motor.wav",
+			"file": "sound/rover_motor.generated@1/audio/generated/machines/rover_motor.wav",
 			"volume_db": -22.6
 		},
 		"rover_wheels_gravel": {
@@ -1183,7 +1183,7 @@
 					"clap": 0.3393
 				}
 			},
-			"file": "sound/generated/machines/rover_wheels_gravel.wav",
+			"file": "sound/rover_wheels_gravel.generated@1/audio/generated/machines/rover_wheels_gravel.wav",
 			"volume_db": -18.4
 		},
 		"rocket_launch": {
@@ -1202,7 +1202,7 @@
 					"clap": 0.4986
 				}
 			},
-			"file": "sound/generated/doors/rocket_launch.ogg",
+			"file": "sound/rocket_launch@1/audio/generated/doors/rocket_launch.ogg",
 			"volume_db": -10.9,
 			"near": 300.0
 		},
@@ -1222,7 +1222,7 @@
 					"clap": 0.5376
 				}
 			},
-			"file": "sound/generated/doors/rocket_hull_roar.ogg",
+			"file": "sound/rocket_hull_roar.generated@1/audio/generated/doors/rocket_hull_roar.ogg",
 			"volume_db": -8.4
 		},
 		"rocket_landing_rumble": {
@@ -1242,7 +1242,7 @@
 					"clap": 0.4025
 				}
 			},
-			"file": "sound/generated/machines/rocket_landing_rumble.wav",
+			"file": "sound/rocket_landing_rumble.generated@1/audio/generated/machines/rocket_landing_rumble.wav",
 			"volume_db": -9.2
 		},
 		"rocket_touchdown": {
@@ -1261,7 +1261,7 @@
 					"clap": 0.5166
 				}
 			},
-			"file": "sound/generated/doors/rocket_touchdown.ogg",
+			"file": "sound/rocket_touchdown.generated@1/audio/generated/doors/rocket_touchdown.ogg",
 			"volume_db": -7.6
 		},
 		"ground_thud": {
@@ -1280,7 +1280,7 @@
 					"clap": 0.3369
 				}
 			},
-			"file": "sound/generated/doors/ground_thud.ogg",
+			"file": "sound/ground_thud.generated@1/audio/generated/doors/ground_thud.ogg",
 			"volume_db": -16.0
 		},
 		"landing_thud": {
@@ -1299,7 +1299,7 @@
 					"clap": 0.3716
 				}
 			},
-			"file": "sound/generated/doors/landing_thud.ogg",
+			"file": "sound/landing_thud.generated@1/audio/generated/doors/landing_thud.ogg",
 			"volume_db": -25.8
 		},
 		"camp_room": {

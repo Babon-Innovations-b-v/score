@@ -241,7 +241,7 @@ def test_the_plan_row_maps_a_place_with_no_kit():
         (root / "plans/new_room.json").write_text(json.dumps(plan))
         (root / "inventory.json").write_text(json.dumps({"rows": [{"id": "desk"}], "room": {"layout": {}}}))
         inputs = {"plan": str(root / "plans/new_room.json"), "inventory": str(root / "inventory.json"),
-                  "plans": str(root / "plans"), "assets": str(REPO / "data/assets/world1.json")}
+                  "plans": str(root / "plans")}
         stages.PLAN.make(inputs, root / "out", 0, {})
         assert json.loads((root / "out/plan.json").read_text())["place"] == "new_room"
         verdict = stages.PLAN.checks[0].judge(root / "out", inputs, {})

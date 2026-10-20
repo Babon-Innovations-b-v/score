@@ -238,7 +238,7 @@
  "objects": [
   {
    "name": "SolarRow1",
-   "model": "models/solar_panel_row/solar_panel_row.glb",
+   "model": "model/solar_panel_row.gltf@1/gltf/solar_panel_row.glb",
    "at": [
     -32.523,
     -14.148,
@@ -255,7 +255,7 @@
   },
   {
    "name": "SolarRow2",
-   "model": "models/solar_panel_row/solar_panel_row.glb",
+   "model": "model/solar_panel_row.gltf@1/gltf/solar_panel_row.glb",
    "at": [
     -33.949,
     -12.904,
@@ -272,7 +272,7 @@
   },
   {
    "name": "SolarRow3",
-   "model": "models/solar_panel_row/solar_panel_row.glb",
+   "model": "model/solar_panel_row.gltf@1/gltf/solar_panel_row.glb",
    "at": [
     -35.36,
     -11.763,
@@ -289,7 +289,7 @@
   },
   {
    "name": "Inverter",
-   "model": "models/inverter_cabinet/inverter_cabinet.glb",
+   "model": "model/inverter_cabinet.gltf@1/gltf/inverter_cabinet.glb",
    "at": [
     -23.066,
     -12.773,

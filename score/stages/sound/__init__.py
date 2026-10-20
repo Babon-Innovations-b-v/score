@@ -31,7 +31,7 @@ from score.stages.sound import takes as moss_takes
 from score.stages.sound.gates import FREESOUND, RECORD, read_json
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-for folder in ("tools/sound/picker", "tools/sound/loudness", "tools/usd", "tools/assets"):
+for folder in ("tools/sound/picker", "tools/sound/loudness", "tools/usd", "tools/library"):
     sys.path.insert(0, str(REPO / folder))
 import apply as picker_apply  # noqa: E402
 import loudness  # noqa: E402
@@ -39,7 +39,7 @@ import takes as picker_takes  # noqa: E402
 import page as picker_page  # noqa: E402
 import sources as picker_sources  # noqa: E402
 import stage_inputs  # noqa: E402
-import world as world_assets  # noqa: E402
+import library_files  # noqa: E402
 
 FILES = "files"
 HAPPENINGS = ("footstep", "impact", "scrape")
@@ -55,11 +55,11 @@ def applies(place):
 
 
 def files(place):
-    """What the stage reads: the sound data, the release's manifest (which file of the world is which), and the
-    place's own scene, inventory and motion records (where its sounds play)."""
+    """What the stage reads: the sound data (each file a versioned library reference), and the place's own scene,
+    inventory and motion records (where its sounds play)."""
     found = {"sounds": "{data}/sound/sounds.json", "catalogue": "{data}/sound/catalogue.json",
              "places": "{data}/sound/places.json", "surfaces": "{data}/sound/surfaces.json",
-             "licences": "{data}/sound/licences.json", "assets": "{data}/assets/world1.json",
+             "licences": "{data}/sound/licences.json",
              "scene": "{data}/scene/{place}.json"}
     inventory = stage_inputs.inventory_path(place)
     if inventory.exists():
@@ -160,26 +160,35 @@ def levelled(paths, category, loops):
 
 
 def picked(name, brief, entry, inputs, out):
-    """A sound the world already plays: its files copied from the release, its credit from the licence list."""
+    """A sound the world already plays: its files copied from the library (each under its stage name), its credit
+    from the licence list; a file the library does not hold (a hole) is left out."""
     licences = {listing["file"]: listing for listing in read_json(inputs["licences"])}
-    names = listed(entry.get("file"))
-    credits = [licences.get(world_name, {"file": world_name}) for world_name in names]
-    for world_name in names:
-        target = out / FILES / world_name
+    names = []
+    for world_name in listed(entry.get("file")):
+        source = library_files.resolve(world_name)
+        if source is None:
+            library_files.say_hole(world_name, f"the sound {name}")
+            continue
+        target = out / FILES / library_files.stage_name(world_name)
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(world_assets.resolve(world_name), target)
+        shutil.copyfile(source, target)
+        names.append(world_name)
+    credits = [licences.get(world_name, {"file": world_name}) for world_name in names]
     volume = float(entry.get("volume_db", 0.0))
-    if brief.get("category"):
-        volume += levelled([out / FILES / world_name for world_name in names], brief["category"], bool(entry.get("loops")))
+    if brief.get("category") and names:
+        volume += levelled([out / FILES / library_files.stage_name(world_name) for world_name in names],
+                           brief["category"], bool(entry.get("loops")))
     chosen = brief.get("chosen", {})
-    made_by = ("moss" if all(MADE_BY_MOSS in credit.get("source", "") for credit in credits) else
+    made_by = ("hole" if not credits else
+               "moss" if all(MADE_BY_MOSS in credit.get("source", "") for credit in credits) else
                "recording" if any(FREESOUND in credit.get("source", "") for credit in credits) else "made")
     prompt, seed = None, None
     if made_by == "moss" and chosen.get("take", "").startswith("moss:"):
         stem = chosen["take"][5:]
         prompt = brief["prompts"][int(stem.split("__p")[1].split("__")[0]) - 1]
         seed = int(stem.rsplit("__s", 1)[1])
-    return {"files": [f"{FILES}/{world_name}" for world_name in names], "volume_db": round(volume, 1),
+    return {"files": [f"{FILES}/{library_files.stage_name(world_name)}" for world_name in names],
+            "volume_db": round(volume, 1),
             "made_by": made_by, "credits": credits, "prompt": prompt, "seed": seed, "clap": chosen.get("clap"),
             "chosen_by": chosen.get("by", "the game's catalogue"), "decided": chosen.get("decided")}
 

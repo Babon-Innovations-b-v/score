@@ -713,7 +713,7 @@ def export(place, models, out, parts=None, kit_path=None, inventory_path=None, t
     `take` is the labelled take the run recorded; without it each model's newest take in `parts` is read; without
     `parts`, the place's stored takes (data/parts). `ground` is the place's tools/usd/ground.Ground; without one the
     place is flat. `scene` is the place's scene record (tools/usd/scene.py; None writes only its made pieces) and
-    `world` the folder of the world's release files (tools/assets/world.py) its records name."""
+    `world` a folder holding the files its records name, read instead of the library (tools/library)."""
     out = pathlib.Path(out)
     if parts is None:
         parts = stored_parts.takes_of(place)
@@ -768,9 +768,11 @@ def scene_shown(objects, world, parent="Fixtures", shown=None):
             continue
         path = f"{parent}/{entry['name']}" if parent == "Fixtures" else \
             f"{parent}/{pathlib.Path(entry['model']).stem}_{number}"
+        found = scene_record.world_file(world, entry["model"])
+        if found is None:  # a hole: scene.fixture leaves it out, and what stands on it
+            continue
         if "row" in entry:
-            shown.setdefault(entry["row"], []).append((path, entry["model"], stage_inputs.model_hash(
-                scene_record.world_file(world, entry["model"]))))
+            shown.setdefault(entry["row"], []).append((path, entry["model"], stage_inputs.model_hash(found)))
         scene_shown(entry.get("children", []), world, path, shown)
     return shown
 
@@ -809,8 +811,8 @@ def main():
     found.add_argument("--work", type=pathlib.Path, help="the route run's work folder: its parts and recorded take")
     found.add_argument("--parts", type=pathlib.Path, help="a folder of labelled takes, each model's newest read")
     parser.add_argument("--flat", action="store_true", help="lay the place on flat ground even if it has a ground")
-    parser.add_argument("--assets", type=pathlib.Path, help="a folder of the world's release files to read instead of "
-                        "the fetched release (tools/assets/world.py)")
+    parser.add_argument("--assets", type=pathlib.Path, help="a folder holding the files the records name, read "
+                        "instead of the library (tools/library/library_files.py)")
     arguments = parser.parse_args()
     parts, take = run_parts(arguments.work) if arguments.work else (arguments.parts, None)
     kit = json.loads((KITS / f"{arguments.place}.json").read_text())

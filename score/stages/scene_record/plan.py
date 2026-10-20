@@ -31,7 +31,7 @@ the place point it is), turned so its `toward` plan point falls the way of its p
 one frame, the street's; the square's and the launch's plans are drawn down the balcony's view).
 
 Gate `mapped`: every plan item names inventory rows that exist (a zone names none, nor a plot the writer lays, nor an
-item a released model makes: its model must be in the world's release, data/assets/world1.json), every concept element names rows that
+item a library model makes: its model must be a library reference, tools/library/library_files.py; any other name is a hole), every concept element names rows that
 exist, a plan door, a plan object, a plan decal, a plan item (a plot) or its drop, every door says where it leads and why, a sealed door is
 one the inventory's room layout shuts with a leaf, and every outdoor lamp and beam stands on a row that exists. How far a row's laid spot (the inventory's, else the kit's pieces of it)
 lies from its item's box is measured and shown, never judged here: the layout is the inventory's.
@@ -40,10 +40,14 @@ import json
 import math
 import pathlib
 import re
+import sys
 
 import numpy as np
 
 from score import checks, contracts
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/library"))
+import library_files  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 SIDES = {"N": "north", "S": "south", "E": "east", "W": "west"}
@@ -72,8 +76,7 @@ def files(place):
     picture the plan names."""
     plan = json.loads((REPO / "data/plans" / f"{place}.json").read_text())
     found = {"plan": "{data}/plans/{place}.json", "plans": "{data}/plans",
-             "inventory": f"{{data}}/inventory/{inventory_name(place)}.json", "kit": "{data}/kit/{place}.json",
-             "assets": "{data}/assets/world1.json"}
+             "inventory": f"{{data}}/inventory/{inventory_name(place)}.json", "kit": "{data}/kit/{place}.json"}
     if plan.get("concept", {}).get("picture"):
         found["concept"] = plan["concept"]["picture"]
     return found
@@ -325,13 +328,13 @@ def row_spots(inventory, kit):
             or laid.get(f"{kit.get('room')}_{row['id']}", []) for row in inventory["rows"]}
 
 
-def item_faults(item, ids, made, released):
-    """Why a plan item is not mapped: no rows named and no released model making it (`made`, the plan's object), a
-    row the inventory lacks, or a model the world's release lacks (unless the plan marks it `waiting` on its model,
-    which the record carries)."""
+def item_faults(item, ids, made):
+    """Why a plan item is not mapped: no rows named and no library model making it (`made`, the plan's object), a
+    row the inventory lacks, or a model that is a hole, no library reference (unless the plan marks it `waiting` on
+    its model, which the record carries)."""
     found = []
-    if made is not None and made["model"] not in released and not made.get("waiting"):
-        found.append(f"plan item {item['name']!r}: model {made['model']} is not in the world's release")
+    if made is not None and library_files.parsed(made["model"]) is None and not made.get("waiting"):
+        found.append(f"plan item {item['name']!r}: model {made['model']} is a hole, not in the library")
     if item["rows"] is None and made is None:
         return found + [f"plan item {item['name']!r} names no inventory rows and no drop"]
     if not item["rows"] and item["kind"] not in UNROWED and made is None:
@@ -413,9 +416,8 @@ def judge_mapped(output, inputs, evidence):
     places = {path.stem for path in (REPO / "data/kit").glob("*.json")} | \
         {path.stem for path in pathlib.Path(inputs["plans"]).glob("*.json")}
     doors = {door["plan_side"] for door in record["doors"]} | {door["name"] for door in record["doors"]}
-    released = read(inputs["assets"])["files"]
     faults = [fault for item in record["items"]
-              for fault in item_faults(item, ids, record["objects"].get(item["name"]), released)]
+              for fault in item_faults(item, ids, record["objects"].get(item["name"]))]
     if not record["elements"]:
         faults.append("the plan holds no concept elements")
     decals = {decal["name"] for decal in record.get("decals", [])}

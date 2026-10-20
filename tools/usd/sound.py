@@ -3,8 +3,8 @@
     .venv/bin/python tools/usd/sound.py <place> --stage <the place's stage folder (export.py --out)>
 
 It writes `<stage>/layers/sound.usda`, a layer of its own between the creator's edit layer and the base
-(export.STAGE_LAYERS), and copies every file it names into `<stage>/assets/sound/`. Every sound is a
-UsdMedia.SpatialAudio prim, its file (a name in the world's release, tools/assets/world.py), its gain (from the
+(export.STAGE_LAYERS), and copies every file it names into `<stage>/assets/`. Every sound is a
+UsdMedia.SpatialAudio prim, its file (a library reference, tools/library/library_files.py), its gain (from the
 catalogue's level in dB) and how it plays, with the framework's own facts beside it as `score:sound:*`:
 
     /<place>/Sound/Room/<name>        the place's room tones (data/sound/places.json): non-spatial, looping from the
@@ -42,9 +42,9 @@ from pxr import Sdf, Usd, UsdGeom, UsdMedia
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(REPO / "tools/assets"))
+sys.path.insert(0, str(REPO / "tools/library"))
 sys.path.insert(0, str(REPO / "tools/props/library"))
-import world as world_assets  # noqa: E402
+import library_files  # noqa: E402
 
 LAYER = "layers/sound.usda"
 CATALOGUE = REPO / "data/sound/catalogue.json"
@@ -97,14 +97,19 @@ def gain(volume_db):
 
 
 def copied(names, out):
-    """The files copied once into the stage's assets/sound/ (from the world's release); each as the layer's path."""
+    """The files copied once into the stage's assets/ (from the library); each as the layer's path. A hole (a file
+    the library does not hold) is left out."""
     found = []
     for name in names:
-        target = out / "assets" / name
+        target = out / "assets" / library_files.stage_name(name)
         if not target.exists():
+            source = library_files.resolve(name)
+            if source is None:
+                library_files.say_hole(name, "a sound")
+                continue
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(world_assets.resolve(name), target)
-        found.append(f"../assets/{name}")
+            shutil.copyfile(source, target)
+        found.append(f"../assets/{library_files.stage_name(name)}")
     return found
 
 

@@ -2,10 +2,10 @@
 declares (Stage.files, a function of the place). Kept apart from the rows' code, as surface_data.py is.
 
 A take's model is its raw Pixal3D take (`{home}/work/pixal/<take>.glb`) while that file is there, else the made model
-the environment's release holds for it (the place's bake names the model, `models/<model>/<model>.glb` in
-data/assets/world1.json), else none: the views row names that take in its gate's fail. Its close-up is the take's own
-(`<take>.svviews/input.png`) while it is there, else a stand-in, the model's own texture rendered from the front
-(`route_cast`), named a stand-in in every output and verdict that reads it.
+the library holds for it (the place's bake names the model: its entry `model/<model>.gltf`, the file
+`gltf/<model>.glb`, tools/library/library_files.py), else none: the views row names that take in its gate's fail.
+Its close-up is the take's own (`<take>.svviews/input.png`) while it is there, else a stand-in, the model's own
+texture rendered from the front (`route_cast`), named a stand-in in every output and verdict that reads it.
 """
 import json
 import pathlib
@@ -14,12 +14,14 @@ import sys
 import surface_data as data
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-ASSETS = REPO / "tools/assets"
-if str(ASSETS) not in sys.path:
-    sys.path.append(str(ASSETS))
+LIBRARY = REPO / "tools/library"
+if str(LIBRARY) not in sys.path:
+    sys.path.append(str(LIBRARY))
 
-import world as world_assets  # noqa: E402
+import library_files as resolver  # noqa: E402  (as: this module has its own library_files)
 
+# The version of the made models score-lib take-in took in from world 1's old release (issue #22).
+RELEASED_VERSION = 1
 STAND_IN = "stand-in: the model's own texture from the front, not a close-up"
 
 
@@ -29,22 +31,19 @@ def pixal_folder():
 
 
 def released(place, take):
-    """The release's made model of a take (the place's bake names it), as its manifest name, or None."""
+    """The library's made model of a take (the place's bake names it): the file the library holds, or None."""
     models = data.record(place).get("bake", {}).get("models", {})
-    names = [f"models/{model}/{model}.glb" for model, named in sorted(models.items()) if named == take]
-    files = world_assets.manifest()["files"]
-    return next((name for name in names if name in files), None)
+    names = [resolver.reference(f"model/{model}.gltf@{RELEASED_VERSION}", f"gltf/{model}.glb")
+             for model, named in sorted(models.items()) if named == take]
+    return next((found for found in map(resolver.resolve, names) if found is not None), None)
 
 
 def model_path(place, take):
-    """The file a take's model is read from: its raw take, else its released model when the release is on this
-    machine (`python3 tools/assets/world.py fetch`), else None."""
+    """The file a take's model is read from: its raw take, else its made model from the library, else None."""
     raw = pixal_folder() / f"{take}.glb"
     if raw.exists():
         return raw
-    name = released(place, take)
-    found = world_assets.local_folder(world_assets.manifest()) / name if name else None
-    return found if found is not None and found.exists() else None
+    return released(place, take)
 
 
 def close_up_path(take):
@@ -72,8 +71,8 @@ def model_files(place):
 
 
 def shape_files(place):
-    """The views and split rows' files: the place's data, its takes' models and close-ups, the release's manifest."""
-    return {"surfaces": data.pattern(place), "assets": "{data}/assets/world1.json", **model_files(place)}
+    """The views and split rows' files: the place's data, its takes' models and close-ups."""
+    return {"surfaces": data.pattern(place), **model_files(place)}
 
 
 def library_files(place):

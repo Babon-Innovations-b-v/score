@@ -1,8 +1,9 @@
 # tools/sound
 
 The game's sound tools (#35). `made.py`: the sounds the game makes itself (base hum, radio static, the warning
-tone, the geiger ticks, the low oxygen beep); `bash tools/sound/run.sh` writes them to `sound/made/` in the environment's files (the
-local copy of the environment's release, `tools/assets/world.py`; pack and publish a new release to share a change).
+tone, the geiger ticks, the low oxygen beep); `bash tools/sound/run.sh` writes them to `sound/made/` in the made folder
+(`tools/library/library_files.py`; `score-lib take-in` takes a changed file into the library, and the records name
+its reference).
 `picker/`: every sound the game needs, made by MOSS on a rented card (`tools/props/cloud/moss_sound.py game`),
 then scored, levelled and put in (`run.sh auto game`); the page to listen and swap is optional. `loudness/`: the
 loudness rule every take and every game file is held to (`run.sh loudness` measures them all again).
@@ -13,8 +14,8 @@ loudness rule every take and every game file is held to (`run.sh loudness` measu
 - **Loops join without a click**: tones fit whole cycles, noise is filtered as a ring, beeps and
   ticks are silent or wrapped at the join. A loop carries a `smpl` chunk so Godot loops it itself.
 - **Quiet by default.** Every sound is written well under full scale, the warning tone too (a pure tone sounds far louder than a recording at the same peak); the catalogue keeps the warning the loudest level.
-- **Every file it writes is on `data/sound/licences.json`** as made for the environment, or the release's pack
-  (`tools/assets/world.py pack`) stops on it. A new sound here gets its entry there in the same change.
+- **Every file it writes is on `data/sound/licences.json`** as made for the environment, or it has no credit to go into the library with
+  (`score-lib take-in`). A new sound here gets its entry there in the same change.
 - **Nothing replaces a take the owner has not heard.** Render with `--out` to listen first.
 
 The picker and the loudness rule:

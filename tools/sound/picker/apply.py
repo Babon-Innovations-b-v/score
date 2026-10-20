@@ -1,6 +1,6 @@
 """Each sound's take into the world: the chosen one (choose.py), or the owner's swap where the page's store holds one.
-Its files go into the world's files under sound/generated/ (the local copy of the world's release,
-tools/assets/world.py; the recordings before stay where they are, so a swap back is possible), its
+Its files go into the made folder under sound/generated/ (tools/library/library_files.py, for score-lib take-in
+to take into the library; the recordings before stay where they are, so a swap back is possible), its
 credit onto the licence list (data/sound/licences.json) (a generated take's prompt, seed and model; a recording's source and author), and its
 entry into data/sound/sounds.json: the file, and a level that plays it as loud as the brief says, or as loud as the
 take it replaces played. A swap back to the recording before takes the data's file and level off again.
@@ -17,8 +17,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import loudness  # noqa: E402
 import needs  # noqa: E402
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "assets"))
-import world as world_assets  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "library"))
+import library_files  # noqa: E402
 
 ## Where a chosen take goes, under sound/generated/ in the world's files, by its category.
 FOLDERS = {"steps": "footsteps", "shot": "doors", "loop": "machines", "room": "places"}
@@ -84,9 +84,9 @@ def credit(take, name):
 
 def apply(page_folder, picks, sounds_path=needs.SOUNDS, licences_path=needs.LICENCES, world=None, swapped=()):
     """Puts every pick on a page into the game, and notes on each entry which take it is and who chose it (the
-    owner for the names in `swapped`, else the scoring); gives back the names changed. `world` is the folder of the
-    world's files (the local copy of its release when not given)."""
-    world = pathlib.Path(world) if world else world_assets.local_folder(world_assets.manifest())
+    owner for the names in `swapped`, else the scoring); gives back the names changed. `world` is the folder the
+    files go into (the made folder when not given)."""
+    world = pathlib.Path(world) if world else library_files.made_folder()
     record = json.loads((page_folder / "candidates.json").read_text())
     document = json.loads(sounds_path.read_text())
     sounds = document["sounds"]

@@ -12,7 +12,7 @@ and builders.py build it unchanged; it lands as record/<place>.json in the outpu
                  slabs round its door opening), its layout's glass_dome a glass dome; a sloped item outside is a plate
                  (ramps), a plot soil in a curb (plots)
     objects      each inventory row the kit does not lay, at its own spots: the route made it (the hub's furniture) or
-                 it names a world release model (the airlock's suit); and each door leaf a plan lead names (`leaf`),
+                 it names a library model (the airlock's suit); and each door leaf a plan lead names (`leaf`),
                  shut in its doorway (the airlock's outer door, which its cycle moves and copies for the inner door);
                  every object whose model the kit lists with `children` carries them (kit_children: the cases on the
                  camp's stores rack, the hub console's screens), each with its glow parts, its row the inventory's
@@ -82,7 +82,7 @@ def files(place):
     return {"inventory": f"{{data}}/inventory/{place_plan.inventory_name(place)}.json", "kits": "{data}/kit",
             "plans": "{data}/plans",
             "sky": "{data}/definitions/sky.json", "base": "{data}/definitions/base.json", "tube length": "{data}/scene/tube.json",
-            "places": "{data}/definitions/place.json", "assets": "{data}/assets/world1.json",
+            "places": "{data}/definitions/place.json",
             "seed record": "{data}/scene/{place}.json",
             "seeds": "{seeds}/usd-r3", "tokens": "{data}/../design/tokens/tokens.json"}
 
@@ -245,11 +245,11 @@ def picked(row, spot):
 
 
 def row_model(place, row, spot):
-    """The model an inventory row the kit does not lay stands as at a spot, and what made it: a world release model
+    """The model an inventory row the kit does not lay stands as at a spot, and what made it: a library model
     the row names (`release_model`, the airlock's suit) or the route's pick (picked, from the place's kit models);
     else None."""
     if row.get("release_model"):
-        return row["release_model"], f"the world release's {row['release_model']}"
+        return row["release_model"], f"the library's {row['release_model']}"
     if str(row.get("made", "")).startswith("made by the route") and row.get("pick"):
         model = picked(row, spot)
         return f"models/{place}_kit/{model}.gltf", f"made by the route, its pick {model}"

@@ -3,7 +3,8 @@ the hub and the airlock pass all four gates; a sound with no file fails `sources
 the place does not hold; a file made too loud fails `level`; a MOSS sound under the CLAP floor fails `likeness`; a
 Freesound recording the owner did not choose fails `no freesound`.
 
-Run: .venv/bin/python score/stages/sound/sound_test.py   (reads the world's release, fetched once)
+Run: .venv/bin/python -m pytest score/stages/sound/sound_test.py   (reads the sounds' bytes from the library; a
+test that plays them is skipped where no library is configured, SCORE_LIB_* or $PROPS_HOME/library.env)
 """
 import json
 import pathlib
@@ -11,6 +12,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
@@ -32,6 +35,8 @@ def inputs_for(place, folder, changes=None):
 
 
 def made(place, folder, changes=None):
+    if not sound.library_files.settings().get("SCORE_LIB_ROOT"):
+        pytest.skip("no library configured here: the picked sounds' bytes are the library's")
     inputs = inputs_for(place, folder, changes)
     out = pathlib.Path(folder) / "out"
     out.mkdir()
@@ -125,5 +130,9 @@ if __name__ == "__main__":
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
     for name, test in list(globals().items()):
         if name.startswith("test_"):
-            test()
+            try:
+                test()
+            except pytest.skip.Exception as skipped:
+                print(f"skipped {name}: {skipped.msg}")
+                continue
             print(f"ok {name}")
