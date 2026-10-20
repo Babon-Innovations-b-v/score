@@ -126,9 +126,11 @@ class Builder:
 
 
 def folders(entries):
-    """The Library's tree of kinds and categories, and each node's entries."""
+    """The Library's tree of kinds and categories, and each node's entries; a withdrawn entry is in none (its page
+    stays reachable from its versions: withdrawn copies folded into one entry are no shelf of their own, #46)."""
     builder = Builder()
     tree = []
+    entries = [entry for entry in entries if entry.state != "withdrawn"]
     for kind, _ in KINDS:
         of_kind = [entry for entry in entries if (entry.shelf or entry.kind) == kind]
         if of_kind:
