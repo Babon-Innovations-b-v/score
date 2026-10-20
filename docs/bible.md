@@ -253,12 +253,15 @@ is meant to fix, where it is marked, and what proves it.
   there is no paid paint step and no finish-map picture: free renders of the raw model (the six sides, then angles a
   free coverage check adds until every face it can see is seen), one Gemini 3.1 Pro answer a take through Google's
   Batch API at half price (`tools/props/cloud/google_batch.py`: the finish list matched library first with settings,
-  a label for each colour region of each view), the labels voted into one finish a face (an unassigned face or views
+  a label for each colour region of each view), then free and before any paid bake the colour check: each region of
+  every view against its chosen surface's token colour, one too far a hole, named, nothing of it baked (dE 32,
+  unmeasured on the views); the labels voted into one finish a face (an unassigned face or views
   that disagree is a hole, named; the 1% bound is unmeasured, its benchmark on #18), each finish checked free against
   its colour, the paint and the bake in one job a take on the bake's warm card (nothing heavy on this PC), and one
   Gemini batch recheck a take sorted pass or the named fault "no library surface fits" (no tweak, no retry). The
-  list's token, roughness and metal reach the bake as the variant's spec with them (`route_settings.py`); wear stays
-  the place's level, and the seed is recorded but not applied (the recipes take the job's one seed).
+  list's token, roughness, metal and seed reach the bake as the variant's spec with them (`route_settings.py`), the
+  seed each take's own so each object's wear and dirt pattern is its own; a finish wears at the place's level, or at
+  its own library level where the views show a cause (walked paths, edges, round doors), and the check holds it there.
   Proven when a place's line passes through `surfaces-check` and `library surface fits` against its takes' own
   close-ups, and the owner has walked it; nothing has been spent on it yet.
 - **The finish-map method** (`score/stages/surfaces`' finish_*.py, turntable_row.py and segvigen_row.py, run today by

@@ -127,7 +127,10 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
 - **A generated piece's back is baked at full density** (`bake.Atlas(backs_hidden=False)` from make_chunky): shrunk
   face by face its remeshed triangles fell under a texel and baked black (every generated piece's back, 2026-10-08).
 - **One wear for the room, from a cause:** a place's wear level (`place.json`), the bevel test on edges, and kick
-  wear (`recipes.kick_mask`) within 32 cm over the floor a piece stands on (`foot`, route.py). `sweep.py` checks a
+  wear (`recipes.kick_mask`) within 32 cm over the floor a piece stands on (`foot`, route.py). A finish may carry its
+  own wear level and seed (owner, 2026-10-20, #18): the finish route's list gives a level only with a cause the views
+  show (walked paths, edges, round doors), and `recipes.arguments` takes a spec's own `wear` and `seed` over the
+  place's and the job's. `sweep.py` checks a
   room's made models against its own library palette.
 - **Storage:** `stored.py` keeps a room's pictures as WebP and stops an install past the room budget (modules batch
   one).
