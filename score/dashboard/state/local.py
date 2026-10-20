@@ -675,16 +675,6 @@ class LocalSource:
                                       thumb=picture.thumb_url if picture else None, url=f"/place/{place}/step/{stage}/" if place else f"/world/step/{stage}/"))
         return found
 
-    def stage_records(self, names):
-        """Every finish record of the nodes of the named stages, at every place."""
-        wanted = set(names)
-        found = []
-        for key in self.index.prefixed("records/"):
-            node = key.split("/")[1]
-            if node.split("@")[0] in wanted:
-                found.append(self.store.read(key))
-        return found
-
     # --- one step ----------------------------------------------------------------------------------------------
 
     def taken(self, node, output, at=None, by=None):

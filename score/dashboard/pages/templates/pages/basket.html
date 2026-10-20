@@ -85,7 +85,7 @@
 {% if not plan_current %}<div class="banner">The basket changed since this plan: work it out again.</div>{% endif %}
 {% include "pages/money.html" with bar=bar ceiling=plan.body.money.ceiling note=plan.body.money.note %}
 <p>Likely <b>EUR {{ plan.body.money.likely|floatformat:2 }}</b>, high <b>EUR {{ plan.body.money.high|floatformat:2 }}</b>{% if plan.body.money.room is not None %} against <b>EUR {{ plan.body.money.room|floatformat:2 }}</b> of room under the stop{% endif %}. Time: likely {{ likely_time }}, high {{ high_time }}.</p>
-{% if plan.body.money.not_measured %}<p class="small soft">Not measured yet, counted at the runner's estimate: {{ plan.body.money.not_measured|join:", " }}.</p>{% endif %}
+{% if plan.body.money.not_measured %}<p class="small soft">Not measured yet, their estimate counted in the high only: {{ plan.body.money.not_measured|join:", " }}.</p>{% endif %}
 {% for group in plan.body.groups %}
 <div class="panel"><b>{{ group.places|join:", "|default:"whole environment" }}</b>: {{ group.stages|join:", " }}
   <div class="small">{{ group.to_run|length }} steps to make, {{ group.buys|length }} paid.{% if group.blocked %} {{ group.blocked|length }} blocked.{% endif %}</div>

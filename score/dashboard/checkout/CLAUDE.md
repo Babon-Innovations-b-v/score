@@ -13,7 +13,7 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
 - **Prices are the runner's.** Each node's likely and high euros, minutes and cards come from the runner's own plan
   (`score plan`, C19) through the backend; nothing here guesses a number. A node the runner has not measured has no
   price (likely and high None): `pricing.totals` keeps its stage's estimate apart as `guessed_euros`, the pages say
-  it as a guess, and the stop line holds it beside the high (`flow.cleared_high`), since the runner's clearance
+  it as a guess, and the stop line holds it beside the high (`pricing.cleared_high`, the launch guard's high too), since the runner's clearance
   reserves that estimate.
 - **Tests never launch.** `tests/checkout_test.py` uses `FakeBackend`, a temp basket and a temp store.
 - One function, one purpose; no provider names; no imports of `tools.*` or `score.adapters` (`score.review.web` reaches

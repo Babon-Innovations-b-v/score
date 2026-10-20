@@ -1,4 +1,4 @@
-"""The launch basket's plan and guard: money and time from measured runs, every refusal in words, the local backend's
+"""The launch basket's plan and guard: money and time priced by the runner (the backend's price), every refusal in words, the local backend's
 command line and environment (subprocess replaced), and its result line read into states."""
 import datetime
 import subprocess
@@ -6,11 +6,11 @@ import types
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client, override_settings
+from django.test import Client
 from django.utils import timezone
 
 from score.dashboard.launch import guard, localrun
-from score.dashboard.launch.backend import LaunchHandle, MeasuredRun, RunGroup
+from score.dashboard.launch.backend import LaunchHandle, RunGroup
 from score.dashboard.pages.models import BasketItem, Launch, Plan
 from score.dashboard.state import costs
 from score.dashboard.tests.fixture import FakeBackend
@@ -28,31 +28,6 @@ def test_groups_join_places_with_the_same_stages():
     assert RunGroup(places=("alpha",), stages=("closeup",)) in groups
     assert RunGroup(places=("beta",), stages=("closeup", "plan")) in groups
     assert RunGroup(places=(), stages=("terrain",)) in groups
-
-
-def test_money_likely_is_the_ledger_median_times_the_bill_factor_and_high_the_estimates():
-    buys = [{"node": "closeup@alpha", "euros": 13.67}, {"node": "pixal@alpha", "euros": 20.0}]
-    found = costs.money(buys, [MeasuredRun("closeup", 10.0, 30), MeasuredRun("closeup", 12.0, 40)], 1.21)
-    assert found["high"] == 33.67
-    assert found["likely"] == round(11.0 * 1.21 + 20.0, 2)  # pixal has no measured run: its estimate
-    assert found["not_measured"] == ["pixal"]
-
-
-def test_time_is_the_longest_line_or_the_total_over_jobs():
-    per_stage = {"closeup": [10.0, 20.0, 30.0], "plan": [1.0]}
-    nodes = ["closeup@alpha", "plan@alpha", "closeup@beta", "closeup@gamma"]
-    found = costs.time_of(nodes, per_stage, jobs=1)
-    assert found["likely_minutes"] == 20.0 + 1.0 + 20.0 + 20.0  # one job: the total
-    assert costs.time_of(nodes, per_stage, jobs=8)["likely_minutes"] == 21.0  # the longest line
-    assert costs.time_of(nodes, per_stage, jobs=8)["high_minutes"] == 31.0
-    assert costs.hours(125) == "2 h 05 min" and costs.hours(14) == "14 min"
-
-
-def test_finish_records_carried_or_without_minutes_are_left_out():
-    found = costs.stage_minutes([{"node": "plan@a", "stage": "plan", "minutes": 2.0},
-                                 {"node": "plan@b", "stage": "plan", "minutes": 9.0, "carried": {"reason": "x"}},
-                                 {"node": "plan@c", "stage": "plan"}])
-    assert found == {"plan": [2.0]}
 
 
 def ready_plan(**money):
@@ -104,13 +79,27 @@ def test_the_plan_is_worked_out_from_the_backend(world, settings):
     settings.SCORE_LEDGER_FILES = [world.ledger]
     items = [item("alpha", "closeup"), item("beta", "closeup")]
     plan = Plan.objects.create(basket_hash=guard.basket_hash(items), made_by="joey", body={"jobs": 4})
-    guard.work_out(plan, items, world.source.stage_records, FakeBackend())
+    FakeBackend.calls.clear()
+    guard.work_out(plan, items, FakeBackend())
     plan.refresh_from_db()
     assert plan.state == "ready", plan.error
+    assert ("price", "world1", ("closeup@alpha", "closeup@beta")) in FakeBackend.calls  # the runner prices, not us
     money = plan.body["money"]
-    assert money["high"] == round(2 * 13.67, 2) and money["likely"] == round(2 * 11.0 * 1.21, 2)
+    assert money["high"] == 2 * 15.0 and money["likely"] == 2 * 10.0, money
     assert money["room"] == 250.0 - 100.0 - 10.0
-    assert plan.body["time"]["likely_minutes"] > 0
+    assert plan.body["time"] == {"likely_minutes": 30.0, "high_minutes": 45.0}  # one line each, 4 jobs at once
+    assert costs.hours(125) == "2 h 05 min" and costs.hours(14) == "14 min"
+
+
+def test_an_unmeasured_buy_is_held_at_its_estimate_in_the_high_only(world, settings):
+    items = [item("alpha", "closeup")]
+    plan = Plan.objects.create(basket_hash=guard.basket_hash(items), made_by="joey", body={})
+    unmeasured = FakeBackend()
+    unmeasured.price_of = {"likely_euros": None, "high_euros": None, "guess_euros": 7.5, "runs": 0}
+    guard.work_out(plan, items, unmeasured)
+    plan.refresh_from_db()
+    money = plan.body["money"]
+    assert (money["high"], money["likely"], money["not_measured"]) == (7.5, 0.0, ["closeup@alpha"]), money
 
 
 def test_a_launch_through_the_confirm_page(world, settings, tmp_path):
@@ -173,13 +162,3 @@ def test_the_result_line_gives_the_state(tmp_path):
     import os
     assert backend.poll(LaunchHandle(command=[], pid=os.getpid(), log=str(log))).state == "running"
     assert backend.poll(LaunchHandle(command=[], pid=None, log=str(log))).state == "failed"
-
-
-@override_settings(SCORE_LEDGER_FILES=[])
-def test_measured_runs_come_from_the_ledgers_tickets(tmp_path, settings):
-    ledger = tmp_path / "ledger.jsonl"
-    ledger.write_text('{"ticket": "closeup@alpha k", "euros": 9.5, "wall_minutes": 12}\n'
-                      '{"ticket": null, "euros": 3}\n{"ticket": "terrain k2", "euros": 4.0, "minutes": 7}\n')
-    settings.SCORE_LEDGER_FILES = [ledger]
-    found = list(localrun.LocalBackend().measured())
-    assert found == [MeasuredRun("closeup", 9.5, 12), MeasuredRun("terrain", 4.0, 7)]

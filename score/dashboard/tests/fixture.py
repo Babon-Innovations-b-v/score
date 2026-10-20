@@ -10,7 +10,7 @@ import json
 import pathlib
 
 from score import graph, review, stages
-from score.dashboard.launch.backend import GroupPlan, LaunchHandle, LaunchState, MeasuredRun
+from score.dashboard.launch.backend import GroupPlan, LaunchHandle, LaunchState
 from score.dashboard.state.local import LocalSource
 from score.dashboard.state.models import Spend
 from score.store import Store
@@ -177,9 +177,6 @@ class FakeBackend:
     def spend(self):
         FakeBackend.calls.append(("spend",))
         return Spend(spent=self.spent, reserved=self.reserved, ceiling=self.ceiling, as_of="2026-10-18T12:00:00+00:00")
-
-    def measured(self):
-        return [MeasuredRun("closeup", 10.0, 30.0), MeasuredRun("closeup", 12.0, 40.0)]
 
     def launch(self, group, jobs, rebuy_reason):
         FakeBackend.calls.append(("launch", group, jobs, rebuy_reason))

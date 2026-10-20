@@ -53,8 +53,8 @@ findings.json's contract. Bible: `architecture/components`.
   row's from `compute.run_price`, a free row's from `compute.node_minutes`, read once a plan). A row without minutes
   is listed with why and walked as no time, so the walk is only a lower bound (`at_least_minutes`); likely and high
   are given only when every row has minutes. `price.plan_eta` runs it over every chain's and after-work row, and
-  `score price <environment> --holes` writes it as the record's `eta`. The cockpit's launch guard still sums lines
-  itself (`score/dashboard/state/costs.py` `time_of`); moving it onto `eta` is the cockpit's remake track (#10).
+  `score price <environment> --holes` writes it as the record's `eta`. The cockpit's launch guard takes the time of
+  `checkout/pricing.totals` over the runner's prices (ADR-0006); moving it onto `eta` is the cockpit's remake track (#10).
 - **The remake's plan is the runner's too** (`milestones.py`, in the same record): a hole's chain and each place's
   line run past its completion gate to the line's ends (`chain.line_chain`: the nodes no node reads, the films and
   the hand-over; an optional read walked like any other, so the people are in), and the environment's own line;

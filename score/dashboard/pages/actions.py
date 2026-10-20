@@ -236,7 +236,7 @@ def start_plan(user, jobs):
         return "a plan is already being worked out"
     plan = Plan.objects.create(basket_hash=guard.basket_hash(items), made_by=user,
                                body={"jobs": max(1, min(32, int(jobs or guard.DEFAULT_JOBS)))})
-    guard.work_out_soon(plan, items, state.source().stage_records)
+    guard.work_out_soon(plan, items)
     return "working out the plan"
 
 

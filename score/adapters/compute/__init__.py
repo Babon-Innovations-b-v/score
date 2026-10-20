@@ -359,7 +359,8 @@ def read_back_books():
     Google's bill was read (its billing export, read_google_bill); else they keep the state they had for this month,
     `lost` when none, which refuses paid work (ledger.books_refusal) with the reason it was not read. The owner's
     Google figure (`google_before`) stays and overrides the bill read (google_month). Whether the Scaleway bill holds
-    VAT is not known (SCORE_BILL_FACTOR is unsettled)."""
+    VAT is not known (the bill factor is unsettled; once settled it is applied here, in the runner, and nowhere
+    else: ADR-0006)."""
     books = ledger()
     month = books.this_month()
     held = books.this_months_books()

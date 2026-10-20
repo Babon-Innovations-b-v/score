@@ -52,7 +52,6 @@ SCORE_OWNER = os.environ.get("SCORE_OWNER", "").strip()
 SCORE_STORE_WRITABLE = os.environ.get("SCORE_STORE_WRITABLE", "1") == "1"
 SCORE_COMPUTE_BACKEND = os.environ.get("SCORE_COMPUTE_BACKEND", "score.dashboard.launch.localrun:LocalBackend")
 SCORE_LEDGER_FILES = [pathlib.Path(item) for item in os.environ.get("SCORE_LEDGER_FILES", "").split(":") if item]
-SCORE_BILL_FACTOR = float(os.environ.get("SCORE_BILL_FACTOR", "1.21"))
 SCORE_MONTH_EUROS = os.environ.get("SCORE_MONTH_EUROS", "").strip() or None
 # The fresh 3D web copies (python -m score.dashboard web3d <place>), made from each accepted assembly.
 SCORE_WEB_COPIES = pathlib.Path(os.environ.get("SCORE_WEB_COPIES", SCORE_HOME / "web3d"))

@@ -4,7 +4,6 @@
         name: str
         def plan(self, group: RunGroup) -> GroupPlan: ...      # missing inputs, nodes to run, buys with estimates, refusal
         def spend(self) -> Spend: ...                          # the environment against its stop, the month by source
-        def measured(self) -> Iterable[MeasuredRun]: ...       # stage, euros, minutes of earlier paid runs
         def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle: ...
         def poll(self, handle: LaunchHandle) -> LaunchState: ...
         def price(self, world: str, nodes: list) -> dict: ...  # {node: Price fields, or {error}}: the runner's numbers
@@ -16,7 +15,7 @@ own module and sets the variable; no code for one is in this repository.
 """
 import dataclasses
 import importlib
-from typing import Iterable, Protocol
+from typing import Protocol
 
 from score.dashboard.state.models import Spend
 
@@ -36,13 +35,6 @@ class GroupPlan:
     refusal: str | None
     to_run: dict  # {node: why}
     blocked: dict  # {node: why}
-
-
-@dataclasses.dataclass
-class MeasuredRun:
-    stage: str
-    euros: float | None
-    minutes: float | None
 
 
 @dataclasses.dataclass
@@ -75,8 +67,6 @@ class ComputeBackend(Protocol):
     def plan(self, group: RunGroup) -> GroupPlan: ...
 
     def spend(self) -> Spend: ...
-
-    def measured(self) -> Iterable[MeasuredRun]: ...
 
     def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle: ...
 

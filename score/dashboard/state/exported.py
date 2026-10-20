@@ -102,6 +102,3 @@ class ExportedSource:
         detail = self.place_detail(place)
         return detail.web3d if detail else None
 
-    def stage_records(self, names):
-        return []
-
