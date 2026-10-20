@@ -14,8 +14,10 @@ is in an environment shows up in the library by construction, never by an agent'
   provenance; prepare's library match reads it. Never a hand-bumped constant.
 - **Drafts only.** The node never locks, withdraws or deletes an entry; locking is the owner's (the cockpit's library
   actions).
-- **The rows are read by nothing**, so a change here re-keys these two rows alone. Never make another row read them,
-  and never fold their gate into `complete`: demo-film (paid) reads complete.
+- **The rows are read by nothing but library-clips**, so a change here re-keys these two rows and the clips row
+  alone, and a clips node re-keyed renders only entries the handover made new without a standing clip (`clips/`, its
+  overlay): nothing is bought again. Never make another row read them, and never fold their gate into `complete`:
+  demo-film (paid) reads complete.
 - **The report's shape is a contract both ways.** A change is a new version (`handover.VERSION`), never an edit;
   `handover_example.json` holds one full report, and the library repository keeps its own copy of the shape.
 - **The library repository names files in this one.** Its `definitions/algorithms/*.toml` list score paths (roots,

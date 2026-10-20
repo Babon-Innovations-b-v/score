@@ -31,6 +31,7 @@ from score.stages import (assembly, cast, complete, concept_people, concept_view
                           physics, proposals, scene_record, settling, shapes_first, shell_split, sound,
                           surface_tiles, surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads, route_check
+from score.stages.library import clips as library_clips
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
 import score.stages.demo_film.final as demo_film_final
@@ -882,9 +883,13 @@ STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) 
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
 # is complete once its library node stands accepted, the environment once every one does (library.world_completion).
 STAGES = (*STAGES, *library.rows(STAGES, REPO / "data"))
+# Each item a place's handover made new gets its preview clip (score/stages/library/clips, paid; owner, 2026-10-20),
+# rendered after the handover in the same batch; the one row that reads library@<place>, and nothing reads it. Its
+# benchmark, library-clips-sample, clips the few drafts data/definitions/clip_samples.json names.
+STAGES = (*STAGES, library_clips.STAGE, library_clips.SAMPLE_STAGE)
 # A place's own rows, which apply to every place, kept off a line of models no place owns (the people's, #41:
 # shapes_first.no_place): it has no stage to assemble, complete or hand over, only the shared loop's rows.
-PLACE_ONLY = ("assembly", "complete", "library")
+PLACE_ONLY = ("assembly", "complete", "library", "library-clips")
 
 
 def placed(applies):
