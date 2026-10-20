@@ -111,7 +111,7 @@ def test_with_no_mark_and_no_note_the_one_button_draws_fresh_from_the_places_wor
 def test_the_page_shows_the_wording_a_draw_sends_and_his_edit_is_sent_and_kept_until_back_to_generated(world,
                                                                                                     stand_in):
     owner = signed_in()
-    generated = escape(drawing.generated("beta"))
+    generated = escape(drawing.generated(world.source.store, "beta"))
     page = owner.get("/concept/beta/").content.decode()
     assert 'id="concept-wording"' in page and generated in page and "back to generated" not in page
     owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
@@ -235,7 +235,7 @@ def test_draw_all_is_refused_when_the_total_or_the_places_changed_or_for_anyone_
 
 def test_the_page_lists_the_pictures_a_draw_sends_and_why_it_waits(world, stand_in, monkeypatch):
     sent = ["the picked concept of the yard this place sits within", "a reference for its look only"]
-    monkeypatch.setattr(drawing, "sent_pictures", lambda place: [(words, None) for words in sent]
+    monkeypatch.setattr(drawing, "sent_pictures", lambda store, place: [(words, None) for words in sent]
                         if place == "beta" else [])
     monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be picked")
     page = signed_in().get("/concept/beta/").content.decode()

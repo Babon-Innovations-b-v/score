@@ -4,7 +4,7 @@ one direct Nano Banana Pro call that his click paid for, and his pick that locks
 The store keeps them; in the framework's store an agent's process cannot write them (`recorded`: the store's own
 barrier for its owner areas, applied here, so score/store, which most stages' keys read, stays as it is):
 
-    concepts/<place>/draws/<time>.json   {place, sha, name, at, by, euros, yes, base, marks, note, wording, above}
+    concepts/<place>/draws/<time>.json   {place, sha, name, at, by, euros, yes, base, marks, note, wording, picks}
     concepts/<place>/picks/<time>.json   {place, sha (None: unlocked again), by, at}
     concepts/<place>/wordings/<time>.json {place, wording (None: back to the generated), by, at}
     blobs/<sha>                          the drawn picture (PNG)
@@ -32,13 +32,15 @@ as the place's own wording (`wordings/`, in his process only) from then on, for 
 which draw counts as current, until he takes it back to the generated one (`worded` with None; owner, 2026-10-20).
 A redraw sends the base twice: once with the marked areas boxed and numbered, once
 clean. A first draw is worded by one rule for every place at every layer (`generated`; the owner, 2026-10-20): its
-look (data/definitions/place.json, no measures), the creator's says (data/places/concept_inputs.json), the places
-listed inside it (data/places/within.json) and how they join, the place it sits within as context, the pictures sent
-with it named in order, the fixed viewpoint and the environment's style (data/definitions/concept_views.json
-`style`). A place within another is sent that one's picked concept first, and cannot be drawn while it is not
-picked (`waits`); then its references (the owner's, kept in the private bucket's references/, never the public
-repository; read from the local copy under {home}/references; a draw whose reference is not here waits). A draw's
-record keeps the pick above it was sent (`above`), so a new pick there puts it out of date (`current_draw`). A draw's
+look (data/definitions/place.json, no measures), the creator's says (data/places/concept_inputs.json), its own doors
+and openings from its plan's leads and that it has no others, its size against the places beside it in relative
+words, the places listed inside it (data/places/within.json) and how they join, the place it sits within as context,
+the pictures sent with it named in order, the fixed viewpoint and the environment's style
+(data/definitions/concept_views.json `style`). A place within another is sent that one's picked concept first, and
+cannot be drawn while it is not picked (`waits`); then the picked concept of each place beside it that it opens into,
+so their shared door matches; then its references (the owner's, kept in the private bucket's references/, never the
+public repository; read from the local copy under {home}/references; a draw whose reference is not here waits). A
+draw's record keeps the picks it was sent (`picks`), so a new pick of one puts it out of date (`current_draw`). A draw's
 price is the measured Nano Banana Pro picture (data/costs/per-unit.json, stage closeup) at the standard tier: a draw
 is one direct call, not a batch call.
 """
@@ -156,11 +158,12 @@ def undrawn(store, nodes):
 
 def current_draw(store, place, wording):
     """Whether `place` has a first draw made from `wording`, its current first-draw wording (wording_now: the
-    creator's own when set), on the pick of the layer above it now; a draw from an older wording or pick above (its
-    data, the draw rules, his wording or the pick above changed since) does not count, so Draw all draws it again."""
-    sent_above = above_sent(store, place)
+    creator's own when set), on the picks it is sent now (the layer above's and its joined places'); a draw from an
+    older wording or pick (its data, the draw rules, his wording or one of those picks changed since) does not count,
+    so Draw all draws it again."""
+    sent = sent_picks(store, place)
     return any(draw.get("base") in (None, "None") and str(draw.get("wording", "")).startswith(wording)
-               and draw.get("above") == sent_above for draw in draws(store, place))
+               and (draw.get("picks") or {}) == sent for draw in draws(store, place))
 
 
 def placed(store):
@@ -231,6 +234,8 @@ INSIDE_VIEW = ("Viewpoint: a cutaway, the roof and the near walls removed, seen 
                "corner looking down about 35 to 45 degrees, so the whole floor and every remaining wall can be read; "
                "a long lens with little perspective distortion; clear, readable light within the place's own mood.")
 EVERY_DRAW = "One picture, 16:9, no text and no labels; people in view for scale."
+ROOF_KEPT = (" Its roof features as the picture of the place it sits within shows them (openings, domes, glazing) stay "
+             "visible along the cutaway's edges.")
 
 
 def resolved(path):
@@ -365,13 +370,99 @@ def context_words(place):
     return f"This place sits within {name_of(holder)}" + (f": {first}." if first else ".")
 
 
-def sent_pictures(place):
+def unbracketed(words):
+    """`words` without its brackets (the plans' file and node notes) and measures, from its first comma."""
+    return no_sizes(re.sub(r" ?\([^)]*\)", "", words)).strip()
+
+
+def opening_words(place, side, lead):
+    """One lead of `place`'s plan in relational words: its door by its plan's label, and what it opens onto (a
+    place by its name, the outside or a tube with its `why`, so a facing the data names is said), or kept shut."""
+    plan, target = plan_of(place), lead.get("to")
+    label = re.split(r",(?![^(]*\))", door_label(plan, side))[0]
+    why = unbracketed(lead.get("why", ""))
+    if target == "sealed":
+        return f"its {label}, kept shut"
+    if target in ("outside", "tube"):
+        return f"its {label} opens onto the {target}" + (f": {why}" if why else "")
+    return f"its {label} opens into {name_of(target)}"
+
+
+def openings_words(place):
+    """Every door and opening `place`'s plan leads through, and that it has no others; "" when its plan has none."""
+    leads = plan_of(place).get("leads") or {}
+    if not leads:
+        return ""
+    said = "; ".join(opening_words(place, side, lead) for side, lead in leads.items())
+    return f"Its doors and openings, as laid out: {said}. No other doors, balconies or openings than these."
+
+
+PERSON = 1.8  # a person's height in metres, the yardstick of the relative height words
+TIMES = {2: "twice", 3: "three times", 4: "four times", 5: "five times", 6: "six times", 7: "seven times",
+         8: "eight times", 9: "nine times", 10: "ten times"}
+
+
+def floor_and_walls(place):
+    """(floor area, wall height) of `place` from its plan's `w`, `d` and the tallest measure its `height` words name
+    (a "27 x 55 m" opening's second side left out), or None when its plan gives no floor."""
+    plan = plan_of(place)
+    if not (plan.get("w") and plan.get("d")):
+        return None
+    heights = [float(found) for found in
+               re.findall(r"(?<![\d.])(?<!x )(\d+(?:\.\d+)?) ?m\b", str(plan.get("height", "")))]
+    return plan["w"] * plan["d"], max(heights, default=None)
+
+
+def size_words(place):
+    """How big `place` is against the places beside it under the same layer above, in relative words only (ranked by
+    its plan's floor area, its walls against a person's height); "" when its plan gives no floor."""
+    holder, own = above(place), floor_and_walls(place)
+    if not holder or own is None:
+        return ""
+    others = sorted(found[0] for name in inside_of(holder) if name != place and (found := floor_and_walls(name)))
+    words = []
+    if others and own[0] > others[-1]:
+        ratio = round(own[0] / others[-1])
+        words.append(f"the largest place in {name_of(holder)}, its floor "
+                     + (f"about {TIMES.get(ratio, 'many times')} any other's" if ratio >= 2 else "larger than any other's"))
+    elif others and own[0] < others[0]:
+        words.append(f"the smallest place in {name_of(holder)}")
+    elif others:
+        larger = own[0] >= others[len(others) // 2]
+        words.append(f"one of the {'larger' if larger else 'smaller'} places in {name_of(holder)}")
+    if own[1]:
+        tall = own[1] / PERSON
+        words.append("its walls several times a person's height; people are tiny inside it" if tall >= 4 else
+                     "its walls about twice a person's height" if tall >= 2 else "its ceiling a little above a person's head")
+    return f"Its size: {', '.join(words)}." if words else ""
+
+
+def joined(place):
+    """The places beside `place` under the same layer above that its plan's leads open into (a tube's `joins` too)."""
+    holder, found = above(place), []
+    for lead in (plan_of(place).get("leads") or {}).values():
+        for other in (lead.get("to"), lead.get("joins")):
+            if other and other != place and other not in found and holder and above(other) == holder:
+                found.append(other)
+    return found
+
+
+def sent_picks(store, place):
+    """{place: sha} of the picked concepts a first draw of `place` sends: the layer above's, then each joined
+    place's that is picked."""
+    return {other: sha for other in [above(place), *joined(place)] if other and (sha := picked(store, other))}
+
+
+def sent_pictures(store, place):
     """[(what it is, its source)] a first draw of `place` sends, in order: the layer above's picked concept (source:
-    that place's name) when it sits within one, then the creator's references (their paths)."""
+    that place's name) when it sits within one, each joined place's picked concept, then the creator's references
+    (their paths)."""
     holder = above(place)
     found = [(f"the picked concept of {name_of(holder)} this place sits within: this place is {name_of(place)} as "
               "it stands there, and its outer shape, size against the others, roof, windows and doors must match it",
               holder)] if holder else []
+    found += [(f"the picked concept of {name_of(other)}, which this place opens into: the door they share must match "
+               "it", other) for other in joined(place) if picked(store, other)]
     return found + [(f"a reference for {ref['shows']}; never its size, layout or viewpoint", resolved(ref["picture"]))
                     for ref in inputs_of(place).get("references", [])]
 
@@ -383,14 +474,16 @@ def indoors(place):
     return said if said is not None else (above(place) is not None and place not in tree()["shells"])
 
 
-def generated(place):
-    """The first-draw wording of `place` by the one rule, every part from data."""
-    pictures = sent_pictures(place)
+def generated(store, place):
+    """The first-draw wording of `place` by the one rule, every part from data and the picks it is sent."""
+    pictures = sent_pictures(store, place)
     listed = "Attached pictures, in order: " + "; ".join(
         f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "." if pictures else ""
+    roof = (ROOF_KEPT if indoors(place) and above(place) else "")
     return " ".join(part for part in (
-        f"One concept painting of {name_of(place)}.", *own_words(place), holding_words(place), context_words(place),
-        listed, f"{INSIDE_VIEW if indoors(place) else OUTSIDE_VIEW} {EVERY_DRAW}", style()) if part)
+        f"One concept painting of {name_of(place)}.", *own_words(place), openings_words(place), size_words(place),
+        holding_words(place), context_words(place), listed,
+        f"{INSIDE_VIEW if indoors(place) else OUTSIDE_VIEW}{roof} {EVERY_DRAW}", style()) if part)
 
 
 def waits(store, place):
@@ -415,7 +508,7 @@ def own_wording(store, place):
 
 def wording_now(store, place):
     """The wording the next first draw of `place` sends: the creator's own when he set one, else the generated."""
-    return own_wording(store, place) or generated(place)
+    return own_wording(store, place) or generated(store, place)
 
 
 def worded(store, place, wording, by):
@@ -439,7 +532,7 @@ def kept_as_own(store, place, request, by):
     asked = checked_wording(request.get("wording"))
     if request.get("base") or asked is None:
         return
-    own = None if asked == generated(place) else asked
+    own = None if asked == generated(store, place) else asked
     if own != own_wording(store, place):
         worded(store, place, own, by)
 
@@ -510,14 +603,8 @@ def request_parts(store, place, request):
         raise Refused(f"{place} {why}")
     sent = checked_wording(request.get("wording")) or wording_now(store, place)
     pictures = [Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{picked(store, source)}")))
-                if isinstance(source, str) else Image.open(source) for _, source in sent_pictures(place)]
+                if isinstance(source, str) else Image.open(source) for _, source in sent_pictures(store, place)]
     return with_note(sent, note), pictures
-
-
-def above_sent(store, place):
-    """The sha of the layer above's pick a first draw of `place` sends now, None when it sits within nothing."""
-    holder = above(place)
-    return picked(store, holder) if holder else None
 
 
 def redraw_preview():
@@ -593,7 +680,7 @@ def draw(store, place, request, by, caller=call, offsite=None):
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,
               "euros": yes["euros"], "yes": yes["key"], "base": request.get("base") or None,
               "marks": checked_marks(request.get("marks")), "note": str(request.get("note", "")), "wording": wording,
-              "above": None if request.get("base") else above_sent(store, place)}
+              "picks": None if request.get("base") else sent_picks(store, place)}
     record = kept_offsite(png, record, offsite)
     recorded(store, f"{AREA}/{place}/draws/{stamp_key(record['at'])}.json", record)
     return record
