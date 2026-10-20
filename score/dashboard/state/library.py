@@ -16,7 +16,6 @@ from urllib.parse import quote
 
 from pydantic import BaseModel
 
-from score import library as score_library
 from score.dashboard.state.files import HERO_SIDE, SHA, THUMB_SIDE, thumbnail
 
 KINDS = [("model", "Models"), ("surface", "Surfaces"), ("effect", "Effects"), ("light", "Lights"),
@@ -293,6 +292,7 @@ class LocalLibrary(Library):
     def entries(self):
         signature = self.signature()
         if self.kept["signature"] != signature:
+            from score import library as score_library  # here: the hosted image holds score/dashboard alone
             found = sorted((self.read_entry(record) for record in score_library.entries(self.root)), key=kind_order)
             self.kept = {"signature": signature, "entries": found, "files": None}
         return self.kept["entries"]
