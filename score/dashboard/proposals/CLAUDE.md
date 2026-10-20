@@ -6,7 +6,9 @@ background: the runner's plan of the whole environment takes minutes). Layout an
 `make.py`; the free after and each paid node's inputs: `assemble.py`; the after's 3D copy and what changes:
 `details.py`. A department declares an item, its words and its questions with `python -m score.dashboard basket-item
 <id> --title ... --says ... --node '<pattern>' --picture ... --ask ... --recommend ...` (kept across makes; an item
-may span places); the owner's answers are in `answers.json` (`python -m score.dashboard basket-answers`).
+may span places); the owner's answers are in `answers.json` (`python -m score.dashboard basket-answers`). The
+benchmarks are one item, "Benchmarks" (`benchmarks.py`, #21): prepare's listed benchmarks at prepare's estimate,
+written into the index by each sync pass and each make, launched by the checkout as their own batch.
 
 Rules:
 

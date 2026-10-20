@@ -33,7 +33,7 @@ from PIL import Image
 from score.dashboard.checkout import pricing
 from score.dashboard.launch import guard
 from score.dashboard.launch.backend import RunGroup
-from score.dashboard.proposals import assemble, details, records
+from score.dashboard.proposals import assemble, benchmarks, details, records
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 WORK = "proposals-work"
@@ -292,7 +292,7 @@ def nodes_by_place(found):
 
 def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line: None, plan_only=False):
     """Make the basket into home/proposals/: the plan, its items, each place's details (none with `plan_only`: no
-    place is assembled); the index. `say` gets one line a place."""
+    place is assembled), prepare's benchmarks item last (proposals/benchmarks.py); the index. `say` gets one line a place."""
     root, work = pathlib.Path(home) / "proposals", pathlib.Path(home) / WORK
     root.mkdir(parents=True, exist_ok=True)
     work.mkdir(parents=True, exist_ok=True)
@@ -311,6 +311,7 @@ def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line:
             say(f"{place or records.ENVIRONMENT}: failed: {str(failed)[-200:]}")
     for ident, given in declared.items():
         declared_details(ident, given, root)
+    found = benchmarks.with_item(found, benchmarks.from_record(pathlib.Path(real_store).parent))
     index = {"made_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "commit": commit(),
              "refusal": planned.refusal, "missing": planned.missing, "items": found, "plan_only": plan_only}
     records.put_index(root, index)

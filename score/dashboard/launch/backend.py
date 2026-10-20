@@ -22,10 +22,12 @@ from score.dashboard.state.models import Spend
 
 @dataclasses.dataclass(frozen=True)
 class RunGroup:
-    """Places that queued the same stages: one runner command. No places: environment stages only."""
+    """Places that queued the same stages: one runner command. No places: environment stages only. `benchmarks`: the
+    basket's Benchmarks item, one batch of its own command (proposals/benchmarks.py), no places or stages."""
     places: tuple
     stages: tuple
     world: str = "world1"
+    benchmarks: bool = False
 
 
 @dataclasses.dataclass

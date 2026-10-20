@@ -25,8 +25,13 @@ the one figure the creator says yes to. Today it prepares the environment's rema
 - **Quality is never a cost lever** (owner, 2026-10-20): never lower a setting that ships (Pixal3D's steps, held at
   the #55 lock in `tools/props/pixal.py`; film samples; resolutions; the finish list's thinking), and never list a
   benchmark that would.
-- **Benchmarks are listed, never launched here** (`benchmarks.py`, EUR 20 cap in all, counted on their highs): each
-  through `score run --detach` once its track has landed, after `benchmarks.guard()` (the month's guard) has room.
+- **The benchmarks are one basket item, bought only by the owner's Buy** (`benchmarks.py`, #21; EUR 20 cap in all,
+  counted on their highs with the row estimates of the unmeasured ones): prepare lists each with its estimate and
+  minutes, the cockpit shows them as the item "Benchmarks" (`score/dashboard/proposals/benchmarks.py`), and his
+  checkout starts `python -m score.stages.complete.prepare.benchmarks run --detach`, one batch under the stop his yes
+  wrote: each benchmark planned free first, one whose inputs do not stand (or that would buy another paid row) a gap,
+  never substituted; the rest each one `score run`, one after another. A benchmark with no paid path is listed as a
+  gap. Never start the batch from an agent.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
   `WORK/checks/prepare/remake.json`. Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python
   score/stages/complete/prepare/prepare_test.py`.

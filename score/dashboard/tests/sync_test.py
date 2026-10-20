@@ -403,7 +403,8 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     assert "library problems" in said, said  # the library sweep ran before the export was built
     # and the holes after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
     assert "holes failed: exit 1: no store at " in said, said
-    assert said.endswith(f"{PRICED}; remake batch (estimate): test; library pictures: test")  # priced before the push
+    # priced before the push
+    assert said.endswith(f"{PRICED}; remake batch (estimate): test; benchmarks: none listed; library pictures: test")
     assert priced == [world.source.world.name]
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 
@@ -419,7 +420,7 @@ def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_p
     monkeypatch.setattr(client, "runner_price", lambda repo, environment: (None, "the runner's price failed: exit 1"))
     said = client.sync_pass(hosted, world.source, FakeBackend())
     assert said.startswith("REFUSED: nothing synced: the runner's price failed: exit 1; ") and "holes" in said
-    assert said.endswith("; remake batch (estimate): test; library pictures: test")
+    assert said.endswith("; remake batch (estimate): test; benchmarks: none listed; library pictures: test")
     assert hosted.commits == [] and hosted.chunks == [] and hosted.reports == []
 
 

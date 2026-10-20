@@ -10,7 +10,9 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
 - **Order is fixed:** the runner's own plan of each item must buy only the priced nodes -> stop line at spend so far
   + in flight + the basket's high plus 10% (`flow.BUFFER`: a batch's stop is its own high plus the buffer, set by
   his yes; there is no stop he sets, CONTEXT.md "batch") -> the runner's spend must show room -> ONE batch through the compute backend (a
-  run command an item). Nothing here stops a run once started.
+  run command an item). Nothing here stops a run once started. The Benchmarks item (`proposals/benchmarks.py`) is
+  priced at prepare's estimate and launched as its own batch (`RunGroup.benchmarks`), which plans each benchmark
+  itself; its stop is its high, guesses in, plus 10% like any item's.
 - **Prices are the runner's.** Each node's likely and high euros, minutes and cards come from the runner's own plan
   (`score plan`, C19) through the backend; nothing here guesses a number. A node the runner has not measured has no
   price (likely and high None): `pricing.totals` keeps its stage's estimate apart as `guessed_euros`, the pages say

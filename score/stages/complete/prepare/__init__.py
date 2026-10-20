@@ -12,7 +12,7 @@ one ETA on the fixed fleet and the predicted holes beside them. Nothing here buy
     contract.py    each take's inputs by contract (view, box, size, the view's picture) and its crop's upscale
     machines.py    one class and zone a layer, from the runner's order, the ledgers' boot records and the stock
     estimate.py    the layers' units, euros and minutes, the ETA (holes/schedule.py) and the one line
-    benchmarks.py  the benchmarks that settle #21's cuts, with their guard; never launched from here
+    benchmarks.py  the benchmarks that settle #21's cuts, their guard and their one batch (the owner's Buy starts it)
 
 The record (`WORK/checks/prepare/remake.json` by default):
 
