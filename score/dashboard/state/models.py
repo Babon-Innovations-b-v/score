@@ -199,6 +199,8 @@ class WorldState(BaseModel):
     concept_draws: dict[str, list["ConceptDraw"]] = {}
     concept_picked: dict[str, str] = {}
     concept_draw_euros: float | None = None
+    concept_undrawn: list[str] = []  # the places and shells with no draw yet whose first draw can be made now
+    concept_unready: dict[str, str] = {}  # {place or shell with no draw yet: why its first draw cannot be made now}
 
 
 class ConceptDraw(BaseModel):

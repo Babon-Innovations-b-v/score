@@ -372,7 +372,10 @@ def concept_draw(user, payload):
     try:
         asked = {"marks": payload.get("marks") or [], "note": str(payload.get("note") or ""),
                  "base": payload.get("base") or None}
-        record = web.concept_draw(source.store, str(payload["place"]), asked, float(payload["euros"]), by=user)
+        place, together = str(payload["place"]), payload.get("all")
+        record = web.concept_draw(source.store, place, asked, float(payload["euros"]), by=user, first=bool(together),
+                                  purpose=together and (f"concept review: Draw all, {int(together['count'])} first "
+                                                        f"draws for EUR {float(together['euros']):.2f}: one of {place}"))
     except (review.Refused, PermissionError, FileExistsError, KeyError, TypeError, ValueError,
             subprocess.TimeoutExpired) as refused:
         return f"refused: {refused}", None

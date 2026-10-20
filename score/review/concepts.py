@@ -115,6 +115,23 @@ def picked(store, place):
     return found[-1]["sha"] if found else None
 
 
+def undrawn(store, nodes):
+    """The Environment's Draw all (owner, 2026-10-20): ([node] of `nodes` with no draw yet whose first draw can be
+    made now, {node: why not} for the others with none). An inside place is drawn from its own plan and view, as a
+    single draw is, never held for its outside's pick."""
+    ready, waiting = [], {}
+    for node in nodes:
+        if store.objects.keys(f"{AREA}/{node}/draws/"):
+            continue
+        try:
+            first_wording(node)
+        except Refused as refused:
+            waiting[node] = str(refused)
+        else:
+            ready.append(node)
+    return ready, waiting
+
+
 def placed(store):
     """The places with a draw or a pick in the store."""
     return sorted({key.split("/")[1] for key in store.objects.keys(f"{AREA}/")})

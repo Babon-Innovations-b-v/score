@@ -78,6 +78,7 @@ def environment(request):
     trail = cockpit.trail(world, found["names"], at) if at else []
     if trail is None:
         raise Http404(f"nothing sits within {at}")
+    world = world.model_copy(update={"concepts": {**world.concepts, **concepts.newest_pictures(world)}})
     rows = cockpit.of_kind(found["rows"], kind) if kind else found["rows"]
     tiles = cockpit.tiles(world, found["names"], rows, at)
     head = at and {**cockpit.head(world, found["names"], rows, at), "review": concepts.review_href(world, at)}
@@ -89,7 +90,8 @@ def environment(request):
     return render(request, "pages/environment.html", {
         "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(world), "trail": trail,
         "kind": kind and {"kind": kind, "label": cockpit.KIND_WORDS[kind][0], "tone": cockpit.KIND_TONES[kind]},
-        "head": head, "tiles": tiles})
+        "head": head, "tiles": tiles, "draw_all": concepts.draw_all(world), "drawing": concepts.drawing(),
+        "owner": is_owner(request.user) and actions.decisions_on()})
 
 
 def stats(request):

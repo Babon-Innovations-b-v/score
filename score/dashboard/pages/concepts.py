@@ -191,6 +191,65 @@ def concept_draw(request, place):
     return JsonResponse({"said": "asked", "request": queued(request, place, DRAW, payload)})
 
 
+def draw_all(world):
+    """The Environment's Draw all (owner, 2026-10-20): {places, count, each, euros (count times each), waiting (how
+    many with no draw cannot be drawn now)} of every place or shell with no draw yet whose first draw can be made now
+    and none on its way; None when there is none or no measured price."""
+    places = [node for node in world.concept_undrawn if not draws_of(world, node) and not pending_of(node)]
+    each = world.concept_draw_euros
+    if not places or each is None:
+        return None
+    euros = round(len(places) * each, 2)
+    return {"places": places, "count": len(places), "each": each, "euros": euros,
+            "waiting": len(world.concept_unready), "body": json.dumps({"places": places, "euros": euros})}
+
+
+def drawing():
+    """True while any of the owner's draws is on its way (the Environment reads itself again until none is)."""
+    return SyncRequest.objects.filter(kind=DRAW, state__in=OPEN).exists()
+
+
+def newest_pictures(world):
+    """{place: its picked draw's picture, else its newest} of the places the concept review drew, hosted with those
+    answered since the export, so a card shows a draw as soon as it lands."""
+    found = {}
+    for place in {*world.concept_draws, *(item.payload.get("place") for item in
+                                          SyncRequest.objects.filter(kind=DRAW, state="done"))} - {None}:
+        draws, picked = draws_of(world, place), picked_of(world, place)
+        if draws:
+            found[place] = next((draw.picture for draw in draws if draw.picture.sha == picked), draws[-1].picture)
+    return found
+
+
+@require_POST
+def concept_draw_all(request):
+    """POST {places, euros}: the owner's Draw all click, his one spend yes for exactly those first draws at that
+    total (draw_all as his page showed it); each queued as its own draw at the per-draw price, applied side by side
+    on the store's machine, each refused there once the price moved or its place has a draw. JSON {said, requests},
+    or {detail} when refused."""
+    source = state.source()
+    world = light_world(source)
+    body = body_of(request)
+    if not is_owner(request.user):
+        return JsonResponse({"detail": "only the owner draws"}, status=403)
+    if body is None:
+        return JsonResponse({"detail": "refused: not a draw request"}, status=422)
+    shown = draw_all(world)
+    if shown is None or sorted(map(str, body.get("places") or [])) != sorted(shown["places"]):
+        return JsonResponse({"detail": "refused: the places to draw changed; read the page again"}, status=409)
+    try:
+        euros = float(body.get("euros"))
+    except (TypeError, ValueError):
+        return JsonResponse({"detail": "refused: no total"}, status=422)
+    if abs(euros - shown["euros"]) > 0.005:
+        return JsonResponse({"detail": f"refused: the total shown, EUR {euros:.2f}, is not today's "
+                                       f"(EUR {shown['euros']:.2f}); read the page again"}, status=409)
+    together = {"count": shown["count"], "euros": shown["euros"]}
+    asked = [queued(request, place, DRAW, {"marks": [], "note": "", "base": None, "euros": shown["each"],
+                                           "all": together}) for place in shown["places"]]
+    return JsonResponse({"said": f"asked {len(asked)} draws", "requests": asked})
+
+
 @require_POST
 def concept_pick(request, place):
     """POST {sha}: the owner's Pick of a draw (sha None: his unlock); JSON {said}, or {detail} when refused."""
