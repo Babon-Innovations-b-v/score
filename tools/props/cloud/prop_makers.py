@@ -1,8 +1,9 @@
 """The real makers and free checks of prop_batch.run: each paid step one batch over every prop still in it, through
 the runners and the ledgered clients that already make these outputs, so the batch is paid and recorded as they are.
 
-    close-up      Nano Banana Pro from this PC (../closeup/stage.py's Pro takes through pro.draw, google_spend's
-                  ledger and cache: a drawn close-up is never drawn again); a kept close-up is not asked at all
+    close-up      Nano Banana Pro from this PC (../closeup/stage.py's one Pro take a prop, its wording chosen free
+                  first, through pro.draw, google_spend's ledger and cache: a drawn close-up is never drawn again);
+                  a kept close-up is not asked at all
     image-to-3d   batch.py: one Pixal3D batch over every prop's new take, on the cheapest card that holds it (L4
                   first, capacity.KIND_ORDER) and as many takes to a card as it runs at once (RUNS_PER_24GB), each
                   finished here with pixal.py --finish-only as the batch does; a take already made is not asked again
@@ -171,22 +172,23 @@ def came_back(code, made, log, what):
 # --- the makers ------------------------------------------------------------------------------------------------------
 
 def make_closeups(props, out):
-    """Nano Banana Pro's close-up of each prop as the close-up stage draws one (the crop alone, then with the room for
-    what still fails its measured shape check), the first that passes copied to out/closeups/<name>.png."""
+    """Nano Banana Pro's close-up of each prop as the close-up stage draws one: one take a prop, its wording chosen free
+    first (stage.pro_wording: the crop alone, or with the room when the crop is small), copied to
+    out/closeups/<name>.png when it passes its measured shape check. One that fails is a hole, not drawn again (a
+    batch runs every job once)."""
     import check
     import stage
     folder = pathlib.Path(out) / "closeups" / "pro"
     rows = {prop["name"]: closeup_row(prop) for prop in props}
     stage.make_crops(list(rows.values()), folder)
-    failed, made = {row["id"] for row in rows.values()}, {}
-    for take in stage.PRO_TAKES:
-        stage.draw_with_pro(list(rows.values()), folder, failed, take)
-        for name, row in rows.items():
-            picture = folder / take / f"{row['id']}.png"
-            if name not in made and picture.exists() and not check.measured_faults(check.measure(picture, row["size"])):
-                shutil.copyfile(picture, drawn_closeup({"name": name}, out))
-                made[name] = {"caller": "pro", "picture": str(drawn_closeup({"name": name}, out))}
-        failed = {row["id"] for name, row in rows.items() if name not in made}
+    take, made = stage.PRO_TAKES[0], {}
+    stage.draw_with_pro(list(rows.values()), folder, {row["id"] for row in rows.values()}, take)
+    for name, row in rows.items():
+        picture = folder / take / f"{row['id']}.png"
+        if picture.exists() and not check.measured_faults(check.measure(picture, row["size"])):
+            shutil.copyfile(picture, drawn_closeup({"name": name}, out))
+            made[name] = {"caller": "pro", "picture": str(drawn_closeup({"name": name}, out)),
+                          "pro_wording": row["pro_wording"]}
     return made
 
 

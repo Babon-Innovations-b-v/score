@@ -69,26 +69,57 @@ def test_the_picture_batch_skips_rows_already_drawn():
 
 def test_a_row_takes_the_first_picture_that_passed_and_records_its_cost():
     row, out = a_place()
-    for take in ("qwen", "pro", "pro-room"):
+    for take in ("qwen", "pro"):
         (out / take).mkdir(parents=True)
         Image.new("RGB", (8, 8)).save(out / take / "cabinet.png")
     by_qwen = stage.accepted(row, out, {"qwen": []}, 0.12)
     assert by_qwen["accepted"] == "qwen-edit" and by_qwen["pro_dollars"] == 0 and by_qwen["euros"] == 0.12
-    by_room = stage.accepted(row, out, {"qwen": ["judge: fail"], "pro": ["judge: fail"], "pro-room": []}, 0.2)
-    assert by_room["accepted"] == "nano-banana-pro" and by_room["take"] == "pro-room"
-    assert by_room["pro_dollars"] == 2 * stage.pro.DOLLARS_A_PICTURE
-    unresolved = stage.accepted(row, out, {"qwen": ["judge: fail"], "pro": ["judge: fail"],
-                                           "pro-room": ["judge: fail"]}, 0.2)
-    assert unresolved["accepted"] is None and unresolved["picture"] is None
-    totals = stage.summary([by_qwen, by_room, unresolved], {"qwen": {"euros": 1.0}, "judge-qwen": {"euros": 0.5}})
+    by_pro = stage.accepted(dict(row, pro_wording="crop"), out, {"qwen": ["judge: fail"], "pro": []}, 0.2)
+    assert by_pro["accepted"] == "nano-banana-pro" and by_pro["take"] == "pro" and by_pro["pro_wording"] == "crop"
+    assert by_pro["pro_dollars"] == stage.pro.DOLLARS_A_PICTURE
+    hole = stage.accepted(row, out, {"qwen": ["judge: fail"], "pro": ["judge: fail"]}, 0.2)
+    assert hole["accepted"] is None and hole["picture"] is None
+    totals = stage.summary([by_qwen, by_pro, hole], {"qwen": {"euros": 1.0}, "judge-qwen": {"euros": 0.5}})
     assert totals["by_qwen"] == 1 and totals["by_pro"] == 1 and totals["for_review"] == 1
-    assert totals["pro_pictures"] == 4 and totals["cloud_euros_per_accepted"] == 0.75
+    assert totals["pro_pictures"] == 2 and totals["cloud_euros_per_accepted"] == 0.75
 
 
-def test_pro_s_first_take_leaves_the_room_out():
-    assert "Image 2" not in stage.PRO_TAKES["pro"] and "Image 2" in stage.PRO_TAKES["pro-room"]
+def test_pro_draws_one_take_a_row_worded_before_it_is_drawn():
+    """A batch draws each row once (CONTEXT.md, owner 2026-10-20): the room is chosen free, from the crop's size, not
+    as a second paid take for what the crop alone failed."""
+    assert stage.PRO_TAKES == ("pro",)
+    assert "Image 2" not in stage.PRO_WORDINGS["crop"] and "Image 2" in stage.PRO_WORDINGS["room"]
     body = stage.pro.request_body("words", Image.new("RGB", (8, 8)))
     assert len(body["contents"][0]["parts"]) == 2
+    row, _ = a_place()
+    assert stage.pro_wording(row) == "room"  # a 100 by 50 box: 140 pixels with its margin, under SHORTEST_CROP
+    assert stage.pro_wording(dict(row, box=[100, 100, 600, 400])) == "crop"
+    assert stage.with_pro_wordings([dict(row, pro_wording="crop")])[0]["pro_wording"] == "crop"  # chosen once
+
+
+def test_pro_asks_again_only_for_a_rate_or_quota_refusal_and_an_empty_answer_is_a_hole():
+    import urllib.error
+    asked, waits = [], []
+    answers = [urllib.error.HTTPError("u", 429, "Too Many Requests", {}, None), {"candidates": []}]
+
+    def generate(*arguments, **options):
+        asked.append(1)
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+    kept = stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep
+    stage.pro.compute.require_cleared = lambda what: None
+    stage.pro.google_spend.generate, stage.pro.time.sleep = generate, waits.append
+    try:
+        path = pathlib.Path(tempfile.mkdtemp()) / "a.png"
+        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
+        assert len(asked) == 2 and len(waits) == 1 and not path.exists()  # the empty answer is not asked again
+        answers[:] = [urllib.error.HTTPError("u", 500, "Internal", {}, None), {"candidates": []}]
+        assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
+        assert len(asked) == 3 and len(waits) == 1  # any other refusal is a hole at once
+    finally:
+        stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep = kept
 
 
 def test_a_step_s_cost_is_kept_for_a_run_that_is_run_again():

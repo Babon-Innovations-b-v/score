@@ -14,12 +14,14 @@ the out folder and is skipped when they are there, so a run that stops is run ag
    the crop and the whole concept as references, spread over as many 80 GB cards as draw it in about one setup's
    time (../cloud/spread.py), each card taking the next share as it finishes one.
 3. qwen/judge/<id>.txt: the judge's answer for each (../cloud/judge.py), and the shape check (check.py) on top.
-4. pro/<id>.png, then pro-room/<id>.png: Nano Banana Pro for each close-up the check failed (pro.py), judged and
-   checked the same way: first from the crop alone (CROP_ONLY), then, for what still fails, with the whole concept
-   as its second reference (WORDING). Skipped with --no-pro.
+4. pro/<id>.png: Nano Banana Pro for each close-up the check failed (pro.py), one take a row, judged and checked
+   the same way. Its wording is chosen free before it is drawn and kept on the row (`pro_wording`, pro_wording()):
+   the crop alone (CROP_ONLY), or with the whole concept as a second reference (WORDING) when the row's crop is
+   under SHORTEST_CROP before it is scaled up. A row whose Pro take fails is a hole, never drawn again here (a
+   batch, CONTEXT.md, owner 2026-10-20). Skipped with --no-pro.
 5. closeups.json: per row the accepted picture and the model that made it (none when every take failed: those are
-   left for the creator to look at), every take's faults and the row's cost; the batches' ledger entries and the
-   totals.
+   holes left for the creator to look at), every take's faults, its Pro wording and the row's cost; the batches'
+   ledger entries and the totals.
 
 Printed words on a close-up do not matter: labels and print are put on the model as decals later.
 """
@@ -61,9 +63,11 @@ CROP_ONLY = ("Make one clean product picture of a single object for a 3D model m
              "fine detail. The object: {words}. Its size: {wide:.2f} m wide, {deep:.2f} m deep and {tall:.2f} m tall; keep "
              "those proportions exactly. Image 1 shows this object among other things: take its shape, parts, materials, "
              "paint, wear and colours from it and ignore everything around it.")
-# Pro's takes in order, each judged before the next: its folder under the out folder and its wording. The room
-# reference is the second take, for an object the crop alone does not make clear.
-PRO_TAKES = {"pro": CROP_ONLY, "pro-room": WORDING}
+# Pro's wordings, one chosen a row before anything is drawn (pro_wording): the crop alone, or with the room as a
+# second reference for an object whose crop is too small to make it clear.
+PRO_WORDINGS = {"crop": CROP_ONLY, "room": WORDING}
+# Pro's one take a row (a batch draws each once), by its folder under the out folder.
+PRO_TAKES = ("pro",)
 MARGIN = 0.2
 SHORTEST_CROP = 512
 
@@ -74,16 +78,36 @@ def wording(row, text=WORDING):
     return text.format(words=row["words"], wide=wide, deep=deep, tall=tall)
 
 
-def crop(concept, box):
-    """The box in the concept with a fifth of margin round it, scaled up to at least SHORTEST_CROP on its long side."""
+def crop_bounds(size, box):
+    """The box with a fifth of margin round it, kept inside a picture of `size` (wide, high)."""
     left, top, right, bottom = box
     margin = MARGIN * max(right - left, bottom - top)
-    cut = concept.crop((max(0, left - margin), max(0, top - margin), min(concept.width, right + margin),
-                        min(concept.height, bottom + margin)))
+    return (max(0, left - margin), max(0, top - margin), min(size[0], right + margin), min(size[1], bottom + margin))
+
+
+def crop(concept, box):
+    """The box in the concept with a fifth of margin round it, scaled up to at least SHORTEST_CROP on its long side."""
+    cut = concept.crop(crop_bounds(concept.size, box))
     if max(cut.size) < SHORTEST_CROP:
         scale = SHORTEST_CROP / max(cut.size)
         cut = cut.resize((round(cut.width * scale), round(cut.height * scale)), Image.LANCZOS)
     return cut.convert("RGB")
+
+
+def pro_wording(row):
+    """The row's Pro wording, chosen free before anything is drawn: "room" when its crop is under SHORTEST_CROP on its
+    long side before it is scaled up (too small to make the object clear alone), else "crop". Reads only the
+    concept's size."""
+    with Image.open(row["concept"]) as concept:
+        left, top, right, bottom = crop_bounds(concept.size, row["box"])
+    return "room" if max(right - left, bottom - top) < SHORTEST_CROP else "crop"
+
+
+def with_pro_wordings(rows):
+    """The rows, each with its Pro wording kept on it (`pro_wording`), chosen once."""
+    for row in rows:
+        row.setdefault("pro_wording", pro_wording(row))
+    return rows
 
 
 def rows_from_inventory(inventory):
@@ -178,17 +202,18 @@ def checked(row, out, take):
                         [check.answer_of(reply.read_text()) if reply.exists() else None for reply in replies])
 
 
-def draw_with_pro(rows, out, failed, take):
-    """A Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet, worded as the take says (PRO_TAKES)."""
+def draw_with_pro(rows, out, failed, take=PRO_TAKES[0]):
+    """One Nano Banana Pro close-up into out/<take>/ for each failed row not drawn yet, worded as the row's
+    `pro_wording` says (chosen first where the row has none). Each is asked once: one with no picture is a hole."""
     from secret_store import secret
 
     (out / take).mkdir(parents=True, exist_ok=True)
     todo = [row for row in rows if row["id"] in failed and not (out / take / f"{row['id']}.png").exists()]
     key = secret(pro.KEY_SECRET) if todo else None
-    for row in todo:
+    for row in with_pro_wordings(todo):
         cut = Image.open(out / "crops" / f"{row['id']}.jpg")
-        concept = Image.open(row["concept"]) if PRO_TAKES[take] is WORDING else None
-        pro.draw(key, wording(row, PRO_TAKES[take]), cut, concept, out / take / f"{row['id']}.png")
+        concept = Image.open(row["concept"]) if row["pro_wording"] == "room" else None
+        pro.draw(key, wording(row, PRO_WORDINGS[row["pro_wording"]]), cut, concept, out / take / f"{row['id']}.png")
 
 
 def kept_entry(entry, path):
@@ -208,14 +233,16 @@ def share(entry, count):
 
 def accepted(row, out, faults, euros):
     """One row's record: every take's faults, the first take that passed (its picture and model; none when every take
-    failed, left for the creator to look at), the cloud's euros and Pro's dollars for the row."""
+    failed, a hole left for the creator to look at), its Pro wording, the cloud's euros and Pro's dollars for the
+    row."""
     takes = [take for take in ("qwen", *PRO_TAKES) if take in faults]
     passed = next((take for take in takes if not faults[take]), None)
     pro_pictures = sum((out / take / f"{row['id']}.png").exists() for take in takes if take != "qwen")
     model = {None: None, "qwen": "qwen-edit"}.get(passed, "nano-banana-pro")
     return {"id": row["id"], "accepted": model,
             "picture": str(out / passed / f"{row['id']}.png") if passed else None,
-            "take": passed, "faults": {take: faults[take] for take in takes}, "euros": euros,
+            "take": passed, "faults": {take: faults[take] for take in takes}, "pro_wording": row.get("pro_wording"),
+            "euros": euros,
             "pro_dollars": pro_pictures * pro.DOLLARS_A_PICTURE}
 
 
@@ -250,6 +277,7 @@ def run(rows, out, use_pro=True, dry_run=False):
     if problems:
         raise SystemExit("the box gate stops the close-ups:\n  " + "\n  ".join(problems))
     make_crops(rows, out)
+    with_pro_wordings(rows)
     if dry_run:
         draw_with_qwen(rows, out, dry_run=True)
         judge(rows, out, "qwen", dry_run=True)
@@ -258,16 +286,14 @@ def run(rows, out, use_pro=True, dry_run=False):
     entries["judge-qwen"] = kept_entry(judge(rows, out, "qwen"), out / "qwen" / "judge" / "batch.json")
     faults = {row["id"]: {"qwen": checked(row, out, "qwen")} for row in rows}
     failed = {row_id for row_id, found in faults.items() if found["qwen"]}
-    for take in PRO_TAKES if use_pro else ():
-        if not failed:
-            break
+    if use_pro and failed:
+        take = PRO_TAKES[0]
         draw_with_pro(rows, out, failed, take)
         entries[f"judge-{take}"] = kept_entry(judge([row for row in rows if row["id"] in failed], out, take),
                                               out / take / "judge" / "batch.json")
         for row in rows:
             if row["id"] in failed:
                 faults[row["id"]][take] = checked(row, out, take)
-        failed = {row_id for row_id in failed if faults[row_id][take]}
     records = [accepted(row, out, faults[row["id"]], row_euros(row, out, entries)) for row in rows]
     result = {"rows": records, "batches": entries, "totals": summary(records, entries)}
     (out / "closeups.json").write_text(json.dumps(result, indent=1))
