@@ -12,7 +12,8 @@ other than unchanged or refused) and with no standing clip are rendered.
            and saves. The output: clips.json (per wanted entry: address, shelf, slug, why, planned), <slug>.mp4
            and <slug>.png (its first frame), attach.json (the library's report), plan.json (the library's plan).
     gate   clipped  every planned clip came back with FRAMES frames, its first frame not blank, attached and saved;
-                    an entry with no clip to make (a sound, a locked one) is named, never a fault
+                    an entry with no clip to make (a sound, a locked one) is named, never a fault. The whole-clip half
+                    (`whole_faults`) is asked before attach too: one clip not whole and none is attached
 
 Framing by shelf (blender/framing.py): a model, character, kit or surface turns round; an effect or a motion plays in
 place; a sky or a place's lamps light a sample room the eye sweeps round. A sound has no clip; nor do an algorithm
@@ -202,7 +203,12 @@ def rendered_rows(planned, library, frames, out):
     manifest.write_text(json.dumps({"search": str(library), "size": list(SIZE), "items": items}, indent=1))
     render(manifest, frames, forecast(len(planned))["high_minutes"], out / "render.log")
     rows = clip_rows(planned, frames, out, json.loads((frames / "rendered.json").read_text()))
-    attach(rows, out)
+    faults = [fault for row in rows for fault in whole_faults(out, row)]
+    if faults:  # the gate fails before attach: no clip of a failed batch goes into the library
+        handover.write(out / ATTACH, {"attached": [], "refused": [], "saved": {
+            "committed": None, "pushed": False, "why": "not attached, the clips are not whole: " + "; ".join(faults)}})
+    else:
+        attach(rows, out)
     return rows
 
 
@@ -248,8 +254,8 @@ def frame_count(film):
     return int(done.stdout.strip()) if done.returncode == 0 and done.stdout.strip().isdigit() else None
 
 
-def clip_faults(folder, row, attached):
-    """Why one made clip is not a whole one in its entry, or [] when it is."""
+def whole_faults(folder, row):
+    """Why one clip is not whole (not made, short of frames, its first frame blank or missing), or [] when it is."""
     if row["why"]:
         return [f"{row['address']}: {row['why']}"]
     film, poster = folder / f"{row['slug']}.mp4", folder / f"{row['slug']}.png"
@@ -257,9 +263,17 @@ def clip_faults(folder, row, attached):
     counted = frame_count(film) if film.is_file() else None
     if counted != framing.FRAMES:
         faults.append(f"{row['address']}: {counted} of {framing.FRAMES} frames in its clip")
-    if poster.is_file() and max(ImageStat.Stat(Image.open(poster).convert("RGB")).stddev) < SPREAD_LEAST:
+    if not poster.is_file():
+        faults.append(f"{row['address']}: no first frame")
+    elif max(ImageStat.Stat(Image.open(poster).convert("RGB")).stddev) < SPREAD_LEAST:
         faults.append(f"{row['address']}: blank")
-    if row["address"] not in attached:
+    return faults
+
+
+def clip_faults(folder, row, attached):
+    """Why one made clip is not a whole one in its entry, or [] when it is."""
+    faults = whole_faults(folder, row)
+    if not row["why"] and row["address"] not in attached:
         faults.append(f"{row['address']}: not in its entry")
     return faults
 

@@ -119,5 +119,9 @@ def item_stage(folder, row):
     elif row["shelf"] == "lamp" and row["points"]:
         lamp_room(layer, row["points"])
     layer.defaultPrim = default_prim(row["open"])
+    # A stage's units are its root layer's; unauthored, USD reads centimetres and Blender's import shrank every item
+    # a hundredfold under a camera framed in metres (the blank clips of library-clips-sample, 2026-10-20).
+    layer.pseudoRoot.SetInfo("metersPerUnit", 1.0)
+    layer.pseudoRoot.SetInfo("upAxis", "Y")
     layer.Save()
     return path
