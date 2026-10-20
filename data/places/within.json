@@ -24,7 +24,9 @@
   "camp": {"within": "campgrounds", "from": "data/plans/campgrounds.json notes: the habitat stands in the middle, its own place; data/plans/camp.json inside"},
   "stairwell": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it; data/plans/stairwell.json: the block on the west of the street"},
   "flat": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it; data/plans/flat.json leads E to the stairwell"},
-  "street": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it"},
-  "launch": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it"}
+  "street": {"within": "square", "from": "the owner, 2026-10-20: the Square is the outside place, the whole area round the Hong Kong shoreline square; the street, the flat, the stairwell and the launch are places within it"}
+ },
+ "parts": {
+  "launch": {"of": "square", "as": "across the water in the distance, the rocket launch", "from": "the owner, 2026-10-21: \"the launch concept can just go; it's now the same as the main (Square)\": no concept of its own, its look in the Square's; the stage table keeps it as a place for now"}
  }
 }

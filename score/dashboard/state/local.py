@@ -566,20 +566,23 @@ class LocalSource:
         drawn now, the creator's own wording, the pictures a first draw sends and what a redraw sends."""
         from score.review import concepts
         return ConceptWording(generated=concepts.generated(self.store, node),
-                              own=concepts.own_wording(self.store, node), refused=concepts.waits(self.store, node), redraw=concepts.redraw_preview(),
+                              own=concepts.own_wording(self.store, node), refused=concepts.waits(self.store, node),
+                              unpickable=concepts.step_refusal(self.store, node, "pick"),
+                              redraw=concepts.redraw_preview(),
                               pictures=[words for words, _ in concepts.sent_pictures(self.store, node)],
                               context=[{"place": name, "sha": sha}
                                        for name, sha in concepts.sent_picks(self.store, node).items()])
 
     def hierarchy(self):
-        """{within, shells} of data/places/within.json: what each place or shell sits within (a part of a place's
-        outside, `parts`, sits within that place), and the shells that are no place of their own with their short
-        names; empty while the file is not there."""
+        """{within, shells, parts} of data/places/within.json: what each place or shell sits within (a part of a place's
+        outside, `parts`, sits within that place and has no card), and the shells that are no place of their own with
+        their short names; empty while the file is not there."""
         path = self.data / "places" / "within.json"
         found = json.loads(path.read_text()) if path.is_file() else {}
         parts = {name: {"within": entry["of"]} for name, entry in found.get("parts", {}).items()}
         return {"within": {name: entry["within"] for name, entry in {**found.get("within", {}), **parts}.items()},
-                "shells": {name: entry["name"] for name, entry in found.get("shells", {}).items()}}
+                "shells": {name: entry["name"] for name, entry in found.get("shells", {}).items()},
+                "parts": sorted(parts)}
 
     # --- one place ---------------------------------------------------------------------------------------------
 

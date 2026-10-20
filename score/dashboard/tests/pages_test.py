@@ -457,9 +457,9 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
     a_gaps_finding(world, settings, tmp_path)
     a_gaps_price(world)
     (world.data / "places").mkdir(exist_ok=True)
-    (world.data / "places/within.json").write_text(json.dumps({  # alpha a part of beta: within it
+    (world.data / "places/within.json").write_text(json.dumps({  # alpha within beta
         "shells": {"yard": {"name": "Yard"}, "empty": {"name": "Empty"}},
-        "within": {"beta": {"within": "yard"}}, "parts": {"alpha": {"of": "beta", "as": "its far view"}}}))
+        "within": {"beta": {"within": "yard"}, "alpha": {"within": "beta"}}}))
     client = signed_in()
 
     def tiles(page):

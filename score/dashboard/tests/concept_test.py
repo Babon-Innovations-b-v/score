@@ -337,3 +337,26 @@ def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_run
     assert 'class="concept-box unnamed"' in page and 'style="left:50.0%;top:50.0%' in page
     assert "inventories EUR</small> 0.13" in signed_in("joey2").get("/").content.decode()
     assert "Inventory readings" in signed_in("joey3").get("/stats/").content.decode()
+
+
+def test_a_part_of_another_places_outside_has_no_card(world, stand_in):
+    (world.data / "places").mkdir(exist_ok=True)
+    (world.data / "places/within.json").write_text(json.dumps({
+        "shells": {}, "within": {}, "parts": {"alpha": {"of": "beta", "as": "its far view"}}}))
+    html = signed_in().get("/").content.decode()
+    assert 'href="/concept/alpha/"' not in html and 'href="/place/alpha/"' not in html
+
+
+def test_draw_and_pick_are_disabled_with_the_reason_while_the_layer_above_is_not_ready(world, stand_in, monkeypatch):
+    owner = signed_in()
+    owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
+    monkeypatch.setattr(drawing, "step_refusal", lambda store, place, step: "waits for yard's plan to be made")
+    page = owner.get("/concept/beta/").content.decode()
+    draw = page[page.index('id="concept-draw"'):].split(">", 1)[0]
+    pick = page[page.index('id="concept-pick"'):].split(">", 1)[0]
+    assert " disabled" in draw and "waits for yard&#x27;s plan to be made" in draw
+    assert " disabled" in pick and "waits for yard&#x27;s plan to be made" in pick
+    sha = drawing.draws(world.source.store, "beta")[-1]["sha"]
+    answer = owner.post("/concept/beta/pick/", json.dumps({"sha": sha}), content_type="application/json")
+    assert answer.status_code == 409 and "plan to be made" in answer.json()["detail"]  # the server refuses the same
+    assert drawing.picked(world.source.store, "beta") is None

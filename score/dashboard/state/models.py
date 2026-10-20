@@ -192,6 +192,7 @@ class WorldState(BaseModel):
     gaps_price: GapsPrice | None = None
     remake: Remake | None = None
     within: dict[str, str] = {}  # {place or shell: the outside place or shell it sits within} (data/places/within.json)
+    parts: list[str] = []  # places that are part of another's outside, no concept and no card of their own
     shells: dict[str, str] = {}  # {outside shell that is no place of its own: its short name}
     concepts: dict[str, FileRef] = {}  # {place or shell: its concept picture} (data/places/concepts.json); absent: lost
     # The concept review's (score/review/concepts.py): each place's draws oldest first, the draw picked (locked) for
@@ -221,6 +222,7 @@ class ConceptWording(BaseModel):
     refused: str | None = None
     redraw: str = ""
     pictures: list[str] = []
+    unpickable: str | None = None  # why its Pick is refused now (concepts.step_refusal), None when it is not
     context: list[dict] = []  # [{place, sha}] the picked concepts it is drawn on, which the owner may mark too
 
 

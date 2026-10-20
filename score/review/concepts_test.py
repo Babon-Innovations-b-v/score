@@ -48,6 +48,16 @@ def prompt_stand_in(asked, answer="The corrected prompt."):
     return corrected
 
 
+def ready_above(monkeypatch, box=(0, 0, 32, 20)):
+    """Stand-ins for the layer above's scene inventory reading, its made plan and the box of the row holding a place
+    (reading.py's and the plan's own tests own those)."""
+    from score.review import reading
+    monkeypatch.setattr(reading, "reading_of", lambda store, place: {"stand-in": place})
+    monkeypatch.setattr(concepts, "plan_made", lambda store, place: True)
+    monkeypatch.setattr(concepts, "holding_row", lambda store, place: "holder")
+    monkeypatch.setattr(reading, "row_boxes", lambda store, place, row: [list(box)])
+
+
 def said_yes(store, monkeypatch, place="campgrounds"):
     key = concepts.yes_key(place, review.now())
     review.spend(store, "override", key, 0.15, "joey", purpose="test")
@@ -227,20 +237,19 @@ def picked_draw(store, monkeypatch, place, colour):
 
 def test_a_place_within_another_is_sent_its_picked_picture_first_and_its_wording_as_context(store, monkeypatch):
     base = picked_draw(store, monkeypatch, "base", (200, 10, 10))
+    ready_above(monkeypatch)
     said_yes(store, monkeypatch, "lab")
     asked = []
     record = concepts.draw(store, "lab", {}, "joey", caller=stand_in(asked))
     wording, sizes = asked[0]
-    assert sizes == [(64, 40)] and record["picks"] == {"base": base}  # the base's picked draw, the only picture
-    assert wording.startswith("Concept painting of the lab, inside the base.")
-    assert "1. the base, picked: match how this place stands in it" in wording
+    assert sizes == [(32, 20)] and record["picks"] == {"base": base}  # only the crop of what holds it
+    assert wording.startswith("Concept painting of the lab: the inside of what picture 1 shows.")
+    assert "1. a crop of the base's picked concept: draw the inside of what this crop shows" in wording
     assert concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
     picked_draw(store, monkeypatch, "base", (10, 200, 10))  # a new pick above: the lab's draw is out of date
     assert not concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
     assert concepts.undrawn(store, ["base", "lab"])[0] == ["lab"]
-    cockpit = concepts.generated(store, "cockpit")
-    assert "In the ship; for flying the ship: two pilot seats" in cockpit
-    assert cockpit.startswith("Concept painting of the cockpit, inside the ship.")
+    assert "In the ship; for flying the ship: two pilot seats" in concepts.generated(store, "cockpit")
 
 
 def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
@@ -256,12 +265,13 @@ def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
 def test_a_reference_comes_from_the_places_data_and_waits_while_it_is_not_here(store, tmp_path, monkeypatch):
     monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
     monkeypatch.setattr(concepts, "picked", lambda _store, place: "abc" if place == "hangar" else None)
+    ready_above(monkeypatch)
     assert "is not on this machine" in concepts.waits(store, "quarters")  # its reference, the owner's quarters picture
     (tmp_path / "references").mkdir()
     Image.new("RGB", (8, 8)).save(tmp_path / "references" / "quarters.png")
     assert concepts.waits(store, "quarters") is None
     sources = [source for _, source in concepts.sent_pictures(store, "quarters")]
-    assert sources == ["hangar", tmp_path / "references/quarters.png"]  # the ship is no layer: the hangar's pick
+    assert sources == [("crop", "hangar", [0, 0, 32, 20]), tmp_path / "references/quarters.png"]
     assert concepts.generated(store, "quarters").endswith("Style: 2099 space base, moon base, mars "
                                                  "base, SpaceX-type rockets, Chinese and American mixed.")
 
@@ -275,8 +285,7 @@ def test_the_ships_length_and_reference_come_from_the_hangars_data_and_reach_its
     monkeypatch.setattr(concepts, "inputs_of", lambda place: given.get(place, {}))
     hangar = concepts.generated(store, "hangar")
     assert "It holds a barge 80 m long." in hangar and "46 m" not in hangar
-    assert "inside the hangar." in concepts.generated(store, "galley")  # its data names no outside here
-    assert len(concepts.sent_pictures(store, "hangar")) == 1  # the base's pick only: no reference in its data now
+    assert concepts.sent_pictures(store, "hangar") == []  # no crop while the base is not ready, no reference now
 
 
 def test_no_measure_is_generated_but_the_creators_own_says(store):
@@ -373,12 +382,13 @@ def test_a_places_wording_names_its_own_doors_and_openings_and_no_others(store):
 def test_a_picked_place_it_opens_into_is_sent_after_the_one_above_and_its_new_pick_puts_the_draw_out_of_date(
         store, monkeypatch):
     square = picked_draw(store, monkeypatch, "square", (200, 10, 10))
+    ready_above(monkeypatch)
     assert concepts.sent_picks(store, "flat") == {"square": square}  # the stairwell is not picked yet: not sent
     said_yes(store, monkeypatch, "stairwell")
     concepts.pick(store, "stairwell", concepts.draw(store, "stairwell", {}, "joey", caller=stand_in([]))["sha"],
                   "joey")
     words = [words for words, _ in concepts.sent_pictures(store, "flat")]
-    assert words[0] == "the square, picked: match how this place stands in it"
+    assert words[0] == "a crop of the square's picked concept: draw the inside of what this crop shows"
     assert words[1] == "the stairwell, picked: match the door they share"
     said_yes(store, monkeypatch, "flat")
     asked = []
@@ -407,6 +417,7 @@ def test_every_generated_wording_is_short(store):
 
 def test_a_mark_on_the_picture_above_reaches_both_calls_with_that_picture_boxed(store, monkeypatch):
     picked_draw(store, monkeypatch, "base", (200, 10, 10))
+    ready_above(monkeypatch)
     said_yes(store, monkeypatch, "lab")
     first = concepts.draw(store, "lab", {}, "joey", caller=stand_in([]))
     said_yes(store, monkeypatch, "lab")
@@ -439,11 +450,34 @@ def test_no_two_ship_rooms_get_the_same_wording_or_references(store):
     assert references == {**{room: [] for room in SHIP_ROOMS}, "cockpit": ["cockpit.png"], "quarters": ["quarters.png"]}
 
 
-def test_a_room_whose_outside_is_a_thing_in_the_hangar_forgets_the_hangar(store):
-    cockpit = concepts.generated(store, "cockpit")
-    assert cockpit.startswith("Concept painting of the cockpit, inside the ship.")
-    assert "Its outside is the ship (a crew shuttle 46 m long, its rooms along one deck)" in cockpit
-    assert "nothing of the hangar, its floor or other rooms" in cockpit and "filling the frame" in cockpit
-    assert "1. the hangar, picked: only for the look of the ship (its hull, materials, windows)" in cockpit
-    assert "in the hangar" not in cockpit and concepts.ROOF_KEPT not in cockpit
-    assert "Its outside is" not in concepts.generated(store, "lab")  # the base itself is the lab's outside
+def test_a_place_is_drawn_only_once_the_layer_above_is_picked_read_and_planned_and_holds_it(store, monkeypatch):
+    from score.review import reading
+    assert concepts.waits(store, "hub") == "waits for base's concept to be picked"
+    picked_draw(store, monkeypatch, "base", (200, 10, 10))
+    assert concepts.waits(store, "hub") == "waits for base's scene inventory to be read"
+    monkeypatch.setattr(reading, "reading_of", lambda store, place: {"stand-in": place})
+    assert concepts.waits(store, "hub") == "waits for base's plan to be made"
+    monkeypatch.setattr(concepts, "plan_made", lambda store, place: True)
+    assert concepts.waits(store, "hub") == "waits for base's plan to outline what holds it"
+    ready_above(monkeypatch)
+    assert concepts.waits(store, "hub") is None and "hub" in concepts.undrawn(store, ["hub"])[0]
+    said_yes(store, monkeypatch, "hub")
+    drawn = concepts.draw(store, "hub", {}, "joey", caller=stand_in([]))
+    monkeypatch.setattr(concepts, "plan_made", lambda store, place: False)  # the plan above is made again
+    with pytest.raises(concepts.Refused, match="hub waits for base's plan to be made"):
+        concepts.pick(store, "hub", drawn["sha"], "joey")
+    said_yes(store, monkeypatch, "hub")
+    with pytest.raises(concepts.Refused, match="hub waits for base's plan to be made"):
+        concepts.draw(store, "hub", {"base": drawn["sha"], "note": "x"}, "joey", caller=stand_in([]),
+                      reviser=prompt_stand_in([]))
+    assert concepts.step_refusal(store, "hub", "read") == "its concept is not picked"
+    assert concepts.step_refusal(store, "base", "read") is None
+    monkeypatch.setattr(reading, "reading_of", lambda store, place: None)
+    assert concepts.step_refusal(store, "base", "plan") == "its scene inventory is not read"
+
+
+def test_a_part_of_a_places_outside_has_no_concept_of_its_own(store):
+    assert concepts.waits(store, "launch") == "is part of the square's concept, with none of its own"
+    assert "launch" not in concepts.undrawn(store, ["square", "launch"])[0]
+    assert "launch" not in concepts.undrawn(store, ["square", "launch"])[1]
+    assert "part of it: across the water in the distance, the rocket launch" in concepts.generated(store, "square")
