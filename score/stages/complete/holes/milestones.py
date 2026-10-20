@@ -14,7 +14,8 @@ A node's step, first match:
     after     it reads a completion gate, directly or through others, or no node of the remake reads it (a line's
               end): the films, the showcase renders, the hand-over
     made      the rest: what each place holds (props, finishes, light, sound, people, its layers)
-A route stage the table does not have yet makes no node; its holes' code work names it.
+A route stage the table does not have yet makes no node; its step is still a milestone, its `missing` stages named
+and, with no node, `unpriced` with why (STEP_STAGES against the table: never one environment's list).
 
 A milestone:
 
@@ -23,8 +24,10 @@ A milestone:
      "set": {"euros", "nodes", "from": [{"at", "euros", "nodes"}]},  (the stage table's set budgets of the paid
                                        nodes with no measured price: set, never measured, never in the sums)
      "unknown": [{"node", "why"}],     (each paid node with no measured price, with its reason)
-     "after_work": {"likely_euros", "high_euros", "unknown", "nodes"},  (what the record prices after code work
-                                       whose holes wait at this step: the prop route, the Pixal3D code work)
+     "after_work": {"likely_euros", "high_euros", "unknown", "nodes", "counts"},  (what the record prices after
+                                       code work whose holes wait at this step: the prop route, the Pixal3D code
+                                       work; `counts` each priced node's unit_source, how its count was made)
+     "missing": [stages],              (the step's route stages no row of the table does yet)
      "work": [{"work", "holes"}],       (the holes' code work no stage does yet that waits at this step, raw lines;
                                        the cockpit folds them into its tasks and the owner's own)
      "owner": [words],                 (the owner's steps: the month's books before the first paid step)
@@ -35,12 +38,13 @@ then {"key": "environment-film", ...} (no row of the table makes it: unpriced, w
 """
 import heapq
 
+from score import stages
 from score.graph import chain, node_name
 from score.stages.complete.holes import fill, inputs
 
-GROUND = ("terrain",)
-SHAPES = ("concept-views", "plan", "scene-record", fill.ROUGH_MODEL)
-SPLIT = ("shell-split",)
+GROUND = (stages.TERRAIN.name,)
+SHAPES = tuple(fill.FILLERS[kind][0] for kind in (fill.CONCEPT, fill.PLAN, fill.ROUGH_MODEL)) + (stages.OWN_RECORD,)
+SPLIT = (fill.FILLERS[fill.SHELL_SPLIT][0],)
 STEPS = (("ground", "The ground"),
          ("shapes", "Shapes first: concept, plan and rough model"),
          ("split", "Shells split into inside places"),
@@ -49,6 +53,7 @@ STEPS = (("ground", "The ground"),
          ("complete", "Each place's completion gate"),
          ("after", "Films, showcase renders and the hand-over"))
 RANK = {key: rank for rank, (key, _) in enumerate(STEPS)}
+STEP_STAGES = {"ground": GROUND, "shapes": SHAPES, "split": SPLIT, "inside": SPLIT}  # the rows a step waits on
 MEASURED = ("measured runs", "per unit × counted", "per unit × forecast")
 ENVIRONMENT_FILM = ("no row of the stage table cuts the environment's film from its places' films (the world video "
                     "is cut outside the runner today), so the runner cannot price or time it")
@@ -222,6 +227,7 @@ def milestone(rows, key, names, record, extra):
     paid = [name for name in names if name in record["nodes"]]
     sums = priced({name: record["nodes"][name] for name in paid})
     after = priced(extra["after"])
+    counts = sorted({price["unit_source"] for price in extra["after"].values() if price.get("unit_source")})
     return {"key": key, "title": dict(STEPS)[key], "stages": stage_rows(names, set(paid)), "nodes": len(names),
             "places": len({name.partition("@")[2] for name in names if "@" in name}), "paid": paid,
             "likely_euros": sums["likely_euros"], "high_euros": sums["high_euros"], "measured": sums["measured"],
@@ -229,10 +235,17 @@ def milestone(rows, key, names, record, extra):
             "unknown": [{"node": name, "why": unknown_why(name, record["nodes"].get(name))}
                         for name in sums["unknown"]],
             "after_work": {"likely_euros": after["likely_euros"], "high_euros": after["high_euros"],
-                           "unknown": len(after["unknown"]), "nodes": len(extra["after"])},
+                           "unknown": len(after["unknown"]), "nodes": len(extra["after"]), "counts": counts},
             "work": [{"work": line, "holes": holes} for line, holes in sorted(extra["work"].items(),
                                                                               key=lambda pair: -pair[1])],
-            "owner": extra["owner"], "reads": extra["reads"]}
+            "owner": extra["owner"], "reads": extra["reads"], "missing": extra["missing"],
+            **({"unpriced": f"no row of the stage table does this yet: {', '.join(extra['missing'])}"}
+               if extra["missing"] and not names else {})}
+
+
+def missing_stages(runner, key):
+    """The route stages of step `key` (STEP_STAGES) no row of the runner's table does yet."""
+    return [stage for stage in STEP_STAGES.get(key, ()) if stage not in runner.stages]
 
 
 def milestones(runner, rows, record, found, readers, books):
@@ -248,14 +261,14 @@ def milestones(runner, rows, record, found, readers, books):
     first_paid = next((steps[name] for name in order if name in record["nodes"]), None)
     found_steps = []
     for key, _ in STEPS:
-        names = [name for name in order if steps[name] == key]
-        if not names and not work.get(key):
+        names, missing = [name for name in order if steps[name] == key], missing_stages(runner, key)
+        if not names and not work.get(key) and not missing:
             continue
         reads = sorted({steps[before] for name in names for before in edges[name]} - {key}, key=RANK.get)
         owner = [f"the month's books before any paid step: {books}"] if books and key == first_paid else []
         found_steps.append(milestone(rows, key, names, record, {"work": work.get(key, {}),
                                                                    "after": after.get(key, {}), "owner": owner,
-                                                                   "reads": reads}))
+                                                                   "reads": reads, "missing": missing}))
     return found_steps + [{"key": "environment-film", "title": "The environment's film", "unpriced": ENVIRONMENT_FILM,
                            "owner": []},
                           {"key": "approval", "title": "Your approval of the final video", "owner": [APPROVAL]}]

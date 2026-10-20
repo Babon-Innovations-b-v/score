@@ -58,5 +58,7 @@ findings.json's contract. Bible: `architecture/components`.
   measured euros, the table's set budgets apart (labelled set, never summed), each unknown node with why, the
   holes' code work waiting at it (a lost input at its earliest reader) and the owner's steps (the month's books at
   the first paid one), then the environment's film (no row: unpriced) and the owner's approval of the final video.
+  A route step whose rows the table lacks (`STEP_STAGES`, its names from the table's constants) is still a milestone,
+  its missing rows named, unpriced with why when it has no node.
   No plan is written by hand or by an agent; the cockpit only shows it. Test: `milestones_test.py`.
 - Run: `.venv/bin/python -m score.stages.complete.holes [--place P ...]`, seconds a place. Test: `holes_test.py`.

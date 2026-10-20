@@ -48,7 +48,7 @@ import re
 from score import graph
 from score.adapters import compute
 from score.graph import chain
-from score.stages.complete.holes import FINDINGS, WORLD, fill, inputs, milestones, schedule
+from score.stages.complete.holes import FINDINGS, PLACE, WORLD, fill, inputs, milestones, schedule
 
 MISSING = "missing"
 # The code work whose make, once it lands, is Pixal3D's, a model a hole: (its work line's pattern, its label), priced
@@ -349,9 +349,9 @@ def lost_readers(runner, places):
     found, concept = {}, fill.FILLERS[fill.CONCEPT][0]
     for place in [*places, None]:
         for (kind, item), entry in inputs.declared_lost(runner, place).items():
-            found.setdefault(f"place:lost:{kind}:{item}", set()).update(entry["nodes"])
+            found.setdefault(f"{PLACE}:{inputs.lost_id(kind, item)}", set()).update(entry["nodes"])
         for path in (inputs.lost_pictures(runner, place) if place and concept in runner.stages else {}):
-            found.setdefault(f"place:lost:{inputs.PICTURE}:{pathlib.Path(path).name}", set()).add(
+            found.setdefault(f"{PLACE}:{inputs.lost_id(inputs.PICTURE, pathlib.Path(path).name)}", set()).add(
                 fill.node_of(concept, place))
     return found
 

@@ -67,13 +67,14 @@ def per_unit():
         compute.PER_UNIT = kept
 
 
-def planned(findings=(ROUGH, LOST, PROPS), books=BOOKS):
-    """The toy hangar's holes record, its milestones worked out; `books` why paid work is refused (None: it is not)."""
+def planned(findings=(ROUGH, LOST, PROPS), books=BOOKS, table=TABLE):
+    """The toy hangar's holes record on `table`, its milestones worked out; `books` why paid work is refused (None:
+    it is not)."""
     data, root = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
     for place, listed in (("hangar", list(findings)), (WORLD, [])):
         (root / place).mkdir()
         (root / place / "findings.json").write_text(json.dumps({"place": place, "outputs": {}, "findings": listed}))
-    runner = graph.Runner(TABLE, graph.Environment("toy", 1, {"data": data}), Store.in_folder(tempfile.mkdtemp()),
+    runner = graph.Runner(table, graph.Environment("toy", 1, {"data": data}), Store.in_folder(tempfile.mkdtemp()),
                           model_record=lambda kind: {"kind": kind})
     kept = price.books_refused
     price.books_refused = lambda: books
@@ -137,6 +138,25 @@ def test_a_node_of_a_table_of_its_own_is_what_the_place_holds_never_a_lines_end(
     found = by_key(planned(findings=[{"id": "missing:kit_1", "rule": "missing", "node": "ship_kit@hangar"}]))
     assert "ship_kit" in [entry["stage"] for entry in found["made"]["stages"]]
     assert "ship_kit" not in [entry["stage"] for entry in found["after"]["stages"]]
+
+
+def test_a_route_step_no_row_does_yet_is_still_a_milestone_unpriced_with_why():
+    unsplit = [row("scene-record", ("rough-model",)) if stage.name == "scene-record" else stage
+               for stage in TABLE if stage.name != "shell-split"]
+    found = by_key(planned(table=unsplit))
+    assert found["split"]["missing"] == ["shell-split"] and found["inside"]["missing"] == ["shell-split"]
+    assert found["split"]["unpriced"] == "no row of the stage table does this yet: shell-split"
+    assert found["split"]["nodes"] == 0 and "unpriced" not in found["shapes"]
+    assert [entry["key"] for entry in planned()["milestones"]].count("split") == 1
+    assert by_key(planned())["split"]["missing"] == []
+
+
+def test_every_route_stage_is_a_row_of_the_real_table():
+    """A renamed row fails here, never falls silently into `made`."""
+    from score import stages
+    names = {stage.name for stage in stages.STAGES}
+    assert set(milestones.GROUND + milestones.SHAPES + milestones.SPLIT) <= names, (
+        set(milestones.GROUND + milestones.SHAPES + milestones.SPLIT) - names)
 
 
 if __name__ == "__main__":

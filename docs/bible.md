@@ -497,7 +497,7 @@ runner's key it was made under) survived. Recovery, in order:
 
 ## build/release
 
-Nothing is released yet but the paper. Commands, run locally (there is no CI and no GitHub Actions):
+Nothing is released yet but the paper and the hosted cockpit. Commands, run locally (there is no CI and no GitHub Actions):
 
 - `make paper`: builds the paper from `paper/source/score.md` with pandoc into `paper/out/score.tex`
   and `score.pdf` (citeproc, IEEE style) and into the arXiv tree `paper/arxiv/` (`main.tex`,
@@ -516,6 +516,12 @@ Nothing is released yet but the paper. Commands, run locally (there is no CI and
   bubblewrap; its cloud ledger, store, locks and logs never linked), and the root `conftest.py` refuses a pytest run
   whose `PROPS_HOME` is not such a folder (a test unlinked the real cloud ledger, 2026-10-17). `make check` runs them when code changed. While working, run only the checks your change touches.
   Render checks run Blender headless on a cloud machine, never here; nothing here runs Godot.
+- **The hosted cockpit** runs the dashboard at the commit its host repository pins (`SCORE_COMMIT` in the host's
+  Dockerfile). After a push to `main` that changes `score/dashboard`, the release moves that pin: `.venv/bin/python
+  -m score.dashboard release --host <host repository> --dockerfile <its Dockerfile> --subject "<host commit
+  subject>"` (a pushed commit only, from a worktree of its own, in the host's commit style). Once, after the first
+  release, the owner runs `install-sync` (the sync's systemd user timer, reading its token by name from his secret
+  manager each pass), so the cockpit is fed without a hand. Details: `score/dashboard/CLAUDE.md` (`sync/`).
 - `.githooks/pre-commit` (installed by `bootstrap.sh` as `core.hooksPath`) runs the same check on
   any commit that touches `paper/`. A green run means the committed PDF is the draft's.
 
