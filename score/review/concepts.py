@@ -317,24 +317,31 @@ def style(store):
     return f"Style: {found}" if found else ""
 
 
-def tree():
+def tree(store=None):
     """data/places/within.json: {within: {place: what holds it}, shells: {shell: its short name}, parts: {part: (the
     place whose outside it is part of, its words in that place's draw)}}: a part has no concept of its own (the
-    owner, 2026-10-21: the launch, now the Square's)."""
+    owner, 2026-10-21: the launch, now the Square's). Given the store, each holder's inside places are those his
+    newest kept plan of it lays out (plans.overlaid, the one rule of what sits inside what)."""
     found = json.loads((DATA / "places/within.json").read_text())
-    return {"within": {name: entry["within"] for name, entry in found["within"].items()},
+    within = {name: entry["within"] for name, entry in found["within"].items()}
+    if store is not None:
+        from score.review import plans
+        within = plans.overlaid(store, within)
+    return {"within": within,
             "shells": {name: entry["name"] for name, entry in found["shells"].items()},
             "parts": {name: (entry["of"], entry["as"]) for name, entry in found.get("parts", {}).items()}}
 
 
-def above(place):
-    """The place or shell `place` sits within, None for an outside place of its own."""
-    return tree()["within"].get(place)
+def above(place, store=None):
+    """The place or shell `place` sits within, None for an outside place of its own (`tree`: given the store, as his
+    kept plans lay it out)."""
+    return tree(store)["within"].get(place)
 
 
-def inside_of(place):
-    """The inside places the creator listed directly under `place`, in within.json's order."""
-    return [name for name, holder in tree()["within"].items() if holder == place]
+def inside_of(place, store=None):
+    """The inside places listed directly under `place`, in within.json's order (`tree`: given the store, his kept
+    plans' after them)."""
+    return [name for name, holder in tree(store)["within"].items() if holder == place]
 
 
 def name_of(place):
@@ -425,10 +432,10 @@ def door_words(place, side, lead):
     return f"{label} into {short_name(target)}"
 
 
-def holds_and_doors(place):
+def holds_and_doors(store, place):
     """One sentence: the places listed inside `place` and its own doors from its plan's leads, no others; ""
     with neither."""
-    inside, leads = inside_of(place), plan_of(place).get("leads") or {}
+    inside, leads = inside_of(place, store), plan_of(place).get("leads") or {}
     shown = [words for of, words in tree()["parts"].values() if of == place]
     parts = [f"inside: {', '.join(short_name(name) for name in inside)}" if inside else "",
              f"part of it: {'; '.join(shown)}" if shown else "",
@@ -454,13 +461,13 @@ def floor_and_walls(place):
     return plan["w"] * plan["d"], max(heights, default=None)
 
 
-def size_words(place):
+def size_words(store, place):
     """How big `place` is against the places beside it under the same layer above, in relative words only (ranked by
     its plan's floor area, its walls against a person's height); "" when its plan gives no floor."""
-    holder, own = above(place), floor_and_walls(place)
+    holder, own = above(place, store), floor_and_walls(place)
     if not holder or own is None:
         return ""
-    others = sorted(found[0] for name in inside_of(holder) if name != place and (found := floor_and_walls(name)))
+    others = sorted(found[0] for name in inside_of(holder, store) if name != place and (found := floor_and_walls(name)))
     words = []
     if others and own[0] > others[-1]:
         ratio = round(own[0] / others[-1])
@@ -478,12 +485,12 @@ def size_words(place):
     return f"Size: {', '.join(words)}." if words else ""
 
 
-def joined(place):
+def joined(store, place):
     """The places beside `place` under the same layer above that its plan's leads open into (a tube's `joins` too)."""
-    holder, found = above(place), []
+    holder, found = above(place, store), []
     for lead in (plan_of(place).get("leads") or {}).values():
         for other in (lead.get("to"), lead.get("joins")):
-            if other and other != place and other not in found and holder and above(other) == holder:
+            if other and other != place and other not in found and holder and above(other, store) == holder:
                 found.append(other)
     return found
 
@@ -491,7 +498,8 @@ def joined(place):
 def sent_picks(store, place):
     """{place: sha} of the picked concepts a first draw of `place` sends: the layer above's, then each joined
     place's that is picked."""
-    return {other: sha for other in [above(place), *joined(place)] if other and (sha := picked(store, other))}
+    return {other: sha for other in [above(place, store), *joined(store, place)]
+            if other and (sha := picked(store, other))}
 
 
 # --- the design steps, in one place (the owner, 2026-10-21) ----------------------------------------------------
@@ -512,7 +520,7 @@ def holding_row(store, place):
     (score/review/plans.holder_of), else the layer above's data/plans `holds` {place: row id}, else None."""
     from score.review import plans
     held = plans.holder_of(store, place)
-    return held["row"] if held and held["row"] else (plan_of(above(place)).get("holds") or {}).get(place)
+    return held["row"] if held and held["row"] else (plan_of(above(place, store)).get("holds") or {}).get(place)
 
 
 def holding_box(store, place):
@@ -520,7 +528,7 @@ def holding_box(store, place):
     (its surest SAM box, score/review/reading.row_boxes), or None while there is none."""
     from score.review import reading
     row = holding_row(store, place)
-    boxes = reading.row_boxes(store, above(place), row) if row else None
+    boxes = reading.row_boxes(store, above(place, store), row) if row else None
     return boxes[0] if boxes else None
 
 
@@ -529,7 +537,7 @@ def step_refusal(store, place, step):
     or None. Draw and pick: the layer above picked, its inventory read, its plan made and the row holding this place
     outlined (a draw also needs its references here); read: its own pick; plan: its own reading."""
     from score.review import reading
-    holder = above(place)
+    holder = above(place, store)
     if place in tree()["parts"]:
         return f"is part of the {tree()['parts'][place][0]}'s concept, with none of its own"
     if step == "read":
@@ -588,14 +596,14 @@ def sent_pictures(store, place):
     showing only what holds it (source: ("crop", the place above, its box)), for a place that looks out (looks_out) the
     surroundings of that around it (("view", the place above, the same box)), each joined place's picked concept
     (source: that place's name), then the creator's references (their paths)."""
-    holder = above(place)
+    holder = above(place, store)
     box = holding_box(store, place) if holder else None
     found = [(f"a crop of {short_name(holder)}'s picked concept: draw the inside of what this crop shows",
               ("crop", holder, box))] if box else []
     found += [(f"{short_name(holder)}'s picked concept around it: through its windows, this view",
                ("view", holder, box))] if box and looks_out(place) else []
     found += [(f"{short_name(other)}, picked: match the door they share", other)
-              for other in joined(place) if picked(store, other)]
+              for other in joined(store, place) if picked(store, other)]
     return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
                     for ref in references_of(store, place)]
 
@@ -613,17 +621,17 @@ def has_people(place):
                 or PEOPLE_WORDS.search(look_text(place)))
 
 
-def indoors(place):
+def indoors(store, place):
     """Whether `place` is drawn as a cutaway: as its plan says (`inside`), else when it sits within another place
     and is no shell of its own."""
     said = plan_of(place).get("inside")
-    return said if said is not None else (above(place) is not None and place not in tree()["shells"])
+    return said if said is not None else (above(place, store) is not None and place not in tree()["shells"])
 
 
-def view_words(place):
+def view_words(store, place):
     """The fixed viewpoint (an outside place from above, an inside one as a cutaway keeping the roof the picture above
     shows), the frame and whether people show, in one line."""
-    view = INSIDE_VIEW + (ROOF_KEPT if above(place) else "") if indoors(place) else OUTSIDE_VIEW
+    view = INSIDE_VIEW + (ROOF_KEPT if above(place, store) else "") if indoors(store, place) else OUTSIDE_VIEW
     return f"{view}; {EVERY_DRAW}, {WITH_PEOPLE if has_people(place) else NO_PEOPLE}."
 
 
@@ -636,7 +644,8 @@ def generated(store, place):
         f"Concept painting of {short_name(place)}" + (": the inside of what picture 1 shows." if pictures
                                                        and isinstance(pictures[0][1], tuple) else "."),
         floor_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "",
-        holds_and_doors(place), size_words(place), listed if pictures else "", view_words(place), style(store)) if part)
+        holds_and_doors(store, place), size_words(store, place), listed if pictures else "", view_words(store, place),
+        style(store)) if part)
 
 
 def own_wording(store, place):

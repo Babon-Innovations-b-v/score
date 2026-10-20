@@ -58,3 +58,15 @@ def test_the_concept_page_names_inside_places_up_front(planned):
     assert plans.named(planned.store, "alpha") == ["back_room", "loft"]
     holds = plans.current(planned.store, "alpha")["plan"]["holds"]
     assert [hold["place"] for hold in holds] == ["back_room", "loft"]
+
+
+def test_an_inside_place_his_kept_plan_adds_gets_a_card_and_a_concept_page(planned):
+    owner = signed_in()
+    owner.post("/plan/alpha/named/", json.dumps({"names": ["loft"]}), content_type="application/json")
+    plan = plans.current(planned.store, "alpha")["plan"]
+    answer = owner.post("/plan/alpha/keep/", json.dumps({"plan": plan}), content_type="application/json")
+    assert answer.status_code == 200, answer.content
+    planned.source.refresh()
+    assert 'href="/concept/loft/"' in signed_in("joey2").get("/places/?in=alpha").content.decode()
+    assert owner.get("/concept/loft/").status_code == 200
+    assert owner.get("/concept/attic/").status_code == 404

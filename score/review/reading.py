@@ -129,11 +129,11 @@ def spent(store, places):
     return round(sum(found["euros"]["total"] for place in places for found in readings(store, place)), 4)
 
 
-def asked_body(place, concept, holder_picture):
+def asked_body(place, concept, holder_picture, holder=None):
     """The Gemini request: the wording, the concept and, for a place within another, that one's picked concept."""
     from PIL import Image
     pro, _, _ = concepts.tools()
-    holder = concepts.above(place)
+    holder = holder or concepts.above(place)
     within = WITHIN.format(holder=concepts.name_of(holder)) if holder_picture else ""
     parts = [{"text": ASKED.format(within=within)}, pro.part(Image.open(concept), max(Image.open(concept).size))]
     if holder_picture:
@@ -336,9 +336,10 @@ def asked_rows(store, place, folder):
     from PIL import Image
     sha = concepts.picked(store, place)
     concept = picture_path(store, sha, folder)
-    holder = concepts.above(place)
+    holder = concepts.above(place, store)
     holder_sha = holder and concepts.picked(store, holder)
-    response, seconds = asked(asked_body(place, concept, holder_sha and picture_path(store, holder_sha, folder)))
+    holder_picture = holder_sha and picture_path(store, holder_sha, folder)
+    response, seconds = asked(asked_body(place, concept, holder_picture, holder))
     (folder / f"{place}-answer.json").write_text(json.dumps(response, indent=1))
     try:
         rows = rows_of(answer_text(response))
@@ -393,7 +394,8 @@ def read_now(store, places, by, clear=None, ask=asked_rows, boxes=boxes_of):
         boxed, loose = boxed_rows(place, rows, measured, size)
         share = round(entry["euros"] / len(asked_places), 6)
         record = {"place": place, "concept": concepts.picked(store, place), "at": concepts.now(), "by": by,
-                  "above": concepts.above(place) and concepts.picked(store, concepts.above(place)), "size": list(size),
+                  "above": (holder := concepts.above(place, store)) and concepts.picked(store, holder),
+                  "size": list(size),
                   "inventory": {"scene": place, "place": place, "concept_pick": {"sha256": concepts.picked(store, place)},
                                 "plan": {"views": [{"id": "v1", "picture": f"blobs/{concepts.picked(store, place)}"}]},
                                 "rows": boxed},
