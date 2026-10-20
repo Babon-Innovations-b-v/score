@@ -138,7 +138,8 @@ def write_entry(root, blobs, address, picture=b"\x89PNG fake picture bytes"):
     folder = root / "entries" / kind / entry_id / version
     folder.mkdir(parents=True)
     (folder / "entry.json").write_text(json.dumps({
-        "address": address, "kind": kind, "id": entry_id, "state": "draft",
+        "schema": "score-lib-entry/1", "address": address, "kind": kind, "id": entry_id, "version": int(version),
+        "state": "draft",
         "picture": {"file": "picture.png"}, "files": {"picture.png": {"sha256": sha}},
         "provenance": {"world": WORLD, "place": "garage", "node": "pixal@garage", "output": "out-1"}}))
 

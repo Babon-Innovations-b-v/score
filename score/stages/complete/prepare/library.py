@@ -1,6 +1,6 @@
 """Library first (#21 cut 1): a group whose model the creator's library already holds is reused, never bought. Read
-only from the library's own model index (`<SCORE_LIB_ROOT>/index/model.json`) and each entry's record; score never
-imports the library (score/stages/library's overlay).
+only from the library's own model index (`<SCORE_LIB_ROOT>/index/model.json`) and each entry's record, through
+`score.library` (ADR-0007); score never imports the library (score/stages/library's overlay).
 
 A library model matches a group by object kind and size ratio (groups.model_key without the kit). The index names
 no size, so a model's size is its source row's in the scene inventory it was made for (its record's `place` and
@@ -8,9 +8,7 @@ no size, so a model's size is its source row's in the scene inventory it was mad
 pipeline made from a picture (tags `prop`, `machine`, `crop`) is reusable; a code-built one (`piece`, or no tag) is
 counted apart, since #19 sends code-built objects through the pipeline.
 """
-import json
-import pathlib
-
+from score import library
 from score.stages.complete.prepare import groups
 
 PIPELINE_TAGS = ("prop", "machine", "crop")
@@ -18,11 +16,10 @@ PIPELINE_TAGS = ("prop", "machine", "crop")
 
 def library_models(root):
     """[{address, id, place, source, tag}] of the library's models, from its index and each entry's record."""
-    root = pathlib.Path(root)
     found = []
-    for entry in json.loads((root / "index" / "model.json").read_text())["entries"]:
+    for entry in library.index(root, "model")["entries"]:
         name, _, version = entry["address"].partition("/")[2].partition("@")
-        record = json.loads((root / "entries" / "model" / name / version / "entry.json").read_text())
+        record = library.entry(root, "model", name, version)
         provenance = record.get("provenance") or {}
         found.append({"address": entry["address"], "id": name, "place": provenance.get("place"),
                       "source": provenance.get("source_name") or name,

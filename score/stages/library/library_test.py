@@ -237,7 +237,7 @@ def fixture_library(name):
                            ("light", "lamp"), ("sound", "hum")):
         folder = root / "entries" / kind / entry_id / "1"
         folder.mkdir(parents=True)
-        (folder / "entry.json").write_text(json.dumps({"address": f"{kind}/{entry_id}@1", "kind": kind,
+        (folder / "entry.json").write_text(json.dumps({"schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1", "kind": kind,
                                                        "id": entry_id, "version": 1, "state": "draft", "files": {},
                                                        "provenance": {}}))
     os.environ["SCORE_LIB_ROOT"] = str(root)

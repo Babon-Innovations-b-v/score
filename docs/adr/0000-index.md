@@ -44,6 +44,7 @@ bare "ADR-NNNN".
 |---|---|---|
 | [0005](0005-no-retry-inside-a-batch.md) | No retry inside a batch, except a free step or a read that buys nothing | accepted |
 | [0006](0006-the-runner-is-the-only-pricer.md) | The runner is the only pricer; `per-unit.json` is the measurement seam | accepted |
+| [0007](0007-score-reads-score-lib-only-through-its-reader-and-command.md) | score reads score_lib only through one versioned reader and the `score-lib` command | accepted |
 
 ### Historical
 

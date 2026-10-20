@@ -36,9 +36,10 @@ stage as each stage is built; nothing moves before.
   gathers a gate's missing evidence itself (`Stage.gatherers`; a paid one cleared like a paid stage, and only when
   nothing else blocks the output) and waits on every cloud step itself. A node that does not end accepted stops its
   own line only and leaves a plain fault report, `faults/<node>.txt` beside the store (`$PROPS_HOME/store/`): the
-  cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`). A node that
-  errors on a transient fault (HTTP 5xx, a timeout, a dropped connection: `graph.transient`) runs again up to
-  `RETRIES` times, the waits doubling from `RETRY_WAIT`, before it stops its line. Once a node stops its line,
+  cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`). A free node
+  that errors on a transient fault (HTTP 5xx, a timeout, a dropped connection: `graph.transient`) runs again up to
+  `RETRIES` times, the waits doubling from `RETRY_WAIT`, before it stops its line; a paid node never runs again
+  inside the batch, its failure is a hole (ADR-0005). Once a node stops its line,
   nothing later on that line starts (a node already running may finish). Runs side by side on one store (every
   agent's `score run`) make a node's key one at a time: a file lock per node and key (`locks/` beside the store; a
   dead holder lets go at once) makes a second run wait and then reuse the first's record, so nothing is paid twice;
@@ -107,6 +108,8 @@ stage as each stage is built; nothing moves before.
   (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
   `vendored` (the table of every tool in `vendor/`: where it is called, or why it is left out; its test fails on a
   tool vendored and forgotten).
+- **`library/`** the one reader of the creator's library files (score_lib's `entries/` and `index/`), checked against
+  their schema version (ADR-0007, its overlay); nothing else in score parses them.
 - **`stages/`** the stage table (`python -m score.stages status|run|why <place> ...`). Step 0 holds the worked
   example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. `terrain` (one environment node, free, the code fallback until its prop-pipeline adapter lands) makes

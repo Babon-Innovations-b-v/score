@@ -15,12 +15,12 @@ import json
 import pathlib
 import shutil
 
+from score import library
 from score.stages.complete.library import stored
 from score.stages.library import PLACE_ROW, WORLD_ROW, backend, handover, invariant
 from score.store import PROPS_HOME
 
 OUT = PROPS_HOME / "work/checks/library-handover"
-ENTRY_FILES = "entries/*/*/*/entry.json"
 FREE = pathlib.Path(__file__).resolve().parents[3] / "data/checks/library-free.json"
 
 
@@ -45,12 +45,11 @@ def handed_of(store, places):
     return found
 
 
-def entry_row(path):
-    """One entry.json as the invariant reads it: provenance flattened, its version from its folder, its picture."""
-    record = json.loads(path.read_text())
+def entry_row(record):
+    """One entry.json record as the invariant reads it: provenance flattened, its version, its picture."""
     provenance = record.get("provenance") or {}
     picture = (record.get("files") or {}).get((record.get("picture") or {}).get("file") or "") or {}
-    return {"address": record["address"], "kind": record["kind"], "id": record["id"], "version": int(path.parts[-2]),
+    return {"address": record["address"], "kind": record["kind"], "id": record["id"], "version": int(record["version"]),
             "state": record.get("state") or "", "world": provenance.get("world"), "place": provenance.get("place"),
             "node": provenance.get("node") or next(iter(provenance.get("nodes") or []), None),
             "output": provenance.get("output"), "picture": picture.get("sha256")}
@@ -58,7 +57,7 @@ def entry_row(path):
 
 def library_rows(root):
     """Every entry of the library folder, every version."""
-    return [entry_row(path) for path in sorted(pathlib.Path(root).expanduser().glob(ENTRY_FILES))] if root else []
+    return [entry_row(record) for record in library.entries(root)] if root else []
 
 
 def library_free(world, path=FREE):
