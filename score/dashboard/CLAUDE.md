@@ -53,7 +53,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     (its line's steps accepted), complete, gaps, worst (lost, route, missing, gate), takes (prepare's, by status),
     within (the outside place or shell holding it, None for an outside one)}], `shells` {shell: short name} (the
     outside shells that are no place of their own). The hierarchy is `data/places/within.json` (shapes first: each
-    place's `within` and the data it was read from), read on the store's machine into the WorldState
+    place's `within` and the data it was read from; `parts`, a part of a place's own outside that is no place to the creator, the Street's square and launch view, sits within that place), read on the store's machine into the WorldState
     (`within`, `shells`), so the export carries it; a place it does not name is an outside place. The concepts are
     `data/places/concepts.json` (each place's or shell's concept picture: its sha256 in the store's blobs and where
     its bytes were found, hash-checked; the lost ones named with why), read into the WorldState's `concepts`
@@ -100,7 +100,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   count before one is approved), a Review and buy
   button, a tile per outside place or shell (shapes first, `cockpit.tiles`: one holding places sums their progress
   and gaps, shows what sits directly inside that holds places itself over its concept ("Ship, 8 rooms") and "+N"
-  for the rest, and opens to them at `/?in=<place or shell>`, a place's own tile first, with a
+  for the rest, and opens to them at `/?in=<place or shell>`, a place's own tile first, named Outside (no tile holds a card of its own name), with a
   trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: its concept as the header, the 3D view,
   the scene tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`, owner 2026-10-20, CONTEXT.md "design":
   design first: how many places' designs are approved and a row a place, its concept and plan state, "game layout"
@@ -200,7 +200,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `data/places/concepts.json`'s. The page asks `/concept/<place>/state/` until the draw is answered. Hosted, the
   answered draw (its record as the request's detail, its pictures in `SCORE_HOME/request-files`, served by
   `ExportedSource` beside the export's) and a pick since the export show at once; the cards follow at the next export.
-  No batch: the batch rules start once the design is approved.
+  An outside place's or shell's page names the inside places its draw is asked to hold (`asked_to_hold`; the wording
+  is `score/review/concepts.py` `shell_wording`: each at its plan's size, joined as laid out, recognisable from
+  outside, and its outside's parts). No batch: the batch rules start once the design is approved.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the

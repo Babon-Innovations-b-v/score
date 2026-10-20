@@ -5,6 +5,7 @@
 <div class="concept-layout" id="concept" data-place="{{ place }}" data-base="{{ shown.picture.sha|default:'' }}" data-euros="{{ euros|default_if_none:'' }}"{% if pending %} data-pending="{{ pending }}"{% endif %}{% if can and not picked %} data-marking{% endif %}>
   <div class="concept-stage">{% if shown %}<img id="concept-picture" src="{{ shown.picture.url }}" alt="{{ name }}, the concept" draggable="false"><div class="concept-marks" id="concept-marks" title="drag to mark an area to change"></div>{% else %}<div class="concept-none"><span class="ptile-missing" data-v>concept missing</span></div>{% endif %}</div>
   <aside class="concept-side" aria-label="what to change">
+    {% if holds %}<p class="soft small concept-holds" title="every draw is asked to hold these inside places, each at its size from its plan, joined as laid out"><span data-v>drawn to hold</span>: {% for held in holds %}<b data-v>{{ held }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
     {% if can and not picked %}
     <ol class="concept-notes" id="concept-notes"></ol>
     <label class="num-label" for="concept-note" data-v>note</label>

@@ -194,13 +194,23 @@ def look_of(place):
     return next((looks[name] for name in (f"prologue_{place}", place) if isinstance(looks.get(name), dict)), None)
 
 
+def plan_of(place):
+    """A place's plan (data/plans/<place>.json), {} when it has none."""
+    plan_path = DATA / "plans" / f"{place}.json"
+    return json.loads(plan_path.read_text()) if plan_path.is_file() else {}
+
+
 def from_data(place):
     """A first draw's wording from the place's look and plan."""
-    plan_path = DATA / "plans" / f"{place}.json"
-    plan = json.loads(plan_path.read_text()) if plan_path.is_file() else {}
     look = look_of(place) or {}
-    name = look.get("name") or plan.get("title", place).lower()
-    words = [f"One concept painting of {name}, a wide landscape view at standing eye height, the whole place in view."]
+    name = look.get("name") or plan_of(place).get("title", place).lower()
+    return " ".join([f"One concept painting of {name}, a wide landscape view at standing eye height, the whole place "
+                     "in view.", *described(place), "No people, no text, no labels."])
+
+
+def described(place):
+    """[sentence] of a place's size, look and what its plan holds, as its plan and look say them."""
+    plan, look, words = plan_of(place), look_of(place) or {}, []
     if plan.get("w") and plan.get("d"):
         words.append(f"It is about {plan['w']} m by {plan['d']} m" + (f", {plan['height']}." if plan.get("height")
                                                                      else "."))
@@ -209,8 +219,7 @@ def from_data(place):
     elements = [element["element"] for element in plan.get("elements", []) if element.get("element")]
     if elements:
         words.append(f"It holds: {'; '.join(elements)}.")
-    words.append("No people, no text, no labels.")
-    return " ".join(words)
+    return words
 
 
 def style():
@@ -239,12 +248,116 @@ def floor_wording(place, floor):
     return " ".join(words), (own[-1] if own else None)
 
 
+def tree():
+    """data/places/within.json: {within: {place: what holds it}, shells: {shell: its short name}}."""
+    found = json.loads((DATA / "places/within.json").read_text())
+    return {"within": {name: entry["within"] for name, entry in found["within"].items()},
+            "shells": {name: entry["name"] for name, entry in found["shells"].items()},
+            "parts": found.get("parts", {})}
+
+
+def parts_words(place):
+    """The parts of `place`'s own outside (within.json `parts`: seen, never walked, no place of their own), each as
+    its `as` words; "" when it has none."""
+    found = [entry["as"] for entry in tree()["parts"].values() if entry["of"] == place]
+    return f"Its outside also takes in: {'; '.join(found)}." if found else ""
+
+
+def inside_of(place):
+    """The inside places the creator listed directly under `place`, in within.json's order."""
+    return [name for name, holder in tree()["within"].items() if holder == place]
+
+
+def holds_inside(place):
+    """Whether `place` is an outside shell (one of within.json's `shells`, or a place sitting within nothing) with
+    inside places listed under it; an inside place holding one (the hangar, the ship) is drawn from inside."""
+    found = tree()
+    return (place in found["shells"] or place not in found["within"]) and bool(inside_of(place))
+
+
+def size_of(place):
+    """A place's size in words: its plan's width, depth and height, else its floor plan's length; "" when neither."""
+    plan, floor = plan_of(place), DATA / "definitions" / f"{place}_floor.json"
+    if plan.get("w") and plan.get("d"):
+        return f"{plan['w']:g} m by {plan['d']:g} m" + (f", {plan['height']}" if plan.get("height") else "")
+    if floor.is_file():
+        return f"{json.loads(floor.read_text())['length']:g} m long"
+    return ""
+
+
+def door_label(plan, side):
+    """The plan's own label of the door a lead names (`N`, `90`, `W@9`: the side, at a height), lower case."""
+    face, _, level = side.partition("@")
+    for door in plan.get("doors", []):
+        if str(door[0]) == face and (not level or door[-1] == float(level)):
+            return [part for part in door if isinstance(part, str)][-1].lower()
+    return f"{face} door"
+
+
+def joins_of(place, inside):
+    """How `place`'s open leads join it (its plan's `leads`): [(the other inside place or None, the words)]. A lead
+    onto a walkway tube joins the place it names in `joins`, else the other inside place its `why` names first."""
+    plan, found = plan_of(place), []
+    for side, lead in plan.get("leads", {}).items():
+        target, why = lead.get("to"), lead.get("why", "")
+        if target == "sealed":
+            continue
+        if target == "tube":
+            named = [name for name in inside if name not in (place, target) and name in why]
+            other = lead.get("joins") or min(named, key=why.find, default=None)
+            found.append((other, f"a walkway tube to the {other}" if other else "a walkway tube"))
+        elif target in inside:
+            found.append((target, f"opens straight into the {target}"))
+        else:
+            found.append((None, f"its {door_label(plan, side)} opens onto the {target}"))
+    return found
+
+
+def holding_words(place):
+    """A shell's inside places as the creator listed them (within.json): each named with its size from its plan,
+    what it holds itself, how each joins the others and the outside, each recognisable from outside; "" when it
+    lists none."""
+    inside = inside_of(place)
+    if not inside:
+        return ""
+    names = tree()["shells"]
+    parts, joins, said = [], [], set()
+    for name in inside:
+        title = plan_of(name).get("title", name).lower().removeprefix("the ")
+        held = [names.get(child, child).lower() + (f" ({size_of(child)})" if size_of(child) else "")
+                for child in inside_of(name)]
+        parts.append(", ".join(filter(None, [f"the {title}", size_of(name),
+                                             f"holding the {', the '.join(held)}" if held else ""])))
+        for other, words in joins_of(name, inside):
+            pair = frozenset((name, other)) if other else (name, words)
+            if pair in said:
+                continue
+            said.add(pair)
+            joins.append(f"the {name}: {words}")
+    return (f"Inside it, each its own part at its own size, are the places the creator has already laid out: "
+            f"{'; '.join(parts)}. They join as laid out: {'; '.join(joins)}. Each must be recognisable from outside "
+            "as what it is: its size, its roof, dome or glazing, and its outer doors as described.")
+
+
+def shell_wording(place):
+    """An outside shell's first draw that holds the inside places the creator already listed (the owner, 2026-10-20):
+    its whole outside from a wide high view, its own look and plan where it has them, every inside place at its size
+    joined as laid out, the parts of its outside, people for scale."""
+    return " ".join(filter(None, [
+        f"One concept painting of the whole {place} seen from outside, a wide high landscape view with every part of "
+        "it in view.", *described(place), holding_words(place), parts_words(place),
+        "People on the ground beside it for scale; no text, no labels."]))
+
+
 def first_wording(place):
     """(wording, reference path or None) of a first draw: the place's own description (its view's, a shell's floor
-    plan's, else its data's) with the environment's style; Refused when its reference is not on this machine."""
+    plan's, a shell's listed inside places', else its data's) with the environment's style; Refused when its reference
+    is not on this machine."""
     view, floor = view_of(place), DATA / "definitions" / f"{place}_floor.json"
     if view is None and floor.is_file():
         wording, view = floor_wording(place, floor)
+    elif view is None and holds_inside(place):
+        wording = shell_wording(place)
     else:
         wording = view["wording"] if view else from_data(place)
     if view is None:
@@ -315,7 +428,10 @@ def request_parts(store, place, request):
         if base not in {draw["sha"] for draw in draws(store, place)}:
             raise Refused(f"{base[:12]} is no draw of {place}")
         picture = Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{base}")))
-        return redraw_wording(marks, note), [boxed(picture, marks), picture]
+        wording = redraw_wording(marks, note)
+        if holds_inside(place):
+            wording = f"{wording} It must still hold, as described: {holding_words(place)}"
+        return wording, [boxed(picture, marks), picture]
     if marks:
         raise Refused("a first draw has no picture to mark")
     wording, reference = first_wording(place)
