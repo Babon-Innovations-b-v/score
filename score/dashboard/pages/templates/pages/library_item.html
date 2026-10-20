@@ -7,7 +7,7 @@
 } }
 </script>{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="/library/">Library</a> / <span data-v>{{ kind_label }}</span> / <span data-v>{{ entry.title }}</span></p>
+<p class="small"><a href="/library/">Library</a> / <span data-v>{{ kind_label }}</span> / <span data-v{% if entry.about %} title="{{ entry.about }}"{% endif %}>{{ entry.title }}</span></p>
 <div class="item-stage">
   {% if view == "3d" %}
   <div class="item-view" id="item3d" data-kind="{{ entry.kind }}" title="drag to turn, wheel to zoom">
@@ -27,6 +27,28 @@
     {{ viewer|json_script:"item-data" }}
   </div>
   {% if entry.kind == "model" and picture %}<figure class="item-pic" title="its picture">{% include "pages/pic.html" with src=picture name=entry.title bare=1 %}</figure>{% endif %}
+  {% elif view == "demo" %}
+  <div class="item-view demo-view" id="demo"{% if entry.about %} title="{{ entry.about }}"{% endif %}>
+    <output class="demo-tip" id="demo-tip" hidden></output>
+    {{ demo|json_script:"demo-data" }}
+  </div>
+  <div class="demo-side">
+    <p class="small" data-v title="the real example it works on">{{ demo.example }}</p>
+    <ol class="demo-steps" id="demo-steps">{% for label in steps %}<li data-step="{{ forloop.counter0 }}" tabindex="0" data-v>{{ label }}</li>{% endfor %}</ol>
+    <button type="button" id="demo-play" title="play its steps again">&#9654; again</button>
+    {% if demo.slider %}<label class="demo-slider" title="its output at another setting: the algorithm run again with it"><span data-v>{{ demo.slider.label }}</span>
+      <input type="range" id="demo-slider" min="0" max="{{ demo.slider.values|length|add:'-1' }}" step="1" value="{{ demo.slider.at }}">
+      <output id="demo-value" data-v>{% for value in demo.slider.values %}{% if forloop.counter0 == demo.slider.at %}{{ value }}{% endif %}{% endfor %} {{ demo.slider.unit }}</output></label>{% endif %}
+    {% if demo.view == "relief" %}<p class="small" data-v>drag to turn</p>{% endif %}
+  </div>
+  {% elif view == "diagram" %}
+  <figure class="item-pic item-only diagram" title="no example of its work is here yet: {{ diagram.why }}">
+    <div class="diagram-box" title="what it reads"><span data-v>{% for read in diagram.reads %}{{ read }}{% if not forloop.last %}, {% endif %}{% empty %}its place's records{% endfor %}</span></div>
+    <span class="diagram-arrow">&rarr;</span>
+    <div class="diagram-box diagram-it"{% if entry.about %} title="{{ entry.about }}"{% endif %}><span data-v>{{ entry.title }}</span></div>
+    <span class="diagram-arrow">&rarr;</span>
+    <div class="diagram-box" title="what it makes, and in how many places"><span data-v>{{ diagram.makes }}{% if diagram.steps %} &times; {{ diagram.steps }}{% endif %}</span></div>
+  </figure>
   {% elif view == "sound" %}
   <div class="takes">{% for take in takes %}<figure class="take">
     <canvas data-wave="{{ take.url }}" height="96" aria-label="{{ take.name }}"></canvas>
@@ -39,13 +61,9 @@
     {% if entry.kind in "model kit character surface effect light" %}<figcaption class="unknown" title="what its viewer plays is not in this cockpit; missing: the library's blob store has no copy of it" data-v>3D {{ absent }}</figcaption>{% endif %}</figure>
   {% endif %}
 </div>
-{% if view == "facts" %}<dl class="item-facts">
-  <dt>in</dt><dd data-v>{% for read in entry.facts.reads %}{{ read }}{% if not forloop.last %}, {% endif %}{% empty %}code only{% endfor %}</dd>
-  <dt>out</dt><dd data-v>{{ entry.facts.stage|default:"unknown" }} &times; {{ entry.facts.steps }}</dd>
-</dl>{% endif %}
 <section class="nums">
   {% for each in numbers %}<div{% if each.fact %} data-fact="{{ each.fact }}"{% endif %}>{% include "pages/c/number.html" with label=each.label value=each.value unit=each.unit of=None bar=None tone=None tip=each.tip unknown_tip=each.unknown %}</div>{% endfor %}
-  {% include "pages/c/number.html" with label="score" value=score unit="%" of=None bar=score tone=None tip=score_tip unknown_tip="not scored" %}
+  {% if score is not None %}{% include "pages/c/number.html" with label="score" value=score unit="%" of=None bar=score tone=None tip=score_tip unknown_tip="not scored" %}{% endif %}
 </section>
 <div class="item-actions small">
   {% include "pages/c/dot.html" with tone=tone tip=entry.state %}
@@ -61,5 +79,5 @@
     <button type="submit" title="add it to the basket as a refine item">Refine</button>
     <output class="small"></output></form>{% endif %}
 </div>
-{% if view == "3d" %}<script type="module" src="/static/pages/item3d.js"></script>{% elif view == "sound" %}<script src="/static/pages/takes.js"></script>{% endif %}
+{% if view == "3d" %}<script type="module" src="/static/pages/item3d.js"></script>{% elif view == "demo" %}<script type="module" src="/static/pages/demo.js"></script>{% elif view == "sound" %}<script src="/static/pages/takes.js"></script>{% endif %}
 {% endblock %}

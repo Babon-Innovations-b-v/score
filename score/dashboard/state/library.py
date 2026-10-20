@@ -17,23 +17,36 @@ from urllib.parse import quote
 from pydantic import BaseModel
 
 from score.dashboard.state.files import HERO_SIDE, SHA, THUMB_SIDE, thumbnail
+from score.dashboard.state.names import plain
 
-KINDS = [("model", "Models"), ("surface", "Surfaces"), ("effect", "Effects"), ("light", "Lights"),
+# The Library's shelves: a kind, or (lamp) a place's light layer (owner, 2026-10-20: a sky is no light; the lamps
+# are). The kind ids stay; only what the owner reads changes.
+KINDS = [("model", "Models"), ("surface", "Surfaces"), ("effect", "Effects"), ("light", "Skies"), ("lamp", "Lamps"),
          ("sound", "Sound"), ("character", "Characters"), ("ground", "Ground"), ("kit", "Kits"),
          ("algorithm", "Algorithms"), ("layer", "Layers"), ("place", "Places")]
 WHAT = {"model": "a model", "surface": "a surface and the material a place writes for it",
         "effect": "a particle emitter with its settings and one baked clip",
-        "light": "a sky with the lights that draw it",
+        "light": "a sky dome or a planet's backdrop, seen from inside", "lamp": "a place's lamps and their strengths",
         "sound": "a sound source with its takes and levels", "character": "a body look or a dress",
         "ground": "a planet's terrain or one place's ground cut from it", "kit": "a place's kit of pieces",
         "algorithm": "an engine algorithm with its settings, preset, tests and run line",
         "layer": "one layer of one place", "place": "a place's root, its layers, plan and cast"}
+SCORE_MEANS = {  # what a kind's score measures, said as its hover text; a kind not here shows no score
+    "model": "how sound its mesh is: holes, crowded edges, seams", "kit": "the mean score of its pieces",
+    "character": "how well its clothes fit its body and are painted", "place": "how many of its steps' checks pass",
+    "layer": "how many checks of the step that made it pass", "effect": "how its particles look in its place's film",
+    "ground": "how clean its terrain is and how well it follows its plan",
+    "light": "how sharp and well exposed its sky picture is", "surface": "how close its colours are to its palette",
+    "sound": "its loudness, peaks and clipping against the target"}
+LAMPS = "light."  # a layer entry whose id starts so is a place's lamps: the Lamps shelf
 STATES = ("draft", "locked", "withdrawn")
 ADDRESS = re.compile(r"^(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(\.[a-z0-9_]+)?)@(?P<version>[1-9][0-9]*)$")
 MAX_TAKES = 4  # a sound's takes sent to the hosted cockpit
 MAX_FILES = 8  # an entry's files listed in the export (its count and bytes always go)
 EXPORT_ROWS = "library/entries.json"
 EXPORT_PALETTE = "library/palette.json"
+EXPORT_DEMOS = "library/demos.json"
+DEMOS = "demos.json"  # in the library cache, beside score_lib/: each algorithm's demo (score.stages.library.demos)
 LOST = ".lost"  # beside a file in the library cache: the blob store answered 404 for it (score.stages.library.pictures)
 CHOSEN = {}  # the library made for the current settings
 
@@ -56,7 +69,9 @@ class LibraryEntry(BaseModel):
     kind: str
     entry_id: str
     version: int
-    title: str
+    title: str  # the name the owner sees (state/names.py)
+    about: str = ""  # the library's own title when it differs: the name's hover text
+    shelf: str = ""  # the Library shelf it sits on: its kind, or lamp
     state: str
     locked: str | None = None
     picture: str | None = None  # the picture's sha
@@ -82,6 +97,18 @@ class LibraryEntry(BaseModel):
     file_bytes: int = 0
     facts: dict = {}  # what its kind's viewer plays and the few numbers it shows (kind_facts, viewer_facts)
     missing: list[str] = []  # its files the library's blob store does not hold (hosted: as the export found them)
+
+
+def shelf_of(record):
+    """The Library shelf of an entry record: a place's light layer is a lamp, any other entry its kind."""
+    return "lamp" if record["kind"] == "layer" and record["id"].startswith(LAMPS) else record["kind"]
+
+
+def score_meaning(entry):
+    """What an entry's score measures, or None when its kind's score means nothing to show (an algorithm's measures
+    its code snapshot, not what it does) or none of its parts was measured."""
+    measured = not entry.score_parts or any(part["value"] is not None for part in entry.score_parts)
+    return SCORE_MEANS.get(entry.kind) if entry.score is not None and measured else None
 
 
 def kind_label(kind):
@@ -201,8 +228,22 @@ def kind_facts(record, parts):
     if kind == "algorithm":
         provenance = record.get("provenance") or {}
         return {"stage": provenance.get("stage"), "steps": len(provenance.get("nodes") or []),
-                "reads": list(record.get("requires") or [])}
+                "reads": preset_folders(record)}
     return {}
+
+
+PRESET = re.compile(r"^presets/[^/]+/(?:data/)?(?P<folder>.+)/[^/]+$")
+
+
+def preset_folders(record):
+    """The data an algorithm reads, in words: its preset's folders ("demo films", "crops"), in order."""
+    found = []
+    for name in sorted(record.get("files", {})):
+        matched = PRESET.match(name)
+        words = matched["folder"].replace("definitions/", "").replace("/", " ").replace("_", " ") if matched else None
+        if words and words not in found:
+            found.append(words)
+    return found
 
 
 def entry_of(record):
@@ -212,9 +253,10 @@ def entry_of(record):
     score, parts, options = quality(record)
     listed = [Listed(name=name, bytes=described.get("bytes", 0))
               for name, described in sorted(record.get("files", {}).items())]
+    title, about = plain(record["kind"], record["id"], record.get("title") or record["id"])
     return LibraryEntry(
         address=record["address"], kind=record["kind"], entry_id=record["id"], version=record["version"],
-        title=record.get("title") or record["id"], state=record["state"], locked=record.get("locked"),
+        title=title, about=about, shelf=shelf_of(record), state=record["state"], locked=record.get("locked"),
         picture=picture_sha(record), picture_file=(record.get("picture") or {}).get("file"),
         world=provenance.get("world"), place=provenance.get("place"),
         node=made_by_node(provenance), source=provenance.get("source") or "", commit=provenance.get("commit"),
@@ -300,6 +342,18 @@ def lamps_of(usda_text):
     return [lamp_of(match.group(1), match.group(2), usda_text[match.end():end]) for match, end in zip(found, ends)]
 
 
+VIEWER_FILE = {"effect": "settings.json", "lamp": "lamps.json"}
+
+
+def placed_lamps(record):
+    """A light layer's lamps (its lamps.json): {type (sun or point), name, colour (white: the layer sets none),
+    power (its strength after the sweep), kelvin (None: not set), spot (where it stands, metres, or None)}."""
+    return [{"type": "sun" if lamp.get("sun") else "point", "name": lamp["path"].rsplit("/", 1)[-1],
+             "colour": [1.0, 1.0, 1.0], "power": round(lamp["intensity"] * lamp.get("scale", 1.0), 4), "kelvin": None,
+             "spot": lamp.get("spot")} for lamp in record.get("lamps", [])]
+
+
+SKY_DOME = 'def Mesh "Dome"'  # a sky's OpenUSD draws a dome round the place; else a planet's backdrop
 SETTING_WORDS = 40  # an effect setting longer than this (its sources in words) stays in the library
 
 
@@ -312,8 +366,8 @@ def effect_settings(text):
 def viewer_facts(record, text_of):
     """What an item page plays that a small file of the entry holds (`text_of(name)`: its text, or None): a
     surface's finish and palette token, a light's lamps, an effect's settings. {} when the file is not here."""
-    kind = record["kind"]
-    named = first_usda(record) if kind in ("surface", "light") else "settings.json" if kind == "effect" else None
+    kind = shelf_of(record)
+    named = first_usda(record) if kind in ("surface", "light") else VIEWER_FILE.get(kind)
     text = text_of(named) if named and named in record.get("files", {}) else None
     if text is None:
         return {}
@@ -321,7 +375,9 @@ def viewer_facts(record, text_of):
         token = USD_TOKEN.search(text)
         return {"finish": finish_of(text), "facts": {"token": token.group(1) if token else None}}
     if kind == "light":
-        return {"facts": {"lamps": lamps_of(text)}}
+        return {"facts": {"sky": "dome" if SKY_DOME in text else "planet"}}
+    if kind == "lamp":
+        return {"facts": {"lamps": placed_lamps(json.loads(text))}}
     return {"facts": {"settings": effect_settings(text)}}
 
 
@@ -351,6 +407,16 @@ class Library:
         if self.kept.get("folders_of") is not entries:
             self.kept.update(folders_of=entries, folders=folders(entries))
         return self.kept["folders"]
+
+    def demo(self, entry_id):
+        """An algorithm's demo ({"missing": why} when it has none), or None when no demos are here."""
+        path = self.demos_path()
+        if path is None or not path.is_file():
+            return None
+        stamp = path.stat().st_mtime_ns
+        if self.kept.get("demos_at") != stamp:
+            self.kept.update(demos_at=stamp, demos=json.loads(path.read_text()))
+        return self.kept["demos"].get(entry_id)
 
     def listed_files(self):
         """{sha: listed name} of every file the pages may serve: pictures, takes, GLBs."""
@@ -382,7 +448,10 @@ class LocalLibrary(Library):
         self.blobs = pathlib.Path(blobs).expanduser() if blobs else None
         self.thumbs = pathlib.Path(thumbs)
         self.cache = pathlib.Path(cache) if cache else None
-        self.kept = {"signature": None, "entries": [], "files": {}}
+        self.kept = {"signature": None, "entries": [], "files": {}}  # demos kept beside, by their file's time
+
+    def demos_path(self):
+        return self.cache.parent / DEMOS if self.cache else None
 
     def signature(self):
         """When the library's index was last written: a lock or an export rebuilds it."""
@@ -395,7 +464,7 @@ class LocalLibrary(Library):
         if self.kept["signature"] != signature:
             from score import library as score_library  # here: the hosted image holds score/dashboard alone
             found = sorted((self.read_entry(record) for record in score_library.entries(self.root)), key=kind_order)
-            self.kept = {"signature": signature, "entries": found, "files": None}
+            self.kept.update(signature=signature, entries=found, files=None)
         return self.kept["entries"]
 
     def read_entry(self, record):
@@ -484,6 +553,9 @@ class ExportedLibrary(Library):
         self.folder = pathlib.Path(folder)
         self.kept = {"made": None, "entries": []}
 
+    def demos_path(self):
+        return self.folder / EXPORT_DEMOS
+
     def made(self):
         path = self.folder / EXPORT_ROWS
         return path.stat().st_mtime_ns if path.is_file() else None
@@ -492,7 +564,7 @@ class ExportedLibrary(Library):
         made = self.made()
         if self.kept["made"] != made:
             rows = json.loads((self.folder / EXPORT_ROWS).read_text()) if made else []
-            self.kept = {"made": made, "entries": [LibraryEntry.model_validate(row) for row in rows]}
+            self.kept.update(made=made, entries=[LibraryEntry.model_validate(row) for row in rows])
         return self.kept["entries"]
 
     def picture_path(self, sha, side):
@@ -587,6 +659,17 @@ def palette():
     if path is not None:
         return json.loads(path.read_text()) if path.is_file() else {}
     return palette_of(json.loads((settings.SCORE_REPO / "design/tokens/tokens.json").read_text()))
+
+
+def export_demos(local, out, filler):
+    """The algorithms' demos into the export, when the store's machine has made them."""
+    found = local.demos_path()
+    if found is None or not found.is_file():
+        return
+    path = pathlib.Path(out) / EXPORT_DEMOS
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(found.read_bytes())
+    filler.wrote(path, path.stat().st_size)
 
 
 def export_pictures(local, entries, filler, side):

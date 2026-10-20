@@ -282,6 +282,12 @@ def library_pictures():
     return step_line("score.stages.library.pictures", "library pictures failed")
 
 
+def library_demos():
+    """Each library algorithm's demo, made from real data into the library cache (score.stages.library.demos: free,
+    local, its files fetched once), so its item page shows its work and the export carries it; its line."""
+    return step_line("score.stages.library.demos", "library demos failed")
+
+
 def git(repo, *args):
     """A git command's run in `repo` (its exit code and output kept, never raised)."""
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
@@ -341,9 +347,10 @@ def sync_pass(remote, source, chosen=None):
     swept = library_sweep()
     holes = holes_sweep()
     prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
+    demos = library_demos()
     priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
     if failed:
-        return refused_words(f"{failed}; {swept}; {holes}; {prepared}; {benched}; {pictured}")
+        return refused_words(f"{failed}; {swept}; {holes}; {prepared}; {benched}; {pictured}; {demos}")
     now = head(settings.SCORE_REPO)
     pushed = pushed_words(remote, source, chosen) if now == started else (
         f"NOT PUSHED: the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass, so its remake and "
@@ -351,4 +358,4 @@ def sync_pass(remote, source, chosen=None):
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
     return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}; {priced}; "
-            f"{prepared}; {benched}; {pictured}")
+            f"{prepared}; {benched}; {pictured}; {demos}")

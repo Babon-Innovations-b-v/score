@@ -229,6 +229,8 @@ def build(source, out, made_at, cap_mb, spend, repo):
                     filler.picture(found[1], images[rank]["sha"], THUMB_SIDE, f"{node}: {images[rank]['name']}")
     shelf = library.for_export()
     shelved = library.export_rows(shelf, out, filler) if shelf else []
+    if shelf:
+        library.export_demos(shelf, out, filler)
     library.export_pictures(shelf, shelved, filler, THUMB_SIDE)
     library.export_takes(shelf, shelved, filler)
     for film in films(world):

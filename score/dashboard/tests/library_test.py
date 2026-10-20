@@ -45,13 +45,15 @@ def Xform "sky" {
         color3f inputs:color = (0.35, 0.48, 0.79)
         float inputs:intensity = 0.22
     }
-    def SphereLight "lamp" {
-        float inputs:colorTemperature = 2700
-        bool inputs:enableColorTemperature = true
-        float inputs:exposure = 1
-        float inputs:intensity = 3
+    def Mesh "Dome" {
     }
 }"""
+LAMPS = json.dumps({"place": "alpha", "lamps": [
+    {"path": "/alpha/Lights/light_2", "spot": [1.0, 3.0, -2.0], "intensity": 3.0, "scale": 2.0},
+    {"path": "/alpha/Lights/sun_1", "spot": None, "sun": True, "intensity": 1.0, "scale": 1.0}]}).encode()
+DEMO = {"example": "the alpha's two beds", "view": "plan", "bounds": [0, 0, 2, 1],
+        "steps": [{"label": "The beds", "shapes": [{"kind": "area", "points": [[0, 0], [1, 0], [1, 1]], "tone": "ground"}]}],
+        "numbers": [{"label": "plants", "value": 9, "unit": "", "tip": "plants laid"}]}
 SETTINGS = json.dumps({"emitter": "ring", "emitter_size": [4.2, 2.5, 0.6], "count": 15000, "lifetime": 10.0,
                        "loop": 10.0, "speed": [3, 5], "from": "footage: " + "a long source in words " * 20}).encode()
 MADE = "2026-10-18T12:00:00+00:00"
@@ -131,11 +133,13 @@ def shelf(tmp_path):
                        {"name": "length", "measured": 4.3, "unit": "s", "value": 100, "how": "within"}])
     entry(root, blobs, "effect", "devil.alpha", files={"settings.json": ("record", SETTINGS)})
     entry(root, blobs, "light", "sky.alpha", files={"sky.usda": ("usd", SKY)})
+    entry(root, blobs, "layer", "light.alpha", title="Alpha light layer", files={"lamps.json": ("record", LAMPS)})
     entry(root, blobs, "kit", "alpha", files={"web3d/light.glb": ("web3d", glb() + b" " * 8)},
           web3d={"light": "web3d/light.glb", "objects": 12})
     entry(root, blobs, "algorithm", "camera_paths", title="Camera moves: walk paths and film shots",
           provenance={"stage": "demo-film", "nodes": ["demo-film@alpha", "demo-film@beta"]},
-          requires=["algorithm/terrain@1"])
+          requires=["algorithm/terrain@1"], score=25, files={"presets/world1/data/definitions/demo_films/alpha.json":
+                                                              ("record", b"{}")})
     entry(root, blobs, "ground", "earth.alpha")
     entry(root, blobs, "layer", "base.alpha")
     entry(root, blobs, "character", "walker", place=None, node="people-walker",
@@ -192,7 +196,7 @@ def node_of(tree, node_id):
 def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch_opens(world, shelf):
     html = signed_in().get("/library/").content.decode()
     for kind, count in (("Models", 3), ("Surfaces", 1), ("Sound", 1), ("Characters", 1), ("Places", 1), ("Kits", 1),
-                        ("Algorithms", 1), ("Layers", 1), ("Effects", 1), ("Lights", 1), ("Ground", 1)):
+                        ("Algorithms", 1), ("Layers", 1), ("Effects", 1), ("Skies", 1), ("Ground", 1)):
         assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
     assert 'data-children="/api/library/children?node=model"' in html
     assert "Lamp post" not in html and "Wrench" not in html  # entries load only when their branch opens
@@ -265,7 +269,7 @@ def test_a_model_turns_in_3d_from_its_light_copy_with_its_size_parts_and_score(w
     assert '"three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js"' in lamp
     assert f"/library-files/pictures/{found.picture}.jpg" in lamp  # beside it, and under it while it loads
     assert number_shown(lamp, "parts", "3") and number_shown(lamp, "score", "42") and 'data-fact="size"' in lamp
-    assert 'title="shape 30, likeness not measured"' in lamp  # the score's parts as hover text
+    assert 'title="how sound its mesh is: holes, crowded edges, seams; shape 30, likeness not measured"' in lamp
     assert 'href="/library/model/lamp_post.alpha/1/3d/"' in lamp and 'value="lock"' in lamp and 'value="repaint"' in lamp
     crate = an_item_page(client, "/library/model/crate/1/")
     assert item_data(crate) is None and 'class="pic"' in crate and 'value="withdraw"' in crate and "/3d/" not in crate
@@ -327,18 +331,35 @@ def test_an_effect_plays_from_its_settings_with_a_time_scrubber(world, shelf):
     assert number_shown(devil, "length", "10.0 <small>s</small>") and number_shown(devil, "loop", "10.0 <small>s</small>")
 
 
-def test_a_light_lights_a_neutral_test_scene_with_its_temperature_and_power(world, shelf):
-    sky = an_item_page(signed_in(), "/library/light/sky.alpha/1/")
-    lamps = item_data(sky)["lamps"]
-    assert [(lamp["type"], lamp["name"]) for lamp in lamps] == [("dome", "Environment"), ("point", "lamp")]
-    assert lamps[1]["kelvin"] == 2700 and lamps[1]["power"] == 6 and 9000 < lamps[0]["kelvin"] < 20000
-    assert number_shown(sky, "temperature", "2700.0 <small>K</small>") and number_shown(sky, "power", "6.0")
+def test_a_sky_is_looked_around_in_and_a_place_s_lamps_light_a_test_scene(world, shelf):
+    client = signed_in()
+    sky = an_item_page(client, "/library/light/sky.alpha/1/")
+    viewer = item_data(sky)
+    assert viewer["mode"] == "sky" and viewer["sky"] == "dome" and viewer["picture"].startswith("/library-files/")
+    assert ">Skies<" in sky
+    lamps = an_item_page(client, "/library/layer/light.alpha/1/")
+    found = item_data(lamps)["lamps"]
+    assert [(lamp["type"], lamp["name"], lamp["power"]) for lamp in found] == [("point", "light_2", 6.0),
+                                                                                ("sun", "sun_1", 1.0)]
+    assert found[0]["spot"] == [1.0, 3.0, -2.0] and ">Lamps<" in lamps and ">Alpha lamps<" in lamps
+    assert number_shown(lamps, "power", "6.0") and 'title="Alpha light layer"' in lamps
 
 
-def test_an_algorithm_shows_its_purpose_what_it_reads_and_what_it_makes(world, shelf):
-    paths = an_item_page(signed_in(), "/library/algorithm/camera_paths/1/")
-    assert "Camera moves: walk paths and film shots" in paths and "algorithm/terrain@1" in paths
-    assert "demo-film &times; 2" in paths and item_data(paths) is None
+def test_an_algorithm_shows_its_work_on_a_real_example_else_what_it_reads_and_makes(world, shelf):
+    from django.conf import settings
+    client = signed_in()
+    paths = an_item_page(client, "/library/algorithm/camera_paths/1/")  # no demo made yet: the plain diagram
+    assert ">Camera paths<" in paths and 'title="Camera moves: walk paths and film shots"' in paths
+    assert "demo films" in paths and "demo film &times; 2" in paths and "code only" not in paths
+    assert "score" not in paths.split('class="nums"')[-1].split("item-actions")[0].lower()  # its score means nothing
+    demos = settings.SCORE_PROPS_HOME / "cache" / "library" / "demos.json"
+    demos.parent.mkdir(parents=True, exist_ok=True)
+    demos.write_text(json.dumps({"camera_paths": DEMO}))
+    shown = an_item_page(client, "/library/algorithm/camera_paths/1/")
+    assert '<script type="module" src="/static/pages/demo.js">' in shown and "the alpha&#x27;s two beds" in shown
+    assert ">The beds<" in shown and number_shown(shown, "plants", "9")
+    demos.write_text(json.dumps({"camera_paths": {"missing": "no example kept"}}))
+    assert "no example of its work is here yet: no example kept" in an_item_page(client, "/library/algorithm/camera_paths/1/")
 
 
 def test_a_place_or_layer_shows_its_places_3d_copy_and_a_ground_its_picture(world, shelf):
@@ -430,7 +451,7 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
     (tmp_path / "home/export/current").symlink_to("one")
     with override_settings(SCORE_MODE="hosted", SCORE_HOME=tmp_path / "home", SCORE_LIB_ROOT=None):
         hosted = lib.library()
-        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 13
+        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 14
         assert hosted.picture_path(next(iter(pictures)), 360) is not None
         client = api("joey3")
         assert [node["label"] for node in client.get("/api/library/children", params={"node": "model/piece"}).json()
@@ -487,3 +508,15 @@ def test_a_hosted_library_screen_imports_nothing_the_hosted_image_lacks(world, s
 def test_the_library_screen_shows_numbers_not_prose(world, shelf):
     words = prose(signed_in().get("/library/").content.decode())
     assert len(words) <= WORD_BUDGET, (len(words), words)
+
+
+def test_names_are_everyday_words_with_the_library_title_kept_as_hover_text():
+    from score.dashboard.state.names import plain
+    assert plain("algorithm", "camera_paths", "Camera moves: RRT* walk paths (the render needs a GPU)") == (
+        "Camera paths", "Camera moves: RRT* walk paths (the render needs a GPU)")
+    assert plain("ground", "earth.flat", "Flat ground (earth)")[0] == "Earth ground at Flat"
+    assert plain("model", "ac_unit_1", "Ac unit 1")[0] == "Air conditioner 1"
+    assert plain("model", "apron_2p6", "Apron 2p6")[0] == "Apron 2.6 m"
+    assert plain("effect", "drift_0_3.camp", "Drift 0 3")[0] == "Drift, row 1 spot 4"
+    assert plain("layer", "light.camp", "Camp light layer")[0] == "Camp lamps"
+    assert plain("model", "wrench", "Wrench") == ("Wrench", "")
