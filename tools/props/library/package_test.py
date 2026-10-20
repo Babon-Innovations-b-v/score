@@ -211,7 +211,7 @@ def box_gltf(path, low, high):
 def test_a_piece_laid_after_the_run_stands_on_its_model_s_foot_with_its_glow():
     """route.py late-lay: a piece naming its model is laid at the model's own box with the box's foot on its spot, its
     glowing part where the host's frame puts it; a piece whose model is not made yet is left out and named; late-plan
-    plans only the code models not made already."""
+    plans only the code models not made already, and a kind is code-built only on a named pipeline failure (#19)."""
     import route
     with tempfile.TemporaryDirectory() as folder:
         models = pathlib.Path(folder)
@@ -229,9 +229,12 @@ def test_a_piece_laid_after_the_run_stands_on_its_model_s_foot_with_its_glow():
         assert host["size"] == [0.6, 0.08, 0.108] and host["at"] == [1.0, 3.15, 2.0] and host["row"] == "window_strip_lamp"
         assert glow["part"] == "glow" and glow["model"] == "window_strip_lamp_1_glow"
         assert np.allclose(glow["at"], [1.0, 3.16, 2.0 - 0.044]) and about["window_strip_lamp_1_glow"]["glows"]
-        planned = route.late_plan(layout)
-        assert list(planned["models"]) == ["window_strip_lamp_1"] and planned["models"]["window_strip_lamp_1"]["atlas"] == "late"
-        assert not route.late_plan(layout, {"window_strip_lamp_1"})["models"]
+        assert not route.late_plan(layout)["models"]
+        named = {"pieces": [dict(axes, kind="hub_pipe_straight", at=[0.0, 2.0, 0.0], size=[1.0, 0.08, 0.08],
+                                 model="pipe_straight_1")]}
+        planned = route.late_plan(named)
+        assert list(planned["models"]) == ["pipe_straight_1"] and planned["models"]["pipe_straight_1"]["atlas"] == "late"
+        assert not route.late_plan(named, {"pipe_straight_1"})["models"]
 
 
 def main():

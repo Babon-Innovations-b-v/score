@@ -11,11 +11,12 @@ way end to end, as the route would run for a new room).
     $python tools/props/library/route.py late-lay <kit layout> <models> <room>   # those pieces into data/kit/<room>.json
 
 `plan` sorts every kind of the room's kit layout (tools/props/scene/hub_kit.py writes it: where every piece stands,
-as its kind) by sorter.py and makes one model per kind and size (and per what a piece of it shows: a door's label,
-a ring plate's taper): code-built kinds in a few shared picture sets by where they are in the room (walls, wall gear
-and doors, roof, floor and pit; inside/make_kit.py), generated kinds from their labelled parts (labels.py) with
-their details (data/library/details.json) and closed into solids (inside/make_chunky.py). It writes <work>/plan.json
-and the jobs <work>/job-*.json for ../cloud/library_bake.py.
+as its kind) by sorter.py (code only for a kind the pipeline-failure record names, #19) and makes one model per kind
+and size (and per what a piece of it shows: a door's label, a ring plate's taper): code-built kinds in a few shared
+picture sets by where they are in the room (walls, wall gear and doors, roof, floor and pit; inside/make_kit.py),
+generated kinds from their labelled parts (labels.py) with their details (data/library/details.json) and closed
+into solids (inside/make_chunky.py). It writes <work>/plan.json and the jobs <work>/job-*.json for
+../cloud/library_bake.py.
 
 `layout` writes <work>/layout.json, the game's layout (HubKit): every piece names its made model and is laid at the
 model's own box (a model made at the laid size, so nothing is stretched), the glowing parts a code-built piece was
@@ -191,7 +192,7 @@ def furniture(inventory):
             continue
         wide, deep, tall = row["size"]
         kind = f"{inventory.get('scene', 'hub')}_{row['id']}"
-        route = sorter.planned_route(kind)
+        route = sorter.route(kind)
         laid = composites.get(kind, {}).get("laid", {})  # what a parent's own build shows (a toolboard's tool layout)
         found[f"{row['id']}_1"] = {"kind": kind, "route": route, "size": [wide, tall, deep], "laid": laid,
                                    "atlas": "furniture" if route == "code" else f"{row['id']}_1",
@@ -213,7 +214,7 @@ def children(parents, composites):
             if key not in by_key:
                 name = f"{own_name(kind)}_{sum(1 for other in by_key if other[0] == kind) + 1}"
                 by_key[key] = name
-                route = sorter.planned_route(kind)
+                route = sorter.route(kind)
                 found[name] = {"kind": kind, "route": route, "size": list(child["size"]), "laid": laid,
                                "atlas": "furniture" if route == "code" else name, "near": True,
                                "foot": round(parent["foot"] + child["at"][1], 3), "child_of": parent_name}
@@ -229,7 +230,7 @@ def plan(layout, takes, inventory=None):
     models, by_key, pieces = {}, {}, []
     for laid in layout["pieces"]:
         kind = laid["kind"]
-        route = sorter.planned_route(kind)
+        route = sorter.route(kind)
         extra = shows(kind, laid) if route == "code" else {}
         key = (kind, made_size(laid["size"]), json.dumps(extra, sort_keys=True))
         if key not in by_key:
@@ -531,11 +532,12 @@ def game_layout(layout, planned, reports, checks):
     made = {}
     for report in reports:
         made.update(report.get("pieces", report))
-    failed = sorted({entry["kind"] for entry in planned["models"].values()
-                     if entry["route"] == "code" and sorter.route(entry["kind"]) != "code"})
+    fittings = sorter.fittings()
+    failed = sorted({entry["kind"] for entry in planned["models"].values() if entry["route"] == "code"
+                     and sorter.missing_parts(fittings.get(sorter.own_name(entry["kind"]), {"parts": []}))})
     if failed:
-        raise SystemExit(f"code builds that do not show every part their close-up has, or lay a print over a part "
-                         f"(`route.py fittings` records them; send them to the pipeline): {', '.join(failed)}")
+        raise SystemExit(f"code fallbacks whose build does not show every part their close-up has, or lays a print "
+                         f"over a part (`route.py fittings` records them): {', '.join(failed)}")
     pieces, held_back, models = [], {}, {}
     for laid, name in zip(layout["pieces"], planned["pieces"]):
         if checks.get(name, {}).get("pass") is False:
@@ -593,7 +595,7 @@ def late_plan(layout, made=()):
     near, foot}}, "pieces": []}."""
     models = {}
     for laid in layout["pieces"]:
-        if "model" not in laid or laid["model"] in made or sorter.planned_route(laid["kind"]) != "code":
+        if "model" not in laid or laid["model"] in made or sorter.route(laid["kind"]) != "code":
             continue
         entry = models.setdefault(laid["model"], {"kind": laid["kind"], "route": "code", "size": list(laid["size"]),
                                                   "laid": shows(laid["kind"], laid), "atlas": "late", "near": False,
@@ -616,7 +618,7 @@ def late_pieces(layout, models):
             continue
         low, high = package.model_box(model)
         pieces.append(dict(laid, size=[round(float(value), 4) for value in high - low]))
-        about[laid["model"]] = {"glows": False, "route": sorter.planned_route(laid["kind"])}
+        about[laid["model"]] = {"glows": False, "route": sorter.route(laid["kind"])}
         glow = model.with_name(f"{laid['model']}_glow.gltf")
         if glow.exists():
             glow_low, glow_high = package.model_box(glow)

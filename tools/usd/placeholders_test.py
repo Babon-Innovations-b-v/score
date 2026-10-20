@@ -1,6 +1,6 @@
 """Check the placeholder check on a stage made here: a box that says it is a plain plate passes and one that says
 nothing fails, a lathe called a ship fails, a room's own walls pass, a kit piece built in code passes when the sorter
-sends its kind to code and fails when the sorter sends it to the prop pipeline, a mesh with no material or in the
+sends its kind to code (its pipeline failure named) and fails when the sorter sends it to the prop pipeline, a mesh with no material or in the
 default grey fails, a clear haze shell passes, a proxy fails, and a guide mesh and another place's stage are not
 judged. The hangar's case (the owner's demo of 2026-10-11: the check passed the code-built ship he saw as a
 placeholder): the ship_hull and ship_legs its record drew until 2026-10-18 fail and a made model in their place passes,
@@ -53,8 +53,8 @@ RECORD = {"structure": [
     {"name": "ship_body", "builder": "lathe", "profile": [[0.0, 1.6, 5.0, 1.6]], "centre": [3.0, 0.0, 3.0],
      "surface": "hull_white_gloss", "plain": "ship"},
 ]}
-KIT = {"models": {"wall_lower_plain_1": {"route": "code"}, "rover_1": {"route": "code"},
-                  "locker_1": {"route": "model"}}}
+KIT = {"models": {"wall_lower_plain_1": {"route": "code"}, "pipe_straight_1": {"route": "code"},
+                  "rover_1": {"route": "code"}, "locker_1": {"route": "model"}}}
 
 
 def square(stage, path):
@@ -100,8 +100,8 @@ def test_stage(folder):
     stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, f"/{PLACE}").GetPrim())
     export.library_materials(stage, PLACE, f"/{PLACE}")
     scene.write(stage, PLACE, RECORD, folder)
-    for model, kind in (("wall_lower_plain_1", "hub_wall_lower_plain"), ("rover_1", "hub_rover"),
-                        ("locker_1", "hub_locker")):
+    for model, kind in (("wall_lower_plain_1", "hub_wall_lower_plain"), ("pipe_straight_1", "hub_pipe_straight"),
+                        ("rover_1", "hub_rover"), ("locker_1", "hub_locker")):
         kit_piece(stage, model, kind)
     square(stage, f"/{PLACE}/Fixtures/bare")
     painted(stage, f"/{PLACE}/Fixtures/grey", surface(stage, f"/{PLACE}/Looks/grey"))
@@ -123,8 +123,10 @@ def every_rule_catches_its_case():
         (folder / "kits" / f"{PLACE}.json").write_text(json.dumps(KIT))
         found = {(fault["prim"].rsplit("/", 1)[-1], fault["rule"])
                  for fault in placeholders.check(test_stage(folder), kits=folder / "kits")}
-    expected = {("door_leaf", "plain"), ("ship_body", "plain"), ("rover_1", "sorter"), ("bare", "material"),
-                ("grey", "material"), ("stand_in", "proxy")}
+    # A plain wall plate built in code fails too since #19: only a kind the pipeline-failure record names (the hub's
+    # straight pipe) may be code-built.
+    expected = {("door_leaf", "plain"), ("ship_body", "plain"), ("rover_1", "sorter"), ("wall_lower_plain_1", "sorter"),
+                ("bare", "material"), ("grey", "material"), ("stand_in", "proxy")}
     problems = [f"{name} was not caught by the {rule} rule" for name, rule in sorted(expected - found)]
     problems += [f"{name} was caught by the {rule} rule, wrongly" for name, rule in sorted(found - expected)]
     return problems

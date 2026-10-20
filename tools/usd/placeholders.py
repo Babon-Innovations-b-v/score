@@ -17,8 +17,8 @@ and every prim drawn (not a guide, not made invisible) is judged by four rules:
               specks, the haze and a light's beam) draw the place's own shell and pass without saying; a new builder
               is judged until it is put on that list.
     sorter    a kit piece (/<place>/Objects) whose model the place's kit built in code (`route` code in
-              data/kit/<place>.json) must be a kind the sorter sends to code (tools/props/library/sorter.py: a
-              plain plate, pipe or trim, or a fitting whose code build shows every part of its close-up).
+              data/kit/<place>.json) must be a kind the sorter sends to code (tools/props/library/sorter.py: one
+              the pipeline-failure record, data/library/pipeline_failures.json, names; #19).
     material  a mesh with no material, or with a surface that has no colour of its own (a UsdPreviewSurface whose
               diffuseColor is neither set nor connected: the reader's default grey), fails.
     proxy     a prim drawn for the proxy purpose, or named as a proxy, a placeholder or a debug mesh, fails.
@@ -118,7 +118,7 @@ def sorter_fault(prim, routes):
         return None
     if sorter.route(kind) == "code":
         return None
-    return f"{kind} built in code, but the sorter sends it to the prop pipeline (it has parts its code build lacks)"
+    return f"{kind} built in code, but the sorter sends it to the prop pipeline (no pipeline failure named for it)"
 
 
 def default_grey(material):

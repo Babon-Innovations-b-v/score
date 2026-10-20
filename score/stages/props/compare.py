@@ -110,7 +110,8 @@ def code_build(row, code_builds):
 
 
 def parts_check_route(place, row):
-    """The parts check as it was (sorter.route): "code" or "model"."""
+    """The sorter's route, "code" or "model": since #19 code only for a kind the pipeline-failure record names, so
+    code-first no longer repeats the parts check as it was (paper/evidence/compare-hub holds that run)."""
     with prop_data.tools("props/library"):
         import sorter
     return sorter.route(f"{place}_{row}")
