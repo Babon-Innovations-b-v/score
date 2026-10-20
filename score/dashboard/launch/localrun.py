@@ -1,5 +1,5 @@
-"""The shipped compute backend: the `score` command line on this machine (plan, spend, run --detach), and the
-measured runs of the ledgers SCORE_LEDGER_FILES names. It imports nothing from tools/ or score.adapters: every
+"""The shipped compute backend: the `score` command line on this machine (plan, spend, price, run --detach), and
+the billed lines of the ledgers SCORE_LEDGER_FILES names. It imports nothing from tools/ or score.adapters: every
 answer comes from a subprocess or a file."""
 import json
 import os
@@ -10,7 +10,7 @@ import sys
 
 from django.conf import settings
 
-from score.dashboard.launch.backend import Billed, GroupPlan, LaunchHandle, LaunchState, MeasuredRun, RunGroup
+from score.dashboard.launch.backend import Billed, GroupPlan, LaunchHandle, LaunchState, RunGroup
 from score.dashboard.state.models import Spend
 
 STARTED = re.compile(r"detached: started pid=(\d+) log=(\S+)")
@@ -59,13 +59,6 @@ def last_json(text):
 def ticket_node(ticket):
     """The node a ledger ticket ("<node> <key>") names, or None."""
     return ticket.split()[0] if ticket else None
-
-
-def ticket_stage(ticket):
-    """The stage a ledger ticket ("<stage>@<place> <key>" or "<stage> <key>") names, or None."""
-    if not ticket:
-        return None
-    return ticket.split()[0].split("@")[0]
 
 
 def ledger_rows(paths):
@@ -117,14 +110,6 @@ class LocalBackend:
             return Spend(note=f"spend not read: {(done.stderr or done.stdout)[-300:]}")
         found = last_json(done.stdout)
         return Spend.model_validate(found)
-
-    def measured(self):
-        for row in ledger_rows(settings.SCORE_LEDGER_FILES):
-            stage = ticket_stage(row.get("ticket"))
-            if stage is None or row.get("euros") is None:
-                continue
-            yield MeasuredRun(stage=stage, euros=float(row["euros"]),
-                              minutes=row.get("wall_minutes", row.get("minutes")))
 
     def launch(self, group: RunGroup, jobs: int, rebuy_reason: str | None) -> LaunchHandle:
         command = run_command(group, jobs, rebuy_reason)

@@ -86,7 +86,7 @@ def apply_launch(item, source, chosen=None):
         return Applied("refused", "the basket was empty")
     plan = Plan.objects.create(basket_hash=guard.basket_hash(items), made_by=item["user"],
                                body={"jobs": int(payload.get("jobs") or guard.DEFAULT_JOBS)})
-    guard.work_out(plan, items, source.stage_records, chosen)
+    guard.work_out(plan, items, chosen)
     plan.refresh_from_db()
     if plan.state != "ready":
         return Applied("refused", f"the plan could not be worked out: {plan.error}")

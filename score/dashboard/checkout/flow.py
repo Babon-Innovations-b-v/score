@@ -205,22 +205,16 @@ def spend_now(chosen):
 
 
 
-def cleared_high(totals):
-    """What the runner clears the basket at: its measured high and, for every node not measured yet, its stage's
-    estimate (the runner's clearance reserves that guess, so the stop line must hold it)."""
-    return round(totals["high_euros"] + totals.get("guessed_euros", 0.0), 2)
-
-
 def write_line(record, chosen):
     """The owner's money yes: the environment's stop line at the spend so far, what is in flight and the basket's high
-    (cleared_high: the guessed nodes' estimates with it)."""
+    (pricing.cleared_high: the guessed nodes' estimates with it)."""
     from score.review import web
     spent, reserved = spend_now(chosen)
-    euros = round(spent + reserved + cleared_high(record.totals), 2)
+    euros = round(spent + reserved + pricing.cleared_high(record.totals), 2)
     bought = ", ".join(label(item) for item in record.items)
     line = web.stop(state.source().store, WORLD, euros, f"checkout {record.pk}: {bought}", by=record.by)
     record.stop_line = {"euros": line["euros"], "before": line["before"], "at": line["at"], "spent": spent,
-                        "reserved": reserved, "high": cleared_high(record.totals)}
+                        "reserved": reserved, "high": pricing.cleared_high(record.totals)}
     record.save()
 
 
@@ -230,8 +224,8 @@ def room_refusals(record, chosen):
     if None in (spend.ceiling, spend.spent, spend.reserved):
         return f"the runner reads no stop line: {spend.note or 'the spend could not be read'}"
     room = round(spend.ceiling - spend.spent - spend.reserved, 2)
-    if cleared_high(record.totals) > room:
-        return f"cannot finish under the stop: high EUR {cleared_high(record.totals):.2f}, room EUR {room:.2f}"
+    if pricing.cleared_high(record.totals) > room:
+        return f"cannot finish under the stop: high EUR {pricing.cleared_high(record.totals):.2f}, room EUR {room:.2f}"
     return ""
 
 

@@ -53,8 +53,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   a board card carries its place's holes and worst kind beside its steps' status. A place page shows its holes layer as a tree
   (`present.prim_tree`; no accepted assembly gives a whole scene tree yet), its holes by kind with each line's source
   and a `/view/<place>?holes=1&hole=<id>` link the viewer frames (holes alone over a grid while no web copy exists).
-  `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` prices a plan from measured
-  runs only; `gaps.py` gives each named gap its step and a picture of what it names (local source only), `plain.py`
+  `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` only says minutes in words (the
+  cockpit prices nothing: every price is the runner's, ADR-0006); `gaps.py` gives each named gap its step and a picture of what it names (local source only), `plain.py`
   says each problem in one plain sentence.
 - **`auth/`** `proxy.py` the outermost guard (only a trusted proxy may send `Remote-User`/`Remote-Email`; an
   underscore spelling is refused from every peer), `backends.py` the allow-list, `owner.py` the local owner account
@@ -63,9 +63,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   requests, basket, plans, launches, sync requests; never a mirror of the store). `actions.py` does what a request
   asks, one function each.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
-- **`launch/`** the compute backend interface (`backend.py`: plan, spend, measured, launch, poll; chosen by
-  `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, plan,
-  every launch refusal in words).
+- **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
+  `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the
+  runner through `checkout/pricing.totals`, every launch refusal in words).
 - **`checkout/`** the owner's one checkout of the basket items he bought, also under `/api/checkout`: each item's
   plan checked against what was priced, the environment's stop line at the basket's high (`score.review.web.stop`),
   one batch through the backend. Its own overlay has the rules.

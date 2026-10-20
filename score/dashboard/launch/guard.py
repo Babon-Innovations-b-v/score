@@ -1,5 +1,6 @@
 """The launch basket's plan and its guard: queued steps grouped into the fewest runner commands, each group planned
-by the compute backend, priced from measured runs against the environment's stop line, and every launch check in words.
+by the compute backend, priced by the runner (`score price` through the backend, summed by checkout/pricing: the
+runner is the only pricer, ADR-0006) against the environment's stop line, and every launch check in words.
 
 Never starts what cannot finish under the stop: the plan's high estimate must fit the room left (ceiling - spent -
 reserved). The runner's own per-node clearance stays the authority; this is the basket-level guard before it.
@@ -12,12 +13,12 @@ import threading
 from django.conf import settings
 from django.utils import timezone
 
+from score.dashboard.checkout import pricing
 from score.dashboard.launch.backend import RunGroup, load
-from score.dashboard.state import costs
 
 PLAN_MINUTES = 15
 REBUY_LIMIT = 5.0
-DEFAULT_JOBS = 8
+DEFAULT_JOBS = pricing.DEFAULT_JOBS
 _planning = threading.Lock()
 _launching = threading.Lock()
 
@@ -61,28 +62,29 @@ def unique_buys(groups):
     return list(found.values())
 
 
-def plan_body(items, chosen, stage_records, jobs=DEFAULT_JOBS):
-    """Work out the plan of a basket: each group's runner plan, the money against the stop and the time."""
-    groups = [group_body(group, chosen.plan(group)) for group in run_groups(items)]
+def plan_body(items, chosen, jobs=DEFAULT_JOBS, world="world1"):
+    """Work out the plan of a basket: each group's runner plan, its buys priced by the runner, the money against the
+    stop and the time. High is what the runner clears (pricing.cleared_high: the unmeasured nodes' estimates in it)."""
+    groups = [group_body(group, chosen.plan(group)) for group in run_groups(items, world)]
     buys = unique_buys(groups)
+    totals = pricing.totals(chosen.price(world, [buy["node"] for buy in buys]) if buys else {}, jobs)
     spend = chosen.spend()
-    money = costs.money(buys, list(chosen.measured()), settings.SCORE_BILL_FACTOR)
     nodes = sorted({node for group in groups for node in [*group["to_run"], *(buy["node"] for buy in group["buys"])]})
-    per_stage = costs.stage_minutes(stage_records(sorted({costs.stage_of(node) for node in nodes})))
     ceiling = spend.ceiling  # the environment's stop line; SCORE_MONTH_EUROS only switches launching on, never raises it
     room = None if None in (ceiling, spend.spent, spend.reserved) else round(ceiling - spend.spent - spend.reserved, 2)
     return {"groups": groups, "buys": buys, "jobs": jobs, "nodes": nodes,
-            "money": {**money, "spent": spend.spent, "reserved": spend.reserved, "ceiling": ceiling, "room": room,
-                      "as_of": spend.as_of, "note": spend.note},
-            "time": costs.time_of(nodes, per_stage, jobs),
+            "money": {"high": pricing.cleared_high(totals), "likely": totals["likely_euros"],
+                      "guessed": totals["guessed_euros"], "not_measured": totals["unmeasured"], "spent": spend.spent,
+                      "reserved": spend.reserved, "ceiling": ceiling, "room": room, "as_of": spend.as_of, "note": spend.note},
+            "time": {"likely_minutes": totals["likely_minutes"], "high_minutes": totals["high_minutes"]},
             "rebuys": round(sum(float(buy["euros"]) for buy in buys if buy.get("again")), 2)}
 
 
-def work_out(plan, items, stage_records, chosen=None):
+def work_out(plan, items, chosen=None):
     """Fill a Plan row (state working) with its body, in this thread; one plan at a time."""
     with _planning:
         try:
-            plan.body = plan_body(items, chosen or backend(), stage_records, plan.body.get("jobs", DEFAULT_JOBS))
+            plan.body = plan_body(items, chosen or backend(), plan.body.get("jobs", DEFAULT_JOBS))
             plan.state = "ready"
         except Exception as error:  # the page shows why the plan could not be worked out
             plan.state, plan.error = "failed", f"{type(error).__name__}: {error}"
@@ -91,9 +93,9 @@ def work_out(plan, items, stage_records, chosen=None):
     return plan
 
 
-def work_out_soon(plan, items, stage_records):
+def work_out_soon(plan, items):
     """work_out in a background thread."""
-    threading.Thread(target=work_out, args=(plan, list(items), stage_records), daemon=True).start()
+    threading.Thread(target=work_out, args=(plan, list(items)), daemon=True).start()
 
 
 def unseen_words(unseen):

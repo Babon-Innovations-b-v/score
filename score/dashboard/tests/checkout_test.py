@@ -95,7 +95,7 @@ def test_totals_count_each_node_once_and_say_what_is_unmeasured_or_unpriced():
              {"nodes": {"closeup@beta": measured, "pixal@alpha": estimate, "odd@alpha": {"error": "not a paid row"}}}]
     found = pricing.totals(pricing.basket_prices(items), jobs=1)
     assert (found["likely_euros"], found["high_euros"], found["guessed_euros"], found["nodes"]) == (4.0, 6.0, 5.0, 4)
-    assert flow.cleared_high(found) == 11.0
+    assert pricing.cleared_high(found) == 11.0
     assert found["likely_minutes"] == 20.0 and found["high_minutes"] == 40.0 and found["cards"] == 4
     assert found["unmeasured"] == ["pixal@alpha"] and found["unpriced"] == ["odd@alpha"]
     assert pricing.totals(pricing.basket_prices(items), jobs=8)["likely_minutes"] == 10.0  # the longest line

@@ -1,7 +1,8 @@
 """The basket's prices: each paid node at the runner's own numbers (its plan's price, C19), and the totals of an item
 and of the basket. Never per-piece prices alone: the pages show the basket's total against the stop.
 """
-from score.dashboard.launch import guard
+# The runner jobs at once a batch's time is reckoned on (the launch guard's default too).
+DEFAULT_JOBS = 8
 
 
 def line_of(node):
@@ -17,7 +18,7 @@ def span(prices, field, jobs):
     return round(max(max(lines.values(), default=0.0), sum(lines.values()) / max(1, jobs)), 1)
 
 
-def totals(prices, jobs=guard.DEFAULT_JOBS):
+def totals(prices, jobs=DEFAULT_JOBS):
     """{likely_euros, high_euros, guessed_euros, likely_minutes, high_minutes, cards, nodes, unmeasured, unpriced} of
     nodes priced ({node: price}): likely and high the measured nodes' sums; `guessed_euros` the stage estimates of
     the nodes not measured yet (`unmeasured`), never part of the price; `unpriced` the nodes the runner could not
@@ -32,6 +33,12 @@ def totals(prices, jobs=guard.DEFAULT_JOBS):
             "cards": sum(price.get("cards") or 0 for price in priced.values()), "nodes": len(prices),
             "unmeasured": sorted(node for node, price in priced.items() if not price.get("runs")),
             "unpriced": sorted(node for node in prices if node not in priced)}
+
+
+def cleared_high(totals):
+    """What the runner clears these nodes at: their measured high and, for every node not measured yet, its stage's
+    estimate (the runner's clearance reserves that guess, so the stop line must hold it)."""
+    return round(totals["high_euros"] + totals.get("guessed_euros", 0.0), 2)
 
 
 def basket_prices(items):
