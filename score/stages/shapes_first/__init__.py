@@ -45,7 +45,7 @@ class Adapter:
 OBJECTS = Adapter("objects")
 # The terrain layer: an outdoor place's detail areas (terrain/areas.py hands them in), joined into its ground with
 # collision and library finishes after the model (terrain/join.py, #27); the plan's code ground is the named fallback.
-TERRAIN = Adapter("terrain", after=(graph.Stage("ground-join", "place", ground_join.make, ground_join.CONTRACT,
+TERRAIN = Adapter(ground_join.LAYER, after=(graph.Stage("ground-join", "place", ground_join.make, ground_join.CONTRACT,
                                                 ground_join.CHECKS, files=ground_join.files, after=ground_join.AFTER),))
 ADAPTERS = (OBJECTS, TERRAIN)
 
