@@ -473,8 +473,11 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
     assert [href for href, _ in found] == ["/?in=beta"] and '<a href="/" data-v>Environment</a>' in html
     assert "<b data-v>+1</b>" in found[0][1]  # alpha sits in beta, a leaf
     found, html = tiles("/?in=beta")
-    assert [href for href, _ in found] == ["/place/beta/", "/place/alpha/"]  # itself first, then what it holds
-    assert 'data-v>Outside</span>' in found[0][1] and 'data-v>Beta</span>' not in found[0][1]  # never its own name
+    assert [href for href, _ in found] == ["/place/alpha/"]  # only what it holds: beta is no card of its own
+    assert "Outside" not in html
+    head = html[html.index('<section class="phead"'):html.index('<section class="ptiles"')]
+    assert '<h1 class="phead-name" data-v>Beta</h1>' in head and 'href="/place/beta/"' in head  # itself, on top
+    assert 'href="/concept/beta/"' in head and "tone-gap-route" in head  # its Draw, its and alpha's gaps summed
     assert '<a href="/?in=yard" data-v>Yard</a>' in html and "<b data-v>Beta</b>" in html
     assert client.get("/?in=alpha").status_code == 404 and client.get("/?in=empty").status_code == 404
 

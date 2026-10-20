@@ -472,6 +472,12 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .ptile-held:has(img) { padding-left: 3px; }
 .ptile-held img { width: 56px; height: 35px; object-fit: cover; border-radius: var(--radius-small); }
 .trail { margin: 0 0 12px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; } .trail .sep { color: var(--faint); }
+.phead { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin: 0 0 24px; }
+.phead-pic { position: relative; flex: 1 1 320px; max-width: 560px; aspect-ratio: 16 / 10; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.phead-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.phead-side { flex: 1 1 220px; display: flex; flex-direction: column; gap: 12px; }
+.phead-side .ptile-foot { padding: 0; }
+.phead-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .ptile-box { position: relative; }
 .ptile-review { position: absolute; top: 8px; right: 8px; padding: 4px 12px; background: var(--bg); }
 .ptile-box:has(.ptile-review) .ptile-pic:has(.ptile-holds) .ptile-missing { top: 40px; }

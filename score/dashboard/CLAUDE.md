@@ -100,8 +100,9 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   count before one is approved), a Review and buy
   button, a tile per outside place or shell (shapes first, `cockpit.tiles`: one holding places sums their progress
   and gaps, shows what sits directly inside that holds places itself over its concept ("Ship, 8 rooms") and "+N"
-  for the rest, and opens to them at `/?in=<place or shell>`, a place's own tile first, named Outside (no tile holds a card of its own name), with a
-  trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: its concept as the header, the 3D view,
+  for the rest, and opens to them at `/?in=<place or shell>`, headed by that place or shell itself (`cockpit.head`: its concept, ring, gaps, Review or
+  Draw and, for a place, Open to its Place screen; CONTEXT.md "place": never an "Outside" card beside its inside
+  places, owner 2026-10-20) over its inside places' tiles only, with a trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: its concept as the header, the 3D view,
   the scene tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`, owner 2026-10-20, CONTEXT.md "design":
   design first: how many places' designs are approved and a row a place, its concept and plan state, "game layout"
   where its layout still takes the source game's numbers, its old pick as hover text, linking to the place, where
