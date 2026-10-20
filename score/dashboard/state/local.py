@@ -18,7 +18,7 @@ from score.dashboard.state import accepted_gaps as named, groups, plain
 from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
 from score.dashboard.state.gaps import kind_of as gap_kind
 from score.dashboard.state.index import Fresh, answer_keys
-from score.dashboard.state.models import (CheckFinding, ConceptDraw, EngineGroup, GateCounts, GateVerdict, GapsPrice,
+from score.dashboard.state.models import (CheckFinding, ConceptDraw, ConceptWording, EngineGroup, GateCounts, GateVerdict, GapsPrice,
                                           GapsTotal, InputPicture, LayerGroup, PlaceCard, PlaceDetail, Remake, Spend,
                                           StepCard, StepDetail, StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
 from score.store import Store, stamp_key
@@ -524,7 +524,7 @@ class LocalSource:
         return refs
 
     def concept_review(self):
-        """{concept_draws, concept_picked, concept_draw_euros, concept_undrawn, concept_unready} of the concept review
+        """{concept_draws, concept_picked, concept_draw_euros, concept_undrawn, concept_unready, concept_wordings} of the concept review
         (score/review/concepts.py): each place's draws whose bytes stand in the store's blobs, oldest first, its picked
         draw's sha, and the places and shells with no draw yet that Draw all draws now, and why the others wait."""
         from score.review import concepts
@@ -542,9 +542,22 @@ class LocalSource:
                 draws[node] = found
             if concepts.picked(self.store, node):
                 picked[node] = concepts.picked(self.store, node)
-        ready, waiting = concepts.undrawn(self.store, [*self.places(), *self.hierarchy()["shells"]])
+        nodes = [*self.places(), *self.hierarchy()["shells"]]
+        ready, waiting = concepts.undrawn(self.store, nodes)
         return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
-                "concept_undrawn": ready, "concept_unready": waiting}
+                "concept_undrawn": ready, "concept_unready": waiting,
+                "concept_wordings": {node: self.concept_wording(node) for node in nodes}}
+
+    def concept_wording(self, node):
+        """What `node`'s draws send (score/review/concepts.py): its generated first-draw wording, or why it cannot be
+        drawn now, the creator's own wording and what a redraw sends."""
+        from score.review import concepts
+        try:
+            generated, refused = concepts.first_wording(node)[0], None
+        except concepts.Refused as why:
+            generated, refused = None, str(why)
+        return ConceptWording(generated=generated, own=concepts.own_wording(self.store, node), refused=refused,
+                              redraw=concepts.redraw_preview(node))
 
     def hierarchy(self):
         """{within, shells} of data/places/within.json: what each place or shell sits within (a part of a place's

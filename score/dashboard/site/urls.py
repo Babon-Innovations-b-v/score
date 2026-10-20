@@ -22,6 +22,7 @@ urlpatterns = [
     path("concept/<slug:place>/", concepts.concept_page),
     path("concept/<slug:place>/draw/", concepts.concept_draw),
     path("concept/<slug:place>/pick/", concepts.concept_pick),
+    path("concept/<slug:place>/generated/", concepts.concept_generated),
     path("concept/<slug:place>/state/", concepts.concept_state),
     *[path(f"place/<slug:place>/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
     *[path(f"world/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],

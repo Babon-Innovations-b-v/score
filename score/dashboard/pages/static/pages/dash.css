@@ -497,6 +497,10 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .concept-notes input { flex: 1; min-width: 0; }
 .concept-drop { flex: none; padding: 2px 8px; }
 .concept-actions { display: flex; gap: 10px; align-items: center; }
+.concept-wording { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 0; }
+.concept-wording-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.concept-wording textarea { width: 100%; box-sizing: border-box; font: inherit; line-height: 1.45; }
+.concept-redraw p { margin: 6px 0 0; }
 .concept-history { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; }
 .concept-past { position: relative; display: block; width: 160px; border: 2px solid var(--line); border-radius: var(--radius-small); overflow: hidden; }
 .concept-past.shown { border-color: var(--accent); }

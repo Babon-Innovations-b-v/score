@@ -244,3 +244,48 @@ def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monk
     assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]
     older.append({"base": None, "wording": concepts.first_wording("old_station")[0]})
     assert concepts.undrawn(store, ["old_station"])[0] == []
+
+
+def test_an_edited_wording_is_sent_word_for_word_and_stays_the_places_own_until_back_to_generated(store, monkeypatch):
+    generated = concepts.first_wording("airlock")[0]
+    asked = []
+    said_yes(store, monkeypatch)
+    first = concepts.draw(store, "airlock", {}, "joey", caller=stand_in(asked))
+    assert asked[-1][0] == generated and concepts.own_wording(store, "airlock") is None
+    said_yes(store, monkeypatch)
+    edited = "One concept painting of a small airlock, rusty."
+    concepts.draw(store, "airlock", {"wording": f"  {edited}\n"}, "joey", caller=stand_in(asked))
+    assert asked[-1][0] == edited and concepts.own_wording(store, "airlock") == edited
+    assert concepts.current_draw(store, "airlock", concepts.wording_now(store, "airlock")[0])
+    assert not concepts.current_draw(store, "airlock", "One concept painting of a small airlock, clean.")
+    said_yes(store, monkeypatch)
+    concepts.draw(store, "airlock", {"base": first["sha"], "wording": "ignored"}, "joey", caller=stand_in(asked))
+    assert "Image 1" in asked[-1][0] and concepts.own_wording(store, "airlock") == edited  # a redraw keeps it
+    said_yes(store, monkeypatch)
+    concepts.draw(store, "airlock", {}, "joey", caller=stand_in(asked))  # Draw all's request: no wording
+    assert asked[-1][0] == edited
+    with pytest.raises(review.Refused, match="no wording of its own"):
+        web.concept_generated(store, "galley", "joey")
+    web.concept_generated(store, "airlock", "joey")
+    assert concepts.wording_now(store, "airlock")[0] == generated
+    with pytest.raises(concepts.Refused, match="at most"):
+        concepts.draw(store, "airlock", {"wording": "x" * 9000}, "joey", caller=stand_in(asked))
+
+
+def test_an_edited_wording_makes_the_draw_from_the_generated_one_out_of_date(tmp_path, monkeypatch):
+    store = Store.in_folder(tmp_path)
+    drawn = [{"base": None, "wording": concepts.first_wording("old_station")[0]}]
+    monkeypatch.setattr(concepts, "draws", lambda _store, _place: drawn)
+    assert concepts.undrawn(store, ["old_station"])[0] == []
+    concepts.worded(store, "old_station", "One concept painting of the old station at night.", "joey")
+    assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]  # its draw is from the older wording
+    concepts.worded(store, "old_station", None, "joey")
+    assert concepts.undrawn(store, ["old_station"])[0] == []
+
+
+def test_an_agents_process_cannot_keep_a_wording_in_the_framework_store(store, monkeypatch):
+    monkeypatch.setattr(store, "is_framework_store", lambda: True)
+    monkeypatch.setattr(concepts, "running_under_agent", lambda: True)
+    with pytest.raises(PermissionError):
+        concepts.worded(store, "airlock", "my words", "joey")
+    assert concepts.own_wording(store, "airlock") is None

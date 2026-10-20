@@ -6,6 +6,7 @@ barrier for its owner areas, applied here, so score/store, which most stages' ke
 
     concepts/<place>/draws/<time>.json   {place, sha, name, at, by, euros, yes, base, marks, note, wording}
     concepts/<place>/picks/<time>.json   {place, sha (None: unlocked again), by, at}
+    concepts/<place>/wordings/<time>.json {place, wording (None: back to the generated), by, at}
     blobs/<sha>                          the drawn picture (PNG)
 
 Every draw is also copied off this PC as soon as it is made (`kept_offsite`: the cloud backend's object store, the
@@ -25,7 +26,11 @@ A draw runs as a process of its own, inside the owner's yes for exactly that cal
     SCORE_SPEND_TICKET="override <key>" python -m score.review.concepts <place> <request.json> <by>
 
 `request.json` is {marks: [{x, y, w, h, note}] (shares of the picture, 0 to 1), note, base (the sha of the draw it
-redraws, None for a first draw)}. A redraw sends the base twice: once with the marked areas boxed and numbered, once
+redraws, None for a first draw), wording (a first draw's: the creator's edit of the wording his page showed; absent:
+the place's wording now)}. A first draw sent with his edited wording sends exactly it (his note after it) and keeps it
+as the place's own wording (`wordings/`, in his process only) from then on, for every first draw and Draw all and for
+which draw counts as current, until he takes it back to the generated one (`worded` with None; owner, 2026-10-20).
+A redraw sends the base twice: once with the marked areas boxed and numbered, once
 clean. A first draw (no concept yet: all of environment 1's were lost) is worded from the place's data the way the
 concept-views row words its views: its view in data/definitions/concept_views.json when it has one (the newest), else
 its look (data/definitions/place.json) and its plan's size and elements, with the environment's one style wording
@@ -55,6 +60,7 @@ MEASURED_STAGE = "closeup"  # the stage whose measured unit is one Nano Banana P
 CALLER = "concept-review"
 TIMEOUT = 400
 LONGEST_SENT = 1600
+LONGEST_WORDING = 8000  # characters of a creator's own wording
 MARK_WIDTH = 6
 OFFSITE = "concept-draws"  # the bucket's prefix a draw is copied under
 LIBRARY_SECONDS = 300  # the library's concept command, its lock wait included
@@ -129,7 +135,7 @@ def undrawn(store, nodes):
             waiting[node] = f"waits for {holder}'s concept to be picked"
             continue
         try:
-            wording = first_wording(node)[0]
+            wording = wording_now(store, node)[0]
         except Refused as refused:
             waiting[node] = str(refused)
             continue
@@ -139,8 +145,9 @@ def undrawn(store, nodes):
 
 
 def current_draw(store, place, wording):
-    """Whether `place` has a first draw made from `wording`, its current first-draw wording; a draw from an older
-    wording (its data or the draw rules changed since) does not count, so Draw all draws it again."""
+    """Whether `place` has a first draw made from `wording`, its current first-draw wording (wording_now: the
+    creator's own when set); a draw from an older wording (its data, the draw rules or his wording changed since)
+    does not count, so Draw all draws it again."""
     return any(draw.get("base") in (None, "None") and str(draw.get("wording", "")).startswith(wording)
                for draw in draws(store, place))
 
@@ -418,6 +425,45 @@ def first_wording(place):
     return " ".join(part for part in (wording, framing(place), style()) if part), reference
 
 
+def own_wording(store, place):
+    """The creator's own first-draw wording of `place`, or None while it is the generated one."""
+    found = records(store, place, "wordings")
+    return found[-1]["wording"] if found else None
+
+
+def wording_now(store, place):
+    """(wording, reference path or None) the next first draw of `place` sends: the creator's own wording when he set
+    one, else the generated (first_wording, which refuses a draw whose reference is not here either way)."""
+    generated, reference = first_wording(place)
+    return own_wording(store, place) or generated, reference
+
+
+def worded(store, place, wording, by):
+    """Keep `wording` as `place`'s own first-draw wording from now on (None: back to the generated); the record.
+    PermissionError in an agent's process on the framework's store."""
+    record = {"place": place, "wording": wording, "by": by, "at": now()}
+    recorded(store, f"{AREA}/{place}/wordings/{stamp_key(record['at'])}.json", record)
+    return record
+
+
+def checked_wording(wording):
+    """A request's wording stripped, None when it gives none; Refused past LONGEST_WORDING."""
+    found = str(wording or "").strip()
+    if len(found) > LONGEST_WORDING:
+        raise Refused(f"the wording is {len(found)} characters; at most {LONGEST_WORDING}")
+    return found or None
+
+
+def kept_as_own(store, place, request, by):
+    """A first draw sent with an edited wording keeps it as the place's own (none again once it is the generated)."""
+    asked = checked_wording(request.get("wording"))
+    if request.get("base") or asked is None:
+        return
+    own = None if asked == first_wording(place)[0] else asked
+    if own != own_wording(store, place):
+        worded(store, place, own, by)
+
+
 def redraw_wording(marks, note):
     """A redraw's wording: what to change in each numbered box, and overall."""
     words = ["Image 1 is a concept painting with numbered red boxes marking areas to change; image 2 is the same "
@@ -477,14 +523,23 @@ def request_parts(store, place, request):
         if base not in {draw["sha"] for draw in draws(store, place)}:
             raise Refused(f"{base[:12]} is no draw of {place}")
         picture = Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{base}")))
-        wording = redraw_wording(marks, note)
-        if holds_inside(place):
-            wording = f"{wording} It must still hold, as described: {holding_words(place)}"
-        return wording, [boxed(picture, marks), picture]
+        return redraw_sent(place, marks, note), [boxed(picture, marks), picture]
     if marks:
         raise Refused("a first draw has no picture to mark")
-    wording, reference = first_wording(place)
-    return with_note(wording, note), [Image.open(reference)] if reference else []
+    wording, reference = wording_now(store, place)
+    sent = checked_wording(request.get("wording")) or wording
+    return with_note(sent, note), [Image.open(reference)] if reference else []
+
+
+def redraw_sent(place, marks, note):
+    """A redraw's wording for `place`: redraw_wording, and an outside shell's inside places it must still hold."""
+    wording = redraw_wording(marks, note)
+    return f"{wording} It must still hold, as described: {holding_words(place)}" if holds_inside(place) else wording
+
+
+def redraw_preview(place):
+    """What Redraw with notes sends for `place`, its notes as placeholders (the concept review page shows it)."""
+    return redraw_sent(place, [{"note": "<mark 1's note>"}, {"note": "<mark 2's note>"}], "<your note>")
 
 
 def call(wording, pictures):
@@ -549,6 +604,7 @@ def draw(store, place, request, by, caller=call, offsite=None):
     from score.adapters import compute
     yes = compute.require_cleared("a concept draw", store)
     wording, pictures = request_parts(store, place, request)
+    kept_as_own(store, place, request, by)  # before the call: a refused call still keeps his edit
     png = caller(wording, pictures)
     sha = kept(store, png)
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,

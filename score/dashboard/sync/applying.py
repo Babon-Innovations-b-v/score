@@ -3,7 +3,7 @@ through score.review.web.decide and the owner's advance into this machine's mark
 local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
 marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
 owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py), and the
-owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws and picks (CONCEPT_KINDS), each
+owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, picks and back to the generated wording (CONCEPT_KINDS), each
 through the local cockpit's own owner-only function."""
 import dataclasses
 import json
@@ -16,7 +16,7 @@ from score.dashboard.pages import actions, library_actions, seen
 from score.dashboard.pages.models import Launch, Plan
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 
-CONCEPT_KINDS = ("concept-draw", "concept-pick")
+CONCEPT_KINDS = ("concept-draw", "concept-pick", "concept-wording")
 DRAWN = ("sha", "name", "at", "by", "euros", "base", "marks", "note")  # a draw's fields its answer carries
 
 
@@ -178,11 +178,12 @@ def apply_concept_draw(item, source):
     return Applied("done", json.dumps({name: record[name] for name in DRAWN}), files=files)
 
 
-def apply_concept_pick(item):
-    """The owner's Pick or unlock of a place's concept (pages/actions.concept_pick)."""
+def apply_concept_said(item, action):
+    """The owner's Pick or unlock of a place's concept (pages/actions.concept_pick), or his back to the generated
+    wording (concept_generated): `action`, answered in words."""
     if not from_owner(item):
         return Applied("refused", f"{item['user']} is not this store's owner")
-    said = actions.concept_pick(item["user"], item["payload"])
+    said = action(item["user"], item["payload"])
     return Applied("refused" if said.startswith("refused") else "done", said)
 
 
@@ -206,7 +207,9 @@ def apply(item, source, chosen=None):
     if kind == "concept-draw":
         return apply_concept_draw(item, source)
     if kind == "concept-pick":
-        return apply_concept_pick(item)
+        return apply_concept_said(item, actions.concept_pick)
+    if kind == "concept-wording":
+        return apply_concept_said(item, actions.concept_generated)
     if kind in OWNER_FIGURES:
         return apply_owner_figure(item)
     return Applied("refused", f"unknown request kind {kind!r}")
