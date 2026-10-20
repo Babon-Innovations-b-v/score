@@ -183,7 +183,7 @@ def test_a_held_character_machine_is_armed_and_deleted():
 
 
 def test_a_held_character_machine_whose_set_up_failed_is_deleted_not_held_to_mend():
-    """#21: a set-up that fails ends the run with its people as holes; the machine is never held to mend."""
+    """#21: a set-up that fails ends the run with its people as gaps; the machine is never held to mend."""
     machine, run = machine_and_run()
     kept = characters.set_up, characters.hold
     held = []
@@ -198,7 +198,7 @@ def test_a_held_character_machine_whose_set_up_failed_is_deleted_not_held_to_men
             try:
                 characters.held(run, machine, [pathlib.Path("/tmp/made/nev")])
             except SystemExit as stopped:
-                assert "nev are holes" in str(stopped), stopped
+                assert "nev are gaps" in str(stopped), stopped
             else:
                 raise AssertionError("a failed set-up was held to mend")
         assert not held and armed_beaten_deleted(tended.done), tended.done

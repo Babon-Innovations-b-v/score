@@ -64,7 +64,7 @@ def test_the_export_holds_the_state_places_pictures_and_films(world, tmp_path):
 def test_the_export_holds_each_gaps_picture_and_each_steps_own_picture(world, tmp_path):
     exported(world, tmp_path / "one")
     bundle = json.loads((tmp_path / "one/places/beta.json").read_text())
-    gap = bundle["detail"]["gaps"][0]["picture"]["sha"]
+    gap = bundle["detail"]["accepted_gaps"][0]["picture"]["sha"]
     step = bundle["steps"]["assembly"]["picture"]["sha"]
     assert (tmp_path / f"one/files/{gap}-1280.jpg").is_file() and (tmp_path / f"one/files/{step}-360.jpg").is_file()
 
@@ -208,15 +208,15 @@ def test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole(world
 def test_a_file_no_kept_export_uses_is_swept(settings):
     web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
     blobs = settings.SCORE_HOME / "blobs"
-    for made, data in (("a", b"{\"made_at\": \"a\", \"format\": 2}"), ("b", b"{\"made_at\": \"b\", \"format\": 2}"),
-                       ("c", b"{\"made_at\": \"c\", \"format\": 2}")):
+    for made, data in (("a", b"{\"made_at\": \"a\", \"format\": 3}"), ("b", b"{\"made_at\": \"b\", \"format\": 3}"),
+                       ("c", b"{\"made_at\": \"c\", \"format\": 3}")):
         sha = sha_of(data)
         web.put(f"/api/sync/blobs/{sha}?offset=0&size={len(data)}", content=gzip.compress(data), headers=bearer)
         answer = web.post("/api/sync/commit", json={"name": made, "files": {"manifest.json": sha}}, headers=bearer)
         assert answer.status_code == 200, answer.text
-    assert not (blobs / sha_of(b'{"made_at": "a", "format": 2}')).exists()
-    assert (blobs / sha_of(b'{"made_at": "b", "format": 2}')).exists()
-    assert (blobs / sha_of(b'{"made_at": "c", "format": 2}')).exists()
+    assert not (blobs / sha_of(b'{"made_at": "a", "format": 3}')).exists()
+    assert (blobs / sha_of(b'{"made_at": "b", "format": 3}')).exists()
+    assert (blobs / sha_of(b'{"made_at": "c", "format": 3}')).exists()
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
@@ -402,8 +402,8 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     said = client.sync_pass(hosted, world.source, FakeBackend())
     assert "pushed the export" in said and "0 still to come" in said and len(hosted.commits) == 1
     assert "library problems" in said, said  # the library sweep ran before the export was built
-    # and the holes after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
-    assert "holes failed: exit 1: no store at " in said, said
+    # and the gaps after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
+    assert "gaps failed: exit 1: no store at " in said, said
     # priced before the push
     assert said.endswith(f"{PRICED}; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")
     assert priced == [world.source.world.name]
@@ -431,7 +431,7 @@ def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_p
     monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
     monkeypatch.setattr(client, "runner_price", lambda repo, environment: (None, "the runner's price failed: exit 1"))
     said = client.sync_pass(hosted, world.source, FakeBackend())
-    assert said.startswith("REFUSED: nothing synced: the runner's price failed: exit 1; ") and "holes" in said
+    assert said.startswith("REFUSED: nothing synced: the runner's price failed: exit 1; ") and "gaps" in said
     assert said.endswith("; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")
     assert hosted.commits == [] and hosted.chunks == [] and hosted.reports == []
 
@@ -476,7 +476,7 @@ def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, sett
         html = pages.get(page).content.decode()
         assert "state from 2026-10-18 12:00" in html, page
     html = pages.get("/place/alpha/").content.decode()
-    assert 'src="/view/alpha?holes=1&amp;embed=1"' in html
+    assert 'src="/view/alpha?gaps=1&amp;embed=1"' in html
     assert "No 3D web copy" in pages.get("/view/alpha").content.decode()
     pages.post("/place/alpha/step/closeup/decide/", {"decision": "reject", "output": "x", "reason": "no"})
     assert SyncRequest.objects.filter(kind="decision").exists()

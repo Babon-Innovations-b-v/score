@@ -163,9 +163,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   or its deadline (2026-10-09: six of seven spread slots gave up on their first round and one L4
   did all the work), and a signal (`STOPPING`) ends every claim and deletes a machine that answers after it. A big card runs as many jobs at once
   as `capacity.runs_at_once` says (measured kinds only). A machine rented that does not answer within
-  `START_MINUTES`, or refuses the runner's key, was billed: it is deleted and its slot is a hole
+  `START_MINUTES`, or refuses the runner's key, was billed: it is deleted and its slot is a gap
   (`batch.BootFailed`), with no machine rented in its place inside the batch; the Pixal3D fleet counts its cards, and
-  those of a machine that broke, as lost and makes the jobs no machine took holes (a batch, owner 2026-10-20). A new runner does the same and
+  those of a machine that broke, as lost and makes the jobs no machine took gaps (a batch, owner 2026-10-20). A new runner does the same and
   records its machines with `ledger.machines_record`, so `capacity.py report` can compare cards.
 - **Every kind spreads a batch over many machines** (`spread.py`, 2026-10-08, after the provider granted quotas
   for 20 H100, 50 L4 and 10 L40S machines; stock is still the real limit): `capacity.machines_for` rents enough
@@ -173,7 +173,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   keeps one machine and a big one ends in about the setup and one job's time; machines are claimed side by side
   (each claim reserves its zone while it rents, an offer that gave nothing is dropped for the run), each takes the
   next share from one queue as it finishes one, every share runs once: one whose machine failed or
-  whose own command failed (`spread.JobFailed`) is a hole, never handed to another machine. Caps: `max_machines` a class (the backend's
+  whose own command failed (`spread.JobFailed`) is a gap, never handed to another machine. Caps: `max_machines` a class (the backend's
   `QUOTAS`, else 5) and `run_cap` in all (the largest class quota, at least 20: 50 with the L4 quota since #20); `SCORE_MAX_MACHINES="gpu-80gb=20,all=30"` overrides. A new
   runner gives `spread.on_machines` a set-up and a per-share function. `scene.py` stays on one card: its steps
   feed each other.
@@ -207,7 +207,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `../library/inside/`'s (swatches, code-built pieces, re-materialed chunky pieces). A local bake took every core
   and WSL crashed the same day: no bake runs on the PC. A whole hub slice (28 pieces), the swatch sheet and three
   habitat pieces took 7 minutes, €0.09. One class is fixed for the whole call by a stock read at
-  price time; none in stock makes its jobs holes, never a processor machine in a card's place inside the batch. A
+  price time; none in stock makes its jobs gaps, never a processor machine in a card's place inside the batch. A
   processor class asked for by `--classes` is its own estimate, priced at `PROCESSOR_SLOWER` (three times).
 - **Close-ups: Qwen-Image-Edit first, Nano Banana Pro for the failures** (owner, 2026-10-08): the close-up stage
   (`../closeup/stage.py`) draws every close-up with `pictures.py --model qwen-edit` (Qwen-Image-Edit-2511, 20B, an

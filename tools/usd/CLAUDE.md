@@ -80,9 +80,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   (`checks/<check>.json`, tied to the stage's fingerprint), `done <place>` writes `manifest.json` and passes only when
   every requirement passes (rows made or dropped with a written reason, made-only, placeholders, resting, picks, boxes,
   every result current, the review page built and rendered from this stage, and the contents checks). Unknown blocks
-  like fail. It reads the place's named gaps (`data/checks/gaps/<place>.json`) as the runner's complete row does,
+  like fail. It reads the place's accepted gaps (`data/checks/gaps/<place>.json`) as the runner's complete row does,
   with `score/stages/gaps.py`'s own code: a check's faults a gap names pass that check, said by name, and the
-  `named gaps` requirement fails each gap by name; a fault no gap names still fails. Reach runs and shows on the manifest but is experimental (`EXPERIMENTAL`): its faults are not counted (it
+  `accepted gaps` requirement fails each gap by name; a fault no gap names still fails. Reach runs and shows on the manifest but is experimental (`EXPERIMENTAL`): its faults are not counted (it
   fails backdrop rows nobody walks to), only that it was recorded on this stage. The runner's complete stage
   (`score/stages/complete`) runs these same checks on the place's assembled stage: one gate, two ways in. The Stop
   and SubagentStop hooks (`.claude/hooks/completion_guard.py`) refuse a session's or sub-agent's "done" for a place it
@@ -175,7 +175,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   because the concept's composition is the owner's; put its layout right instead. Loose pieces collide with the
   ground and the static pieces only (convex hulls over hollows rested on debris). `--cloud` runs it on a rented
   machine, a small processor one only (`DROP_CLASSES`, #20; #21: no chain to bigger classes, a drop that gets none
-  is a hole; parked for its billed hour, so the places' drops share one rental; that the solve uses one core is not
+  is a gap; parked for its billed hour, so the places' drops share one rental; that the solve uses one core is not
   yet timed). `ground.py level <place>` levels a place's yard in the plan; `ground.py dent <place> <piece>` cuts a
   shallow bowl under a piece (a thrown sphere, a section's impact) so it rests where it was laid. A tip over 3 degrees
   onto feet that do not lie in one plane in the model's own frame (`uneven_feet`) is never written either: it is the
@@ -215,7 +215,7 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   the scene is too dark or too bright.
 - A record names a file by its library reference (`tools/library/library_files.py`) or by its path in git
   (`data/...`); `export.py` resolves both (`--assets <folder>` reads a folder of one's own instead), never a file of
-  the game's checkout. A name the library does not hold is a hole: the object (and what stands on it), the rock or
+  the game's checkout. A name the library does not hold is a gap: the object (and what stands on it), the rock or
   the sound is left out and named once. A walkway tube's kit is laid along the
   record's `tube_length` as the game's TubeKit lays it. `scene_test.py` checks the builders, the lights' units and
   turns, the kit lamps, the tube's laying and every real record.

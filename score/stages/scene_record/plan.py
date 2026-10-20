@@ -31,7 +31,7 @@ the place point it is), turned so its `toward` plan point falls the way of its p
 one frame, the street's; the square's and the launch's plans are drawn down the balcony's view).
 
 Gate `mapped`: every plan item names inventory rows that exist (a zone names none, nor a plot the writer lays, nor an
-item a library model makes: its model must be a library reference, tools/library/library_files.py; any other name is a hole), every concept element names rows that
+item a library model makes: its model must be a library reference, tools/library/library_files.py; any other name is a gap), every concept element names rows that
 exist, a plan door, a plan object, a plan decal, a plan item (a plot) or its drop, every door says where it leads and why, a sealed door is
 one the inventory's room layout shuts with a leaf, and every outdoor lamp and beam stands on a row that exists. How far a row's laid spot (the inventory's, else the kit's pieces of it)
 lies from its item's box is measured and shown, never judged here: the layout is the inventory's.
@@ -330,11 +330,11 @@ def row_spots(inventory, kit):
 
 def item_faults(item, ids, made):
     """Why a plan item is not mapped: no rows named and no library model making it (`made`, the plan's object), a
-    row the inventory lacks, or a model that is a hole, no library reference (unless the plan marks it `waiting` on
+    row the inventory lacks, or a model that is a gap, no library reference (unless the plan marks it `waiting` on
     its model, which the record carries)."""
     found = []
     if made is not None and library_files.parsed(made["model"]) is None and not made.get("waiting"):
-        found.append(f"plan item {item['name']!r}: model {made['model']} is a hole, not in the library")
+        found.append(f"plan item {item['name']!r}: model {made['model']} is a gap, not in the library")
     if item["rows"] is None and made is None:
         return found + [f"plan item {item['name']!r} names no inventory rows and no drop"]
     if not item["rows"] and item["kind"] not in UNROWED and made is None:

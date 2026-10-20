@@ -21,10 +21,10 @@ kept detail takes one library finish each (the finish pick, a text ask).
 Prices come from measured numbers only: a card step from preflight.measured over its kind's machines of its card type
 (the job seconds, median and high, the set-up, the euros a card-minute), a Google step from that caller's finished
 calls on the Google ledger (median and high euros a call). Every job is priced once: a batch runs each job once, and
-a failure is a hole, never a rerun (CONTEXT.md, owner 2026-10-20). Beside the price go the holes each step predicts,
-from its measured one-shot hole share (a card step's holes over jobs sent on the ledger lines that record them; a
+a failure is a gap, never a rerun (CONTEXT.md, owner 2026-10-20). Beside the price go the gaps each step predicts,
+from its measured one-shot gap share (a card step's gaps over jobs sent on the ledger lines that record them; a
 Google step's props failed at it in earlier prop batches' manifests, so an empty answer or a take that fails its shape
-check counts, and a free rate refusal does not); a step without enough of those says its holes as unmeasured. A step
+check counts, and a free rate refusal does not); a step without enough of those says its gaps as unmeasured. A step
 with too few measured machines or calls is said as unmeasured and priced at nothing; never guessed.
 The live ledger was reset on 2026-10-17, so the repo's evidence copy (paper/evidence/cloud/ledger.jsonl) is read with
 it by default, and any older copy can be added with --ledger.
@@ -59,7 +59,7 @@ GOOGLE_LEDGER = HOME / "cloud" / "google-ledger.jsonl"
 # addresses, storage and registry; paper/evidence/cloud/cost-tables-2026-10.txt). Card steps are priced with it.
 BILL_SHARE = 627.74 / 547.31
 MEASURED_CALLS = 10  # finished Google calls of a caller before its price counts as measured
-MEASURED_JOBS = 10  # one-shot jobs of a step sent before its hole share counts as measured
+MEASURED_JOBS = 10  # one-shot jobs of a step sent before its gap share counts as measured
 CAP = 20  # cards a step may take at once (capacity.run_cap's default)
 
 
@@ -122,20 +122,20 @@ def card_numbers(lines, kind, card):
     return preflight.measured(chosen, kind)
 
 
-def card_hole_share(lines, kind):
-    """The share of a kind's sent jobs that ended as holes, from one-shot batches only (ledger lines that carry
-    "holes"; the older lines reran a failed job once and counted jobs never sent as failures), or None under
+def card_gap_share(lines, kind):
+    """The share of a kind's sent jobs that ended as gaps, from one-shot batches only (ledger lines that carry
+    "gaps"; the older lines reran a failed job once and counted jobs never sent as failures), or None under
     MEASURED_JOBS sent."""
-    one_shot = [row for row in lines if row.get("kind") == kind and "holes" in row and row.get("models")]
+    one_shot = [row for row in lines if row.get("kind") == kind and "gaps" in row and row.get("models")]
     sent = sum(row["models"] - len(row.get("unsent", ())) for row in one_shot)
-    holes = sum(len(set(row["holes"]) - set(row.get("unsent", ()))) for row in one_shot)
-    return round(holes / sent, 3) if sent >= MEASURED_JOBS else None
+    gaps = sum(len(set(row["gaps"]) - set(row.get("unsent", ()))) for row in one_shot)
+    return round(gaps / sent, 3) if sent >= MEASURED_JOBS else None
 
 
-def manifest_hole_share(manifests, step_name):
-    """The share of a step's jobs in earlier prop batches (their manifests) that ended as holes: props that failed
+def manifest_gap_share(manifests, step_name):
+    """The share of a step's jobs in earlier prop batches (their manifests) that ended as gaps: props that failed
     at the step over those it made or failed, kept steps left out; None under MEASURED_JOBS. A close-up whose Pro take
-    came back empty or failed its shape check is a hole here, which the Google ledger never shows."""
+    came back empty or failed its shape check is a gap here, which the Google ledger never shows."""
     made = failed = 0
     for manifest in manifests:
         for record in manifest.get("props", {}).values():
@@ -154,10 +154,10 @@ def call_numbers(google_lines, caller):
     return {"calls": len(euros), "euros": statistics.median(euros), "high_euros": preflight.quantile(euros, preflight.HIGH)}
 
 
-def predicted_holes(jobs, hole_share):
-    """How many of a step's `jobs` its measured one-shot hole share says will end as holes (each job runs once), or
+def predicted_gaps(jobs, gap_share):
+    """How many of a step's `jobs` its measured one-shot gap share says will end as gaps (each job runs once), or
     None while that share is unmeasured."""
-    return None if hole_share is None else round(jobs * hole_share)
+    return None if gap_share is None else round(jobs * gap_share)
 
 
 def resolved(pattern):
@@ -192,33 +192,33 @@ def makes_step(prop, step):
 
 
 def step_price(step, jobs, lines, google_lines, manifests=()):
-    """One step's likely and high euros for `jobs` props, each job run once (no reruns: a failure is a hole), with
-    the holes its measured one-shot hole share predicts (None while unmeasured): {likely, high, hole_share,
-    predicted_holes, measured}; high takes the high job time (or call price). A Google step's share comes from earlier
+    """One step's likely and high euros for `jobs` props, each job run once (no reruns: a failure is a gap), with
+    the gaps its measured one-shot gap share predicts (None while unmeasured): {likely, high, gap_share,
+    predicted_gaps, measured}; high takes the high job time (or call price). A Google step's share comes from earlier
     prop batches' manifests, a card step's from the one-shot ledger lines."""
     if jobs == 0:
-        return {"likely": 0.0, "high": 0.0, "predicted_holes": 0, "measured": True}
+        return {"likely": 0.0, "high": 0.0, "predicted_gaps": 0, "measured": True}
     if step.google:
         numbers = call_numbers(google_lines, step.kind)
         if numbers is None:
-            return {"likely": 0.0, "high": 0.0, "predicted_holes": None, "measured": False}
-        share = manifest_hole_share(manifests, step.name)
+            return {"likely": 0.0, "high": 0.0, "predicted_gaps": None, "measured": False}
+        share = manifest_gap_share(manifests, step.name)
         return {"likely": round(jobs * numbers["euros"], 4), "high": round(jobs * numbers["high_euros"], 4),
-                "hole_share": share, "predicted_holes": predicted_holes(jobs, share), "measured": numbers}
+                "gap_share": share, "predicted_gaps": predicted_gaps(jobs, share), "measured": numbers}
     numbers = card_numbers(lines, step.kind, step.card)
     if numbers is None:
-        return {"likely": 0.0, "high": 0.0, "predicted_holes": None, "measured": False}
-    share = card_hole_share(lines, step.kind)
+        return {"likely": 0.0, "high": 0.0, "predicted_gaps": None, "measured": False}
+    share = card_gap_share(lines, step.kind)
     found = preflight.batch(jobs, numbers, CAP, step.slots)
     return {"likely": round(found["euros"] * BILL_SHARE, 4), "high": round(found["high_euros"] * BILL_SHARE, 4),
             "cards": found["cards"], "minutes": found["minutes"], "high_minutes": found["high_minutes"],
-            "hole_share": share, "predicted_holes": predicted_holes(jobs, share), "measured": numbers}
+            "gap_share": share, "predicted_gaps": predicted_gaps(jobs, share), "measured": numbers}
 
 
 def price(props, lines, google_lines, previous=None, manifests=()):
     """The batch's pre-flight: the props it makes and keeps, each step's price, the per-prop and whole likely and
-    high euros (one run a job), the holes each step's measured one-shot share predicts beside them, the steps whose
-    hole share is still unmeasured, and the steps still unmeasured."""
+    high euros (one run a job), the gaps each step's measured one-shot share predicts beside them, the steps whose
+    gap share is still unmeasured, and the steps still unmeasured."""
     making = to_make(props, previous)
     steps = {step.name: step_price(step, sum(makes_step(prop, step) for prop in making), lines, google_lines,
                                    manifests)
@@ -229,9 +229,9 @@ def price(props, lines, google_lines, previous=None, manifests=()):
     return {"route": ROUTE_VERSION, "props": len(props), "making": [prop["name"] for prop in making],
             "kept": len(props) - len(making), "steps": steps, "likely": likely, "high": high,
             "per_prop": {"likely": round(likely / count, 3), "high": round(high / count, 3)},
-            "predicted_holes": {name: step["predicted_holes"] for name, step in steps.items()
-                                if step["predicted_holes"] is not None},
-            "holes_unmeasured": [name for name, step in steps.items() if step["predicted_holes"] is None],
+            "predicted_gaps": {name: step["predicted_gaps"] for name, step in steps.items()
+                                if step["predicted_gaps"] is not None},
+            "gaps_unmeasured": [name for name, step in steps.items() if step["predicted_gaps"] is None],
             "unmeasured": [name for name, step in steps.items() if step["measured"] is False]}
 
 
@@ -318,7 +318,7 @@ def measured_costs(manifest, lines, google_lines=()):
 
 
 def earlier_manifests():
-    """Every earlier prop batch's manifest in the props home, the measured one-shot holes of each step."""
+    """Every earlier prop batch's manifest in the props home, the measured one-shot gaps of each step."""
     return [json.loads(path.read_text()) for path in sorted((HOME / "prop-batches").glob("*/manifest.json"))]
 
 
@@ -362,9 +362,9 @@ def main():
     if args.out:
         write_json(pathlib.Path(args.out), plan)
     print(f"{len(plan['making'])} of {plan['props']} props to make, EUR {plan['likely']} likely, {plan['high']} high "
-          f"(per prop {plan['per_prop']['likely']} / {plan['per_prop']['high']}); predicted holes: "
-          f"{', '.join(f'{name} {count}' for name, count in plan['predicted_holes'].items()) or 'none'} (holes unmeasured: "
-          f"{', '.join(plan['holes_unmeasured']) or 'none'}); unmeasured: "
+          f"(per prop {plan['per_prop']['likely']} / {plan['per_prop']['high']}); predicted gaps: "
+          f"{', '.join(f'{name} {count}' for name, count in plan['predicted_gaps'].items()) or 'none'} (gaps unmeasured: "
+          f"{', '.join(plan['gaps_unmeasured']) or 'none'}); unmeasured: "
           f"{', '.join(plan['unmeasured']) or 'none'}" + (f"; wrote {args.out}" if args.out else ""), flush=True)
     if args.command == "run":
         run_paid(props, previous, folder, args.yes)

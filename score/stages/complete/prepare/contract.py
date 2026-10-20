@@ -1,6 +1,6 @@
 """A take's inputs checked by contract before the batch, free: its row names a view of its place's plan, a box of
 that view's picture, a size, and the view's picture stands in the work folder; plus the crop's risk, said apart (no
-measured failure is tied to it, so it is never a predicted hole).
+measured failure is tied to it, so it is never a predicted gap).
 
 The crop is cut from the box with a fifth of margin and scaled up to SHORTEST_CROP on its long side when shorter
 (tools/props/closeup/stage.py crop); `upscale` is that factor, read from the box alone.

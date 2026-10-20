@@ -16,7 +16,7 @@ import json
 import pathlib
 
 from score import graph, stages
-from score.stages.complete.holes import price
+from score.stages.complete.gaps import price
 from score.stages.complete.prepare import benchmarks, contract, estimate, groups, library, machines, predict
 from score.store import PROPS_HOME
 
@@ -24,7 +24,7 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 WORK = PROPS_HOME / "work"
 OUT = WORK / "checks" / "prepare" / "remake.json"
 WORLD = "world1"
-NOT_IN_FIGURE = ("the places' own paid rows (settle, light passes, effects look, tiles): `score price world1 --holes`",
+NOT_IN_FIGURE = ("the places' own paid rows (settle, light passes, effects look, tiles): `score price world1 --gaps`",
                  "films, people, sound and terrain: their layers' prepare steps are #21 tracks C's",
                  "the likeness calibration and any layer listed unpriced: no measured per unit")
 
@@ -53,13 +53,13 @@ def made(take):
 
 
 def status_of(match, prediction, is_made):
-    """library (a model made under today's route, or locked, matches), made (its take stands), predicted hole, or
+    """library (a model made under today's route, or locked, matches), made (its take stands), predicted gap, or
     bought."""
     if match["pipeline"]:
         return "library"
     if is_made:
         return "made"
-    return "predicted hole" if prediction["outcome"] == "predicted hole" else "bought"
+    return "predicted gap" if prediction["outcome"] == "predicted gap" else "bought"
 
 
 def take_entry(group, record, index, rates, work):
@@ -81,7 +81,7 @@ def take_counts(takes):
                                      for take in takes),
             "library_old": sum(not take["library"]["pipeline"] and bool(take["library"]["old"]) for take in takes),
             "made": sum(take["status"] == "made" for take in takes), "bought": len(bought),
-            "predicted_holes": sum(take["status"] == "predicted hole" for take in takes),
+            "predicted_gaps": sum(take["status"] == "predicted gap" for take in takes),
             "at_risk": sum(take["prediction"]["outcome"] == "at risk" for take in bought),
             "inputs_missing": sum(bool(take["inputs"]) for take in bought)}
 
@@ -110,11 +110,11 @@ def moved_rows(runner):
 
 
 def priced_layers(route, takes, fixed):
-    """(layers of the bought takes, layers of the predicted holes) on the route."""
+    """(layers of the bought takes, layers of the predicted gaps) on the route."""
     rules = estimate.one_shot()
     bought = [take for take in takes if take["status"] == "bought"]
-    holes = [take for take in takes if take["status"] == "predicted hole"]
-    return estimate.layers(route, bought, rules, fixed), estimate.layers(route, holes, rules, fixed)
+    gaps = [take for take in takes if take["status"] == "predicted gap"]
+    return estimate.layers(route, bought, rules, fixed), estimate.layers(route, gaps, rules, fixed)
 
 
 def across_places(route, takes, fixed):
@@ -134,14 +134,14 @@ def remake(runner, data, root, work, stock=None, moved=None):
              for place, found in by_place.items() for group in found if not group["reuse"]]
     route = price.route_stages(runner)
     fixed = fixed_machines(route, stock)
-    found, holes = priced_layers(route, takes, fixed)
+    found, gaps = priced_layers(route, takes, fixed)
     edges = estimate.route_edges(runner.stages, route)
     record = {"made_at": graph.now(), "priced_on": price.priced_on(),
               "counts": {**groups.counts(by_place), **take_counts(takes)}, "rates": rates, "library": library_entry,
               "takes": takes, "layers": found, "totals": estimate.totals(found),
               "eta": estimate.eta(found, edges, graph.JOBS, price.run_cap()),
-              "expected_holes": estimate.expected_holes([take for take in takes if take["status"] == "bought"]),
-              "predicted_holes_if_bought": estimate.totals(holes),
+              "expected_gaps": estimate.expected_gaps([take for take in takes if take["status"] == "bought"]),
+              "predicted_gaps_if_bought": estimate.totals(gaps),
               "across_places": across_places(route, takes, fixed),
               "moved": {"rows": moved} if moved is not None else {"not_run": "--moved not given"},
               "benchmarks": {"listed": benchmarks.listed(), "guard": benchmarks.guard()},

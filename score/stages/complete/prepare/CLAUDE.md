@@ -11,15 +11,15 @@ the one figure the creator says yes to. Today it prepares the environment's rema
 - **Every job once.** The figure prices each take's layers one run each (`estimate.one_shot`: one Pro wording a row,
   one draw a map, no finish asked again); no retry share, no second take, no fallback class. A shell piece takes its
   library surface with no maps (`estimate.SHELL_ROUTE`). Card and processor layers carry the bill share
-  (`holes/price.py` `BILL_SHARE`); Google calls do not.
+  (`gaps/price.py` `BILL_SHARE`); Google calls do not.
 - **A prediction comes from a measured failure mode, never a guess.** `predict.py` counts the hub's prop-route table
   against the hub's sizes every run: a shape every one of at least `MIN_MEASURED` measured rows failed is a predicted
-  hole, not bought, and priced apart (`predicted_holes_if_bought`); fewer measured rows is `at risk`, still bought.
+  gap, not bought, and priced apart (`predicted_gaps_if_bought`); fewer measured rows is `at risk`, still bought.
   The crop's upscale is said, never a prediction (no failure was measured against it).
 - **Unmeasured stays unknown.** A layer with no per unit is unpriced and named; one with no measured minutes is
-  untimed, and the ETA is then only `at_least_minutes` (`holes/schedule.py`).
+  untimed, and the ETA is then only `at_least_minutes` (`gaps/schedule.py`).
 - **One class and zone a layer** (`machines.py`): the runner's first class in its kind's order, the zone with the
-  best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as holes.
+  best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as gaps.
 - **Library reuse only under today's route** (owner, 2026-10-20, #21/#41: "wouldn't lock anything"): a matching
   library model is reused only when the owner locked it, or when its provenance names today's route
   (`library.ROUTE`) and the runner took it there; every other match is remade and priced (`library_old`,

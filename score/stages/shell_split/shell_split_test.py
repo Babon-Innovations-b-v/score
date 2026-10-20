@@ -1,6 +1,6 @@
 """The shell-split row, free and local: a shell's plan split into inside places that tile its inside, are reached
 through doors and keep their plan's bounds; each gate fails a broken split by name; an inside place's plan reads its
-shell's split beside it; a shell with no split is a hole of its own. And the ship's shell (its hull at 46 m, the room
+shell's split beside it; a shell with no split is a gap of its own. And the ship's shell (its hull at 46 m, the room
 list of its floor plan, plan v7's lengths as bounds) split by the stage against the hand-made
 data/definitions/ship_floor.json, every difference stated, never tuned away.
 
@@ -18,7 +18,7 @@ sys.path.insert(0, str(REPO))
 
 from score import checks, contracts, graph, stages  # noqa: E402
 from score.stages import shell_split  # noqa: E402
-from score.stages.complete.holes import fill, route  # noqa: E402
+from score.stages.complete.gaps import fill, route  # noqa: E402
 from score.store import PROPS_HOME, Store  # noqa: E402
 
 # A box-shaped shell 20 m long, 8 m across, 3 m clear; a nose 1 m deep too low to stand in.
@@ -217,7 +217,7 @@ def test_one_bad_shell_plan_stops_only_the_places_it_names():
         raise AssertionError("a place split from two shells was read")
 
 
-def test_a_shell_without_its_split_is_a_hole_filled_by_the_row():
+def test_a_shell_without_its_split_is_a_gap_filled_by_the_row():
     plans = shell_plan(folder(), TOY).parent
     store = Store.in_folder(folder())
     missing = with_plans(plans, lambda: route.missing(store, "toyship", None, None))

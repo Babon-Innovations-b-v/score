@@ -1,5 +1,5 @@
 """The steps of the route a place has not been through (shapes first: its concept, its plan, its rough model, and an
-outside shell's split), each a hole of the whole place, on its root prim.
+outside shell's split), each a gap of the whole place, on its root prim.
 
     missing = route.missing(store, place, inventory, plan)   # the kinds not done, of fill.CONCEPT, PLAN, ROUGH_MODEL,
                                                               # SHELL_SPLIT
@@ -14,7 +14,7 @@ outside shell's split), each a hole of the whole place, on its root prim.
 import json
 
 from score.stages import concept_view, scene_record, shell_split
-from score.stages.complete.holes import fill
+from score.stages.complete.gaps import fill
 
 
 def has_concept(inventory, plan):

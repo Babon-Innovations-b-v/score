@@ -1,6 +1,6 @@
 """The rough-model row: in the table next to the plan, reading the plan and the concept picture it names; its make
 through a stand-in batch and finish (no spend, no model made); its gates on a one-triangle binary glTF; its batch check
-without rows; and the holes it fills. Run: .venv/bin/python -m pytest score/stages/rough_model
+without rows; and the gaps it fills. Run: .venv/bin/python -m pytest score/stages/rough_model
 """
 import contextlib
 import hashlib
@@ -13,7 +13,7 @@ import pytest
 
 from score import checks, stages
 from score.stages import rough_model, scene_record
-from score.stages.complete.holes import fill, route
+from score.stages.complete.gaps import fill, route
 import score.stages.rough_model._cloud as cloud
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -190,7 +190,7 @@ def test_the_batch_check_keeps_the_owner_s_approval_without_the_rows():
     assert "        from_the_inventory(models, options.inventory)\n" in cloud.BATCH.read_text()
 
 
-def test_its_hole_is_its_node_until_it_stands_accepted():
+def test_its_gap_is_its_node_until_it_stands_accepted():
     class Store:
         def __init__(self, accepted):
             self.accepted = lambda node: accepted.get(node)

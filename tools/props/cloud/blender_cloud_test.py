@@ -136,7 +136,7 @@ class Offer:
         self.machine_class, self.stock_word = machine_class, stock_word
 
 
-def one_class_is_fixed_at_price_time_and_no_stock_is_a_hole():
+def one_class_is_fixed_at_price_time_and_no_stock_is_a_gap():
     """A batch runs every job once on the class fixed before it (CONTEXT.md, owner 2026-10-20): card classes all short
     rented a 32-core processor machine instead, and the call's claims moved between classes as stock moved. Now the
     first class asked in stock is the only one rented, and none in stock rents nothing (the stock is stubbed)."""
@@ -162,7 +162,7 @@ def one_class_is_fixed_at_price_time_and_no_stock_is_a_hole():
 
 CHECKS = (paths_move_to_the_machine, the_scripts_folders_go_up, a_held_machine_runs_a_chain,
           a_cluster_job_keeps_the_paths, the_runner_python_follows_props_home,
-          one_class_is_fixed_at_price_time_and_no_stock_is_a_hole)
+          one_class_is_fixed_at_price_time_and_no_stock_is_a_gap)
 
 
 if __name__ == "__main__":

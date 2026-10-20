@@ -96,15 +96,15 @@ def test_a_silent_moving_thing_fails_events_and_people_with_no_voice_fail_voices
 
 def test_needs_name_what_the_library_does_not_answer():
     """#29: free, from the place's records: the lab's hatches are answered from the library, its crew's voice is a
-    brief the sound row makes (a hole naming sound@lab); the workshop's robot turntable has no sound named (a hole
+    brief the sound row makes (a gap naming sound@lab); the workshop's robot turntable has no sound named (a gap
     with its work); a hatch's wheel and window ride its leaf (one event)."""
     from score.stages.sound import needs
     lab = {(need["kind"], need["item"]): need["state"] for need in needs.needs("lab", REPO / "data")}
     assert lab[("event", "hatch_door_leaf_1")] == needs.LIBRARY and ("event", "hatch_door_wheel_1") not in lab, lab
     assert lab[("voice", "people")] == needs.MAKE, lab
-    holes = {hole["id"]: hole for hole in needs.holes("lab", REPO / "data")}
-    assert holes["sound:voice:people"]["node"] == "sound@lab", holes
-    workshop = {hole["id"]: hole for hole in needs.holes("workshop", REPO / "data")}
+    gaps = {gap["id"]: gap for gap in needs.gaps("lab", REPO / "data")}
+    assert gaps["sound:voice:people"]["node"] == "sound@lab", gaps
+    workshop = {gap["id"]: gap for gap in needs.gaps("workshop", REPO / "data")}
     assert workshop["sound:event:robot_turntable"]["node"] is None, workshop
     assert "data/sound/moving.json" in workshop["sound:event:robot_turntable"]["work"], workshop
 
@@ -167,7 +167,7 @@ def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
     """#29: crew_talk, played in several places, is one take of the environment's plan, counted once by the price's
     forecast rule; two places' lines side by side make it on one card, the second waiting and reading it."""
     import threading
-    from score.stages.complete.holes import price
+    from score.stages.complete.gaps import price
     from score.stages.sound import takes
     kept_folder = pathlib.Path(tempfile.mkdtemp())
     real_takes, real_on_card = takes.TAKES, takes.on_card
@@ -202,8 +202,8 @@ def test_a_brief_several_places_play_is_one_take_on_one_card_and_counted_once():
     assert asked == ["crew_talk"], asked
 
 
-def test_a_shared_take_that_fails_is_a_hole_on_every_place_and_never_asked_again():
-    """#29: two places' lines wait on one take whose card job fails: one card asked for, both lines get the hole."""
+def test_a_shared_take_that_fails_is_a_gap_on_every_place_and_never_asked_again():
+    """#29: two places' lines wait on one take whose card job fails: one card asked for, both lines get the gap."""
     import threading
     from score.stages.sound import takes
     kept_folder = pathlib.Path(tempfile.mkdtemp())
@@ -260,9 +260,9 @@ def test_moving_things_sound_off_their_own_moves():
     assert len({tuple(found) for found in rooms.values()}) == len(rooms), rooms
 
 
-def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_hole():
+def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():
     """#21, #29: one take a sound, its brief's first prompt at seed 1, made once; the card's deadline is its takes'
-    minutes, not twice them; a take that did not come back is left out of the scores (its sound a hole), never asked
+    minutes, not twice them; a take that did not come back is left out of the scores (its sound a gap), never asked
     again."""
     from score.stages.sound import takes
     jobs = [job for name in ("pump", "fan") for job in
@@ -292,8 +292,8 @@ def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_hole():
     assert len(sound.candidates("pump", jobs, scored, "rev")) == 1
 
 
-def test_no_card_in_stock_is_a_hole_asked_once():
-    """#21: the card is asked for once; none in stock blocks the row at once (its takes holes), never waited out."""
+def test_no_card_in_stock_is_a_gap_asked_once():
+    """#21: the card is asked for once; none in stock blocks the row at once (its takes gaps), never waited out."""
     import types
     from score import graph
     from score.stages.sound import takes
@@ -308,7 +308,7 @@ def test_no_card_in_stock_is_a_hole_asked_once():
         sys.modules["provider"] = types.SimpleNamespace(cloud=cloud)
         try:
             takes.on_card({"classes": ["L4-1-24G"]})
-            raise AssertionError("no card in stock was not a hole")
+            raise AssertionError("no card in stock was not a gap")
         except graph.Blocked as blocked:
             assert "in stock" in str(blocked), blocked
     finally:

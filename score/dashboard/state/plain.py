@@ -1,5 +1,5 @@
 """A place's problems in one plain sentence each, for someone who did not build the framework: what is wrong and
-where, never a gate's name or a node. A named gap is said by its check (data/checks/gaps/<place>.json `check`),
+where, never a gate's name or a node. An accepted gap is said by its check (data/checks/gaps/<place>.json `check`),
 the things it names in words; a stopped step by what its fault report says stopped it."""
 import re
 
@@ -7,8 +7,8 @@ from score.dashboard.state.groups import DOOR_TITLES, place_title
 
 NUMBERED = re.compile(r"(_\d+|-[a-z]\d+)$")  # an instance number or a take's suffix
 MOST_NAMED = 4
-LOST = "place:lost:"  # a lost input's hole id: place:lost:<kind>:<item> (score/stages/complete/holes/__main__.py)
-# Each check of a named gap as a plain sentence, said of one thing and of several: {things} the named things in
+LOST = "place:lost:"  # a lost input's gap id: place:lost:<kind>:<item> (score/stages/complete/gaps/__main__.py)
+# Each check of an accepted gap as a plain sentence, said of one thing and of several: {things} the named things in
 # words, {place} the place.
 SAID = {
     "game": ("Where things stand in {place} is still copied from the old game; it is not yet laid out from its own "
@@ -73,8 +73,8 @@ def capital(text):
     return text[:1].upper() + text[1:]
 
 
-def gap_sentence(entry, place):
-    """A named gap in one plain sentence; its own name, the place's prefix dropped, when its check has none."""
+def accepted_gap_sentence(entry, place):
+    """An accepted gap in one plain sentence; its own name, the place's prefix dropped, when its check has none."""
     check = entry.get("check")
     objects = [item for item in entry.get("objects") or [] if isinstance(item, str)]
     if check == "likeness" and objects == ["likeness"]:
@@ -89,7 +89,7 @@ def gap_sentence(entry, place):
 
 def stop_sentence(label, why, place, gaps):
     """A stopped step in one plain sentence: the known gaps that stopped it, a check it failed, else its cause."""
-    if "named gaps" in why and gaps:
+    if "accepted gaps" in why and gaps:
         return (f"The final check stopped {place_words(place)} because of the {gaps} known "
                 f"gap{'s' if gaps > 1 else ''} below, which are not fixed yet.")
     failed = re.search(r"answered fail: ([^:;]+)", why)
@@ -99,31 +99,31 @@ def stop_sentence(label, why, place, gaps):
     return f"The {label} step stopped: {cause}." if cause else f"The {label} step stopped."
 
 
-def lost_item(hole_id):
+def lost_item(gap_id):
     """The item a lost input's id names (place:lost:<kind>:<item>), whole: an item may hold a colon itself."""
-    return hole_id.removeprefix(LOST).split(":", 1)[-1]
+    return gap_id.removeprefix(LOST).split(":", 1)[-1]
 
 
-def lost_words(hole_id):
+def lost_words(gap_id):
     """A lost input's item in words: one named by a door kit's key ("gdoor", its seed folder) by the kit's title, any
     other as it is."""
-    item = lost_item(hole_id)
+    item = lost_item(gap_id)
     return DOOR_TITLES.get(item, item)
 
 
-def hole_sentence(hole, place, count=1):
-    """A hole in one plain sentence: a row with nothing made for it (`count` of its objects), a made thing that fails
-    a check (said by that check as a named gap's is, else as the check found it), or a step the place has not been
+def gap_sentence(gap, place, count=1):
+    """A gap in one plain sentence: a row with nothing made for it (`count` of its objects), a made thing that fails
+    a check (said by that check as an accepted gap's is, else as the check found it), or a step the place has not been
     through."""
-    if hole.rule == "missing":
-        name = hole.sentence.split(": ", 1)[0]
+    if gap.rule == "missing":
+        name = gap.sentence.split(": ", 1)[0]
         many = f" ({count} of them)" if count > 1 else ""
-        nowhere = "; the inventory gives it no spot" if hole.placed == "unplaced" else ""
+        nowhere = "; the inventory gives it no spot" if gap.placed == "unplaced" else ""
         return capital(f"{name} should be in {place_words(place)} but nothing is made for it yet{many}{nowhere}.")
-    if (hole.id or "").startswith(LOST):  # its words name the file and the steps reading it: kept for the fold
-        return f"An input {place_words(place)}'s steps read is lost: {lost_words(hole.id)}."
-    gate = (hole.gates or ["/"])[0].split("/", 1)[1]
-    if hole.rule == "gate" and gate in SAID:
-        names = thing_names([hole.prim or (hole.id or "").split(":", 2)[-1]])  # the object its id names
+    if (gap.id or "").startswith(LOST):  # its words name the file and the steps reading it: kept for the fold
+        return f"An input {place_words(place)}'s steps read is lost: {lost_words(gap.id)}."
+    gate = (gap.gates or ["/"])[0].split("/", 1)[1]
+    if gap.rule == "gate" and gate in SAID:
+        names = thing_names([gap.prim or (gap.id or "").split(":", 2)[-1]])  # the object its id names
         return capital(SAID[gate][0].format(things=thing_words(names), place=place_words(place)))
-    return capital(hole.sentence).rstrip(".") + "."
+    return capital(gap.sentence).rstrip(".") + "."

@@ -41,7 +41,7 @@ def world_data_copy(root):
     # else the assembly reads the hangar's own surfaces-bake, a row this example does not run.
     surfaces = root / "surfaces/hangar.json"
     surfaces.write_text(json.dumps({**json.loads(surfaces.read_text()), "elsewhere": {}}, indent=1))
-    # The example's failing seed: without the owner's named gap for the hangar's ship (2026-10-14), its placeholders
+    # The example's failing seed: without the owner's accepted gap for the hangar's ship (2026-10-14), its placeholders
     # fail the assembly's own gate.
     (root / "checks/gaps/hangar.json").write_text(json.dumps({"gaps": []}))
     return root
@@ -311,7 +311,7 @@ WORK_PATHS_LEFT = {
                                                    "quarters", "storage")},
     "data/props/cockpit.json": 25, "data/props/shiplock.json": 25,  # Pixal3D takes and hub-round6 models
     "data/props/batches/trial.json": 8,  # the trial's close-ups, Pixal3D takes
-    "data/props/people.json": 23,  # #41's hole: each look's close-up, drawn by people-take-<look> before the loop
+    "data/props/people.json": 23,  # #41's gap: each look's close-up, drawn by people-take-<look> before the loop
     "data/inventory/garage.json": 1,  # a citation of the coordinator's audit file in a `needed` note, no path read
 }
 
@@ -322,7 +322,7 @@ def test_the_environment_data_names_no_new_path_into_the_work_folder():
                            capture_output=True, text=True).stdout.split()
     counts = {line.rsplit(":", 1)[0]: int(line.rsplit(":", 1)[1]) for line in found}
     grown = {path: count for path, count in counts.items() if count > WORK_PATHS_LEFT.get(path, 0)}
-    assert not grown, f"new paths into the work folder (make them a row's output, or a hole): {grown}"
+    assert not grown, f"new paths into the work folder (make them a row's output, or a gap): {grown}"
     shrunk = {path: counts.get(path, 0) for path, count in WORK_PATHS_LEFT.items() if counts.get(path, 0) < count}
     assert not shrunk, f"fewer paths into the work folder than WORK_PATHS_LEFT allows: lower it to {shrunk}"
 

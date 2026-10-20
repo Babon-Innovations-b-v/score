@@ -21,7 +21,7 @@ seated place's own stage standing on it. `__init__.py`'s and `fit.py`'s docstrin
   and lands them (`python -m score.stages.terrain.areas write <place> [<rough-align output>]`, default the accepted
   `rough-align@<place>`; refused without a registration) as inventory rows, `"layer": "terrain"` objects of the
   place's hand-in record and surface takes, so the shared loop makes them like any row (its `fits the plan` gate
-  counts them round the floor, `align.ROUND`, not on it); until landed each is a `missing` hole of the prop route
+  counts them round the floor, `align.ROUND`, not on it); until landed each is a `missing` gap of the prop route
   (`needs.py`), priced through the pipeline's own units. Its one after-step, `join.py`'s `ground-join@<place>` (free,
   only where the place handed terrain rows), takes each row's model from the loop (`made.made`), cuts the code ground
   under each made piece, seats its rim into it, draws it as the object layer's assets are (a subset a library

@@ -21,7 +21,7 @@ from score.dashboard.pages import actions, cockpit, library, present, seen
 from score.dashboard.pages import basket as basket_items
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.proposals import records
-from score.dashboard.state import costs, groups, holes, screens
+from score.dashboard.state import costs, groups, gaps, screens
 from score.dashboard.state import money as month_money
 
 
@@ -54,18 +54,18 @@ def money_bar(spent, reserved, likely, high, ceiling):
 
 def overview_of(source):
     """{world, names, rows, view} every screen of the environment reads: the WorldState with the month's spend, the
-    places' titles, each place's row of holes (holes.per_place) and the month's MoneyView."""
+    places' titles, each place's row of gaps (gaps.per_place) and the month's MoneyView."""
     world = source.world_state(actions.spend())
     names = present.place_names(present.look_groups(world, set()))
-    rows = holes.per_place(world.holes_price, every_place_holes(source))
+    rows = gaps.per_place(world.gaps_price, every_place_gaps(source))
     return {"world": world, "names": names, "rows": rows, "view": month_money.view(world.spend)}
 
 
-def every_place_holes(source):
-    """{place: [hole]} of every place of the environment, the holes check's findings."""
-    if hasattr(source, "holes"):
-        return {place: source.holes(place) for place in source.places()}
-    return {place: source.place_detail(place).holes for place in source.places()}
+def every_place_gaps(source):
+    """{place: [gap]} of every place of the environment, the gaps check's findings."""
+    if hasattr(source, "gaps"):
+        return {place: source.gaps(place) for place in source.places()}
+    return {place: source.place_detail(place).gaps for place in source.places()}
 
 
 def environment(request):
@@ -102,8 +102,8 @@ def stats(request):
         "money": money, "so_far": view.world_spent if view.stop is not None else None, "in_flight": view.in_flight,
         "chart": cockpit.day_chart(days), "month_name": datetime.date.fromisoformat(f"{view.month}-01").strftime("%B"),
         "unplaced": cockpit.unplaced(money["total"], days),
-        "measured": cockpit.measured_prices(world.holes_price), "share": cockpit.measured_share(screens.batch(world)),
-        "kinds": cockpit.gaps_by_kind(world.holes_total), "complete": complete, "of": of})
+        "measured": cockpit.measured_prices(world.gaps_price), "share": cockpit.measured_share(screens.batch(world)),
+        "kinds": cockpit.gaps_by_kind(world.gaps_total), "complete": complete, "of": of})
 
 
 def buy(request):
@@ -141,8 +141,8 @@ def place_page(request, place):
     names = present.place_names(present.look_groups(world, set()))
     return render(request, "pages/place.html", {
         "detail": detail, "name": names.get(place, present.place_title(place)), "concept": world.concepts.get(place),
-        "tree": scene_branch(request, source, detail, "") if detail.holes else None,
-        "checked": not holes.not_checked(place, detail.holes, world.holes_price)})
+        "tree": scene_branch(request, source, detail, "") if detail.gaps else None,
+        "checked": not gaps.not_checked(place, detail.gaps, world.gaps_price)})
 
 
 def place_branch(request, place):
@@ -163,20 +163,20 @@ def scene_branch(request, source, detail, path):
     node = cockpit.branch_at(present.prim_tree(detail), path)
     if node is None:
         return None
-    price = source.world_state().holes_price
+    price = source.world_state().gaps_price
     owner, steps = is_owner(request.user), {}
 
-    def step_of(hole):
-        """The owner's view of the step that fills the hole (its StepDetail, read once a branch), else None."""
-        if not owner or not hole.node:
+    def step_of(gap):
+        """The owner's view of the step that fills the gap (its StepDetail, read once a branch), else None."""
+        if not owner or not gap.node:
             return None
-        if hole.node not in steps:
-            stage, _, place = hole.node.partition("@")
-            steps[hole.node] = source.step_detail(place or None, stage)
-        return steps[hole.node]
+        if gap.node not in steps:
+            stage, _, place = gap.node.partition("@")
+            steps[gap.node] = source.step_detail(place or None, stage)
+        return steps[gap.node]
 
     return cockpit.branch_rows(
-        node, path, lambda hole, title: cockpit.hole_panel(hole, detail.place, step_of(hole), price),
+        node, path, lambda gap, title: cockpit.gap_panel(gap, detail.place, step_of(gap), price),
         lambda at: f"/place/{detail.place}/branch/?{urlencode({'path': at})}")
 
 
@@ -360,9 +360,9 @@ def viewer(request, place):
     """The 3D viewer of a place's fresh web copy: orbit and walk, a toggle per OpenUSD layer, a person for scale, a
     measuring tool, and a click names the part, its surface, its layer and the step that made that layer. With a
     basket item (`item`), its free after (`side` before: the place now) with the parts it changes outlined; `embed`
-    leaves the panel out (the item's details hold it in a frame); `holes=1` outlines the place's holes too (each
-    missing object's box and each made object failing a check; the web copy stays the accepted one), and `hole`
-    frames that one; with no web copy yet, the holes alone over a ground grid, said so."""
+    leaves the panel out (the item's details hold it in a frame); `gaps=1` outlines the place's gaps too (each
+    missing object's box and each made object failing a check; the web copy stays the accepted one), and `gap`
+    frames that one; with no web copy yet, the gaps alone over a ground grid, said so."""
     source = state.source()
     if place not in source.places():
         raise Http404(place)
@@ -372,25 +372,25 @@ def viewer(request, place):
     base = after["web3d_base"] if showing == "after" else f"/web/{place}/"
     only = only_layer(request.GET.get("only"), detail.usd_index.layers)
     film_view = detail.film_view if request.GET.get("at") == "film" else None
-    hole_marks = present.hole_marks(detail) if request.GET.get("holes") == "1" else []
-    holes_only = bool(hole_marks) and not detail.web3d and showing != "after"
-    framed = present.framed_hole(detail, request.GET.get("hole")) if hole_marks else None
+    gap_marks = present.gap_marks(detail) if request.GET.get("gaps") == "1" else []
+    gaps_only = bool(gap_marks) and not detail.web3d and showing != "after"
+    framed = present.framed_gap(detail, request.GET.get("gap")) if gap_marks else None
     return render(request, "pages/view3d.html", {"detail": detail, "after": after, "showing": showing,
                                                  "only": only, "at_film": bool(film_view),
-                                                 "embed": request.GET.get("embed") == "1", "holes_only": holes_only,
+                                                 "embed": request.GET.get("embed") == "1", "gaps_only": gaps_only,
                                                  "framed": framed,
-                                                 "gate_marks": any(mark["kind"] == "gate" for mark in hole_marks),
-                                                 "holes_mode": bool(hole_marks),
+                                                 "gate_marks": any(mark["kind"] == "gate" for mark in gap_marks),
+                                                 "gaps_mode": bool(gap_marks),
                                                  "viewer": {"place": place, "base": base,
                                                             "layers": layer_makers(detail.usd_index.layers),
                                                             "order": [layer.name for layer in detail.usd_index.layers],
                                                             "only": [only, ONLY_WITH] if only else None,
-                                                            "at": film_view, "hole": request.GET.get("hole"),
-                                                            "holes_only": holes_only,
+                                                            "at": film_view, "gap": request.GET.get("gap"),
+                                                            "gaps_only": gaps_only,
                                                             "marks": basket_items.marks(
                                                                 (after or {}).get("changes"),
                                                                 "after" if showing == "after" else "before")
-                                                            + hole_marks}})
+                                                            + gap_marks}})
 
 
 def item_after(place, ident):

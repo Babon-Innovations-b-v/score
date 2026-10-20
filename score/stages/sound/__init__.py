@@ -169,13 +169,13 @@ def levelled(paths, category, loops):
 
 def picked(name, brief, entry, inputs, out):
     """A sound the world already plays: its files copied from the library (each under its stage name), its credit
-    from the licence list; a file the library does not hold (a hole) is left out."""
+    from the licence list; a file the library does not hold (a gap) is left out."""
     licences = {listing["file"]: listing for listing in read_json(inputs["licences"])}
     names = []
     for world_name in listed(entry.get("file")):
         source = library_files.resolve(world_name)
         if source is None:
-            library_files.say_hole(world_name, f"the sound {name}")
+            library_files.say_gap(world_name, f"the sound {name}")
             continue
         target = out / FILES / library_files.stage_name(world_name)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -187,7 +187,7 @@ def picked(name, brief, entry, inputs, out):
         volume += levelled([out / FILES / library_files.stage_name(world_name) for world_name in names],
                            brief["category"], bool(entry.get("loops")))
     chosen = brief.get("chosen", {})
-    made_by = ("hole" if not credits else
+    made_by = ("gap" if not credits else
                "moss" if all(MADE_BY_MOSS in credit.get("source", "") for credit in credits) else
                "recording" if any(FREESOUND in credit.get("source", "") for credit in credits) else "made")
     prompt, seed = None, None

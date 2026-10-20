@@ -8,11 +8,11 @@ A line runs the finish route (owner, 2026-10-20, #18; route_*.py), then the fram
     route: finish-route-views (free: renders of the raw model from every angle the coverage check needs, and its
         colour regions), finish-route-list (Gemini 3.1 Pro, one batch: the finish list matched library first, a label
         for each region in each view), finish-route-split (free: the labels voted across views, every face one
-        finish or its take a hole), surfaces-parts (free: each part its checked library surface)
+        finish or its take a gap), surfaces-parts (free: each part its checked library surface)
     framework: surfaces-bake (paid: each take painted with its parts' library surfaces, the list's settings on
         them, and baked, one job a take on the rented card, route_bake.py; proposals into the finish registry,
         registry.py), surfaces-paint (free: the bake's painted takes and the paint's gates, route_paint.py),
-        finish-route-recheck (Gemini 3.1 Pro, one batch, and the free colour check: pass or a named hole),
+        finish-route-recheck (Gemini 3.1 Pro, one batch, and the free colour check: pass or a gap),
         surfaces-check (route_check.py: bake_check.py's against the bake's specs)
 
 The method's interface is one contract, PARTS (per model its parts, each with the library surface the method named

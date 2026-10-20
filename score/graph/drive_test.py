@@ -1216,7 +1216,7 @@ def test_a_make_that_writes_into_its_input_fails_and_stores_nothing():
 
 
 def judge_gapped(output, inputs, evidence):
-    return checks.Verdict(graph.GAPPED, checks.FAIL, "hangar: a named gap", findings=("hangar: no made model",))
+    return checks.Verdict(graph.GAPPED, checks.FAIL, "hangar: an accepted gap", findings=("hangar: no made model",))
 
 
 def judge_brief_fault(output, inputs, evidence):
@@ -1225,7 +1225,7 @@ def judge_brief_fault(output, inputs, evidence):
 
 
 def gapped_runner(brief):
-    """A completion gate that fails its named gap, and one ungapped fault when the brief says so; a film that reads it
+    """A completion gate that fails its accepted gap, and one ungapped fault when the brief says so; a film that reads it
     gapped and a count that does not."""
     data, world = a_world_of(["hangar"])
     (data / "hangar" / "brief.txt").write_text(brief)
@@ -1243,18 +1243,18 @@ def make_film(inputs, out, seed, params):
     (out / "film.txt").write_text((inputs["complete"] / "clean.txt").read_text())
 
 
-def test_a_gapped_reader_runs_past_a_gate_that_fails_only_on_its_named_gaps():
-    """The overseer, 2026-10-15: demo-film runs on a place whose complete fails only on its named gaps; the gate
+def test_a_gapped_reader_runs_past_a_gate_that_fails_only_on_its_accepted_gaps():
+    """The overseer, 2026-10-15: demo-film runs on a place whose complete fails only on its accepted gaps; the gate
     still fails by name, and a reader that does not read it gapped stops."""
     runner = gapped_runner("a ship")
     found = runner.drive(["hangar"], say=quiet)
     assert found["complete@hangar"].startswith("made: fail, accepted automatically; fault report"), found
     assert found["film@hangar"] == "made: pass, accepted automatically", found
     assert found["count@hangar"] == "not run: its line stopped at complete@hangar", found
-    # Taken by the runner as complete apart from named gaps (overseer, 2026-10-17), its status recorded and shown.
+    # Taken by the runner as complete apart from accepted gaps (overseer, 2026-10-17), its status recorded and shown.
     output = runner.store.accepted("complete@hangar")
-    assert output and runner.store.accepts("complete@hangar")[-1]["status"] == "complete apart from named gaps (1)"
-    assert runner.status(["hangar"])["complete@hangar"] == "complete apart from named gaps (1), accepted"
+    assert output and runner.store.accepts("complete@hangar")[-1]["status"] == "complete apart from accepted gaps (1)"
+    assert runner.status(["hangar"])["complete@hangar"] == "complete apart from accepted gaps (1), accepted"
     assert "stale" not in runner.status(["hangar"])["film@hangar"]
 
 

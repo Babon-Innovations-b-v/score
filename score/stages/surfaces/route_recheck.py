@@ -4,13 +4,13 @@ passed or a named fault, with no tweak and no ask again.
 
 First, free, the colour check: a take one of whose finishes the parts row's check left off its colour (no library
 surface lies within finish_parts.COLOUR_DELTA_E of its texture's colour, or the close-up's lightness order cannot be
-kept) is a hole with no ask. The rest are drawn from every view the views row cast, each part flat in its library
+kept) is a gap with no ask. The rest are drawn from every view the views row cast, each part flat in its library
 surface's colour (in the list's token where the part carries its settings), shaded by angle, and asked once: Gemini, shown the close-up (its own, or the stand-in, said so) and
 the drawings, says per finish whether its library surface matches what the close-up shows for those parts. All
-match: passed. Else the take fails the gate "library surface fits" by name, "no library surface fits", a hole of its
+match: passed. Else the take fails the gate "library surface fits" by name, "no library surface fits", a gap of its
 object (gate:finish-route-recheck/library surface fits:<take>); Gemini's token, roughness and metal for a failing
-finish are kept as the hole's `suggested` and never applied: trying them is a new batch. A take the batch gives no
-usable answer is a hole the same way.
+finish are kept as the gap's `suggested` and never applied: trying them is a new batch. A take the batch gives no
+usable answer is a gap the same way.
 
 Output per take: <take>/checked-<view>.png; recheck.json per take: the colour faults, `asked`, Gemini's answers,
 `passed`, `fault`, `suggested`.

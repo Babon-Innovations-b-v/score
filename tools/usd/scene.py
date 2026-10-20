@@ -143,7 +143,7 @@ def colour(value):
 
 def world_file(world, name):
     """A file a record names: kept in git (`data/...`), else from the library (tools/library/library_files.py), from
-    the folder `world` when given (a test's own); None for a hole."""
+    the folder `world` when given (a test's own); None for a gap."""
     return library_files.resolve(name, world)
 
 
@@ -345,8 +345,8 @@ def fixture(stage, path, entry, out, world, boxes):
     if "label" in entry:
         label(stage, path, entry, out, world)
         return
-    if world_file(world, entry["model"]) is None:  # a hole: left out with what stands on it
-        library_files.say_hole(entry["model"], path)
+    if world_file(world, entry["model"]) is None:  # a gap: left out with what stands on it
+        library_files.say_gap(entry["model"], path)
         return
     name, (low, high) = fixture_asset(entry, out, world, boxes)
     scale = float(entry.get("scale", 1.0))
@@ -472,7 +472,7 @@ def write_rocks(stage, place, entry, out, world, ground):
     if not entry or ground is None:
         return
     laid = rocks.laid_rocks(entry, world, ground)
-    if not laid:  # every rock model a hole
+    if not laid:  # every rock model a gap
         return
     instancer = UsdGeom.PointInstancer.Define(stage, f"/{place}/Rocks")
     models = sorted({rock["model"] for rock in laid})

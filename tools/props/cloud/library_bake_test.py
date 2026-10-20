@@ -10,7 +10,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import library_bake  # noqa: E402
 
 
-def test_no_card_in_stock_is_a_hole_never_a_processor_machine(monkeypatch):
+def test_no_card_in_stock_is_a_gap_never_a_processor_machine(monkeypatch):
     """A batch's class is fixed at price time (CONTEXT.md, owner 2026-10-20): --processor rented a 32-core processor
     machine when no card was in stock, and the claims moved between classes as stock moved."""
     import provider
@@ -22,7 +22,7 @@ def test_no_card_in_stock_is_a_hole_never_a_processor_machine(monkeypatch):
     try:
         library_bake.price([{"materials": [1]}], "acct", ["gpu-24gb", "gpu-48gb"])
     except SystemExit as refused:
-        assert "the jobs are holes" in str(refused)
+        assert "the jobs are gaps" in str(refused)
     else:
         raise AssertionError("a bake with no card in stock was priced")
     assert not hasattr(library_bake, "PROCESSORS")

@@ -1,5 +1,5 @@
 """The terrain adapter's own checks, with no spend: an outdoor place's detail areas come from its ground plan alone
-and land as prop-route rows, each one not landed is a missing hole of the prop route, and the join cuts the code ground
+and land as prop-route rows, each one not landed is a missing gap of the prop route, and the join cuts the code ground
 under a piece, seats the piece's rim into it, keeps the code ground where no piece was made and finds a gap at a seam.
 
 Run: .venv/bin/python score/stages/terrain/adapter_test.py
@@ -35,7 +35,7 @@ def test_the_wreck_s_areas_are_its_plan_s_craters_in_its_patch():
     assert areas.detail_areas("hangar", REPO / "data") == []  # its patch reaches no landform of its plan
 
 
-def test_areas_land_as_prop_route_rows_and_until_then_are_missing_holes():
+def test_areas_land_as_prop_route_rows_and_until_then_are_missing_gaps():
     found = areas.detail_areas("wreck", REPO / "data")
     inventory, props, surfaces = areas.landed({"rows": [{"id": "aft_section"}]}, {"objects": {}},
                                               {"takes": {}, "bake": {"models": {}}}, "wreck", found)
@@ -44,9 +44,9 @@ def test_areas_land_as_prop_route_rows_and_until_then_are_missing_holes():
     assert rows[first]["kind"] == "generate" and rows[first]["anchor"] == "ground" and rows[first]["area"], rows[first]
     assert props["objects"][first] == {"route": "prop", "take": f"{first}-g1", "layer": "terrain"}
     assert surfaces["bake"]["models"][first] == f"{first}-g1" and f"{first}-g1" in surfaces["takes"]
-    holes = needs.holes("wreck", REPO / "data")
-    assert len(holes) == len(found) and all(hole["rule"] == "missing" for hole in holes), holes
-    assert holes[0]["work"] == "prop data for wreck: data/props/wreck.json" and holes[0]["node"] is None, holes[0]
+    gaps = needs.gaps("wreck", REPO / "data")
+    assert len(gaps) == len(found) and all(gap["rule"] == "missing" for gap in gaps), gaps
+    assert gaps[0]["work"] == "prop data for wreck: data/props/wreck.json" and gaps[0]["node"] is None, gaps[0]
 
 
 def registered(root, rough_model, floor):

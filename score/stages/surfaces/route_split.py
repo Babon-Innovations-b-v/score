@@ -2,7 +2,7 @@
 labels voted across every view. In each view a face takes the region most of its pixels show (route_views) and that
 region's label there (route_list); the views vote (finish_parts.voted, the close-up's front counting FRONT_VOTE).
 
-Every face gets exactly one finish, or its take is a hole, named (owner, 2026-10-20): a face some view sees whose
+Every face gets exactly one finish, or its take is a gap, named (owner, 2026-10-20): a face some view sees whose
 regions no view labelled is unassigned, and faces whose views disagree (no finish holds over half their votes) over
 DISAGREE_MOST of the area are views that disagree. A face no view can see takes its nearest seen face's finish along
 the surface (finish_parts.walked); the finishes are then smoothed and crumbs joined (finish_parts.cleaned,
@@ -11,12 +11,12 @@ merged_islands), each island one part.
 The colour check comes first, free, the moment the list's one answer is back and before any paid bake or recheck
 (owner, 2026-10-20): each region of every view, from every angle the views row cast, against the finish labelled
 there, its chosen surface's token colour (the list's settings) against the region's median texture colour in that
-view (`colour_faults`). A region over VIEW_DELTA_E makes its take a hole, named, so nothing of it is baked.
+view (`colour_faults`). A region over VIEW_DELTA_E makes its take a gap, named, so nothing of it is baked.
 
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
 finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
 area unassigned, disagreeing and unseen, its parts and each view's agreement with the vote.
-Gate "one finish a face": every listed take is split with no fault (the colour check's holes included).
+Gate "one finish a face": every listed take is split with no fault (the colour check's gaps included).
 """
 import json
 import pathlib
@@ -33,7 +33,7 @@ import finish_parts  # noqa: E402
 import route_cast as cast  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
-# A take whose disagreeing faces hold over this share of its area is a hole. UNMEASURED: picked (2026-10-20), not
+# A take whose disagreeing faces hold over this share of its area is a gap. UNMEASURED: picked (2026-10-20), not
 # measured; the one-shot benchmark that would measure it (under EUR 3) is on #18. Keep it until that runs.
 DISAGREE_MOST = 0.01
 # A region's chosen surface (its token's colour, with the list's settings) may lie this far (CIE76) from the region's
@@ -91,7 +91,7 @@ def shares(mesh, per_map, votes):
 
 
 def split_fault(found):
-    """The hole a take's shares make (None when every face has one finish): unassigned faces, or views that
+    """The gap a take's shares make (None when every face has one finish): unassigned faces, or views that
     disagree."""
     if found["unassigned"] > 0:
         return f"faces no label reaches ({found['unassigned']:.2%} of its area): unassigned"
@@ -136,7 +136,7 @@ def colour_faults(folder, listed):
 
 
 def colour_fault(faults):
-    """The hole a take's colour faults make, None without one."""
+    """The gap a take's colour faults make, None without one."""
     if not faults:
         return None
     return f"a chosen surface sits off what the views show (over dE {VIEW_DELTA_E:.0f}): {'; '.join(faults[:4])}" + (
@@ -165,7 +165,7 @@ def split_saved(out, mesh, folder, angles, found):
 
 
 def split_take(folders, listed, record):
-    """One take split into folders["out"] unless it is a hole; its split.json record. `record` is its views record."""
+    """One take split into folders["out"] unless it is a gap; its split.json record. `record` is its views record."""
     mesh = model_of(folders["views"])
     count = len(listed["finishes"])
     labelled = per_view(folders["views"], listed["labels"], len(record["regions"]), len(mesh.faces))
@@ -183,7 +183,7 @@ def split_take(folders, listed, record):
 
 
 def make_split(inputs, out, seed, params):
-    """Every listed take split by finish, or named a hole; split.json."""
+    """Every listed take split by finish, or named a gap; split.json."""
     views, listed = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-list"])
     found = {take: split_take({"views": views / take, "out": out / take},
                               json.loads((listed / f"{take}.json").read_text()), record)
@@ -198,7 +198,7 @@ def split_faults(folder):
 
 def judge_split(output, inputs, evidence):
     """Every listed take split, every face one finish: an unassigned face, views that disagree or a chosen surface
-    off what the views show is a hole, named."""
+    off what the views show is a gap, named."""
     found = json.loads((output / "split.json").read_text())
     failing = [f"{take}: {record['fault']}" for take, record in found.items() if record["fault"]]
     return gates.verdict("one finish a face", failing, len(found), "takes not split by finish",

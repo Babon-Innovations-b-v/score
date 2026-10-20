@@ -28,6 +28,6 @@ with `FreeRunner`, the runner made unable to spend, and prints one summary line;
 - **The library rows (`library@<place>`, `library-world`) are refused, never made**: their handover commits and
   pushes score_lib, puts blobs in the bucket and runs hooks in processes the free-only guard does not reach.
 - **Never downloaded:** `runs/`, `weights/`, `code/`, `kernels/`, library blobs, view sets, `.glb` files and place USD:
-  no key proves any of them is today's. An old-route output stays a hole (#12, `score/stages/complete/holes`).
+  no key proves any of them is today's. An old-route output stays a gap (#12, `score/stages/complete/gaps`).
 - Tests: `restore_test.py` drives a toy table on `Store.in_folder` with a folder bucket; every paid point fails the
   node that reaches it. Never against the real bucket.

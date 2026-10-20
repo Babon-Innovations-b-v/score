@@ -141,10 +141,10 @@ def heroes(world):
 
 
 def place_pictures(bundles):
-    """Each place's concept and its named gaps' pictures, as FileRef dicts."""
+    """Each place's concept and its accepted gaps' pictures, as FileRef dicts."""
     details = [bundle["detail"] for bundle in bundles if bundle["detail"]]
     return [detail["concept"] for detail in details if detail.get("concept")] + [
-        gap["picture"] for detail in details for gap in detail.get("gaps") or [] if gap.get("picture")]
+        gap["picture"] for detail in details for gap in detail.get("accepted_gaps") or [] if gap.get("picture")]
 
 
 def check_pictures(bundles):

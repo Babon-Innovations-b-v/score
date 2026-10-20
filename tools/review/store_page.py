@@ -149,11 +149,11 @@ def answer_pill(answer):
 
 
 def status_pill(found):
-    """complete.py's status of the place in its own words (CONTEXT.md): complete, complete apart from named gaps (N)
+    """complete.py's status of the place in its own words (CONTEXT.md): complete, complete apart from accepted gaps (N)
     or NOT complete; a manifest from before the status says its verdict."""
     status = found.get("status", found["verdict"])
     kind = {"pass": "ok", "gapped": "gapped"}.get(found["verdict"], "bad")
-    count = f" ({len(found.get('named_gaps', []))})" if found["verdict"] == "gapped" else ""
+    count = f" ({len(found.get('accepted_gaps', []))})" if found["verdict"] == "gapped" else ""
     return f'<span class="pill {kind}">{escaped(status + count)}</span>'
 
 
@@ -186,8 +186,8 @@ def completion_section(stage):
     for requirement in found["requirements"]:
         result = stage.parent / "checks" / f"{requirement['name']}.json"
         faults = json.loads(result.read_text()).get("faults", []) if result.exists() else []
-        if requirement["name"] == "named gaps":  # each gap's numbers and who decided it, from the manifest
-            faults = [f"{gap['name']} (decided: {gap['decided']}): {fault}" for gap in found.get("named_gaps", [])
+        if requirement["name"] == "accepted gaps":  # each gap's numbers and who decided it, from the manifest
+            faults = [f"{gap['name']} (decided: {gap['decided']}): {fault}" for gap in found.get("accepted_gaps", [])
                       for fault in gap["faults"]]
         faults = [fault if isinstance(fault, dict) else {"why": fault} for fault in faults]  # contents checks: text
         shown = "".join(f"<li><code>{escaped(fault.get('row') or '')}</code> {escaped(fault.get('why', fault))}</li>"

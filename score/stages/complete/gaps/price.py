@@ -1,39 +1,39 @@
-"""The holes priced by the runner: every hole's chain (score/graph/chain.py), each paid node in any chain priced once
+"""The gaps priced by the runner: every gap's chain (score/graph/chain.py), each paid node in any chain priced once
 by compute.run_price on the runner's own numbers, with the units its stage's forecast rule counts before the make
-(PER_UNIT's `forecast`, over every hole at the place that needs it, each model once). The cockpit reads the record and
+(PER_UNIT's `forecast`, over every gap at the place that needs it, each model once). The cockpit reads the record and
 only sums it; nothing here buys, keys or judges anything. Free and local.
 
-    .venv/bin/python -m score price world1 --holes --json      # writes WORK/checks/holes-price/world1.json
+    .venv/bin/python -m score price world1 --gaps --json      # writes WORK/checks/gaps-price/world1.json
 
 The record:
 
     {"world", "made_at",
      "priced_on": {commit, uncommitted, per_unit_sha256},  (the code and per-unit prices it was made on)
      "nodes": {node: run_price's price + "units" (the forecast's count, or null) + "unit_source"},  (paid nodes)
-     "chains": {place: {node: [every node in the chain of the place's holes that node fills, paid and free]}},
-     "holes": {place: {hole id: its node}},          (holes with a node in the stage table, at a current findings)
+     "chains": {place: {node: [every node in the chain of the place's gaps that node fills, paid and free]}},
+     "gaps": {place: {gap id: its node}},          (gaps with a node in the stage table, at a current findings)
      "free": [the free nodes in any chain],
      "totals": {likely_euros, high_euros, unpriced, nodes},
-     "unfillable": [{"work", "holes"}],               (holes no stage fills: their code work and how many need it)
-     "after_work": {place: {"work", "holes", "models", "nodes": {node: price}, "in_chains": [nodes]}},
+     "unfillable": [{"work", "gaps"}],               (gaps no stage fills: their code work and how many need it)
+     "after_work": {place: {"work", "gaps", "models", "nodes": {node: price}, "in_chains": [nodes]}},
                      (the prop route of the place's missing rows that wait on its prop data, priced as if the data
                       were written: each paid row of the route once a place, per model where its stage has a rule;
                       a row whose node is in a chain already is counted there, not again)
-     "code_work": {work: {"holes", "models", "nodes": {label: price}}},
+     "code_work": {work: {"gaps", "models", "nodes": {label: price}}},
                      (the code work whose make is a Pixal3D one, priced at pixal's per unit as if it had landed: the
                       lost takes a model each)
-     "outside": [{"node", "holes"}],                  (a node outside this runner's table and every own table)
+     "outside": [{"node", "gaps"}],                  (a node outside this runner's table and every own table)
      "eta": {jobs, run_cap, likely_minutes, high_minutes, at_least_minutes, path, high_path, unknown},
                      (the runner's ETA of every chain's and after-work row, schedule.py on measured minutes: likely
                       and high null while any row is untimed, at_least the walk with those as no time)
-     "not_current": [places whose findings stood over an output no longer accepted: run the holes check again],
-     "not_checked": [places (and WORLD) with no findings: the holes check never ran there],
+     "not_current": [places whose findings stood over an output no longer accepted: run the gaps check again],
+     "not_checked": [places (and WORLD) with no findings: the gaps check never ran there],
      "lines": {place (and WORLD): [every node its line still needs to run to its end: chain.line_chain]},
                      (the remake: past each place's completion to its line's ends, the films and the hand-over, and
                       the environment's own nodes, people too; their paid nodes are priced in "nodes" and the totals)
      "milestones": [milestones.py's milestones: the remake's plan, shapes first, the owner's approval last]}
 
-A node is priced once, however many holes share it. A Blocked node or a missing input is something to make, so it is
+A node is priced once, however many gaps share it. A Blocked node or a missing input is something to make, so it is
 in the chain and priced; nothing is skipped. A lost input read by several places (its id names the thing) counts
 once. A count of 0 or a rule whose source is missing is no count (a guess), never a free make. A node of a table of
 its own (OWN_TABLES: the ship kits', `ship_kit@<place>`) is priced the same way on its own row, its chain the node
@@ -48,10 +48,10 @@ import re
 from score import graph
 from score.adapters import compute
 from score.graph import chain
-from score.stages.complete.holes import FINDINGS, PLACE, WORLD, fill, inputs, milestones, schedule
+from score.stages.complete.gaps import FINDINGS, PLACE, WORLD, fill, inputs, milestones, schedule
 
 MISSING = "missing"
-# The code work whose make, once it lands, is Pixal3D's, a model a hole: (its work line's pattern, its label), priced
+# The code work whose make, once it lands, is Pixal3D's, a model a gap: (its work line's pattern, its label), priced
 # at pixal's measured per unit after that work (code_work).
 PIXAL_WORK = ((r"^Pixal3D take lost", "pixal: the lost Pixal3D takes made again"),)
 ROUTE_END = "likeness"  # the prop route's last row (score/stages/props): a model's route runs up to its likeness gate
@@ -63,13 +63,13 @@ BILL_SHARE = 627.74 / 547.31
 
 
 def own_tables():
-    """{stage name: its row} of the tables of their own a hole's node may name (fill.SHIP_KIT: the ship kits')."""
+    """{stage name: its row} of the tables of their own a gap's node may name (fill.SHIP_KIT: the ship kits')."""
     from score.stages import ship_kits
     return {fill.SHIP_KIT: ship_kits.STAGE}
 
 
 def findings_of(root, place):
-    """A place's holes check record, or None before it ran."""
+    """A place's gaps check record, or None before it ran."""
     path = pathlib.Path(root) / place / FINDINGS
     return json.loads(path.read_text()) if path.is_file() else None
 
@@ -86,21 +86,21 @@ def prop_objects(data, place):
     return prop_data.prop_objects(prop_data.record_at(path)) if path.is_file() else {}
 
 
-def take_of(objects, hole):
-    """The model a missing row's hole asks for: its prop object's take, else its row (else its id)."""
-    row = hole.get("row") or hole["id"]
+def take_of(objects, gap):
+    """The model a missing row's gap asks for: its prop object's take, else its row (else its id)."""
+    row = gap.get("row") or gap["id"]
     return (objects.get(row) or {}).get("take") or row
 
 
 def pixal_models(found, data, place):
     """The models pixal is forecast to make at the place, each once (PER_UNIT's prop_takes): its prop objects' takes
     not made in WORK/pixal (pixal_row.made, as the make skips a made one), and the model of each missing row of
-    `found` (the place's holes) whose node is pixal's there."""
+    `found` (the place's gaps) whose node is pixal's there."""
     from score.stages.props import pixal_row
     objects = prop_objects(data, place)
     node = fill.node_of(fill.FILLERS[fill.ROUTE][0], place)
     unmade = {entry["take"] for entry in objects.values() if not pixal_row.made(entry["take"])}
-    return unmade | {take_of(objects, hole) for hole in found if hole["rule"] == MISSING and hole.get("node") == node}
+    return unmade | {take_of(objects, gap) for gap in found if gap["rule"] == MISSING and gap.get("node") == node}
 
 
 def surface_takes(data, place):
@@ -149,7 +149,7 @@ def rule_units(rule, found, data, place):
 def forecast_units(node, found, data):
     """The units a make of the node is forecast to make by its stage's rule (PER_UNIT's `forecast`, times its
     `per_model` where a model makes more than one unit), or None when its stage has no rule (an `also` stage has none
-    of its own) or nothing is counted; `found` are the place's holes."""
+    of its own) or nothing is counted; `found` are the place's gaps."""
     stage, _, place = node.partition("@")
     entry = compute.per_unit(stage)
     if entry is None or entry["stage"] != stage or not entry.get("forecast"):
@@ -177,12 +177,12 @@ def totals(prices):
 
 
 def counted(pairs):
-    """[{key: value, "holes": count}] of (value, count) pairs, most holes first."""
-    return [{**value, "holes": count} for value, count in sorted(pairs, key=lambda pair: -pair[1])]
+    """[{key: value, "gaps": count}] of (value, count) pairs, most gaps first."""
+    return [{**value, "gaps": count} for value, count in sorted(pairs, key=lambda pair: -pair[1])]
 
 
 def read_places(runner, root, places):
-    """({place: its holes}, [places not current], [places with no findings]) of the places' holes checks."""
+    """({place: its gaps}, [places not current], [places with no findings]) of the places' gaps checks."""
     found, stale, unchecked = {}, [], []
     for place in places:
         written = findings_of(root, place)
@@ -196,44 +196,44 @@ def read_places(runner, root, places):
 
 
 def node_chain(runner, node, place, places, reading):
-    """{node: whether paid} of the chain of a hole whose node is `node`, found at `place`: a place node's at its
+    """{node: whether paid} of the chain of a gap whose node is `node`, found at `place`: a place node's at its
     own place; an environment node's at the place that found it, or at every place for the environment's own
-    holes (WORLD)."""
+    gaps (WORLD)."""
     stage, _, at = node.partition("@")
     if at:
-        return chain.hole_chain(runner, runner.stages[stage], at, reading)
+        return chain.gap_chain(runner, runner.stages[stage], at, reading)
     found = {}
     for each in places if place == WORLD else [place]:
-        found.update(chain.hole_chain(runner, runner.stages[stage], each, reading))
+        found.update(chain.gap_chain(runner, runner.stages[stage], each, reading))
     return found
 
 
-def waits_on_prop_data(hole, place):
-    """Whether a hole is a missing row whose prop route waits only on the place's prop data (fill.FILLERS' route)."""
-    return hole["rule"] == MISSING and hole.get("work") == fill.FILLERS[fill.ROUTE][1].format(place=place)
+def waits_on_prop_data(gap, place):
+    """Whether a gap is a missing row whose prop route waits only on the place's prop data (fill.FILLERS' route)."""
+    return gap["rule"] == MISSING and gap.get("work") == fill.FILLERS[fill.ROUTE][1].format(place=place)
 
 
 def chained(runner, found, places):
-    """{chains: {place: {node: its hole chain}}, holes: {place: {hole id: node}}, work: {work: holes},
-    outside: {node outside every table: holes},
-    route: {place: {"work", "holes", "rows"}}} of the places' holes (`found`), each lost input once."""
+    """{chains: {place: {node: its gap chain}}, gaps: {place: {gap id: node}}, work: {work: gaps},
+    outside: {node outside every table: gaps},
+    route: {place: {"work", "gaps", "rows"}}} of the places' gaps (`found`), each lost input once."""
     reading = chain.readers(runner, places)
-    record = {"chains": {}, "holes": {}, "work": {}, "outside": {}, "route": {}}
-    for hole in inputs.distinct([{**hole, "place": place} for place, listed in found.items() for hole in listed]):
-        place, node = hole["place"], hole.get("node")
+    record = {"chains": {}, "gaps": {}, "work": {}, "outside": {}, "route": {}}
+    for gap in inputs.distinct([{**gap, "place": place} for place, listed in found.items() for gap in listed]):
+        place, node = gap["place"], gap.get("node")
         if node is None:
-            record["work"][hole["work"]] = record["work"].get(hole["work"], 0) + 1
-            if waits_on_prop_data(hole, place):
-                route = record["route"].setdefault(place, {"work": hole["work"], "holes": 0, "rows": set()})
-                route["holes"] += 1
-                route["rows"].add(hole.get("row") or hole["id"])
+            record["work"][gap["work"]] = record["work"].get(gap["work"], 0) + 1
+            if waits_on_prop_data(gap, place):
+                route = record["route"].setdefault(place, {"work": gap["work"], "gaps": 0, "rows": set()})
+                route["gaps"] += 1
+                route["rows"].add(gap.get("row") or gap["id"])
         elif node.partition("@")[0] in runner.stages:
-            record["holes"].setdefault(place, {})[hole["id"]] = node
+            record["gaps"].setdefault(place, {})[gap["id"]] = node
             at = record["chains"].setdefault(place, {})
             if node not in at:
                 at[node] = node_chain(runner, node, place, places, reading)
         elif node.partition("@")[0] in own_tables():
-            record["holes"].setdefault(place, {})[hole["id"]] = node
+            record["gaps"].setdefault(place, {})[gap["id"]] = node
             record["chains"].setdefault(place, {})[node] = {node: bool(own_tables()[node.partition("@")[0]].paid)}
         else:
             record["outside"][node] = record["outside"].get(node, 0) + 1
@@ -261,7 +261,7 @@ def route_units(stage, models):
 
 
 def after_work(runner, route, priced, store):
-    """{place: {work, holes, models, nodes, in_chains}} of the places whose missing rows wait on their prop data
+    """{place: {work, gaps, models, nodes, in_chains}} of the places whose missing rows wait on their prop data
     (`route`, chained's): each paid row of the prop route at compute.run_price with the rows as its forecast units,
     one model a row (route_units); a row with no forecast rule whose node is in a chain already (`priced`) is left
     to the chain."""
@@ -275,23 +275,23 @@ def after_work(runner, route, priced, store):
                 in_chains.append(node)
             else:
                 nodes[node] = {**price, "units": price.get("units")}
-        found[place] = {"work": waiting["work"], "holes": waiting["holes"], "models": models, "nodes": nodes,
+        found[place] = {"work": waiting["work"], "gaps": waiting["gaps"], "models": models, "nodes": nodes,
                         "in_chains": in_chains}
     return found
 
 
 def code_work(work):
-    """{work: {holes, models, nodes: {label: price}}} of the code work whose make is a Pixal3D one (PIXAL_WORK), each
+    """{work: {gaps, models, nodes: {label: price}}} of the code work whose make is a Pixal3D one (PIXAL_WORK), each
     line once: a lost take one model, at compute.run_price with pixal's forecast per unit
     (unknown while pixal has no measured unit)."""
     found = {}
-    for line, holes in work.items():
+    for line, gaps in work.items():
         for pattern, label in PIXAL_WORK:
             if re.search(pattern, line):
-                price = compute.run_price("pixal", None, units=holes)
+                price = compute.run_price("pixal", None, units=gaps)
                 if price["basis"] == "per unit × forecast":
-                    price["unit_source"] = "one Pixal3D model a hole of this work line"
-                found[line] = {"holes": holes, "models": holes, "nodes": {label: {**price, "units": holes}}}
+                    price["unit_source"] = "one Pixal3D model a gap of this work line"
+                found[line] = {"gaps": gaps, "models": gaps, "nodes": {label: {**price, "units": gaps}}}
     return found
 
 
@@ -348,7 +348,7 @@ def line_chains(runner, places, reading):
 
 
 def lost_readers(runner, places):
-    """{lost input hole id: the nodes that read it} of every place's line and the environment's own (inputs.py's
+    """{lost input gap id: the nodes that read it} of every place's line and the environment's own (inputs.py's
     declared files; the owner's pictures read by the concept views' node), so a milestone knows where it waits."""
     found, concept = {}, fill.FILLERS[fill.CONCEPT][0]
     for place in [*places, None]:
@@ -365,8 +365,8 @@ def books_refused():
     return compute.ledger().books_refusal()
 
 
-def holes_price(runner, world, root, places, store=None, made_at=None):
-    """The holes record (this module's docstring) of every place's holes check under `root` and the environment's
+def gaps_price(runner, world, root, places, store=None, made_at=None):
+    """The gaps record (this module's docstring) of every place's gaps check under `root` and the environment's
     own (WORLD), priced on `store`, with every place's line to its end and the remake's milestones."""
     with runner.still():
         found, stale, unchecked = read_places(runner, root, [*places, WORLD])
@@ -384,7 +384,7 @@ def holes_price(runner, world, root, places, store=None, made_at=None):
         priced = {"world": world, "made_at": made_at or graph.now(), "priced_on": priced_on(), "nodes": prices,
                   "chains": {place: {node: sorted(nodes) for node, nodes in at.items()}
                              for place, at in record["chains"].items()},
-                  "holes": record["holes"], "free": sorted(name for name, is_paid in every.items() if not is_paid),
+                  "gaps": record["gaps"], "free": sorted(name for name, is_paid in every.items() if not is_paid),
                   "totals": totals(prices),
                   "unfillable": counted(({"work": text}, count) for text, count in record["work"].items()),
                   "after_work": route, "code_work": code_work(record["work"]),

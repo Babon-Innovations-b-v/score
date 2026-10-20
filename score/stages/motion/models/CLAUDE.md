@@ -24,6 +24,6 @@ assembly takes (`assembly.take_layer`). `__init__.py`'s docstring has the make a
   2026-10-12; the hangar's `ship`, its box the partition's proposals round the hull); `motion-models-boxes@<place>`
   (`boxes.py`, paid, about EUR 0.03 measured) grounds their boxes with SAM 3 and records the grounded ones where the
   box gate reads them; a box SAM 3 does not ground, and a row flagged `"ground_box": "judge"`, goes to the box judge
-  on Gemini (cents an ask: two seeds, one round; a split is a named hole, never a third ask). The workshop robot's eight part rows were dropped (captain, 2026-10-12): concept K10
+  on Gemini (cents an ask: two seeds, one round; a split is a gap, never a third ask). The workshop robot's eight part rows were dropped (captain, 2026-10-12): concept K10
   shows no robot, and the concept decides.
 - `models_test.py` lays a stand-in rover on the garage's seed and breaks each gate once.

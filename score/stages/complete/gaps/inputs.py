@@ -1,4 +1,4 @@
-"""The inputs a line reads that are not there (the old disk's work folder, lost 2026-10-19), each a hole with the node
+"""The inputs a line reads that are not there (the old disk's work folder, lost 2026-10-19), each a gap with the node
 that makes it again or its code work: never fetched back as a loose file (an old paid output made to look current,
 score/store/restore's key rule), never passed.
 
@@ -9,8 +9,8 @@ Read from the stage table: every node's declared world files (a ship place's thr
 the work folder ({seeds}, {home}/work) or in the repository ({data}, {repo}) that are not there, grouped by what they
 are (KINDS: an earth seed, a ship seed, a place's views copy, a Pixal3D take), each kind with its code work; and the
 owner's reference pictures the concept views of the place name (a view whose id names the place, or `ship` for a ship
-place). A Pixal3D take some place's pixal row makes is that row's hole (node `pixal@<place>`), priced through it. An
-id names the lost thing itself, never the place reading it, so one input many places read is one hole world-wide
+place). A Pixal3D take some place's pixal row makes is that row's gap (node `pixal@<place>`), priced through it. An
+id names the lost thing itself, never the place reading it, so one input many places read is one gap world-wide
 (`distinct`).
 """
 import pathlib
@@ -34,7 +34,7 @@ KINDS = (("usd-r3/", EARTH, "earth seed lost: the earth-seed row exports a place
                                           "the light rows do (their light layer's views.json)"),
          ("pixal/", PIXAL, "Pixal3D take lost: pixal@<place>'s accepted output carries its takes (<take>.glb, "
                            ".svviews, -final.glb, takes.json) and every reader reads them through an `after` on it; "
-                           "then each lost take is a pixal hole, priced"))
+                           "then each lost take is a pixal gap, priced"))
 EARTH_VIEWS_WORK = ("views lost (a copy of the scene record under work/demo, made by hand): {nodes} read it by path; "
                     "they read the place's views from its own scene-record output instead, or a row writes the copy")
 OTHER_WORK = "an input under the work folder no row makes: a row that makes it, or the code that stops reading it"
@@ -64,7 +64,7 @@ def what(rest):
 
 def data_item(pattern, name):
     """A lost repository input's item: its file there (the pattern's first word under {data} or {repo}) and the name
-    the node reads it by, so one name in two places' files is two holes."""
+    the node reads it by, so one name in two places' files is two gaps."""
     return f"{relative(pattern, DATA_ROOTS).split(' ', 1)[0]}:{name}"
 
 
@@ -122,12 +122,12 @@ def lost_pictures(runner, place):
 
 
 def lost_id(kind, item):
-    """A lost input's hole id (its rule's prefix apart): it names the thing, so every place that reads it shares it."""
+    """A lost input's gap id (its rule's prefix apart): it names the thing, so every place that reads it shares it."""
     return f"lost:{kind}:{item}"
 
 
-def declared_hole(kind, item, entry, place, makers):
-    """One declared lost thing as a hole: a take a pixal row makes with that node, anything else with its code work."""
+def declared_gap(kind, item, entry, place, makers):
+    """One declared lost thing as a gap: a take a pixal row makes with that node, anything else with its code work."""
     nodes, paths = sorted(entry["nodes"]), sorted(entry["paths"])
     more = f" and {len(nodes) - 1} more" if len(nodes) > 1 else ""
     node = f"{PIXAL}@{makers[item]}" if kind == PIXAL and item in makers else None
@@ -142,10 +142,10 @@ def declared_hole(kind, item, entry, place, makers):
 
 
 def lost(runner, place):
-    """The lost inputs of the place's line (of the world's own nodes for None) as holes (module docstring), declared
+    """The lost inputs of the place's line (of the world's own nodes for None) as gaps (module docstring), declared
     ones first, then the owner's pictures."""
     makers = pixal_makers(place)
-    found = [declared_hole(kind, item, entry, place, makers)
+    found = [declared_gap(kind, item, entry, place, makers)
              for (kind, item), entry in sorted(declared_lost(runner, place).items())]
     for path, views in sorted((lost_pictures(runner, place) if place else {}).items()):
         name = pathlib.Path(path).name
@@ -155,19 +155,19 @@ def lost(runner, place):
     return found
 
 
-def is_lost(hole_id):
+def is_lost(gap_id):
     """Whether a finding's id is a lost input's (`<rule>:lost:<kind>:<item>`)."""
-    return hole_id.partition(":")[2].startswith("lost:")
+    return gap_id.partition(":")[2].startswith("lost:")
 
 
-def distinct(holes):
-    """The holes counted once world-wide: a lost input once however many places read it (its id names the thing),
-    every other hole as it is."""
+def distinct(gaps):
+    """The gaps counted once world-wide: a lost input once however many places read it (its id names the thing),
+    every other gap as it is."""
     seen, found = set(), []
-    for hole in holes:
-        if is_lost(hole["id"]):
-            if hole["id"] in seen:
+    for gap in gaps:
+        if is_lost(gap["id"]):
+            if gap["id"] in seen:
                 continue
-            seen.add(hole["id"])
-        found.append(hole)
+            seen.add(gap["id"])
+        found.append(gap)
     return found

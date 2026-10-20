@@ -41,7 +41,7 @@
     "data/scene/flat.json"
    ],
    "reason": "the place's records still take their numbers from the source game 2099 (their `from` cites it); its kit (data/kit/flat.json) is laid in the game's frame; the framework's own layout from plan and concept is proven only on the ship's places and the door kits; re-deriving it is a rebuild, to be priced",
-   "decided": "the creator's decision, 2026-10-15 (his answer \"A\" at 09:00: named gaps now, the layouts rebuilt next month); written by the overseer, 2026-10-15",
+   "decided": "the creator's decision, 2026-10-15 (his answer \"A\" at 09:00: accepted gaps now, the layouts rebuilt next month); written by the overseer, 2026-10-15",
    "faults": [
     "data/scene/flat.json: 14 entries take their numbers from the game (from), 6 positions placed from it"
    ]

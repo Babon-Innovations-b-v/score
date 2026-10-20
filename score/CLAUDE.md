@@ -40,7 +40,7 @@ stage as each stage is built; nothing moves before.
   cause, every blocking check's reason, measures and findings, its log's tail (`logs/<node>.log`). A free node
   that errors on a transient fault (HTTP 5xx, a timeout, a dropped connection: `graph.transient`) runs again up to
   `RETRIES` times, the waits doubling from `RETRY_WAIT`, before it stops its line; a paid node never runs again
-  inside the batch, its failure is a hole (ADR-0005). Once a node stops its line,
+  inside the batch, its failure is a gap (ADR-0005). Once a node stops its line,
   nothing later on that line starts (a node already running may finish). Runs side by side on one store (every
   agent's `score run`) make a node's key one at a time: a file lock per node and key (`locks/` beside the store; a
   dead holder lets go at once) makes a second run wait and then reuse the first's record, so nothing is paid twice;
@@ -104,8 +104,8 @@ stage as each stage is built; nothing moves before.
   node is cleared at is its stage's measured runs, else its stage's measured per-unit high times the units its
   accepted output made (`unit_price`, `data/costs/per-unit.json` from `tools/costs/per_unit.py`), else its estimate;
   `run_price` (`score price`, the cockpit's): when its caller counted a node's units before the make by its stage's
-  forecast rule (`forecast_price`, PER_UNIT's `forecast`; the holes' price, whose node is made again with what the
-  hole adds) "per unit × forecast" first, else the same as the forecast (basis "measured runs", then "per unit ×
+  forecast rule (`forecast_price`, PER_UNIT's `forecast`; the gaps' price, whose node is made again with what the
+  gap adds) "per unit × forecast" first, else the same as the forecast (basis "measured runs", then "per unit ×
   counted"), and a node with none of these has no price: its estimate is kept apart as
   `guess_euros`, with `guess_from` (`Stage.euros_from`, the line of the row that names it), never shown as a price
   (owner, 2026-10-18); `guard.py`: the environment's stop line, the owner's
@@ -198,10 +198,10 @@ Rules:
   unknown or got worse lands beside it and waits on its page for the owner.
 - **Every stage names its output's contract** (`Stage.contract`) and, in `after`, the (schema, version) it was
   written for of each stage it reads. A schema change is a new version, never an edit of the old one.
-- **A named gap moves a fault, never loosens a gate** (`stages/gaps.py`): an owner's dated decision in
+- **An accepted gap moves a fault, never loosens a gate** (`stages/gaps.py`): an owner's dated decision in
   `data/checks/gaps/<place>.json` names the objects whose faults in one gate (`stages.GAP_GATES`: assembly's
   placeholders and resting, surfaces-check's stands level, the paint's colour against the close-up) go down the
-  line, and complete's `named gaps` fails each
+  line, and complete's `accepted gaps` fails each
   by name with its measured faults; any other fault still stops the line. The wrappers live in the table and unwrap
   to each gate's own judge, so moving a verdict re-keys no paid row. Write one only on the owner's decision.
 - **A gate never passes on missing evidence.** A check that needs evidence names it (`Check.evidence`); a judge that

@@ -11,14 +11,14 @@ and the basket; nothing is priced, counted or judged here that the runner did no
 Money: the month is the runner's cost lines (the cloud bill; the model calls' bill from its billing export, else the
 owner's books figure, else None); the stop is the one the last batch's yes wrote (its high plus 10%), never a figure set here. The
 remake is prepare's one-shot figure of the prop route (every take, those waiting on lost inputs counted) plus the
-holes price of every other paid step (ROUTE leaves out the prop route's steps, which prepare prices per take).
+gaps price of every other paid step (ROUTE leaves out the prop route's steps, which prepare prices per take).
 """
 from collections import Counter
 
 from score.dashboard.checkout import pricing
-from score.dashboard.state import groups, holes as hole_sums, money
+from score.dashboard.state import groups, gaps as gap_sums, money
 
-# The prop route's stages, priced per take by prepare; the holes price adds only the other paid steps.
+# The prop route's stages, priced per take by prepare; the gaps price adds only the other paid steps.
 ROUTE = ("props-inputs", "closeup", "pixal", "finish-route-", "surfaces-", "likeness")
 BUFFER = 1.10  # a batch's stop: its high plus 10% (CONTEXT.md "batch"; checkout/flow.BUFFER writes it)
 MEASURED = ("measured runs", "per unit × counted", "per unit × forecast")
@@ -60,12 +60,12 @@ def cards(world):
 
 
 def gap_counts(found):
-    """{kind: count} of a place's holes, a lost input once (hole kinds: lost, route, missing, gate)."""
-    return dict(Counter(hole_sums.kind_of(hole) for hole in found))
+    """{kind: count} of a place's gaps, a lost input once (gap kinds: lost, route, missing, gate)."""
+    return dict(Counter(gap_sums.kind_of(gap) for gap in found))
 
 
 def worst(counts):
-    return next((kind for kind, _ in hole_sums.KINDS if counts.get(kind)), None)
+    return next((kind for kind, _ in gap_sums.KINDS if counts.get(kind)), None)
 
 
 def priced(prices):
@@ -78,16 +78,16 @@ def priced(prices):
 
 
 def remake_money(world):
-    """The whole remake: prepare's figure plus the holes price of every paid step off the prop route, None while
+    """The whole remake: prepare's figure plus the gaps price of every paid step off the prop route, None while
     either part is missing or stale (the rule of every price record here); each part apart, its ETA (a range only
     when both parts have one, else at least the longer floor), and why it is stale."""
-    remake, price = world.remake, world.holes_price
+    remake, price = world.remake, world.gaps_price
     rest = priced({node: found for node, found in price.nodes.items() if not on_route(node)}) if price else None
     route = {"likely": remake.likely_euros, "high": remake.high_euros, "unpriced": len(remake.unpriced),
              **remake.counts} if remake else None
     parts = [part for part in (route, rest) if part is not None]
     stale = [why for why in ((remake.stale if remake else "prepare has not run"),
-                             (price.stale if price else "the holes have not been priced")) if why]
+                             (price.stale if price else "the gaps have not been priced")) if why]
     whole = None if stale or route["likely"] is None or route["high"] is None else \
         {"likely": round(route["likely"] + rest["likely"], 2), "high": round(route["high"] + rest["high"], 2)}
     return {**(whole or {"likely": None, "high": None}), "route": route, "rest": rest,
@@ -128,20 +128,20 @@ def environment(source, spend):
     names = groups.short_names(world)
     places = []
     for card in cards(world):
-        counts = gap_counts(source.holes(card.place))
+        counts = gap_counts(source.gaps(card.place))
         link, origin = picture_of(world, card.place)
         places.append({"place": card.place, "title": names[card.place], "status": card.status,
                        "picture": link, "picture_from": origin, "progress": progress(card),
                        "complete": complete(card), "gaps": sum(counts.values()), "worst": worst(counts),
                        "takes": takes.get(card.place), "within": world.within.get(card.place)})
     return {"made_at": world.made_at, "money": month_money(spend), "remake": remake_money(world),
-            "gaps": (world.holes_total.counts if world.holes_total else {}), "places": places,
+            "gaps": (world.gaps_total.counts if world.gaps_total else {}), "places": places,
             "shells": world.shells}
 
 
 def chain_price(price, place, node):
-    """{likely, high, priced, unpriced} of a hole's chain (every paid node it names once); None with no current
-    holes price or no chain."""
+    """{likely, high, priced, unpriced} of a gap's chain (every paid node it names once); None with no current
+    gaps price or no chain."""
     if price is None or price.stale:
         return None
     chain = price.chains.get(place, {}).get(node)
@@ -158,15 +158,15 @@ def web3d_link(source, place, library):
 
 
 def place(source, place, library):
-    """The Place screen: its picture and 3D, its steps with their states, its holes as the scene tree's items (prim
+    """The Place screen: its picture and 3D, its steps with their states, its gaps as the scene tree's items (prim
     path, kind, the node that fills it) and each filling node's chain price once (`prices`)."""
     world = source.world_state()
     card = next(found for found in cards(world) if found.place == place)
-    found = source.holes(place)
+    found = source.gaps(place)
     link, origin = picture_of(world, card.place)
     model, model_from = web3d_link(source, place, library)
-    price = world.holes_price
-    nodes = sorted({hole.node for hole in found if hole.node})
+    price = world.gaps_price
+    nodes = sorted({gap.node for gap in found if gap.node})
     counts = gap_counts(found)
     return {"place": place, "title": groups.short_names(world)[place], "status": card.status, "picture": link,
             "picture_from": origin, "web3d": model, "web3d_from": model_from, "view": f"/view/{place}",
@@ -174,9 +174,9 @@ def place(source, place, library):
             "takes": (world.remake.places.get(place) if world.remake else None),
             "steps": [{"node": step.node, "stage": step.stage, "label": step.label, "state": step.state,
                        "paid": step.paid, "thumb": step.thumb} for step in steps_of(card)],
-            "items": [{"id": hole.id, "prim": hole.prim, "kind": hole_sums.kind_of(hole), "row": hole.row,
-                       "node": hole.node, "paid": hole.paid, "work": hole.work,
-                       "picture": thumb(hole.picture)} for hole in found],
+            "items": [{"id": gap.id, "prim": gap.prim, "kind": gap_sums.kind_of(gap), "row": gap.row,
+                       "node": gap.node, "paid": gap.paid, "work": gap.work,
+                       "picture": thumb(gap.picture)} for gap in found],
             "prices": {node: chain_price(price, place, node) for node in nodes},
             "price_stale": bool(price is None or price.stale)}
 
@@ -247,7 +247,7 @@ def route_layers(remake, layers):
 
 
 def rest_layers(price, layers):
-    """The holes price's paid steps off the prop route into `layers`: a measured run's price as measured, a per-unit
+    """The gaps price's paid steps off the prop route into `layers`: a measured run's price as measured, a per-unit
     one as an estimate, a step with neither unpriced (a guess is never a price); each place's steps and price."""
     for node, found in (price.nodes if price else {}).items():
         if on_route(node):
@@ -266,12 +266,12 @@ def rest_layers(price, layers):
 
 
 def batch(world):
-    """The Buy screen's one batch, the remake (remake_money: prepare's prop route plus the holes price of every other
+    """The Buy screen's one batch, the remake (remake_money: prepare's prop route plus the gaps price of every other
     paid step) by layer: {total {likely, high}, estimated {likely, high} (per unit × count, not yet a measured run),
     jobs, unpriced, eta, stale, layers [{layer, likely, high, jobs, unpriced, estimated, places [{place, jobs, likely,
     high}]}]}; a layer's likely and high None while none of it is priced."""
     whole = remake_money(world)
-    price = None if world.holes_price is None or world.holes_price.stale else world.holes_price
+    price = None if world.gaps_price is None or world.gaps_price.stale else world.gaps_price
     layers = {}
     route_layers(None if whole["stale"] else world.remake, layers)
     rest_layers(price, layers)
@@ -323,7 +323,7 @@ def stats(source, spend):
     day, `days` the ledgers' own counts, which miss what the bills hold), the share of paid steps with a measured
     price, the gaps by kind and the places complete."""
     world = source.world_state(spend)
-    price = world.holes_price
+    price = world.gaps_price
     bases = Counter(found.get("basis") for found in price.nodes.values()) if price else Counter()
     measured = sum(count for basis, count in bases.items() if basis in MEASURED)
     places = cards(world)
@@ -331,7 +331,7 @@ def stats(source, spend):
             "prices": {"measured": measured, "steps": sum(bases.values()), "by_basis": dict(bases),
                        "stale": bool(price is None or price.stale)},
             "remake_layers": world.remake.counts if world.remake else None,
-            "gaps": (world.holes_total.counts if world.holes_total else {}),
+            "gaps": (world.gaps_total.counts if world.gaps_total else {}),
             "places": {"complete": sum(1 for card in places if complete(card)), "total": len(places)}}
 
 

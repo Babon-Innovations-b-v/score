@@ -36,20 +36,20 @@ def grate_openings(cut):
             room_kit.cut_openings = kept
     grate = next(piece for piece in pieces if piece["kind"] == "cockpit_floor_grate")
     span = sorted((grate["at"][2], grate["at"][2] + grate["y"][2] * grate["size"][1]))
-    holes = [sorted((piece["at"][2] + piece["y"][2] * low, piece["at"][2] + piece["y"][2] * high))
+    gaps = [sorted((piece["at"][2] + piece["y"][2] * low, piece["at"][2] + piece["y"][2] * high))
              for piece in pieces if piece["kind"] == "cockpit_ring_floor_plate"
              for _, low, _, high in piece.get("openings", [])]
-    return span, holes
+    return span, gaps
 
 
 def test_a_ship_deck_has_no_seam_round_a_grate():
     """Both ways (the cockpit's 3 view rays into nothing, 2026-10-15): with room_kit's 4 mm gap the openings run past
     the grate's ends, a seam the ground-free ship shows nothing under; the ship kit cuts them to the grate itself."""
-    span, holes = grate_openings(lambda room_kit, cut: cut)
-    assert round(min(low for low, _ in holes), 4) == round(span[0], 4), (span, holes)
-    assert round(max(high for _, high in holes), 4) == round(span[1], 4), (span, holes)
-    span, holes = grate_openings(lambda room_kit, cut: lambda room, found, gap=None: cut(room, found))
-    assert round(span[0] - min(low for low, _ in holes), 4) == 0.004, (span, holes)
+    span, gaps = grate_openings(lambda room_kit, cut: cut)
+    assert round(min(low for low, _ in gaps), 4) == round(span[0], 4), (span, gaps)
+    assert round(max(high for _, high in gaps), 4) == round(span[1], 4), (span, gaps)
+    span, gaps = grate_openings(lambda room_kit, cut: lambda room, found, gap=None: cut(room, found))
+    assert round(span[0] - min(low for low, _ in gaps), 4) == 0.004, (span, gaps)
 
 
 if __name__ == "__main__":

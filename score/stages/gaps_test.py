@@ -1,4 +1,4 @@
-"""Named gaps (gaps.py): a moving gate passes only when every fault is a named object's, keeping the faults; any other
+"""Accepted gaps (gaps.py): a moving gate passes only when every fault is a named object's, keeping the faults; any other
 fault still fails it; complete fails each gap by name with its numbers; a place without a gaps file reads none.
 
 Run: .venv/bin/python -m pytest score/stages/gaps_test.py
@@ -97,7 +97,7 @@ def test_a_row_no_stage_makes_moves_from_complete_s_rows_check_by_its_row():
 
 
 def test_a_layout_from_the_game_moves_from_complete_s_game_check_by_its_record():
-    """The overseer, 2026-10-15: the 18 places whose records cite the source game ship as named gaps; the game
+    """The overseer, 2026-10-15: the 18 places whose records cite the source game ship as accepted gaps; the game
     check's findings name their record, and another record citing the game (the scene-record output) still fails."""
     entry = gaps.entries(recorded("launch"), "complete", "game")
     assert entry and entry[0]["name"].startswith("launch: layout taken from the source game: 12 citations, 4 positions")
@@ -117,11 +117,11 @@ def test_a_box_moves_from_complete_s_boxes_check_by_its_row_and_another_box_stil
     assert gaps.moved(other, entry) == other
 
 
-def test_complete_fails_each_named_gap_by_name_with_its_numbers():
-    found = gaps.judge_named(None, recorded("campgrounds"), None)
+def test_complete_fails_each_accepted_gap_by_name_with_its_numbers():
+    found = gaps.judge_accepted(None, recorded("campgrounds"), None)
     assert found.answer == checks.FAIL and "crane: a foot off the floor" in found.reason
     assert any("3.2 cm off the floor" in finding for finding in found.findings)
-    assert gaps.judge_named(None, {}, None).answer == checks.PASS
+    assert gaps.judge_accepted(None, {}, None).answer == checks.PASS
 
 
 def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gates():
@@ -135,7 +135,7 @@ def test_only_places_with_a_gaps_file_read_one_and_the_table_wires_the_three_gat
     assert gaps.files("galley", "complete-boxes") and not gaps.files("hangar", "complete-boxes")
     assert gaps.NAME in ROWS["complete"].files("wreck") and gaps.NAME not in ROWS["complete"].files("gdoor")
     from score.graph import GAPPED
-    assert GAPPED == "named gaps" and GAPPED in [check.name for check in ROWS["complete"].checks]
+    assert GAPPED == "accepted gaps" and GAPPED in [check.name for check in ROWS["complete"].checks]
     for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
                       ("surfaces-check", "baked matches its surfaces"),
                       ("surfaces-paint", "colour against the close-up"), ("complete", "people"), ("complete", "likeness"),

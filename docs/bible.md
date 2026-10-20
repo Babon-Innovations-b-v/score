@@ -60,7 +60,7 @@ the current backend). No model runs on the coordinating machine.
 - `tools/library/`: the environment's made models and sounds come from the creator's library (score_lib, #22): a
   record names a file by its library reference (`<kind>/<id>@<version>/<file>`) or by its path in git;
   `library_files.py` fetches it with the library's own command and checks it against the entry's sha256, and a name
-  the library does not hold is a hole the scene leaves out. The framework reads nothing from the game's checkout
+  the library does not hold is a gap the scene leaves out. The framework reads nothing from the game's checkout
   (2026-10-09, the owner: the game and SCORE are fully separate); `library_files_test.py` holds it so. An
   engine's own import of the package (the game 2099's Godot scenes for a kit) is that engine's adapter, kept in the
   engine's repository.
@@ -115,7 +115,7 @@ the current backend). No model runs on the coordinating machine.
   first and labelling each region of each view, the labels voted into one finish a face, every finish checked
   against its colour) end in its interface, each model's parts with the library surface named for each; the
   framework's rows paint every part from the library (free, on this PC), bake and check it, one Gemini batch recheck
-  a take sorts pass or a named hole, and put
+  a take sorts pass or a gap, and put
   a new library surface the method proposed in the finish registry (an append-only store item, `registry/` in the
   store) for the owner. Every model is repainted, the owner's picks included (a pick chooses the model, never its
   paint), each by one place only: a place reads a model another place claims from that place's bake. What each place
@@ -149,18 +149,18 @@ or a written exception, when the library refused or did not commit, and answers 
 quality score. A place is complete when its library node stands accepted, the environment when every one does (`python -m
 score status` prints that line); `complete@<place>` keeps its meaning and its key, so no paid row moves.
 
-**Holes** (`score/stages/complete/holes`, its overlay; CONTEXT.md "hole", #12): what each place's route still needs,
+**Gaps** (`score/stages/complete/gaps`, its overlay; CONTEXT.md "gap", #12): what each place's route still needs,
 shown in its OpenUSD scene and in the creator cockpit. A free, local, standalone check (not a row, so no key moves)
-reads the store, the scene inventories, kits, plans, named gaps and the findings other checks already wrote, judges
-nothing, and writes `WORK/checks/holes/<place>/`: an overlay (`holes.usda`, its own layer over the accepted stage laid
+reads the store, the scene inventories, kits, plans, accepted gaps and the findings other checks already wrote, judges
+nothing, and writes `WORK/checks/gaps/<place>/`: an overlay (`gaps.usda`, its own layer over the accepted stage laid
 out as links) in which every inventory row with nothing made for it is a guide box at its spot, wall or parent's top
 (unplaced when no data says where; never `score:row`, so the rows gate still counts it missing), every made object a
 written fault names carries the gates it fails, and the root carries the route's steps the place lacks (its concept,
-plan, rough model); and `findings.json`, one hole each, naming the node that fills it (a stage of the table that runs
+plan, rough model); and `findings.json`, one gap each, naming the node that fills it (a stage of the table that runs
 for the place) or the code work it needs. The cockpit lists them on the place page, outlines them in its 3D viewer
-(`?holes=1`) and prices them at read time from the basket (`score/dashboard/state/holes.py`: a node an item carries
-gets the runner's price; the environment's total prices every node of the items that fill a hole, each once, and
-counts the paid steps no item carries; work-only holes are listed with no price). A shown place's objects are never
+(`?gaps=1`) and prices them at read time from the basket (`score/dashboard/state/gaps.py`: a node an item carries
+gets the runner's price; the environment's total prices every node of the items that fill a gap, each once, and
+counts the paid steps no item carries; work-only gaps are listed with no price). A shown place's objects are never
 the place's own: rows made only there stay missing (the completion gate's rows check reads them the same way). The
 sync pass writes them after the library sweep. The boxes stay out of the accepted assembly: putting them inside would
 move assembly's, complete's and every later paid row's key.
@@ -270,9 +270,9 @@ is meant to fix, where it is marked, and what proves it.
   free coverage check adds until every face it can see is seen), one Gemini 3.1 Pro answer a take through Google's
   Batch API at half price (`tools/props/cloud/google_batch.py`: the finish list matched library first with settings,
   a label for each colour region of each view), then free and before any paid bake the colour check: each region of
-  every view against its chosen surface's token colour, one too far a hole, named, nothing of it baked (dE 32,
+  every view against its chosen surface's token colour, one too far a gap, named, nothing of it baked (dE 32,
   unmeasured on the views); the labels voted into one finish a face (an unassigned face or views
-  that disagree is a hole, named; the 1% bound is unmeasured, its benchmark on #18), each finish checked free against
+  that disagree is a gap, named; the 1% bound is unmeasured, its benchmark on #18), each finish checked free against
   its colour, the paint and the bake in one job a take on the bake's warm card (nothing heavy on this PC), and one
   Gemini batch recheck a take sorted pass or the named fault "no library surface fits" (no tweak, no retry). The
   list's token, roughness, metal and seed reach the bake as the variant's spec with them (`route_settings.py`), the
@@ -540,7 +540,7 @@ runner's key it was made under) survived. Recovery, in order:
    it is the owner's own (`--reattach --max-gb N`). Its record says no maker's commit (the library holds only its
    handover's) and its make's time as the library's accept, so nothing dates it today or carries it from today's
    commit. Since the prop route and the method were hardened after most outputs were made, most keys differ: those
-   nodes stay holes (#12) naming the paid row that remakes them. The library rows are never made by the restore
+   nodes stay gaps (#12) naming the paid row that remakes them. The library rows are never made by the restore
    (their handover pushes score_lib and writes to the bucket): they stay unknown.
 3. Never put back by hand: records, judgements, evidence, accepts, rejects, waivers, clearances, spend yeses, the
    registry or stop lines; the library's own `accept{}` is not an accept in the store.
@@ -743,9 +743,9 @@ code they have not seen yet.
 - **Failures propagate.** A write that can fail raises; it does not log and continue. The two tiers
   are: a failure the caller can do something about (raise a typed error) and a failure nothing can
   be done about (crash loudly). Swallowing is neither.
-- **A paid step's failure is a hole.** Inside a batch a failed paid step is never retried, never
-  waited out and never sent to a bigger card class: it is recorded as a hole and priced into the
-  next batch (`CONTEXT.md`: batch, hole). A retry is a mend only on a free step, or on a read that
+- **A paid step's failure is a gap.** Inside a batch a failed paid step is never retried, never
+  waited out and never sent to a bigger card class: it is recorded as a gap and priced into the
+  next batch (`CONTEXT.md`: batch, gap). A retry is a mend only on a free step, or on a read that
   buys nothing (the Scaleway backend asks a failed read again and never a write).
 - **Every directory carries its overlay** (`CLAUDE.md`) once it has rules of its own.
 

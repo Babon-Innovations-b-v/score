@@ -10,6 +10,6 @@ Looks are `data/people/takes.json` entries (spec and outfit).
   (and its bake's `models`), its look as a row of the people layer into `data/props/people.json` (its close-up the
   take's `input.png`) and `data/inventory/people.json`, so the shared loop finishes it (#41); its look into
   `data/people/bodies.json`, its cast name into the place's cast record. Still a model made before the loop (the
-  loop's Pixal3D batch takes only an approved scene's rows): a named gap of #41.
+  loop's Pixal3D batch takes only an approved scene's rows): an accepted gap of #41.
 - Gates measure, unknown blocks: `close-ups` (one with the arms apart), `take` (a kept take on disk). Tests:
   `people_takes_test.py`.

@@ -174,7 +174,7 @@ def came_back(code, made, log, what):
 def make_closeups(props, out):
     """Nano Banana Pro's close-up of each prop as the close-up stage draws one: one take a prop, its wording chosen free
     first (stage.pro_wording: the crop alone, or with the room when the crop is small), copied to
-    out/closeups/<name>.png when it passes its measured shape check. One that fails is a hole, not drawn again (a
+    out/closeups/<name>.png when it passes its measured shape check. One that fails is a gap, not drawn again (a
     batch runs every job once)."""
     import check
     import stage

@@ -10,7 +10,7 @@ import functools
 import hashlib
 import pathlib
 
-FORMAT = 2  # 1: gaps and stopped steps as lines of words; 2: gaps and stopped steps as records
+FORMAT = 3  # 1: gaps and stopped steps as lines of words; 2: as records; 3: holes are gaps, gaps accepted gaps
 READABLE = (FORMAT,)
 DASHBOARD = pathlib.Path(__file__).resolve().parents[1]
 EXPORTING = ("state", "previews", "sync")  # the code that builds an export and its pictures

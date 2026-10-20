@@ -198,7 +198,7 @@ def test_pixal3d_is_bought_for_the_one_passing_close_up_with_its_arms_furthest_a
     assert 'spec.get("closeup_seeds", [1, 2])' in words
 
 
-def test_a_failed_tucks_record_predicts_a_hole_only_on_the_same_inputs(tmp_path, monkeypatch):
+def test_a_failed_tucks_record_predicts_a_gap_only_on_the_same_inputs(tmp_path, monkeypatch):
     """#21: the settled pokes.json with a tuck over the gate in every clip writes a record on the hash of the take,
     spec, parts and the maker's and people tools' code, which predicts the same failure (nothing bought); a clip
     that passed writes none, and any changed input, the people tools' code included, predicts nothing."""

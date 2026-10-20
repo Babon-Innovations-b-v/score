@@ -23,12 +23,12 @@ The cut-out and the raw Pixal3D step run in the cloud (#55): no model runs on th
 the same BiRefNet-lite as the lab, and as many cards are rented as it takes to finish in about --minutes, across the
 zones and capability classes that hold Pixal3D (capacity.py), best stocked and fastest first, spread over the zones. A
 machine that stays out of stock (nothing billed, OutOfStock) is dropped for the next offer; one that was billed and
-does not answer within START_MINUTES, or refuses the key, is deleted and is a hole (BootFailed), with nothing rented in
+does not answer within START_MINUTES, or refuses the key, is deleted and is a gap (BootFailed), with nothing rented in
 its place. Each machine
 takes new work only
 when it has room, so a slow or late machine never holds up the rest. Every job runs once (a batch, CONTEXT.md, owner
 2026-10-20): a job that fails, runs out of memory, passes its deadline (job_deadline_seconds, from the measured high
-seconds) or is on a machine that is lost is a hole, never sent again; new spend on it is a new batch. Each card runs
+seconds) or is on a machine that is lost is a gap, never sent again; new spend on it is a new batch. Each card runs
 as many at once as capacity.runs_at_once says (measured kinds only). Every model comes back into WORK/pixal/ as if made here, with the camera
 folder its finish paints from (<name>.svviews), and is finished here with `pixal.py --finish-only`
 (Blender and the processor, no model) while the machines are still working. This is the way to make
@@ -82,7 +82,7 @@ from score.adapters import compute  # noqa: E402
 PER_CARD = 3
 # The measured seconds a Pixal3D job takes: per_unit.py's high quantile of the ledger's job seconds, kept in the repo.
 PER_UNIT = REPO / "data" / "costs" / "per-unit.json"
-# A job still running this many times its measured high seconds is stopped and is a hole (a batch runs every job
+# A job still running this many times its measured high seconds is stopped and is a gap (a batch runs every job
 # once): 1.5 times the high (2302 s on 2026-10-20) is 3453 s, above every one of the 78 job seconds in the
 # evidence ledger (their longest 2912 s), so only a stuck job reaches it.
 DEADLINE_FACTOR = 1.5
@@ -108,7 +108,7 @@ SETUP_MINUTES = 5.0
 MODEL_MINUTES = 5.0
 # How often each machine is looked at, its results brought back and its queue topped up.
 POLL_SECONDS = 15
-# A machine billed that has not answered over ssh this long after its order is deleted and is a hole (BootFailed),
+# A machine billed that has not answered over ssh this long after its order is deleted and is a gap (BootFailed),
 # nothing rented in its place; only an out-of-stock refusal (nothing billed) moves on to the next offer (24 GB cards
 # answered in about 2 min, 2026-09-29; on 2026-10-08 machines in one zone never started at all).
 START_MINUTES = 5
@@ -247,7 +247,7 @@ def expected_minutes(count, cards, per_card, per_model):
 
 
 def job_deadline_seconds():
-    """The seconds a Pixal3D job may run before it is stopped as a hole: DEADLINE_FACTOR times the stage's measured
+    """The seconds a Pixal3D job may run before it is stopped as a gap: DEADLINE_FACTOR times the stage's measured
     high seconds in per-unit.json."""
     high = json.loads(PER_UNIT.read_text())["stages"]["pixal"]["time"]["unit_seconds"]["high"]
     return DEADLINE_FACTOR * high
@@ -358,7 +358,7 @@ class OutOfStock(TimeoutError):
 
 
 class BootFailed(Exception):
-    """A machine was rented and billed and did not answer: a hole, and no other machine is rented in its place inside
+    """A machine was rented and billed and did not answer: a gap, and no other machine is rented in its place inside
     the batch (a batch, CONTEXT.md, owner 2026-10-20)."""
 
 
@@ -397,7 +397,7 @@ def boot(machine):
 
 def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None):
     """One machine that answers, for a job of `kind`, with a root disk of `disk_gb`; None when the run no longer wants
-    one, or when a machine it rented was billed and did not answer (BootFailed: the slot is a hole, nothing is
+    one, or when a machine it rented was billed and did not answer (BootFailed: the slot is a gap, nothing is
     rented in its place). A round that finds no stock anywhere is tried again every STOCK_RETRY_MINUTES with the
     backend's offers read afresh, across every class the offers named and every zone, for as long as `still_wanted`
     (the run's deadline and the caller's `wanted`) says: a slot never gives up on its first
@@ -409,7 +409,7 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
         try:
             return claim_rounds(run, account, offers, number, kind, disk_gb, wanted)
         except BootFailed as error:
-            say(f"{error}; a hole, no machine rented in its place")
+            say(f"{error}; a gap, no machine rented in its place")
             return None
 
 
@@ -641,9 +641,9 @@ class Fleet:
         with self.lock:
             return not self.queueing and not self.ready
 
-    def holes(self, names):
+    def gaps(self, names):
         """Jobs that ran and did not make a model (failed, out of memory, past their deadline, or on a machine that
-        was lost): holes, never sent again; new spend on them is a new batch."""
+        was lost): gaps, never sent again; new spend on them is a new batch."""
         with self.lock:
             self.failed.extend(name for name in names if name not in self.failed)
 
@@ -652,13 +652,13 @@ class Fleet:
         with self.lock:
             self.lost_cards += machine["cards"]
 
-    def unsent_holes(self):
-        """The jobs no machine took, once no machine is left to take them: holes, for a new batch and a new ask."""
+    def unsent_gaps(self):
+        """The jobs no machine took, once no machine is left to take them: gaps, for a new batch and a new ask."""
         with self.lock:
             names = [job["name"] for job in self.ready]
             self.ready.clear()
             self.unsent.extend(names)
-        self.holes(names)
+        self.gaps(names)
         return names
 
     def arrived(self, machine_folder, name):
@@ -766,7 +766,7 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
 
 def one_class_in_stock(classes):
     """The offers to rent: those in stock now of the first of `classes` (in the order given) that has any, one class
-    for the whole call, read once at price time; none when no class given is in stock (its jobs are then holes, never
+    for the whole call, read once at price time; none when no class given is in stock (its jobs are then gaps, never
     sent to another class or a processor machine: a batch, CONTEXT.md, owner 2026-10-20)."""
     found = [offer for offer in offers(list(classes)) if offer.stock_word != "shortage"]
     chosen = next((name for name in classes if any(offer.machine_class == name for offer in found)), None)
@@ -837,7 +837,7 @@ def keep_the_fleet(fleet, found, cards):
             return
         short = cards - fleet.lost_cards - sum(machine["cards"] for machine in alive)
         if not alive and short <= 0:
-            say(f"no machine left (its cards were billed and failed); holes: {', '.join(fleet.unsent_holes())}")
+            say(f"no machine left (its cards were billed and failed); gaps: {', '.join(fleet.unsent_gaps())}")
             return
         if short > 0 and not fleet.no_more_work() and time.time() - asked >= STOCK_RETRY_MINUTES * 60:
             asked = time.time()
@@ -862,7 +862,7 @@ def replace(fleet, machine):
 
 def tend(fleet, machine):
     """Run one machine from boot to delete: prepare it, keep its queue topped up, bring its models
-    back as they finish, make what it took and never finished holes, and delete it."""
+    back as they finish, make what it took and never finished gaps, and delete it."""
     folder, sent, finished, stopped = machine["folder"], {}, set(), set()
     try:
         try:
@@ -873,7 +873,7 @@ def tend(fleet, machine):
             return
         except (TimeoutError, PermissionError) as error:
             say(f"{folder.name}: {machine['type']} in {machine['zone']} was rented and did not start ({error}); "
-                "a hole, no machine rented in its place")
+                "a gap, no machine rented in its place")
             fleet.lose(machine)
             return
         arm_self_delete(folder, host, fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
@@ -909,15 +909,15 @@ def tend(fleet, machine):
     finally:
         lost = sorted(set(sent) - finished)
         if lost:
-            say(f"{folder.name} ended with {len(lost)} job{'s' if len(lost) != 1 else ''} unfinished, holes: "
+            say(f"{folder.name} ended with {len(lost)} job{'s' if len(lost) != 1 else ''} unfinished, gaps: "
                 f"{', '.join(lost)}")
-        fleet.holes(lost)
+        fleet.gaps(lost)
         delete_machine(machine)
 
 
 def collect(fleet, folder, host, status, finished):
     """Bring back the models the machine finished since the last look; each failed one (a run can die when the card
-    runs short of memory) is a hole, never sent again. The names now over."""
+    runs short of memory) is a gap, never sent again. The names now over."""
     over = {name for name, job in status["jobs"].items() if job["state"] in ("done", "failed")}
     new = over - finished
     made = sorted(name for name in new if status["jobs"][name]["state"] == "done")
@@ -927,8 +927,8 @@ def collect(fleet, folder, host, status, finished):
         fleet.arrived(folder, name)
     failed = sorted(new - set(made))
     for name in failed:
-        say(f"{name} failed on {folder.name}; a hole")
-    fleet.holes(failed)
+        say(f"{name} failed on {folder.name}; a gap")
+    fleet.gaps(failed)
     return new
 
 
@@ -941,10 +941,10 @@ def overdue(status, skip, deadline_seconds, now):
 def stop_overdue(fleet, folder, host, status, stopped):
     """Stop each job past the fleet's deadline on its machine, once (`stopped` holds the names already stopped): its
     generator is ended by its own output path (the first letter in brackets so the pattern never matches the shell
-    that runs pkill), the machine reports it failed, and collect makes it a hole at the next look."""
+    that runs pkill), the machine reports it failed, and collect makes it a gap at the next look."""
     for name in overdue(status, stopped, fleet.job_deadline, time.time()):
         stopped.add(name)
-        say(f"{name} passed its {fleet.job_deadline:.0f} s deadline on {folder.name}; stopped, a hole")
+        say(f"{name} passed its {fleet.job_deadline:.0f} s deadline on {folder.name}; stopped, a gap")
         remote(folder, host, f"pkill -f -- {shlex.quote(own_pattern(f'/root/batch/out/{name}.glb'))}")
 
 
@@ -1014,7 +1014,7 @@ def ledger_entry(fleet, models, started):
             "batch": fleet.folder.name, "kind": "pixal",
             "per_card": {machine["folder"].name: machine.get("per_card") for machine in fleet.machines},
             **ledger.machines_record(fleet.machines, fleet.attempts, started), "models": len(models),
-            "models_done": len(fleet.done), "holes": sorted(fleet.failed),
+            "models_done": len(fleet.done), "gaps": sorted(fleet.failed),
             "unsent": sorted(fleet.unsent), "card_minutes": card_minutes,
             "wall_minutes": (time.time() - started) / 60, "job_seconds": job_seconds}
 
@@ -1097,7 +1097,7 @@ def say_what_failed(fleet, folder):
     """Name the models a batch did not make or could not finish, and where their logs are."""
     missing = sorted(set(fleet.models) - set(fleet.done))
     if fleet.failed:
-        say(f"holes (ran once, no model; a new batch and a new ask to try again): {', '.join(sorted(fleet.failed))}")
+        say(f"gaps (ran once, no model; a new batch and a new ask to try again): {', '.join(sorted(fleet.failed))}")
     if missing:
         say(f"not made: {', '.join(missing)} (logs under {folder})")
     if fleet.finish_failed:

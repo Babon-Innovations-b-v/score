@@ -72,7 +72,7 @@ def parts_take(folders, entry, finishes, kit):
 
 
 def make_parts(inputs, out, seed, params):
-    """Every split take's parts; parts.json, with the takes the split made holes (or the list left out) as left
+    """Every split take's parts; parts.json, with the takes the split made gaps (or the list left out) as left
     out."""
     import kit_surfaces
     views, listed = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-list"])
@@ -93,7 +93,7 @@ def make_parts(inputs, out, seed, params):
 
 
 def judge_parts(output, inputs, evidence):
-    """Every take the split split has its parts; the takes left out (holes named by the rows before) and the
+    """Every take the split split has its parts; the takes left out (gaps named by the rows before) and the
     finishes off their colour as measures."""
     found = json.loads((output / "parts.json").read_text())
     split = json.loads((pathlib.Path(inputs["finish-route-split"]) / "split.json").read_text())

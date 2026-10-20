@@ -82,14 +82,14 @@ def test_text_holds_wcag_aa_on_every_surface():
                                        "--color-text-faint", "--color-accent")
              for ground in ("--color-bg", "--color-bg-section", "--color-bg-raised")]
     pairs += [("--color-accent-ink", "--color-accent")]
-    pairs += [("--color-on-status", status) for status in ("--color-idle", "--color-hole-missing", "--color-hole-gate",
-                                                          "--color-hole-route", "--color-hole-lost")]
+    pairs += [("--color-on-status", status) for status in ("--color-idle", "--color-gap-missing", "--color-gap-gate",
+                                                          "--color-gap-route", "--color-gap-lost")]
     ratios = {(ink, ground): contrast(hex_of(ink, text), hex_of(ground, text)) for ink, ground in pairs}
     low = {pair: round(ratio, 2) for pair, ratio in ratios.items() if ratio < 4.5}
     assert not low, f"under WCAG AA 4.5:1: {low}"
 
 
-def test_hole_colours_stay_told_apart():
+def test_gap_colours_stay_told_apart():
     text = (TOKENS / "colours.css").read_text()
-    kinds = [hex_of(f"--color-hole-{kind}", text) for kind in ("missing", "gate", "route", "lost")]
+    kinds = [hex_of(f"--color-gap-{kind}", text) for kind in ("missing", "gate", "route", "lost")]
     assert len(set(kinds)) == 4 and hex_of("--color-accent", text) not in kinds

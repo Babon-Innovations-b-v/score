@@ -9,7 +9,7 @@ made by tools/review/store_page.py); --work-stage judges the old export at WORK/
 `check` runs the place's checks on its OpenUSD stage and writes each result beside the stage
 (`<stage folder>/checks/<check>.json`); `done` reads them and writes the place's manifest (`<stage folder>/manifest.json`)
 saying, requirement by requirement, whether the place is complete, and its status (CONTEXT.md): "complete" when
-every requirement passes; "complete apart from named gaps (N)" when the named gaps requirement is the only one that
+every requirement passes; "complete apart from accepted gaps (N)" when the accepted gaps requirement is the only one that
 does not, every gap listed with its numbers and who decided it (overseer, 2026-10-15); else "NOT complete". It exits 0
 on the first two. The
 Stop hook (.claude/hooks/completion_guard.py) runs `done` for each place a session worked on and refuses to let the
@@ -40,9 +40,9 @@ agent finishing while validations are stale). The requirements:
                   the places it shows, and no record citing the game. The runner's complete stage
                   (score/stages/complete) runs these same checks, and every one above but resting (the assembly's
                   gate judges it on its drop run), on the place's assembled stage: one gate, two ways in
-    named gaps    as the runner's complete row: a check's faults a dated decision in data/checks/gaps/<place>.json
+    accepted gaps    as the runner's complete row: a check's faults a dated decision in data/checks/gaps/<place>.json
                   names (score/stages/gaps.py, a gate of GAP_GATES["complete"]) pass that check, said by name, and
-                  this requirement fails every named gap by name; any fault no gap names still fails its check
+                  this requirement fails every accepted gap by name; any fault no gap names still fails its check
     current       every check result was made on this stage as it is now (the same fingerprint) and none is unknown
     review        the review page (tools/review/page.py) was built, and its scene rendered, from this stage as it is now
 
@@ -76,11 +76,11 @@ EXPERIMENTAL = {
              "that was then fixed; counted once the owner's scenery rule is set and it has",
 }
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
-# The verdict of a place whose only failing requirement is its named gaps (overseer, 2026-10-15): done passes for the
-# run and says so. NAMED_GAPS is that requirement's name, the runner's complete row's check (graph.GAPPED).
-GAPPED, NAMED_GAPS = "gapped", "named gaps"
-# What done says of each verdict (CONTEXT.md: complete, complete apart from named gaps, not complete).
-STATUS = {PASS: "complete", GAPPED: "complete apart from named gaps"}
+# The verdict of a place whose only failing requirement is its accepted gaps (overseer, 2026-10-15): done passes for the
+# run and says so. ACCEPTED_GAPS is that requirement's name, the runner's complete row's check (graph.GAPPED).
+GAPPED, ACCEPTED_GAPS = "gapped", "accepted gaps"
+# What done says of each verdict (CONTEXT.md: complete, complete apart from accepted gaps, not complete).
+STATUS = {PASS: "complete", GAPPED: "complete apart from accepted gaps"}
 NOT_COMPLETE = "NOT complete"
 # What of a stage's folder is the stage: its root file, its layers and its assets (not the checks, the manifest, the
 # inputs record or a settle run kept beside it).
@@ -246,7 +246,7 @@ def resting_check(place, stage):
 
 def assembly_resting(place, stage):
     """The resting requirement of a store copy as the runner has it: its complete row leaves resting to the assembly's
-    gate, judged on the drop run the assembly gathered with the place's named gaps moved, so this is that gate's
+    gate, judged on the drop run the assembly gathered with the place's accepted gaps moved, so this is that gate's
     verdict on the accepted assembly@<place> output (its newest judgement in the store)."""
     sys.path.insert(0, str(REPO))
     from score import review
@@ -401,9 +401,9 @@ def gap_inputs(place):
 
 
 def gap_moved(check, place, found):
-    """A check's saved result with the place's named gaps moved as the runner's complete row moves them
+    """A check's saved result with the place's accepted gaps moved as the runner's complete row moves them
     (score/stages gap_moved over score/stages/complete gate_check's verdict): (answer, why moved, or None). Only a
-    gate of GAP_GATES["complete"] moves, and only when every fault is a named gap's; anything else stands as saved."""
+    gate of GAP_GATES["complete"] moves, and only when every fault is an accepted gap's; anything else stands as saved."""
     from score.stages import gaps
     entries = gaps.entries(gap_inputs(place), "complete", check)
     if not entries:
@@ -420,23 +420,23 @@ def gap_moved(check, place, found):
 
 
 def gap_list(place):
-    """Every named gap of the place, as the runner's complete row reads them (gaps.entries)."""
+    """Every accepted gap of the place, as the runner's complete row reads them (gaps.entries)."""
     sys.path.insert(0, str(REPO))
     from score.stages import gaps
     return gaps.entries(gap_inputs(place))
 
 
-def named_gaps_requirement(place):
-    """The completion gate's own named gaps check (score/stages/gaps.py judge_named): every gap fails by name."""
+def accepted_gaps_requirement(place):
+    """The completion gate's own accepted gaps check (score/stages/gaps.py judge_accepted): every gap fails by name."""
     sys.path.insert(0, str(REPO))
     from score.stages import gaps
-    verdict = gaps.judge_named(None, gap_inputs(place), None)
+    verdict = gaps.judge_accepted(None, gap_inputs(place), None)
     return verdict.answer, verdict.reason
 
 
 def check_requirement(check, stage, current, place=None):
     """A check's requirement: its last result, unless it is missing or was made on another stage (unknown); a fault
-    of the place's named gaps moved as the runner's complete row moves it."""
+    of the place's accepted gaps moved as the runner's complete row moves it."""
     found = load(check, stage)
     if found is None:
         return UNKNOWN, "never run: complete.py check runs it"
@@ -481,7 +481,7 @@ def requirements(place, stage, review=None):
     found += [(check, *(recorded(*check_requirement(check, stage, current)) if check in EXPERIMENTAL
                         else check_requirement(check, stage, current, place))) for check in CHECKS]
     stale = [name for name, verdict, _ in found[1:] if verdict == UNKNOWN]
-    found.append((NAMED_GAPS, *named_gaps_requirement(place)))
+    found.append((ACCEPTED_GAPS, *accepted_gaps_requirement(place)))
     found.append(("current", UNKNOWN if stale else PASS,
                   f"not current or unknown: {', '.join(stale)}" if stale else "every result is on this stage"))
     found.append(("review", *review_requirement(place, stage, review, current)))
@@ -491,11 +491,11 @@ def requirements(place, stage, review=None):
 
 
 def verdict_of(found):
-    """The place's verdict: pass when every requirement passes; gapped when the named gaps requirement is the only one
+    """The place's verdict: pass when every requirement passes; gapped when the accepted gaps requirement is the only one
     that does not; else fail when any fails, else unknown. An experimental requirement passes once recorded on this
     stage (its faults shown, not counted)."""
     results = {requirement["result"] for requirement in found}
-    others = {requirement["result"] for requirement in found if requirement["name"] != NAMED_GAPS}
+    others = {requirement["result"] for requirement in found if requirement["name"] != ACCEPTED_GAPS}
     if results == {PASS}:
         return PASS
     if others == {PASS}:
@@ -504,7 +504,7 @@ def verdict_of(found):
 
 
 def status_of(verdict):
-    """What done says of a verdict: complete, complete apart from named gaps, or NOT complete."""
+    """What done says of a verdict: complete, complete apart from accepted gaps, or NOT complete."""
     return STATUS.get(verdict, NOT_COMPLETE)
 
 
@@ -514,7 +514,7 @@ def manifest(place, stage, review=None):
     verdict = verdict_of(found)
     written = {"place": place, "stage": str(stage), "fingerprint": fingerprint(stage), "at": now(),
                "verdict": verdict, "status": status_of(verdict), "requirements": found,
-               "named_gaps": [{key: entry[key] for key in ("name", "decided", "faults")} for entry in gap_list(place)]}
+               "accepted_gaps": [{key: entry[key] for key in ("name", "decided", "faults")} for entry in gap_list(place)]}
     if pathlib.Path(stage).parent.is_dir():
         (pathlib.Path(stage).parent / "manifest.json").write_text(json.dumps(written, indent=1) + "\n")
     return written
@@ -533,12 +533,12 @@ def run_checks(place, stage, only=CHECKS):
 
 
 def done_line(place, written):
-    """done's last words on the place: its status, and for one complete apart from named gaps every gap with its
+    """done's last words on the place: its status, and for one complete apart from accepted gaps every gap with its
     numbers and who decided it."""
     if written["verdict"] != GAPPED:
         return f"{place}: {written['status']} ({written['verdict']})"
-    lines = [f"{place}: {written['status']} ({len(written['named_gaps'])})"]
-    for entry in written["named_gaps"]:
+    lines = [f"{place}: {written['status']} ({len(written['accepted_gaps'])})"]
+    for entry in written["accepted_gaps"]:
         lines.append(f"  {entry['name']} (decided: {entry['decided']})")
         lines += [f"    {fault}" for fault in entry["faults"]]
     return "\n".join(lines)

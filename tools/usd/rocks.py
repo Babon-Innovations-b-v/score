@@ -138,10 +138,10 @@ def lying(rng, planned, up, size, box, entry):
 
 def laid_rocks(entry, world, ground):
     """Every planned rock the place shows, lying as the game lays it, in the place's frame; a rock whose model is a
-    hole (not in the library) is left out."""
+    gap (not in the library) is left out."""
     resolved = {path: library_files.resolve(path, world) for path in entry["boulders"] + entry["stones"]}
     for path in sorted(path for path, found in resolved.items() if found is None):
-        library_files.say_hole(path, "the planned rocks")
+        library_files.say_gap(path, "the planned rocks")
     boxes = {path: model_box(resolved[path]) for path in entry["boulders"] if resolved[path] is not None}
     plan = json.loads(library_files.resolve(entry["plan"], world).read_text())["rocks"]
     planned = PlannedGround(ground)
@@ -153,7 +153,7 @@ def laid_rocks(entry, world, ground):
     for rock in plan:
         size, kind = float(rock["size"]), int(rock["kind"])
         up = normalised(out * planned.radius + base[0] * float(rock["x"]) + base[2] * float(rock["z"]))
-        if entry["boulders"][kind] not in boxes:  # a hole: its draws taken all the same, so the others lie as before
+        if entry["boulders"][kind] not in boxes:  # a gap: its draws taken all the same, so the others lie as before
             for _ in range(DRAWS_A_ROCK):
                 rng.randf_range(0.0, 1.0)
             continue

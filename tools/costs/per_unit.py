@@ -18,7 +18,7 @@ down in git when they ran (`RECORDED`: a committed evidence file and line, or a 
 read, replaces them.
 
 Before a node is made it has nothing to count, so an entry also carries its `forecast` rule: what the units of a make
-are forecast from, a source in git (`FORECASTS`), which `score price --holes` counts (compute.forecast_price), and
+are forecast from, a source in git (`FORECASTS`), which `score price --gaps` counts (compute.forecast_price), and
 where a model makes more than one unit, `per_model`: a close-up's pictures a model as recorded, a finish map's or a
 naming's calls over the take lists' calls in the same Google ledger (one list a take). The rules are this file's, so
 `--rules-only` writes them, and the RECORDED stages, into the per-unit file in place, its ledger-measured numbers kept,
@@ -64,10 +64,10 @@ import costs  # noqa: E402
 
 HIGH = 0.9  # the high price's quantile, as preflight.HIGH
 # The forecast rules: what a make's units are forecast from before it runs, each from a source in git, counted by
-# score.stages.complete.holes.price (for the entry's own stage only, never its `also`).
+# score.stages.complete.gaps.price (for the entry's own stage only, never its `also`).
 FORECASTS = {
     "prop_takes": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made "
-                  "in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node "
+                  "in WORK/pixal, and the missing rows of the place's gaps (score/stages/complete/gaps) whose node "
                   "is this stage's there, by their take",
     "models": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast "
               "to make at the place (prop_takes)",

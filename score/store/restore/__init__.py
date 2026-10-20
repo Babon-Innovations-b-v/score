@@ -12,7 +12,7 @@ and nothing old may look current:
 
 - A paid node is never made: `cleared` raises Blocked, so a paid make (`spending`) and a paid gatherer (`gather_one`)
   are refused at the runner's own choke point, and `gatherable` leaves out the gatherers that carry euros, so their
-  checks answer unknown from missing evidence (a hole, never a pass). No record is written for a refused node.
+  checks answer unknown from missing evidence (a gap, never a pass). No record is written for a refused node.
 - An old paid output stands again only when its node's key today equals the key the library says it was made under,
   its bytes rebuild to that exact output hash, and today's gates pass on it (re-attached here, judged and accepted by
   the runner's own run_held). Without `fetch` (the default) such a match is only counted ("would re-attach").
@@ -159,7 +159,7 @@ class FreeRunner(graph.Runner):
 
     def gather_one(self, stage, place, keyed, name, output):
         """gather_one, a gatherer declared free that still reached Blender or a paid point (ledger.FreeOnly) leaving
-        its evidence missing: the node blocked as unknown, its check a hole."""
+        its evidence missing: the node blocked as unknown, its check a gap."""
         try:
             return super().gather_one(stage, place, keyed, name, output)
         except ledger.FreeOnly as refused:

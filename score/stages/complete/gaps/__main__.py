@@ -1,10 +1,10 @@
-"""Write each place's holes: what its route still needs, over its accepted stage, for the creator cockpit:
+"""Write each place's gaps: what its route still needs, over its accepted stage, for the creator cockpit:
 
-    .venv/bin/python -m score.stages.complete.holes [--place P ...] [--out FOLDER] [--data FOLDER]
+    .venv/bin/python -m score.stages.complete.gaps [--place P ...] [--out FOLDER] [--data FOLDER]
 
 For each place, <out>/<place>/: stage/ (the accepted stage, its neighbours output where it has one, else its
-assembly, laid out as links to the stored bytes), holes.usda (the holes layer over it: layers/holes.usda, then
-./stage/<place>.usda; the holes layer alone when no assembly stands accepted) and findings.json:
+assembly, laid out as links to the stored bytes), gaps.usda (the gaps layer over it: layers/gaps.usda, then
+./stage/<place>.usda; the gaps layer alone when no assembly stands accepted) and findings.json:
 
     {"place", "answer", "outputs": {neighbours@P, assembly@P, plan@P, rough-model@P, complete@P: each its accepted
                                     output or null},
@@ -26,10 +26,10 @@ assembly, laid out as links to the stored bytes), holes.usda (the holes layer ov
 A whole run (no --place, the repository's data) also writes <out>/world/findings.json: the environment's own nodes'
 lost inputs, place "world", no outputs and no stage. A lost input's id names the thing, so the summary line and the
 cockpit's total count it once however many places read it (inputs.distinct).
-The default out is WORK/checks/holes, where the cockpit reads it; the other checks' findings are read beside it.
-Reads the store, the scene inventories, kits, plans and named gaps, and the checks already written; judges nothing,
+The default out is WORK/checks/gaps, where the cockpit reads it; the other checks' findings are read beside it.
+Reads the store, the scene inventories, kits, plans and accepted gaps, and the checks already written; judges nothing,
 writes nothing to the store. Free and local, seconds a place. Prints one line a place and one summary line, and
-fails loudly on a findings.json that breaks the contract above (holes_faults) and on a box with no store.
+fails loudly on a findings.json that breaks the contract above (gaps_faults) and on a box with no store.
 """
 import argparse
 import json
@@ -39,7 +39,7 @@ import shutil
 from pxr import UsdGeom
 
 from score.stages.assembly import stage_file
-from score.stages.complete.holes import (FINDINGS, GATE, MISSING, OUT, PLACE, WORLD, fill, inputs, layer, layers,
+from score.stages.complete.gaps import (FINDINGS, GATE, MISSING, OUT, PLACE, WORLD, fill, inputs, layer, layers,
                                         marks, route, rows)
 from score.stages.complete.library import stored
 from score.store import PROPS_HOME
@@ -48,7 +48,7 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 DATA = REPO / "data"
 STAGE = "stage"
 RULES = (MISSING, GATE, PLACE)
-SOURCES = ("neighbours", "assembly")  # the stage the holes stand over: the first accepted
+SOURCES = ("neighbours", "assembly")  # the stage the gaps stand over: the first accepted
 STEP_SENTENCES = {fill.CONCEPT: "no concept is picked for this place",
                   fill.PLAN: "this place's plan is not accepted",
                   fill.ROUGH_MODEL: "this place's rough model is not accepted",
@@ -74,15 +74,15 @@ def read(path):
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def missing_holes(stage, place, written, kit):
+def missing_gaps(stage, place, written, kit):
     """Each missing object's box written, and its finding (its box's bounds read once the layer is whole)."""
     found = []
     for box in rows.boxes(stage, place, written, kit, rows.missing(stage, place, written)):
         row = box["row"]
         node, work = fill.missing_row(row, place, bool(rows.kit_pieces(row, kit)))
-        values = {"score:hole": MISSING, "score:hole:row": row["id"], "score:hole:placed": box["placed"],
+        values = {"score:gap": MISSING, "score:gap:row": row["id"], "score:gap:placed": box["placed"],
                   "score:kind": row.get("kind", ""), "score:anchor": str(row.get("anchor", "")),
-                  **({"score:hole:node": node} if node else {"score:hole:work": work})}
+                  **({"score:gap:node": node} if node else {"score:gap:work": work})}
         layer.write_box(stage, box, values)
         sentence = f"{row.get('name') or row['id']}: nothing made for it yet ({row.get('made') or row.get('kind')})"
         if box["placed"] == rows.UNPLACED:
@@ -95,26 +95,26 @@ def missing_holes(stage, place, written, kit):
     return found
 
 
-def gate_holes(stage, place, store, data, own, row_ids):
+def gate_gaps(stage, place, store, data, own, row_ids):
     """Each object a written fault names, marked on its prims, and its finding."""
     found = marks.judged(store, place) + marks.checked(own, place, store) + marks.gapped(data, place)
-    holes = []
-    for hole in marks.holes(stage, place, found):
-        for path in hole["prims"]:
-            layer.write_mark(stage, path, hole["gates"])
-        more = len(hole["sentences"]) - 1
-        prim = hole["prims"][0] if hole["prims"] else None
-        holes.append({"id": f"{GATE}:{hole['gates'][0]}:{hole['object']}", "rule": GATE, "prim": prim,
-                      "kind": hole["kind"],
-                      "sentence": hole["sentences"][0] + (f" (and {more} more)" if more else ""), "picture": None,
-                      "row": hole["object"] if hole["object"] in row_ids else None, "gates": hole["gates"],
-                      "source": hole["source"], "node": hole["node"],
-                      "work": "; ".join(hole["works"]) if hole["node"] is None else None, "placed": None,
+    gaps = []
+    for gap in marks.gate_gaps(stage, place, found):
+        for path in gap["prims"]:
+            layer.write_mark(stage, path, gap["gates"])
+        more = len(gap["sentences"]) - 1
+        prim = gap["prims"][0] if gap["prims"] else None
+        gaps.append({"id": f"{GATE}:{gap['gates'][0]}:{gap['object']}", "rule": GATE, "prim": prim,
+                      "kind": gap["kind"],
+                      "sentence": gap["sentences"][0] + (f" (and {more} more)" if more else ""), "picture": None,
+                      "row": gap["object"] if gap["object"] in row_ids else None, "gates": gap["gates"],
+                      "source": gap["source"], "node": gap["node"],
+                      "work": "; ".join(gap["works"]) if gap["node"] is None else None, "placed": None,
                       "bounds": (prim, layer.SEEN) if prim else None})
-    return holes
+    return gaps
 
 
-def place_holes(stage, place, store, written, plan):
+def place_gaps(stage, place, store, written, plan):
     """Each step of the route the place lacks, on its root, and its finding."""
     kinds = route.missing(store, place, written, plan)
     layer.write_place(stage, place, kinds)
@@ -127,13 +127,13 @@ def place_holes(stage, place, store, written, plan):
     return found
 
 
-def lost_holes(runner, place):
+def lost_gaps(runner, place):
     """Each input the place's line reads that is lost (inputs.lost; the world's own nodes' for place None), on its
-    root, as a place hole with the node that makes it again or its code work."""
-    return [{"id": f"{PLACE}:{hole['id']}", "rule": PLACE, "prim": f"/{place}" if place else None, "kind": None,
-             "sentence": hole["sentence"], "picture": None, "row": None, "gates": [], "source": "inputs",
-             "node": hole["node"], "work": hole["work"], "placed": None, "bounds": None}
-            for hole in inputs.lost(runner, place)]
+    root, as a place gap with the node that makes it again or its code work."""
+    return [{"id": f"{PLACE}:{gap['id']}", "rule": PLACE, "prim": f"/{place}" if place else None, "kind": None,
+             "sentence": gap["sentence"], "picture": None, "row": None, "gates": [], "source": "inputs",
+             "node": gap["node"], "work": gap["work"], "placed": None, "bounds": None}
+            for gap in inputs.lost(runner, place)]
 
 
 def written_world(folder, runner):
@@ -141,13 +141,13 @@ def written_world(folder, runner):
     cockpit adds to its total; findings.json as written. No stage and no outputs: the world has no scene of its own."""
     folder.mkdir(parents=True, exist_ok=True)
     findings = [{**{key: value for key, value in finding.items() if key != "bounds"}, "low": None, "high": None}
-                for finding in lost_holes(runner, None)]
+                for finding in lost_gaps(runner, None)]
     written = {"place": WORLD, "answer": "fail" if findings else "pass", "outputs": {},
                "counts": {rule: sum(item["rule"] == rule for item in findings) for rule in RULES},
                "findings": findings}
-    faults = holes_faults(written)
+    faults = gaps_faults(written)
     if faults:
-        raise SystemExit(f"{WORLD}: the holes break their contract: " + "; ".join(faults[:5]))
+        raise SystemExit(f"{WORLD}: the gaps break their contract: " + "; ".join(faults[:5]))
     (folder / FINDINGS).write_text(json.dumps(written, indent=1))
     return written
 
@@ -159,7 +159,7 @@ def bounded(stage, finding):
     return dict(finding, low=low, high=high)
 
 
-def holes_faults(written):
+def gaps_faults(written):
     """Each way a findings.json breaks its contract: an unknown rule, node and work both or neither, one of low and
     high alone, a duplicate id."""
     found, seen = [], set()
@@ -177,7 +177,7 @@ def holes_faults(written):
 
 
 def outputs_read(store, place):
-    """{node: accepted output or None} of every node the holes were read against: the stages they may stand over,
+    """{node: accepted output or None} of every node the gaps were read against: the stages they may stand over,
     the place's route steps that are nodes (its plan and rough model) and its complete row; one accepted later then
     fails the cockpit's current-findings test."""
     steps = (fill.node_of(kind, place) for kind in (fill.PLAN, fill.ROUGH_MODEL))
@@ -186,7 +186,7 @@ def outputs_read(store, place):
 
 
 def written_place(store, place, data, folder, runner=None):
-    """Work out one place's holes and write holes.usda and findings.json; findings.json as written. `runner`: the
+    """Work out one place's gaps and write gaps.usda and findings.json; findings.json as written. `runner`: the
     stage table's, for the lost inputs (the table reads the repository's data, so none for another data folder)."""
     folder.mkdir(parents=True, exist_ok=True)
     _, output = accepted_stage(store, place)
@@ -194,20 +194,20 @@ def written_place(store, place, data, folder, runner=None):
     inventory = rows.inventory(data, place)
     kit = read(data / "kit" / f"{place}.json") or {}
     row_ids = {row["id"] for row in (inventory or {}).get("rows", [])}
-    found = (missing_holes(stage, place, inventory, kit)
-             + gate_holes(stage, place, store, data, folder.parent, row_ids)
-             + place_holes(stage, place, store, inventory, read(data / "plans" / f"{place}.json"))
-             + layers.holes(place, data)
-             + (lost_holes(runner, place) if runner is not None else []))
+    found = (missing_gaps(stage, place, inventory, kit)
+             + gate_gaps(stage, place, store, data, folder.parent, row_ids)
+             + place_gaps(stage, place, store, inventory, read(data / "plans" / f"{place}.json"))
+             + layers.gaps(place, data)
+             + (lost_gaps(runner, place) if runner is not None else []))
     layer.saved(stage)
     findings = [bounded(stage, finding) for finding in found]
     written = {"place": place, "answer": "fail" if findings else "pass",
                "outputs": outputs_read(store, place),
                "counts": {rule: sum(item["rule"] == rule for item in findings) for rule in RULES},
                "findings": findings}
-    faults = holes_faults(written)
+    faults = gaps_faults(written)
     if faults:
-        raise SystemExit(f"{place}: the holes break their contract: " + "; ".join(faults[:5]))
+        raise SystemExit(f"{place}: the gaps break their contract: " + "; ".join(faults[:5]))
     (folder / FINDINGS).write_text(json.dumps(written, indent=1))
     return written
 
@@ -232,7 +232,7 @@ def existing_store():
     read as nothing made and every inventory row as missing."""
     objects = PROPS_HOME / "store/objects"
     if not objects.is_dir():
-        raise SystemExit(f"no store at {objects.parent}: the holes need the accepted outputs")
+        raise SystemExit(f"no store at {objects.parent}: the gaps need the accepted outputs")
     return stored.reading()
 
 
@@ -259,7 +259,7 @@ def main(argv=None):
     if table is not None and not options.place:
         found += written_world(options.out / WORLD, table)["findings"]
     totals = {rule: sum(item["rule"] == rule for item in inputs.distinct(found)) for rule in RULES}
-    print(f"{len(places)} places: {totals[MISSING]} missing, {totals[GATE]} gate, {totals[PLACE]} place holes "
+    print(f"{len(places)} places: {totals[MISSING]} missing, {totals[GATE]} gate, {totals[PLACE]} place gaps "
           f"(a lost input once); {options.out}")
 
 

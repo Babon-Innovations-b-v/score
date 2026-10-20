@@ -34,8 +34,8 @@ def main():
     assert store_page.place_name("garage") == "the garage"
     # The completion gate's status in done's words (CONTEXT.md), the gaps counted.
     assert ">complete<" in store_page.status_pill({"verdict": "pass", "status": "complete"})
-    assert ">complete apart from named gaps (2)<" in store_page.status_pill(
-        {"verdict": "gapped", "status": "complete apart from named gaps", "named_gaps": [{}, {}]})
+    assert ">complete apart from accepted gaps (2)<" in store_page.status_pill(
+        {"verdict": "gapped", "status": "complete apart from accepted gaps", "accepted_gaps": [{}, {}]})
     assert ">NOT complete<" in store_page.status_pill({"verdict": "unknown", "status": "NOT complete"})
     print("store_page_test: pass")
 

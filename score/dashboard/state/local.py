@@ -14,11 +14,11 @@ import subprocess
 from collections import Counter
 
 from score import review, stages
-from score.dashboard.state import gaps as named, groups, plain
+from score.dashboard.state import accepted_gaps as named, groups, plain
 from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
-from score.dashboard.state.holes import kind_of as hole_kind
+from score.dashboard.state.gaps import kind_of as gap_kind
 from score.dashboard.state.index import Fresh, answer_keys
-from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, HolesPrice, HolesTotal,
+from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, GapsPrice, GapsTotal,
                                           InputPicture, LayerGroup, PlaceCard, PlaceDetail, Remake, Spend, StepCard,
                                           StepDetail, StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
 from score.store import Store, stamp_key
@@ -30,18 +30,18 @@ LOG_LINES = 40
 # Where standalone checks write each place's findings, in the work folder: checks/<check>/<place>/findings.json
 # ({"outputs": {node: the output judged}, "findings": [{"rule", "prim", "sentence", "picture"}]}).
 CHECKS = "checks"
-HOLES = "holes"  # the holes check (score/stages/complete/holes): its findings are the place's holes, listed apart
-HOLE_FIELDS = ("id", "row", "gates", "source", "node", "work", "placed", "low", "high")
-HOLES_PRICE = "holes-price"  # every hole's chain priced: checks/holes-price/<world>.json (score price --holes)
-PER_UNIT = "data/costs/per-unit.json"  # the measured per-unit prices a holes price record is made on
+GAPS = "gaps"  # the gaps check (score/stages/complete/gaps): its findings are the place's gaps, listed apart
+GAP_FIELDS = ("id", "row", "gates", "source", "node", "work", "placed", "low", "high")
+GAPS_PRICE = "gaps-price"  # every gap's chain priced: checks/gaps-price/<world>.json (score price --gaps)
+PER_UNIT = "data/costs/per-unit.json"  # the measured per-unit prices a gaps price record is made on
 TIMED = ("accepts/", "rejects/")  # store areas whose keys carry their time: an accept or reject moves what stands
 REMAKE = "prepare/remake.json"  # prepare's one-shot figure of the remake (score/stages/complete/prepare)
-HOLES_WORLD = "world"  # the holes check's pseudo-place of the environment's own nodes' lost inputs (holes/__main__)
+GAPS_WORLD = "world"  # the gaps check's pseudo-place of the environment's own nodes' lost inputs (gaps/__main__)
 
 
 def priced_here():
     """{commit, per_unit_sha256} of this checkout: its commit (None when it cannot be read) and the per-unit
-    prices' sha256, what a holes price record made now would carry (score/stages/complete/holes/price.py
+    prices' sha256, what a gaps price record made now would carry (score/stages/complete/gaps/price.py
     priced_on)."""
     done = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True)
     return {"commit": done.stdout.strip() if done.returncode == 0 else None,
@@ -49,7 +49,7 @@ def priced_here():
 
 
 def code_moved(priced_on):
-    """Why a holes price made on `priced_on` (its record's) does not price this checkout's code, or None."""
+    """Why a gaps price made on `priced_on` (its record's) does not price this checkout's code, or None."""
     if not priced_on:
         return "it was made before the price recorded its code"
     if priced_on.get("uncommitted"):
@@ -64,11 +64,11 @@ def code_moved(priced_on):
 
 
 def take_counts(takes):
-    """{takes, bought, made, library, predicted_holes, blocked} of prepare's takes: each by its status, `blocked` the
+    """{takes, bought, made, library, predicted_gaps, blocked} of prepare's takes: each by its status, `blocked` the
     bought ones that wait on a lost input."""
     found = Counter(take["status"] for take in takes)
     return {"takes": len(takes), "bought": found["bought"], "made": found["made"], "library": found["library"],
-            "predicted_holes": found["predicted hole"],
+            "predicted_gaps": found["predicted gap"],
             "blocked": sum(1 for take in takes if take["status"] == "bought" and take.get("inputs"))}
 
 
@@ -111,16 +111,16 @@ def written_at(path):
         return None
 
 
-def lost_once(holes):
-    """The holes with each lost input (`<rule>:lost:...`, its id names the thing) once however many places read it,
-    as the holes check's summary counts them (holes/inputs.py `distinct`); every other hole as it is."""
+def lost_once(gaps):
+    """The gaps with each lost input (`<rule>:lost:...`, its id names the thing) once however many places read it,
+    as the gaps check's summary counts them (gaps/inputs.py `distinct`); every other gap as it is."""
     seen, found = set(), []
-    for hole in holes:
-        if hole.id.partition(":")[2].startswith("lost:"):
-            if hole.id in seen:
+    for gap in gaps:
+        if gap.id.partition(":")[2].startswith("lost:"):
+            if gap.id in seen:
                 continue
-            seen.add(hole.id)
-        found.append(hole)
+            seen.add(gap.id)
+        found.append(gap)
     return found
 
 
@@ -398,7 +398,7 @@ class LocalSource:
         return [LayerGroup(name=name, steps=found[name]) for name in groups.LAYER_ORDER if name in found]
 
     def place_status(self, place):
-        """complete / complete apart from named gaps (N) / stopped at <node> / waits at <node>, from the store."""
+        """complete / complete apart from accepted gaps (N) / stopped at <node> / waits at <node>, from the store."""
         complete = f"complete@{place}"
         accept = self.store.current_accept(complete)
         if accept:
@@ -483,7 +483,7 @@ class LocalSource:
         return WorldState(made_at=self.read_at(), source=self.name, world=self.world.name,
                           engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
-                          holes_total=self.holes_total(), holes_price=self.holes_price(),
+                          gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
                           remake=self.remake(), concepts=self.concepts(), **self.hierarchy())
 
     def concepts(self):
@@ -533,9 +533,9 @@ class LocalSource:
                         with_neighbours_output=self.accepted_output(f"neighbours@{place}"), layers=layers,
                         asset_count=sum(1 for item in listing if item.startswith("assets/") and kind_of(item) == "usd"))
 
-    def gaps(self, place):
-        """The place's named gaps, each with its step and a picture of what it names (state/gaps.py)."""
-        return self.remembered(("gaps", place), lambda: named.named_gaps(self, place))
+    def accepted_gaps(self, place):
+        """The place's accepted gaps, each with its step and a picture of what it names (state/accepted_gaps.py)."""
+        return self.remembered(("accepted_gaps", place), lambda: named.accepted_gaps(self, place))
 
     def current_findings(self, path):
         """A standalone check's findings.json, or None once an output it judged is no longer the accepted one (it is
@@ -546,66 +546,66 @@ class LocalSource:
         return written
 
     def finding(self, check, place, item):
-        """One finding of a check's findings.json, with its picture and, for a hole, its hole fields."""
+        """One finding of a check's findings.json, with its picture and, for a gap, its gap fields."""
         return CheckFinding(check=check, rule=item["rule"], prim=item.get("prim"), kind=item.get("kind"),
                             sentence=item["sentence"],
                             picture=self.work_picture(f"WORK/{CHECKS}/{check}/{place}/{item['picture']}")
                             if item.get("picture") else None,
-                            **{field: item.get(field) for field in HOLE_FIELDS})
+                            **{field: item.get(field) for field in GAP_FIELDS})
 
     def check_findings(self, place):
-        """Every standalone check's findings of the place but the holes (listed apart), each with its picture,
+        """Every standalone check's findings of the place but the gaps (listed apart), each with its picture,
         while the outputs it judged stay accepted."""
         found = []
         for path in sorted((self.props_home / "work" / CHECKS).glob(f"*/{place}/findings.json")):
             check, written = path.parts[-3], self.current_findings(path)
-            if check != HOLES and written:
+            if check != GAPS and written:
                 found += [self.finding(check, place, item) for item in written.get("findings", [])]
         return found
 
-    def holes(self, place):
-        """What the place's route still needs (the holes check's findings), while the outputs it stood over stay
+    def gaps(self, place):
+        """What the place's route still needs (the gaps check's findings), while the outputs it stood over stay
         accepted; [] when it has not run."""
-        path = self.props_home / "work" / CHECKS / HOLES / place / "findings.json"
+        path = self.props_home / "work" / CHECKS / GAPS / place / "findings.json"
 
         def read():
             written = self.current_findings(path) if path.is_file() else None
-            return [self.finding(HOLES, place, item).model_copy(update={"paid": self.paid_node(item.get("node"))})
+            return [self.finding(GAPS, place, item).model_copy(update={"paid": self.paid_node(item.get("node"))})
                     for item in (written or {}).get("findings", [])]
-        return self.remembered(("holes", place, written_at(path)), read)
+        return self.remembered(("gaps", place, written_at(path)), read)
 
     def paid_node(self, node):
         """Whether a node's stage is paid; None with no node or for a stage outside the table (the ship kits')."""
         row = self.by_name.get(node.split("@", 1)[0]) if node else None
         return bool(row.paid) if row else None
 
-    def holes_total(self):
-        """Every place's holes and the environment's own lost inputs (HOLES_WORLD) in sum, a lost input once
-        (lost_once): counts by kind (holes.KINDS: lost, route, missing, gate) and the work no stage does."""
+    def gaps_total(self):
+        """Every place's gaps and the environment's own lost inputs (GAPS_WORLD) in sum, a lost input once
+        (lost_once): counts by kind (gaps.KINDS: lost, route, missing, gate) and the work no stage does."""
         def read():
-            holes = lost_once([hole for place in [*self.places(), HOLES_WORLD] for hole in self.holes(place)])
-            return HolesTotal(counts=dict(Counter(hole_kind(hole) for hole in holes)),
-                              unfillable=sorted({hole.work for hole in holes if hole.node is None}))
-        return self.remembered(("holes total", self.holes_written()), read)
+            gaps = lost_once([gap for place in [*self.places(), GAPS_WORLD] for gap in self.gaps(place)])
+            return GapsTotal(counts=dict(Counter(gap_kind(gap) for gap in gaps)),
+                              unfillable=sorted({gap.work for gap in gaps if gap.node is None}))
+        return self.remembered(("gaps total", self.gaps_written()), read)
 
-    def holes_written(self):
-        """(place, when its findings were written) of every holes check's findings, read on each call (a stat each):
-        what the holes read is remembered by, so a holes check that ran again shows at once, not after the index's
+    def gaps_written(self):
+        """(place, when its findings were written) of every gaps check's findings, read on each call (a stat each):
+        what the gaps read is remembered by, so a gaps check that ran again shows at once, not after the index's
         next build."""
         return tuple(sorted((path.parent.name, written_at(path))
-                            for path in (self.props_home / "work" / CHECKS / HOLES).glob("*/findings.json")))
+                            for path in (self.props_home / "work" / CHECKS / GAPS).glob("*/findings.json")))
 
-    def holes_price(self):
-        """The runner's price of every hole's chain, with why it is stale; None before `score price --holes` ran."""
-        path = self.props_home / "work" / CHECKS / HOLES_PRICE / f"{self.world.name}.json"
+    def gaps_price(self):
+        """The runner's price of every gap's chain, with why it is stale; None before `score price --gaps` ran."""
+        path = self.props_home / "work" / CHECKS / GAPS_PRICE / f"{self.world.name}.json"
 
         def read():
             if not path.is_file():
                 return None
             written = json.loads(path.read_text())
-            fields = {name: written[name] for name in HolesPrice.model_fields if name in written}
-            return HolesPrice(**fields, stale=self.price_stale(path, written))
-        return self.remembered(("holes price", written_at(path), self.holes_written()), read)
+            fields = {name: written[name] for name in GapsPrice.model_fields if name in written}
+            return GapsPrice(**fields, stale=self.price_stale(path, written))
+        return self.remembered(("gaps price", written_at(path), self.gaps_written()), read)
 
     def remake(self):
         """Prepare's one-shot figure of the whole remake (REMAKE, read as written), with why it is stale; None before
@@ -617,8 +617,8 @@ class LocalSource:
         return self.remembered(("remake", written_at(path)), read)
 
     def price_stale(self, path, written):
-        """Why a holes price record no longer stands (made on other code or other per-unit prices than this
-        checkout's, an output accepted or rejected after it was made, or a holes check written after it), or None:
+        """Why a gaps price record no longer stands (made on other code or other per-unit prices than this
+        checkout's, an output accepted or rejected after it was made, or a gaps check written after it), or None:
         the rule of current_findings, so a stale record shows no number."""
         moved = code_moved(written.get("priced_on"))
         if moved:
@@ -630,9 +630,9 @@ class LocalSource:
             return (f"{len(moved)} output{'' if len(moved) == 1 else 's'} {'was' if len(moved) == 1 else 'were'} "
                     "accepted or rejected since the price was made")
         made = path.stat().st_mtime
-        newer = [found for found in (self.props_home / "work" / CHECKS / HOLES).glob("*/findings.json")
+        newer = [found for found in (self.props_home / "work" / CHECKS / GAPS).glob("*/findings.json")
                  if found.stat().st_mtime > made]
-        return (f"the holes check ran again at {len(newer)} place{'' if len(newer) == 1 else 's'} since the price "
+        return (f"the gaps check ran again at {len(newer)} place{'' if len(newer) == 1 else 's'} since the price "
                 "was made") if newer else None
 
     def faults(self, place):
@@ -701,10 +701,10 @@ class LocalSource:
         return {"eye": first["eye"], "aim": first["aim"], "fov": first.get("fov")} if first else None
 
     def skipped(self, place):
-        """Loud: the steps of the stage table not in this place's line, and its named gaps (left out by decision)."""
+        """Loud: the steps of the stage table not in this place's line, and its accepted gaps (left out by decision)."""
         rows = {row.name for row in self.place_rows(place)}
         missing = [groups.label(row.name) for row in self.rows if row.grain == "place" and row.name not in rows]
-        found = [f"{entry.name}: {entry.reason} (named gap)" for entry in self.gaps(place)]
+        found = [f"{entry.name}: {entry.reason} (accepted gap)" for entry in self.accepted_gaps(place)]
         if missing:
             found.append(f"not in this place's line: {', '.join(missing)}")
         return found
@@ -714,7 +714,7 @@ class LocalSource:
         return PlaceDetail(place=place, status=self.place_status(place), look=look, hero=self.hero(place),
                            film=self.film(place), usd_index=self.usd_index(place),
                            layers=self.layer_groups(place, with_thumbs=True), faults=self.faults(place),
-                           gaps=self.gaps(place), checks=self.check_findings(place), holes=self.holes(place),
+                           accepted_gaps=self.accepted_gaps(place), checks=self.check_findings(place), gaps=self.gaps(place),
                            concept=self.concept(place),
                            skipped=self.skipped(place),
                            film_fps=self.film_fps(place), film_view=self.film_view(place), web3d=self.web3d(place))

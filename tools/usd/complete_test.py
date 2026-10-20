@@ -29,7 +29,7 @@ import triage_test  # noqa: E402
 
 # The test's places have no stage outputs in the framework's store: the contents checks read none.
 complete.stored_outputs = lambda place: dict(contents_test.NONE)
-# Nor the world's named gaps (the test's place is named wreck, which has some): a test writes its own.
+# Nor the world's accepted gaps (the test's place is named wreck, which has some): a test writes its own.
 sys.path.insert(0, str(HERE.parents[1]))
 from score.stages import gaps  # noqa: E402
 gaps.FOLDER = HERE / "no gaps folder"
@@ -223,10 +223,10 @@ def the_store_page_is_the_review_and_a_store_copy_is_judged_by_its_key():
         return problems
 
 
-def a_named_gap_moves_only_the_faults_it_names():
-    """Fault (2026-10-15): complete.py read no named gaps while the runner's complete row did, so the store page failed
+def an_accepted_gap_moves_only_the_faults_it_names():
+    """Fault (2026-10-15): complete.py read no accepted gaps while the runner's complete row did, so the store page failed
     the stairwell on people, game and likeness faults the owner and the overseer had named. A gap moves only its own
-    named faults of a gate GAP_GATES["complete"] lists, and the named gaps requirement fails each by name."""
+    named faults of a gate GAP_GATES["complete"] lists, and the accepted gaps requirement fails each by name."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         stage = laid(folder)
@@ -243,24 +243,24 @@ def a_named_gap_moves_only_the_faults_it_names():
                 complete.save(complete.result(check, complete.FAIL, stage, faults), stage)
                 return complete.check_requirement(check, stage, complete.fingerprint(stage), resting_test.PLACE)
             moved = answer("people", ["player: not on the stage"])
-            if moved[0] != complete.PASS or "named gaps: no player" not in moved[1]:
+            if moved[0] != complete.PASS or "accepted gaps: no player" not in moved[1]:
                 problems.append(f"the named people fault did not move: {moved}")
             if answer("people", ["player: not on the stage", "guard: not on the stage"])[0] != complete.FAIL:
                 problems.append("a fault no gap names passed with the named one")
             if answer("light", ["crate: no lamp"])[0] != complete.FAIL:
                 problems.append("a gap moved a check that is not one of complete's gap gates")
-            if complete.named_gaps_requirement(resting_test.PLACE)[0] != complete.FAIL:
-                problems.append("the named gaps requirement does not fail its gaps by name")
-            if complete.named_gaps_requirement("no such place")[0] != complete.PASS:
-                problems.append("a place with no gaps file fails on named gaps")
+            if complete.accepted_gaps_requirement(resting_test.PLACE)[0] != complete.FAIL:
+                problems.append("the accepted gaps requirement does not fail its gaps by name")
+            if complete.accepted_gaps_requirement("no such place")[0] != complete.PASS:
+                problems.append("a place with no gaps file fails on accepted gaps")
         finally:
             gaps.FOLDER = saved
         return problems
 
 
 def the_three_statuses():
-    """The overseer's decision (2026-10-15): done says "complete" for a place with no gaps, "complete apart from named
-    gaps (N)" when its named gaps are the only fail, listing every gap with its numbers and who decided it, and passes
+    """The overseer's decision (2026-10-15): done says "complete" for a place with no gaps, "complete apart from accepted
+    gaps (N)" when its accepted gaps are the only fail, listing every gap with its numbers and who decided it, and passes
     the run for both; any other fail stays "NOT complete"."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
@@ -281,10 +281,10 @@ def the_three_statuses():
             complete.save(complete.result("people", complete.FAIL, stage, ["player: not on the stage"]), stage)
             written = complete.manifest(resting_test.PLACE, stage, folder / "review")
             said = complete.done_line(resting_test.PLACE, written)
-            if (written["verdict"], written["status"]) != (complete.GAPPED, "complete apart from named gaps") or \
-                    not said.startswith(f"{resting_test.PLACE}: complete apart from named gaps (1)") or \
+            if (written["verdict"], written["status"]) != (complete.GAPPED, "complete apart from accepted gaps") or \
+                    not said.startswith(f"{resting_test.PLACE}: complete apart from accepted gaps (1)") or \
                     "the overseer, 2026-10-15" not in said or "0 of 1 bodies" not in said:
-                problems.append(f"a place failing only on its named gaps reads {written['verdict']}: {said}")
+                problems.append(f"a place failing only on its accepted gaps reads {written['verdict']}: {said}")
             complete.save(complete.result("people", complete.FAIL, stage,
                                           ["player: not on the stage", "guard: not on the stage"]), stage)
             written = complete.manifest(resting_test.PLACE, stage, folder / "review")
@@ -308,7 +308,7 @@ def make_toy(inputs, out, seed, params):
 def a_store_copy_takes_resting_from_its_assembly_gate():
     """2026-10-17: complete.py judged a store copy's resting by its own triage with no drop run (campgrounds: 6 faults,
     "no drop run on this stage"), while the runner's complete row leaves resting to the assembly's gate, judged on
-    its gathered drop run with the named gaps moved. A store copy's resting is now that gate's verdict on the
+    its gathered drop run with the accepted gaps moved. A store copy's resting is now that gate's verdict on the
     runner's chosen assembly output: its pass with the faults shown; with no chosen output (its gate failed), unknown."""
     from score import contracts, graph
     from score.store import Store
@@ -350,7 +350,7 @@ def a_ship_place_reads_the_runners_beside_likeness():
     return problems
 
 
-CHECKS = (a_finished_place_passes, a_named_gap_moves_only_the_faults_it_names, the_three_statuses,
+CHECKS = (a_finished_place_passes, an_accepted_gap_moves_only_the_faults_it_names, the_three_statuses,
           a_store_copy_takes_resting_from_its_assembly_gate, a_ship_place_reads_the_runners_beside_likeness,
           a_place_without_its_cast_fails_on_its_contents, a_failing_reach_is_shown_not_counted,
           a_row_with_no_object_needs_a_drop_reason,

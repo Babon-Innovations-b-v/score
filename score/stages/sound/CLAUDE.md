@@ -30,10 +30,10 @@ gates; `takes.py` the paid part.
   sound with a library file is taken, levelled here); each sound still to make is one job, its brief's first prompt
   at seed 1 (`takes.SEED`), made once, the card's deadline its takes' minutes. The gates sort: a take under
   `CLAP_FLOOR` fails `likeness`, a take that did not come back leaves its sound without one and fails `sources`;
-  either is a hole, and a new take (another seed, the brief's next prompt) is a new batch, never inside this one.
+  either is a gap, and a new take (another seed, the brief's next prompt) is a new batch, never inside this one.
 - **One take across places** (#29): a brief several places play (crew_talk, in eight) is one take. Each take is
   locked while its batch runs (`takes.held`), so the first line to reach it makes it on its card and the others wait
-  and read it; a take its batch asked for and did not get (lost, failed, no card) is a named failure and a hole on
+  and read it; a take its batch asked for and did not get (lost, failed, no card) is a named failure and a gap on
   every place that plays it, never asked again by a waiting line (`takes.asked_here`: one ask a take a score run, the
   run's `SCORE_RUN_ID`); new spend on it is a new batch, another run. `environment_takes` (free) lists the environment's takes still to make, each once with the places that
   play it, and the price's `sound_takes` forecast rule counts each at its first place, so it is priced once.
@@ -43,8 +43,8 @@ gates; `takes.py` the paid part.
 - **What a place needs is worked out free** (`needs.py`, #29): its bed (room tones), one event sound for each thing
   that moves (its motion and moving things records; things moving exactly together are one event) and a voice where its
   cast stands people (`voices` in `data/sound/places.json`, each on a person, played at `/<place>/Characters/<name>`).
-  Each need is answered from the library, by a brief this row makes, or not at all; the holes check shows the last
-  two (`score/stages/complete/holes/layers.py`), and the `events` and `voices` gates fail a place's output that
+  Each need is answered from the library, by a brief this row makes, or not at all; the gaps check shows the last
+  two (`score/stages/complete/gaps/layers.py`), and the `events` and `voices` gates fail a place's output that
   leaves one silent. Keep needs generic: read them off the records, never a list of places.
 - **Unit cost: unknown** in `data/costs/per-unit.json`: no take's work seconds are on a ledger in git (the 2026-10-06
   game batch, 244 takes on one L4 in 122.9 card minutes with set-up, timed none; environment 1's run of 2026-10-12,

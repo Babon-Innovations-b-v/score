@@ -163,7 +163,7 @@ def test_a_bodied_prop_at_an_outside_place_is_sized_over_its_accepted_labelled_t
             prop_makers.WORK, prop_makers.bake_inputs, prop_makers.accepted_labelled = kept
 
 
-def test_a_close_up_is_drawn_once_and_one_that_fails_is_a_hole():
+def test_a_close_up_is_drawn_once_and_one_that_fails_is_a_gap():
     """A batch runs every job once (CONTEXT.md, owner 2026-10-20): Pro drew a second, room take of what the crop alone
     failed. Now each prop gets one take, its wording chosen free before it is drawn."""
     from PIL import Image
@@ -193,7 +193,7 @@ def test_a_close_up_is_drawn_once_and_one_that_fails_is_a_hole():
             else:
                 sys.modules["secret_store"] = kept[2]
     assert sorted(drawn) == [("crane.png", True), ("ship.png", True)], drawn  # small crops take the room, once each
-    assert made == {}  # both failed their shape check: holes, not drawn again
+    assert made == {}  # both failed their shape check: gaps, not drawn again
 
 
 def test_run_is_refused_without_yes_after_its_price():

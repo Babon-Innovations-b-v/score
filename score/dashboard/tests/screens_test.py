@@ -1,7 +1,7 @@
-"""Each cockpit screen's JSON (state/screens.py, GET /api/screens/...), on the fixture environment with its holes
+"""Each cockpit screen's JSON (state/screens.py, GET /api/screens/...), on the fixture environment with its gaps
 priced by the runner, a prepare record shaped like the real one (takes by status, those waiting on lost inputs
 counted in its figure), the month's spend as `score spend` writes it and a tiny library: the remake is prepare's
-figure plus the holes price off the prop route, the ETA a range only when both parts have one, a place's picture
+figure plus the gaps price off the prop route, the ETA a range only when both parts have one, a place's picture
 its concept, the model calls' month None when not read, the basket's stop its high plus 10%, and the
 library's counts by kind."""
 import json
@@ -13,7 +13,7 @@ from score.dashboard.proposals import records
 from score.dashboard.state import local, screens
 from score.dashboard.state.models import CostLine, Spend, WorldState
 from score.dashboard.tests.library_test import api, shelf  # noqa: F401  (a pytest fixture)
-from score.dashboard.tests.pages_test import MEASURED, a_holes_finding, a_holes_price
+from score.dashboard.tests.pages_test import MEASURED, a_gaps_finding, a_gaps_price
 
 pytestmark = pytest.mark.django_db(transaction=True)
 SETTLE = {**MEASURED, "basis": "measured runs"}  # a paid step off the prop route, measured
@@ -30,13 +30,13 @@ def take(place, status, lost=True):
 
 def a_remake(world, priced_on=None):
     """Prepare's record (WORK/checks/prepare/remake.json) as the real one is shaped: alpha's three takes, two bought
-    waiting on a lost input and one a predicted hole, priced EUR 10 to 12 with the likeness calibration unpriced."""
+    waiting on a lost input and one a predicted gap, priced EUR 10 to 12 with the likeness calibration unpriced."""
     folder = world.root / "props/work/checks/prepare"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "remake.json").write_text(json.dumps({
         "made_at": "2026-10-20T11:19:22+00:00",
         "priced_on": priced_on or {**local.priced_here(), "uncommitted": False},
-        "takes": [take("alpha", "bought"), take("alpha", "bought"), take("alpha", "predicted hole")],
+        "takes": [take("alpha", "bought"), take("alpha", "bought"), take("alpha", "predicted gap")],
         "layers": {"closeup": {"takes": 2, "price": {"likely_euros": 10.0, "high_euros": 12.0}},
                    "likeness-calibration": {"takes": 2, "price": {"likely_euros": None, "high_euros": None}}},
         "totals": {"likely_euros": 10.0, "high_euros": 12.0, "unpriced": ["likeness-calibration"]},
@@ -56,10 +56,10 @@ def month_read():
 
 @pytest.fixture
 def cockpit(world, settings, tmp_path):
-    """The fixture environment with alpha's holes priced (the close-up on the prop route, settle off it and measured,
+    """The fixture environment with alpha's gaps priced (the close-up on the prop route, settle off it and measured,
     the sound guessed), prepare's record, and the basket made."""
-    items = a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world, nodes={"closeup@alpha": {**MEASURED, "basis": "per unit × forecast"},
+    items = a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world, nodes={"closeup@alpha": {**MEASURED, "basis": "per unit × forecast"},
                                 "settle@alpha": SETTLE, "sound@alpha": {
                                     "likely_euros": None, "high_euros": None, "guess_euros": 1.0,
                                     "basis": "not measured yet", "likely_minutes": None, "high_minutes": None}},
@@ -75,7 +75,7 @@ def test_the_environment_shows_the_whole_remake_its_eta_floor_and_each_places_ti
     found = screens.environment(cockpit.source, MONTH)
     remake = found["remake"]
     assert remake["route"]["likely"] == 10.0 and remake["route"]["blocked"] == 2
-    assert remake["route"]["predicted_holes"] == 1
+    assert remake["route"]["predicted_gaps"] == 1
     assert remake["rest"] == {"likely": 2.0, "high": 3.0, "priced": 1, "unpriced": 1}  # settle; the sound guessed
     assert (remake["likely"], remake["high"], remake["unpriced"]) == (12.0, 15.0, 2)
     assert remake["eta"] == {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0, "untimed": 3}
@@ -104,10 +104,10 @@ def test_a_remake_priced_on_code_not_committed_says_it_is_stale(cockpit):
     assert screens.remake_money(cockpit.source.world_state())["stale"] == ["it was made on code not committed"]
 
 
-def test_the_place_screen_lists_its_holes_as_items_and_each_chain_priced_once(cockpit):
+def test_the_place_screen_lists_its_gaps_as_items_and_each_chain_priced_once(cockpit):
     found = screens.place(cockpit.source, "alpha", None)
     assert [item["kind"] for item in found["items"]] == ["missing", "missing", "gate", "route"]
-    assert found["items"][0]["prim"] == "/alpha/Holes/lamp_1" and found["items"][0]["node"] == "closeup@alpha"
+    assert found["items"][0]["prim"] == "/alpha/Gaps/lamp_1" and found["items"][0]["node"] == "closeup@alpha"
     assert found["prices"]["closeup@alpha"] == {"likely": 2.0, "high": 3.0, "priced": 1, "unpriced": 1}
     assert found["prices"]["complete@alpha"] == {"likely": 0, "high": 0, "priced": 0, "unpriced": 1}
     assert found["gaps"] == {"missing": 2, "gate": 1, "route": 1} and not found["price_stale"]

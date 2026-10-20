@@ -285,19 +285,19 @@ def test_a_named_thing_is_found_in_the_frame_that_shows_it(tmp_path):
 
 
 def test_a_gap_names_its_things_by_path_or_by_name(tmp_path):
-    from score.dashboard.state import gaps
+    from score.dashboard.state import accepted_gaps
     points = {"/alpha/Objects/hose_reel_1": (1, 0, 2), "/alpha/Objects/hose_reel_2": (2, 0, 2),
               "/alpha/Objects/hose_reel_stand_1": (3, 0, 3)}
-    assert [name for name, _ in gaps.matched(points, "hose_reel")] == ["hose_reel_1", "hose_reel_2"]
-    assert gaps.matched(points, "/alpha/Objects/hose_reel_2") == [("hose_reel_2", (2, 0, 2))]
-    assert gaps.matched(points, "bram") == []
+    assert [name for name, _ in accepted_gaps.matched(points, "hose_reel")] == ["hose_reel_1", "hose_reel_2"]
+    assert accepted_gaps.matched(points, "/alpha/Objects/hose_reel_2") == [("hose_reel_2", (2, 0, 2))]
+    assert accepted_gaps.matched(points, "bram") == []
     path = previews.maps.ringed_plan(PLAN, [("hose_reel_1", 1, 2)], "ALPHA", tmp_path / "ringed.png")
     assert path.is_file()
 
 
-def test_a_named_gap_has_its_step_and_a_picture(world):
+def test_an_accepted_gap_has_its_step_and_a_picture(world):
     beta = world.source.place_detail("beta")
-    gap = beta.gaps[0]
+    gap = beta.accepted_gaps[0]
     assert gap.step == "assembly" and gap.step_url == "/place/beta/step/assembly/"
     assert gap.picture is not None and gap.picture_is == "the place in its film"  # it names nothing on the stage
     assert world.source.thumb_path(gap.picture.sha) is not None
@@ -311,13 +311,13 @@ def test_a_problem_is_said_in_plain_words():
     from score.dashboard.state import plain
     entry = {"name": "tube: readout and conduit box not laid in a 3-bay tube", "check": "reach",
              "objects": ["small_readout", "conduit_box"]}
-    assert plain.gap_sentence(entry, "tube") == (
+    assert plain.accepted_gap_sentence(entry, "tube") == (
         "Small readout and conduit box are missing from the tube: its layout rule never places them here.")
     entry = {"name": "hangar: the hose reel's old model tips", "check": "resting",
              "objects": ["/hangar/Objects/hose_reel_1"]}
-    assert plain.gap_sentence(entry, "hangar") == "Hose reel in the hangar does not rest steadily where it stands."
-    assert plain.gap_sentence({"name": "lab: something new", "check": "unheard"}, "lab") == "Something new."
-    assert plain.stop_sentence("completion", "completion answered fail: named gaps: tube: ...", "tube", 3) == (
+    assert plain.accepted_gap_sentence(entry, "hangar") == "Hose reel in the hangar does not rest steadily where it stands."
+    assert plain.accepted_gap_sentence({"name": "lab: something new", "check": "unheard"}, "lab") == "Something new."
+    assert plain.stop_sentence("completion", "completion answered fail: accepted gaps: tube: ...", "tube", 3) == (
         "The final check stopped the tube because of the 3 known gaps below, which are not fixed yet.")
 
 

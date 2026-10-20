@@ -10,8 +10,8 @@ PASS_SECONDS wait for the next pass and the export committed meanwhile names the
 hosted side refuses (a format it cannot read) is said in the pass's words, and the requests are still applied.
 
 A pass feeds the cockpit only from a checkout whose tracked files are committed and whose commit origin's main holds
-(tree_refusal), and only once the runner has priced the holes and the remake on it (`score price <environment>
---holes`, after the holes check): when either fails the pass syncs nothing and says why, so no stale record is ever
+(tree_refusal), and only once the runner has priced the gaps and the remake on it (`score price <environment>
+--gaps`, after the gaps check): when either fails the pass syncs nothing and says why, so no stale record is ever
 sent."""
 import datetime
 import gzip
@@ -241,16 +241,16 @@ def library_sweep():
         return f"library sweep failed: {type(error).__name__}: {error}"
 
 
-def holes_sweep():
-    """Every place's holes written where the place pages read them (score.stages.complete.holes, free, seconds, in a
+def gaps_sweep():
+    """Every place's gaps written where the place pages read them (score.stages.complete.gaps, free, seconds, in a
     process of its own: it reads OpenUSD); its summary line. One that fails is said in the pass's words, and the pass
     goes on."""
-    done = subprocess.run([sys.executable, "-m", "score.stages.complete.holes"], cwd=settings.SCORE_REPO,
+    done = subprocess.run([sys.executable, "-m", "score.stages.complete.gaps"], cwd=settings.SCORE_REPO,
                           capture_output=True, text=True)
     if done.returncode != 0:
         said = (done.stderr.strip().splitlines() or ["no output"])[-1]
-        return f"holes failed: exit {done.returncode}: {said}"
-    return (done.stdout.strip().splitlines() or ["holes wrote nothing"])[-1]
+        return f"gaps failed: exit {done.returncode}: {said}"
+    return (done.stdout.strip().splitlines() or ["gaps wrote nothing"])[-1]
 
 
 def step_line(module, failed):
@@ -314,9 +314,9 @@ def head(repo):
 
 
 def runner_price(repo, world):
-    """(its words, why it failed or None) of the runner's price of the environment's holes and remake (`score price
-    <world> --holes --json`, free and local, in a process of its own), written where the pages read it."""
-    done = subprocess.run([sys.executable, "-m", "score", "price", world, "--holes", "--json"], cwd=repo,
+    """(its words, why it failed or None) of the runner's price of the environment's gaps and remake (`score price
+    <world> --gaps --json`, free and local, in a process of its own), written where the pages read it."""
+    done = subprocess.run([sys.executable, "-m", "score", "price", world, "--gaps", "--json"], cwd=repo,
                           capture_output=True, text=True)
     if done.returncode != 0:
         return None, f"the runner's price failed: exit {done.returncode}: " + (
@@ -345,17 +345,17 @@ def sync_pass(remote, source, chosen=None):
     started = head(settings.SCORE_REPO)
     chosen = chosen or guard.backend()
     swept = library_sweep()
-    holes = holes_sweep()
+    gaps = gaps_sweep()
     prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
     demos = library_demos()
     priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
     if failed:
-        return refused_words(f"{failed}; {swept}; {holes}; {prepared}; {benched}; {pictured}; {demos}")
+        return refused_words(f"{failed}; {swept}; {gaps}; {prepared}; {benched}; {pictured}; {demos}")
     now = head(settings.SCORE_REPO)
     pushed = pushed_words(remote, source, chosen) if now == started else (
         f"NOT PUSHED: the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass, so its remake and "
         "price would show as stale; the next pass sends them")
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
-    return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}; {priced}; "
+    return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {gaps}; {priced}; "
             f"{prepared}; {benched}; {pictured}; {demos}")

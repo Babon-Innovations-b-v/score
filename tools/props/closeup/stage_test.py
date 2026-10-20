@@ -83,9 +83,9 @@ def test_a_row_takes_the_first_picture_that_passed_and_records_its_cost():
     by_pro = stage.accepted(dict(row, pro_wording="crop"), out, {"qwen": ["judge: fail"], "pro": []}, 0.2)
     assert by_pro["accepted"] == "nano-banana-pro" and by_pro["take"] == "pro" and by_pro["pro_wording"] == "crop"
     assert by_pro["pro_dollars"] == stage.pro.DOLLARS_A_PICTURE
-    hole = stage.accepted(row, out, {"qwen": ["judge: fail"], "pro": ["judge: fail"]}, 0.2)
-    assert hole["accepted"] is None and hole["picture"] is None
-    totals = stage.summary([by_qwen, by_pro, hole], {"qwen": {"euros": 1.0}, "judge-qwen": {"euros": 0.5}})
+    gap = stage.accepted(row, out, {"qwen": ["judge: fail"], "pro": ["judge: fail"]}, 0.2)
+    assert gap["accepted"] is None and gap["picture"] is None
+    totals = stage.summary([by_qwen, by_pro, gap], {"qwen": {"euros": 1.0}, "judge-qwen": {"euros": 0.5}})
     assert totals["by_qwen"] == 1 and totals["by_pro"] == 1 and totals["for_review"] == 1
     assert totals["pro_pictures"] == 2 and totals["cloud_euros_per_accepted"] == 0.75
 
@@ -103,7 +103,7 @@ def test_pro_draws_one_take_a_row_worded_before_it_is_drawn():
     assert stage.with_pro_wordings([dict(row, pro_wording="crop")])[0]["pro_wording"] == "crop"  # chosen once
 
 
-def test_pro_asks_again_only_for_a_free_refusal_and_an_empty_answer_is_a_hole():
+def test_pro_asks_again_only_for_a_free_refusal_and_an_empty_answer_is_a_gap():
     import urllib.error
     asked, waits = [], []
     answers = [urllib.error.HTTPError("u", 429, "Too Many Requests", {}, None), {"candidates": []}]
@@ -126,7 +126,7 @@ def test_pro_asks_again_only_for_a_free_refusal_and_an_empty_answer_is_a_hole():
         assert len(asked) == 4 and len(waits) == 2  # an overloaded service bills nothing: asked again after a wait
         answers[:] = [urllib.error.HTTPError("u", 400, "Bad Request", {}, None), {"candidates": []}]
         assert stage.pro.draw("key", "words", Image.new("RGB", (8, 8)), None, path) is False
-        assert len(asked) == 5 and len(waits) == 2  # any other refusal is a hole at once
+        assert len(asked) == 5 and len(waits) == 2  # any other refusal is a gap at once
     finally:
         stage.pro.compute.require_cleared, stage.pro.google_spend.generate, stage.pro.time.sleep = kept
 

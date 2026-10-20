@@ -207,7 +207,7 @@ def kit_floors(kit, every=False):
 def model_low(made):
     """How far a plan object's released world model's lowest point lies under its origin once stood as the record
     stands it (scaled to its `height`, pressed by its `stretch`): metres, positive downward (the rocket's base 6 mm
-    under its origin); 0 for an object still `waiting` on its model, or one whose model is a hole (not in the library:
+    under its origin); 0 for an object still `waiting` on its model, or one whose model is a gap (not in the library:
     the scene leaves it out)."""
     if made.get("waiting"):
         return 0.0

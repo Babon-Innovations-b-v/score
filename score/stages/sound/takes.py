@@ -6,11 +6,11 @@ A take is named by its sound, its prompt's and length's hash and its seed, and k
 same prompt, length, seed and weights make the same take, so a take made once is never paid for again (a rerun of
 the row, or another place's line asking the same brief). Each take is locked while its batch runs (`held`), so two
 places' lines side by side make a shared brief (crew_talk) on one card, the other line waiting and reading it (#29).
-A take its batch asked for and did not get (lost, failed, no card) is a named failure and a hole on every place that
+A take its batch asked for and did not get (lost, failed, no card) is a named failure and a gap on every place that
 plays it: a waiting line never asks for it again (`asked_here`); new spend on it is a new batch, another run (#29).
 
 The takes are one batch (#21, #29): one job a sound, its brief's first prompt at seed 1, made once; the likeness gate
-sorts each take by its CLAP score against gates.CLAP_FLOOR into a pass or a hole, and a new take (another seed, the
+sorts each take by its CLAP score against gates.CLAP_FLOOR into a pass or a gap, and a new take (another seed, the
 brief's next prompt) is a new batch.
 """
 import contextlib
@@ -40,7 +40,7 @@ FIRST_RESULT_MINUTES = 8
 REMOTE = "/root/sfx"
 ASKED = "asked"  # each take's last ask: the batch (the score run, else the process) that paid for it
 RUN_ID = "SCORE_RUN_ID"  # the run's id; every node of a score run inherits it (score/__main__.py)
-SEED = 1  # one take a sound (#29): a take under the floor is a hole, never another seed inside the batch
+SEED = 1  # one take a sound (#29): a take under the floor is a gap, never another seed inside the batch
 
 
 def take_file(name, prompt, seconds, seed, weights):
@@ -89,7 +89,7 @@ def prove_tool():
 
 
 def on_card(plan):
-    """The plan on one rented card, asked for once (#21): no card in stock is a hole (Blocked), never waited out by
+    """The plan on one rented card, asked for once (#21): no card in stock is a gap (Blocked), never waited out by
     asking again; a card in stock later is a new batch."""
     prove = prove_tool()
     from provider import cloud  # prove.py put it on the path
@@ -99,10 +99,10 @@ def on_card(plan):
     registry, store_spec = cloud.registry(), cloud.object_store()
     results = {}
     if not prove.one_attempt(plan, account, registry, store_spec, WHO, results):
-        raise graph.Blocked(f"no card of {', '.join(plan['classes'])} in stock: the takes are holes, a new batch "
+        raise graph.Blocked(f"no card of {', '.join(plan['classes'])} in stock: the takes are gaps, a new batch "
                             "asks again")
     failed = [job for numbers in results.get(KIND, []) for job in numbers["jobs"].values() if job.get("failed")]
-    if failed:  # its takes are holes (made says which), never asked again inside the batch
+    if failed:  # its takes are gaps (made says which), never asked again inside the batch
         print(f"the moss job failed on its card: {failed}", flush=True)
 
 
@@ -139,20 +139,20 @@ def mark_asked(jobs):
 def made(jobs, work):
     """Every job's take made (on a card for those not kept yet; `work`, a folder in the output, carries the jobs up
     and the takes back, and is removed after) and kept in TAKES; {file: CLAP score} of the takes there, a take that
-    did not come back left out (a hole: its sound has no take, which the sources gate names). A take this batch asked
-    for already and did not get (another place's line, #29) is never asked again: a named failure, a hole here too."""
+    did not come back left out (a gap: its sound has no take, which the sources gate names). A take this batch asked
+    for already and did not get (another place's line, #29) is never asked again: a named failure, a gap here too."""
     with held(jobs):
         wanted = missing(jobs)
         lost_before = [job for job in wanted if asked_here(job)]
         if lost_before:
-            print(f"{len(lost_before)} shared takes failed in this batch ({batch_id()}), holes, not asked again: "
+            print(f"{len(lost_before)} shared takes failed in this batch ({batch_id()}), gaps, not asked again: "
                   f"{[job['file'] for job in lost_before][:5]}", flush=True)
         wanted = [job for job in wanted if job not in lost_before]
         mark_asked(wanted)
         bought(wanted, work)
     lost = missing(jobs)
     if lost:
-        print(f"{len(lost)} takes did not come back, holes: {[job['file'] for job in lost][:5]}", flush=True)
+        print(f"{len(lost)} takes did not come back, gaps: {[job['file'] for job in lost][:5]}", flush=True)
     known = scores()
     return {job["file"]: known[job["file"]] for job in jobs if job not in lost}
 

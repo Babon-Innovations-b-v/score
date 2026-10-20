@@ -20,7 +20,7 @@ score.stages.demo_film forecast <place>`: frames, cards, card minutes and euros,
 stage for fog, volumes and glass); then he writes `"final": true` in the film's record. A film without it keeps
 its node (the basket takes it), but its row is Blocked before anything is bought (require_yes); a film whose
 forecast's high passes the euros its run was cleared at is Blocked the same way (refuse_over_clearance), so a dearer
-film is a new ask at the forecast's price. A frame job that dies or passes its deadline is a hole: its film fails
+film is a new ask at the forecast's price. A frame job that dies or passes its deadline is a gap: its film fails
 the gate, and a new film is a new batch and a new yes.
 
     make   the final stage (the neighbours output where the place shows others, else its assembly), copied into a tree
@@ -74,7 +74,7 @@ ACROSS_AIM = 1.2
 # lands about a second into the shot (the launch's lift-off; overseer, 2026-10-15).
 LEAD = 1.0
 # Workbench and Cycles on a 24 GB card only: the forecast prices that card, and a dearer class taken when it is out
-# of stock would be a fallback chain inside the batch (#21); none in stock is a hole and a new ask.
+# of stock would be a fallback chain inside the batch (#21); none in stock is a gap and a new ask.
 CLASSES = "gpu-24gb"
 # Two shots of 96 frames: a 96-frame film over 8 cards cost EUR 1.48 to 1.75 with parking (ledger 2026-10-18:
 # greenhouse, airlock, hangar, garage), most of it the frames' card time, so twice the measured 1.6 likely; the row's
@@ -312,7 +312,7 @@ def refuse_over_clearance(name, planned, cleared):
 
 def with_deadlines(jobs, frame_minutes):
     """Each frame job's deadline from its frames at `frame_minutes` (the forecast's high): a job past it is stopped
-    and its frames are a hole, never run again inside the batch."""
+    and its frames are a gap, never run again inside the batch."""
     for job_path in jobs:
         job = json.loads(pathlib.Path(job_path).read_text())
         views = json.loads(pathlib.Path(job["args"][1]).read_text())["views"]

@@ -24,7 +24,7 @@ The cast stage (experimental, design 5 of 2026-10-12): row `cast@<place>` for th
   copied from them (`KEEP`, body sizes) are checked in `cast_test.py`.
 - **`made` reads the SOMA-shell route's dress rows.** A look is made when its dress row (`people-dress-<look>`,
   `-in-<place>` where data/people/colours.json colours the place) stands usable; the cast reads them as optional
-  inputs (`Stage.optional`), so a look with none stays not made, named: `made` passes with it as a finding (a named gap carried
+  inputs (`Stage.optional`), so a look with none stays not made, named: `made` passes with it as a finding (an accepted gap carried
   down, never a stop: the owner's rule, 2026-10-13), and complete's people check fails it by name.
   `drapes` is retired (2026-10-13): the SOMA-shell rig replaced the drapes route (owner, 2026-10-12 21:40), and the
   people rows' per-clip, shell and outline gates judge the cloth now.

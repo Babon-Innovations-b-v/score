@@ -879,7 +879,7 @@ function namePart(hit) {
 }
 
 function picked(screen) {
-  if (given.holes_only) { pickHole(screen); return; }
+  if (given.gaps_only) { pickGap(screen); return; }
   if (!ready) return;
   const hit = hitAt(screen);
   if (!hit) { $("picked").textContent = "Nothing there."; return; }
@@ -971,11 +971,11 @@ const FRAMED = token("--color-mark-framed");
 const changeMarks = new THREE.Group();
 scene.add(changeMarks);
 
-function markChanges(marks, framedId = given.hole) {
+function markChanges(marks, framedId = given.gap) {
   changeMarks.clear();
   for (const mark of marks) {
     const framed = framedId && mark.id === framedId;
-    // a line is one pixel wide in WebGL, so the framed hole is drawn thicker as nested outlines, white
+    // a line is one pixel wide in WebGL, so the framed gap is drawn thicker as nested outlines, white
     for (const grow of framed ? [0.03, 0.05, 0.07, 0.09] : [0.03]) {
       const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high)).expandByScalar(grow);
       const outline = new THREE.Box3Helper(box, framed ? FRAMED : MARK_COLOURS[mark.kind] || FRAMED);
@@ -987,41 +987,41 @@ function markChanges(marks, framedId = given.hole) {
   $("to-changes").hidden = !marks.length;
 }
 
-// A hole given by the page (`?hole=<id>`): looked at from above one corner, at a distance its size asks for.
-function holeView() {
-  const mark = (given.marks || []).find((each) => given.hole && each.id === given.hole);
+// A gap given by the page (`?gap=<id>`): looked at from above one corner, at a distance its size asks for.
+function gapView() {
+  const mark = (given.marks || []).find((each) => given.gap && each.id === given.gap);
   if (!mark) return null;
   const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high));
   const middle = box.getCenter(new THREE.Vector3()), reach = Math.max(box.getSize(new THREE.Vector3()).length(), 1) * 1.6;
   return { eye: [middle.x + reach, middle.y + reach * 0.7, middle.z + reach], aim: middle.toArray(), fov: 60 };
 }
 
-// The Place screen's panel frames the item it opened: a message {hole: <id>} from this site outlines and frames it.
+// The Place screen's panel frames the item it opened: a message {gap: <id>} from this site outlines and frames it.
 window.addEventListener("message", (event) => {
-  if (event.origin !== location.origin || !event.data?.hole) return;
-  given.hole = event.data.hole;
+  if (event.origin !== location.origin || !event.data?.gap) return;
+  given.gap = event.data.gap;
   markChanges(given.marks || []);
-  const view = holeView();
+  const view = gapView();
   if (view) goTo(view);
 });
 
-// No web copy yet (given.holes_only): only the holes' boxes, over a ground grid a metre a square, so a hole can be
+// No web copy yet (given.gaps_only): only the gaps' boxes, over a ground grid a metre a square, so a gap can be
 // framed today; the place itself is not drawn.
 const GRID_METRES = 200;
-function openHolesOnly() {
+function openGapsOnly() {
   resize();
   window.addEventListener("resize", resize);
   lightTheSky({ background: [0.05, 0.05, 0.05], ambient: [0.5, 0.5, 0.5], exposure: 1 });
   scene.add(new THREE.GridHelper(GRID_METRES, GRID_METRES, token("--color-view-grid"), token("--color-view-grid-fine")));
   markChanges(given.marks || []);
-  const first = holeView() || allHolesView();
+  const first = gapView() || allGapsView();
   aimAt(first.eye, first.aim, first.fov);
-  say("No 3D web copy of this place yet: only its holes are drawn.");
+  say("No 3D web copy of this place yet: only its gaps are drawn.");
   requestAnimationFrame(frame);
 }
 
-// Every hole's box in view, from above one corner: the holes-only view's first look and its "Back to all holes".
-function allHolesView() {
+// Every gap's box in view, from above one corner: the gaps-only view's first look and its "Back to all gaps".
+function allGapsView() {
   const all = new THREE.Box3();
   for (const outline of changeMarks.children) all.union(outline.box);
   const middle = all.getCenter(new THREE.Vector3()), reach = Math.max(all.getSize(new THREE.Vector3()).length(), 2);
@@ -1029,9 +1029,9 @@ function allHolesView() {
            fov: 60 };
 }
 
-// A click in the holes-only view: the nearest hole's box under it is selected, outlined white, and named with its
+// A click in the gaps-only view: the nearest gap's box under it is selected, outlined white, and named with its
 // sentence and a link to its line on the place page (given.marks' sentence and url).
-function pickHole(screen) {
+function pickGap(screen) {
   raycaster.setFromCamera(screen, camera);
   const point = new THREE.Vector3();
   let chosen = null, nearest = Infinity;
@@ -1041,13 +1041,13 @@ function pickHole(screen) {
     const distance = point.distanceTo(raycaster.ray.origin);
     if (distance < nearest) { nearest = distance; chosen = mark; }
   }
-  if (!chosen) { $("hole-picked").textContent = "No hole's box there: click inside one."; return; }
+  if (!chosen) { $("gap-picked").textContent = "No gap's box there: click inside one."; return; }
   markChanges(given.marks || [], chosen.id);
   const link = document.createElement("a");
   link.href = chosen.url;
   link.textContent = "its line on the place page";
-  $("hole-picked").replaceChildren(`${chosen.sentence} `, link);
-  history.replaceState(null, "", `?holes=1&hole=${encodeURIComponent(chosen.id)}`);
+  $("gap-picked").replaceChildren(`${chosen.sentence} `, link);
+  history.replaceState(null, "", `?gaps=1&gap=${encodeURIComponent(chosen.id)}`);
 }
 
 // From `from` (a camera), looking at the middle of what changes; `from` itself when nothing is outlined.
@@ -1058,7 +1058,7 @@ function lookingAtChanges(from) {
   return { eye: from.eye, aim: box.getCenter(new THREE.Vector3()).toArray(), fov: from.fov };
 }
 
-$("to-changes").onclick = () => goTo(given.holes_only ? allHolesView()
+$("to-changes").onclick = () => goTo(given.gaps_only ? allGapsView()
   : lookingAtChanges({ eye: camera.position.toArray(), aim: null, fov: null }));
 
 // --- loading --------------------------------------------------------------------------------------------------
@@ -1242,7 +1242,7 @@ async function open() {
   viewButtons();
   markChanges(given.marks || []);
   // a breakdown link: the film's camera; a basket item: the first camera turned to what it changes
-  const first = holeView() || linkedView() || given.at || lookingAtChanges((sidecar.cameras || [])[0]);
+  const first = gapView() || linkedView() || given.at || lookingAtChanges((sidecar.cameras || [])[0]);
   if (first) aimAt(first.eye, first.aim, first.fov);
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   requestAnimationFrame(frame);
@@ -1262,5 +1262,5 @@ async function open() {
   setTimeout(() => model.traverse((node) => { if (node.isMesh) node.geometry.computeBoundsTree(); }), 0);
 }
 
-if (given.holes_only) openHolesOnly();
+if (given.gaps_only) openGapsOnly();
 else open().catch((error) => { say(`Could not open the 3D copy: ${error.message}`); console.error(error); });

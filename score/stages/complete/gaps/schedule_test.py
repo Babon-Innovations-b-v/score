@@ -3,7 +3,7 @@ under the run's cap, the longest path back through what let each row start, and 
 minutes. The walk's minutes are inputs of the test (no row here is said to be measured), but the one priced on the
 repository's per-unit file, whose settle time is read from the paper's ledger copy.
 
-Run: .venv/bin/python score/stages/complete/holes/schedule_test.py
+Run: .venv/bin/python score/stages/complete/gaps/schedule_test.py
 """
 import pathlib
 import sys
@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 
 from score.adapters import compute  # noqa: E402
-from score.stages.complete.holes import schedule  # noqa: E402
+from score.stages.complete.gaps import schedule  # noqa: E402
 
 
 def row(likely, high=None, paid=True, cards=1, why=None):

@@ -20,11 +20,11 @@ this row's output instead (the table's `earth_seeded`), so the runner can plan a
                                beside); the stage under <place>/ in the output, as the old folder held it (a loop-made
                                kit model is its bake's, named as the kit names it)
              gates      laid    every kit piece's model was made by a row; a piece whose model no row made is left out
-                                and named (holes.json `models`), never a stand-in
+                                and named (gaps.json `models`), never a stand-in
                         picks   every row the owner picked a model for shows that model (pick_lock.py), its faults
-                                named (holes.json `picks`) instead of stopping the export
+                                named (gaps.json `picks`) instead of stopping the export
 
-A piece whose model is missing is a hole of this row: the kit's code pieces are earth-kit's, a generated piece is its
+A piece whose model is missing is a gap of this row: the kit's code pieces are earth-kit's, a generated piece is its
 place's surface line's. The 7 screen parts route.py's `layout` drew from pictures are among them until a row draws them.
 """
 import json
@@ -39,7 +39,7 @@ from score.store import PROPS_HOME
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_PYTHON = PROPS_HOME / "env/bin/python"
 ROUTE = REPO / "tools/props/library/route.py"
-HOLES = "holes.json"
+GAPS = "gaps.json"
 FALLBACKS = "fallbacks.json"
 KIT_LAYER = "kit"  # the Earth kit's layer at the shared loop's seam (shapes_first.KIT)
 # Why a kit row is not handed to the shared loop yet (#41), so earth-kit still bakes its code build: the finish route's
@@ -212,37 +212,37 @@ def model_folders(inputs, scratch):
 
 
 def make_seed(inputs, out, seed, params):
-    """The place's base stage under out/<place> (export.py), every model a row made; holes.json names the rest."""
+    """The place's base stage under out/<place> (export.py), every model a row made; gaps.json names the rest."""
     export, _ = export_tools()
     kit_path = pathlib.Path(inputs["kit"])
     place = kit_path.stem
     kit = json.loads(kit_path.read_text())
-    holes, scratch = [], out / SCRATCH
+    gaps, scratch = [], out / SCRATCH
     try:
         export.export(place, model_folders(inputs, scratch), out / place, kit_path=kit_path,
                       ground=export.grounds.place_ground(place, kit.get("on_seat", [0.0, 0.0])),
-                      scene=export.scene_record.record(place), holes=holes)
+                      scene=export.scene_record.record(place), gaps=gaps)
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
-    found = {"models": sorted({hole["model"] for hole in holes if "model" in hole}),
-             "picks": [hole for hole in holes if "row" in hole]}
-    (out / HOLES).write_text(json.dumps(found, indent=1))
+    found = {"models": sorted({gap["model"] for gap in gaps if "model" in gap}),
+             "picks": [gap for gap in gaps if "row" in gap]}
+    (out / GAPS).write_text(json.dumps(found, indent=1))
 
 
 def seed_faults(folder):
-    """Why a folder is not an earth seed: one place's stage under its own name, and its holes."""
+    """Why a folder is not an earth seed: one place's stage under its own name, and its gaps."""
     stages = [path for path in folder.iterdir() if path.is_dir() and (path / f"{path.name}.usda").exists()]
     faults = [] if len(stages) == 1 else [f"{len(stages)} place stages, not one"]
-    return faults + ([] if (folder / HOLES).exists() else [f"no {HOLES}"])
+    return faults + ([] if (folder / GAPS).exists() else [f"no {GAPS}"])
 
 
-def holes_of(output):
-    return json.loads((pathlib.Path(output) / HOLES).read_text())
+def gaps_of(output):
+    return json.loads((pathlib.Path(output) / GAPS).read_text())
 
 
 def judge_laid(output, inputs, evidence):
     """Every kit piece's model was made by a row."""
-    missing = holes_of(output)["models"]
+    missing = gaps_of(output)["models"]
     reason = "every kit piece's model made" if not missing else \
         f"{len(missing)} models no row made, their pieces left out: " + ", ".join(missing[:8])
     return checks.Verdict("laid", checks.FAIL if missing else checks.PASS, reason, {"missing": len(missing)},
@@ -251,7 +251,7 @@ def judge_laid(output, inputs, evidence):
 
 def judge_picks(output, inputs, evidence):
     """Every row the owner picked a model for shows that model."""
-    broken = holes_of(output)["picks"]
+    broken = gaps_of(output)["picks"]
     findings = tuple(f"{fault['row']}: {fault['why']}" for fault in broken)
     reason = "every owner's pick shown" if not broken else f"{len(broken)} picks not shown: " + "; ".join(findings[:3])
     return checks.Verdict("picks", checks.FAIL if broken else checks.PASS, reason, {"broken": len(broken)},

@@ -1,13 +1,13 @@
 """The cockpit's numbers (#42): what the five screens show, as numbers and states only, never sentences. Read from the
-models of state/models.py and the runner's price record through state/holes.py; nothing is priced or judged here.
+models of state/models.py and the runner's price record through state/gaps.py; nothing is priced or judged here.
 A number the runner does not give is None, which a page shows as a grey "unknown" state, never as 0."""
 import datetime
 import json
 
-from score.dashboard.state import holes, screens
+from score.dashboard.state import gaps, screens
 
-# a hole kind's state colour (design/tokens/colours.css) and its short label
-KIND_TONES = {"lost": "hole-lost", "route": "hole-route", "missing": "hole-missing", "gate": "hole-gate"}
+# a gap kind's state colour (design/tokens/colours.css) and its short label
+KIND_TONES = {"lost": "gap-lost", "route": "gap-route", "missing": "gap-missing", "gate": "gap-gate"}
 KIND_LABELS = {"lost": "lost", "route": "route", "missing": "missing", "gate": "failing"}
 
 
@@ -37,7 +37,7 @@ def month_money(view):
 
 def remake(world):
     """{low, high, hours, at_least_hours, unknown, why} of the whole remake (state/screens.remake_money: prepare's
-    one-shot figure of the prop route, the takes waiting on lost inputs counted, plus the holes price of every paid
+    one-shot figure of the prop route, the takes waiting on lost inputs counted, plus the gaps price of every paid
     step off it): its likely and high euros, its likely hours only when every step is timed, else the floor; the
     steps and layers with no price; `why` the hover text while a part is missing or stale (no figure then)."""
     found = screens.remake_money(world)
@@ -60,7 +60,7 @@ def made_of(card):
 
 
 def tone_of(row):
-    """A place's state colour: its worst kind of hole, `done` with none, `idle` while not checked or unknown."""
+    """A place's state colour: its worst kind of gap, `done` with none, `idle` while not checked or unknown."""
     if row is None or row["not_checked"]:
         return "idle"
     return KIND_TONES[row["worst"]] if row["worst"] else "done"
@@ -69,8 +69,8 @@ def tone_of(row):
 def place_tiles(world, names, rows):
     """{place: {place, href, name, about, picture, made, needed, gaps, tone, holds, more}} of every place of the
     environment (a WorldState), `names` their short names, `about` its look's long words (hover text), `picture` its
-    concept's thumbnail (None: its concept is lost, never a render instead), with its row of holes.per_place: gaps
-    None while its holes are not known."""
+    concept's thumbnail (None: its concept is lost, never a render instead), with its row of gaps.per_place: gaps
+    None while its gaps are not known."""
     by_place = {row["place"]: row for row in rows}
     found = {}
     for style, card in [(style, card) for engine in world.engines for style in engine.styles for card in style.places]:
@@ -81,7 +81,7 @@ def place_tiles(world, names, rows):
                              "about": style.label if style.short else None,
                              "picture": screens.thumb(world.concepts.get(card.place)),
                              "made": made, "made_tip": f"made {made} of {needed}", "needed": needed,
-                             "gaps": None if row is None or row["not_checked"] else row["holes"],
+                             "gaps": None if row is None or row["not_checked"] else row["gaps"],
                              "tone": tone_of(row), "holds": [], "more": 0}
     return found
 
@@ -191,58 +191,58 @@ def branch_at(tree, path):
 
 
 def branch_rows(node, path, item_panel, url):
-    """[row] of a scene-tree branch, one level: a row per hole hanging at the branch itself, then a row per child;
-    a child with children loads them from `url(its path)` when it opens, a leaf opens `item_panel(hole, title)` of
-    its first hole."""
+    """[row] of a scene-tree branch, one level: a row per gap hanging at the branch itself, then a row per child;
+    a child with children loads them from `url(its path)` when it opens, a leaf opens `item_panel(gap, title)` of
+    its first gap."""
     rows = []
     if node["children"]:
-        for hole in node["holes"]:
-            row = scene_row({"name": hole.row or hole.id, "count": 1, "kinds": [(holes.kind_of(hole), 1)]})
-            rows.append({**row, "panel": {**row["panel"], **item_panel(hole, row["label"])}})
+        for gap in node["gaps"]:
+            row = scene_row({"name": gap.row or gap.id, "count": 1, "kinds": [(gaps.kind_of(gap), 1)]})
+            rows.append({**row, "panel": {**row["panel"], **item_panel(gap, row["label"])}})
     for child in node["children"]:
         row = scene_row(child)
         if child["children"]:
             row["children_url"] = url(f"{path}/{child['name']}".lstrip("/"))
-        elif child["holes"]:
-            row["panel"] = {**row["panel"], **item_panel(child["holes"][0], child["name"])}
+        elif child["gaps"]:
+            row["panel"] = {**row["panel"], **item_panel(child["gaps"][0], child["name"])}
         rows.append(row)
     return rows
 
 
 def chain_words(chain, paid):
-    """A hole's price as its panel says it: the measured likely to high of its chain (a "+" while a node of it has
+    """A gap's price as its panel says it: the measured likely to high of its chain (a "+" while a node of it has
     no measured price), "free" for an unpaid node with no paid node in its chain, else "unknown"."""
     if chain and chain["priced"]:
         return f"EUR {chain['likely']:.2f}–{chain['high']:.2f}{' +' if chain['unpriced'] else ''}"
     return "free" if paid is False and not (chain and chain["unpriced"]) else "unknown"
 
 
-def hole_action(hole, step):
-    """{action, action_label, body, reason} of the one thing the owner may do for a hole on its filling step (a
+def gap_action(gap, step):
+    """{action, action_label, body, reason} of the one thing the owner may do for a gap on its filling step (a
     StepDetail, None for none): accept its waiting output, reject one that fails a check, waive the failed check of
     its accepted one; {} when there is nothing. `body` is the JSON the panel's button posts."""
     if step is None:
         return {}
-    if step.waiting and hole.rule == "gate":
+    if step.waiting and gap.rule == "gate":
         taken, url, label, more, reason = step.waiting, "/api/decisions", "Reject", {"decision": "reject"}, True
     elif step.waiting:
         taken, url, label, more, reason = step.waiting, "/api/decisions", "Accept", {"decision": "accept"}, False
-    elif step.accepted and hole.rule == "gate" and hole.gates:
-        taken, url, label, more, reason = step.accepted, "/api/waivers", "Waive", {"check": hole.gates[0]}, True
+    elif step.accepted and gap.rule == "gate" and gap.gates:
+        taken, url, label, more, reason = step.accepted, "/api/waivers", "Waive", {"check": gap.gates[0]}, True
     else:
         return {}
     body = {"node": step.node, "output": taken.output, **more}
     return {"action": url, "action_label": label, "body": json.dumps(body), "reason": reason}
 
 
-def hole_panel(hole, place, step, price):
-    """The side panel of one hole: its state, colour, picture, its chain's price, the box the 3D view frames and its
-    one action on `step` (hole_action; None: none). `price` the HolesPrice."""
-    kind = holes.kind_of(hole)
-    chain = screens.chain_price(price, place, hole.node) if hole.node else None
-    return {"state": KIND_LABELS[kind], "tone": KIND_TONES[kind], "picture": screens.thumb(hole.picture),
-            "price": chain_words(chain, hole.paid), "hole": hole.id if hole.low is not None else None,
-            **hole_action(hole, step)}
+def gap_panel(gap, place, step, price):
+    """The side panel of one gap: its state, colour, picture, its chain's price, the box the 3D view frames and its
+    one action on `step` (gap_action; None: none). `price` the GapsPrice."""
+    kind = gaps.kind_of(gap)
+    chain = screens.chain_price(price, place, gap.node) if gap.node else None
+    return {"state": KIND_LABELS[kind], "tone": KIND_TONES[kind], "picture": screens.thumb(gap.picture),
+            "price": chain_words(chain, gap.paid), "gap": gap.id if gap.low is not None else None,
+            **gap_action(gap, step)}
 
 
 # the Stats screen's gap kinds, most first in a remake: their plain words and hover text
@@ -253,30 +253,30 @@ KIND_WORDS = {"missing": ("not made yet", "a part a place needs that no step has
 
 
 def gaps_by_kind(total):
-    """[{kind, label, tip, tone, href, count}] of the environment's holes (a HolesTotal: a lost input once however
+    """[{kind, label, tip, tone, href, count}] of the environment's gaps (a GapsTotal: a lost input once however
     many places read it) in KIND_WORDS' order, each opening the Environment filtered to it; each count None before
-    any holes check."""
+    any gaps check."""
     return [{"kind": kind, "label": label, "tip": tip, "tone": KIND_TONES[kind], "href": f"/?kind={kind}",
              "count": None if total is None else total.counts.get(kind, 0)} for kind, (label, tip) in KIND_WORDS.items()]
 
 
 def of_kind(rows, kind):
-    """The place rows (holes.per_place) counting only their gaps of `kind`: its count as the place's gaps, `kind` its
+    """The place rows (gaps.per_place) counting only their gaps of `kind`: its count as the place's gaps, `kind` its
     worst while it has any."""
-    return [{**row, "holes": row["counts"][kind], "worst": kind if row["counts"][kind] else None} for row in rows]
+    return [{**row, "gaps": row["counts"][kind], "worst": kind if row["counts"][kind] else None} for row in rows]
 
 
 def places_complete(rows):
-    """(complete, of): the places checked with no hole, of every place."""
-    return sum(not row["not_checked"] and not row["holes"] for row in rows), len(rows)
+    """(complete, of): the places checked with no gap, of every place."""
+    return sum(not row["not_checked"] and not row["gaps"] for row in rows), len(rows)
 
 
 def measured_prices(price):
-    """(measured, paid) of the paid steps in any hole's chain: how many have a measured price; (None, None) without a
+    """(measured, paid) of the paid steps in any gap's chain: how many have a measured price; (None, None) without a
     current record."""
     if price is None or price.stale:
         return None, None
-    money = holes.money_of(holes.summed(price.nodes))
+    money = gaps.money_of(gaps.summed(price.nodes))
     return (money["measured"], money["paid"]) if money else (0, 0)
 
 

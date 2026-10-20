@@ -17,7 +17,7 @@ in the test.
   runs, a source in git, with `per_model` where a model makes more than one unit: recorded units over models, or a
   bound from the code said so, as the finish maps' `MAP_DRAWS` under #21 until runs under it are measured; a
   `price_note` where the measured price was asked otherwise than today, as the lists' standard tier), which
-  `score price --holes` counts; `--rules-only` writes the rules and the RECORDED stages into the file in place, its ledger-measured numbers
+  `score price --gaps` counts; `--rules-only` writes the rules and the RECORDED stages into the file in place, its ledger-measured numbers
   kept, as the old disk took the live ledgers (2026-10-19). Never edit the rules in the JSON by hand.
 - **Each entry's `time` comes from the same lines as its euros** (#14): a unit's seconds (median and p90: the
   machines' own `unit_seconds`, else wall minutes over units), a fresh card's set-up (median and p90: its start
@@ -26,7 +26,7 @@ in the test.
   every stage's makes as the store's finish records time them (`--store`, `score/graph/runs.py` `node_times`). A stage
   with no timed lines keeps `time` null with its `why`, never a figure from elsewhere. `--times-only` writes only
   these into the file, every euro byte-identical (`per_unit_test.py` checks it on the repository's own file); the
-  runner turns them into a row's minutes (`compute.unit_minutes`) and a plan's ETA (`holes/schedule.py`).
+  runner turns them into a row's minutes (`compute.unit_minutes`) and a plan's ETA (`gaps/schedule.py`).
 - **The remake is priced warm** (owner, 2026-10-20, #21): `WARM` stages (Pixal3D, the bake) at their jobs' measured
   work seconds on the type in the paper's ledger copy (no set-up, no idle) over `capacity.runs_at_once`, at the saved
   bill's price for the type by the minute, plus `OVERHEAD` (10%, the owner's target: replace it with the measured

@@ -10,7 +10,7 @@ box the box gate passes, tools/props/scene/box_check.py).
            every row flagged `"ground_box": "judge"` (one SAM 3 finds under no word), goes to the box judge
            (box_check.judge_jobs, asked of Gemini through tools/props/cloud/gemini_judge.py, cents an ask: two seeds,
            asked once, in one round), and its verdict is recorded the same way. Two seeds that split decide nothing:
-           the box is a named hole (the batch rule, #21, #26: no third ask after the first answers came back).
+           the box is a gap (the batch rule, #21, #26: no third ask after the first answers came back).
     gate   grounded: every row's box is grounded by SAM 3 or passed by the judge; a split judge names it.
 """
 import json

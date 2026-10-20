@@ -50,15 +50,15 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   view. Split (free): first the colour check, before any paid bake or recheck (owner, 2026-10-20): each region of
   every view from every angle against the finish labelled there, its token's colour against the region's median
   texture colour in that view (`colour_faults`; glass, glow, light, print and see-through left out); one over
-  `VIEW_DELTA_E` (32, UNMEASURED on the views) makes the take a hole, so nothing of it is baked. Then the labels voted
+  `VIEW_DELTA_E` (32, UNMEASURED on the views) makes the take a gap, so nothing of it is baked. Then the labels voted
   across views (`finish_parts.voted`, the front counting double); a seen face no
   label reaches is unassigned, faces whose views disagree (no finish over half their votes) over `DISAGREE_MOST` of
-  the area are views that disagree: either is a hole, named in "one finish a face"; the rest smoothed and crumbs
+  the area are views that disagree: either is a gap, named in "one finish a face"; the rest smoothed and crumbs
   joined (`cleaned`, `merged_islands`), each island a part. Parts (free): each finish checked against the median of
   its faces' texture colour (`finish_parts.checked_finishes`: the nearest surface of its family or the room's kit
   surface that fits, else off its colour with a proposal, which the paint's gate fails by name), then each part its
   finish's surface (`part_rows`), with the list's settings where its finish kept the listed surface
-  (`route_settings.applied`); the takes the split made holes are `left_out`. Bake (paid, `route_bake.py`; #18,
+  (`route_settings.applied`); the takes the split made gaps are `left_out`. Bake (paid, `route_bake.py`; #18,
   2026-10-20: nothing heavy on this PC, whose prop environment is capped at 14 GB and crane-r1's paint peaked at 34.8
   GB): one job a take on the bake's warm card through `blender_cloud.py` (`inside/paint_bake.py`): the take painted
   by `place_line.paint_take` (as the rented paint), its models' make_chunky entries over the labelled take
@@ -72,22 +72,22 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   measure names the colour faults before it. `place_line.make_paint` (rented) stays the people's. Check:
   `route_check.py`, bake_check's against the bake's specs.json, a surface with its own wear held at that wear
   (`own_wear_checked`). Recheck (paid, one batch, the one-shot sort after the bake): a take the parts left off
-  its colour is a hole with no ask; the rest are drawn from every view, each part flat in its library surface's
+  its colour is a gap with no ask; the rest are drawn from every view, each part flat in its library surface's
   colour (its token's where it has settings), and asked once against the close-up; all match passes, else "no
   library surface fits" names it (`gate:finish-route-recheck/library surface fits:<take>`), Gemini's token,
-  roughness and metal kept as the hole's `suggested`, never applied. The list's settings never edit
+  roughness and metal kept as the gap's `suggested`, never applied. The list's settings never edit
   materials.json.
 - **Every paid ask runs once: the finishes layer is a batch** (CONTEXT.md, the owner, 2026-10-20; #21). The finish
   route's asks go as one Batch API job a row run (`google_batch.py`: a started line each before the send, the job's
   name kept so a run cut off mid-wait picks up the same job, never sends it again; a failed, cancelled or expired
-  job, an error answer or a send cut off is its takes' holes). A list ask (`finish_ask.finish_list`, the prop batch's finish pick) is made once, no ask again
+  job, an error answer or a send cut off is its takes' gaps). A list ask (`finish_ask.finish_list`, the prop batch's finish pick) is made once, no ask again
   after a timeout or a dropped connection (`finish_ask.generated`): Google may bill a call cut off mid-way, and
   `google_spend` counts it at its estimate. Only a refusal that did no work (HTTP 429 or 503) is asked again, at most
   `REFUSED_ASKS` times. An ask with no usable answer
   (`finish_ask.UNANSWERED`: a timeout, a lost connection, refused every time, a reply that does not parse) makes its
-  take a hole, named in its row's gate (`judge_list`, `judge_recheck`); the takes
+  take a gap, named in its row's gate (`judge_list`, `judge_recheck`); the takes
   after it are still asked once, and new spend on it is a new batch and a new ask. Any other HTTP status (400, 401,
-  403, 404) is a set-up fault, not an output's: it stops the row once instead of making every take a hole and a
+  403, 404) is a set-up fault, not an output's: it stops the row once instead of making every take a gap and a
   ledger line. A refused send is on the Google ledger as started then failed and counted at its estimate
   (`month_euros`) though Google billed nothing: the books lean high until Google's billing
   export (#13) reads the month; `google_spend.py` stays unedited (an edit re-keys the close-up rows). The list ask

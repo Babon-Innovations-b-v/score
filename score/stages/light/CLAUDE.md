@@ -5,7 +5,7 @@ The light stage (experimental, PRD #6; paper-vs-world-1 items 9 and 17) as three
 `light-passes@<place>` (paid: the seed with that layer rendered on its own scene record's views, every own lamp in a
 Cycles light group of its own, `inside/light_passes.py`) and `light@<place>` (free: the sweep on the passes, `mix.py`;
 the strengths written into the layer; the gates). A row of every place with a scene record (`applies`), ship places
-too (through the table's wrappers); `needs.py` gives the holes check what a place needs lit and its sky (#27). Run with `python -m score run world1 --place <place> --stage light
+too (through the table's wrappers); `needs.py` gives the gaps check what a place needs lit and its sky (#27). Run with `python -m score run world1 --place <place> --stage light
 --detach`. `__init__.py`'s docstring has the rows and the gates; `lightkit` (kit.py, the square's proscenium) keeps
 its own runner (`python -m score.stages.light run lightkit`).
 
@@ -26,7 +26,7 @@ its own runner (`python -m score.stages.light run lightkit`).
   sweep read it there (`passes.record_views`, `views_of`). A place is lit and judged on its own views in its own frame.
 - **One shot** (#21, #27): every view rendered once, at `passes.CHECK_SIZE` only (nothing ships from the passes; a
   film renders its frames at their final size once), on one card class (`passes.CARDS`, the L4 Blender was timed on),
-  never a fallback to a larger card; a failed job is a hole, a new batch to buy. The sweeps (`mix.sweep`,
+  never a fallback to a larger card; a failed job is a gap, a new batch to buy. The sweeps (`mix.sweep`,
   `floodlight_sweep`) are free: they mix the one render, they never render again.
 - **A rule is set before any picture it judges is made** (mix.py's docstring holds the brightness and lamp rules, the
   module's constants the old faults' rules); a rule changed later says why where it is set.
