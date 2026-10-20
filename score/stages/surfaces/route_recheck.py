@@ -1,17 +1,21 @@
-"""The finish route's recheck row (paid: up to TRIES Gemini 3.1 Pro asks a take, cleared and priced on the Google
-ledger as the list row's, an ask asked before read back free).
+"""The finish route's recheck row (paid: one Gemini 3.1 Pro ask a take on the flex tier, cleared and priced on the
+Google ledger as the list row's, an ask asked before read back free). A batch (CONTEXT.md, owner 2026-10-20, #21):
+each take is asked once; the check only sorts its answer into pass or a named fault.
 
-Each try checks the filled model two ways: the free colour check (route_fill: each finish's token against its seen
-colour) and Gemini, shown the close-up (its own, or the stand-in, said so) and the filled views, saying per finish
-whether its library surface and settings match what the close-up shows (the drawings are flat colour: shine is
-judged from the words). Both pass: done. Else the settings of each finish that failed are tweaked (Gemini's token,
-roughness and metal where it gave them, else the library token nearest the finish's seen colour), the model is
-filled and drawn again and checked again, at most TRIES tries; a tweak is this row's output, never a library edit.
-A take still failing after its last try, or whose tweak changes nothing, fails the gate "library surface fits" by
-name: "no library surface fits", a hole of its object (gate:finish-route-recheck/library surface fits:<take>).
+Before the ask, free, the prediction (`predicted`): each finish the fill's colour check fails (route_fill: its token
+against its seen colour, CIE76 within finish_parts.COLOUR_DELTA_E) takes the library token nearest its seen colour,
+and the model is filled again. A take one of whose finishes still fails the colour check is a hole with no ask: the
+gate fails it whatever Gemini would say. The rest are drawn once and asked once: Gemini, shown the close-up (its own,
+or the stand-in, said so) and the filled views, says per finish whether its library surface and settings match what
+the close-up shows (the drawings are flat colour: shine is judged from the words). All match: passed. Else the take
+fails the gate "library surface fits" by name, "no library surface fits", a hole of its object
+(gate:finish-route-recheck/library surface fits:<take>); Gemini's token, roughness and metal for a failing finish
+are kept as the hole's `suggested` settings and never applied: trying them is a new batch and a new ask. An ask
+with no usable answer (a timeout, a dropped connection, a reply that does not parse) is a hole the same way, never
+asked again. Settings are this row's output, never a library edit.
 
-Output per take: <take>/try-<n>-<view>.png; recheck.json per take: each try's colour faults and Gemini's answers,
-`passed`, and the finishes with their final settings.
+Output per take: <take>/checked-<view>.png; recheck.json per take: the tokens the prediction changed, the colour
+faults, `asked`, Gemini's answers, `passed`, `fault`, `suggested`, and the finishes with their checked settings.
 """
 import json
 import pathlib
@@ -32,8 +36,8 @@ import route_fill  # noqa: E402
 import route_list  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
-TRIES = 3
-RECHECK_EUROS = 1.0  # a guess for the row's run (up to TRIES asks a take at google_spend's EUR 0.05); never a price
+RECHECK_EUROS = 1.0  # a guess for the row's run (one ask a take at google_spend's EUR 0.05); never a price
+UNANSWERED = (OSError, ValueError, KeyError)  # a timeout, a dropped connection, a reply that does not parse
 QUESTION = """You check a painted 3D model of an object against its close-up. The object: {object}.
 The first picture is {close_up}. The next {count} pictures show the model from every side ({views}), each part
 drawn flat in its library surface's colour, shaded only by angle: no shine, wear or pattern is drawn, so judge
@@ -68,7 +72,8 @@ def recheck_body(close_up, pictures, entry, finishes, surfaces, tokens, stand_in
     schema = {"type": "OBJECT", "properties": {"finishes": {"type": "ARRAY", "items": answer}}, "required": ["finishes"]}
     parts = [finish_ask.picture_part(close_up, 1024), *(finish_ask.picture_part(picture, 512) for picture in pictures)]
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": schema}}
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": schema},
+            "serviceTier": finish_ask.LIST_TIER}
 
 
 def ask(body):
@@ -76,7 +81,7 @@ def ask(body):
     from score.adapters import compute
     compute.require_cleared("a Gemini finish recheck (finish route)")
     route_cap.require_room(finish_ask.LIST_MODEL, body)
-    response = finish_ask.generated(finish_ask.LIST_MODEL, body, finish_ask.secret_key(), finish_ask.TIMEOUT,
+    response = finish_ask.generated(finish_ask.LIST_MODEL, body, finish_ask.secret_key(), finish_ask.FLEX_TIMEOUT,
                                     caller="finish-route-recheck", cache=True)
     return {int(entry["finish"]) - 1: entry for entry in json.loads(finish_ask.reply_text(response))["finishes"]}
 
@@ -94,53 +99,73 @@ def failed(finishes, answers):
             if not entry["colour_fits"] or not answers.get(number, {}).get("matches", False)]
 
 
-def tweaked(entry, answer, tokens):
-    """One failing finish's next settings: Gemini's token, roughness and metal where it gave them (a token in the
-    library's), else the token nearest its seen colour."""
-    settings = dict(entry["settings"])
-    if answer.get("token") in tokens:
-        settings["token"] = answer["token"]
-    elif entry.get("seen_lab") is not None:
-        settings["token"] = nearest_token(entry["seen_lab"], tokens)
-    for name in ("roughness", "metal"):
-        if answer.get(name) is not None:
-            settings[name] = round(float(np.clip(answer[name], 0, 1)), 3)
-    return {key: value for key, value in entry.items() if key not in ("srgb", "filled_lab", "seen_lab", "delta_e",
-                                                                       "own_colour", "colour_fits")} | {
-        "settings": settings}
+def colour_faults(finishes):
+    return [f"{entry['finish']}: dE {entry['delta_e']}" for entry in finishes if not entry["colour_fits"]]
 
 
-def try_record(number, finishes, answers):
-    return {"try": number, "settings": [entry["settings"] for entry in finishes],
-            "colour_faults": [f"{entry['finish']}: dE {entry['delta_e']}" for entry in finishes
-                              if not entry["colour_fits"]],
-            "gemini": {str(key + 1): value for key, value in answers.items()}}
+def unchecked(entry):
+    """A finish without its colour check's fields, ready to be filled again."""
+    return {key: value for key, value in entry.items()
+            if key not in ("srgb", "filled_lab", "seen_lab", "delta_e", "own_colour", "colour_fits")}
+
+
+def predicted(views, finish_of, finishes, context):
+    """The free prediction before the ask: each finish the colour check fails takes the library token nearest its
+    seen colour, and the model is filled again. The finishes with their new colour check, and the tokens it changed
+    ({finish words: [old, new]})."""
+    changed, settled = {}, []
+    for entry in finishes:
+        settings = dict(entry["settings"])
+        if not entry["colour_fits"] and entry.get("seen_lab") is not None:
+            settings["token"] = nearest_token(entry["seen_lab"], context["tokens"])
+        if settings["token"] != entry["settings"]["token"]:
+            changed[entry["finish"]] = [entry["settings"]["token"], settings["token"]]
+        settled.append(unchecked(entry) | {"settings": settings})
+    return route_fill.filled(views, finish_of, settled, context["families"]), changed
+
+
+def suggested(finishes, answers, wrong):
+    """Gemini's settings for each failing finish, kept for a later batch, never applied: {finish words: settings}."""
+    found = {}
+    for index in wrong:
+        answer = answers.get(index, {})
+        settings = {name: answer[name] for name in ("token", "roughness", "metal") if answer.get(name) is not None}
+        if settings:
+            found[finishes[index]["finish"]] = settings
+    return found
+
+
+def sorted_answer(finishes, answers):
+    """The one ask's answer sorted: passed, or the fault naming each failing finish, with Gemini's suggestions."""
+    wrong = failed(finishes, answers)
+    if not wrong:
+        return {"passed": True, "fault": None, "suggested": {}}
+    fault = "; ".join(f"{finishes[index]['finish']}: dE {finishes[index]['delta_e']}, Gemini: "
+                      f"{answers.get(index, {}).get('why', 'no answer')}" for index in wrong)
+    return {"passed": False, "fault": fault, "suggested": suggested(finishes, answers, wrong)}
 
 
 def recheck_take(folders, entry, finishes, context):
-    """One take checked and tweaked up to TRIES times: its record (tries, passed, finishes, fault)."""
+    """One take predicted free, then drawn and asked once: its record (changed, colour_faults, asked, gemini,
+    passed, fault, suggested, finishes)."""
     from PIL import Image
     finish_of = np.load(folders["fill"] / "finish.npy").astype(int)
+    finishes, changed = predicted(folders["views"], finish_of, finishes, context)
+    record = {"changed": changed, "colour_faults": colour_faults(finishes), "finishes": finishes, "gemini": {},
+              "suggested": {}, "passed": False}
+    if record["colour_faults"]:
+        return record | {"asked": False, "fault": "predicted, not asked: no library token within the colour check: "
+                                                  + "; ".join(record["colour_faults"])}
+    route_fill.drawn(folders["views"], finish_of, finishes, folders["out"], "checked")
+    pictures = [Image.open(folders["out"] / f"checked-{view}.png") for view in cast.VIEWS]
     close_up = Image.open(folders["views"] / "close-up.png")
-    tries = []
-    for number in range(1, TRIES + 1):
-        route_fill.drawn(folders["views"], finish_of, finishes, folders["out"], f"try-{number}")
-        pictures = [Image.open(folders["out"] / f"try-{number}-{view}.png") for view in cast.VIEWS]
+    try:
         answers = ask(recheck_body(close_up, pictures, entry, finishes, context["surfaces"], context["tokens"],
                                    context["stand_in"]))
-        tries.append(try_record(number, finishes, answers))
-        wrong = failed(finishes, answers)
-        if not wrong:
-            return {"tries": tries, "passed": True, "finishes": finishes, "fault": None}
-        fault = "; ".join(f"{finishes[index]['finish']}: dE {finishes[index]['delta_e']}, Gemini: "
-                          f"{answers.get(index, {}).get('why', 'no answer')}" for index in wrong)
-        if number == TRIES:
-            return {"tries": tries, "passed": False, "finishes": finishes, "fault": fault}
-        nudged = [tweaked(found, answers.get(index, {}), context["tokens"]) if index in wrong else found
-                  for index, found in enumerate(finishes)]
-        if [found["settings"] for found in nudged] == [found["settings"] for found in finishes]:
-            return {"tries": tries, "passed": False, "finishes": finishes, "fault": f"{fault} (no tweak left)"}
-        finishes = route_fill.filled(folders["views"], finish_of, nudged, context["families"])
+    except UNANSWERED as error:
+        return record | {"asked": True, "fault": f"no usable answer: {error!r}"[:300]}
+    return record | {"asked": True, "gemini": {str(key + 1): value for key, value in answers.items()},
+                     **sorted_answer(finishes, answers)}
 
 
 def make_recheck(inputs, out, seed, params):
@@ -167,13 +192,13 @@ def recheck_faults(folder):
 
 
 def judge_recheck(output, inputs, evidence):
-    """Every filled take passed its recheck within TRIES tries; one that did not is named: no library surface fits.
-    Checked against a stand-in close-up, the pass says so."""
+    """Every filled take passed its one recheck; one that did not, or was not asked, is named: no library surface
+    fits. Checked against a stand-in close-up, the pass says so."""
     found = json.loads((output / "recheck.json").read_text())
     failing = [f"{take}: no library surface fits ({record['fault']})" for take, record in found.items()
                if not record["passed"]]
     cast_takes = json.loads((pathlib.Path(inputs["finish-route-views"]) / "views.json").read_text())
     stand_ins = sum(cast_takes.get(take, {}).get("close_up") == route_data.STAND_IN for take in found)
-    tries = sum(len(record["tries"]) for record in found.values())
+    asked = sum(record["asked"] for record in found.values())
     return gates.verdict("library surface fits", failing, len(found), "takes with no library surface that fits",
-                         {"stand_in_close_ups": stand_ins, "tries": tries})
+                         {"stand_in_close_ups": stand_ins, "asked": asked})

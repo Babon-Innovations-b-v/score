@@ -248,8 +248,9 @@ is meant to fix, where it is marked, and what proves it.
   `score/stages/surfaces/route_*.py`, `ROUTE` marked experimental in its `__init__.py`, its overlay). For finishes
   drawn from pictures: library first, each finish of a take matched to a library surface with settings (palette token,
   roughness, metal, seed) from views on every side and the close-up, the model's own texture colours voted into parts
-  across views, each part filled from its surface, and a recheck by Gemini plus the free colour check, at most three
-  tweaks, else the named fault "no library surface fits". Off by default: its rows have a node only when a command
+  across views, each part filled from its surface, a free prediction (a finish the colour check fails takes the token
+  nearest its seen colour; one still failing is a hole, not asked), then one Gemini recheck a take, sorted pass or
+  the named fault "no library surface fits" (a batch, #21: no tweak loop). Off by default: its rows have a node only when a command
   asks for one by name (`score run|plan|status --stage finish-route-*`, `graph.asked_for`), so no line, plan, hole or
   price carries them; its paid rows refuse without `--object` and refuse each new ask once the route's asks on the
   Google ledger would pass the trial's EUR 5 in total (`route_cap.py`). Proven when the EUR 5 test on named takes
