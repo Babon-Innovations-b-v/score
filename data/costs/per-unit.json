@@ -271,11 +271,11 @@
      "paper/evidence/cloud/ledger.jsonl"
     ]
    },
+   "basis": "warm work time",
    "forecast": {
     "rule": "light_jobs",
     "source": "score/stages/light/passes.py pass_jobs: the views of the place's own scene record (data/scene/<place>.json), VIEWS_A_JOB a job"
-   },
-   "basis": "warm work time"
+   }
   },
   "settle": {
    "stage": "settle",
@@ -465,6 +465,43 @@
    "forecast": {
     "rule": "models",
     "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
+   }
+  },
+  "earth-kit": {
+   "stage": "earth-kit",
+   "unit": "make_kit job of an earth place's code-built kit (library_bake.py, one picture set)",
+   "count": {
+    "files": "job-*.json"
+   },
+   "also": [],
+   "likely_euros": 0.01452,
+   "high_euros": 0.07856,
+   "runs": 208,
+   "sources": {
+    "warm work": "paper/evidence/cloud/ledger.jsonl: 208 jobs of kind library timed on 70 L4-1-24G machines (unit_seconds; capacity.py report's s/unit)",
+    "machine price": "paper/evidence/cloud/bill-2026-10-10T0136Z.json: L4-1-24G EUR 0.7875 an hour (costs.unit_prices, the lowest zone), by the minute",
+    "overhead": "10% for time outside jobs on warm parked cards, the owner's target (2026-10-20) until runs record it"
+   },
+   "basis": "warm work time",
+   "time": {
+    "unit_seconds": {
+     "likely": 60.35,
+     "high": 326.5
+    },
+    "slots": 1,
+    "slots_from": "capacity.runs_at_once(library, gpu-24gb)",
+    "setup_minutes": {
+     "why": "no line read here timed a machine's set-up"
+    },
+    "holds": "machines",
+    "lines": 70,
+    "from": [
+     "paper/evidence/cloud/ledger.jsonl"
+    ]
+   },
+   "forecast": {
+    "rule": "kit_jobs",
+    "source": "score/stages/earth_seed kit_jobs: route.py late-plan's picture sets of the place's code-built kit pieces (data/kit/<place>.json), one make_kit job a set"
    }
   },
   "finish-route-list": {

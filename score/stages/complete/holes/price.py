@@ -140,6 +140,9 @@ def rule_units(rule, found, data, place):
         return light_jobs(place)
     if rule == "sound_takes":
         return sound_takes(data, place)
+    if rule == "kit_jobs":
+        from score.stages import earth_seed
+        return earth_seed.kit_jobs(place)
     raise ValueError(f"unknown forecast rule {rule!r} in {compute.PER_UNIT}")
 
 
