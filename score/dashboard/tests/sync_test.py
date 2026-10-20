@@ -409,6 +409,17 @@ def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypat
     assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
 
 
+def test_a_pass_pushes_no_export_when_the_checkout_moved_during_it(world, monkeypatch):
+    from score.dashboard.tests.fixture import FakeBackend
+    fed(monkeypatch)
+    commits = iter(["a" * 40, "b" * 40])
+    monkeypatch.setattr(client, "head", lambda repo: next(commits))
+    hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}}])
+    said = client.sync_pass(hosted, world.source, FakeBackend())
+    assert said.startswith("NOT PUSHED: the checkout moved from aaaaaaaa to bbbbbbbb during the pass"), said
+    assert hosted.commits == [] and hosted.reports == [(7, "picked_up"), (7, "done")]  # his requests still applied
+
+
 def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_price_fails(world, monkeypatch):
     from score.dashboard.tests.fixture import FakeBackend
     hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}}])

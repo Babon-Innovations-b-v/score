@@ -301,6 +301,11 @@ def tree_refusal(repo):
     return None
 
 
+def head(repo):
+    """The checkout's commit, or None when git cannot say."""
+    return git(repo, "rev-parse", "HEAD").stdout.strip() or None
+
+
 def runner_price(repo, world):
     """(its words, why it failed or None) of the runner's price of the environment's holes and remake (`score price
     <world> --holes --json`, free and local, in a process of its own), written where the pages read it."""
@@ -323,11 +328,14 @@ def refused_words(why):
 
 
 def sync_pass(remote, source, chosen=None):
-    """One pass; what it did, in words. Nothing is synced from a checkout not clean and pushed, or when the runner's
-    price fails."""
+    """One pass; what it did, in words. Nothing is synced from a checkout not clean and pushed, when the runner's
+    price fails; no export is pushed when the checkout moved to another commit during the pass (prepare's and the
+    price's records name the commit they were made on, so it would show every figure stale: the next pass sends it),
+    the owner's requests are still applied."""
     refused = tree_refusal(settings.SCORE_REPO)
     if refused:
         return refused_words(refused)
+    started = head(settings.SCORE_REPO)
     chosen = chosen or guard.backend()
     swept = library_sweep()
     holes = holes_sweep()
@@ -335,7 +343,10 @@ def sync_pass(remote, source, chosen=None):
     priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
     if failed:
         return refused_words(f"{failed}; {swept}; {holes}; {prepared}; {benched}; {pictured}")
-    pushed = pushed_words(remote, source, chosen)
+    now = head(settings.SCORE_REPO)
+    pushed = pushed_words(remote, source, chosen) if now == started else (
+        f"NOT PUSHED: the checkout moved from {str(started)[:8]} to {str(now)[:8]} during the pass, so its remake and "
+        "price would show as stale; the next pass sends them")
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
     return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}; {priced}; "
