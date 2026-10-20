@@ -31,8 +31,8 @@ KINDS = (("usd-r3/", EARTH, "earth seed lost: a seed row that exports each place
                              "free ship-seed row that exports its base from that output's models (tools/usd/export.py "
                              "write_base) in place of the usd-ship folder"),
          ("demo/world1-r4/views/", VIEWS, "views lost (a copy of the scene record under work/demo, made by hand): the "
-                                          "light rows read a ship place's views from its own scene-record output, as "
-                                          "cast and surfaces-check do (light.passes reads them by path, DEMO)"),
+                                          "rows that read it read the place's views from its own scene record, as "
+                                          "the light rows do (their light layer's views.json)"),
          ("pixal/", PIXAL, "Pixal3D take lost: pixal@<place>'s accepted output carries its takes (<take>.glb, "
                            ".svviews, -final.glb, takes.json) and every reader reads them through an `after` on it; "
                            "then each lost take is a pixal hole, priced"))

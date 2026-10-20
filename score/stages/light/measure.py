@@ -155,10 +155,3 @@ def sky_of(rgb, mask):
 def colour_gap(first, second):
     """The mean of the three channels' differences, in levels."""
     return round(float(np.abs(np.subtract(first, second)).mean()), 1)
-
-
-def concept_sky(rgb, rows):
-    """The concept's sky over the rows given (the band over its far hills), with its rise to the horizon."""
-    mask = np.zeros(rgb.shape[:2], dtype=bool)
-    mask[rows[0]:rows[1]] = True
-    return sky_of(rgb, mask)

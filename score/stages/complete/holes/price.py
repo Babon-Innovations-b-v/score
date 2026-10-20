@@ -109,27 +109,14 @@ def surface_takes(data, place):
     return set(json.loads(path.read_text()).get("takes") or {}) if path.is_file() else set()
 
 
-def shown_views(name):
-    """How many views a place's light passes render on: the demo's copy of them (passes.demo_views), else, while that
-    copy is lost, its scene record's (the copy is made from it); None with neither."""
-    from score.stages.light import passes
-    if (passes.DEMO / f"views/{name}.json").is_file():
-        return len(passes.demo_views(name)[1])
-    scene = passes.REPO / f"data/scene/{name}.json"
-    return len(passes.scene_of(name).get("views") or []) if scene.is_file() else None
-
-
 def light_jobs(place):
-    """The light passes' render jobs a place's make sends (passes.pass_jobs, VIEWS_A_JOB views a job), or None while
-    a shown place's views are not known."""
+    """The light passes' render jobs a place's make sends (passes.pass_jobs: its scene record's views, VIEWS_A_JOB a
+    job), or None while its views are not known (a place whose record the scene-record row has still to write)."""
     from score.stages.light import passes
-    jobs = 0
-    for name in passes.shown(place):
-        views = shown_views(name)
-        if views is None:
-            return None
-        jobs += math.ceil(views / passes.VIEWS_A_JOB)
-    return jobs
+    scene = passes.REPO / f"data/scene/{place}.json"
+    if not scene.is_file():
+        return None
+    return math.ceil(len(passes.scene_of(place).get("views") or []) / passes.VIEWS_A_JOB)
 
 
 def rule_units(rule, found, data, place):

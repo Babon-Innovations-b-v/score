@@ -570,10 +570,10 @@ STAGES = tuple(dataclasses.replace(row, files=ship_seeded(row.files)) if row.fil
 
 
 def ship_lit(applies):
-    """The light rows for a ship place too: it has no round-three seed, so light.applies (a usd-r3 stage and the
-    demo's views) leaves it out; its base stage is usd-ship/<place> (ship_seeded reads it as the seed) and its views
-    are its scene record's, written as the demo's views file (2026-10-15). Wrapped here, in the table, so no place
-    with a round-three seed moves."""
+    """The light rows for a ship place too: it has no old scene record, so light.applies (data/scene/<place>.json)
+    leaves it out; its base stage is usd-ship/<place> (ship_seeded reads it as the seed) and its views are its own
+    scene-record output's, which its light layer writes into views.json. Wrapped here, in the table, so no place with
+    an old record moves."""
     def lit(place):
         return applies(place) or ship_place(place)
     return functools.wraps(applies)(lit)

@@ -156,12 +156,16 @@ def check_copy_leaves_its_input():
         seed, made, out = (pathlib.Path(folder) / name for name in ("seed", "made", "out"))
         tiny_seed(seed)
         layer.write("tiny", {"lights": []}, seed, made)
+        views = {"views": [{"name": "door", "eye": [0, 1.6, 2], "aim": [0, 1.2, 0], "fov": 70}]}
+        (made / light.passes.VIEWS).write_text(json.dumps(light.passes.record_views(views)))
         before = (made / layer.LAYER).read_bytes()
         for path in made.rglob("*"):
             os.chmod(path, stat.S_IREAD | (stat.S_IEXEC if path.is_dir() else 0))
         light.layer_copied(made, out)
         layer.strengths(out / layer.LAYER, "tiny", {"/tiny/Lights/light_1": (10.0, 2.0)})
         assert (made / layer.LAYER).read_bytes() == before
+        size, copied = light.passes.views_of(out)  # the record's views, at the check size, travel with the layer
+        assert size == light.passes.CHECK_SIZE and copied[0]["up"] == [0.0, 1.0, 0.0] and copied[0]["frame"] == 0
         for path in made.rglob("*"):
             os.chmod(path, stat.S_IRWXU)
 
@@ -255,8 +259,29 @@ def check_needs():
     shutil.rmtree(data)
 
 
+def check_exposure():
+    """A view far blacker or more blown out than its concept fails; one as dark as a concept with a black sky passes;
+    with no concept the gate cannot tell."""
+    import shutil
+    import tempfile
+    from score import checks
+    from score.stages import light
+    half_black = np.concatenate([np.zeros((10, 20)), np.full((10, 20), 0.5)])
+    assert light.extremes(half_black) == {"black": 0.5, "blown": 0.0}
+    output = pathlib.Path(tempfile.mkdtemp())
+    for concept, views, answer in (({"black": 0.45, "blown": 0.0}, {"wide": {"black": 0.5, "blown": 0.01}}, checks.PASS),
+                                   ({"black": 0.01, "blown": 0.0}, {"wide": {"black": 0.2, "blown": 0.0}}, checks.FAIL),
+                                   ({"black": 0.0, "blown": 0.0}, {"wide": {"black": 0.0, "blown": 0.05}}, checks.FAIL),
+                                   (None, {"wide": {"black": 0.0, "blown": 0.0}}, checks.UNKNOWN)):
+        (output / "measures.json").write_text(json.dumps({"exposure": {"concept": concept, "views": views}}))
+        found = light.judge_exposure(output, {}, {})
+        assert found.answer == answer, (concept, views, found)
+    shutil.rmtree(output)
+
+
 def main():
     check_needs()
+    check_exposure()
     check_sweep()
     check_layer()
     check_copy_leaves_its_input()
