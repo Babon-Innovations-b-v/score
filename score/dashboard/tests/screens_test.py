@@ -5,6 +5,7 @@ figure plus the gaps price off the prop route, the ETA a range only when both pa
 its concept, the model calls' month None when not read, the basket's stop its high plus 10%, and the
 library's counts by kind."""
 import json
+import os
 
 import pytest
 
@@ -252,11 +253,21 @@ def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_re
     assert (shown["design"], shown["progress"], shown["gaps"]) == ("review", None, None)  # drawn, not picked
     html = signed_in().get("/").content.decode()
     assert "data-v>in review</span>" in html and "data-v>to draw</span>" in html and 'class="ring' not in html
+    assert 'href="/place/alpha/"' not in html and 'class="ptile" href="/concept/alpha/"' in html  # no Place screen
+    page = signed_in("joey2").get("/place/alpha/").content.decode()
+    assert "<iframe" not in page and 'href="/concept/alpha/"' in page and "data-v>in review</span>" in page
     sha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
     fixture.an_inventory_read(world.store, world.data, "alpha", sha)
     shown = alpha()
     assert shown["design"] is None and shown["progress"]["needed"] > 0 and shown["gaps"] is not None
     assert screens.place(world.source, "alpha", None)["progress"] is not None
+    findings = world.root / "props/work/checks/gaps/alpha/findings.json"
+    assert not findings.exists()
+    findings.parent.mkdir(parents=True)
+    findings.write_text("{}")
+    os.utime(findings, (1760000000, 1760000000))  # gaps checked before the pick: read from an older inventory
+    assert alpha()["design"] == "check"
+    findings.unlink()
     inventory = world.data / "inventory/alpha.json"
     inventory.write_text(inventory.read_text().replace(sha, "o" * 64))  # read from an older concept
     shown = alpha()

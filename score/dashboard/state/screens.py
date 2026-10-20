@@ -50,16 +50,21 @@ def inventory_current(world, place, picked):
 
 
 def counted(world, place):
-    """inventory_current against the WorldState's own pick."""
-    return inventory_current(world, place, world.concept_picked.get(place))
+    """Whether the place's numbers count: its inventory current against the WorldState's own pick and its gaps
+    checked from it (findings written after the pick; earlier ones were read from an older inventory)."""
+    return (inventory_current(world, place, world.concept_picked.get(place))
+            and bool(world.inventories[place].get("checked")))
 
 
 def design_state(world, place):
     """What a place whose scene inventory does not count shows instead of its numbers: `draw` (no concept), `review`
-    (drawn, not picked), `read` (picked, its inventory not read from it yet); None once its inventory counts."""
+    (drawn, not picked), `read` (picked, its inventory not read from it yet), `check` (read, its gaps not checked
+    from it yet); None once its numbers count (`counted`)."""
     picked = world.concept_picked.get(place)
-    if inventory_current(world, place, picked):
+    if counted(world, place):
         return None
+    if inventory_current(world, place, picked):
+        return "check"
     if picked:
         return "read"
     return "review" if world.concepts.get(place) else "draw"  # a concept shown: none while lost or out of date

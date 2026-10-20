@@ -1,13 +1,22 @@
 {% extends "pages/base.html" %}
 {% block title %}{{ name }}{% endblock %}
 {% block content %}
-<div class="place-layout">
+{% if design %}<section class="phead" aria-label="{{ name }}">
+  <div class="phead-pic">{% if concept %}<img src="{{ concept.url }}" alt="{{ name }}, the concept">{% else %}<span class="ptile-missing" data-v>concept missing</span>{% endif %}</div>
+  <div class="phead-side">
+    <h1 class="phead-name" data-v>{{ name }}</h1>
+    <div class="node-row" title="{{ design_tip }}">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span data-v>{{ design }}</span></div>
+    <div class="phead-actions"><a class="button primary" href="/concept/{{ detail.place }}/" data-v>Concept</a></div>
+  </div>
+</section>
+{% else %}<div class="place-layout">
   <aside class="place-tree" aria-label="scene">
     <div class="num-label" data-v>{{ name }}</div>
     <div class="place-concept">{% if concept %}<a href="/concept/{{ detail.place }}/" title="the concept: review, pick or unlock it"><img src="{{ concept.url }}" alt="{{ name }}, the concept"></a>{% else %}<span class="ptile-missing" data-v>concept missing</span>{% endif %}</div>
-    {% if design %}<div class="node-row" title="{{ design_tip }}">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span data-v>{{ design }}</span></div>{% elif tree %}{% include "pages/c/tree.html" with nodes=tree %}{% elif checked %}<div class="node-row">{% include "pages/c/dot.html" with tone="done" tip="no gaps" %}<span class="node-count" data-v>0</span></div>{% else %}<div class="node-row unknown" title="not checked yet">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span data-v>unknown</span></div>{% endif %}
+    {% if tree %}{% include "pages/c/tree.html" with nodes=tree %}{% elif checked %}<div class="node-row">{% include "pages/c/dot.html" with tone="done" tip="no gaps" %}<span class="node-count" data-v>0</span></div>{% else %}<div class="node-row unknown" title="not checked yet">{% include "pages/c/dot.html" with tone="idle" tip=None %}<span data-v>unknown</span></div>{% endif %}
   </aside>
-  <div class="place-view"><iframe data-frames src="/view/{{ detail.place }}?{% if not design %}gaps=1&amp;{% endif %}embed=1" title="{{ name }} in 3D" loading="lazy"></iframe></div>
+  <div class="place-view"><iframe data-frames src="/view/{{ detail.place }}?gaps=1&amp;embed=1" title="{{ name }} in 3D" loading="lazy"></iframe></div>
   {% include "pages/c/panel.html" with id="panel" %}
 </div>
+{% endif %}
 {% endblock %}
