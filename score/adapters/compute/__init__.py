@@ -40,6 +40,13 @@ he gives it from his own terminal for a name of his choosing (the review command
 a batch's longest run. A rent point checks that the yes exists, or that the clearance's run still holds its
 reservation; the ledger's own ceilings still apply there. A barrier, not a lock: an agent can name a
 clearance given earlier, and every clearance names its node, key, estimate and time.
+
+A benchmark grant (the owner's standing rule of 2026-10-20, root CLAUDE.md) is his yes, in a Claude Code session, to
+one benchmark batch of at most GRANT_EUROS: the session asks him, and on his yes writes it with `grant_benchmark`
+(his answer and the question quoted, the time, single use, 24 h). The batch is one `score run` tagged with the grant
+(SCORE_BENCHMARK_GRANT=<grant id>); its paid nodes are cleared by the runner as any other, their inputs passed and
+the month's ceiling and books asked as ever, with the grant standing in for the world's stop line: the run that clears
+first takes the grant, and its clearances together stay within the grant's euros. Nothing else spends through a grant.
 """
 import contextlib
 import datetime
@@ -51,7 +58,7 @@ import sys
 
 from score import graph
 from score.adapters.compute import guard
-from score.store import PROPS_HOME, RUNNER, Store, locked, running_under_agent
+from score.store import PROPS_HOME, RUNNER, Store, locked, running_under_agent, stamp_key
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/cloud/runtime"))
@@ -71,6 +78,12 @@ OVERRIDE = "override"
 # to about 50 s against the 60 s then kept in the keyed models adapter (49 read timeouts after 15:00).
 JUDGE_TIMEOUT = "SCORE_JUDGE_TIMEOUT"
 JUDGE_TIMEOUT_SECONDS = 120.0
+BENCHMARK = "benchmark"
+# A benchmark batch's tag, on its `score run`: the id of the owner's grant it spends under (grant_benchmark).
+GRANT = "SCORE_BENCHMARK_GRANT"
+GRANT_EUROS = 20.0  # the most one benchmark grant allows (owner, 2026-10-20); more needs his cockpit click
+GRANT_HOURS = 24
+GRANTS = "grants"  # grants/benchmark/<id>.json, grants/used/<id>.json, grants/spent/<id>/<time>.json
 
 
 def judge_timeout():
@@ -381,14 +394,88 @@ def owners_google_month(euros, by=None):
     every ceiling, a negative one lowered the month)."""
     if running_under_agent():
         raise Refused("the Google month is the owner's figure: he enters it on the cockpit's money card")
-    books = ledger()
-    figure = books.euro_figure(euros)
+    return write_google_month(google_figure(euros), by)
+
+
+def google_figure(euros):
+    """`euros` as a Google month figure; Refused when it is not finite and at least 0."""
+    figure = ledger().euro_figure(euros)
     if figure is None:
         raise Refused(f"the Google month must be a finite figure of at least EUR 0, not {euros!r}")
+    return figure
+
+
+def write_google_month(figure, by):
+    """Write the owner's Google month `figure` into the books, their known state, with who gave it; the books."""
+    books = ledger()
     known = {**books.this_months_books(), "month": books.this_month(), "state": "known", "google_before": figure,
              "google_at": graph.now(), "google_by": by}
     books.write_books(known)
     return known
+
+
+def grant_benchmark(answer, question, euros, purpose=BENCHMARK, google_month=None, store=None):
+    """Record the owner's yes, given in a Claude Code session, to one benchmark batch of at most GRANT_EUROS (his
+    standing rule of 2026-10-20): the grant {id, purpose, euros, answer, question, at, expires, single_use,
+    google_month}, kept once in the store (`grants/benchmark/<id>.json`). Refused for any purpose but a benchmark, a
+    figure over GRANT_EUROS or not above 0, or the answer or the question not quoted. A Google month figure he gave in
+    the same answer goes into the books as his own (owners_google_month's books)."""
+    if purpose != BENCHMARK:
+        raise Refused(f"a grant covers a benchmark only, not {purpose!r}: anything else needs the owner's cockpit click")
+    figure = ledger().euro_figure(euros)
+    if not figure or figure > GRANT_EUROS:
+        raise Refused(f"a benchmark grant is above EUR 0 and at most EUR {GRANT_EUROS:.0f}, not {euros!r}: more needs "
+                      "the owner's cockpit click")
+    if not str(answer or "").strip() or not str(question or "").strip():
+        raise Refused("a benchmark grant quotes the owner's answer and the question he answered, both")
+    google = None if google_month is None else google_figure(google_month)
+    at = graph.now()
+    expires = datetime.datetime.fromisoformat(at) + datetime.timedelta(hours=GRANT_HOURS)
+    grant = {"id": stamp_key(at), "purpose": BENCHMARK, "euros": figure, "answer": str(answer),
+             "question": str(question), "at": at, "expires": expires.isoformat(timespec="microseconds"),
+             "single_use": True, "google_month": google}
+    covering_store(store or Store.default()).write_once(f"{GRANTS}/{BENCHMARK}/{grant['id']}.json", grant)
+    if google is not None:
+        write_google_month(google, f"the owner's answer, benchmark grant {grant['id']}")
+    return grant
+
+
+def grant_spent(store, grant_id):
+    """The euros the runner has cleared under a grant so far."""
+    return sum(store.read(key)["euros"] for key in store.objects.keys(f"{GRANTS}/spent/{grant_id}/"))
+
+
+def grant_refusal(store, grant_id, forecast):
+    """Why a benchmark batch's paid job at `forecast` euros may not spend under grant `grant_id`, or None: the grant
+    must be a benchmark's, quoted, at most GRANT_EUROS, not expired, unused or used by this same `score run`, and
+    have room for the job over what it already cleared."""
+    grant = store.read(f"{GRANTS}/{BENCHMARK}/{grant_id}.json")
+    if grant is None:
+        return f"{GRANT} names {grant_id}, which is no benchmark grant"
+    if (grant.get("purpose") != BENCHMARK or not grant.get("answer") or not grant.get("question")
+            or not 0 < grant.get("euros", 0) <= GRANT_EUROS):
+        return f"grant {grant_id} is not a quoted benchmark grant of at most EUR {GRANT_EUROS:.0f}"
+    if datetime.datetime.now(datetime.timezone.utc) >= datetime.datetime.fromisoformat(grant["expires"]):
+        return f"grant {grant_id} expired at {grant['expires'][:16]}; the owner is asked again"
+    run = os.environ.get(RUN_ID)
+    if not run:
+        return f"grant {grant_id}: a benchmark batch spends as one score run"
+    used = store.read(f"{GRANTS}/used/{grant_id}.json")
+    if used and used["run"] != run:
+        return f"grant {grant_id} was used by run {used['run']} at {used['at'][:16]}; it is single use"
+    spent = grant_spent(store, grant_id)
+    if spent + forecast > grant["euros"]:
+        return (f"grant {grant_id}: EUR {spent:.2f} cleared under it and this job's EUR {forecast:.2f} would pass its "
+                f"EUR {grant['euros']:.2f}")
+    return None
+
+
+def spend_grant(store, grant_id, cleared):
+    """Take the grant for this run (single use) and count a clearance against it."""
+    if store.read(f"{GRANTS}/used/{grant_id}.json") is None:
+        store.write_once(f"{GRANTS}/used/{grant_id}.json", {"run": os.environ[RUN_ID], "at": cleared["at"]})
+    store.write_once(f"{GRANTS}/spent/{grant_id}/{stamp_key(cleared['at'])}.json",
+                     {"node": cleared["node"], "key": cleared["key"], "euros": cleared["euros"], "at": cleared["at"]})
 
 
 def months_since(baseline, now):
@@ -474,8 +561,10 @@ def clearance(runner, node, euros):
     """Clear one paid run: the node's ticket ({node, key, after, clearance, reservations}) when the runner keys it (its
     inputs passed and stand accepted) and the month's ceiling has room for its forecast (run_forecast: measured, else
     the stage's estimate `euros`) over the ledger and every open reservation; the clearance kept in the store and its
-    forecast reserved, under the clearing lock. Else Refused."""
+    forecast reserved, under the clearing lock. A benchmark batch (GRANT set) is checked against its grant instead of
+    the world's stop line (grant_refusal), and its clearance counted against the grant. Else Refused."""
     forecast = run_forecast(node, euros, runner.store)
+    grant_id = os.environ.get(GRANT)
     try:
         ticket = runner.ticket(node)
     except graph.Blocked as block:
@@ -485,12 +574,15 @@ def clearance(runner, node, euros):
         held = open_reservations(reservations)
         going = {**open_overrides(covering_store(runner.store)), **held}
         over = (month_refusal(forecast["euros"], sum(reserved["euros"] for reserved in going.values()))
-                or stop_refusal(runner, node, forecast["euros"], held))
+                or (grant_refusal(covering_store(runner.store), grant_id, forecast["euros"]) if grant_id else
+                    stop_refusal(runner, node, forecast["euros"], held)))
         if over:
             raise Refused(f"{node}: {over}")
         cleared = {"node": node, "key": ticket["key"], "euros": forecast["euros"], "minutes": forecast["minutes"],
                    "high_minutes": forecast["high_minutes"], "measured": forecast["measured"], "estimate": euros,
-                   "by": RUNNER, "at": graph.now()}
+                   "by": RUNNER, "at": graph.now(), **({"grant": grant_id} if grant_id else {})}
+        if grant_id:
+            spend_grant(covering_store(runner.store), grant_id, cleared)
         runner.store.write_clearance(node, ticket["key"], cleared)
         keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": os.environ.get(RUN_ID)}})
     return {**ticket, "clearance": cleared, "reservations": str(reservations),

@@ -104,7 +104,11 @@ stage as each stage is built; nothing moves before.
   (owner, 2026-10-18); `guard.py`: the environment's stop line, the owner's
   money figure, refuses a paid job before it starts when its forecast with the environment's spend since its first line and
   every run in flight would pass it (one outbox line, free work goes on; in the framework's store an environment with no
-  line is refused), and never stops a started job except a runaway past twice its forecast minutes), `engines`
+  line is refused), and never stops a started job except a runaway past twice its forecast minutes;
+  `grant_benchmark(answer, question, euros)`: the owner's yes in a Claude Code session to one benchmark batch of at
+  most EUR 20 (his standing rule of 2026-10-20; benchmark only, both quoted, single use, 24 h, `grants/` in the store),
+  written by the session that asked him and never by hand; a `score run` tagged `SCORE_BENCHMARK_GRANT=<grant id>` is
+  cleared against the grant instead of the stop line, one run per grant, within its euros), `engines`
   (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
   `vendored` (the table of every tool in `vendor/`: where it is called, or why it is left out; its test fails on a
   tool vendored and forgotten).

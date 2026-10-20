@@ -14,8 +14,8 @@ Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
 3. Taking Claude Code's mark off a process (``unset CLAUDECODE``, ``env -u``, ``env -i``, ``CLAUDECODE=``), or
    faking a terminal (``script -c``, ``unbuffer``) for a ``score`` command: the store refuses an agent's process the
    owner's areas by that mark (score/store ``running_under_agent``), and the review commands want a terminal.
-4. Writing the store's accepts, rejects, waivers, spend yeses, clearances or stop lines (``accepts/``,
-   ``rejects/``, ``waivers/``, ``spend-yes/``, ``clearances/``, ``stops/``) by hand: by Write, Edit or NotebookEdit
+4. Writing the store's accepts, rejects, waivers, spend yeses, clearances, stop lines or benchmark grants
+   (``accepts/``, ``rejects/``, ``waivers/``, ``spend-yes/``, ``clearances/``, ``stops/``, ``grants/``) by hand: by Write, Edit or NotebookEdit
    on such a path, or a shell command one of whose parts redirects into such a path or runs a writing command
    (``tee``, ``cp``, ``mv``, ``ln``, ``rm``, ``touch``, ``install``, ``rsync``, ``dd``, ``chmod``, ``sed -i``, ``find -delete``, Python) that names one.
 5. Writing an artifact database collection or document of those names (``Artifact`` with ``write_db``, a batch's
@@ -25,6 +25,11 @@ Running the stages stays allowed, and with it the runner's own automatic accept 
 score.adapters.compute), which this guard does not see: they are written by the framework's code, only when every
 gate passed and nothing got worse, or the inputs passed and the month's ceiling has room. Reading stays allowed:
 ``grep``, ``ls`` and ``cat`` of those folders, a redirect to an unrelated file, a review page, the tests.
+
+A benchmark grant (the owner's standing rule of 2026-10-20, root CLAUDE.md) passes: the session that asked him writes
+his yes with ``score.adapters.compute.grant_benchmark(answer, question, euros)`` (benchmark only, at most EUR 20,
+single use, 24 h), and runs the batch as ``SCORE_BENCHMARK_GRANT=<grant id> .venv/bin/python -m score run ...``; the
+runner checks the grant at clearance. The grant's records are written by that code only, never by hand (rule 4).
 
 Why (the layered framework's design, 2026-10-11, amended the same day): agent verdicts stood in for the owner's (a
 place declared complete that he had not seen), and the newest take replaced the accepted one by itself. Now the
@@ -52,10 +57,10 @@ _UNMARK = re.compile(r"\bunset\b|\benv\s+(-\S+\s+)*(-u|--unset|-i|--ignore-envir
                      r"CLAUDE_CODE_ENTRYPOINT|AI_AGENT)=|environ|\bpop\b|\bdel\b")
 _CLEARED_ENV = re.compile(r"\benv\s+(-\S+\s+)*(-i|--ignore-environment|-)\s")
 _FAKE_TERMINAL = re.compile(r"(^|[\s;&|(])(script\s+-\S*c|unbuffer\s)")
-_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|rejects|waivers|spend-yes|clearances|stops)/")
-_OWNER_NAME = re.compile(r"(^|/)(accepts|rejects|waivers|spend-yes|clearances|stops)(/|$)")
+_OWNER_PATH = re.compile(r"(^|[/\s'\"=])(accepts|rejects|waivers|spend-yes|clearances|stops|grants)/")
+_OWNER_NAME = re.compile(r"(^|/)(accepts|rejects|waivers|spend-yes|clearances|stops|grants)(/|$)")
 _SEGMENTS = re.compile(r"\|\||&&|[;|\n]")
-_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances|stops)/")
+_REDIRECT_INTO_OWNER = re.compile(r"(^|[^<>&0-9])>>?\s*['\"]?[^\s'\"]*(accepts|rejects|waivers|spend-yes|clearances|stops|grants)/")
 _WRITER = re.compile(r"^\s*(\S+=\S*\s+)*(sudo\s+)?(\S*/)?(tee|cp|mv|ln|rm|touch|install|rsync|dd|chmod|chown|"
                      r"truncate|python3?(\.\d+)?|uv)\b|\bsed\s+(-\S+\s+)*-i|\bfind\b.*\s-(delete|exec)\b")
 _FRAMEWORK = re.compile(r"(^|/)score/(checks|contracts|store|graph|review|adapters|stages)/|(^|/)\.claude/hooks/")

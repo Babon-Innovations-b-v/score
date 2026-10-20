@@ -138,6 +138,35 @@ def test_a_batch_writing_accepts_into_an_artifact_database_is_blocked():
     assert _run(batch)[0] == 2
 
 
+QUESTION = ("Confirm this standing rule: in a Claude Code session, I may ask you to approve a benchmark batch of at "
+            "most €20. When you answer yes to that question, the framework records your yes (quote, time, amount) "
+            "and lets that one benchmark batch spend up to that amount. It covers benchmarks only; anything else and "
+            "anything over €20 still needs your cockpit click.")
+
+
+def test_the_benchmark_grant_call_and_a_tagged_run_pass():
+    """The owner's standing rule of 2026-10-20: the session that asked him writes his yes and runs the batch."""
+    grant = (".venv/bin/python - <<'EOF'\nfrom score.adapters import compute\n"
+             f"print(compute.grant_benchmark('Yes, approve it', {QUESTION!r}, 12.0))\nEOF")
+    for command in (grant, "SCORE_BENCHMARK_GRANT=20261020T120000.000000+0000 .venv/bin/python -m score run world1 "
+                           "--detach --place campgrounds --stage pixal"):
+        assert _run(_bash(command))[0] == 0, command
+
+
+def test_grants_by_hand_and_other_owner_commands_beside_a_grant_stay_blocked():
+    for command in ("echo '{}' > ~/.farm-factory-props/store/objects/grants/benchmark/1.json",
+                    "rm -r store/objects/grants/used",
+                    "python -c 'from score.adapters import compute; compute.grant_benchmark(\"y\", \"q\", 5); "
+                    "review.accept(s, \"a@b\", \"o\", \"me\")'",
+                    "SCORE_BENCHMARK_GRANT=x .venv/bin/python -m score.review spend render@hub k1 4.5",
+                    "SCORE_BENCHMARK_GRANT=x .venv/bin/python -m score.review stop world1 680 --reason films",
+                    "python -c 'store.write_once(\"grants/benchmark/1.json\", {})'"):
+        assert _run(_bash(command))[0] == 2, command
+    hand = {"tool_name": "Write", "tool_input": {"file_path": "/h/store/objects/grants/benchmark/1.json",
+                                                 "content": "{}"}}
+    assert _run(hand)[0] == 2
+
+
 def test_garbage_fails_open():
     assert _run("not json")[0] == 0
     assert _run({"tool_name": "Bash"})[0] == 0
