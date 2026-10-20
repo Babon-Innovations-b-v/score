@@ -63,11 +63,13 @@ def repinned(text, commit):
 
 
 def message(repo, old, new, subject, trailers):
-    """The host's commit message: the subject ({short} the new commit's short sha), the score commits since the old
-    pin one a line (short sha and subject, cut to SUBJECT_WIDTH), then the trailers."""
+    """The host's commit message: the subject ({short} replaced by the new commit's short sha, any other brace kept
+    as written), the score commits since the old pin one a line (short sha and subject, cut to SUBJECT_WIDTH), then
+    the trailers."""
     lines = ran(repo, "log", "--format=%h%x09%s", "--abbrev=8", f"{old}..{new}").splitlines()
     body = [f"{short} {said[:SUBJECT_WIDTH]}" for short, _, said in (line.partition("\t") for line in lines)]
-    return "\n\n".join(part for part in (subject.format(short=new[:8]), "\n".join(body), "\n".join(trailers)) if part)
+    return "\n\n".join(part for part in (subject.replace("{short}", new[:8]), "\n".join(body), "\n".join(trailers))
+                       if part)
 
 
 def committed_and_pushed(work, dockerfile, text, words):
@@ -81,8 +83,17 @@ def committed_and_pushed(work, dockerfile, text, words):
     return ran(work, "rev-parse", "--short=10", "HEAD")
 
 
+def inside(dockerfile):
+    """The Dockerfile's path inside the host's repository; Refused for one that could leave it (absolute, or `..`)."""
+    path = pathlib.PurePosixPath(dockerfile)
+    if path.is_absolute() or ".." in path.parts:
+        raise Refused(f"--dockerfile {dockerfile}: give its path inside the host's repository, as git names it")
+    return str(path)
+
+
 def release(repo, host, dockerfile, subject, commit=None, trailers=()):
     """Pin the host's Dockerfile to a pushed score commit and push it to the host's main; what it did, in words."""
+    dockerfile = inside(dockerfile)
     new = score_commit(repo, commit)
     ran(host, "fetch", "-q", "origin", "main")
     with tempfile.TemporaryDirectory() as made:

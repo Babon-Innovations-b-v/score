@@ -281,7 +281,10 @@ def runner_price(repo, world):
     if done.returncode != 0:
         return None, f"the runner's price failed: exit {done.returncode}: " + (
             (done.stderr.strip().splitlines() or ["no output"])[-1])
-    totals = json.loads(done.stdout)["totals"]
+    try:
+        totals = json.loads(done.stdout)["totals"]
+    except (ValueError, KeyError, TypeError) as unread:
+        return None, f"the runner's price wrote no totals ({type(unread).__name__}: {unread})"
     return (f"priced by the runner: EUR {totals['likely_euros']:.2f} to {totals['high_euros']:.2f} measured, "
             f"{len(totals['unpriced'])} paid steps with no measured price"), None
 

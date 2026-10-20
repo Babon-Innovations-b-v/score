@@ -106,7 +106,7 @@ def test_every_node_comes_after_every_node_it_reads():
     runner = graph.Runner(TABLE, graph.Environment("toy", 1, {"data": pathlib.Path(tempfile.mkdtemp())}),
                           Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {"kind": kind})
     edges = milestones.read_edges(runner, milestones.remake_nodes(record))
-    order = milestones.ordered(runner, edges, milestones.steps_of(edges))
+    order = milestones.ordered(runner, edges, milestones.steps_of(edges, set(runner.stages)))
     assert order[0] == "terrain" and order[-1] == "library@hangar", order
     for name, reads in edges.items():
         assert all(order.index(before) < order.index(name) for before in reads), name
@@ -131,6 +131,12 @@ def test_the_code_work_waits_at_its_step_and_the_books_at_the_first_paid_one():
     assert found["ground"]["owner"] == [f"the month's books before any paid step: {BOOKS}"]
     assert all(not entry["owner"] for key, entry in found.items() if key not in ("ground", "approval"))
     assert by_key(planned(books=None))["ground"]["owner"] == []
+
+
+def test_a_node_of_a_table_of_its_own_is_what_the_place_holds_never_a_lines_end():
+    found = by_key(planned(findings=[{"id": "missing:kit_1", "rule": "missing", "node": "ship_kit@hangar"}]))
+    assert "ship_kit" in [entry["stage"] for entry in found["made"]["stages"]]
+    assert "ship_kit" not in [entry["stage"] for entry in found["after"]["stages"]]
 
 
 if __name__ == "__main__":

@@ -78,6 +78,16 @@ def test_a_release_refuses_a_commit_not_pushed_or_a_checkout_with_changes(reposi
     assert "ARG SCORE_COMMIT=" in (host / DOCKERFILE).read_text()
 
 
+def test_a_release_refuses_a_dockerfile_path_outside_the_host_and_keeps_other_braces(repositories):
+    score, host, _ = repositories
+    for path in (str(host / DOCKERFILE), "../host/" + DOCKERFILE):
+        with pytest.raises(release.Refused, match="inside the host's repository"):
+            release.release(score, host, path, SUBJECT)
+    release.release(score, host, DOCKERFILE, "cockpit {short} {not a slot}")
+    run(host, "git", "fetch", "-q", "origin", "main")
+    assert run(host, "git", "log", "-1", "--format=%s", "FETCH_HEAD").endswith(" {not a slot}")
+
+
 def test_a_dockerfile_must_pin_exactly_one_commit():
     for text in ("FROM x\n", "ARG SCORE_COMMIT=" + "a" * 40 + "\nARG SCORE_COMMIT=" + "b" * 40 + "\n"):
         with pytest.raises(release.Refused, match="expected one"):
@@ -119,3 +129,16 @@ def test_the_install_writes_both_units_filled_and_enables_the_timer(repositories
     start = next(line for line in lines if line.startswith("ExecStart="))
     assert '"$$SCORE_SECRET_READER" "score-cockpit-sync-token"' in start and "-m score.dashboard sync" in start
     assert (tmp_path / "config/systemd/user/score-sync.timer").read_text().count("OnUnitActiveSec=5min") == 1
+
+
+def test_a_quoted_reader_is_read_as_systemd_reads_it_and_a_failed_user_manager_is_said(repositories, tmp_path,
+                                                                                         monkeypatch):
+    score, host, _ = repositories
+    release.release(score, host, DOCKERFILE, SUBJECT)
+    env = an_env_file(tmp_path)
+    env.write_text(env.read_text().replace("SCORE_SECRET_READER=", 'SCORE_SECRET_READER="').replace(
+        "read-secret\n", 'read-secret"\n'))
+    assert timer.env_refusal(env) is None
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    with pytest.raises(release.Refused, match="systemctl --user daemon-reload failed: no user manager"):
+        timer.install(score, env, host, DOCKERFILE, systemctl=lambda *args: "no user manager")
