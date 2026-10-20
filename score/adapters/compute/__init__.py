@@ -241,22 +241,23 @@ def unit_minutes(stage, units):
     import preflight
     numbers = {"job_seconds": time["unit_seconds"]["likely"], "high_job_seconds": time["unit_seconds"]["high"],
                "setup_minutes": time["setup_minutes"]}
-    machines = time["holds"] == "machines"
-    cards = preflight.cards_for(units, numbers, capacity.run_cap() if machines else 1, time["slots"])
+    machines, slots = time["holds"] == "machines", max(1, time.get("slots") or 1)
+    cards = preflight.cards_for(units, numbers, capacity.run_cap() if machines else 1, slots)
     return {"likely_minutes": round(preflight.minutes_for(units, cards, numbers["job_seconds"],
-                                                          numbers["setup_minutes"], time["slots"]), 2),
+                                                          numbers["setup_minutes"], slots), 2),
             "high_minutes": round(preflight.minutes_for(units, cards, numbers["high_job_seconds"],
-                                                        numbers["setup_minutes"], time["slots"]), 2),
+                                                        numbers["setup_minutes"], slots), 2),
             "cards": cards if machines else None}
 
 
 def per_unit_run(price, node, cards):
-    """A per-unit price with its minutes (unit_minutes on its units) and cards: the run's sizing where the ledger's
-    ticketed runs give one, else the per-unit time's."""
+    """A per-unit price with its minutes (unit_minutes on its units) and the cards those minutes are worked out on;
+    `cards` (the ledger's ticketed run sizing) where its time is unmeasured."""
     timed = unit_minutes(node.partition("@")[0], price["units"])
-    return {**price, "likely_minutes": timed.get("likely_minutes"), "high_minutes": timed.get("high_minutes"),
-            **({"minutes_why": timed["minutes_why"]} if "minutes_why" in timed else {}),
-            "cards": cards if cards is not None else timed.get("cards")}
+    if "minutes_why" in timed:
+        return {**price, "likely_minutes": None, "high_minutes": None, "minutes_why": timed["minutes_why"],
+                "cards": cards}
+    return {**price, **timed}
 
 
 def guess(euros, guess_from):

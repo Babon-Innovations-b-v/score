@@ -28,10 +28,10 @@ def test_rows_wait_for_the_rows_they_read_and_the_longest_path_is_named():
     assert eta["path"] == ["terrain", "concept@a", "plan@a"] and eta["unknown"] == []
 
 
-def test_at_most_jobs_paid_rows_run_at_once_and_a_free_row_never_waits_for_a_slot():
-    nodes = {"first": row(10), "second": row(10), "third": row(10), "free": row(10, paid=False, cards=None)}
+def test_at_most_jobs_rows_run_at_once_free_ones_too_as_the_runners_drive():
+    nodes = {"first": row(10), "second": row(10), "free": row(10, paid=False, cards=None)}
     eta = schedule.schedule(nodes, [], jobs=2, run_cap=20)
-    assert eta["likely_minutes"] == 20 and eta["path"] == ["first", "third"], eta  # third waits for first's slot
+    assert eta["likely_minutes"] == 20 and eta["path"] == ["first", "free"], eta  # free waits for first's slot
 
 
 def test_cards_held_never_pass_the_runs_cap():
@@ -74,6 +74,7 @@ def test_a_paid_row_is_timed_by_its_price_and_a_free_row_by_its_stages_makes():
     assert free["likely_minutes"] is None and "plan" in free["why"]
     unpriced = schedule.timed_row("sound@hangar", True, compute.run_price("sound@hangar", None))
     assert unpriced["likely_minutes"] is None and unpriced["why"] == "not measured yet"
+    assert schedule.timed_row("sound@hangar", True)["why"] == "no price given"
 
 
 if __name__ == "__main__":

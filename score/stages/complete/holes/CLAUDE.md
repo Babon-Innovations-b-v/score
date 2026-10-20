@@ -41,8 +41,8 @@ findings.json's contract. Bible: `architecture/components`.
   measured price is unknown, its row's flat estimate never carried (owner, 2026-10-20). Nothing here buys: a Blocked
   node is priced, never dropped, and the plan and the run keep their refusals.
 - **The runner's ETA is `schedule.py`** (#14): `schedule(nodes, edges, jobs, run_cap)` walks a plan's rows in
-  dependency order (the stage table's order breaking ties), at most `jobs` paid rows at once and never more than
-  `run_cap` cards held, each row on its measured minutes (`timed_row`: a paid row's from `compute.run_price`, a free
+  dependency order (the stage table's order breaking ties), at most `jobs` rows at once (free ones too, as the
+  runner's drive) and never more than `run_cap` cards held, each row on its measured minutes (`timed_row`: a paid row's from `compute.run_price`, a free
   row's from `node_minutes`). A row without minutes is listed with why and walked as no time, so the walk is only a
   lower bound (`at_least_minutes`); likely and high are given only when every row has minutes. It replaces the
   cockpit's own line sums (`score/dashboard/state/costs.py` `time_of`) once the cockpit reads it.
