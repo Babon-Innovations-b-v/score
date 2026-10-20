@@ -50,8 +50,8 @@ Before writing any code:
 
 - [ ] Confirm with user what interface changes are needed
 - [ ] Confirm with user which behaviors to test (prioritize)
-- [ ] Identify opportunities for deep modules, a small interface over a deep implementation: the bar is [`docs/bible.md#workflowmodule-standard`](../../../docs/bible.md#workflowmodule-standard), the vocabulary is [LANGUAGE.md](../improve-codebase-architecture/LANGUAGE.md)
-- [ ] Design interfaces for testability: accept dependencies instead of creating them ([`docs/bible.md#workflowmodule-standard`](../../../docs/bible.md#workflowmodule-standard)), return results instead of mutating, and keep the surface small. To explore two designs in parallel first, see [INTERFACE-DESIGN.md](../improve-codebase-architecture/INTERFACE-DESIGN.md)
+- [ ] Identify opportunities for deep modules, a small interface over a deep implementation: the bar is [`docs/bible.md#workflowmodule-standard`](../../../docs/bible.md#workflowmodule-standard), the vocabulary is [`codebase-design`](../codebase-design/SKILL.md)
+- [ ] Design interfaces for testability: accept dependencies instead of creating them ([`docs/bible.md#workflowmodule-standard`](../../../docs/bible.md#workflowmodule-standard)), return results instead of mutating, and keep the surface small. To explore two designs in parallel first, see [DESIGN-IT-TWICE.md](../codebase-design/DESIGN-IT-TWICE.md)
 - [ ] List the behaviors to test (not implementation steps)
 - [ ] Get user approval on the plan
 
@@ -92,7 +92,7 @@ After all tests pass, look for refactor candidates:
 
 - [ ] Extract duplication into a function or class
 - [ ] Break long methods into private helpers, keeping the tests on the public interface
-- [ ] Deepen or combine shallow modules, moving complexity behind simple interfaces (see [DEEPENING.md](../improve-codebase-architecture/DEEPENING.md))
+- [ ] Deepen or combine shallow modules, moving complexity behind simple interfaces (see [DEEPENING.md](../codebase-design/DEEPENING.md))
 - [ ] Move logic to where the data lives, and replace primitive obsession with value objects
 - [ ] Apply SOLID principles where natural
 - [ ] Consider what the new code reveals about existing code

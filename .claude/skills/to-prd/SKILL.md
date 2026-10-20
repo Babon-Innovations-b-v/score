@@ -44,7 +44,7 @@ Follow [`.claude/skills/DOMAIN-AWARENESS.md`](../DOMAIN-AWARENESS.md): read `CON
 
 One PRD = one coherent module or workstream. Does the work span multiple modules? Then it is multiple PRDs, or you are at the wrong altitude: re-grill.
 
-For code work, sketch the **deep modules** and the **test seams** (vocabulary: [`improve-codebase-architecture/LANGUAGE.md`](../improve-codebase-architecture/LANGUAGE.md)). Test at the highest seam, the public interface and not the internals. This belongs in the **Technical block**, not in the readable header. For work that is not code, skip the Technical block entirely.
+For code work, sketch the **deep modules** and the **test seams** (vocabulary: the [`codebase-design`](../codebase-design/SKILL.md) skill). Test at the highest seam, the public interface and not the internals. This belongs in the **Technical block**, not in the readable header. For work that is not code, skip the Technical block entirely.
 
 Check with the user that the module boundary, and for code the test seams, is right.
 

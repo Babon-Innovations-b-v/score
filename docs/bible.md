@@ -669,7 +669,7 @@ code they have not seen yet.
 - **Deep over shallow.** A module earns its existence by hiding more than it exposes. If its
   interface is nearly as complicated as its implementation, it is a shallow module and belongs
   inlined into its caller. Vocabulary and the full argument:
-  [`.claude/skills/improve-codebase-architecture/LANGUAGE.md`](../.claude/skills/improve-codebase-architecture/LANGUAGE.md).
+  the [`codebase-design`](../.claude/skills/codebase-design/SKILL.md) skill.
 - **One function, one purpose.** If the docstring needs "and" between two concerns, it is two
   functions.
 - **Tests sit with the module** they test, named for the invariant rather than the function
