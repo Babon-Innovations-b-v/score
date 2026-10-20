@@ -42,7 +42,6 @@ def world_folder(folder, sound):
     for name in names:
         for file in sound.takes(sound.entry_of(name)):
             tone(folder / file)
-    (folder / ".checked").write_text("made by the test\n")  # so world.py takes it as fetched
 
 
 def small_stage(out):
@@ -114,7 +113,7 @@ def check_the_rounds(sound):
 def main():
     with tempfile.TemporaryDirectory() as folder:
         folder = pathlib.Path(folder)
-        os.environ["SCORE_WORLD_ASSETS"] = str(folder / "world")
+        os.environ["SCORE_LIB_FILES"] = str(folder / "world")
         import sound  # noqa: E402  (after the world folder is set)
         world_folder(folder / "world", sound)
         small_stage(folder / "stage")

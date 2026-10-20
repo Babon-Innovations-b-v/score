@@ -71,8 +71,8 @@ import rocks
 import shaders
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "tools/assets"))
-import world as world_assets  # noqa: E402
+sys.path.insert(0, str(REPO / "tools/library"))
+import library_files  # noqa: E402
 SCENES = REPO / "data/scene"
 SHARED_PAINT = REPO / "data/library/shared_paint.json"
 # A game directional light of energy 1 as a sun in W/m^2: a white surface it faces then reads about as bright as in
@@ -142,9 +142,9 @@ def colour(value):
 
 
 def world_file(world, name):
-    """A file a record names: kept in git (`data/...`), else in the world's release (tools/assets/world.py), in the
-    folder `world` when given (a test's own), else in the fetched release."""
-    return world_assets.resolve(name, world)
+    """A file a record names: kept in git (`data/...`), else from the library (tools/library/library_files.py), from
+    the folder `world` when given (a test's own); None for a hole."""
+    return library_files.resolve(name, world)
 
 
 def mesh_prim(stage, path, built):
@@ -345,6 +345,9 @@ def fixture(stage, path, entry, out, world, boxes):
     if "label" in entry:
         label(stage, path, entry, out, world)
         return
+    if world_file(world, entry["model"]) is None:  # a hole: left out with what stands on it
+        library_files.say_hole(entry["model"], path)
+        return
     name, (low, high) = fixture_asset(entry, out, world, boxes)
     scale = float(entry.get("scale", 1.0))
     stretch = entry.get("stretch")
@@ -469,6 +472,8 @@ def write_rocks(stage, place, entry, out, world, ground):
     if not entry or ground is None:
         return
     laid = rocks.laid_rocks(entry, world, ground)
+    if not laid:  # every rock model a hole
+        return
     instancer = UsdGeom.PointInstancer.Define(stage, f"/{place}/Rocks")
     models = sorted({rock["model"] for rock in laid})
     boxes = {}

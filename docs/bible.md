@@ -57,10 +57,11 @@ the current backend). No model runs on the coordinating machine.
 - The first environment's data, the game 2099's, read as the example environment: `data/definitions/place.json` (each place's
   style, palette, materials, wear), `design/tokens/tokens.json` (the palette), `data/inventory/` (scene
   inventories), `data/kit/` (laid kit rooms), `data/sound/` (the sound catalogue, briefs, licences and loudness).
-- `tools/assets/`: the environment's heavy files (made models, sounds) as a release of this repository, named with their
-  sha256, source and licence by `data/assets/world1.json`; `world.py` fetches, checks, packs and publishes them, and
-  every record names a file by its name there or by its path in git. The framework reads nothing from the game's
-  checkout (2026-10-09, the owner: the game and SCORE are fully separate); `game_free_test.py` holds it so. An
+- `tools/library/`: the environment's made models and sounds come from the creator's library (score_lib, #22): a
+  record names a file by its library reference (`<kind>/<id>@<version>/<file>`) or by its path in git;
+  `library_files.py` fetches it with the library's own command and checks it against the entry's sha256, and a name
+  the library does not hold is a hole the scene leaves out. The framework reads nothing from the game's checkout
+  (2026-10-09, the owner: the game and SCORE are fully separate); `library_files_test.py` holds it so. An
   engine's own import of the package (the game 2099's Godot scenes for a kit) is that engine's adapter, kept in the
   engine's repository.
 - `vendor/`: third-party tools as released, each pinned with its licence (ADR-0002).

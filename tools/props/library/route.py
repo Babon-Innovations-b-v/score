@@ -30,7 +30,7 @@ models' own boxes and leaves every other piece as the run laid it.
 
 `plan` and `late-plan` run the door check first (gates/doors.py: every door parts its two sides, judged on its own
 floor) and write no job for a layout that fails it. `install` runs the name check first (gates/names.py: an own name means one thing in every room), copies the made
-models and their shared pictures into the world's files (`models/<room>_kit/`, tools/assets/world.py), stores the
+models and their shared pictures into the made folder (`models/<room>_kit/`, tools/library), stores the
 pictures compressed and stops a room past its budget (stored.py), and puts the layout in place (data/kit/<room>.json).
 An engine's own scenes for the kit (the game 2099's Godot scenes) are the engine adapter's, not the framework's.
 """
@@ -52,8 +52,8 @@ import package  # noqa: E402
 import sorter  # noqa: E402
 import stored  # noqa: E402
 
-sys.path.insert(0, str(HERE.parents[1] / "assets"))
-import world as world_assets  # noqa: E402
+sys.path.insert(0, str(HERE.parents[1] / "library"))
+import library_files  # noqa: E402
 
 REPO = library.REPO
 DETAILS = REPO / "data/library/details.json"
@@ -670,14 +670,13 @@ def doors_part_their_sides(layout):
 
 
 def install(work, room):
-    """The made models and their pictures into the world's files (`models/<room>_kit/` in the local copy of the world's
-    release, tools/assets/world.py; pack and publish a new release to share them), the layout into
-    data/kit/<room>.json."""
+    """The made models and their pictures into the made folder (`models/<room>_kit/`, tools/library/library_files.py;
+    `score-lib take-in` takes them into the library), the layout into data/kit/<room>.json."""
     layout = json.loads((work / "layout.json").read_text())
     faults = names.check(layout, room)
     if faults:
         raise SystemExit("the name check (gates/names.py) stops the install:\n  " + "\n  ".join(faults))
-    folder = world_assets.local_folder(world_assets.manifest()) / "models" / f"{room}_kit"
+    folder = library_files.made_folder() / "models" / f"{room}_kit"
     if folder.exists():
         shutil.rmtree(folder)
     (folder / "textures").mkdir(parents=True)

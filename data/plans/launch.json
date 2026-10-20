@@ -41,7 +41,7 @@
   "ROCKET 60 m": {
    "name": "rocket",
    "row": "far_rocket",
-   "model": "models/launch_rocket_solid/far_rocket_1.gltf",
+   "model": "model/far_rocket_1.gltf@1/gltf/far_rocket_1.gltf",
    "level": 1.2,
    "yaw": 90.0,
    "height": 60.0,

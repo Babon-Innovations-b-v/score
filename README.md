@@ -102,17 +102,13 @@ crowd from where they are seen, and short moving shots, rendered from the stage 
 
 ## The environment's files
 
-The first environment's heavy files, its made models (about 256 MB packed) and its sounds (about 36 MB), are not in git: they are
-a release of this repository (`world1-assets-4` now), and `data/assets/world1.json` names every file with its sha256, its
-source and its licence. A record names a file by its name there (`models/hub_kit/console_1.gltf`,
-`sound/generated/places/habitat.ogg`); `tools/assets/world.py` fetches and checks the release the first time a
-tool needs one, into `~/.cache/score/world-assets/<tag>/` (or `SCORE_WORLD_ASSETS`). The framework reads nothing
-from the game 2099's checkout; `tools/assets/game_free_test.py` fails when code or data names it.
-
-```bash
-python3 tools/assets/world.py fetch                       # the release, checked
-python3 tools/assets/world.py pack <folder> <new tag>     # a new release from the local files, then: publish
-```
+An environment's made models and sounds are not in git: they are entries of the creator's library, score_lib, its
+bytes in the library's blob store. A record names a file by its library reference
+(`sound/habitat.recordings@1/audio/recordings/places/habitat.ogg`, `model/rover.gltf@1/gltf/rover.glb`);
+`tools/library/library_files.py` fetches it with the library's own command into a cache under `$PROPS_HOME` and
+checks it against the entry's sha256 (the library's settings: `SCORE_LIB_*`, else `$PROPS_HOME/library.env`). A
+name the library does not hold is a hole, left out of the scene. The framework reads nothing from the game 2099's
+checkout; `tools/library/library_files_test.py` fails when code or data names it.
 
 ## Cloud capacity
 

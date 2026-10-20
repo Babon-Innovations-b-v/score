@@ -207,7 +207,8 @@ def kit_floors(kit, every=False):
 def model_low(made):
     """How far a plan object's released world model's lowest point lies under its origin once stood as the record
     stands it (scaled to its `height`, pressed by its `stretch`): metres, positive downward (the rocket's base 6 mm
-    under its origin); 0 for an object still `waiting` on its model."""
+    under its origin); 0 for an object still `waiting` on its model, or one whose model is a hole (not in the library:
+    the scene leaves it out)."""
     if made.get("waiting"):
         return 0.0
     model, height, stretch = made["model"], made.get("height"), made.get("stretch")
@@ -215,7 +216,10 @@ def model_low(made):
     import trimesh
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3] / "tools/usd"))
     import scene
-    low, high = trimesh.load(str(scene.world_file(None, model)), force="scene").bounds
+    found = scene.world_file(None, model)
+    if found is None:
+        return 0.0
+    low, high = trimesh.load(str(found), force="scene").bounds
     scale = float(height) / float(high[1] - low[1]) if height else 1.0
     return -float(low[1]) * scale * (float(stretch[1]) if stretch else 1.0)
 

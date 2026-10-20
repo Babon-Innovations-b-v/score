@@ -5,7 +5,7 @@
   {
    "name": "rocket",
    "row": "far_rocket",
-   "model": "models/launch_rocket_solid/far_rocket_1.gltf",
+   "model": "model/far_rocket_1.gltf@1/gltf/far_rocket_1.gltf",
    "at": [
     -270.0,
     1.21,

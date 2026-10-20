@@ -27,11 +27,12 @@ import subprocess
 import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO / "tools" / "assets"))
-import world as world_assets  # noqa: E402
+sys.path.insert(0, str(REPO / "tools" / "library"))
+import library_files  # noqa: E402
 
 ## Every sound file's loudness, true peak and hash, by its name in the world's files.
 MANIFEST = REPO / "data" / "sound" / "loudness.json"
+LICENCES = REPO / "data" / "sound" / "licences.json"
 AUDIO_ENDINGS = (".ogg", ".wav", ".mp3")
 
 ## The true-peak ceiling every file keeps under, in dBTP.
@@ -139,13 +140,16 @@ def sha256_of(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
-def world_files(world=None):
-    """Every audio file under the world's sound folder (the fetched release when not given), by its name there."""
-    world = pathlib.Path(world) if world else world_assets.root()
+def world_files():
+    """Every sound file the licence list names (data/sound/licences.json), from the library, by its name there; a
+    hole (a file the library does not hold) is left out."""
     found = {}
-    for path in sorted((world / "sound").rglob("*")):
-        if path.suffix.lower() in AUDIO_ENDINGS:
-            found[path.relative_to(world).as_posix()] = path
+    for listing in json.loads(LICENCES.read_text()):
+        path = library_files.resolve(listing["file"])
+        if path is None:
+            library_files.say_hole(listing["file"], "the licence list")
+        elif path.suffix.lower() in AUDIO_ENDINGS:
+            found[listing["file"]] = path
     return found
 
 

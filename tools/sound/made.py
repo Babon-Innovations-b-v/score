@@ -31,11 +31,11 @@ import sys
 
 RATE = 44100
 REPO = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO / "tools" / "assets"))
-import world as world_assets  # noqa: E402
+sys.path.insert(0, str(REPO / "tools" / "library"))
+import library_files  # noqa: E402
 
-## The environment's files (the local copy of its release, tools/assets/world.py): a remade sound is packed with the next.
-OUT = world_assets.local_folder(world_assets.manifest()) / "sound" / "made"
+## The made folder (tools/library/library_files.py): a remade sound goes into the library by score-lib take-in.
+OUT = library_files.made_folder() / "sound" / "made"
 SEED = 35  # the issue number; any fixed number would do
 
 

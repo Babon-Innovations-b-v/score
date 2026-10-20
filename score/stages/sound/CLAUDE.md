@@ -20,7 +20,7 @@ gates; `takes.py` the paid part.
   surface bank (`data/sound/surfaces.json`). That table names only picked sounds; one still to make is in its
   `wanted` until its brief is written and made. A new source gets its brief (`pick` with `prompts`) in `data/sound/sounds.json`, its
   category setting its loudness, and the stage makes it; never a file by hand.
-- **A sound picked already is taken as it is** (the environment's release, its credit off `data/sound/licences.json`, its CLAP
+- **A sound picked already is taken as it is** (from the library, tools/library; its credit off `data/sound/licences.json`, its CLAP
   score `chosen.clap` measured when it was made); only one whose files are off its category's loudness is levelled
   here, its volume moved so it plays as loud as before. Only briefs no environment file answers are made, MOSS on one rented
   card in the moss image (`takes.py`, through `tools/cloud/images/prove.py`), chosen by the picker's rule.
