@@ -31,7 +31,9 @@ def test_counts_and_gate():
         assert [figure["doing"] for figure in figures] == ["working", None, None]
         unknown = concept_people.judge_measured(root, inputs, None)
         assert unknown.answer == checks.UNKNOWN and "lab.v1" in unknown.reason
-        assert concept_people.judge_judged(root, inputs, None).answer == checks.UNKNOWN
+        split = concept_people.judge_judged(root, inputs, None)
+        assert split.answer == checks.UNKNOWN and split.reason.startswith("split vote, a hole"), split.reason
+        assert "greenhouse.v1.2" in split.reason  # named, never asked again inside the batch (#21)
         instances["lab.v1"] = []
         judged["greenhouse.v1.2"] = [("suit", None), ("suit", None), (None, None)]
         concept_people.write_counts(jobs, instances, root / "people.json", judged)
