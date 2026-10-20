@@ -206,11 +206,10 @@ def test_a_shells_first_draw_holds_every_inside_place_listed_at_its_size_joined_
     assert "the hub: a walkway tube to the lab" in wording and "the hub: opens straight into the airlock" in wording
     assert "the garage: its big door, outer, 5 x 4 m opens onto the outside" in wording
     assert "recognisable from outside" in wording and wording.endswith("Chinese and American mixed.")
-    street = concepts.first_wording("street")[0]
-    assert "the stairwell (four storeys" in street and "the flat (third floor" in street and "6 m by 5 m" in street
-    assert "Night in a narrow street" in street  # its own look and plan stay
-    assert "a crowd of people on the square" in street and "the rocket launch" in street  # its outside's parts
-    assert "the square" not in concepts.holding_words("street")  # a part of its outside, no inside place
+    square = concepts.first_wording("square")[0]
+    assert "the stairwell (four storeys" in square and "the flat (third floor" in square and "6 m by 5 m" in square
+    assert "waterfront state square in Hong Kong" in square  # its own look and plan stay
+    assert "the street (" in square and "the launch" in square  # the places within it
     assert not concepts.holds_inside("hangar") and concepts.holds_inside("ship")  # an inside place is drawn inside
 
 
@@ -231,11 +230,11 @@ def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway()
     assert concepts.EVERY_DRAW in concepts.first_wording("street")[0]
 
 
-def test_draw_all_skips_parts_and_holds_an_inside_place_for_its_outsides_pick(tmp_path):
+def test_draw_all_holds_a_place_within_another_until_that_ones_pick(tmp_path):
     store = Store.in_folder(tmp_path)
-    ready, waiting = concepts.undrawn(store, ["base", "hub", "square"])
-    assert ready == ["base"] and "square" not in waiting
-    assert waiting["hub"] == "waits for base's concept to be picked"
+    ready, waiting = concepts.undrawn(store, ["base", "hub", "street"])
+    assert ready == ["base"]
+    assert waiting == {"hub": "waits for base's concept to be picked", "street": "waits for square's concept to be picked"}
 
 
 def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monkeypatch):

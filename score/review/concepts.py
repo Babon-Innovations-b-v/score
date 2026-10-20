@@ -391,7 +391,7 @@ def framing(place):
     """The fixed viewpoint every concept of `place` is drawn from (the owner, 2026-10-20): an outside place (one that
     sits in nothing, or holds inside places of its own) from a high three-quarter view, an inside place as a cutaway
     from the same view; then what every draw shares."""
-    inside = place in tree()["within"] and not holds_inside(place)
+    inside = place in tree()["within"] and not holds_inside(place) and plan_of(place).get("inside") is not False
     return f"{INSIDE_VIEW if inside else OUTSIDE_VIEW} {EVERY_DRAW}"
 
 
