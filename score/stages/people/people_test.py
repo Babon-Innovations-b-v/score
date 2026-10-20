@@ -134,6 +134,37 @@ def test_clearance_eases_out_and_back():
     assert eased[10] >= 0.3 and eased[8] > 0 and eased[0] == 0 and eased[19] == 0, eased
 
 
+def test_a_looks_parts_are_their_own_priced_row_the_body_reads():
+    """#21: the parts are never bought inside the body row: each look has a `people-look-parts-<look>` row, priced on
+    its own and keyed on its take and outfit (not the clips), and its body row reads it."""
+    built = {row.name: row for row in bodies.rows()}
+    for look in bodies.looks():
+        parts, body = built[f"{bodies.PARTS}-{look}"], built[f"{bodies.BODY}-{look}"]
+        assert parts.paid and parts.euros == bodies.PARTS_EUROS and "clips" not in parts.files, parts
+        assert body.after[parts.name] == (bodies.PARTS, 1) and body.euros < 3.0, body
+
+
+def test_parts_pass_only_when_every_part_is_named():
+    with tempfile.TemporaryDirectory() as held:
+        found = [{"name": "coat", "role": "garment", "material": "FABRIC"}, {"name": "boot_r", "role": "hard"}]
+        (pathlib.Path(held) / "parts.json").write_text(json.dumps({"parts": found}))
+        assert bodies.judge_parts(pathlib.Path(held), {}, {}).answer == "fail"
+        found[1]["material"] = "LEATHER"
+        (pathlib.Path(held) / "parts.json").write_text(json.dumps({"parts": found}))
+        assert bodies.judge_parts(pathlib.Path(held), {}, {}).answer == "pass"
+
+
+def test_a_failed_bind_record_refuses_the_body_before_any_machine():
+    """#21: a look whose bind-pose tucks failed on the same inputs is Blocked, a predicted hole, never rented for."""
+    from score import graph
+    bodies.refused_on_record(None, "people-body-x")
+    try:
+        bodies.refused_on_record({"worst_tuck_out_mm": 9.32, "parts": {"boot_r": 9.32}}, "people-body-x")
+        raise AssertionError("a failed bind record was bought again")
+    except graph.Blocked as blocked:
+        assert "predicted hole" in str(blocked) and "9.32" in str(blocked)
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy

@@ -35,6 +35,7 @@ body. The stages, each a cloud job through the repo's runners (only plain CPU ge
 """
 import argparse
 import contextlib
+import hashlib
 import json
 import pathlib
 import shutil
@@ -620,6 +621,43 @@ def checks(spec, outfit, who, held, dry_run):
         together([BODYCLOTH, body, "--outfit", outfit, "--out", checked / "bodycloth_plain.json"],
                  ["bodycloth_shaped.py", BODYCLOTH, body, "--outfit", outfit, "--out", checked / "bodycloth.json"])
     return write_table(spec, outfit, folder, take)
+
+
+def bind_inputs(spec, folder, take):
+    """The hash of what a look's bind-pose tucks are made from: its take, its spec, its parts and this folder's code
+    (the rig, the shell's binding, the build, the tucks and their measure): a failed bind record on the same hash
+    predicts the same failure (#21)."""
+    digest = hashlib.sha256(json.dumps([take, spec], sort_keys=True).encode())
+    for path in (folder / "parts" / take / "parts.npz", *sorted(HERE.glob("*.py"))):
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def bind_tucks(spec, outfit):
+    """The built body's tucks at the bind pose (pokes.py --bind, here, seconds, free): <candidate>/checks/
+    bind_tucks.json with the hash of its inputs, and the record."""
+    folder = folder_of(spec, outfit)
+    take = (folder / "take.txt").read_text().strip()
+    written = folder / "checks" / "bind_tucks.json"
+    written.parent.mkdir(exist_ok=True)
+    local("pokes.py", folder / "out" / f"{spec['name']}.glb", "--out", written, "--bind")
+    record = dict(json.loads(written.read_text()), inputs=bind_inputs(spec, folder, take))
+    written.write_text(json.dumps(record, indent=1))
+    return record
+
+
+def predicted_bind(spec, outfit):
+    """The look's last bind record when it failed on the same inputs (bind_inputs): a predicted hole, nothing to buy
+    (#21); None when there is none, it passed, or anything it was made from has changed."""
+    folder = folder_of(spec, outfit)
+    written = folder / "checks" / "bind_tucks.json"
+    if not written.exists():
+        return None
+    record = json.loads(written.read_text())
+    take = (folder / "take.txt").read_text().strip()
+    if record.get("pass") or record.get("inputs") != bind_inputs(spec, folder, take):
+        return None
+    return record
 
 
 CHECK_CLASSES = "cpu-16c-64gb,cpu-32c-64gb"  # four checks at once; the cheapest machine first

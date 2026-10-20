@@ -196,3 +196,24 @@ def test_pixal3d_is_bought_for_the_one_passing_close_up_with_its_arms_furthest_a
     assert prop_person.closeups(PERSON, "work") == []
     words = (pathlib.Path(__file__).resolve().parent / "prop_person.py").read_text()
     assert 'spec.get("closeup_seeds", [1])' in words
+
+
+def test_a_failed_bind_record_predicts_a_hole_only_on_the_same_inputs(tmp_path, monkeypatch):
+    """#21: a look's failed bind-pose tucks record, on the hash of its take, spec, parts and the maker's code, predicts
+    the same failure (nothing bought); a passing record, or any changed input, predicts nothing."""
+    import prop_person
+    monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path)
+    folder = prop_person.folder_of(PERSON, "work")
+    (folder / "parts" / "pp-a_s1").mkdir(parents=True)
+    (folder / "checks").mkdir()
+    (folder / "take.txt").write_text("pp-a_s1")
+    (folder / "parts" / "pp-a_s1" / "parts.npz").write_bytes(b"first parts")
+    record = {"worst_tuck_out_mm": 9.32, "parts": {"boot_r": 9.32}, "pass": False,
+              "inputs": prop_person.bind_inputs(PERSON, folder, "pp-a_s1")}
+    (folder / "checks" / "bind_tucks.json").write_text(json.dumps(record))
+    assert prop_person.predicted_bind(PERSON, "work") == record
+    (folder / "checks" / "bind_tucks.json").write_text(json.dumps(dict(record, **{"pass": True})))
+    assert prop_person.predicted_bind(PERSON, "work") is None
+    (folder / "checks" / "bind_tucks.json").write_text(json.dumps(record))
+    (folder / "parts" / "pp-a_s1" / "parts.npz").write_bytes(b"new parts")
+    assert prop_person.predicted_bind(PERSON, "work") is None

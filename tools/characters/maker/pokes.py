@@ -2,7 +2,7 @@
 read from the built glTF as the engine skins it (people/joins.py's reader). Measures; it does not judge by eye.
 
     ~/.farm-factory-props/env/bin/python tools/characters/maker/pokes.py <body.glb> --out <pokes.json> [--every 1]
-        [--against <the shipped body's pokes.json>]
+        [--against <the shipped body's pokes.json>] [--bind]
 
 - tuck_out_mm: each tuck (a band run on under a garment from a skin part, a boot or a mitt, tucks.py; its points from
   the material's `tuck_from`) point's distance outside the person's closed surface (every surface but the bands,
@@ -245,6 +245,24 @@ def measure(path, every, outfit=None):
     return record
 
 
+def bind(path, outfit=None):
+    """The tucks at the bind pose alone, before any clip (#21): {"body", "worst_tuck_out_mm", "parts": {part: worst mm},
+    "pass"}. One pose, measured in seconds here, so a look whose tucks already stand over POKE_MM outside its surface at
+    the bind (and so in every frame of every clip: nev's and sefa's boots, 2026-10-13) is a hole before its settle."""
+    document, blob = joins.read_glb(path)
+    found = surfaces(document, blob, outfit)
+    tucked = [(part, tuck_from) for part, _, tuck_from in found if tuck_from is not None]
+    parts = {}
+    if tucked:
+        outer = outer_surface({id(part): part.points for part, _, _ in found}, found, outer_welding(found))
+        for part, start in tucked:
+            outside = tuck_out(part.points[start:], outer)
+            worst = float(outside.max()) * 1000 if len(outside) else 0.0
+            parts[part.name] = round(max(parts.get(part.name, worst), worst), 2)
+    worst = max(parts.values(), default=0.0)
+    return {"body": str(path), "worst_tuck_out_mm": worst, "parts": parts, "pass": worst <= POKE_MM}
+
+
 def against(record, shipped):
     """The cloth verdict set against the shipped body's record: no clip crosses more than the shipped body's same
     clip (a clip the shipped body has not is held to the rest)."""
@@ -263,7 +281,13 @@ def main():
     parser.add_argument("--every", type=int, default=CROSSING_EVERY)
     parser.add_argument("--against", type=pathlib.Path, help="the shipped body's pokes record")
     parser.add_argument("--outfit", help="measure only this outfit's node")
+    parser.add_argument("--bind", action="store_true", help="only the tucks at the bind pose (bind())")
     options = parser.parse_args()
+    if options.bind:
+        record = bind(options.body, options.outfit)
+        options.out.write_text(json.dumps(record, indent=1))
+        print(f"bind tucks: {'pass' if record['pass'] else 'FAIL'} {record['worst_tuck_out_mm']} mm; {options.out}")
+        return
     record = measure(options.body, options.every, options.outfit)
     if options.against:
         against(record, json.loads(options.against.read_text()))

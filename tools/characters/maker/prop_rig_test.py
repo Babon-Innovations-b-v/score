@@ -235,6 +235,27 @@ def test_pokes_read_a_hard_parts_stretch():
     assert abs(pokes.stretch({id(part): part.points * 1.5}, edges) - 1.5) < 1e-9
 
 
+def test_pokes_read_a_tuck_standing_out_at_the_bind_pose(monkeypatch):
+    """#21: pokes.bind measures the tucks in the bind pose alone; a band 10 mm out of the person fails before any clip,
+    one 2 mm under it passes."""
+    box = trimesh.creation.box(extents=(0.2, 0.2, 0.2))
+
+    def found(height):
+        coat = pokes.joins.Part("coat", np.asarray(box.vertices), np.zeros((8, 4)), np.tile([1.0, 0, 0, 0], (8, 1)),
+                                np.asarray(box.faces))
+        band = np.array([[0.0, 0.0, height], [0.01, 0.0, height], [0.0, 0.01, height]])
+        boot = pokes.joins.Part("boot_r", np.vstack([np.asarray(box.vertices) * 0.5, band]), np.zeros((11, 4)),
+                                np.tile([1.0, 0, 0, 0], (11, 1)), np.vstack([np.asarray(box.faces), [[8, 9, 10]]]))
+        return [(coat, pokes.GARMENT, None), (boot, "hard", 8)]
+
+    monkeypatch.setattr(pokes.joins, "read_glb", lambda path: ({}, b""))
+    for height, passes in ((0.11, False), (0.098, True)):
+        monkeypatch.setattr(pokes, "surfaces", lambda document, blob, outfit=None, height=height: found(height))
+        record = pokes.bind("body.glb")
+        assert record["pass"] is passes and set(record["parts"]) == {"boot_r"}, record
+    assert abs(record["worst_tuck_out_mm"] + 2.0) < 0.5, record
+
+
 def test_the_bake_carries_offsets_into_the_bind_pose_and_keeps_them():
     turn = np.eye(4)
     turn[:3, :3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]

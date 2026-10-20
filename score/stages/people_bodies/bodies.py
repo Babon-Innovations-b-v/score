@@ -1,11 +1,15 @@
-"""The people's body rows (#5, the owner's plan of 2026-10-11: people are made like every prop): one world row a look,
-`people-body-<look>`, paid, each a node of its own so the looks run side by side. A look is a take of
-data/people/surfaces.json with its `spec` and `outfit`: the prop route's Pixal3D take, SOMA-X's body fitted under it
-as its moving base (only the rig, so Kimodo's clips play), its parts, its garments settled through every clip, and
-its checks (tools/characters/maker/prop_person.py's stages build, settle and checks-cloud, the checks side by side on
-a rented processor machine; its parts first when the take has none). The maker works in its candidate folder
-(~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row copies the made body and every record the
-gates read into its output.
+"""The people's body rows (#5, the owner's plan of 2026-10-11: people are made like every prop): two world rows a look,
+`people-look-parts-<look>` and `people-body-<look>`, paid, each a node of its own so the looks run side by side. A
+look is a take of data/people/surfaces.json with its `spec` and `outfit`: the prop route's Pixal3D take, SOMA-X's
+body fitted under it as its moving base (only the rig, so Kimodo's clips play), its parts, its garments settled
+through every clip, and its checks (tools/characters/maker/prop_person.py's stages build, settle and checks-cloud,
+the checks side by side on a rented processor machine), on the parts its own priced row made,
+`people-look-parts-<look>` (PARTS, #21: never a purchase hidden inside the body row; gated on `parts`, every part
+named with a role and a material). A full look's tucks are measured at the bind pose right after its build (pokes.py
+--bind, free): over the tucks gate's 5 mm there, every clip fails, so the settle is not bought and the look is a
+hole; a look whose bind record failed on the same inputs is refused before any machine (prop_person.predicted_bind).
+The maker works in its candidate folder (~/.farm-factory-motion/candidates/prop-people/<name>/<outfit>/); the row
+copies the made body and every record the gates read into its output.
 
 Gates (unknown blocks): joins (wrist, ankle, stance; people/joins.py), clips (the body judged clip by clip, clips.py:
 tucks, rigid, cloth through cloth and body through cloth per clip; every clip judged, the failing ones named with
@@ -31,9 +35,13 @@ DATA = REPO / "data/people/surfaces.json"
 CUT = REPO / "data/people/bodies.json"
 MOTION_HOME = pathlib.Path.home() / ".farm-factory-motion"
 PIXAL = "{home}/work/pixal"
-# A look's estimate: its parts when missing (about EUR 1), the build and the settle each on an L4 for about an hour
-# with its setup (EUR 0.79 an hour), measured on the player 2026-10-10.
-EUROS = 3.0
+# A look's estimate: the build and the settle each on an L4 for about an hour with its setup (EUR 0.79 an hour),
+# measured on the player 2026-10-10; its parts are their own priced row (PARTS, #21), never bought inside it.
+EUROS = 2.0
+# A look's parts (prop_person.parts: SAM 2.1's regions, GeoSAM2, the judge's materials), about EUR 1 (the player,
+# 2026-10-10): free where its candidate folder already holds them.
+PARTS = "people-look-parts"
+PARTS_EUROS = 1.0
 # A far-crowd look: its build alone on an L4 with its setup, about 20 minutes.
 FAR_EUROS = 0.5
 SHIPPED_TRIANGLES = 29849
@@ -77,6 +85,12 @@ def files(look, entry):
             "close-up": f"{PIXAL}/{take}.svviews", "clips": str(MOTION_HOME / "work/motions")}
 
 
+def parts_files(entry):
+    """The world files a look's parts read: its spec, the maker's code and its take's model and close-up (not the
+    clips: a new clip never buys the parts again)."""
+    return {name: path for name, path in files(None, entry).items() if name not in ("people tools", "clips")}
+
+
 def made(look, entry):
     """The make of one look's row."""
     def make(inputs, out, seed, params):
@@ -88,19 +102,79 @@ def made(look, entry):
         folder = prop_person.folder_of(spec, outfit)
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "take.txt").write_text(entry["take"])
-        if not (folder / "parts" / entry["take"] / "parts.npz").exists():
-            prop_person.parts(spec, outfit, who, None, False)
+        laid_parts(pathlib.Path(inputs[f"{PARTS}-{look}"]), folder / "parts" / entry["take"])
+        if not entry.get("far_only"):
+            refused_on_record(prop_person.predicted_bind(spec, outfit), who)
         stages = ("build",) if entry.get("far_only") else ("build", "settle")
+        bind = None
         with prop_person.machine_held(spec, outfit, who) as held:  # one machine, set up once: shell, build, settle
             for stage in stages:
                 prop_person.record_stage(folder, stage, *timed(prop_person.STAGE_WORK[stage], spec, outfit, who,
                                                                held))
+                if stage == "build" and "settle" in stages:
+                    bind = prop_person.bind_tucks(spec, outfit)
+                    if not bind["pass"]:
+                        break  # every clip fails from its first frame: the settle is not bought
+        if bind is not None and not bind["pass"]:
+            raise RuntimeError(f"{who}: a hole, bind-pose tucks {bind['worst_tuck_out_mm']} mm out ({bind['parts']}),"
+                               " over the 5 mm the tucks gate allows in every frame of every clip; its settle not "
+                               "bought, a new body is a new batch")
         if entry.get("far_only"):
             kept_far(folder, spec["name"], entry, out)
             return
         prop_person.record_stage(folder, "checks-cloud", *timed(prop_person.checks_cloud, spec, outfit, who, None))
         kept(folder, spec["name"], entry, out)
     return make
+
+
+def refused_on_record(foretold, who):
+    """Blocked, before any machine is rented, when the look's bind-pose tucks failed on the same inputs (#21:
+    prop_person.predicted_bind): a predicted hole, never bought again. A body batch whose every look is foretold so
+    spends nothing."""
+    if foretold:
+        raise graph.Blocked(f"{who}: a predicted hole, its bind-pose tucks {foretold['worst_tuck_out_mm']} mm out "
+                            f"({foretold['parts']}) on these same inputs; change the take, its parts or the maker "
+                            "first")
+
+
+def laid_parts(accepted, target):
+    """The look's accepted parts (its PARTS row's output) laid where the maker reads them, unless already there."""
+    target.mkdir(parents=True, exist_ok=True)
+    for name in ("parts.npz", "parts.json"):
+        if not (target / name).exists():
+            shutil.copyfile(accepted / name, target / name)  # not the checkout's read-only mode
+
+
+def parts_made(look, entry):
+    """The make of one look's parts row: the parts the candidate folder holds, else bought once
+    (prop_person.parts), copied into the output."""
+    def make(inputs, out, seed, params):
+        sys.path.insert(0, str(MAKER))
+        import prop_person
+        import spec as specs
+        spec = specs.read(pathlib.Path(inputs["spec"]))
+        folder = prop_person.folder_of(spec, entry["outfit"])
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "take.txt").write_text(entry["take"])
+        made_parts = folder / "parts" / entry["take"]
+        if not (made_parts / "parts.npz").exists():
+            prop_person.parts(spec, entry["outfit"], f"{PARTS}-{look}", None, False)
+        for name in ("parts.npz", "parts.json"):
+            shutil.copy2(made_parts / name, out / name)
+    return make
+
+
+def parts_faults(folder):
+    return [f"no {name}" for name in ("parts.npz", "parts.json") if not (pathlib.Path(folder) / name).exists()]
+
+
+def judge_parts(output, inputs, evidence):
+    """Pass when the take is split into named parts, each with its role and material."""
+    found = json.loads((pathlib.Path(output) / "parts.json").read_text())["parts"]
+    named = [part for part in found if part.get("name") and part.get("role") and part.get("material")]
+    return Verdict("parts", PASS if found and len(named) == len(found) else FAIL,
+                   f"{len(named)} of {len(found)} parts named with a role and a material",
+                   {"parts": len(found), "named": len(named)})
 
 
 def timed(stage, spec, outfit, who, held):
@@ -285,9 +359,14 @@ def far_checks():
 
 
 def rows():
-    """One paid world row a look; a far-crowd look (`far_only`) is built only and gated on what a far body shows."""
-    return tuple(graph.Stage(f"{BODY}-{look}", "world", made(look, entry), contracts.Contract(BODY, 1, body_faults),
-                             far_checks() if entry.get("far_only") else checks(), files=files(look, entry),
-                             params={key: value for key, value in entry.items() if key != "object"}, paid=True,
-                             euros=FAR_EUROS if entry.get("far_only") else EUROS)
-                 for look, entry in looks().items())
+    """Two paid world rows a look: its parts (PARTS), priced on their own, and its body, which reads them; a far-crowd
+    look (`far_only`) is built only and gated on what a far body shows."""
+    return tuple(row for look, entry in looks().items() for row in (
+        graph.Stage(f"{PARTS}-{look}", "world", parts_made(look, entry), contracts.Contract(PARTS, 1, parts_faults),
+                    (guarded("parts", judge_parts),), files=parts_files(entry),
+                    params={"take": entry["take"], "outfit": entry["outfit"]}, paid=True, euros=PARTS_EUROS),
+        graph.Stage(f"{BODY}-{look}", "world", made(look, entry), contracts.Contract(BODY, 1, body_faults),
+                    far_checks() if entry.get("far_only") else checks(), files=files(look, entry),
+                    after={f"{PARTS}-{look}": (PARTS, 1)},
+                    params={key: value for key, value in entry.items() if key != "object"}, paid=True,
+                    euros=FAR_EUROS if entry.get("far_only") else EUROS)))
