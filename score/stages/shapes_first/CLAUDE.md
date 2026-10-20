@@ -20,7 +20,9 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
 - **After-steps.** Each is a place row whose `after` holds every key of `made.ENDS` (`props-inputs`, `surfaces-bake`,
   `surfaces-parts`, `likeness`); one that does not is refused at import. Its make calls
   `made.made(inputs, "<layer>")` and gets `{row: {"route": "prop", "model": <baked .gltf>, "take", "finishes":
-  [<surfaces-parts part rows>]}}`, `{"route": "code", "model": <code build>, "finishes": []}` or `{"gap": <why>}`.
+  [<surfaces-parts part rows>], "failures": {<step>: <the record's named failure>}}}`, `{"route": "code", "model":
+  <code build>, "finishes": []}` or `{"gap": <why>}`. A step made outside the loop is named in the row's record
+  entry (`"failures"`, carried through `props-inputs`' rows.json), never left to prose.
   Import `score.stages.shapes_first.made` by its full name, never the package (the package is table wiring; its
   imports would move the after-step's key).
 - **The registration.** `rough-align@<place>` (free) reads `rough-model` and `plan` and writes `align.json` (turn,
@@ -50,6 +52,12 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   `stages.PLACE_ONLY`) do not apply there (`no_place`). It is no place of the environment's (`stages.places`), so a
   whole run leaves it out: run it by name (`--place people`). Its after-steps are place rows on that line; a world row
   reads one beside, `neighbours` naming the line (`people_bodies/bodies.the_line`).
-- **Not moved yet** (#41's other agents): the motion rows. Each joins as an adapter here; its side route goes. The people's adapter
-  (`PEOPLE`) is in; their bodies' rig, settle and clips still are world rows of their own after it (`../people`).
+- **Not moved yet** (#41's other agents): the motion rows. Each joins as an adapter here; its side route goes. The
+  people's adapter (`PEOPLE`) is in, its one after-step the hand-on (`people-made`).
+- **Named exception: the people's motion steps stay world rows.** Each look's parts, body (rig, settle, checks) and
+  dress, and the clips, are world rows of their own (`../people_bodies`, `../people`) so the looks run side by side,
+  each a node of its own; they read the hand-on beside (`neighbours`), so `after_step`'s check does not reach them.
+  Each look's record (`data/props/people.json`, `failures`) names what is still made outside the loop: its take
+  (`people-take-<look>`: the Pixal3D batch refuses a `no_place` inventory), its second split
+  (`people-look-parts-<look>`) and its body built from the raw take, not the baked model handed on.
 - Test: `shapes_first_test.py` (`.venv/bin/python -m pytest score/stages/shapes_first`), no spend.

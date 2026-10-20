@@ -61,7 +61,8 @@ def make_inputs(inputs, out, seed, params):
         named = inputs.get(f"close-up {row['id']}")
         row["drawn"] = str(named) if named else None
         entry = record["objects"][row["id"]]
-        row.update(route=entry["route"], take=entry.get("take"), layer=layer_of(entry))
+        row.update(route=entry["route"], take=entry.get("take"), layer=layer_of(entry),
+                   failures=entry.get("failures", {}))
     missing = sorted(set(record["objects"]) - {row["id"] for row in rows})
     (out / "rows.json").write_text(json.dumps({"rows": rows, "not_in_inventory": missing}, indent=1))
 

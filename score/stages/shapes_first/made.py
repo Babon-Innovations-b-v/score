@@ -2,7 +2,8 @@
 
 An after-step reads the loop's ends (`ENDS`, in its `after`) and calls `made(inputs, layer)`:
 
-    {row: {"route": "prop", "model": <baked .gltf>, "take": <take>, "finishes": [<part rows of surfaces-parts>]}
+    {row: {"route": "prop", "model": <baked .gltf>, "take": <take>, "finishes": [<part rows of surfaces-parts>],
+           "failures": {<step>: <the named failure the row's record gives for a step made outside the loop>}}
           | {"route": "code", "model": <the code build named by the row's failure>, "finishes": []}
           | {"gap": <why the loop made no model for the row>}}
 
@@ -41,7 +42,7 @@ def made_row(row, entry, baked, parts):
     if model is None:
         return {"gap": f"take {row['take']} has no baked model"}
     return {"route": "prop", "model": str(model), "take": row["take"],
-            "finishes": parts.get(row["take"], {}).get("parts", [])}
+            "finishes": parts.get(row["take"], {}).get("parts", []), "failures": row.get("failures", {})}
 
 
 def made(inputs, layer):

@@ -311,6 +311,7 @@ WORK_PATHS_LEFT = {
                                                    "quarters", "storage")},
     "data/props/cockpit.json": 25, "data/props/shiplock.json": 25,  # Pixal3D takes and hub-round6 models
     "data/props/batches/trial.json": 8,  # the trial's close-ups, Pixal3D takes
+    "data/props/people.json": 23,  # #41's hole: each look's close-up, drawn by people-take-<look> before the loop
     "data/inventory/garage.json": 1,  # a citation of the coordinator's audit file in a `needed` note, no path read
 }
 
