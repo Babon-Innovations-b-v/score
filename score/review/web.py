@@ -157,4 +157,27 @@ def concept_pick(store, place, sha, by):
         record = concepts.pick(store, place, sha, name)
     except concepts.Refused as refused:
         raise review.Refused(str(refused)) from refused
-    return {**record, "library": concepts.handed_over(store, place)}
+    return {**record, "library": concepts.handed_over(store, place),
+            **({"reading": reading_started(store, place, name)} if sha else {})}
+
+
+def reading_started(store, place, by, start=None):
+    """His pick starts the scene inventory reading of the picked draw on its own (score/review/reading.py; the
+    owner's standing allowance of 2026-10-21: no yes asked), a process of its own that outlives this one; its log's
+    path."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+    from score.review import concepts, reading
+    from score.store import stamp_key
+    log = store.cache / reading.AREA / "logs" / f"{place}-{stamp_key(concepts.now())}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    # Under a systemd service (the listener) in a scope of its own, so the listener's hourly restart does not kill it.
+    scope = (["systemd-run", "--user", "--scope", "--quiet", "--collect"]
+             if os.environ.get("INVOCATION_ID") and shutil.which("systemd-run") else [])
+    with log.open("w") as out:
+        (start or subprocess.Popen)([*scope, sys.executable, "-m", "score.review.reading", place, "--by", by],
+                                    env={**os.environ, "SCORE_SPEND_STORE": str(store.cache.parent)}, stdout=out,
+                                    stderr=subprocess.STDOUT, start_new_session=True, cwd=str(concepts.REPO))
+    return str(log)

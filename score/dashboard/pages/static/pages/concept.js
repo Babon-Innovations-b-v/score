@@ -193,4 +193,13 @@
       }
     });
   }
+  // A read row and its boxes light together on hover (the reading's rows beside the picture).
+  if (document.getElementById("concept-reading")) {
+    const lit = (key, on) => document.querySelectorAll(`[${key}]`).forEach((element) => element.classList.toggle("lit", on));
+    document.querySelectorAll(".concept-reading li, .concept-box").forEach((element) => {
+      const key = element.dataset.row ? `data-row="${element.dataset.row}"` : `data-gap="${element.dataset.gap}"`;
+      element.addEventListener("mouseenter", () => lit(key, true));
+      element.addEventListener("mouseleave", () => lit(key, false));
+    });
+  }
 })();

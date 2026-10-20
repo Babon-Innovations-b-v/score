@@ -84,6 +84,12 @@ GRANT = "SCORE_BENCHMARK_GRANT"
 GRANT_EUROS = 20.0  # the most one benchmark grant allows (owner, 2026-10-20); more needs his cockpit click
 GRANT_HOURS = 24
 GRANTS = "grants"  # grants/benchmark/<id>.json, grants/used/<id>.json, grants/spent/<id>/<time>.json
+# A scene inventory reading (score/review/reading.py) is cleared under the owner's standing allowance, no yes asked.
+READING = "inventory-read"
+READING_RULE = "scene inventory readings run without asking (owner, 2026-10-21, root CLAUDE.md)"
+READING_GEMINI_EUROS = 0.05  # google_spend's estimate of one Gemini 3.1 Pro ask, until a reading is measured
+READING_EUROS = 1.0  # the most one place's reading is cleared at under the allowance; more is no reading
+READING_MINUTES = 30.0  # its high minutes (a cold SAM 3 card's set-up and the asks), the runaway watch's base
 
 
 def judge_timeout():
@@ -568,6 +574,35 @@ def clearance(runner, node, euros):
         keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": os.environ.get(RUN_ID)}})
     return {**ticket, "clearance": cleared, "reservations": str(reservations),
             "store": str(runner.store.cache.parent)}
+
+
+def reading_clearance(store, places, euros):
+    """Clear one scene inventory reading run of `places` (score/review/reading.py) at its forecast `euros`, under the
+    owner's standing allowance (READING_RULE: readings run with no separate yes) or, when GRANT names one, against
+    that benchmark grant; the ticket ({node, key, clearance, reservations, store}), kept and reserved like the
+    runner's, so require_cleared passes inside its `spending` block and the run counts in flight. The month's books
+    are asked as ever. Refused for any node but READING's, above READING_EUROS a place, or what the grant refuses."""
+    node, grant_id = READING, os.environ.get(GRANT)
+    if not places or euros > READING_EUROS * len(places):
+        raise Refused(f"{node}: a reading of {len(places)} places at EUR {euros:.2f} is outside the allowance of "
+                      f"EUR {READING_EUROS:.2f} a place")
+    covering = covering_store(store)
+    reservations = covering.cache.parent / "reservations.json"
+    with clearing(reservations):
+        held = open_reservations(reservations)
+        over = books_refusal() or (grant_refusal(covering, grant_id, euros) if grant_id else None)
+        if over:
+            raise Refused(f"{node}: {over}")
+        at = graph.now()
+        cleared = {"node": node, "key": stamp_key(at), "euros": euros, "minutes": READING_MINUTES,
+                   "high_minutes": READING_MINUTES, "measured": False, "estimate": euros, "places": list(places),
+                   "by": f"allowance: {READING_RULE}", "at": at, **({"grant": grant_id} if grant_id else {})}
+        if grant_id:
+            spend_grant(covering, grant_id, cleared)
+        store.write_clearance(node, cleared["key"], cleared)
+        keep_reservations(reservations, {**held, at: {**cleared, "run": os.environ.get(RUN_ID)}})
+    return {"node": node, "key": cleared["key"], "clearance": cleared, "reservations": str(reservations),
+            "store": str(store.cache.parent)}
 
 
 def hold(ticket):

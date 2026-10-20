@@ -206,6 +206,10 @@ class WorldState(BaseModel):
     # {place: {concept, rows}} of each scene inventory file (score/review/concepts.inventory_read): it counts only while
     # `concept` is the place's picked draw (screens.inventory_current).
     inventories: dict[str, dict] = {}
+    # {place: its newest scene inventory reading of its picked draw} (score/review/reading.py: rows with SAM 3's boxes,
+    # gaps, euros, seconds) and what every reading cost in sum (None: not read).
+    inventory_readings: dict[str, dict] = {}
+    inventory_spend: float | None = None
 
 
 class ConceptWording(BaseModel):

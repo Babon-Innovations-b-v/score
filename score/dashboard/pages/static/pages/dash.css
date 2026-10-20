@@ -497,6 +497,15 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .concept-mark::before { content: attr(data-n); position: absolute; top: 2px; left: 4px; padding: 0 6px; border-radius: var(--radius-small); background: var(--bad); color: var(--bg); font-weight: 600; }
 .concept-side { display: flex; flex-direction: column; gap: 10px; }
 .concept-rows { margin: 4px 0 0; padding-left: 18px; max-height: 240px; overflow-y: auto; font-size: var(--fs-sm); }
+.concept-boxes { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.concept-box { position: absolute; border: 2px solid var(--accent); border-radius: 2px; pointer-events: auto; }
+.concept-box b { position: absolute; top: 0; left: 0; padding: 0 4px; font-size: var(--fs-xs); background: var(--accent); color: var(--accent-ink); }
+.concept-box.unnamed { border-style: dashed; border-color: var(--review); }
+.concept-box.unnamed b { background: var(--review); color: var(--bg); }
+.concept-box.lit { border-width: 3px; border-color: var(--done); z-index: 1; }
+.concept-reading .concept-rows { max-height: 320px; }
+.concept-rows li.lit, .concept-gaps li.lit { color: var(--done); }
+.concept-gaps { list-style: none; margin: 4px 0 0; padding: 0; max-height: 200px; overflow-y: auto; font-size: var(--fs-sm); }
 .concept-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .concept-notes li { display: flex; gap: 6px; align-items: center; }
 .concept-notes b { flex: none; min-width: 24px; text-align: center; border-radius: var(--radius-small); background: var(--bad); color: var(--bg); }

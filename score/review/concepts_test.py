@@ -107,7 +107,19 @@ def test_a_pick_takes_only_a_draw_of_the_place_and_unlocks_again(store, monkeypa
     assert concepts.picked(store, "campgrounds") == drawn["sha"]
     concepts.pick(store, "campgrounds", None, "joey")
     assert concepts.picked(store, "campgrounds") is None
+    started = []
+    monkeypatch.setattr(web, "reading_started", lambda store, place, by: started.append((place, by)) or "log")
     assert web.concept_pick(store, "campgrounds", drawn["sha"], "joey")["library"] == "library: stand-in"
+    assert started == [("campgrounds", "joey")]  # the pick starts its scene inventory reading, no yes asked
+    assert "reading" not in web.concept_pick(store, "campgrounds", None, "joey") and len(started) == 1
+
+
+def test_a_reading_runs_as_a_process_of_its_own_in_the_picks_store(store):
+    started = []
+    log = web.reading_started(store, "campgrounds", "joey", start=lambda argv, **named: started.append((argv, named)))
+    [(argv, named)] = started
+    assert argv[-5:] == ["-m", "score.review.reading", "campgrounds", "--by", "joey"] and named["start_new_session"]
+    assert named["env"]["SCORE_SPEND_STORE"] == str(store.cache.parent) and log.endswith(".log")
 
 
 def test_every_draw_is_copied_off_this_pc_by_its_sha_and_a_failed_copy_keeps_the_draw_and_says_why(
