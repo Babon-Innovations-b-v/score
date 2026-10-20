@@ -27,7 +27,7 @@ from score.dashboard.launch import guard
 from score.dashboard.pages import actions
 from score.dashboard.pages.models import BasketAnswer, BasketChoice, SyncRequest, is_owner
 from score.dashboard.proposals import benchmarks, records
-from score.dashboard.state import groups
+from score.dashboard.state import groups, screens
 
 CHOICES = {"buy": "Bought", "later": "Not now"}
 NUMBERED = re.compile(r"[_-]?\d+$")
@@ -450,9 +450,11 @@ def checked_out(user, key, seen):
 
 def batch_items(items, which):
     """[{id, version}] of the basket items one yes of the Buy screen buys: every item a run on main buys now but the
-    Benchmarks (`which` "now"), or the Benchmarks item alone (`which` "benchmarks"), each as shown now."""
-    return [{"id": item["id"], "version": item["version"]} for item in items
-            if (item["id"] == benchmarks.ID) == (which == "benchmarks")]
+    Benchmarks and those waiting on a missing input (`which` "now", screens.now_items: the Buy now line), or the
+    Benchmarks item alone (`which` "benchmarks"), each as shown now."""
+    chosen = screens.now_items(items) if which != "benchmarks" else [
+        item for item in items if item["id"] == benchmarks.ID]
+    return [{"id": item["id"], "version": item["version"]} for item in chosen]
 
 
 @require_POST

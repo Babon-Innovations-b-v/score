@@ -357,4 +357,4 @@ def measured_share(batch):
     likely = batch["total"]["likely"]
     if not likely:
         return None
-    return round(100 * (likely - batch["estimated"]["likely"]) / likely)
+    return round(100 * batch["total"]["measured"]["likely"] / likely)

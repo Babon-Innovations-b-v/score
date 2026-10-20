@@ -16,6 +16,7 @@ gaps price of every other paid step (ROUTE leaves out the prop route's steps, wh
 from collections import Counter
 
 from score.dashboard.checkout import pricing
+from score.dashboard.proposals import benchmarks
 from score.dashboard.state import groups, gaps as gap_sums, money
 
 # The prop route's stages, priced per take by prepare; the gaps price adds only the other paid steps.
@@ -211,94 +212,223 @@ LAYERS = (("models", ("rough-model", "rough-align", "props-inputs", "closeup", "
           ("motion", ("settle", "physics-", "motion")), ("crops", ("crops-",)), ("light", ("light",)),
           ("effects", ("effects-",)), ("sound", ("sound",)), ("films", ("demo-",)))
 ORDER = [name for name, _ in LAYERS] + ["other"]
+# Why a part of the batch waits, in plain words (a take's lost input: local.WAITS).
+EARLIER, PLAN, MISSING, PREDICTED = ("an earlier step first", "not in the last plan", "inputs missing",
+                                     "predicted to fail")
 
 
 def layer_of(stage):
     return next((name for name, prefixes in LAYERS if stage.startswith(prefixes)), "other")
 
 
-def layer_row(layers, name):
-    return layers.setdefault(name, {"layer": name, "likely": 0.0, "high": 0.0, "jobs": 0, "unpriced": 0,
-                                    "estimated": {"likely": 0.0, "high": 0.0}, "places": {}})
+def now_items(items):
+    """The basket items the Buy screen's one yes buys: every item a run on main buys now but the Benchmarks and the
+    ones waiting on a missing input."""
+    return [item for item in items if item["id"] != benchmarks.ID and not item.get("missing")]
 
 
-def add_price(row, likely, high, estimated):
-    """Adds one priced part to a layer row (and to its estimated share when it is no measured run's)."""
-    row["likely"], row["high"] = round(row["likely"] + likely, 2), round(row["high"] + high, 2)
-    if estimated:
-        row["estimated"] = {"likely": round(row["estimated"]["likely"] + likely, 2),
-                            "high": round(row["estimated"]["high"] + high, 2)}
+def part():
+    return {"likely": 0.0, "high": 0.0}
 
 
-def route_layers(remake, layers):
-    """Prepare's prop route into `layers`: each stage's takes as jobs, its per unit × count as an estimate (a stage
-    with no measured per unit unpriced), each place's takes."""
-    for stage, found in (remake.layers if remake else {}).items():
-        row = layer_row(layers, layer_of(stage))
-        row["jobs"] += found["takes"]
-        row["route"] = True
-        if found["likely"] is None or found["high"] is None:
-            row["unpriced"] += found["takes"]
-        else:
-            add_price(row, found["likely"], found["high"], True)
-        for place, takes in found.get("places", {}).items():
-            place_row = row["places"].setdefault(place, {"jobs": 0, "likely": None, "high": None})
-            place_row["jobs"] += takes
+def layer_row(rows, name):
+    return rows.setdefault(name, {"layer": name, "make": 0, "library": 0, "waiting": 0, "why": {}, "models": 0,
+                                  "steps": 0, "now": part(), "later": part(), "guessed": 0.0, "guesses": 0,
+                                  "no_price": {}, "measured": part(), "estimated": part(), "places": {}})
 
 
-def rest_layers(price, layers):
-    """The gaps price's paid steps off the prop route into `layers`: a measured run's price as measured, a per-unit
-    one as an estimate, a step with neither unpriced (a guess is never a price); each place's steps and price."""
-    for node, found in (price.nodes if price else {}).items():
-        if on_route(node):
-            continue
+def add_price(row, which, likely, high, basis):
+    """Adds one priced part to a row's `which` (now or later) and to its basis's sum (a measured run's, else
+    estimated: per unit times a count)."""
+    for into in (row[which], row["measured" if basis == MEASURED[0] else "estimated"]):
+        into["likely"], into["high"] = round(into["likely"] + likely, 4), round(into["high"] + high, 4)
+
+
+def count(into, key, number=1):
+    into[key] = into.get(key, 0) + number
+
+
+def step_name(stage):
+    """A kind of step in words, a person's look left out (one name for every look's body, model or parts)."""
+    prefix = next((prefix for prefix in (*groups.PEOPLE, "people-look-parts-") if stage.startswith(prefix)), None)
+    if prefix:
+        return f"people's {groups.PEOPLE.get(prefix, 'parts')}"
+    return groups.label(stage).replace("-", " ")
+
+
+def node_price(row, which, node, found):
+    """A node's price into its row: measured or per unit, else its stage's guess kept apart (what the runner
+    reserves for a node bought now), else no price, said by its step's name."""
+    if found.get("likely_euros") is not None and found.get("basis", MEASURED[1]) in MEASURED:
+        add_price(row, which, found["likely_euros"], found["high_euros"], found.get("basis"))
+    elif which == "now" and found.get("guess_euros"):
+        row["guessed"], row["guesses"] = round(row["guessed"] + found["guess_euros"], 4), row["guesses"] + 1
+    else:
+        count(row["no_price"], step_name(node.partition("@")[0]))
+
+
+def now_rows(now, route, rows):
+    """The nodes the Buy buys now into `rows`, each priced as the runner planned it; a prop-route stage prepare
+    counts by its takes (`route`) adds no step of its own."""
+    for node, found in now.items():
         stage, _, place = node.partition("@")
-        row = layer_row(layers, layer_of(stage))
-        place_row = row["places"].setdefault(place or "environment", {"jobs": 0, "likely": None, "high": None})
-        row["jobs"] += 1
-        place_row["jobs"] += 1
-        if found.get("basis") not in MEASURED:
-            row["unpriced"] += 1
+        row = layer_row(rows, layer_of(stage))
+        count(row["places"], place or "environment")
+        if stage not in route:
+            row["make"], row["steps"] = row["make"] + 1, row["steps"] + 1
+        node_price(row, "now", node, found)
+
+
+def route_rows(remake, now, rows):
+    """Prepare's prop route into `rows`: a stage's takes at a place whose node the Buy buys are priced with it, the
+    rest wait (by why) with their share of the stage's price; each layer's takes counted on its stage with the most,
+    the models layer's library and predicted-to-fail takes beside."""
+    widest = {}
+    for stage, found in remake.layers.items():
+        row = layer_row(rows, layer_of(stage))
+        bought = {place for place in found["places"] if f"{stage}@{place}" in now}
+        later = found["takes"] - sum(found["places"][place] for place in bought)
+        if found["likely"] is None:
+            count(row["no_price"], step_name(stage), later)
+        elif found["takes"]:
+            share = later / found["takes"]
+            add_price(row, "later", found["likely"] * share, found["high"] * share, None)
+        if found["takes"] > widest.get(row["layer"], (0, None))[0]:
+            widest[row["layer"]] = (found["takes"], stage)
+    for name, (takes, stage) in widest.items():
+        route_counts(rows[name], remake.layers[stage], stage, now)
+    if "models" in rows and widest:
+        models = rows["models"]
+        models["library"] = remake.counts.get("library", 0)
+        predicted = remake.counts.get("predicted_gaps", 0)
+        models["waiting"] += predicted
+        count(models["why"], PREDICTED, predicted)
+        models["models"] += models["library"] + predicted
+
+
+def route_counts(row, found, stage, now):
+    """A layer's takes on its widest route stage: made now where the Buy buys the stage at the place, else waiting
+    on its takes' lost inputs or, ready, on the next plan."""
+    row["models"] += found["takes"]
+    for place, takes in found["places"].items():
+        if f"{stage}@{place}" in now:
+            row["make"] += takes
             continue
-        add_price(row, found["likely_euros"], found["high_euros"], found["basis"] != MEASURED[0])
-        place_row["likely"] = round((place_row["likely"] or 0.0) + found["likely_euros"], 2)
-        place_row["high"] = round((place_row["high"] or 0.0) + found["high_euros"], 2)
+        waits = found.get("waits", {}).get(place, {})
+        for why, number in [*waits.items(), (PLAN, takes - sum(waits.values()))]:
+            if number:
+                count(row["why"], why, number)
+                row["waiting"] += number
 
 
-def batch(world):
-    """The Buy screen's one batch, the remake (remake_money: prepare's prop route plus the gaps price of every other
-    paid step) by layer: {total {likely, high}, estimated {likely, high} (per unit × count, not yet a measured run),
-    jobs, unpriced, eta, stale, layers [{layer, likely, high, jobs, unpriced, estimated, places [{place, jobs, likely,
-    high}]}]}; a layer's likely and high None while none of it is priced."""
+def rest_rows(price, now, blocked, rows):
+    """The gaps price's paid steps off the prop route that the Buy does not buy now into `rows`, each waiting on a
+    missing input (its basket item says so) or an earlier step, priced where measured or per unit."""
+    for node, found in price.nodes.items():
+        if on_route(node) or node in now:
+            continue
+        row = layer_row(rows, layer_of(node.partition("@")[0]))
+        row["steps"], row["waiting"] = row["steps"] + 1, row["waiting"] + 1
+        count(row["why"], MISSING if node in blocked else EARLIER)
+        node_price(row, "later", node, found)
+
+
+def rounded(row):
+    """A layer row as shown: its euros to the cent, its likely and high (the guesses the Buy reserves in the high)."""
+    for key in ("now", "later", "measured", "estimated"):
+        row[key] = {name: round(value, 2) for name, value in row[key].items()}
+    row["guessed"] = round(row["guessed"], 2)
+    row["likely"] = round(row["now"]["likely"] + row["later"]["likely"], 2)
+    row["high"] = round(row["now"]["high"] + row["guessed"] + row["later"]["high"], 2)
+    return row
+
+
+def summed(rows, key, field):
+    return round(sum(row[key][field] for row in rows), 2)
+
+
+def batch(world, items):
+    """The Buy screen's one batch (CONTEXT.md "batch"): what its Buy buys now (the basket items of `now_items`, priced
+    as the runner planned them, the guesses it reserves in the high) and what waits, by why (prepare's prop route,
+    take by take, and every other paid step of the gaps price), by layer. Each layer {layer, make, library, waiting,
+    why, models, steps, now, later, guessed, guesses, no_price, measured, estimated, likely, high}; `total` its sum,
+    `now` {likely, high, guessed, guesses, stop, places, eta} the Buy's line, `waiting` {likely, high, why}; `gets`
+    the places it reaches. Nothing priced here (ADR-0006)."""
     whole = remake_money(world)
     price = None if world.gaps_price is None or world.gaps_price.stale else world.gaps_price
-    layers = {}
-    route_layers(None if whole["stale"] else world.remake, layers)
-    rest_layers(price, layers)
-    rows = [layers[name] for name in ORDER if name in layers]
-    known = {card.place for card in cards(world)}
+    remake = None if whole["stale"] or world.remake is None else world.remake
+    buying = now_items(items)
+    now = pricing.basket_prices(buying)
+    blocked = {node for item in items if item.get("missing") for node in item["nodes"]}
+    rows = {}
+    now_rows(now, set(remake.layers) if remake else set(), rows)
+    if remake:
+        route_rows(remake, now, rows)
+    if price:
+        rest_rows(price, now, blocked, rows)
+    shown = [rounded(rows[name]) for name in ORDER if name in rows]
+    for row in shown:
+        row["places"] = sorted(row["places"])
+    return {"total": total_of_rows(shown), "now": now_of(shown, now, buying), "waiting": waiting_of(shown),
+            "gets": gets(world, now), "eta": whole["eta"], "stale": whole["stale"], "layers": shown}
+
+
+def total_of_rows(rows):
+    """{likely, high, measured, estimated, guessed, no_price} of the layer rows: the high's measured part, its guessed
+    part and the rest estimated (the three add up to it), and the names of the steps with no price."""
+    likely, high = round(sum(row["likely"] for row in rows), 2), round(sum(row["high"] for row in rows), 2)
+    measured = {"likely": summed(rows, "measured", "likely"), "high": summed(rows, "measured", "high")}
+    guessed = round(sum(row["guessed"] for row in rows), 2)
+    return {"likely": likely, "high": high, "measured": measured, "guessed": guessed,
+            "estimated": {"likely": round(likely - measured["likely"], 2),
+                          "high": round(high - measured["high"] - guessed, 2)},
+            "no_price": sorted({name for row in rows for name in row["no_price"]})}
+
+
+def now_of(rows, now, buying):
+    """{likely, high, guessed, guesses, stop, steps, places, eta} of what the Buy buys: its high holds the guesses the
+    runner reserves, its stop that high plus 10%."""
+    guessed = round(sum(row["guessed"] for row in rows), 2)
+    high = round(summed(rows, "now", "high") + guessed, 2)
+    return {"likely": summed(rows, "now", "likely"), "high": high, "guessed": guessed,
+            "guesses": sum(row["guesses"] for row in rows), "stop": round(high * BUFFER, 2) if now else None,
+            "steps": len(now), "places": sorted({place for item in buying for place in item.get("places", [])}),
+            "eta": now_eta(now)}
+
+
+def waiting_of(rows):
+    """{likely, high, why} of what waits: its euros and why, the commonest first."""
+    why = {}
     for row in rows:
-        if row["unpriced"] == row["jobs"]:
-            row["likely"] = row["high"] = None
-        row["places"] = places_of(row.pop("places"), known, row.pop("route", False))
-    estimated = {key: round(sum(row["estimated"][key] for row in rows), 2) for key in ("likely", "high")}
-    return {"total": {"likely": whole["likely"], "high": whole["high"]}, "estimated": estimated,
-            "jobs": sum(row["jobs"] for row in rows), "unpriced": sum(row["unpriced"] for row in rows),
-            "eta": whole["eta"], "stale": whole["stale"], "layers": rows}
+        for reason, number in row["why"].items():
+            count(why, reason, number)
+    return {"likely": summed(rows, "later", "likely"), "high": summed(rows, "later", "high"),
+            "why": [reason for reason, _ in sorted(why.items(), key=lambda pair: -pair[1])]}
 
 
-def places_of(found, known, route):
-    """[{place, jobs, likely, high}] of a layer's places, most jobs first: prepare's look keys (`prologue_<place>`)
-    read as their place; no place's price in a layer prepare prices whole (its price is the layer's, not a place's)."""
-    merged = {}
-    for place, part in found.items():
-        name = place.removeprefix("prologue_") if place.removeprefix("prologue_") in known else place
-        into = merged.setdefault(name, {"jobs": 0, "likely": None, "high": None})
-        into["jobs"] += part["jobs"]
-        for key in ("likely", "high"):
-            if part[key] is not None and not route:
-                into[key] = round((into[key] or 0.0) + part[key], 2)
-    return [{"place": place, **part} for place, part in sorted(merged.items(), key=lambda pair: -pair[1]["jobs"])]
+def now_eta(nodes):
+    """basket_eta of the nodes bought now and, while a node is not timed, `at_least_minutes`: the timed ones'
+    span (pricing.span), a floor."""
+    timed = {node: found for node, found in nodes.items() if found.get("likely_minutes") is not None}
+    return {**basket_eta(nodes), "at_least_minutes": pricing.span(timed, "likely_minutes", pricing.DEFAULT_JOBS)
+            if timed else None}
+
+
+def gets(world, now):
+    """[{place, made, after, needed, complete, layers}] of the places the Buy reaches, most bought first: each
+    place's steps standing accepted now and once its bought steps stand too (the free steps after them, made as the
+    run goes on, not counted), whether that completes it, and the layers bought there."""
+    found = []
+    for card in cards(world):
+        steps = steps_of(card)
+        bought = [step for step in steps if step.node in now and step.state != "accepted"]
+        if not bought:
+            continue
+        made = sum(1 for step in steps if step.state == "accepted")
+        found.append({"place": card.place, "made": made, "after": made + len(bought), "needed": len(steps),
+                      "complete": made + len(bought) == len(steps),
+                      "layers": [name for name in ORDER if name in {layer_of(step.stage) for step in bought}]})
+    return sorted(found, key=lambda row: (-(row["after"] - row["made"]), row["place"]))
 
 
 def total_of(totals):
