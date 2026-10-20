@@ -153,17 +153,18 @@ def pictures_of(views, split, take):
 
 def ask(body):
     """One cleared, ledgered Gemini 3.1 Pro ask (finish_ask.generated: asked again only on a refusal that did no
-    work; a timeout or a dropped connection reaches the caller)."""
+    work, the trial cap checked before every send; no usable answer raises one of finish_ask.UNANSWERED)."""
     from score.adapters import compute
     compute.require_cleared("a Gemini finish list (finish route)")
-    route_cap.require_room(finish_ask.LIST_MODEL, body)
     response = finish_ask.generated(finish_ask.LIST_MODEL, body, finish_ask.secret_key(), finish_ask.TIMEOUT,
-                                    caller="finish-route-list", cache=True)
+                                    caller="finish-route-list", cache=True,
+                                    room=lambda: route_cap.require_room(finish_ask.LIST_MODEL, body))
     return finish_ask.reply_text(response)
 
 
 def make_list(inputs, out, seed, params):
-    """Every split take's finish list, and the owner's questions."""
+    """Every split take's finish list, and the owner's questions. Each take is asked once; one with no usable answer
+    (finish_ask.UNANSWERED) gets no list, so judge_list names it a hole, and the takes after it are still asked."""
     import library
     route_cap.require_filtered(params, "finish-route-list")
     views, split = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-split"])
@@ -172,18 +173,22 @@ def make_list(inputs, out, seed, params):
     stand_ins = json.loads((views / "views.json").read_text())
     tokens = library_tokens()
     wear = json.loads(library.PLACES.read_text())[place]["wear"]["level"]
-    questions = []
+    questions, unanswered = [], {}
     for take, record in split_takes.items():
         surfaces = finish_parts.take_surfaces(takes[take])
         stand_in = stand_ins[take].get("close_up") == route_data.STAND_IN
         body = list_body(pictures_of(views, split, take), takes[take], record["groups"], surfaces, tokens, wear,
                          stand_in)
-        answer = json.loads(ask(body))
-        finishes = grouped(finishes_of(answer, surfaces, seed), answer, record["groups"])
+        try:
+            answer = json.loads(ask(body))
+            finishes = grouped(finishes_of(answer, surfaces, seed), answer, record["groups"])
+        except finish_ask.UNANSWERED as error:
+            unanswered[take] = f"no usable answer: {error!r}"[:300]
+            continue
         (out / f"{take}.json").write_text(json.dumps({"take": take, "wear": wear, "finishes": finishes}, indent=1))
         questions += [f"{take}: {entry['finish']}: {entry['wear_wish']} (the place's wear is {wear})"
                       for entry in finishes if entry["wear_wish"]]
-    (out / "questions.json").write_text(json.dumps({"wear_wishes": questions}, indent=1))
+    (out / "questions.json").write_text(json.dumps({"wear_wishes": questions, "unanswered": unanswered}, indent=1))
 
 
 def list_faults(folder):
@@ -195,10 +200,11 @@ def judge_list(output, inputs, evidence):
     one finish; a finish that does not fit proposes a surface. The owner's wear questions as a measure."""
     grouped = json.loads((pathlib.Path(inputs["finish-route-split"]) / "groups.json").read_text())
     tokens = library_tokens()
+    unanswered = json.loads((output / "questions.json").read_text()).get("unanswered", {})
     failing = []
     for take, record in grouped.items():
         if not (output / f"{take}.json").exists():
-            failing.append(f"{take}: no finish list")
+            failing.append(f"{take}: no finish list" + (f" ({unanswered[take]})" if take in unanswered else ""))
             continue
         finishes = json.loads((output / f"{take}.json").read_text())["finishes"]
         covered = sorted(group for entry in finishes for group in entry["groups"])

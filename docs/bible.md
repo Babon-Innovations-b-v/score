@@ -265,7 +265,8 @@ is meant to fix, where it is marked, and what proves it.
   two finishes, 6 to 24 parts a model (the aft section had ~9,600). Each finish's surface is checked against its
   colour in the close-up (dE 32, set on the six: right surfaces up to 29.7, wrong from 33.2; a nearer surface of its
   family is taken, else the paint's gate fails it with a tinted proposal); a finish whose words name another
-  material than its surface's family, or far off its colour, is named once more (`surfaces-names`). First real line,
+  material than its surface's family, or far off its colour, was named once more (`surfaces-names`; since #21 decided
+  by rule, free, with no ask). First real line,
   greenhouse 2026-10-12: every surface row passed through bake and check on all 8 models, with four library surfaces
   added overnight for the owner to review (grey_painted_steel, translucent_blue_plastic, printed_paper, tank_water).
   The owner walked it and found the water tank unpainted and crooked (2026-10-12): its cream paint, steel and water

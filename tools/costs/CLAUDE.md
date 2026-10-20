@@ -14,8 +14,10 @@ in the test.
   disk but whose runs' euros and units are written in git (`RECORDED`: an evidence file and line, or a commit) is
   priced from those runs, each named in `sources`; add a run there only from a figure written when it ran, with its
   units. Each entry also carries its `forecast` rule (`FORECASTS`: what a make's units are forecast from before it
-  runs, a source in git, with `per_model` where a model makes more than one unit), which `score price --holes`
-  counts; `--rules-only` writes the rules and the RECORDED stages into the file in place, its ledger-measured numbers
+  runs, a source in git, with `per_model` where a model makes more than one unit: recorded units over models, or a
+  bound from the code said so, as the finish maps' `MAP_DRAWS` under #21 until runs under it are measured; a
+  `price_note` where the measured price was asked otherwise than today, as the lists' standard tier), which
+  `score price --holes` counts; `--rules-only` writes the rules and the RECORDED stages into the file in place, its ledger-measured numbers
   kept, as the old disk took the live ledgers (2026-10-19). Never edit the rules in the JSON by hand.
 - **Each entry's `time` comes from the same lines as its euros** (#14): a unit's seconds (median and p90: the
   machines' own `unit_seconds`, else wall minutes over units), a fresh card's set-up (median and p90: its start

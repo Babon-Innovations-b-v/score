@@ -69,10 +69,10 @@ FORECASTS = {
                   "lost)",
     "one": "one a place (one for an environment node)",
 }
-# A Google stage whose units are not one a model: its calls over the take lists' calls in the same ledger (the lists
-# stage asks once a take), so a model is forecast to need that many.
-LISTS = "surfaces-lists"
 CLOSEUPS_15 = "paper/evidence/cloud/forecast-2026-10-15.txt"
+# The finish maps a model draws at most under the batch rule (#21): the close-up's one seed and one seed of each of
+# turntable_views.MAP_VIEWS (per_unit_test checks it against the code).
+MAP_DRAWS = 4
 # Per stage: the unit, the ledger lines of its work, the units a line made, how a node's units are counted in its
 # accepted output, and how they are forecast before a make (a FORECASTS rule and, where a model makes more than one
 # unit, `per_model`). `also` are the stages that make the same unit by the same code (the crops' and people's lines).
@@ -86,13 +86,18 @@ SPECS = {
                                                                  "Pro pictures for 21 pieces (2026-10-14)"}},
     "surfaces-maps": {"unit": "finish map picture (Nano Banana Pro)", "google": "finishmap-map",
                       "count": {"map_attempts": "map.json"}, "also": ["crops-surfaces-maps", "people-maps"],
-                      "forecast": "models", "per_model": {"over": LISTS}},
+                      "forecast": "models",
+                      "per_model": {"units": MAP_DRAWS, "models": 1,
+                                    "from": "a bound from the code, not a measurement: one draw of the close-up and "
+                                            "one of each of three views a model (finish_rows.SEEDS, VIEW_SEEDS, "
+                                            "turntable_views.MAP_VIEWS; #21), at most; a declared or one-finish take "
+                                            "draws none. Runs made under #21 measured on the ledger replace it"}},
     "surfaces-lists": {"unit": "finish list of a take (Gemini 3.1 Pro)", "google": "finishmap-list",
                        "count": {"take_files": ".json"}, "also": ["crops-surfaces-lists", "people-lists"],
-                       "forecast": "models"},
-    "surfaces-names": {"unit": "finish named again (Gemini 3.1 Pro)", "google": "finishmap-name",
-                       "count": {"named_again": ".json"}, "also": ["crops-surfaces-names", "people-names"],
-                       "forecast": "models", "per_model": {"over": LISTS}},
+                       "forecast": "models",
+                       "price_note": "measured at Google's standard tier (2026-10-11 to 16); the list asks on the "
+                                     "flex tier at about half price since #21, so flex calls on the ledger replace "
+                                     "it once measured"},
     "light-passes": {"unit": "render job of the light stage", "cloud": {"kind": "blender", "who": "score light stage"},
                      "per_line": "jobs", "count": {"files": "passes/*.views.json"}, "also": ["light-haze"],
                      "forecast": "light_jobs"},
@@ -186,28 +191,21 @@ def google_measures(calls, caller):
     return [call["euros"] for call in found], sorted({call["day"] for call in found})
 
 
-def per_model(spec, stages):
-    """{per_model, per_model_from} of a stage whose model makes more than one unit: recorded units over models, or
-    its calls over the take lists' calls in `stages` (the measured entries); {} for one a model."""
+def per_model(spec):
+    """{per_model, per_model_from} of a stage whose model makes more than one unit (its recorded units over models,
+    or a bound from the code); {} for one a model."""
     ratio = spec.get("per_model")
     if ratio is None:
         return {}
-    if "over" not in ratio:
-        return {"per_model": round(ratio["units"] / ratio["models"], 4), "per_model_from": ratio["from"]}
-    if ratio["over"] not in stages:
-        raise SystemExit(f"{spec['stage']}: its units a model are its calls over {ratio['over']}'s, which no ledger "
-                         "read here measured")
-    mine, lists = stages[spec["stage"]], stages[ratio["over"]]
-    return {"per_model": round(mine["runs"] / lists["runs"], 4),
-            "per_model_from": f"{mine['runs']} {spec['unit']} calls over {lists['runs']} take lists ({ratio['over']}, "
-                              "one call a take) in the same Google ledger"}
+    return {"per_model": round(ratio["units"] / ratio["models"], 4), "per_model_from": ratio["from"]}
 
 
-def forecast(spec, stages):
+def forecast(spec):
     """The forecast fields of a stage's entry: its rule with the source it counts and, where a model makes more than
-    one unit, how many."""
+    one unit, how many; a price note where its measured price was asked otherwise than today."""
     rule = spec["forecast"]
-    return {"forecast": {"rule": rule, "source": FORECASTS[rule], **per_model(spec, stages)}}
+    note = {"price_note": spec["price_note"]} if "price_note" in spec else {}
+    return {"forecast": {"rule": rule, "source": FORECASTS[rule], **per_model(spec)}, **note}
 
 
 def spread(values):
@@ -400,8 +398,9 @@ def with_forecasts(stages):
     from SPECS or RECORDED."""
     every = {**recorded(), **stages}
     specs = {**RECORDED, **SPECS}
-    return {stage: {**{name: value for name, value in found.items() if name not in ("forecast", "forecast_why")},
-                    **forecast({**specs[stage], "stage": stage}, every)} for stage, found in every.items()}
+    return {stage: {**{name: value for name, value in found.items()
+                       if name not in ("forecast", "forecast_why", "price_note")},
+                    **forecast(specs[stage])} for stage, found in every.items()}
 
 
 def with_rules(body):

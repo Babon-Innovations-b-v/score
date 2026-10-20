@@ -63,15 +63,23 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   list a take, one draw of each map (`SEEDS`, `VIEW_SEEDS` one seed each), no paid naming, no ask again after a
   timeout or a dropped connection (`finish_ask.generated`): Google may bill a call cut off mid-way, and
   `google_spend` counts it at its estimate. Only a refusal that did no work (HTTP 429 or 503) is asked again, at most
-  `REFUSED_ASKS` times. An ask with no usable answer (`finish_rows.UNANSWERED`) makes its take or draw a hole, named
-  in its row's gate (`judge_lists`, `judge_maps`); new spend on it is a new batch and a new ask. The risk work is free
+  `REFUSED_ASKS` times, the route's trial cap checked before every send (`room`). An ask with no usable answer
+  (`finish_ask.UNANSWERED`: a timeout, a lost connection, refused every time, a reply that does not parse) makes its
+  take or draw a hole, named in its row's gate (`judge_lists`, `judge_maps`, `judge_list`, `judge_recheck`); the takes
+  after it are still asked once, and new spend on it is a new batch and a new ask. Any other HTTP status (400, 401,
+  403, 404) is a set-up fault, not an output's: it stops the row once instead of making every take a hole and a
+  ledger line. A refused send is on the Google ledger as started then failed and counted at its estimate
+  (`month_euros`, `route_cap.route_euros`) though Google billed nothing: the books lean high until Google's billing
+  export (#13) reads the month; `google_spend.py` stays unedited (an edit re-keys the close-up rows). The risk work is free
   and comes before: the close-up's measured colours (`close_up_regions`: k-means of its Lab colours, each region's
   share and median and the library surfaces within `COLOUR_DELTA_E`) go into the list ask (`finish_ask.REGIONS`),
   asked with thinking held low from the start and on the flex tier (`LIST_TIER`, half price, a 900 s timeout: the
   request's own `serviceTier`, never set in `google_spend`, which is in the close-up, crops and boxes rows' code
   versions; Nano Banana Pro has no flex tier on Google's page, 2026-10-20, so the maps stay standard). A kit or shell piece
   whose surfaces data names its `surface` (its shell section's or kit's finish) is asked nothing: that one finish
-  (`declared_list`, a hole when the take may not take it), its map the close-up's mask.
+  (`declared_list`, a hole when the take may not take it), its map the close-up's mask. No writer puts `surface` into
+  a take entry yet (none of `data/surfaces/*.json` carries it, 2026-10-20): the saving waits for the writer of #19's
+  shell and kit takes, and until then every such piece is asked and drawn like any model.
 - **A library change re-keys only the rows that read the library** (lists, names, parts, paint, bake, check:
   `surface_data.line_files`); inputs, turntable, maps and SegviGen declare none (`shape_files`), the inputs'
   output names no folder of its run, and the turntable renders on the processor with a fixed seed
@@ -124,8 +132,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   bare_steel) takes the nearest surface of a family its words allow within `COLOUR_DELTA_E`, else it is a hole and
   fails the names gate by name. The paint's colour and order check (`finish_parts.checked_finishes`) runs ahead as a
   prediction (`predicted_off`, a measure); the paint's gate still names those, where a named gap can move them. The
-  stage tables still declare the row paid at `LIST_EUROS` (`__init__.py`, `../crops/line.py`, `../people/line.py`,
-  `../finishmap/trial.py`): it spends nothing now. New library surfaces are made the library's own way (a variant
+  row is free in every stage table (`__init__.py`, `../crops/line.py`, `../people/line.py`, `../finishmap/trial.py`):
+  no clearance, no price, no basket line. New library surfaces are made the library's own way (a variant
   in `data/library/materials.json` on a palette token, the place taking it in `place.json`), never a picture's colour.
 - **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture

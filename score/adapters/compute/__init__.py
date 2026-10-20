@@ -184,11 +184,6 @@ def map_attempts(record):
     return len(record["front"]["attempts"]) + sum(len(view["attempts"]) for view in record.get("views", {}).values())
 
 
-def named_again(record):
-    """The finishes of one take that were asked for their surface again (one call each)."""
-    return sum(1 for finish in record["finishes"] if str(finish.get("by", "")).startswith("named again"))
-
-
 def counted_units(store, output, count):
     """The units `output` made by its stage's count rule (PER_UNIT's `count`), or None when the rule finds nothing
     to count in it."""
@@ -206,8 +201,6 @@ def counted_units(store, output, count):
         return store.read_file(output, value[0]).get(value[1]) if value[0] in listing else None
     if rule == "map_attempts":
         return sum(map_attempts(store.read_file(output, name)) for name in listing if name.endswith("/" + value))
-    if rule == "named_again":
-        return sum(named_again(store.read_file(output, name)) for name in take_files(listing, value))
     raise ValueError(f"unknown count rule {rule!r} in {PER_UNIT}")
 
 

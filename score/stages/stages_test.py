@@ -201,7 +201,7 @@ def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
     # row of it moves too (its overlay: they move to a module of their own the next time that line is made again),
     # but paint and bake, which key only the library surfaces they read (library_reads.py) since 2026-10-13.
     crops = {"crops-boxes", "crops-closeup", "crops-pixal", *(f"crops-surfaces-{step}" for step in (
-        "turntable", "lists", "maps", "names", "segvigen"))}
+        "turntable", "lists", "maps", "segvigen"))}  # its names row is free since #21
     assert moved == {"surfaces-turntable", "surfaces-segvigen", "people-turntable", *crops}, moved
 
 
