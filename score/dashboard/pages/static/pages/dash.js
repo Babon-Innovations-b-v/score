@@ -188,6 +188,8 @@ document.addEventListener("submit", async (event) => {
   const reason = post.querySelector('[data-slot="reason"]');
   if (reason && !reason.hidden) body.reason = reason.value;
   button.disabled = true;
+  const label = button.innerHTML;
+  if (post.dataset.busy) button.innerHTML = `<i class="spinner" aria-hidden="true"></i> ${post.dataset.busy}`;
   let detail = "";
   try {
     const answer = await fetch(post.dataset.url, {
@@ -203,6 +205,7 @@ document.addEventListener("submit", async (event) => {
   } catch (error) {
     console.error("panel action refused", post.dataset.url, error);
     said.className = "dot tone-bad";
+    button.innerHTML = label;
     button.disabled = false;
   }
   said.title = detail;
@@ -288,3 +291,23 @@ document.addEventListener("toggle", async (event) => {
     delete branch.dataset.loaded;
   }
 }, true);
+
+// While a concept draw is on its way ([data-reread][data-drawing], the Environment) the page reads itself again
+// every few seconds and swaps in what it gets, so each card shows its draw as it lands; it stops once none is.
+const REREAD_EVERY = 3000;
+function reread() {
+  const live = document.querySelector("[data-reread][data-drawing]");
+  if (!live) return;
+  setTimeout(async () => {
+    try {
+      const answer = await fetch(location.href, { credentials: "same-origin" });
+      const fresh = new DOMParser().parseFromString(await answer.text(), "text/html").querySelector("[data-reread]");
+      if (!answer.ok || !fresh) throw new Error(`page read again: ${answer.status}`);
+      live.replaceWith(fresh);
+    } catch (error) {
+      console.error("draws on their way: page not read again", error);
+    }
+    reread();
+  }, REREAD_EVERY);
+}
+reread();

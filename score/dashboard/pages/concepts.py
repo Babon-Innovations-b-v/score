@@ -16,7 +16,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from score.dashboard import state
-from score.dashboard.pages import actions, present
+from score.dashboard.pages import actions, cockpit, present
 from score.dashboard.pages.models import SyncRequest, is_owner
 from score.dashboard.state import groups, screens
 from score.dashboard.state.files import file_ref
@@ -243,8 +243,15 @@ def draw_all(world):
 
 
 def drawing():
-    """True while any of the owner's draws is on its way (the Environment reads itself again until none is)."""
-    return SyncRequest.objects.filter(kind=DRAW, state__in=OPEN).exists()
+    """How many of the owner's draws are on their way (the Environment reads itself again until none is)."""
+    return SyncRequest.objects.filter(kind=DRAW, state__in=OPEN).count()
+
+
+def card_state(world, node):
+    """{drawing, refused} of a card: drawing while a draw of its place or shell, or of a place within it, is on its
+    way; refused, why its own newest draw was refused (None when it was not)."""
+    on_way = {item.payload.get("place") for item in SyncRequest.objects.filter(kind=DRAW, state__in=OPEN)}
+    return {"drawing": node in on_way or bool(cockpit.inside_of(world, node, on_way)), "refused": refused_of(node)}
 
 
 def newest_pictures(world):

@@ -258,3 +258,17 @@ def test_the_listener_answers_a_draw_alls_draws_side_by_side(world, stand_in, se
         answered = listen.round_once(remote_of(hosted_client()), world.source)
     assert sorted(state for _, state in answered) == ["done", "done"]
     assert all(len(drawing.draws(world.source.store, place)) == 1 for place in places)
+
+
+def test_draws_on_their_way_show_on_the_button_and_their_cards_until_they_land(world, stand_in):
+    owner = signed_in()
+    for place in ("alpha", "beta"):  # queued, not yet answered (hosted: the listener's to answer)
+        SyncRequest.objects.create(kind=concepts.DRAW, user="joey", payload={"place": place, "euros": PRICE})
+    html = owner.get("/").content.decode()
+    assert "Drawing 2..." in html and "data-drawing" in html and html.count('class="draw-busy"') == 2
+    assert "Draw all" not in html
+    SyncRequest.objects.filter(payload__place="alpha").update(state="done")
+    SyncRequest.objects.filter(payload__place="beta").update(state="refused", detail="refused: the price moved")
+    html = owner.get("/").content.decode()
+    assert "data-drawing" not in html and "draw-busy" not in html
+    assert 'class="draw-refused" title="refused: the price moved"' in html
