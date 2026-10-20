@@ -143,7 +143,7 @@ def remake(runner, data, root, work, stock=None, moved=None):
               "across_places": across_places(route, takes, fixed),
               "moved": {"rows": moved} if moved is not None else {"not_run": "--moved not given"},
               "pixal_steps": pixal_steps.record(),
-              "benchmarks": {"listed": list(benchmarks.BENCHMARKS), "guard": benchmarks.guard()},
+              "benchmarks": {"listed": benchmarks.listed(), "guard": benchmarks.guard()},
               "not_in_figure": list(NOT_IN_FIGURE)}
     return {**record, "line": estimate.line(record)}
 
@@ -164,7 +164,8 @@ def main(argv=None):
     options.out.write_text(json.dumps(record, indent=1, default=str))
     refusal = record["benchmarks"]["guard"]["refusal"]
     print(record["line"], flush=True)
-    print(f"benchmarks EUR {record['benchmarks']['guard']['total_euros']:.2f} of "
+    guard = record["benchmarks"]["guard"]
+    print(f"benchmarks EUR {guard['total_euros']:.2f} likely, {guard['high_euros']:.2f} high, of "
           f"{benchmarks.CAP_EUROS:.0f}: {'refused: ' + refusal if refusal else 'the guard has room'}; {options.out}")
 
 

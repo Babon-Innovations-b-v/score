@@ -132,11 +132,13 @@ def test_the_eta_walks_the_layers_in_the_routes_order_and_a_layer_of_no_units_ta
 
 
 def test_the_benchmarks_stay_under_their_cap_and_ask_the_months_guard():
-    assert benchmarks.total() <= benchmarks.CAP_EUROS
+    assert benchmarks.total(benchmarks.listed(), "high_euros") <= benchmarks.CAP_EUROS
     over = benchmarks.guard([{"euros": benchmarks.CAP_EUROS + 1}])
     assert "cap" in over["refusal"]
+    high = benchmarks.guard([{"euros": 1.0, "high_euros": benchmarks.CAP_EUROS + 1}])  # the high is what counts
+    assert "cap" in high["refusal"] and high["total_euros"] == 1.0
     paid_paths = ("score run", "tools/props/cloud/batch.py")  # the runner's, or the batch tool's under an override
-    assert all(sum(each["command"].count(path) for path in paid_paths) == 1 for each in benchmarks.BENCHMARKS)
+    assert all(sum(each["command"].count(path) for path in paid_paths) == 1 for each in benchmarks.listed())
 
 
 def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
