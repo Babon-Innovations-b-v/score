@@ -44,6 +44,7 @@ import datetime
 import hashlib
 import io
 import json
+import re
 import math
 import pathlib
 import shlex
@@ -245,17 +246,10 @@ def from_data(place):
 
 
 def described(place):
-    """[sentence] of a place's size, look and what its plan holds, as its plan and look say them."""
-    plan, look, words = plan_of(place), look_of(place) or {}, []
-    if plan.get("w") and plan.get("d"):
-        words.append(f"It is about {plan['w']} m by {plan['d']} m" + (f", {plan['height']}." if plan.get("height")
-                                                                     else "."))
-    if look.get("style", {}).get("text"):
-        words.append(f"Its look: {look['style']['text']}")
-    elements = [element["element"] for element in plan.get("elements", []) if element.get("element")]
-    if elements:
-        words.append(f"It holds: {'; '.join(elements)}.")
-    return words
+    """[sentence] of a place's look, as the creator's look says it. No sizes and no list of what it holds: the old
+    plans and inventories were read from earlier concepts, and the drawing finds the shape (the owner, 2026-10-20)."""
+    look = look_of(place) or {}
+    return [f"Its look: {look['style']['text']}"] if look.get("style", {}).get("text") else []
 
 
 def style():
@@ -311,14 +305,11 @@ def holds_inside(place):
     return (place in found["shells"] or place not in found["within"]) and bool(inside_of(place))
 
 
-def size_of(place):
-    """A place's size in words: its plan's width, depth and height, else its floor plan's length; "" when neither."""
-    plan, floor = plan_of(place), DATA / "definitions" / f"{place}_floor.json"
-    if plan.get("w") and plan.get("d"):
-        return f"{plan['w']:g} m by {plan['d']:g} m" + (f", {plan['height']}" if plan.get("height") else "")
-    if floor.is_file():
-        return f"{json.loads(floor.read_text())['length']:g} m long"
-    return ""
+def no_sizes(words):
+    """`words` with every measure in metres taken out ("27 x 55 m", "at 9 m", "15 m"), and a bracket left empty by
+    it: the drawing finds the shape (the owner, 2026-10-20)."""
+    words = re.sub(r",? ?(at |about )?\d+(\.\d+)?( ?x ?\d+(\.\d+)?)? ?m\b", "", words)
+    return re.sub(r" ?\(\s*[,;:]?\s*\)", "", words).strip()
 
 
 def door_label(plan, side):
@@ -326,7 +317,8 @@ def door_label(plan, side):
     face, _, level = side.partition("@")
     for door in plan.get("doors", []):
         if str(door[0]) == face and (not level or door[-1] == float(level)):
-            return [part for part in door if isinstance(part, str)][-1].lower()
+            label = [part for part in door if isinstance(part, str)][-1].lower()
+            return no_sizes(label)
     return f"{face} door"
 
 
@@ -359,20 +351,18 @@ def holding_words(place):
     names = tree()["shells"]
     parts, joins, said = [], [], set()
     for name in inside:
-        title = plan_of(name).get("title", name).lower().removeprefix("the ")
-        held = [names.get(child, child).lower() + (f" ({size_of(child)})" if size_of(child) else "")
-                for child in inside_of(name)]
-        parts.append(", ".join(filter(None, [f"the {title}", size_of(name),
-                                             f"holding the {', the '.join(held)}" if held else ""])))
+        title = no_sizes(plan_of(name).get("title", name)).lower().removeprefix("the ")
+        held = [names.get(child, child).lower() for child in inside_of(name)]
+        parts.append(", ".join(filter(None, [f"the {title}", f"holding the {', the '.join(held)}" if held else ""])))
         for other, words in joins_of(name, inside):
             pair = frozenset((name, other)) if other else (name, words)
             if pair in said:
                 continue
             said.add(pair)
             joins.append(f"the {name}: {words}")
-    return (f"Inside it, each its own part at its own size, are the places the creator has already laid out: "
+    return (f"Inside it, each its own part, are the places the creator has already laid out: "
             f"{'; '.join(parts)}. They join as laid out: {'; '.join(joins)}. Each must be recognisable from outside "
-            "as what it is: its size, its roof, dome or glazing, and its outer doors as described.")
+            "as what it is: its roof, dome or glazing, and its outer doors as described.")
 
 
 def shell_wording(place):
@@ -402,6 +392,27 @@ def framing(place):
     return f"{INSIDE_VIEW if inside else OUTSIDE_VIEW} {EVERY_DRAW}"
 
 
+def held_shells(place):
+    """The shells with a floor plan the creator listed inside `place` (the hangar's ship): [(shell, its floor plan)]."""
+    return [(shell, json.loads(floor.read_text())) for shell in inside_of(place)
+            if (floor := DATA / "definitions" / f"{shell}_floor.json").is_file()]
+
+
+def held_shell_words(place):
+    """What `place` must show of a shell it holds (owner, 2026-10-20: the hangar showed a small lander, not his ship):
+    the shell at its creator-set length, filling the place, people small against it; "" when it holds none."""
+    return " ".join(f"It holds the {shell}, {plan['length']:g} m long, as large as it truly is, filling most of the "
+                    f"floor: a large ship holding {', '.join(room['name'] for room in plan.get('rooms', []))} on one "
+                    "deck. People beside it, small against it." for shell, plan in held_shells(place))
+
+
+def held_shell_view(place):
+    """The reference view of the first shell `place` holds (its look only), or None."""
+    views = json.loads((DATA / "definitions/concept_views.json").read_text())["views"]
+    return next((view for shell, _ in held_shells(place) for view in views if view["id"].startswith(f"{shell}_")),
+                None)
+
+
 def first_wording(place):
     """(wording, reference path or None) of a first draw: the place's own description (its view's, a shell's floor
     plan's, a shell's listed inside places', else its data's) with the environment's style; Refused when its reference
@@ -412,10 +423,13 @@ def first_wording(place):
     elif view is None and holds_inside(place):
         wording = shell_wording(place)
     else:
-        wording = from_data(place)
+        wording = " ".join(filter(None, [from_data(place), held_shell_words(place)]))
         if view:  # its old view's own wording is retired (the owner, 2026-10-20); its reference stays, for look only
-            wording += (" The attached picture gives its look only (shapes, materials, fittings), never its size, "
+            wording += (" The last attached picture gives its look only (shapes, materials, fittings), never its size, "
                         "layout or viewpoint.")
+        elif view := held_shell_view(place):
+            wording += (" The last attached picture gives the ship's look only (its shape language, materials and landing "
+                        "legs); it shows a much smaller ship: draw it at its true length.")
     if view is None:
         return " ".join(part for part in (wording, framing(place), style()) if part), None
     reference = resolved(view["reference"])
@@ -431,10 +445,31 @@ def own_wording(store, place):
     return found[-1]["wording"] if found else None
 
 
+def outside_pick(store, place):
+    """(the place or shell `place` sits within, the sha of its picked draw), or None while it sits in nothing or that
+    one is not picked: an inside place is drawn to fit its picked outside (CONTEXT.md "concept")."""
+    holder = tree()["within"].get(place)
+    sha = picked(store, holder) if holder else None
+    return (holder, sha) if sha else None
+
+
+def generated_now(store, place):
+    """(wording, reference path or None) of `place`'s generated first draw today: first_wording, and for an inside
+    place the picture of its picked outside sent with it (the owner, 2026-10-20: the rooms did not match the base
+    he picked), so the room's shape, size against the others, roof, windows and doors follow it there."""
+    wording, reference = first_wording(place)
+    fit = outside_pick(store, place)
+    if fit:
+        wording += (f" The first attached picture is the picked concept of the {fit[0]} this place sits within: this "
+                    f"place is the {place} seen there, and its outer shape, roof or dome, size against the others, "
+                    "windows and doors must match how it stands in that picture.")
+    return wording, reference
+
+
 def wording_now(store, place):
     """(wording, reference path or None) the next first draw of `place` sends: the creator's own wording when he set
-    one, else the generated (first_wording, which refuses a draw whose reference is not here either way)."""
-    generated, reference = first_wording(place)
+    one, else the generated (generated_now, which refuses a draw whose reference is not here either way)."""
+    generated, reference = generated_now(store, place)
     return own_wording(store, place) or generated, reference
 
 
@@ -459,7 +494,7 @@ def kept_as_own(store, place, request, by):
     asked = checked_wording(request.get("wording"))
     if request.get("base") or asked is None:
         return
-    own = None if asked == first_wording(place)[0] else asked
+    own = None if asked == generated_now(store, place)[0] else asked
     if own != own_wording(store, place):
         worded(store, place, own, by)
 
@@ -528,7 +563,9 @@ def request_parts(store, place, request):
         raise Refused("a first draw has no picture to mark")
     wording, reference = wording_now(store, place)
     sent = checked_wording(request.get("wording")) or wording
-    return with_note(sent, note), [Image.open(reference)] if reference else []
+    fit = outside_pick(store, place)
+    outside = [Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{fit[1]}")))] if fit else []
+    return with_note(sent, note), outside + ([Image.open(reference)] if reference else [])
 
 
 def redraw_sent(place, marks, note):

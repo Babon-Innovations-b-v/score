@@ -196,18 +196,18 @@ def test_the_ships_first_draw_is_its_true_length_holding_its_rooms_the_reference
     assert "look only" in wording and "never its size or proportions" in wording
 
 
-def test_a_shells_first_draw_holds_every_inside_place_listed_at_its_size_joined_as_laid_out():
+def test_a_shells_first_draw_holds_every_inside_place_listed_joined_as_laid_out():
     wording, reference = concepts.first_wording("base")
     assert reference is None and "seen from outside" in wording
     for inside in ("hub", "airlock", "habitat", "greenhouse", "garage", "hangar", "lab", "workshop", "walkway tube"):
         assert f"the {inside}" in wording
-    assert "16 m by 18 m, walls 2.8 m under a glass dome" in wording  # the greenhouse, from its plan
-    assert "the big door is in the roof" in wording and "holding the ship (46 m long)" in wording
+    assert " m " not in wording.split("Viewpoint")[0]  # no sizes: the drawing finds the shape
+    assert "holding the ship" in wording
     assert "the hub: a walkway tube to the lab" in wording and "the hub: opens straight into the airlock" in wording
-    assert "the garage: its big door, outer, 5 x 4 m opens onto the outside" in wording
+    assert "the garage: its big door, outer opens onto the outside" in wording
     assert "recognisable from outside" in wording and wording.endswith("Chinese and American mixed.")
     square = concepts.first_wording("square")[0]
-    assert "the stairwell (four storeys" in square and "the flat (third floor" in square and "6 m by 5 m" in square
+    assert "the stairwell" in square and "the flat" in square
     assert "waterfront state square in Hong Kong" in square  # its own look and plan stay
     assert "the street (" in square and "the launch" in square  # the places within it
     assert not concepts.holds_inside("hangar") and concepts.holds_inside("ship")  # an inside place is drawn inside
@@ -220,7 +220,7 @@ def test_a_shells_redraw_still_holds_its_inside_places(store, monkeypatch):
     asked = []
     concepts.draw(store, "base", {"note": "bigger hangar", "base": first["sha"]}, "joey", caller=stand_in(asked))
     assert "Overall: bigger hangar" in asked[0][0] and "It must still hold, as described:" in asked[0][0]
-    assert "the greenhouse, 16 m by 18 m" in asked[0][0]
+    assert "the greenhouse" in asked[0][0]
 
 
 def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway():
@@ -289,3 +289,19 @@ def test_an_agents_process_cannot_keep_a_wording_in_the_framework_store(store, m
     with pytest.raises(PermissionError):
         concepts.worded(store, "airlock", "my words", "joey")
     assert concepts.own_wording(store, "airlock") is None
+
+
+def test_the_hangar_is_drawn_holding_the_ship_at_its_true_length_with_its_reference(tmp_path, monkeypatch):
+    shuttle = tmp_path / "shuttle-screenshot.png"
+    shuttle.write_bytes(b"png")
+    monkeypatch.setattr(concepts, "resolved", lambda _path: shuttle)
+    wording, reference = concepts.first_wording("hangar")
+    assert "It holds the ship, 46 m long" in wording and "draw it at its true length" in wording
+    assert reference is not None and reference.name.startswith("shuttle")
+
+
+def test_an_inside_place_is_drawn_to_fit_its_picked_outside(tmp_path, monkeypatch):
+    store = Store.in_folder(tmp_path)
+    assert "picked concept of the base" not in concepts.generated_now(store, "lab")[0]
+    monkeypatch.setattr(concepts, "picked", lambda _store, place: "abc" if place == "base" else None)
+    assert "picked concept of the base this place sits within" in concepts.generated_now(store, "lab")[0]
