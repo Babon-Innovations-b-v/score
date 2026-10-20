@@ -6,9 +6,10 @@
     <div class="num-label">spent</div>
     <div class="num-value" data-v>{% if money.spent is None %}<span class="unknown" title="{{ money.missing }}">unknown</span>{% else %}{% if not money.whole %}<small>&ge;</small> {% endif %}<small>EUR</small> {{ money.spent|floatformat:2 }}{% endif %}</div>
   </div>
-  <div class="topbar-num" title="{% if remake.why %}{{ remake.why }}{% else %}the whole remake: measured likely to high{% if remake.unknown %}; {{ remake.unknown }} paid step{{ remake.unknown|pluralize }} not measured{% endif %}{% endif %}">
+  <div class="topbar-num" title="{% if remake.why %}{{ remake.why }}{% elif not remake.approved %}priced once a place's design is approved: its design decides what it holds{% else %}the remake of the {{ remake.approved }} places with an approved design: measured likely to high{% if remake.unknown %}; {{ remake.unknown }} paid step{{ remake.unknown|pluralize }} not measured{% endif %}{% endif %}">
     <div class="num-label">remake</div>
-    <div class="num-value" data-v>{% if remake.low is None %}<span class="unknown">unknown</span>{% else %}<small>EUR</small> {{ remake.low|floatformat:0 }}&ndash;{{ remake.high|floatformat:0 }}<small>, {% if remake.hours is None %}<span class="unknown" title="a step has no measured run time">{% if remake.at_least_hours %}&ge; {{ remake.at_least_hours|floatformat:"-1" }} h{% else %}? h{% endif %}</span>{% else %}about {{ remake.hours|floatformat:"-1" }} h{% endif %}</small>{% endif %}</div>
+    <div class="num-value" data-v>{% if remake.why %}<span class="unknown">unknown</span>{% elif not remake.approved %}{{ remake.in_design }} <small>places in design</small>{% elif remake.low is None %}<span class="unknown">unknown</span>{% else %}<small>EUR</small> {{ remake.low|floatformat:0 }}&ndash;{{ remake.high|floatformat:0 }}<small>, {% if remake.hours is None %}<span class="unknown" title="a step has no measured run time">{% if remake.at_least_hours %}&ge; {{ remake.at_least_hours|floatformat:"-1" }} h{% else %}? h{% endif %}</span>{% else %}about {{ remake.hours|floatformat:"-1" }} h{% endif %}</small>{% endif %}</div>
+    {% if remake.approved and remake.in_design %}<div class="num-sub" data-v>+ {{ remake.in_design }} <small>places in design</small></div>{% endif %}
   </div>
   <a class="button primary big" href="/buy/">Review and buy</a>
 </section>

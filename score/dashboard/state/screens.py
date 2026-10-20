@@ -78,22 +78,68 @@ def priced(prices):
             "priced": len(known), "unpriced": len(prices) - len(known)}
 
 
-def remake_money(world):
-    """The whole remake: prepare's figure plus the gaps price of every paid step off the prop route, None while
-    either part is missing or stale (the rule of every price record here); each part apart, its ETA (a range only
-    when both parts have one, else at least the longer floor), and why it is stale."""
+def at_approved(node, approved):
+    """Whether a node is at a place whose design is approved (an environment node: once any one is)."""
+    place = node.partition("@")[2]
+    return place in approved if place else bool(approved)
+
+
+def approved_layer(found, approved):
+    """One prepare layer at the approved places only: their takes, the stage's price shared by takes."""
+    places = {place: takes for place, takes in found["places"].items() if place in approved}
+    takes = sum(places.values())
+    share = takes / found["takes"] if found["takes"] else 0.0
+    return {**found, "takes": takes, "places": places,
+            "waits": {place: why for place, why in found.get("waits", {}).items() if place in approved},
+            "likely": None if found["likely"] is None else found["likely"] * share,
+            "high": None if found["high"] is None else found["high"] * share}
+
+
+def approved_parts(world):
+    """(remake, price) at the places whose design the creator approved only (CONTEXT.md "design": a price on the old
+    inventories the new designs replace says nothing): prepare's layers there, each stage's price shared by its
+    takes, their take counts and figure, and the gaps price's nodes there; each None while its record is."""
+    approved = set(approved_places(world))
     remake, price = world.remake, world.gaps_price
+    if remake:
+        layers = {stage: approved_layer(found, approved) for stage, found in remake.layers.items()}
+        priced_layers = [found for found in layers.values() if found["takes"] and found["likely"] is not None]
+        counts = Counter()
+        for place in approved:
+            counts.update(remake.places.get(place, {}))
+        remake = remake.model_copy(update={
+            "layers": layers, "counts": dict(counts), "places": {place: remake.places[place] for place in
+                                                                 approved if place in remake.places},
+            "likely_euros": round(sum(found["likely"] for found in priced_layers), 2),
+            "high_euros": round(sum(found["high"] for found in priced_layers), 2),
+            "unpriced": sorted(stage for stage, found in layers.items() if found["takes"] and found["likely"] is None)})
+    if price:
+        price = price.model_copy(update={"nodes": {node: found for node, found in price.nodes.items()
+                                                   if at_approved(node, approved)}})
+    return remake, price
+
+
+def remake_money(world):
+    """The remake of the places whose design the creator approved (`approved_parts`): prepare's figure plus the gaps
+    price of every paid step off the prop route, None while none is approved or either part is missing or stale (the
+    rule of every price record here); each part apart, its ETA (a range only when both parts have one, else at least
+    the longer floor; the runner times the whole remake only, so unknown until every design is approved), why it is
+    stale, and how many places are approved and still in design."""
+    approved, every = len(approved_places(world)), len(cards(world))
+    remake, price = approved_parts(world)
     rest = priced({node: found for node, found in price.nodes.items() if not on_route(node)}) if price else None
     route = {"likely": remake.likely_euros, "high": remake.high_euros, "unpriced": len(remake.unpriced),
              **remake.counts} if remake else None
     parts = [part for part in (route, rest) if part is not None]
     stale = [why for why in ((remake.stale if remake else "prepare has not run"),
                              (price.stale if price else "the gaps have not been priced")) if why]
-    whole = None if stale or route["likely"] is None or route["high"] is None else \
+    whole = None if stale or not approved or route["likely"] is None or route["high"] is None else \
         {"likely": round(route["likely"] + rest["likely"], 2), "high": round(route["high"] + rest["high"], 2)}
     return {**(whole or {"likely": None, "high": None}), "route": route, "rest": rest,
-            "unpriced": sum(part["unpriced"] for part in parts), "eta": eta_of(remake, price),
-            "made_at": remake.made_at if remake else None, "stale": stale}
+            "unpriced": sum(part["unpriced"] for part in parts),
+            "eta": eta_of(remake, price) if approved == every else eta_of(None, None),
+            "made_at": remake.made_at if remake else None, "stale": stale, "approved": approved,
+            "in_design": every - approved}
 
 
 def eta_of(remake, price):
@@ -307,6 +353,8 @@ def route_rows(remake, now, rows):
     the models layer's library and predicted-to-fail takes beside."""
     widest = {}
     for stage, found in remake.layers.items():
+        if not found["takes"]:
+            continue
         row = layer_row(rows, layer_of(stage))
         bought = {place for place in found["places"] if f"{stage}@{place}" in now}
         later = found["takes"] - sum(found["places"][place] for place in bought)
@@ -378,8 +426,9 @@ def batch(world, items):
     `now` {likely, high, guessed, guesses, stop, places, eta} the Buy's line, `waiting` {likely, high, why}; `gets`
     the places it reaches. Nothing priced here (ADR-0006)."""
     whole = remake_money(world)
-    price = None if world.gaps_price is None or world.gaps_price.stale else world.gaps_price
-    remake = None if whole["stale"] or world.remake is None else world.remake
+    remake, price = approved_parts(world)
+    price = None if price is None or price.stale else price
+    remake = None if whole["stale"] or remake is None else remake
     buying = now_items(items, approved_places(world))
     now = pricing.basket_prices(buying)
     blocked = {node for item in items if item.get("missing") for node in item["nodes"]}
