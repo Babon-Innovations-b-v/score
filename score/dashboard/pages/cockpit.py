@@ -6,7 +6,7 @@ import json
 from collections import defaultdict
 
 from score.dashboard.launch.backend import Billed
-from score.dashboard.state import holes, library, screens
+from score.dashboard.state import holes, screens
 
 # a hole kind's state colour (design/tokens/colours.css) and its short label
 KIND_TONES = {"lost": "hole-lost", "route": "hole-route", "missing": "hole-missing", "gate": "hole-gate"}
@@ -69,23 +69,22 @@ def tone_of(row):
 
 
 def place_tiles(world, names, rows):
-    """{place: {place, href, name, about, picture, made, needed, gaps, tone, inside}} of every place of the
-    environment (a WorldState), `names` their short names, `about` its look's long words (hover text), with its row of
-    holes.per_place: gaps None while its holes are not known."""
+    """{place: {place, href, name, about, picture, made, needed, gaps, tone, holds, more}} of every place of the
+    environment (a WorldState), `names` their short names, `about` its look's long words (hover text), `picture` its
+    concept's thumbnail (None: its concept is lost, never a render instead), with its row of holes.per_place: gaps
+    None while its holes are not known."""
     by_place = {row["place"]: row for row in rows}
-    shelf = library.library()
     found = {}
     for style, card in [(style, card) for engine in world.engines for style in engine.styles for card in style.places]:
         row = by_place.get(card.place)
-        picture = card.still or card.hero
         made, needed = made_of(card)
         found[card.place] = {"place": card.place, "href": f"/place/{card.place}/",
                              "name": names.get(card.place, card.place),
                              "about": style.label if style.short else None,
-                             "picture": screens.thumb(picture) or screens.library_picture(shelf, card.place),
+                             "picture": screens.thumb(world.concepts.get(card.place)),
                              "made": made, "made_tip": f"made {made} of {needed}", "needed": needed,
                              "gaps": None if row is None or row["not_checked"] else row["holes"],
-                             "tone": tone_of(row), "inside": 0}
+                             "tone": tone_of(row), "holds": [], "more": 0}
     return found
 
 
@@ -113,18 +112,32 @@ def inside_of(world, node, known):
 
 def nested_tile(world, node, by_place, names):
     """A tile of a place or shell with places inside: its progress and gaps summed over itself and every place within
-    it, its worst tone, its own picture else the first one inside; it opens one level down (`/?in=<node>`)."""
+    it, its worst tone, its own concept (None when it has none, never one from inside), `holds` what sits directly in
+    it holding places itself (`holder`), `more` how many others sit directly in it; it opens one level down
+    (`/?in=<node>`)."""
     inside = inside_of(world, node, by_place)
     parts = [by_place[place] for place in ([node] if node in by_place else []) + inside]
     checked = [part["gaps"] for part in parts if part["gaps"] is not None]
     made, needed = sum(part["made"] for part in parts), sum(part["needed"] for part in parts)
     tones = {part["tone"] for part in parts}
     tone = next((tone for tone in KIND_TONES.values() if tone in tones), "done" if tones == {"done"} else "idle")
+    children = [child for child in [*by_place, *world.shells] if parent_of(world, child, by_place) == node]
+    holds = [holder(world, child, by_place, names) for child in children if inside_of(world, child, by_place)]
+    leaves = [names.get(child, child) for child in children if not inside_of(world, child, by_place)]
     return {"place": node, "href": f"/?in={node}", "name": world.shells.get(node) or names.get(node, node),
-            "about": f"{len(inside)} places inside", "picture": next((part["picture"] for part in parts
-                                                                     if part["picture"]), None),
+            "about": ", ".join([f"{held['name']} ({held['count']} {held['unit']})" for held in holds] + leaves),
+            "picture": screens.thumb(world.concepts.get(node)),
             "made": made, "needed": needed, "made_tip": f"made {made} of {needed}",
-            "gaps": sum(checked) if checked else None, "tone": tone, "inside": len(inside)}
+            "gaps": sum(checked) if checked else None, "tone": tone, "holds": holds, "more": len(leaves)}
+
+
+def holder(world, node, by_place, names):
+    """{name, picture, count, unit} of a place or shell holding places, as the tile around it names it ("Ship, 8
+    rooms": a shell's places are its rooms), with its concept's thumbnail."""
+    count = len(inside_of(world, node, by_place))
+    unit = ("room" if node in world.shells else "place") + ("" if count == 1 else "s")
+    return {"name": world.shells.get(node) or names.get(node, node), "count": count, "unit": unit,
+            "picture": screens.thumb(world.concepts.get(node))}
 
 
 def tiles(world, names, rows, at=None):

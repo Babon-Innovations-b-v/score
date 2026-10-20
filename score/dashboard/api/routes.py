@@ -379,7 +379,7 @@ def basket_file(place: str, name: str, user=Depends(signed_in)):
 
 @api.get("/screens/environment")
 def environment_screen(user=Depends(signed_in), month: Spend = Depends(actions.spend)):
-    return screens.environment(state.source(), month, library.library())
+    return screens.environment(state.source(), month)
 
 
 @api.get("/screens/place/{place}")

@@ -5,7 +5,8 @@
     <out>/state.json           WorldState
     <out>/places/<place>.json  {"detail": PlaceDetail, "steps": {stage: StepDetail}, format, code_version};
                                _world.json the world's steps
-    <out>/files/<sha>-1280.jpg hero pictures; <sha>-360.jpg thumbnails (newest 8 a node); <sha>.mp4 accepted films
+    <out>/files/<sha>-1280.jpg hero and concept pictures; <sha>-360.jpg thumbnails (the concepts' first, newest 8 a
+                               node); <sha>.mp4 accepted films
     <out>/web3d/<place>/       each place's fresh 3D copy (web3d/convert.py): sidecar and preview, then the whole one
     <out>/proposals/           the basket (proposals/exporting.py): its index, each place's details, inputs and 3D copies
                                right after the heroes, the whole 3D copies after the places' own
@@ -134,7 +135,8 @@ def pictures_folder(home):
 
 def heroes(world):
     cards = [card for engine in world.engines for style in engine.styles for card in style.places]
-    return [card.hero for card in cards if card.hero] + [card.still for card in cards if card.still] + [
+    return [*world.concepts.values()] + [card.hero for card in cards if card.hero] + [
+        card.still for card in cards if card.still] + [
         style.picture for engine in world.engines for style in engine.styles if style.picture]
 
 
@@ -213,6 +215,8 @@ def build(source, out, made_at, cap_mb, spend, repo):
         bundle = place_bundle((source.place_detail(place), step_details(source, place, source.place_rows(place))))
         filler.wrote(out / "places" / f"{place}.json", write_json(out / "places" / f"{place}.json", bundle))
         bundles.append(bundle)
+    for concept in world.concepts.values():  # the tiles' pictures, small, before anything else
+        filler.picture(source.file(concept.sha)[1], concept.sha, THUMB_SIDE, f"concept {concept.name}")
     for hero in heroes(world):
         filler.picture(source.file(hero.sha)[1], hero.sha, HERO_SIDE, f"picture {hero.name}")
     proposals.in_export(source.home / "proposals", filler, wholes=False)  # the basket's items, pictures and all

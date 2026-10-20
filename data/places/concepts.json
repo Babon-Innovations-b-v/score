@@ -1,0 +1,141 @@
+{
+ "about": "Each place's and outside shell's concept picture (#42): `concepts` {node: {sha256, name, from}}, its bytes in the store's blobs, hash-checked against the sha256 its plan or inventory names where one does; `lost` {node: {picture (where its plan names it), sha256 (as its inventory names it, null when none does), why}} the ones not found, which the cockpit shows as \"concept missing\" (the remake's first step redraws them). Read by the cockpit only (score/dashboard/state/local.py), never by a stage.",
+ "concepts": {},
+ "lost": {
+  "airlock": {
+   "picture": "{seeds}/scene/airlock/views/K02.png",
+   "sha256": "df72c445977a3c757345cdc5f539a80b7bd518feba06ea76788fc0627b6404ce",
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "camp": {
+   "picture": "{seeds}/scene/camp/views/K01.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "campgrounds": {
+   "picture": "{seeds}/scene/campgrounds/views/K05.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "cockpit": {
+   "picture": "{seeds}/scene/cockpit/views/cockpit.png",
+   "sha256": "62712a8a4ed0250f68f48b7d509808b435650a0faee1e6d080955d125bc6c8ee",
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "engineroom": {
+   "picture": "{seeds}/scene/engineroom/views/engineroom.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "flat": {
+   "picture": "{seeds}/scene/prologue_flat/views/K06.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "galley": {
+   "picture": "{seeds}/scene/galley/views/galley.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "garage": {
+   "picture": "{seeds}/scene/garage/views/K04.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "greenhouse": {
+   "picture": "{seeds}/scene/greenhouse/views/K09.png",
+   "sha256": "b3ed4bd3321a3e45d41b4b044b73186c933c359bb810c25cf8dd2cc8dbd69553",
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "habitat": {
+   "picture": "{seeds}/scene/habitat/views/K03.png",
+   "sha256": "29a4572690a469c53f855275e721f08eff53efcacdc91b6e82e39f868533a7ff",
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "hangar": {
+   "picture": "{seeds}/scene/hangar/views/K01.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "hub": {
+   "picture": "{seeds}/scene/hub/views/M3-north.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "lab": {
+   "picture": "{seeds}/scene/lab/views/K06.png",
+   "sha256": "c22bfcac20c428c5b514c8241531dd53a76ae77e7a3daa4773a6421a14080d7e",
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "launch": {
+   "picture": "{seeds}/scene/launch/views/K01.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "navigation": {
+   "picture": "{seeds}/scene/navigation/views/navigation.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "old_station": {
+   "picture": "{seeds}/scene/old_station/views/C4.png",
+   "sha256": "c651a58d08ed54388367b13fdb06deca8bb3c832c51819f852a231e887290d74",
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "quarters": {
+   "picture": "{seeds}/scene/quarters/views/quarters.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "shiplock": {
+   "picture": "{seeds}/scene/shiplock/views/shiplock.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "square": {
+   "picture": "{seeds}/scene/square/views/K04.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "stairwell": {
+   "picture": "{seeds}/scene/prologue_stairwell/views/K02.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "storage": {
+   "picture": "{seeds}/scene/storage/views/storage.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "street": {
+   "picture": "{seeds}/scene/street/views/K03.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "tube": {
+   "picture": "{seeds}/scene/tube/views/K12.png",
+   "sha256": "3f44d8f137306213f4226feb0fd1a2a0c3f8cedec3640708aa2bd2b234da95ef",
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "walkway": {
+   "picture": "{seeds}/scene/walkway/views/walkway.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "workshop": {
+   "picture": "{seeds}/scene/workshop/views/K10.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "wreck": {
+   "picture": "{seeds}/scene/wreck/views/C2.png",
+   "sha256": "466769ff7567a5cb05ba76eb05215b1f9a350356af837d9735d2023b4a088d4b",
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  },
+  "ship": {
+   "picture": "{seeds}/scene/ship/reference-shuttle.png",
+   "sha256": null,
+   "why": "not found, by name or by sha256, in: the work folder (lost), the store, score_lib's entries and its blobs in the bucket, every job input tar in the bucket (1,353, each member listed), the bucket's run outputs, git history, this PC's home, /tmp and Windows user folders, the hosted export (2026-10-20)"
+  }
+ }
+}

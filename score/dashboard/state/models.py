@@ -192,6 +192,7 @@ class WorldState(BaseModel):
     remake: Remake | None = None
     within: dict[str, str] = {}  # {place or shell: the outside place or shell it sits within} (data/places/within.json)
     shells: dict[str, str] = {}  # {outside shell that is no place of its own: its short name}
+    concepts: dict[str, FileRef] = {}  # {place or shell: its concept picture} (data/places/concepts.json); absent: lost
 
 
 class GateVerdict(BaseModel):

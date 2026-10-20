@@ -461,8 +461,12 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .ptile-pic { aspect-ratio: 16 / 10; background: var(--raised); }
 .ptile-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ptile-pic { position: relative; }
-.ptile-inside { position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: var(--bg); color: var(--ink); font-variant-numeric: tabular-nums; }
-.ptile-inside svg { width: 14px; height: 14px; fill: none; stroke: var(--ink); stroke-width: 1.4; }
+.ptile-missing { position: absolute; inset: 0; display: grid; place-items: center; color: var(--soft); }
+.ptile-pic:has(.ptile-holds) .ptile-missing { bottom: 50%; }
+.ptile-holds { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.ptile-held { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: var(--radius-small); background: var(--bg); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ptile-held:has(img) { padding-left: 3px; }
+.ptile-held img { width: 56px; height: 35px; object-fit: cover; border-radius: var(--radius-small); }
 .trail { margin: 0 0 12px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; } .trail .sep { color: var(--faint); }
 .ptile-foot { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
 .ptile-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -488,6 +492,8 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .panel-post { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .panel-post input { flex: 1; min-width: 0; } .panel-picture[hidden], .panel-post[hidden], .panel-post input[hidden] { display: none; }
 .place-layout { display: grid; grid-template-columns: minmax(200px, 280px) 1fr; gap: 16px; min-height: calc(100vh - 140px); }
 .place-tree { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; overflow: auto; max-height: calc(100vh - 140px); }
+.place-concept { position: relative; aspect-ratio: 16 / 10; margin: 8px 0 12px; border-radius: var(--radius-small); overflow: hidden; background: var(--raised); }
+.place-concept img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .place-view iframe { width: 100%; height: 100%; min-height: 480px; border: 0; border-radius: var(--radius); background: var(--raised); }
 .buy-layout { display: grid; grid-template-columns: 1fr minmax(240px, 320px); gap: 16px; }
 .buy-side { display: flex; flex-direction: column; gap: 12px; }
