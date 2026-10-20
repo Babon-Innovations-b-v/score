@@ -7,6 +7,7 @@ data/definitions/ship_floor.json, every difference stated, never tuned away.
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/shell_split/shell_split_test.py
 """
 import copy
+import dataclasses
 import json
 import pathlib
 import sys
@@ -15,7 +16,7 @@ import tempfile
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from score import checks, stages  # noqa: E402
+from score import checks, contracts, graph, stages  # noqa: E402
 from score.stages import shell_split  # noqa: E402
 from score.stages.complete.holes import fill, route  # noqa: E402
 from score.store import PROPS_HOME, Store  # noqa: E402
@@ -48,7 +49,7 @@ def shell_plan(root, split, name="toyship"):
 def made(split):
     """The row's output for a shell plan with this split, and its inputs."""
     root = folder()
-    inputs = {"plan": shell_plan(root, split)}
+    inputs = {shell_split.SHELL_PLAN: shell_plan(root, split)}
     out = root / "out"
     out.mkdir()
     shell_split.make(inputs, out, 0, {})
@@ -141,6 +142,24 @@ def test_rooms_that_cannot_fit_the_shell_are_refused():
         raise AssertionError("rooms longer than the shell were split")
 
 
+def test_the_runner_makes_and_accepts_a_shells_split_after_its_plan():
+    """Through the runner, as `score run` makes it: the shell's plan file and the plan row's output are two inputs."""
+    root = folder()
+    shell_plan(root, TOY)
+
+    def make_plan(inputs, out, seed, params):
+        (out / "plan.json").write_text((inputs["plan"]).read_text())
+
+    plan_row = graph.Stage("plan", "place", make_plan, contracts.Contract("place-plan", 2, lambda out: []),
+                           (checks.Check("mapped", lambda output, inputs, evidence: checks.Verdict(
+                               "mapped", checks.PASS, "a toy plan")),), files={"plan": "{data}/plans/{place}.json"})
+    row = dataclasses.replace(stages.SHELL_SPLIT, applies=None)
+    world = graph.Environment("toy", 7, {"data": root})
+    runner = graph.Runner((plan_row, row), world, Store.in_folder(folder()), model_record=lambda kind: {"kind": kind})
+    found = runner.run(["toyship"])
+    assert found["shell-split@toyship"] == "made: pass, accepted automatically", found
+
+
 def with_plans(plans, check):
     """`check()` with shell_split reading `plans` as the environment's plans folder."""
     saved = shell_split.PLANS
@@ -179,6 +198,23 @@ def test_a_place_that_holds_itself_is_refused():
         assert "holds itself" in str(refused)
     else:
         raise AssertionError("a shell inside its own inside place was read")
+
+
+def test_one_bad_shell_plan_stops_only_the_places_it_names():
+    root = folder()
+    plans = shell_plan(root, TOY).parent
+    shell_plan(root, {"outline": []}, "broken")  # no room list: its own node fails, no one else's plan
+    twice = copy.deepcopy(TOY)
+    twice["rooms"] = [{"place": "bridge", "side": "whole", "long": [3.0, 4.0]}]
+    del twice["spine"]
+    shell_plan(root, twice, "second")
+    assert with_plans(plans, lambda: shell_split.shell_of("bunks")) == ["toyship"]
+    try:
+        with_plans(plans, lambda: shell_split.shell_of("bridge"))
+    except ValueError as refused:
+        assert "more than one shell" in str(refused)
+    else:
+        raise AssertionError("a place split from two shells was read")
 
 
 def test_a_shell_without_its_split_is_a_hole_filled_by_the_row():

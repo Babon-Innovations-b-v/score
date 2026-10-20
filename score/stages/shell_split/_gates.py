@@ -21,7 +21,7 @@ def read_split(output):
 
 
 def read_plan(inputs):
-    return json.loads(pathlib.Path(inputs["plan"]).read_text())["split"]
+    return json.loads(pathlib.Path(inputs["shell plan"]).read_text())["split"]
 
 
 def verdict(name, faults, passed, measures):
