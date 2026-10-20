@@ -164,9 +164,11 @@ scale, starting big with a new place inside an existing environment:
    place's concept, rough model, close-ups of every detailed prop and the finishes each needs.
 4. Zooming into an inside place repeats the same steps.
 
-How the pieces fit is the framework's and its tools' work. Where the runner stands today: the stage table has no
-rough-model stage and no stage that splits a shell's plan into the shapes of its inside places, and a plan does not
-name its outside shell; each place's concept, plan and inventory are made on their own. The ship is the first place run
+How the pieces fit is the framework's and its tools' work. Where the runner stands today: the stage table's
+`rough-model` row (`score/stages/rough_model`, #15) makes each place's rough model after its plan, from the concept the
+plan names (or the concept view drawn for it), but no plan is drawn to its rough model yet; there is no stage that
+splits a shell's plan into the shapes of its inside places, and a plan does not name its outside shell; each place's
+concept, plan and inventory are made on their own. The ship is the first place run
 through the loop: its rooms' concepts were drawn before its hull was planned; drawing them again to the shapes split
 from the hull's plan is the loop's first run.
 

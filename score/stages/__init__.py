@@ -26,7 +26,8 @@ import pathlib
 from score import checks, contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
                           effects, gaps, images, library, light, machines, motion, people, people_takes, physics,
-                          props, proposals, scene_record, settling, sound, surface_tiles, surfaces, terrain)
+                          props, proposals, rough_model, scene_record, settling, sound, surface_tiles, surfaces,
+                          terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
@@ -142,6 +143,11 @@ PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scen
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
                    files=kit_if_laid(scene_record.plan.files), applies=scene_record.written)
+# The place's rough model (shapes first: the prop pipeline on its whole concept), after its plan and, where a view is
+# drawn for it, the concept views (score/stages/rough_model, its overlay); paid, for every place with a plan.
+ROUGH_MODEL = graph.Stage("rough-model", "place", rough_model.make, rough_model.CONTRACT, rough_model.CHECKS,
+                          files=rough_model.files, after=rough_model.AFTER, paid=True, euros=rough_model.EUROS,
+                          applies=scene_record.written)
 # The openings gate's finding for a place no made ground seats (scene_record/gates.py judge_openings).
 NO_GROUND = "no made ground seats this place: its outside cannot be judged"
 
@@ -378,8 +384,11 @@ def prop_fed(row):
 
 # Experimental (2026-10-14) until the owner reviews it: concept views drawn by Pro from a creator's reference and a
 # written request (data/definitions/concept_views.json), one environment node, paid: the ship's top and side views first.
+# Its `applies` names the places that read it (a view is drawn for them: rough_model.drawn_for), so a place stage
+# reading it waits on it only there (Runner.reads); an environment node is made once whatever its `applies`.
 CONCEPT_VIEWS = graph.Stage("concept-views", "world", concept_view.make, concept_view.CONTRACT, concept_view.CHECKS,
-                            files=concept_view.files, paid=True, euros=concept_view.euros())
+                            files=concept_view.files, paid=True, euros=concept_view.euros(),
+                            applies=rough_model.drawn_for)
 # Experimental (2026-10-14): the concept partition's SAM 2.1 proposals for scenes whose inventory has not landed
 # (data/definitions/partitions.json), one environment node, paid: the cockpit first.
 PARTITION_PROPOSALS = graph.Stage("partition-proposals", "world", proposals.make, proposals.CONTRACT, proposals.CHECKS,
@@ -414,7 +423,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
           props.CALIBRATION, props.LIKENESS,
-          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, ROUGH_MODEL, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
           *light.ROWS, *map(library_narrowed, map(crops_bake_checked, crops.ROWS)), COMPLETE_BOXES,
           surface_tiles.STAGE)
 

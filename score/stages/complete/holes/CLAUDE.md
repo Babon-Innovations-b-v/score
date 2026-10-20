@@ -37,7 +37,8 @@ findings.json's contract. Bible: `architecture/components`.
   node outside every table are named in the record, never dropped. A ship kit (`ship_kit@<place>`, its own table:
   `price.own_tables`) is priced the same way on its own row, its chain the node alone. The rows waiting on their place's prop data get
   the prop route (every paid row up to `likeness`) priced apart, after that work, and so is the code work whose make
-  is Pixal3D's (`code_work`: a lost take one model, a rough model one a place, at pixal's per unit). A node with no
+  is Pixal3D's (`code_work`: a lost take one model, at pixal's per unit). A missing rough model is no code work
+  since its row is in the table: its route hole names `rough-model@<place>`, priced through its chain. A node with no
   measured price is unknown, its row's flat estimate never carried (owner, 2026-10-20). Nothing here buys: a Blocked
   node is priced, never dropped, and the plan and the run keep their refusals.
 - **The runner's ETA is `schedule.py`** (#14): `schedule(nodes, edges, jobs, run_cap)` walks a plan's rows in
