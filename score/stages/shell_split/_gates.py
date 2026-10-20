@@ -14,6 +14,9 @@ import pathlib
 from score import checks
 
 EPSILON = 0.002  # metres: two lengths written to the millimetre are the same within this
+# The shell's plan file, its split's input; named apart from the plan row's output (`after`), which the runner would
+# check out over it.
+SHELL_PLAN = "shell plan"
 
 
 def read_split(output):
@@ -21,7 +24,7 @@ def read_split(output):
 
 
 def read_plan(inputs):
-    return json.loads(pathlib.Path(inputs["shell plan"]).read_text())["split"]
+    return json.loads(pathlib.Path(inputs[SHELL_PLAN]).read_text())["split"]
 
 
 def verdict(name, faults, passed, measures):

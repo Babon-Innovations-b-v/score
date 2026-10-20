@@ -9,8 +9,8 @@ Bible: `architecture/lifecycles` (shapes first).
   or environment 1. A shell's own measures (its outline) are numbers in its plan, measured by whoever writes the plan
   (its rough model, when that stage stands): no shell's reader is imported here.
 - **The route's order is in the table.** shell-split reads the shell's `plan`; every inside place's `plan` reads its
-  shell's split beside it (`PLAN` in `score/stages/__init__.py`: `beside`, `neighbours=shell_of`, `nested`). A nested
-  read goes up to the shell, never back down, so the table's loop check leaves it out (`graph.Stage.nested`);
+  shell's split beside it (`PLAN` in `score/stages/__init__.py`: `beside`, `neighbours=shell_of`, `upward`). An upward
+  read goes up to the shell, never back down, so the table's loop check leaves it out (`graph.Stage.upward`);
   `shell_of` refuses a place that holds itself, or one named by two shells' splits (only that place: a broken shell
   plan stops its own node, never another place's plan). `shell_of`'s table wrapper lives in the table, so the plan
   row's code version never hashes this module. The drive (`score run`) orders the nodes by what they read; a single

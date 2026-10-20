@@ -511,7 +511,7 @@ def make_split(inputs, out, seed, params):
 
 
 OUTLINED = graph.Stage("outlined", "place", make_outlined, TEXT, (checks.Check("counted", judge_count),),
-                       after={"clean": ("toy-text", 1)}, beside={"split": ("toy-text", 1)}, nested=True,
+                       after={"clean": ("toy-text", 1)}, beside={"split": ("toy-text", 1)}, upward=True,
                        neighbours=lambda place: ["station"] if place == "hangar" else [])
 SPLIT = graph.Stage("split", "place", make_split, TEXT, (checks.Check("counted", judge_count),),
                     after={"outlined": ("toy-text", 1)})
@@ -519,8 +519,8 @@ SPLIT = graph.Stage("split", "place", make_split, TEXT, (checks.Check("counted",
 
 def test_an_inside_place_reads_its_shells_split_one_scale_down():
     """Shapes first (CONTEXT.md): an inside place's stage reads its outside shell's split, which reads the shell's
-    own node of that stage. A loop in the table, none in the nodes: a nested stage's beside reads are left out of the
-    table's loop check, and the drive makes the shell's line first. The same stage not nested is refused."""
+    own node of that stage. A loop in the table, none in the nodes: an upward stage's beside reads are left out of the
+    table's loop check, and the drive makes the shell's line first. The same stage not upward is refused."""
     world, store, _ = ready_world()
     runner = a_runner(world, store, (CLEAN, COUNT, OUTLINED, SPLIT))
     found = runner.drive(["hangar"], say=lambda line: None, jobs=1, whole=False)
@@ -529,11 +529,11 @@ def test_an_inside_place_reads_its_shells_split_one_scale_down():
     inside = store.checkout(store.accepted("outlined@hangar"))
     assert (inside / "outlined.txt").read_text() == "SPLIT A HUB A SHIP IN A HALL"
     try:
-        a_runner(world, store, (CLEAN, COUNT, dataclasses.replace(OUTLINED, nested=False), SPLIT))
+        a_runner(world, store, (CLEAN, COUNT, dataclasses.replace(OUTLINED, upward=False), SPLIT))
     except ValueError as refused:
         assert "cycle" in str(refused)
     else:
-        raise AssertionError("a loop through a beside read that is not nested was declared")
+        raise AssertionError("a loop through a beside read that is not upward was declared")
 
 
 def judge_seen(output, inputs, evidence):
