@@ -198,7 +198,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   store's `WorldState.inventories` read by `score/review/concepts.inventory_read`; prepare's `design.py` the same rule,
   its `inventory` state), and its numbers only once its gaps findings are not older than the pick (`screens.counted`,
   `local.inventory_reads` `checked`: earlier ones were read from an older inventory). Until then its tile and head
-  show its design state in words (`cockpit.DESIGN_WORDS`: to draw, in review, inventory to read, gaps to check, in
+  show its design state in words (`cockpit.DESIGN_WORDS`: to draw, in review, inventory to read, plan to make, gaps to check, in
   design for a tile none of whose places count) in place of the ring and gaps, its tile opens its concept page and
   its head has no Open (owner, 2026-10-20), its Place screen shows only its concept, that state and a link to its
   concept page (no scene tree, no 3D, no gaps), and its gaps are in no total (`views.overview_of` rows,
