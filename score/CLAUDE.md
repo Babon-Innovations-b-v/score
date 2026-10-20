@@ -58,8 +58,7 @@ stage as each stage is built; nothing moves before.
 - **`graph/`** the runner: `Stage` (the stage table's row; a paid one names its estimate, `euros`; `applies`
   leaves out the places its environment data says it has nothing to do for; `upward`: its beside reads go up to the
   outside shell holding this place, an inside place's plan reading its outside shell's split, so the table's loop check leaves
-  them out; `graph.asked_for(names)` as an `applies` keeps a row off every line, plan, hole and price unless the
-  command asks for one of `names` by `--stage`), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
+  them out), `Environment` (`World` its old name, kept for the images stage, whose keyed module names it, until that stage is next made),
   `Runner.run/drive/status/lines/why/ticket/stale`. `run` accepts an output by itself when every gate passed
   (waivers counted), nothing got worse than the accepted output and the owner never rejected it, and makes a paid
   stage inside its clearance's ticket; `stale` (shown in status) names the earlier nodes whose accepted output moved
@@ -112,7 +111,7 @@ stage as each stage is built; nothing moves before.
   example: `assembly` on environment 1's round-three stages as unverified seeds (placeholder and resting gates) and
   `complete`. `terrain` (one environment node, paid) makes every ground from its plan in `data/ground/plan/`, gated on
   scale, slope, ground under objects and openings (its overlay). `surfaces` (step 1) is each place's own line of
-  rows, the finish-map method to checked bake (its overlay; per-place data in
+  rows, the finish route to checked bake (its overlay; per-place data in
   `data/surfaces/`). `effects-layer` (experimental: the launch, airlock, garage, hangar, greenhouse, habitat, flat, camp and campgrounds) makes a place's effects layer from its record in
   `data/effects/`, gated on attached, footage, light and outside, and the assembly takes it; `effects-look` (paid) renders it
   before and after (its overlay). `neighbours` (experimental, `stages/assembly/neighbours.py`) stands each place's

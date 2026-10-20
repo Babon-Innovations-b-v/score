@@ -150,14 +150,14 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
 def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
     """Editing the surface line's paint, bake and check code (place_line.py, bake_check.py, feet.py), the resting
     triage, the settle, the pick check or the completion gate leaves the paid rows that do not run them alone: the
-    turntable, SegviGen, terrain and the effects rows (each re-bought on the water tank's fix, 2026-10-12, through the
-    surfaces __init__ and complete.py); the paint, bake and check rows move."""
+    finish route's views, list, split and recheck, terrain and the effects rows (each re-bought on the water tank's
+    fix, 2026-10-12, through the surfaces __init__ and complete.py); the paint, bake and check rows move."""
     table = {stage.name: stage for stage in stages.STAGES}
     edited = ("score/stages/surfaces/place_line.py", "score/stages/surfaces/bake_check.py",
               "tools/props/library/feet.py", "tools/usd/triage.py", "tools/usd/settle.py", "tools/usd/picks.py",
               "tools/usd/complete.py")
-    for name in ("surfaces-turntable", "surfaces-segvigen", "surfaces-inputs", "surfaces-maps", "terrain",
-                 "effects-layer", "effects-look"):
+    for name in ("finish-route-views", "finish-route-list", "finish-route-split", "finish-route-recheck",
+                 "terrain", "effects-layer", "effects-look"):
         before = code_after_editing(table[name], "nothing")
         for path in edited:
             assert code_after_editing(table[name], path) == before, (name, path)
@@ -190,8 +190,9 @@ def test_a_coloured_place_reads_its_own_dress_rows():
 
 
 def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
-    """Editing turntable_row.py (its PNGs written without text, 2026-10-12) moves the turntable row, and SegviGen's
-    through row_files.py (both rows' world files), and no other paid row: the maps read its pictures, never its code."""
+    """Editing turntable_row.py (its PNGs written without text, 2026-10-12) moves the turntable rows of the lines that
+    still run the finish-map method (people, crops), and no other paid row: the maps read its pictures, never its
+    code."""
     table = {stage.name: stage for stage in stages.STAGES}
     edited = "score/stages/surfaces/turntable_row.py"
     moved = {name for name, stage in table.items() if stage.paid
@@ -202,7 +203,7 @@ def test_the_turntable_row_s_code_moves_only_the_turntable_and_segvigen():
     # but paint and bake, which key only the library surfaces they read (library_reads.py) since 2026-10-13.
     crops = {"crops-boxes", "crops-closeup", "crops-pixal", *(f"crops-surfaces-{step}" for step in (
         "turntable", "lists", "maps", "segvigen"))}  # its names row is free since #21
-    assert moved == {"surfaces-turntable", "surfaces-segvigen", "people-turntable", *crops}, moved
+    assert moved == {"people-turntable", *crops}, moved
 
 
 def test_a_place_with_a_plan_and_no_kit_yet_is_a_place():

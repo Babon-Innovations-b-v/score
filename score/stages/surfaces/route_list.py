@@ -1,18 +1,19 @@
-"""The finish route's list row (paid: one Gemini 3.1 Pro ask a take, through finish_ask.generated and google_spend:
-the key `gemini-api-key` by name, every call priced on the Google ledger, an ask asked before read back free).
+"""The finish route's list row (paid: one Gemini 3.1 Pro answer a take, all the place's takes in one batch at half
+price, route_ask.py: asked once, an ask asked before read back free).
 
 Gemini sees the take's close-up (its own, or the stand-in, said so in the question), every view of the model's own
-texture and the same views split into the split row's colour groups, and lists the take's finishes. Each finish is
-matched FIRST to a surface of the library with its settings: the palette token of its colour (one the library's
-variants or the places use), its shine (roughness, metal) and its seed (the node's, one a finish); its wear is the
-place's one level (the room's wear rule, owner): a finish that looks more or less worn says so in `wear_wish`, an
-owner question, never a setting. A new surface is proposed only when no surface fits with any settings (`fits`
-false). Each group belongs to one finish; a group the answer leaves out takes the finish of the named group
-nearest it in colour, recorded as such.
+texture and the same views split into the views row's colour regions, and gives in one answer the take's complete
+finish list and a label for each region in each view. Each finish is matched FIRST to a surface of the library with
+its settings: the palette token of its colour (one the library's variants or the places use), its shine (roughness,
+metal) and its seed (the node's, one a finish); its wear is the place's one level (the room's wear rule, owner): a
+finish that looks more or less worn says so in `wear_wish`, an owner question, never a setting. A new surface is
+proposed only when no surface fits with any settings (`fits` false). Each region showing in a view is labelled with
+the finish its part has there; the split votes the labels across views.
 
-Output: <take>.json per take (its finishes, each with groups, surface, settings, fits, new_surface, wear_wish),
-questions.json (the wear wishes, for the owner). Gate "library first": every split take is listed, every finish
-names a library surface with settings inside the library's ranges, and one that does not fit proposes a surface.
+Output: <take>.json per take (its finishes, each with surface, settings, fits, new_surface, wear_wish; its labels,
+{view: {region: finish}}, 0-based), questions.json (the wear wishes for the owner, the takes with no usable answer).
+Gate "library first": every cast take is listed, every finish names a library surface with settings inside the
+library's ranges, and one that does not fit proposes a surface; a take with no usable answer is a hole, named.
 """
 import json
 import pathlib
@@ -26,28 +27,32 @@ import numpy as np  # noqa: E402
 
 import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
-import route_cap  # noqa: E402
+import route_ask  # noqa: E402
 import route_data  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
-LIST_EUROS = 0.5  # a guess for the row's run (google_spend.ESTIMATES: EUR 0.05 an ask, a place's takes); never a price
+LIST_EUROS = 0.5  # a guess for the row's run (a place's takes at half of google_spend.ESTIMATES); never a price
+CALLER = "finish-route-list"
 QUESTION = """You help paint a 3D model with surfaces from a shared library. The object: {object}.
 The first picture is {close_up}. The next {count} pictures show the model from every side ({views}) in its own
-texture, shaded only by angle. The {count} after them show the same views with the model split into colour groups,
-each group one flat colour:
-{groups}
-List the object's finishes: the distinct surface treatments a painter would give its parts. List a finish only when
-it truly differs in material or paint from the others; dirt, wear, scratches, light and shadow are not finishes.
-For each finish give its parts in words, the colour groups it covers (every group belongs to exactly one finish),
-and FIRST the library surface it is, with its settings: the palette token nearest its colour, and its roughness
-and metal from 0 to 1 (the surface's own unless the pictures clearly show otherwise). The library's surfaces, each
-with its own token, roughness and metal:
+texture, shaded only by angle. The {count} after them show the same views with the model split into colour regions,
+each region one flat colour, the same colour for the same region in every view:
+{regions}
+The regions showing in each view:
+{shown}
+First, list the object's finishes: the distinct surface treatments a painter would give its parts. List a finish only
+when it truly differs in material or paint from the others; dirt, wear, scratches, light and shadow are not finishes.
+For each finish give its parts in words and FIRST the library surface it is, with its settings: the palette token
+nearest its colour, and its roughness and metal from 0 to 1 (the surface's own unless the pictures clearly show
+otherwise). The library's surfaces, each with its own token, roughness and metal:
 {surfaces}
 The palette tokens:
 {tokens}
 Choose by what the part is and how such a part is made, then by its colour. Only when no library surface fits with
 any settings, set "fits" to false and propose a new library surface. Wear is the place's one level ({wear}); only if
-a finish clearly looks more or less worn than that, say how in "wear_wish", else leave it empty."""
+a finish clearly looks more or less worn than that, say how in "wear_wish", else leave it empty.
+Then label every region showing in every view with the finish (its number in your list, from 1) that the region's
+part has in that view: one label for each view and region listed above."""
 
 
 def library_tokens():
@@ -74,42 +79,62 @@ def token_lines(tokens):
     return "\n".join(f"- {token}: {part_judge.colour_words(colour)}" for token, colour in tokens.items())
 
 
-def group_lines(groups):
-    return "\n".join(f"- group {entry['group'] + 1}: {finish_ask.LABEL_WORDS[entry['group']]}, "
-                     f"{entry['share']:.0%} of the model, its texture there about RGB {entry['srgb']}"
-                     for entry in groups)
+def region_lines(regions):
+    return "\n".join(f"- region {entry['region'] + 1}: {finish_ask.LABEL_WORDS[entry['region']]}, "
+                     f"{entry['share']:.0%} of the model seen, its texture there about RGB {entry['srgb']}"
+                     for entry in regions)
 
 
-def list_body(pictures, entry, groups, surfaces, tokens, wear, stand_in):
-    """The request: the close-up, the views, the group views, the question and a schema whose surface is one of the
-    surfaces' codes and whose token one of the tokens."""
-    close_up = (f"a {route_data.STAND_IN}" if stand_in else "the object's close-up")
-    text = QUESTION.format(object=entry["object"], close_up=close_up, count=len(pictures["views"]),
-                           views=", ".join(pictures["views"]), groups=group_lines(groups),
-                           surfaces=surface_lines(surfaces), tokens=token_lines(tokens), wear=wear)
+def shown_lines(shown):
+    """Each view and the regions (1-based) showing in it."""
+    return "\n".join(f"- {view}: regions {', '.join(str(region + 1) for region in regions)}"
+                     for view, regions in shown.items())
+
+
+def list_schema(surfaces, tokens, views):
+    """The answer's schema: the finishes, each surface one of the surfaces' codes and token one of the tokens, and the
+    labels, each a view, a region and a finish."""
     proposal = {"type": "OBJECT", "properties": {"name": {"type": "STRING"}, "description": {"type": "STRING"},
                                                  "why": {"type": "STRING"}}, "required": ["name", "description", "why"]}
     finish = {"type": "OBJECT",
               "properties": {"parts": {"type": "STRING"}, "finish": {"type": "STRING"},
-                             "groups": {"type": "ARRAY", "items": {"type": "INTEGER"}},
                              "surface": {"type": "STRING", "enum": finish_ask.surface_codes(surfaces)},
                              "token": {"type": "STRING", "enum": list(tokens)},
                              "roughness": {"type": "NUMBER"}, "metal": {"type": "NUMBER"},
                              "fits": {"type": "BOOLEAN"}, "new_surface": proposal, "wear_wish": {"type": "STRING"}},
-              "required": ["parts", "finish", "groups", "surface", "token", "roughness", "metal", "fits"],
-              "propertyOrdering": ["parts", "finish", "groups", "surface", "token", "roughness", "metal", "fits",
-                                   "new_surface", "wear_wish"]}
-    schema = {"type": "OBJECT", "properties": {"finishes": {"type": "ARRAY", "items": finish}}, "required": ["finishes"]}
+              "required": ["parts", "finish", "surface", "token", "roughness", "metal", "fits"],
+              "propertyOrdering": ["parts", "finish", "surface", "token", "roughness", "metal", "fits", "new_surface",
+                                   "wear_wish"]}
+    label = {"type": "OBJECT", "properties": {"view": {"type": "STRING", "enum": list(views)},
+                                              "region": {"type": "INTEGER"}, "finish": {"type": "INTEGER"}},
+             "required": ["view", "region", "finish"]}
+    return {"type": "OBJECT", "properties": {"finishes": {"type": "ARRAY", "items": finish},
+                                             "labels": {"type": "ARRAY", "items": label}},
+            "required": ["finishes", "labels"], "propertyOrdering": ["finishes", "labels"]}
+
+
+def list_body(pictures, entry, record, library, wear):
+    """The request: the close-up, the views, the region views, the question and its schema. `record` is the take's
+    views record; `library` its surfaces and the tokens."""
+    surfaces, tokens = library
+    stand_in = record.get("close_up") == route_data.STAND_IN
+    views = list(record["views"])
+    text = QUESTION.format(object=entry["object"], close_up=(f"a {route_data.STAND_IN}" if stand_in
+                                                             else "the object's close-up"),
+                           count=len(views), views=", ".join(views), regions=region_lines(record["regions"]),
+                           shown=shown_lines(pictures["shown"]), surfaces=surface_lines(surfaces),
+                           tokens=token_lines(tokens), wear=wear)
     parts = [finish_ask.picture_part(pictures["close_up"], 1024)]
     parts += [finish_ask.picture_part(picture, 512) for picture in pictures["shaded"]]
-    parts += [finish_ask.picture_part(picture, 512) for picture in pictures["groups"]]
+    parts += [finish_ask.picture_part(picture, 512) for picture in pictures["regions"]]
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": schema}}
+            "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
+                                 "responseSchema": list_schema(surfaces, tokens, views)}}
 
 
 def finishes_of(answer, surfaces, seed):
     """The answer's finishes: each surface by its library name, its settings clipped to 0-1 with the node's seed
-    (one a finish); their groups still to be given (grouped)."""
+    (one a finish)."""
     names, codes = list(surfaces), finish_ask.surface_codes(surfaces)
     found = []
     for number, entry in enumerate(answer["finishes"]):
@@ -117,75 +142,75 @@ def finishes_of(answer, surfaces, seed):
                     "metal": round(float(np.clip(entry["metal"], 0, 1)), 3), "seed": int(seed) + number}
         found.append({"finish": entry["finish"], "parts": entry["parts"], "surface": names[codes.index(entry["surface"])],
                       "settings": settings, "fits": bool(entry["fits"]), "new_surface": entry.get("new_surface"),
-                      "wear_wish": (entry.get("wear_wish") or "").strip() or None, "groups": [], "by": "the list"})
+                      "wear_wish": (entry.get("wear_wish") or "").strip() or None, "by": "the list"})
     if not found:
         raise ValueError("the finish list is empty")
     return found
 
 
-def grouped(found, answer, groups):
-    """`found` with each group (0-based) in the first finish the answer names it in; a group it leaves out goes to
-    the finish of the named group nearest it in colour, said in that finish's `by`."""
-    owner = {}
-    for number, entry in enumerate(answer["finishes"]):
-        for group in entry["groups"]:
-            if 0 < int(group) <= len(groups):
-                owner.setdefault(int(group) - 1, number)
-    named = list(owner)
-    for group in range(len(groups)):
-        if group not in owner and named:
-            nearest = min(named, key=lambda other: np.linalg.norm(np.subtract(groups[other]["lab"],
-                                                                             groups[group]["lab"])))
-            owner[group] = owner[nearest]
-            found[owner[group]]["by"] = "the list, a group it left out joined by colour"
-    for group, number in sorted(owner.items()):
-        found[number]["groups"].append(group)
+def labels_of(answer, shown, count):
+    """{view: {region: finish}} (0-based) of the answer's labels: only a region showing in its view and a finish of
+    the list; the first label of a view's region stands."""
+    found = {view: {} for view in shown}
+    for label in answer["labels"]:
+        view, region, finish = label["view"], int(label["region"]) - 1, int(label["finish"]) - 1
+        if view in shown and region in shown[view] and 0 <= finish < count:
+            found[view].setdefault(str(region), finish)
     return found
 
 
-def pictures_of(views, split, take):
+def regions_shown(folder, views):
+    """{view: the regions (0-based) showing in it}, from the views row's regions.npz."""
+    regions = np.load(folder / "regions.npz")
+    return {view: sorted(int(region) for region in np.unique(regions[view]) if region >= 0) for view in views}
+
+
+def pictures_of(folder, views):
     from PIL import Image
-    import route_cast as cast
-    return {"views": list(cast.VIEWS), "close_up": Image.open(views / take / "close-up.png"),
-            "shaded": [Image.open(views / take / f"{view}.png") for view in cast.VIEWS],
-            "groups": [Image.open(split / take / f"groups-{view}.png") for view in cast.VIEWS]}
+    return {"close_up": Image.open(folder / "close-up.png"),
+            "shaded": [Image.open(folder / f"{view}.png") for view in views],
+            "regions": [Image.open(folder / f"regions-{view}.png") for view in views],
+            "shown": regions_shown(folder, views)}
 
 
-def ask(body):
-    """One cleared, ledgered Gemini 3.1 Pro ask (finish_ask.generated: asked again only on a refusal that did no
-    work, the trial cap checked before every send; no usable answer raises one of finish_ask.UNANSWERED)."""
-    from score.adapters import compute
-    compute.require_cleared("a Gemini finish list (finish route)")
-    response = finish_ask.generated(finish_ask.LIST_MODEL, body, finish_ask.secret_key(), finish_ask.TIMEOUT,
-                                    caller="finish-route-list", cache=True,
-                                    room=lambda: route_cap.require_room(finish_ask.LIST_MODEL, body))
-    return finish_ask.reply_text(response)
+def ask(bodies):
+    """The one batch of the row's asks: {take: answer text, or why there is none}."""
+    return route_ask.asked(bodies, CALLER)
+
+
+def listed(answer, surfaces, seed, shown):
+    """A take's list from its answer's text: (finishes, labels); a reply that does not parse raises."""
+    parsed = json.loads(answer)
+    finishes = finishes_of(parsed, surfaces, seed)
+    return finishes, labels_of(parsed, shown, len(finishes))
 
 
 def make_list(inputs, out, seed, params):
-    """Every split take's finish list, and the owner's questions. Each take is asked once; one with no usable answer
-    (finish_ask.UNANSWERED) gets no list, so judge_list names it a hole, and the takes after it are still asked."""
+    """Every cast take's finish list and labels from one batch, and the owner's questions. Each take is asked once; one
+    with no usable answer gets no list, so judge_list names it a hole."""
     import library
-    route_cap.require_filtered(params, "finish-route-list")
-    views, split = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-split"])
+    views = pathlib.Path(inputs["finish-route-views"])
     place, takes = route_data.takes_written(out, inputs, params)
-    split_takes = json.loads((split / "groups.json").read_text())
-    stand_ins = json.loads((views / "views.json").read_text())
+    cast_takes = {take: record for take, record in json.loads((views / "views.json").read_text()).items()
+                  if record.get("model")}
     tokens = library_tokens()
     wear = json.loads(library.PLACES.read_text())[place]["wear"]["level"]
+    pictures = {take: pictures_of(views / take, record["views"]) for take, record in cast_takes.items()}
+    bodies = {take: list_body(pictures[take], takes[take], record, (finish_parts.take_surfaces(takes[take]), tokens),
+                              wear) for take, record in cast_takes.items()}
+    answers = ask(bodies) if bodies else {}
     questions, unanswered = [], {}
-    for take, record in split_takes.items():
-        surfaces = finish_parts.take_surfaces(takes[take])
-        stand_in = stand_ins[take].get("close_up") == route_data.STAND_IN
-        body = list_body(pictures_of(views, split, take), takes[take], record["groups"], surfaces, tokens, wear,
-                         stand_in)
+    for take in cast_takes:
+        answer = answers.get(take, finish_ask.NoAnswer("the batch gave no answer"))
         try:
-            answer = json.loads(ask(body))
-            finishes = grouped(finishes_of(answer, surfaces, seed), answer, record["groups"])
-        except finish_ask.UNANSWERED as error:
+            if isinstance(answer, Exception):
+                raise answer
+            finishes, labels = listed(answer, finish_parts.take_surfaces(takes[take]), seed, pictures[take]["shown"])
+        except route_ask.UNANSWERED as error:
             unanswered[take] = f"no usable answer: {error!r}"[:300]
             continue
-        (out / f"{take}.json").write_text(json.dumps({"take": take, "wear": wear, "finishes": finishes}, indent=1))
+        (out / f"{take}.json").write_text(json.dumps({"take": take, "wear": wear, "finishes": finishes,
+                                                      "labels": labels}, indent=1))
         questions += [f"{take}: {entry['finish']}: {entry['wear_wish']} (the place's wear is {wear})"
                       for entry in finishes if entry["wear_wish"]]
     (out / "questions.json").write_text(json.dumps({"wear_wishes": questions, "unanswered": unanswered}, indent=1))
@@ -195,25 +220,31 @@ def list_faults(folder):
     return [] if (folder / "questions.json").exists() else ["no questions.json"]
 
 
+def take_faults(take, finishes, tokens):
+    """A listed take's finishes off the library: a token not the library's, a misfit proposing no surface."""
+    failing = [f"{take}: {entry['finish']}: token {entry['settings']['token']} is not the library's"
+               for entry in finishes if entry["settings"]["token"] not in tokens]
+    return failing + [f"{take}: {entry['finish']}: does not fit and proposes no surface"
+                      for entry in finishes if not entry["fits"] and not entry.get("new_surface")]
+
+
 def judge_list(output, inputs, evidence):
-    """Every split take listed; every finish a library surface with a library token and settings 0-1, each group in
-    one finish; a finish that does not fit proposes a surface. The owner's wear questions as a measure."""
-    grouped = json.loads((pathlib.Path(inputs["finish-route-split"]) / "groups.json").read_text())
+    """Every cast take listed; every finish a library surface with a library token and settings 0-1; a finish that does
+    not fit proposes a surface. The owner's wear questions and the labels left out as measures."""
+    cast_takes = [take for take, record in json.loads((pathlib.Path(inputs["finish-route-views"]) /
+                                                       "views.json").read_text()).items() if record.get("model")]
     tokens = library_tokens()
-    unanswered = json.loads((output / "questions.json").read_text()).get("unanswered", {})
-    failing = []
-    for take, record in grouped.items():
+    asked = json.loads((output / "questions.json").read_text())
+    failing, unlabelled = [], 0
+    for take in cast_takes:
         if not (output / f"{take}.json").exists():
-            failing.append(f"{take}: no finish list" + (f" ({unanswered[take]})" if take in unanswered else ""))
+            failing.append(f"{take}: no finish list" + (f" ({asked['unanswered'][take]})"
+                                                         if take in asked["unanswered"] else ""))
             continue
-        finishes = json.loads((output / f"{take}.json").read_text())["finishes"]
-        covered = sorted(group for entry in finishes for group in entry["groups"])
-        if covered != list(range(len(record["groups"]))):
-            failing.append(f"{take}: groups not one finish each ({covered})")
-        failing += [f"{take}: {entry['finish']}: token {entry['settings']['token']} is not the library's"
-                    for entry in finishes if entry["settings"]["token"] not in tokens]
-        failing += [f"{take}: {entry['finish']}: does not fit and proposes no surface"
-                    for entry in finishes if not entry["fits"] and not entry.get("new_surface")]
-    asked = json.loads((output / "questions.json").read_text())["wear_wishes"]
-    return gates.verdict("library first", failing, len(grouped), "takes off the library",
-                         {"wear_questions": len(asked)})
+        found = json.loads((output / f"{take}.json").read_text())
+        failing += take_faults(take, found["finishes"], tokens)
+        shown = regions_shown(pathlib.Path(inputs["finish-route-views"]) / take, found["labels"])
+        unlabelled += sum(str(region) not in found["labels"][view] for view, regions in shown.items()
+                          for region in regions)
+    return gates.verdict("library first", failing, len(cast_takes), "takes off the library",
+                         {"wear_questions": len(asked["wear_wishes"]), "regions_unlabelled": unlabelled})

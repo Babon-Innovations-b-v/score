@@ -277,7 +277,7 @@ def check_files(place):
     # check reads none then (bake_check.seen_degrees does without), as scene-record's seed (78243df1).
     views = {"kit": REPO / "data/kit" / f"{place}.json", "scene record": REPO / "data/scene" / f"{place}.json",
              "machines": REPO / "data/machines" / f"{place}.json"}
-    return {**{name: pattern for name, pattern in paint_files(place).items() if name != "paint script"},
+    return {**paint_files(place),
             "stance rules": "{data}/checks/stance.json",
             **{name: "{data}/" + path.relative_to(REPO / "data").as_posix() for name, path in views.items()
                if path.exists()}}
@@ -315,8 +315,7 @@ def paint_files(place):
     inventories.update({f"inventory {other}": "{data}/inventory/" + stage_inputs.inventory_path(other).name
                         for other in claiming})  # a claimant's rows stand the take too (place_line.claimed_rows)
     inventories.update({f"claimant {other}": surfaces.data.pattern(other) for other in claiming})
-    return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json",
-            "paint script": "{repo}/score/stages/surfaces/inside/paint_take.py"}  # run by path on the machine
+    return {**surfaces.data.line_files(place), **inventories, "resting rules": "{data}/checks/resting.json"}
 
 
 # The people's render row is not run: the owner reviews people in the browser viewer and page renders wait for each
@@ -388,9 +387,9 @@ def scene_inventory_read(files):
 
 
 def prop_fed(row):
-    """surfaces-inputs waiting on the prop route's Pixal3D row (props.FEEDS), whose takes its line paints. A place
+    """finish-route-views waiting on the prop route's Pixal3D row (props.FEEDS), whose takes its line paints. A place
     with no prop data reads without it (Runner.reads), so its key does not move."""
-    if row.name != "surfaces-inputs":
+    if row.name != "finish-route-views":
         return row
     return dataclasses.replace(row, after={**row.after, **props.FEEDS})
 

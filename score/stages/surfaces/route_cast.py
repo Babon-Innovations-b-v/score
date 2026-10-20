@@ -1,5 +1,7 @@
 """The finish route's light local views (no Blender, no picture model): a model ray cast on the processor with
-trimesh and Embree, orthographic, from several sides and the close-up's direction, at SIDE pixels square. Each view
+trimesh and Embree, orthographic, from a view's angles (its turn round Y from the front and its elevation, in
+degrees), at SIDE pixels square: the BASE views (the close-up's front, the back, both sides, the top and the bottom)
+and those of CANDIDATES the views row's coverage check adds (route_views.covering_views). Each view
 gives the face under every pixel (-1 off the model) and, from the model's own texture, its colour there; pictures are
 flat colour, shaded only by the angle to the view so the form reads (no light, wear, bump or pattern).
 
@@ -19,10 +21,14 @@ if str(LIBRARY_TOOLS) not in sys.path:
 
 SIDE = 384
 ELEVATION = 15.0
-# The views, name: (turn round Y in degrees from the front, elevation in degrees). "front" is the close-up's.
-VIEWS = {"front": (0.0, ELEVATION), "front_left": (60.0, ELEVATION), "back_left": (120.0, ELEVATION),
-         "back": (180.0, ELEVATION), "back_right": (240.0, ELEVATION), "front_right": (300.0, ELEVATION),
-         "top": (0.0, 75.0)}
+OVERHEAD = 75.0  # the top and bottom views' elevation: straight down leaves the camera's right undefined
+# The views every take is cast from, name: (turn round Y in degrees from the front, elevation in degrees). "front" is
+# the close-up's; "right" is the side on the right of one who looks at the front (+X).
+BASE = {"front": (0.0, ELEVATION), "right": (90.0, ELEVATION), "back": (180.0, ELEVATION),
+        "left": (270.0, ELEVATION), "top": (0.0, OVERHEAD), "bottom": (0.0, -OVERHEAD)}
+# The extra views the coverage check may add: a full turn in eighths at three elevations.
+CANDIDATES = {f"turn{turn:03d}_{'up' if rise > 0 else 'down' if rise < 0 else 'level'}{abs(rise):02d}":
+              (float(turn), float(rise)) for turn in range(0, 360, 45) for rise in (-40, 0, 40)}
 FRONT = "front"
 MARGIN = 1.05
 SHADE_LEAST = 0.35  # the share of a face's colour it keeps seen edge-on (the pictures' shading only)
@@ -76,19 +82,19 @@ def loaded(path):
     return Model(mesh, np.concatenate(corners), np.concatenate(pieces), pictures, factors)
 
 
-def camera(view):
-    """(eye way, right, up) unit vectors of a view: the eye lies along `eye way` from the model's middle."""
-    turn, elevation = (np.radians(angle) for angle in VIEWS[view])
+def camera(angles):
+    """(eye way, right, up) unit vectors of a view's angles: the eye lies along `eye way` from the model's middle."""
+    turn, elevation = (np.radians(angle) for angle in angles)
     eye = np.array([np.sin(turn) * np.cos(elevation), np.sin(elevation), np.cos(turn) * np.cos(elevation)])
     right = np.cross([0.0, 1.0, 0.0], eye)
     right /= np.linalg.norm(right)
     return eye, right, np.cross(eye, right)
 
 
-def rays(mesh, view, side=SIDE):
+def rays(mesh, angles, side=SIDE):
     """The view's ray origins (one a pixel, row 0 at the top) and their one way, framing the model's bounding
     sphere."""
-    eye, right, up = camera(view)
+    eye, right, up = camera(angles)
     reach = float(np.linalg.norm(mesh.vertices, axis=1).max()) * MARGIN
     steps = (np.arange(side) + 0.5) / side * 2 - 1
     across, down = np.meshgrid(steps, -steps)
@@ -96,9 +102,9 @@ def rays(mesh, view, side=SIDE):
     return origins.reshape(-1, 3), np.repeat(-eye[None], side * side, axis=0)
 
 
-def cast(mesh, view, side=SIDE):
+def cast(mesh, angles, side=SIDE):
     """(the face under each pixel, -1 off the model; the point each pixel's ray meets, NaN off it)."""
-    origins, ways = rays(mesh, view, side)
+    origins, ways = rays(mesh, angles, side)
     hit_faces, hit_rays, points = mesh.ray.intersects_id(origins, ways, multiple_hits=False, return_locations=True)
     faces = np.full(side * side, -1, dtype=np.int64)
     met = np.full((side * side, 3), np.nan)
@@ -131,9 +137,9 @@ def texture_colours(model, faces, points):
     return np.clip(found, 0, 255).astype(np.uint8)
 
 
-def shading(mesh, faces, view):
+def shading(mesh, faces, angles):
     """Each pixel's shade from its face's angle to the view (SHADE_LEAST edge-on, 1 face-on); 0 off the model."""
-    eye, _, _ = camera(view)
+    eye, _, _ = camera(angles)
     shade = np.zeros(faces.shape)
     seen = faces >= 0
     shade[seen] = SHADE_LEAST + (1 - SHADE_LEAST) * np.abs(mesh.face_normals[faces[seen]] @ eye)

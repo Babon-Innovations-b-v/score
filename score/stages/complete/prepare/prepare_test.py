@@ -125,7 +125,7 @@ def test_the_eta_walks_the_layers_in_the_routes_order_and_a_layer_of_no_units_ta
     runner = stages.runner(world=stages.WORLDS["world1"]())
     route = price.route_stages(runner)
     edges = estimate.route_edges(runner.stages, route)
-    assert ("closeup", "pixal") in edges and ("surfaces-paint", "surfaces-bake") in edges, edges
+    assert ("closeup", "pixal") in edges and ("finish-route-list", "surfaces-bake") in edges, edges
     found = estimate.layers(["pixal", "surfaces-names"], [{"shell": False}] * 30, estimate.one_shot(), {})
     walked = estimate.eta(found, [("pixal", "surfaces-names")], 8, 50)
     assert walked["unknown"] == [] and walked["likely_minutes"] == found["pixal"]["minutes"]["likely_minutes"], walked

@@ -1,27 +1,16 @@
 """The finish route's environment data: each take's model and close-up, and the environment files each of its rows
 declares (Stage.files, a function of the place). Kept apart from the rows' code, as surface_data.py is.
 
-A take's model is its raw Pixal3D take (`{home}/work/pixal/<take>.glb`) while that file is there, else the made model
-the library holds for it (the place's bake names the model: its entry `model/<model>.gltf`, the file
-`gltf/<model>.glb`, tools/library/library_files.py), else none: the views row names that take in its gate's fail.
-Its close-up is the take's own (`<take>.svviews/input.png`) while it is there, else a stand-in, the model's own
-texture rendered from the front (`route_cast`), named a stand-in in every output and verdict that reads it.
+A take's model is its raw Pixal3D take (`{home}/work/pixal/<take>.glb`), the one the paint lays on its finished
+model; a take whose raw take is not here has none, and the views row names it in its gate's fail before anything is
+asked. Its close-up is the take's own (`<take>.svviews/input.png`) while it is there, else a stand-in, the model's
+own texture rendered from the front (`route_cast`), named a stand-in in every output and verdict that reads it.
 """
 import json
 import pathlib
-import sys
 
 import surface_data as data
 
-REPO = pathlib.Path(__file__).resolve().parents[3]
-LIBRARY = REPO / "tools/library"
-if str(LIBRARY) not in sys.path:
-    sys.path.append(str(LIBRARY))
-
-import library_files as resolver  # noqa: E402  (as: this module has its own library_files)
-
-# The version of the made models score-lib take-in took in from world 1's old release (issue #22).
-RELEASED_VERSION = 1
 STAND_IN = "stand-in: the model's own texture from the front, not a close-up"
 
 
@@ -30,20 +19,10 @@ def pixal_folder():
     return prop_env.PROPS_HOME / "work/pixal"
 
 
-def released(place, take):
-    """The library's made model of a take (the place's bake names it): the file the library holds, or None."""
-    models = data.record(place).get("bake", {}).get("models", {})
-    names = [resolver.reference(f"model/{model}.gltf@{RELEASED_VERSION}", f"gltf/{model}.glb")
-             for model, named in sorted(models.items()) if named == take]
-    return next((found for found in map(resolver.resolve, names) if found is not None), None)
-
-
-def model_path(place, take):
-    """The file a take's model is read from: its raw take, else its made model from the library, else None."""
-    raw = pixal_folder() / f"{take}.glb"
-    if raw.exists():
-        return raw
-    return released(place, take)
+def model_path(take):
+    """The take's raw model, or None when it is not here."""
+    found = pixal_folder() / f"{take}.glb"
+    return found if found.exists() else None
 
 
 def close_up_path(take):
@@ -61,7 +40,7 @@ def model_files(place):
     for take in data.takes(place):
         if objects is not None and take not in objects:
             continue
-        model = model_path(place, take)
+        model = model_path(take)
         if model is not None:
             found[f"model {take}"] = str(model)
         close_up = close_up_path(take)
@@ -71,14 +50,21 @@ def model_files(place):
 
 
 def shape_files(place):
-    """The views and split rows' files: the place's data, its takes' models and close-ups."""
+    """The views and split rows' files: the place's data, its takes' raw models and close-ups."""
     return {"surfaces": data.pattern(place), **model_files(place)}
 
 
 def library_files(place):
-    """The rows that read the library (list, fill, recheck): shape_files, the library, the places and the palette."""
+    """The rows that read the library (list, parts, recheck): shape_files, the library, the places and the palette."""
     return {**shape_files(place), "library": "{data}/library", "places": "{data}/definitions/place.json",
             "tokens": "{repo}/design/tokens/tokens.json"}
+
+
+def parts_files(place):
+    """The parts row's files: library_files and the place's kit with the code its kit surfaces are read from
+    (surface_data.parts_files' kit entries), so a finish takes the room's own kit surface."""
+    kit = {name: pattern for name, pattern in data.parts_files(place).items() if name.startswith("kit")}
+    return {**library_files(place), **kit}
 
 
 def takes(inputs, params):

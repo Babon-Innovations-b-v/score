@@ -221,7 +221,11 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   cap (owner, 2026-10-11). The runner's month check (`score.adapters.compute.month_refusal`) adds `month_euros`: a call
   started and never finished counts at its estimate (Oct 11: Google billed EUR 549, this ledger, then written only
   after a call came back, held EUR 30). Nothing calls generativelanguage.googleapis.com any other way:
-  `google_spend_test.py` fails on any tracked file that does.
+  `google_spend_test.py` fails on any tracked file that does. The one other client is **`google_batch.py`**
+  (2026-10-20, #18 and #21): Google's Batch API at half price on google_spend's ledger and cache, a started line for
+  each request before its job is sent, the job's name kept beside the cache so a run cut off mid-wait picks up the
+  same job and never sends it again, each answer priced at the batch tier; a failed, cancelled or expired job, an
+  error answer or a send cut off is Unanswered, never asked again (the finish route's list and recheck).
 - **Paid calls only through the ledgered clients** (2026-10-17): `tools/costs/paid_calls_test.py` reads every tracked
   file's syntax tree and fails on a Gemini host, key header or client, or an scw order of a machine, disk, address or
   cluster pool (words read through variables as their own function set them, joined and starred lists, `.append`,
