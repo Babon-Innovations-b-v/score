@@ -304,10 +304,10 @@ def failing_with(code, times):
     return make
 
 
-def a_failing_runner(code, times):
+def a_failing_runner(code, times, paid=False):
     world = a_world_of(["hangar"])[1]
-    return graph.Runner((graph.Stage("maps", "place", failing_with(code, times), TEXT, MET),), world,
-                        Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
+    return graph.Runner((graph.Stage("maps", "place", failing_with(code, times), TEXT, MET, paid=paid, euros=0.1),),
+                        world, Store.in_folder(tempfile.mkdtemp()), model_record=lambda kind: {})
 
 
 def test_a_transient_error_runs_the_node_again_with_growing_waits():
@@ -317,6 +317,15 @@ def test_a_transient_error_runs_the_node_again_with_growing_waits():
     assert found == {"maps@hangar": "made: pass, accepted automatically"}, found
     log = runner.desk("logs", "maps@hangar", ".log").read_text()
     assert "try 2 of 5 in 0 s" in log and "try 3 of 5" in log and "try 4 of 5" not in log, log
+
+
+def test_a_paid_node_is_never_run_again():
+    graph.RETRY_WAIT = 0
+    runner = a_failing_runner(500, 1, paid=True)
+    runner.cleared = lambda node, euros: contextlib.nullcontext()  # no clearance to buy in a test
+    found = runner.drive(["hangar"], say=quiet)
+    assert found["maps@hangar"].startswith("error: HTTPError: HTTP Error 500"), found
+    assert "transient error" not in runner.desk("logs", "maps@hangar", ".log").read_text()
 
 
 def test_a_lasting_or_not_transient_error_stops_its_line():

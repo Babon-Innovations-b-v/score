@@ -93,7 +93,8 @@ GAPPED = review.GAPPED
 FORK = multiprocessing.get_context("fork")
 FORK_WAIT = multiprocessing.connection.wait
 # A node that errors on a transient fault (a server's 5xx, a timeout, a dropped connection: eight places' maps on the
-# image model's HTTP 500s, 2026-10-12) runs again up to RETRIES times, waiting RETRY_WAIT seconds, doubled each try.
+# image model's HTTP 500s, 2026-10-12) runs again up to RETRIES times, waiting RETRY_WAIT seconds, doubled each try,
+# when it is free: a paid node's failure is a hole, never rerun inside the batch (ADR-0005, #30).
 RETRIES, RETRY_WAIT = 4, 30
 # Runs side by side on one store (17 agents' runs, 2026-10-12: people-segvigen bought twice) make a node's key one at a
 # time: a second run waits on the first's lock, then finds its record. One held longer than LOCK_WAIT seconds blocks
@@ -1178,12 +1179,13 @@ class Runner:
                 return f"error: {type(error).__name__}: {error}"
 
     def run_retrying(self, stage, place):
-        """run_node, run again after a transient error (`transient`) up to RETRIES times with growing waits."""
+        """run_node; a free stage's transient error (`transient`) runs it again up to RETRIES times with growing
+        waits, a paid stage's goes up at once (ADR-0005)."""
         for attempt in range(RETRIES + 1):
             try:
                 return self.run_node(stage, place)
             except Exception as error:  # noqa: BLE001 - one not transient, or the last try's, goes up as it was
-                if attempt == RETRIES or not transient(error):
+                if stage.paid or attempt == RETRIES or not transient(error):
                     raise
                 wait = RETRY_WAIT * 2 ** attempt
                 traceback.print_exc()

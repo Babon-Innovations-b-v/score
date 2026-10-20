@@ -60,7 +60,7 @@ MODELS = ("marble-1.1", "marble-1.1-plus")
 LOOK_AGAIN_SECONDS = 15
 GIVE_UP_SECONDS = 3600
 NOT_FOUND_GRACE_SECONDS = 120
-# Asked to slow down, wait this long and ask again, this many times.
+# A read asked to slow down waits this long and asks again, this many times; a paid call never asks again (ADR-0005).
 RETRY_SECONDS = 60
 RETRIES = 30
 # The collider is sampled this densely and seen at this fraction of the target's size: about
@@ -78,8 +78,8 @@ def key():
 
 
 def call(method, path, body=None):
-    """One call to the World API, answered as JSON. Told to slow down (429: four worlds at once
-    was the most it took on 2026-10-02), it waits and asks again."""
+    """One call to the World API, answered as JSON. A read (GET) told to slow down (429: four worlds at once
+    was the most it took on 2026-10-02) waits and asks again; a paid call (POST) goes up at once, a hole."""
     for attempt in range(RETRIES):
         request = urllib.request.Request(
             f"{API}{path}", method=method,
@@ -89,7 +89,7 @@ def call(method, path, body=None):
             with urllib.request.urlopen(request, timeout=120) as answer:
                 return json.loads(answer.read())
         except urllib.error.HTTPError as error:
-            if error.code != 429 or attempt == RETRIES - 1:
+            if method != "GET" or error.code != 429 or attempt == RETRIES - 1:
                 raise
             print(f"marble: busy, asking again in {RETRY_SECONDS} s", file=sys.stderr, flush=True)
             time.sleep(RETRY_SECONDS)
