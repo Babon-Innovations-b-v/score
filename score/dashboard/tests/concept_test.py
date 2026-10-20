@@ -58,6 +58,16 @@ def test_each_card_not_locked_opens_its_concept_review(world, stand_in):
     assert page.status_code == 200 and signed_in("joey3").get("/concept/nowhere/").status_code == 404
 
 
+def test_a_shells_page_names_the_inside_places_its_draw_is_asked_to_hold(world, stand_in):
+    (world.data / "places").mkdir(exist_ok=True)
+    (world.data / "places/within.json").write_text(json.dumps({
+        "shells": {"yard": {"name": "Yard"}}, "within": {"alpha": {"within": "beta"}, "beta": {"within": "yard"}}}))
+    owner = signed_in()
+    page = owner.get("/concept/yard/").content.decode()
+    assert "drawn to hold" in page and "data-v>Beta</b>" in page and "data-v>Alpha</b>" not in page  # direct only
+    assert "drawn to hold" not in owner.get("/concept/beta/").content.decode()  # an inside place: from inside
+
+
 def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world, stand_in):
     owner = signed_in()
     page = owner.get("/concept/beta/").content.decode()  # beta's concept is lost

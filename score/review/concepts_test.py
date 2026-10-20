@@ -194,3 +194,31 @@ def test_the_ships_first_draw_is_its_true_length_holding_its_rooms_the_reference
     assert reference.name == "shuttle-screenshot.png"
     assert "46 m long" in wording and "galley" in wording and "people and a vehicle" in wording
     assert "look only" in wording and "never its size or proportions" in wording
+
+
+def test_a_shells_first_draw_holds_every_inside_place_listed_at_its_size_joined_as_laid_out():
+    wording, reference = concepts.first_wording("base")
+    assert reference is None and "seen from outside" in wording
+    for inside in ("hub", "airlock", "habitat", "greenhouse", "garage", "hangar", "lab", "workshop", "walkway tube"):
+        assert f"the {inside}" in wording
+    assert "16 m by 18 m, walls 2.8 m under a glass dome" in wording  # the greenhouse, from its plan
+    assert "the big door is in the roof" in wording and "holding the ship (46 m long)" in wording
+    assert "the hub: a walkway tube to the lab" in wording and "the hub: opens straight into the airlock" in wording
+    assert "the garage: its big door, outer, 5 x 4 m opens onto the outside" in wording
+    assert "recognisable from outside" in wording and wording.endswith("Chinese and American mixed.")
+    street = concepts.first_wording("street")[0]
+    assert "the stairwell (four storeys" in street and "the flat (third floor" in street and "6 m by 5 m" in street
+    assert "Night in a narrow street" in street  # its own look and plan stay
+    assert "a crowd of people on the square" in street and "the rocket launch" in street  # its outside's parts
+    assert "the square" not in concepts.holding_words("street")  # a part of its outside, no inside place
+    assert not concepts.holds_inside("hangar") and concepts.holds_inside("ship")  # an inside place is drawn inside
+
+
+def test_a_shells_redraw_still_holds_its_inside_places(store, monkeypatch):
+    said_yes(store, monkeypatch, "base")
+    first = concepts.draw(store, "base", {}, "joey", caller=stand_in([]))
+    said_yes(store, monkeypatch, "base")
+    asked = []
+    concepts.draw(store, "base", {"note": "bigger hangar", "base": first["sha"]}, "joey", caller=stand_in(asked))
+    assert "Overall: bigger hangar" in asked[0][0] and "It must still hold, as described:" in asked[0][0]
+    assert "the greenhouse, 16 m by 18 m" in asked[0][0]

@@ -100,6 +100,15 @@ def review_href(world, place):
     return None if picked_of(world, place) else f"/concept/{place}/"
 
 
+def asked_to_hold(world, place, names):
+    """[short name] of the inside places a draw of `place` is asked to hold (score/review/concepts.py holds_inside:
+    an outside shell's, or an outside place's, inside places as within.json lists them); [] for any other place."""
+    if place in world.within and place not in world.shells:
+        return []
+    return [world.shells.get(child) or names.get(child, child) for child, holder in world.within.items()
+            if holder == place]
+
+
 def concept_page(request, place):
     """The concept review page of one place (module docstring)."""
     source = state.source()
@@ -113,7 +122,7 @@ def concept_page(request, place):
     pending = pending_of(place)
     return render(request, "pages/concept.html", {
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
-        "draws": list(reversed(draws)), "shown": shown, "picked": picked, "euros": world.concept_draw_euros,
+        "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "euros": world.concept_draw_euros,
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
         "can": is_owner(request.user) and actions.decisions_on(),
         "approved": place in screens.approved_places(world)})
