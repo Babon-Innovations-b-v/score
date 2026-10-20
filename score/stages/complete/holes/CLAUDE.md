@@ -36,6 +36,8 @@ findings.json's contract. Bible: `architecture/components`.
   (the world's too) only while the outputs they stood over stay accepted; a place never checked, a stale one and a
   node outside every table are named in the record, never dropped. A ship kit (`ship_kit@<place>`, its own table:
   `price.own_tables`) is priced the same way on its own row, its chain the node alone. The rows waiting on their place's prop data get
-  the prop route (every paid row up to `likeness`) priced apart, after that work. Nothing here buys: a Blocked node
-  is priced, never dropped, and the plan and the run keep their refusals.
+  the prop route (every paid row up to `likeness`) priced apart, after that work, and so is the code work whose make
+  is Pixal3D's (`code_work`: a lost take one model, a rough model one a place, at pixal's per unit). A node with no
+  measured price is unknown, its row's flat estimate never carried (owner, 2026-10-20). Nothing here buys: a Blocked
+  node is priced, never dropped, and the plan and the run keep their refusals.
 - Run: `.venv/bin/python -m score.stages.complete.holes [--place P ...]`, seconds a place. Test: `holes_test.py`.

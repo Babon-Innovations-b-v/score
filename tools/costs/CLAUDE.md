@@ -10,10 +10,13 @@ in the test.
   over its units, the lines it rests on, and the rule the runner counts a node's units by in its accepted output.
   Rerun it with every ledger that holds those lines (the local cloud ledger lost its rows of 10-12 to 10-17; the
   backup, the reconstruction and the paper's copy hold the rest) and commit the file; a stage with no lines stays
-  unmeasured, priced nowhere. Each entry also carries its `forecast` rule (`FORECASTS`: what a make's units are
-  forecast from before it runs, a source in git; or none and `forecast_why`), which `score price --holes` counts;
-  `--rules-only` writes the rules into the file in place, its measured numbers kept, as the old disk took the live
-  ledgers (2026-10-19). Never edit the rules in the JSON by hand.
+  unmeasured, priced nowhere (never a flat guess: owner, 2026-10-20). A stage whose ledger lines went with the old
+  disk but whose runs' euros and units are written in git (`RECORDED`: an evidence file and line, or a commit) is
+  priced from those runs, each named in `sources`; add a run there only from a figure written when it ran, with its
+  units. Each entry also carries its `forecast` rule (`FORECASTS`: what a make's units are forecast from before it
+  runs, a source in git, with `per_model` where a model makes more than one unit), which `score price --holes`
+  counts; `--rules-only` writes the rules and the RECORDED stages into the file in place, its ledger-measured numbers
+  kept, as the old disk took the live ledgers (2026-10-19). Never edit the rules in the JSON by hand.
 - **The ledger is never rewritten.** What a row lacks (a kind, a machine type) is added beside it: the reconciliation
   file tags rows by batch, and an engine run's type is read from its price. A fix to the runners goes in
   `tools/props/cloud/`, not here.

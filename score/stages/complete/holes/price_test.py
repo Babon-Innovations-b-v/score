@@ -144,13 +144,40 @@ def test_the_holes_forecast_prices_before_the_units_an_older_accept_counted():
     assert (pixal["units"], pixal["basis"], pixal["likely_euros"]) == (5, "per unit × forecast", 1.0), pixal
 
 
-def test_a_stage_with_no_forecast_rule_is_a_guess_that_says_where_and_kept_out_of_the_price():
+def test_a_stage_with_no_measured_unit_is_unknown_never_its_flat_estimate():
+    """The sound's row says EUR 1.00, but no run of it is measured: unknown, out of the price, no guess kept."""
     found, _ = priced()
     sound = found["nodes"]["sound@hangar"]
-    assert sound["likely_euros"] is None and sound["guess_euros"] == 1.0, sound
-    assert sound["guess_from"].startswith("score/stages/complete/holes/price_test.py:")
-    assert found["totals"] == {"likely_euros": 0.6, "high_euros": 2.0, "guessed_euros": 1.0, "guessed": 1,
-                               "unpriced": [], "nodes": 3}, found["totals"]
+    assert (sound["basis"], sound["likely_euros"], sound["high_euros"]) == ("not measured yet", None, None), sound
+    assert not sound.get("guess_euros") and not sound.get("guess_from"), sound
+    assert found["totals"] == {"likely_euros": 0.6, "high_euros": 2.0, "unpriced": ["sound@hangar"], "nodes": 3}, (
+        found["totals"])
+
+
+def test_a_stage_whose_model_makes_several_units_is_forecast_at_its_per_model():
+    """The bake's rule counts 5 models; 2.5 units a model makes 12.5 units."""
+    numbers = json.loads(json.dumps(PER_UNIT))
+    numbers["stages"]["surfaces-bake"]["forecast"]["per_model"] = 2.5
+    with per_unit(numbers):
+        runner, root = a_place()
+        found = price.holes_price(runner, "toy", root, ["hangar"], runner.store, made_at=MADE_AT)
+    bake = found["nodes"]["surfaces-bake@hangar"]
+    assert (bake["units"], bake["likely_euros"]) == (12.5, 0.5), bake
+
+
+def test_the_pixal_code_work_is_priced_at_pixals_unit_a_lost_take_a_model_a_rough_model_one_a_place():
+    lost = "Pixal3D take lost: made again"
+    with per_unit():
+        runner, root = a_place(findings=[hole(1, None, "a rough-model stage"), hole(2, None, "a rough-model stage"),
+                                         hole(3, None, lost), hole(4, None, lost), hole(5, None, lost)])
+        written(root, "lab", [hole(6, None, "a rough-model stage")])
+        found = price.holes_price(runner, "toy", root, ["hangar", "lab"], runner.store, made_at=MADE_AT)
+    rough, takes = found["code_work"]["a rough-model stage"], found["code_work"][lost]
+    assert (rough["holes"], rough["models"], takes["holes"], takes["models"]) == (3, 2, 3, 3)
+    model = takes["nodes"]["pixal: the lost Pixal3D takes made again"]
+    assert (model["basis"], model["units"], model["likely_euros"], model["high_euros"]) == (
+        "per unit × forecast", 3, 0.6, 1.5), model
+    assert rough["nodes"]["pixal: a rough model a place"]["likely_euros"] == 0.4
 
 
 def test_a_hole_no_stage_fills_goes_to_the_unfillable_list_with_its_work():
@@ -172,17 +199,14 @@ def test_a_place_never_checked_and_a_node_outside_every_table_are_named_not_drop
     assert found["nodes"] == {}
 
 
-def test_a_ship_kit_is_priced_on_its_own_table_as_a_guess_with_its_line():
+def test_a_ship_kit_is_priced_on_its_own_table():
     """ship_kit@<place> is in no runner's table here but the ship kits' own: priced once on its row, however many
-    holes name it; with no measured run its estimate is a guess, with the file and line it is written on."""
-    from score.stages import ship_kits
+    holes name it; with no measured run it is unknown."""
     found, _ = priced(findings=[hole(1, "ship_kit@hangar"), hole(2, "ship_kit@hangar")])
     assert found["outside"] == [] and found["chains"]["hangar"]["ship_kit@hangar"] == ["ship_kit@hangar"]
     kit = found["nodes"]["ship_kit@hangar"]
-    assert (kit["basis"], kit["likely_euros"], kit["guess_euros"]) == ("not measured yet", None, ship_kits.EUROS)
-    assert kit["guess_from"] == ship_kits.STAGE.euros_from and kit["guess_from"].startswith(
-        "score/stages/ship_kits/__init__.py:"), kit
-    assert found["totals"]["guessed"] == 1 and found["holes"]["hangar"] == {
+    assert (kit["basis"], kit["likely_euros"]) == ("not measured yet", None) and not kit.get("guess_euros"), kit
+    assert found["totals"]["unpriced"] == ["ship_kit@hangar"] and found["holes"]["hangar"] == {
         "missing:crate_1": "ship_kit@hangar", "missing:crate_2": "ship_kit@hangar"}
 
 

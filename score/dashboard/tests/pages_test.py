@@ -505,6 +505,23 @@ def test_the_paid_work_the_code_work_brings_is_named_unpriced_and_both_figures_a
     assert both["measured_by"] == ["measured runs", "per unit × forecast"]
 
 
+def test_the_pixal_code_work_the_record_prices_leaves_the_unpriced_lines_and_joins_the_after_figure():
+    """The runner priced the lost take and the rough models at pixal's unit: no longer named unpriced, in the figure
+    after the code work, and in the total's words."""
+    from score.dashboard.state import holes
+    price, details = a_lost_takes_price()
+    price.code_work = {
+        PIXAL: {"holes": 1, "models": 1, "nodes": {"pixal: the lost Pixal3D takes made again": FORECAST}},
+        ROUGH: {"holes": 2, "models": 2, "nodes": {"pixal: a rough model a place": FORECAST}}}
+    assert holes.unpriced_work(price, details) is None
+    after = holes.after_work(price)
+    assert [entry["work"] for entry in after["code"]] == sorted([PIXAL, ROUGH]) and after["places"] == []
+    whole = holes.whole_of(after["sums"])
+    assert (whole["low"], whole["high"], whole["measured"]) == (4.0, 6.0, 2)
+    assert "after 2 Pixal3D code tasks: per unit" in holes.total_words(price, holes.summed(price.nodes), after)
+    assert "2 holes wait on code work" in holes.headline(price)  # 5 unfillable, 3 of them priced after the work
+
+
 def test_every_priced_step_and_place_has_plain_words():
     from score.dashboard.pages import present
     from score.dashboard.state import groups, plain

@@ -13,12 +13,15 @@ The record:
      "chains": {place: {node: [every node in the chain of the place's holes that node fills, paid and free]}},
      "holes": {place: {hole id: its node}},          (holes with a node in the stage table, at a current findings)
      "free": [the free nodes in any chain],
-     "totals": {likely_euros, high_euros, guessed_euros, guessed, unpriced, nodes},
+     "totals": {likely_euros, high_euros, unpriced, nodes},
      "unfillable": [{"work", "holes"}],               (holes no stage fills: their code work and how many need it)
      "after_work": {place: {"work", "holes", "models", "nodes": {node: price}, "in_chains": [nodes]}},
                      (the prop route of the place's missing rows that wait on its prop data, priced as if the data
                       were written: each paid row of the route once a place, per model where its stage has a rule;
                       a row whose node is in a chain already is counted there, not again)
+     "code_work": {work: {"holes", "models", "nodes": {label: price}}},
+                     (the code work whose make is a Pixal3D one, priced at pixal's per unit as if it had landed: the
+                      lost takes a model each, a rough model one a place)
      "outside": [{"node", "holes"}],                  (a node outside this runner's table and every own table)
      "not_current": [places whose findings stood over an output no longer accepted: run the holes check again],
      "not_checked": [places (and WORLD) with no findings: the holes check never ran there]}
@@ -33,6 +36,7 @@ import hashlib
 import json
 import math
 import pathlib
+import re
 
 from score import graph
 from score.adapters import compute
@@ -40,6 +44,10 @@ from score.graph import chain
 from score.stages.complete.holes import FINDINGS, WORLD, fill, inputs
 
 MISSING = "missing"
+# The code work whose make, once it lands, is Pixal3D's: (its work line's pattern, a model a hole or a place, its
+# label), priced at pixal's measured per unit after that work (code_work).
+PIXAL_WORK = ((r"^Pixal3D take lost", "hole", "pixal: the lost Pixal3D takes made again"),
+              (r"^a rough-model stage", "place", "pixal: a rough model a place"))
 ROUTE_END = "likeness"  # the prop route's last row (score/stages/props): a model's route runs up to its likeness gate
 
 
@@ -47,11 +55,6 @@ def own_tables():
     """{stage name: its row} of the tables of their own a hole's node may name (fill.SHIP_KIT: the ship kits')."""
     from score.stages import ship_kits
     return {fill.SHIP_KIT: ship_kits.STAGE}
-
-
-def stage_of(runner, name):
-    """A stage's row: the runner's table's, else a table of its own's, else None (a node outside every table)."""
-    return runner.stages.get(name) or own_tables().get(name)
 
 
 def findings_of(root, place):
@@ -95,59 +98,71 @@ def surface_takes(data, place):
     return set(json.loads(path.read_text()).get("takes") or {}) if path.is_file() else set()
 
 
+def shown_views(name):
+    """How many views a place's light passes render on: the demo's copy of them (passes.demo_views), else, while that
+    copy is lost, its scene record's (the copy is made from it); None with neither."""
+    from score.stages.light import passes
+    if (passes.DEMO / f"views/{name}.json").is_file():
+        return len(passes.demo_views(name)[1])
+    scene = passes.REPO / f"data/scene/{name}.json"
+    return len(passes.scene_of(name).get("views") or []) if scene.is_file() else None
+
+
 def light_jobs(place):
-    """The light passes' render jobs a place's make sends (passes.pass_jobs), or None while a views file is
-    missing."""
+    """The light passes' render jobs a place's make sends (passes.pass_jobs, VIEWS_A_JOB views a job), or None while
+    a shown place's views are not known."""
     from score.stages.light import passes
     jobs = 0
     for name in passes.shown(place):
-        if not (passes.DEMO / f"views/{name}.json").is_file():
+        views = shown_views(name)
+        if views is None:
             return None
-        jobs += math.ceil(len(passes.demo_views(name)[1]) / passes.VIEWS_A_JOB)
+        jobs += math.ceil(views / passes.VIEWS_A_JOB)
     return jobs
 
 
+def rule_units(rule, found, data, place):
+    """The units a forecast rule counts at a place (PER_UNIT's `forecast` rule), before any per-model factor."""
+    if rule == "one":
+        return 1
+    if not place:
+        return None  # the other rules count a place's own models or views
+    if rule == "prop_takes":
+        return len(pixal_models(found, data, place))
+    if rule == "models":
+        return len(surface_takes(data, place) | pixal_models(found, data, place))
+    if rule == "light_jobs":
+        return light_jobs(place)
+    raise ValueError(f"unknown forecast rule {rule!r} in {compute.PER_UNIT}")
+
+
 def forecast_units(node, found, data):
-    """The units a make of the node is forecast to make by its stage's rule (PER_UNIT's `forecast`), or None when
-    its stage has no rule (an `also` stage has none of its own) or nothing is counted; `found` are the place's
-    holes."""
+    """The units a make of the node is forecast to make by its stage's rule (PER_UNIT's `forecast`, times its
+    `per_model` where a model makes more than one unit), or None when its stage has no rule (an `also` stage has none
+    of its own) or nothing is counted; `found` are the place's holes."""
     stage, _, place = node.partition("@")
     entry = compute.per_unit(stage)
-    if entry is None or entry["stage"] != stage or not entry.get("forecast") or not place:
+    if entry is None or entry["stage"] != stage or not entry.get("forecast"):
         return None
-    rule = entry["forecast"]["rule"]
-    if rule == "prop_takes":
-        units = len(pixal_models(found, data, place))
-    elif rule == "models":
-        units = len(surface_takes(data, place) | pixal_models(found, data, place))
-    elif rule == "light_jobs":
-        units = light_jobs(place)
-    elif rule == "one":
-        units = 1
-    else:
-        raise ValueError(f"unknown forecast rule {rule!r} in {compute.PER_UNIT}")
-    return units or None
+    units = rule_units(entry["forecast"]["rule"], found, data, place)
+    return round(units * entry["forecast"].get("per_model", 1), 2) if units else None
 
 
-def node_price(runner, node, found, data, store):
-    """One paid node at compute.run_price with its forecast units, and the units and their source."""
-    stage = stage_of(runner, node.partition("@")[0])
+def node_price(node, found, data, store):
+    """One paid node at compute.run_price with its forecast units, and the units and their source; with no measured
+    price it is unknown, its stage's own estimate left out (a flat guess is no price, the owner 2026-10-20)."""
     units = forecast_units(node, found, data)
-    price = compute.run_price(node, stage.euros, store, units=units, guess_from=stage.euros_from)
+    price = compute.run_price(node, None, store, units=units)
     return {**price, "units": price.get("units", units)}
 
 
 def totals(prices):
-    """{likely_euros, high_euros, guessed_euros, guessed, unpriced, nodes} of the priced nodes: likely and high the
-    priced ones' sums, guessed the stage estimates of those not priced (never in the price), unpriced the nodes with
-    neither."""
+    """{likely_euros, high_euros, unpriced, nodes} of the priced nodes: likely and high the measured ones' sums,
+    unpriced the nodes with no measured price (unknown, never a guess)."""
     priced = [price for price in prices.values() if price["likely_euros"] is not None]
-    guessed = [price for price in prices.values() if price["likely_euros"] is None and price.get("guess_euros")]
     return {"likely_euros": round(sum(price["likely_euros"] for price in priced), 2),
             "high_euros": round(sum(price["high_euros"] for price in priced), 2),
-            "guessed_euros": round(sum(price["guess_euros"] for price in guessed), 2), "guessed": len(guessed),
-            "unpriced": sorted(node for node, price in prices.items()
-                               if price["likely_euros"] is None and not price.get("guess_euros")),
+            "unpriced": sorted(node for node, price in prices.items() if price["likely_euros"] is None),
             "nodes": len(prices)}
 
 
@@ -190,14 +205,15 @@ def waits_on_prop_data(hole, place):
 
 def chained(runner, found, places):
     """{chains: {place: {node: its hole chain}}, holes: {place: {hole id: node}}, work: {work: holes},
-    outside: {node outside every table: holes}, route: {place: {"work", "holes", "rows"}}} of the places' holes
-    (`found`), each lost input once."""
+    places_of: {work: places}, outside: {node outside every table: holes},
+    route: {place: {"work", "holes", "rows"}}} of the places' holes (`found`), each lost input once."""
     reading = chain.readers(runner, places)
-    record = {"chains": {}, "holes": {}, "work": {}, "outside": {}, "route": {}}
+    record = {"chains": {}, "holes": {}, "work": {}, "places_of": {}, "outside": {}, "route": {}}
     for hole in inputs.distinct([{**hole, "place": place} for place, listed in found.items() for hole in listed]):
         place, node = hole["place"], hole.get("node")
         if node is None:
             record["work"][hole["work"]] = record["work"].get(hole["work"], 0) + 1
+            record["places_of"].setdefault(hole["work"], set()).add(place)
             if waits_on_prop_data(hole, place):
                 route = record["route"].setdefault(place, {"work": hole["work"], "holes": 0, "rows": set()})
                 route["holes"] += 1
@@ -227,22 +243,47 @@ def route_stages(runner):
     return [name for name in runner.stages if name in wanted and runner.stages[name].paid]
 
 
+def route_units(stage, models):
+    """The units a prop route row makes for `models` models by its stage's forecast rule: one for a once-a-place rule,
+    else the models times the rule's `per_model`."""
+    entry = compute.per_unit(stage)
+    rule = (entry or {}).get("forecast") or {}
+    return 1 if rule.get("rule") == "one" else round(models * rule.get("per_model", 1), 2)
+
+
 def after_work(runner, route, priced, store):
     """{place: {work, holes, models, nodes, in_chains}} of the places whose missing rows wait on their prop data
     (`route`, chained's): each paid row of the prop route at compute.run_price with the rows as its forecast units,
-    one model a row; a row with no forecast rule whose node is in a chain already (`priced`) is left to the chain."""
+    one model a row (route_units); a row with no forecast rule whose node is in a chain already (`priced`) is left
+    to the chain."""
     found = {}
     for place, waiting in sorted(route.items()):
         models, nodes, in_chains = len(waiting["rows"]), {}, []
         for name in route_stages(runner):
-            node, stage = f"{name}@{place}", runner.stages[name]
-            price = compute.run_price(node, stage.euros, store, units=models, guess_from=stage.euros_from)
+            node = f"{name}@{place}"
+            price = compute.run_price(node, None, store, units=route_units(name, models))
             if price["basis"] != "per unit × forecast" and node in priced:
                 in_chains.append(node)
             else:
                 nodes[node] = {**price, "units": price.get("units")}
         found[place] = {"work": waiting["work"], "holes": waiting["holes"], "models": models, "nodes": nodes,
                         "in_chains": in_chains}
+    return found
+
+
+def code_work(work, places_of):
+    """{work: {holes, models, nodes: {label: price}}} of the code work whose make is a Pixal3D one (PIXAL_WORK), each
+    line once: a lost take one model, a rough model one a place, at compute.run_price with pixal's forecast per unit
+    (unknown while pixal has no measured unit)."""
+    found = {}
+    for line, holes in work.items():
+        for pattern, per, label in PIXAL_WORK:
+            if re.search(pattern, line):
+                models = holes if per == "hole" else len(places_of[line] - {WORLD})
+                price = compute.run_price("pixal", None, units=models)
+                if price["basis"] == "per unit × forecast":
+                    price["unit_source"] = f"one Pixal3D model a {per} of this work line"
+                found[line] = {"holes": holes, "models": models, "nodes": {label: {**price, "units": models}}}
     return found
 
 
@@ -262,8 +303,8 @@ def holes_price(runner, world, root, places, store=None, made_at=None):
         record = chained(runner, found, places)
         every = {name: is_paid for at in record["chains"].values() for nodes in at.values()
                  for name, is_paid in nodes.items()}
-        prices = {node: node_price(runner, node, found.get(node.partition("@")[2], []), runner.world.roots["data"],
-                                   store) for node in sorted(name for name, is_paid in every.items() if is_paid)}
+        prices = {node: node_price(node, found.get(node.partition("@")[2], []), runner.world.roots["data"], store)
+                  for node in sorted(name for name, is_paid in every.items() if is_paid)}
         route = after_work(runner, record["route"], prices, store)
     return {"world": world, "made_at": made_at or graph.now(), "priced_on": priced_on(), "nodes": prices,
             "chains": {place: {node: sorted(nodes) for node, nodes in at.items()}
@@ -271,6 +312,6 @@ def holes_price(runner, world, root, places, store=None, made_at=None):
             "holes": record["holes"], "free": sorted(name for name, is_paid in every.items() if not is_paid),
             "totals": totals(prices),
             "unfillable": counted(({"work": text}, count) for text, count in record["work"].items()),
-            "after_work": route,
+            "after_work": route, "code_work": code_work(record["work"], record["places_of"]),
             "outside": counted(({"node": node}, count) for node, count in record["outside"].items()),
             "not_current": stale, "not_checked": unchecked}

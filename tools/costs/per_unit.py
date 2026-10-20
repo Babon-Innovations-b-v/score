@@ -10,13 +10,19 @@ starts) over the units it finished. Google lines: each finished call's euros (th
 median of those per-unit euros, high their HIGH quantile; `runs` is how many batches or calls they rest on, and
 `sources` names each batch (a call's ledger is named with its caller and days). The runner counts a node's units in
 its accepted output by the entry's `count` (score.adapters.compute.unit_price). A stage with no lines here stays
-unmeasured: the runner shows its declared estimate as a guess, never as a price.
+unmeasured: no price, never a guess shown as one.
+
+The old disk took the live ledgers (2026-10-19). A stage of today's route whose runs' euros and units were written
+down in git when they ran (`RECORDED`: a committed evidence file and line, or a commit) is priced from those runs, its
+`sources` naming each, its `runs` how many, and no count rule (priced before a make only); a ledger line of it, once
+read, replaces them.
 
 Before a node is made it has nothing to count, so an entry also carries its `forecast` rule: what the units of a make
-are forecast from, a source in git (`FORECASTS`), which `score price --holes` counts (compute.forecast_price). An entry
-with no rule says why in `forecast_why`, and its node's price stays the stage's guess. The rules are this file's, so
-`--rules-only` writes them into the per-unit file in place, its measured numbers kept, when the ledgers it rests on
-are not on this box (the old disk took the live ones, 2026-10-19):
+are forecast from, a source in git (`FORECASTS`), which `score price --holes` counts (compute.forecast_price), and
+where a model makes more than one unit, `per_model`: a close-up's pictures a model as recorded, a finish map's or a
+naming's calls over the take lists' calls in the same Google ledger (one list a take). The rules are this file's, so
+`--rules-only` writes them, and the RECORDED stages, into the per-unit file in place, its ledger-measured numbers kept,
+when the ledgers it rests on are not on this box:
 
     python3 tools/costs/per_unit.py --rules-only --out data/costs/per-unit.json
 
@@ -42,30 +48,35 @@ FORECASTS = {
                   "is this stage's there, by their take",
     "models": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast "
               "to make at the place (prop_takes)",
-    "light_jobs": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job",
-    "one": "one a place",
+    "light_jobs": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job "
+                  "(the views of the place's scene record, data/scene/<place>.json, while the demo's copy of them is "
+                  "lost)",
+    "one": "one a place (one for an environment node)",
 }
-# A per-model forecast needs a ledger line that holds both a batch's units and its models; the Google ledger names
-# only each call's caller, so these stages have no rule and their price stays a guess.
-NO_BATCH = "no ledger line holds both a batch's units and its models: the Google ledger names only each call's caller"
+# A Google stage whose units are not one a model: its calls over the take lists' calls in the same ledger (the lists
+# stage asks once a take), so a model is forecast to need that many.
+LISTS = "surfaces-lists"
+CLOSEUPS_15 = "paper/evidence/cloud/forecast-2026-10-15.txt"
 # Per stage: the unit, the ledger lines of its work, the units a line made, how a node's units are counted in its
-# accepted output, and how they are forecast before a make (a FORECASTS rule, or None and why). `also` are the
-# stages that make the same unit by the same code (the crops' and people's lines).
+# accepted output, and how they are forecast before a make (a FORECASTS rule and, where a model makes more than one
+# unit, `per_model`). `also` are the stages that make the same unit by the same code (the crops' and people's lines).
 SPECS = {
     "pixal": {"unit": "model", "cloud": {"kind": "pixal"}, "per_line": "models_done",
               "count": {"json_keys": "takes.json"}, "also": ["crops-pixal"], "forecast": "prop_takes"},
     "closeup": {"unit": "close-up picture (Nano Banana Pro)", "google": "pro",
                 "count": {"json_field": ["closeups.json", "pro_pictures"]}, "also": ["crops-closeup"],
-                "forecast": None, "forecast_why": NO_BATCH},
+                "forecast": "prop_takes",
+                "per_model": {"units": 25, "models": 21, "from": f"{CLOSEUPS_15} line 37: the ship's close-ups, 25 "
+                                                                 "Pro pictures for 21 pieces (2026-10-14)"}},
     "surfaces-maps": {"unit": "finish map picture (Nano Banana Pro)", "google": "finishmap-map",
                       "count": {"map_attempts": "map.json"}, "also": ["crops-surfaces-maps", "people-maps"],
-                      "forecast": None, "forecast_why": NO_BATCH},
+                      "forecast": "models", "per_model": {"over": LISTS}},
     "surfaces-lists": {"unit": "finish list of a take (Gemini 3.1 Pro)", "google": "finishmap-list",
                        "count": {"take_files": ".json"}, "also": ["crops-surfaces-lists", "people-lists"],
                        "forecast": "models"},
     "surfaces-names": {"unit": "finish named again (Gemini 3.1 Pro)", "google": "finishmap-name",
                        "count": {"named_again": ".json"}, "also": ["crops-surfaces-names", "people-names"],
-                       "forecast": None, "forecast_why": NO_BATCH},
+                       "forecast": "models", "per_model": {"over": LISTS}},
     "light-passes": {"unit": "render job of the light stage", "cloud": {"kind": "blender", "who": "score light stage"},
                      "per_line": "jobs", "count": {"files": "passes/*.views.json"}, "also": ["light-haze"],
                      "forecast": "light_jobs"},
@@ -74,6 +85,31 @@ SPECS = {
     "surfaces-bake": {"unit": "bake job (library_bake.py, one a model)", "cloud": {"kind": "library"},
                       "per_line": "jobs", "count": {"files": "made/*.gltf"}, "also": ["crops-surfaces-bake"],
                       "forecast": "models"},
+}
+# Measured runs of today's route whose ledger lines went with the old disk (2026-10-19), their euros and the units they
+# made written down in git when they ran: per stage, its unit, its forecast rule and each run (euros, units, where it
+# is written). No count rule: the runner prices them before a make only. A ledger line of the stage, when one is read,
+# replaces them.
+STAGE_EUROS_13 = "paper/evidence/cloud/stage-euros-2026-10-13.txt"
+SHIP_ROOMS = f"{CLOSEUPS_15} line 47: the ship's six rooms, surface line to paint, 12 takes (2026-10-14)"
+RECORDED = {
+    "surfaces-turntable": {"unit": "take turned (turntable render)", "forecast": "models",
+                           "runs": [{"euros": 2.4, "units": 12, "source": f"{SHIP_ROOMS}, turntables EUR 2.4"}]},
+    "surfaces-segvigen": {"unit": "take split back (SegviGen)", "forecast": "models",
+                          "runs": [{"euros": 0.63, "units": 12, "source": f"{SHIP_ROOMS}, SegviGen EUR 0.63"}]},
+    "surfaces-paint": {"unit": "take painted", "forecast": "models",
+                       "runs": [{"euros": 5.83, "units": 12, "source": "commit b11c282f (2026-10-12): the campgrounds' "
+                                                                       "cloud paint, twelve takes, EUR 5.83"},
+                                {"euros": 0.6, "units": 12, "source": f"{SHIP_ROOMS}, paint EUR 0.6"}]},
+    "ship_kit": {"unit": "ship kit of a place baked", "forecast": "one",
+                 "runs": [{"euros": 0.60, "units": 8, "source": "commit 1198efc8 (2026-10-15): the ship's eight shell "
+                                                                "kits baked by ship_kit@<place>, EUR 0.60"},
+                          {"euros": 0.13, "units": 1, "source": "commit dc6851c4 (2026-10-15): ship_kit@engineroom, "
+                                                                "EUR 0.13"}]},
+    "concept_people": {"unit": "make of the environment's people concept", "forecast": "one",
+                       "runs": [{"euros": 2.41, "units": 1,
+                                 "source": f"{STAGE_EUROS_13} line 12 (world 1's ticketed run, 16 rows), its re-buy "
+                                           f"priced at it in {CLOSEUPS_15} line 55"}]},
 }
 
 
@@ -134,32 +170,62 @@ def google_measures(calls, caller):
     return [call["euros"] for call in found], sorted({call["day"] for call in found})
 
 
-def forecast(spec):
-    """The forecast fields of a stage's entry: its rule with the source it counts, or none and why."""
+def per_model(spec, stages):
+    """{per_model, per_model_from} of a stage whose model makes more than one unit: recorded units over models, or
+    its calls over the take lists' calls in `stages` (the measured entries); {} for one a model."""
+    ratio = spec.get("per_model")
+    if ratio is None:
+        return {}
+    if "over" not in ratio:
+        return {"per_model": round(ratio["units"] / ratio["models"], 4), "per_model_from": ratio["from"]}
+    if ratio["over"] not in stages:
+        raise SystemExit(f"{spec['stage']}: its units a model are its calls over {ratio['over']}'s, which no ledger "
+                         "read here measured")
+    mine, lists = stages[spec["stage"]], stages[ratio["over"]]
+    return {"per_model": round(mine["runs"] / lists["runs"], 4),
+            "per_model_from": f"{mine['runs']} {spec['unit']} calls over {lists['runs']} take lists ({ratio['over']}, "
+                              "one call a take) in the same Google ledger"}
+
+
+def forecast(spec, stages):
+    """The forecast fields of a stage's entry: its rule with the source it counts and, where a model makes more than
+    one unit, how many."""
     rule = spec["forecast"]
-    if rule is None:
-        return {"forecast": None, "forecast_why": spec["forecast_why"]}
-    return {"forecast": {"rule": rule, "source": FORECASTS[rule]}}
+    return {"forecast": {"rule": rule, "source": FORECASTS[rule], **per_model(spec, stages)}}
 
 
 def entry(stage, spec, each, sources):
-    return {"stage": stage, "unit": spec["unit"], "count": spec["count"], "also": spec.get("also", []),
+    return {"stage": stage, "unit": spec["unit"], "count": spec.get("count"), "also": spec.get("also", []),
             "likely_euros": round(statistics.median(each), 5), "high_euros": round(quantile(each, HIGH), 5),
-            "runs": len(each), "sources": sources, **forecast(spec)}
+            "runs": len(each), "sources": sources}
+
+
+def recorded():
+    """{stage: entry} of the RECORDED runs, each run's euros over its units."""
+    return {stage: entry(stage, spec, [run["euros"] / run["units"] for run in spec["runs"]],
+                         {"recorded runs": [run["source"] for run in spec["runs"]]})
+            for stage, spec in RECORDED.items()}
+
+
+def with_forecasts(stages):
+    """`stages` (measured entries) and the RECORDED stages no ledger measured, each with its forecast fields written
+    from SPECS or RECORDED."""
+    every = {**recorded(), **stages}
+    specs = {**RECORDED, **SPECS}
+    return {stage: {**{name: value for name, value in found.items() if name not in ("forecast", "forecast_why")},
+                    **forecast({**specs[stage], "stage": stage}, every)} for stage, found in every.items()}
 
 
 def with_rules(body):
-    """The per-unit file's body with every measured stage's forecast fields written again from SPECS, its measured
-    numbers kept."""
-    stages = {}
-    for stage, found in body["stages"].items():
-        kept = {name: value for name, value in found.items() if name not in ("forecast", "forecast_why")}
-        stages[stage] = {**kept, **forecast(SPECS[stage])}
-    return {**body, "stages": stages}
+    """The per-unit file's body with every ledger-measured stage's forecast fields written again, its measured numbers
+    kept, and the RECORDED stages written again."""
+    measured = {stage: found for stage, found in body["stages"].items() if stage in SPECS}
+    return {**body, "stages": with_forecasts(measured)}
 
 
 def measure(lines, calls, google_path):
-    """{stage: entry} of every stage in SPECS with measured lines; a stage with none is left out."""
+    """{stage: entry} of every stage in SPECS with measured lines (a stage with none is left out), and the RECORDED
+    stages no ledger measured."""
     found = {}
     for stage, spec in SPECS.items():
         if "cloud" in spec:
@@ -172,7 +238,7 @@ def measure(lines, calls, google_path):
                                        f"{days[-1] if days else ''}"}
         if each:
             found[stage] = entry(stage, spec, each, sources)
-    return found
+    return with_forecasts(found)
 
 
 def main(argv=None):
@@ -196,7 +262,8 @@ def main(argv=None):
     body = {"read": [costs.scrub(path) for path in options.ledger] + [costs.scrub(options.google)],
             "high_quantile": HIGH, "stages": found}
     pathlib.Path(options.out).write_text(json.dumps(body, indent=1) + "\n")
-    print(f"per unit: {len(found)} of {len(SPECS)} stages measured -> {options.out}")
+    print(f"per unit: {len(found)} stages priced ({len(SPECS)} measured from ledgers when they hold lines, "
+          f"{len(RECORDED)} recorded) -> {options.out}")
 
 
 if __name__ == "__main__":

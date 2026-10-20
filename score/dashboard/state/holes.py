@@ -140,8 +140,10 @@ def total_words(price, sums, after):
     if price.stale:
         return f"the runner's price is stale ({price.stale}): run score price world1 --holes again"
     words = [sum_words(sums)]
-    if after["places"]:
-        words.append(f"after the prop data of {len(after['places'])} places: {sum_words(after['sums'])}")
+    if after["places"] or after["code"]:
+        done = [f"the prop data of {len(after['places'])} places" if after["places"] else "",
+                f"{len(after['code'])} Pixal3D code tasks" if after["code"] else ""]
+        words.append(f"after {' and '.join(word for word in done if word)}: {sum_words(after['sums'])}")
     unpriced = [f"{steps(len(price.outside), 'node')} outside the stage table" if price.outside else "",
                 f"{steps(len(price.not_checked), 'place')} never checked" if price.not_checked else "",
                 f"{steps(len(price.not_current), 'place')} not current" if price.not_current else ""]
@@ -151,12 +153,17 @@ def total_words(price, sums, after):
 
 
 def after_work(price):
-    """{places: [{place, work, holes, models, words}], sums} of the prop route the runner priced for the rows that
-    wait on their place's prop data, every place's nodes summed once, each basis apart."""
-    nodes = {node: found for entry in price.after_work.values() for node, found in entry["nodes"].items()}
+    """{places: [{place, work, holes, models, words}], code: [{work, holes, models, words}], sums} of what the runner
+    priced after code work: the prop route of the rows that wait on their place's prop data, every place's nodes
+    summed once, and the code work whose make is a Pixal3D one (the lost takes, the rough models), each basis
+    apart."""
+    nodes = {node: found for entry in [*price.after_work.values(), *price.code_work.values()]
+             for node, found in entry["nodes"].items()}
     places = [{"place": place, "work": entry["work"], "holes": entry["holes"], "models": entry["models"],
                "words": sum_words(summed(entry["nodes"]))} for place, entry in sorted(price.after_work.items())]
-    return {"places": places, "sums": summed(nodes)}
+    code = [{"work": work, "holes": entry["holes"], "models": entry["models"],
+             "words": sum_words(summed(entry["nodes"]))} for work, entry in sorted(price.code_work.items())]
+    return {"places": places, "code": code, "sums": summed(nodes)}
 
 
 def whole_of(sums):
@@ -200,7 +207,7 @@ def environment(total, price, items=()):
     sums = summed(price.nodes) if current else None
     after = after_work(price) if current else None
     carried = carriers(items)
-    whole_after = whole_of(after["sums"]) if after and after["places"] else None
+    whole_after = whole_of(after["sums"]) if after and (after["places"] or after["code"]) else None
     unfillable = price.unfillable if current else [{"work": work, "holes": None} for work in total.unfillable]
     return {"holes": sum(total.counts.values()), "counts": total.counts, "made_at": price.made_at if price else None,
             "stale": price.stale if price else None, "sums": sums, "whole": whole_of(sums), "after_work": after,
@@ -449,7 +456,7 @@ def headline(price):
         return None
     outside = sum(entry.get("holes") or 0 for entry in price.outside)
     waiting = (sum(entry.get("holes") or 0 for entry in price.unfillable)
-               - sum(entry.get("holes") or 0 for entry in price.after_work.values()))
+               - sum(entry.get("holes") or 0 for entry in [*price.after_work.values(), *price.code_work.values()]))
     words = []
     if outside:
         words.append(f"{outside} holes have no price yet (their steps are outside the stage table)")
@@ -512,10 +519,12 @@ def owner_work(details):
 
 
 def brought(price):
-    """{words: {holes, works}} of the paid work the code work brings that the record does not price (BRINGS), each
-    pattern's lines added up."""
+    """{words: {holes, works}} of the paid work the code work brings that the record does not price (BRINGS, a line
+    the record prices in its code work left out), each pattern's lines added up."""
     found = {}
     for entry in price.unfillable:
+        if entry["work"] in price.code_work:
+            continue
         for pattern, words in BRINGS:
             matched = re.search(pattern, entry["work"])
             if matched:
@@ -589,8 +598,9 @@ def work_groups(unfillable, details, price=None):
     once it is done, what the prop route the runner priced after it adds (`after`, words; None when it adds nothing
     priced). The owner's own actions (owners_own) are not code and not in it: owner_work says them."""
     counted = work_holes(details)
-    after = {entry["work"]: entry["nodes"] for entry in (price.after_work.values() if price and not price.stale
-                                                          else [])}
+    current = price is not None and not price.stale
+    after = {entry["work"]: entry["nodes"] for entry in (price.after_work.values() if current else [])}
+    after.update({work: entry["nodes"] for work, entry in (price.code_work.items() if current else [])})
     found = {}
     for entry in unfillable:
         if owners_own(entry["work"]):
