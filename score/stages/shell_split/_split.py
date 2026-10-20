@@ -1,7 +1,7 @@
 """The split itself: an outside shell's inside cut into the shapes of its inside places, front to back along the
 shell's long axis, deterministic (same plan, same split). Plain Python; the stage's docstring has the input.
 
-    layout = split(shell, plan["split"])   # {"shell", "span", "left_out", "places": [...]}
+    layout = split(shell, plan["split"])   # {"outside_shell", "span", "left_out", "places": [...]}
 
 How it cuts (each rule a choice, said here so a different answer is a different rule, never a tuned number):
 
@@ -11,10 +11,11 @@ How it cuts (each rule a choice, said here so a different answer is a different 
   `left` and `right` rooms (some of each) is one band with the spine (the corridor joining them) down its middle; when a whole room
   stands ahead of it, the spine opens with a hall (`spine.hall` long, wall to wall) behind that room's door.
 - **Lengths by one share of headroom.** Every room starts at its least length; the span left over is shared so each
-  band grows the same fraction of its headroom (most less least) and the bands fill the span. A side band is as long
-  as its longer side at that fraction; the shorter side's rooms share the difference the same way, past their most
-  if they must (the bounds gate then fails them by name). Once every band is at its most, what is left of the span
-  stays at the back, left out: the split never stretches a room past its bounds to fill the shell.
+  band grows the same fraction of its headroom (most less least) and the bands fill the span. A side band's least is
+  its longer least side's, its most its shorter most side's (never under its least), so each side's rooms share
+  the band's length the same way, past their most only when one side's least is over the other side's most (the
+  bounds gate then fails them by name). Once every band is at its most, what is left of the span stays at the back,
+  left out: the split never stretches a room past its bounds to fill the shell.
 - **Doors** are the plan's `door` size: a side room's on the spine's wall at its middle; a whole room's, and the
   spine's, on the wall it shares with the shape ahead of it (the spine, else the whole room there).
 """
@@ -95,11 +96,13 @@ def sum_bound(rooms, end):
 
 
 def band_bounds(kind, rooms):
-    """(least, most) of a band's length: a whole room's own; a side band's, its longer side's."""
+    """(least, most) of a band's length: a whole room's own; a side band's, from its longer least side to its
+    shorter most side (never under its least)."""
     if kind == "whole":
         return tuple(rooms[0]["long"])
     sides = [column(rooms, "left"), column(rooms, "right")]
-    return max(sum_bound(side, 0) for side in sides), max(sum_bound(side, 1) for side in sides)
+    least = max(sum_bound(side, 0) for side in sides)
+    return least, max(least, min(sum_bound(side, 1) for side in sides))
 
 
 def share(bounds, room_for):
@@ -114,8 +117,6 @@ def side_lengths(rooms, length):
     """Each room of one side, front to back, grown the same share of its headroom so the side is `length` long
     (rooms with no headroom grow evenly)."""
     least, most = sum_bound(rooms, 0), sum_bound(rooms, 1)
-    if not rooms:
-        return []
     if most - least <= 1e-9:
         return [room["long"][0] + (length - least) / len(rooms) for room in rooms]
     fraction = (length - least) / (most - least)
@@ -163,9 +164,7 @@ def doors_into(laid, size):
             item["doors"].append(door(middle, "spine", spine["place"], size))
             spine["doors"].append(door(middle, item["side"], item["place"], size))
         elif index:
-            ahead = next((other for other in reversed(laid[:index]) if other["side"] in ("whole", "middle")), None)
-            if ahead is None:
-                continue
+            ahead = next(other for other in reversed(laid[:index]) if other["side"] in ("whole", "middle"))
             item["doors"].append(door(item["along"][0], "forward", ahead["place"], size))
             ahead["doors"].append(door(item["along"][0], "aft", item["place"], size))
     return laid
@@ -218,5 +217,5 @@ def split(shell, plan):
     laid, end = laid_bands(found, front, back - front - halls, spine or {})
     laid = [measured(item, stations, spine or {}, plan.get("partition", 0.0)) for item in doors_into(laid, plan["door"])]
     left_out = [[round(stations[0][0], ROUND), round(front, ROUND)], [round(end, ROUND), round(stations[-1][0], ROUND)]]
-    return {"shell": shell, "span": [round(front, ROUND), round(back, ROUND)],
+    return {"outside_shell": shell, "span": [round(front, ROUND), round(back, ROUND)],
             "left_out": [span for span in left_out if span[1] - span[0] > 10 ** -ROUND], "places": laid}

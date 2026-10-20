@@ -84,7 +84,7 @@ def test_a_shell_splits_into_inside_places_that_tile_are_reached_and_keep_their_
     assert sorted(by_place) == ["bridge", "bunks", "engines", "hall", "lab", "mess", "stores"]
     for place in by_place:
         definition = json.loads((out / "places" / f"{place}.json").read_text())
-        assert definition["shell"] == "toyship" and definition["along"] == by_place[place]["along"]
+        assert definition["outside_shell"] == "toyship" and definition["along"] == by_place[place]["along"]
     assert by_place["bunks"]["narrowest"] == round(4.0 - 0.75 - 0.1, 3)  # from the spine's partition to the shell
     assert by_place["bridge"]["narrowest"] == 8.0 and by_place["hall"]["narrowest"] == 1.5
 
@@ -305,11 +305,9 @@ def test_the_ships_shell_splits_into_its_hand_plans_rooms_and_says_where_it_diff
     assert set(differs) == set(DIFFERS), sorted(set(differs) ^ set(DIFFERS))
     found = verdicts(out, inputs)
     assert found["tiled"].answer == checks.PASS and found["reached"].answer == checks.PASS, found
-    # The starboard side's least (8.7 m) is under the port side's (12 m), so its rooms grow past plan v7's most to
-    # tile the band: the bounds gate fails them by name. The hand plan passes v7's most too (the lock, the engine
-    # room), so neither is within those bounds.
-    assert found["bounded"].answer == checks.FAIL
-    assert {finding.split(":")[0] for finding in found["bounded"].findings} == {"navigation", "storage", "shiplock"}
+    # The side band runs from port's least (12 m) to starboard's most (12.91 m), so every room keeps plan v7's
+    # bounds and the bands, at most 23.45 m, still fill the 22.7 m the span has less the hall.
+    assert found["bounded"].answer == checks.PASS, found["bounded"]
 
 
 if __name__ == "__main__":

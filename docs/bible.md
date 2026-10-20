@@ -169,7 +169,7 @@ How the pieces fit is the framework's and its tools' work. Where the runner stan
 plan names, but no plan is drawn to its rough model yet. The shell split is a row (`shell-split`,
 `score/stages/shell_split`, free): a place whose plan has a `split` (its outline and room list) is an outside shell,
 its node cuts the inside into its inside places' shapes, gated on `tiled`, `reached` and `bounded`, and each inside
-place's plan reads its shell's split beside it (a nested read, `graph.Stage.nested`), so the runner makes the split
+place's plan reads its shell's split beside it (an upward read, `graph.Stage.upward`), so the runner makes the split
 first. No plan of environment 1 has a `split` yet, so the ship's rooms are still the hand-made
 `data/definitions/ship_floor.json`; each place's concept and inventory are made on their own. The ship is the first place run
 through the loop: its rooms' concepts were drawn before its hull was planned; drawing them again to the shapes split

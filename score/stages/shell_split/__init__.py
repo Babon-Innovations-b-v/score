@@ -16,10 +16,10 @@ A place is an outside shell when its plan (`data/plans/<place>.json`) has a `spl
     }
 
 The room list comes from the shell's concept or plan; the outline from its plan, drawn to its rough model. The make
-(`_split.py`, its rules in its docstring) writes `split.json` (the span, what is left out, every shape with its span,
-lanes, widths, clear height and doors) and `places/<place>.json`, each inside place's own definition (its shape and
-doors, and the shell it sits in), into the store; never into the hand data. Gates (`_gates.py`): `tiled`, `reached`,
-`bounded`.
+(`_split.py`, its rules in its docstring) writes `split.json` (the outside shell, the span, what is left out, every
+shape with its span, lanes, widths, clear height and doors) and `places/<place>.json`, each inside place's own
+definition (its shape and doors, and `outside_shell`, the shell it sits in: never `shell`, the plan's shell kind),
+into the store; never into the hand data. Gates (`_gates.py`): `tiled`, `reached`, `bounded`.
 
     shell_split.applies(place)    # the place is an outside shell (its plan has a split)
     shell_split.shell_of(place)   # [the shell whose split names the place], or []: what an inside place reads beside
@@ -35,10 +35,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 PLANS = REPO / "data/plans"
 CHECKS = _gates.CHECKS
 
-
-# The shell's plan file, its split's input; named apart from the plan row's output (`after`), which the runner would
-# check out over it.
-SHELL_PLAN = "shell plan"
+SHELL_PLAN = _gates.SHELL_PLAN
 
 
 def files(place):
@@ -112,7 +109,7 @@ def make(inputs, out, seed, params):
     (out / "split.json").write_text(json.dumps(layout, indent=1))
     (out / "places").mkdir()
     for item in layout["places"]:
-        (out / "places" / f"{item['place']}.json").write_text(json.dumps({"shell": shell, **item}, indent=1))
+        (out / "places" / f"{item['place']}.json").write_text(json.dumps({"outside_shell": shell, **item}, indent=1))
 
 
 def split_faults(folder):
