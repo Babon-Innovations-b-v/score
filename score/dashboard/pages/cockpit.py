@@ -142,11 +142,12 @@ def holder(world, node, by_place, names):
 
 def tiles(world, names, rows, at=None):
     """[tile] of the places and shells sitting directly within `at` (None: the outside ones), shapes first: one
-    holding places is a nested_tile; when `at` is a place, its own tile (to its Place screen) comes first."""
+    holding places is a nested_tile; when `at` is a place, its own tile (to its Place screen) comes first, named
+    "Outside" (what of it is not its inside places), so a tile never holds a card of its own name (owner, 2026-10-20)."""
     by_place = place_tiles(world, names, rows)
     level = [node for node in [*by_place, *world.shells] if node != at and parent_of(world, node, by_place) == at
              and (node in by_place or inside_of(world, node, by_place))]
-    found = [by_place[at]] if at in by_place else []
+    found = [{**by_place[at], "name": "Outside"}] if at in by_place else []
     for node in sorted(set(level), key=lambda node: first_index(world, node, by_place)):
         found.append(nested_tile(world, node, by_place, names) if inside_of(world, node, by_place)
                      else by_place[node])
