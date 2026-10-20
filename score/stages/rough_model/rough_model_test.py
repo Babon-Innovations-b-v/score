@@ -1,6 +1,6 @@
-"""The rough-model row: in the table next to the plan, reading the plan and, where a view is drawn for the place, the
-concept views; its make through a stand-in batch (no spend, no model made); its gates on a one-triangle binary glTF;
-its batch check without rows; and the holes it fills. Run: .venv/bin/python -m pytest score/stages/rough_model
+"""The rough-model row: in the table next to the plan, reading the plan and the concept picture it names; its make
+through a stand-in batch and finish (no spend, no model made); its gates on a one-triangle binary glTF; its batch check
+without rows; and the holes it fills. Run: .venv/bin/python -m pytest score/stages/rough_model
 """
 import hashlib
 import json
@@ -74,7 +74,7 @@ def test_the_row_stands_after_the_plan_and_reads_the_concept_and_the_plan():
     assert names[names.index("plan") + 1] == "rough-model"
     row = next(row for row in stages.STAGES if row.name == "rough-model")
     assert row.grain == "place" and row.paid and row.euros == rough_model.EUROS
-    assert row.after == {"concept-views": ("concept-views", 1), "plan": ("place-plan", 2)}
+    assert row.after == {"plan": ("place-plan", 2)}
     assert row.contract.schema == "rough-model" and [check.name for check in row.checks] == ["made", "concept"]
 
 
@@ -85,17 +85,17 @@ def test_every_place_with_a_plan_has_a_rough_model_node_shell_or_inside_alike():
     assert with_node == {place for place in places if scene_record.written(place)} and with_node
 
 
-def test_a_place_a_view_is_drawn_for_reads_the_views_and_another_its_plan_s_picture():
-    """The galley's concept is drawn by concept-views (ship46_galley); the airlock's is its plan's K02. Only the first
-    waits on the concept views, so no other place's key moves with them."""
+def test_a_place_reads_the_concept_its_plan_names_and_its_own_inventory():
+    """The airlock's plan names K02; the flat's plan names its inventory prologue_flat. No place reads the concept
+    views, whose requests name no place they are the concept of."""
     runner = stages.runner()
     row = runner.stages["rough-model"]
-    assert set(runner.reads(row, "galley")) == {"concept-views", "plan"}
-    assert "concept" not in runner.files_of(row, "galley")
-    assert set(runner.reads(row, "airlock")) == {"plan"}
-    assert runner.files_of(row, "airlock")["concept"].endswith("/views/K02.png")
-    for name in ("inventory", "places", *rough_model.TOOLS):
-        assert name in runner.files_of(row, "airlock")
+    assert set(runner.reads(row, "airlock")) == set(runner.reads(row, "galley")) == {"plan"}
+    airlock = runner.files_of(row, "airlock")
+    assert airlock["concept"].endswith("/views/K02.png") and airlock["inventory"].endswith("/inventory/airlock.json")
+    assert runner.files_of(row, "flat")["inventory"].endswith("/inventory/prologue_flat.json")
+    for name in ("places", *rough_model.TOOLS):
+        assert name in airlock
 
 
 def test_the_make_sends_the_concept_to_the_batch_once_and_keeps_the_finished_model(made, tmp_path):
@@ -134,14 +134,26 @@ def test_a_place_with_no_concept_is_refused_before_any_batch(tmp_path, monkeypat
         rough_model.make({"plan": plan_output(tmp_path / "plan", "airlock")}, tmp_path, 1, {})
 
 
-def test_the_view_drawn_for_the_place_is_its_concept_and_two_are_refused(tmp_path):
-    views = tmp_path / "views"
-    views.mkdir()
-    (views / "views.json").write_text(json.dumps({"views": [{"id": "ship46_galley"}, {"id": "ship46_top"}]}))
-    assert rough_model.concept_of({"concept-views": views}, "galley") == views / "ship46_galley.png"
-    (views / "views.json").write_text(json.dumps({"views": [{"id": "ship46_galley"}, {"id": "galley_side"}]}))
-    with pytest.raises(ValueError, match="2 concept views"):
-        rough_model.concept_of({"concept-views": views}, "galley")
+def test_a_take_brought_back_raw_is_finished_here_not_sent_again(tmp_path, monkeypatch):
+    """A batch that brought the raw model back but whose finish failed: the next make finishes it here, as the batch
+    finishes every take, and never sends it again (the batch refuses to overwrite a raw take)."""
+    work, finished = tmp_path / "pixal", []
+    work.mkdir()
+    monkeypatch.setattr(rough_model, "take_files", lambda take: (work / f"{take}.glb", work / f"{take}-final.glb"))
+    monkeypatch.setattr(rough_model, "dispatch", lambda *arguments: pytest.fail("the take was sent again"))
+
+    def finish(take, picture, out):
+        finished.append((take, pathlib.Path(picture).name))
+        glb(work / f"{take}-final.glb")
+    monkeypatch.setattr(rough_model, "finish", finish)
+    concept = tmp_path / "K02.png"
+    concept.write_bytes(b"a concept picture")
+    take = rough_model.take_name("airlock", hashlib.sha256(b"a concept picture").hexdigest())
+    glb(work / f"{take}.glb")
+    out = tmp_path / "out"
+    out.mkdir()
+    rough_model.make({"plan": plan_output(tmp_path / "plan", "airlock"), "concept": concept}, out, 1, {})
+    assert finished == [(take, "K02.png")] and (out / "rough.glb").exists()
 
 
 def test_the_batch_check_keeps_the_owner_s_approval_without_the_rows():

@@ -1,7 +1,8 @@
 """A rough model's take through the cloud batch: tools/props/cloud/batch.py's own command (its plan and price, the
 clearance at every rent point, the machines, the ledger line, the finish), run in the prop environment:
 
-    $PROPS_PYTHON score/stages/rough_model/_cloud.py <list.txt> --who "<session>" --inventory data/inventory/<scene>.json
+    $PROPS_PYTHON score/stages/rough_model/_cloud.py <list.txt> --who "<session>" \
+        --inventory data/inventory/<scene>.json
 
 with one check of it replaced. The batch builds only the scenes' rows (from_the_inventory: every model's name on an
 approved inventory's row); a rough model is the place's whole concept, on no row, so it keeps the rest of that check:
