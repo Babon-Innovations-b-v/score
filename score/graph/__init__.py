@@ -155,6 +155,24 @@ def selected():
     return SELECTED.get()
 
 
+# The stage names this command asks for by name (`score run|status|plan --stage`), set once by the command (ask);
+# a row run only when asked (asked_for) has no node on any line, plan, hole or price otherwise.
+ASKED = frozenset()
+
+
+def ask(names):
+    """Set the stage names this command asks for by name (none: every row run only when asked stays off)."""
+    global ASKED
+    ASKED = frozenset(names or ())
+
+
+def asked_for(names):
+    """True when this command asks for any of `names` by name: an `applies` for rows that run only when asked (an
+    experimental route beside the line until the owner moves the line onto it), a group of rows on together, so the
+    rows an asked one reads are on too."""
+    return bool(ASKED & set(names))
+
+
 @dataclass(frozen=True)
 class Stage:
     """One row of the stage table.

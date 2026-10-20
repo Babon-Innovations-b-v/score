@@ -65,19 +65,19 @@ def view_labels(faces, labels, count, face_count):
     return np.where(tally.sum(1) > 0, tally.argmax(1), -1)
 
 
-def split_take(folder, seed):
-    """One take's groups and parts into its views folder's twin; its groups.json record."""
-    mesh = model_of(folder["views"])
-    faces = dict(np.load(folder["views"] / "faces.npz"))
-    colours = dict(np.load(folder["views"] / "colours.npz"))
-    centres, per_pixel = colour_groups(colours, faces, seed)
-    count = len(centres)
+def face_groups(mesh, faces, per_pixel, count):
+    """Each face's group, the views' colour groups voted across views, walked, cleaned and merged into islands, and
+    its part: (group_of, part_of, per_map)."""
     per_map = {view: view_labels(faces[view], per_pixel[view], count, len(mesh.faces)) for view in faces}
     votes = finish_parts.voted(per_map, count)  # the close-up's view is "front": finish_parts' FRONT_VOTE
     own = np.where(votes.sum(1) > 0, votes.argmax(1), -1)
     part_of, group_of = finish_parts.merged_islands(mesh, finish_parts.cleaned(mesh, finish_parts.walked(mesh, own),
                                                                               count))
-    out = folder["out"]
+    return group_of, part_of, per_map
+
+
+def split_saved(out, mesh, faces, group_of, part_of):
+    """groups.npy, parts.npy and each view's group picture into `out`."""
     out.mkdir(parents=True)
     np.save(out / "groups.npy", group_of.astype(np.int16))
     np.save(out / "parts.npy", part_of.astype(np.int32))
@@ -85,11 +85,25 @@ def split_take(folder, seed):
     for view in faces:
         cast.picture(cast.face_painted(palette[group_of], faces[view]), faces[view],
                      cast.shading(mesh, faces[view], view)).save(out / f"groups-{view}.png")
-    area = np.bincount(group_of, weights=mesh.area_faces, minlength=count) / mesh.area
-    srgb = group_colours(colours, per_pixel, count)
+
+
+def split_record(mesh, centres, srgb, group_of, part_of, per_map):
+    """A take's groups.json record: each group's colour and share, its part count and the views' agreement."""
+    area = np.bincount(group_of, weights=mesh.area_faces, minlength=len(centres)) / mesh.area
     return {"groups": [{"group": group, "lab": [round(float(value), 1) for value in centre], "srgb": srgb[group],
                         "share": round(float(area[group]), 4)} for group, centre in enumerate(centres)],
             "parts": int(part_of.max()) + 1, "agreement": finish_parts.agreement(mesh, group_of, per_map)}
+
+
+def split_take(folder, seed):
+    """One take's groups and parts into its views folder's twin; its groups.json record."""
+    mesh = model_of(folder["views"])
+    faces = dict(np.load(folder["views"] / "faces.npz"))
+    colours = dict(np.load(folder["views"] / "colours.npz"))
+    centres, per_pixel = colour_groups(colours, faces, seed)
+    group_of, part_of, per_map = face_groups(mesh, faces, per_pixel, len(centres))
+    split_saved(folder["out"], mesh, faces, group_of, part_of)
+    return split_record(mesh, centres, group_colours(colours, per_pixel, len(centres)), group_of, part_of, per_map)
 
 
 def group_colours(colours, per_pixel, count):

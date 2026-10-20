@@ -853,6 +853,7 @@ def main(argv=None):
         return
     runner = stages.runner(world=stages.WORLDS[options.world]())
     runner.objects = frozenset(options.object) if options.object else None
+    graph.ask(options.stage)
     places, whole = options.place or stages.places(runner.world), not options.place
     if options.command == "plan":
         print(json.dumps(plan_json(runner, places, whole, options)))

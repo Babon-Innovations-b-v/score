@@ -28,8 +28,15 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   close-up's map). Each paid row has a module of its own, so a free change never pays again; every Google ask is
   cached by its input's hash. The six-model re-test rows are `../finishmap/trial.py`.
 - **The finish route** (owner, 2026-10-20, #18; library first): rows `finish-route-views`, `-split`, `-list`, `-fill`,
-  `-recheck` (`route_*.py`, `ROUTE` in `__init__.py`), beside the method until its test passes and the owner moves
-  the line onto it; nothing reads them yet, and they write no `surfaces-parts` yet. Generic for any take of any place:
+  `-recheck` (`route_*.py`, `ROUTE` in `__init__.py`; experimental, bible `architecture/experimental`), beside the
+  method until its test passes and the owner moves the line onto it; no other row reads them, and they write no
+  `surfaces-parts` yet. **Off by default**: a route row has a node only when the command asks for one by name
+  (`score run|plan|status --stage finish-route-*`; `route_applies`, `graph.asked_for`), so no place's line, plan,
+  hole or price has them otherwise. **The trial's cap is enforced** (`route_cap.py`): the list and recheck refuse to
+  run without `--object <take>`, and refuse each ask not asked before once the route's asks on the Google ledger
+  (callers `finish-route-list`, `-recheck`, every month) and its estimate would pass `TRIAL_EUROS` (EUR 5 in total,
+  owner 2026-10-20). Run it: `python -m score run world1 --place <place> --stage finish-route-recheck --object
+  <take> --detach`. Generic for any take of any place:
   a take's model is its raw take while it is there, else the release's made model its place's bake names
   (`route_data.py`), else the views gate names it; its close-up is its own, else a **stand-in close-up** (the model's
   own texture from the front, `route_data.STAND_IN`), named so in every output, question and verdict that reads it.

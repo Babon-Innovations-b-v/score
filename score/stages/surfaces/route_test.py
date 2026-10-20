@@ -2,8 +2,8 @@
 is cast from every side with its colours read from its own texture, split into two colour groups that the views
 agree on, its finish list parsed to library surfaces with settings (a group the answer leaves out joined by colour),
 filled and colour-checked against what its texture shows, a failing finish tweaked to the library token nearest its
-seen colour; the paid rows refuse outside a cleared run; the runner's object filter keys and narrows a selecting
-row only.
+seen colour; the paid rows refuse outside a cleared run, without an object filter and past the trial's cap; the
+route's rows are on no line unless asked for by name; the runner's object filter keys and narrows a selecting row only.
 
 Run: .venv/bin/python score/stages/surfaces/route_test.py
 """
@@ -21,8 +21,8 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from score.stages import surfaces  # noqa: E402
-from score.stages.surfaces import (route_cast, route_data, route_fill, route_list, route_recheck,  # noqa: E402
-                                   route_split, route_views)
+from score.stages.surfaces import (route_cap, route_cast, route_data, route_fill, route_list,  # noqa: E402
+                                   route_recheck, route_split, route_views)
 
 RED, BLUE = (200, 30, 30), (30, 40, 200)
 TAKE = "two_boxes-t1"
@@ -222,6 +222,63 @@ def test_the_object_filter_keys_only_a_selecting_row():
         assert not any(name.startswith("model ") for name in runner.files_of(views, "old_station"))
         assert all(row.selects for row in surfaces.ROUTE)
         assert [row.name for row in surfaces.ROUTE if row.paid] == ["finish-route-list", "finish-route-recheck"]
+
+
+def test_paid_rows_refuse_without_an_object_filter():
+    with tempfile.TemporaryDirectory() as temporary:
+        for make in (route_list.make_list, route_recheck.make_recheck):
+            try:
+                make({}, pathlib.Path(temporary), 7, {})
+            except ValueError as refused:
+                assert "--object" in str(refused)
+                continue
+            raise AssertionError(f"{make.__module__} ran without an object filter")
+
+
+def test_the_trial_cap_refuses_an_ask_past_its_euros():
+    import google_spend
+    model = route_list.finish_ask.LIST_MODEL
+    kept = google_spend.LEDGER, google_spend.CACHE
+    with tempfile.TemporaryDirectory() as temporary:
+        google_spend.LEDGER, google_spend.CACHE = pathlib.Path(temporary) / "ledger.jsonl", pathlib.Path(temporary)
+        try:
+            lines = [{"time": "2026-10-20T10:00:00", "call": "a", "state": "finished", "model": model,
+                      "caller": "finish-route-list", "euros": 4.92},
+                     {"time": "2026-10-20T10:01:00", "call": "b", "state": "finished", "model": "other",
+                      "caller": "surfaces-lists", "euros": 9.0}]
+            google_spend.LEDGER.write_text("".join(json.dumps(line) + "\n" for line in lines))
+            assert abs(route_cap.route_euros() - 4.92) < 1e-9
+            route_cap.require_room(model, {"ask": 1})  # 4.92 + 0.05 fits
+            started = {"time": "2026-10-20T10:02:00", "call": "c", "state": "started", "caller": "finish-route-recheck",
+                       "model": model, "estimate": 0.05}
+            with google_spend.LEDGER.open("a") as ledger:
+                ledger.write(json.dumps(started) + "\n")
+            try:
+                route_cap.require_room(model, {"ask": 1})
+            except RuntimeError as refused:
+                assert "trial cap" in str(refused)
+            else:
+                raise AssertionError("an ask past the trial's EUR 5 was let through")
+            google_spend.keep(google_spend.cache_path(model, {"ask": 1}), {})
+            route_cap.require_room(model, {"ask": 1})  # asked before: free
+        finally:
+            google_spend.LEDGER, google_spend.CACHE = kept
+
+
+def test_the_route_is_on_no_line_unless_asked_for():
+    from score import graph, stages
+    from score.store import Store
+    with tempfile.TemporaryDirectory() as temporary:
+        runner = graph.Runner(stages.STAGES, stages.world1(), Store.in_folder(temporary))
+        try:
+            graph.ask(None)
+            plain = [graph.node_name(*node) for node in runner.line_nodes(["cockpit"], False)]
+            assert not [name for name in plain if name.startswith("finish-route-")], plain
+            graph.ask(["finish-route-recheck"])
+            asked = [graph.node_name(*node) for node in runner.line_nodes(["cockpit"], False, ["finish-route-recheck"])]
+            assert asked == [f"{name}@cockpit" for name in surfaces.ROUTE_NAMES], asked
+        finally:
+            graph.ask(None)
 
 
 if __name__ == "__main__":

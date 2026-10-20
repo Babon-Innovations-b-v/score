@@ -26,6 +26,7 @@ import numpy as np  # noqa: E402
 import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
 import route_cast as cast  # noqa: E402
+import route_cap  # noqa: E402
 import route_data  # noqa: E402
 import route_fill  # noqa: E402
 import route_list  # noqa: E402
@@ -74,6 +75,7 @@ def ask(body):
     """One cleared, ledgered Gemini 3.1 Pro ask; its answers by finish (0-based)."""
     from score.adapters import compute
     compute.require_cleared("a Gemini finish recheck (finish route)")
+    route_cap.require_room(finish_ask.LIST_MODEL, body)
     response = finish_ask.generated(finish_ask.LIST_MODEL, body, finish_ask.secret_key(), finish_ask.TIMEOUT,
                                     caller="finish-route-recheck", cache=True)
     return {int(entry["finish"]) - 1: entry for entry in json.loads(finish_ask.reply_text(response))["finishes"]}
@@ -143,6 +145,7 @@ def recheck_take(folders, entry, finishes, context):
 
 def make_recheck(inputs, out, seed, params):
     """Every filled take rechecked; recheck.json."""
+    route_cap.require_filtered(params, "finish-route-recheck")
     views, fill = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-fill"])
     _, takes = route_data.takes_written(out, inputs, params)
     cast_takes = json.loads((views / "views.json").read_text())

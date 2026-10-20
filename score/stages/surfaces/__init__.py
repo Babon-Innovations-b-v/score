@@ -54,10 +54,10 @@ def reads(*rows):
     return {row: (row, 1) for row in rows}
 
 
-def row(name, make, faults, check, judge, files, after=(), **more):
+def row(name, make, faults, check, judge, files, after=(), applies=data.paints, **more):
     """One place row of the stage: its output's contract is named for the row."""
     return graph.Stage(name, "place", make, contract(name, faults), (guarded(check, judge),), files=files,
-                       after=reads(*after), applies=data.paints, **more)
+                       after=reads(*after), applies=applies, **more)
 
 
 METHOD = (
@@ -93,21 +93,34 @@ LINE = (
                 (guarded("baked matches its surfaces", place_line.judge_lit),
                  guarded("triangles within budget", place_line.judge_triangles)),
                 files=data.line_files, after=reads("surfaces-bake", "surfaces-paint"), applies=data.paints))
-# The finish route (owner, 2026-10-20; #18), beside METHOD until its test passes and the owner moves the line onto it:
-# nothing reads its rows yet. Library first: the views cast here, Gemini's finish list matched to library surfaces
-# with settings, the free colour labels voted into parts, each part filled, and a recheck with up to three tweaks,
-# else the named fault "no library surface fits". Each row takes the runner's object filter (`--object`).
+# Experimental (2026-10-20): the finish route (owner; #18), beside METHOD until its test passes and the owner moves
+# the line onto it. Library first: the views cast here, Gemini's finish list matched to library surfaces with
+# settings, the free colour labels voted into parts, each part filled, and a recheck with up to three tweaks, else the
+# named fault "no library surface fits". Off by default: its rows have a node only when a command asks for one of
+# them by name (`--stage finish-route-*`, graph.asked_for), so no line, plan, hole or price has them otherwise; each
+# takes the runner's object filter (`--object`), and its paid rows refuse to run without one (route_cap.py: the
+# trial's EUR 5 in total, held against the Google ledger before each ask).
+ROUTE_NAMES = ("finish-route-views", "finish-route-split", "finish-route-list", "finish-route-fill",
+               "finish-route-recheck")
+
+
+def route_applies(place):
+    """A finish route row's node: only when this command asks for a route row by name, for a place that paints."""
+    return graph.asked_for(ROUTE_NAMES) and data.paints(place)
+
+
 ROUTE = (
     row("finish-route-views", route_views.make_views, route_views.views_faults, "views cast", route_views.judge_views,
-        route_data.shape_files, selects=True),
+        route_data.shape_files, selects=True, applies=route_applies),
     row("finish-route-split", route_split.make_split, route_split.split_faults, "parts voted",
-        route_split.judge_split, route_data.shape_files, ("finish-route-views",), selects=True),
+        route_split.judge_split, route_data.shape_files, ("finish-route-views",), selects=True, applies=route_applies),
     row("finish-route-list", route_list.make_list, route_list.list_faults, "library first", route_list.judge_list,
         route_data.library_files, ("finish-route-views", "finish-route-split"), paid=True,
-        euros=route_list.LIST_EUROS, selects=True),
+        euros=route_list.LIST_EUROS, selects=True, applies=route_applies),
     row("finish-route-fill", route_fill.make_fill, route_fill.fill_faults, "every part filled", route_fill.judge_fill,
-        route_data.library_files, ("finish-route-views", "finish-route-split", "finish-route-list"), selects=True),
+        route_data.library_files, ("finish-route-views", "finish-route-split", "finish-route-list"), selects=True,
+        applies=route_applies),
     row("finish-route-recheck", route_recheck.make_recheck, route_recheck.recheck_faults, "library surface fits",
         route_recheck.judge_recheck, route_data.library_files, ("finish-route-views", "finish-route-fill"),
-        paid=True, euros=route_recheck.RECHECK_EUROS, selects=True))
+        paid=True, euros=route_recheck.RECHECK_EUROS, selects=True, applies=route_applies))
 ROWS = (*METHOD, *LINE, *ROUTE)
