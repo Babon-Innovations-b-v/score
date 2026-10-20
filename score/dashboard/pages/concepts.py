@@ -20,9 +20,9 @@ from score.dashboard.pages import actions, present
 from score.dashboard.pages.models import SyncRequest, is_owner
 from score.dashboard.state import groups, screens
 from score.dashboard.state.files import file_ref
-from score.dashboard.state.models import ConceptDraw, WorldState
+from score.dashboard.state.models import ConceptDraw, ConceptWording, WorldState
 
-DRAW, PICK = "concept-draw", "concept-pick"
+DRAW, PICK, WORDING = "concept-draw", "concept-pick", "concept-wording"
 OPEN = ("waiting", "picked_up", "running")
 
 
@@ -88,6 +88,21 @@ def picked_of(world, place):
     return picked
 
 
+def wording_of(world, place):
+    """The place's ConceptWording: the source's, and hosted, his own wording as his requests since its export left
+    it (a first draw sent with his edited wording, or back to the generated one), unless refused."""
+    found = world.concept_wordings.get(place) or ConceptWording()
+    if not actions.hosted():
+        return found
+    since = [item for item in sorted([*asked(place, DRAW), *asked(place, WORDING)], key=lambda item: item.created)
+             if item.state != "refused" and item.created.isoformat() > (world.made_at or "")
+             and (item.kind == WORDING or (item.payload.get("wording") and not item.payload.get("base")))]
+    if not since:
+        return found
+    sent = since[-1].payload.get("wording") or None
+    return found.model_copy(update={"own": None if sent == found.generated else sent})
+
+
 def pending_of(place):
     """The owner's open draw request for the place, or None."""
     return next((item for item in reversed(asked(place, DRAW)) if item.state in OPEN), None)
@@ -128,6 +143,7 @@ def concept_page(request, place):
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
         "holds": asked_to_hold(world, place, names), "draws": list(reversed(draws)), "shown": shown, "picked": picked, "euros": world.concept_draw_euros,
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
+        "wording": wording_of(world, place),
         "can": is_owner(request.user) and actions.decisions_on(),
         "approved": place in screens.approved_places(world)})
 
@@ -176,8 +192,9 @@ def in_background(item_id):
 
 @require_POST
 def concept_draw(request, place):
-    """POST {marks, note, base, euros}: the owner's Draw click, its spend yes at `euros` (the price his button
-    showed); JSON {said, request}, or {detail} when refused."""
+    """POST {marks, note, base, euros, wording}: the owner's Draw click, its spend yes at `euros` (the price his
+    button showed), a first draw sent with `wording` when he edited it (the store's machine keeps it as the place's
+    own); JSON {said, request}, or {detail} when refused."""
     source = state.source()
     world = light_world(source)
     checked_node(world, source, place)
@@ -192,7 +209,23 @@ def concept_draw(request, place):
         return JsonResponse({"detail": "refused: a draw of this place is on its way"}, status=409)
     payload = {"marks": body.get("marks") or [], "note": str(body.get("note") or "")[:2000],
                "base": body.get("base") or None, "euros": body.get("euros")}
+    if body.get("wording") and not payload["base"]:
+        payload["wording"] = str(body["wording"])  # whole: the store's machine refuses one too long, never cut
     return JsonResponse({"said": "asked", "request": queued(request, place, DRAW, payload)})
+
+
+@require_POST
+def concept_generated(request, place):
+    """POST: the owner's "back to generated", the place's own draw wording dropped; JSON {said}, or {detail}."""
+    source = state.source()
+    world = light_world(source)
+    checked_node(world, source, place)
+    if not is_owner(request.user):
+        return JsonResponse({"detail": "only the owner words a draw"}, status=403)
+    item = SyncRequest.objects.get(pk=queued(request, place, WORDING, {"wording": None}))
+    if item.state == "refused":
+        return JsonResponse({"detail": item.detail}, status=409)
+    return JsonResponse({"said": item.detail or "asked"})
 
 
 def draw_all(world):

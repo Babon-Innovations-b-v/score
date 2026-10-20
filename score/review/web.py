@@ -16,6 +16,7 @@ spend override (a yes for a run outside the runner) stays terminal-only, except 
 
     web.concept_draw(store, "airlock", {"marks": [...], "note": "", "base": sha}, 0.15, by="joey")
     web.concept_pick(store, "airlock", sha, by="joey")    # sha None: unlocked again
+    web.concept_generated(store, "airlock", by="joey")    # his own wording dropped: worded from its data again
 
 `concept_draw` is his click on a concept review's Draw button (CONTEXT.md "concept review", owner 2026-10-20: the
 click is the spend yes): his yes for exactly that one call at the price the button showed (refused when the measured
@@ -115,8 +116,9 @@ def concept_draw(store, place, request, euros, by, run=None, first=False, purpos
         shown = "not measured" if price is None else f"EUR {price:.2f}"
         raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
                              "read the page again")
-    if first and concepts.draws(store, place):
-        raise review.Refused(f"{place} has a draw since the click: the places to draw changed; read the page again")
+    if first and concepts.current_draw(store, place, concepts.wording_now(store, place)[0]):
+        raise review.Refused(f"{place} has a draw from its current wording since the click: the places to draw "
+                             "changed; read the page again")
     key = concepts.yes_key(place, review.now())
     review.spend(store, "override", key, price, name, purpose=purpose or f"concept review: one draw of {place}")
     asked = store.cache / concepts.AREA / "asked" / f"{key}.json"
@@ -128,6 +130,17 @@ def concept_draw(store, place, request, euros, by, run=None, first=False, purpos
     if done.returncode != 0:
         raise review.Refused((done.stderr.strip().splitlines() or ["the draw failed"])[-1].removeprefix("refused: "))
     return json.loads(done.stdout.strip().splitlines()[-1])
+
+
+def concept_generated(store, place, by):
+    """His "back to generated" on a concept review: the place's own wording dropped, so its first draws are worded
+    from its data again; the record. review.Refused for an empty or the runner's name or a place with no own
+    wording; PermissionError in an agent's process."""
+    from score.review import concepts
+    name = checked_by(by)
+    if concepts.own_wording(store, place) is None:
+        raise review.Refused(f"{place} has no wording of its own")
+    return concepts.worded(store, place, None, name)
 
 
 def concept_pick(store, place, sha, by):

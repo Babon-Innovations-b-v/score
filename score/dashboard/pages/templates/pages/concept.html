@@ -21,6 +21,12 @@
     {% endif %}
   </aside>
 </div>
+{% if can and not picked %}<section class="concept-wording" aria-label="what a draw sends">
+  <div class="concept-wording-head"><label class="num-label" for="concept-wording" data-v>{% if shown %}Draw fresh{% else %}Draw concept{% endif %} sends{% if wording.own %} (your wording){% endif %}</label>{% if wording.own %} <button type="button" class="button" id="concept-generated" title="drop your wording: this place's draws are worded from its data again" data-v>back to generated</button>{% endif %}</div>
+  <textarea id="concept-wording" rows="8" title="word for word what a first draw of this place sends{% if not shown %}, your note after it{% endif %}; edit it and draw: your text is sent and stays this place's wording, for Draw all too">{{ wording.own|default:wording.generated|default:'' }}</textarea>
+  {% if wording.refused %}<p class="soft small" data-v>{{ wording.refused }}</p>{% endif %}
+  {% if shown %}<details class="concept-redraw"><summary class="soft small" data-v>Redraw with notes sends</summary><p class="soft small" title="your marks' notes and your note take the places in angle brackets; both pictures (this one boxed and numbered, and clean) go with it">{{ wording.redraw }}</p></details>{% endif %}
+</section>{% endif %}
 {% if draws %}<section class="concept-history" aria-label="draws">{% for draw in draws %}<a class="concept-past{% if draw.picture.sha == shown.picture.sha %} shown{% endif %}" href="?draw={{ draw.picture.sha }}" title="{{ draw.at|slice:':16' }}, {{ draw.by }}{% if draw.euros is not None %}, EUR {{ draw.euros|floatformat:2 }}{% endif %}{% if draw.note %}: {{ draw.note }}{% endif %}"><img src="{{ draw.picture.thumb_url }}" alt="" loading="lazy">{% if draw.picture.sha == picked %}{% include "pages/c/dot.html" with tone="done" tip="picked" %}{% endif %}</a>{% endfor %}</section>{% endif %}
 <script src="/static/pages/concept.js"></script>
 {% endblock %}

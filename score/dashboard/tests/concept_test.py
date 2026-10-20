@@ -9,6 +9,7 @@ import subprocess
 
 import pytest
 from django.test import override_settings
+from django.utils.html import escape
 from PIL import Image
 
 from score.dashboard.pages import concepts
@@ -96,7 +97,7 @@ def test_with_no_mark_and_no_note_the_one_button_draws_fresh_from_the_places_wor
     owner = signed_in()
     owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
     page = owner.get("/concept/beta/").content.decode()
-    assert page.count('id="concept-draw"') == 1 and "Draw fresh" in page and "Redraw" not in page
+    assert page.count('id="concept-draw"') == 1 and '<span data-slot="label" data-v>Draw fresh</span>' in page
     owner.post("/concept/beta/draw/", json.dumps({"marks": [], "note": "", "base": None, "euros": PRICE}),
                content_type="application/json")  # what the button posts with nothing asked of the shown draw
     first, fresh = drawing.draws(world.source.store, "beta")
@@ -104,6 +105,41 @@ def test_with_no_mark_and_no_note_the_one_button_draws_fresh_from_the_places_wor
     assert stand_in[-1] == stand_in[0] and "Box" not in stand_in[-1]  # the place's own first-draw wording again
     assert fresh["yes"] != first["yes"] and fresh["euros"] == PRICE  # its own spend yes, one call
     assert world.source.store.cache.parent.joinpath("bucket", f"concept-draws/{fresh['sha']}.png").is_file()
+
+
+def test_the_page_shows_the_wording_a_draw_sends_and_his_edit_is_sent_and_kept_until_back_to_generated(world,
+                                                                                                    stand_in):
+    owner = signed_in()
+    generated = escape(drawing.first_wording("beta")[0])
+    page = owner.get("/concept/beta/").content.decode()
+    assert 'id="concept-wording"' in page and generated in page and "back to generated" not in page
+    owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
+    page = owner.get("/concept/beta/").content.decode()
+    assert "Redraw with notes sends" in page and "&lt;mark 1&#x27;s note&gt;" in page
+    edited = "One concept painting of beta at dusk, its doors open."
+    owner.post("/concept/beta/draw/", json.dumps({"marks": [], "note": "", "base": None, "euros": PRICE,
+                                                  "wording": edited}), content_type="application/json")
+    assert stand_in[-1] == edited and drawing.own_wording(world.source.store, "beta") == edited
+    page = owner.get("/concept/beta/").content.decode()
+    assert f">{edited}</textarea>" in page and "back to generated" in page and "(your wording)" in page
+    assert signed_in("mallory").post("/concept/beta/generated/").status_code == 403
+    assert owner.post("/concept/beta/generated/").json()["said"] == "back to the generated wording"
+    page = owner.get("/concept/beta/").content.decode()
+    assert f">{generated}</textarea>" in page and "back to generated" not in page
+
+
+def test_a_hosted_edit_shows_as_his_wording_before_the_next_export(world, stand_in, settings):
+    owner = signed_in()
+    settings.SCORE_MODE = settings.HOSTED
+    try:
+        owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE, "wording": "beta, my words"}),
+                   content_type="application/json")
+        page = owner.get("/concept/beta/").content.decode()
+        assert ">beta, my words</textarea>" in page and "back to generated" in page
+        owner.post("/concept/beta/generated/")
+        assert ">beta, my words</textarea>" not in owner.get("/concept/beta/").content.decode()
+    finally:
+        settings.SCORE_MODE = settings.LOCAL
 
 
 def test_a_draw_at_another_price_or_by_anyone_else_is_refused(world, stand_in):

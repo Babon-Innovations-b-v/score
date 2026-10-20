@@ -201,6 +201,17 @@ class WorldState(BaseModel):
     concept_draw_euros: float | None = None
     concept_undrawn: list[str] = []  # the places and shells with no draw yet whose first draw can be made now
     concept_unready: dict[str, str] = {}  # {place or shell with no draw yet: why its first draw cannot be made now}
+    concept_wordings: dict[str, "ConceptWording"] = {}  # {place or shell: what its draws send, word for word}
+
+
+class ConceptWording(BaseModel):
+    """What a place's draws send (score/review/concepts.py): its generated first-draw wording (None: it cannot be
+    drawn now, `refused` says why), the creator's own wording when he set one (sent instead), and what Redraw with
+    notes sends, its notes as placeholders."""
+    generated: str | None = None
+    own: str | None = None
+    refused: str | None = None
+    redraw: str = ""
 
 
 class ConceptDraw(BaseModel):

@@ -371,7 +371,7 @@ def concept_draw(user, payload):
     source = state.source()
     try:
         asked = {"marks": payload.get("marks") or [], "note": str(payload.get("note") or ""),
-                 "base": payload.get("base") or None}
+                 "base": payload.get("base") or None, "wording": payload.get("wording") or None}
         place, together = str(payload["place"]), payload.get("all")
         record = web.concept_draw(source.store, place, asked, float(payload["euros"]), by=user, first=bool(together),
                                   purpose=together and (f"concept review: Draw all, {int(together['count'])} first "
@@ -382,6 +382,22 @@ def concept_draw(user, payload):
     source.refresh()
     kept = "" if record.get("offsite") else f"; not copied off this PC: {record.get('offsite_refused')}"
     return f"drawn: {record['sha'][:12]} for EUR {record['euros']:.2f}{kept}", record
+
+
+def concept_generated(user, payload):
+    """His "back to generated": the place's own draw wording dropped (score.review.web.concept_generated); in words."""
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        web.concept_generated(source.store, str(payload["place"]), by=user)
+    except (review.Refused, PermissionError, FileExistsError, KeyError) as refused:
+        return f"refused: {refused}"
+    source.refresh()
+    return "back to the generated wording"
 
 
 def concept_pick(user, payload):

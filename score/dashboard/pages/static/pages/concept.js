@@ -1,8 +1,9 @@
 // The concept review page (pages/concepts.py): drag on the picture to mark an area, a note for each. Its one draw
 // button posts the price it shows (the owner's spend yes for that one call): with no mark and no note it is Draw fresh
 // (a new first draw from the place's own wording: no base), else Redraw with notes (the marks, the note and the shown
-// draw as its base); then it asks the page's state until the draw is answered and shows it. Pick and Unlock post the
-// shown draw (or none).
+// draw as its base); then it asks the page's state until the draw is answered and shows it. A first draw sends the
+// wording box's text when he edited it (it becomes the place's own wording); "back to generated" drops it. Pick and
+// Unlock post the shown draw (or none).
 (() => {
   const page = document.getElementById("concept");
   if (!page) return;
@@ -12,6 +13,7 @@
   const draw = document.getElementById("concept-draw");
   const note = document.getElementById("concept-note");
   const said = document.getElementById("concept-said");
+  const wording = document.getElementById("concept-wording");
   const marks = [];
   const ASK_EVERY = 1500;
 
@@ -129,6 +131,8 @@
                                         note: mark.row.querySelector("input").value })),
           note: note.value, base: page.dataset.base || null, euros: Number(page.dataset.euros),
         };
+      // a first draw sends the wording box when he edited it; untouched, the store's machine words it as it is now
+      if (!body.base && wording && wording.value.trim() !== wording.defaultValue.trim()) body.wording = wording.value.trim();
       try {
         await post("draw", body);
         said.hidden = true;
@@ -137,6 +141,22 @@
         tell("bad", error.message);
         console.error("concept draw refused", error);
         draw.disabled = false;
+      }
+    });
+  }
+
+  // --- back to the generated wording ---------------------------------------------------------------------------
+  const generated = document.getElementById("concept-generated");
+  if (generated) {
+    generated.addEventListener("click", async () => {
+      generated.disabled = true;
+      try {
+        await post("generated", {});
+        location.reload();
+      } catch (error) {
+        tell("bad", error.message);
+        console.error("back to generated refused", error);
+        generated.disabled = false;
       }
     });
   }
