@@ -335,19 +335,12 @@ def far_judged(row):
                                                     bodies.guarded("near outfit recorded", far.judge_near_recorded)))
 
 
-def people_surfaces(place):
-    """The people line's surface data (an environment line: no place)."""
-    from score.stages.people import line as people_line
-    return json.loads(people_line.DATA.read_text())
-
-
 # The rows keyed on the library parts they read (surfaces/library_reads.py), each with its surface data's reader.
-LIBRARY_READERS = {"surfaces-paint": surfaces.data.record, "surfaces-bake": surfaces.data.record,
-                   "people-paint": people_surfaces}
+LIBRARY_READERS = {"surfaces-paint": surfaces.data.record, "surfaces-bake": surfaces.data.record}
 
 
 def library_narrowed(row):
-    """A paint or bake row (and its crops and people twins) keyed on the library surfaces and place.json entries it
+    """A paint or bake row (and its crops twins) keyed on the library surfaces and place.json entries it
     reads, not the whole library folder and place.json: one surface added for one place re-keyed every place's paint
     and bake (the hub's assembly wanted about EUR 60 of re-buys, 2026-10-13). Set here, in the table, so no other
     row's code version moves; surfaces/carry.py carries each accepted output over to its narrower key once."""
@@ -867,6 +860,20 @@ STAGES = (*(earth_seeded(joined_ground(row) if row.name == "assembly" else row) 
 # line to the creator's library, library-world the environment's own; nothing reads them, so they re-key no other row. A place
 # is complete once its library node stands accepted, the environment once every one does (library.world_completion).
 STAGES = (*STAGES, *library.rows(STAGES, REPO / "data"))
+# A place's own rows, which apply to every place, kept off a line of models no place owns (the people's, #41:
+# shapes_first.no_place): it has no stage to assemble, complete or hand over, only the shared loop's rows.
+PLACE_ONLY = ("assembly", "complete", "library")
+
+
+def placed(applies):
+    """A place's own row's `applies`: never on a line no place owns, else its own (None: every place)."""
+    def applied(place):
+        return not shapes_first.no_place(place) and (applies is None or applies(place))
+    return applied
+
+
+STAGES = tuple(dataclasses.replace(row, applies=placed(row.applies)) if row.name in PLACE_ONLY else row
+               for row in STAGES)
 
 
 def world1():

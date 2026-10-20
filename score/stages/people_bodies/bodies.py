@@ -1,6 +1,7 @@
 """The people's body rows (#5, the owner's plan of 2026-10-11: people are made like every prop): two world rows a look,
 `people-look-parts-<look>` and `people-body-<look>`, paid, each a node of its own so the looks run side by side. A
-look is a take of data/people/surfaces.json with its `spec` and `outfit`: the prop route's Pixal3D take, SOMA-X's
+look is a take of data/surfaces/people.json with its `spec` and `outfit`: the shared loop's model of it (#41: its
+parts row waits on the loop's hand-on, people-made@people, and refuses a look the loop made none for), SOMA-X's
 body fitted under it as its moving base (only the rig, so Kimodo's clips play), its parts, its garments settled
 through every clip, and its checks (tools/characters/maker/prop_person.py's stages build, settle and checks-cloud,
 the checks side by side on a rented processor machine), on the parts its own priced row made,
@@ -31,7 +32,10 @@ from score.checks import FAIL, PASS, Check, Verdict
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 MAKER = REPO / "tools/characters/maker"
-DATA = REPO / "data/people/surfaces.json"
+DATA = REPO / "data/surfaces/people.json"
+# The people's after-step on the shared loop and its line (score/stages/people/loop.py), named, not imported: nothing of
+# the people package goes into a body row's code version (the overlay).
+MADE, LINE = "people-made", "people"
 CUT = REPO / "data/people/bodies.json"
 MOTION_HOME = pathlib.Path.home() / ".farm-factory-motion"
 PIXAL = "{home}/work/pixal"
@@ -137,10 +141,23 @@ def laid_parts(accepted, target):
             shutil.copyfile(accepted / name, target / name)  # not the checkout's read-only mode
 
 
+def the_line(place):
+    """The line whose hand-on a look's parts read (their `neighbours`): the people's, which no place owns."""
+    return [LINE]
+
+
+def refused_on_gap(handed, look):
+    """Blocked, before anything is bought, when the shared loop made the look no model (its gap in made.json)."""
+    entry = json.loads((handed / "made.json").read_text()).get(look, {"gap": "no row of the people line"})
+    if "gap" in entry:
+        raise graph.Blocked(f"{look}: the shared loop made no model: {entry['gap']}")
+
+
 def parts_made(look, entry):
     """The make of one look's parts row: the parts the candidate folder holds, else bought once
     (prop_person.parts), copied into the output."""
     def make(inputs, out, seed, params):
+        refused_on_gap(pathlib.Path(inputs[f"{MADE}@{LINE}"]), look)
         sys.path.insert(0, str(MAKER))
         import prop_person
         import spec as specs
@@ -356,6 +373,7 @@ def rows():
     return tuple(row for look, entry in looks().items() for row in (
         graph.Stage(f"{PARTS}-{look}", "world", parts_made(look, entry), contracts.Contract(PARTS, 1, parts_faults),
                     (guarded("parts", judge_parts),), files=parts_files(entry),
+                    beside={MADE: (MADE, 1)}, neighbours=the_line,
                     params={"take": entry["take"], "outfit": entry["outfit"]}, paid=True, euros=PARTS_EUROS),
         graph.Stage(f"{BODY}-{look}", "world", made(look, entry), contracts.Contract(BODY, 1, body_faults),
                     far_checks() if entry.get("far_only") else checks(), files=files(look, entry),

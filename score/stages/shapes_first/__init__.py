@@ -25,6 +25,7 @@ import dataclasses
 
 from score import graph
 from score.stages import props, rough_model, scene_record, surfaces
+import score.stages.people.loop as people_loop
 import score.stages.props.closeup_row as closeup_row
 import score.stages.props.prop_data as prop_data
 import score.stages.earth_seed as earth_seed
@@ -57,7 +58,11 @@ KIT = Adapter(earth_seed.KIT_LAYER,
               after=(graph.Stage("kit-sections", "place", kit_sections.make, kit_sections.CONTRACT, kit_sections.CHECKS,
                                  files=kit_sections.files, after=kit_sections.AFTER,
                                  applies=kit_sections.applies),))
-ADAPTERS = (OBJECTS, TERRAIN, KIT)
+# The people layer: every look a row, on the line `people`, which no place owns (align.NO_PLACE); after the model, the
+# looks handed on (score/stages/people/loop.py; each look's parts row, before its rig, and its dress row read it).
+PEOPLE = Adapter("people", after=(graph.Stage(people_loop.ROW, "place", people_loop.make, people_loop.CONTRACT,
+                                              (guarded("made", people_loop.judge_made),), after=dict(made.ENDS)),))
+ADAPTERS = (OBJECTS, TERRAIN, KIT, PEOPLE)
 
 ROUGH_MODEL = graph.Stage("rough-model", "place", rough_model.make, rough_model.CONTRACT, rough_model.CHECKS,
                           files=rough_model.files, after=rough_model.AFTER, paid=True, euros=rough_model.EUROS,
@@ -67,6 +72,12 @@ ROUGH_ALIGN = graph.Stage("rough-align", "place", align.make, align.CONTRACT, al
 # The parts split reads the registration: it waits on it, and its gate holds every row to the registered floor.
 SPLIT = dataclasses.replace(props.INPUTS, after={**props.INPUTS.after, "rough-align": ("rough-align", 1)},
                             checks=(*props.INPUTS.checks, guarded("fits the plan", align.judge_rows_fit)))
+
+
+def no_place(place):
+    """Whether `place` is a line of models no place owns (align.NO_PLACE): no place's rows (assembly, complete, the
+    library hand-over) apply there."""
+    return place in align.NO_PLACE
 
 
 def handed(place, layer):

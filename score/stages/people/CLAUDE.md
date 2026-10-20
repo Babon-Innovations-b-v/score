@@ -1,8 +1,8 @@
 # score/stages/people/
 
 The people stage (#5, experimental; bible `architecture/experimental`): people made like every prop (owner,
-2026-10-11). Environment rows of environment 1's table, `__init__.py`'s docstring has them; each look is a take of
-`data/people/surfaces.json` with its `spec` and `outfit`.
+2026-10-11). Environment rows of environment 1's table after the shared loop, `__init__.py`'s docstring has them;
+each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
 
 - **Everything in a place comes from the library (owner's hard rule, 2026-10-18).** Every finish, model, kit, effect,
   light, sound, character, ground and algorithm a place shows comes from score_lib, or is a written exception in
@@ -13,14 +13,20 @@ The people stage (#5, experimental; bible `architecture/experimental`): people m
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Run rows by name only**: `.venv/bin/python -m score run world1 --stage people-look --detach` (it drives the
   line, the LOOKED bodies and their dress). Check `ps` first that no other run is on the same rows.
-- **The clothing is the finish route's, unchanged** (`line.py`; the owner, 2026-10-20: people are models like any
-  other): the route's makes and judges (views, list, split, parts) and the framework's paint, the inputs handed over
-  under the route's and the surface stage's names (`renamed.py`, a module with no imports of this package, so the paid
-  rows' code version is the surface stage's modules and that one). Never edit the surface stage for people; its data
-  is `data/people/surfaces.json`, its library place `people` in `data/definitions/place.json`. **A named gap until
-  the consolidation pass (#26):** the looks are no place's, so the route runs here as environment rows of its own
-  (`people-route-*`, `people-parts`, `people-paint`) rather than the places' own rows; the shared shapes-first loop
-  takes them over once it can make a model no place owns.
+- **People are made by the shared loop** (`../shapes_first`, #41; the owner, 2026-10-20: people are models like any
+  other): every look is a row of the people layer in the hand-in record `data/props/people.json` (its rows
+  `data/inventory/people.json`, its surface data `data/surfaces/people.json`, its library place `people` in
+  `data/definitions/place.json`), run on the line `people`, which no place owns (`align.NO_PLACE`: held to no plan,
+  and assembly, complete and the library hand-over do not apply there). The loop's close-up, Pixal3D, finish route,
+  bake and likeness make it; no side route of the people's own. Run it by name: `python -m score run world1 --place
+  people --detach` (it is no place of the environment's, so a whole run leaves it out). The people layer's after-step,
+  `people-made@people` (`loop.py`), hands each look on (its take, its finishes, its labelled take) or names its gap;
+  each look's parts row and dress row read it (beside, on the line) and are Blocked on the look's gap before
+  anything is bought. Never edit the surface stage for people. **Named gaps today:** no look's size is measured (the
+  inventory's `size` is null, so the close-up gate names the proportions unmeasured) and no bake entry is written (a
+  run on the line refuses `bake entry <look>` before anything is cleared); a hair finish fails the paint's colour
+  gate by name (the old people-paint left hair out, `hair.py`, deleted with it); `people-take-<look>` still makes
+  each look's close-up and its Pixal3D take before the loop (its pose and limbs-apart retries).
 - **A body is the maker's** (`tools/characters/maker/prop_person.py` build, settle, checks; its parts its own priced
   row, `people-look-parts-<look>`, #21), worked in its candidate folder and copied into the row's output
   (`../people_bodies/bodies.py`). The body rows live in a package of their own, `people_bodies` (with clips.py and far.py): this package imports the
@@ -31,8 +37,8 @@ The people stage (#5, experimental; bible `architecture/experimental`): people m
   the settle's cloth thickness, `bodycloth.MARGIN_MM`), outline (outline.py) and likeness (the props' gate on the
   body, `score/stages/props/likeness.py`), triangles. Never loosen one to pass; fix the method (the clips' clearance,
   the settle) and measure again.
-- **The dress is the paint's library surfaces, nothing else** (`dress.py`): colour, roughness and metalness from the
-  library surface; the face print keeps its picture. Tests: `people_test.py`.
+- **The dress is the loop's library surfaces, nothing else** (`dress.py`): colour, roughness and metalness from the
+  library surface the loop's bake painted; the face print keeps its picture. Tests: `people_test.py`.
 - **The concept decides the clothes** (owner, 2026-10-13): a place `data/people/colours.json` names wears its
   concept's colour, the library surface its cast record's words name (within dE 32 of the measured torso; lightness
   never chooses, the concepts are dim and warm-lit), on every fabric surface but a print, through a dress row of its

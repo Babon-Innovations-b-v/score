@@ -6,7 +6,10 @@ Looks are `data/people/takes.json` entries (spec and outfit).
 
 - **Its own package on purpose**: the people package is hashed into every body row's code version, so a take row
   there would re-key every body. Keep it apart.
-- **A take joins the people line by data, after its row is accepted**: its take into `data/people/surfaces.json`
-  (the line paints it), its look into `data/people/bodies.json`, its cast name into the place's cast record.
+- **A take joins the people line by data, after its row is accepted**: its take into `data/surfaces/people.json`
+  (and its bake's `models`), its look as a row of the people layer into `data/props/people.json` (its close-up the
+  take's `input.png`) and `data/inventory/people.json`, so the shared loop finishes it (#41); its look into
+  `data/people/bodies.json`, its cast name into the place's cast record. Still a model made before the loop (the
+  loop's Pixal3D batch takes only an approved scene's rows): a named gap of #41.
 - Gates measure, unknown blocks: `close-ups` (one with the arms apart), `take` (a kept take on disk). Tests:
   `people_takes_test.py`.

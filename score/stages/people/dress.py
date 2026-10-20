@@ -1,11 +1,12 @@
-"""The people's dress rows: `people-dress-<look>` (free, world) lays the people line's paint on a look's built body.
-Each surface of the body (a part of its outfit, as the build named it) takes the library surface the paint gave the
-most of its points: its points at the bind laid back into the finished model's frame (the rig's stand undone) and
-each read off the nearest painted sample of the take (people-paint's labelled/<take>/<take>.npz). The glTF's
-material takes that surface's colour, roughness and metalness from the library (data/library, the people place's
-tokens) and names it in `extras.library`; the face print keeps its picture. The UsdSkel asset is written again from
-the dressed glTF (tools/characters/skel_usd.py). The library recipe's own detail (bump, quilting) is not baked onto a
-person yet: the colour, roughness and metalness are the library surface's, nothing else is a picture's.
+"""The people's dress rows: `people-dress-<look>` (free, world) lays the look's finish from the shared loop on its built
+body (#41). Each surface of the body (a part of its outfit, as the build named it) takes the library surface the
+loop's bake painted on the most of its points: its points at the bind laid back into the finished model's frame (the
+rig's stand undone) and each read off the nearest painted sample of the take (its labelled take, handed on by the
+people's after-step, people-made@people: loop.py). The glTF's material takes that surface's colour, roughness and
+metalness from the library (data/library, the people place's tokens) and names it in `extras.library`; the face print
+keeps its picture. The UsdSkel asset is written again from the dressed glTF (tools/characters/skel_usd.py). The
+library recipe's own detail (bump, quilting) is not baked onto a person yet: the colour, roughness and metalness are
+the library surface's, nothing else is a picture's. A look the loop made no model for is blocked with its gap.
 
 Gates: `dressed` (every surface of the outfit took a library surface) and `aligned` (the body's points lie on the
 painted take: the median distance to the nearest painted sample within ALIGNED_MOST).
@@ -18,6 +19,8 @@ import subprocess
 import sys
 
 import numpy as np
+
+from score.stages.people_bodies import bodies
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 ALIGNED_MOST = 0.01
@@ -64,16 +67,23 @@ def surface_of_points(points, painted_points, painted_names):
     return str(names[counts.argmax()]), float(np.median(distance))
 
 
+def painted_take(inputs, look):
+    """The look's labelled take the loop's bake painted, as people-made@people handed it on; Blocked with the loop's
+    gap when it made the look none."""
+    handed = pathlib.Path(inputs[f"{bodies.MADE}@{bodies.LINE}"])
+    bodies.refused_on_gap(handed, look)
+    return handed / json.loads((handed / "made.json").read_text())[look]["labelled"]
+
+
 def make_dress(inputs, out, seed, params):
     """The dressed body.glb, its usd/ and dress.json (each surface's library surface and its median distance). With
     `params["surface"]` (a coloured place's row, data/people/colours.json) every fabric surface of the outfit but a
     print wears that library surface instead of the paint's."""
-    body = pathlib.Path(next(path for name, path in inputs.items() if name.startswith("people-body-")))
-    paint = pathlib.Path(inputs["people-paint"])
+    name, body = next((name, pathlib.Path(path)) for name, path in inputs.items() if name.startswith("people-body-"))
     look = json.loads((body / "look.json").read_text())
     rig = np.load(body / "rig.npz")
     turn, scale, shift = rig["turn"], float(rig["scale"]), rig["shift"]
-    with np.load(paint / "labelled" / look["take"] / f"{look['take']}.npz") as stored:
+    with np.load(painted_take(inputs, name.removeprefix("people-body-"))) as stored:
         painted = stored["low"] + stored["points"].astype(np.float64) / 65535 * (stored["high"] - stored["low"])
         painted_names = stored["names"][stored["surface"]]
     surfaces = library_surfaces()

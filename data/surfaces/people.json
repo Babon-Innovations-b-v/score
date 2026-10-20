@@ -1,7 +1,7 @@
 {
  "place": "people",
  "library": "people",
- "why": "The people stage's line (score/stages/people, #5, owner 2026-10-11: people are made like every prop): each look's Pixal3D take, painted through the surface stage's own method and paint as a place's takes are; its body rows read `spec` and `outfit` beside each take. Only the looks the final casts name are kept (captain, 2026-10-13).",
+ "why": "The people line's surface data (score/stages/people, #5; on the shared loop since 2026-10-20, #41): each look's Pixal3D take, painted and baked by the loop's finish route as a place's takes are, on the line `people`, which no place owns; its body rows read `spec` and `outfit` beside each take. Only the looks the final casts name are kept (captain, 2026-10-13).",
  "takes": {
   "pp-player-work-s1": {
    "places": [
@@ -302,6 +302,34 @@
    "object": "a person in a dark navy one-piece work suit with light grey shoulder panels and a small printed flag patch",
    "spec": "data/characters/makes/nev_wide_prop.json",
    "outfit": "work"
+  }
+ },
+ "bake": {
+  "why": "Each look's model, baked from its take by the loop's bake. No entry is written yet: a person's make_chunky entry needs the look's measured size, so the run refuses the bake by name (`bake entry <look>`) before anything is cleared, until one is measured (#41).",
+  "models": {
+   "bram-work": "pp-bram-work-s3",
+   "bram_wide-work": "pp-bram_wide-work-s1",
+   "driver-driver-suit": "pp-driver-driver-suit-s3",
+   "driver_wide-driver-suit": "pp-driver_wide-driver-suit-s1",
+   "guard-guard-uniform": "pp-guard-guard-uniform-s3",
+   "guard_wide-guard-uniform": "pp-guard_wide-guard-uniform-s1",
+   "kit_m_avg-coat-grey": "pp-kit_m_avg-coat-grey-s3",
+   "kit_m_avg-uniform-olive": "pp-kit_m_avg-uniform-olive-s3",
+   "kit_m_avg_wide-uniform-olive": "pp-kit_m_avg_wide-uniform-olive-s1",
+   "kit_m_broad-uniform-olive": "pp-kit_m_broad-uniform-olive-s3",
+   "kit_m_broad_wide-uniform-olive": "pp-kit_m_broad_wide-uniform-olive-s1",
+   "kit_w_broad-uniform-olive": "pp-kit_w_broad-uniform-olive-s3",
+   "kit_w_broad_wide-uniform-olive": "pp-kit_w_broad_wide-uniform-olive-s1",
+   "kit_w_slim-uniform-olive": "pp-kit_w_slim-uniform-olive-s3",
+   "kit_w_slim_wide-uniform-olive": "pp-kit_w_slim_wide-uniform-olive-s1",
+   "leader-state-suit": "pp-leader-state-suit-s3",
+   "leader_wide-state-suit": "pp-leader_wide-state-suit-s1",
+   "nev-work": "pp-nev-work-s3",
+   "nev_wide-work": "pp-nev_wide-work-s3",
+   "player-work": "pp-player-work-s1",
+   "player_wide-work": "pp-player_wide-work-s1",
+   "sefa-work": "pp-sefa-work-s3",
+   "sefa_wide-work": "pp-sefa_wide-work-s1"
   }
  }
 }

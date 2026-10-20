@@ -102,6 +102,10 @@ def test_the_parts_split_is_held_to_the_registered_floor(tmp_path):
     assert found.measures["rows past the rough model"] == 1
     assert found.measures["rows round the floor"] == 1  # a detail area of the ground round the place
     assert align.judge_rows_fit(split, {}, {}).answer == checks.UNKNOWN
+    person = {"id": "player-work", "size": None, "layer": "people"}  # a line no place owns: held to no plan
+    (split / "rows.json").write_text(json.dumps({"rows": [person]}))
+    assert align.judge_rows_fit(split, {}, {}).answer == checks.PASS
+    assert closeup_row.measured(None, person) == ["no measured size: its proportions held to none"]
 
 
 def test_an_after_step_gets_the_made_models_with_their_finishes_or_the_gaps(tmp_path):

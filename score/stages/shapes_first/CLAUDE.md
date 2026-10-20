@@ -43,5 +43,13 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   `earth-kit` row bakes only the named code fallbacks, the rows not handed. No kit row is handed in yet: the loop
   lacks a per-take turn into the kit frame for the bake, and a model-less row stops the line at `likeness` instead of
   leaving a gap. Neither is the adapter's to close.
-- **Not moved yet** (#41's other agents): people, the motion rows. Each joins as an adapter here; its side route goes.
+- **A line no place owns** (`align.NO_PLACE`, the people's): a layer whose models are no place's runs the loop on a
+  line of its own name, with its hand-in record, rows and surface data under that name (`data/props/people.json`,
+  `data/inventory/people.json`, `data/surfaces/people.json`). It has no plan, so no rough model or registration, and
+  `fits the plan` holds its rows to none; a place's own rows (assembly, complete, the library hand-over:
+  `stages.PLACE_ONLY`) do not apply there (`no_place`). It is no place of the environment's (`stages.places`), so a
+  whole run leaves it out: run it by name (`--place people`). Its after-steps are place rows on that line; a world row
+  reads one beside, `neighbours` naming the line (`people_bodies/bodies.the_line`).
+- **Not moved yet** (#41's other agents): the motion rows. Each joins as an adapter here; its side route goes. The people's adapter
+  (`PEOPLE`) is in; their bodies' rig, settle and clips still are world rows of their own after it (`../people`).
 - Test: `shapes_first_test.py` (`.venv/bin/python -m pytest score/stages/shapes_first`), no spend.

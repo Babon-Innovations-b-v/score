@@ -89,6 +89,8 @@ def test_the_cloud_refuses_a_missing_or_unapproved_inventory():
 
 def test_every_committed_inventory_is_sound():
     for scene, found in inventory.every_inventory().items():
+        if found.get("no_place"):  # a line no place owns (the people's looks, #41): no scene's inventory
+            continue
         assert inventory.problems(found, scene) == [], scene
 
 

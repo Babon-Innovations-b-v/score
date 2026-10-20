@@ -20,13 +20,16 @@ import math
 import pathlib
 import struct
 
-from score import contracts
+from score import checks, contracts
 from score.stages.rough_model import GLB_MAGIC, JSON_CHUNK, MODEL, RECORD, glb_json, triangles
 from score.stages.surfaces.surface_gates import guarded, unknown, verdict
 
 ALIGNED, REGISTRATION = "aligned.glb", "align.json"
 TURNS = (0, 90)
 NODE_TRANSFORMS = ("matrix", "translation", "rotation", "scale")
+# The layers whose models no place owns (people, #41): each runs the loop on a line of its own name, which has no plan
+# and is no place of the environment's.
+NO_PLACE = ("people",)
 
 
 def bounds(gltf):
@@ -187,12 +190,15 @@ def fits(size, wide, deep):
 def judge_rows_fit(output, inputs, evidence):
     """The parts split read against the registered rough model (props-inputs, #41): every row's footprint fits the
     floor the rough model was registered to; how many rows fit no footprint of the aligned rough model is measured.
-    A row of a layer that lies round the floor (ROUND) is counted, not held to it. Unknown without a registration:
-    the loop splits a place's parts only once its rough model stands in its plan."""
+    A row of a layer that lies round the floor (ROUND) is counted, not held to it; rows of a layer no place owns
+    (NO_PLACE) are held to no plan. Unknown without a registration: the loop splits a place's parts only once its
+    rough model stands in its plan."""
+    split = [row for row in json.loads((output / "rows.json").read_text())["rows"] if row.get("layer") not in NO_PLACE]
+    if not split:
+        return checks.Verdict("fits the plan", checks.PASS, "no row on a place's plan: models no place owns")
     if "rough-align" not in inputs:
         return unknown("fits the plan", "no registered rough model: the place has no plan to register one to")
     found = json.loads((pathlib.Path(inputs["rough-align"]) / REGISTRATION).read_text())
-    split = json.loads((output / "rows.json").read_text())["rows"]
     rows = [row for row in split if row.get("layer") not in ROUND]
     if found["unregistrable"]:
         return unknown("fits the plan", "the rough model was not registered: " + "; ".join(found["unregistrable"]))

@@ -231,9 +231,10 @@ a flag or a spec asks for it. Nothing here is a result; the paper's gaps name th
 is meant to fix, where it is marked, and what proves it.
 
 - **The people stage** (#5; `score/stages/people`, its overlay; `tools/characters/maker/prop_person.py`'s steps,
-  specs `data/characters/makes/<name>_prop.json`, takes in `data/people/surfaces.json`). For bloated clothes on
-  SOMA-made people: people made like every prop (owner, 2026-10-11), the clothing painted through the surface
-  stage's own rows, SOMA-X only for the rig, Kimodo's clips swung clear of the body's own bulk (`clearance.py`).
+  specs `data/characters/makes/<name>_prop.json`, takes in `data/surfaces/people.json`). For bloated clothes on
+  SOMA-made people: people made like every model (owner, 2026-10-11 and 2026-10-20), each look a row of the shared
+  loop (#41) on the line `people`, which no place owns, finished by its finish route; SOMA-X only for the rig,
+  Kimodo's clips swung clear of the body's own bulk (`clearance.py`).
   Whole-environment rows run only when asked for by name (`--stage people-...`). Proven when the player and Nev pass every body
   gate (joins, tucks, cloth and body through cloth, rigid, outline, likeness, triangles) on every clip, the clothing
   passes the surface stage's paint gates on library surfaces, and the owner picks them on the review page.

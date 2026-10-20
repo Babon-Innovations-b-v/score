@@ -18,7 +18,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from score import checks, graph, stages  # noqa: E402
-from score.stages import surfaces  # noqa: E402
+from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.surfaces import registry, surface_data, surface_gates  # noqa: E402
 from score.store import Store  # noqa: E402
 
@@ -61,7 +61,7 @@ def test_each_take_is_painted_by_one_place_and_every_claim_is_baked_by_its_place
     owner = {}
     records = {path.stem: json.loads(path.read_text()) for path in sorted(surface_data.FOLDER.glob("*.json"))}
     for place, record in records.items():
-        assert (REPO / "data/kit" / f"{place}.json").exists(), f"{place}: no such place"
+        assert (REPO / "data/kit" / f"{place}.json").exists() or shapes_first.no_place(place), f"{place}: no such place"
         assert record["takes"] or record.get("nothing"), f"{place}: lists nothing to paint and says not why"
         assert surface_data.paints(place) == bool(record["takes"]), place
         for take, entry in record["takes"].items():
