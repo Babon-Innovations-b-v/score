@@ -123,9 +123,32 @@ def test_a_view_map_is_asked_with_the_close_up_and_its_map():
     body = finish_ask.view_body(picture, picture, picture, finishes, 1)
     parts = body["contents"][0]["parts"]
     assert len(parts) == 4 and "pure red" in parts[0]["text"] and body["generationConfig"]["seed"] == 1
-    strict = finish_ask.map_body(picture, finishes, 3, strict=True)["contents"][0]["parts"][0]["text"]
-    assert finish_ask.STRICT in strict
-    assert finish_ask.STRICT not in finish_ask.map_body(picture, finishes, 1)["contents"][0]["parts"][0]["text"]
+    assert finish_ask.STRICT in finish_ask.map_body(picture, finishes, 1)["contents"][0]["parts"][0]["text"]
+
+
+def test_a_draw_that_gets_no_answer_is_a_hole_never_drawn_again():
+    import tempfile
+    from score.stages.surfaces import finish_rows
+    import finish_ask as asks
+    picture = np.zeros((200, 200, 4), dtype=np.uint8)
+    picture[close_up_alpha()] = (90, 90, 90, 255)
+    asked = []
+
+    def lost(*arguments, **options):
+        asked.append(arguments)
+        raise TimeoutError("The read operation timed out")
+    saved = finish_rows.close_up, asks.draw_map
+    finish_rows.close_up = lambda inputs, take: Image.fromarray(picture)
+    asks.draw_map = lost
+    try:
+        folder = pathlib.Path(tempfile.mkdtemp())
+        finish_rows.take_maps({}, "module", [{"finish": "paint", "parts": "body"},
+                                             {"finish": "glass", "parts": "porthole"}], folder)
+    finally:
+        finish_rows.close_up, asks.draw_map = saved
+    record = json.loads((folder / "map.json").read_text())
+    assert len(asked) == 1 and not record["passes"], record
+    assert "no answer" in record["front"]["attempts"][0]["why"] and "no answer" in finish_rows.map_fault(record)
 
 
 def test_unvoted_faces_take_the_nearest_voted_label_along_the_surface():
@@ -210,52 +233,134 @@ def test_agreement_and_mixing_count_against_the_maps():
     assert mixing and mixing[0][0] == 0, mixing
 
 
-def test_a_strongly_coloured_finish_is_asked_whether_it_is_lamp_light_and_no_other_question_moves():
-    picture = Image.new("RGBA", (8, 8), (200, 30, 30, 255))
-    finish = {"finish": "Polished reflective metal", "parts": "the lamp housing"}
-    surfaces = {"cast_steel": {"family": "steel"}, "led_red": {"family": "light"}}
-    plain = finish_ask.name_body(picture, picture, "a red warning lamp", 0, finish, surfaces)
-    asked = finish_ask.name_body(picture, picture, "a red warning lamp", 0, finish, surfaces, glow=True)
-    text = plain["contents"][0]["parts"][2]["text"]
-    assert text.endswith("then by its colour in the first picture."), text  # word for word: its cache stands
-    assert asked["contents"][0]["parts"][2]["text"] == text + finish_ask.GLOW_QUESTION
+def library_of(**colours):
+    """{surface: spec} with each surface's family and linear colour, from name=(family, colour)."""
+    return {name: {"family": family, "colour": colour} for name, (family, colour) in colours.items()}
 
 
-def test_a_finish_named_again_for_its_colour_is_told_its_colour_and_no_other_question_moves():
-    """Galley, 2026-10-14: asked by its words alone, the seat's dark grey bracket ("black metal") came back
-    anodized_black at dE 40; asked again for its colour, the question now says the colour and how far it lies."""
-    picture = Image.new("RGBA", (8, 8), (100, 100, 100, 255))
-    finish = {"finish": "black metal", "parts": "screws and bolts", "surface": "anodized_black"}
-    surfaces = {"anodized_black": {"family": "anodized"}, "cast_steel": {"family": "steel"}}
-    plain = finish_ask.name_body(picture, picture, "a fold-down seat", 1, finish, surfaces)
-    asked = finish_ask.name_body(picture, picture, "a fold-down seat", 1, finish, surfaces,
-                                 off=(np.array([42.5, 0.2, 0.4]), 40.04))
-    text = plain["contents"][0]["parts"][2]["text"]
-    assert text.endswith("then by its colour in the first picture."), text  # word for word: its cache stands
-    added = asked["contents"][0]["parts"][2]["text"][len(text):]
-    assert added == finish_ask.COLOUR_QUESTION.format(lab=[42.5, 0.2, 0.4], delta=40.04, surface="anodized_black")
-    assert "[42.5, 0.2, 0.4]" in added and "lies 40 " in added and "anodized_black" in added, added
+def test_lamp_light_is_named_free_by_its_chroma_and_a_red_paint_keeps_its_surface():
+    """The garage beacon's red light, 2026-10-13: named its metal housing; now decided by its colour, no ask."""
+    from score.stages.surfaces import finish_rows
+    every = library_of(cast_steel=("steel", [0.3, 0.3, 0.3]), led_red=("light", [0.8, 0.02, 0.02]),
+                       red_paint=("painted", [0.5, 0.03, 0.03]))
+    red = finish_parts.library_lab(every["led_red"])
+    lamp = {"finish": "red lamp light", "parts": "the beacon lens", "surface": "cast_steel"}
+    named, hole = finish_rows.named_by_rule(lamp, red, every)
+    assert named["surface"] == "led_red" and named["by"] == "lamp light by its colour" and hole is None, named
+    assert named["listed_surface"] == "cast_steel"
+    paint = {"finish": "red paint", "parts": "the body", "surface": "red_paint"}
+    assert finish_rows.named_by_rule(paint, red, every)[0]["surface"] == "red_paint"
+    grey = finish_parts.library_lab(every["cast_steel"])
+    assert finish_rows.named_by_rule(lamp, grey, every)[0]["surface"] == "cast_steel"  # an unlit lens: no chroma
 
 
-def test_a_naming_that_timed_out_is_asked_again_with_low_thinking():
+def test_a_finish_whose_words_name_another_material_takes_that_material_by_colour_or_is_a_hole():
+    from score.stages.surfaces import finish_rows
+    every = library_of(bare_steel=("steel", [0.4, 0.4, 0.4]), rubber_black=("rubber", [0.02, 0.02, 0.02]))
+    foot = {"finish": "black rubber", "parts": "the lamp's foot", "surface": "bare_steel"}
+    black = finish_parts.library_lab(every["rubber_black"])
+    named, hole = finish_rows.named_by_rule(foot, black, every)
+    assert named["surface"] == "rubber_black" and named["by"] == "its words' material by colour" and hole is None
+    steel_only = {"bare_steel": every["bare_steel"]}
+    named, hole = finish_rows.named_by_rule(foot, black, steel_only)
+    assert named["by"] == "off its material" and not named["fits"] and "black rubber" in hole, (named, hole)
+    assert finish_rows.named_by_rule(foot, None, every)[1]  # no colour measured: a hole, never a guess
+
+
+def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_asked_again():
+    import io
+    import urllib.error
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
     import google_spend
     asked = []
 
-    def answer(model, body, key, timeout, caller, cache):
-        asked.append(body["generationConfig"].get("thinkingConfig"))
-        if len(asked) == 1:
-            raise TimeoutError("The read operation timed out")
-        return "answered"
+    def answering(*faults):
+        def answer(model, body, key, timeout, caller, cache):
+            asked.append(body.get("serviceTier"))
+            if len(asked) <= len(faults):
+                raise faults[len(asked) - 1]
+            return "answered"
+        return answer
 
-    saved = google_spend.generate
-    google_spend.generate = answer
+    def refusal(code):
+        return urllib.error.HTTPError("url", code, "refused", {}, io.BytesIO())
+    saved = google_spend.generate, finish_ask.REFUSED_WAIT
+    finish_ask.REFUSED_WAIT = 0
     try:
-        found = finish_ask.generated(finish_ask.LIST_MODEL, {"generationConfig": {"temperature": 0}}, "key", 1,
-                                     "test", False)
+        google_spend.generate = answering(TimeoutError("The read operation timed out"))
+        try:
+            finish_ask.generated(finish_ask.LIST_MODEL, {"serviceTier": "flex"}, "key", 1, "test", False)
+        except TimeoutError:
+            pass
+        else:
+            raise AssertionError("a timeout reaches the row")
+        assert asked == ["flex"], asked
+        asked.clear()
+        google_spend.generate = answering(refusal(429), refusal(503))
+        assert finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False) == "answered"
+        assert len(asked) == 3, asked
+        asked.clear()
+        google_spend.generate = answering(refusal(400))
+        try:
+            finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False)
+        except urllib.error.HTTPError:
+            pass
+        assert len(asked) == 1, asked
     finally:
-        google_spend.generate = saved
-    assert found == "answered" and asked == [None, {"thinkingLevel": "low"}], asked
+        google_spend.generate, finish_ask.REFUSED_WAIT = saved
+
+
+def two_colour_close_up():
+    picture = np.zeros((200, 200, 4), dtype=np.uint8)
+    picture[50:100, 60:140] = (200, 200, 195, 255)  # a light grey body
+    picture[100:150, 60:140] = (40, 50, 90, 255)  # a dark blue window
+    return Image.fromarray(picture)
+
+
+def test_the_list_ask_holds_the_close_ups_colours_and_the_surfaces_near_them_with_low_thinking():
+    from score.stages.surfaces import finish_rows
+    linear = lambda rgb: list(np.where(np.array(rgb) / 255 <= 0.04045, np.array(rgb) / 255 / 12.92,
+                                       ((np.array(rgb) / 255 + 0.055) / 1.055) ** 2.4))
+    surfaces = library_of(grey_paint=("painted", linear((198, 198, 194))), blue_paint=("painted", linear((42, 52, 88))),
+                          red_paint=("painted", linear((200, 20, 20))))
+    regions = finish_rows.close_up_regions(two_colour_close_up(), surfaces)
+    assert regions["within"] == finish_parts.COLOUR_DELTA_E and len(regions["regions"]) >= 2, regions
+    (big, big_lab, big_near), (other, other_lab, other_near) = regions["regions"][:2]
+    assert big > 0.4 and other > 0.4, regions
+    assert {big_near[0], other_near[0]} == {"grey_paint", "blue_paint"}, regions
+    assert "red_paint" not in big_near + other_near, regions
+    body = finish_ask.list_body(two_colour_close_up(), "a module", surfaces, regions)
+    text = body["contents"][0]["parts"][1]["text"]
+    assert "% of the object: L*a*b* (" in text and "near M1" in text and "near M2" in text, text
+    assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "low"} and body["serviceTier"] == "flex"
+    plain = finish_ask.list_body(two_colour_close_up(), "a module", surfaces)["contents"][0]["parts"][1]["text"]
+    assert plain.endswith("propose a new library surface for it."), plain
+
+
+def test_a_declared_piece_asks_nothing_and_a_list_with_no_answer_is_a_hole():
+    import labels
+    from score.stages.surfaces import finish_rows
+    import finish_ask as asks
+    library = library_of(painted_panel=("painted", [0.5, 0.5, 0.5]))
+    entry = {"library_places": ["hangar"], "kind": "wall", "object": "a wall panel", "surface": "painted_panel"}
+    saved = labels.allowed_materials, finish_rows.close_up, asks.finish_list
+    labels.allowed_materials = lambda place, kind, without: library
+
+    def never(*arguments, **options):
+        raise AssertionError("a declared piece is never asked")
+
+    def lost(*arguments, **options):
+        raise TimeoutError("The read operation timed out")
+    finish_rows.close_up, asks.finish_list = never, never
+    try:
+        record = finish_rows.take_list({}, "wall_1", entry)
+        assert record["finishes"][0]["surface"] == "painted_panel" and record["finishes"][0]["fits"], record
+        assert finish_rows.take_list({}, "wall_2", dict(entry, surface="gold_foil"))["hole"]
+        finish_rows.close_up, asks.finish_list = (lambda inputs, take: two_colour_close_up()), lost
+        hole = finish_rows.take_list({}, "crate", {key: value for key, value in entry.items() if key != "surface"})
+    finally:
+        labels.allowed_materials, finish_rows.close_up, asks.finish_list = saved
+    assert hole["finishes"] == [] and "TimeoutError" in hole["hole"], hole
 
 
 def test_a_dark_finish_is_measured_on_its_darker_pixels_and_a_grey_one_named_black_still_fails():
@@ -410,7 +515,7 @@ def test_a_coloured_see_through_finish_keeps_its_surface_against_its_highlights(
     assert found[1]["surface"] == "plastic_grey" and found[1]["by"] == "nearest of its family by colour", found[1]
 
 
-def test_a_finish_whose_words_name_another_material_is_named_again():
+def test_a_finish_whose_words_name_another_material_is_found():
     assert finish_parts.contradicts("black rubber, on the lamp's foot", "steel")
     assert finish_parts.contradicts("printed paper, on the tray's label", "rubber")
     assert not finish_parts.contradicts("grey painted metal, on the frame", "steel")
