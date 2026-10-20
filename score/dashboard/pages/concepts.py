@@ -31,13 +31,14 @@ def light_world(source):
     concept review's part and the shells (the whole state is the pages' to read)."""
     if not hasattr(source, "concept_review"):
         return source.world_state()
-    return WorldState(made_at="", source=source.name, world="", engines=[], shells=source.hierarchy()["shells"],
-                      **source.concept_review())
+    found = source.hierarchy()
+    return WorldState(made_at="", source=source.name, world="", engines=[], shells=found["shells"],
+                      within=found["within"], **source.concept_review())
 
 
 def checked_node(world, source, place):
-    """`place` when it is a place or shell of the environment; else 404."""
-    if place not in source.places() and place not in world.shells:
+    """`place` when it is a place or shell of the environment, or an inside place his kept plans name; else 404."""
+    if place not in source.places() and place not in world.shells and place not in world.within:
         raise Http404(f"no place {place}")
     return place
 

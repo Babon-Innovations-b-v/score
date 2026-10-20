@@ -113,6 +113,9 @@ def test_his_inside_places_and_rows_redo_what_follows(store, data):
     plan["holds"] = [{**plan["holds"][0], "place": "loft", "row": "barn", "x": 2.0}]
     plans.edited(store, "yard", plan, "joey")
     assert plans.tree(store)["within"].get("loft") == "yard" and "shed" not in plans.tree(store)["within"]
+    # the concept review reads the same: the loft's draw waits on the yard, its holder now
+    assert concepts.above("loft", store) == "yard" and concepts.inside_of("yard", store) == ["loft"]
+    assert concepts.step_refusal(store, "loft", "draw") == "waits for yard's scene inventory to be read"
     assert plans.holder_of(store, "loft") == {"holder": "yard", "row": "barn", "box": [10, 20, 300, 200],
                                               "view": "v1", "outline": [2.0, 0.3, 4.0, 3.0]}
     with pytest.raises(plans.Refused, match="no inventory row"):

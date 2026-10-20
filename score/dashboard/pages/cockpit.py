@@ -118,7 +118,19 @@ def place_tiles(world, names, rows):
                              "gaps": None if row is None or row["not_checked"] else row["gaps"],
                              "tone": tone_of(row), "holds": [], "more": 0, **design_of(design),
                              **steps_of(world, card.place)}
+    for node in designed(world, found):
+        found[node] = {"place": node, "href": f"/concept/{node}/", "name": names.get(node, node), "about": None,
+                       "picture": screens.thumb(world.concepts.get(node)), "made": None, "made_tip": None,
+                       "needed": None, "gaps": None, "tone": "idle", "holds": [], "more": 0,
+                       **design_of(screens.design_state(world, node) or "design"), **steps_of(world, node)}
     return found
+
+
+def designed(world, cards):
+    """The inside places his kept plans name that have no line of their own yet (WorldState.within beyond `cards`, the
+    shells and the parts): a design-only tile each, opening its concept page."""
+    return [node for node in world.within if node not in cards and node not in world.shells
+            and node not in world.parts]
 
 
 def steps_of(world, node):
@@ -224,6 +236,7 @@ def trail(world, names, at):
     """[{name, href}] from the environment down to `at` (the places and shells holding it, outermost first); None
     when `at` holds no place."""
     known = [card.place for engine in world.engines for style in engine.styles for card in style.places]
+    known += designed(world, known)
     if not inside_of(world, at, known):
         return None
     found, node = [], at

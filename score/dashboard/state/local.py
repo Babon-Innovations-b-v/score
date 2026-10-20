@@ -562,7 +562,7 @@ class LocalSource:
                 draws[node] = found
             if concepts.picked(self.store, node):
                 picked[node] = concepts.picked(self.store, node)
-        nodes = [*self.places(), *self.hierarchy()["shells"]]
+        nodes = self.design_nodes()
         reads = self.inventory_reads()
         ready, waiting = concepts.undrawn(self.store, nodes)
         return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
@@ -597,7 +597,7 @@ class LocalSource:
         place or shell shows once its scene inventory counts and the inside places he named."""
         from score.review import plans
         found, named = {}, {}
-        for node in [*self.places(), *self.hierarchy()["shells"]]:
+        for node in self.design_nodes():
             if names := plans.named(self.store, node):
                 named[node] = names
             shown = plans.current(self.store, node)
@@ -605,6 +605,13 @@ class LocalSource:
                 continue
             found[node] = PlanReview(**shown)
         return {"plan_reviews": found, "plan_named": named, "plan_revise_euros": plans.revise_euros()}
+
+    def design_nodes(self):
+        """Every place and shell a concept is designed for: the places, the shells, and the inside places only his kept
+        plans name (no line of their own yet: CONTEXT.md "plan review")."""
+        found = self.hierarchy()
+        return list(dict.fromkeys([*self.places(), *found["shells"],
+                                   *[node for node in found["within"] if node not in found["parts"]]]))
 
     def hierarchy(self):
         """{within, shells, parts} of data/places/within.json: what each place or shell sits within (a part of a place's
