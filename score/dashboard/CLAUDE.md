@@ -169,7 +169,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   - `number.html` `label`, `value` (None: grey "unknown" with `unknown_tip`), `unit` ("EUR": to the cent), `of` a
     denominator, `bar` a percent under it, `tone` a dot beside the label, `tip`. Pass every argument (None where
     unused): an include inherits its caller's names.
-  - `tile.html` `href`, `picture` (the concept; none: "concept missing"), `holds` [{name, picture, count, unit}],
+  - `tile.html` `href`, `picture` (the concept; none: "concept missing"), `busy`, `refused`, `holds` [{name, picture, count, unit}],
     `more`, `name` (the place's short name, place.json `short`; its look's long words are
     `tip`), `made`, `needed`, `made_tip` ("made 0 of 30"), `gaps` (None: "?", not checked) with a gap icon in its
     `tone` and "781 gaps" as hover text, `tone`, `tip`.
@@ -223,7 +223,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   yes saying so and refused on the store's machine once the price moved or its place has a draw from its current wording (`web.concept_draw`
   `first`); local in a thread each, hosted the listener answers a held call's requests side by side. The cards show a
   draw as it lands (`concepts.newest_pictures`, hosted with those answered since the export) and the screen reads
-  itself again every 15 s while a draw is on its way.
+  itself again every 3 s while any draw is on its way (dash.js `reread`: `[data-reread][data-drawing]` swapped in
+  place, no reload). While one is, the Draw all button is a disabled "Drawing N..." (N the open draws; the click
+  turns it so at once, `data-busy`), a card whose draw, or a place within it whose draw, is on its way carries a
+  spinner over its picture and one whose newest draw was refused a red "refused" with the reason as hover text
+  (`concepts.card_state`); the concept review shows the same spinner over its picture while its draw is on its way.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the

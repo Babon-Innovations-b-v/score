@@ -558,3 +558,11 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .chart-grid { stroke: var(--line); stroke-width: 1; }
 .chart-tick { fill: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 @media (max-width: 760px) { .place-layout, .buy-layout { grid-template-columns: 1fr; } .place-tree { max-height: 40vh; } }
+/* A draw on its way: a spinner over the card's or the concept review's picture; a refused one a red mark. */
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -1px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+.draw-busy, .draw-refused { position: absolute; top: 8px; left: 8px; z-index: 2; display: inline-flex; gap: 6px; align-items: center; padding: 3px 10px; border-radius: var(--radius-small); font-size: 12px; }
+.draw-busy { background: color-mix(in srgb, var(--bg) 82%, transparent); color: var(--ink); }
+.draw-refused { background: var(--bad); color: var(--bg); cursor: help; }
+.ptile-pic:has(.draw-busy) img { opacity: 0.55; }

@@ -86,7 +86,8 @@ def environment(request):
         tiles = [{**tile, "href": tile["href"] + (f"&kind={kind}" if tile["href"].startswith("/?") else "")}
                  for tile in tiles if tile["gaps"]]
         trail = [{**step, "href": f"{step['href']}&kind={kind}"} for step in trail]
-    tiles = [{**tile, "review": concepts.review_href(world, tile["place"])} for tile in tiles]
+    tiles = [{**tile, "review": concepts.review_href(world, tile["place"]), **concepts.card_state(world, tile["place"])}
+             for tile in tiles]
     return render(request, "pages/environment.html", {
         "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(world), "trail": trail,
         "kind": kind and {"kind": kind, "label": cockpit.KIND_WORDS[kind][0], "tone": cockpit.KIND_TONES[kind]},

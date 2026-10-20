@@ -96,8 +96,10 @@
   }
 
   // --- draw, then ask until it is answered ----------------------------------------------------------------------
+  const busy = document.getElementById("concept-busy");
   const waiting = (since) => {
     draw.disabled = true;
+    busy.hidden = false;
     const label = draw.querySelector('[data-slot="label"]');
     const started = since ? Date.parse(since) : Date.now();
     const tick = () => { label.textContent = `drawing ${Math.round((Date.now() - started) / 1000)} s`; };
@@ -109,6 +111,7 @@
       if (!found || found.pending) { setTimeout(ask, ASK_EVERY); return; }
       clearInterval(clock);
       if (found.refused) {
+        busy.hidden = true;
         tell("bad", found.refused);
         console.error("concept draw refused", found.refused);
         draw.disabled = false;
