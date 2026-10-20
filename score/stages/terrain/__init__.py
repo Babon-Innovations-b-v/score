@@ -4,7 +4,7 @@ world node for all of them (Earth's harbour, the Moon round the base, Mars round
     make     for each plan in data/ground/plan/: the plan's large shape in code (plan.py, landforms.py: flats, paths,
              craters of every kind, ridges, buttes, dunes, canyons, hills, a coastline); a diorama picture drawn
              straight down over the plan's shading by Qwen-Image-Edit-2511 (tools/props/cloud/pictures.py, PAID: its
-             `candidates` while every one is kept, else REMADE_CANDIDATES, an 80 GB card each); each picture's depth
+             `candidates`, each drawn once in the one batch, a kept one free, an 80 GB card each); each picture's depth
              by Depth Anything V2 Small (tools/props/cloud/depth.py, PAID, any card; kept by the picture's hash, so
              never bought twice); each registered on the plan and the one whose depth
              follows the plan best gives the fine relief (relief.py); the plan's levelled yards and dents; every zone one library surface
@@ -39,10 +39,6 @@ FILES = {"grounds": "{data}/ground", "library": ("{data}/library/materials.json"
 # The run's estimate: about a dozen Qwen-Image-Edit pictures on 80 GB cards and their depth on any card.
 EUROS = 6.0
 PICTURE_SIDE = 1024
-# A ground being remade (its pictures not all kept for its drawing, wording and seeds) draws this many candidates, its
-# plan's `candidates` read only while every one is kept and so free (#21: one take, the relief read off it). The
-# candidate drawn is the plan's first, at the seed it always had.
-REMADE_CANDIDATES = 1
 # The depths kept by the hash of their picture's bytes (beside the kept pictures, under the props work folder), so the
 # same picture's depth is never bought twice (#21: reuse by key).
 DEPTHS = "terrain-depth"
@@ -75,17 +71,6 @@ def picture_jobs(shaped_plans, out, seed):
                          "seed": picked_seed, "refs": [str(drawing)], "width": PICTURE_SIDE,
                          "height": PICTURE_SIDE, "ground": ground, "candidate": candidate})
     return jobs
-
-
-def kept_or_first(jobs, kept):
-    """The picture jobs to ask for, a free prediction before the batch: every candidate of a ground whose pictures are
-    all in `kept` (none is bought), else its first REMADE_CANDIDATES only."""
-    asked = []
-    for ground in dict.fromkeys(job["ground"] for job in jobs):
-        own = [job for job in jobs if job["ground"] == ground]
-        whole = all((pathlib.Path(kept) / f"{job['name']}.png").exists() for job in own)
-        asked += own if whole else [job for job in own if job["candidate"] < REMADE_CANDIDATES]
-    return asked
 
 
 def drawn(jobs, out):
@@ -194,8 +179,7 @@ def make(inputs, out, seed, params):
         plan.drawing(shaped, record_plan, PICTURE_SIDE).save(out / path.stem / "plan.png")
         plan.shading(shaped, PICTURE_SIDE).save(out / path.stem / "shading.png")
         shaped_plans[path.stem] = (record_plan, shaped)
-    pictures, _ = cloud_runners()
-    found = drawn(kept_or_first(picture_jobs(shaped_plans, out, seed), pictures.PICTURES), out)
+    found = drawn(picture_jobs(shaped_plans, out, seed), out)
     read = depths(found, out)
     for ground, (record_plan, shaped) in shaped_plans.items():
         make_ground(ground, record_plan, shaped, found.get(ground, []), read, inputs, out)

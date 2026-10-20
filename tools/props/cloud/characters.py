@@ -46,10 +46,12 @@ REMOTE = pathlib.PurePosixPath("/root/make")
 # What of the repository the chain needs up there.
 SHIPPED = ("tools", "vendor/kimodo", "vendor/sam3dbody-cpp", "data/characters")
 # Measured (paper/evidence/cloud/ledger.jsonl, the characters runs of 2026-10-09 on L4s): a machine's set-up took 14.1
-# min at the median of 36; one person's chain 33 min at the median of 37 chains and 43 at the longest, so 42 a person
-# (the chain's high) sizes the fleet and the deadline.
+# min at the median of 36 (24.8 at the longest); one person's chain 33 min at the median of 38 chains and 43.3 at the
+# longest, so 43 a person (the chain's high) sizes the fleet and the estimate. The run's deadline is not these: it is
+# the minutes the owner's limits allow (batch.priced, ledger.minutes_allowed), so a slow set-up or the longest chain
+# still ends inside it.
 SETUP_MINUTES = 14
-PERSON_MINUTES = 42
+PERSON_MINUTES = 43
 # Room for six environments, CUDA, the Llama 3 encoder, the picture models and Hi3DGen's weights.
 DISK_GB = 200
 POLL_SECONDS = 30

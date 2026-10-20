@@ -17,8 +17,10 @@ A film is one batch (#21, the owner's batch of 2026-10-20): its frames are bough
 never again inside it. Before the yes everything is free: the creator looks at the free local preview
 (tools/review/film_preview.py: the same plan, a few frames drawn on this PC) and the forecast (`python -m
 score.stages.demo_film forecast <place>`: frames, cards, card minutes and euros, likely and high, from a scan of the
-stage for fog, volumes and glass); then he writes `"final": true` in the film's record. A film without it has no
-node, so nothing is priced or bought for it. A frame job that dies or passes its deadline is a hole: its film fails
+stage for fog, volumes and glass); then he writes `"final": true` in the film's record. A film without it keeps
+its node (the basket takes it), but its row is Blocked before anything is bought (require_yes); a film whose
+forecast's high passes the euros its run was cleared at is Blocked the same way (refuse_over_clearance), so a dearer
+film is a new ask at the forecast's price. A frame job that dies or passes its deadline is a hole: its film fails
 the gate, and a new film is a new batch and a new yes.
 
     make   the final stage (the neighbours output where the place shows others, else its assembly), copied into a tree
@@ -40,6 +42,7 @@ the gate, and a new film is a new batch and a new yes.
                    planner's clearance)
 """
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -47,7 +50,7 @@ import sys
 
 import numpy as np
 
-from score import checks, contracts
+from score import checks, contracts, graph
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 FILMS = REPO / "data/definitions/demo_films"
@@ -70,11 +73,15 @@ LEAD = 1.0
 # Workbench and Cycles on a card; the cheapest first (capacity.KIND_ORDER), never an H100 (capacity.NEVER).
 CLASSES = "gpu-24gb,gpu-48gb"
 # Two shots of 96 frames: a 96-frame film over 8 cards cost EUR 1.48 to 1.75 with parking (ledger 2026-10-18:
-# greenhouse, airlock, hangar, garage), most of it the frames' card time, so twice the measured 1.6.
-EUROS = 3.2
+# greenhouse, airlock, hangar, garage), most of it the frames' card time, so twice the measured 1.6 likely; the row's
+# estimate (what its clearance reserves while the stage is unmeasured) is twice the measured high, 1.75.
+LIKELY_EUROS = 3.2
+EUROS = 3.5
+# A plain frame's high over its likely: the measured films' high over their median (1.75 / 1.6).
+FRAME_SPREAD = 1.75 / 1.6
 # A frame's card minutes, the forecast's high, where the stage holds fog, a volume or glass: the airlock's frames
-# inside its pump's fog took 47 s to 17 min each (2026-10-18). Its likely, and both for a stage without them, is
-# demo.FRAME_MINUTES (0.7, the measured 42 s).
+# inside its pump's fog took 47 s to 17 min each (2026-10-18). Its likely is demo.FRAME_MINUTES (0.7, the measured
+# 42 s); a stage without them is priced high at FRAME_SPREAD times that.
 FOG_FRAME_MINUTES = 17.0
 # A frame job's minutes before its frames (demo.film_jobs' 10): the stage and its shown places loaded.
 JOB_LEAD_MINUTES = 10
@@ -95,13 +102,21 @@ def said_yes(film):
 
 
 def extras(place):
-    """The names of the place's films other than its own that the creator said yes to."""
-    return [name for name, film in films().items() if film["place"] == place and name != place and said_yes(film)]
+    """The names of the place's films other than its own."""
+    return [name for name, film in films().items() if film["place"] == place and name != place]
 
 
 def applies(place):
-    film = films().get(place, {})
-    return film.get("place") == place and said_yes(film)
+    return films().get(place, {}).get("place") == place
+
+
+def require_yes(named):
+    """Refuse the row (Blocked) before anything is bought while a film of `named` ({film: record}) has no `final`:
+    the node stands and can go in the basket, but its frames are bought only after the creator's yes."""
+    waiting = sorted(name for name, film in named.items() if not said_yes(film))
+    if waiting:
+        raise graph.Blocked(f"no yes yet for {', '.join(waiting)}: see the free preview and forecast "
+                            "(python -m score.stages.demo_film forecast <place>), then write \"final\": true")
 
 
 def applies_extra(place):
@@ -202,6 +217,7 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     given = f"{place}={','.join(cameras)}" if name == place else f"{name}@{place}={','.join(cameras)}"
     planned = forecast(work / "stages" / place / f"{place}.usda", len(cameras))
     print(f"{name}: {forecast_line(planned)}", flush=True)
+    refuse_over_clearance(name, planned, cleared_euros())
     jobs = demo.plan(work, work / "stages", [given], jobs_each=planned["jobs"], size=SIZE, ink=False,
                      shots=len(cameras), seconds=SECONDS, start=start)
     with_deadlines(jobs, planned["high_frame_minutes"])
@@ -240,8 +256,9 @@ def slow_parts(stage_path):
 def forecast(stage_path, shots):
     """A film's free forecast before the creator's yes: its frames; the jobs they are dealt over
     (capacity.machines_for on the likely frame minutes and blender_cloud's set-up, a card a job); the likely and high
-    minutes a frame (demo.FRAME_MINUTES; FOG_FRAME_MINUTES high where the scan finds fog, a volume or glass); the card
-    minutes and the euros, likely and high (EUROS scaled from its measured film by frames and frame minutes); and what
+    minutes a frame (demo.FRAME_MINUTES; high FOG_FRAME_MINUTES where the scan finds fog, a volume or glass, else FRAME_SPREAD times
+    the likely); the card
+    minutes and the euros, likely and high (LIKELY_EUROS scaled from its measured film by frames and frame minutes); and what
     the scan found."""
     demo, _ = film_tools()
     sys.path.insert(0, str(REPO / "tools/props/cloud"))
@@ -250,8 +267,8 @@ def forecast(stage_path, shots):
     frames = round(shots * SECONDS * demo.RATE)
     slow = slow_parts(stage_path)
     likely = demo.FRAME_MINUTES
-    high = FOG_FRAME_MINUTES if any(slow.values()) else likely
-    euros = EUROS * frames / round(SHOTS * SECONDS * demo.RATE)
+    high = FOG_FRAME_MINUTES if any(slow.values()) else likely * FRAME_SPREAD
+    euros = LIKELY_EUROS * frames / round(SHOTS * SECONDS * demo.RATE)
     return {"frames": frames, "jobs": capacity.machines_for(frames, likely, blender_cloud.SETUP_MINUTES),
             "frame_minutes": likely, "high_frame_minutes": high, "card_minutes": round(frames * likely),
             "high_card_minutes": round(frames * high), "euros": round(euros, 2),
@@ -265,6 +282,26 @@ def forecast_line(planned):
     return (f"{planned['frames']} frames on {planned['jobs']} cards, EUR {planned['euros']} likely and "
             f"{planned['high_euros']} high ({planned['card_minutes']} to {planned['high_card_minutes']} card minutes; "
             f"{slow})")
+
+
+def cleared_euros():
+    """The euros the runner's clearance reserved for this process's paid run (SCORE_SPEND_TICKET and the store beside
+    it, compute.spending), or None outside a cleared run."""
+    from score.adapters import compute
+    from score.store import Store
+    ticket = os.environ.get(compute.TICKET, "").split()
+    if len(ticket) != 2 or not os.environ.get(compute.STORE):
+        return None
+    cleared = Store.in_folder(os.environ[compute.STORE]).clearances(*ticket)
+    return max(cleared, key=lambda clearance: clearance["at"])["euros"] if cleared else None
+
+
+def refuse_over_clearance(name, planned, cleared):
+    """Refuse the film (Blocked) before its frames are bought when its forecast's high passes what the creator's yes
+    was cleared at (`cleared`, None outside a cleared run): a dearer film is a new ask at the forecast's price."""
+    if cleared is not None and planned["high_euros"] > cleared + 1e-6:
+        raise graph.Blocked(f"{name}: the forecast's high EUR {planned['high_euros']} passes the EUR {cleared:.2f} "
+                            f"cleared ({forecast_line(planned)}); a new ask at the forecast's price")
 
 
 def with_deadlines(jobs, frame_minutes):
@@ -348,12 +385,14 @@ def make(inputs, out, seed, params):
     stage_folder = final_stage(inputs)
     place = place_of(stage_folder)
     film = named_films(inputs)[place]
+    require_yes({place: film})
     film_one(stage_folder, place, film, out, out, film_start(film, inputs))
 
 
 def make_extra(inputs, out, seed, params):
     """Each of the place's other films, in a folder of its name."""
     stage_folder = final_stage(inputs)
+    require_yes(named_films(inputs))
     for name, film in sorted(named_films(inputs).items()):
         film_one(stage_folder, name, film, out / name, out, film_start(film, inputs))
 

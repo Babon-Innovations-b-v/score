@@ -48,7 +48,7 @@ ESTIMATES = {
     "box_masks_cloud": (lambda: box_masks_cloud.price([{}] * 9, "acct"),
                         "9 pictures on 1 card: about 13 min, €0.65; €100.00 spent this month", (3, 240.0)),
     "characters": (lambda: characters.price(["p1", "p2", "p3"], "acct", None),
-                   "3 people on 3 machines: about 56 min, €8.40; €100.00 spent this month", (3, 3, 240.0)),
+                   "3 people on 3 machines: about 57 min, €8.55; €100.00 spent this month", (3, 3, 240.0)),
     "closeups_cloud": (lambda: closeups_cloud.price(40, "acct", 20),
                        "40 close-ups on 1 card: about 24 min, €1.20; €100.00 spent this month", (3, 1, 240.0)),
     "delight": (lambda: delight.price(30, "acct"),

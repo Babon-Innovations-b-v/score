@@ -22,9 +22,9 @@ from its plan in `data/ground/plan/<ground>.json`. `__init__.py`'s docstring has
   surface (`record.py`, the plan's `zones` rules), coloured by its design token.
 - **A candidate is chosen by measurement**: the one whose smoothed depth follows the plan's large shape best
   (`relief.chosen`), its correlations kept in the ground's `measures.json`.
-- **Reuse by key, one candidate when remade** (#21): a ground whose candidate pictures are all kept (named by drawing,
-  wording and seed) takes them free; one being remade asks only its first (`REMADE_CANDIDATES`), at the seed it always
-  had. A depth is kept by its picture's hash (`DEPTHS`, beside the kept pictures), so the same picture's depth is
+- **Reuse by key** (#21): every candidate of the plan is drawn once in the one batch (parallel jobs, never a re-ask;
+  fewer candidates would trade the best-of-N choice, and quality is not a lever), a kept picture (named by drawing,
+  wording and seed) free. A depth is kept by its picture's hash (`DEPTHS`, beside the kept pictures), so the same picture's depth is
   never bought twice.
 - **Paid, through the runner only.** `make` rents (pictures and depth, `tools/props/cloud/pictures.py` and
   `depth.py`) inside the runner's clearance; run it with `python -m score.stages run` (no places: the environment's nodes),
