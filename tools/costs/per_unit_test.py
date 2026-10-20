@@ -97,12 +97,13 @@ def test_rules_only_writes_the_rules_and_keeps_the_measured_numbers():
                 "forecast": {"rule": "stale", "source": "old"}}
     out = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
     out.write_text(json.dumps({"read": ["x"], "high_quantile": 0.9,
-                               "stages": {"pixal": measured, "closeup": {**measured, "stage": "closeup"}}}))
+                               "stages": {"pixal": measured, "settle": {**measured, "stage": "settle"}}}))
     per_unit.main(["--rules-only", "--out", str(out)])
     found = json.loads(out.read_text())
-    assert found["read"] == ["x"] and found["stages"]["pixal"]["likely_euros"] == 0.1
+    assert found["read"] == ["x"] and found["stages"]["settle"]["likely_euros"] == 0.1
     assert found["stages"]["pixal"]["forecast"]["rule"] == "prop_takes"
-    assert found["stages"]["closeup"]["forecast"]["rule"] == "prop_takes"
+    assert found["stages"]["pixal"]["basis"] == "warm work time"  # a WARM stage priced by the owner's method
+    assert found["stages"]["settle"]["forecast"]["rule"] == "one"
     assert set(per_unit.RECORDED) <= set(found["stages"])  # the recorded stages written again
 
 
@@ -183,6 +184,26 @@ def test_node_minutes_are_the_store_finish_records_minutes_by_stage():
     assert [row["node"] for row in made] == ["plan@hangar", "plan@lab", "concept@lab"]
     found = per_unit.node_minutes(made, root)
     assert found["plan"]["likely"] == 4.0 and found["plan"]["makes"] == 2 and found["concept"]["high"] == 1.0
+
+
+def test_a_warm_stage_is_its_measured_work_over_the_cards_slots_at_the_bills_price_and_the_overhead():
+    """Pixal3D: the L4 jobs' own seconds in the paper's ledger, three at once, the saved bill's L4 hour, plus 10%;
+    a stage outside WARM and BATCH keeps every field."""
+    other = {"stage": "settle", "likely_euros": 0.59, "high_euros": 1.6, "runs": 3, "sources": {}}
+    found = per_unit.with_warm({"stages": {"pixal": {"stage": "pixal", "time": {}}, "settle": other}})["stages"]
+    seconds = [value for row in per_unit.warm_rows(per_unit.WARM["pixal"]) for value in row["unit_seconds"]]
+    assert len(seconds) == found["pixal"]["runs"] == 52 and round(per_unit.hourly("L4-1-24G"), 4) == 0.7875
+    assert found["pixal"]["likely_euros"] == round(1358.404 / 3 * per_unit.hourly("L4-1-24G") / 3600 * 1.1, 5)
+    assert found["pixal"]["time"]["slots"] == 3 and found["pixal"]["time"]["unit_seconds"]["likely"] == 1358.404
+    assert "why" in found["pixal"]["time"]["setup_minutes"] and found["settle"] == other
+
+
+def test_a_batch_stage_is_half_its_measured_standard_calls_and_a_route_ask_says_it_is_priced_from_the_lists():
+    found = per_unit.with_warm({"stages": {}})["stages"]
+    assert found["closeup"]["likely_euros"] == round(per_unit.PRO_PICTURES["likely"] / 2, 5)
+    assert "google calls" in found["finish-route-list"]["sources"]  # no bill share on a Google stage
+    assert found["finish-route-recheck"]["forecast"]["rule"] == "models" and found["finish-route-list"]["price_note"]
+    assert found["finish-route-list"]["time"]["why"]  # no batch call timed: no ETA made up
 
 
 def test_writing_the_times_leaves_every_euro_of_the_per_unit_file_byte_identical():

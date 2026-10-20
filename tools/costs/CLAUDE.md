@@ -27,6 +27,12 @@ in the test.
   with no timed lines keeps `time` null with its `why`, never a figure from elsewhere. `--times-only` writes only
   these into the file, every euro byte-identical (`per_unit_test.py` checks it on the repository's own file); the
   runner turns them into a row's minutes (`compute.unit_minutes`) and a plan's ETA (`holes/schedule.py`).
+- **The remake is priced warm** (owner, 2026-10-20, #21): `WARM` stages (Pixal3D, the bake) at their jobs' measured
+  work seconds on the type in the paper's ledger copy (no set-up, no idle) over `capacity.runs_at_once`, at the saved
+  bill's price for the type by the minute, plus `OVERHEAD` (10%, the owner's target: replace it with the measured
+  share once runs record time outside jobs); `BATCH` stages (the close-up, the finish route's list and recheck) at
+  `google_spend.TIER_PRICE["batch"]` of measured standard-tier calls. Each entry names its `basis` and sources; a
+  stage with no timed job stays unpriced. Every mode writes them (`with_warm`), the other stages byte for byte.
 - **The ledger is never rewritten.** What a row lacks (a kind, a machine type) is added beside it: the reconciliation
   file tags rows by batch, and an engine run's type is read from its price. A fix to the runners goes in
   `tools/props/cloud/`, not here.
