@@ -179,8 +179,11 @@ plan. The pick is the approval; the inventory and then the plan are made from it
 outline from the layer above's plan, its items from its inventory rows (each tied to its row), keep-clear zones,
 standing spots, and for a place holding others the inside places it lays out (`holds`: name, the holder's row it
 stands in, box). His edits on the plan page are his own (store `plans/<place>/`, his process only) and redo what
-follows: the plan stage reads the plan shown (`{home}/design/plans/<place>.json`, `stages.creator_plan`, written on
-his edit and by the sync pass), and an inside place's concept waits for that plan and is sent its shape on it.
+follows: the plan stage reads the plan shown and the inventory it was made from (`{home}/design/plans/<place>.json`,
+`{home}/design/inventory/<place>.json`, `stages.creator_plan`, written on
+his edit and by the sync pass, which makes the plan row again for those that changed), and an inside place's
+concept is drawn only once that plan is made, from the row holding it there (`plans.holder_of`,
+`concepts.step_refusal`).
 
 **The output** of a place is its scene package (`package.py`): `objects/<name>.gltf` per object as baked, and
 `scene.json` (`score.scene` v1: metres, y up, each copy's transform, its inventory row, its model check). The game's

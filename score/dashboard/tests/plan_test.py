@@ -18,6 +18,7 @@ def planned(world, monkeypatch, tmp_path):
     """alpha's concept picked and its inventory read from it, plans reading the fixture's data; alpha's plan."""
     monkeypatch.setattr(plans, "DATA", world.data)
     monkeypatch.setattr(plans, "KEPT", tmp_path / "kept")
+    monkeypatch.setattr(plans, "KEPT_INVENTORY", tmp_path / "kept-inventory")
     (world.data / "plans").mkdir(exist_ok=True)
     (world.data / "plans/alpha.json").write_text(json.dumps({
         "title": "ALPHA", "shell": "kit", "w": 6.0, "d": 4.0, "height": "ceiling 3 m",

@@ -18,8 +18,8 @@ The store keeps his work, written only in the owner's process (`concepts.recorde
 
 The plan shown is his newest edit made on the current pick, else the derived one; the plan stage reads it (`keep`:
 {home}/design/plans/<place>.json, written on his edit and by the sync pass, stages.creator_plan). An inside place's
-concept waits for the layer above's plan (`waits`) and is drawn to its shape there (`shape_sent`, `holder_of`: the
-row and box holding it). His notes go to Gemini 3.1 Pro (`revised`: one direct call, his click its spend yes at
+concept is drawn only once the layer above's plan is made (`made`, concepts.step_refusal), from the row holding it
+there (`holder_of`: the row, its SAM box, its outline); `shape_sent` draws its shape on that plan. His notes go to Gemini 3.1 Pro (`revised`: one direct call, his click its spend yes at
 `revise_euros`, run as its own process like a concept draw):
 
     SCORE_SPEND_TICKET="override <key>" python -m score.review.plans <place> <request.json> <by>
@@ -40,6 +40,7 @@ from score.store import PROPS_HOME, stamp_key
 AREA = "plans"
 DATA = concepts.DATA
 KEPT = PROPS_HOME / "design" / "plans"  # the plan the plan stage reads in place of data/plans (stages.creator_plan)
+KEPT_INVENTORY = PROPS_HOME / "design" / "inventory"  # and the scene inventory it was made from
 SIDES = ("N", "S", "E", "W")
 FACINGS = {0: "N", 90: "E", 180: "S", 270: "W"}
 WALLS_ITEM = "ON THE WALLS AND CEILING"
@@ -160,15 +161,6 @@ def newest_edit(store, place):
     pick = pick_of(store, place)
     found = [record for record in records(store, place, "edits") if pick and record["concept"] == pick]
     return found[-1] if found else None
-
-
-def waits(store, place):
-    """Why `place`'s concept cannot be drawn yet for its plan (owner, 2026-10-21: an inside place is drawn to its
-    shape on the layer above's plan, made once that one is picked and its inventory read), or None."""
-    holder = tree(store)["within"].get(place)
-    if holder and current(store, holder) is None:
-        return f"waits for {holder}'s plan"
-    return None
 
 
 def holder_of(store, place):
@@ -363,8 +355,9 @@ def derived(store, place):
     plan["w"], plan["d"] = outline_from_holder(store, place, plan)
     inventory = inventory_of(store, place)
     items, tied = items_from(plan, inventory)
-    plan["items"] = items + keep_clear(plan)
-    plan["rows"] = tied
+    zones = keep_clear(plan)
+    plan["items"] = items + zones
+    plan["rows"] = {**tied, **{zone[0]: [] for zone in zones}}  # a zone names no rows, and says so
     plan["elements"] = [{"element": row.get("name") or row["id"], "rows": [row["id"]]}
                         for row in inventory.get("rows", [])]
     plan["people"] = plan.get("people") or [[round(plan["w"] / 2, 3), round(plan["d"] / 2, 3)]]
@@ -436,7 +429,7 @@ def checked_plan(plan, base):
     for name in names - set(base.get("rows", {})):
         rows[name] = [str(row) for row in plan.get("rows", {}).get(name, [])]
     found["items"] = checked_items(plan.get("items", []))
-    found["rows"] = {name: tied for name, tied in rows.items() if tied}
+    found["rows"] = rows
     found["doors"] = checked_doors(plan.get("doors", base.get("doors", [])), base.get("doors", []))
     found["people"] = [[number(x, "a standing spot", -BIGGEST), number(y, "a standing spot", -BIGGEST), *rest]
                        for x, y, *rest in plan.get("people", [])]
@@ -467,7 +460,7 @@ def edited(store, place, plan, by, how="edited", calls=None):
         "place": place, "plan": checked_plan(plan, base), "concept": pick_of(store, place), "by": by,
         "at": concepts.now(), "how": how, "calls": calls or []})
     if has_row(place):
-        kept_for_stage(place, record["plan"])
+        kept_for_stage(place, record["plan"], inventory_of(store, place))
     return record
 
 
@@ -487,15 +480,14 @@ def plan_sha(plan):
     return hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest()
 
 
-def kept_for_stage(place, plan):
-    """The plan where the plan stage reads it in place of data/plans/<place>.json (stages.creator_plan), unless it
-    stands there already; its path."""
-    path = KEPT / f"{place}.json"
-    text = json.dumps(plan, indent=1)
-    if not path.is_file() or path.read_text() != text:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
-    return path
+def kept_for_stage(place, plan, inventory):
+    """The plan and the scene inventory it was made from where the plan stage reads them in place of data/plans and
+    data/inventory (stages.creator_plan), each unless it stands there already."""
+    for path, found in ((KEPT / f"{place}.json", plan), (KEPT_INVENTORY / f"{place}.json", inventory)):
+        text = json.dumps(found, indent=1)
+        if not path.is_file() or path.read_text() != text:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
 
 
 def keep(store, places):
@@ -508,10 +500,11 @@ def keep(store, places):
         before = path.read_text() if path.is_file() else None
         shown = current(store, place) if has_row(place) else None
         if shown is not None:
-            kept_for_stage(place, shown["plan"])
+            kept_for_stage(place, shown["plan"], inventory_of(store, place))
             kept.append(place)
         elif path.is_file():
             path.unlink()
+            (KEPT_INVENTORY / f"{place}.json").unlink(missing_ok=True)
         if (path.read_text() if path.is_file() else None) != before:
             changed.append(place)
     return kept, changed

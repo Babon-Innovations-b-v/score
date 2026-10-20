@@ -110,8 +110,9 @@ stage as each stage is built; nothing moves before.
   `reading.row_boxes(store, place, row)` is the one read of a row's instance boxes in pixels of the picked concept.
   `plans.py` is the plan review's (CONTEXT.md): a place's plan made free from its pick, inventory and the layer
   above's plan, his edits and named inside places kept under `plans/` (his process only), a Correct with notes one
-  direct Gemini call inside his click's yes (`web.plan_revise`), `waits`, `shape_sent` and `holder_of` for an inside
-  place's draw, `keep` the plans where the plan stage reads them (`stages.creator_plan`).
+  direct Gemini call inside his click's yes (`web.plan_revise`), `made` and `holder_of` (the row and SAM box holding an
+  inside place) for `concepts.step_refusal`, `shape_sent` an inside place's shape on it, `keep` the plans where the
+  plan stage reads them (`stages.creator_plan`) and the plan row made again for those that changed.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),

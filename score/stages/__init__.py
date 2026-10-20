@@ -136,14 +136,18 @@ def kit_if_laid(files):
 
 
 def creator_plan(files):
-    """The plan row's files with the creator's approved plan (his plan page's Approve, score/review/plans.py, kept
-    under {home}/design/plans) as its `plan` where he made one. Wrapped here, in the table, so a place without one
-    keeps its key and the plan's code version moves for none."""
+    """The plan row's files with the place's plan made from its pick (score/review/plans.py, kept under
+    {home}/design/plans: his edit, else made from the pick's scene inventory) as its `plan`, and that inventory
+    (under {home}/design/inventory) as its `inventory`, where they are kept. Wrapped here, in the table, so a place
+    without one keeps its key and the plan's code version moves for none."""
     @functools.wraps(files)
     def declared(place):
-        found = files(place)
-        kept = PROPS_HOME / "design" / "plans" / f"{place}.json"
-        return {**found, "plan": "{home}/design/plans/{place}.json"} if kept.is_file() else found
+        found, kept = files(place), PROPS_HOME / "design"
+        if (kept / "plans" / f"{place}.json").is_file():
+            found = {**found, "plan": "{home}/design/plans/{place}.json"}
+        if (kept / "inventory" / f"{place}.json").is_file():
+            found = {**found, "inventory": "{home}/design/inventory/{place}.json"}
+        return found
     return declared
 
 
