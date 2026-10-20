@@ -9,11 +9,12 @@ fine patch (its own box grown by outside.NEAR_MARGIN, the ground the place draws
 the area: its middle and size in the place's frame (through the place's copied ground record, tools/usd/ground.py),
 its relief, and the close-up's words from the plan's own description and the concept's ground elements (the plan's
 `elements` whose drop sends them to the made ground). The registered rough model (the concept made whole, in the
-place's metres) is read over each area: the share of its footprint the rough model covers and the relief the rough
-model shows there (`rough`), which the close-up's words carry. The plan says where and how big, the concept and its
-rough model what is there, as an outside shell's split takes its rooms from its concept and its outline from its plan
-drawn to its rough model (shell_split). Areas are landed only from a registered rough model: the loop splits a place's
-parts once its rough model stands in its plan.
+place's metres) is read over each area: the share of its footprint the rough model covers and the relief its ground
+side shows there (its lowest point a square metre, so a hull over the area is no relief; `rough`), which the
+close-up's words carry. The plan says where and how big, the concept and its rough model what is there, as an
+outside shell's split takes its rooms from its concept and its outline from its plan drawn to its rough model
+(shell_split). Areas are landed only from a registered rough model: the loop splits a place's parts once its rough
+model stands in its plan.
 
     found = areas.detail_areas(place, data, rough)   # [{id, kind, landform, words, plan_at, at, size, rough}]
     rough = areas.rough_points(<rough-align output>) # the aligned rough model's points in the place's frame
@@ -43,6 +44,9 @@ FOOT_SHARE = 0.05
 # A crater's footprint is its bowl and rim: where landforms.crater_profile erases what lay there.
 # The words a plan's dropped concept element names when the made ground draws it.
 GROUND_WORDS = re.compile(r"made ground|ground step|terrain")
+# The rough model's ground side is read as its lowest point in each square this many metres across: the rough model
+# is the whole place, so a hull standing over an area would otherwise read as the area's relief.
+GROUND_CELL = 1.0
 
 
 def read(path):
@@ -145,12 +149,24 @@ def within(points, low, high):
     return np.all((points[:, [0, 2]] >= low) & (points[:, [0, 2]] <= high), axis=1)
 
 
+def ground_side(points):
+    """The rough model's ground side over some of its points: the lowest height in each GROUND_CELL-metre square
+    across and along, so a hull or wall standing there reads as the ground under it, not as relief."""
+    cells = np.floor(points[:, [0, 2]] / GROUND_CELL).astype(np.int64)
+    _, cell_of = np.unique(cells, axis=0, return_inverse=True)
+    lowest = np.full(int(cell_of.max()) + 1, np.inf)
+    np.minimum.at(lowest, cell_of.reshape(-1), points[:, 1])
+    return lowest
+
+
 def rough_reading(points, rough):
     """The registered rough model over an area's footprint points (place frame): the share of them inside its
-    footprint, and the relief its points show over the area's box (None where it has none there)."""
+    footprint, and the relief its ground side shows over the area's box (ground_side; None where it has no point
+    there)."""
     covered = within(points, rough[:, [0, 2]].min(axis=0), rough[:, [0, 2]].max(axis=0))
-    over = rough[within(rough, points[:, [0, 2]].min(axis=0), points[:, [0, 2]].max(axis=0)), 1]
-    return {"share": round(float(covered.mean()), 3), "relief": round(float(np.ptp(over)), 2) if len(over) else None}
+    over = rough[within(rough, points[:, [0, 2]].min(axis=0), points[:, [0, 2]].max(axis=0))]
+    return {"share": round(float(covered.mean()), 3),
+            "relief": round(float(np.ptp(ground_side(over))), 2) if len(over) else None}
 
 
 def area_words(words, size, concept, reading):

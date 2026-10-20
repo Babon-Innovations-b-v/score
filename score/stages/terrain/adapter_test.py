@@ -13,14 +13,17 @@ import tempfile
 import numpy as np
 import pytest
 import trimesh
-from pxr import Usd, UsdGeom
+from pxr import Usd, UsdGeom, UsdShade
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "tools/usd"))
 
 from score import checks  # noqa: E402
+from score.stages.surfaces import route_settings  # noqa: E402
 from score.stages.terrain import areas, gates, join, needs, outside, sight  # noqa: E402
 import score.stages.shapes_first.align as align  # noqa: E402
+import export_test  # noqa: E402
 
 
 def test_the_wreck_s_areas_are_its_plan_s_craters_in_its_patch():
@@ -46,13 +49,12 @@ def test_areas_land_as_prop_route_rows_and_until_then_are_missing_holes():
     assert holes[0]["work"] == "prop data for wreck: data/props/wreck.json" and holes[0]["node"] is None, holes[0]
 
 
-def registered(root, low, high, floor):
-    """A rough-align output of a box rough model (corners low, high) registered onto a plan's floor."""
+def registered(root, rough_model, floor):
+    """A rough-align output of a rough model (a trimesh) registered onto a plan's floor."""
     rough, plan, out = root / "rough", root / "plan", root / "aligned"
     for folder in (rough, plan, out):
         folder.mkdir()
-    box = trimesh.creation.box(bounds=[low, high])
-    box.export(rough / "rough.glb")
+    rough_model.export(rough / "rough.glb")
     (rough / "rough.json").write_text(json.dumps({"take": "wreck-rough-0"}))
     (plan / "plan.json").write_text(json.dumps({"place": "wreck", "floor": floor, "floor_height": 0.0,
                                                 "walls": {"high": None}}))
@@ -60,16 +62,34 @@ def registered(root, low, high, floor):
     return out
 
 
+def bowl(half=4.0, steps=17, depth=0.1):
+    """A crater-like ground: a grid from -half to half across and along, its height depth times the square of the
+    distance from its middle."""
+    axis = np.linspace(-half, half, steps)
+    grid_x, grid_z = np.meshgrid(axis, axis)
+    points = np.column_stack([grid_x.reshape(-1), depth * (grid_x ** 2 + grid_z ** 2).reshape(-1), grid_z.reshape(-1)])
+    corner = (np.arange(steps - 1)[:, None] * steps + np.arange(steps - 1)[None, :]).reshape(-1)
+    triangles = np.concatenate([np.column_stack([corner, corner + steps, corner + 1]),
+                                np.column_stack([corner + 1, corner + steps, corner + steps + 1])])
+    return trimesh.Trimesh(points, triangles, process=False)
+
+
+def nearest_reading(root, rough_model):
+    """The nearest wreck area's reading over a rough model registered over that area, and the areas read over it."""
+    nearest = areas.detail_areas("wreck", REPO / "data")[0]
+    middle, half = np.array(nearest["at"])[[0, 2]], np.array(nearest["size"][:2]) / 2
+    floor = [list(middle - half), list(middle + half)]  # the rough model registered over the nearest area
+    rough = areas.rough_points(registered(root, rough_model, floor))
+    found = {area["id"]: area for area in areas.detail_areas("wreck", REPO / "data", rough)}
+    return nearest, middle, rough, found
+
+
 def test_areas_are_read_over_the_registered_rough_model():
     root = pathlib.Path(tempfile.mkdtemp())
     try:
-        nearest = areas.detail_areas("wreck", REPO / "data")[0]
-        middle, half = np.array(nearest["at"])[[0, 2]], np.array(nearest["size"][:2]) / 2
-        floor = [list(middle - half), list(middle + half)]  # the rough model registered over the nearest area
-        rough = areas.rough_points(registered(root, (0.0, 0.0, 0.0), (2.0, 0.5, 2.0), floor))
+        nearest, middle, rough, found = nearest_reading(root, bowl())
         span = rough[:, [0, 2]].min(axis=0), rough[:, [0, 2]].max(axis=0)  # in the place's frame, by its matrix
-        assert np.allclose((span[0] + span[1]) / 2, middle, atol=1e-3) and np.ptp(rough[:, 1]) > 1.0
-        found = {area["id"]: area for area in areas.detail_areas("wreck", REPO / "data", rough)}
+        assert np.allclose((span[0] + span[1]) / 2, middle, atol=1e-3)
         reading = found[nearest["id"]]["rough"]
         assert reading["share"] > 0.9 and reading["relief"] > 0, reading
         assert "the concept's rough model shows" in found[nearest["id"]]["words"]
@@ -77,6 +97,18 @@ def test_areas_are_read_over_the_registered_rough_model():
         assert "rough model" not in found["ground_crater_e"]["words"]
         row = areas.inventory_rows("wreck", [found[nearest["id"]]])[0]
         assert row["area"]["rough"] == reading
+    finally:
+        shutil.rmtree(root)
+
+
+def test_a_hull_standing_over_an_area_is_no_relief():
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        tall = trimesh.creation.box(bounds=[(0.0, 0.0, 0.0), (2.0, 5.0, 2.0)])  # a hull on flat ground
+        nearest, _, rough, found = nearest_reading(root, tall)
+        reading = found[nearest["id"]]["rough"]
+        assert np.ptp(rough[:, 1]) > 1.0 and reading["share"] > 0.9, (np.ptp(rough[:, 1]), reading)
+        assert reading["relief"] < 0.01 * np.ptp(rough[:, 1]), reading  # its ground side, not its height
     finally:
         shutil.rmtree(root)
 
@@ -167,6 +199,67 @@ def test_with_no_piece_made_the_code_ground_stays_named_and_a_seam_gap_fails():
     finally:
         shutil.rmtree(root)
 
+
+
+def made_piece(root, row_id, settings):
+    """The loop's ends for one terrain row it made: a baked crater (export_test.box_gltf of a bowl) under
+    <bake>/made with its baked.json, the paint's labelled parts (one part painted as its settings variant), the
+    surfaces-parts row of that finish, the split's row and its likeness record."""
+    folders = {name: root / name for name in ("surfaces-bake", "surfaces-paint", "surfaces-parts", "props-inputs",
+                                              "likeness")}
+    take = f"{row_id}-g1"
+    (folders["surfaces-bake"] / "made").mkdir(parents=True)
+    crater = bowl()
+    export_test.box_gltf(folders["surfaces-bake"] / "made", row_id, crater)
+    (folders["surfaces-bake"] / "baked.json").write_text(json.dumps({row_id: {
+        "parts": take, "base": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        "size": np.ptp(crater.vertices, axis=0).tolist()}}))
+    labelled = folders["surfaces-paint"] / "labelled" / take
+    labelled.mkdir(parents=True)
+    crater.export(labelled / f"{route_settings.settings_name('regolith', settings)}.ply")
+    folders["surfaces-parts"].mkdir()
+    (folders["surfaces-parts"] / "parts.json").write_text(json.dumps({"takes": {take: {"parts": [
+        {"part": 0, "surface": "regolith", "settings": settings}]}}}))
+    folders["props-inputs"].mkdir()
+    (folders["props-inputs"] / "rows.json").write_text(json.dumps({"rows": [
+        {"id": row_id, "take": take, "layer": "terrain"}]}))
+    folders["likeness"].mkdir()
+    (folders["likeness"] / "likeness.json").write_text(json.dumps({"objects": {row_id: {"route": "prop"}}}))
+    return folders
+
+
+def test_a_piece_the_loop_made_is_joined_with_the_finish_route_s_own_finish():
+    root = pathlib.Path(tempfile.mkdtemp())
+    try:
+        terrain, out = root / "terrain", root / "out"
+        flat_ground(terrain, "yard")
+        out.mkdir()
+        settings = {"token": "grey-500", "roughness": 0.8, "metal": 0.0, "seed": 7, "wear": 0.3}
+        variant = route_settings.settings_name("regolith", settings)
+        inventory = root / "yard.json"
+        inventory.write_text(json.dumps({"place": "yard", "rows": [
+            {"id": "ground_crater_a", "size": [8.0, 8.0, 1.6], "at": [{"x": 2.0, "y": 0.0, "z": -3.0}],
+             "area": {"landform": "crater A"}}]}))
+        ends = made_piece(root, "ground_crater_a", settings)
+        join.make({"inventory": inventory, "terrain": terrain, **ends}, out, 0, {})
+        joined = json.loads((out / join.JOIN).read_text())
+        piece = joined["pieces"]["ground_crater_a"]
+        assert joined["code ground"] == {} and piece["cut faces"] > 0 and piece["finishes"] == [variant], joined
+        assert variant.endswith("_s7_w030"), variant  # the finish's own seed and wear
+        stage = Usd.Stage.Open(str(out / "moon/places/yard.usdc"))
+        mesh = stage.GetPrimAtPath("/yard/Outside/Detail/ground_crater_a/geo")
+        subset = UsdGeom.Subset.GetAllGeomSubsets(UsdGeom.Mesh(mesh))[0]
+        look = UsdShade.MaterialBindingAPI(subset.GetPrim()).GetDirectBinding().GetMaterial()
+        assert look.GetPrim().GetAttribute("score:surface").Get() == variant
+        files = [shader.GetInput("file").Get().path for shader in
+                 (UsdShade.Shader(prim) for prim in look.GetPrim().GetChildren())
+                 if shader.GetInput("file")]
+        assert files and all(path.startswith("./textures/ground_crater_a_") for path in files), files  # its bake's
+        assert all((out / "moon/places" / path).exists() for path in files)
+        verdict = join.judge_seam(out, {}, {})
+        assert verdict.answer == checks.PASS and verdict.measures["joined"] == 1, verdict
+    finally:
+        shutil.rmtree(root)
 
 if __name__ == "__main__":
     import runpy

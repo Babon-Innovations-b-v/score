@@ -24,8 +24,9 @@ seated place's own stage standing on it. `__init__.py`'s and `fit.py`'s docstrin
   counts them round the floor, `align.ROUND`, not on it); until landed each is a `missing` hole of the prop route
   (`needs.py`), priced through the pipeline's own units. Its one after-step, `join.py`'s `ground-join@<place>` (free,
   only where the place handed terrain rows), takes each row's model from the loop (`made.made`), cuts the code ground
-  under each made piece, seats its rim into it, gives each face its library surface and the mesh itself as collider,
-  gated on `seam`; the assembly takes its layer in place of terrain's (`stages.joined_ground`), and ground-fit judges
+  under each made piece, seats its rim into it, draws it as the object layer's assets are (a subset a library
+  surface, bound to the baked model's own maps: the finish route's settings, seed and wear) with the mesh itself as
+  collider, gated on `seam`; the assembly takes its layer in place of terrain's (`stages.joined_ground`), and ground-fit judges
   the whole. A row the loop made no piece of (its gap, or the code route on a named pipeline failure) leaves the code
   ground there, named with the loop's why. Never add another way of making ground (a picture
   model, a depth reading, a height field from anything but the plan's code): the plan's code shape here is the named

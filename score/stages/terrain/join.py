@@ -10,11 +10,15 @@ handed it, areas.py; close-up, Pixal3D, the finish route, the bake), joined into
                        out, so the ring left under its rim overlaps it and no gap opens at the seam
              seat      the piece (its baked mesh, in metres, foot on its origin) stood at its row's middle, let down
                        until its rim (its points past RIM_SHARE of its half size) lies nowhere over the code ground
-             finish    each face its library surface from its paint's labelled parts (export.face_surfaces), bound to
-                       that surface's look in its design token's colour (outside.look, as the ground's own zones)
+             finish    the finish route's own, as the object layer's (export.write_asset): each face its library
+                       surface from the paint's labelled parts (export.face_surfaces), a subset each bound to a
+                       material drawn with the baked model's maps (export.part_subsets), which carry the route's
+                       settings, per-finish seed and wear; nothing coloured again here
              collide   the piece's own mesh its collider (UsdPhysics, no convex hull: a crater is walked inside)
-             under /<place>/Outside/Detail/<row>, its row and kind written (score:row, score:kind ground);
-             join.json: each piece's lift and cut faces, and each row left to the code ground with why
+             under /<place>/Outside/Detail/<row>/geo, its row and kind written (score:row, score:kind ground), its
+             maps beside the layer (textures/);
+             join.json: each piece's lift, cut faces and finishes (the loop's surfaces-parts rows, each its
+             settings variant, route_settings.settings_name), and each row left to the code ground with why
     gate     seam   a ray straight down at every SEAM_STEP metres round each piece's seam ring (between its cut and
                     its box) finds a surface: the joined ground has no gap there; it names the rows left to the code
                     ground (measured, never a fault: the fallback is named, the line goes on)
@@ -28,10 +32,11 @@ import shutil
 import sys
 
 import numpy as np
-from pxr import Sdf, Usd, UsdGeom, UsdPhysics, UsdShade, Vt
+from pxr import Sdf, Usd, UsdGeom, UsdPhysics, Vt
 
 from score import checks, contracts
-from score.stages.terrain import gates, outside, record, sight
+from score.stages.surfaces import route_settings
+from score.stages.terrain import gates, sight
 import score.stages.shapes_first.made as made
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -49,9 +54,8 @@ LAYER = "terrain"  # areas.LAYER: the rows this after-step joins
 
 
 def files(place):
-    """The place's inventory (its detail area rows), and the library and design tokens the looks are coloured from."""
-    return {"inventory": "{data}/inventory/" + f"{place}.json", "library": "{data}/library/materials.json",
-            "tokens": "{data}/../design/tokens/tokens.json"}
+    """The place's inventory (its detail area rows)."""
+    return {"inventory": "{data}/inventory/" + f"{place}.json"}
 
 
 def place_layer(terrain, place, out):
@@ -101,16 +105,16 @@ def export_tools():
     return export, baked
 
 
-def piece_geometry(model, paint):
-    """A baked piece's mesh (export.model_geometry, metres, foot on its origin; `model` the loop's baked .gltf) and
-    each face's library surface from its paint's labelled parts."""
+def piece_geometry(model, bake, paint):
+    """A baked piece's mesh (export.model_geometry, metres, foot on its origin; `model` the loop's baked .gltf in the
+    bake folder `bake`), each face's library surface from its paint's labelled parts, and its baked maps."""
     export, baked = export_tools()
     model = pathlib.Path(model)
-    entry = json.loads((model.parent.parent / "baked.json").read_text())[model.stem]
+    entry = json.loads((bake / "baked.json").read_text())[model.stem]
     geometry = export.model_geometry(model)
-    labelled, turn, size = baked.laid_parts(model.parent, model.stem, paint / "labelled" / entry["parts"], entry)
+    labelled, turn, size = baked.laid_parts(bake / "made", model.stem, paint / "labelled" / entry["parts"], entry)
     points, names = export.part_points(labelled, turn, size)
-    return geometry, export.face_surfaces(geometry, points, names)
+    return geometry, export.face_surfaces(geometry, points, names), export.model_maps(model)
 
 
 def rim(positions, half):
@@ -131,26 +135,28 @@ def seated(positions, middle, half, rays):
     return placed + [0.0, lift, 0.0], lift
 
 
-def write_piece(stage, place, row_id, points, triangles, surfaces, looks):
-    """The piece's mesh under /<place>/Outside/Detail/<row>: a subset a library surface bound to its look, its own
-    mesh its collider."""
-    mesh = outside.write_mesh(stage, f"/{place}/Outside/Detail/{row_id}", points, triangles, "ground")
-    mesh.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(row_id)
-    for surface in sorted(set(surfaces)):
-        subset = UsdGeom.Subset.Define(stage, f"{mesh.GetPath()}/{surface}")
-        subset.CreateElementTypeAttr(UsdGeom.Tokens.face)
-        subset.CreateFamilyNameAttr(UsdShade.Tokens.materialBind)
-        subset.CreateIndicesAttr(Vt.IntArray.FromNumpy(np.nonzero(surfaces == surface)[0].astype(np.int32)))
-        UsdShade.MaterialBindingAPI.Apply(subset.GetPrim()).Bind(looks[surface])
+def write_piece(stage, row_id, path, geometry, surfaces, maps):
+    """The piece under `path` (its mesh `geo`) drawn as the object layer's assets are (export.render_mesh and
+    part_subsets: a subset a library surface, bound to a material of the baked maps `maps`, written beside the layer),
+    its own mesh its collider."""
+    export, _ = export_tools()
+    textures = pathlib.Path(stage.GetRootLayer().realPath).parent / "textures"
+    UsdGeom.Xform.Define(stage, path)
+    mesh = export.render_mesh(stage, f"{path}/geo", geometry)
+    for name, value in (("score:row", row_id), ("score:kind", "ground")):
+        mesh.GetPrim().CreateAttribute(name, Sdf.ValueTypeNames.String).Set(value)
+    export.part_subsets(stage, mesh, surfaces, [export.png_maps(pictures, textures) for pictures in maps],
+                        export.library.variants(export.library.theme_library()),
+                        json.loads(export.SOUNDS.read_text()), geometry["maps"])
     UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
     UsdPhysics.MeshCollisionAPI.Apply(mesh.GetPrim()).CreateApproximationAttr(UsdPhysics.Tokens.none)
 
 
-def piece_looks(stage, place, surfaces, inputs):
-    """{surface: its look under /<place>/Outside/Looks}, the ground's own where it has one."""
-    colours = record.surface_colours(sorted(surfaces), inputs["library"], inputs["tokens"])
-    return {surface: outside.look(stage, f"/{place}/Outside/Looks/{surface}", surface, colour)
-            for surface, colour in colours.items()}
+def finish_names(finishes):
+    """The loop's finishes of a piece (its surfaces-parts rows), each as the bake paints it: its settings variant's
+    name (route_settings.settings_name), or its surface's where the route kept no settings."""
+    return sorted({route_settings.settings_name(row["surface"], row["settings"]) if row.get("settings")
+                   else row["surface"] for row in finishes if row.get("surface")})
 
 
 def left_why(result):
@@ -163,13 +169,13 @@ def left_why(result):
 
 
 def made_pieces(inputs, inventory):
-    """({row: why it is left to the code ground}, [(inventory row, its baked model)]) of the terrain rows the place
-    handed the loop (made.made)."""
+    """({row: why it is left to the code ground}, [(inventory row, its baked model, its finishes)]) of the terrain rows
+    the place handed the loop (made.made)."""
     rows = {row["id"]: row for row in inventory["rows"]}
     left, pieces = {}, []
     for row_id, result in made.made(inputs, LAYER).items():
         if result.get("route") == "prop" and pathlib.Path(result["model"]).exists():
-            pieces.append((rows[row_id], result["model"]))
+            pieces.append((rows[row_id], result["model"], result["finishes"]))
         else:
             left[row_id] = left_why(result)
     return left, pieces
@@ -184,18 +190,17 @@ def make(inputs, out, seed, params):
     left, pieces = made_pieces(inputs, inventory)
     rays = gates.caster(sight.gathered(stage))
     found = {}
-    shaped = {row["id"]: piece_geometry(model, pathlib.Path(inputs["surfaces-paint"])) for row, model in pieces}
-    looks = piece_looks(stage, place, {surface for _, surfaces in shaped.values() for surface in surfaces}, inputs) \
-        if pieces else {}
-    for row, _ in pieces:
-        geometry, surfaces = shaped[row["id"]]
+    for row, model, finishes in pieces:
+        geometry, surfaces, maps = piece_geometry(model, pathlib.Path(inputs["surfaces-bake"]),
+                                                  pathlib.Path(inputs["surfaces-paint"]))
         half = np.array([row["size"][0], row["size"][1]]) / 2  # the row's across and along (areas.inventory_rows)
         middle = np.array([row["at"][0]["x"], row["at"][0]["z"]])
         points, lift = seated(np.asarray(geometry["positions"], dtype=float), middle, half, rays)
         cut = sum(cut_mesh(mesh, middle, half) for mesh in ground_meshes(stage, place))
-        write_piece(stage, place, row["id"], points, np.asarray(geometry["triangles"]), surfaces, looks)
+        write_piece(stage, row["id"], f"/{place}/Outside/Detail/{row['id']}", {**geometry, "positions": points},
+                    surfaces, maps)
         found[row["id"]] = {"lift": round(lift, 3), "cut faces": cut, "middle": middle.tolist(),
-                            "half": half.round(3).tolist()}
+                            "half": half.round(3).tolist(), "finishes": finish_names(finishes)}
     stage.GetRootLayer().Save()
     (out / JOIN).write_text(json.dumps({"place": place, "pieces": found, "code ground": left}, indent=1))
 
