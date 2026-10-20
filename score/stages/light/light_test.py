@@ -231,7 +231,32 @@ def check_kit_lamps():
     assert len(layer.lights_of("launch", record)) == len(record["lights"]) + len(added)
 
 
+def check_needs():
+    """An outdoor place no ground seats lacks its seat and its sky; seated on a body with only indoor air it lacks
+    the sky and the prop-pipeline ground; a record with no view lacks its views; a room under a roof needs neither."""
+    import shutil
+    import tempfile
+    from score.stages.light import needs
+    from score.stages.terrain import needs as ground_needs
+    data = pathlib.Path(tempfile.mkdtemp())
+    for folder in ("scene", "plans", "ground/plan", "definitions"):
+        (data / folder).mkdir(parents=True)
+    (data / "definitions/sky.json").write_text(json.dumps({"rock": {"indoor": {}}}))
+    (data / "plans/yard.json").write_text(json.dumps({"shell": "outdoor"}))
+    (data / "scene/room.json").write_text(json.dumps({"environment": {"inside": True}, "views": []}))
+
+    def ids(place):
+        return sorted(hole["id"] for hole in needs.holes(place, data) + ground_needs.holes(place, data))
+    assert ids("yard") == ["ground:seat:yard", "sky:body:yard"], ids("yard")
+    (data / "ground/plan/rock.json").write_text(json.dumps({"ground": "rock", "seats": {"yard": {}}}))
+    assert ids("yard") == ["ground:adapter:yard", "sky:body:rock"], ids("yard")
+    assert ids("room") == ["light:views:room"], ids("room")
+    assert ids("nowhere") == []
+    shutil.rmtree(data)
+
+
 def main():
+    check_needs()
     check_sweep()
     check_layer()
     check_copy_leaves_its_input()
