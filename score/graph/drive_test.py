@@ -290,6 +290,9 @@ def test_a_line_run_for_one_stage_runs_it_and_what_it_reads_alone():
     found = runner.drive(["hangar"], say=quiet, whole=False, only=["build"])
     assert set(found) == {"ground", "build@hangar"}, found
     assert set(runner.lines(["hangar"], whole=False, only=["build"])["hangar"][1]) == {"build@hangar"}
+    places = sorted(PLACES)
+    named = runner.line_nodes(places, whole=False, only=[f"build@{places[0]}"])  # one node by its name
+    assert {graph.node_name(*node) for node in named} == {"ground", f"build@{places[0]}"}, named
 
 
 def failing_with(code, times):
