@@ -425,5 +425,10 @@
    "element": "people",
    "drop": "the crew are the characters stage's (#100), not rows"
   }
+ ],
+ "sections": [
+  {"name": "tread plates under the lift", "surface": "floor", "rows": ["machine_bay_plate"]},
+  {"name": "floor deck plates, oil stains", "surface": "floor", "rows": ["ring_floor_plate"]},
+  {"name": "wall panels, posts and the curved rim", "surface": "walls", "rows": ["wall_lower_plain", "wall_upper_plain", "wall_skirting", "wall_cornice", "wall_corner_post", "roof_face_panel"]}
  ]
 }

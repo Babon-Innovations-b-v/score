@@ -398,5 +398,12 @@
    "element": "a person at the work table",
    "drop": "a person, not a prop (the cast stage's)"
   }
+ ],
+ "sections": [
+  {"name": "yellow bridge crane across the hall", "surface": "ceiling", "rows": ["lattice_ring_rib"]},
+  {"name": "the ship standing on four legs on a ringed pad", "surface": "floor", "rows": ["machine_bay_plate"]},
+  {"name": "wall panels, posts, the riveted bands", "surface": "walls", "rows": ["wall_lower_plain", "wall_upper_plain", "wall_corner_post", "wall_skirting", "wall_cornice"]},
+  {"name": "floor plates", "surface": "floor", "rows": ["ring_floor_plate"]},
+  {"name": "the flat roof's lining round the opening", "surface": "ceiling", "rows": ["roof_face_panel"]}
  ]
 }

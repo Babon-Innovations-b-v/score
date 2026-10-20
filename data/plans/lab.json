@@ -273,5 +273,9 @@
    "element": "two scientists at the benches",
    "drop": "the crew are the characters stage's (#100), not rows"
   }
+ ],
+ "sections": [
+  {"name": "bolted wall panels with pipe and cable runs, the curved rim", "surface": "walls", "rows": ["wall_lower_plain", "wall_upper_plain", "wall_upper_pipes", "wall_upper_cables", "wall_skirting", "wall_cornice", "roof_face_panel"]},
+  {"name": "bolted deck plates", "surface": "floor", "rows": ["ring_floor_plate"]}
  ]
 }

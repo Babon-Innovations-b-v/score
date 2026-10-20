@@ -357,5 +357,10 @@
    "element": "insulation in the cut-away wall section",
    "drop": "the concept's cut-away view only, not seen from inside"
   }
+ ],
+ "sections": [
+  {"name": "bolted wall panels, skirting and cornice", "surface": "walls", "rows": ["wall_lower_plain", "wall_upper_plain", "wall_skirting", "wall_cornice"]},
+  {"name": "deck plates on the floor", "surface": "floor", "rows": ["ring_floor_plate"]},
+  {"name": "dome lining plates", "surface": "ceiling", "rows": ["roof_face_panel"]}
  ]
 }
