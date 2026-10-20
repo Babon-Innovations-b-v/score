@@ -195,9 +195,9 @@ def test_the_report_prints_one_line_and_writes_its_table():
 
 def test_a_batch_leaves_out_cards_the_limits_cannot_hold():
     found = [offer(L4, 1, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-b")]
-    kept = batch.affordable(found, minutes=180, cards=20, spent=0)
+    kept = batch.affordable(found, minutes=180, cards=20)
     assert [item.machine_class for item in kept] == ["gpu-24gb"]
-    assert batch.affordable(found, minutes=30, cards=2, spent=0) == found
+    assert batch.affordable(found, minutes=30, cards=2) == found
 
 
 # Two batch processes of one `score run`: each rents fake machines as fast as next_offer gives offers and lets some go,

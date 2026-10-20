@@ -1,9 +1,9 @@
 """What cloud batches have cost, and whether the next one fits the owner's limits.
 
 The owner's limits (2026-09-29): a batch runs at most four hours and spends at most €60 (raised
-from €50 for the worldfill batches), and the month at most MONTH_EUROS (€3,000 by default since 2026-10-11, the
-owner's monthly cloud credits). The
-provider's own bill lags by hours, so the month's spend is whichever is higher, its bill or this ledger's sum. A batch that would pass any limit is refused before it starts.
+from €50 for the worldfill batches); there is no month's ceiling (owner, 2026-10-20). The provider's own bill lags by
+hours, so the month's spend is whichever is higher, its bill or this ledger's sum. A batch that would pass any limit is
+refused before it starts.
 """
 import datetime
 import json
@@ -17,9 +17,6 @@ from paths import HOME
 LEDGER = HOME / "cloud" / "ledger.jsonl"
 BATCH_HOURS = 4
 BATCH_EUROS = 60.0
-# The month's ceiling (owner, 2026-10-08: the cloud credits cover about €3,000 a month): SCORE_MONTH_EUROS, else
-# €3,000 (owner, 2026-10-11). Checked before every machine is rented (batch.rent); a run stops rather than pass it.
-MONTH_EUROS = float(os.environ.get("SCORE_MONTH_EUROS", "3000"))
 # The kind of the line written before each machine is ordered (rent_started, from the backend's create under
 # batch.rent); its run's own row comes at the end.
 RENT_STARTED = "rent-started"
@@ -158,7 +155,7 @@ def open_books_for_tests(folder):
 
 def euro_figure(value):
     """`value` as euros when it is a finite figure of at least 0, else None (NaN passes every comparison: a NaN
-    Google month made the month's ceiling never refuse)."""
+    Google month made the month's books read as nothing)."""
     try:
         euros = float(value)
     except (TypeError, ValueError):
@@ -275,13 +272,13 @@ def machines_record(machines, attempts, started):
             "euros": sum(row["euros"] for row in rows + list(attempts))}
 
 
-def minutes_allowed(euros_per_minute, spent_this_month):
-    """The most minutes a batch may run: the time limit, the batch cap and the month's remainder."""
-    by_money = min(BATCH_EUROS, MONTH_EUROS - spent_this_month) / euros_per_minute
+def minutes_allowed(euros_per_minute):
+    """The most minutes a batch may run: the time limit and the batch cap."""
+    by_money = BATCH_EUROS / euros_per_minute
     return max(0.0, min(BATCH_HOURS * 60.0, by_money))
 
 
-def refusal(estimated_minutes, euros_per_minute, spent_this_month):
+def refusal(estimated_minutes, euros_per_minute):
     """Why a batch estimated at `estimated_minutes` may not start, or None when it may."""
     if estimated_minutes > BATCH_HOURS * 60:
         return (f"the batch would take about {estimated_minutes:.0f} min, over the "
@@ -289,7 +286,4 @@ def refusal(estimated_minutes, euros_per_minute, spent_this_month):
     euros = cost(estimated_minutes, euros_per_minute)
     if euros > BATCH_EUROS:
         return f"the batch would cost about €{euros:.2f}, over the €{BATCH_EUROS:.0f} cap"
-    if spent_this_month + euros > MONTH_EUROS:
-        return (f"€{spent_this_month:.2f} spent this month; €{euros:.2f} more would pass "
-                f"the €{MONTH_EUROS:.0f} month cap")
     return None

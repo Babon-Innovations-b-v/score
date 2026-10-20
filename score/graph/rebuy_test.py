@@ -20,7 +20,7 @@ from score.graph import _code, rebuy  # noqa: E402
 from score.store import Store  # noqa: E402
 
 TEXT = contracts.Contract("toy-text", 1, lambda folder: [])
-compute.month_refusal = lambda euros, reserved=0.0: None  # the month's ceiling is compute_test's; not this one's
+compute.books_refusal = lambda: None  # the month's books are compute_test's; not this one's
 _code.git_commit = lambda: {"commit": "c0ffee", "uncommitted": False}  # the records' commit, for same_requests
 
 

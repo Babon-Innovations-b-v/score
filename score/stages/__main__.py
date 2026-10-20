@@ -6,7 +6,7 @@
     .venv/bin/python -m score.stages why <node>                     # its records back through what it read
 
 Terrain spends (its pictures and their depth in the cloud). A paid stage runs once the runner clears it (its inputs
-passed, the month's ceiling has room for its estimate: score.adapters.compute); no one is asked. Passing outputs that
+passed, its stop has room for its forecast: score.adapters.compute); no one is asked. Passing outputs that
 got no worse are accepted by the runner; the owner rejects any from his terminal (score.review reject).
 """
 import argparse

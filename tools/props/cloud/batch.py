@@ -38,7 +38,7 @@ default.
 
 Nothing is rented outside a run the runner cleared or the owner's override names (score.adapters.compute,
 `require_cleared`). Before anything is rented, the prices are read from the cloud backend (provider.py) and
-printed, and a batch that would pass four hours, €60, or the month's ceiling (ledger.MONTH_EUROS) is refused
+printed, and a batch that would pass four hours or €60 is refused
 (ledger.py). Every machine is deleted whatever happens: when its work is done, on an error, on Ctrl-C, by a watchdog
 process at the time limit if this one is gone, and by the next run's sweep.
 """
@@ -397,7 +397,7 @@ def claim(run, account, offers, number, kind=None, disk_gb=DISK_GB, wanted=None)
     one, or when a machine it rented was billed and did not answer (BootFailed: the slot is a hole, nothing is
     rented in its place). A round that finds no stock anywhere is tried again every STOCK_RETRY_MINUTES with the
     backend's offers read afresh, across every class the offers named and every zone, for as long as `still_wanted`
-    (the run's deadline, the month's ceiling and the caller's `wanted`) says: a slot never gives up on its first
+    (the run's deadline and the caller's `wanted`) says: a slot never gives up on its first
     round (six of seven spread slots did on 2026-10-09 and one L4 did all the work). While it waits the claim is on
     its kind's queue (park.wanting), and a machine of its kind parked meanwhile is taken at once (park.py)."""
     import park
@@ -415,11 +415,11 @@ def claim_rounds(run, account, offers, number, kind, disk_gb, wanted):
     the run still wants one; BootFailed passes through."""
     machine = (park_taken(run, offers, number, kind, disk_gb)
                or claim_round(run, account, offers, number, kind, disk_gb))
-    while machine is None and still_wanted(run, account, wanted):
+    while machine is None and still_wanted(run, wanted):
         say(f"no machine of {', '.join(sorted({offer.machine_class for offer in offers}))} in stock; asking again "
             f"in {STOCK_RETRY_MINUTES} min")
         machine = parked_within(run, offers, number, kind, disk_gb, STOCK_RETRY_MINUTES * 60)
-        if machine is not None or not still_wanted(run, account, wanted):
+        if machine is not None or not still_wanted(run, wanted):
             break
         offers = fresh_offers(run, offers)
         machine = claim_round(run, account, offers, number, kind, disk_gb)
@@ -447,15 +447,12 @@ def park_taken(run, offers, number, kind, disk_gb):
     return park.adopt(run, offers, number, kind, disk_gb)
 
 
-def still_wanted(run, account, wanted=None):
-    """Whether a claim that found no stock should ask again: the run has a deadline still ahead, the month's ceiling
-    is not reached, and the caller still has work for the machine (`wanted()`, when given). A claim with no run (a
-    check) asks once."""
+def still_wanted(run, wanted=None):
+    """Whether a claim that found no stock should ask again: the run has a deadline still ahead and the caller still
+    has work for the machine (`wanted()`, when given). A claim with no run (a check) asks once."""
     if STOPPING.is_set() or run is None or not getattr(run, "deadline", None) or time.time() >= run.deadline:
         return False
-    if wanted is not None and not wanted():
-        return False
-    return account is None or month_spent(account) < ledger.MONTH_EUROS
+    return wanted is None or bool(wanted())
 
 
 def fresh_offers(run, offers):
@@ -734,10 +731,6 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     compute.require_cleared(f"a {machine_type} in {zone}")
     if missing_keys():
         raise compute.Refused(f"a {machine_type} in {zone}: missing {', '.join(missing_keys())}; {OWNER_MAKES_KEYS}")
-    spent = month_spent(account)
-    if spent >= ledger.MONTH_EUROS:
-        say(f"€{spent:.2f} spent this month, at the €{ledger.MONTH_EUROS:.0f} ceiling: nothing more is rented")
-        return None
     name = f"{fleet.folder.name}-{number}"
     tags = run_tags(os.getpid(), fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
     server_id, refused = cloud.create(account, offer, name, tags, disk_gb)
@@ -788,10 +781,10 @@ def priced(found, minutes, count, what, account):
     dearest = max(offer.per_card for offer in found)
     spent = month_spent(account)
     say(f"{what}: about {minutes:.0f} min, €{ledger.cost(minutes, dearest) * count:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
+    refused = ledger.refusal(minutes, dearest * count)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return ledger.minutes_allowed(dearest * count, spent)
+    return ledger.minutes_allowed(dearest * count)
 
 
 def month_spent(account):
@@ -1036,12 +1029,12 @@ def report(entry):
 
 # The run.
 
-def affordable(found, minutes, cards, spent):
+def affordable(found, minutes, cards):
     """The offers a batch may take: the limits are checked as if every card were the dearest offered, so the
     dearest types are left out, one price at a time, while that alone breaks a limit the cheaper ones keep."""
     cheapest = min(offer.per_card for offer in found)
-    while (ledger.refusal(minutes, max(offer.per_card for offer in found) * cards, spent)
-           and not ledger.refusal(minutes, cheapest * cards, spent)):
+    while (ledger.refusal(minutes, max(offer.per_card for offer in found) * cards)
+           and not ledger.refusal(minutes, cheapest * cards)):
         dearest = max(offer.per_card for offer in found)
         say(f"leaving out {', '.join(sorted({offer.type for offer in found if offer.per_card == dearest}))}: "
             f"{cards} of them would pass the limits")
@@ -1061,16 +1054,16 @@ def plan(models, options, account):
     cards = min(options.max_cards, cards_needed(len(models), options.per_card or PER_CARD, aim, per_model))
     minutes = expected_minutes(len(models), cards, options.per_card or PER_CARD, per_model)
     spent = month_spent(account)
-    found = affordable(found, minutes, cards, spent)
+    found = affordable(found, minutes, cards)
     dearest = max(offer[0] for offer in found)
     say(f"{len(models)} models, {options.per_card or 'as many as fit'} a card, "
         f"{per_model:.2f} card minutes a model: "
         f"{cards} cards for about {minutes:.0f} min, €{ledger.cost(minutes, dearest) * cards:.2f} "
         f"at most; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * cards, spent)
+    refused = ledger.refusal(minutes, dearest * cards)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return found, cards, ledger.minutes_allowed(dearest * cards, spent)
+    return found, cards, ledger.minutes_allowed(dearest * cards)
 
 
 def run(models, options, account, found, cards, allowed_minutes):

@@ -1,13 +1,14 @@
 """The compute adapter: the only way a paid node reaches the cloud, over the job contract tools/cloud already has.
 
-    ticket = compute.clearance(runner, node, euros)  # refused unless the runner keys the node and the month has room
+    ticket = compute.clearance(runner, node, euros)  # refused unless the runner keys the node and its stop has room
     compute.submit(runner, node, job_store, run, job, spec)   # tools/cloud/runtime/submit.write_job, after clearance
 
 Clearance comes from the framework, not from a typed yes (the owner's answer of 2026-10-11: his picks are made, from
 concept and style on everything runs automatically, no spend limit, spend logically). A node is cleared when the
 runner keys it, which it does only when every earlier node it reads passed its gates (unknown blocks) and stands
-accepted (score.graph), and when the month's ceiling (tools/props/cloud/ledger.py, MONTH_EUROS) has room for the
-run's estimate (the spec's `euros`) over what the ledger holds for the month. The clearance is written to the store
+accepted (score.graph), when the month's books are known (ledger.books_refusal), and when the world's stop line (or a
+benchmark grant) has room for the run's forecast; there is no month's ceiling (owner, 2026-10-20: a batch's own stop
+is its high estimate plus 10%, set by his yes). The clearance is written to the store
 (`clearances/<node>/<key>/`); without it nothing is submitted, so a run that skips the runner cannot spend. The job
 carries its node and key, so the finish record and the job can be matched. The machine path (tools/props/cloud) is
 reached the same way, through the engine adapter (score.adapters.engines), which asks for clearance first.
@@ -21,14 +22,13 @@ demo.py, make_jobs.py, the close-up stage) refuse to spend unless they run insid
         ...                                # anything here may rent
     compute.require_cleared("a batch")     # at a rent point: Refused unless the runner cleared that node and key
 
-Clearing is serialised, as lines run side by side (score.graph's drive): the month's check and the clearance are
+Clearing is serialised, as lines run side by side (score.graph's drive): the stop check and the clearance are
 made under one lock (`clearing.lock` beside the store), and every clearance holds a reservation of its estimate
 (`reservations.json` beside it) until its run ends (`spending` releases it, and holds it open while its process
 lives), or, for one handed to a job store, until a batch's longest run (the ledger's BATCH_HOURS) or its runaway limit
 has passed. A trial's own store inside the home (compare.py's) is covered by the framework store: its paid jobs are
-checked against the world's stop line and reserved beside the framework store, so they count in flight. The month's
-check counts the open reservations with the ledger, which records a batch only once it is done, so two lines can never
-both spend the month's last euros.
+checked against the world's stop line and reserved beside the framework store, so they count in flight. The stop
+check counts the open reservations with what was spent, so two lines can never both spend the stop's last euros.
 
 The world's stop line (guard.py, owner 2026-10-18) is checked under the same lock: a paid job is refused before it
 starts when its forecast, with the world's spend since its first line and every run in flight, would pass the line;
@@ -38,14 +38,14 @@ The owner's override, an extra route he may use and never a requirement, is his 
 he gives it from his own terminal for a name of his choosing (the review command's spend, node `override`, key
 <name>, at his euros), and the run carries SCORE_SPEND_TICKET="override <name>"; an override yes counts in flight for
 a batch's longest run. A rent point checks that the yes exists, or that the clearance's run still holds its
-reservation; the ledger's own ceilings still apply there. A barrier, not a lock: an agent can name a
+reservation; the ledger's own batch limits still apply there. A barrier, not a lock: an agent can name a
 clearance given earlier, and every clearance names its node, key, estimate and time.
 
 A benchmark grant (the owner's standing rule of 2026-10-20, root CLAUDE.md) is his yes, in a Claude Code session, to
 one benchmark batch of at most GRANT_EUROS: the session asks him, and on his yes writes it with `grant_benchmark`
 (his answer and the question quoted, the time, single use, 24 h). The batch is one `score run` tagged with the grant
 (SCORE_BENCHMARK_GRANT=<grant id>); its paid nodes are cleared by the runner as any other, their inputs passed and
-the month's ceiling and books asked as ever, with the grant standing in for the world's stop line: the run that clears
+the books asked as ever, with the grant standing in for the world's stop line: the run that clears
 first takes the grant, and its clearances together stay within the grant's euros. Nothing else spends through a grant.
 """
 import contextlib
@@ -92,11 +92,11 @@ def judge_timeout():
 
 
 class Refused(Exception):
-    """A paid run is refused: its node is blocked, or the month's ceiling has no room for it."""
+    """A paid run is refused: its node is blocked, the month's books are unknown, or its stop has no room for it."""
 
 
 def ledger():
-    """tools/props/cloud/ledger.py, the month's ceiling and what the month has cost."""
+    """tools/props/cloud/ledger.py, the batch limits, the books and what the month has cost."""
     for folder in ("tools/props", "tools/props/cloud"):
         if str(REPO / folder) not in sys.path:
             sys.path.append(str(REPO / folder))  # appended: its modules must not shadow anyone else's
@@ -142,35 +142,16 @@ def google_month():
     return max(logged, books.this_months_books().get("google_bill") or 0.0)
 
 
-def month_spent():
-    """What this month has cost so far, in euros: the cloud's (the higher of its own bill, which lags by hours, and the
-    cloud ledger, which counts a batch once it ends) plus Google's (google_month)."""
-    books = ledger()
-    cloud = max(cloud_bill(), books.month_total(books.this_month(), books.entries()))
-    return cloud + google_month()
-
-
-def month_refusal(euros, reserved=0.0):
-    """Why a run estimated at `euros` would pass the month's ceiling, with `reserved` euros cleared for runs not yet
-    in the ledger, or None when the month has room. The month's spend is the cloud's, the higher of its own bill
-    (which lags by hours) and the cloud ledger (which counts a batch once it ends), plus the Google ledger's
-    (tools/props/cloud/google_spend.py), calls still going or lost included. Fault (2026-10-12): the bill held EUR
-    1,554 for October and the ledger EUR 1,387; disks, addresses and storage were never in the ledger. Refused
-    outright, before the bill is read, in a process that runs free only (ledger.FreeOnly) and while the month's books
-    are not known (ledger.books_refusal: both ledgers were lost on 2026-10-19, and a missing ledger read as EUR 0). With
-    a Google billing export set, both bills are read back into the books first (read_back_books)."""
+def books_refusal():
+    """Why no paid run may clear now, or None: refused outright in a process that runs free only (ledger.FreeOnly),
+    and while the month's books are not known (ledger.books_refusal: both ledgers were lost on 2026-10-19, and a
+    missing ledger read as EUR 0). With a Google billing export set, both bills are read back into the books first
+    (read_back_books). There is no month's ceiling (owner, 2026-10-20)."""
     books = ledger()
     books.refuse_free_only("a paid run")
     if google_bill_set():
         read_back_books()
-    unknown = books.books_refusal()
-    if unknown:
-        return unknown
-    spent = month_spent()
-    if spent + reserved + euros > books.MONTH_EUROS:
-        return (f"EUR {spent:.2f} spent this month and EUR {reserved:.2f} cleared for runs still going; EUR {euros} "
-                f"more would pass the EUR {books.MONTH_EUROS:.0f} ceiling")
-    return None
+    return books.books_refusal()
 
 
 def per_unit(stage):
@@ -559,8 +540,9 @@ def keep_reservations(reservations, held):
 
 def clearance(runner, node, euros):
     """Clear one paid run: the node's ticket ({node, key, after, clearance, reservations}) when the runner keys it (its
-    inputs passed and stand accepted) and the month's ceiling has room for its forecast (run_forecast: measured, else
-    the stage's estimate `euros`) over the ledger and every open reservation; the clearance kept in the store and its
+    inputs passed and stand accepted), the month's books are known (books_refusal) and the world's stop line has room
+    for its forecast (run_forecast: measured, else the stage's estimate `euros`) with every open reservation; the
+    clearance kept in the store and its
     forecast reserved, under the clearing lock. A benchmark batch (GRANT set) is checked against its grant instead of
     the world's stop line (grant_refusal), and its clearance counted against the grant. Else Refused."""
     forecast = run_forecast(node, euros, runner.store)
@@ -572,8 +554,7 @@ def clearance(runner, node, euros):
     reservations = covering_store(runner.store).cache.parent / "reservations.json"
     with clearing(reservations):
         held = open_reservations(reservations)
-        going = {**open_overrides(covering_store(runner.store)), **held}
-        over = (month_refusal(forecast["euros"], sum(reserved["euros"] for reserved in going.values()))
+        over = (books_refusal()
                 or (grant_refusal(covering_store(runner.store), grant_id, forecast["euros"]) if grant_id else
                     stop_refusal(runner, node, forecast["euros"], held)))
         if over:

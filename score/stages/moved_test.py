@@ -129,7 +129,7 @@ def toy():
     """A git repository standing in for this one (the render's make, a framework file it imports, three data files)
     for the time of a `with`; the framework's globals and the command's hooks are put back afterwards."""
     main = command()
-    kept = (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.month_refusal,
+    kept = (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.books_refusal,
             main.every_world_moved, moved.base_rebuys)
     repo = pathlib.Path(tempfile.mkdtemp()).resolve()
     git(repo, "init", "-q")
@@ -142,7 +142,7 @@ def toy():
     committed(repo)
     _code.REPO = moved.REPO = repo
     _code.FRAMEWORK = _code.FRAMEWORK | {repo / "toy_frame.py"}
-    compute.month_refusal = lambda euros, reserved=0.0: None  # the month's ceiling is compute_test's; not this one's
+    compute.books_refusal = lambda: None  # the month's books are compute_test's; not this one's
     sys.path.insert(0, str(repo))
     _code.search_folders.cache_clear()
     sys.modules.pop("toy_render", None)
@@ -150,7 +150,7 @@ def toy():
     try:
         yield repo
     finally:
-        (_code.REPO, _code.FRAMEWORK, moved.REPO, sys.path[:], compute.month_refusal,
+        (_code.REPO, _code.FRAMEWORK, moved.REPO, sys.path[:], compute.books_refusal,
          main.every_world_moved, moved.base_rebuys) = kept
         _code.search_folders.cache_clear()
 
@@ -207,10 +207,10 @@ def pushed(repo, message, files):
 
 def test_a_toy_leaves_the_framework_as_it_found_it():
     command()  # its first import puts the repository on the path, once
-    before = (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.month_refusal)
+    before = (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.books_refusal)
     with toy():
         pass
-    assert (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.month_refusal) == before
+    assert (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.books_refusal) == before
 
 
 def test_nothing_changed_lists_nothing_and_passes():

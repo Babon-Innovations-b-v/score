@@ -60,8 +60,8 @@ def google_line(month, euros=0.0):
 
 
 def refusals():
-    """What two paid points say now: month_refusal's reason and require_cleared's Refused, None when open."""
-    said = {"month": compute.month_refusal(1.0)}
+    """What two paid points say now: books_refusal's reason and require_cleared's Refused, None when open."""
+    said = {"month": compute.books_refusal()}
     os.environ[compute.TICKET] = "override restore-test"
     try:
         compute.require_cleared("a test rent", NAMED)
@@ -105,7 +105,6 @@ def test_known_books_count_the_owners_google_month_once():
     fresh_books([cloud_line(ledger.this_month(), 10.0)], [google_line(ledger.this_month(), 5.0)],
                 {"month": ledger.this_month(), "state": "known", "bill": 0.0, "google_before": 400.0})
     assert refusals() == {"month": None, "cleared": None}
-    assert round(compute.month_spent(), 6) == 415.0
     assert round(compute.books_now()["google"], 6) == 405.0
 
 
@@ -119,7 +118,7 @@ def test_a_free_only_process_refuses_before_the_books_are_read():
     fresh_books([cloud_line(last_month())], [google_line(last_month())])
     os.environ[ledger.FREE_ONLY] = "1"
     try:
-        compute.month_refusal(1.0)
+        compute.books_refusal()
     except ledger.FreeOnly:
         pass
     else:
@@ -215,13 +214,13 @@ def test_a_read_back_of_both_bills_makes_the_books_known():
 
 
 def test_the_month_check_reads_both_bills_back_when_an_export_is_set():
-    """The runner's month check (month_refusal) reads the books back itself, so lost books open once Google's bill
+    """The runner's books check (books_refusal) reads the books back itself, so lost books open once Google's bill
     reads, with no figure typed by anyone."""
     fresh_books(books={"month": ledger.this_month(), "state": "lost"})
     kept = compute.google_bill_set, compute.google_bill
     compute.google_bill_set, compute.google_bill = (lambda: True), (lambda: 99.0)
     try:
-        assert compute.month_refusal(1.0) is None
+        assert compute.books_refusal() is None
     finally:
         compute.google_bill_set, compute.google_bill = kept
     assert (ledger.read_books()["state"], ledger.read_books()["google_bill"]) == ("known", 99.0)
@@ -273,7 +272,7 @@ def test_a_read_back_keeps_the_owners_known_month():
 
 def test_the_owners_google_month_must_be_a_finite_figure_of_at_least_zero():
     """Review of #13: `score spend --google-month nan` was taken (argparse's float reads it), and a NaN month made the
-    ceiling's `spent + euros > MONTH_EUROS` false for every run; a negative figure lowered the month."""
+    old month ceiling's sum false for every run; a negative figure lowered the month."""
     fresh_books()
     kept, compute.running_under_agent = compute.running_under_agent, lambda: False
     try:

@@ -91,8 +91,9 @@ stage as each stage is built; nothing moves before.
   score.review ...` refuses those without a terminal, the store refuses their writes in an agent's process, and
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
-  ticket for a node whose inputs passed and stand accepted, when the month's ceiling has room for the estimate over
-  the ledger and every open reservation, cleared under one lock so two lines never both spend the last euros; kept
+  ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
+  benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),
+  cleared under one lock so two lines never both spend the last euros; kept
   in the store; then `tools/cloud/runtime/submit.write_job`; `require_cleared` at every rent point; the forecast a
   node is cleared at is its stage's measured runs, else its stage's measured per-unit high times the units its
   accepted output made (`unit_price`, `data/costs/per-unit.json` from `tools/costs/per_unit.py`), else its estimate;

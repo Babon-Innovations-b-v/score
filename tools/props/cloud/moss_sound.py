@@ -75,13 +75,13 @@ def price(jobs, account):
         count -= 1
     batch.say(f"{len(jobs)} MOSS takes on {count} card{'s' if count > 1 else ''}: about {minutes:.0f} min, at most "
               f"€{euros:.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest * count, spent)
+    refused = ledger.refusal(minutes, dearest * count)
     if refused:
         raise SystemExit(f"refused: {refused}")
     if euros > BUDGET_EUROS:
         raise SystemExit(f"refused: €{euros:.2f} is over this run's €{BUDGET_EUROS:.2f}")
     budget_minutes = BUDGET_EUROS / (dearest * count)
-    return found, count, min(ledger.minutes_allowed(dearest * count, spent), budget_minutes)
+    return found, count, min(ledger.minutes_allowed(dearest * count), budget_minutes)
 
 
 def set_up(machine):

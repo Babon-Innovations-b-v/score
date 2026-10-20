@@ -25,8 +25,8 @@ than the accepted output and the owner never rejected it; otherwise the new outp
 waits for the owner. When he rejects an accepted output, its node's accepted output moves back, and every later node
 whose accepted output read the rejected one is stale (`stale`, shown in status): its key now names the output
 accepted before, so its next run makes (or finds) the output that reads that one.
-A paid stage runs cleared by the runner (score.adapters.compute: its inputs pass and the month's ceiling has room for
-its estimate, `Stage.euros`), inside that clearance's ticket.
+A paid stage runs cleared by the runner (score.adapters.compute: its inputs pass and its stop has room for its
+estimate, `Stage.euros`), inside that clearance's ticket.
 
 `drive` is the runner with no agent in the loop: it runs each node, every line side by side and each node in a process
 of its own, once the nodes it reads stand accepted, gathers a check's missing evidence itself (`Stage.gatherers`, a paid
@@ -167,7 +167,7 @@ class Stage:
     map, for a stage whose environment files differ by place (the surface stage's takes, listed in each place's data).
     after: {earlier stage: (schema, version) this one was written for}, the stages whose accepted output it reads.
     models: pinned image kinds whose record (image digest, model revisions) goes into the key (score.adapters.models).
-    paid, euros: a stage that rents, and its run's estimate in euros, cleared against the month's ceiling.
+    paid, euros: a stage that rents, and its run's estimate in euros, cleared against its stop.
     gatherers: {check name: (gather, euros or None)}, how the runner's drive makes a check's missing evidence:
     gather(output, inputs, folder) writes it and returns its file; a paid one names its estimate in euros. Kept out of
     score.checks on purpose: every stage's code version hashes that module, so a change there reruns every stage.

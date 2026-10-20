@@ -120,14 +120,13 @@ def one_attempt(plan, account, registry, store_spec, who, results):
     found = offers_for(plan)
     if not found:
         return False
-    spent = batch.month_spent(account)
     dearest = max(offer.price for offer in found)
     minutes = plan.get("minutes", 90)
-    refused = ledger.refusal(minutes, dearest, spent)
+    refused = ledger.refusal(minutes, dearest)
     if refused:
         raise SystemExit(f"refused: {refused}")
     run, _shares, _entry = build.rent_one(
-        account, found, KIND, "prove-%Y%m%d-%H%M%S", min(minutes, ledger.minutes_allowed(dearest, spent)),
+        account, found, KIND, "prove-%Y%m%d-%H%M%S", min(minutes, ledger.minutes_allowed(dearest)),
         plan, lambda machine: set_up(machine, registry, store_spec),
         lambda machine, _share, _card: prove_on(machine, plan, store_spec, results), plan.get("disk_gb", 300),
         {"who": who, "runs": [kind_run["kind"] for kind_run in plan["runs"]]})

@@ -16,13 +16,11 @@ L4 = 0.013125
 
 
 def test_limits():
-    assert ledger.refusal(90, L4, 0) is None
-    assert "4 h" in ledger.refusal(241, L4, 0)
-    assert "€60" in ledger.refusal(210, 0.3, 0)
-    assert "month" in ledger.refusal(60, L4, ledger.MONTH_EUROS - 0.5)
-    assert ledger.minutes_allowed(L4, 0) == 240
-    assert round(ledger.minutes_allowed(0.3, 0)) == 200
-    assert ledger.minutes_allowed(L4, ledger.MONTH_EUROS) == 0
+    assert ledger.refusal(90, L4) is None
+    assert "4 h" in ledger.refusal(241, L4)
+    assert "€60" in ledger.refusal(210, 0.3)
+    assert ledger.minutes_allowed(L4) == 240
+    assert round(ledger.minutes_allowed(0.3)) == 200
     assert ledger.cost(1.2, L4) == 2 * L4
 
 

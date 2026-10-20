@@ -1,12 +1,11 @@
 """Nothing reaches the job store without the runner's clearance: a key for a node whose prerequisites passed and stand
-accepted, and room under the month's ceiling for its estimate. No typed yes is needed. No cloud: the job store is a
+accepted, and the month's books known. No typed yes is needed. No cloud: the job store is a
 folder, and the ledger's month is set by each test.
 
 Run: .venv/bin/python score/adapters/compute/compute_test.py
 """
 import json
 import math
-import multiprocessing
 import os
 import pathlib
 import statistics
@@ -53,18 +52,6 @@ RENDER = graph.Stage("render", "place", make_nothing, TEXT, after={"brief": ("to
 def month_spent(euros):
     """Set the ledger's month to have cost `euros` so far."""
     BOOKS.entries = lambda: [{"started": BOOKS.this_month(), "euros": euros}]
-
-
-def test_the_month_counts_the_providers_bill_when_it_is_higher():
-    """Fault (2026-10-12): Scaleway billed EUR 1,554 for October while the ledger held EUR 1,387 (disks, addresses and
-    storage were never in it); the month's check read only the ledger."""
-    month_spent(100.0)
-    BILL["euros"] = BOOKS.MONTH_EUROS - 50.0
-    try:
-        assert compute.month_refusal(60.0) is not None
-        assert compute.month_refusal(40.0) is None
-    finally:
-        BILL["euros"] = 0.0
 
 
 def a_runner(text):
@@ -114,13 +101,12 @@ def test_a_cleared_run_is_submitted_without_a_typed_yes():
     assert [cleared["euros"] for cleared in runner.store.clearances("render@hangar", key)] == [0.8]
 
 
-def test_a_run_the_months_ceiling_has_no_room_for_is_refused():
+def test_a_paid_run_needs_its_estimate_and_no_month_total_refuses_it():
+    """The owner, 2026-10-20: there is no month's ceiling; a month far past the old EUR 3,000 clears a run."""
     runner = a_runner("a hall")
-    month_spent(BOOKS.MONTH_EUROS - 1)
-    job_store, dearer = a_job(runner, euros=5.0)
-    assert "ceiling" in refused(dearer) and job_store.keys("") == []
+    month_spent(10_000.0)
     assert "needs its estimate" in refused(a_job(runner, euros=None)[1])
-    assert a_job(runner, euros=0.5)[1]()
+    assert a_job(runner, euros=5.0)[1]()
 
 
 def measured_runs(stage, euros, minutes=20.0):
@@ -143,20 +129,6 @@ def test_a_measured_stage_is_cleared_at_its_measured_high_not_its_hand_estimate(
     assert a_job(runner, euros=None)[1]()  # measured runs stand in for a missing estimate
 
 
-def test_google_calls_count_in_the_month_lost_ones_at_their_estimate():
-    """Fault (2026-10-12): Google billed EUR 549 for Oct 11 while its ledger held EUR 30 and the month's check read
-    only the cloud ledger. The check now adds Google's month, a call started and never finished at its estimate."""
-    runner = a_runner("a hall")
-    month_spent(BOOKS.MONTH_EUROS - 2)
-    assert a_job(runner, euros=0.5)[1]()
-    for _ in range(20):  # twenty pictures asked and never answered: EUR 3 at their estimate
-        google_spend.started("gemini-3-pro-image", "test")
-    try:
-        assert "ceiling" in refused(a_job(runner, euros=0.5)[1])
-    finally:
-        google_spend.LEDGER.unlink()
-
-
 def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
     """Fault (design of 2026-10-11, section 6): blender_cloud.py, detached.py, the runners and demo.py rented with no
     gate, so a run that skipped the runner could spend. Every rent point now asks require_cleared first."""
@@ -176,44 +148,6 @@ def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override():
     runner.store.write_spend_yes(compute.OVERRIDE, "repaint-six", {"euros": 3.0, "at": graph.now()})
     with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
         assert compute.require_cleared("a batch", runner.store)["euros"] == 3.0
-
-
-def test_a_clearance_holds_its_estimate_until_its_run_ends():
-    """Fault (the coordinator, 2026-10-11): lines run side by side now, and the ledger records a batch only once it is
-    done, so two lines cleared at once could both spend the month's last euros."""
-    runner = a_runner("a hall")
-    month_spent(BOOKS.MONTH_EUROS - 1.5)
-    first = compute.clearance(runner, "render@hangar", 1.0)
-    assert "EUR 1.00 cleared for runs still going" in refused(lambda: compute.clearance(runner, "render@hangar", 1.0))
-    with compute.spending(first):
-        pass  # the run ended: its cost is the ledger's now
-    assert compute.clearance(runner, "render@hangar", 1.0)["clearance"]["euros"] == 1.0
-
-
-def clear_in_a_process(runner, ready, sending):
-    ready.wait()
-    try:
-        compute.clearance(runner, "render@hangar", 1.0)
-        sending.send("cleared")
-    except compute.Refused:
-        sending.send("refused")
-
-
-def test_lines_clearing_at_once_never_both_spend_the_months_last_euros():
-    runner = a_runner("a hall")
-    month_spent(BOOKS.MONTH_EUROS - 1.5)
-    fork = multiprocessing.get_context("fork")
-    ready, pipes = fork.Event(), [fork.Pipe(duplex=False) for _ in range(6)]
-    processes = [fork.Process(target=clear_in_a_process, args=(runner, ready, sending)) for _, sending in pipes]
-    for process in processes:
-        process.start()
-    for _, sending in pipes:
-        sending.close()  # a process that dies fails the test with EOFError instead of hanging it
-    ready.set()
-    answers = sorted(receiving.recv() for receiving, _ in pipes)
-    for process in processes:
-        process.join()
-    assert answers == ["cleared"] + ["refused"] * 5, answers
 
 
 def test_the_judge_timeout_is_an_operational_setting_outside_every_key():

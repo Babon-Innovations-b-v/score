@@ -31,8 +31,8 @@ runners in `tools/props/cloud/` stay as they are.
   15 min, and keeps the classes it had. Nothing else is installed in the cluster.
 - **Idempotent jobs.** The runtime writes `done.json` last and exits 0 when it exists; the submitter remakes a Job
   freely (new generation) and resumes a run from its labels.
-- **Money.** Refuse at `SCORE_MONTH_EUROS`; each pool's max size is what the euros left pay for `BATCH_HOURS`; the
-  live cost of a run's nodes is checked every poll against the batch cap and the ceiling. Empty nodes go after
+- **Money.** No month's ceiling (owner, 2026-10-20); each pool's max size is what the batch cap pays for
+  `BATCH_HOURS`; the live cost of a run's nodes is checked every poll against the batch cap. Empty nodes go after
   5 min (the cluster's autoscaler settings). `down` deletes the cluster; check its own project id first, and never
   touch another project's cluster.
 - **Secrets only by name.** The store and registry credentials come from the provider at submit time and go to the
@@ -59,7 +59,7 @@ runners in `tools/props/cloud/` stay as they are.
 
 A provider is one `clusters/<name>.py` with `KUBECONFIG`, `up()`, `idle()`, `down()`, `class_pools()` (name, class,
 type, zone, max, euros a minute, billing unit), `cap_pools(euros_left, hours)`, `nodes()` (name, pool, type, zone,
-status, billed creation time), `price(type, zone)` and `month_spend()`; `SCORE_K8S_PROVIDER=<name>` picks it. The
+status, billed creation time), `price(type, zone)`; `SCORE_K8S_PROVIDER=<name>` picks it. The
 manifests and the submitter do not change.
 
 - **AWS EKS.** One managed node group per class and zone (EKS managed node groups scale from zero; the cluster
@@ -73,11 +73,10 @@ manifests and the submitter do not change.
   `karpenter.k8s.aws/instance-family` requirements; Karpenter falls through instance types on
   InsufficientCapacity by itself, so widening rarely fires. The control plane costs $0.10 an hour, so `down`
   deletes the cluster between runs. Pull secret: ECR through the node role instead (registry() then gives no
-  password and the submitter skips the pull Secret). `month_spend()` from Cost Explorer.
+  password and the submitter skips the pull Secret).
 - **GKE.** One node pool per class with `--enable-autoscaling --min-nodes 0`, `--node-labels score.dev/class=...`,
   `--accelerator type=nvidia-l4,count=1,gpu-driver-version=default` (GKE installs the driver, and taints GPU nodes
   `nvidia.com/gpu=present:NoSchedule` itself in a cluster that also has non-GPU nodes, as ours has its system
   pool), machine types `g2-standard-8` (L4), `a3-highgpu-1g` (H100), `n2-standard-32` / `n2-highmem-32`; node
   locations across the region's zones. Node auto-provisioning can make pools on demand, but fixed pools keep the
   class names exact. A cluster costs $0.10 an hour; the free tier's monthly credit covers one zonal cluster.
-  `month_spend()` from the billing export.

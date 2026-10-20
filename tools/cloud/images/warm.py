@@ -99,13 +99,12 @@ def measure_class(machine_class, image, registry, store_spec, who, results):
     """One machine of the class, measured and deleted; its ledger entry recorded."""
     account = cloud.account()
     found = batch.offers([machine_class])
-    spent = batch.month_spent(account)
     dearest = max(offer.price for offer in found) if found else 0
-    refused = ledger.refusal(SETUP_MINUTES + RENDER_MINUTES, dearest, spent) if found else "no offer"
+    refused = ledger.refusal(SETUP_MINUTES + RENDER_MINUTES, dearest) if found else "no offer"
     if refused:
         batch.say(f"{machine_class}: refused: {refused}")
         return
-    build.rent_one(account, found, KIND, f"warm-{machine_class}-%Y%m%d-%H%M%S", ledger.minutes_allowed(dearest, spent),
+    build.rent_one(account, found, KIND, f"warm-{machine_class}-%Y%m%d-%H%M%S", ledger.minutes_allowed(dearest),
                    machine_class, lambda machine: set_up(machine, registry, store_spec),
                    lambda machine, _share, _card: measure(machine, image, store_spec, results), DISK_GB,
                    {"who": who, "class": machine_class})

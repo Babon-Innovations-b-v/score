@@ -6,6 +6,7 @@ twice its forecast minutes; and an environment with no line in the framework's s
 Run: .venv/bin/python score/adapters/compute/guard_test.py   (make tests runs it in a sandbox home)
 """
 import datetime
+import multiprocessing
 import os
 import pathlib
 import subprocess
@@ -75,6 +76,49 @@ def test_a_job_that_would_pass_the_stop_is_refused_before_it_starts():
     assert compute_test.refused(dear) and len(outbox(runner)) == 1 and "Free work goes on" in outbox(runner)[0]
     assert compute_test.a_job(runner, euros=4.0)[1]()  # 15 + 4 fits under 20
     runner.run_node(compute_test.BRIEF, "hangar")  # free work goes on
+
+
+def test_a_batch_over_its_own_stop_is_refused_one_within_it_clears_whatever_the_month_cost():
+    """The owner, 2026-10-20: a batch's own stop is the only spend cap; no month's ceiling. A month at EUR 10,000
+    (past the old EUR 3,000 ceiling) clears a job within the stop and refuses one over it."""
+    runner = compute_test.a_runner("a hall")
+    month = {"month": MONTH, "bill": 10_000.0, "ledger": 10_000.0, "google": 0.0}
+    stop_at(runner, 5.0, baseline=month)
+    ledger({"euros": 10_000.0})
+    BILL["euros"] = 10_000.0
+    assert "pass the EUR 5.00 stop" in compute_test.refused(compute_test.a_job(runner, euros=6.0)[1])
+    assert compute_test.a_job(runner, euros=4.0)[1]()
+    BILL["euros"] = 0.0
+
+
+def clear_in_a_process(runner, ready, sending):
+    ready.wait()
+    try:
+        compute.clearance(runner, "render@hangar", 1.0)
+        sending.send("cleared")
+    except compute.Refused:
+        sending.send("refused")
+
+
+def test_lines_clearing_at_once_never_both_spend_the_stops_last_euros():
+    """Fault (the coordinator, 2026-10-11): lines run side by side and the ledger records a batch only once it is
+    done, so two lines cleared at once could both spend the last euros; the clearing lock and reservations hold."""
+    runner = compute_test.a_runner("a hall")
+    stop_at(runner, 1.5)
+    ledger({"euros": 90.0})
+    BILL["euros"] = 0.0
+    fork = multiprocessing.get_context("fork")
+    ready, pipes = fork.Event(), [fork.Pipe(duplex=False) for _ in range(6)]
+    processes = [fork.Process(target=clear_in_a_process, args=(runner, ready, sending)) for _, sending in pipes]
+    for process in processes:
+        process.start()
+    for _, sending in pipes:
+        sending.close()  # a process that dies fails the test with EOFError instead of hanging it
+    ready.set()
+    answers = sorted(receiving.recv() for receiving, _ in pipes)
+    for process in processes:
+        process.join()
+    assert answers == ["cleared"] + ["refused"] * 5, answers
 
 
 def test_everything_in_flight_counts_less_what_it_already_ledgered():
@@ -311,7 +355,7 @@ def test_a_grant_may_carry_the_owners_google_month():
 
 
 def test_a_benchmark_batch_spends_under_its_grant_once_within_its_amount():
-    """The grant stands in for the stop line, for one score run, up to its euros; the month's ceiling still counts."""
+    """The grant stands in for the stop line, for one score run, up to its euros."""
     runner = compute_test.a_runner("a hall")
     ledger({"euros": 90.0})
     BILL["euros"] = 100.0  # nothing spent since the line
@@ -326,9 +370,6 @@ def test_a_benchmark_batch_spends_under_its_grant_once_within_its_amount():
     assert "single use" in compute_test.refused(lambda: as_benchmark(grant, "run-b", clear(0.5)))
     assert "one score run" in compute_test.refused(lambda: as_benchmark(grant, None, clear(0.5)))
     assert "no benchmark grant" in compute_test.refused(lambda: as_benchmark("20991231T000000", "run-c", clear(0.5)))
-    BOOKS.entries = lambda: [{"started": f"{MONTH}-18T10:00:00Z", "euros": BOOKS.MONTH_EUROS}]
-    other = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
-    assert "ceiling" in compute_test.refused(lambda: as_benchmark(other, "run-d", clear(1.0)))
 
 
 def test_an_expired_or_unquoted_grant_clears_nothing():
