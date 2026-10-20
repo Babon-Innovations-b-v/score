@@ -337,6 +337,8 @@ def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_run
     assert 'class="concept-box unnamed"' in page and 'style="left:50.0%;top:50.0%' in page
     assert "inventories EUR</small> 0.13" in signed_in("joey2").get("/places/").content.decode()
     assert "Inventory readings" in signed_in("joey3").get("/stats/").content.decode()
+    from score.dashboard.state import screens
+    assert screens.design_state(world.source.world_state(), "alpha") == "plan"  # read: its plan is next
 
 
 def test_a_part_of_another_places_outside_has_no_card(world, stand_in):
