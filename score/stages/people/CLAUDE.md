@@ -13,10 +13,14 @@ The people stage (#5, experimental; bible `architecture/experimental`): people m
   (`score/stages/complete/library`) lists what does not trace; bible `architecture/components`.
 - **Run rows by name only**: `.venv/bin/python -m score run world1 --stage people-look --detach` (it drives the
   line, the LOOKED bodies and their dress). Check `ps` first that no other run is on the same rows.
-- **The clothing is the surface stage's, unchanged** (`line.py`): its makes and judges, the inputs handed over under
-  the surface stage's names (`renamed.py`, a module with no imports of this package, so the paid rows' code version
-  is the surface stage's modules and that one). Never edit the surface stage for people; its data is
-  `data/people/surfaces.json`, its library place `people` in `data/definitions/place.json`.
+- **The clothing is the finish route's, unchanged** (`line.py`; the owner, 2026-10-20: people are models like any
+  other): the route's makes and judges (views, list, split, parts) and the framework's paint, the inputs handed over
+  under the route's and the surface stage's names (`renamed.py`, a module with no imports of this package, so the paid
+  rows' code version is the surface stage's modules and that one). Never edit the surface stage for people; its data
+  is `data/people/surfaces.json`, its library place `people` in `data/definitions/place.json`. **A named gap until
+  the consolidation pass (#26):** the looks are no place's, so the route runs here as environment rows of its own
+  (`people-route-*`, `people-parts`, `people-paint`) rather than the places' own rows; the shared shapes-first loop
+  takes them over once it can make a model no place owns.
 - **A body is the maker's** (`tools/characters/maker/prop_person.py` build, settle, checks; its parts its own priced
   row, `people-look-parts-<look>`, #21), worked in its candidate folder and copied into the row's output
   (`../people_bodies/bodies.py`). The body rows live in a package of their own, `people_bodies` (with clips.py and far.py): this package imports the
