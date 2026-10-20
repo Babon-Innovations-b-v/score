@@ -10,8 +10,9 @@ assembled once its layers have landed. No spend: nothing is rendered or settled 
                       record, said unverified; an entry marked `waiting` lays nothing and is named on the root prim
                       (score:waiting) for complete. The record built from is written beside the stage (scene.json), the
                       one the neighbours stage reads
-             layers   each layer stage of LAYERS the table holds (effects, motion, light, motion models, crops, settle, characters; all
-                      experimental) as a sublayer of its own with its assets, in place of the seed's of that name,
+             layers   each layer stage of LAYERS the table holds (effects, motion, light, motion models, crops, settle,
+                      characters, the kit's shell sections; all experimental) as a sublayer of its own with its
+                      assets, in place of the seed's of that name,
                       the root's sublayers in ORDER and its time range as long as the longest layer's
              bakes    a place's baked models (surfaces-bake) in place of the seed's assets, each laid object stamped
                       with the baked file's hash and the seed's as the model it repainted (stamp_baked_hash); a
@@ -78,7 +79,8 @@ LAYERS = {"effects-layer": (("effects-layer", 1), "layers/effects.usda", "assets
           "motion-models": (("motion-models", 1), "layers/motion-models.usda", "assets"),
           "crops-layer": (("crops-layer", 1), "layers/crops.usda", "assets"),
           "settle": (("settle-layer", 1), "layers/settle.usda", None),
-          "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters")}
+          "characters-layer": (("characters-layer", 1), "layers/characters.usda", "assets/characters"),
+          "kit-sections": (("kit-sections", 1), "layers/sections.usda", None)}
 # Every stage the assembly reads for the place's own layers (the bakes and the ground are read in the table).
 READS = {"scene-record": ("scene-record", 1), "sound": ("sound-layer", 1), "surface-tiles": ("surface-tiles", 1),
          **{name: wanted for name, (wanted, _, _) in LAYERS.items()}}

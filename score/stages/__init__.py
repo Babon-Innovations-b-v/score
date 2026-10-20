@@ -771,13 +771,15 @@ def earth_place(place):
     return place is not None and kit_laid(place) and not ship_place(place)
 
 
+# earth-kit bakes the kit's named code fallbacks only, the rows not handed to the shared loop (#41;
+# earth_seed.fallbacks); the shell's sections are the kit adapter's (shapes_first.KIT), a layer the assembly takes.
 EARTH_KIT = graph.Stage("earth-kit", "place", earth_seed.make_kit, earth_seed.EARTH_KIT,
                         (checks.Check("made", late_bake.judge_made),
                          checks.Check("surfaces", late_bake.judge_surfaces)),
                         files=earth_seed.kit_files, paid=True, euros=earth_seed.EUROS, applies=earth_place)
 EARTH_SEED = graph.Stage("earth-seed", "place", earth_seed.make_seed, earth_seed.EARTH_SEED, earth_seed.SEED_CHECKS,
                          files=earth_seed.seed_files,
-                         after={"earth-kit": ("earth-kit", 1), "surfaces-bake": ("surfaces-bake", 1)},
+                         after={"earth-kit": ("earth-kit", 2), "surfaces-bake": ("surfaces-bake", 1)},
                          beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                          neighbours=assembly.claiming_places, applies=earth_place)
 SEED_READ = {"earth-seed": (earth_seed.EARTH_SEED.schema, earth_seed.EARTH_SEED.version)}

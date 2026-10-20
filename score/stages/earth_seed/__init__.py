@@ -2,15 +2,21 @@
 of the round-three folder `usd-r3/<place>` the old disk took (2026-10-19). Every row that read that folder reads
 this row's output instead (the table's `earth_seeded`), so the runner can plan and price everything after it.
 
-    earth-kit@<place>   paid   the place's code-built kit pieces (its installed kit, data/kit/<place>.json, less its
-                               prop-route pieces and the glowing parts make_kit splits off) planned by route.py's
+    earth-kit@<place>   paid   the kit's named code fallbacks only (#41: the shared loop makes every kit piece, code
+                               only where a record names why): of the place's installed kit (data/kit/<place>.json,
+                               less its prop-route pieces and the glowing parts make_kit splits off), the pieces of
+                               each row not handed to the loop (its hand-in record, data/props/<place>.json,
+                               `"layer": "kit"`), each named in fallbacks.json with why (NOT_HANDED); a handed row is
+                               the loop's alone, and a model it makes none of is a gap, not a code bake (the batch
+                               rule). Planned by route.py's
                                late-plan into make_kit jobs and baked once with the material library on rented cards
                                (tools/props/cloud/library_bake.py), as the ship-kit and late-bake stages do; gates
                                `made` and `surfaces` are theirs
     earth-seed@<place>  free   tools/usd/export.py on the place's kit, inventory, stored labelled takes, ground record
                                and old scene record, each model read from the earth-kit's made folder, the place's
                                own surfaces-bake and the bakes of the places that paint its claimed models (read
-                               beside); the stage under <place>/ in the output, as the old folder held it
+                               beside); the stage under <place>/ in the output, as the old folder held it (a loop-made
+                               kit model is its bake's, named as the kit names it)
              gates      laid    every kit piece's model was made by a row; a piece whose model no row made is left out
                                 and named (holes.json `models`), never a stand-in
                         picks   every row the owner picked a model for shows that model (pick_lock.py), its faults
@@ -32,6 +38,13 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 PROPS_PYTHON = PROPS_HOME / "env/bin/python"
 ROUTE = REPO / "tools/props/library/route.py"
 HOLES = "holes.json"
+FALLBACKS = "fallbacks.json"
+KIT_LAYER = "kit"  # the Earth kit's layer at the shared loop's seam (shapes_first.KIT)
+# Why a kit row is not handed to the shared loop yet (#41), so earth-kit still bakes its code build: the finish route's
+# bake lays a kit take only at its turn into the kit's frame (data/library/details.json `turn`), which no loop row
+# measures, and a handed row the loop makes no model for fails likeness, which stops the place's line, not a gap.
+NOT_HANDED = ("not handed to the shared loop yet: no loop row measures a kit take's turn into the kit frame, which its "
+              "bake needs (details.json turn), and a row the loop makes no model for stops the line at likeness")
 SCRATCH = "scratch"  # claimed models renamed, in the output's own folder while the make runs, then removed
 UPRIGHT = [0.0, 1.0, 0.0]  # a piece laid without axes (an open place's: `at` and `facing`) stands upright
 # One card at most an hour for a place's make_kit jobs (the ship's kits took EUR 0.09 to 0.14 a place, 2026-10-15);
@@ -46,33 +59,70 @@ KIT_TOOLS = {"route": "{repo}/tools/props/library/route.py", "sorter": "{repo}/t
 
 # --- earth-kit -------------------------------------------------------------------------------------------------------
 
-def code_layout(kit):
-    """The installed kit with its code-built pieces only (route `code` in its models; a glowing or screen part is its
-    host's model's, split off by make_kit), each with an up axis where it was laid without one, as late-plan reads."""
+def piece_row(piece, kit, place):
+    """A kit piece's inventory row: the row it names, else its kind without its room's or its place's name (as
+    tools/usd/export.py's kind_row)."""
+    if "row" in piece:
+        return piece["row"]
+    kind = piece["kind"]
+    prefix = next((f"{name}_" for name in (kit.get("room", ""), place) if name and kind.startswith(f"{name}_")), "")
+    return kind.removeprefix(prefix)
+
+
+def code_built(piece, kit):
+    """Whether a kit piece is code-built (route `code` in its models; a glowing or screen part is its host's model's,
+    split off by make_kit)."""
+    return "part" not in piece and kit.get("models", {}).get(piece["model"], {}).get("route") == "code"
+
+
+def handed_rows(place):
+    """The rows the place handed the shared loop on the kit layer (its hand-in record, data/props/<place>.json); none
+    for a place with no record."""
+    path = REPO / "data/props" / f"{place}.json"
+    record = json.loads(path.read_text()) if path.exists() else {}
+    return {row for row, entry in record.get("objects", {}).items() if entry.get("layer") == KIT_LAYER}
+
+
+def fallbacks(kit, place):
+    """{row: why} of every code-built row of the kit earth-kit bakes: each one not handed to the loop, NOT_HANDED. A
+    handed row is the loop's alone: a model it makes none of is a gap (the batch rule), never baked here."""
+    handed = handed_rows(place)
+    rows = {piece_row(piece, kit, place) for piece in kit["pieces"] if code_built(piece, kit)}
+    return {row: NOT_HANDED for row in sorted(rows - handed)}
+
+
+def code_layout(kit, place, fallback_rows):
+    """The installed kit with the code-built pieces of its named fallback rows only, each with an up axis where it was
+    laid without one, as late-plan reads."""
     pieces = [{"y": UPRIGHT, **piece} for piece in kit["pieces"]
-              if "part" not in piece and kit.get("models", {}).get(piece["model"], {}).get("route") == "code"]
+              if code_built(piece, kit) and piece_row(piece, kit, place) in fallback_rows]
     return dict(kit, pieces=pieces)
 
 
 def kit_jobs(place):
-    """How many make_kit jobs the place's earth-kit sends (route.py late-plan's picture sets), counted free from its
-    installed kit; the forecast of the stage's units (tools/costs/per_unit.py `kit_jobs`). The path is put back as it
-    was after (route.py puts its folders on it), so no code version takes in the route's folders."""
+    """How many make_kit jobs the place's earth-kit sends (route.py late-plan's picture sets of its fallbacks), counted
+    free from its installed kit and hand-in record; the forecast of the stage's units (tools/costs/per_unit.py
+    `kit_jobs`). The path is put back as it was after (route.py puts its folders on it), so no code version takes in
+    the route's folders."""
+    kit = json.loads((REPO / "data/kit" / f"{place}.json").read_text())
     kept = list(sys.path)
     sys.path.insert(0, str(ROUTE.parent))
     try:
         import route
-        planned = route.late_plan(code_layout(json.loads((REPO / "data/kit" / f"{place}.json").read_text())))
+        planned = route.late_plan(code_layout(kit, place, fallbacks(kit, place)))
         return len(route.shared_sets(planned, {}))
     finally:
         sys.path[:] = kept
 
 
 def kit_files(place):
-    """The place's installed kit, the library and place definitions the route plans from (its details, wear and
-    surfaces), and the route's and bake's files."""
-    return {"kit": "{data}/kit/" + f"{place}.json", "library folder": "{data}/library",
-            "places": "{data}/definitions/place.json", **KIT_TOOLS}
+    """The place's installed kit and its hand-in record where it has one, the library and place definitions the route
+    plans from (its details, wear and surfaces), and the route's and bake's files."""
+    found = {"kit": "{data}/kit/" + f"{place}.json", "library folder": "{data}/library",
+             "places": "{data}/definitions/place.json", **KIT_TOOLS}
+    if (REPO / "data/props" / f"{place}.json").exists():
+        found["props"] = "{data}/props/" + f"{place}.json"
+    return found
 
 
 def bake_jobs(out):
@@ -86,9 +136,13 @@ def bake_jobs(out):
 
 
 def make_kit(inputs, out, seed, params):
-    """Plan the place's code-built kit pieces and bake them once on rented cards; the models into out/made."""
+    """Plan the kit's named fallbacks (fallbacks.json) and bake them once on rented cards; the models into out/made."""
+    kit_path = pathlib.Path(inputs["kit"])
+    kit = json.loads(kit_path.read_text())
+    named = fallbacks(kit, kit_path.stem)
+    (out / FALLBACKS).write_text(json.dumps(named, indent=1))
     layout = out / "layout.json"
-    layout.write_text(json.dumps(code_layout(json.loads(pathlib.Path(inputs["kit"]).read_text())), indent=1))
+    layout.write_text(json.dumps(code_layout(kit, kit_path.stem, named), indent=1))
     subprocess.run([str(PROPS_PYTHON), str(inputs["route"]), "late-plan", str(layout), str(out)], check=True)
     jobs = bake_jobs(out)
     if jobs:
@@ -186,7 +240,8 @@ def place_in(output):
     return next(path for path in pathlib.Path(output).iterdir() if path.is_dir())
 
 
-EARTH_KIT = contracts.Contract("earth-kit", 1, lambda folder: [f"no {name}" for name in ("layout.json", "made")
+EARTH_KIT = contracts.Contract("earth-kit", 2, lambda folder: [f"no {name}" for name in ("layout.json", "made",
+                                                                                        FALLBACKS)
                                                               if not (folder / name).exists()],
                                {"length": "metre", "up axis": "Y"})
 EARTH_SEED = contracts.Contract("earth-seed", 1, seed_faults, {"length": "metre", "up axis": "Y"})
