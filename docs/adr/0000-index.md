@@ -40,7 +40,9 @@ bare "ADR-NNNN".
 
 ### Architecture
 
-<Empty. The first architectural decision this project makes lands here.>
+| ADR | Decision | Status |
+|---|---|---|
+| [0005](0005-no-retry-inside-a-batch.md) | No retry inside a batch, except a free step or a read that buys nothing | accepted |
 
 ### Historical
 
