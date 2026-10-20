@@ -14,7 +14,7 @@
       <span class="dot{% if refused %} tone-bad{% endif %}" id="concept-said"{% if refused %} title="{{ refused }}"{% else %} hidden{% endif %}></span>
     </div>
     {% if shown %}<button type="button" class="button" id="concept-pick" data-sha="{{ shown.picture.sha }}" title="lock this concept for the design" data-v>Pick</button>{% endif %}
-    {% elif can and picked %}
+    {% elif can and picked and not approved %}
     <button type="button" class="button" id="concept-pick" data-sha="" title="unlock it to mark and draw again (until the design is approved)" data-v>Unlock</button>
     <span class="dot" id="concept-said" hidden></span>
     {% endif %}

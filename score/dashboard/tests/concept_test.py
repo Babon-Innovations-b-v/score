@@ -115,6 +115,12 @@ def test_a_hosted_click_reaches_the_listener_in_one_held_call_and_its_picture_is
     assert [draw.picture.sha for draw in drawn] == [record["sha"]] and drawn[0].picture.thumb_url
 
 
+def test_an_approved_designs_concept_cannot_be_unlocked(world, stand_in, monkeypatch):
+    monkeypatch.setattr(concepts, "approved", lambda source, place: True)
+    answer = signed_in().post("/concept/beta/pick/", json.dumps({"sha": None}), content_type="application/json")
+    assert answer.status_code == 409 and "approved" in answer.json()["detail"]
+
+
 def test_the_listener_says_an_unreachable_hosted_side_and_asks_again(world):
     import urllib.error
 

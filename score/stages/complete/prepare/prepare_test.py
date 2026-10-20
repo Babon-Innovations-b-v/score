@@ -197,13 +197,33 @@ def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
     assert set(record["design"]["places"]) == set(stages.places(runner.world))
 
 
+class NoKeys:
+    def keys(self, prefix):
+        return []
+
+
 class Accepts:
-    """A store's current accepts, {node: accept}."""
+    """A store's current accepts, {node: accept}, and no concept review records."""
     def __init__(self, accepts):
         self.accepts = accepts
+        self.objects = NoKeys()
 
     def current_accept(self, node):
         return self.accepts.get(node)
+
+
+def test_a_concept_review_draw_is_drawn_and_its_pick_picked_until_unlocked():
+    from score.review import concepts
+    from score.store import Store
+    data, store = pathlib.Path(tempfile.mkdtemp()), Store.in_folder(tempfile.mkdtemp())
+    (data / "places").mkdir()
+    (data / "places" / "concepts.json").write_text(json.dumps({"concepts": {"a": {"sha256": "1"}}}))
+    store.write_once("concepts/a/draws/1.json", {"place": "a", "sha": "f" * 64, "at": "2026-10-21T09:00"})
+    assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "drawn"
+    concepts.pick(store, "a", "f" * 64, "joey")
+    assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "picked"
+    concepts.pick(store, "a", None, "joey")
+    assert design.designs(store, data, ["a"])["places"]["a"]["concept"] == "drawn"
 
 
 def test_a_design_is_approved_only_by_the_creators_own_accept_of_its_plan_after_his_pick():

@@ -18,7 +18,7 @@ from django.views.decorators.http import require_POST
 from score.dashboard import state
 from score.dashboard.pages import actions, present
 from score.dashboard.pages.models import SyncRequest, is_owner
-from score.dashboard.state import groups
+from score.dashboard.state import groups, screens
 from score.dashboard.state.files import file_ref
 from score.dashboard.state.models import ConceptDraw, WorldState
 
@@ -115,7 +115,13 @@ def concept_page(request, place):
         "place": place, "name": world.shells.get(place) or names.get(place, present.place_title(place)),
         "draws": list(reversed(draws)), "shown": shown, "picked": picked, "euros": world.concept_draw_euros,
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
-        "can": is_owner(request.user) and actions.decisions_on()})
+        "can": is_owner(request.user) and actions.decisions_on(),
+        "approved": place in screens.approved_places(world)})
+
+
+def approved(source, place):
+    """True once the place's design is approved (prepare's design record): its concept may no longer be unlocked."""
+    return place in screens.approved_places(source.world_state())
 
 
 def body_of(request):
@@ -190,6 +196,8 @@ def concept_pick(request, place):
     sha = body.get("sha") or None
     if sha and sha not in {draw.picture.sha for draw in draws_of(world, place)}:
         return JsonResponse({"detail": "refused: that is no draw of this place"}, status=422)
+    if sha is None and approved(source, place):
+        return JsonResponse({"detail": "refused: the design is approved; its concept stays locked"}, status=409)
     item = SyncRequest.objects.get(pk=queued(request, place, PICK, {"sha": sha}))
     if item.state == "refused":
         return JsonResponse({"detail": item.detail}, status=409)
