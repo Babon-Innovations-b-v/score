@@ -89,7 +89,8 @@ def test_every_place_s_surface_line_is_rows_of_world_one():
 
 
 def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
-    """Lists, names, parts, paint, bake and check read the library; inputs, turntable, maps and SegviGen never do, so
+    """Lists, names, parts, paint, bake and check read the library (and the finish route's list, fill and recheck;
+    its views and split do not); inputs, turntable, maps and SegviGen never do, so
     a new surface re-asks the cheap lists and leaves the renders, the drawn maps and the split where they stood (maps
     read the lists' answers: identical answers keep their key, the graph's own test)."""
     data, home = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
@@ -111,7 +112,7 @@ def test_a_new_library_surface_moves_only_the_rows_that_read_the_library():
     (data / "library" / "materials.json").write_text(json.dumps(library))
     moved = {stage.name for stage in surfaces.ROWS if runner.file_keys(stage, "greenhouse") != before[stage.name]}
     assert moved == {"surfaces-lists", "surfaces-names", "surfaces-parts", "surfaces-paint", "surfaces-bake",
-                     "surfaces-check"}, moved
+                     "surfaces-check", "finish-route-list", "finish-route-fill", "finish-route-recheck"}, moved
     shutil.rmtree(data)
     shutil.rmtree(home)
 

@@ -27,6 +27,28 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   of each turntable view against it; `finish_ask.py`, `finish_maps.py`), `segvigen_row.py` (SegviGen guided by the
   close-up's map). Each paid row has a module of its own, so a free change never pays again; every Google ask is
   cached by its input's hash. The six-model re-test rows are `../finishmap/trial.py`.
+- **The finish route** (owner, 2026-10-20, #18; library first): rows `finish-route-views`, `-split`, `-list`, `-fill`,
+  `-recheck` (`route_*.py`, `ROUTE` in `__init__.py`), beside the method until its test passes and the owner moves
+  the line onto it; nothing reads them yet, and they write no `surfaces-parts` yet. Generic for any take of any place:
+  a take's model is its raw take while it is there, else the release's made model its place's bake names
+  (`route_data.py`), else the views gate names it; its close-up is its own, else a **stand-in close-up** (the model's
+  own texture from the front, `route_data.STAND_IN`), named so in every output, question and verdict that reads it.
+  Views (free, this PC's processor, no Blender): trimesh and Embree ray cast, orthographic, 384 px, seven sides with the
+  close-up's front (`route_cast.py`); pictures are flat colour shaded by angle only (no wear, bump or pattern).
+  Split (free): the labels are the model's own texture colours under each pixel in k-means groups (at most eight),
+  voted across views (`finish_parts.voted`, `walked`, `cleaned`, `merged_islands`); the texture is measured, never
+  painted. Paid maps (Nano Banana, about EUR 3 a model) are not drawn by the route; they stay the method's for a model
+  whose free labels fail. List (paid, Gemini 3.1 Pro, about EUR 0.05 an ask, EUR 0.5 a place as the row's guess): all
+  views, the groups and the close-up; each finish matched FIRST to a library surface with settings (a library token,
+  roughness, metal, the node's seed), a new surface only when none fits with any settings; wear stays the place's
+  level, a finish's wear wish goes to `questions.json` for the owner. Fill (free): each part its surface's token
+  colour, and the free colour check (CIE76 within `COLOUR_DELTA_E`, glass, glow, light and print by their own
+  colour). Recheck (paid, Gemini 3.1 Pro, up to three asks a take, EUR 1 a place as the row's guess): Gemini on the
+  filled views against the close-up plus the colour check; a failing finish's settings are tweaked (Gemini's, else
+  the token nearest its seen colour) and checked again, at most three tries, then the gate "library surface fits"
+  fails it by name, "no library surface fits", the holes' `gate:finish-route-recheck/library surface fits:<take>`.
+  Settings and tweaks are row output, never a materials.json edit. Each row selects (`score run --object <take>`).
+  Its rows run in the framework's Python (trimesh and Embree are in `.venv`), not through `prop_env.py`.
 - **A library change re-keys only the rows that read the library** (lists, names, parts, paint, bake, check:
   `surface_data.line_files`); inputs, turntable, maps and SegviGen declare none (`shape_files`), the inputs'
   output names no folder of its run, and the turntable renders on the processor with a fixed seed
