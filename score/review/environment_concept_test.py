@@ -90,9 +90,9 @@ def test_unlocking_puts_every_draw_and_pick_out_of_date_and_stops_new_ones(store
     assert ec.unlocked(store) and concepts.picked(store, "campgrounds") is None
     assert not concepts.current_draw(store, "campgrounds", concepts.wording_now(store, "campgrounds"))
     assert concepts.waits(store, "campgrounds") == "waits for the environment concept to be locked"
-    with pytest.raises(concepts.Refused, match="unlocked"):
+    with pytest.raises(concepts.Refused, match="environment concept"):
         drawn(store, monkeypatch)
-    with pytest.raises(concepts.Refused, match="unlocked"):
+    with pytest.raises(concepts.Refused, match="environment concept"):
         concepts.pick(store, "campgrounds", first["sha"], "joey")
     ec.saved(store, WORLD, ec.prefilled(["campgrounds"]), True, "joey")  # locked again: a new version
     with pytest.raises(concepts.Refused, match="another environment concept"):
