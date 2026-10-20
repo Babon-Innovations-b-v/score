@@ -61,6 +61,7 @@ class MoneyView(BaseModel):
     note: str = ""
     credit_note: str = ""
     paid_refused: str | None = None  # why paid work is refused while the month's books are not known
+    bill_days: list[dict] = []  # [{day, cloud, models}] the month so far as read each day (Spend.bill_days)
 
 
 class GateCounts(BaseModel):

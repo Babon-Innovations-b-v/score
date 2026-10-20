@@ -54,4 +54,4 @@ def view(spend):
     return MoneyView(month=this_month(spend), lines=found, total=total(found), world=spend.world,
                      stop=spend.ceiling, stop_at=spend.stop_at, world_spent=spend.spent, in_flight=spend.reserved,
                      note=spend.note, credit_note=spend.credit_note,
-                     paid_refused=spend.paid_refused)
+                     paid_refused=spend.paid_refused, bill_days=spend.bill_days)
