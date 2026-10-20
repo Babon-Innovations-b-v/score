@@ -372,6 +372,24 @@ def test_a_benchmark_batch_spends_under_its_grant_once_within_its_amount():
     assert "no benchmark grant" in compute_test.refused(lambda: as_benchmark("20991231T000000", "run-c", clear(0.5)))
 
 
+def test_a_scene_inventory_reading_is_cleared_under_the_owners_allowance_alone():
+    """The owner, 2026-10-21: readings run without asking. Cleared with no stop line and no yes, in an agent's process
+    too; its node is the reading's only, within READING_EUROS a place; a grant, when tagged, counts it."""
+    runner = compute_test.a_runner("a hall")
+    ledger({"euros": 0.0})
+    ticket = as_agent(lambda: compute.reading_clearance(runner.store, ["hall"], 0.3))
+    assert ticket["node"] == compute.READING and "2026-10-21" in ticket["clearance"]["by"]
+    assert runner.store.clearances(compute.READING, ticket["key"])[0]["places"] == ["hall"]
+    with compute.spending(ticket):
+        assert compute.require_cleared("a SAM 3 card", runner.store)["node"] == compute.READING
+    assert "outside the allowance" in compute_test.refused(lambda: compute.reading_clearance(runner.store, ["a"], 1.5))
+    assert "outside the allowance" in compute_test.refused(lambda: compute.reading_clearance(runner.store, [], 0.1))
+    grant = compute.grant_benchmark("Yes", QUESTION, 1.0, store=runner.store)["id"]
+    clear = lambda euros: lambda: compute.reading_clearance(runner.store, ["a", "b"], euros)  # noqa: E731
+    assert as_benchmark(grant, "reading-1", clear(0.6))["clearance"]["grant"] == grant
+    assert "would pass its EUR 1.00" in compute_test.refused(lambda: as_benchmark(grant, "reading-1", clear(0.6)))
+
+
 def test_an_expired_or_unquoted_grant_clears_nothing():
     runner = compute_test.a_runner("a hall")
     ledger({"euros": 0.0})

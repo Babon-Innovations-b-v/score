@@ -550,7 +550,16 @@ class LocalSource:
                 "concept_redraw_euros": concepts.redraw_euros(),
                 "concept_undrawn": ready, "concept_unready": waiting,
                 "concept_wordings": {node: self.concept_wording(node) for node in nodes},
-                "inventories": {place: read for place, read in reads.items() if read}}
+                "inventories": {place: read for place, read in reads.items() if read},
+                **self.inventory_readings(concepts.placed(self.store))}
+
+    def inventory_readings(self, places):
+        """{inventory_readings, inventory_spend} (score/review/reading.py): each place's reading of its picked draw and
+        what every reading cost."""
+        from score.review import reading
+        found = {place: reading.reading_of(self.store, place) for place in places}
+        return {"inventory_readings": {place: read for place, read in found.items() if read},
+                "inventory_spend": reading.spent(self.store, places)}
 
     def concept_wording(self, node):
         """What `node`'s draws send (score/review/concepts.py): its generated first-draw wording, why it cannot be

@@ -139,6 +139,26 @@ def inventory_of(world, place, picked):
     return {"state": "to read", "older": place in world.inventories}
 
 
+def reading_view(world, place, picked):
+    """The place's scene inventory reading of its picked draw as its concept page shows it (score/review/reading.py),
+    None without one: its rows numbered, each instance SAM 3 found as a box in shares of the picture (`at`: left, top,
+    width, height in percent), its gaps, what it cost and how long it took."""
+    found = world.inventory_readings.get(place)
+    if not found or found["concept"] != picked:
+        return None
+    wide, tall = found["size"]
+
+    def at(box):
+        return [round(100 * box[0] / wide, 2), round(100 * box[1] / tall, 2), round(100 * (box[2] - box[0]) / wide, 2),
+                round(100 * (box[3] - box[1]) / tall, 2)]
+    rows = [{**row, "number": number, "at": [at(box) for box in row["boxes"]]}
+            for number, row in enumerate(found["inventory"]["rows"], 1)]
+    numbers = {row["id"]: row["number"] for row in rows}
+    gaps = [{**gap, "number": numbers.get(gap["row"]), "at": gap.get("box") and at(gap["box"])} for gap in found["gaps"]]
+    return {"rows": rows, "gaps": gaps, "euros": found["euros"]["total"],
+            "minutes": round(sum(found["seconds"].values()) / 60, 1), "at": found["at"]}
+
+
 def asked_to_hold(world, place, names):
     """[short name] of the places listed directly inside `place` (within.json), which its draw is asked to hold
     (score/review/concepts.py holding_words, the same for every place)."""
@@ -177,7 +197,8 @@ def concept_page(request, place):
         "pending": pending and pending.created.isoformat(), "refused": refused_of(place),
         "wording": wording, "context": context_pictures(world, wording, names),
         "can": is_owner(request.user) and actions.decisions_on(),
-        "approved": place in screens.approved_places(world), "inventory": inventory_of(world, place, picked)})
+        "approved": place in screens.approved_places(world), "inventory": inventory_of(world, place, picked),
+        "reading": shown and shown.picture.sha == picked and reading_view(world, place, picked)})
 
 
 def approved(source, place):

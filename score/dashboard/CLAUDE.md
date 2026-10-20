@@ -200,8 +200,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   its head has no Open (owner, 2026-10-20), its Place screen shows only its concept, that state and a link to its
   concept page (no scene tree, no 3D, no gaps), and its gaps are in no total (`views.overview_of` rows,
   `local.gaps_total`: only `counted_places`). An unlock makes it out of date at once (no
-  write: the rule is read against the pick standing). No step reads a concept into an inventory yet: the concept
-  page shows a picked place's inventory as made (its rows) or to read (and whether the one there is older).
+  write: the rule is read against the pick standing). The concept page shows a picked place's inventory file as made
+  (its rows) or to read (and whether the one there is older). A pick starts its scene inventory reading on its own
+  (`score/review/reading.py`, `web.reading_started`, no yes asked: owner, 2026-10-21), kept in the store
+  (`inventory-readings/`, `WorldState.inventory_readings` and `inventory_spend`); the concept page shows the reading
+  of the picked draw beside its picture (`concepts.reading_view`: rows numbered, each instance found boxed on the
+  picture, the gaps listed, a dashed box for a thing no row names; a row and its boxes light together on hover), and
+  every reading's euros in sum show on the Environment's top bar under spent and on Stats. A reading feeds no count
+  yet: the gaps check and the plan still read `data/inventory/`.
 - **The concept review** (CONTEXT.md "concept review", owner 2026-10-20; `pages/concepts.py`, `concept.html`,
   `static/pages/concept.js`): each Environment card whose concept is not locked carries a Review (Draw while it has
   none) button to `/concept/<place or shell>/`: the shown draw with areas marked by dragging, a note each and one for

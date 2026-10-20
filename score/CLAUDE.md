@@ -100,6 +100,9 @@ stage as each stage is built; nothing moves before.
   click wrote (`web.concept_draw`), and his picks, kept in the store under `concepts/` (written only in the owner's process);
   each draw is copied to the private bucket as it is made (`concept-draws/<sha>.png` and `.json`; a failed copy is
   named in its record), and each pick or unlock is handed to score_lib through its own `score-lib concept` command.
+  `reading.py` reads a picked concept into its scene inventory, started on its own by the pick (`web.reading_started`):
+  Gemini 3.1 Pro's rows, then SAM 3's boxes of each row on one rented card, their disagreements its gaps, each
+  reading and its cost kept under `inventory-readings/<place>/`.
 - **`adapters/`** `models` (pinned images and models from `tools/cloud/images`), `compute` (`clearance`: the runner's
   ticket for a node whose inputs passed and stand accepted, when the month's books are known and the stop line (or a
   benchmark grant) has room for its forecast with every open reservation (no month's ceiling: owner, 2026-10-20),
@@ -119,7 +122,10 @@ stage as each stage is built; nothing moves before.
   `grant_benchmark(answer, question, euros)`: the owner's yes in a Claude Code session to one benchmark batch of at
   most EUR 20 (his standing rule of 2026-10-20; benchmark only, both quoted, single use, 24 h, `grants/` in the store),
   written by the session that asked him and never by hand; a `score run` tagged `SCORE_BENCHMARK_GRANT=<grant id>` is
-  cleared against the grant instead of the stop line, one run per grant, within its euros), `engines`
+  cleared against the grant instead of the stop line, one run per grant, within its euros; `reading_clearance`: a
+  scene inventory reading run (`review/reading.py`, node `inventory-read`) cleared under the owner's standing
+  allowance of 2026-10-21, no yes and no stop line, the books asked, at most `READING_EUROS` a place, against a grant
+  when tagged), `engines`
   (Blender: the blender image's job, or `tools/props/cloud/blender_cloud.run_elsewhere` after clearance). Wrapped, not rewritten.
   `vendored` (the table of every tool in `vendor/`: where it is called, or why it is left out; its test fails on a
   tool vendored and forgotten).

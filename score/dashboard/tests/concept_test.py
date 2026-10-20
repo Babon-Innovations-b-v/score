@@ -43,6 +43,7 @@ def stand_in(world, monkeypatch):
     offsite = world.source.store.cache.parent / "bucket"  # the private bucket's stand-in
     monkeypatch.setattr(drawing, "offsite_store", lambda: runtime_store.FolderStore(offsite))
     monkeypatch.setattr(drawing, "handed_over", lambda store, place: "library: stand-in")
+    monkeypatch.setattr(web, "reading_started", lambda store, place, by: "reading: stand-in")
 
     def run(argv, env, **kwargs):
         monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
@@ -310,3 +311,29 @@ def test_the_page_shows_the_picked_concept_a_draw_is_drawn_on_to_mark_beside_it(
     monkeypatch.setattr(drawing, "sent_picks", lambda store, place: {"alpha": above} if place == "beta" else {})
     page = owner.get("/concept/beta/").content.decode()
     assert 'class="concept-marks" data-on="alpha"' in page and f"/{above}" in page
+
+
+def test_a_picked_concepts_page_shows_its_reading_beside_the_picture_and_the_running_total(world):
+    """The reading of the picked draw (score/review/reading.py): its rows numbered beside the picture, each instance
+    found boxed on it, its gaps listed; every reading's euros summed on the Environment and Stats."""
+    from score.review import concepts as drawn, reading
+    alpha = json.loads((world.data / "places/concepts.json").read_text())["concepts"]["alpha"]["sha256"]
+    store = world.source.store
+    drawn.recorded(store, "concepts/alpha/draws/2026-10-20T08-00-00.json", {
+        "place": "alpha", "sha": alpha, "name": "alpha-concept.png", "at": "2026-10-20T08:00:00+00:00", "by": "joey"})
+    drawn.pick(store, "alpha", alpha, "joey")
+    rows = [{"id": "drum", "name": "fuel drum", "noun": "drum", "kind": "generate", "count": 2, "size_words": "waist",
+             "anchor": "ground", "where": "left", "boxes": [[0, 0, 48, 30]], "box": [0, 0, 48, 30]}]
+    reading.kept(store, {"place": "alpha", "concept": alpha, "at": "2026-10-21T08:00:00+00:00", "by": "joey",
+                         "method": reading.METHOD, "size": [96, 60], "inventory": {"rows": rows},
+                         "gaps": [{"kind": "count", "row": "drum", "words": "2 read, 1 found"},
+                                  {"kind": "unnamed", "row": None, "box": [48, 30, 96, 60], "words": "a crate"}],
+                         "euros": {"rows": 0.03, "boxes": 0.1, "total": 0.13},
+                         "seconds": {"rows": 20.0, "boxes": 30.0, "card": 550.0}})
+    world.source.refresh()
+    page = signed_in().get("/concept/alpha/").content.decode()
+    assert "data-v>fuel drum</span>" in page and "&times;2" in page and "1 rows, 2 gaps, EUR 0.13, 10.0 min" in page
+    assert 'style="left:0.0%;top:0.0%;width:50.0%;height:50.0%"' in page
+    assert 'class="concept-box unnamed"' in page and 'style="left:50.0%;top:50.0%' in page
+    assert "inventories EUR</small> 0.13" in signed_in("joey2").get("/").content.decode()
+    assert "Inventory readings" in signed_in("joey3").get("/stats/").content.decode()
