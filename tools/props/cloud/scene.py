@@ -205,10 +205,10 @@ def price(plan, account):
     spent = batch.month_spent(account)
     batch.say(f"{plan['room']}: {', '.join(step for step, _ in steps(plan))} on one card, about "
               f"{minutes:.0f} min, €{ledger.cost(minutes, dearest):.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
+    refused = ledger.refusal(minutes, dearest)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest, spent)
+    return found, ledger.minutes_allowed(dearest)
 
 
 def set_up(folder, host, plan):

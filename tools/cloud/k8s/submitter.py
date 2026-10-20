@@ -26,11 +26,9 @@ last and exits at once if it exists, so a Job made again (a lost node, a widened
 redoes only unfinished work. The submitter finds a run's Jobs by label, so running it again on the same run resumes.
 
 Cost. Nothing is submitted outside a run the runner cleared or the owner's override names
-(score.adapters.compute, `require_cleared`), nor when the month's spend has reached SCORE_MONTH_EUROS, read as the
-provider's bill or the ledger, whichever is higher. Each pool's max size is what the euros left pay for
-ledger.BATCH_HOURS a node, and the live cost of the run's nodes is checked every poll against the batch cap
-(ledger.BATCH_EUROS) and the month's ceiling: past either, the waiting Jobs are deleted and every pool is capped to
-zero. Empty nodes go after the autoscaler's scale-down time (the cluster module sets it), so an idle cluster costs
+(score.adapters.compute, `require_cleared`). Each pool's max size is what the batch cap (ledger.BATCH_EUROS) pays
+for ledger.BATCH_HOURS a node, and the live cost of the run's nodes is checked every poll against the batch cap: past
+it, the waiting Jobs are deleted and every pool is capped to zero. Empty nodes go after the autoscaler's scale-down time (the cluster module sets it), so an idle cluster costs
 only its small system pool; `down` deletes the whole cluster. At the end the submitter waits for the run's nodes to
 go, then writes one ledger row a node (ledger.machines_record: its class, type, zone, minutes and euros) and the
 run's jobs with their wait until the pod ran.
@@ -395,18 +393,11 @@ class Run:
         return [job_id for job_id, record in self.jobs.items() if record["state"] == "waiting"]
 
 
-def month_spent(cluster):
-    """What the month has cost so far: the provider's bill or the ledger, whichever is higher."""
-    return max(cluster.month_spend(), ledger.month_total(ledger.this_month(), ledger.entries()))
-
-
-def over_limits(run, spent_before):
-    """Why the run must stop now (the batch cap or the month's ceiling), or None."""
+def over_limits(run):
+    """Why the run must stop now (the batch cap), or None."""
     live = run.live_euros()
     if live >= ledger.BATCH_EUROS:
         return f"the run's nodes have cost €{live:.2f}, at the €{ledger.BATCH_EUROS:.0f} batch cap"
-    if spent_before + live >= ledger.MONTH_EUROS:
-        return f"€{spent_before + live:.2f} spent this month, at the €{ledger.MONTH_EUROS:.0f} ceiling"
     return None
 
 
@@ -419,17 +410,14 @@ def stop_run(run, why):
     run.cluster.cap_pools(0, 1)
 
 
-def prepare(kubectl, cluster, spent):
-    """Make the namespace and the Secrets, and cap the pools from the euros left; refuse at the ceiling, and outside a
-    cleared run (compute.require_cleared raises Refused)."""
-    if spent >= ledger.MONTH_EUROS:
-        raise SystemExit(f"€{spent:.2f} spent this month, at the €{ledger.MONTH_EUROS:.0f} ceiling: nothing is "
-                         "submitted")
+def prepare(kubectl, cluster):
+    """Make the namespace and the Secrets, and cap the pools from the batch cap; refused outside a cleared run
+    (compute.require_cleared raises Refused)."""
     compute.require_cleared("the cluster's pools")
     kubectl.apply([manifests.namespace()])
     kubectl.apply([manifests.store_secret(provider.cloud.object_store()),
                    manifests.registry_secret(provider.cloud.registry())])
-    caps = cluster.cap_pools(ledger.MONTH_EUROS - spent, ledger.BATCH_HOURS)
+    caps = cluster.cap_pools(ledger.BATCH_EUROS, ledger.BATCH_HOURS)
     say("pool caps: " + ", ".join(f"{name} {cap}" for name, cap in sorted(caps.items())))
 
 
@@ -475,8 +463,7 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
     specs = {job_id: spec for job_id, spec in specs.items() if job_id not in finished}
     if not specs:
         return []
-    spent = month_spent(cluster)
-    prepare(kubectl, cluster, spent)
+    prepare(kubectl, cluster)
     run = Run(run_id, specs, kubectl, cluster)
     run.resume()
     submit_more(run, parallel)
@@ -485,7 +472,7 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
         time.sleep(POLL_SECONDS)
         poll(run)
         submit_more(run, parallel)
-        why = over_limits(run, spent)
+        why = over_limits(run)
         if why:
             stop_run(run, why)
     if wait_scale_down:

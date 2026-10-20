@@ -135,15 +135,13 @@ order that waits least, and is never tied to one card or one zone.
   machine that does not answer within `START_MINUTES` (5, in `batch.py`) is dropped and the next one
   tried. When a round finds no machine in stock anywhere, the slot asks again every 3 minutes
   (`STOCK_RETRY_MINUTES` in `batch.py`), with the offers read afresh across every class and zone the kind fits, until
-  its run has no work left for it or reaches its deadline or the month's ceiling; a Pixal3D fleet short of cards rents
+  its run has no work left for it or reaches its deadline; a Pixal3D fleet short of cards rents
   more the same way as stock comes up. No slot settles for the one card it found first. In a Pixal3D fleet, a machine that never answers is replaced from the remaining offers.
 - **Several jobs on one big card.** A card runs as many Pixal3D jobs at once as its memory holds:
   three for every 24 GB (`RUNS_PER_24GB`), so an 80 GB card runs ten. `batch.py --per-card` overrides it.
   Other kinds run one job at a time until their memory per job is measured.
-- **Limits.** The month's ceiling is `SCORE_MONTH_EUROS` (EUR 1,500 by default); the owner sets it with the
-  cockpit's **Set the month's stop** button, which every run the cockpit launches is given. It is checked
-  against the ledger and the provider's bill before every machine is rented, and nothing more is
-  rented once it is reached. A batch is also held to 4 h and EUR 60 (`ledger.py`).
+- **Limits.** A batch's own stop is its high estimate plus 10%, set by the owner's yes; there is no month's
+  ceiling (owner, 2026-10-20). A batch is also held to 4 h and EUR 60 (`ledger.py`).
 - **Forcing a class** for a measuring run: `batch.py --classes` and `library_bake.py --classes`.
 - **Secrets** are read by name through `tools/props/cloud/secret_store.py`: the environment variable
   `SCORE_SECRET_<NAME>` first (for local use; `gemini-api-key` is `SCORE_SECRET_GEMINI_API_KEY`), else

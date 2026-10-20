@@ -107,21 +107,11 @@ def test_each_runner_says_and_returns_its_estimate():
         assert got == returned, (name, got)
 
 
-def test_each_runner_refuses_past_the_month_s_ceiling():
-    for name, (estimate, _, _) in ESTIMATES.items():
-        with Stubbed(spent=batch.ledger.MONTH_EUROS) as stubbed:
-            try:
-                estimate()
-            except SystemExit as refused:
-                assert str(refused).startswith("refused: "), (name, refused)
-            else:
-                raise AssertionError(f"{name} was not refused at the month's ceiling")
-        assert len(stubbed.said) == 1, (name, stubbed.said)
-
-
-def test_the_minutes_allowed_follow_the_month_s_remainder():
-    with Stubbed(spent=batch.ledger.MONTH_EUROS - 5):
-        assert shape(unirig.price(9, "acct")) == (3, 3, round(5 / (0.05 * 3), 3))
+def test_no_runner_refuses_on_the_months_total():
+    """The owner, 2026-10-20: no month's ceiling; a month at EUR 10,000 prices every runner as any other month."""
+    for name, (estimate, _, returned) in ESTIMATES.items():
+        with Stubbed(spent=10_000.0):
+            assert shape(estimate()) == returned, name
 
 
 class Tended:

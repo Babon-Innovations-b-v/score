@@ -114,7 +114,7 @@ SYSTEM_TYPES = ("DEV1-M", "BASIC2-A2C-4G", "PLAY2-NANO")
 # the 20B picture model alone is 58 GB).
 ROOT_GB = {"gpu": 250, "cpu": 150, "system": 20}
 ROOT_VOLUME_TYPE = "sbs_5k"
-# The most nodes a pool may grow to; the month's euros may cap it lower (cap_pools).
+# The most nodes a pool may grow to; the batch cap's euros may cap it lower (cap_pools).
 POOL_MAX = 20
 CLASS_LABEL = "score.dev/class"
 GPU_TAINT = ("nvidia.com/gpu", "present", "NoSchedule")
@@ -362,11 +362,6 @@ def machine_type_name(node_type):
 def price(machine_type, zone):
     """A node's price: (euros a minute, the minutes it is billed by), as the Instance of its type."""
     return backend.price(machine_type.upper(), zone)
-
-
-def month_spend():
-    """What Scaleway has billed the project this month, in euros."""
-    return backend.month_spend(backend.account())
 
 
 def parse_time(text):

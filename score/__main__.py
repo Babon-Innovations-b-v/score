@@ -563,8 +563,7 @@ def spend_json(world):
     return {**world_spend(world, held, books), "month": books["month"], "as_of": read_at,
             "lines": cost_lines(books, read_at), "days": ledger_days(books["month"]),
             "paid_refused": compute.ledger().books_refusal(),
-            "credit_note": f"the cloud account's EUR {compute.ledger().MONTH_EUROS:.0f} monthly credit is shared with "
-                           "other projects; it is not SCORE's budget"}
+            "credit_note": "the cloud account's monthly credit is shared with other projects; it is not SCORE's budget"}
 
 
 def world_spend(world, held, books):

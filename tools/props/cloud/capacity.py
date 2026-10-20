@@ -13,7 +13,7 @@ first, measured from the ledger: every kind lists every capability class that ho
 `batch.claim` walks the backend's offers in the kind's order (an offer out of stock last), across every
 zone the backend rents in: an offer that is refused, says "out of stock" for a minute, or gives a machine that does
 not answer within `batch.START_MINUTES` is left for the next. A run spreads over the zones (`next_offer`), so one
-zone running dry costs it one machine. The month's spend stays under `ledger.MONTH_EUROS`, checked before every rent.
+zone running dry costs it one machine. There is no month's ceiling (owner, 2026-10-20); the batch limits still hold.
 
 Memory per kind decides which classes may run it. Pixal3D was measured: three runs at once peak at 10.6 GB on one
 card (2026-09-29), so every card of 24 GB or more holds it. Every other kind was set up and measured on a 24 GB card

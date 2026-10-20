@@ -23,7 +23,7 @@ Reads the Claude Code PreToolUse payload on stdin and blocks an agent from:
 
 Running the stages stays allowed, and with it the runner's own automatic accept and clearance (score/graph,
 score.adapters.compute), which this guard does not see: they are written by the framework's code, only when every
-gate passed and nothing got worse, or the inputs passed and the month's ceiling has room. Reading stays allowed:
+gate passed and nothing got worse, or the inputs passed and the stop has room. Reading stays allowed:
 ``grep``, ``ls`` and ``cat`` of those folders, a redirect to an unrelated file, a review page, the tests.
 
 A benchmark grant (the owner's standing rule of 2026-10-20, root CLAUDE.md) passes: the session that asked him writes

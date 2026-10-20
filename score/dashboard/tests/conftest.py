@@ -10,7 +10,6 @@ os.environ["PROPS_HOME"] = str(ROOT / "props")
 os.environ["SCORE_DASHBOARD_HOME"] = str(ROOT / "dashboard")
 os.environ["DJANGO_SETTINGS_MODULE"] = "score.dashboard.site.settings"
 os.environ.setdefault("SCORE_OWNER", "joey")
-os.environ.setdefault("SCORE_MONTH_EUROS", "250")
 os.environ.setdefault("SCORE_COMPUTE_BACKEND", "score.dashboard.tests.fixture:FakeBackend")
 for name in ("SCORE_TRUSTED_PROXIES", "SCORE_ALLOWED_USERS", "SCORE_SYNC_TOKEN", "SCORE_DASHBOARD_MODE"):
     os.environ.pop(name, None)

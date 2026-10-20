@@ -41,27 +41,28 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   once is barely faster and ran out of memory.
 - **No keys or account ids in the repo.** The backend finds its account by name; the runner's ssh
   key and ledger live under `~/.farm-factory-props/cloud/`.
-- **The limits are the owner's:** 4 h and €60 a batch, and the month's ceiling `SCORE_MONTH_EUROS` (€1,500 by default, 2026-10-08), checked before every rent (`ledger.py`, `batch.rent`). A batch that
-  would pass one is refused before anything is rented; raising one is the owner's call.
+- **The limits are the owner's:** 4 h and €60 a batch (`ledger.py`); a batch that would pass one is refused before
+  anything is rented; raising one is the owner's call. There is no month's ceiling (owner, 2026-10-20): a batch's own
+  stop is its high estimate plus 10%, set by his yes (score.adapters.compute's stop line, or a benchmark grant).
 - **Nothing paid runs while the month's books are unknown** (#13, after the old WSL disk took both ledgers and the
   runner's keys, 2026-10-19): `ledger.books_refusal` gives a reason unless `cloud/books.json` says this month is
   `known`, or the cloud ledger and the Google ledger each hold a line from before the month began; a ledger begun
   again after a loss (a refused rent's line) holds none, so it stays refused until the books are known or the next
-  month. `score spend --read-back` (and the runner's month check, `compute.month_refusal`, whenever an export is set)
+  month. `score spend --read-back` (and the runner's books check, `compute.books_refusal`, whenever an export is set)
   reads both bills, read-only: Scaleway's consumption and Google's from Cloud Billing's standard usage cost export in
   BigQuery (`google_bill.py`, the bq CLI; cost plus credits in EUR for this invoice month), and makes the books
   `known` once Google's was read; the Google month is then the higher of that bill and the Google ledger. The table
   is named by SCORE_GOOGLE_BILLING_TABLE, else one line in `cloud/google-billing-table`, never in this repo; an
   unset, missing or empty table leaves the books as they were and the refusal says why. The owner's `score spend
   --google-month EUR` (refused in an agent's process; the owner gives it with the cockpit's money card button,
-  applied by his sync) stays an override. `compute.month_refusal`, `compute.require_cleared` (so
+  applied by his sync) stays an override. `compute.books_refusal`, `compute.require_cleared` (so
   `batch.rent`, `park`, the cluster and every Google and World Labs caller) and `compute.submit` ask it before anything
   is ordered; `google_spend.py` and `tools/cloud/runtime/submit.py` are left alone, as one is in the surface rows' code
   version and the other in every job image's tag. Under SCORE_FREE_ONLY=1 the same points raise `ledger.FreeOnly`.
   `batch.rent` refuses before any provider call without `ssh_key` and `self_delete_key.json`, and `batch.ssh_key`
   never makes a key: the owner makes the runner's key and deletes the stale IAM key `farm-factory-batch`.
 - **The month's spend is the provider's own bill when that is higher** (2026-10-12: Scaleway billed EUR 1,554 for
-  October, the ledger held EUR 1,387): `score.adapters.compute.month_refusal` and `batch.month_spent` take the higher of
+  October, the ledger held EUR 1,387): the stop check (`score.adapters.compute.guard.spent_since`) and `batch.month_spent` take the higher of
   the bill (`provider.cloud.consumption`, lagging by hours) and the ledger. The gap was disks (EUR 71) and addresses
   (EUR 37), each billed by the started hour from a machine's creation whether it ran or not, storage and registry
   (EUR 16), and card time the ledger missed (about EUR 44). The backend's `delete` now writes each machine's disk and
@@ -158,8 +159,8 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   class that holds the job), and gets its machine through `batch.claim` (a fleet through `rent_fleet`), which
   takes the best stocked offer in `SPEED_ORDER` (price barely matters: owner, 2026-10-08), drops an
   offer that is refused or out of stock for a minute (nothing billed), and spreads a run's machines over the zones. A dropped offer is dropped for one round only: a claim that finds
-  nothing in stock asks every class and zone again every `STOCK_RETRY_MINUTES` (3) until its run has no work for it,
-  its deadline or the month's ceiling (2026-10-09: six of seven spread slots gave up on their first round and one L4
+  nothing in stock asks every class and zone again every `STOCK_RETRY_MINUTES` (3) until its run has no work for it
+  or its deadline (2026-10-09: six of seven spread slots gave up on their first round and one L4
   did all the work), and a signal (`STOPPING`) ends every claim and deletes a machine that answers after it. A big card runs as many jobs at once
   as `capacity.runs_at_once` says (measured kinds only). A machine rented that does not answer within
   `START_MINUTES`, or refuses the runner's key, was billed: it is deleted and its slot is a hole
@@ -219,7 +220,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `started` line to `~/.farm-factory-props/cloud/google-ledger.jsonl` before the call, then a `finished` line priced
   from the response's usageMetadata at Google's published prices and its service tier, or a `failed` line. With
   `cache=True` the same request is asked once and read back from `google-cache/` by every place line and rerun. No day
-  cap (owner, 2026-10-11). The runner's month check (`score.adapters.compute.month_refusal`) adds `month_euros`: a call
+  cap (owner, 2026-10-11). The runner's stop check (`score.adapters.compute.months_since`) adds `month_euros`: a call
   started and never finished counts at its estimate (Oct 11: Google billed EUR 549, this ledger, then written only
   after a call came back, held EUR 30). Nothing calls generativelanguage.googleapis.com any other way:
   `google_spend_test.py` fails on any tracked file that does. The one other client is **`google_batch.py`**

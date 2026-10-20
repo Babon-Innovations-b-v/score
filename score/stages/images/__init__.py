@@ -12,7 +12,7 @@ the folder and its outputs' `to` relative to the proof) has two world nodes:
                          images/build_test.py passes; models.json (the models and their licences) and the
                          Dockerfile's instructions are those of the build images.json holds (the folder at the commit
                          that first named its tag), so only the packages moved.
-    image-proof-<kind>   (PAID, the plan's `euros`, cleared against the month's ceiling) reads the accepted pins:
+    image-proof-<kind>   (PAID, the plan's `euros`, cleared against the stop) reads the accepted pins:
                          images/build.py builds and pushes the image, images/prove.py runs the plan's jobs in it on
                          a rented card, both writing into a copy of images.json inside the output, never the
                          repository's. Gates: every planned job ran, and the kind's own check of what they made

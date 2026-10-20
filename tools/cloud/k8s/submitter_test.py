@@ -66,38 +66,24 @@ def test_reading_the_autoscaler_and_jobs():
 
 
 class FakeCluster:
-    """A cluster module that bills a fixed month and records the caps it is given."""
+    """A cluster module that records the caps it is given."""
     KUBECONFIG = "/dev/null"
 
-    def __init__(self, spent):
-        self.spent, self.caps = spent, []
-
-    def month_spend(self):
-        return self.spent
+    def __init__(self):
+        self.caps = []
 
     def cap_pools(self, euros_left, hours):
         self.caps.append((euros_left, hours))
         return {}
 
 
-def test_refuses_at_the_month_ceiling():
-    cluster = FakeCluster(submit.ledger.MONTH_EUROS)
-    try:
-        submit.prepare(None, cluster, cluster.month_spend())
-    except SystemExit as stop:
-        assert "ceiling" in str(stop)
-    else:
-        raise AssertionError("a run at the ceiling was submitted")
-    assert cluster.caps == []
-
-
 def test_nothing_is_submitted_outside_a_cleared_run(monkeypatch):
     """Fault (design of 2026-10-11, section 6): the submitter grew the cluster's pools for any caller, outside the
     runner's gate and the owner's yes."""
     monkeypatch.delenv(submit.compute.TICKET, raising=False)
-    cluster = FakeCluster(0.0)
+    cluster = FakeCluster()
     try:
-        submit.prepare(None, cluster, cluster.month_spend())
+        submit.prepare(None, cluster)
     except submit.compute.Refused as refusal:
         assert "nothing rents outside a cleared run" in str(refusal)
     else:
@@ -137,7 +123,7 @@ def test_resume_takes_up_the_newest_generation():
     spec = {"kind": "library", "image": "image", "minutes": 5}
     made = submit.manifests.job(spec, "r1", "bake", ["gpu-24gb", "gpu-48gb"], 1, generation=2)
     kubectl = FakeKubectl([made])
-    run = submit.Run("r1", {"bake": spec, "other": spec}, kubectl, PoolCluster(0))
+    run = submit.Run("r1", {"bake": spec, "other": spec}, kubectl, PoolCluster())
     run.resume()
     assert run.jobs["bake"]["generation"] == 2 and run.jobs["bake"]["submitted"]
     assert run.jobs["other"]["submitted"] is None
@@ -184,7 +170,7 @@ def test_a_run_never_settles_and_takes_stock_that_comes_back(monkeypatch):
     monkeypatch.setattr(submit.time, "time", lambda: clock[0])
     kubectl = LiveKubectl()
     spec = {"kind": "meshparts", "image": "image", "minutes": 10}
-    run = submit.Run("r1", {"part": spec}, kubectl, PoolCluster(0))
+    run = submit.Run("r1", {"part": spec}, kubectl, PoolCluster())
     order, _late = submit.class_order("meshparts", spec, POOLS)
     assert order == ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
     run.make("part")
@@ -235,7 +221,7 @@ class PricedCluster(PoolCluster):
 
 def test_a_warm_node_counts_from_the_runs_start():
     spec = {"kind": "judge", "image": "image", "minutes": 5}
-    run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster(0))
+    run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster())
     run.started = 10_000.0
     run.jobs["ask"].update(node="warm", ran=10_030.0, state="done")
     run.nodes["warm"] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
@@ -261,7 +247,7 @@ def test_a_node_without_zone_labels_takes_the_providers_record():
                          "labels": {"score.dev/class": "cpu-32c-128gb"}},
             "status": {"conditions": [{"type": "Ready", "status": "True",
                                        "lastTransitionTime": "2026-10-09T14:50:13Z"}]}}
-    run = submit.Run("r1", {}, NodeKubectl([node]), BilledCluster(0))
+    run = submit.Run("r1", {}, NodeKubectl([node]), BilledCluster())
     run.watch_nodes()
     seen = run.nodes["kosmos-node"]
     assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 100.0)
@@ -269,7 +255,7 @@ def test_a_node_without_zone_labels_takes_the_providers_record():
 
 def test_an_unused_node_made_during_the_run_is_paid_for():
     spec = {"kind": "judge", "image": "image", "minutes": 5}
-    run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster(0))
+    run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster())
     run.started = 10_000.0
     run.jobs["ask"].update(node="first", ran=10_200.0, state="done")
     for name in ("first", "second"):
@@ -294,7 +280,7 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch):
 def test_a_run_holds_to_its_parallel_jobs():
     spec = {"kind": "pixal", "image": "image", "minutes": 30, "classes": ["gpu-24gb"]}
     kubectl = LiveKubectl()
-    run = submit.Run("r1", {f"take-{number}": spec for number in range(5)}, kubectl, PoolCluster(0))
+    run = submit.Run("r1", {f"take-{number}": spec for number in range(5)}, kubectl, PoolCluster())
     submit.submit_more(run, 2)
     assert len(kubectl.jobs) == 2
     run.jobs["take-0"]["state"] = "done"
@@ -307,6 +293,6 @@ def test_a_run_holds_to_its_parallel_jobs():
 def test_a_bake_in_the_blender_image_keeps_the_library_order():
     spec = {"kind": "blender", "capacity_kind": "library", "image": "image", "minutes": 5,
             "classes": ["gpu-24gb", "gpu-48gb", "gpu-80gb"]}
-    run = submit.Run("r1", {"bake": spec}, FakeKubectl([]), PoolCluster(0))
+    run = submit.Run("r1", {"bake": spec}, FakeKubectl([]), PoolCluster())
     assert list(run.kinds) == ["library"]
     assert run.orders["bake"] == (["gpu-24gb", "gpu-48gb"], set())  # a bake never takes an H100

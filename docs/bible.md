@@ -78,8 +78,9 @@ the current backend). No model runs on the coordinating machine.
   2026-10-11: his picks are made, from concept and style on everything runs automatically, no spend limit, spend
   logically). The runner accepts an output by itself when every gate passed and no score got worse than the accepted
   one, its accept marked as the runner's; it clears a paid run when every gate on its inputs passed (unknown blocks)
-  and the ledger's month ceiling (`tools/props/cloud/ledger.py`) has room for its estimate, and keeps the clearance
-  in the store. The owner keeps a reject, a button on the cockpit's step page: the accepted output moves back to
+  the month's books are known and its batch's stop (the stop line, or a benchmark grant) has room for its forecast,
+  and keeps the clearance in the store. There is no month's ceiling (owner, 2026-10-20): a batch's own stop is its
+  high estimate plus 10%, set by his yes. The owner keeps a reject, a button on the cockpit's step page: the accepted output moves back to
   the one accepted before, every later node that read it is stale, and the runner never takes it again. He also
   keeps his own accept, for a worse output with his reason; a waiver (one check, one key, with his reason); and an
   override, his yes for a run outside the runner. None is needed for a run. A benchmark grant is his one yes given outside the
@@ -87,7 +88,7 @@ the current backend). No model runs on the coordinating machine.
   batch of at most EUR 20, and on his yes writes it with `compute.grant_benchmark(answer, question, euros)` (his answer
   and the question quoted, the time, single use, 24 h, and his Google month figure when he gave one, which goes into
   the books as his); the batch is one `score run` tagged `SCORE_BENCHMARK_GRANT=<grant id>`, its paid nodes cleared by
-  the runner as ever (inputs passed, month ceiling, books), the grant standing in for the stop line: the first run to
+  the runner as ever (inputs passed, books), the grant standing in for the stop line: the first run to
   clear under it takes it, and its clearances together stay within its euros. Any other purpose, anything over EUR 20,
   an expired or used grant still needs his cockpit click. His accept, reject and waiver and the
   books' figure are buttons in the cockpit (there is no stop he sets: his checkout's yes to a batch writes its stop,
@@ -465,7 +466,7 @@ is meant to fix, where it is marked, and what proves it.
   publish <kind>`). For maintenance image builds that needed the owner's override: each image kind with a proof plan
   (`tools/cloud/images/<kind>/prove.json`) is an environment of its own stage table, no places, no environment 1 node reads it. A
   free `image-pins-<kind>` (pins exact and hashed, resolved by uv, `build_test.py`, models, licences and Dockerfile
-  instructions as the published build's) gates a paid `image-proof-<kind>` cleared against the month's ceiling
+  instructions as the published build's) gates a paid `image-proof-<kind>` cleared against the stop
   (build.py, then prove.py on real jobs, the kind's own output check), and publish writes the accepted record into
   images.json. Proved so far (2026-10-12): moss and characters-motion built, proved and published through it (two
   real MOSS takes at the build before's CLAP scores; a 5 s Kimodo walking clip), closing 30 Dependabot alerts (64 open to 34) with
@@ -518,9 +519,9 @@ runner's ssh and self-delete keys and the dashboard's records went; git, the buc
 runner's key it was made under) survived. Recovery, in order:
 
 1. **Paid work stays shut until the month's spend is known again.** A missing ledger reads as EUR 0, so
-   `ledger.books_refusal` refuses every paid point (`compute.month_refusal`, `compute.require_cleared`,
+   `ledger.books_refusal` refuses every paid point (`compute.books_refusal`, `compute.require_cleared`,
    `compute.submit`) unless `cloud/books.json` says this month is `known` or both ledgers run from before the month
-   began. `score spend --read-back` (and the runner's month check, when an export is set) reads the Scaleway bill and
+   began. `score spend --read-back` (and the runner's books check, when an export is set) reads the Scaleway bill and
    Google's bill (Cloud Billing's usage cost export in BigQuery, `tools/props/cloud/google_bill.py`, its table named
    by SCORE_GOOGLE_BILLING_TABLE outside the repo) and makes it `known` once Google's was read, else leaves it as it
    was with the reason (the cockpit's **Read the bills back** button runs it on his PC); the owner's figure for the
@@ -785,5 +786,5 @@ here.>
 | Project board | `9` (org project) |
 | First user | the game 2099, `JoeyKardolus/2099` (paused 2026-10-08) |
 | Environment ids | `world1` (environment 1, the game 2099's), `images` (the job images); the runner's grain for a whole-environment node is `world`. Stored ids and the grain keep the word world (owner 2026-10-18: SCORE is an environment synthesis framework), because the grain is hashed into every node's key and the id names the environment's records in the store (its stop lines, `stops/world1/`), so renaming either would make accepted nodes again or lose the stop |
-| Cloud | backend chosen by `SCORE_CLOUD` (default `scaleway`); Scaleway: the project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`), machines tagged `farm-factory-batch`; month ceiling `SCORE_MONTH_EUROS` (default 1500); Google's bill read from the billing export table named by `SCORE_GOOGLE_BILLING_TABLE`, else `$PROPS_HOME/cloud/google-billing-table` |
+| Cloud | backend chosen by `SCORE_CLOUD` (default `scaleway`); Scaleway: the project named by `SCORE_SCALEWAY_PROJECT` (default `farm-factory`), machines tagged `farm-factory-batch`; no month's ceiling (owner, 2026-10-20); Google's bill read from the billing export table named by `SCORE_GOOGLE_BILLING_TABLE`, else `$PROPS_HOME/cloud/google-billing-table` |
 | Secrets | read by name with `secret_store.secret(name)`: the environment variable `SCORE_SECRET_<NAME>`, else the backend's store (Scaleway Secret Manager in that project): `worldlabs-api-key`, `gemini-api-key`, `freesound-api-key` (optional) |

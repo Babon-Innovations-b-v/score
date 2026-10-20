@@ -16,8 +16,7 @@ paid row, or which buys nothing is a gap and is never substituted; the rest run 
 (runs side by side would share their places' free nodes, which the run registry refuses). Its record:
 WORK/checks/benchmarks/<made_at>.json, {made_at, benchmarks: [{id, gap or exit, started, minutes}]}.
 
-Before the batch the month's guard (compute.month_refusal) is asked for the total: while the month's books are
-unknown it refuses, and the owner enters the month's Google figure on the cockpit's Buy screen first.
+Before the batch the books guard (compute.books_refusal) is asked: while the month's books are unknown it refuses, and the owner enters the month's Google figure on the cockpit's Buy screen first.
 """
 import argparse
 import json
@@ -162,13 +161,13 @@ def high_with_guesses(benchmarks):
 
 def guard(benchmarks=None):
     """{total_euros, high_euros, cap_euros, refusal}: refusal is why the benchmarks may not start (their high, guesses
-    in, over the cap, or the month's guard's reason for it), else None."""
+    in, over the cap, or the books guard's reason), else None."""
     benchmarks = listed() if benchmarks is None else benchmarks
     high = high_with_guesses(benchmarks)
     if high > CAP_EUROS:
         refusal = f"the benchmarks' high EUR {high:.2f} passes their EUR {CAP_EUROS:.0f} cap"
     else:
-        refusal = compute.month_refusal(high)
+        refusal = compute.books_refusal()
     return {"total_euros": total(benchmarks, "likely_euros"), "high_euros": high, "cap_euros": CAP_EUROS,
             "refusal": refusal}
 

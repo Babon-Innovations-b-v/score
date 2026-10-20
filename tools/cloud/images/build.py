@@ -310,10 +310,10 @@ def price(kinds, account):
     spent = batch.month_spent(account)
     batch.say(f"{len(kinds)} images ({', '.join(kinds)}) on one machine: about {minutes} min, "
               f"€{ledger.cost(minutes, dearest, 60):.2f}; €{spent:.2f} spent this month")
-    refused = ledger.refusal(minutes, dearest, spent)
+    refused = ledger.refusal(minutes, dearest)
     if refused:
         raise SystemExit(f"refused: {refused}")
-    return found, ledger.minutes_allowed(dearest, spent)
+    return found, ledger.minutes_allowed(dearest)
 
 
 def rent_one(account, found, kind, folder_pattern, minutes, share, set_up, do, disk_gb, record):
