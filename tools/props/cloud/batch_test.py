@@ -578,11 +578,13 @@ if __name__ == "__main__":
 
 
 def test_cluster_groups_run_their_takes_side_by_side():
-    takes = [argparse_namespace(name=f"crate-{number}", picture="/pics/crate.png", seed=number) for number in range(4)]
+    takes = [argparse_namespace(name=f"crate-{number}", picture="/pics/crate.png", seed=number, steps=12 - number)
+             for number in range(4)]
     groups = batch.groups_of(takes, 3)
     assert [len(group) for group in groups] == [3, 1]
     line = batch.cluster_line(groups[0])
     assert line.count("pixal-run scripts/pixal3d_generate.py /work/in/crate-") == 3
+    assert "--seed 2 --steps 10 --gss 10" in line  # each take's own steps reach its run
     assert "sleep 60" in line and line.rstrip().endswith("test -f /work/out/crate-2.glb")
     job = batch.cluster_job(groups[0], pathlib.Path("/w/group0/out"))
     assert job["models"] == batch.CLUSTER_MODELS and job["code"] == ["vendor/image-to-3dlab"]
