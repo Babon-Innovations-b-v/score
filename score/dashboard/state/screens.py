@@ -91,20 +91,21 @@ def priced(prices):
 
 
 def remake_money(world):
-    """The whole remake: prepare's figure plus the holes price of every paid step off the prop route; each part
-    apart, its ETA (a range only when both parts have one, else at least the longer floor), and why it is stale."""
+    """The whole remake: prepare's figure plus the holes price of every paid step off the prop route, None while
+    either part is missing or stale (the rule of every price record here); each part apart, its ETA (a range only
+    when both parts have one, else at least the longer floor), and why it is stale."""
     remake, price = world.remake, world.holes_price
     rest = priced({node: found for node, found in price.nodes.items() if not on_route(node)}) if price else None
     route = {"likely": remake.likely_euros, "high": remake.high_euros, "unpriced": len(remake.unpriced),
              **remake.counts} if remake else None
     parts = [part for part in (route, rest) if part is not None]
-    whole = None if None in (route, rest) or None in (route["likely"], route["high"]) else \
+    stale = [why for why in ((remake.stale if remake else "prepare has not run"),
+                             (price.stale if price else "the holes have not been priced")) if why]
+    whole = None if stale or route["likely"] is None or route["high"] is None else \
         {"likely": round(route["likely"] + rest["likely"], 2), "high": round(route["high"] + rest["high"], 2)}
     return {**(whole or {"likely": None, "high": None}), "route": route, "rest": rest,
             "unpriced": sum(part["unpriced"] for part in parts), "eta": eta_of(remake, price),
-            "made_at": remake.made_at if remake else None,
-            "stale": [why for why in ((remake.stale if remake else "prepare has not run"),
-                                      (price.stale if price else "the holes have not been priced")) if why]}
+            "made_at": remake.made_at if remake else None, "stale": stale}
 
 
 def eta_of(remake, price):

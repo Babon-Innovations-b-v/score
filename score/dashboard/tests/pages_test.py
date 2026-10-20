@@ -425,8 +425,10 @@ def test_every_screen_shows_numbers_not_prose(world, settings, tmp_path, monkeyp
 
 
 def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, settings, tmp_path, monkeypatch):
+    from score.dashboard.tests.screens_test import a_remake
     a_holes_finding(world, settings, tmp_path)
     a_holes_price(world, milestones=milestones(), eta={"likely_minutes": 95.0, "high_minutes": 130.0, "unknown": []})
+    a_remake(world)
     world.source.refresh()
     a_month(monkeypatch)
     html = signed_in().get("/").content.decode()
@@ -439,22 +441,28 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     top = html[html.index('<section class="topbar">'):html.index('<section class="ptiles"')]
     assert '<span class="unknown" title="a bill is not known yet">unknown</span>' in top  # the model bill: no figure
     assert "<small> / 250</small>" in top
-    assert "<small>EUR</small> 2&ndash;3<small>, about 1.6 h</small>" in top  # the runner's plan, its ETA
+    # prepare's figure (EUR 10 to 12) and the holes price off the prop route (none measured): prepare times no step
+    assert "<small>EUR</small> 10&ndash;12<small>, " in top and "? h</span>" in top
     assert 'href="/buy/">Review and buy</a>' in top
 
 
-def test_the_remake_is_the_runners_plan_and_its_time_only_when_every_step_is_timed(world, settings, tmp_path):
+def test_the_remake_is_prepares_whole_figure_plus_the_rest_and_its_time_only_when_every_step_is_timed(
+        world, settings, tmp_path):
     from score.dashboard.pages import cockpit
+    from score.dashboard.tests.screens_test import a_remake
     a_holes_finding(world, settings, tmp_path)
     a_holes_price(world, milestones=milestones())
+    a_remake(world)
     world.source.refresh()
-    remake = cockpit.remake(world.source.holes_price())
-    assert (remake["low"], remake["high"], remake["hours"], remake["unknown"]) == (2.0, 3.0, None, 2), remake
-    untimed = {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0,
+    remake = cockpit.remake(world.source.world_state())
+    # prepare's EUR 10 to 12 (the likeness calibration unpriced) and the sound off the prop route, only guessed
+    assert (remake["low"], remake["high"], remake["hours"], remake["unknown"]) == (10.0, 12.0, None, 2), remake
+    untimed = {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 45.0,
                "unknown": [{"node": "sound@alpha", "paid": True, "why": "no run of sound in the cloud ledger"}]}
     a_holes_price(world, milestones=milestones(), eta=untimed)
     world.source.refresh()
-    assert cockpit.remake(world.source.holes_price())["hours"] is None
+    remake = cockpit.remake(world.source.world_state())
+    assert remake["hours"] is None and remake["at_least_hours"] == 0.8  # the longer floor of the two
 
 
 def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, settings, tmp_path):
@@ -463,7 +471,7 @@ def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, set
     a_holes_finding(world, settings, tmp_path)
     a_holes_price(world)
     world.source.refresh()
-    assert cockpit.remake(world.source.holes_price())["why"] == "no plan in the runner's record"
+    assert cockpit.remake(world.source.world_state())["why"] == "prepare has not run"
     here = local.priced_here()
     for priced_on, said in (({**here, "commit": "0" * 40, "uncommitted": False}, "the code moved"),
                             ({**here, "per_unit_sha256": "0" * 64, "uncommitted": False}, "per-unit prices"),
@@ -471,22 +479,18 @@ def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, set
         a_holes_price(world, milestones=milestones(), priced_on=priced_on)
         world.source.refresh()
         price = world.source.holes_price()
-        remake = cockpit.remake(price)
+        remake = cockpit.remake(world.source.world_state())
         assert remake["low"] is None and said in remake["why"], (said, remake)
         assert cockpit.measured_prices(price) == (None, None)
     assert said in unescape(signed_in().get("/").content.decode())  # the why is the hover text
 
 
 def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, settings, tmp_path, monkeypatch):
-    from score.dashboard.launch.backend import Billed
-    from score.dashboard.tests.fixture import FakeBackend
     a_holes_finding(world, settings, tmp_path)
     a_holes_price(world)
     world.source.refresh()
-    a_month(monkeypatch)
-    monkeypatch.setattr(FakeBackend, "bill", [Billed("closeup@alpha", 2.5, 10.0, "2026-10-03T10:00:00"),
-                                              Billed("closeup@alpha", 1.0, 5.0, "2026-10-05T10:00:00"),
-                                              Billed("closeup@alpha", 9.0, 5.0, "2026-09-30T10:00:00")])
+    a_month(monkeypatch, bill_days=[{"day": "2026-10-03", "cloud": 2.5, "models": None},  # the bills as read
+                                    {"day": "2026-10-05", "cloud": 3.5, "models": None}])
     html = signed_in().get("/stats/").content.decode()
     cards = dict(re.findall(r'<div class="num-label">(?:<i [^>]*></i>)?([^<]+)</div>\s*<div class="num-value[^"]*"'
                             r"[^>]*>(.*?)</div>", html, re.S))
@@ -496,7 +500,6 @@ def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, se
     assert cards["Places complete"] == "1<small> / 2</small>"  # beta, checked with no gap
     assert [cards[label] for label in ("lost", "route", "missing", "failing")] == ["0", "1", "2", "1"]
     assert 'title="2026-10-03: EUR 2.50"' in html and 'title="2026-10-05: EUR 1.00"' in html
-    assert "2026-09-30" not in html  # last month's run is not this month's spend
     main = html[html.index("<main>"):]
     assert "<form" not in main and "<button" not in main  # numbers only, no controls
 

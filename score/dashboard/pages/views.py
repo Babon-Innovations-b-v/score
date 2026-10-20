@@ -64,19 +64,11 @@ def every_place_holes(source):
     return {place: source.place_detail(place).holes for place in source.places()}
 
 
-def every_node(world):
-    """Every node of the environment: its own line's, every place's steps' and the price record's."""
-    nodes = {step.node for step in world.world_line}
-    nodes |= {step.node for engine in world.engines for style in engine.styles for card in style.places
-              for layer in card.layers for step in layer.steps}
-    return nodes | set(world.holes_price.nodes if world.holes_price else ())
-
-
 def environment(request):
     """Screen 1: the month's spend against the stop, the remake's price and time, a tile per place."""
     found = overview_of(state.source())
     return render(request, "pages/environment.html", {
-        "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(found["world"].holes_price),
+        "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(found["world"]),
         "tiles": cockpit.tiles(found["world"], found["names"], found["rows"])})
 
 
@@ -88,15 +80,14 @@ def stats(request):
     return render(request, "pages/stats.html", {
         "money": cockpit.month_money(view), "measured": cockpit.measured_prices(world.holes_price),
         "kinds": cockpit.gaps_by_kind(world.holes_total), "complete": complete, "of": of,
-        "timeline": None if actions.hosted() else cockpit.timeline(
-            guard.backend().ledgered(every_node(world), cockpit.month_start(view.month)), view.month)})
+        "timeline": cockpit.timeline(cockpit.billed_days(view.bill_days), view.month)})
 
 
 def buy(request):
     """Screen 3, its layout (#42 step 2 fills the batch): the batch's lines, its total and ETA, the Buy button; the
     owner's books buttons while paid work is refused."""
     found = overview_of(state.source())
-    return render(request, "pages/buy.html", {"remake": cockpit.remake(found["world"].holes_price),
+    return render(request, "pages/buy.html", {"remake": cockpit.remake(found["world"]),
                                              "money": found["view"]})
 
 

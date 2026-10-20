@@ -4,7 +4,8 @@ A number the runner does not give is None, which a page shows as a grey "unknown
 import datetime
 from collections import defaultdict
 
-from score.dashboard.state import holes
+from score.dashboard.launch.backend import Billed
+from score.dashboard.state import holes, library, screens
 
 # a hole kind's state colour (design/tokens/colours.css) and its short label
 KIND_TONES = {"lost": "hole-lost", "route": "hole-route", "missing": "hole-missing", "gate": "hole-gate"}
@@ -29,19 +30,17 @@ def month_money(view):
             "models_label": lines["models"].label if "models" in lines else "Models"}
 
 
-def remake(price):
-    """{low, high, hours, unknown, why} of the whole remake's plan (holes.plan_of): its measured likely and high
-    euros, its likely hours when every step has measured minutes, the paid steps with no measured price; `why` the
-    hover text when there is no plan."""
-    plan = holes.plan_of(price) if price is not None else None
-    if plan is None:
-        return {"low": None, "high": None, "hours": None, "unknown": 0,
-                "why": holes.said_of_price(price) or "no plan in the runner's record"}
-    eta = price.eta or {}
-    timed = eta.get("likely_minutes") is not None and not eta.get("unknown")
-    return {"low": plan["total"]["likely"], "high": plan["total"]["high"],
-            "hours": round(eta["likely_minutes"] / 60, 1) if timed else None,
-            "unknown": plan["total"]["unknown"], "why": None}
+def remake(world):
+    """{low, high, hours, at_least_hours, unknown, why} of the whole remake (state/screens.remake_money: prepare's
+    one-shot figure of the prop route, the takes waiting on lost inputs counted, plus the holes price of every paid
+    step off it): its likely and high euros, its likely hours only when every step is timed, else the floor; the
+    steps and layers with no price; `why` the hover text while a part is missing or stale (no figure then)."""
+    found = screens.remake_money(world)
+    eta = found["eta"]
+    return {"low": found["likely"], "high": found["high"],
+            "hours": round(eta["likely_minutes"] / 60, 1) if eta["likely_minutes"] is not None else None,
+            "at_least_hours": round(eta["at_least_minutes"] / 60, 1) if eta["at_least_minutes"] else None,
+            "unknown": found["unpriced"], "why": "; ".join(found["stale"]) or None}
 
 
 def made_of(card):
@@ -61,6 +60,7 @@ def tiles(world, names, rows):
     """[{place, href, name, picture, made, needed, gaps, tone}] of every place of the environment (a WorldState),
     `names` their titles, with its row of holes.per_place: gaps None while its holes are not known."""
     by_place = {row["place"]: row for row in rows}
+    shelf = library.library()
     found = []
     for card in [card for engine in world.engines for style in engine.styles for card in style.places]:
         row = by_place.get(card.place)
@@ -68,7 +68,8 @@ def tiles(world, names, rows):
         made, needed = made_of(card)
         found.append({"place": card.place, "href": f"/place/{card.place}/",
                       "name": names.get(card.place, card.place),
-                      "picture": (picture.thumb_url or picture.url) if picture else None, "made": made,
+                      "picture": screens.thumb(picture) or screens.library_picture(shelf, card.place),
+                      "made": made,
                       "needed": needed, "gaps": None if row is None or row["not_checked"] else row["holes"],
                       "tone": tone_of(row)})
     return found
@@ -106,9 +107,15 @@ def measured_prices(price):
     return (money["measured"], money["paid"]) if money else (0, 0)
 
 
-def month_start(month):
-    """The first moment of a "YYYY-MM" month, as the ledger writes its times."""
-    return f"{month}-01T00:00:00"
+def billed_days(bill_days):
+    """[Billed] a day of the month's bills as read each day (MoneyView.bill_days, the month so far): each day what
+    the month grew by since the reading before, the cloud's and the model calls' known figures together."""
+    found, before = [], 0.0
+    for day in bill_days:
+        so_far = (day.get("cloud") or 0.0) + (day.get("models") or 0.0)
+        found.append(Billed(node="bill", euros=round(max(0.0, so_far - before), 2), minutes=None, started=day["day"]))
+        before = max(before, so_far)
+    return found
 
 
 def timeline(billed, month, today=None):
