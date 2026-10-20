@@ -13,6 +13,7 @@ one ETA on the fixed fleet and the predicted gaps beside them. Nothing here buys
     machines.py    one class and zone a layer, from the runner's order, the ledgers' boot records and the stock
     estimate.py    the layers' units, euros and minutes, the ETA (gaps/schedule.py) and the one line
     benchmarks.py  the benchmarks that settle #21's cuts, their guard and their one batch (the owner's Buy starts it)
+    design.py      each place's design: its concept and plan, approved by the creator before any batch is bought
 
 The record (`WORK/checks/prepare/remake.json` by default):
 
@@ -30,5 +31,6 @@ The record (`WORK/checks/prepare/remake.json` by default):
      "predicted_gaps_if_bought": {likely_euros, high_euros},
      "moved": {"rows": [{node, euros, why, again}]} or {"not_run": why},
      "benchmarks": {"listed": [...], "guard": {total_euros, high_euros, cap_euros, refusal}},
+     "design": {"places": {place: {concept, plan, output, hint}}, "approved": [place]},   (design.py)
      "not_in_figure": [what the figure leaves out], "line"}
 """

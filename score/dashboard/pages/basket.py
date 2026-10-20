@@ -449,18 +449,20 @@ def checked_out(user, key, seen):
 
 
 def batch_items(items, which):
-    """[{id, version}] of the basket items one yes of the Buy screen buys: every item a run on main buys now but the
-    Benchmarks and those waiting on a missing input (`which` "now", screens.now_items: the Buy now line), or the
-    Benchmarks item alone (`which` "benchmarks"), each as shown now."""
-    chosen = screens.now_items(items) if which != "benchmarks" else [
-        item for item in items if item["id"] == benchmarks.ID]
+    """[{id, version}] of the basket items one yes buys: the Benchmarks item alone (`which` "benchmarks"), else the
+    batch: every item a run on main buys now at the places whose design the creator approved (screens.now_items),
+    each as shown now."""
+    if which == "benchmarks":
+        chosen = [item for item in items if item["id"] == benchmarks.ID]
+    else:
+        chosen = screens.now_items(items, screens.approved_places(state.source().world_state()))
     return [{"id": item["id"], "version": item["version"]} for item in chosen]
 
 
 @require_POST
 def buy_yes(request):
-    """The Buy screen's one yes (#42): his checkout of the one batch (`batch` "now", the default) or of the
-    Benchmarks (`batch` "benchmarks"), signed in, CSRF by Django; JSON {said}, or {detail} with 409 when refused. Its
+    """The Buy screen's yes (#42): his checkout of the batch at the places whose design he approved (`batch` "now",
+    the default) or of the Benchmarks (`batch` "benchmarks"), signed in, CSRF by Django; JSON {said}, or {detail} with 409 when refused. Its
     stop is the batch's high plus 10%, never asked."""
     if not is_owner(request.user):
         return JsonResponse({"detail": "only the owner checks out"}, status=403)

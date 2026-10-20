@@ -86,7 +86,8 @@ def remake_of(written):
                        "at_least_minutes": eta.get("at_least_minutes"), "untimed": len(eta.get("unknown") or [])},
                   counts=take_counts(written.get("takes", [])),
                   places={place: take_counts(takes) for place, takes in sorted(by_place.items())},
-                  layers=layers_of(written), stale=code_moved(written.get("priced_on")))
+                  layers=layers_of(written), design=written.get("design") or {},
+                  stale=code_moved(written.get("priced_on")))
 
 
 def layers_of(written):

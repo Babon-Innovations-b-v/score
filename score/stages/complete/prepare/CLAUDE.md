@@ -37,6 +37,11 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   wrote: each benchmark planned free first, one whose inputs do not stand (or that would buy another paid row) a gap,
   never substituted; the rest each one `score run`, one after another. A benchmark with no paid path is listed as a
   gap. Never start the batch from an agent.
+- **Design before the batch** (owner, 2026-10-20, CONTEXT.md "design"; `design.py`): each place's concept
+  (missing, drawn, picked) and plan (remake, made, approved), read from `data/places/concepts.json` and the store,
+  never judged. Approved is only the creator's own accept of `plan@<place>` given after his pick; the runner's
+  automatic accept is never an approval. The cockpit's batch buys only approved places' steps. The old plans'
+  `concept.pick` is a hint for drawing, not a constraint.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
   `WORK/checks/prepare/remake.json`. Test: `PROPS_HOME=$(mktemp -d) .venv/bin/python
   score/stages/complete/prepare/prepare_test.py`.

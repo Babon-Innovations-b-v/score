@@ -108,28 +108,23 @@ def stats(request):
 
 
 def buy(request):
-    """Screen 3: the one batch (screens.batch): its total by layer, each line made now, from the library and waiting
-    (why as hover text); the Buy now line (what its one Buy buys, its stop that line's high plus 10%) and the
-    Waiting line; the places it reaches; the Benchmarks as a second small batch; the last batch's state and stop;
-    the owner's books buttons only while paid work is refused or the model calls' month is not read."""
-    found = overview_of(state.source())
-    world, spend = found["world"], found["world"].spend
+    """Screen 3, design first (CONTEXT.md "design"): each place's concept and its plan, made on
+    the place's card and never bought here (screens.design), its Approve once made; then the batch after design
+    (screens.batch: the whole remake by layer, how many each makes and its euros), its Buy only once a design is
+    approved and only for those places; the last batch's state and stop; the owner's books buttons only while paid
+    work is refused or the model calls' month is not read."""
+    source = state.source()
+    found = overview_of(source)
+    world = found["world"]
     items = records.items(basket_items.basket_root())
-    bench = basket_items.batch_items(items, "benchmarks")
     names = groups.short_names(world)
-    batch = screens.batch(world, items)
-    now = batch["now"]
-    now["names"] = [names.get(place, present.place_title(place)) for place in now["places"]]
-    now["hours"] = (*cockpit.eta_hours(now["eta"]), round(now["eta"]["at_least_minutes"] / 60, 1)
-                    if now["eta"]["at_least_minutes"] else None)
-    for row in batch["gets"]:
+    design = screens.design(source, world)
+    for row in design["places"]:
         row["name"] = names.get(row["place"], present.place_title(row["place"]))
-    bench_screen = screens.buy(items, {each["id"]: "buy" for each in bench}, spend) if bench else None
     return render(request, "pages/buy.html", {
-        "batch": batch, "money": found["view"], "last": basket_items.last_batch(),
-        "figure": cockpit.month_money(found["view"])["models"] is None,
-        "bench": bench_screen and {**bench_screen["total"], "stop": bench_screen["stop"]},
-        "key": uuid.uuid4().hex, "bench_key": uuid.uuid4().hex})
+        "design": design, "batch": screens.batch(world, items), "money": found["view"],
+        "last": basket_items.last_batch(), "figure": cockpit.month_money(found["view"])["models"] is None,
+        "key": uuid.uuid4().hex})
 
 
 def place_page(request, place):

@@ -63,18 +63,21 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   - `/api/screens/buy`: `items` [{id, title, place, places, layers, likely, high, guessed, nodes, unmeasured,
     blocked, choice (buy, later, None; a choice on another version is None)}], `chosen`, `total` (the chosen items,
     each node once) and `basket` (every item) {likely, high, guessed, nodes, unmeasured}, `eta` {likely_minutes,
-    high_minutes, untimed}, `stop` (what the yes would write: the high with the guesses, plus 10%), `money`; `batch`
+    high_minutes, untimed}, `stop` (what the yes would write: the high with the guesses, plus 10%), `money`; `design`
+    (`screens.design`, CONTEXT.md "design", prepare's `design.py` record carried in the Remake) {places [{place,
+    design {concept (missing, drawn, picked), plan (remake, made, approved), output, hint} (None: prepare names it
+    not), game (its gaps' `complete/game` gate: its layout still from the source game)}], approved}; `batch`
     (`screens.batch(world, items)`, the Buy screen's one batch, owner 2026-10-20: "what Buy buys must be exactly the
     total shown") {now {likely, high (the guesses the runner reserves in it), guessed, guesses, stop (high plus 10%),
     steps, places, eta} (the basket items `screens.now_items` gives: not the Benchmarks, none waiting on a missing
-    input; exactly what the Buy yes buys), waiting {likely, high, why [reason]} (prepare's prop route take by take,
+    input, only at places whose design is approved, none before one is; exactly what the Buy yes buys), waiting {likely, high, why [reason]} (prepare's prop route take by take,
     a take's stage at a place the Buy buys counted there, the rest with its share of the stage's price; every other
     paid step of the gaps price), total (now plus waiting, the sum of the lines: measured, estimated and guessed
     parts of its high, `no_price` the kinds of step with none), gets [{place, made, after, needed, complete,
     layers}] (each place's steps before and after Buy now), layers [{layer (`screens.LAYERS`), make, library,
     waiting, why {reason: count} (plain words: `local.WAITS` for a take's lost input, an earlier step first, inputs
     missing, predicted to fail, not in the last plan), models, steps (its units: the route's takes, steps at places),
-    likely, high, guessed, no_price {kind: count}}], eta, stale}.
+    makes (its widest route stage's takes plus its steps at places), likely, high, guessed, no_price {kind: count}}], eta, stale}.
   - `/api/screens/stats`: money, `bill_days` [{day, cloud, models}] (the bills as read each day on the store's
     machine), `days` (the ledgers' own counts, low), `prices` {measured, steps, by_basis, stale}, `remake_layers`,
     gaps, `places` {complete, total}.
@@ -95,10 +98,13 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   and gaps, shows what sits directly inside that holds places itself over its concept ("Ship, 8 rooms") and "+N"
   for the rest, and opens to them at `/?in=<place or shell>`, a place's own tile first, with a
   trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: its concept as the header, the 3D view,
-  the scene tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`: Buy now with its ETA, its stop and the
-  Buy button, Waiting with why, the Batch their sum; its layers below, each made now, from the library, waiting and
-  its euros, opening to why; the places Buy now reaches beside; the Benchmarks a second small batch with its own
-  Buy; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
+  the scene tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`, owner 2026-10-20, CONTEXT.md "design":
+  design first: how many places' designs are approved and a row a place, its concept and plan state, "game layout"
+  where its layout still takes the source game's numbers, its old pick as hover text, linking to the place, where
+  the design is made (its concept review, outside any batch: no concept is bought here), and the owner's Approve
+  once its plan is made (his accept of `plan@<place>` through `/api/decisions`); then After design, the batch's
+  whole figure and a line a layer, how many it makes and its euros, no step's own name and no dropdown; its Buy only
+  once a design is approved, buying only those places; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
   month figure while it is not read, its button named by their cost line's label; no Basket link, no stop control:
   the Buy yes sets the batch's stop), **Stats** `/stats/`
   (`stats.html`: numbers only, no controls, three groups: money this month (cloud, AI calls, total, no stop; the
@@ -137,10 +143,10 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   the step that fills it (`cockpit.gap_action`: accept its waiting output, reject one failing a check, waive the
   failed check of its accepted one, as his JSON request to `/api/decisions` or `/api/waivers`); opening it frames
   the gap in the 3D view (a `{gap}` message to the viewer frame). Buy shows the one batch (CONTEXT.md "batch"): the remake
-  (`screens.batch`), a step with neither a measured price nor a guess the runner reserves listed by name as "no price"
-  (a guess shows only as "guessed", in Buy now's high, since its stop holds it); its Buy button posts `/buy/yes/`
-  {key, batch: now} (`basket.buy_yes`, `batch_items`: exactly the Buy now line's items, `screens.now_items`, through
-  the same checkout as the basket's, hosted queued; what waits is in the figure, not buyable), the Benchmarks' `{batch: benchmarks}`; no choice
+  (`screens.batch`), a layer with a step that has neither a measured price nor a guess the runner reserves marked "+"
+  (a guess shows only as "*"); its Buy button posts `/buy/yes/`
+  {key, batch: now} (`basket.buy_yes`, `batch_items`: exactly the approved places' items, `screens.now_items`, through
+  the same checkout as the basket's, hosted queued; what waits is in the figure, not buyable); `{batch: benchmarks}` still buys the Benchmarks item, with no button on this screen; no choice
   an item is asked, so the nav's count is only the steps queued by hand and the refines; the last batch's stop (its
   high plus 10%, `basket.last_batch`) shows after it. The numbers come
   from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `branch_rows`, `gaps_by_kind`, `places_complete`,

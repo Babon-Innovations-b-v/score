@@ -504,19 +504,13 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .num-sub { margin-top: 4px; color: var(--soft); font-variant-numeric: tabular-nums; }
 .buy-layers { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .buy-layers > li + li { border-top: 1px solid var(--line); }
-.buy-layers summary { list-style: none; cursor: pointer; padding: 10px 14px; font-size: 16px; } .buy-layers summary::-webkit-details-marker { display: none; }
-.buy-layers summary:hover { background: var(--raised); }
+.buy-layers .buy-item { display: flex; align-items: center; padding: 10px 14px; font-size: 16px; }
 .buy-layers .node-label { font-weight: 600; width: 112px; flex: none; }
-.buy-places { list-style: none; margin: 0; padding: 0 14px 10px 36px; columns: 2 220px; }
-.buy-places .node-row { display: flex; } .buy-places .node-label { font-weight: 400; width: auto; flex: 1; }
-.buy-bench { display: flex; padding: 8px 14px; border: 1px dashed var(--line); border-radius: var(--radius); }
-.buy-bench .buy-yes { margin-left: 12px; }
+.buy-design .node-label { width: auto; flex: 1; color: inherit; text-decoration: none; } .buy-design .buy-yes { margin-left: 12px; }
 .buy-now .buy-yes { margin-top: 12px; } .buy-stale { margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
 .buy-n { width: 88px; text-align: right; font-variant-numeric: tabular-nums; color: var(--soft); flex: none; }
 .buy-head { display: flex; padding: 8px 18px 6px 36px; font-size: var(--fs-xs); color: var(--faint); text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); }
 .buy-head .buy-price { color: var(--faint); }
-.buy-gets ul { list-style: none; margin: 0; padding: 0; } .buy-gets .node-row { display: flex; padding: 3px 0; }
-.buy-gets .node-count { margin-left: auto; font-variant-numeric: tabular-nums; }
 .books { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .stats-group { margin: 0 0 32px; } .stats-group .nums { margin-bottom: 16px; }
 .num-link { color: inherit; text-decoration: none; } .num-link:hover { border-color: var(--faint); text-decoration: none; }

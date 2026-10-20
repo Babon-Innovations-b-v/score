@@ -637,10 +637,11 @@ def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(
         "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}]
 
 
-def test_the_buy_screen_shows_buy_now_waiting_and_the_batch_and_its_buy_buys_only_buy_now(world, settings, tmp_path,
-                                                                                        monkeypatch):
-    """Buy now (the basket's close-up, its stop its high plus 10%), Waiting and the Batch their sum; each layer line
-    made now, from the library, waiting and its euros; the places Buy now reaches; no grey dot before an answer."""
+def test_the_buy_screen_shows_design_first_and_the_batch_after_it_bought_only_for_approved_designs(
+        world, settings, tmp_path, monkeypatch):
+    """Design first: each place's concept and plan, made on its card, never bought here; the batch after design, each
+    layer how many it makes and its euros, no step's own name; its Buy only once a design is approved, and it buys
+    only the approved places' steps (the basket's close-up at alpha, its stop its high plus 10%)."""
     from score.dashboard.pages.models import Checkout
     from score.dashboard.tests.screens_test import SETTLE, a_remake
     a_month(monkeypatch)
@@ -648,20 +649,24 @@ def test_the_buy_screen_shows_buy_now_waiting_and_the_batch_and_its_buy_buys_onl
     a_gaps_price(world, nodes={"settle@alpha": SETTLE, "sound@alpha": {
         "likely_euros": None, "high_euros": None, "guess_euros": 1.0, "basis": "not measured yet"}},
         eta={"likely_minutes": None, "high_minutes": None, "at_least_minutes": 20.0, "unknown": [{"node": "sound"}]})
-    a_remake(world)
+    a_remake(world, approved=())
     world.source.refresh()
     client = signed_in()
     html = client.get("/buy/").content.decode()
-    top = html[html.index('<div class="topbar">'):html.index('<ul class="buy-layers">')]
-    assert "<small>EUR</small> 2.00&ndash;3.00" in top and "<small>stops at EUR</small> 3.30" in top  # Buy now
-    assert "<small>EUR</small> 2.00&ndash;3.00</div>" in top.split("Waiting")[1]  # settle waits
-    assert "<small>EUR</small> 4.00&ndash;6.00" in top and '"batch": "now"' in top  # the sum of the two
-    assert "disabled" not in re.search(r'<form class="buy-yes".*?</form>', top).group()
-    assert re.search(r'<i class="dot" data-slot="said" hidden>', top)  # hidden until the answer (dash.css)
-    layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>'
-                        r'<span class="buy-n" data-v>(\d+)</span><span class="buy-n" data-v[^>]*>(\d+)</span>', html)
-    assert layers == [("Models", "2", "0", "1"), ("Motion", "0", "0", "1"), ("Sound", "0", "0", "1")]
-    assert "lost concept views" not in html and "predicted to fail" in html
+    top = html[html.index('<div class="topbar">'):html.index('<ul class="buy-layers buy-design">')]
+    assert "0 <small>of</small> 2 <small>approved</small>" in top and "<small>EUR</small> 12.00&ndash;15.00" in top
+    assert 'data-url="/buy/yes/"' not in html  # no design approved: nothing to buy
+    rows = re.findall(r'href="/place/(\w+)/" data-v>.*?</a><span class="buy-n" data-v>(\w+)</span>'
+                      r'<span class="buy-n" data-v>([\w ]+)</span>', html)
+    assert rows == [("alpha", "missing", "to remake"), ("beta", "missing", "to remake")]
+    layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>', html)
+    assert layers == [("Models", "2"), ("Motion", "1"), ("Sound", "1")]
+    assert not re.search(r"predicted to fail|calibration|earlier step|lost concept|<details", html)
+    a_remake(world)  # alpha's design approved
+    world.source.refresh()
+    top = client.get("/buy/").content.decode().split('<ul class="buy-layers buy-design">')[0]
+    assert "1 <small>of</small> 2 <small>approved</small>" in top and '"batch": "now"' in top
+    assert "it stops at EUR 3.30" in top and re.search(r'<i class="dot" data-slot="said" hidden>', top)
     assert client.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
     refused = client.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")
     assert refused.status_code == 409 and refused.json()["detail"].startswith("refused")  # no Benchmarks item

@@ -28,9 +28,20 @@ def take(place, status, lost=True):
             "inputs": ["view v1's picture is not in the work folder"] if lost else []}
 
 
-def a_remake(world, priced_on=None):
+def a_design(approved):
+    """Prepare's design record (prepare/design.py): alpha's and beta's, the `approved` ones approved, the others with
+    their concept missing and their plan to remake."""
+    def one(place):
+        if place in approved:
+            return {"concept": "picked", "plan": "approved", "output": "o" * 64, "hint": "K01"}
+        return {"concept": "missing", "plan": "remake", "output": None, "hint": None}
+    return {"places": {place: one(place) for place in ("alpha", "beta")}, "approved": list(approved)}
+
+
+def a_remake(world, priced_on=None, approved=("alpha",)):
     """Prepare's record (WORK/checks/prepare/remake.json) as the real one is shaped: alpha's three takes, two bought
-    waiting on a lost input and one a predicted gap, priced EUR 10 to 12 with the likeness calibration unpriced."""
+    waiting on a lost input and one a predicted gap, priced EUR 10 to 12 with the likeness calibration unpriced; the
+    designs of `approved` approved."""
     folder = world.root / "props/work/checks/prepare"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "remake.json").write_text(json.dumps({
@@ -41,7 +52,7 @@ def a_remake(world, priced_on=None):
                    "likeness-calibration": {"takes": 2, "price": {"likely_euros": None, "high_euros": None}}},
         "totals": {"likely_euros": 10.0, "high_euros": 12.0, "unpriced": ["likeness-calibration"]},
         "eta": {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0, "path": [],
-                "unknown": [{"node": "closeup"}, {"node": "pixal"}]}}))
+                "unknown": [{"node": "closeup"}, {"node": "pixal"}]}, "design": a_design(approved)}))
 
 
 @pytest.fixture
@@ -104,8 +115,10 @@ def test_a_remake_priced_on_code_not_committed_says_it_is_stale(cockpit):
     assert screens.remake_money(cockpit.source.world_state())["stale"] == ["it was made on code not committed"]
     from score.dashboard.tests.pages_test import signed_in
     html = signed_in().get("/buy/").content.decode()
-    waiting = html[html.index(">Waiting<"):html.index('<ul class="buy-layers">')]
-    assert waiting.count(">unknown</span>") == 2 and "measured" not in waiting  # never 0.00 while stale
+    after = html[html.index(">After design<"):html.index('<ul class="buy-layers buy-design">')]
+    assert after.count(">unknown</span>") == 1 and "&ndash;" not in after.split("</div>")[1]  # never 0.00 stale
+    layers = html.split('<ul class="buy-layers buy-design">')[1].split('<ul class="buy-layers">')[1]
+    assert layers.count('<span class="unknown">unknown</span>') == layers.count('class="node-row buy-item"') > 0
 
 
 def test_the_place_screen_lists_its_gaps_as_items_and_each_chain_priced_once(cockpit):
@@ -147,6 +160,21 @@ def test_the_batch_splits_into_what_buy_buys_now_and_what_waits_and_its_lines_ad
     waits = screens.batch(cockpit.source.world_state(), blocked)
     assert waits["now"]["steps"] == 0 and waits["now"]["stop"] is None  # Buy buys nothing that cannot run
     assert waits["layers"][0]["why"]["lost concept views"] == 2
+
+
+def test_no_step_is_bought_at_a_place_whose_design_is_not_approved(cockpit):
+    """Before any design is approved the batch buys nothing (its figure stays whole, all after design); the design
+    names each place's concept and plan as prepare wrote them, and a place it does not name as None."""
+    a_remake(cockpit, approved=())
+    cockpit.source.refresh()
+    world = cockpit.source.world_state()
+    found = screens.batch(world, cockpit.items)
+    assert found["now"]["steps"] == 0 and found["now"]["stop"] is None and found["total"]["high"] > 0
+    assert screens.now_items(cockpit.items, ["beta"]) == []  # alpha's close-up waits on alpha's design
+    design = screens.design(cockpit.source, world)
+    assert design["approved"] == [] and [row["design"]["plan"] for row in design["places"]] == ["remake", "remake"]
+    world.remake.design = {}
+    assert screens.design(cockpit.source, world)["places"][0]["design"] is None
 
 
 def test_the_buy_route_counts_a_choice_on_another_version_as_none(cockpit, month_read):
