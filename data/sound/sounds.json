@@ -577,7 +577,7 @@
 					"clap": 0.4951
 				}
 			},
-			"file": "sound/mars_wind.generated@1/audio/generated/places/mars_wind.wav",
+			"file": "sound/mars_wind@1/audio/generated/places/mars_wind.wav",
 			"volume_db": -25.7
 		},
 		"mars_dust_storm_wind": {
@@ -596,7 +596,7 @@
 					"clap": 0.4646
 				}
 			},
-			"file": "sound/mars_dust_storm_wind.generated@1/audio/generated/places/mars_dust_storm_wind.wav",
+			"file": "sound/mars_dust_storm_wind@1/audio/generated/places/mars_dust_storm_wind.wav",
 			"volume_db": -13.0
 		},
 		"earth_flat": {
@@ -741,7 +741,7 @@
 					"clap": 0.2783
 				}
 			},
-			"file": "sound/radio_beep.generated@1/audio/generated/doors/radio_beep.ogg",
+			"file": "sound/radio_beep@1/audio/generated/doors/radio_beep.ogg",
 			"volume_db": -20.2
 		},
 		"radio_squelch": {
@@ -759,7 +759,7 @@
 					"clap": 0.4101
 				}
 			},
-			"file": "sound/radio_squelch.generated@1/audio/generated/doors/radio_squelch.ogg",
+			"file": "sound/radio_squelch@1/audio/generated/doors/radio_squelch.ogg",
 			"volume_db": -20.9
 		},
 		"cockpit_switch": {
@@ -814,7 +814,7 @@
 					"clap": 0.4542
 				}
 			},
-			"file": "sound/geiger_ticks.generated@1/audio/generated/machines/geiger_ticks.wav",
+			"file": "sound/geiger_ticks@1/audio/generated/machines/geiger_ticks.wav",
 			"volume_db": -13.0
 		},
 		"hatch_open": {
@@ -832,7 +832,7 @@
 					"clap": 0.3331
 				}
 			},
-			"file": "sound/hatch_open.generated@1/audio/generated/doors/hatch_open.ogg",
+			"file": "sound/hatch_open@1/audio/generated/doors/hatch_open.ogg",
 			"volume_db": -20.0
 		},
 		"airlock_pump_down": {
@@ -905,7 +905,7 @@
 					"clap": 0.387
 				}
 			},
-			"file": "sound/lift_start.generated@1/audio/generated/doors/lift_start.ogg",
+			"file": "sound/lift_start@1/audio/generated/doors/lift_start.ogg",
 			"volume_db": -19.3
 		},
 		"lift_travel": {
@@ -924,7 +924,7 @@
 					"clap": 0.306
 				}
 			},
-			"file": "sound/lift_travel.generated@1/audio/generated/machines/lift_travel.wav",
+			"file": "sound/lift_travel@1/audio/generated/machines/lift_travel.wav",
 			"volume_db": -18.2
 		},
 		"lift_stop": {
@@ -942,7 +942,7 @@
 					"clap": 0.4104
 				}
 			},
-			"file": "sound/lift_stop.generated@1/audio/generated/doors/lift_stop.ogg",
+			"file": "sound/lift_stop@1/audio/generated/doors/lift_stop.ogg",
 			"volume_db": -26.1
 		},
 		"footsteps_gravel": {
@@ -961,7 +961,7 @@
 					"clap": 0.4725
 				}
 			},
-			"file": "sound/footsteps_gravel.generated@1/audio/generated/machines/footsteps_boots_gravel.wav",
+			"file": "sound/footsteps_gravel@1/audio/generated/machines/footsteps_boots_gravel.wav",
 			"volume_db": -17.0
 		},
 		"bench_tool": {
@@ -980,7 +980,7 @@
 					"clap": 0.4064
 				}
 			},
-			"file": "sound/bench_tool.generated@1/audio/generated/machines/bench_tool.wav",
+			"file": "sound/bench_tool@1/audio/generated/machines/bench_tool.wav",
 			"volume_db": -19.7
 		},
 		"digger": {
@@ -999,7 +999,7 @@
 					"clap": 0.4378
 				}
 			},
-			"file": "sound/digger.generated@1/audio/generated/machines/digger.wav",
+			"file": "sound/digger@1/audio/generated/machines/digger.wav",
 			"volume_db": -20.3
 		},
 		"robot_planting": {
@@ -1017,7 +1017,7 @@
 					"clap": 0.293
 				}
 			},
-			"file": "sound/robot_planting.generated@1/audio/generated/doors/robot_planting.ogg",
+			"file": "sound/robot_planting@1/audio/generated/doors/robot_planting.ogg",
 			"volume_db": -23.9
 		},
 		"robot_servo": {
@@ -1036,7 +1036,7 @@
 					"clap": 0.409
 				}
 			},
-			"file": "sound/robot_servo.generated@1/audio/generated/machines/robot_servo.wav",
+			"file": "sound/robot_servo@1/audio/generated/machines/robot_servo.wav",
 			"volume_db": -21.0
 		},
 		"drone_hover": {
@@ -1055,7 +1055,7 @@
 					"clap": 0.3529
 				}
 			},
-			"file": "sound/drone_hover.generated@1/audio/generated/machines/drone_hover.wav",
+			"file": "sound/drone_hover@1/audio/generated/machines/drone_hover.wav",
 			"volume_db": -27.3
 		},
 		"drone_thrust_burst": {
@@ -1074,7 +1074,7 @@
 					"clap": 0.3625
 				}
 			},
-			"file": "sound/drone_thrust_burst.generated@1/audio/generated/machines/drone_thrust_burst.wav",
+			"file": "sound/drone_thrust_burst@1/audio/generated/machines/drone_thrust_burst.wav",
 			"volume_db": -23.8
 		},
 		"rover_motor": {
@@ -1093,7 +1093,7 @@
 					"clap": 0.4012
 				}
 			},
-			"file": "sound/rover_motor.generated@1/audio/generated/machines/rover_motor.wav",
+			"file": "sound/rover_motor@1/audio/generated/machines/rover_motor.wav",
 			"volume_db": -22.6
 		},
 		"rover_wheels_gravel": {
@@ -1112,7 +1112,7 @@
 					"clap": 0.3393
 				}
 			},
-			"file": "sound/rover_wheels_gravel.generated@1/audio/generated/machines/rover_wheels_gravel.wav",
+			"file": "sound/rover_wheels_gravel@1/audio/generated/machines/rover_wheels_gravel.wav",
 			"volume_db": -18.4
 		},
 		"rocket_launch": {
@@ -1149,7 +1149,7 @@
 					"clap": 0.5376
 				}
 			},
-			"file": "sound/rocket_hull_roar.generated@1/audio/generated/doors/rocket_hull_roar.ogg",
+			"file": "sound/rocket_hull_roar@1/audio/generated/doors/rocket_hull_roar.ogg",
 			"volume_db": -8.4
 		},
 		"rocket_landing_rumble": {
@@ -1168,7 +1168,7 @@
 					"clap": 0.4025
 				}
 			},
-			"file": "sound/rocket_landing_rumble.generated@1/audio/generated/machines/rocket_landing_rumble.wav",
+			"file": "sound/rocket_landing_rumble@1/audio/generated/machines/rocket_landing_rumble.wav",
 			"volume_db": -9.2
 		},
 		"rocket_touchdown": {
@@ -1186,7 +1186,7 @@
 					"clap": 0.5166
 				}
 			},
-			"file": "sound/rocket_touchdown.generated@1/audio/generated/doors/rocket_touchdown.ogg",
+			"file": "sound/rocket_touchdown@1/audio/generated/doors/rocket_touchdown.ogg",
 			"volume_db": -7.6
 		},
 		"ground_thud": {
@@ -1204,7 +1204,7 @@
 					"clap": 0.3369
 				}
 			},
-			"file": "sound/ground_thud.generated@1/audio/generated/doors/ground_thud.ogg",
+			"file": "sound/ground_thud@1/audio/generated/doors/ground_thud.ogg",
 			"volume_db": -16.0
 		},
 		"landing_thud": {

@@ -11,68 +11,68 @@
 	"warning_db": 0.0,
 	"sounds": {
 		"habitat": {
-			"file": "sound/habitat.recordings@1/audio/recordings/places/habitat.ogg",
+			"file": "sound/habitat@1/audio/recordings/places/habitat.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -2.0,
 			"note": "Each place's ambience."
 		},
 		"base_hum": {
-			"file": "sound/base_hum.made@1/audio/made/base_hum.wav",
+			"file": "sound/base_hum@1/audio/made/base_hum.wav",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -22.0
 		},
 		"greenhouse": {
-			"file": "sound/greenhouse.recordings@1/audio/recordings/places/greenhouse.ogg",
+			"file": "sound/greenhouse@1/audio/recordings/places/greenhouse.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -1.0
 		},
 		"garage": {
-			"file": "sound/garage.recordings@1/audio/recordings/places/garage.ogg",
+			"file": "sound/garage@1/audio/recordings/places/garage.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -8.0
 		},
 		"workshop": {
-			"file": "sound/workshop.recordings@1/audio/recordings/places/workshop.ogg",
+			"file": "sound/workshop@1/audio/recordings/places/workshop.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -10.0
 		},
 		"link_tube": {
-			"file": "sound/link_tube.recordings@1/audio/recordings/places/link_tube.ogg",
+			"file": "sound/link_tube@1/audio/recordings/places/link_tube.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -18.0
 		},
 		"ship_inside": {
-			"file": "sound/ship_inside.recordings@1/audio/recordings/places/ship_inside.ogg",
+			"file": "sound/ship_inside@1/audio/recordings/places/ship_inside.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -28.0
 		},
 		"mars_wind": {
-			"file": "sound/mars_wind.recordings@1/audio/recordings/places/mars_wind.ogg",
+			"file": "sound/mars_wind@1/audio/recordings/places/mars_wind.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -30.0
 		},
 		"mars_dust_storm_wind": {
-			"file": "sound/mars_dust_storm_wind.recordings@1/audio/recordings/places/mars_dust_storm_wind.ogg",
+			"file": "sound/mars_dust_storm_wind@1/audio/recordings/places/mars_dust_storm_wind.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -24.0
 		},
 		"earth_flat": {
-			"file": "sound/earth_flat.recordings@1/audio/recordings/places/earth_flat.ogg",
+			"file": "sound/earth_flat@1/audio/recordings/places/earth_flat.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -8.0
 		},
 		"prologue_crowd": {
-			"file": "sound/prologue_crowd.recordings@1/audio/recordings/places/prologue_crowd.ogg",
+			"file": "sound/prologue_crowd@1/audio/recordings/places/prologue_crowd.ogg",
 			"bus": "ambience",
 			"loops": true,
 			"volume_db": -20.0
@@ -91,7 +91,7 @@
 			"volume_db": -12.0
 		},
 		"suit_fans": {
-			"file": "sound/suit_fans.recordings@1/audio/recordings/suit/suit_fans.ogg",
+			"file": "sound/suit_fans@1/audio/recordings/suit/suit_fans.ogg",
 			"bus": "suit",
 			"loops": true,
 			"volume_db": -16.0
@@ -108,12 +108,12 @@
 			"volume_db": -18.0
 		},
 		"radio_beep": {
-			"file": "sound/radio_beep.recordings@1/audio/recordings/radio/radio_beep.ogg",
+			"file": "sound/radio_beep@1/audio/recordings/radio/radio_beep.ogg",
 			"bus": "suit",
 			"volume_db": -30.0
 		},
 		"radio_squelch": {
-			"file": "sound/radio_squelch.made@1/audio/made/radio_squelch.wav",
+			"file": "sound/radio_squelch@1/audio/made/radio_squelch.wav",
 			"bus": "suit",
 			"volume_db": -12.0
 		},
@@ -139,7 +139,7 @@
 			"volume_db": -3.0
 		},
 		"geiger_ticks": {
-			"file": "sound/geiger_ticks.made@1/audio/made/geiger_ticks.wav",
+			"file": "sound/geiger_ticks@1/audio/made/geiger_ticks.wav",
 			"bus": "suit",
 			"loops": true,
 			"volume_db": -6.0
@@ -154,37 +154,37 @@
 			"volume_db": -17.0
 		},
 		"hatch_open": {
-			"file": "sound/hatch_open.recordings@1/audio/recordings/doors/hatch_open.ogg",
+			"file": "sound/hatch_open@1/audio/recordings/doors/hatch_open.ogg",
 			"volume_db": -22.0
 		},
 		"airlock_hatch_seal_clunk": {
-			"file": "sound/airlock_hatch_seal_clunk.recordings@1/audio/recordings/doors/airlock_hatch_seal_clunk.ogg",
+			"file": "sound/airlock_hatch_seal_clunk@1/audio/recordings/doors/airlock_hatch_seal_clunk.ogg",
 			"volume_db": -24.0
 		},
 		"airlock_pump_down": {
-			"file": "sound/airlock_pump_down.recordings@1/audio/recordings/doors/airlock_pump_down.ogg",
+			"file": "sound/airlock_pump_down@1/audio/recordings/doors/airlock_pump_down.ogg",
 			"loops": true,
 			"volume_db": -16.0
 		},
 		"airlock_air_hiss": {
-			"file": "sound/airlock_air_hiss.recordings@1/audio/recordings/doors/airlock_air_hiss.ogg",
+			"file": "sound/airlock_air_hiss@1/audio/recordings/doors/airlock_air_hiss.ogg",
 			"volume_db": -16.0
 		},
 		"airlock_pressure_equalise": {
-			"file": "sound/airlock_pressure_equalise.recordings@1/audio/recordings/doors/airlock_pressure_equalise.ogg",
+			"file": "sound/airlock_pressure_equalise@1/audio/recordings/doors/airlock_pressure_equalise.ogg",
 			"volume_db": -20.0
 		},
 		"lift_start": {
-			"file": "sound/lift_start.recordings@1/audio/recordings/doors/lift_start.ogg",
+			"file": "sound/lift_start@1/audio/recordings/doors/lift_start.ogg",
 			"volume_db": -20.0
 		},
 		"lift_travel": {
-			"file": "sound/lift_travel.recordings@1/audio/recordings/doors/lift_travel.ogg",
+			"file": "sound/lift_travel@1/audio/recordings/doors/lift_travel.ogg",
 			"loops": true,
 			"volume_db": -6.0
 		},
 		"lift_stop": {
-			"file": "sound/lift_stop.recordings@1/audio/recordings/doors/lift_stop.ogg",
+			"file": "sound/lift_stop@1/audio/recordings/doors/lift_stop.ogg",
 			"volume_db": -30.0
 		},
 		"footsteps_steel_plate": {
@@ -202,85 +202,85 @@
 			"note": "Footsteps. On the Moon the player's own boots are felt, so the outside steps are a thud."
 		},
 		"footsteps_gravel": {
-			"file": "sound/footsteps_gravel.recordings@1/audio/recordings/footsteps/footsteps_boots_gravel.ogg",
+			"file": "sound/footsteps_gravel@1/audio/recordings/footsteps/footsteps_boots_gravel.ogg",
 			"ground_thud": true,
 			"loops": true,
 			"volume_db": -6.0
 		},
 		"bench_tool": {
-			"file": "sound/bench_tool.recordings@1/audio/recordings/machines/bench_tool.ogg",
+			"file": "sound/bench_tool@1/audio/recordings/machines/bench_tool.ogg",
 			"loops": true,
 			"volume_db": -6.0,
 			"note": "Machines and robots."
 		},
 		"digger": {
-			"file": "sound/digger.recordings@1/audio/recordings/machines/digger.ogg",
+			"file": "sound/digger@1/audio/recordings/machines/digger.ogg",
 			"loops": true,
 			"volume_db": -14.0
 		},
 		"robot_planting": {
-			"file": "sound/robot_planting.recordings@1/audio/recordings/machines/robot_planting.ogg",
+			"file": "sound/robot_planting@1/audio/recordings/machines/robot_planting.ogg",
 			"volume_db": -8.0
 		},
 		"robot_servo": {
-			"file": "sound/robot_servo.recordings@1/audio/recordings/machines/robot_servo.ogg",
+			"file": "sound/robot_servo@1/audio/recordings/machines/robot_servo.ogg",
 			"loops": true,
 			"volume_db": -12.0
 		},
 		"drone_hover": {
-			"file": "sound/drone_hover.recordings@1/audio/recordings/vehicles/drone_hover.ogg",
+			"file": "sound/drone_hover@1/audio/recordings/vehicles/drone_hover.ogg",
 			"loops": true,
 			"volume_db": -24.0,
 			"note": "Vehicles and craft."
 		},
 		"drone_thrust_burst": {
-			"file": "sound/drone_thrust_burst.recordings@1/audio/recordings/vehicles/drone_thrust_burst.ogg",
+			"file": "sound/drone_thrust_burst@1/audio/recordings/vehicles/drone_thrust_burst.ogg",
 			"loops": true,
 			"volume_db": -28.0,
 			"note": "Loops while the burn stays open: as a one-shot it ran out after five seconds of thrust."
 		},
 		"rover_motor": {
-			"file": "sound/rover_motor.recordings@1/audio/recordings/vehicles/rover_motor.ogg",
+			"file": "sound/rover_motor@1/audio/recordings/vehicles/rover_motor.ogg",
 			"loops": true,
 			"volume_db": -14.0
 		},
 		"rover_wheels_gravel": {
-			"file": "sound/rover_wheels_gravel.recordings@1/audio/recordings/vehicles/rover_wheels_gravel.ogg",
+			"file": "sound/rover_wheels_gravel@1/audio/recordings/vehicles/rover_wheels_gravel.ogg",
 			"loops": true,
 			"volume_db": -18.0
 		},
 		"rocket_launch": {
-			"file": "sound/rocket_launch.recordings@1/audio/recordings/vehicles/rocket_launch.ogg",
+			"file": "sound/rocket_launch@1/audio/recordings/vehicles/rocket_launch.ogg",
 			"ground_thud": true,
 			"volume_db": -14.0
 		},
 		"rocket_hull_roar": {
-			"file": "sound/rocket_hull_roar.recordings@1/audio/recordings/vehicles/rocket_hull_roar.ogg",
+			"file": "sound/rocket_hull_roar@1/audio/recordings/vehicles/rocket_hull_roar.ogg",
 			"ground_thud": true,
 			"volume_db": -8.0,
 			"note": "The launch from inside the capsule, laid over the recording: the roar and crackle it lacks (the owner's playtest, 2026-10-04). A real Shuttle lift-off, ignition through the first seconds of the climb, low-passed twice at 1.1 kHz as the hull would muffle it and faded in over 2.5 s so it builds with the burn (2026-10-05; it replaced a roar made from noise)."
 		},
 		"rocket_landing_rumble": {
-			"file": "sound/rocket_landing_rumble.recordings@1/audio/recordings/vehicles/rocket_landing_rumble.ogg",
+			"file": "sound/rocket_landing_rumble@1/audio/recordings/vehicles/rocket_landing_rumble.ogg",
 			"ground_thud": true,
 			"loops": true,
 			"volume_db": -10.0,
 			"note": "The steady middle of the take, its end joined into its start: the whole take swelled and died away every 14 seconds, so a long descent went quiet before the rocket was down."
 		},
 		"rocket_touchdown": {
-			"file": "sound/rocket_touchdown.recordings@1/audio/recordings/vehicles/rocket_touchdown.ogg",
+			"file": "sound/rocket_touchdown@1/audio/recordings/vehicles/rocket_touchdown.ogg",
 			"ground_thud": true,
 			"volume_db": -4.0,
 			"note": "The loudest thing after a warning, and still well under the warning tone."
 		},
 		"ground_thud": {
-			"file": "sound/ground_thud.recordings@1/audio/recordings/vehicles/ground_thud.ogg",
+			"file": "sound/ground_thud@1/audio/recordings/vehicles/ground_thud.ogg",
 			"ground_thud": true,
 			"volume_db": -16.0,
 			"note": "Ground thuds."
 		},
 		"landing_thud": {
-			"file": "sound/ground_thud.recordings@1/audio/recordings/vehicles/ground_thud.ogg",
+			"file": "sound/ground_thud@1/audio/recordings/vehicles/ground_thud.ogg",
 			"ground_thud": true,
 			"volume_db": -30.0,
 			"note": "The walker coming down off a real fall: the same thud, far softer than a drone's or a rocket's. At the drone's level every hop landed with a big bass boom (first playthrough, 2026-10-01)."
