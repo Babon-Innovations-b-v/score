@@ -44,7 +44,7 @@ def drawn(store, monkeypatch, place="campgrounds"):
 
 
 def test_environment_1s_concept_is_todays_data_shown_locked(store):
-    shown = ec.current(store, WORLD, ["campgrounds", "hangar", "cockpit", "hub"])
+    shown = ec.current(store, WORLD, ["campgrounds", "hangar", "cockpit", "hub", "launch"])
     concept = shown["concept"]
     assert shown["locked"] and shown["prefilled"] and shown["versions"] == 0
     assert concept["style"] == ec.style_now() and concept["style"].startswith("2099 space base")
@@ -55,6 +55,7 @@ def test_environment_1s_concept_is_todays_data_shown_locked(store):
     assert pulls["moon"]["moves"] == ["earth"] and "habitat" in pulls["moon"]["places"]
     places = {row["name"]: row for row in concept["places"]}
     assert places["Base"]["place"] == "base" and "Hangar" in places["Base"]["holds"]
+    assert "launch" not in [row.get("place") for row in concept["places"]]  # a part of the square: no place
     assert "Campgrounds" in [row["name"] for row in concept["places"]] or any(
         row["place"] == "campgrounds" for row in concept["places"])
     assert len(places[next(name for name in places if places[name].get("place") == "hangar")]["holds"]) >= 6
