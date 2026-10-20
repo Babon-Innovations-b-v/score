@@ -175,6 +175,9 @@ class Stage:
     upward: its `beside` reads go up to the outside shells that hold this place (an inside place reads its outside shell's
     split, CONTEXT.md "shapes first"), never back down, so a loop through them in the table is the same route one scale
     down: the table's loop check leaves those reads out, and `neighbours` must refuse a place that holds itself.
+    selects: its make takes the runner's object filter (`score run --object`, Runner.objects): the node's params
+    gain `objects`, the sorted names it keeps, so a filtered output has a key of its own and its make handles only
+    those objects of its place. A stage without it runs whole under a filter.
     euros_from: where the row naming its estimate is written, `<file>:<line>` (set when the row is built: the line
     that builds it, through a helper of the same file that passes its `euros` on), so a guess says where it comes
     from. Never in a key.
@@ -197,6 +200,7 @@ class Stage:
     optional: tuple = ()
     gapped: tuple = ()
     upward: bool = False
+    selects: bool = False
     euros_from: str = field(default=None, init=False, compare=False)
 
     def __post_init__(self):
@@ -464,6 +468,7 @@ class Runner:
         self.model_record = model_record or models.record
         self.code_versions = {}
         self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
+        self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
         unknown = {before for stage in stages for before in (*stage.after, *stage.beside)} - set(self.stages)
         if unknown:
             raise ValueError(f"stages read stages the table lacks: {sorted(unknown)}")
@@ -591,10 +596,16 @@ class Runner:
         return {"stage": stage.name, "grain": stage.grain, "place": place if stage.grain == "place" else None,
                 "code": self.code(stage), "contract": stage.contract.stamp_of(),
                 "expects": {before: list(wanted) for before, wanted in self.reads(stage, place).items()},
-                "params": stage.params,
+                "params": self.params_of(stage),
                 "seed": node_seed(self.world.seed, stage.name, place if stage.grain == "place" else None),
                 "files": self.file_keys(stage, place),
                 "models": {kind: self.model_record(kind) for kind in stage.models}}
+
+    def params_of(self, stage):
+        """The stage's params, with the object filter's sorted names as `objects` for a stage that selects."""
+        if self.objects and stage.selects:
+            return {**stage.params, "objects": sorted(self.objects)}
+        return stage.params
 
     def worked_out_key(self, stage, place):
         """The node's key worked out from its inputs (`key`)."""
@@ -691,7 +702,7 @@ class Runner:
         started, clock = now(), time.monotonic()
         inputs = self.input_paths(stage, place, keyed)
         with cleared, making_in(out):
-            stage.make(inputs, out, keyed["seed"], stage.params)
+            stage.make(inputs, out, keyed["seed"], keyed["params"])
         if self.file_keys(stage, place) != keyed["files"]:
             raise RuntimeError(f"{node}: an input changed while it ran; nothing is stored")
         self.unchanged_checkouts(node, inputs, keyed)

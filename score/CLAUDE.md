@@ -24,7 +24,7 @@ stage as each stage is built; nothing moves before.
   store's owner areas (the runner's automatic accept excepted). Its docstring has the key layout. `store/restore/`
   (its overlay) rebuilds a lost store by today's keys and gates with a runner that spends nothing (#13).
 - **`python -m score run <world> [--place P ...] [--stage S ...] [--jobs N] [--detach]`** and **`python -m score
-  status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place): the runner drives every line (the environment's own nodes, then each place's) to its end with no agent
+  status [<world>]`** (`__main__.py`; `--stage` keeps only those stages and the nodes they read, place by place; `--object <name>` (repeat it) narrows a stage that selects (`Stage.selects`) to those objects of its place, the names in its params as `objects`, so a filtered output has its own key; any other stage runs whole): the runner drives every line (the environment's own nodes, then each place's) to its end with no agent
   in the loop (`Runner.drive`, `Runner.lines`), the lines side by side: each node in a forked process of its own, at
   most `--jobs` at once (default 8), so a line waiting on a cloud step holds up no other, and an environment node every line
   reads is made once. Each node's process sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and

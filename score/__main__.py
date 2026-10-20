@@ -159,6 +159,8 @@ def parse(argv):
     for command in (run, status, plan):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
+        command.add_argument("--object", action="append",
+                             help="only this object of a place, in the stages that select (repeat it)")
     return parser.parse_args(argv)
 
 
@@ -850,6 +852,7 @@ def main(argv=None):
         runs.resume(options.dry, say=lambda line: print(line, flush=True))
         return
     runner = stages.runner(world=stages.WORLDS[options.world]())
+    runner.objects = frozenset(options.object) if options.object else None
     places, whole = options.place or stages.places(runner.world), not options.place
     if options.command == "plan":
         print(json.dumps(plan_json(runner, places, whole, options)))

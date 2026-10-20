@@ -11,6 +11,9 @@ A line runs the method, then the framework:
     framework (place_line.py): surfaces-paint (proposals into the finish registry, registry.py), surfaces-bake,
         surfaces-check
 
+The finish route (route_*.py, beside the method until its test passes): finish-route-views, -split, -list (Gemini 3.1
+Pro), -fill, -recheck (Gemini 3.1 Pro and the free colour check).
+
 The method's interface is one contract, PARTS (per model its parts, each with the library surface the method named
 for it, parts.json and <take>/parts.npy, <take>/colours.npy). Another method replaces the method's rows and writes
 it; the framework's rows stay.
@@ -28,6 +31,12 @@ import surface_data as data  # noqa: E402
 import finish_parts  # noqa: E402
 import finish_rows  # noqa: E402
 import place_line  # noqa: E402
+import route_data  # noqa: E402
+import route_fill  # noqa: E402
+import route_list  # noqa: E402
+import route_recheck  # noqa: E402
+import route_split  # noqa: E402
+import route_views  # noqa: E402
 import row_files  # noqa: E402
 import segvigen_row  # noqa: E402
 import turntable_row  # noqa: E402
@@ -84,4 +93,21 @@ LINE = (
                 (guarded("baked matches its surfaces", place_line.judge_lit),
                  guarded("triangles within budget", place_line.judge_triangles)),
                 files=data.line_files, after=reads("surfaces-bake", "surfaces-paint"), applies=data.paints))
-ROWS = (*METHOD, *LINE)
+# The finish route (owner, 2026-10-20; #18), beside METHOD until its test passes and the owner moves the line onto it:
+# nothing reads its rows yet. Library first: the views cast here, Gemini's finish list matched to library surfaces
+# with settings, the free colour labels voted into parts, each part filled, and a recheck with up to three tweaks,
+# else the named fault "no library surface fits". Each row takes the runner's object filter (`--object`).
+ROUTE = (
+    row("finish-route-views", route_views.make_views, route_views.views_faults, "views cast", route_views.judge_views,
+        route_data.shape_files, selects=True),
+    row("finish-route-split", route_split.make_split, route_split.split_faults, "parts voted",
+        route_split.judge_split, route_data.shape_files, ("finish-route-views",), selects=True),
+    row("finish-route-list", route_list.make_list, route_list.list_faults, "library first", route_list.judge_list,
+        route_data.library_files, ("finish-route-views", "finish-route-split"), paid=True,
+        euros=route_list.LIST_EUROS, selects=True),
+    row("finish-route-fill", route_fill.make_fill, route_fill.fill_faults, "every part filled", route_fill.judge_fill,
+        route_data.library_files, ("finish-route-views", "finish-route-split", "finish-route-list"), selects=True),
+    row("finish-route-recheck", route_recheck.make_recheck, route_recheck.recheck_faults, "library surface fits",
+        route_recheck.judge_recheck, route_data.library_files, ("finish-route-views", "finish-route-fill"),
+        paid=True, euros=route_recheck.RECHECK_EUROS, selects=True))
+ROWS = (*METHOD, *LINE, *ROUTE)
