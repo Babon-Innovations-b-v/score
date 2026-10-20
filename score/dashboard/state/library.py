@@ -89,6 +89,7 @@ class LibraryEntry(BaseModel):
     glb: FileOf | None = None
     web3d: FileOf | None = None  # the web GLB copy the viewer opens (the record's `web3d`, or a file of role web3d)
     web3d_light: FileOf | None = None  # its light preview copy: what the item page loads first and the export carries
+    closeup: FileOf | None = None  # a model's close-up, the picture it was made from (role closeup in score_lib)
     finish: dict | None = None  # a surface's own finish: colour, metallic, roughness, glow, see-through, its print
     score: int | float | None = None  # the entry's quality, 0 to 100 (or a fraction 0 to 1), its kind's own scoring
     score_parts: list[dict] = []  # what the score is made of: [{name, value (None: not measured), how, measured, unit}]
@@ -266,7 +267,8 @@ def entry_of(record):
         node=made_by_node(provenance), source=provenance.get("source") or "", commit=provenance.get("commit"),
         seen_in=record.get("seen_in") or [], tags=record.get("tags") or {}, requires=record.get("requires") or [],
         takes=files_of_role(record, "audio", (".ogg", ".wav", ".mp3", ".flac")), glb=glbs[0] if glbs else None,
-        web3d=web_copy(record), web3d_light=light_copy(record), finish=finish_print(record), score=score,
+        web3d=web_copy(record), web3d_light=light_copy(record), closeup=next(iter(files_of_role(
+            record, "closeup", (".png", ".jpg", ".jpeg", ".webp"))), None), finish=finish_print(record), score=score,
         score_parts=parts, refine_options=options, files=listed, file_count=len(listed),
         file_bytes=sum(each.bytes for each in listed), facts=kind_facts(record, parts))
 
@@ -428,9 +430,14 @@ class Library:
         for entry in self.entries():
             if entry.picture:
                 found[entry.picture] = "picture.png"
-            for each in [*entry.takes, *three_d_files(entry)]:
+            for each in shown_files(entry):
                 found[each.sha] = each.name
         return found
+
+
+def shown_files(entry):
+    """An entry's files a page shows besides its picture: a sound's takes, its 3D files and a model's close-up."""
+    return [*entry.takes, *three_d_files(entry), *([entry.closeup] if entry.closeup else [])]
 
 
 def three_d_files(entry):
@@ -514,7 +521,7 @@ class LocalLibrary(Library):
                 folder = f"{entry.kind}/{entry.entry_id}/{entry.version}"
                 if entry.picture and entry.picture_file:
                     found.setdefault(entry.picture, []).append(f"{folder}/{entry.picture_file}")
-                for each in [*entry.takes, *three_d_files(entry)]:
+                for each in shown_files(entry):
                     found.setdefault(each.sha, []).append(f"{folder}/{each.name}")
             self.kept.update(cached_of=self.entries(), cached=found)
         return self.kept["cached"]
@@ -541,8 +548,8 @@ class LocalLibrary(Library):
 
 
 def known_shas(entry):
-    """{file name: sha} of the files whose bytes an entry names: its picture, takes, copies and print."""
-    found = {each.name: each.sha for each in [*entry.takes, *three_d_files(entry)]}
+    """{file name: sha} of the files whose bytes an entry names: its picture, takes, copies, print and close-up."""
+    found = {each.name: each.sha for each in shown_files(entry)}
     if entry.picture and entry.picture_file:
         found[entry.picture_file] = entry.picture
     return found
@@ -677,11 +684,13 @@ def export_demos(local, out, filler):
 
 
 def export_pictures(local, entries, filler, side):
-    """Every entry's picture at `side` into the export's files/, as the step pictures are, while they fit."""
+    """Every entry's picture and close-up at `side` into the export's files/, as the step pictures are, while they
+    fit."""
     for entry in entries:
-        found = local.blob(entry.picture) if entry.picture else None
-        if found:
-            filler.picture(found, entry.picture, side, f"library picture {entry.address}")
+        for sha in (entry.picture, entry.closeup.sha if entry.closeup else None):
+            found = local.blob(sha) if sha else None
+            if found:
+                filler.picture(found, sha, side, f"library picture {entry.address}")
 
 
 def export_takes(local, entries, filler):

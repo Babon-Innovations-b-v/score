@@ -365,10 +365,10 @@ def test_an_item_pages_viewer_files_are_fetched_and_a_404_is_not_asked_again():
     from score.stages.library import backend, pictures
     files = {"web3d/light.glb": "web3d", "web3d/full.glb": "web3d", "material.usda": "usd", "print.png": "texture",
              "settings.json": "record", "a.ogg": "audio", "b.ogg": "audio", "c.ogg": "audio", "d.ogg": "audio",
-             "e.ogg": "audio", "sky.usda": "usd"}
+             "e.ogg": "audio", "sky.usda": "usd", "closeup.png": "closeup"}
     record = {"files": {name: {"role": role, "sha256": "f" * 64} for name, role in files.items()},
               "web3d": {"file": "web3d/full.glb", "light": "web3d/light.glb"}}
-    assert pictures.viewer_files({**record, "kind": "model"}) == ["web3d/light.glb"]
+    assert pictures.viewer_files({**record, "kind": "model"}) == ["web3d/light.glb", "closeup.png"]
     assert pictures.viewer_files({**record, "kind": "surface"}) == ["web3d/light.glb", "material.usda", "print.png"]
     assert pictures.viewer_files({**record, "kind": "sound"})[1:] == ["a.ogg", "b.ogg", "c.ogg", "d.ogg"]
     assert pictures.viewer_files({**record, "kind": "effect"})[1:] == ["settings.json"]

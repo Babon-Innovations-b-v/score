@@ -216,6 +216,12 @@ def picture_url(shown, entry):
     return f"/library-files/pictures/{entry.picture}.jpg" if held else None
 
 
+def closeup_url(shown, entry):
+    """A model's close-up, the picture it was made from, when this cockpit holds it, else None."""
+    held = entry.closeup and shown.picture_path(entry.closeup.sha, HERO_SIDE)
+    return f"/library-files/pictures/{entry.closeup.sha}.jpg" if held else None
+
+
 def viewer_of(shown, entry):
     """What item3d.js plays: {mode (copy, kit, surface, effect, light), light (the light copy's url), full (the whole
     copy's, when this cockpit holds it), finish, print, token, palette, settings, lamps}."""
@@ -312,6 +318,7 @@ def item_page(request, kind, entry_id, version):
     return render(request, "pages/library_item.html", {
         "entry": entry, "kind_label": lib.kind_label(shelf(entry)), "tone": TONES.get(entry.state, "idle"),
         "picture": picture_url(shown, entry), "picture_absent": absent(missing, [entry.picture_file]),
+        "closeup": closeup_url(shown, entry),
         "absent": absent(missing, viewer_names(entry)),
         "score": lib.percent(entry.score) if lib.score_meaning(entry) else None,
         "score_tip": score_tip(entry), "versions": versions_of(shown, entry),
