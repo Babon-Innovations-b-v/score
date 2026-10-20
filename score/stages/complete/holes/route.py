@@ -6,8 +6,7 @@ hole of the whole place, on its root prim.
 
     concept      done when the inventory names its concept (concept_pick or concept_elements) or the plan its picture
     plan         done when the place's plan node stands accepted
-    rough model  done only when a stage named rough-model is in the stage table and runs for the place; none is
-                 yet (CONTEXT.md "rough model"), so every place lacks it
+    rough model  done when the place's rough-model node stands accepted (score/stages/rough_model)
 """
 import json
 
@@ -22,11 +21,11 @@ def has_concept(inventory, plan):
 
 
 def has_plan(store, place):
-    return store.accepted(f"plan@{place}") is not None
+    return store.accepted(fill.node_of(fill.PLAN, place)) is not None
 
 
-def has_rough_model(place):
-    return fill.runs_at(fill.ROUGH_MODEL, place)
+def has_rough_model(store, place):
+    return store.accepted(fill.node_of(fill.ROUGH_MODEL, place)) is not None
 
 
 def wanted(kind, place):
@@ -43,5 +42,5 @@ def wanted(kind, place):
 def missing(store, place, inventory, plan):
     """The steps of the route the place lacks, in the route's order."""
     done = {fill.CONCEPT: has_concept(inventory, plan), fill.PLAN: has_plan(store, place),
-            fill.ROUGH_MODEL: has_rough_model(place)}
+            fill.ROUGH_MODEL: has_rough_model(store, place)}
     return [kind for kind, present in done.items() if not present]

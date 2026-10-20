@@ -60,6 +60,9 @@ def written(root, place, findings, outputs=None):
                                                              "findings": findings}))
 
 
+BODY = "a code body (tools/props/library/body_parts.py) and the row in data/kit/hangar.json"
+
+
 def a_place(findings=None, props=None, outputs=None):
     """(runner, holes root): the hangar's data (3 takes in its surface data, `props` its prop data when given) and its
     holes: two missing rows pixal makes, one the sound fills, one no stage fills (or `findings`)."""
@@ -72,7 +75,7 @@ def a_place(findings=None, props=None, outputs=None):
         (data / "props/hangar.json").write_text(json.dumps({"place": "hangar", "objects": props}))
     written(root, "hangar", findings if findings is not None else [
         hole(1, "pixal@hangar", row="crate"), hole(2, "pixal@hangar", row="lamp"),
-        {**hole(3, "sound@hangar"), "rule": "gate"}, hole(4, None, "a rough-model stage")], outputs)
+        {**hole(3, "sound@hangar"), "rule": "gate"}, hole(4, None, "a code body (tools/props/library/body_parts.py) and the row in data/kit/hangar.json")], outputs)
     runner = graph.Runner(TABLE, graph.Environment("toy", 1, {"data": data}), Store.in_folder(tempfile.mkdtemp()),
                           model_record=lambda kind: {"kind": kind})
     return runner, root
@@ -165,19 +168,20 @@ def test_a_stage_whose_model_makes_several_units_is_forecast_at_its_per_model():
     assert (bake["units"], bake["likely_euros"]) == (12.5, 0.5), bake
 
 
-def test_the_pixal_code_work_is_priced_at_pixals_unit_a_lost_take_a_model_a_rough_model_one_a_place():
+def test_the_pixal_code_work_is_priced_at_pixals_unit_a_lost_take_a_model_and_other_code_work_is_not():
+    """A rough model is no code work since its stage is in the table (score/stages/rough_model): its hole names its
+    node, which the chain prices."""
     lost = "Pixal3D take lost: made again"
     with per_unit():
-        runner, root = a_place(findings=[hole(1, None, "a rough-model stage"), hole(2, None, "a rough-model stage"),
+        runner, root = a_place(findings=[hole(1, None, BODY), hole(2, None, BODY),
                                          hole(3, None, lost), hole(4, None, lost), hole(5, None, lost)])
-        written(root, "lab", [hole(6, None, "a rough-model stage")])
+        written(root, "lab", [hole(6, None, BODY)])
         found = price.holes_price(runner, "toy", root, ["hangar", "lab"], runner.store, made_at=MADE_AT)
-    rough, takes = found["code_work"]["a rough-model stage"], found["code_work"][lost]
-    assert (rough["holes"], rough["models"], takes["holes"], takes["models"]) == (3, 2, 3, 3)
+    takes = found["code_work"][lost]
+    assert set(found["code_work"]) == {lost} and (takes["holes"], takes["models"]) == (3, 3)
     model = takes["nodes"]["pixal: the lost Pixal3D takes made again"]
     assert (model["basis"], model["units"], model["likely_euros"], model["high_euros"]) == (
         "per unit × forecast", 3, 0.6, 1.5), model
-    assert rough["nodes"]["pixal: a rough model a place"]["likely_euros"] == 0.4
 
 
 def test_the_record_carries_the_runners_eta_over_every_chain_row_in_table_order():
@@ -192,7 +196,7 @@ def test_the_record_carries_the_runners_eta_over_every_chain_row_in_table_order(
 
 def test_a_hole_no_stage_fills_goes_to_the_unfillable_list_with_its_work():
     found, _ = priced()
-    assert found["unfillable"] == [{"work": "a rough-model stage", "holes": 1}]
+    assert found["unfillable"] == [{"work": "a code body (tools/props/library/body_parts.py) and the row in data/kit/hangar.json", "holes": 1}]
     assert all(None not in nodes.values() for nodes in found["holes"].values())
 
 

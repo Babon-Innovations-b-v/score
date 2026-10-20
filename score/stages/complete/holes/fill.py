@@ -23,7 +23,7 @@ FILLERS = {
     CODE: (SHIP_KIT, "a code body (tools/props/library/body_parts.py) and the row in data/kit/{place}.json"),
     CONCEPT: ("concept-views", "a concept view request for {place}"),
     PLAN: ("plan", "data/plans/{place}.json with its leads"),
-    ROUGH_MODEL: (None, "a rough-model stage: the prop pipeline on the whole concept, a row in score/stages STAGES"),
+    ROUGH_MODEL: (ROUGH_MODEL, None),
 }
 # complete's gates by the stage that can fix what they find; the rest of its gates by the work they need.
 COMPLETE = "complete"

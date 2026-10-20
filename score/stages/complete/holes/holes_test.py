@@ -218,9 +218,10 @@ def test_the_contract_holds_and_the_rows_gate_still_lists_every_unmade_row(ran):
     assert holes_faults(written) == []
     # every node read is written, null when not accepted, so one accepted later makes the findings stale
     outputs = written["outputs"]
-    assert set(outputs) == {f"neighbours@{PLACE}", f"assembly@{PLACE}", f"plan@{PLACE}", f"complete@{PLACE}"}
-    assert outputs[f"assembly@{PLACE}"]  # complete failed: not accepted, so null like the two never made
-    assert [outputs[f"{stage}@{PLACE}"] for stage in ("neighbours", "plan", "complete")] == [None] * 3
+    assert set(outputs) == {f"neighbours@{PLACE}", f"assembly@{PLACE}", f"plan@{PLACE}", f"rough-model@{PLACE}",
+                            f"complete@{PLACE}"}
+    assert outputs[f"assembly@{PLACE}"]  # complete failed: not accepted, so null like the three never made
+    assert [outputs[f"{stage}@{PLACE}"] for stage in ("neighbours", "plan", "rough-model", "complete")] == [None] * 4
     assert {fault["row"] for fault in complete.rows_faults(folder / "holes.usda", INVENTORY, PLACE)} == {
         "shelf", "panel", "cup", "lamp", "rug", "beam"}
 

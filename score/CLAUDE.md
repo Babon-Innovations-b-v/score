@@ -132,7 +132,9 @@ stage as each stage is built; nothing moves before.
   on its made ground, snaps its held ones onto their holders and lays where each rests as a layer the assembly
   takes, gated on `rested` and `resting`. `props-inputs`, `closeup`, `pixal` and `likeness` (`stages/props`, its overlay)
   are the prop route first (owner, 2026-10-12): close-up, Pixal3D, the surface line, then the likeness gate; they
-  apply only to a place with `data/props/<place>.json`, which only the camp grounds have (their cairn). `cast`
+  apply only to a place with `data/props/<place>.json`, which only the camp grounds have (their cairn).
+  `rough-model` (paid, `stages/rough_model`, its overlay) puts each place's concept through the prop pipeline whole,
+  after its plan: one Pixal3D model, its rough model, never shipped. `cast`
   (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a
   environment node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed

@@ -21,7 +21,7 @@ The record:
                       a row whose node is in a chain already is counted there, not again)
      "code_work": {work: {"holes", "models", "nodes": {label: price}}},
                      (the code work whose make is a Pixal3D one, priced at pixal's per unit as if it had landed: the
-                      lost takes a model each, a rough model one a place)
+                      lost takes a model each)
      "outside": [{"node", "holes"}],                  (a node outside this runner's table and every own table)
      "eta": {jobs, run_cap, likely_minutes, high_minutes, at_least_minutes, path, high_path, unknown},
                      (the runner's ETA of every chain's and after-work row, schedule.py on measured minutes: likely
@@ -47,10 +47,9 @@ from score.graph import chain
 from score.stages.complete.holes import FINDINGS, WORLD, fill, inputs, schedule
 
 MISSING = "missing"
-# The code work whose make, once it lands, is Pixal3D's: (its work line's pattern, a model a hole or a place, its
-# label), priced at pixal's measured per unit after that work (code_work).
-PIXAL_WORK = ((r"^Pixal3D take lost", "hole", "pixal: the lost Pixal3D takes made again"),
-              (r"^a rough-model stage", "place", "pixal: a rough model a place"))
+# The code work whose make, once it lands, is Pixal3D's, a model a hole: (its work line's pattern, its label), priced
+# at pixal's measured per unit after that work (code_work).
+PIXAL_WORK = ((r"^Pixal3D take lost", "pixal: the lost Pixal3D takes made again"),)
 ROUTE_END = "likeness"  # the prop route's last row (score/stages/props): a model's route runs up to its likeness gate
 
 
@@ -208,15 +207,14 @@ def waits_on_prop_data(hole, place):
 
 def chained(runner, found, places):
     """{chains: {place: {node: its hole chain}}, holes: {place: {hole id: node}}, work: {work: holes},
-    places_of: {work: places}, outside: {node outside every table: holes},
+    outside: {node outside every table: holes},
     route: {place: {"work", "holes", "rows"}}} of the places' holes (`found`), each lost input once."""
     reading = chain.readers(runner, places)
-    record = {"chains": {}, "holes": {}, "work": {}, "places_of": {}, "outside": {}, "route": {}}
+    record = {"chains": {}, "holes": {}, "work": {}, "outside": {}, "route": {}}
     for hole in inputs.distinct([{**hole, "place": place} for place, listed in found.items() for hole in listed]):
         place, node = hole["place"], hole.get("node")
         if node is None:
             record["work"][hole["work"]] = record["work"].get(hole["work"], 0) + 1
-            record["places_of"].setdefault(hole["work"], set()).add(place)
             if waits_on_prop_data(hole, place):
                 route = record["route"].setdefault(place, {"work": hole["work"], "holes": 0, "rows": set()})
                 route["holes"] += 1
@@ -274,19 +272,18 @@ def after_work(runner, route, priced, store):
     return found
 
 
-def code_work(work, places_of):
+def code_work(work):
     """{work: {holes, models, nodes: {label: price}}} of the code work whose make is a Pixal3D one (PIXAL_WORK), each
-    line once: a lost take one model, a rough model one a place, at compute.run_price with pixal's forecast per unit
+    line once: a lost take one model, at compute.run_price with pixal's forecast per unit
     (unknown while pixal has no measured unit)."""
     found = {}
     for line, holes in work.items():
-        for pattern, per, label in PIXAL_WORK:
+        for pattern, label in PIXAL_WORK:
             if re.search(pattern, line):
-                models = holes if per == "hole" else len(places_of[line] - {WORLD})
-                price = compute.run_price("pixal", None, units=models)
+                price = compute.run_price("pixal", None, units=holes)
                 if price["basis"] == "per unit × forecast":
-                    price["unit_source"] = f"one Pixal3D model a {per} of this work line"
-                found[line] = {"holes": holes, "models": models, "nodes": {label: {**price, "units": models}}}
+                    price["unit_source"] = "one Pixal3D model a hole of this work line"
+                found[line] = {"holes": holes, "models": holes, "nodes": {label: {**price, "units": holes}}}
     return found
 
 
@@ -353,6 +350,6 @@ def holes_price(runner, world, root, places, store=None, made_at=None):
             "holes": record["holes"], "free": sorted(name for name, is_paid in every.items() if not is_paid),
             "totals": totals(prices),
             "unfillable": counted(({"work": text}, count) for text, count in record["work"].items()),
-            "after_work": route, "code_work": code_work(record["work"], record["places_of"]),
+            "after_work": route, "code_work": code_work(record["work"]),
             "outside": counted(({"node": node}, count) for node, count in record["outside"].items()),
             "eta": eta, "not_current": stale, "not_checked": unchecked}

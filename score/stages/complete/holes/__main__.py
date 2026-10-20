@@ -6,7 +6,8 @@ For each place, <out>/<place>/: stage/ (the accepted stage, its neighbours outpu
 assembly, laid out as links to the stored bytes), holes.usda (the holes layer over it: layers/holes.usda, then
 ./stage/<place>.usda; the holes layer alone when no assembly stands accepted) and findings.json:
 
-    {"place", "answer", "outputs": {neighbours@P, assembly@P, plan@P, complete@P: each its accepted output or null},
+    {"place", "answer", "outputs": {neighbours@P, assembly@P, plan@P, rough-model@P, complete@P: each its accepted
+                                    output or null},
      "counts": {"missing", "gate", "place"},
      "findings": [{"id", "rule", "prim", "kind", "sentence", "picture": null, "row", "gates", "source", "node",
                    "work", "placed", "low", "high"}]}
@@ -49,7 +50,7 @@ RULES = (MISSING, GATE, PLACE)
 SOURCES = ("neighbours", "assembly")  # the stage the holes stand over: the first accepted
 STEP_SENTENCES = {fill.CONCEPT: "no concept is picked for this place",
                   fill.PLAN: "this place's plan is not accepted",
-                  fill.ROUGH_MODEL: "this place has no rough model"}
+                  fill.ROUGH_MODEL: "this place's rough model is not accepted"}
 
 
 def accepted_stage(store, place):
@@ -175,8 +176,10 @@ def holes_faults(written):
 
 def outputs_read(store, place):
     """{node: accepted output or None} of every node the holes were read against: the stages they may stand over,
-    the place's plan and its complete row; one accepted later then fails the cockpit's current-findings test."""
-    return {node: store.accepted(node) for node in (*(f"{stage}@{place}" for stage in SOURCES), f"plan@{place}",
+    the place's route steps that are nodes (its plan and rough model) and its complete row; one accepted later then
+    fails the cockpit's current-findings test."""
+    steps = (fill.node_of(kind, place) for kind in (fill.PLAN, fill.ROUGH_MODEL))
+    return {node: store.accepted(node) for node in (*(f"{stage}@{place}" for stage in SOURCES), *steps,
                                                     f"complete@{place}")}
 
 
