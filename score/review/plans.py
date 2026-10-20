@@ -598,7 +598,8 @@ def made_again(places, start=None):
     words = [sys.executable, "-m", "score", "run", "world1", *[part for place in places for part in ("--place", place)],
              "--stage", "plan", "--detach"]
     done = (start or subprocess.run)(words, capture_output=True, text=True, cwd=str(concepts.REPO))
-    return (done.stdout.strip().splitlines() or done.stderr.strip().splitlines() or ["no output"])[-1]
+    said = (done.stderr if done.returncode else done.stdout).strip().splitlines()  # a refusal comes on stderr
+    return (said or ["no output"])[-1]
 
 
 # --- the drawing ------------------------------------------------------------------------------------------------
