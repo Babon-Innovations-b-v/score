@@ -57,7 +57,9 @@ def test_a_big_batch_ends_in_about_the_setup_and_one_job():
 def test_the_caps_follow_the_quotas_and_the_environment():
     assert capacity.max_machines("gpu-80gb") == provider.cloud.QUOTAS["gpu-80gb"]
     assert capacity.max_machines("cpu-32c-128gb") == capacity.OTHER_MACHINES
-    assert capacity.machines_for(500, 60, 8) == capacity.RUN_MACHINES
+    # #20: a run holds as many machines as its largest class's quota (the 50 L4s), each class still to its own.
+    assert capacity.run_cap() == max(capacity.RUN_MACHINES, *provider.cloud.QUOTAS.values())
+    assert capacity.machines_for(500, 60, 8) == capacity.run_cap()
 
     def capped():
         assert capacity.max_machines("gpu-80gb") == 2 and capacity.run_cap() == 3
