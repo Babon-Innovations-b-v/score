@@ -75,7 +75,7 @@ def a_place(findings=None, props=None, outputs=None):
         (data / "props/hangar.json").write_text(json.dumps({"place": "hangar", "objects": props}))
     written(root, "hangar", findings if findings is not None else [
         hole(1, "pixal@hangar", row="crate"), hole(2, "pixal@hangar", row="lamp"),
-        {**hole(3, "sound@hangar"), "rule": "gate"}, hole(4, None, "a code body (tools/props/library/body_parts.py) and the row in data/kit/hangar.json")], outputs)
+        {**hole(3, "sound@hangar"), "rule": "gate"}, hole(4, None, BODY)], outputs)
     runner = graph.Runner(TABLE, graph.Environment("toy", 1, {"data": data}), Store.in_folder(tempfile.mkdtemp()),
                           model_record=lambda kind: {"kind": kind})
     return runner, root
@@ -196,7 +196,7 @@ def test_the_record_carries_the_runners_eta_over_every_chain_row_in_table_order(
 
 def test_a_hole_no_stage_fills_goes_to_the_unfillable_list_with_its_work():
     found, _ = priced()
-    assert found["unfillable"] == [{"work": "a code body (tools/props/library/body_parts.py) and the row in data/kit/hangar.json", "holes": 1}]
+    assert found["unfillable"] == [{"work": BODY, "holes": 1}]
     assert all(None not in nodes.values() for nodes in found["holes"].values())
 
 

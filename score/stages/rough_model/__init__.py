@@ -1,18 +1,24 @@
 """rough-model@<place>: the place's rough model (CONTEXT.md "rough model", shapes first): its concept put through the
-prop pipeline whole, Pixal3D in a cloud batch (tools/props/cloud/batch.py's own command, through _cloud.py), one 3D model
-that gives the place's plan its proportions and shape; never shipped. Paid, cleared by the runner like any paid row. A
-row of every place with a plan (scene_record.written, as plan@<place>), outside shells and inside places alike.
+prop pipeline whole, Pixal3D in a cloud batch (tools/props/cloud/batch.py's own command, through _cloud.py), one 3D
+model that gives the place's plan its proportions and shape; never shipped. Paid, cleared by the runner like any paid
+row. A row of every place with a plan (scene_record.written, as plan@<place>), outside shells and inside places alike.
 
-    reads   plan@<place> (place-plan v2); concept-views (the environment's drawn views) only at a place a view is drawn
-            for (drawn_for: a view's id names the place); else the concept picture the place's plan names (files)
-    makes   rough.glb (the take's finished model, <take>-final.glb as the batch brings it back into WORK/pixal) and
-            rough.json {place, take, concept (where it came from), concept_sha256, model_sha256}
+    reads   plan@<place> (place-plan v2), and the concept picture the place's plan names (files `concept`): the
+            creator's pick, which the plan was read from
+    makes   rough.glb (the take's finished model, <take>-final.glb as the batch brings it back into WORK/pixal, in
+            Pixal3D's own size, Y up) and rough.json {place, take, concept (its file's name), concept_sha256,
+            model_sha256}
     gates   made     rough.glb is a binary glTF with triangles; its extent measured in its own mesh frame (wide, high,
                      deep), measures only: no proportion threshold is measured yet
             concept  the model was made from the concept this node read (its sha256 as rough.json names it)
 
+The concept views (the concept-views row) are not read: a view's request names no place it is the concept of (the
+cockpit's are `cockpit_seat`, `cockpit_stick` and `ship46_cockpit`, the hangar's `hangar_thrusters` a close-up), so a
+place's concept is the one its plan names until a view's request says which place it is drawn for.
+
 The take is named for the place and its concept's hash (take_name), so a new concept is a new take, and a take the
-batch already brought back is not made again (the batch refuses to overwrite one).
+batch already brought back is not made again (the batch refuses to overwrite one); one brought back raw whose finish
+failed is finished here, as the batch finishes every take (pixal.py --finish-only).
 """
 import hashlib
 import json
@@ -27,7 +33,6 @@ from score.stages.surfaces.prop_env import PROPS_PYTHON
 from score.stages.surfaces.surface_gates import guarded, verdict
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-VIEWS = REPO / "data/definitions/concept_views.json"
 CLOUD = pathlib.Path(__file__).resolve().parent / "_cloud.py"
 TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
          "rough cloud": "{repo}/score/stages/rough_model/_cloud.py"}
@@ -42,28 +47,13 @@ GLB_MAGIC, JSON_CHUNK = b"glTF", 0x4E4F534A
 TRIANGLES = 4  # a glTF primitive's mode for triangles, its default
 
 
-def views():
-    """The environment's requested concept views (data/definitions/concept_views.json)."""
-    return json.loads(VIEWS.read_text())["views"] if VIEWS.exists() else []
-
-
-def drawn_for(place):
-    """Whether a requested concept view is drawn for the place (a view's id names it, as `ship46_galley` names the
-    galley): its rough model reads concept-views, not its plan's picture."""
-    return any(place in view["id"].split("_") for view in views())
-
-
-def inventory_name(place):
-    """The place's inventory's name: its plan's `inventory`, else the place's own."""
-    return json.loads((REPO / "data/plans" / f"{place}.json").read_text()).get("inventory", place)
-
-
 def files(place):
-    """The concept picture the place's plan names (none where a concept view is drawn for it), its inventory (the
+    """The concept picture the place's plan names, its inventory (its plan's `inventory`, else the place's own: the
     batch builds only from an approved one), the places' style texts and the tools the make runs."""
-    concept = json.loads((REPO / "data/plans" / f"{place}.json").read_text()).get("concept", {}).get("picture")
-    return {**({"concept": concept} if concept and not drawn_for(place) else {}),
-            "inventory": f"{{data}}/inventory/{inventory_name(place)}.json",
+    plan = json.loads((REPO / "data/plans" / f"{place}.json").read_text())
+    concept = plan.get("concept", {}).get("picture")
+    return {**({"concept": concept} if concept else {}),
+            "inventory": f"{{data}}/inventory/{plan.get('inventory', place)}.json",
             "places": "{data}/definitions/place.json", **TOOLS}
 
 
@@ -71,25 +61,11 @@ def plan_record(inputs):
     return json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text())
 
 
-def view_picture(inputs, place):
-    """The concept view drawn for the place in the read concept-views output; refused for none or several."""
-    folder = pathlib.Path(inputs["concept-views"])
-    named = [view["id"] for view in json.loads((folder / "views.json").read_text())["views"]
-             if place in view["id"].split("_")]
-    if len(named) != 1:
-        raise ValueError(f"{place}: {len(named)} concept views are drawn for it ({', '.join(named) or 'none'}); "
-                         "a rough model is made from one")
-    return folder / f"{named[0]}.png"
-
-
 def concept_of(inputs, place):
-    """The place's concept picture: the view drawn for it where the node read concept-views, else the picture its plan
-    names; refused with neither."""
-    if "concept-views" in inputs:
-        return view_picture(inputs, place)
-    if "concept" in inputs:
-        return pathlib.Path(inputs["concept"])
-    raise ValueError(f"{place}: no concept picture: its plan names none and no concept view is drawn for it")
+    """The place's concept picture, as its plan names it; refused with none."""
+    if "concept" not in inputs:
+        raise ValueError(f"{place}: no concept picture: its plan names none")
+    return pathlib.Path(inputs["concept"])
 
 
 def sha256(path):
@@ -118,6 +94,17 @@ def dispatch(take, picture, place, inventory, out):
         raise RuntimeError(f"the rough model's Pixal3D batch failed (exit {done.returncode}); its log is batch.log")
 
 
+def finish(take, picture, out):
+    """A take brought back raw whose finish never ran or failed, finished here as the batch finishes every take:
+    pixal.py --finish-only (Blender and the processor, no model), its log in the output folder."""
+    with (out / "finish.log").open("a") as log:
+        done = subprocess.run([str(REPO / ".venv/bin/python"), str(REPO / "tools/props/pixal.py"), str(picture), take,
+                               "--who", "score rough-model", "--finish-only"], cwd=REPO, stdout=log,
+                              stderr=subprocess.STDOUT)
+    if done.returncode:
+        raise RuntimeError(f"the finish of {take} failed (exit {done.returncode}); its log is finish.log")
+
+
 def make(inputs, out, seed, params):
     """rough.glb, the place's concept made into one model by the cloud batch where its take is not made yet, and
     rough.json."""
@@ -129,7 +116,7 @@ def make(inputs, out, seed, params):
     if not raw.exists():
         dispatch(take, picture, place, inputs["inventory"], out)
     if not final.exists():
-        raise RuntimeError(f"{take}: the batch brought no finished model back ({final.name}); its log is batch.log")
+        finish(take, picture, out)
     shutil.copyfile(final, out / MODEL)
     (out / RECORD).write_text(json.dumps({"place": place, "take": take, "concept": picture.name,
                                           "concept_sha256": concept_hash, "model_sha256": sha256(out / MODEL)},
@@ -140,7 +127,8 @@ def faults(folder):
     return [f"no {name}" for name in (MODEL, RECORD) if not (folder / name).exists()]
 
 
-CONTRACT = contracts.Contract("rough-model", 1, faults, {"length": "metre", "up axis": "Y"})
+# Y up as the finish stands it (glb_file.py); no length unit: Pixal3D's model has a size of its own, not metres.
+CONTRACT = contracts.Contract("rough-model", 1, faults, {"up axis": "Y"})
 
 
 def glb_json(path):
@@ -195,6 +183,5 @@ def judge_concept(output, inputs, evidence):
 
 
 CHECKS = (guarded("made", judge_made), guarded("concept", judge_concept))
-# The plan the rough model is made beside (scene_record.plan.PLACE_PLAN) and the environment's concept views
-# (concept_view.CONTRACT), as this row was written for them.
-AFTER = {"concept-views": ("concept-views", 1), "plan": ("place-plan", 2)}
+# The plan the rough model is made beside (scene_record.plan.PLACE_PLAN), as this row was written for it.
+AFTER = {"plan": ("place-plan", 2)}
