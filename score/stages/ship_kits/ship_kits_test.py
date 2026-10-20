@@ -10,19 +10,14 @@ from score.stages import ship_kits  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
 
 
-def test_the_made_rows_pieces_are_left_to_their_takes():
-    layout = {"room": "galley", "pieces": [{"kind": "galley_wall_lower_plain"}, {"kind": "galley_galley_counter"},
-                                           {"kind": "galley_locker"}, {"kind": "galley_door_leaf"}],
-              "kinds": {"galley_wall_lower_plain": {}, "galley_galley_counter": {}, "galley_locker": {},
-                        "galley_door_leaf": {}},
-              "counts": {"galley_wall_lower_plain": 1, "galley_galley_counter": 1, "galley_locker": 1,
-                         "galley_door_leaf": 1}}
-    inventory = {"rows": [{"id": "wall_lower_plain", "kind": "code"}, {"id": "galley_counter", "kind": "generate"},
-                          {"id": "locker", "kind": "generate", "reuse": "shiplock:locker"},
-                          {"id": "door_leaf", "kind": "code"}]}
-    kept = ship_kits.code_only(layout, inventory)
-    assert [piece["kind"] for piece in kept["pieces"]] == ["galley_wall_lower_plain", "galley_door_leaf"]
-    assert set(kept["kinds"]) == set(kept["counts"]) == {"galley_wall_lower_plain", "galley_door_leaf"}
+def test_the_kit_keeps_only_the_named_pipeline_failures():
+    # #19: the inventory's own kind routes nothing; only the cockpit's thrust indicator names a pipeline failure.
+    kinds = ["cockpit_wall_lower_plain", "cockpit_thrust_indicator", "cockpit_door_leaf"]
+    layout = {"room": "cockpit", "pieces": [{"kind": kind} for kind in kinds],
+              "kinds": {kind: {} for kind in kinds}, "counts": {kind: 1 for kind in kinds}}
+    kept = ship_kits.code_only(layout)
+    assert [piece["kind"] for piece in kept["pieces"]] == ["cockpit_thrust_indicator"]
+    assert set(kept["kinds"]) == set(kept["counts"]) == {"cockpit_thrust_indicator"}
 
 
 def grate_openings(cut):
@@ -61,6 +56,6 @@ if __name__ == "__main__":
     import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    test_the_made_rows_pieces_are_left_to_their_takes()
+    test_the_kit_keeps_only_the_named_pipeline_failures()
     test_a_ship_deck_has_no_seam_round_a_grate()
     print("ship_kits: 2 tests pass")

@@ -74,13 +74,11 @@ def finishes_missing(take, parts):
 
 
 def code_parts_missing(place, row):
-    """A code build's parts its close-up shows and it does not ([] for a plain kind); None when nothing measured."""
+    """A code fallback's parts its close-up shows and its build does not, by the one check route.py layout holds it to
+    (sorter.fallback_parts_missing: [] for a fallback fittings.json does not list)."""
     with prop_data.tools("props/library"):
         import sorter
-    if sorter.own_name(f"{place}_{row}") in sorter.PLAIN:
-        return []
-    entry = sorter.fittings().get(row)
-    return None if entry is None else sorter.missing_parts(entry)
+    return sorter.fallback_parts_missing(f"{place}_{row}")
 
 
 def model_checks(path, size, kind, square):

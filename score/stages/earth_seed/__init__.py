@@ -53,6 +53,7 @@ UPRIGHT = [0.0, 1.0, 0.0]  # a piece laid without axes (an open place's: `at` an
 # the clearance's estimate only, never shown as a price (data/costs/per-unit.json has none measured).
 EUROS = 1.0
 KIT_TOOLS = {"route": "{repo}/tools/props/library/route.py", "sorter": "{repo}/tools/props/library/sorter.py",
+             "pipeline failures": "{repo}/data/library/pipeline_failures.json",
              "make_kit": "{repo}/tools/props/library/inside/make_kit.py",
              "pieces": "{repo}/tools/props/library/inside/pieces.py",
              "library bake": "{repo}/tools/props/cloud/library_bake.py",

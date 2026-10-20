@@ -54,6 +54,7 @@ import json
 import os
 import pathlib
 import re
+import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -96,10 +97,13 @@ def root_layers(stage):
     return list(stage.GetRootLayer().subLayerPaths)
 
 
-def generated_rows(inventory):
-    """The rows whose model is generated (kind `generate`), the ones the surface line paints and the likeness gate
-    holds to their close-ups; a code row's model is built and painted by its builder."""
-    return {row["id"] for row in inventory["rows"] if row.get("kind") == "generate"}
+def generated_rows(inventory, place):
+    """The rows whose model the shared loop makes (sorter.row_route `model`, whatever the row's own kind), the ones the
+    surface line paints and the likeness gate holds to their close-ups; a named pipeline failure's code build is built
+    and painted by its builder."""
+    sys.path.insert(0, str(REPO / "tools/props/library"))
+    import sorter
+    return {row["id"] for row in inventory["rows"] if sorter.row_route(place, row) == "model"}
 
 
 def model_prims(stage, place, rows):
@@ -395,7 +399,7 @@ def held_beside(stage, outputs):
 
 def judge_likeness(stage, place, inventory, outputs):
     """Every generated row's object held to its close-up by the place's accepted likeness output."""
-    generated = sorted(generated_rows(inventory) & laid_rows(stage, place))
+    generated = sorted(generated_rows(inventory, place) & laid_rows(stage, place))
     if not generated:
         return PASS, [], "no generated model on the stage"
     if outputs.get("likeness") is None:
@@ -435,7 +439,7 @@ def repainted(prim, from_bake=frozenset()):
 def judge_painted(stage, place, inventory, outputs):
     """Every generated model on the stage repainted by the surface stage's bake, and the place's paint checked."""
     built = code_built(place)
-    models = [prim for prim in model_prims(stage, place, generated_rows(inventory))  # a kit file's stem is its name
+    models = [prim for prim in model_prims(stage, place, generated_rows(inventory, place))  # a kit file's stem is its name
               if pathlib.PurePosixPath(prim.GetAttribute("score:model").Get()).stem not in built]
     if not models:
         return PASS, [], "no generated model on the stage"

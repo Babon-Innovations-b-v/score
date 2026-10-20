@@ -29,15 +29,21 @@ def test_a_crop_has_its_margin_and_is_scaled_up():
     assert stage.crop(Image.new("RGB", (800, 600)), [0, 0, 800, 600]).size == (800, 600)
 
 
-def test_rows_come_from_the_inventory_s_generated_rows():
-    inventory = {"scene": "lab", "plan": {"views": [{"id": "v1", "picture": "concept.png"}]},
+def test_rows_come_from_the_inventory_s_loop_rows_whatever_their_own_kind():
+    # #19: the sorter routes a row, not its own kind: a `code` wall with no named failure is the loop's and gets a
+    # close-up; the cockpit's thrust indicator, a named pipeline failure, does not; a row with no box gets none.
+    inventory = {"scene": "cockpit", "plan": {"views": [{"id": "v1", "picture": "concept.png"}]},
                  "rows": [{"id": "cabinet", "view": "v1", "box": [1, 2, 3, 4], "name": "a steel cabinet",
                            "kind": "generate", "size": [1.2, 0.7, 1.0]},
                           {"id": "wall", "view": "v1", "box": [1, 2, 3, 4], "name": "a wall", "kind": "code",
-                           "size": [3, 0.2, 2.8]}]}
-    assert stage.rows_from_inventory(inventory) == [{"id": "cabinet", "scene": "lab", "words": "a steel cabinet",
-                                                     "size": [1.2, 0.7, 1.0], "concept": "concept.png",
-                                                     "box": [1, 2, 3, 4]}]
+                           "size": [3, 0.2, 2.8]},
+                          {"id": "thrust_indicator", "view": "v1", "box": [1, 2, 3, 4], "name": "a dial",
+                           "kind": "code", "size": [0.2, 0.2, 0.1]},
+                          {"id": "trim", "view": "v1", "name": "a trim", "kind": "code", "size": [3, 0.1, 0.1]}]}
+    assert [row["id"] for row in stage.rows_from_inventory(inventory)] == ["cabinet", "wall"]
+    assert stage.rows_from_inventory(inventory)[0] == {"id": "cabinet", "scene": "cockpit", "words": "a steel cabinet",
+                                                       "size": [1.2, 0.7, 1.0], "concept": "concept.png",
+                                                       "box": [1, 2, 3, 4]}
 
 
 def test_rows_whose_boxes_the_gate_has_not_passed_are_not_drawn():

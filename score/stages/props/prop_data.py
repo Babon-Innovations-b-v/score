@@ -32,7 +32,9 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 FOLDER = REPO / "data/props"
 INPUTS_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "box check": "{repo}/tools/props/scene/box_check.py"}
 CLOSEUP_TOOLS = {"close-up stage": "{repo}/tools/props/closeup", "google spend": "{repo}/tools/props/cloud/google_spend.py"}
-PIXAL_TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py"}
+PIXAL_TOOLS = {"batch": "{repo}/tools/props/cloud/batch.py", "pixal": "{repo}/tools/props/pixal.py",
+               "sorter": "{repo}/tools/props/library/sorter.py",
+               "pipeline failures": "{repo}/data/library/pipeline_failures.json"}
 LIKENESS_TOOLS = {"compare": "{repo}/tools/usd/compare.py", "glb file": "{repo}/tools/props/glb_file.py",
                   "model gate": "{repo}/tools/props/gates/model.py", "sorter": "{repo}/tools/props/library/sorter.py",
                   "straight": "{repo}/tools/props/library/straight.py", "fittings": "{data}/library/fittings.json",

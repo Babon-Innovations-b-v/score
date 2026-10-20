@@ -110,11 +110,14 @@ def code_build(row, code_builds):
 
 
 def parts_check_route(place, row):
-    """The sorter's route, "code" or "model": since #19 code only for a kind the pipeline-failure record names, so
-    code-first no longer repeats the parts check as it was (paper/evidence/compare-hub holds that run)."""
+    """The parts check as it was (method B, the comparison's fixed arm, never the sorter's route since #19): "code" for
+    a plain kind or a listed fitting whose code build shows every part, else "model"."""
     with prop_data.tools("props/library"):
         import sorter
-    return sorter.route(f"{place}_{row}")
+    kind = f"{place}_{row}"
+    entry = sorter.fittings().get(kind.split("_", 1)[-1])
+    plain = sorter.own_name(kind) in sorter.PLAIN
+    return "code" if plain or (entry is not None and not sorter.missing_parts(entry)) else "model"
 
 
 def prop_first_objects(place, inventory):

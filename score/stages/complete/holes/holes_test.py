@@ -196,11 +196,11 @@ def test_a_shown_place_s_objects_are_never_the_place_s_own(ran):
     assert not stage.GetPrimAtPath(f"/{PLACE}/Places/next_door/shelf_1").HasAttribute("score:hole")
 
 
-def test_a_kit_piece_the_kit_has_is_filled_by_the_assembly():
-    beam = INVENTORY["rows"][6]
-    assert fill.missing_row(beam, PLACE, True) == (f"assembly@{PLACE}", None)
-    node, work = fill.missing_row(beam, PLACE, False)
-    assert node is None and "code body" in work
+def test_a_kit_piece_with_no_named_failure_is_filled_by_the_loop():
+    beam = INVENTORY["rows"][6]  # #19: a kit piece is the shared loop's unless the pipeline-failure record names it
+    for in_kit in (True, False):
+        node, work = fill.missing_row(beam, PLACE, in_kit)
+        assert node == f"pixal@{PLACE}" or "data/props" in work, (node, work)
 
 
 def test_the_place_lacks_its_concept_plan_and_rough_model(ran):

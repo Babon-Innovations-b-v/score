@@ -126,10 +126,11 @@ def code_models(row, place):
 def plan(place, work, take):
     """Every model the place needs: {name: {kind, route, size (kit), ...}}, and every piece: a model at a spot. A row
     the sorter sends to code (a named pipeline failure) makes one model per length; every other row one model from its
-    labelled take (its pieces are scaled copies)."""
+    labelled take (its pieces are scaled copies); a row with no labelled take or no details entry is a gap the plan
+    names (`gaps`, sorter.GAP), never a code build and never a stop."""
     inventory = json.loads((INVENTORIES / f"{place}.json").read_text())
     details = json.loads(DETAILS.read_text())
-    models, pieces, children = {}, [], []
+    models, pieces, children, gaps = {}, [], [], {}
     for row in inventory["rows"]:
         kind = f"{place}_{row['id']}"
         if sorter.route(kind) == "code":
@@ -138,6 +139,9 @@ def plan(place, work, take):
             pieces += laid
             continue
         labelled = work / "parts" / f"{row['id']}-{take}"
+        if not (labelled / "labels.json").exists() or kind not in details:
+            gaps[row["id"]] = sorter.GAP
+            continue
         refuse_patchy(labelled)
         yaw = yaw_of(details[kind]["turn"])
         size = made_size(labelled, kit_size(row["size"]), yaw)
@@ -146,7 +150,8 @@ def plan(place, work, take):
         if row.get("parent"):
             children.append({"model": row["id"], "parent": row["parent"]})
         pieces += [{"model": row["id"], "spot": spot, "row": row["id"]} for spot in row["at"]]
-    found = {"scene": place, "take": take, "models": models, "pieces": pieces, "children": children,
+    children = [child for child in children if child["parent"] not in gaps]
+    found = {"scene": place, "take": take, "models": models, "pieces": pieces, "children": children, "gaps": gaps,
              "frame": inventory["room"]["layout"].get("frame", ""),
              "on_seat": inventory["room"]["layout"].get("on_seat") or [0.0, 0.0]}
     (work / "plan-route.json").write_text(json.dumps(found, indent=1))
@@ -284,7 +289,7 @@ def main():
             print(name, len(job.get("pieces", job.get("chunky", []))))
         routes = [entry["route"] for entry in planned["models"].values()]
         print(len(planned["models"]), "models:", {route: routes.count(route) for route in sorted(set(routes))},
-              len(planned["pieces"]), "pieces")
+              len(planned["pieces"]), "pieces;", len(planned["gaps"]), "gaps")
         return
     failed = check(work)
     print("checks failed:", ", ".join(failed) if failed else "none")

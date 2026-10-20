@@ -193,10 +193,13 @@ def from_the_characters(paths):
 
 
 def row_kinds(inventory):
-    """The names a model may be built under: every generated or mechanic row's id and prop kind."""
+    """The names a model may be built under: the id and prop kind of every row the sorter does not send to code (a
+    loop row, whatever its own kind, or a mechanic row)."""
+    sys.path.insert(0, str(HERE.parent / "library"))
+    import sorter
     kinds = set()
     for row in inventory["rows"]:
-        if row["kind"] in ("generate", "mechanic"):
+        if sorter.row_route(inventory["scene"], row) != "code":
             kinds.add(row["id"])
             kinds.add(row.get("prop") or row["thing"].split(":", 1)[1])
     return kinds

@@ -252,8 +252,10 @@ def likeness_and_paint_both_ways():
                   ("repainted with no surfaces-check", judged("painted", path, inventory), contents.UNKNOWN),
                   ("repainted and checked", judged("painted", path, inventory, {**NONE, "surfaces-check": check}),
                    contents.PASS),
-                  ("a code row's model", judged("painted", path, {"rows": [{"id": "chair", "kind": "code"}]}),
-                   contents.PASS)]
+                  # #19: a row's own kind routes nothing; a `code` row no pipeline failure names is the loop's
+                  ("a code row's model, no failure named", judged("painted", path, {"rows": [{"id": "chair",
+                                                                                           "kind": "code"}]}),
+                   contents.UNKNOWN)]
         return problems_of(cases)
 
 

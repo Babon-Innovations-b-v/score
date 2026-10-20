@@ -58,13 +58,17 @@ def filled(stage, work, place):
     return None, (work or NOT_HERE).format(place=place, stage=stage)
 
 
-def made_by(row):
-    """How a scene inventory row is made, as FILLERS names it."""
+def made_by(row, place):
+    """How a scene inventory row is made, as FILLERS names it: a crop, a mechanic, a code build only when its kind is a
+    named pipeline failure (sorter.route, whatever the row's own kind or `made` says, #19), else the shared loop."""
+    import score.stages.props.prop_data as prop_data
+    with prop_data.tools("props/library"):
+        import sorter
     if row.get("made") == "crop":
         return CROP
     if row.get("kind") == "mechanic":
         return MECHANIC
-    if row.get("made") == "kit piece" or row.get("kind") == "code":
+    if sorter.route(f"{place}_{row['id']}") == "code":
         return CODE
     return ROUTE
 
@@ -72,7 +76,7 @@ def made_by(row):
 def missing_row(row, place, in_kit):
     """(node, work) of a row with nothing made for it; `in_kit` whether the place's kit has a piece of the row,
     which the place's assembly lays from its seed (a ship place's by its kit's own node)."""
-    made = made_by(row)
+    made = made_by(row, place)
     if made == CODE and in_kit and not runs_at(SHIP_KIT, place):
         return filled(ASSEMBLY, None, place)
     stage, work = FILLERS[made]
