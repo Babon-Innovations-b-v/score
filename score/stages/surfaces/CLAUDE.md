@@ -50,11 +50,14 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   roughness, metal, the node's seed), a new surface only when none fits with any settings; wear stays the place's
   level, a finish's wear wish goes to `questions.json` for the owner. Fill (free): each part its surface's token
   colour, and the free colour check (CIE76 within `COLOUR_DELTA_E`, glass, glow, light and print by their own
-  colour). Recheck (paid, Gemini 3.1 Pro, up to three asks a take, EUR 1 a place as the row's guess): Gemini on the
-  filled views against the close-up plus the colour check; a failing finish's settings are tweaked (Gemini's, else
-  the token nearest its seen colour) and checked again, at most three tries, then the gate "library surface fits"
-  fails it by name, "no library surface fits", the holes' `gate:finish-route-recheck/library surface fits:<take>`.
-  Settings and tweaks are row output, never a materials.json edit. Each row selects (`score run --object <take>`).
+  colour). Recheck (paid, Gemini 3.1 Pro, one ask a take on the flex tier, EUR 1 a place as the row's guess; a batch,
+  #21): first, free, each finish the colour check fails takes the library token nearest its seen colour
+  (`predicted`); a take one still fails is a hole with no ask. The rest are asked once, Gemini on the filled views
+  against the close-up, and the answer is only sorted: all match passes, else (or no usable answer) the gate
+  "library surface fits" fails it by name, "no library surface fits", the holes'
+  `gate:finish-route-recheck/library surface fits:<take>`. Gemini's settings for a failing finish are kept as the
+  hole's `suggested`, never applied: trying them is a new batch and a new ask. Settings are row output, never a
+  materials.json edit. Each row selects (`score run --object <take>`).
   Its rows run in the framework's Python (trimesh and Embree are in `.venv`), not through `prop_env.py`.
 - **Every paid ask runs once: the finishes layer is a batch** (CONTEXT.md, the owner, 2026-10-20; #21). One finish
   list a take, one draw of each map (`SEEDS`, `VIEW_SEEDS` one seed each), no paid naming, no ask again after a

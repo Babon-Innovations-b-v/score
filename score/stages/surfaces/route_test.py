@@ -1,8 +1,8 @@
 """The finish route's own checks, with no spend: a two-box model (one textured red, one blue by its colour factor)
 is cast from every side with its colours read from its own texture, split into two colour groups that the views
 agree on, its finish list parsed to library surfaces with settings (a group the answer leaves out joined by colour),
-filled and colour-checked against what its texture shows, a failing finish tweaked to the library token nearest its
-seen colour; the paid rows refuse outside a cleared run, without an object filter and past the trial's cap; the
+filled and colour-checked against what its texture shows, a failing finish predicted (free) as the library token
+nearest its seen colour, then one recheck ask a take sorted pass or a hole; the paid rows refuse outside a cleared run, without an object filter and past the trial's cap; the
 route's rows are on no line unless asked for by name; the runner's object filter keys and narrows a selecting row only.
 
 Run: .venv/bin/python score/stages/surfaces/route_test.py
@@ -105,7 +105,7 @@ def answer_for(groups, red_token):
                           "token": red_token, "roughness": 1.4, "metal": 0.0, "fits": True}]}
 
 
-def test_the_list_is_settled_fill_checks_colour_and_a_tweak_takes_the_nearest_token():
+def test_the_list_is_settled_fill_checks_colour_and_the_prediction_takes_the_nearest_token():
     with tempfile.TemporaryDirectory() as temporary:
         inputs, views, split = cast_and_split(pathlib.Path(temporary))
         groups = json.loads((split / "groups.json").read_text())[TAKE]["groups"]
@@ -121,9 +121,12 @@ def test_the_list_is_settled_fill_checks_colour_and_a_tweak_takes_the_nearest_to
                                       {"dark_panel": "painted"}, len(groups))
         assert not filled[0]["colour_fits"], filled  # one light token cannot be both red and blue
         assert (out / "filled-front.png").exists()
-        nudged = route_recheck.tweaked(filled[0], {}, tokens)
-        assert nudged["settings"]["token"] == route_recheck.nearest_token(filled[0]["seen_lab"], tokens)
-        assert "colour_fits" not in nudged
+        finish_of = np.load(out / "finish.npy").astype(int)
+        settled, changed = route_recheck.predicted(views / TAKE, finish_of, filled,
+                                                   {"tokens": tokens, "families": {"dark_panel": "painted"}})
+        nearest = route_recheck.nearest_token(filled[0]["seen_lab"], tokens)
+        assert settled[0]["settings"]["token"] == nearest and changed == {"red paint": [far, nearest]}, changed
+        assert "colour_fits" in settled[0]
         assert route_recheck.failed(filled, {0: {"matches": True}}) == [0]
 
 
@@ -158,14 +161,18 @@ def two_finishes(groups):
          "token": "bay-three", "roughness": 0.4, "metal": 0.0, "fits": True, "wear_wish": "more worn"}]}
 
 
-def test_a_finish_no_library_token_fits_is_named_after_its_tweak_changes_nothing():
+def test_a_finish_no_library_token_fits_is_a_predicted_hole_never_asked():
     """The red box's sign-red lies within COLOUR_DELTA_E of its texture; no library token lies within it of the blue
-    box's, so its tweak (the nearest token) changes nothing and the take fails by name."""
+    box's, so the free prediction (the nearest token) still fails it: the take is a hole named by the gate, and
+    Gemini is never asked."""
     originals = route_list.ask, route_recheck.ask
     try:
         with tempfile.TemporaryDirectory() as temporary:
             rows = made_through_the_rows(pathlib.Path(temporary), two_finishes,
                                          lambda attempt: {0: {"matches": True}, 1: {"matches": True}})
+            record = json.loads((rows["finish-route-recheck"] / "recheck.json").read_text())[TAKE]
+            assert record["asked"] is False and not record["passed"], record
+            assert not list((rows["finish-route-recheck"] / TAKE).glob("checked-*.png"))
             assert route_list.judge_list(rows["finish-route-list"], rows, {}).answer == "pass"
             questions = json.loads((rows["finish-route-list"] / "questions.json").read_text())["wear_wishes"]
             assert questions and "more worn" in questions[0], questions
@@ -174,27 +181,52 @@ def test_a_finish_no_library_token_fits_is_named_after_its_tweak_changes_nothing
             assert [entry["colour_fits"] for entry in filled] == [True, False], filled
             verdict = route_recheck.judge_recheck(rows["finish-route-recheck"], rows, {})
             assert verdict.answer == "fail", verdict
-            assert verdict.findings[0].startswith(f"{TAKE}: no library surface fits (blue paint"), verdict.findings
-            assert "no tweak left" in verdict.findings[0]
+            assert verdict.findings[0].startswith(f"{TAKE}: no library surface fits (predicted, not asked"), verdict
+            assert "blue paint: dE" in verdict.findings[0] and "red paint" not in verdict.findings[0], verdict
+            assert verdict.measures["asked"] == 0, verdict.measures
     finally:
         route_list.ask, route_recheck.ask = originals
 
 
-def test_the_recheck_stops_after_three_tries_and_keeps_the_last_checked_settings():
-    tokens = ("sign-red", "alarm", "hazard")
-    originals = route_list.ask, route_recheck.ask
+def asked_once(answer):
+    """The recheck made through the rows with every colour within the colour check (COLOUR_DELTA_E held wide), its
+    one ask answering `answer` (a dict, or an error raised): the take's record and how many asks it made."""
+    finish_parts = route_fill.finish_parts  # the module the fill reads, imported by its folder's name
+    asks = []
+
+    def answering(attempt):
+        asks.append(attempt)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+    originals = route_list.ask, route_recheck.ask, finish_parts.COLOUR_DELTA_E
+    finish_parts.COLOUR_DELTA_E = 1000.0
     try:
         with tempfile.TemporaryDirectory() as temporary:
-            rows = made_through_the_rows(pathlib.Path(temporary), lambda groups: {"finishes": [two_finishes(groups)[
-                "finishes"][0] | {"groups": [1, 2]}]},
-                                         lambda attempt: {0: {"matches": False, "why": "too dull",
-                                                              "token": tokens[attempt % 3]}})
+            rows = made_through_the_rows(pathlib.Path(temporary), two_finishes, answering)
             record = json.loads((rows["finish-route-recheck"] / "recheck.json").read_text())[TAKE]
-            assert len(record["tries"]) == 3 and not record["passed"], record
-            assert record["finishes"][0]["settings"] == record["tries"][-1]["settings"][0]
-            assert (rows["finish-route-recheck"] / TAKE / "try-3-front.png").exists()
+            verdict = route_recheck.judge_recheck(rows["finish-route-recheck"], rows, {})
+            drawn = (rows["finish-route-recheck"] / TAKE / "checked-front.png").exists()
+            return record, verdict, len(asks), drawn
     finally:
-        route_list.ask, route_recheck.ask = originals
+        route_list.ask, route_recheck.ask, finish_parts.COLOUR_DELTA_E = originals
+
+
+def test_the_recheck_asks_once_and_sorts_a_failing_answer_into_a_hole_with_its_suggestion_unapplied():
+    record, verdict, asks, drawn = asked_once({0: {"matches": False, "why": "too dull", "token": "alarm",
+                                                   "roughness": 0.2}, 1: {"matches": True}})
+    assert asks == 1 and drawn and record["asked"] and not record["passed"], record
+    assert record["suggested"] == {"red paint": {"token": "alarm", "roughness": 0.2}}, record["suggested"]
+    assert record["finishes"][0]["settings"]["token"] == "sign-red", record["finishes"][0]
+    assert verdict.answer == "fail" and "too dull" in verdict.findings[0], verdict
+
+
+def test_the_recheck_passes_on_one_matching_answer_and_makes_an_unanswered_ask_a_hole():
+    record, verdict, asks, _ = asked_once({0: {"matches": True}, 1: {"matches": True}})
+    assert asks == 1 and record["passed"] and verdict.answer == "pass", (record, verdict)
+    record, verdict, asks, _ = asked_once(TimeoutError("The read operation timed out"))
+    assert asks == 1 and not record["passed"] and record["fault"].startswith("no usable answer"), record
+    assert verdict.answer == "fail", verdict
 
 
 def test_paid_rows_refuse_outside_a_cleared_run():
