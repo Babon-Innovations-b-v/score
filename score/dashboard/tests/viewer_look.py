@@ -53,6 +53,7 @@ RATE, TITLE_SECONDS, FADE_SECONDS = 24, 2.0, 0.5
 FADE_FRAMES = 12
 HERE = pathlib.Path(__file__).resolve().parent
 STATIC = HERE.parent / "pages" / "static"
+DESIGN = HERE.parents[2] / "design"
 
 
 def store_objects():
@@ -129,12 +130,15 @@ def view_link(camera):
 
 
 class Pages(SimpleHTTPRequestHandler):
-    """/page/<n> the prepared pages, /static/ the dashboard's static files, /web/ the web copies."""
+    """/page/<n> the prepared pages, /static/ the dashboard's static files (/static/design/ its tokens and font),
+    /web/ the web copies."""
 
     pages, web = [], None
 
     def translate_path(self, path):
         path = path.split("?")[0]
+        if path.startswith("/static/design/"):
+            return str(DESIGN / path[len("/static/design/"):])
         if path.startswith("/static/"):
             return str(STATIC / path[len("/static/"):])
         if path.startswith("/web/"):

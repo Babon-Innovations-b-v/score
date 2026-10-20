@@ -14,6 +14,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { computeBoundsTree, acceleratedRaycast } from "three-mesh-bvh";
 import { MeshoptSimplifier } from "meshoptimizer/meshopt_simplifier.module.js";
+import { token } from "./tokens.js";
 
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
@@ -117,7 +118,7 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), BLOOM_STRENGTH, B
 bloom.enabled = false;
 composer.addPass(bloom);
 composer.addPass(new OutputPass());  // AgX and the exposure, then sRGB
-const ambient = new THREE.AmbientLight(0xffffff, 1);
+const ambient = new THREE.AmbientLight(token("--color-view-light"), 1);
 ambient.layers.set(OWN_LAMPS);
 ambient.layers.enable(SHOWN_LAMPS);
 scene.add(ambient);
@@ -650,8 +651,9 @@ function spark() {
   canvas.width = canvas.height = 64;
   const draw = canvas.getContext("2d");
   const fade = draw.createRadialGradient(32, 32, 0, 32, 32, 32);
-  fade.addColorStop(0, "rgba(255,255,255,1)");
-  fade.addColorStop(1, "rgba(255,255,255,0)");
+  const glow = token("--color-view-light");  // 6-digit hex: two more digits are its alpha
+  fade.addColorStop(0, glow);
+  fade.addColorStop(1, `${glow}00`);
   draw.fillStyle = fade;
   draw.fillRect(0, 0, 64, 64);
   return new THREE.CanvasTexture(canvas);
@@ -778,7 +780,7 @@ function restMovers() {
 
 function personFigure() {
   const figure = new THREE.Group();
-  const stuff = new THREE.MeshStandardMaterial({ color: 0xe0782a, roughness: 0.6 });
+  const stuff = new THREE.MeshStandardMaterial({ color: token("--color-view-person"), roughness: 0.6 });
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 1.06, 6, 16), stuff);
   body.position.y = 0.18 + 1.06 / 2;  // the capsule's foot on the floor
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 20, 14), stuff);
@@ -795,7 +797,7 @@ const measure = { points: [], marks: new THREE.Group(), line: null };
 scene.add(measure.marks);
 
 function measureMark(point) {
-  const mark = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffd400 }));
+  const mark = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8), new THREE.MeshBasicMaterial({ color: token("--color-view-pick") }));
   mark.position.copy(point);
   measure.marks.add(mark);
 }
@@ -813,7 +815,7 @@ function measureAdd(point) {
   if (measure.points.length < 2) { $("picked").textContent = "Click the second point."; return; }
   const [from, to] = measure.points;
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([from, to]),
-                              new THREE.LineBasicMaterial({ color: 0xffd400, depthTest: false }));
+                              new THREE.LineBasicMaterial({ color: token("--color-view-pick"), depthTest: false }));
   line.renderOrder = 10;
   measure.marks.add(line);
   const across = Math.hypot(to.x - from.x, to.z - from.z), up = Math.abs(to.y - from.y);
@@ -961,8 +963,11 @@ function frame(now) {
 // --- a basket item's changes ---------------------------------------------------------------------------------
 // What a basket item changes, outlined over the place (given.marks: boxes from the two stages' difference, in the
 // stage's own metres), drawn through walls and left out of the probe; the first look aims at them.
-const MARK_COLOURS = { added: 0x4fd18b, moved: 0xf2c14e, reshaped: 0xf2c14e, refinished: 0x8ab4ff, lamp: 0xffd400,
-                       removed: 0xff7b72, missing: 0xff3b30, gate: 0xff9f0a };
+const MARK_COLOURS = Object.fromEntries(Object.entries({
+  added: "--color-mark-added", moved: "--color-mark-moved", reshaped: "--color-mark-moved",
+  refinished: "--color-mark-refinished", lamp: "--color-view-pick", removed: "--color-mark-removed",
+  missing: "--color-mark-missing", gate: "--color-mark-gate" }).map(([kind, name]) => [kind, token(name)]));
+const FRAMED = token("--color-mark-framed");
 const changeMarks = new THREE.Group();
 scene.add(changeMarks);
 
@@ -973,7 +978,7 @@ function markChanges(marks, framedId = given.hole) {
     // a line is one pixel wide in WebGL, so the framed hole is drawn thicker as nested outlines, white
     for (const grow of framed ? [0.03, 0.05, 0.07, 0.09] : [0.03]) {
       const box = new THREE.Box3(new THREE.Vector3(...mark.low), new THREE.Vector3(...mark.high)).expandByScalar(grow);
-      const outline = new THREE.Box3Helper(box, framed ? 0xffffff : MARK_COLOURS[mark.kind] || 0xffffff);
+      const outline = new THREE.Box3Helper(box, framed ? FRAMED : MARK_COLOURS[mark.kind] || FRAMED);
       outline.material.depthTest = false;
       outline.renderOrder = 10;
       changeMarks.add(outline);
@@ -998,7 +1003,7 @@ function openHolesOnly() {
   resize();
   window.addEventListener("resize", resize);
   lightTheSky({ background: [0.05, 0.05, 0.05], ambient: [0.5, 0.5, 0.5], exposure: 1 });
-  scene.add(new THREE.GridHelper(GRID_METRES, GRID_METRES, 0x555555, 0x2a2a2a));
+  scene.add(new THREE.GridHelper(GRID_METRES, GRID_METRES, token("--color-view-grid"), token("--color-view-grid-fine")));
   markChanges(given.marks || []);
   const first = holeView() || allHolesView();
   aimAt(first.eye, first.aim, first.fov);

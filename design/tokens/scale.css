@@ -1,0 +1,45 @@
+/* ============================================================================
+   SCORE COCKPIT SCALE: type, spacing, radii and elevation of the cockpit (score/dashboard). No colour here
+   (colours.css), no @font-face (../fonts/poppins/poppins.css, the one font home). A dense working screen: the body
+   at 15 px, an 8 px grid.
+   ============================================================================ */
+
+:root {
+  /* ──────────────────  TYPOGRAPHY  ────────────────── */
+  --font-heading: 'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body:    'Poppins', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:    ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --fs-h1:    28px;  --lh-h1:    1.2;   --fw-h1:    600;   /* the page's title */
+  --fs-h2:    17px;  --lh-h2:    1.35;  --fw-h2:    600;   /* a section */
+  --fs-h3:    14px;  --lh-h3:    1.4;   --fw-h3:    600;   /* a card or panel */
+  --fs-body:  15px;  --lh-body:  1.5;
+  --fs-sm:    13px;  --lh-sm:    1.45;                     /* helper text, nav */
+  --fs-xs:    12px;  --lh-xs:    1.4;                      /* labels, code */
+  --fs-micro: 11px;  --lh-micro: 1.3;                      /* pills, badges */
+
+  --tracking-eyebrow: 0.06em;
+  --tracking-tight:  -0.01em;
+
+  /* ──────────────────  SHADOWS / RADII / SPACE  ────────────────── */
+  --shadow-1: 0 1px 3px 0 rgba(0, 0, 0, 0.40);
+  --shadow-2: 0 6px 18px 0 rgba(0, 0, 0, 0.45);
+
+  --radius-sm:   4px;
+  --radius-md:   8px;   /* buttons, inputs */
+  --radius-lg:   12px;  /* cards, panels */
+  --radius-pill: 9999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --container: 1360px;
+}

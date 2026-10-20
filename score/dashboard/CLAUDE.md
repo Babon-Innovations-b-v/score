@@ -112,6 +112,12 @@ Rules:
 - **No module on sys.path, no stage imports this package.** Import dotted from `score.dashboard`; never a bare
   `views`, `models`, `urls`, `settings`, `apps` or `admin` (they would be hashed into stage keys). Do not edit
   `tools/review/*` (the viewer is served as a file) or add web tokens to `design/tokens/tokens.json`.
+- **One dark theme on design tokens** (owner, 2026-10-20, #25; built like babon's design system, none of its brand):
+  the colours are `design/tokens/colours.css`, type, space and radii `scale.css`, the font Poppins
+  `design/fonts/poppins/` (OFL), all served at `/static/design/` and linked by `pages/tokens.html` before
+  `dash.css`, whose short names only alias them; the 3D views read them through `static/pages/tokens.js`. No template
+  or static file writes a colour, every token named is defined, text holds WCAG AA (`tests/theme_test.py`). A hosted
+  build may replace `colours.css` whole with its own colours on the same names (babon's does).
 - **No provider here.** Nothing in this package imports `tools.*` or `score.adapters` or names a provider
   (`tests/no_provider_test.py`). Hosted mode never imports `score.stages`, `score.store`, numpy or usd-core
   (`tests/hosted_light_test.py`).

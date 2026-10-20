@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+import { token as designToken } from "./tokens.js";  // token() here is the CSRF token
 
 const given = JSON.parse(document.getElementById("film-data").textContent);
 const doc = given.script;
@@ -682,7 +683,7 @@ function layerSplit(loaded, share, labels) {
   if (level.has("light")) lightMarkers(loaded, level.get("light") * gap);
   const plateShape = new THREE.BoxGeometry(loaded.size.x * 1.08, 0.04, loaded.size.z * 1.08);
   present.forEach((name, index) => {
-    const plate = new THREE.Mesh(plateShape, new THREE.MeshBasicMaterial({ color: 0x8ab4ff, transparent: true, opacity: 0.14, depthWrite: false }));
+    const plate = new THREE.Mesh(plateShape, new THREE.MeshBasicMaterial({ color: designToken("--film-plate"), transparent: true, opacity: 0.14, depthWrite: false }));
     plate.position.set(loaded.centre.x, loaded.box.min.y - 0.05 + index * gap, loaded.centre.z);
     loaded.markers.add(plate);
     const count = loaded.parts.filter((part) => part.layer === name && !part.scenery).length;
@@ -892,9 +893,9 @@ class Shot {
       if (label.screen.z > 1) continue;
       const x = (label.screen.x + 1) / 2 * WIDTH, y = (1 - label.screen.y) / 2 * HEIGHT;
       const width = pen.measureText(label.words).width + 16;
-      pen.fillStyle = "rgba(10, 12, 16, 0.78)";
+      pen.fillStyle = designToken("--color-scrim");
       pen.fillRect(x - width, y - 14, width, 26);
-      pen.fillStyle = "#e9ebef";
+      pen.fillStyle = designToken("--color-text-body");
       pen.fillText(label.words, x - width + 8, y + 5);
     }
     if (drawn.note !== this.layerWords) {

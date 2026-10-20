@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ detail.place|capfirst }} in 3D</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="/static/pages/dash.css">
+{% include "pages/tokens.html" %}
 {% if detail.web3d or holes_only %}
 <script type="importmap">
 { "imports": {
