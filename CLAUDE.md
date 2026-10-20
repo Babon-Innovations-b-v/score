@@ -94,6 +94,7 @@ Nothing is deployed. A push to `main` publishes the source, the paper's PDF and 
 - When a background monitor reports repeated failures, propose stopping or investigating; don't passively echo "awaiting direction".
 - Never ship unverified claims (measured numbers, benchmark figures, compatibility assertions).
 - Costs of a few cents (a bucket download, a small read) need no approval; say them in the report after (owner, 2026-10-19). Paid runs, machines, model calls and basket checkouts still wait for his yes.
+- **Quality is never a cost lever** (owner, 2026-10-20): no lower model settings, resolutions, samples or cheaper models for anything that ships. Savings come only from waste (idle machines, set-up, retries, repeated calls, remaking what the library holds, wrong card classes, unbatched calls); cheaper settings only for checks and previews that never ship and do not change what the check decides.
 
 ## Verification
 
