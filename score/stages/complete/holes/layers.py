@@ -5,11 +5,12 @@ source to SOURCES: `holes(place, data)` giving [{"id" (generic: "<layer>:<kind>:
 from score.stages.complete.holes import PLACE
 from score.stages.demo_film import needs as film_needs
 from score.stages.light import needs as light_needs
+from score.stages.motion import needs as motion_needs
 from score.stages.sound import needs as sound_needs
 from score.stages.terrain import needs as ground_needs
 
 SOURCES = {"sound": sound_needs.holes, "light": light_needs.holes, "ground": ground_needs.holes,
-           "film": film_needs.holes}
+           "film": film_needs.holes, "motion": motion_needs.holes}
 
 
 def holes(place, data):

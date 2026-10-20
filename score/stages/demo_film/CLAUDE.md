@@ -37,7 +37,8 @@ own sound; paid and cleared by the runner like any paid row.
   planned.
 - **The gate measures**: film_checks' video checks (size, sound, black, frozen, length) and the clearance on every
   frame (meshes, people and moving things at the frame's own moment), and the owner's faults of 2026-10-18 (#28, `shots.py`):
-  every shot at least `SECONDS`, a frame showing a person where the stage holds people, and nothing seen moving in a
+  every shot at least `SECONDS`, a frame showing a person where the stage holds people (and a stage that holds
+  none where the place's cast record stands people fails, #26), and nothing seen moving in a
   shot without a sound under it. Whether a film reads well is the creator's call. One card class (`CLASSES`
   gpu-24gb): a dearer class taken when it is out of stock would be a fallback chain inside the batch.
 - **The environment's own film** (`final.py`, the environment-film row, #28): one environment node, free (a local
