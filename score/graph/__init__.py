@@ -173,7 +173,8 @@ class Stage:
     applies: for a place stage, applies(place) is False for a place the stage has nothing to do for (its environment data
     says so): that place's line has no such node. None: every place.
     beside, neighbours: for a place stage that reads other places' outputs, {earlier stage: (schema, version)} read
-    for each place neighbours(place) names (its input `<stage>@<other place>`), versioned and waited on like `after`.
+    for each place neighbours(place) names (its input `<stage>@<other place>`), versioned and waited on like `after`;
+    an environment stage's neighbours(None) names the places it reads, each stage only where it applies.
     The table refuses a stage that reads itself through what it reads, after or beside (Runner.reached); two places
     that show each other read a stage that reads nothing back, so they make no cycle.
     optional: names in `after` the node reads only while usable (passed, accepted, on its current key); one that is
@@ -640,11 +641,13 @@ class Runner:
 
     def besides(self, stage, place):
         """{node: (earlier stage, other place, (schema, version))} the node reads of other places (its `beside`, for
-        each of its neighbours)."""
-        if not stage.beside or place is None:
+        each of its neighbours). An environment stage's neighbours(None) names the places it reads (the environment's
+        film reads the films its script shows), each only for an earlier stage that applies there."""
+        if not stage.beside or (place is None and stage.grain != "world"):
             return {}
         return {node_name(self.stages[before], other): (before, other, wanted)
-                for other in stage.neighbours(place) for before, wanted in stage.beside.items()}
+                for other in stage.neighbours(place) for before, wanted in stage.beside.items()
+                if place is not None or self.stages[before].applies is None or self.stages[before].applies(other)}
 
     def reads(self, stage, place):
         """{earlier stage: (schema, version)} the node reads: its `after`, less a place stage that has nothing to do
