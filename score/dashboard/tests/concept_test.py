@@ -23,6 +23,7 @@ from score.store import runtime_store
 
 pytestmark = pytest.mark.django_db(transaction=True)
 PRICE = 0.15
+REDRAW_PRICE = 0.19  # a Redraw with notes: the prompt correction and the draw
 
 
 def a_png(colour):
@@ -36,7 +37,8 @@ def stand_in(world, monkeypatch):
     """The draw's own process run in-process with a stand-in model; [what each draw was asked]."""
     asked = []
     monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
-    monkeypatch.setattr(drawing, "draw_euros", lambda per_unit=None: PRICE)
+    monkeypatch.setattr(drawing, "draw_euros", lambda *given: PRICE)
+    monkeypatch.setattr(drawing, "redraw_euros", lambda *given: REDRAW_PRICE)
     monkeypatch.setattr(concepts, "in_background", concepts.applied_here)  # the thread's work, now
     offsite = world.source.store.cache.parent / "bucket"  # the private bucket's stand-in
     monkeypatch.setattr(drawing, "offsite_store", lambda: runtime_store.FolderStore(offsite))
@@ -45,7 +47,9 @@ def stand_in(world, monkeypatch):
     def run(argv, env, **kwargs):
         monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
         model = lambda wording, pictures: asked.append(wording) or a_png((30 * len(asked), 90, 140))  # noqa: E731
-        record = drawing.draw(world.source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1], caller=model)
+        prompt = lambda question, pictures: asked.append(question) or "The corrected prompt."  # noqa: E731
+        record = drawing.draw(world.source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1], caller=model,
+                              reviser=prompt)
         return subprocess.CompletedProcess(argv, 0, json.dumps(record) + "\n", "")
     drawn_here = web.concept_draw
     monkeypatch.setattr(web, "concept_draw", lambda *args, **named: drawn_here(*args, run=run, **named))
@@ -82,9 +86,11 @@ def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world
     yes = world.source.store.spend_yes("override", drawing.draws(world.source.store, "beta")[0]["yes"])
     assert yes["by"] == "joey" and yes["euros"] == PRICE and "beta" in yes["purpose"]
     marks = [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "note": "a window"}]
-    owner.post("/concept/beta/draw/", json.dumps({"marks": marks, "base": state["newest"], "euros": PRICE}),
+    owner.post("/concept/beta/draw/", json.dumps({"marks": marks, "base": state["newest"], "euros": REDRAW_PRICE}),
                content_type="application/json")
-    assert "Box 1: a window." in stand_in[-1]
+    assert "Box 1 (top left): a window." in stand_in[-2]  # the prompt model corrects the prompt by it
+    assert stand_in[-1].startswith("The corrected prompt.") and "Box 1 (top left): a window." in stand_in[-1]
+    assert drawing.own_wording(world.source.store, "beta") == "The corrected prompt."  # shown in the box
     newest = owner.get("/concept/beta/state/").json()["newest"]
     assert owner.post("/concept/beta/pick/", json.dumps({"sha": newest}), content_type="application/json").json()
     assert 'ptile-review" href="/concept/beta/"' not in owner.get("/").content.decode()  # locked: no review button
@@ -294,3 +300,13 @@ def test_a_picked_concepts_page_shows_its_scene_inventory_made_or_to_read(world)
     world.source.refresh()
     page = signed_in("joey3").get("/concept/alpha/").content.decode()
     assert "data-v>lamp</span>" not in page and "data-v>to read</span>" in page and "older concept" in page
+
+
+def test_the_page_shows_the_picked_concept_a_draw_is_drawn_on_to_mark_beside_it(world, stand_in, monkeypatch):
+    owner = signed_in()
+    owner.post("/concept/alpha/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
+    owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
+    above = drawing.draws(world.source.store, "alpha")[-1]["sha"]
+    monkeypatch.setattr(drawing, "sent_picks", lambda store, place: {"alpha": above} if place == "beta" else {})
+    page = owner.get("/concept/beta/").content.decode()
+    assert 'class="concept-marks" data-on="alpha"' in page and f"/{above}" in page

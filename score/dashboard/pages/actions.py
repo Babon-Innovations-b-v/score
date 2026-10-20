@@ -370,7 +370,8 @@ def concept_draw(user, payload):
     from score.review import web
     source = state.source()
     try:
-        asked = {"marks": payload.get("marks") or [], "note": str(payload.get("note") or ""),
+        asked = {"marks": payload.get("marks") or [], "context_marks": payload.get("context_marks") or [],
+                 "note": str(payload.get("note") or ""),
                  "base": payload.get("base") or None, "wording": payload.get("wording") or None}
         place, together = str(payload["place"]), payload.get("all")
         record = web.concept_draw(source.store, place, asked, float(payload["euros"]), by=user, first=bool(together),

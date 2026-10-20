@@ -175,7 +175,10 @@ def apply_concept_draw(item, source):
     blob = source.blob_path(record["sha"])
     files = {f"{record['sha']}-{side}.jpg": thumbnail(blob, source.home / "thumbs" / f"{record['sha']}-{side}.jpg",
                                                       side) for side in (THUMB_SIDE, HERO_SIDE)}
-    return Applied("done", json.dumps({name: record[name] for name in DRAWN}), files=files)
+    said = {name: record[name] for name in DRAWN}
+    with_prompt = json.dumps({**said, "corrected": record.get("corrected")})
+    # a Redraw with notes' corrected prompt goes along while the answer stays whole in its 4000 characters
+    return Applied("done", with_prompt if len(with_prompt) <= 4000 else json.dumps(said), files=files)
 
 
 def apply_concept_said(item, action):

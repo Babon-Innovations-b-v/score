@@ -100,8 +100,8 @@ def stop_line(store, world):
 
 
 def concept_draw(store, place, request, euros, by, run=None, first=False, purpose=None):
-    """His click on a concept review's Draw button: his yes for that one call at `euros` (the price the button
-    showed), then the draw as its own process inside it; the draw's record. `first` (his Draw all: one of the first
+    """His click on a concept review's Draw button: his yes for exactly its calls at `euros` (the price the button
+    showed: one draw, or a Redraw with notes' prompt correction and draw), then the draw as its own process inside it; the draw's record. `first` (his Draw all: one of the first
     draws its total covered) refuses once the place has a draw; `purpose` says the click in the yes. review.Refused
     for an empty or the runner's name, a price that moved, or a draw refused (its words); PermissionError in an
     agent's process."""
@@ -111,7 +111,8 @@ def concept_draw(store, place, request, euros, by, run=None, first=False, purpos
     import sys
     from score.review import concepts
     name = checked_by(by)
-    price = concepts.draw_euros()
+    redraw = bool(request.get("base"))
+    price = concepts.redraw_euros() if redraw else concepts.draw_euros()
     if price is None or abs(float(euros) - price) > 0.005:
         shown = "not measured" if price is None else f"EUR {price:.2f}"
         raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
@@ -120,13 +121,16 @@ def concept_draw(store, place, request, euros, by, run=None, first=False, purpos
         raise review.Refused(f"{place} has a draw from its current wording since the click: the places to draw "
                              "changed; read the page again")
     key = concepts.yes_key(place, review.now())
-    review.spend(store, "override", key, price, name, purpose=purpose or f"concept review: one draw of {place}")
+    review.spend(store, "override", key, price, name, purpose=purpose or (
+        f"concept review: one redraw of {place} (its prompt corrected by Gemini, then one draw)" if redraw
+        else f"concept review: one draw of {place}"))
     asked = store.cache / concepts.AREA / "asked" / f"{key}.json"
     asked.parent.mkdir(parents=True, exist_ok=True)
     asked.write_text(json.dumps(request))
     env = {**os.environ, "SCORE_SPEND_TICKET": f"override {key}", "SCORE_SPEND_STORE": str(store.cache.parent)}
     done = (run or subprocess.run)([sys.executable, "-m", "score.review.concepts", place, str(asked), name],
-                                   env=env, capture_output=True, text=True, timeout=concepts.TIMEOUT + 60)
+                                   env=env, capture_output=True, text=True,
+                                   timeout=concepts.TIMEOUT * (2 if redraw else 1) + 60)
     if done.returncode != 0:
         raise review.Refused((done.stderr.strip().splitlines() or ["the draw failed"])[-1].removeprefix("refused: "))
     return json.loads(done.stdout.strip().splitlines()[-1])

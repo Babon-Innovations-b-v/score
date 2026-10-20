@@ -547,6 +547,7 @@ class LocalSource:
         reads = self.inventory_reads()
         ready, waiting = concepts.undrawn(self.store, nodes)
         return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
+                "concept_redraw_euros": concepts.redraw_euros(),
                 "concept_undrawn": ready, "concept_unready": waiting,
                 "concept_wordings": {node: self.concept_wording(node) for node in nodes},
                 "inventories": {place: read for place, read in reads.items() if read}}
@@ -557,7 +558,9 @@ class LocalSource:
         from score.review import concepts
         return ConceptWording(generated=concepts.generated(self.store, node),
                               own=concepts.own_wording(self.store, node), refused=concepts.waits(self.store, node), redraw=concepts.redraw_preview(),
-                              pictures=[words for words, _ in concepts.sent_pictures(self.store, node)])
+                              pictures=[words for words, _ in concepts.sent_pictures(self.store, node)],
+                              context=[{"place": name, "sha": sha}
+                                       for name, sha in concepts.sent_picks(self.store, node).items()])
 
     def hierarchy(self):
         """{within, shells} of data/places/within.json: what each place or shell sits within (a part of a place's

@@ -30,8 +30,12 @@ redraws, None for a first draw), wording (a first draw's: the creator's edit of 
 the place's wording now)}. A first draw sent with his edited wording sends exactly it (his note after it) and keeps it
 as the place's own wording (`wordings/`, in his process only) from then on, for every first draw and Draw all and for
 which draw counts as current, until he takes it back to the generated one (`worded` with None; owner, 2026-10-20).
-A redraw sends the base twice: once with the marked areas boxed and numbered, once
-clean. A first draw is worded by one rule for every place at every layer (`generated`; the owner, 2026-10-20): its
+A Redraw with notes is two calls inside one yes (the owner, 2026-10-20; `redraw_euros`, the measured Gemini 3.1 Pro
+answer and draw): Gemini (`revise`, direct) gets the base boxed and numbered and clean, each picked concept it was
+drawn on that he marked (the layer above's, a joined place's; boxes P1, P2, ...), the prompt the base was drawn from
+and every note, and answers the corrected prompt naming each area by where it lies; that prompt becomes the place's
+own wording (`corrected` in the record, both calls in `calls`), then one draw sends it with every note and the same
+pictures. A first draw is worded by one rule for every place at every layer (`generated`; the owner, 2026-10-20): its
 look (data/definitions/place.json, no measures), the creator's says (data/places/concept_inputs.json), its own doors
 and openings from its plan's leads and that it has no others, its size against the places beside it in relative
 words, the places listed inside it (data/places/within.json) and how they join, the place it sits within as context,
@@ -64,6 +68,8 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 DATA = REPO / "data"
 AREA = "concepts"
 MEASURED_STAGE = "closeup"  # the stage whose measured unit is one Nano Banana Pro picture
+MEASURED_ASK = "finish-route-list"  # the stage whose measured unit is one Gemini 3.1 Pro answer on pictures
+PROMPT_MODEL = "gemini-3.1-pro-preview"  # the model that corrects a prompt from the creator's notes
 CALLER = "concept-review"
 TIMEOUT = 400
 LONGEST_SENT = 1600
@@ -96,16 +102,25 @@ def tools():
     return pro, google_spend, secret_store
 
 
-def draw_euros(per_unit=DATA / "costs/per-unit.json"):
-    """The euros of one draw: the measured Nano Banana Pro picture's high at the standard tier (measured calls billed
-    at the batch tier are divided by its share), rounded up to the cent; None while it is not measured."""
-    stage = json.loads(pathlib.Path(per_unit).read_text())["stages"].get(MEASURED_STAGE) or {}
-    high = stage.get("high_euros")
-    if high is None:
-        return None
+def draw_euros(per_unit=DATA / "costs/per-unit.json", measured=(MEASURED_STAGE,)):
+    """The euros of one draw: the measured high of each call it makes (`measured`, stages of per-unit.json) at the
+    standard tier (measured calls billed at the batch tier are divided by its share), summed and rounded up to the
+    cent; None while one is not measured."""
     _, google_spend, _ = tools()
-    share = google_spend.TIER_PRICE["batch"] if "batch" in stage.get("basis", "") else 1.0
-    return math.ceil(round(high / share * 100, 6)) / 100
+    total = 0.0
+    for name in measured:
+        stage = json.loads(pathlib.Path(per_unit).read_text())["stages"].get(name) or {}
+        if stage.get("high_euros") is None:
+            return None
+        share = google_spend.TIER_PRICE["batch"] if "batch" in stage.get("basis", "") else 1.0
+        total += stage["high_euros"] / share
+    return math.ceil(round(total * 100, 6)) / 100
+
+
+def redraw_euros(per_unit=DATA / "costs/per-unit.json"):
+    """The euros of one Redraw with notes: the Gemini 3.1 Pro call that corrects the prompt (its measured call,
+    MEASURED_ASK) and the draw, both direct; None while either is not measured."""
+    return draw_euros(per_unit, (MEASURED_STAGE, MEASURED_ASK))
 
 
 def yes_key(place, at):
@@ -158,13 +173,13 @@ def undrawn(store, nodes):
 
 
 def current_draw(store, place, wording):
-    """Whether `place` has a first draw made from `wording`, its current first-draw wording (wording_now: the
-    creator's own when set), on the picks it is sent now (the layer above's and its joined places'); a draw from an
-    older wording or pick (its data, the draw rules, his wording or one of those picks changed since) does not count,
-    so Draw all draws it again."""
+    """Whether `place` has a draw made from `wording`, its current wording (wording_now: the creator's own when set,
+    a Redraw with notes' corrected prompt among them), on the picks it is sent now (the layer above's and its joined
+    places'); a draw from an older wording or pick (its data, the draw rules, his wording or one of those picks
+    changed since) does not count, so Draw all draws it again."""
     sent = sent_picks(store, place)
-    return any(draw.get("base") in (None, "None") and str(draw.get("wording", "")).startswith(wording)
-               and (draw.get("picks") or {}) == sent for draw in draws(store, place))
+    return any(str(draw.get("wording", "")).startswith(wording) and (draw.get("picks") or {}) == sent
+               for draw in draws(store, place))
 
 
 def placed(store):
@@ -222,24 +237,21 @@ def recorded(store, key, record):
 
 
 # --- the wording ----------------------------------------------------------------------------------------------
-# One rule for every place at every layer (the owner, 2026-10-20: "just feed down the concept of the layer above"):
-# its own look and the creator's says, the places listed inside it and how they join, the place it sits within as
-# context, the pictures sent with it named in order (the layer above's picked concept first, then its references),
-# the fixed viewpoint and the environment's style. No measures but the creator's own says: the drawing finds the shape.
+# One rule for every place at every layer, kept short (the owner, 2026-10-20: "just feed down the concept of the layer
+# above"; "your prompt is already too strong and too much"): what the place is and where it sits, its look in a
+# sentence or two, what it holds and its own doors, its size against the places beside it, the pictures sent with it,
+# the viewpoint and the style. No measures but the creator's own says: the drawing finds the shape.
 
-OUTSIDE_VIEW = ("Viewpoint: a high three-quarter view from one corner, looking down about 35 to 45 degrees, so its "
-                "footprint, its roofs and two of its sides show; the whole place in frame with a small margin, its "
-                "surroundings only at the edges; a long lens with little perspective distortion, so sizes compare "
-                "honestly; clear, readable light within the place's own mood.")
-INSIDE_VIEW = ("Viewpoint: a cutaway, the roof and the near walls removed, seen from a high three-quarter view from one "
-               "corner looking down about 35 to 45 degrees, so the whole floor and every remaining wall can be read; "
-               "a long lens with little perspective distortion; clear, readable light within the place's own mood.")
-EVERY_DRAW = "One picture, 16:9, no text and no labels;"
-WITH_PEOPLE = "people in view for scale."
-NO_PEOPLE = "no people: its scale reads from its own objects and doors."
+OUTSIDE_VIEW = "View: high three-quarter from a corner, 35 to 45 degrees down, the whole place in frame, long lens"
+INSIDE_VIEW = "View: cutaway (roof and near walls removed), high three-quarter from a corner, 35 to 45 degrees down"
+ROOF_KEPT = ", roof openings and domes kept at the cut edges"
+EVERY_DRAW = "16:9, no text"
+WITH_PEOPLE = "people for scale"
+NO_PEOPLE = "no people"
 PEOPLE_WORDS = re.compile(r"\b(people|person|crowd|crew)\b", re.IGNORECASE)
-ROOF_KEPT = (" Its roof features as the picture of the place it sits within shows them (openings, domes, glazing) stay "
-             "visible along the cutaway's edges.")
+FACING = re.compile(r"^(over|facing|towards|toward|across|to the|onto the) ")  # a lead's last clause that faces
+LOOK_MOST = 160  # characters of a place's look a draw sends
+LONGEST_GENERATED = 1000  # characters of a generated wording, the test's cap (under a third of 2026-10-20's longest)
 
 
 def resolved(path):
@@ -265,15 +277,15 @@ def plan_of(place):
 
 
 def inputs_of(place):
-    """{says, references} the creator gave `place`'s draw (data/places/concept_inputs.json), {} when none."""
+    """{says, references, people} the creator gave `place`'s draw (data/places/concept_inputs.json), {} when none."""
     return json.loads((DATA / "places/concept_inputs.json").read_text())["places"].get(place, {})
 
 
 def style():
     """The environment's one style wording (data/definitions/concept_views.json `style`, the owner's), every
-    place's draw shares, as a sentence; empty when none is set."""
+    place's draw shares; empty when none is set."""
     found = json.loads((DATA / "definitions/concept_views.json").read_text()).get("style", "").strip()
-    return f"The whole environment's style: {found}" if found else ""
+    return f"Style: {found}" if found else ""
 
 
 def tree():
@@ -298,6 +310,12 @@ def name_of(place):
     return (look_of(place) or {}).get("name") or f"the {place}"
 
 
+def short_name(place):
+    """A place's short name as its look gives it (place.json `short`), "the <short>", else its name."""
+    short = (look_of(place) or {}).get("short")
+    return f"the {short.lower()}" if short else name_of(place)
+
+
 def no_sizes(words):
     """`words` with every measure in metres taken out ("27 x 55 m", "at 9 m", "15 m"), and a bracket left empty by
     it: the drawing finds the shape (the owner, 2026-10-20)."""
@@ -310,94 +328,59 @@ def look_text(place):
     return no_sizes(((look_of(place) or {}).get("style") or {}).get("text") or "")
 
 
-def own_words(place):
-    """[sentence] of `place` itself: its look and the creator's says (as he set them)."""
-    look = look_text(place)
-    return [part for part in (f"Its look: {look}" if look else "", inputs_of(place).get("says", "")) if part]
+def short_look(place):
+    """`place`'s look in a sentence or two: its first sentences up to LOOK_MOST characters, a longer first one cut at
+    its last clause that fits; "" when it has none."""
+    kept = ""
+    for sentence in re.split(r"(?<=\.) ", look_text(place)):
+        if len(kept) + len(sentence) > LOOK_MOST:
+            if not kept:
+                cut = max(sentence.rfind(mark, 0, LOOK_MOST) for mark in (", ", "; ", ": "))
+                kept = sentence[:cut] + "." if cut > 0 else sentence[:LOOK_MOST]
+            break
+        kept = f"{kept} {sentence}".strip()
+    return kept
 
 
 def door_label(plan, side):
-    """The plan's own label of the door a lead names (`N`, `90`, `W@9`: the side, at a height), lower case."""
+    """The plan's own label of the door a lead names (`N`, `90`, `W@9`: the side, at a height), lower case, its
+    words after a comma left out."""
     face, _, level = side.partition("@")
     for door in plan.get("doors", []):
         if str(door[0]) == face and (not level or door[-1] == float(level)):
             label = [part for part in door if isinstance(part, str)][-1].lower()
-            return no_sizes(label)
+            return re.split(r",(?![^(]*\))", no_sizes(label))[0]
     return f"{face} door"
 
 
-def joins_of(place, inside):
-    """How `place`'s open leads join it (its plan's `leads`): [(the other inside place or None, the words)]. A lead
-    onto a walkway tube joins the place it names in `joins`, else the other inside place its `why` names first."""
-    plan, found = plan_of(place), []
-    for side, lead in plan.get("leads", {}).items():
-        target, why = lead.get("to"), lead.get("why", "")
-        if target == "sealed":
-            continue
-        if target == "tube":
-            named = [name for name in inside if name not in (place, target) and name in why]
-            other = lead.get("joins") or min(named, key=why.find, default=None)
-            found.append((other, f"a walkway tube to the {other}" if other else "a walkway tube"))
-        elif target in inside:
-            found.append((target, f"opens straight into the {target}"))
-        else:
-            found.append((None, f"its {door_label(plan, side)} opens onto the {target}"))
-    return found
+def facing(why):
+    """The facing a lead's `why` names in its last clause ("over the square and the harbour"), "" when none."""
+    last = re.sub(r" ?\([^)]*\)", "", why).rsplit(", ", 1)[-1].strip()
+    return last if FACING.match(last) else ""
 
 
-def holding_words(place):
-    """The places the creator listed inside `place` (within.json), each by its name, and how they join; "" when it
-    lists none."""
-    inside = inside_of(place)
-    if not inside:
-        return ""
-    parts = [name_of(name) for name in inside]
-    joins, said = [], set()
-    for name in inside:
-        for other, words in joins_of(name, inside):
-            pair = frozenset((name, other)) if other else (name, words)
-            if pair not in said:
-                said.add(pair)
-                joins.append(f"the {name}: {words}")
-    joined = f" They join as laid out: {'; '.join(joins)}." if joins else ""
-    return f"Inside it, each its own part, recognisable as what it is: {'; '.join(parts)}.{joined}"
-
-
-def context_words(place):
-    """Where `place` sits: the layer above's name and the first sentence of its says, else of its look, short; ""
-    for an outside place."""
-    holder = above(place)
-    if not holder:
-        return ""
-    first = (inputs_of(holder).get("says") or look_text(holder)).split(". ")[0].rstrip(".")
-    return f"This place sits within {name_of(holder)}" + (f": {first}." if first else ".")
-
-
-def unbracketed(words):
-    """`words` without its brackets (the plans' file and node notes) and measures, from its first comma."""
-    return no_sizes(re.sub(r" ?\([^)]*\)", "", words)).strip()
-
-
-def opening_words(place, side, lead):
-    """One lead of `place`'s plan in relational words: its door by its plan's label, and what it opens onto (a
-    place by its name, the outside or a tube with its `why`, so a facing the data names is said), or kept shut."""
-    plan, target = plan_of(place), lead.get("to")
-    label = re.split(r",(?![^(]*\))", door_label(plan, side))[0]
-    why = unbracketed(lead.get("why", ""))
+def door_words(place, side, lead):
+    """One lead of `place`'s plan in a few relational words: its door by its plan's label and what it opens into."""
+    label, target = door_label(plan_of(place), side), lead.get("to")
     if target == "sealed":
-        return f"its {label}, kept shut"
-    if target in ("outside", "tube"):
-        return f"its {label} opens onto the {target}" + (f": {why}" if why else "")
-    return f"its {label} opens into {name_of(target)}"
+        return f"{label} (shut)"
+    if target == "tube":
+        return f"{label} onto a walkway tube"
+    if target == "outside":
+        faces = facing(lead.get("why", ""))
+        return f"{label} onto the outside" + (f", {faces}" if faces else "")
+    return f"{label} into {short_name(target)}"
 
 
-def openings_words(place):
-    """Every door and opening `place`'s plan leads through, and that it has no others; "" when its plan has none."""
-    leads = plan_of(place).get("leads") or {}
-    if not leads:
-        return ""
-    said = "; ".join(opening_words(place, side, lead) for side, lead in leads.items())
-    return f"Its doors and openings, as laid out: {said}. No other doors, balconies or openings than these."
+def holds_and_doors(place):
+    """One sentence: the places listed inside `place` and its own doors from its plan's leads, no others; ""
+    with neither."""
+    inside, leads = inside_of(place), plan_of(place).get("leads") or {}
+    parts = [f"inside: {', '.join(short_name(name) for name in inside)}" if inside else "",
+             (f"its doors: {'; '.join(door_words(place, side, lead) for side, lead in leads.items())}; no other doors "
+              "or openings") if leads else ""]
+    said = "; ".join(part for part in parts if part)
+    return f"{said[0].upper()}{said[1:]}." if said else ""
 
 
 PERSON = 1.8  # a person's height in metres, the yardstick of the relative height words
@@ -426,18 +409,18 @@ def size_words(place):
     words = []
     if others and own[0] > others[-1]:
         ratio = round(own[0] / others[-1])
-        words.append(f"the largest place in {name_of(holder)}, its floor "
-                     + (f"about {TIMES.get(ratio, 'many times')} any other's" if ratio >= 2 else "larger than any other's"))
+        words.append(f"the largest in {short_name(holder)}, floor "
+                     + (f"about {TIMES.get(ratio, 'many times')} any other's" if ratio >= 2 else "the largest"))
     elif others and own[0] < others[0]:
-        words.append(f"the smallest place in {name_of(holder)}")
+        words.append(f"the smallest in {short_name(holder)}")
     elif others:
-        larger = own[0] >= others[len(others) // 2]
-        words.append(f"one of the {'larger' if larger else 'smaller'} places in {name_of(holder)}")
+        words.append(f"one of the {'larger' if own[0] >= others[len(others) // 2] else 'smaller'} in "
+                     f"{short_name(holder)}")
     if own[1]:
         tall = own[1] / PERSON
-        words.append("its walls several times a person's height; people are tiny inside it" if tall >= 4 else
-                     "its walls about twice a person's height" if tall >= 2 else "its ceiling a little above a person's head")
-    return f"Its size: {', '.join(words)}." if words else ""
+        words.append("walls towering over people" if tall >= 4 else
+                     "walls twice a person's height" if tall >= 2 else "ceiling just above head height")
+    return f"Size: {', '.join(words)}." if words else ""
 
 
 def joined(place):
@@ -461,12 +444,10 @@ def sent_pictures(store, place):
     that place's name) when it sits within one, each joined place's picked concept, then the creator's references
     (their paths)."""
     holder = above(place)
-    found = [(f"the picked concept of {name_of(holder)} this place sits within: this place is {name_of(place)} as "
-              "it stands there, and its outer shape, size against the others, roof, windows and doors must match it",
-              holder)] if holder else []
-    found += [(f"the picked concept of {name_of(other)}, which this place opens into: the door they share must match "
-               "it", other) for other in joined(place) if picked(store, other)]
-    return found + [(f"a reference for {ref['shows']}; never its size, layout or viewpoint", resolved(ref["picture"]))
+    found = [(f"{short_name(holder)}, picked: match how this place stands in it", holder)] if holder else []
+    found += [(f"{short_name(other)}, picked: match the door they share", other)
+              for other in joined(place) if picked(store, other)]
+    return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
                     for ref in inputs_of(place).get("references", [])]
 
 
@@ -490,17 +471,22 @@ def indoors(place):
     return said if said is not None else (above(place) is not None and place not in tree()["shells"])
 
 
+def view_words(place):
+    """The fixed viewpoint (an outside place from above, an inside one as a cutaway keeping the roof the picture above
+    shows), the frame and whether people show, in one line."""
+    view = INSIDE_VIEW + (ROOF_KEPT if above(place) else "") if indoors(place) else OUTSIDE_VIEW
+    return f"{view}; {EVERY_DRAW}, {WITH_PEOPLE if has_people(place) else NO_PEOPLE}."
+
+
 def generated(store, place):
-    """The first-draw wording of `place` by the one rule, every part from data and the picks it is sent."""
+    """The first-draw wording of `place` by the one rule, short, every part from data and the picks it is sent."""
+    holder, look = above(place), short_look(place)
     pictures = sent_pictures(store, place)
-    listed = "Attached pictures, in order: " + "; ".join(
-        f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "." if pictures else ""
-    roof = (ROOF_KEPT if indoors(place) and above(place) else "")
+    listed = "Pictures: " + "; ".join(f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "."
     return " ".join(part for part in (
-        f"One concept painting of {name_of(place)}.", *own_words(place), openings_words(place), size_words(place),
-        holding_words(place), context_words(place), listed,
-        f"{INSIDE_VIEW if indoors(place) else OUTSIDE_VIEW}{roof} {EVERY_DRAW} "
-        f"{WITH_PEOPLE if has_people(place) else NO_PEOPLE}", style()) if part)
+        f"Concept painting of {short_name(place)}" + (f", inside {short_name(holder)}." if holder else "."),
+        inputs_of(place).get("says", ""), f"Look: {look}" if look else "", holds_and_doors(place), size_words(place),
+        listed if pictures else "", view_words(place), style()) if part)
 
 
 def waits(store, place):
@@ -554,40 +540,75 @@ def kept_as_own(store, place, request, by):
         worded(store, place, own, by)
 
 
-def redraw_wording(marks, note):
-    """A redraw's wording: what to change in each numbered box, and overall."""
-    words = ["Image 1 is a concept painting with numbered red boxes marking areas to change; image 2 is the same "
-             "painting without them. Paint image 2 again as one whole concept painting, the same view, style, light "
-             "and everything not named here unchanged."]
-    words += [f"Box {number}: {mark['note'].strip()}." for number, mark in enumerate(marks, 1)
-              if mark["note"].strip()]
-    if note.strip():
-        words.append(f"Overall: {note.strip()}")
-    words.append("Draw no boxes, numbers, text or labels.")
-    return " ".join(words)
+def where_in(mark):
+    """Where a mark lies in its picture, in words ("top left", "middle", "bottom right"), from its centre."""
+    across = ("left", "middle", "right")[min(2, int((mark["x"] + mark["w"] / 2) * 3))]
+    down = ("top", "middle", "bottom")[min(2, int((mark["y"] + mark["h"] / 2) * 3))]
+    return "middle" if across == down == "middle" else f"{down} {across}".replace("middle middle", "middle")
+
+
+def numbered(marks, context):
+    """[(label, mark)] of every note-carrying mark: the draw's numbered 1, 2, ..., the context pictures' (the picked
+    concepts it was drawn on) P1, P2, ... across them, in their order."""
+    return ([(str(number), mark) for number, mark in enumerate(marks, 1)]
+            + [(f"P{number}", mark) for number, mark in enumerate(context, 1)])
+
+
+def notes_words(marks, context, note):
+    """The creator's notes, each box's tied to its label, its picture and where it lies, then his note on the whole."""
+    words = [f"Box {label} ({where_in(mark)}" + (f" of the picked concept of the {mark['on']}" if "on" in mark else "")
+             + f"): {mark['note'].strip()}." for label, mark in numbered(marks, context) if mark["note"].strip()]
+    return " ".join(words + ([f"Overall: {note.strip()}"] if note.strip() else []))
+
+
+def pictures_words(context):
+    """What the pictures a Redraw with notes sends are, in order: the draw boxed, clean, then each context picture."""
+    places = list(dict.fromkeys(mark["on"] for mark in context))
+    return ("Image 1 is the current painting with numbered red boxes marking areas to change; image 2 is the same "
+            "painting clean" + "".join(f"; image {number} is the picked concept of the {name}, its boxes labelled P"
+                                       for number, name in enumerate(places, 3)) + ".")
+
+
+def prompt_question(prompt, marks, context, note):
+    """What Gemini is asked for a Redraw with notes (the owner, 2026-10-20): the prompt the picture was drawn from
+    corrected by the creator's notes, each changed area named by where it lies, in the draw or in a context picture."""
+    return (f"{pictures_words(context)} The painting was drawn from the prompt below. Rewrite the prompt so a new "
+            "drawing makes exactly the changes the creator's notes ask and keeps everything else: work each note into "
+            "the prompt, naming each area by where it lies in its picture (for example 'the doorway at the bottom "
+            "left', 'the launch pad far across the water, as the square's picture shows it top right'), never by box "
+            "label. Keep it as short as the prompt. Answer with the corrected prompt only.\n\n"
+            f"The creator's notes: {notes_words(marks, context, note)}\n\nThe prompt:\n{prompt}")
+
+
+def redraw_wording(corrected, marks, context, note):
+    """A redraw's wording: the corrected prompt, then the pictures and what each box changes."""
+    return (f"{corrected}\n\n{pictures_words(context)} Paint image 2 again from the wording above, changing only "
+            f"these: {notes_words(marks, context, note)} Everything else stays as it is. Draw no boxes, numbers, "
+            "text or labels.")
 
 
 def with_note(wording, note):
     return f"{wording} The creator's note: {note.strip()}" if note.strip() else wording
 
 
-def boxed(picture, marks):
-    """A copy of `picture` with each mark drawn as a numbered red box."""
+def boxed(picture, labelled):
+    """A copy of `picture` with each (label, mark) drawn as a red box with its label."""
     from PIL import ImageDraw
     copy = picture.convert("RGB")
     pen = ImageDraw.Draw(copy)
     wide, tall = copy.size
-    for number, mark in enumerate(marks, 1):
+    for label, mark in labelled:
         left, top = mark["x"] * wide, mark["y"] * tall
         box = (left, top, left + mark["w"] * wide, top + mark["h"] * tall)
         pen.rectangle(box, outline=(255, 0, 0), width=MARK_WIDTH)
-        pen.text((box[0] + 2 * MARK_WIDTH, box[1] + 2 * MARK_WIDTH), str(number), fill=(255, 0, 0),
+        pen.text((box[0] + 2 * MARK_WIDTH, box[1] + 2 * MARK_WIDTH), label, fill=(255, 0, 0),
                  font_size=max(24, tall // 20))
     return copy
 
 
-def checked_marks(marks):
-    """The marks as given, each a box inside the picture with its note; Refused otherwise."""
+def checked_marks(marks, on=None):
+    """The marks as given, each a box inside its picture with its note (and, for a context picture's, the place
+    `on` it lies, one of `on`); Refused otherwise."""
     found = []
     for mark in marks or []:
         try:
@@ -597,36 +618,87 @@ def checked_marks(marks):
         if not (0 <= box[0] < 1 and 0 <= box[1] < 1 and 0 < box[2] <= 1.000001 - box[0]
                 and 0 < box[3] <= 1.000001 - box[1]):
             raise Refused(f"a marked area lies outside the picture: {box}")
-        found.append({"x": box[0], "y": box[1], "w": box[2], "h": box[3], "note": str(mark.get("note", ""))[:500]})
+        checked = {"x": box[0], "y": box[1], "w": box[2], "h": box[3], "note": str(mark.get("note", ""))[:500]}
+        if on is not None:
+            if mark.get("on") not in on:
+                raise Refused(f"{mark.get('on')!r} is no picked concept this place was drawn on")
+            checked["on"] = mark["on"]
+        found.append(checked)
     return found
 
 
 # --- the draw ---------------------------------------------------------------------------------------------------
 
-def request_parts(store, place, request):
-    """(wording, [PIL pictures]) a draw sends: a redraw's boxed and clean base, else the first draw's wording with
-    its reference where one is on disk."""
+def first_parts(store, place, request):
+    """(wording, [PIL pictures]) a first draw sends: its wording (his edit, else the place's now) with his note, and
+    the pictures sent_pictures names; Refused while it waits."""
     from PIL import Image
-    marks, note = checked_marks(request.get("marks")), str(request.get("note", ""))
-    base = request.get("base")
-    if base:
-        if base not in {draw["sha"] for draw in draws(store, place)}:
-            raise Refused(f"{base[:12]} is no draw of {place}")
-        picture = Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{base}")))
-        return redraw_wording(marks, note), [boxed(picture, marks), picture]
-    if marks:
+    if request.get("marks") or request.get("context_marks"):
         raise Refused("a first draw has no picture to mark")
     if why := waits(store, place):
         raise Refused(f"{place} {why}")
     sent = checked_wording(request.get("wording")) or wording_now(store, place)
     pictures = [Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{picked(store, source)}")))
                 if isinstance(source, str) else Image.open(source) for _, source in sent_pictures(store, place)]
-    return with_note(sent, note), pictures
+    return with_note(sent, str(request.get("note", ""))), pictures
+
+
+def blob_picture(store, sha):
+    from PIL import Image
+    return Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{sha}")))
+
+
+def redrawn(store, place, request, by, reviser):
+    """(wording, [PIL pictures], record fields) of a Redraw with notes: Gemini (`reviser(question, pictures)`) corrects
+    the prompt the base was drawn from by his notes, seeing the base boxed and clean and each picked concept he marked
+    (the layer above's, a joined place's) with its boxes; the corrected prompt is kept as the place's own wording; the
+    draw then sends it with every note and the same pictures."""
+    base = request["base"]
+    found = [record for record in draws(store, place) if record["sha"] == base]
+    if not found:
+        raise Refused(f"{base[:12]} is no draw of {place}")
+    picks = sent_picks(store, place)
+    marks, note = checked_marks(request.get("marks")), str(request.get("note", ""))
+    context = checked_marks(request.get("context_marks"), on=picks)
+    clean, labelled = blob_picture(store, base), numbered(marks, context)
+    pictures = [boxed(clean, [(label, mark) for label, mark in labelled if "on" not in mark]), clean]
+    pictures += [boxed(blob_picture(store, picks[name]), [(label, mark) for label, mark in labelled
+                                                          if mark.get("on") == name])
+                 for name in dict.fromkeys(mark["on"] for mark in context)]
+    prompt = found[-1].get("corrected") or found[-1].get("wording") or wording_now(store, place)
+    question = prompt_question(prompt, marks, context, note)
+    corrected = checked_wording(reviser(question, pictures))
+    if not corrected:
+        raise Refused("the prompt model answered with no prompt")
+    if corrected != own_wording(store, place):
+        worded(store, place, corrected, by)  # before the draw: a refused draw still keeps the paid correction
+    calls = [{"model": PROMPT_MODEL, "asked": question, "answered": corrected}]
+    return redraw_wording(corrected, marks, context, note), pictures, {
+        "corrected": corrected, "calls": calls, "context_marks": context, "picks": found[-1].get("picks")}
 
 
 def redraw_preview():
-    """What Redraw with notes sends, its notes as placeholders (the concept review page shows it)."""
-    return redraw_wording([{"note": "<mark 1's note>"}, {"note": "<mark 2's note>"}], "<your note>")
+    """What Redraw with notes sends to the draw, its notes as placeholders (the concept review page shows it)."""
+    marks = [{"x": 0.0, "y": 0.0, "w": 0.3, "h": 0.3, "note": "<mark 1's note>"}]
+    context = [{"x": 0.7, "y": 0.0, "w": 0.3, "h": 0.3, "note": "<mark P1's note>", "on": "<place above>"}]
+    return redraw_wording("<the prompt Gemini corrects from your notes>", marks, context, "<your note>")
+
+
+def revise(question, pictures):
+    """One Gemini 3.1 Pro call (google_spend, on its ledger, never cached: each click is its own) on the question and
+    pictures; the text it answered, or Refused."""
+    pro, google_spend, secret_store = tools()
+    body = {"contents": [{"role": "user", "parts": [{"text": question}]
+                          + [pro.part(picture, LONGEST_SENT) for picture in pictures]}],
+            "generationConfig": {"temperature": 0.2}}
+    try:
+        answer = google_spend.generate(PROMPT_MODEL, body, secret_store.secret(pro.KEY_SECRET), TIMEOUT,
+                                       caller=CALLER)
+    except urllib.error.HTTPError as error:
+        raise Refused(f"the prompt model refused ({error.code})") from error
+    candidate = (answer.get("candidates") or [{}])[0]
+    return "".join(part.get("text", "") for part in candidate.get("content", {}).get("parts", [])
+                   if not part.get("thought")).strip().strip('"')
 
 
 def call(wording, pictures):
@@ -684,20 +756,25 @@ def kept_offsite(png, record, offsite=None):
         return {**record, "offsite": None, "offsite_refused": f"{type(failed).__name__}: {str(failed)[:300]}"}
 
 
-def draw(store, place, request, by, caller=call, offsite=None):
+def draw(store, place, request, by, caller=call, offsite=None, reviser=revise):
     """One draw of `place`'s concept inside the owner's yes (SCORE_SPEND_TICKET names it; compute.require_cleared
-    refuses otherwise, and while the month's books are unknown); its record, copied off this PC first (`offsite`: a
-    store with the bucket's calls, None the bucket). `caller(wording, pictures)` makes the picture's PNG bytes."""
+    refuses otherwise, and while the month's books are unknown): a first draw one call, a Redraw with notes two (the
+    prompt corrected by `reviser(question, pictures)`, then the draw); its record, copied off this PC first
+    (`offsite`: a store with the bucket's calls, None the bucket). `caller(wording, pictures)` makes the PNG bytes."""
     from score.adapters import compute
     yes = compute.require_cleared("a concept draw", store)
-    wording, pictures = request_parts(store, place, request)
-    kept_as_own(store, place, request, by)  # before the call: a refused call still keeps his edit
+    if request.get("base"):
+        wording, pictures, fields = redrawn(store, place, request, by, reviser)
+    else:
+        wording, pictures = first_parts(store, place, request)
+        kept_as_own(store, place, request, by)  # before the call: a refused call still keeps his edit
+        fields = {"picks": sent_picks(store, place), "calls": []}
     png = caller(wording, pictures)
     sha = kept(store, png)
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,
               "euros": yes["euros"], "yes": yes["key"], "base": request.get("base") or None,
               "marks": checked_marks(request.get("marks")), "note": str(request.get("note", "")), "wording": wording,
-              "picks": None if request.get("base") else sent_picks(store, place)}
+              **fields, "calls": [*fields["calls"], {"model": tools()[0].MODEL, "asked": wording, "answered": sha}]}
     record = kept_offsite(png, record, offsite)
     recorded(store, f"{AREA}/{place}/draws/{stamp_key(record['at'])}.json", record)
     return record
