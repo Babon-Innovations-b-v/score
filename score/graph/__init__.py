@@ -177,7 +177,8 @@ class Stage:
     down: the table's loop check leaves those reads out, and `neighbours` must refuse a place that holds itself.
     selects: its make takes the runner's object filter (`score run --object`, Runner.objects): the node's params
     gain `objects`, the sorted names it keeps, so a filtered output has a key of its own and its make handles only
-    those objects of its place. A stage without it runs whole under a filter.
+    those objects of its place; its files, when a function, are called with `objects` too, so another object's
+    files neither key nor block it. A stage without it runs whole under a filter.
     euros_from: where the row naming its estimate is written, `<file>:<line>` (set when the row is built: the line
     that builds it, through a helper of the same file that passes its `euros` on), so a guess says where it comes
     from. Never in a key.
@@ -538,7 +539,11 @@ class Runner:
 
     def files_of(self, stage, place):
         """{name: path pattern} of the environment files the node reads."""
-        return stage.files(place) if callable(stage.files) else stage.files
+        if not callable(stage.files):
+            return stage.files
+        if self.objects and stage.selects:
+            return stage.files(place, objects=self.objects)
+        return stage.files(place)
 
     def file_path(self, stage, name, place):
         pattern = self.files_of(stage, place)[name]

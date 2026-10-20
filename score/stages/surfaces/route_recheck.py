@@ -80,10 +80,10 @@ def ask(body):
 
 
 def nearest_token(seen_lab, tokens):
-    """The library token whose colour lies nearest a seen CIELAB colour (CIE76)."""
-    import labels
+    """The library token whose colour, as the fill draws it (route_fill.token_srgb), lies nearest a seen CIELAB
+    colour (CIE76)."""
     return min(tokens, key=lambda token: float(np.linalg.norm(
-        labels.lab(labels.srgb(np.asarray(tokens[token], dtype=float))[None])[0] - np.asarray(seen_lab))))
+        cast.lab_of(route_fill.token_srgb(token)[None])[0] - np.asarray(seen_lab))))
 
 
 def failed(finishes, answers):
@@ -132,18 +132,19 @@ def recheck_take(folders, entry, finishes, context):
             return {"tries": tries, "passed": True, "finishes": finishes, "fault": None}
         fault = "; ".join(f"{finishes[index]['finish']}: dE {finishes[index]['delta_e']}, Gemini: "
                           f"{answers.get(index, {}).get('why', 'no answer')}" for index in wrong)
+        if number == TRIES:
+            return {"tries": tries, "passed": False, "finishes": finishes, "fault": fault}
         nudged = [tweaked(found, answers.get(index, {}), context["tokens"]) if index in wrong else found
                   for index, found in enumerate(finishes)]
         if [found["settings"] for found in nudged] == [found["settings"] for found in finishes]:
             return {"tries": tries, "passed": False, "finishes": finishes, "fault": f"{fault} (no tweak left)"}
         finishes = route_fill.filled(folders["views"], finish_of, nudged, context["families"])
-    return {"tries": tries, "passed": False, "finishes": finishes, "fault": fault}
 
 
 def make_recheck(inputs, out, seed, params):
     """Every filled take rechecked; recheck.json."""
     views, fill = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-fill"])
-    takes = route_data.takes_written(out, inputs, params)
+    _, takes = route_data.takes_written(out, inputs, params)
     cast_takes = json.loads((views / "views.json").read_text())
     tokens = route_list.library_tokens()
     found = {}
