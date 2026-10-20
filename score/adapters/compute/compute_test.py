@@ -251,7 +251,7 @@ def test_a_paid_node_is_priced_on_its_stages_measured_runs_else_its_estimate():
         BOOKS.entries = lambda: []
         assert compute.run_price("render@hangar", 9.0) == {
             "likely_euros": None, "high_euros": None, "guess_euros": 9.0, "likely_minutes": None, "high_minutes": None,
-            "cards": None, "runs": 0, "basis": "not measured yet"}
+            "cards": None, "runs": 0, "basis": "not measured yet", "minutes_why": "not measured yet"}
         assert compute.run_forecast("render@hangar", 9.0)["euros"] == 9.0  # the clearance still reserves the guess
     finally:
         BOOKS.entries = saved
@@ -327,6 +327,39 @@ def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it
             assert found["likely_euros"] is None and found["guess_euros"] == 3.0, (node, units, found)
             assert found["guess_from"] == "score/stages/x.py:12" and found["basis"] == "not measured yet"
         assert "guess_from" not in compute.run_price("bake@lab", 3.0)
+    finally:
+        BOOKS.entries, compute.PER_UNIT = saved, kept
+
+
+def test_a_per_unit_price_is_timed_on_its_stages_measured_time_by_the_runners_card_rule():
+    """Minutes come from the stage's measured time (PER_UNIT `time`) on the runner's own card rule, likely on the
+    median unit and high on the HIGH one, cards capped at the run's cap; a stage of calls holds no cards; a stage with
+    no measured time keeps its price and says why it has no minutes."""
+    saved, kept = BOOKS.entries, compute.PER_UNIT
+    folder = pathlib.Path(tempfile.mkdtemp())
+    compute.PER_UNIT = folder / "per-unit.json"
+    rule = {"rule": "models", "source": "the place's takes"}
+    timed = {"unit_seconds": {"likely": 600.0, "high": 1200.0}, "setup_minutes": 10.0, "slots": 1,
+             "holds": "machines"}
+    stage = {"unit": "model", "count": None, "also": [], "likely_euros": 0.2, "high_euros": 0.5, "runs": 40,
+             "sources": {}, "forecast": rule}
+    compute.PER_UNIT.write_text(json.dumps({"stages": {
+        "render": {**stage, "stage": "render", "time": timed},
+        "ask": {**stage, "stage": "ask", "time": {**timed, "setup_minutes": 0.0, "slots": 4, "holds": "calls"}},
+        "bake": {**stage, "stage": "bake", "time": {"why": "no line timed it"}}}}))
+    try:
+        BOOKS.entries = lambda: []
+        price = compute.run_price("render@lab", 9.0, units=4)
+        # a 10-minute job on a 10-minute set-up: a card each, set-up then one job
+        assert (price["cards"], price["likely_minutes"], price["high_minutes"]) == (4, 20.0, 30.0), price
+        many = compute.run_price("render@lab", 9.0, units=500)
+        assert many["cards"] == 20  # the run's cap (capacity.RUN_MACHINES)
+        assert many["likely_minutes"] == 10 + 25 * 10, many
+        asked = compute.run_price("ask@lab", 9.0, units=8)
+        assert (asked["cards"], asked["likely_minutes"], asked["high_minutes"]) == (None, 20.0, 40.0), asked
+        unknown = compute.run_price("bake@lab", 9.0, units=4)
+        assert unknown["likely_euros"] == 0.8 and unknown["likely_minutes"] is None
+        assert unknown["minutes_why"] == "no line timed it"
     finally:
         BOOKS.entries, compute.PER_UNIT = saved, kept
 

@@ -26,16 +26,32 @@ when the ledgers it rests on are not on this box:
 
     python3 tools/costs/per_unit.py --rules-only --out data/costs/per-unit.json
 
+Each entry also carries its `time`, read from the same lines (`times`): a unit's seconds (likely the median, high
+the HIGH quantile: a machine's own `unit_seconds` where it wrote them, else the line's wall minutes over its units),
+a fresh card's set-up (its start wait and set-up, the median), the jobs a machine ran at once (`slots`: per card times
+its cards, one where a line names none) and the share of machine starts that failed; a Google stage's from its calls'
+started and finished times, its slots how many of its calls were in flight as each began (the median). A stage with no
+such lines read here keeps `time` null with its `why`. The runner turns them into a row's minutes by its own card rule
+(compute.unit_minutes). `node_minutes` holds every stage's makes as the store's finish records time them
+(score/graph/runs.py node_times: local and paid rows alike), read with `--store`. Neither ever moves a euro: with
+`--times-only` the time fields alone are written into the file in place, its euros kept byte for byte, as the old
+disk took the ledgers its euros were read from:
+
+    python3 tools/costs/per_unit.py --times-only --ledger paper/evidence/cloud/ledger.jsonl [--google G] \
+        [--store $PROPS_HOME/store] --out data/costs/per-unit.json
+
 Several ledgers can hold the same batch (a backup, a reconstruction, the paper's scrubbed copy): a batch is read
 once, from the first ledger that holds it. Paths are written with the local roots replaced, as the paper's copies are.
 """
 import argparse
+import datetime
 import json
 import pathlib
 import statistics
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import costs  # noqa: E402
 
@@ -194,6 +210,133 @@ def forecast(spec, stages):
     return {"forecast": {"rule": rule, "source": FORECASTS[rule], **per_model(spec, stages)}}
 
 
+def spread(values):
+    """{likely, high} of measured values: the median and the HIGH quantile, rounded."""
+    return {"likely": round(statistics.median(values), 3), "high": round(quantile(values, HIGH), 3)}
+
+
+def started_rows(line):
+    """The machine rows of a cloud line that started (a line of the first format holds dicts only)."""
+    return [row for row in line.get("machines") or () if isinstance(row, dict) and row.get("started", True)]
+
+
+def failed_starts(line):
+    """The machine starts of a cloud line that failed (out of stock, refused): its attempts that never started."""
+    return [row for row in line.get("attempts") or () if isinstance(row, dict) and not row.get("started")]
+
+
+def unit_seconds(line, per_line):
+    """The seconds each unit of a cloud line took: its machines' own `unit_seconds`, else its wall minutes over its
+    units (one figure for each unit), else none."""
+    own = [seconds for row in started_rows(line) for seconds in row.get("unit_seconds") or ()]
+    if own:
+        return own
+    units = line_units(line, per_line)
+    return [line["wall_minutes"] * 60 / units] * units if units and line.get("wall_minutes") else []
+
+
+def setups(line):
+    """The minutes each fresh machine of a cloud line took from its order to its first job (start wait and set-up);
+    the line's own figure where its machines wrote none."""
+    own = [row["start_wait_minutes"] + (row.get("setup_minutes") or 0.0) for row in started_rows(line)
+           if row.get("start_wait_minutes") is not None and not row.get("adopted")]
+    if own:
+        return own
+    if line.get("start_wait_minutes") is None:
+        return []
+    setup = line.get("setup_minutes")
+    return [line["start_wait_minutes"] + (setup if setup is not None else (line.get("setup_seconds") or 0.0) / 60)]
+
+
+def line_slots(line):
+    """The jobs each machine of a cloud line ran at once: its per card (one figure, or one a machine) times its cards;
+    none where the line names no per card."""
+    per_card = line.get("per_card")
+    if isinstance(per_card, int):
+        return [per_card * max(1, row.get("cards") or 1) for row in started_rows(line)] or [per_card]
+    if isinstance(per_card, dict):
+        return [value for value in per_card.values() if value]
+    return []
+
+
+def cloud_times(lines, spec):
+    """The `time` of a cloud stage from its lines (kind and `who`, as its euros): {unit_seconds, setup_minutes,
+    slots, slots_from, failed_start_share, holds, lines, from}, or {why} with no unit timed."""
+    found = [(line, source) for line, source in lines if matches(line, spec["cloud"])]
+    seconds = [value for line, _ in found for value in unit_seconds(line, spec["per_line"])]
+    if not seconds:
+        return {"why": f"no ledger line read here timed a unit of {spec['cloud']}"}
+    starts = [value for line, _ in found for value in setups(line)]
+    slots = [value for line, _ in found for value in line_slots(line)]
+    started = sum(len(started_rows(line)) for line, _ in found)
+    failed = sum(len(failed_starts(line)) for line, _ in found)
+    return {"unit_seconds": spread(seconds), "setup_minutes": round(statistics.median(starts), 3) if starts else 0.0,
+            "slots": statistics.median_low(slots) if slots else 1,
+            "slots_from": "per card times cards, the median machine" if slots else
+                          "one a machine: no line names jobs at once",
+            "failed_start_share": round(failed / (failed + started), 3) if failed + started else None,
+            "holds": "machines", "lines": len(found),
+            "from": sorted({source.rpartition(" line ")[0] for _, source in found})}
+
+
+def call_spans(calls, caller):
+    """[(start, end)] datetimes of `caller`'s finished calls that have their started line (the ledger's later
+    format)."""
+    begun = {call["call"]: call["time"] for call in calls
+             if call.get("caller") == caller and call.get("state") == "started" and call.get("time")}
+    return [(datetime.datetime.fromisoformat(begun[call["call"]]), datetime.datetime.fromisoformat(call["time"]))
+            for call in calls if call.get("caller") == caller and call.get("state") == "finished"
+            and call.get("call") in begun and call.get("time")]
+
+
+def in_flight(spans):
+    """How many of the calls were in flight as each began, itself included."""
+    return [sum(1 for other_start, other_end in spans if other_start <= start < other_end) for start, _ in spans]
+
+
+def google_times(calls, caller, google_path):
+    """The `time` of a Google stage from its calls' started and finished lines: {unit_seconds, setup_minutes 0,
+    slots, slots_from, failed_start_share, holds, lines, from}, or {why} with none timed."""
+    if google_path is None:
+        return {"why": "no Google ledger read here (the one its euros were read from went with the old disk, "
+                       "2026-10-19)"}
+    spans = call_spans(calls, caller)
+    if not spans:
+        return {"why": f"no call of {caller} in {costs.scrub(str(google_path))} has its started and finished times"}
+    failed = sum(1 for call in calls if call.get("caller") == caller and call.get("state") == "failed")
+    return {"unit_seconds": spread([(end - start).total_seconds() for start, end in spans]), "setup_minutes": 0.0,
+            "slots": statistics.median_low(in_flight(spans)),
+            "slots_from": "the calls of the caller in flight as each began, the median",
+            "failed_start_share": round(failed / (failed + len(spans)), 3), "holds": "calls", "lines": len(spans),
+            "from": [costs.scrub(str(google_path))]}
+
+
+def times(lines, calls, google_path):
+    """{stage: time} of every stage in SPECS from the lines read (cloud_times, google_times), and the RECORDED
+    stages' time, null with why."""
+    found = {stage: cloud_times(lines, spec) if "cloud" in spec else google_times(calls, spec["google"], google_path)
+             for stage, spec in SPECS.items()}
+    lost = {"why": "priced from runs written down when they ran, euros and units but no time; their ledger lines "
+                   "went with the old disk (2026-10-19)"}
+    return {**{stage: lost for stage in RECORDED}, **found}
+
+
+def node_minutes(records, store):
+    """{stage: {likely, high, makes, from}} of the makes' minutes the store's finish records log
+    (score.graph.runs.node_times), every stage with one."""
+    each = {}
+    for record in records:
+        each.setdefault(record["stage"], []).append(record["minutes"])
+    return {stage: {**spread(minutes), "makes": len(minutes), "from": f"finish records in {costs.scrub(str(store))}"}
+            for stage, minutes in sorted(each.items())}
+
+
+def with_times(body, stage_times, made):
+    """The per-unit file's body with each stage's `time` and the `node_minutes` written, nothing else touched."""
+    stages = {stage: {**found, "time": stage_times[stage]} for stage, found in body["stages"].items()}
+    return {**body, "stages": stages, "node_minutes": made}
+
+
 def entry(stage, spec, each, sources):
     return {"stage": stage, "unit": spec["unit"], "count": spec.get("count"), "also": spec.get("also", []),
             "likely_euros": round(statistics.median(each), 5), "high_euros": round(quantile(each, HIGH), 5),
@@ -220,7 +363,10 @@ def with_rules(body):
     """The per-unit file's body with every ledger-measured stage's forecast fields written again, its measured numbers
     kept, and the RECORDED stages written again."""
     measured = {stage: found for stage, found in body["stages"].items() if stage in SPECS}
-    return {**body, "stages": with_forecasts(measured)}
+    rebuilt = with_forecasts(measured)
+    kept = {stage: found["time"] for stage, found in body["stages"].items() if "time" in found}
+    return {**body, "stages": {stage: {**found, **({"time": kept[stage]} if stage in kept else {})}
+                               for stage, found in rebuilt.items()}}
 
 
 def measure(lines, calls, google_path):
@@ -241,29 +387,69 @@ def measure(lines, calls, google_path):
     return with_forecasts(found)
 
 
+def read_calls(path):
+    """The Google ledger's lines, [] with no ledger given."""
+    if path is None:
+        return []
+    return [json.loads(text) for text in pathlib.Path(path).read_text().splitlines() if text.strip()]
+
+
+def store_minutes(root):
+    """node_minutes of the store at `root` (its finish records, score.graph.runs.node_times), {} with no store."""
+    if root is None:
+        return {}
+    sys.path.insert(0, str(REPO))
+    from score.graph import runs
+    from score.store import Store
+    return node_minutes(runs.node_times(Store.in_folder(root)), root)
+
+
+def write_times(options):
+    """Write the time fields into --out in place from the ledgers given (and the store's finish records), every
+    other field kept as it was."""
+    out = pathlib.Path(options.out)
+    stage_times = times(ledger_lines(options.ledger or []), read_calls(options.google), options.google)
+    body = with_times(json.loads(out.read_text()), stage_times, store_minutes(options.store))
+    out.write_text(json.dumps(body, indent=1) + "\n")
+    timed = sum(1 for found in stage_times.values() if "unit_seconds" in found)
+    print(f"per unit: time of {timed} of {len(stage_times)} stages and {len(body['node_minutes'])} stages' makes "
+          f"written into {options.out}, its euros kept")
+
+
+def write_measures(options):
+    """Write --out whole from the ledgers: each stage's euros, rules and time."""
+    lines, calls = ledger_lines(options.ledger), read_calls(options.google)
+    found = measure(lines, calls, options.google)
+    body = with_times({"read": [costs.scrub(path) for path in options.ledger] + [costs.scrub(options.google)],
+                       "high_quantile": HIGH, "stages": found},
+                      times(lines, calls, options.google), store_minutes(options.store))
+    pathlib.Path(options.out).write_text(json.dumps(body, indent=1) + "\n")
+    print(f"per unit: {len(found)} stages priced ({len(SPECS)} measured from ledgers when they hold lines, "
+          f"{len(RECORDED)} recorded) -> {options.out}")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--ledger", action="append", help="a cloud ledger, in the order read")
     parser.add_argument("--google", help="the Google ledger")
+    parser.add_argument("--store", help="a store root whose finish records time the makes (node_minutes)")
     parser.add_argument("--out", required=True)
     parser.add_argument("--rules-only", action="store_true",
                         help="write only the forecast rules into --out, its measured numbers kept (no ledger read)")
+    parser.add_argument("--times-only", action="store_true",
+                        help="write only the time fields into --out, its euros kept")
     options = parser.parse_args(argv)
     if options.rules_only:
         out = pathlib.Path(options.out)
         out.write_text(json.dumps(with_rules(json.loads(out.read_text())), indent=1) + "\n")
         print(f"per unit: forecast rules written into {options.out}, its measured numbers kept")
         return
+    if options.times_only:
+        write_times(options)
+        return
     if not options.ledger or not options.google:
-        parser.error("--ledger and --google are needed unless --rules-only")
-    lines = ledger_lines(options.ledger)
-    calls = [json.loads(text) for text in pathlib.Path(options.google).read_text().splitlines() if text.strip()]
-    found = measure(lines, calls, options.google)
-    body = {"read": [costs.scrub(path) for path in options.ledger] + [costs.scrub(options.google)],
-            "high_quantile": HIGH, "stages": found}
-    pathlib.Path(options.out).write_text(json.dumps(body, indent=1) + "\n")
-    print(f"per unit: {len(found)} stages priced ({len(SPECS)} measured from ledgers when they hold lines, "
-          f"{len(RECORDED)} recorded) -> {options.out}")
+        parser.error("--ledger and --google are needed unless --rules-only or --times-only")
+    write_measures(options)
 
 
 if __name__ == "__main__":

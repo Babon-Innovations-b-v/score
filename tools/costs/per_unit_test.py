@@ -106,6 +106,77 @@ def test_rules_only_writes_the_rules_and_keeps_the_measured_numbers():
     assert set(per_unit.RECORDED) <= set(found["stages"])  # the recorded stages written again
 
 
+REPO = HERE.parents[1]
+PAPER = REPO / "paper/evidence/cloud/ledger.jsonl"
+
+
+def paper_line(batch):
+    """One real line of the paper's ledger copy, by its batch."""
+    return next((line, source) for line, source in per_unit.ledger_lines([PAPER]) if line["batch"] == batch)
+
+
+def test_a_cloud_stages_time_is_read_from_its_machines_own_job_seconds():
+    """Real lines: a settle run's one job and its card's start wait; a Pixal3D batch of three at once on one card."""
+    settle = per_unit.cloud_times([paper_line("blender-20261008-165605-2054366")], per_unit.SPECS["settle"])
+    assert settle["unit_seconds"] == {"likely": 539.6, "high": 539.6} and settle["slots"] == 1, settle
+    assert settle["setup_minutes"] == 0.369 and settle["failed_start_share"] == 0 and settle["holds"] == "machines"
+    pixal = per_unit.cloud_times([paper_line("batch-20261008-134426-1833430")], per_unit.SPECS["pixal"])
+    assert pixal["unit_seconds"]["likely"] == 629.98 and pixal["slots"] == 3 and pixal["setup_minutes"] == 0.601
+    assert per_unit.cloud_times([], per_unit.SPECS["settle"])["why"].startswith("no ledger line")
+
+
+def test_a_line_without_machine_seconds_is_timed_by_its_wall_minutes_over_its_units():
+    line = {"batch": "b", "kind": "pixal", "models_done": 4, "wall_minutes": 20.0, "euros": 1.0}
+    assert per_unit.unit_seconds(line, "models_done") == [300.0] * 4
+    assert per_unit.unit_seconds({**line, "wall_minutes": None}, "models_done") == []
+
+
+def test_a_google_stages_time_is_its_calls_started_to_finished_and_how_many_ran_at_once():
+    calls = [{"call": "a", "caller": "pro", "state": "started", "time": "2026-10-12T10:00:00+02:00"},
+             {"call": "b", "caller": "pro", "state": "started", "time": "2026-10-12T10:00:10+02:00"},
+             {"call": "a", "caller": "pro", "state": "finished", "time": "2026-10-12T10:00:30+02:00", "euros": 0.1},
+             {"call": "b", "caller": "pro", "state": "finished", "time": "2026-10-12T10:01:10+02:00", "euros": 0.1},
+             {"call": "c", "caller": "pro", "state": "failed"}, {"caller": "pro", "euros": 0.1}]
+    found = per_unit.google_times(calls, "pro", "google-ledger.jsonl")
+    assert found["unit_seconds"]["likely"] == 45.0 and found["slots"] == 1 and found["holds"] == "calls"
+    assert found["failed_start_share"] == round(1 / 3, 3) and found["lines"] == 2
+    assert "why" in per_unit.google_times(calls, "pro", None) and "why" in per_unit.google_times([], "pro", "g")
+
+
+def test_node_minutes_are_the_store_finish_records_minutes_by_stage():
+    sys.path.insert(0, str(REPO))
+    from score.graph import runs
+    from score.store import Store
+    root = pathlib.Path(tempfile.mkdtemp())
+    store = Store.in_folder(root)
+    for number, (node, minutes) in enumerate((("plan@hangar", 3.0), ("plan@lab", 5.0), ("concept@lab", 1.0))):
+        store.write_record(node, f"key{number}", {"node": node, "stage": node.partition("@")[0], "place": "p",
+                                                   "key": f"key{number}", "started": f"2026-10-20T0{number}",
+                                                   "finished": f"2026-10-20T1{number}", "minutes": minutes})
+    made = runs.node_times(store)
+    assert [row["node"] for row in made] == ["plan@hangar", "plan@lab", "concept@lab"]
+    found = per_unit.node_minutes(made, root)
+    assert found["plan"]["likely"] == 4.0 and found["plan"]["makes"] == 2 and found["concept"]["high"] == 1.0
+
+
+def test_writing_the_times_leaves_every_euro_of_the_per_unit_file_byte_identical():
+    """The repository's own per-unit file, its time written again from the paper's ledger copy: every field but the
+    time fields is the same, byte for byte."""
+    out = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
+    before = json.loads((REPO / "data/costs/per-unit.json").read_text())
+    out.write_text(json.dumps(before, indent=1) + "\n")
+    per_unit.main(["--times-only", "--ledger", str(PAPER), "--out", str(out)])
+    after = json.loads(out.read_text())
+
+    def without_time(body):
+        return json.dumps({**{name: value for name, value in body.items() if name != "node_minutes"},
+                           "stages": {stage: {name: value for name, value in found.items() if name != "time"}
+                                      for stage, found in body["stages"].items()}}, indent=1)
+
+    assert without_time(after) == without_time(before)
+    assert set(after["stages"]) == set(before["stages"]) and all("time" in found for found in after["stages"].values())
+
+
 if __name__ == "__main__":
     import pathlib
     import runpy
