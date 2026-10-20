@@ -99,13 +99,15 @@ def test_the_cache_key_of_a_request_stays_the_same():
 
 
 def test_no_module_calls_google_another_way():
-    """Only google_spend.py talks to generativelanguage.googleapis.com or loads Google's own clients."""
+    """Only google_spend.py and google_batch.py (on its ledger) talk to generativelanguage.googleapis.com or load
+    Google's own clients."""
     repo = pathlib.Path(__file__).resolve().parents[3]
     tracked = subprocess.run(["git", "-C", str(repo), "ls-files", "*.py", "*.sh"], capture_output=True, text=True,
                              check=True).stdout.split()
     direct = re.compile(r"generativelanguage\.googleapis|x-goog-api-key|google\.genai|from google import genai|"
                         r"google\.generativeai|google\.cloud\.aiplatform|vertexai")
-    allowed = {"tools/props/cloud/google_spend.py", "tools/props/cloud/google_spend_test.py",
+    allowed = {"tools/props/cloud/google_spend.py", "tools/props/cloud/google_batch.py",  # the batch client on its ledger
+               "tools/props/cloud/google_spend_test.py",
                "tools/costs/paid_calls_test.py"}  # the paid-calls lint's fixtures name Google's hosts; that lint
     # checks its own file outside its named pattern and fixtures (its ALLOWED)
     found = [path for path in tracked if not path.startswith("vendor/") and path not in allowed
