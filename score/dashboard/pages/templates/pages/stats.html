@@ -1,0 +1,23 @@
+{% extends "pages/base.html" %}
+{% block title %}Stats{% endblock %}
+{% block content %}
+<section class="nums" aria-label="this month">
+  {% include "pages/c/number.html" with label=money.cloud_label value=money.cloud unit="EUR" of=None bar=None tone=None tip="the cloud bill this month" unknown_tip="the bill was not read" %}
+  {% include "pages/c/number.html" with label=money.models_label value=money.models unit="EUR" of=None bar=None tone=None tip="the model bill this month" unknown_tip="the bill is not known yet" %}
+  {% include "pages/c/number.html" with label="Total / stop" value=money.total unit="EUR" of=money.stop bar=money.share tone=None tip="this month against the stop line" unknown_tip="a bill is not known yet" %}
+</section>
+<section class="nums" aria-label="progress">
+  {% include "pages/c/number.html" with label="Measured prices" value=measured.0 unit="" of=measured.1 bar=None tone=None tip="paid steps with a measured price / all paid steps" unknown_tip="the runner's price is missing or stale" %}
+  {% include "pages/c/number.html" with label="Places complete" value=complete unit="" of=of bar=None tone=None tip="checked, no gaps" unknown_tip="" %}
+</section>
+<section class="nums" aria-label="gaps by kind">
+  {% for kind in kinds %}{% include "pages/c/number.html" with label=kind.label value=kind.count unit="" of=None bar=None tone=kind.tone tip="gaps" unknown_tip="" %}{% endfor %}
+</section>
+<section class="timeline-card" aria-label="spend by day" title="spend by day, this month">
+  <div class="num-label">by day</div>
+  {% if timeline is None %}<div class="num-value unknown" title="the ledger is read on the store's machine" data-v>unknown</div>
+  {% elif not timeline %}<div class="num-value" data-v><small>EUR</small> 0</div>
+  {% else %}<div class="timeline">{% for day in timeline %}<span class="timeline-day" title="{{ day.day }}: EUR {{ day.euros|floatformat:2 }}"><i style="height: {{ day.height }}%"></i></span>{% endfor %}</div>
+  <div class="timeline-axis" data-v><span>{{ timeline.0.day|slice:"5:" }}</span>{% with last=timeline|last %}<span>{{ last.day|slice:"5:" }}</span>{% endwith %}</div>{% endif %}
+</section>
+{% endblock %}

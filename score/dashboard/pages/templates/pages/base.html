@@ -15,23 +15,21 @@
   {% if user.is_authenticated %}
   <nav>
     <a href="/"{% if request.path == "/" %} class="here"{% endif %}>Environment</a>
-    <a href="/basket/"{% if request.path == "/basket/" %} class="here"{% endif %}>Basket{% if basket_count %} <span class="count">{{ basket_count }}</span>{% endif %}</a>
-    <a href="/runs/"{% if request.path == "/runs/" %} class="here"{% endif %}>Runs</a>
-    <a href="/requests/"{% if request.path == "/requests/" %} class="here"{% endif %}>Requests</a>
+    {% if request.path|slice:":7" == "/place/" %}<a href="{{ request.path }}" class="here">Place</a>{% endif %}
+    <a href="/buy/"{% if request.path == "/buy/" %} class="here"{% endif %}>Buy{% if basket_count %} <span class="count" data-v>{{ basket_count }}</span>{% endif %}</a>
+    <a href="/stats/"{% if request.path == "/stats/" %} class="here"{% endif %}>Stats</a>
     <a href="/library/"{% if request.path|slice:":9" == "/library/" %} class="here"{% endif %}>Library</a>
-    <a href="/film/"{% if request.path|slice:":6" == "/film/" %} class="here"{% endif %}>Film</a>
   </nav>
   <div class="meta">
-    {% if hosted %}<span>{{ export_age }}</span>{% else %}<span title="when the store was read">read {{ read_at|slice:"11:16" }} UTC</span>
-    <form class="inline" method="post" action="/refresh/">{% csrf_token %}<input type="hidden" name="back" value="{{ request.path }}"><button class="quiet">Read again</button></form>{% endif %}
-    <span>{{ user.username }}</span>
-    {% if not proxy_mode %}<form class="inline" method="post" action="/logout/">{% csrf_token %}<button class="quiet">Sign out</button></form>{% endif %}
+    {% if decisions_off_why %}{% include "pages/c/dot.html" with tone="bad" tip=decisions_off_why %}{% endif %}
+    {% if hosted %}<span title="{{ export_age }}">{% include "pages/c/dot.html" with tone="done" tip=None %}</span>{% else %}<form class="inline" method="post" action="/refresh/">{% csrf_token %}<input type="hidden" name="back" value="{{ request.path }}"><button class="quiet" title="read the store again (read {{ read_at|slice:"11:16" }} UTC)">&#8635;</button></form>{% endif %}
+    <span data-v>{{ user.username }}</span>
+    {% if not proxy_mode %}<form class="inline" method="post" action="/logout/">{% csrf_token %}<button class="quiet" title="sign out">&#x23FB;</button></form>{% endif %}
   </div>
   {% endif %}
 </header>
 <main>
 {% if messages %}<ul class="messages">{% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}</ul>{% endif %}
-{% if user.is_authenticated and decisions_off_why %}<div class="notice">{{ decisions_off_why }}</div>{% endif %}
 {% block content %}{% endblock %}
 </main>
 <script src="/static/pages/dash.js"></script>

@@ -1,9 +1,0 @@
-<li class="tree-node{% if node.placeholder and not node.children %} placeholder{% endif %}"{% if node.anchor %} data-anchor="{{ node.anchor }}"{% endif %}>
-  {% if node.children %}<details{% if node.children|length < 15 %} open{% endif %}><summary>{% endif %}
-  {% if node.anchor and not node.children %}<a href="#{{ node.anchor }}">{{ node.name }}</a>{% else %}<span>{{ node.name }}</span>{% endif %}
-  <span class="soft small">holes below: {{ node.count }}</span>
-  {% for kind, count in node.kinds %}<span class="badge {{ kind }}">{{ count }}</span>{% endfor %}
-  {% if node.children %}</summary>
-  <ul>{% for child in node.children %}{% include "pages/hole_tree.html" with node=child %}{% endfor %}</ul>
-  </details>{% endif %}
-</li>

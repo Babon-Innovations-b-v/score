@@ -1,47 +1,12 @@
 {% extends "pages/base.html" %}
 {% block title %}{{ name }}{% endblock %}
 {% block content %}
-<nav class="crumbs"><a href="/">Environment</a><span>/</span>{{ name }}</nav>
-<div class="page-head">
-  <h1>{{ name }}</h1>
-  <a class="status {{ status.tone }}" href="#bd-index">{{ status.words }}</a>
-  <div class="grow"></div>
-  {% if detail.web3d %}<a class="button primary big" href="/view/{{ detail.place }}">Open in 3D</a>
-  {% elif holes_3d %}<a class="button primary big" href="/view/{{ detail.place }}?holes=1" title="no 3D web copy of this place yet: its holes' boxes over a grid">Open in 3D: its holes</a>
-  {% else %}<span class="button big disabled" title="no 3D web copy of this place yet">Open in 3D: not made yet</span>{% endif %}
+<div class="place-layout">
+  <aside class="place-tree" aria-label="scene">
+    <div class="num-label" data-v>{{ name }}</div>
+    {% if tree %}{% include "pages/c/tree.html" with nodes=tree.children %}{% else %}{% include "pages/c/todo.html" with label="scene tree" %}{% endif %}
+  </aside>
+  <div class="place-view"><iframe src="/view/{{ detail.place }}?holes=1&amp;embed=1" title="{{ name }} in 3D" loading="lazy"></iframe></div>
+  {% include "pages/c/panel.html" with id="panel" %}
 </div>
-
-<section class="hero">
-  <figure class="hero-film">
-    {% if detail.film %}<video src="{{ detail.film.url }}" controls preload="metadata" playsinline data-fps="{{ detail.film_fps|stringformat:"g" }}" class="film"{% if detail.hero %} poster="{{ detail.hero.url }}"{% endif %}></video>
-    <figcaption>the film</figcaption>
-    {% else %}<div class="pic empty"><span>the film</span><small>no film yet</small></div>{% endif %}
-  </figure>
-  <figure class="hero-still">
-    {% if detail.hero %}<a href="{{ detail.hero.url }}"><img class="pic" src="{{ detail.hero.url }}" alt="{{ name }}"></a>{% else %}<div class="pic empty"><span>{{ name }}</span><small>no picture yet</small></div>{% endif %}
-    <figcaption>a still</figcaption>
-  </figure>
-</section>
-
-{% include "pages/breakdown.html" %}
-
-{% include "pages/holes.html" %}
-
-{% include "pages/library_strip.html" %}
-
-<details class="ids"><summary>details</summary>
-  <div class="fold-body">
-  <p class="soft">{{ detail.status|capfirst }}.</p>
-  {% if problems %}<h3>Problems in full</h3><ul>{% for problem in problems %}<li>{{ problem.full }}</li>{% endfor %}</ul>{% endif %}
-  {% if holes %}<h3>Holes in full</h3><ul>{% for group in holes %}{% for line in group.lines %}<li>{{ line.id }}: {{ line.filled_by }}</li>{% endfor %}{% endfor %}</ul>{% endif %}  {% if detail.skipped %}<h3>Not done for this place</h3><ul>{% for entry in detail.skipped %}<li>{{ entry }}</li>{% endfor %}</ul>{% endif %}
-  <h3>OpenUSD index</h3>
-  {% if detail.usd_index.root %}
-  <p>Root <b>{{ detail.usd_index.root }}</b>, accepted {{ detail.usd_index.accepted_at|slice:":16" }}, {{ detail.usd_index.asset_count }} assets{% if detail.usd_index.with_neighbours_output %}, also stood <a href="/place/{{ detail.place }}/step/neighbours/">with its neighbours</a>{% endif %}.</p>
-  <div class="chips">{% for layer in detail.usd_index.layers %}<span class="chip{% if not layer.present %} missing{% endif %}" title="{{ layer.path }}">{{ layer.name }}{% if layer.present %} {{ layer.bytes|filesizeformat }}{% else %} missing{% endif %}</span>{% endfor %}</div>
-  {% else %}<p>No accepted OpenUSD stage yet.</p>{% endif %}
-  {% if detail.web3d %}<p>3D web copy made {{ detail.web3d.made_at|slice:":16" }}{% if not detail.web3d.current %}, from an older accepted stage{% endif %}.</p>{% endif %}
-  {% if requests %}<h3>Change requests</h3><ul>{% for change in requests %}<li>{{ change.created|date:"Y-m-d H:i" }} {{ change.user }} on {{ change.stage }}: {{ change.words }}</li>{% endfor %}</ul>{% endif %}
-  <p>Look: <code>{{ detail.look }}</code>. Assembly output <code>{{ detail.usd_index.own_output }}</code>{% if detail.usd_index.with_neighbours_output %}, with neighbours <code>{{ detail.usd_index.with_neighbours_output }}</code>{% endif %}.{% if snapshot.made_at %} Freshness snapshot of {{ snapshot.made_at }}.{% endif %}</p>
-  </div>
-</details>
 {% endblock %}

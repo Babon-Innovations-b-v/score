@@ -1,6 +1,6 @@
 """The Library pages: the explorer (a tree of kinds and categories, the entries of the chosen one, the chosen entry
-with its 3D view first) drawn in the browser from /api/library (api/library_api.py), an entry's full-screen 3D view,
-and the strip of a place's entries on the place page. What the API answers is made here."""
+with its 3D view first) drawn in the browser from /api/library (api/library_api.py), and an entry's full-screen 3D view.
+What the API answers is made here."""
 from urllib.parse import quote
 
 from django.http import Http404
@@ -10,7 +10,6 @@ from score.dashboard import state
 from score.dashboard.pages import actions, library_actions
 from score.dashboard.state import library as lib
 
-STRIP_SHOWN = 12
 WEB_COPY_KINDS = ("model", "kit", "character")  # the kinds whose web GLB copies are being made for the viewer
 SORTS = ("name", "score_low", "score_high")
 BANDS = {"low": (0, 50), "mid": (50, 80), "high": (80, 101)}  # a score's band, its percent from and below
@@ -18,11 +17,6 @@ BANDS = {"low": (0, 50), "mid": (50, 80), "high": (80, 101)}  # a score's band, 
 
 def thumb_url(entry):
     return f"/library-files/thumbs/{entry.picture}.jpg" if entry.picture else None
-
-
-def tile(entry):
-    """What one tile of a place's strip shows."""
-    return {"entry": entry, "url": lib.entry_url(entry), "thumb": thumb_url(entry)}
 
 
 def missing_words():
@@ -222,18 +216,3 @@ def refine_cards(items):
                       "score": lib.percent(found.score) if found else None})
     return cards
 
-
-# --- the place page's strip ------------------------------------------------------------------------------------
-
-def strip_of(place):
-    """The place page's "In the library" strip: its entries' first tiles and how many there are, or None."""
-    shown = lib.library()
-    if shown is None:
-        return None
-    found = lib.from_place(shown.entries(), place)
-    if not found:
-        return None
-    counts = [(kind, sum(1 for entry in found if entry.kind == kind)) for kind, _ in lib.KINDS]
-    return {"total": len(found), "kinds": [lib.counted_kind(kind, count) for kind, count in counts if count],
-            "tiles": [tile(entry) for entry in lib.kinds_mixed(found)[:STRIP_SHOWN]],
-            "url": f"/library/?place={place}"}

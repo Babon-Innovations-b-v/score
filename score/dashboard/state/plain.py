@@ -43,11 +43,6 @@ SAID = {
               "{things} are missing from {place}: its layout rule never places them here."),
 }
 SAID["grounded"] = SAID["boxes"]
-# What happens if a hole of each kind is left (state/holes.py KINDS).
-LEFT = {"missing": "the place cannot be complete while a row of its scene inventory has no object.",
-        "gate": "the place cannot be complete while a made object fails its check.",
-        "route": "no step after it can run for this place, so nothing below it can be made.",
-        "lost": "every step that reads it stays blocked, here and at every other place that reads it."}
 NO_LIKENESS = "The props in {place} were never compared with their close-up pictures: it has no props list."
 
 

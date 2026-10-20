@@ -458,6 +458,7 @@ def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, sett
         html = pages.get(page).content.decode()
         assert "state from 2026-10-18 12:00" in html, page
     html = pages.get("/place/alpha/").content.decode()
-    assert "No 3D web copy" in html and "/thumbs/" in html or "/files/" in html
+    assert 'src="/view/alpha?holes=1&amp;embed=1"' in html
+    assert "No 3D web copy" in pages.get("/view/alpha").content.decode()
     pages.post("/place/alpha/step/closeup/decide/", {"decision": "reject", "output": "x", "reason": "no"})
     assert SyncRequest.objects.filter(kind="decision").exists()

@@ -140,47 +140,93 @@ for (const form of document.querySelectorAll("form[data-post]")) {
   });
 }
 
-// A table with class "sortable" sorts by the column a heading click names: by each cell's data-value, else its words,
-// as numbers when both are numbers; a second click turns the order round.
-function cellValue(row, column) {
-  const cell = row.cells[column];
-  return cell ? (cell.dataset.value ?? cell.textContent.trim()) : "";
-}
-function sortBy(table, column, down) {
-  const body = table.tBodies[0];
-  const rows = [...body.rows].sort((one, other) => {
-    const [left, right] = [cellValue(one, column), cellValue(other, column)];
-    const numbers = left !== "" && right !== "" && !isNaN(left) && !isNaN(right);
-    const order = numbers ? Number(left) - Number(right) : left.localeCompare(right);
-    return down ? -order : order;
-  });
-  body.append(...rows);
-}
-for (const table of document.querySelectorAll("table.sortable")) {
-  [...table.tHead.rows[0].cells].forEach((heading, column) => {
-    heading.tabIndex = 0;
-    heading.onclick = () => {
-      const down = heading.dataset.order !== "down";
-      for (const other of table.tHead.rows[0].cells) delete other.dataset.order;
-      heading.dataset.order = down ? "down" : "up";
-      sortBy(table, column, down);
-    };
-  });
-}
 
-// A place's holes: a link to #hole-<id> lights its line of the list and its node in the tree, and opens the tree's
-// folds above it.
-function lightHole() {
-  for (const element of document.querySelectorAll(".lit")) element.classList.remove("lit");
-  const anchor = decodeURIComponent(location.hash.slice(1));
-  if (!anchor.startsWith("hole-")) return;
-  for (const element of document.querySelectorAll("[data-anchor]")) {
-    if (element.dataset.anchor !== anchor) continue;
-    element.classList.add("lit");
-    for (let fold = element.parentElement?.closest("details"); fold; fold = fold.parentElement?.closest("details")) {
-      fold.open = true;
-    }
-  }
+// The side panel (templates/pages/c/panel.html): a click on [data-opens="<id>"] fills that panel's slots from the
+// element's data-title, data-state, data-tone, data-price, data-action and data-action-label, and opens it.
+function openPanel(opener) {
+  const panel = document.getElementById(opener.dataset.opens);
+  if (!panel) return;
+  const slot = (name) => panel.querySelector(`[data-slot="${name}"]`);
+  slot("title").textContent = opener.dataset.title || "";
+  slot("state").textContent = opener.dataset.state || "";
+  slot("tone").className = `dot tone-${opener.dataset.tone || "idle"}`;
+  slot("price").textContent = opener.dataset.price || "";
+  const action = slot("action");
+  action.hidden = !opener.dataset.action;
+  action.href = opener.dataset.action || "#";
+  action.textContent = opener.dataset.actionLabel || "";
+  panel.hidden = false;
 }
-window.addEventListener("hashchange", lightHole);
-lightHole();
+document.addEventListener("click", (event) => {
+  const opener = event.target.closest("[data-opens]");
+  if (opener) { event.preventDefault(); openPanel(opener); return; }
+  const close = event.target.closest("[data-panel-close]");
+  if (close) close.closest(".side-panel").hidden = true;
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") for (const panel of document.querySelectorAll(".side-panel")) panel.hidden = true;
+  if (event.key === "Enter" && event.target.matches?.("[data-opens]")) openPanel(event.target);
+});
+
+// A tree branch with data-children="URL" (templates/pages/c/tree.html) loads its children when it first opens: the
+// URL answers [node] as JSON with the fields of c/tree.html; a failed load turns its dot red, the detail to the log.
+function treeRow(node) {
+  const row = document.createElement(node.href ? "a" : "span");
+  row.className = "node-row";
+  if (node.href) row.href = node.href;
+  if (node.tip) row.title = node.tip;
+  if (node.panel) {
+    Object.assign(row.dataset, { opens: "panel", title: node.panel.title || "", state: node.panel.state || "",
+      tone: node.panel.tone || "", price: node.panel.price || "", action: node.panel.action || "",
+      actionLabel: node.panel.action_label || "" });
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+  }
+  const dot = document.createElement("i");
+  dot.className = `dot tone-${node.tone || "idle"}`;
+  const label = document.createElement("span");
+  label.className = "node-label";
+  label.textContent = node.label;
+  row.append(dot, label);
+  if (node.count !== undefined && node.count !== null) {
+    const count = document.createElement("span");
+    count.className = "node-count";
+    count.textContent = node.count;
+    row.append(count);
+  }
+  return row;
+}
+function treeList(nodes) {
+  const list = document.createElement("ul");
+  list.className = "tree";
+  for (const node of nodes) {
+    const item = document.createElement("li");
+    if (node.children?.length || node.children_url) {
+      const branch = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.append(treeRow(node));
+      branch.append(summary);
+      if (node.children_url) branch.dataset.children = node.children_url;
+      else branch.append(treeList(node.children));
+      item.append(branch);
+    } else {
+      item.append(treeRow(node));
+    }
+    list.append(item);
+  }
+  return list;
+}
+document.addEventListener("toggle", async (event) => {
+  const branch = event.target;
+  if (!branch.open || !branch.dataset?.children || branch.dataset.loaded) return;
+  branch.dataset.loaded = "1";
+  try {
+    const answer = await fetch(branch.dataset.children, { credentials: "same-origin" });
+    if (!answer.ok) throw new Error(`${answer.status}`);
+    branch.append(treeList(await answer.json()));
+  } catch (error) {
+    console.error("tree branch not loaded", branch.dataset.children, error);
+    branch.querySelector("summary .dot").className = "dot tone-bad";
+    delete branch.dataset.loaded;
+  }
+}, true);
