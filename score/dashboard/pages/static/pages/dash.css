@@ -472,6 +472,7 @@ a.item-tile { color: var(--ink); } a.item-tile:hover { text-decoration: none; bo
 .trail { margin: 0 0 12px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; } .trail .sep { color: var(--faint); }
 .ptile-box { position: relative; }
 .ptile-review { position: absolute; top: 8px; right: 8px; padding: 4px 12px; background: var(--bg); }
+.ptile-box:has(.ptile-review) .ptile-pic:has(.ptile-holds) .ptile-missing { top: 40px; }
 .concept-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
 @media (max-width: 860px) { .concept-layout { grid-template-columns: 1fr; } }
 .concept-stage { position: relative; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
