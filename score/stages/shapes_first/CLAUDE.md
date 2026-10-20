@@ -60,4 +60,9 @@ gets its models, as rows of the stage table, the same for a prop, a shell piece,
   Each look's record (`data/props/people.json`, `failures`) names what is still made outside the loop: its take
   (`people-take-<look>`: the Pixal3D batch refuses a `no_place` inventory), its second split
   (`people-look-parts-<look>`) and its body built from the raw take, not the baked model handed on.
+- **No model around the loop** (`shapes_first_test.py`): a row of the table that reads a loop row and is no
+  adapter's after-step reading `made.ENDS` fails, unless `READS_THE_LOOP` names it with why (the judges, the object
+  layer's assembly, the kit's fallback base, the motion rows not on an adapter yet); a paid row outside the loop says
+  what it makes (`MAKES_NO_MODEL`) or is a named exception (`MADE_OUTSIDE`) its own record names (`failures`). A row
+  joins either list only with its reason; one that stops reading the loop leaves `READS_THE_LOOP`.
 - Test: `shapes_first_test.py` (`.venv/bin/python -m pytest score/stages/shapes_first`), no spend.

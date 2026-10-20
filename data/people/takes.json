@@ -3,7 +3,8 @@
  "looks": {
   "player-home": {
    "spec": "data/characters/makes/player_prop.json",
-   "outfit": "home"
+   "outfit": "home",
+   "failures": {"take": "made before the loop by people-take-player-home (its close-ups and Pixal3D take): the Pixal3D batch refuses a no_place inventory (tools/props/cloud/batch.py); the look joins data/props/people.json only once this row is accepted"}
   },
   "player_wide-work": {
    "spec": "data/characters/makes/player_wide_prop.json",
