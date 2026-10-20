@@ -31,6 +31,9 @@ QUESTIONS = (  # score/review/environment_concept.QUESTIONS (environment_test ho
     ("insides", "Insides", "What places may each of them hold inside?"),
 )
 LONGEST_PICTURE_TEXT = 17 * 1024 * 1024  # base64 of environment_concept.LARGEST_PICTURE
+# an export made before the environment concept was read into it: nothing to show, nothing to edit, until the next
+NOT_READ = {"concept": {"style": "", "physics": [], "references": [], "places": []}, "locked": True, "prefilled": True,
+            "versions": 0}
 
 
 def title_of(world):
@@ -156,10 +159,11 @@ def home(request):
 def concept_page(request, world):
     """`/environments/<world>/`: the environment concept (module docstring)."""
     world_state = checked_world(state.source(), world)
-    concept = shown(world_state)
+    concept = shown(world_state) or NOT_READ
     asked = asks(world)
     topic = topic_now(asked, request.GET.get("q"))
-    can, waiting = is_owner(request.user) and actions.decisions_on(), pending(world)
+    can = is_owner(request.user) and actions.decisions_on() and concept is not NOT_READ
+    waiting = pending(world)
     return render(request, "pages/environment_concept.html", {
         "world": world, "title": title_of(world), "shown": concept, "concept": concept["concept"],
         "references": [{**ref, "file": found.get(ref["picture"])} for found in [pictures(world_state)]
@@ -203,6 +207,8 @@ def checked_click(request, world):
         return None, refused("only the owner edits the environment concept", 403)
     if body is None:
         return None, refused("refused: not a request", 422)
+    if not concept:
+        return None, refused("refused: the environment concept is not read here yet")
     if pending(world):
         return None, refused("refused: one of his requests is on its way")
     return (concept, body), None
