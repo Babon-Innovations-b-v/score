@@ -704,7 +704,7 @@ def redraw_preview():
     """What Redraw with notes sends to the draw, its notes as placeholders (the concept review page shows it)."""
     marks = [{"x": 0.0, "y": 0.0, "w": 0.3, "h": 0.3, "note": "<mark 1's note>"}]
     context = [{"x": 0.7, "y": 0.0, "w": 0.3, "h": 0.3, "note": "<mark P1's note>", "on": "<place above>"}]
-    return redraw_wording("<the prompt Gemini corrects from your notes>", marks, context, "<your note>")
+    return redraw_wording("<this draw's prompt, corrected by your notes>", marks, context, "<your note>")
 
 
 def revise(question, pictures):
