@@ -100,7 +100,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   stop shown), the remake's euros and hours for the approved designs and how many places are in design (only that
   count before one is approved), a Review and buy
   button, a tile per outside place or shell (shapes first, `cockpit.tiles`: one holding places sums their progress
-  and gaps, shows what sits directly inside that holds places itself over its concept ("Ship, 8 rooms") and "+N"
+  and gaps, shows what sits directly inside that holds places itself over its concept ("Hangar, 8 rooms": a shell's or an inside place's places are its rooms) and "+N"
   for the rest, and opens to them at `/?in=<place or shell>`, headed by that place or shell itself (`cockpit.head`: its concept, ring, gaps, Review or
   Draw and, for a place, Open to its Place screen; CONTEXT.md "place": never an "Outside" card beside its inside
   places, owner 2026-10-20) over its inside places' tiles only, with a trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: its concept as the header, the 3D view,
