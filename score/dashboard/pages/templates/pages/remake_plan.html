@@ -1,0 +1,25 @@
+{% if plan %}
+<section class="money-card remake-plan" aria-label="the remake's plan, cost and time">
+  <div class="eyebrow">The whole remake, step by step</div>
+  <div class="money-total">EUR {{ plan.total.likely|floatformat:2 }} to EUR {{ plan.total.high|floatformat:2 }} measured</div>
+  <p class="small soft">Worked out by the runner (score price {{ world.world }} --holes): every step each place needs to its end, in the order the steps read each other, shapes first. Nothing here is written by hand. {{ plan.total.measured }} of {{ plan.total.paid }} paid steps have a measured price{% if plan.total.unknown %}; {{ plan.total.unknown }} <span class="unknown">have none</span>, each named with why in its milestone{% endif %}{% if plan.total.set_nodes %}; their stage table sets EUR {{ plan.total.set|floatformat:2 }} for {{ plan.total.set_nodes }} of them, <span class="unknown">set, not measured</span>, in no figure{% endif %}.{% if plan.total.after_likely or plan.total.after_high %} After the code work, more: EUR {{ plan.total.after_likely|floatformat:2 }} to {{ plan.total.after_high|floatformat:2 }} measured{% if plan.total.after_unknown %}, {{ plan.total.after_unknown }} step{{ plan.total.after_unknown|pluralize }} with no price{% endif %}.{% endif %}</p>
+  <ol class="milestones">{% for step in plan.steps %}
+    <li class="milestone"><b>{{ step.title }}</b>{% if step.unpriced %}: <span class="unknown">not priced</span>, {{ step.unpriced }}.{% elif step.paid %}: {{ step.paid }} paid step{{ step.paid|pluralize }}, EUR {{ step.likely|floatformat:2 }} to {{ step.high|floatformat:2 }} measured ({{ step.measured }} of {{ step.paid }}); so far EUR {{ step.subtotal.likely|floatformat:2 }} to {{ step.subtotal.high|floatformat:2 }}.{% elif step.nodes %}: {{ step.nodes }} free step{{ step.nodes|pluralize }}.{% else %}.{% endif %}
+      {% if step.set.nodes %}<span class="unknown">Set, not measured</span>: EUR {{ step.set.euros|floatformat:2 }} for {{ step.set.nodes }} step{{ step.set.nodes|pluralize }} with no measured price.{% endif %}
+      {% if step.after %}After its code work: EUR {{ step.after.likely_euros|floatformat:2 }} to {{ step.after.high_euros|floatformat:2 }} measured{% if step.after.unknown %}, {{ step.after.unknown }} with no price{% endif %}.{% endif %}
+      {% if step.stages %}<p class="small soft">{% for stage in step.stages %}{{ stage.label }} ({{ stage.nodes }}{% if stage.paid %}, {{ stage.paid }} paid{% endif %}){% if not forloop.last %}, {% endif %}{% endfor %}{% if step.reads %}. After: {{ step.reads|join:", " }}{% endif %}.</p>{% endif %}
+      {% if step.code %}<p class="small">Waits on code work: {% for task in step.code %}{{ task.task }} ({{ task.holes }} hole{{ task.holes|pluralize }}){% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+      {% if step.owner %}<p class="small owner-first"><b>Only you can do this:</b> {{ step.owner|join:"; " }}.</p>{% endif %}
+      {% if step.unknown or step.set.from %}<details class="ids"><summary>details</summary><div class="fold-body">
+        {% if step.set.from %}<h3>Where each set budget is written</h3><ul>{% for source in step.set.from %}<li>{{ source.at }}: EUR {{ source.euros|floatformat:2 }} ({{ source.nodes }} step{{ source.nodes|pluralize }})</li>{% endfor %}</ul>{% endif %}
+        {% if step.unknown %}<h3>No measured price</h3><ul>{% for entry in step.unknown %}<li>{{ entry.node }}: {{ entry.why }}</li>{% endfor %}</ul>{% endif %}
+      </div></details>{% endif %}
+    </li>
+  {% endfor %}</ol>
+</section>
+{% elif plan_said %}
+<section class="money-card remake-plan" aria-label="the remake's plan, cost and time">
+  <div class="eyebrow">The whole remake, step by step</div>
+  <p><span class="unknown">No plan</span>: {{ plan_said }}.</p>
+</section>
+{% endif %}

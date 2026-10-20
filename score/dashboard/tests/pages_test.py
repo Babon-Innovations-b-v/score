@@ -332,6 +332,79 @@ def test_a_stale_holes_price_shows_no_total(world, settings, tmp_path):
     assert "Its price is stale" in html and "paid steps in its chain" not in html
 
 
+BOOKS = "the month's books before any paid step: the month's spend is unknown"
+def milestones():
+    """A plan the runner wrote: the ground (its set budget, code work and the owner's steps), what alpha holds,
+    the environment's film unpriced, the owner's approval."""
+    return [
+        {"key": "ground", "title": "The ground", "stages": [{"stage": "terrain", "nodes": 1, "paid": 1}], "nodes": 1,
+         "places": 0, "paid": ["terrain"], "likely_euros": 0, "high_euros": 0, "measured": 0,
+         "set": {"euros": 6.0, "nodes": 1, "from": [{"at": "score/stages/__init__.py:46", "euros": 6.0, "nodes": 1}]},
+         "unknown": [{"node": "terrain", "why": "not measured yet: no run of terrain in the cloud ledger"}],
+         "after_work": {"likely_euros": 0, "high_euros": 0, "unknown": 0, "nodes": 0},
+         "work": [{"work": ROUGH, "holes": 2}, {"work": OWNERS, "holes": 1}], "owner": [BOOKS], "reads": []},
+        {"key": "made", "title": "What each place holds", "stages": [{"stage": "closeup", "nodes": 1, "paid": 1},
+                                                                     {"stage": "sound", "nodes": 1, "paid": 1}],
+         "nodes": 2, "places": 1, "paid": ["closeup@alpha", "sound@alpha"], "likely_euros": 2.0, "high_euros": 3.0,
+         "measured": 1, "set": {"euros": 1.0, "nodes": 1, "from": [{"at": "score/stages/__init__.py:243", "euros": 1.0,
+                                                                     "nodes": 1}]},
+         "unknown": [{"node": "sound@alpha", "why": "not measured yet: no run of sound in the cloud ledger"}],
+         "after_work": {"likely_euros": 4.0, "high_euros": 6.0, "unknown": 0, "nodes": 2}, "work": [], "owner": [],
+         "reads": ["ground"]},
+        {"key": "environment-film", "title": "The environment's film", "unpriced": "no row of the stage table cuts it",
+         "owner": []},
+        {"key": "approval", "title": "Your approval of the final video", "owner": ["you approve the final video"]}]
+
+
+def test_the_board_shows_the_runners_plan_in_its_order_with_subtotals_set_budgets_apart_and_the_owners_steps(
+        world, settings, tmp_path):
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world, milestones=milestones())
+    world.source.refresh()
+    board = signed_in().get("/").content.decode()
+    section = unescape(re.search(r'<section class="money-card remake-plan".*?</section>', board, re.S).group(0))
+    titles = [title for title in re.findall(r'<li class="milestone"><b>(.*?)</b>', section)]
+    assert titles == ["The ground", "What each place holds", "The environment's film",
+                      "Your approval of the final video"], titles
+    assert "EUR 2.00 to EUR 3.00 measured" in section and "so far EUR 2.00 to 3.00" in section
+    assert "Set, not measured</span>: EUR 6.00 for 1 step" in section and "in no figure" in section
+    assert "After the code work, more: EUR 4.00 to 6.00 measured" in section
+    assert "Waits on code work: A rough-model stage (2 holes)" in section
+    assert "Only you can do this:</b> " + BOOKS + "; " + OWNERS in section  # the owner's own file, never code work
+    assert "not priced</span>, no row of the stage table cuts it" in section
+    assert "you approve the final video" in section
+    assert NODE.search(outside_details(section)) is None  # step ids only inside the details
+
+
+def test_the_plan_goes_through_the_export_whole(world, settings, tmp_path):
+    from score.dashboard.state.exported import ExportedSource
+    from score.dashboard.state.models import Spend
+    from score.dashboard.sync import building
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world, milestones=milestones())
+    world.source.refresh()
+    building.build(world.source, tmp_path / "export", "2026-10-20T09:00:00+00:00", 50, Spend(), world.root)
+    assert ExportedSource(tmp_path / "export").world_state().holes_price.milestones == milestones()
+
+
+def test_a_stale_or_planless_price_shows_no_plan_and_says_why(world, settings, tmp_path):
+    from score.dashboard.state import holes
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world)
+    world.source.refresh()
+    price = world.source.holes_price()
+    assert holes.plan_of(price) is None
+    assert holes.plan_said(price, "world1") == ("the runner's last price holds no plan: run score price world1 "
+                                                "--holes again")
+    a_holes_price(world, milestones=milestones(), priced_on=None)
+    world.source.refresh()
+    price = world.source.holes_price()
+    assert holes.plan_of(price) is None and "before the price" in holes.plan_said(price, "world1")
+    section = re.search(r'<section class="money-card remake-plan".*?</section>', signed_in().get("/").content.decode(),
+                        re.S).group(0)
+    assert "No plan" in section and "EUR" not in section
+
+
 def test_a_holes_price_made_on_other_code_or_other_per_unit_prices_shows_no_total(world, settings, tmp_path):
     from score.dashboard.state import holes, local
     a_holes_finding(world, settings, tmp_path)

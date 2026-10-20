@@ -86,6 +86,7 @@ def board(request):
     return render(request, "pages/board.html", {
         "world": world, "environment_name": present.environment_name(world.world),
         "groups": present.with_holes(shown, places), "holes_total": total,
+        "plan": holes.plan_of(price), "plan_said": holes.plan_said(price, world.world),
         "headline": holes.headline(price) if total else None, "places": places,
         "shared": holes.shared_money(price, details),
         "not_priced_yet": holes.unpriced_work(price, with_world) if total else None,
