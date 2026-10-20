@@ -229,3 +229,10 @@ def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway()
     assert concepts.framing("ship").startswith(concepts.OUTSIDE_VIEW)  # within the hangar, but holds rooms
     assert concepts.framing("cockpit").startswith(concepts.INSIDE_VIEW)
     assert concepts.EVERY_DRAW in concepts.first_wording("street")[0]
+
+
+def test_draw_all_skips_parts_and_holds_an_inside_place_for_its_outsides_pick(tmp_path):
+    store = Store.in_folder(tmp_path)
+    ready, waiting = concepts.undrawn(store, ["base", "hub", "square"])
+    assert ready == ["base"] and "square" not in waiting
+    assert waiting["hub"] == "waits for base's concept to be picked"

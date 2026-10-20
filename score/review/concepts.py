@@ -117,11 +117,16 @@ def picked(store, place):
 
 def undrawn(store, nodes):
     """The Environment's Draw all (owner, 2026-10-20): ([node] of `nodes` with no draw yet whose first draw can be
-    made now, {node: why not} for the others with none). An inside place is drawn from its own plan and view, as a
-    single draw is, never held for its outside's pick."""
-    ready, waiting = [], {}
+    made now, {node: why not} for the others with none). A part of another place's outside (the square, the launch)
+    is never drawn on its own; an inside place waits for its outside's pick, so it is drawn to fit it (CONTEXT.md
+    "concept")."""
+    ready, waiting, found = [], {}, tree()
     for node in nodes:
-        if store.objects.keys(f"{AREA}/{node}/draws/"):
+        if store.objects.keys(f"{AREA}/{node}/draws/") or node in found["parts"]:
+            continue
+        holder = found["within"].get(node)
+        if holder and not picked(store, holder):
+            waiting[node] = f"waits for {holder}'s concept to be picked"
             continue
         try:
             first_wording(node)
