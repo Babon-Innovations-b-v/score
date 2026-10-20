@@ -1,21 +1,16 @@
-"""The benchmarks that settle #21's cuts, prepared and never launched from here: each one batch through a paid path
-that writes every euro to the ledgers, the runner's (`score run ... --detach`, so the runner clears it and reserves
-its estimate) or, for P2, the batch tool's own (tools/props/cloud/batch.py under the owner's override ticket, as
-similar.py's pairs are). At most CAP_EUROS for all of them together, counted on their highs: each one's `euros` is
-its likely figure and `high_euros` its high, #21's design estimates said as estimates (high equal to the estimate
-until measured), P2's computed from pixal's measured per unit (pixal_steps.benchmark_euros). `needs` names what must
-land before one can run. None lowers a setting that ships on a guess: P2 lowers Pixal3D's steps
-for a shape only where every check sorts it the same (pixal_steps.py); a films benchmark of fewer samples is left out,
-since its samples ship and no check sorts them (#21, 2026-10-20).
+"""The benchmarks that settle #21's cuts, prepared and never launched from here: each one batch through the runner's
+paid path (`score run ... --detach`, so the runner clears it, reserves its estimate and writes every euro to the
+ledgers). At most CAP_EUROS for all of them together, counted on their highs: each one's `euros` is its likely figure
+and `high_euros` its high, #21's design estimates said as estimates (high equal to the estimate until measured).
+`needs` names what must land before one can run. None lowers a setting that ships: quality is never a cost lever
+(owner, 2026-10-20), so a benchmark of fewer Pixal3D steps or fewer film samples is never listed (#21).
 
 Before any of them starts, the month's guard (compute.month_refusal) is asked for the total: while the month's books
 are unknown it refuses, and the owner runs `score spend --read-back` and `score spend --google-month EUR` first.
 """
 from score.adapters import compute
-from score.stages.complete.prepare import pixal_steps
 
 CAP_EUROS = 20.0
-LIKENESS_EUROS = 1.0  # DINOv2's pairs, score/stages/props/likeness_row.py LIKENESS_EUROS
 RUN = ".venv/bin/python -m score run world1 --detach"
 ESTIMATED = (
     {"id": "F-A", "what": "finish maps: one draw a map on Gemini's flex tier against the measured 7.51 calls a take",
@@ -38,23 +33,9 @@ ESTIMATED = (
 )
 
 
-def p2():
-    """P2, priced from pixal's measured per unit with the bill share: 6 chunky takes twice and DINOv2's pairs."""
-    euros = pixal_steps.benchmark_euros(compute.per_unit("pixal"), LIKENESS_EUROS)
-    return {"id": "P2", "what": "Pixal3D: 8 sampling steps against 12 on chunky takes, same seed; a shape runs lower "
-                                "only where the shape check, outline and DINOv2 likeness sort it the same",
-            "euros": euros["likely_euros"], "high_euros": euros["high_euros"],
-            "needs": "#21 track A: one run a job, no retry in batch.py (landed); the owner's yes on the #55 lock, at "
-                     f"least 3 chunky close-ups, and his override yes for the node override, key p2-steps, at its "
-                     f"high, EUR {euros['high_euros']:.2f}",
-            "command": "python -m score.stages.complete.prepare.pixal_steps list <close-ups> <inventory.json> <out>; "
-                       "SCORE_SPEND_TICKET='override p2-steps' tools/props/cloud/batch.py <out>/list.txt "
-                       "--who 'P2 benchmark' --inventory <inventory.json> --no-finish"}
-
-
 def listed():
     """Every benchmark, each with its likely `euros` and its `high_euros`."""
-    return [{"high_euros": each["euros"], **each} for each in ESTIMATED] + [p2()]
+    return [{"high_euros": each["euros"], **each} for each in ESTIMATED]
 
 
 def total(benchmarks, key="euros"):

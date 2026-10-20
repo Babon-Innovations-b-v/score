@@ -12,7 +12,6 @@ one ETA on the fixed fleet and the predicted holes beside them. Nothing here buy
     contract.py    each take's inputs by contract (view, box, size, the view's picture) and its crop's upscale
     machines.py    one class and zone a layer, from the runner's order, the ledgers' boot records and the stock
     estimate.py    the layers' units, euros and minutes, the ETA (holes/schedule.py) and the one line
-    pixal_steps.py Pixal3D's steps by shape: the #55 lock unless P2 sorted a shape the same and the owner said yes
     benchmarks.py  the benchmarks that settle #21's cuts, with their guard; never launched from here
 
 The record (`WORK/checks/prepare/remake.json` by default):
@@ -28,7 +27,6 @@ The record (`WORK/checks/prepare/remake.json` by default):
      "totals": {likely_euros, high_euros, unpriced}, "eta": schedule.schedule's, "expected_holes",
      "predicted_holes_if_bought": {likely_euros, high_euros},
      "moved": {"rows": [{node, euros, why, again}]} or {"not_run": why},
-     "pixal_steps": {locked, lower, owner_yes, benchmark, why},
      "benchmarks": {"listed": [...], "guard": {total_euros, high_euros, cap_euros, refusal}},
      "not_in_figure": [what the figure leaves out], "line"}
 """

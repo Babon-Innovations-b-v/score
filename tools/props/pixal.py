@@ -1,7 +1,7 @@
 """Make a model from a picture on the locked route: the one way any session runs Pixal3D.
 
     ~/.farm-factory-props/env/bin/python tools/props/pixal.py <picture.png> <name> --who "<session>"
-        [--faces 40000] [--seed 1] [--steps 12] [--long] [--feet] [--tube] [--finish-only] [--paint-from <unlit.png>]
+        [--faces 40000] [--seed 1] [--long] [--feet] [--tube] [--finish-only] [--paint-from <unlit.png>]
 
 On this PC only --finish-only runs: steps 1 and 2 load models, and no model runs here (owner,
 2026-10-03; local_models.py refuses them and names the cloud batch, cloud/batch.py, which runs both
@@ -56,9 +56,7 @@ CLOUD = 'tools/props/cloud/batch.py <list.txt> --who "<session>" (one line a mod
 LAB_PYTHON = IMAGE_TO_3DLAB / ".venv" / "bin" / "python"
 OUT = WORK / "pixal"
 # The settings the owner locked the route on (#55): 12 steps, and structure guidance 10, which
-# keeps thin parts the default drops. --steps changes the steps for one run (the P2 benchmark,
-# score/stages/complete/prepare/pixal_steps.py); a shape's lower steps are taken only from there,
-# with the owner's yes on #55.
+# keeps thin parts the default drops. Never lowered for cost: quality is never a cost lever (owner, 2026-10-20).
 STEPS, GUIDANCE = 12, 10
 # The generator's banner for its last stage, writing the file, which needs no card.
 WRITING = "[6/6]"
@@ -86,20 +84,20 @@ def cut_out(picture):
     return done.stdout.strip().splitlines()[-1]
 
 
-def generator_arguments(cut, raw, seed, steps=STEPS):
-    """The generator's script and arguments on the locked route (`steps` its sampling steps), run
-    from image-to-3dlab; the cloud batch runner (cloud/batch.py) runs these same ones on a rented card."""
+def generator_arguments(cut, raw, seed):
+    """The generator's script and arguments on the locked route, run from image-to-3dlab; the
+    cloud batch runner (cloud/batch.py) runs these same ones on a rented card."""
     return ["scripts/pixal3d_generate.py", str(cut), str(raw), "--seed", str(seed),
-            "--steps", str(steps), "--gss", str(GUIDANCE)]
+            "--steps", str(STEPS), "--gss", str(GUIDANCE)]
 
 
-def generate(cut, raw, seed, who, steps=STEPS):
+def generate(cut, raw, seed, who):
     """The raw model, built while holding the graphics card, which is let go the moment the
     generator starts writing its file: that last stage, about a third of the run, works on the
     processor with the card's memory already given back (measured 2026-09-28: 78 of 231 s at 1%
     load, 1.8 GB held against 7.1 GB at the peak)."""
     refuse_here("Pixal3D", CLOUD)
-    command = [str(LAB_PYTHON), *generator_arguments(cut, raw, seed, steps)]
+    command = [str(LAB_PYTHON), *generator_arguments(cut, raw, seed)]
     with contextlib.ExitStack() as card:
         card.enter_context(claimed(f"Pixal3D {raw.stem} for {who}", shared=True))
         with subprocess.Popen(command, cwd=IMAGE_TO_3DLAB, stdout=subprocess.PIPE,
@@ -196,8 +194,6 @@ def options_parser():
     parser.add_argument("--who", required=True, help="the session asking, shown to anyone waiting")
     parser.add_argument("--faces", type=int, default=40000)
     parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--steps", type=int, default=STEPS, help=f"sampling steps (default {STEPS}, "
-                        "the #55 lock); lower only for the P2 benchmark or a shape the owner allowed")
     parser.add_argument("--long", action="store_true", help="stand it on its longest side")
     parser.add_argument("--feet", action="store_true", help="level it on its lowest points")
     parser.add_argument("--tube", action="store_true", help="stand a round body's axis straight up")
@@ -221,7 +217,7 @@ def main():
         cut = cut_out(options.picture)
         seconds["cut out"] = time.time() - start
         start = time.time()
-        generate(cut, raw, options.seed, options.who, options.steps)
+        generate(cut, raw, options.seed, options.who)
         seconds["generate (card)"] = time.time() - start
     elif not raw.exists():
         sys.exit(f"--finish-only needs the raw model at {raw}")
