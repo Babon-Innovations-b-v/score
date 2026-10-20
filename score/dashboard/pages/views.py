@@ -102,30 +102,32 @@ def stats(request):
         "money": money, "so_far": view.world_spent if view.stop is not None else None, "in_flight": view.in_flight,
         "chart": cockpit.day_chart(days), "month_name": datetime.date.fromisoformat(f"{view.month}-01").strftime("%B"),
         "unplaced": cockpit.unplaced(money["total"], days),
-        "measured": cockpit.measured_prices(world.gaps_price), "share": cockpit.measured_share(screens.batch(world)),
+        "measured": cockpit.measured_prices(world.gaps_price), "share": cockpit.measured_share(
+            screens.batch(world, records.items(basket_items.basket_root()))),
         "kinds": cockpit.gaps_by_kind(world.gaps_total), "complete": complete, "of": of})
 
 
 def buy(request):
-    """Screen 3: the one batch, the remake (screens.batch): its total, how much of it is estimated, its ETA and the
-    one Buy button (its yes buys what a run on main buys now, its stop that batch's high plus 10%), then its layers,
-    each opening to its places; the Benchmarks as a second small batch; the last batch's state and stop; the owner's
-    books buttons while paid work is refused."""
+    """Screen 3: the one batch (screens.batch): its total by layer, each line made now, from the library and waiting
+    (why as hover text); the Buy now line (what its one Buy buys, its stop that line's high plus 10%) and the
+    Waiting line; the places it reaches; the Benchmarks as a second small batch; the last batch's state and stop;
+    the owner's books buttons only while paid work is refused or the model calls' month is not read."""
     found = overview_of(state.source())
     world, spend = found["world"], found["world"].spend
     items = records.items(basket_items.basket_root())
-    now = basket_items.batch_items(items, "now")
     bench = basket_items.batch_items(items, "benchmarks")
     names = groups.short_names(world)
-    batch = screens.batch(world)
-    for row in batch["layers"]:
-        row["places"] = [{**place, "name": names.get(place["place"], present.place_title(place["place"]))}
-                         for place in row["places"]]
+    batch = screens.batch(world, items)
+    now = batch["now"]
+    now["names"] = [names.get(place, present.place_title(place)) for place in now["places"]]
+    now["hours"] = (*cockpit.eta_hours(now["eta"]), round(now["eta"]["at_least_minutes"] / 60, 1)
+                    if now["eta"]["at_least_minutes"] else None)
+    for row in batch["gets"]:
+        row["name"] = names.get(row["place"], present.place_title(row["place"]))
     bench_screen = screens.buy(items, {each["id"]: "buy" for each in bench}, spend) if bench else None
     return render(request, "pages/buy.html", {
-        "batch": batch, "remake": cockpit.remake(world), "money": found["view"], "last": basket_items.last_batch(),
-        "now": screens.buy(items, {each["id"]: "buy" for each in now}, spend), "blocked": (
-            world.remake.counts.get("blocked") if world.remake else None),
+        "batch": batch, "money": found["view"], "last": basket_items.last_batch(),
+        "figure": cockpit.month_money(found["view"])["models"] is None,
         "bench": bench_screen and {**bench_screen["total"], "stop": bench_screen["stop"]},
         "key": uuid.uuid4().hex, "bench_key": uuid.uuid4().hex})
 

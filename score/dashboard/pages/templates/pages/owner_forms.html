@@ -1,12 +1,12 @@
-{% comment %}The owner's books buttons, each his signed-in request: applied here on the store's machine, queued for it when hosted. `refused`: why paid work is refused (the read-back shows only then); the month figure always.{% endcomment %}
+{% comment %}The owner's books buttons, each his signed-in request: applied here on the store's machine, queued for it when hosted. `refused`: why paid work is refused (the read-back shows only then); `figure`: the model calls' month is not read (its figure shows only then).{% endcomment %}
 {% if owner %}
 {% if refused %}<form class="cost-form" data-post="/api/money/read-back">
   <button class="primary" title="read this month's bills again">Read the bills</button>
   <output class="small"></output>
 </form>{% endif %}
-<form class="cost-form" data-post="/api/money/books-figure">
+{% if figure %}<form class="cost-form" data-post="/api/money/books-figure">
   <label class="wide" title="what the model calls cost this month before their ledger began again, from their bill">EUR<input type="number" name="euros" min="0" step="0.01" required></label>
   <button class="primary" title="write the model calls' month into the books">{% for line in money.lines %}{% if line.source == "models" %}{{ line.label }} {% endif %}{% endfor %}figure</button>
   <output class="small"></output>
-</form>
+</form>{% endif %}
 {% endif %}

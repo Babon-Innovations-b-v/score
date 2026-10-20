@@ -90,17 +90,32 @@ def remake_of(written):
 
 
 def layers_of(written):
-    """{stage: {takes, likely, high, places: {place: takes}}} of prepare's layers, its price as written (None while
-    the stage has no measured per unit). A layer runs every bought take or only the whole models (no shell piece)."""
+    """{stage: {takes, likely, high, places: {place: takes}, waits: {place: {why: takes}}}} of prepare's layers, its
+    price as written (None while the stage has no measured per unit), each place's takes that wait on an input by
+    why (WAITS). A layer runs every bought take or only the whole models (no shell piece)."""
     bought = [take for take in written.get("takes", []) if take["status"] == "bought"]
     found = {}
     for stage, layer in (written.get("layers") or {}).items():
         # prepare writes no layer's places: one with fewer takes than bought runs the whole models only (SHELL_ROUTE)
         runs = bought if layer["takes"] == len(bought) else [take for take in bought if not take.get("shell")]
         price = layer.get("price") or {}
+        waits = {}
+        for take in runs:
+            if take.get("inputs"):
+                why = waits.setdefault(take["place"], {})
+                why[wait_of(take["inputs"][0])] = why.get(wait_of(take["inputs"][0]), 0) + 1
         found[stage] = {"takes": layer["takes"], "likely": price.get("likely_euros"), "high": price.get("high_euros"),
-                        "places": dict(Counter(take["place"] for take in runs))}
+                        "places": dict(Counter(take["place"] for take in runs)), "waits": waits}
     return found
+
+
+# What a take's first broken input says (prepare's contract.py), in plain words for the Buy screen.
+WAITS = (("picture is not in the work folder", "lost concept views"), ("box of four numbers", "no box on its view"),
+         ("not one of the plan's views", "a view its plan lacks"), ("size of three sides", "no size measured"))
+
+
+def wait_of(words):
+    return next((plain for phrase, plain in WAITS if phrase in words), "an input missing")
 
 
 def written_at(path):

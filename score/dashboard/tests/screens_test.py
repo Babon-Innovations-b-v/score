@@ -123,19 +123,26 @@ def test_the_buy_screen_totals_the_chosen_items_and_their_stop_is_the_high_plus_
     assert found["items"][0]["choice"] == "buy" and found["items"][0]["likely"] == 2.0
 
 
-def test_the_batch_is_the_whole_remake_by_layer_its_estimate_apart_and_a_step_with_no_price_unknown(cockpit):
-    found = screens.batch(cockpit.source.world_state())
-    assert found["total"] == {"likely": 12.0, "high": 15.0}  # the remake: prepare's 10 to 12 plus settle's 2 to 3
-    assert found["estimated"] == {"likely": 10.0, "high": 12.0}  # prepare's per unit x count; settle is measured
-    assert (found["jobs"], found["unpriced"]) == (6, 3)  # two close-ups, two calibrations unpriced, settle, sound
+def test_the_batch_splits_into_what_buy_buys_now_and_what_waits_and_its_lines_add_up(cockpit):
+    """The basket buys closeup@alpha now, so alpha's two close-up takes are made now at the basket's price, not
+    prepare's; the predicted hole, settle and the sound wait; the calibration and the sound have no price."""
+    found = screens.batch(cockpit.source.world_state(), cockpit.items)
     models, motion, sound = found["layers"]
-    assert (models["layer"], models["likely"], models["high"], models["jobs"], models["unpriced"]) == (
-        "models", 10.0, 12.0, 4, 2)
-    assert models["places"] == [{"place": "alpha", "jobs": 4, "likely": None, "high": None}]
-    assert (motion["layer"], motion["likely"], motion["high"], motion["estimated"]) == (
-        "motion", 2.0, 3.0, {"likely": 0.0, "high": 0.0})
-    assert motion["places"] == [{"place": "alpha", "jobs": 1, "likely": 2.0, "high": 3.0}]
-    assert (sound["layer"], sound["likely"], sound["unpriced"]) == ("sound", None, 1)  # a guess is never a price
+    assert (models["make"], models["library"], models["waiting"], models["models"]) == (2, 0, 1, 3)
+    assert models["why"] == {"predicted to fail": 1} and models["no_price"] == {"likeness calibration": 2}
+    assert (models["likely"], models["high"]) == (2.0, 3.0)  # the basket's close-up; prepare's share went with it
+    assert (motion["waiting"], motion["why"], motion["likely"], motion["high"]) == (
+        1, {"an earlier step first": 1}, 2.0, 3.0)
+    assert (sound["waiting"], sound["likely"], sound["high"], sound["guessed"]) == (1, 0.0, 0.0, 0.0)  # no guess later
+    assert found["total"]["likely"] == found["now"]["likely"] + found["waiting"]["likely"] == 4.0
+    assert found["total"]["high"] == found["now"]["high"] + found["waiting"]["high"] == 6.0
+    assert found["total"]["measured"]["high"] + found["total"]["estimated"]["high"] == 6.0  # settle measured
+    assert (found["now"]["steps"], found["now"]["places"], found["now"]["stop"]) == (1, ["alpha"], 3.3)
+    assert found["waiting"]["why"] == ["an earlier step first", "predicted to fail"]
+    blocked = [{**item, "missing": ["a lost input"]} for item in cockpit.items]
+    waits = screens.batch(cockpit.source.world_state(), blocked)
+    assert waits["now"]["steps"] == 0 and waits["now"]["stop"] is None  # Buy buys nothing that cannot run
+    assert waits["layers"][0]["why"]["lost concept views"] == 2
 
 
 def test_the_buy_route_counts_a_choice_on_another_version_as_none(cockpit, month_read):

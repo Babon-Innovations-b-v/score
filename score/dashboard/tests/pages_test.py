@@ -637,7 +637,10 @@ def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(
         "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}]
 
 
-def test_the_buy_screen_is_one_batch_its_total_eta_layers_and_one_buy_yes(world, settings, tmp_path, monkeypatch):
+def test_the_buy_screen_shows_buy_now_waiting_and_the_batch_and_its_buy_buys_only_buy_now(world, settings, tmp_path,
+                                                                                        monkeypatch):
+    """Buy now (the basket's close-up, its stop its high plus 10%), Waiting and the Batch their sum; each layer line
+    made now, from the library, waiting and its euros; the places Buy now reaches; no grey dot before an answer."""
     from score.dashboard.pages.models import Checkout
     from score.dashboard.tests.screens_test import SETTLE, a_remake
     a_month(monkeypatch)
@@ -650,14 +653,15 @@ def test_the_buy_screen_is_one_batch_its_total_eta_layers_and_one_buy_yes(world,
     client = signed_in()
     html = client.get("/buy/").content.decode()
     top = html[html.index('<div class="topbar">'):html.index('<ul class="buy-layers">')]
-    assert "<small>EUR</small> 12&ndash;15" in top and "<small>est.</small> 10&ndash;12" in top  # the remake, est.
-    assert "&ge;</small> 0.5 <small>h</small>" in top and '"batch": "now"' in top  # at least prepare's floor
-    assert "disabled" not in re.search(r'<form class="buy-yes".*?</form>', top).group()  # the run on main buys now
-    layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="node-count" data-v>(\d+)</span>'
-                        r'<span class="buy-price" data-v>(.*?)</span></summary>', html)
-    assert [(name, count) for name, count, _ in layers] == [("Models", "4"), ("Motion", "1"), ("Sound", "1")]
-    assert "<small>est.</small> <small>EUR</small> 10&ndash;12" in layers[0][2] and "+" in layers[0][2]
-    assert layers[1][2] == "<small>EUR</small> 2&ndash;3" and 'class="unknown">unknown' in layers[2][2]
+    assert "<small>EUR</small> 2.00&ndash;3.00" in top and "<small>stops at EUR</small> 3.30" in top  # Buy now
+    assert "<small>EUR</small> 2.00&ndash;3.00</div>" in top.split("Waiting")[1]  # settle waits
+    assert "<small>EUR</small> 4.00&ndash;6.00" in top and '"batch": "now"' in top  # the sum of the two
+    assert "disabled" not in re.search(r'<form class="buy-yes".*?</form>', top).group()
+    assert re.search(r'<i class="dot" data-slot="said" hidden>', top)  # hidden until the answer (dash.css)
+    layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>'
+                        r'<span class="buy-n" data-v>(\d+)</span><span class="buy-n" data-v[^>]*>(\d+)</span>', html)
+    assert layers == [("Models", "2", "0", "1"), ("Motion", "0", "0", "1"), ("Sound", "0", "0", "1")]
+    assert "lost concept views" not in html and "predicted to fail" in html
     assert client.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
     refused = client.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")
     assert refused.status_code == 409 and refused.json()["detail"].startswith("refused")  # no Benchmarks item
@@ -667,15 +671,20 @@ def test_the_buy_screen_is_one_batch_its_total_eta_layers_and_one_buy_yes(world,
     assert '<small>stop EUR</small> 11.00' in client.get("/buy/").content.decode()
 
 
-def test_the_buy_screen_has_no_stop_control_and_the_books_buttons_while_paid_work_is_refused(world, monkeypatch):
+def test_the_buy_screen_has_no_basket_panel_and_the_books_buttons_only_while_needed(world, monkeypatch):
+    from score.dashboard.state.models import CostLine, Spend
+    from score.dashboard.pages import actions
     a_month(monkeypatch)
     client = signed_in()
     html = client.get("/buy/").content.decode()
-    assert "data-step2" not in html and 'href="/basket/"' in html and "/api/money/read-back" not in html
-    assert ">Model calls figure</button>" in html  # the month's figure stays his to correct once the books are known
+    assert 'href="/basket/"' not in html.split('<main')[-1] and "/api/money/read-back" not in html
+    assert ">Model calls figure</button>" in html  # the model calls' month is not read: his to enter
+    lines = [CostLine(source="cloud", label="Cloud compute", euros=12.5),
+             CostLine(source="models", label="Model calls", euros=1030.0)]
+    monkeypatch.setattr(actions, "spend", lambda: Spend(ceiling=250.0, month="2026-10", lines=lines))
+    assert "/api/money/books-figure" not in client.get("/buy/").content.decode()  # the books are known
     a_month(monkeypatch, paid_refused="the month's books are lost")
     html = client.get("/buy/").content.decode()
     assert 'data-post="/api/money/read-back"' in html and 'data-post="/api/money/books-figure"' in html
-    assert ">Model calls figure</button>" in html  # named by the model calls' cost line, as the money card names it
     guest = signed_in("guest").get("/buy/").content.decode()
     assert "/api/money/read-back" not in guest and "/api/money/books-figure" not in guest  # the owner's own buttons
