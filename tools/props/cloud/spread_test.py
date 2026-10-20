@@ -1,6 +1,6 @@
 """Checks for spreading a batch over many machines, without renting anything: how many machines a batch gets, the
-caps, the queue of shares, machines claimed side by side spreading over the zones, a failed machine's share going to
-another.
+caps, the queue of shares, machines claimed side by side spreading over the zones, a failed machine's share a hole
+(every share runs once, a batch).
 
 Run: .venv/bin/python tools/props/cloud/spread_test.py   (make tests runs it)
 """
@@ -77,11 +77,12 @@ def test_the_caps_follow_the_quotas_and_the_environment():
         raise AssertionError("a cap without a number was taken")
 
 
-def test_a_share_goes_back_once():
+def test_a_failed_share_is_a_hole_and_never_taken_again():
     shares = spread.Shares(["a", "b"])
     assert shares.take() == "a"
-    assert shares.give_back("a") and shares.take() == "b" and shares.take() == "a"
-    assert not shares.give_back("a") and shares.failed == ["a"] and shares.take() is None
+    shares.failed_job("a")
+    assert shares.take() == "b" and shares.take() is None and shares.failed == ["a"]
+    assert not hasattr(shares, "give_back") and not hasattr(spread, "REPLACEMENTS")
 
 
 def test_an_open_queue_waits_for_work_until_idle_or_closed():
@@ -127,7 +128,7 @@ def fake_machines(check):
         batch.claim, batch.arm_self_delete, batch.delete_machine, pictures.keep_beating = kept
 
 
-def test_the_machines_share_the_work_and_a_failed_machine_hands_its_share_on():
+def test_the_machines_share_the_work_and_a_broken_machines_share_is_a_hole():
     def check(run):
         done, broken = [], []
 
@@ -141,14 +142,15 @@ def test_the_machines_share_the_work_and_a_failed_machine_hands_its_share_on():
             done.append((machine["folder"].name, share))
         shares = spread.Shares(["one", "two", "three", "four", "bad"])
         spread.on_machines(run, None, [], 3, "parts", shares, lambda machine: None, do)
-        assert sorted(share for _, share in done) == ["four", "one", "three", "two"]
         assert "m1" not in {name for name, _ in done}  # the broken machine took nothing after
-        assert shares.failed == ["bad"] and not shares.waiting
+        # The share the broken machine held ran once and is a hole: no other machine ran it.
+        assert sorted(share for _, share in done) == sorted({"one", "two", "three", "four"} - set(broken))
+        assert sorted(shares.failed) == sorted(["bad", *broken]) and not shares.waiting
         assert all(machine["deleted"] for machine in run.machines) and len(run.machines) == 3
     fake_machines(check)
 
 
-def test_a_machine_that_fails_its_setup_is_replaced():
+def test_a_machine_that_fails_its_setup_is_not_replaced():
     def check(run):
         done = []
 
@@ -158,7 +160,8 @@ def test_a_machine_that_fails_its_setup_is_replaced():
         shares = spread.Shares(["one", "two"])
         spread.on_machines(run, None, [], 1, "parts", shares, prepare,
                            lambda machine, share, card: done.append((machine["folder"].name, share)))
-        assert done == [("m2", "one"), ("m2", "two")] and len(run.machines) == 2
+        # No machine is rented in its place: its shares stay waiting, holes for a new batch and a new ask.
+        assert done == [] and len(run.machines) == 1 and list(shares.waiting) == ["one", "two"]
     fake_machines(check)
 
 

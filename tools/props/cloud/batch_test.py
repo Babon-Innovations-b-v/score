@@ -235,6 +235,51 @@ def test_a_fleet_short_of_cards_rents_more_as_stock_comes_up():
     assert rounds == [2, 2, 2] and fleet.offers == found
 
 
+def one_shot_fleet(names):
+    import types
+    models = [types.SimpleNamespace(name=name, picture="/pics/p.png", seed=1) for name in names]
+    return batch.Fleet(models, pathlib.Path(tempfile.mkdtemp()), None, 0, "test", finish=False), models
+
+
+def test_a_failed_job_is_a_hole_and_never_sent_again():
+    """A batch runs every job once (CONTEXT.md, owner 2026-10-20): retry_once sent a failed or out-of-memory job back
+    for a second paid run."""
+    fleet, models = one_shot_fleet(["crate", "barrel"])
+    batch.queue(fleet, models)
+    sent = [fleet.next_job(), fleet.next_job()]
+    status = {"jobs": {"crate": {"state": "failed"}, "barrel": {"state": "running", "began": 0}}}
+    over = batch.collect(fleet, fleet.folder, "host", status, set())
+    assert over == {"crate"} and fleet.failed == ["crate"] and fleet.next_job() is None and len(sent) == 2
+    assert not hasattr(fleet, "retry_once") and not hasattr(fleet, "give_back")
+
+
+def test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_hole():
+    status = {"jobs": {"slow": {"state": "running", "began": 0.0}, "quick": {"state": "running", "began": 900.0},
+                       "made": {"state": "done", "began": 0.0}}}
+    assert batch.overdue(status, set(), 500, 1000.0) == ["slow"]
+    assert batch.overdue(status, {"slow"}, 500, 1000.0) == []
+    (fleet, _), commands, stopped = one_shot_fleet(["slow"]), [], set()
+    fleet.job_deadline = 500
+    kept = batch.remote, batch.time.time
+    batch.remote, batch.time.time = lambda folder, host, command, **keywords: commands.append(command), lambda: 1000.0
+    try:
+        batch.stop_overdue(fleet, fleet.folder, "host", status, stopped)
+        batch.stop_overdue(fleet, fleet.folder, "host", status, stopped)
+    finally:
+        batch.remote, batch.time.time = kept
+    assert commands == ["pkill -f -- '[/]root/batch/out/slow\\.glb'"] and stopped == {"slow"}
+    import re
+    pattern = batch.own_pattern("/root/batch/out/slow.glb")
+    assert re.search(pattern, "python scripts/pixal3d_generate.py in.png /root/batch/out/slow.glb --seed 1")
+    assert not re.search(pattern, f"bash -c pkill -f -- {pattern}")
+
+
+def test_the_deadline_and_the_slots_come_from_measured_numbers():
+    measured = json.loads(batch.PER_UNIT.read_text())["stages"]["pixal"]["time"]["unit_seconds"]["high"]
+    assert batch.job_deadline_seconds() == batch.DEADLINE_FACTOR * measured
+    assert batch.slots_per_card("gpu-24gb") == 3  # 24 GB over a 7.1 GB peak
+
+
 def test_nothing_is_rented_outside_a_cleared_run():
     """Fault (design of 2026-10-11, section 6): rent ordered a machine for any caller, so blender_cloud.py,
     detached.py, the runners and demo.py could spend without the runner's gate or the owner's yes."""

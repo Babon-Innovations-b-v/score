@@ -9,8 +9,10 @@ none is left, so a late or failed machine never holds the rest up (2026-10-08, a
 
 `prepare(machine)` sets one machine up (its host is machine["host"]); `do(machine, share, card)` works one share on
 it, `card` being the card it runs on (None on a processor machine), and raises JobFailed when the share's own command
-fails, which is recorded and not tried again. Anything else that goes wrong with a machine (ssh, a copy) hands its
-share back for one more try on another machine and ends that machine. A machine runs capacity.runs_at_once shares on
+fails. Every share runs once, on one machine (a batch, CONTEXT.md, owner 2026-10-20): a share whose command failed,
+or whose machine broke under it (ssh, a copy), is a hole in `shares.failed`, never handed to another machine, and a
+broken machine takes no more; a machine that fails while setting up ends with no machine rented in its place, its
+shares left to the others or in `shares.waiting` as holes. A machine runs capacity.runs_at_once shares on
 each card at once. Every machine is armed to delete itself if this PC goes quiet, hears this PC's heartbeat each
 minute, and is deleted when it has no more work; the run's ledger rows are the runner's (run.machines and
 run.attempts, as for one machine).
@@ -25,9 +27,6 @@ import capacity
 import provider
 
 
-# Machines rented in turn in place of one that failed while setting up (a package mirror mid-sync failed an L4's
-# Blender setup, 2026-10-08).
-REPLACEMENTS = 2
 # What ssh exits with when the connection, not the command, failed.
 SSH_LOST = 255
 
@@ -55,7 +54,7 @@ class Shares:
         self.open = open_queue
         self.idle = idle
         self.changed = threading.Condition()
-        self.retried, self.failed, self.done = set(), [], []
+        self.failed, self.done = [], []
         self.takers = 0
 
     def take(self):
@@ -90,18 +89,6 @@ class Shares:
         with self.changed:
             self.failed.append(item)
 
-    def give_back(self, item):
-        """A share a machine could not finish goes back for another machine, once; True if it went back."""
-        key = repr(item)
-        with self.changed:
-            if key in self.retried:
-                self.failed.append(item)
-                return False
-            self.retried.add(key)
-            self.waiting.append(item)
-            self.changed.notify()
-            return True
-
     def queued(self):
         """Shares no slot is waiting for: the waiting shares less the slots waiting to take one."""
         with self.changed:
@@ -129,11 +116,10 @@ def work_slot(machine, shares, do, card, broken):
         except JobFailed as error:
             batch.say(f"{machine['folder'].name}: a job failed ({error})")
             shares.failed_job(share)
-        except Exception as error:  # noqa: BLE001 - the share goes to another machine, this one stops
+        except Exception as error:  # noqa: BLE001 - the share is a hole, this machine stops
             broken.set()
-            again = shares.give_back(share)
-            batch.say(f"{machine['folder'].name} failed ({error}); its share "
-                      f"{'goes to another machine' if again else 'failed twice and is given up'}")
+            shares.failed_job(share)
+            batch.say(f"{machine['folder'].name} failed ({error}); its share is a hole")
 
 
 @contextlib.contextmanager
@@ -155,8 +141,7 @@ def tended(run, machine):
 
 
 def tend(run, machine, kind, shares, prepare, do, at_once=None):
-    """One answered machine from set-up to delete: armed, beating, set up, its slots taking shares; False when it
-    failed before taking any."""
+    """One answered machine from set-up to delete: armed, beating, set up, its slots taking shares."""
     import pictures
 
     folder, stop, broken = machine["folder"], threading.Event(), threading.Event()
@@ -176,25 +161,21 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
         for worker in workers:
             worker.join()
         machine["healthy"] = not broken.is_set()  # may be parked for the next run of its kind (park.py)
-        return True
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the others
         batch.say(f"{folder.name} failed while setting up: {error}")
-        return False
     finally:
         stop.set()
         batch.delete_machine(machine)
 
 
 def one_machine(run, account, found, number, kind, shares, prepare, do, disk_gb, at_once=None):
-    """Claim one machine and tend it; another in its place (REPLACEMENTS at most) when it failed while setting up
-    and work is left; nothing when no offer gives one that answers or the work is gone."""
-    for attempt in range(REPLACEMENTS + 1):
-        if shares.queued() <= 0 and not shares.open:
-            return
-        machine = batch.claim(run, account, found, f"{number}{'abcdefgh'[attempt - 1] if attempt else ''}", kind,
-                              disk_gb, wanted=lambda: shares.queued() > 0 or shares.open)
-        if machine is None or tend(run, machine, kind, shares, prepare, do, at_once):
-            return
+    """Claim one machine and tend it, once: none in its place when it fails; nothing when no offer gives one that
+    answers or the work is gone."""
+    if shares.queued() <= 0 and not shares.open:
+        return
+    machine = batch.claim(run, account, found, number, kind, disk_gb, wanted=lambda: shares.queued() > 0 or shares.open)
+    if machine is not None:
+        tend(run, machine, kind, shares, prepare, do, at_once)
 
 
 def start_machine(run, account, found, number, kind, shares, prepare, do, disk_gb=batch.DISK_GB, at_once=None):
@@ -207,7 +188,7 @@ def start_machine(run, account, found, number, kind, shares, prepare, do, disk_g
 
 def on_machines(run, account, found, count, kind, shares, prepare, do, disk_gb=batch.DISK_GB, at_once=None):
     """Claim `count` machines side by side and let each take shares as soon as it is set up; returns when every
-    machine is deleted. What was never done stays in `shares.waiting`, what failed in `shares.failed`."""
+    machine is deleted. What was never done stays in `shares.waiting`, what failed in `shares.failed`: both holes."""
     threads = [start_machine(run, account, found, number, kind, shares, prepare, do, disk_gb, at_once)
                for number in range(1, count + 1)]
     for thread in threads:

@@ -24,8 +24,10 @@ the same BiRefNet-lite as the lab, and as many cards are rented as it takes to f
 zones and capability classes that hold Pixal3D (capacity.py), best stocked and fastest first, spread over the zones. A
 machine that does not answer within START_MINUTES is deleted and another rented from the next offer. Each machine
 takes new work only
-when it has room, so a slow or late machine never holds up the rest, and one that fails hands its
-unfinished jobs back. Every model comes back into WORK/pixal/ as if made here, with the camera
+when it has room, so a slow or late machine never holds up the rest. Every job runs once (a batch, CONTEXT.md, owner
+2026-10-20): a job that fails, runs out of memory, passes its deadline (job_deadline_seconds, from the measured high
+seconds) or is on a machine that is lost is a hole, never sent again; new spend on it is a new batch. Each card runs
+as many at once as one run's measured peak memory fits (slots_per_card). Every model comes back into WORK/pixal/ as if made here, with the camera
 folder its finish paints from (<name>.svviews), and is finished here with `pixal.py --finish-only`
 (Blender and the processor, no model) while the machines are still working. This is the way to make
 every model, one or a hundred. Under SCORE_CLOUD=k8s the takes go to the Kubernetes cluster as Jobs of the pixal
@@ -47,6 +49,7 @@ import json
 import math
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import signal
@@ -75,6 +78,15 @@ from score.adapters import compute  # noqa: E402
 # Pixal3D runs at once on one card, measured on an L4 (2026-09-29): 3 at once made about 19 models an
 # hour at a 10.6 GB peak; 6 made about 20 at 17 to 20 GB and one run died, so the card is already full at 3.
 PER_CARD = 3
+# One Pixal3D run's peak card memory, measured 2026-09-28 (pixal.generate's docstring): a card runs as many at once
+# as this fits in its memory (slots_per_card), 3 on a 24 GB L4.
+PIXAL_PEAK_GB = 7.1
+# The measured seconds a Pixal3D job takes: per_unit.py's high quantile of the ledger's job seconds, kept in the repo.
+PER_UNIT = REPO / "data" / "costs" / "per-unit.json"
+# A job still running this many times its measured high seconds is stopped and is a hole (a batch runs every job
+# once): 1.5 times the high (2302 s on 2026-10-20) is 3453 s, above every one of the 78 job seconds in the
+# evidence ledger (their longest 2912 s), so only a stuck job reaches it.
+DEADLINE_FACTOR = 1.5
 # Seconds a stopped machine may answer "out of stock" before its offer is given up for the next one.
 OUT_OF_STOCK_SECONDS = 60
 MAX_CARDS = 20
@@ -229,6 +241,18 @@ def aimed_minutes(count, max_cards, per_card, per_model, minutes):
 def expected_minutes(count, cards, per_card, per_model):
     """How long a batch keeps its machines, on `cards` cards."""
     return SETUP_MINUTES + count * per_model / cards + per_model * per_card
+
+
+def slots_per_card(machine_class):
+    """How many Pixal3D runs one card of `machine_class` holds at once: its memory over one run's measured peak."""
+    return max(1, int(provider.card_gb(machine_class) // PIXAL_PEAK_GB))
+
+
+def job_deadline_seconds():
+    """The seconds a Pixal3D job may run before it is stopped as a hole: DEADLINE_FACTOR times the stage's measured
+    high seconds in per-unit.json."""
+    high = json.loads(PER_UNIT.read_text())["stages"]["pixal"]["time"]["unit_seconds"]["high"]
+    return DEADLINE_FACTOR * high
 
 
 def offers(classes):
@@ -583,7 +607,7 @@ class Fleet:
         self.stop = threading.Event()
         self.machines = []
         self.done, self.failed, self.finish_failed = [], [], []
-        self.retried = set()
+        self.job_deadline = job_deadline_seconds()
         self.finishers = concurrent.futures.ThreadPoolExecutor(FINISHERS)
 
     def next_job(self):
@@ -595,20 +619,11 @@ class Fleet:
         with self.lock:
             return not self.queueing and not self.ready
 
-    def give_back(self, jobs):
-        """Jobs a machine took but never finished, for the others."""
+    def holes(self, names):
+        """Jobs that ran and did not make a model (failed, out of memory, past their deadline, or on a machine that
+        was lost): holes, never sent again; new spend on them is a new batch."""
         with self.lock:
-            self.ready.extend(jobs)
-
-    def retry_once(self, job):
-        """A failed job goes back for another try, once; True if it went back."""
-        with self.lock:
-            if job["name"] in self.retried:
-                self.failed.append(job["name"])
-                return False
-            self.retried.add(job["name"])
-            self.ready.append(job)
-            return True
+            self.failed.extend(name for name in names if name not in self.failed)
 
     def arrived(self, machine_folder, name):
         """A raw model is here: move it where pixal.py looks, and finish it while others work."""
@@ -801,8 +816,8 @@ def replace(fleet, machine):
 
 def tend(fleet, machine):
     """Run one machine from boot to delete: prepare it, keep its queue topped up, bring its models
-    back as they finish, give back what it never finished, and delete it."""
-    folder, sent, finished = machine["folder"], {}, set()
+    back as they finish, make what it took and never finished holes, and delete it."""
+    folder, sent, finished, stopped = machine["folder"], {}, set(), set()
     try:
         try:
             host = machine["host"] if machine.get("adopted") else boot(machine)  # a parked card answered when taken
@@ -811,7 +826,7 @@ def tend(fleet, machine):
             replace(fleet, machine)
             return
         arm_self_delete(folder, host, fleet.deadline + WATCHDOG_GRACE_MINUTES * 60)
-        machine["per_card"] = fleet.per_card or capacity.runs_at_once("pixal", machine["class"])
+        machine["per_card"] = fleet.per_card or slots_per_card(machine["class"])
         prepare(folder, host, machine["per_card"])
         machine["generating_began"] = time.time()
         say(f"{folder.name} ready after {(time.time() - machine['created']) / 60:.1f} min, "
@@ -831,7 +846,8 @@ def tend(fleet, machine):
             heartbeat(folder, host)
             status = machine_status(folder, host)
             machine["status"] = status
-            finished |= collect(fleet, folder, host, status, finished, sent)
+            finished |= collect(fleet, folder, host, status, finished)
+            stop_overdue(fleet, folder, host, status, stopped)
             if status["finished"]:
                 machine["healthy"] = True  # its worker ended well: the card may be parked for the next run (park.py)
                 break
@@ -839,13 +855,17 @@ def tend(fleet, machine):
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the fleet
         say(f"{folder.name} failed: {error}")
     finally:
-        fleet.give_back([job for name, job in sent.items() if name not in finished])
+        lost = sorted(set(sent) - finished)
+        if lost:
+            say(f"{folder.name} ended with {len(lost)} job{'s' if len(lost) != 1 else ''} unfinished, holes: "
+                f"{', '.join(lost)}")
+        fleet.holes(lost)
         delete_machine(machine)
 
 
-def collect(fleet, folder, host, status, finished, sent):
-    """Bring back the models the machine finished since the last look, and send each failed one
-    back for one more try (a run can die when the card runs short of memory); the names now over."""
+def collect(fleet, folder, host, status, finished):
+    """Bring back the models the machine finished since the last look; each failed one (a run can die when the card
+    runs short of memory) is a hole, never sent again. The names now over."""
     over = {name for name, job in status["jobs"].items() if job["state"] in ("done", "failed")}
     new = over - finished
     made = sorted(name for name in new if status["jobs"][name]["state"] == "done")
@@ -853,10 +873,33 @@ def collect(fleet, folder, host, status, finished, sent):
         bring_back(folder, host, made)
     for name in made:
         fleet.arrived(folder, name)
-    for name in sorted(new - set(made)):
-        if fleet.retry_once(sent[name]):
-            say(f"{name} failed on {folder.name}; trying it once more")
+    failed = sorted(new - set(made))
+    for name in failed:
+        say(f"{name} failed on {folder.name}; a hole")
+    fleet.holes(failed)
     return new
+
+
+def overdue(status, skip, deadline_seconds, now):
+    """The jobs still running past their deadline, by name, but those in `skip`."""
+    return sorted(name for name, job in status["jobs"].items()
+                  if name not in skip and job["state"] == "running" and now - job["began"] > deadline_seconds)
+
+
+def stop_overdue(fleet, folder, host, status, stopped):
+    """Stop each job past the fleet's deadline on its machine, once (`stopped` holds the names already stopped): its
+    generator is ended by its own output path (the first letter in brackets so the pattern never matches the shell
+    that runs pkill), the machine reports it failed, and collect makes it a hole at the next look."""
+    for name in overdue(status, stopped, fleet.job_deadline, time.time()):
+        stopped.add(name)
+        say(f"{name} passed its {fleet.job_deadline:.0f} s deadline on {folder.name}; stopped, a hole")
+        remote(folder, host, f"pkill -f -- {shlex.quote(own_pattern(f'/root/batch/out/{name}.glb'))}")
+
+
+def own_pattern(text):
+    """A pkill pattern that matches `text` but not a command line holding the pattern itself."""
+    escaped = re.escape(text)
+    return f"[{escaped[0]}]{escaped[1:]}"
 
 
 def delete_machine(machine):
@@ -1000,6 +1043,8 @@ def run(models, options, account, found, cards, allowed_minutes):
 def say_what_failed(fleet, folder):
     """Name the models a batch did not make or could not finish, and where their logs are."""
     missing = sorted(set(fleet.models) - set(fleet.done))
+    if fleet.failed:
+        say(f"holes (ran once, no model; a new batch and a new ask to try again): {', '.join(sorted(fleet.failed))}")
     if missing:
         say(f"not made: {', '.join(missing)} (logs under {folder})")
     if fleet.finish_failed:
