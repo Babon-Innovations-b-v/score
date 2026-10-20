@@ -5,6 +5,7 @@ folder, and the ledger's month is set by each test.
 Run: .venv/bin/python score/adapters/compute/compute_test.py
 """
 import json
+import math
 import multiprocessing
 import os
 import pathlib
@@ -20,6 +21,7 @@ from score.store import Store  # noqa: E402
 
 BOOKS = compute.ledger()
 compute.ledger().open_books_for_tests(tempfile.mkdtemp())  # this month's books known: paid paths open
+import capacity  # noqa: E402  (on the path compute.ledger() set)
 import google_spend  # noqa: E402  (on the path compute.ledger() set)
 
 google_spend.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"  # each test's Google month: empty
@@ -356,8 +358,9 @@ def test_a_per_unit_price_is_timed_on_its_stages_measured_time_by_the_runners_ca
         # a 10-minute job on a 10-minute set-up: a card each, set-up then one job; high on the high set-up
         assert (price["cards"], price["likely_minutes"], price["high_minutes"]) == (4, 20.0, 34.0), price
         many = compute.run_price("render@lab", 9.0, units=500)
-        assert many["cards"] == 20  # the run's cap (capacity.RUN_MACHINES)
-        assert many["likely_minutes"] == 10 + 25 * 10, many
+        cap = capacity.run_cap()  # the run's cap: the largest class quota (#20)
+        assert many["cards"] == cap, many
+        assert many["likely_minutes"] == 10 + math.ceil(500 / cap) * 10, many
         asked = compute.run_price("ask@lab", 9.0, units=8)
         assert (asked["cards"], asked["likely_minutes"], asked["high_minutes"]) == (None, 20.0, 40.0), asked
         unknown = compute.run_price("bake@lab", 9.0, units=4)

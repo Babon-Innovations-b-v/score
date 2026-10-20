@@ -115,7 +115,9 @@ NEVER = {"blender": ("gpu-80gb", "gpu-80gb-x2"), "library": ("gpu-80gb", "gpu-80
 LATE = {}
 LATE_MINUTES = 5
 # How many machines a run may hold: of a class, the backend's quota (provider QUOTAS) else OTHER_MACHINES; of every
-# class together, RUN_MACHINES. SCORE_MAX_MACHINES overrides any of them, e.g. "gpu-80gb=20,gpu-24gb=50,all=30".
+# class together, the largest quota (#20: a remake's Pixal3D and renders take the 50 L4s the quota allows, each class
+# still held to its own), at least RUN_MACHINES. SCORE_MAX_MACHINES overrides any of them, e.g.
+# "gpu-80gb=20,gpu-24gb=50,all=30".
 OTHER_MACHINES = 5
 RUN_MACHINES = 20
 # Each `score run`'s machine counts, a folder per run (SCORE_RUN_ID) holding a file per process that rents.
@@ -151,7 +153,8 @@ def runs_at_once(kind, machine_class):
 def caps():
     """The machine caps: the backend's quotas by class, then SCORE_MAX_MACHINES's `class=N` pairs over them, with
     `all` for a whole run."""
-    found = dict(getattr(provider.cloud, "QUOTAS", {}), all=RUN_MACHINES)
+    quotas = getattr(provider.cloud, "QUOTAS", {})
+    found = dict(quotas, all=max(RUN_MACHINES, *quotas.values()))
     for pair in filter(None, os.environ.get("SCORE_MAX_MACHINES", "").replace(" ", "").split(",")):
         name, _, number = pair.partition("=")
         if not number.isdigit():

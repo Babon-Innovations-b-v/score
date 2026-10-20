@@ -164,7 +164,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   (each claim reserves its zone while it rents, an offer that gave nothing is dropped for the run), each takes the
   next share from one queue as it finishes one, a share whose machine failed goes to another once, and a job whose
   own command failed (`spread.JobFailed`) is recorded, not retried. Caps: `max_machines` a class (the backend's
-  `QUOTAS`, else 5) and `run_cap` in all (20); `SCORE_MAX_MACHINES="gpu-80gb=20,all=30"` overrides. A new
+  `QUOTAS`, else 5) and `run_cap` in all (the largest class quota, at least 20: 50 with the L4 quota since #20); `SCORE_MAX_MACHINES="gpu-80gb=20,all=30"` overrides. A new
   runner gives `spread.on_machines` a set-up and a per-share function. `scene.py` stays on one card: its steps
   feed each other.
 - **The cut-out and the raw Pixal3D step run up there;** the raw model comes back with its camera
