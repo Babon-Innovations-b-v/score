@@ -8,6 +8,7 @@ import json
 import multiprocessing
 import os
 import pathlib
+import statistics
 import sys
 import tempfile
 
@@ -339,19 +340,21 @@ def test_a_per_unit_price_is_timed_on_its_stages_measured_time_by_the_runners_ca
     folder = pathlib.Path(tempfile.mkdtemp())
     compute.PER_UNIT = folder / "per-unit.json"
     rule = {"rule": "models", "source": "the place's takes"}
-    timed = {"unit_seconds": {"likely": 600.0, "high": 1200.0}, "setup_minutes": 10.0, "slots": 1,
-             "holds": "machines"}
+    timed = {"unit_seconds": {"likely": 600.0, "high": 1200.0}, "setup_minutes": {"likely": 10.0, "high": 14.0},
+             "slots": 1, "holds": "machines"}
     stage = {"unit": "model", "count": None, "also": [], "likely_euros": 0.2, "high_euros": 0.5, "runs": 40,
              "sources": {}, "forecast": rule}
     compute.PER_UNIT.write_text(json.dumps({"stages": {
         "render": {**stage, "stage": "render", "time": timed},
-        "ask": {**stage, "stage": "ask", "time": {**timed, "setup_minutes": 0.0, "slots": 4, "holds": "calls"}},
-        "bake": {**stage, "stage": "bake", "time": {"why": "no line timed it"}}}}))
+        "ask": {**stage, "stage": "ask", "time": {**timed, "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 4,
+                                                   "holds": "calls"}},
+        "bake": {**stage, "stage": "bake", "time": {"why": "no line timed it"}},
+        "drop": {**stage, "stage": "drop", "time": {**timed, "setup_minutes": {"why": "no set-up timed"}}}}}))
     try:
         BOOKS.entries = lambda: []
         price = compute.run_price("render@lab", 9.0, units=4)
-        # a 10-minute job on a 10-minute set-up: a card each, set-up then one job
-        assert (price["cards"], price["likely_minutes"], price["high_minutes"]) == (4, 20.0, 30.0), price
+        # a 10-minute job on a 10-minute set-up: a card each, set-up then one job; high on the high set-up
+        assert (price["cards"], price["likely_minutes"], price["high_minutes"]) == (4, 20.0, 34.0), price
         many = compute.run_price("render@lab", 9.0, units=500)
         assert many["cards"] == 20  # the run's cap (capacity.RUN_MACHINES)
         assert many["likely_minutes"] == 10 + 25 * 10, many
@@ -360,8 +363,24 @@ def test_a_per_unit_price_is_timed_on_its_stages_measured_time_by_the_runners_ca
         unknown = compute.run_price("bake@lab", 9.0, units=4)
         assert unknown["likely_euros"] == 0.8 and unknown["likely_minutes"] is None
         assert unknown["minutes_why"] == "no line timed it"
+        untimed = compute.run_price("drop@lab", 9.0, units=4)
+        assert untimed["likely_minutes"] is None and untimed["minutes_why"] == "no set-up timed", untimed
     finally:
         BOOKS.entries, compute.PER_UNIT = saved, kept
+
+
+def test_a_measured_settle_run_is_not_timed_below_the_runs_it_is_read_from():
+    """The repository's per-unit file on the paper ledger's settle lines: one drop run's likely minutes within a
+    minute of the runs' median wall minutes, and its high at or above their HIGH quantile (the set-up in the machine
+    counted, not only the start wait)."""
+    sys.path.insert(0, str(compute.REPO / "tools/costs"))
+    import per_unit
+    paper = compute.REPO / "paper/evidence/cloud/ledger.jsonl"
+    walls = [line["wall_minutes"] for line, _ in per_unit.ledger_lines([paper])
+             if per_unit.matches(line, per_unit.SPECS["settle"]["cloud"])]
+    timed = compute.unit_minutes("settle", 1)
+    assert abs(timed["likely_minutes"] - statistics.median(walls)) <= 1.0, (timed, sorted(walls))
+    assert timed["high_minutes"] >= per_unit.quantile(walls, per_unit.HIGH), (timed, sorted(walls))
 
 
 def test_a_stage_row_says_where_its_estimate_is_written():

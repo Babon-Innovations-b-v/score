@@ -18,8 +18,9 @@ in the test.
   counts; `--rules-only` writes the rules and the RECORDED stages into the file in place, its ledger-measured numbers
   kept, as the old disk took the live ledgers (2026-10-19). Never edit the rules in the JSON by hand.
 - **Each entry's `time` comes from the same lines as its euros** (#14): a unit's seconds (median and p90: the
-  machines' own `unit_seconds`, else wall minutes over units), a fresh card's set-up, `slots` (jobs a machine ran at
-  once) and the failed-start share; a Google stage's from its calls' started and finished times. `node_minutes` holds
+  machines' own `unit_seconds`, else wall minutes over units), a fresh card's set-up (median and p90: its start
+  wait and its working minutes before its jobs; `{why}` where no line timed one, never a 0), `slots` (jobs a machine
+  ran at once) and the failed-start share; a Google stage's from its calls' started and finished times. `node_minutes` holds
   every stage's makes as the store's finish records time them (`--store`, `score/graph/runs.py` `node_times`). A stage
   with no timed lines keeps `time` null with its `why`, never a figure from elsewhere. `--times-only` writes only
   these into the file, every euro byte-identical (`per_unit_test.py` checks it on the repository's own file); the

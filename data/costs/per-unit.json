@@ -195,7 +195,10 @@
      "likely": 1077.038,
      "high": 2301.692
     },
-    "setup_minutes": 0.649,
+    "setup_minutes": {
+     "likely": 0.732,
+     "high": 13.586
+    },
     "slots": 3,
     "slots_from": "per card times cards, the median machine",
     "failed_start_share": 0.632,
@@ -499,7 +502,10 @@
      "likely": 548.0,
      "high": 625.028
     },
-    "setup_minutes": 0.371,
+    "setup_minutes": {
+     "likely": 2.512,
+     "high": 3.593
+    },
     "slots": 1,
     "slots_from": "one a machine: no line names jobs at once",
     "failed_start_share": 0.0,
@@ -800,7 +806,10 @@
      "likely": 65.89,
      "high": 260.039
     },
-    "setup_minutes": 0.366,
+    "setup_minutes": {
+     "likely": 3.748,
+     "high": 12.433
+    },
     "slots": 1,
     "slots_from": "one a machine: no line names jobs at once",
     "failed_start_share": 0.253,

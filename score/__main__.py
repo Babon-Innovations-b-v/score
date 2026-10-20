@@ -620,8 +620,8 @@ def holes_record(world):
 
 def holes_price(world):
     """The holes' prices (holes_record) written whole to WORK/checks/holes-price/<world>.json for the cockpit, said
-    in one line: {written, totals, after_work, code_work, nodes, holes, unfillable, outside, not_current,
-    not_checked}."""
+    in one line: {written, totals, after_work, code_work, eta (its minutes and how many rows are untimed), nodes,
+    holes, unfillable, outside, not_current, not_checked}."""
     from score.dashboard.proposals.records import swapped_json
     from score.stages.complete.holes import price
     from score.store import PROPS_HOME
@@ -632,7 +632,9 @@ def holes_price(world):
     after = {node: found for entry in record["after_work"].values() for node, found in entry["nodes"].items()}
     coded = {label: found for entry in record["code_work"].values() for label, found in entry["nodes"].items()}
     return {"written": str(out), "totals": record["totals"], "after_work": price.totals(after),
-            "code_work": price.totals(coded),
+            "code_work": price.totals(coded), "eta": {name: value for name, value in record["eta"].items()
+                                                      if name not in ("path", "high_path", "unknown")}
+            | {"unknown": len(record["eta"]["unknown"])},
             "nodes": len(record["nodes"]), "holes": sum(len(found) for found in record["holes"].values()),
             "unfillable": sum(entry["holes"] for entry in record["unfillable"]),
             "outside": sum(entry["holes"] for entry in record["outside"]), "not_current": record["not_current"],

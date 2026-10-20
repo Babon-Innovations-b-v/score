@@ -75,6 +75,9 @@ def test_a_paid_row_is_timed_by_its_price_and_a_free_row_by_its_stages_makes():
     unpriced = schedule.timed_row("sound@hangar", True, compute.run_price("sound@hangar", None))
     assert unpriced["likely_minutes"] is None and unpriced["why"] == "not measured yet"
     assert schedule.timed_row("sound@hangar", True)["why"] == "no price given"
+    made = {"plan": {"likely": 0.5, "high": 2.0, "makes": 3}}
+    timed_free = schedule.timed_row("plan@hangar", False, made=made)
+    assert (timed_free["likely_minutes"], timed_free["high_minutes"], timed_free["paid"]) == (0.5, 2.0, False)
 
 
 if __name__ == "__main__":
