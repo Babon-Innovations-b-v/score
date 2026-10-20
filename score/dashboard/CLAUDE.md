@@ -42,7 +42,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     whole, stop (the last batch's: its high plus 10%; None before one), against_stop (spent since the first stop line
     plus in flight), in_flight, refused}; `remake` {likely, high (prepare's whole prop route, takes waiting on lost
     inputs counted, plus the holes price of every paid step off it), route {likely, high, unpriced, takes, bought,
-    made, library, predicted_holes, blocked}, rest {likely, high, priced, unpriced}, unpriced, eta {likely_minutes,
+    made, library (from the library: only models made under today's route or locked, prepare's rule; an older match
+    is remade and counted bought), predicted_holes, blocked}, rest {likely, high, priced, unpriced}, unpriced, eta {likely_minutes,
     high_minutes (None unless every step is timed), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
     {kind: count}; `places` [{place, title, status, picture (its concept's thumbnail link; None when its concept is
     lost, never a render instead: owner, 2026-10-20), picture_from (concept, None), progress {made, needed}

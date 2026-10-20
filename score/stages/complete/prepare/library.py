@@ -4,18 +4,24 @@ only from the library's own model index (`<SCORE_LIB_ROOT>/index/model.json`) an
 
 A library model matches a group by object kind and size ratio (groups.model_key without the kit). The index names
 no size, so a model's size is its source row's in the scene inventory it was made for (its record's `place` and
-`source_name`, or that name's object kind); a model with no such row has no size and matches nothing. A model the
-pipeline made from a picture (tags `prop`, `machine`, `crop`) is reusable; a code-built one (`piece`, or no tag) is
-counted apart, since #19 sends code-built objects through the pipeline.
+`source_name`, or that name's object kind); a model with no such row has no size and matches nothing.
+
+Reused only when made under today's route (owner, 2026-10-20, #21/#41): a model is reused when the owner locked it
+(index state `locked`), or when its provenance names today's route (`route` == ROUTE: the shared loop's prop
+pipeline and the finish route) and the runner accepted it there, so today's gates passed. Any other match is remade:
+one the pipeline made from a picture (tags `prop`, `machine`, `crop`) under an older route counts as `old`, a
+code-built one (`piece`, or no tag) as `code`.
 """
 from score import library
 from score.stages.complete.prepare import groups
 
 PIPELINE_TAGS = ("prop", "machine", "crop")
+ROUTE = "shapes-first+finish-route"  # today's route; bump it when the prop pipeline, finish route or their gates change
+NO_MATCH = {"pipeline": [], "old": [], "code": []}
 
 
 def library_models(root):
-    """[{address, id, place, source, tag}] of the library's models, from its index and each entry's record."""
+    """[{address, id, place, source, tag, today}] of the library's models, from its index and each entry's record."""
     found = []
     for entry in library.index(root, "model")["entries"]:
         name, _, version = entry["address"].partition("/")[2].partition("@")
@@ -23,8 +29,14 @@ def library_models(root):
         provenance = record.get("provenance") or {}
         found.append({"address": entry["address"], "id": name, "place": provenance.get("place"),
                       "source": provenance.get("source_name") or name,
-                      "tag": ((entry.get("tags") or {}).get("model") or [None])[0]})
+                      "tag": ((entry.get("tags") or {}).get("model") or [None])[0],
+                      "today": reusable(entry, provenance)})
     return found
+
+
+def reusable(entry, provenance):
+    """Whether a model may be reused: the owner locked it, or the runner took it under today's route."""
+    return entry.get("state") == "locked" or (provenance.get("route") == ROUTE and bool(provenance.get("accept")))
 
 
 def source_row(model, rows_by_place):
@@ -35,7 +47,8 @@ def source_row(model, rows_by_place):
 
 
 def index(models, inventories):
-    """{(object kind, size ratio): {"pipeline": [address], "code": [address]}} of the library models with a size."""
+    """{(object kind, size ratio): {"pipeline": [address], "old": [address], "code": [address]}} of the library
+    models with a size: `pipeline` the reusable ones (today's route, or locked), the others remade."""
     rows_by_place = {place: {row["id"]: row for row in record.get("rows", [])}
                      for place, record in inventories.items()}
     found = {}
@@ -44,14 +57,14 @@ def index(models, inventories):
         ratio = groups.size_ratio(row.get("size")) if row else None
         if ratio is None:
             continue
-        made = "pipeline" if model["tag"] in PIPELINE_TAGS else "code"
+        made = "pipeline" if model["today"] else "old" if model["tag"] in PIPELINE_TAGS else "code"
         key = (groups.object_kind(model["source"]), ratio)
-        found.setdefault(key, {"pipeline": [], "code": []})[made].append(model["address"])
+        found.setdefault(key, {name: [] for name in NO_MATCH})[made].append(model["address"])
     return found
 
 
 def match(group, library):
-    """{"pipeline": [address], "code": [address]} of the library models matching a group (none matched: both
-    empty)."""
+    """{"pipeline": [address], "old": [address], "code": [address]} of the library models matching a group (none
+    matched: all empty)."""
     kind, ratio, _ = group["key"]
-    return library.get((kind, tuple(ratio) if ratio is not None else None), {"pipeline": [], "code": []})
+    return library.get((kind, tuple(ratio) if ratio is not None else None), NO_MATCH)
