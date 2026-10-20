@@ -197,12 +197,23 @@ def node_of(tree, node_id):
 def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch_opens(world, shelf):
     html = signed_in().get("/library/").content.decode()
     for kind, count in (("Models", 3), ("Surfaces", 1), ("Kits", 1), ("Motion", 1), ("Effects", 1), ("Skies", 1),
-                        ("Lamps", 1), ("Sound", 1), ("Algorithms", 1), ("Places", 2)):
+                        ("Lamps", 1), ("Sound", 1), ("Films", 1), ("Physics", 0), ("Places", 2)):
         assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
+    assert 'data-v>Algorithms<' not in html  # the shelf holds physics setups only: code sits where its work does
     assert 'data-v>Ground<' not in html and 'data-v>Layers<' not in html  # retired, and a layer sits under its place
     assert 'data-children="/api/library/children?node=model"' in html
     assert "Lamp post" not in html and "Wrench" not in html  # entries load only when their branch opens
     assert html.count(">MIT<") == 1 and "library.js" not in html
+
+
+def test_code_that_makes_something_sits_on_its_shelf_in_a_made_by_code_folder_beside_the_shelfs_own(world, shelf):
+    client = api()
+    films = client.get("/api/library/children", params={"node": "film"}).json()
+    assert [(node["label"], node["count"]) for node in films] == [("Made by code", 1)]
+    held = client.get("/api/library/children", params={"node": "film/made_by_code"}).json()
+    assert [node["href"] for node in held] == ["/library/algorithm/camera_paths/1/"]
+    skies = client.get("/api/library/children", params={"node": "light"}).json()
+    assert [node["href"] for node in skies] == ["/library/light/sky.alpha/1/"]  # no code here: no folder
 
 
 def test_the_places_shelf_holds_a_folder_a_place_with_its_own_layers(world, shelf):
@@ -371,6 +382,7 @@ def test_an_algorithm_shows_its_work_on_a_real_example_else_what_it_reads_and_ma
     client = signed_in()
     paths = an_item_page(client, "/library/algorithm/camera_paths/1/")  # no demo made yet: the plain diagram
     assert ">Camera paths<" in paths and 'title="Camera moves: walk paths and film shots"' in paths
+    assert ">Films<" in paths and ">made by code<" in paths
     assert "demo films" in paths and "demo film &times; 2" in paths and "code only" not in paths
     assert "score" not in paths.split('class="nums"')[-1].split("item-actions")[0].lower()  # its score means nothing
     demos = settings.SCORE_PROPS_HOME / "cache" / "library" / "demos.json"

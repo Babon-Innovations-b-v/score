@@ -78,10 +78,10 @@ def problems(demo):
 
 
 def modules():
-    """{algorithm id: demo module} of every module in demo/."""
+    """{algorithm id: demo module} of every module in demo/ (one whose name starts with _ is a shared helper)."""
     from score.stages.library import demo
     found = {}
-    for info in pkgutil.iter_modules(demo.__path__):
+    for info in (each for each in pkgutil.iter_modules(demo.__path__) if not each.name.startswith("_")):
         module = importlib.import_module(f"score.stages.library.demo.{info.name}")
         found[module.ALGORITHM] = module
     return found

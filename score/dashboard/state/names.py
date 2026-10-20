@@ -6,15 +6,18 @@ own title stays as hover text (`about`); ids and addresses never change.
 """
 import re
 
-ALGORITHMS = {  # an algorithm's name, by its id
+ALGORITHMS = {  # an algorithm's name, by its id: the physics setups, then the code that makes other things
+    "body_weight": "A body's weight and material", "drop": "A drop onto its target",
+    "hinge_motor": "A hinge with its limits and motor", "planet_gravity": "A planet's gravity and orbits",
+    "push": "A push by an unseen hand", "physics_layer": "Weight, hinges and motors",
+    "settle": "Things settling into rest", "snap": "Things snapped into place",
     "camera_paths": "Camera paths", "cast_spread": "People in groups and crowds", "crops_spots": "Crops on beds",
     "far_city": "Distant city skyline", "ground_detail": "Ground detail and rocks", "light_rig": "Lamps and light",
-    "machines_lay": "Machines on their stands", "mars_sky": "Mars daytime sky", "motion_movers": "Moving things",
-    "particle_effects": "Dust, smoke and steam", "physics_layer": "Weight, hinges and motors",
-    "room_layout": "Furniture laid out in a room", "settle": "Things settling into rest",
-    "sky_dust_stars_haze": "Stars, dust and haze", "sky_orbits": "Sun, Earth and stars moving across the sky",
-    "snap": "Things snapped into place", "sound_layer": "Sounds of a place", "surface_recipes": "Surface finishes",
-    "terrain_landforms": "Landscape shapes"}
+    "machines_lay": "Machines on their stands", "mars_sky": "Mars daytime sky", "motion": "Moving things",
+    "motion_movers": "Moving things", "particle_effects": "Dust, smoke and steam",
+    "room_layout": "Furniture laid out in a room", "sky_dust_stars_haze": "Stars, dust and haze",
+    "sky_orbits": "Sun, Earth and stars moving across the sky", "sound_layer": "A place's sound mix",
+    "surface_recipes": "Surface finishes", "terrain_landforms": "Landscape shapes"}
 WORDS = [  # (a pattern of the library's title, the everyday words), applied in order
     (re.compile(r"\bAc unit\b", re.I), "Air conditioner"), (re.compile(r"\bTv\b"), "TV"),
     (re.compile(r"\blkr\b"), "locker"), (re.compile(r"\bMed\b"), "Medical"), (re.compile(r"\bmed\b"), "medical"),
