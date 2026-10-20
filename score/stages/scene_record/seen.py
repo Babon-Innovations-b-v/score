@@ -72,13 +72,14 @@ def in_frame(view, points, fov):
     return (ahead > 0) & (across <= fov / 2) & (rise <= half_high)
 
 
-def occluders(place, seeds, made_ground):
-    """The place's own drawn world as one trimesh: its seed less its places, old ground and glass, and its made ground
-    (terrain outside.meshes' parts, already in the place's frame)."""
+def occluders(seed, made_ground):
+    """The place's own drawn world as one trimesh: its seed (its stage folder, named for the place) less its places,
+    old ground and glass, and its made ground (terrain outside.meshes' parts, already in the place's frame)."""
     import trimesh
     from pxr import Usd
     from score.stages.terrain import sight
-    stage = Usd.Stage.Open(str(pathlib.Path(seeds) / place / f"{place}.usda"))
+    place = pathlib.Path(seed).name
+    stage = Usd.Stage.Open(str(pathlib.Path(seed) / f"{place}.usda"))
     # shortcut: what is seen through is found by its prim's name (dome_glass, glass_east, the camp's
     # dome_window_panel_*, a hatch's window, a porthole: a baked model's glass is in its picture, not its mesh); a
     # window's frame is let through with it

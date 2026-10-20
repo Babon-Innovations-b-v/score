@@ -3,24 +3,40 @@
 
     seat     an outdoor place (light.needs.outdoor) stands on a ground: a seat on its body's ground plan
              (data/ground/plan/<body>.json `seats`); none is a hole
-    adapter  an outdoor place's ground is made through the prop pipeline (CONTEXT.md "layer adapter": its rough
-             model's ground, its detail areas' close-ups made into models, joined): until that adapter is built the
-             terrain row's code fallback stands under it, a hole with that work
+    area     each detail area of an outdoor place (areas.py: a landform of its plan reaching into its fine patch) not
+             yet a row of its scene inventory: a missing row of the prop route (rule `missing`, its row the area's
+             id), filled as fill.py fills any prop-route row (pixal@<place>, else the place's prop data), so the price
+             check prices it through the pipeline's own units, one model an area; once landed
+             (`python -m score.stages.terrain.areas write <place>`) it is the route's own row and its holes the route's
 
-Whether the made ground fits the place (under, floating, continuous, openings) is ground-fit's own (gate holes).
+Whether the made ground fits the place (under, floating, continuous, openings) is ground-fit's own (gate holes);
+where a detail area's model is not made, the join (join.py) keeps the plan's code ground there, named.
 """
+import json
 import pathlib
 
 from score.stages.light import needs as light_needs
+from score.stages.terrain import areas
 
-ADAPTER_WORK = ("the terrain adapter (#27): {place}'s ground from its rough model's shape, its detail areas "
-                "(outcrops, craters, cliffs, the ground round its buildings) as close-ups made into models through "
-                "the prop pipeline, joined into one ground with collision and library finishes; the code fallback "
-                "(the plan's large shape) stands under it until then")
+MISSING = "missing"  # holes' rule for a row with nothing made for it (score/stages/complete/holes MISSING)
+
+
+def area_holes(place, data):
+    """A missing hole for each detail area the place's inventory has no row of."""
+    from score.stages.complete.holes import fill
+    path = pathlib.Path(data) / "inventory" / f"{place}.json"
+    have = {row["id"] for row in json.loads(path.read_text())["rows"]} if path.is_file() else set()
+    node, work = fill.filled(*fill.FILLERS[fill.ROUTE], place)
+    return [{"id": f"ground:area:{place}:{area['id']}", "rule": MISSING, "row": area["id"], "prim": f"/{place}",
+             "node": node, "work": work,
+             "sentence": f"a detail area of the ground not yet a row: {area['words']} (python -m "
+                         f"score.stages.terrain.areas write {place})"}
+            for area in areas.detail_areas(place, data) if area["id"] not in have]
 
 
 def holes(place, data):
-    """The place's ground needs not met: [{"id", "prim", "sentence", "node", "work"}]."""
+    """The place's ground needs not met: [{"id", "prim", "sentence", "node", "work"}, and "rule" and "row" for a
+    detail area's]."""
     data = pathlib.Path(data)
     record = light_needs.read(data / "scene" / f"{place}.json")
     plan = light_needs.read(data / "plans" / f"{place}.json")
@@ -30,6 +46,4 @@ def holes(place, data):
         return [{"id": f"ground:seat:{place}", "prim": f"/{place}", "node": None,
                  "sentence": "an outdoor place no ground plan seats",
                  "work": f"a seat for {place} on its body's ground plan (data/ground/plan/<body>.json `seats`)"}]
-    return [{"id": f"ground:adapter:{place}", "prim": f"/{place}", "node": None,
-             "sentence": "its ground is the code fallback, not made through the prop pipeline",
-             "work": ADAPTER_WORK.format(place=place)}]
+    return area_holes(place, data)

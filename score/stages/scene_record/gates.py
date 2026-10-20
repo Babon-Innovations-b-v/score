@@ -437,16 +437,17 @@ def judge_plan_matched(output, inputs, evidence):
 
 # --- openings ---------------------------------------------------------------------------------------------------
 
-def stand_places(stage, place, entries, seeds):
-    """The record's places, each its old stage referenced (the seed's), moved, turned and stretched as the record
-    says, its own shared things inactive; door leaves left out (the doors judged open)."""
+def stand_places(stage, place, entries, inputs):
+    """The record's places, each its old stage referenced (the seed's, writer.seed_of), moved, turned and stretched as
+    the record says, its own shared things inactive; door leaves left out (the doors judged open)."""
     from pxr import Gf, Sdf
     UsdGeom.Scope.Define(stage, f"/{place}/Places")
     for item in entries:
         if item.get("door_leaf"):
             continue
         xform = UsdGeom.Xform.Define(stage, f"/{place}/Places/{item['name']}")
-        xform.GetPrim().GetReferences().AddReference(str(pathlib.Path(seeds) / item["stage"] / f"{item['stage']}.usda"))
+        seed = writer.seed_of(inputs, item["stage"])
+        xform.GetPrim().GetReferences().AddReference(str(seed / f"{item['stage']}.usda"))
         xform.AddTranslateOp().Set(Gf.Vec3d(*map(float, item["at"])))
         outside.scene_records.turn(xform, item)
         if "scale" in item:
@@ -506,7 +507,7 @@ def composed(output, inputs):
     for surface in {item["surface"] for item in structure if item.get("surface")}:
         UsdShade.Material.Define(stage, f"/{place}/Library/{surface}")  # bound only: rays see shapes, not paint
     outside.scene_records.write_structure(stage, place, structure, out=pathlib.Path(output))
-    stand_places(stage, place, door_places(record, plan_of(inputs)), inputs["seeds"])
+    stand_places(stage, place, door_places(record, plan_of(inputs)), inputs)
     seat = writer.seats(inputs).get(place)
     if seat is None:
         return stage, None
@@ -529,7 +530,7 @@ def lead_faults(output, inputs, plan):
         drop = np.inf
         if shown:  # with none, nothing to gather: its place is missing outright
             stage = bare_stage(place)
-            stand_places(stage, place, shown, inputs["seeds"])
+            stand_places(stage, place, shown, inputs)
             seen = sight.gathered(stage)
             spot = writer.door_outside(door) + np.asarray(door["normal"], dtype=float) * ground_gates.DOOR_OUT
             if len(seen.faces):
