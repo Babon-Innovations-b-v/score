@@ -1,0 +1,80 @@
+{
+	"is": "the pipeline-failure record (#19, #41): the only kinds built in code, each with the named failure of the prop pipeline on that object (or the owner's named exception) that sent it there, where it was measured and when. sorter.route sends a kind to code only when it is named here; every other kind goes through the shared loop. A kind joins only with a failure measured on its own object.",
+	"kinds": {
+		"cockpit_thrust_indicator": {
+			"failure": "prop route fail: likeness outline 0.335 against 0.5; no pose of the take reached more than 0.517",
+			"evidence": "commit f9d52b5b",
+			"on": "2026-10-15"
+		},
+		"hangar_lift_thruster": {
+			"failure": "named exception, the owner's decision (PRD #10): built in code from his locked plan v7 (data/definitions/ship.json); the prop route's take of the found reference never read the plan's numbers (nose too pointy, fins short, three leg pairs, paint split on the picture's colour edge)",
+			"evidence": "data/library/fittings.json `checked`",
+			"on": "2026-10-18"
+		},
+		"hangar_main_engine": {
+			"failure": "named exception, the owner's decision (PRD #10): built in code from his locked plan v7 (data/definitions/ship.json); the prop route's take of the found reference never read the plan's numbers (nose too pointy, fins short, three leg pairs, paint split on the picture's colour edge)",
+			"evidence": "data/library/fittings.json `checked`",
+			"on": "2026-10-18"
+		},
+		"hangar_nose_thruster": {
+			"failure": "named exception, the owner's decision (PRD #10): built in code from his locked plan v7 (data/definitions/ship.json); the prop route's take of the found reference never read the plan's numbers (nose too pointy, fins short, three leg pairs, paint split on the picture's colour edge)",
+			"evidence": "data/library/fittings.json `checked`",
+			"on": "2026-10-18"
+		},
+		"hangar_ship": {
+			"failure": "named exception, the owner's decision (PRD #10): built in code from his locked plan v7 (data/definitions/ship.json); the prop route's take of the found reference never read the plan's numbers (nose too pointy, fins short, three leg pairs, paint split on the picture's colour edge)",
+			"evidence": "data/library/fittings.json `checked`",
+			"on": "2026-10-18"
+		},
+		"hub_keyboard": {
+			"failure": "prop route fail: paint: fails colour against the close-up: reddish screen, dE 33.1 to its surface",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"hub_lattice_diamond_strut": {
+			"failure": "prop route fail: close-up: every Pro take failed the shape check",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"hub_lattice_hip_rib": {
+			"failure": "prop route fail: close-up: every Pro take failed the shape check",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"hub_lattice_node_plate": {
+			"failure": "prop route fail: close-up: every Pro take failed the shape check",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"hub_lattice_ring_rib": {
+			"failure": "prop route fail: close-up: every Pro take failed the shape check",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"hub_pipe_bracket": {
+			"failure": "prop route fail: close-up: every Pro take failed the shape check",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"hub_pipe_straight": {
+			"failure": "prop route fail: close-up: every Pro take failed the shape check",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"hub_screwdriver": {
+			"failure": "prop route fail: close-up: every Pro take failed the shape check",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"hub_tread_mat": {
+			"failure": "prop route fail: close-up: every Pro take failed the shape check",
+			"evidence": "paper/evidence/compare-hub/table.json",
+			"on": "2026-10-13"
+		},
+		"shiplock_outer_hatch": {
+			"failure": "prop route fail: likeness 0.313 against 0.3623",
+			"evidence": "commit e516f63a",
+			"on": "2026-10-16"
+		}
+	}
+}

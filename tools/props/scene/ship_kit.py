@@ -26,9 +26,9 @@ What is laid, and from what:
   frame and leaf) and the code-built trims and lamps; a row that `lies` on the floor (the grate) laid flat and set
   into the deck, its opening cut through the plates under it (room_kit.flat_rows, cut_openings).
 
-Code builds only what the sorter's allow-list names plain (tools/props/library/sorter.py PLAIN): the wall bands,
-deck and ceiling plates take its names (wall_lower_plain, wall_upper_plain, ring_floor_plate, roof_face_panel); any
-other kind laid here goes the prop route unless the owner names it plain.
+The wall bands, deck and ceiling plates take the plain kinds' names (tools/props/library/sorter.py PLAIN:
+wall_lower_plain, wall_upper_plain, ring_floor_plate, roof_face_panel). Every kind laid here goes through the prop
+pipeline; code builds one only when the pipeline-failure record names its failure (sorter.route, #19).
 """
 import json
 import math

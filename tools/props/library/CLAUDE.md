@@ -82,23 +82,33 @@ from palette tokens, baked to the maps the game draws. Bible: `architecture/comp
 - **Never split a raw Pixal3D model into per-piece objects.** trimesh's `split` on a 950k-face raw model took
   43.5 GB and took WSL down (2026-10-06). Sample points (`register.py`). Every local Python step runs under
   `systemd-run --user --scope -q -p MemoryMax=16G`.
-- **Rule change, not built yet (the owner, 2026-10-20, #19): the prop pipeline first for every object and every
-  shell piece; code builds a kind only when the pipeline fails on that object, named in its record.** Purely
-  code-built pieces look generated and copied shell pieces look like tiles. Shell pieces come as a few pipeline-made
-  variants per kit, laid by shell section (CONTEXT.md; the plans' `sections`, laid by `kit-sections`,
-  `score/stages/earth_seed`'s overlay, which also says why no kit row is handed to the loop yet). Big objects keep
-  their code body below. Until #19 lands, the sorter still routes as follows.
-- **Code or pipeline, by the parts check (method B, the owner's pick 2026-10-07).** `sorter.py`: plain plates,
-  pipes and trims (`PLAIN`) go to `inside/pieces.py`; so does every kind listed in `data/library/fittings.json` (the
-  room's shell and fittings, furniture holders, plain manufactured objects) whose last code build shows every part
-  its clean close-up shows (`pieces.parts_seen`, each part seen at least 10% from in front) with no print over a part;
-  every other kind goes to the prop pipeline. The hangar ship is such a listed fitting (2026-10-18): its hull, engines
-  and thrusters are built in code from the owner's plan v7 (`inside/ship_outline.py` reads `data/definitions/ship.json`
-  in plain Python for the kit layout and the builder alike; `inside/pieces_hull.py` builds them from the numbers the
-  layout hands in), never from a picture. A box's proportions never decide it. `route.py fittings <work>` writes a
-  build's result back; `route.py layout` stops on a code build that failed. `library_test.py` fails on a builder
-  that is neither plain nor a listed fitting, and on any model the hub lays that was not made on its kind's route.
-  `labels.py` paints a generated model by its parts (job paint, 2026-10-08, the owner: "shouldn't the painting be
+- **The prop pipeline first for every kind (the owner, 2026-10-20, #19, #41); code only on a named failure.**
+  `sorter.route` sends a kind to code only when the pipeline-failure record (`data/library/pipeline_failures.json`:
+  the failure, its evidence, its date) names it; every other kind, plain plates and fittings too, is the shared
+  loop's (`score/stages/shapes_first`), and an inventory row is routed by `sorter.route`, never by its own `kind`
+  (`code` or `generate`), so its close-up is taken and it is handed to the loop. A model-routed kind with no take yet
+  is a gap that `plan.json` lists (`gaps`), never a code build and never a stop. Not built yet: no shell-section
+  layer hands kit kinds to the loop, so `route.py plan` still makes a model-routed kit kind that has a labelled take
+  from it (labels.py, `inside/make_chunky.py`), the old prop route, and earth-seed bakes its named fallbacks
+  (`score/stages/earth_seed`'s overlay says why no kit row is handed to the loop yet). The record holds the failures
+  measured on their own object (the hub's thin pieces every Pro close-up failed, `paper/evidence/compare-hub`; the
+  cockpit's thrust indicator and the shiplock's outer hatch on likeness) and the owner's named exception: the hangar
+  ship's hull, engines and thrusters, built in code from his plan v7 (`inside/ship_outline.py` reads
+  `data/definitions/ship.json` for the kit layout and the builder alike; `inside/pieces_hull.py` builds them from the
+  numbers the layout hands in), never from a picture. A kind joins it only with a failure measured on its own object.
+  Big objects keep their code body (below). Purely code-built pieces look generated and copied shell pieces look like
+  tiles; shell pieces come as a few pipeline-made variants per kit, laid by shell section (CONTEXT.md).
+  `place_route.py plan` routes an outdoor place's rows the same way.
+- **Method B's parts check holds a code fallback, never routes one** (the owner's pick 2026-10-07, demoted by #19):
+  `data/library/fittings.json` lists a fitting's close-up parts and how much of each its last code build shows
+  (`pieces.parts_seen`, each part seen at least 10% from in front, no print over a part); `route.py fittings <work>`
+  writes a build's result back, and `sorter.fallback_parts_missing` is the one check `route.py layout` and the
+  likeness row both hold a code fallback to (an unlisted fallback passes as plain). `PLAIN` stays a fact (no parts
+  of its own to show). Builders, the sorter and `fittings.json` go per kind only after that kind's pipeline take
+  passed (#19's clean-up map). `library_test.py` fails on a builder that is neither plain, a listed fitting nor a
+  body; its check that every model a kit room lays was made on its kind's route is a strict xfail until every kit
+  installed before #19 is made again through the loop.
+- **Paint by parts.** `labels.py` paints a generated model by its parts (job paint, 2026-10-08, the owner: "shouldn't the painting be
   done by parts?"): PartCrafter's split (`../cloud/parts.py`) laid on the welded Pixal3D model, every face one part,
   every part ONE material from the kind's allowed list (`details.json` `materials`) by its lit colour; never per
   face. A split that does not register is reported and painted whole. `patchy.py` measures patchy paint (stray

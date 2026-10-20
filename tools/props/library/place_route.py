@@ -1,8 +1,9 @@
 """The robust route for an outdoor place (job place, 2026-10-07: the old station and the wreck in the game 2099; moved
 here as a tool, JoeyKardolus/2099#129): an outdoor place has no kit layout, so every piece is a row of the place's
 inventory (data/inventory/<place>.json) with its spots on the place's seat. The pieces are the route's own:
-make_chunky for generated pieces (library surfaces only) and make_kit for the sorter's PLAIN kinds (pipe_straight for
-walkway tubes, cable_bundle for cables, pit_floor_plate for a dust apron), its gates (gates/model.py, straight.py)
+make_chunky for generated pieces (library surfaces only) and make_kit for a row the sorter sends to code (only on a
+named pipeline failure, #19; its builders: pipe_straight for walkway tubes, cable_bundle for cables, pit_floor_plate
+for a dust apron), its gates (gates/model.py, straight.py)
 and its scene package (package.py) as the output any engine loads.
 
     python=.venv/bin/python
@@ -29,6 +30,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 import library  # noqa: E402
+import sorter  # noqa: E402
 
 DETAILS = REPO / "data/library/details.json"
 INVENTORIES = REPO / "data/inventory"
@@ -122,18 +124,19 @@ def code_models(row, place):
 
 
 def plan(place, work, take):
-    """Every model the place needs: {name: {kind, route, size (kit), ...}}, and every piece: a model at a spot. Code
-    rows make one model per length; generated rows one model per row (its pieces are scaled copies)."""
+    """Every model the place needs: {name: {kind, route, size (kit), ...}}, and every piece: a model at a spot. A row
+    the sorter sends to code (a named pipeline failure) makes one model per length; every other row one model from its
+    labelled take (its pieces are scaled copies)."""
     inventory = json.loads((INVENTORIES / f"{place}.json").read_text())
     details = json.loads(DETAILS.read_text())
     models, pieces, children = {}, [], []
     for row in inventory["rows"]:
-        if row["kind"] == "code":
+        kind = f"{place}_{row['id']}"
+        if sorter.route(kind) == "code":
             found, laid = code_models(row, place)
             models.update(found)
             pieces += laid
             continue
-        kind = f"{place}_{row['id']}"
         labelled = work / "parts" / f"{row['id']}-{take}"
         refuse_patchy(labelled)
         yaw = yaw_of(details[kind]["turn"])

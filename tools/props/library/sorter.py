@@ -1,31 +1,21 @@
 """The sorter: which kit pieces are built in code and which are made by the prop pipeline (job robust-exp,
-2026-10-06; made an allow-list in hub round four, 2026-10-07).
+2026-10-06; made an allow-list in hub round four, 2026-10-07; the pipeline first for every kind, #19, 2026-10-20).
 
     python3 tools/props/library/sorter.py data/kit/hub.json     # every kind of a kit layout, its class and route
 
-The owner's ruling (2026-10-07): code may build only plain plates, pipes and trims; everything with detail (furniture,
-lockers, desks, tool boards, machines, fittings with parts) is made by the prop pipeline (Pixal3D from its close-up,
-made solid, library surfaces with the picture's own detail over them). So the route is an allow-list by name, never a
-guess from a piece's proportions: round three's proportion routing sent a tool board, a hatch leaf and a hand wheel
-to code because their boxes were thin, and a hard-coded furniture table sent seven pieces of furniture to code with
-no check at all, and the room lost most of its detail (the detail-loss diagnosis, 2026-10-07).
+The owner's rule (2026-10-20, #19, #41): every object and every shell piece goes through the prop pipeline, the shared
+loop (score/stages/shapes_first); code builds a kind only when the pipeline failed on that object, named in the
+pipeline-failure record (data/library/pipeline_failures.json: the failure, where it was measured and when), or as one
+of the owner's named exceptions there (the hangar ship's hull, engines and thrusters from his plan v7). Nothing routes
+to code by default: neither plainness (PLAIN) nor a fitting's parts check (fittings.json) sends a kind there any more.
 
-    code     a kind named in PLAIN (plates, pipes, trims), or a room fitting whose code build shows every part its
-             close-up has (method B, below)
+    code     a kind the pipeline-failure record names
     model    everything else
 
-Method B (hub round five, 2026-10-07, a test for the owner's pick: "we need a more robust method of deciding what to
-make in code and what via the prop pipeline"): a kind is routed by the job it does in the room. The room's shell and
-the fittings that repeat or join it (wall plates, the porthole's frame, door leaves and frames, vent covers,
-gratings, hatches, ducts, lamp housings, trims) are built in code with library surfaces, so every copy matches the
-room exactly; the objects that stand in the room (furniture, equipment, tools, machines) go through the pipeline. A
-fitting may go to code only if its code build shows every part its close-up has: data/library/fittings.json lists,
-per fitting, the parts its clean close-up shows and, from the last build (pieces.parts_seen, written back by
-`route.py fittings`), how much of each part the room can see. A part missing or under SEEN_AT LEAST fails the
-fitting, and a failing fitting goes to the pipeline.
-
-The shape class (flat, slender, opening, repeat, chunky) stays as a fact about a kind's box: it says how a model is
-made and judged (gates/model.py), never whether it is made.
+PLAIN stays a fact about a kind (plain plates, pipes and trims have no parts of their own to show), and method B's
+parts check (fittings.json, `missing_parts`) stays the check a code fallback's build must pass (route.py layout), until
+the builders and the sorter go per #19's clean-up map. The shape class (flat, slender, opening, repeat, chunky) is a
+fact about a kind's box: it says how a model is made and judged (gates/model.py), never whether it is made.
 """
 import json
 import pathlib
@@ -36,9 +26,9 @@ REPEAT_WORDS = ("grating", "tray", "tread", "ladder")
 DECAL_WORDS = ("sign", "label", "notice", "placard", "sticker")
 FLAT_SHARE = 0.18
 SLENDER_SHARE = 0.25
-# The only kinds code may build (the owner, 2026-10-07), by their name without the room's prefix: plain plates and
-# panels, pipes and cables, and trims (beams, ribs, struts, skirting, cornices, posts, stringers), none with parts of
-# its own. A kind joins only by the owner's word that it is plain.
+# The plain kinds (the owner, 2026-10-07), by their name without the room's prefix: plain plates and panels, pipes and
+# cables, and trims (beams, ribs, struts, skirting, cornices, posts, stringers), none with parts of its own. Plainness
+# routes nothing since #19 (2026-10-20): a plain kind goes through the pipeline like any other.
 PLAIN = frozenset((
     # plates
     "wall_lower_plain", "wall_upper_plain", "ring_floor_plate", "pit_floor_plate", "pit_wall_panel", "roof_face_panel",
@@ -75,12 +65,14 @@ PLAIN = frozenset((
 
 
 FITTINGS = pathlib.Path(__file__).resolve().parents[3] / "data/library/fittings.json"
+FAILURES = pathlib.Path(__file__).resolve().parents[3] / "data/library/pipeline_failures.json"
 # The share of a part's front the room must see for the part to count as shown (a slat buried in its plate reads 0).
 SEEN_AT_LEAST = 0.1
 
 
 def fittings(path=FITTINGS):
-    """The room fittings method B may build in code: {name: {"closeup", "parts", "built"}}."""
+    """Method B's room fittings, the parts check a code fallback's build is held to: {name: {"closeup", "parts",
+    "built"}}."""
     return json.loads(pathlib.Path(path).read_text())["fittings"]
 
 
@@ -117,21 +109,15 @@ def shape_class(kind, size):
     return "chunky"
 
 
-def planned_route(kind):
-    """Where a kind is planned to be made: `code` for a plain kind and for every listed fitting (its code build is
-    what its check reads; a fitting that then fails is held back by route.py's layout and goes to the pipeline),
-    `model` for every other."""
-    return "code" if own_name(kind) in PLAIN or kind.split("_", 1)[-1] in fittings() else "model"
+def failures(path=FAILURES):
+    """The pipeline-failure record: {kind: {"failure", "evidence", "on"}}, the only kinds built in code."""
+    return json.loads(pathlib.Path(path).read_text())["kinds"]
 
 
 def route(kind, found=None):
-    """Where a kind is made: `code` for a plain kind on the allow-list or a room fitting whose code build shows every
-    part its close-up has (method B), `model` (the prop pipeline) for every other."""
-    name = own_name(kind)
-    if name in PLAIN:
-        return "code"
-    entry = (fittings() if found is None else found).get(kind.split("_", 1)[-1])
-    return "code" if entry is not None and not missing_parts(entry) else "model"
+    """Where a kind is made: `code` only when the pipeline-failure record names its failure, `model` (the prop
+    pipeline, the shared loop) for every other."""
+    return "code" if kind in (failures() if found is None else found) else "model"
 
 
 # Fittings that belong in a floor or a wall (vents, grates, drains, hatches, mats, light strips) are set into their host

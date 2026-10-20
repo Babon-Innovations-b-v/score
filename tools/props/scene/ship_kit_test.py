@@ -139,11 +139,11 @@ def test_the_grate_lies_set_into_the_deck():
     assert abs(area - (1.2 + 2 * gap) * (0.6 + 2 * gap)) < 1e-3, area
 
 
-def test_the_shell_s_plain_plates_are_built_in_code():
+def test_the_shell_s_plain_plates_go_through_the_pipeline_like_every_kind():
+    """#19: plainness routes nothing to code; a kind is code-built only on a named pipeline failure."""
     routes = {kind: entry["route"] for kind, entry in sorter.sorted_kinds(laid()).items()}
-    for own in ("wall_lower_plain", "wall_upper_plain", "ring_floor_plate", "roof_face_panel"):
-        assert routes[f"{ROOM}_{own}"] == "code", own
-    assert routes[f"{ROOM}_pilot_seat"] == "model"
+    for own in ("wall_lower_plain", "wall_upper_plain", "ring_floor_plate", "roof_face_panel", "pilot_seat"):
+        assert routes[f"{ROOM}_{own}"] == "model", own
 
 
 TAPERED = {"title": "COCKPIT", "w": 6.53, "d": 3.0, "height": "ceiling 2.43 m at the back",

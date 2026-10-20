@@ -83,38 +83,41 @@ def test_every_generated_kind_has_a_turn_and_its_screens_and_cuts_are_sound():
         assert all(len(cut.get("box", cut.get("circle", []))) in (3, 4) for cut in entry["cuts"]), kind
 
 
-def test_plain_pieces_go_to_code_and_objects_in_the_room_to_the_pipeline():
-    assert sorter.route("hub_wall_upper_plain") == sorter.route("hub_pipe_straight") == "code"
-    assert sorter.route("hub_wall_skirting") == sorter.route("hub_lattice_hip_rib") == "code"
-    # A box's shape is no reason for code (the owner, 2026-10-07). Objects with no code build that shows their parts
-    # (round six: a chair, a desk lamp, the hand tools) go through the pipeline; holders and plain manufactured
-    # objects whose build shows every close-up part (a tool board, the lockers) are code.
-    for kind in ("hub_chair", "hub_desklamp", "hub_telephone", "hub_microscope", "hub_wrench", "hub_pliers"):
+def test_nothing_goes_to_code_without_a_named_pipeline_failure():
+    """#19 (the owner, 2026-10-20): every kind goes through the prop pipeline; neither plainness nor a fitting's
+    parts check sends one to code. Only a kind the pipeline-failure record names is code-built: the hub's thin pieces
+    every Pro close-up failed (paper/evidence/compare-hub), and the hangar ship from the owner's plan."""
+    for kind in ("hub_wall_upper_plain", "hub_wall_skirting", "hub_toolboard", "hub_talllocker", "hub_console",
+                 "hub_chair", "hub_desklamp", "hub_wrench", "garage_pipe_straight"):
         assert sorter.route(kind) == "model", kind
-    for kind in ("hub_toolboard", "hub_talllocker", "hub_comms", "hub_console"):
+    for kind in ("hub_pipe_straight", "hub_lattice_hip_rib", "cockpit_thrust_indicator", "hangar_ship"):
         assert sorter.route(kind) == "code", kind
     assert sorter.shape_class("hub_lattice_hip_rib", (0.12, 4.6, 0.12)) == "slender"
     assert sorter.shape_class("hub_porthole_panel", (1.2, 1.2, 0.1)) == "opening"
 
 
-def test_a_fitting_goes_to_code_only_when_its_build_shows_every_close_up_part():
-    """Method B's rule (hub round five): a room fitting is built in code only when its last code build shows every
-    part its close-up has, each seen at least SEEN_AT_LEAST from in front; a part buried in its plate (round three's
-    vent slats, seen 0.0) or missing sends the fitting to the pipeline, and so does a fitting never built."""
+def test_every_named_failure_says_what_failed_where_and_when():
+    for kind, entry in sorter.failures().items():
+        assert entry["failure"] and entry["evidence"] and re.fullmatch(r"\d{4}-\d\d-\d\d", entry["on"]), kind
+
+
+def test_a_fitting_s_parts_check_holds_its_code_fallback_but_never_routes_it():
+    """Method B's parts check (hub round five) stays the check a code fallback's build must pass (route.py layout):
+    every part its close-up has seen at least SEEN_AT_LEAST from in front, no print over a part. It no longer sends
+    a fitting to code: a fitting whose build shows every part still goes through the pipeline unless its failure is
+    named."""
     parts = ["slab", "slat", "vent_back"]
-    shown = {"wall_lower_vent": {"parts": parts, "built": {"slab": 0.86, "slat": 1.0, "vent_back": 0.85}}}
-    buried = {"wall_lower_vent": {"parts": parts, "built": {"slab": 0.33, "slat": 0.0, "vent_back": 0.0}}}
-    missing = {"wall_lower_vent": {"parts": parts, "built": {"slab": 0.9, "slat": 1.0}}}
-    unbuilt = {"wall_lower_vent": {"parts": parts}}
-    assert sorter.route("hub_wall_lower_vent", shown) == "code"
-    for found in (buried, missing, unbuilt):
-        assert sorter.route("hub_wall_lower_vent", found) == "model"
-    assert sorter.missing_parts(buried["wall_lower_vent"]) == ["slat", "vent_back"]
-    # A print over a part (round six: a locker's label over its vent) fails the fitting too.
-    over = {"wall_lower_vent": dict(shown["wall_lower_vent"], prints_off=["wall_lower_vent_1: label#52"])}
-    assert sorter.route("hub_wall_lower_vent", over) == "model"
-    # Only a fitting may pass: furniture listed by mistake still has no close-up parts to pass on.
-    assert sorter.route("hub_toolboard", {}) == "model"
+    shown = {"parts": parts, "built": {"slab": 0.86, "slat": 1.0, "vent_back": 0.85}}
+    buried = {"parts": parts, "built": {"slab": 0.33, "slat": 0.0, "vent_back": 0.0}}
+    assert sorter.missing_parts(shown) == []
+    assert sorter.missing_parts(buried) == ["slat", "vent_back"]
+    assert sorter.missing_parts({"parts": parts, "built": {"slab": 0.9, "slat": 1.0}}) == ["vent_back"]
+    assert sorter.missing_parts({"parts": parts}) == parts
+    # A print over a part (round six: a locker's label over its vent) fails the fallback too.
+    assert sorter.missing_parts(dict(shown, prints_off=["wall_lower_vent_1: label#52"])) == [
+        "print off a clear area: wall_lower_vent_1: label#52"]
+    assert sorter.route("hub_wall_lower_vent", {}) == "model"
+    assert sorter.route("hub_wall_lower_vent", {"hub_wall_lower_vent": {"failure": "every take failed"}}) == "code"
 
 
 def test_no_generated_piece_keeps_its_picture_s_colours():
@@ -190,15 +193,21 @@ def test_every_code_builder_is_on_the_allow_list():
 
 def test_every_model_a_kit_room_lays_was_made_on_its_kind_s_route():
     """Every model a kit room lays (data/kit/<room>.json: kit and furniture) says the route it was made on, and that is
-    its kind's route: code only for a plain kind, the prop pipeline for every other."""
+    its kind's route: code only for a kind the pipeline-failure record names, the prop pipeline for every other (#41's
+    acceptance: a test fails when a model layer reaches a model without going through the loop). Every kit installed
+    before #19 fails it until its room is made again through the loop."""
+    off = {}
     for path in sorted((library.REPO / "data/kit").glob("*.json")):
         layout = json.loads(path.read_text())
         kinds = {found["model"]: found["kind"] for found in layout["pieces"] if "part" not in found}
         kinds.update({name: f"{path.stem}_{name.rsplit('_', 1)[0]}" for name, about in layout["models"].items()
                       if "prop" in about})
-        off = sorted({f"{kind} ({layout['models'][name].get('route', 'no route recorded')})"
-                      for name, kind in kinds.items() if layout["models"][name].get("route") != sorter.route(kind)})
-        assert not off, f"{path.stem}: models not made on their kind's route: {', '.join(off)}"
+        wrong = sorted({kind for name, kind in kinds.items()
+                        if layout["models"][name].get("route") != sorter.route(kind)})
+        if wrong:
+            off[path.stem] = wrong
+    assert not off, (f"{sum(map(len, off.values()))} kinds in {len(off)} kit rooms not made on their kind's route: "
+                     + "; ".join(f"{room} {len(wrong)} ({', '.join(wrong[:3])}...)" for room, wrong in off.items()))
 
 
 def test_every_kind_of_every_kit_room_gets_a_route():
