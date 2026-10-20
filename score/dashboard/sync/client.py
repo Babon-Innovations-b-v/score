@@ -276,8 +276,9 @@ def basket_benchmarks():
 
 
 def library_pictures():
-    """The library's place pictures fetched into the library cache (score.stages.library.pictures: one object read
-    each the first time, then a hash check), so the tiles and the export have their bytes; its line."""
+    """The library's pictures and its item pages' viewer files fetched into the library cache
+    (score.stages.library.pictures: one object read each the first time, then a hash check), so the tiles, the item
+    pages and the export have their bytes; its line."""
     return step_line("score.stages.library.pictures", "library pictures failed")
 
 

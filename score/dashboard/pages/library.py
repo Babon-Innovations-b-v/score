@@ -1,6 +1,7 @@
 """The Library screen (#42): the library's tree by kind with each branch's count, a branch's children only when it
-opens (/api/library/children, a page at a time), and an item's own page: its picture, version, quality and files; and
-an entry's full-screen 3D view."""
+opens (/api/library/children, a page at a time), and an item's own page: the item itself in its kind's viewer
+(turned, played or lit; `viewer_of`) with a few numbers of its kind (`numbers_of`); and an entry's full-screen 3D
+view."""
 from urllib.parse import quote
 
 from django.http import Http404
@@ -97,16 +98,24 @@ def children(shown, node_id, page=0):
 # --- one item --------------------------------------------------------------------------------------------------
 
 def model_file(entry):
-    """The GLB the viewer opens for an entry: its web copy, else its own GLB, when this cockpit holds it."""
+    """The GLB the viewer opens for an entry: its web copy, else its own GLB, else its light copy, when this cockpit
+    holds it."""
     shown = lib.library()
-    return next((each for each in (entry.web3d, entry.glb) if each and shown.file_path(each.sha)), None)
+    return next((each for each in (entry.web3d, entry.glb, entry.web3d_light) if each and shown.file_path(each.sha)),
+                None)
+
+
+def place_of(entry):
+    """The place a place or layer entry shows: a place's own id, a layer's place."""
+    return entry.entry_id if entry.kind == "place" else entry.place
 
 
 def place_copy(entry):
-    """A place entry's own 3D web copy in the cockpit's viewer, or None."""
+    """A place or layer entry's place 3D web copy in the cockpit's viewer, or None."""
     source = state.source()
-    if entry.kind == "place" and entry.entry_id in source.places() and source.web3d(entry.entry_id):
-        return f"/view/{entry.entry_id}"
+    place = place_of(entry) if entry.kind in ("place", "layer") else None
+    if place and place in source.places() and source.web3d(place):
+        return f"/view/{place}"
     return None
 
 
@@ -128,9 +137,11 @@ def entry_viewer(request, kind, entry_id, version):
         entry), "viewer": {"place": found.sha, "base": "/library-files/view/", "layers": {}, "order": []}})
 
 
-def parts_of(entry):
-    return [{"name": part["name"].replace("_", " "), "score": lib.percent(part["value"]), "how": part["how"]}
-            for part in entry.score_parts]
+def score_tip(entry):
+    """The score's parts as hover text: "holes 100, seams 92, by eye not measured"."""
+    return ", ".join(f"{part['name'].replace('_', ' ')} "
+                     + (str(lib.percent(part["value"])) if part["value"] is not None else "not measured")
+                     for part in entry.score_parts) or "its kind's own scoring"
 
 
 def versions_of(shown, entry):
@@ -143,16 +154,94 @@ def takes_of(shown, entry):
             for take in entry.takes if shown.file_path(take.sha)]
 
 
+# --- each kind's viewer and numbers ------------------------------------------------------------------------------
+
+PLAYED = {"surface": "surface", "effect": "effect", "light": "light"}  # drawn by the item viewer from their facts
+
+
+def file_url(shown, each):
+    return f"/library-files/files/{each.sha}" if each and shown.file_path(each.sha) else None
+
+
+def view_of(shown, entry):
+    """Which viewer the page holds: 3d (item3d.js), sound (takes.js), place (the place viewer in a frame), facts (an
+    algorithm's purpose, what it reads and makes) or picture (no web copy here)."""
+    if entry.kind == "sound":
+        return "sound"
+    if entry.kind == "algorithm":
+        return "facts"
+    if entry.kind in ("place", "layer"):
+        return "place" if place_copy(entry) else "picture"
+    if entry.kind in PLAYED or file_url(shown, entry.web3d_light) or file_url(shown, entry.web3d):
+        return "3d"
+    return "picture"
+
+
+def viewer_of(shown, entry):
+    """What item3d.js plays: {mode (copy, kit, surface, effect, light), light (the light copy's url), full (the whole
+    copy's, when this cockpit holds it), finish, print, token, palette, settings, lamps}."""
+    mode = "kit" if entry.kind == "kit" else PLAYED.get(entry.kind, "copy")
+    found = {"mode": mode, "light": file_url(shown, entry.web3d_light), "full": file_url(shown, entry.web3d)}
+    if mode == "surface":
+        printed = (entry.finish or {}).get("print")
+        found.update(finish=entry.finish or {}, token=entry.facts.get("token"), palette=lib.palette(),
+                     print=file_url(shown, lib.FileOf.model_validate(printed)) if printed else None)
+    elif mode == "effect":
+        found["settings"] = entry.facts.get("settings")
+    elif mode == "light":
+        found["lamps"] = entry.facts.get("lamps") or []
+    return found
+
+
+def number(label, value, unit="", tip=None, fact=None, unknown="not in the library's record"):
+    """One number card's arguments (pages/c/number.html); `fact` names a value item3d.js fills once it is loaded."""
+    return {"label": label, "value": value, "unit": unit, "tip": tip, "fact": fact, "unknown": unknown}
+
+
+def lamp_numbers(lamps):
+    brightest = max(lamps, key=lambda lamp: lamp["power"], default=None)
+    if brightest is None:
+        return [number("temperature", None, "K"), number("power", None)]
+    return [number("temperature", brightest["kelvin"], "K", f"{brightest['name']}: from its colour unless it sets one"),
+            number("power", brightest["power"], "", f"{brightest['name']}: intensity times 2 to its exposure")]
+
+
+def effect_numbers(settings):
+    settings = settings or {}
+    loop = settings.get("loop")
+    return [number("length", settings.get("lifetime"), "s", "a card's life"),
+            number("loop", loop if loop else ("no" if "loop" in settings else None), "s" if loop else "",
+                   "it plays again after this long")]
+
+
+def numbers_of(entry):
+    """The few numbers of an item's kind, its hover text with each; a value item3d.js reads off the loaded copy
+    (size, clips) starts unknown."""
+    facts = entry.facts
+    size = number("size", None, "m", "width, height and depth of its copy", "size", "measured once its copy loads")
+    parts = number("parts", facts.get("parts"), "", "objects in its web copy")
+    by_kind = {
+        "model": [size, parts], "kit": [number("pieces", facts.get("parts"), "", "pieces in its kit"), size],
+        "character": [parts, number("clips", None, "", "clips its copy plays", "clips", "counted once its copy loads")],
+        "place": [parts],
+        "surface": [number("token", facts.get("token"), "", "its palette token")],
+        "sound": [number("loudness", facts.get("lufs"), "LUFS", "integrated loudness"),
+                  number("length", facts.get("seconds"), "s", "its first take")],
+        "effect": effect_numbers(facts.get("settings")), "light": lamp_numbers(facts.get("lamps") or [])}
+    return by_kind.get(entry.kind, [])
+
+
 def item_page(request, kind, entry_id, version):
-    """An item's page: its picture, state, version and the other versions, its score and parts, its files, its takes,
-    a link to its 3D view; the owner's lock, withdraw and refine."""
+    """An item's page: the item in its kind's viewer, a few numbers of its kind and its score, its versions, a link
+    to its full-screen 3D view; the owner's lock, withdraw and refine."""
     shown, entry = found_entry(kind, entry_id, version)
     return render(request, "pages/library_item.html", {
         "entry": entry, "kind_label": lib.kind_label(entry.kind), "tone": TONES.get(entry.state, "idle"),
         "picture": f"/library-files/pictures/{entry.picture}.jpg" if entry.picture else None,
-        "score": lib.percent(entry.score), "parts": parts_of(entry), "versions": versions_of(shown, entry),
-        "more_files": entry.file_count - len(entry.files), "takes": takes_of(shown, entry),
-        "three_d": lib.viewer_url(entry) if model_file(entry) else place_copy(entry),
+        "score": lib.percent(entry.score), "score_tip": score_tip(entry), "versions": versions_of(shown, entry),
+        "view": view_of(shown, entry), "viewer": viewer_of(shown, entry), "numbers": numbers_of(entry),
+        "takes": takes_of(shown, entry), "place": place_copy(entry),
+        "three_d": lib.viewer_url(entry) if model_file(entry) else None,
         "owner": is_owner(request.user), "asked": library_actions.waiting().get(entry.address)})
 
 

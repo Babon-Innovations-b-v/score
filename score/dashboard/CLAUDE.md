@@ -77,9 +77,21 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   line's label; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
   (`stats.html`: numbers only, no controls) and **Library** `/library/` (`pages/library.py`: every kind of
   `state/library.KINDS` with its count, a branch's children only when it opens, `/api/library/children?node=&page=`,
-  `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/`: its picture, version, score
-  and parts, files, takes, 3D link, the owner's lock, withdraw and refine; hosted, the same from the export's
-  `library/entries.json`, each entry's first `MAX_FILES` files with its file count and bytes). Place draws its
+  `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/` is the item on its own
+  (owner, 2026-10-20: "experiencing the item in isolation"), its kind's viewer first (`library.view_of`,
+  `viewer_of`): a model, kit or character's web copy turned in `static/pages/item3d.js` (its light copy, then its
+  whole copy where this cockpit holds it; a kit's pieces side by side; a copy's clips on a time scrubber), a surface
+  on a lit sphere and tile with palette colour, shine, wear and seed sliders (a preview's variants, not its recipe's
+  bake), an effect played from its settings with a scrubber, a light's lamps over a neutral test scene, a sound's
+  takes as waveforms played side by side (`static/pages/takes.js`), a place or layer's place viewer in a frame, an
+  algorithm's purpose, what it reads and what it makes; else its picture. Beside it at most three numbers of its kind
+  (`numbers_of`, hover text each; size and clips filled once its copy loads) and its score (its parts as hover
+  text); its versions, 3D link and the owner's lock, withdraw and refine kept small. No file list, ids or blobs on the
+  page (they stay in `/api/library/entry`). What a viewer plays is the entry's `facts` (`state/library.py`
+  `kind_facts`, `viewer_facts`: read from the record, and from a surface's material, an effect's settings or a
+  light's OpenUSD in the blob folder or library cache, which the sync pass fills: `score.stages.library.pictures`
+  `viewed`); hosted, the same from the export's `library/entries.json` and `library/palette.json`, the light copies,
+  prints and first takes in `library/files/`, never a whole copy). Place draws its
   tree's top level only; each deeper branch loads as it opens from `/place/<place>/branch/?path=<names below the root>` (`views.
   place_branch`, `cockpit.branch_rows`), and an item's panel holds its picture, gap kind, its chain's price
   (`cockpit.chain_words`: "unknown" while a paid step of it has no measured price) and, for the owner, one action on

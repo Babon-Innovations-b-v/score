@@ -332,13 +332,28 @@ body.view3d.embed #status { margin: 0; padding: 4px 10px; border-radius: 999px; 
 .refine-card .frame { aspect-ratio: 1 / 1; }
 .refine-body { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 12px; }
 .lib-nums { align-content: start; }
-.item-layout { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(280px, 1fr); gap: 16px; }
+/* an item's page: the item itself first (item3d.js, takes.js, the place viewer), its picture beside a model */
+.item-stage { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin: 0 0 16px; }
+.item-stage > :only-child { grid-column: 1 / -1; }
+.item-view { position: relative; min-height: 420px; height: 62vh; border-radius: var(--radius); overflow: hidden;
+             background: var(--raised); }
+.item-view canvas, .item-view iframe { display: block; width: 100%; height: 100%; border: 0; }
+.item-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.item-view.loaded .item-still { display: none; }
+.item-controls { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px 16px;
+                 align-items: center; padding: 8px 12px; border-radius: var(--radius); background: var(--color-scrim); }
+.item-controls label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.item-controls input[type=range] { flex: 1; min-width: 120px; }
 .item-pic { margin: 0; } .item-pic .pic { width: 100%; border-radius: var(--radius); display: block; }
 .item-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 16px; }
-.files { width: 100%; border-collapse: collapse; margin: 0 0 16px; font-variant-numeric: tabular-nums; }
-.files td { padding: 4px 8px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
-.files td + td { text-align: right; white-space: nowrap; color: var(--soft); }
-@media (max-width: 760px) { .item-layout { grid-template-columns: 1fr; } }
+.item-actions form { margin: 0; }
+.item-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0 0 16px; }
+.item-facts dt { color: var(--soft); }
+.takes { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.take { margin: 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.take canvas { display: block; width: 100%; height: 96px; cursor: pointer; }
+.take figcaption { display: flex; gap: 8px; align-items: center; margin-top: 6px; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .item-stage { grid-template-columns: 1fr; } .item-view { height: 50vh; } }
 
 /* The basket: a tile an item under its place, and an item's details: its 3D before and after, what changes, its
    price and his answer, what it is made from. */

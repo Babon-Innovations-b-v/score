@@ -32,8 +32,10 @@ is in an environment shows up in the library by construction, never by an agent'
   export's `library/entries.json`) is not compared yet.
 - **`pictures.py`** fetches the pictures the cockpit shows (every kind's by default: the place tiles and the Library
   screen's thumbnails) into the library cache through the library's own command (`library_files.from_library`,
-  hash-checked), so the cockpit and its export have their bytes with no blob folder; each sync pass runs it
-  (`score/dashboard/sync/client.py` `library_pictures`). A picture the library lost is counted and named in its line,
-  never stops the others. Never a row. By hand: `.venv/bin/python -m score.stages.library.pictures [--kind place ...]`.
+  hash-checked), and the small files an item page's viewer plays (`viewed`: a light web copy, a surface's material
+  and print, a sound's first takes, an effect's settings, a light's OpenUSD), so the cockpit and its export have their
+  bytes with no blob folder; each sync pass runs it (`score/dashboard/sync/client.py` `library_pictures`). A file the
+  library lost is counted and named in its line, never stops the others; one the blob store answered 404 for is
+  marked `<file>.lost` beside it and not asked for again until its entry names other bytes. Never a row. By hand: `.venv/bin/python -m score.stages.library.pictures [--kind place ...]`.
 - `library_test.py` drives the runner over a toy table with a fake library command; `invariant_test.py` each
   mismatch on small fixed sets.

@@ -1,35 +1,63 @@
 {% extends "pages/base.html" %}
 {% block title %}{{ entry.title }}{% endblock %}
+{% block head %}{% if view == "3d" %}<script type="importmap">
+{ "imports": {
+  "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>{% endif %}{% endblock %}
 {% block content %}
 <p class="small"><a href="/library/">Library</a> / <span data-v>{{ kind_label }}</span> / <span data-v>{{ entry.title }}</span></p>
-<div class="item-layout">
-  <figure class="item-pic">{% include "pages/pic.html" with src=picture name=entry.title bare=1 %}</figure>
-  <div>
-    <section class="nums">
-      {% include "pages/c/number.html" with label="score" value=score unit="%" of=None bar=score tone=None tip="its kind's own scoring" unknown_tip="not scored" %}
-      {% include "pages/c/number.html" with label="version" value=entry.version unit="" of=None bar=None tone=tone tip=entry.state unknown_tip="" %}
-      {% include "pages/c/number.html" with label="files" value=entry.file_count unit="" of=None bar=None tone=None tip=None unknown_tip="" %}
-      {% for part in parts %}{% include "pages/c/number.html" with label=part.name value=part.score unit="%" of=None bar=part.score tone=None tip=part.how unknown_tip=part.how %}{% endfor %}
-    </section>
-    <div class="item-actions">
-      {% if versions|length > 1 %}{% for other in versions %}<a class="button{% if other.version == entry.version %} primary{% endif %}" href="{{ other.url }}">{% include "pages/c/dot.html" with tone=other.tone tip=None %} <span data-v>v{{ other.version }}</span></a>{% endfor %}{% endif %}
-      {% if three_d %}<a class="button" href="{{ three_d }}" title="open it in the 3D viewer">3D</a>{% endif %}
-    </div>
-    {% if owner %}<form class="item-actions" data-post="/api/library/ask"><input type="hidden" name="address" value="{{ entry.address }}">
-      {% if asked %}<span class="unknown" title="asked, waiting for the owner's sync" data-v>{{ asked }}</span>{% endif %}
-      {% if entry.state == "draft" %}<button type="submit" name="action" value="lock" title="approve it as final">Lock</button>{% endif %}
-      {% if entry.state == "locked" %}<button type="submit" class="danger" name="action" value="withdraw" title="take it out of use">Withdraw</button>{% endif %}
-      <output class="small"></output></form>
-    <form class="item-actions" data-post="/api/library/refine"><input type="hidden" name="address" value="{{ entry.address }}">
-      {% if entry.refine_options %}<select name="option" aria-label="how to refine"><option value="">auto</option>{% for choice in entry.refine_options %}<option value="{{ choice.id }}">{{ choice.label }}</option>{% endfor %}</select>{% endif %}
-      <button type="submit" class="primary" title="add it to the basket as a refine item">Refine</button>
-      <output class="small"></output></form>{% endif %}
-    {% for take in takes %}<audio controls preload="none" src="{{ take.url }}" title="{{ take.name }}"></audio>{% endfor %}
-    <table class="files" aria-label="files">
-      {% for file in entry.files %}<tr><td data-v>{{ file.name }}</td><td data-v>{{ file.bytes|filesizeformat }}</td></tr>{% endfor %}
-      {% if more_files > 0 %}<tr><td data-v>+{{ more_files }}</td><td data-v>{{ entry.file_bytes|filesizeformat }}</td></tr>{% endif %}
-    </table>
-    <details class="ids"><summary>ids</summary><span data-v>{{ entry.address }}{% if entry.node %} {{ entry.node }}{% endif %}{% if entry.commit %} {{ entry.commit|slice:":12" }}{% endif %}</span></details>
+<div class="item-stage">
+  {% if view == "3d" %}
+  <div class="item-view" id="item3d" data-kind="{{ entry.kind }}" title="drag to turn, wheel to zoom">
+    {% if picture %}<img class="item-still" src="{{ picture }}" alt="">{% endif %}
+    {% if viewer.mode == "surface" %}<form class="item-controls" id="surface-controls">
+      <label title="its palette token, or another from the palette">colour <select name="token" data-v>{% for name in viewer.palette %}<option value="{{ name }}"{% if name == viewer.token %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+      <label title="how glossy: one less its roughness">shine <input type="range" name="shine" min="0" max="1" step="0.01"></label>
+      <label title="worn, darker and rougher patches over it">wear <input type="range" name="wear" min="0" max="1" step="0.01" value="0"></label>
+      <label title="where the wear falls">seed <input type="range" name="seed" min="1" max="99" step="1" value="1"></label>
+    </form>{% endif %}
+    {% if viewer.mode == "effect" or entry.kind == "character" %}<div class="item-controls" id="clock" hidden>
+      <button type="button" data-play title="play or pause">&#10074;&#10074;</button>
+      <input type="range" data-time min="0" max="1" step="0.01" value="0" aria-label="time" title="time">
+      <output data-v data-at>0.0 s</output>
+    </div>{% endif %}
+    {{ viewer|json_script:"item-data" }}
   </div>
+  {% if entry.kind == "model" and picture %}<figure class="item-pic" title="its picture">{% include "pages/pic.html" with src=picture name=entry.title bare=1 %}</figure>{% endif %}
+  {% elif view == "sound" %}
+  <div class="takes">{% for take in takes %}<figure class="take">
+    <canvas data-wave="{{ take.url }}" height="96" aria-label="{{ take.name }}"></canvas>
+    <figcaption><button type="button" data-play title="play or stop">&#9654;</button> <span data-v>{{ take.name }}</span></figcaption>
+  </figure>{% empty %}<p class="unknown" title="its takes are not in this cockpit yet" data-v>0 takes</p>{% endfor %}</div>
+  {% elif view == "place" %}
+  <div class="item-view"><iframe src="{{ place }}?embed=1" title="{{ entry.title }} in 3D" loading="lazy"></iframe></div>
+  {% else %}
+  <figure class="item-pic">{% include "pages/pic.html" with src=picture name=entry.title bare=1 %}</figure>
+  {% endif %}
 </div>
+{% if view == "facts" %}<dl class="item-facts">
+  <dt>in</dt><dd data-v>{% for read in entry.facts.reads %}{{ read }}{% if not forloop.last %}, {% endif %}{% empty %}code only{% endfor %}</dd>
+  <dt>out</dt><dd data-v>{{ entry.facts.stage|default:"unknown" }} &times; {{ entry.facts.steps }}</dd>
+</dl>{% endif %}
+<section class="nums">
+  {% for each in numbers %}<div{% if each.fact %} data-fact="{{ each.fact }}"{% endif %}>{% include "pages/c/number.html" with label=each.label value=each.value unit=each.unit of=None bar=None tone=None tip=each.tip unknown_tip=each.unknown %}</div>{% endfor %}
+  {% include "pages/c/number.html" with label="score" value=score unit="%" of=None bar=score tone=None tip=score_tip unknown_tip="not scored" %}
+</section>
+<div class="item-actions small">
+  {% include "pages/c/dot.html" with tone=tone tip=entry.state %}
+  {% for other in versions %}<a class="button{% if other.version == entry.version %} primary{% endif %}" href="{{ other.url }}"><span data-v>v{{ other.version }}</span></a>{% endfor %}
+  {% if three_d %}<a class="button" href="{{ three_d }}" title="full screen, with measuring">3D</a>{% endif %}
+  {% if owner %}<form class="item-actions" data-post="/api/library/ask"><input type="hidden" name="address" value="{{ entry.address }}">
+    {% if asked %}<span class="unknown" title="asked, waiting for the owner's sync" data-v>{{ asked }}</span>{% endif %}
+    {% if entry.state == "draft" %}<button type="submit" name="action" value="lock" title="approve it as final">Lock</button>{% endif %}
+    {% if entry.state == "locked" %}<button type="submit" class="danger" name="action" value="withdraw" title="take it out of use">Withdraw</button>{% endif %}
+    <output class="small"></output></form>
+  <form class="item-actions" data-post="/api/library/refine"><input type="hidden" name="address" value="{{ entry.address }}">
+    {% if entry.refine_options %}<select name="option" aria-label="how to refine" title="how to refine" data-v><option value="">auto</option>{% for choice in entry.refine_options %}<option value="{{ choice.id }}">{{ choice.label }}</option>{% endfor %}</select>{% endif %}
+    <button type="submit" title="add it to the basket as a refine item">Refine</button>
+    <output class="small"></output></form>{% endif %}
+</div>
+{% if view == "3d" %}<script type="module" src="/static/pages/item3d.js"></script>{% elif view == "sound" %}<script src="/static/pages/takes.js"></script>{% endif %}
 {% endblock %}
