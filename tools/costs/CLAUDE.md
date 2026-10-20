@@ -17,6 +17,13 @@ in the test.
   runs, a source in git, with `per_model` where a model makes more than one unit), which `score price --holes`
   counts; `--rules-only` writes the rules and the RECORDED stages into the file in place, its ledger-measured numbers
   kept, as the old disk took the live ledgers (2026-10-19). Never edit the rules in the JSON by hand.
+- **Each entry's `time` comes from the same lines as its euros** (#14): a unit's seconds (median and p90: the
+  machines' own `unit_seconds`, else wall minutes over units), a fresh card's set-up, `slots` (jobs a machine ran at
+  once) and the failed-start share; a Google stage's from its calls' started and finished times. `node_minutes` holds
+  every stage's makes as the store's finish records time them (`--store`, `score/graph/runs.py` `node_times`). A stage
+  with no timed lines keeps `time` null with its `why`, never a figure from elsewhere. `--times-only` writes only
+  these into the file, every euro byte-identical (`per_unit_test.py` checks it on the repository's own file); the
+  runner turns them into a row's minutes (`compute.unit_minutes`) and a plan's ETA (`holes/schedule.py`).
 - **The ledger is never rewritten.** What a row lacks (a kind, a machine type) is added beside it: the reconciliation
   file tags rows by batch, and an engine run's type is read from its price. A fix to the runners goes in
   `tools/props/cloud/`, not here.

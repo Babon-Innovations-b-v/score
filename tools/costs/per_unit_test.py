@@ -153,7 +153,9 @@ def test_node_minutes_are_the_store_finish_records_minutes_by_stage():
         store.write_record(node, f"key{number}", {"node": node, "stage": node.partition("@")[0], "place": "p",
                                                    "key": f"key{number}", "started": f"2026-10-20T0{number}",
                                                    "finished": f"2026-10-20T1{number}", "minutes": minutes})
-    made = runs.node_times(store)
+    store.write_record("plan@flat", "key9", {"node": "plan@flat", "stage": "plan", "finished": "2026-10-20T19",
+                                             "minutes": 99.0, "carried": {"reason": "kept over a no-op"}})
+    made = runs.node_times(store)  # a carried record is no make
     assert [row["node"] for row in made] == ["plan@hangar", "plan@lab", "concept@lab"]
     found = per_unit.node_minutes(made, root)
     assert found["plan"]["likely"] == 4.0 and found["plan"]["makes"] == 2 and found["concept"]["high"] == 1.0
