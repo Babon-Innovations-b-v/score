@@ -221,10 +221,32 @@ def layer_of(stage):
     return next((name for name, prefixes in LAYERS if stage.startswith(prefixes)), "other")
 
 
-def now_items(items):
-    """The basket items the Buy screen's one yes buys: every item a run on main buys now but the Benchmarks and the
-    ones waiting on a missing input."""
-    return [item for item in items if item["id"] != benchmarks.ID and not item.get("missing")]
+def now_items(items, approved):
+    """The basket items the Buy screen's batch yes buys: every item a run on main buys now but the Benchmarks, the
+    ones waiting on a missing input and any at a place whose design the creator has not approved (`approved`,
+    CONTEXT.md "design": no step is bought on a concept he did not approve; none before one is approved)."""
+    return [item for item in items if item["id"] != benchmarks.ID and not item.get("missing")
+            and approved and set(item.get("places", [])) <= set(approved)]
+
+
+GAME = "complete/game"  # the gate that finds a place's layout still taken from the source game
+
+
+def approved_places(world):
+    """The places whose design the creator approved, as prepare's design record says ([] before it ran)."""
+    return world.remake.design.get("approved", []) if world.remake else []
+
+
+def design(source, world):
+    """The Buy screen's design (CONTEXT.md "design"), made first on each place's card: each place's concept
+    (missing, drawn or picked), its plan (remake, made or approved), its accepted plan output and the old
+    plan's pick as a hint, as prepare's design record says (None for a place it does not name, or before it ran);
+    whether its layout still takes numbers from the source game (its gaps' game gate); the places approved."""
+    found = world.remake.design if world.remake else {}
+    return {"places": [{"place": card.place, "design": found.get("places", {}).get(card.place),
+                        "game": any(GAME in (gap.gates or []) for gap in source.gaps(card.place))}
+                       for card in cards(world)],
+            "approved": approved_places(world)}
 
 
 def part():
@@ -233,7 +255,7 @@ def part():
 
 def layer_row(rows, name):
     return rows.setdefault(name, {"layer": name, "make": 0, "library": 0, "waiting": 0, "why": {}, "models": 0,
-                                  "steps": 0, "now": part(), "later": part(), "guessed": 0.0, "guesses": 0,
+                                  "takes": 0, "steps": 0, "now": part(), "later": part(), "guessed": 0.0, "guesses": 0,
                                   "no_price": {}, "measured": part(), "estimated": part(), "places": {}})
 
 
@@ -309,7 +331,7 @@ def route_rows(remake, now, rows):
 def route_counts(row, found, stage, now):
     """A layer's takes on its widest route stage: made now where the Buy buys the stage at the place, else waiting
     on its takes' lost inputs or, ready, on the next plan."""
-    row["models"] += found["takes"]
+    row["models"], row["takes"] = row["models"] + found["takes"], found["takes"]
     for place, takes in found["places"].items():
         if f"{stage}@{place}" in now:
             row["make"] += takes
@@ -338,6 +360,7 @@ def rounded(row):
     for key in ("now", "later", "measured", "estimated"):
         row[key] = {name: round(value, 2) for name, value in row[key].items()}
     row["guessed"] = round(row["guessed"], 2)
+    row["makes"] = row["takes"] + row["steps"]  # what it makes: its route takes and its steps at places
     row["likely"] = round(row["now"]["likely"] + row["later"]["likely"], 2)
     row["high"] = round(row["now"]["high"] + row["guessed"] + row["later"]["high"], 2)
     return row
@@ -357,7 +380,7 @@ def batch(world, items):
     whole = remake_money(world)
     price = None if world.gaps_price is None or world.gaps_price.stale else world.gaps_price
     remake = None if whole["stale"] or world.remake is None else world.remake
-    buying = now_items(items)
+    buying = now_items(items, approved_places(world))
     now = pricing.basket_prices(buying)
     blocked = {node for item in items if item.get("missing") for node in item["nodes"]}
     rows = {}

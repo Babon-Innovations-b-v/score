@@ -16,8 +16,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 from score import stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.stages.complete.gaps import price  # noqa: E402
-from score.stages.complete.prepare import (__main__ as prepare, benchmarks, contract, estimate, groups,  # noqa: E402
-                                           library, machines, predict)
+from score.stages.complete.prepare import (__main__ as prepare, benchmarks, contract, design, estimate,  # noqa: E402
+                                           groups, library, machines, predict)
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
 
@@ -193,6 +193,36 @@ def test_the_remake_record_counts_every_row_once_and_says_its_one_line():
     assert record["line"].startswith("remake batch (estimate): ") and "every job once" in record["line"]
     assert record["moved"] == {"not_run": "--moved not given"}
     assert record["across_places"]["takes"] <= counts["bought"]
+    assert record["design"]["places"]["garage"]["hint"] == "K04"  # the old plan's pick, a hint only
+    assert set(record["design"]["places"]) == set(stages.places(runner.world))
+
+
+class Accepts:
+    """A store's current accepts, {node: accept}."""
+    def __init__(self, accepts):
+        self.accepts = accepts
+
+    def current_accept(self, node):
+        return self.accepts.get(node)
+
+
+def test_a_design_is_approved_only_by_the_creators_own_accept_of_its_plan_after_his_pick():
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "places").mkdir()
+    (data / "places" / "concepts.json").write_text(json.dumps({"concepts": {
+        "a": {"sha256": "1", "picked": "2026-10-21T09:00"}, "b": {"sha256": "2", "picked": "2026-10-21T09:00"},
+        "c": {"sha256": "3", "picked": "2026-10-21T09:00"}, "d": {"sha256": "4"}}}))
+    plan = {"output": "p" * 64}
+    store = Accepts({"plan@a": {**plan, "by": "joey", "at": "2026-10-21T10:00"},
+                     "plan@b": {**plan, "by": "runner", "at": "2026-10-21T10:00"},
+                     "plan@c": {**plan, "by": "joey", "at": "2026-10-20T10:00"},  # before the pick: an old plan
+                     "plan@d": {**plan, "by": "joey", "at": "2026-10-21T10:00"}})
+    found = design.designs(store, data, ["a", "b", "c", "d", "e"])
+    states = {place: (row["concept"], row["plan"]) for place, row in found["places"].items()}
+    assert states == {"a": ("picked", "approved"), "b": ("picked", "made"), "c": ("picked", "made"),
+                      "d": ("drawn", "remake"), "e": ("missing", "remake")}, states
+    assert found["approved"] == ["a"] and found["places"]["b"]["output"] == "p" * 64
+    assert found["places"]["d"]["output"] is None and found["places"]["e"]["hint"] is None
 
 
 if __name__ == "__main__":

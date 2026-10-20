@@ -17,7 +17,7 @@ import pathlib
 
 from score import graph, stages
 from score.stages.complete.gaps import price
-from score.stages.complete.prepare import benchmarks, contract, estimate, groups, library, machines, predict
+from score.stages.complete.prepare import benchmarks, contract, design, estimate, groups, library, machines, predict
 from score.store import PROPS_HOME
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -145,6 +145,7 @@ def remake(runner, data, root, work, stock=None, moved=None):
               "across_places": across_places(route, takes, fixed),
               "moved": {"rows": moved} if moved is not None else {"not_run": "--moved not given"},
               "benchmarks": {"listed": benchmarks.listed(), "guard": benchmarks.guard()},
+              "design": design.designs(runner.store, pathlib.Path(data), stages.places(runner.world)),
               "not_in_figure": list(NOT_IN_FIGURE)}
     return {**record, "line": estimate.line(record)}
 
