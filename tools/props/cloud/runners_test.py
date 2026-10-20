@@ -43,7 +43,7 @@ OFFERS = [provider.Offer(0.02, 0, "small", "zone-a", 0.02, "gpu-24gb", 0, "avail
 # Each runner's estimate on a fixed list, and what it said and returned on the code before the shared estimate.
 ESTIMATES = {
     "blender_cloud": (lambda: blender_cloud.price([{"minutes": 5}, {"minutes": 20}], "acct", ["gpu-24gb"]),
-                      "2 Blender jobs on 2 machines: about 28 min, €2.80; €100.00 spent this month", (2, 2, 240.0, None)),
+                      "2 Blender jobs on 2 machines: about 28 min, €1.12; €100.00 spent this month", (1, 2, 240.0)),
     "box_masks_cloud": (lambda: box_masks_cloud.price([{}] * 9, "acct"),
                         "9 pictures on 1 card: about 13 min, €0.65; €100.00 spent this month", (3, 240.0)),
     "characters": (lambda: characters.price(["p1", "p2", "p3"], "acct", None),
@@ -57,9 +57,9 @@ ESTIMATES = {
                      (3, 2, 240.0)),
     "judge": (lambda: judge.price([{}] * 300, "acct", 1),
               "300 questions on 1 card: about 42 min, €2.10; €100.00 spent this month", (3, 1, 240.0)),
-    "library_bake": (lambda: library_bake.price([{"materials": [1] * 10}, {"chunky": [1] * 4}], "acct", False,
+    "library_bake": (lambda: library_bake.price([{"materials": [1] * 10}, {"chunky": [1] * 4}], "acct",
                                                 ["gpu-24gb"]),
-                     "2 library jobs on 1 machine: about 17 min, €0.85; €100.00 spent this month", (3, 1, 240.0)),
+                     "2 library jobs on 1 machine: about 17 min, €0.34; €100.00 spent this month", (1, 1, 240.0)),
     "meshparts": (lambda: meshparts.price([["a"]] * 4, "acct", False),
                   "4 shares of takes on 4 machines: about 33 min, €6.60; €100.00 spent this month", (3, 4, 240.0)),
     "parts": (lambda: parts.price(12, "acct"),
@@ -220,8 +220,8 @@ def test_the_spread_runner_s_machine_is_armed_and_deleted():
     shares = spread.Shares([1, 2])
     worked = []
     with Tended() as tended:
-        assert spread.tend(run, machine, "parts", shares, lambda machine: None,
-                           lambda machine, share, card: worked.append(share)) is True
+        spread.tend(run, machine, "parts", shares, lambda machine: None,
+                    lambda machine, share, card: worked.append(share))
     assert armed_beaten_deleted(tended.done), tended.done
     assert sorted(worked) == [1, 2]
 

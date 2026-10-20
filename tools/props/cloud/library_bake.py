@@ -10,7 +10,9 @@ swatch.py, make_tiles.py) and its `out` folder; a make_chunky job's pieces name 
 5.0.1 (the version this repo's tools pin, checked against blender.org's sha256) runs each job with `-b` and Cycles on
 the card (FARM_CYCLES_GPU), with ProcFunc and infinigen2's shaders from the repo's vendored copies; each job's `out`
 comes back to where it says. The jobs are spread over as many machines as finish them in about the setup and one
-job's time (spread.py), each taking the next job as it finishes one; one machine for a short list. The owner's
+job's time (spread.py), each taking the next job as it finishes one; one machine for a short list. One class, read
+from the stock at price time, for the whole call; every job runs once, and one that fails, or finds no machine in
+stock, is a hole (a batch, CONTEXT.md, owner 2026-10-20). The owner's
 limits, the self-delete, the watchdog and the delete are batch.py's. Under SCORE_CLOUD=k8s the same jobs run as
 Kubernetes Jobs of the blender image on the cluster (tools/cloud/k8s/cluster_jobs.py); the machines stay the default.
 """
@@ -37,8 +39,6 @@ from paths import REPO  # noqa: E402
 
 REMOTE = pathlib.PurePosixPath("/root/lib")
 SETUP_MINUTES = 10
-# Processor machines tried in turn when no card is in stock (their stock moves by the minute, 2026-10-06).
-PROCESSORS = ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb")
 # Card minutes each thing a job holds takes, measured on an L4 (2026-10-06): a swatch variant at three wears and two
 # views, a code-built piece, a generated piece cut down and detailed, a row of pictured pieces (a library tile, not
 # measured: taken as a code-built piece, one flat square). A processor machine
@@ -54,24 +54,16 @@ def card_minutes(job):
     return sum(len(job.get(key, ())) * minutes for key, minutes in MINUTES_EACH.items())
 
 
-def machine_offers(processor, classes):
-    """Where the job can run: any card that holds a bake (capacity.py) or the `classes` asked for, or (with
-    --processor, when no card is in stock) a 32-core processor machine, where Cycles bakes on the processor at
-    about a third of a card's speed."""
-    if processor:
-        import infinigen
-
-        return [offer for machine in PROCESSORS for offer in infinigen.offers(machine)]
-    return batch.offers(classes or list(capacity.classes_for("library")))
-
-
-def price(jobs, account, processor, classes):
-    """Print the estimate and refuse what passes the owner's limits; the offers, the machines and the allowed
-    minutes."""
-    found = machine_offers(processor, classes)
+def price(jobs, account, classes):
+    """Print the estimate and refuse what passes the owner's limits; the offers of one class in stock (the first of
+    the `classes` asked, else of the cards that hold a bake in capacity.py's order: batch.one_class_in_stock), the
+    machines and the allowed minutes. None in stock means the jobs are holes, never a processor machine in a card's
+    place (a batch, CONTEXT.md, owner 2026-10-20); a processor class asked for is priced at PROCESSOR_SLOWER."""
+    found = batch.one_class_in_stock(classes or list(capacity.classes_for("library")))
     if not found:
-        raise SystemExit(f"no {'processor machine' if processor else 'card that holds a bake'} is sold by the {cloud.NAME} backend")
-    slower = PROCESSOR_SLOWER if processor else 1
+        raise SystemExit(f"no machine of {', '.join(classes) if classes else 'a card that holds a bake'} is in stock at "
+                         f"the {cloud.NAME} backend: the jobs are holes")
+    slower = 1 if provider.cards(found[0].machine_class) else PROCESSOR_SLOWER
     each = [card_minutes(job) * slower for job in jobs]
     count = capacity.machines_for(len(jobs), sum(each) / len(each), SETUP_MINUTES)
     minutes = SETUP_MINUTES + max(max(each), sum(each) / count)
@@ -211,13 +203,12 @@ def cluster_job(job, number, card, job_file):
 
 def main_on_cluster(options, jobs):
     """main() under SCORE_CLOUD=k8s: the bakes as one run of the cluster, on the library's classes in its order
-    (capacity.py), or a processor class with --processor, or the classes asked for."""
+    (capacity.py), or the classes asked for."""
     sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
     import cluster_jobs
 
-    classes = (options.classes.split(",") if options.classes else
-               list(PROCESSORS) if options.processor else None)
-    card = not options.processor and not (classes and not any(provider.cards(name) for name in classes))
+    classes = options.classes.split(",") if options.classes else None
+    card = not (classes and not any(provider.cards(name) for name in classes))
     if options.dry_run:
         batch.say(f"{len(jobs)} library jobs for the cluster")
         return
@@ -234,8 +225,8 @@ def main():
     parser.add_argument("jobs", nargs="+", type=pathlib.Path)
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
-    parser.add_argument("--processor", action="store_true", help="a processor machine, when no card is in stock")
-    parser.add_argument("--classes", help="only these capability classes, comma separated (a measuring run)")
+    parser.add_argument("--classes", help="only these capability classes, comma separated, the first in stock at price "
+                        "time rented (a measuring run)")
     options = parser.parse_args()
     jobs = [json.loads(path.read_text()) for path in options.jobs]
     if provider.on_cluster():
@@ -243,8 +234,7 @@ def main():
         return
     account = cloud.account()
     batch.sweep(account)
-    found, count, allowed_minutes = price(jobs, account, options.processor,
-                                          options.classes and options.classes.split(","))
+    found, count, allowed_minutes = price(jobs, account, options.classes and options.classes.split(","))
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())

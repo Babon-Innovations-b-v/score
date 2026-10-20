@@ -732,6 +732,15 @@ def rent(fleet, account, offer, number, disk_gb=DISK_GB):
     return machine
 
 
+def one_class_in_stock(classes):
+    """The offers to rent: those in stock now of the first of `classes` (in the order given) that has any, one class
+    for the whole call, read once at price time; none when no class given is in stock (its jobs are then holes, never
+    sent to another class or a processor machine: a batch, CONTEXT.md, owner 2026-10-20)."""
+    found = [offer for offer in offers(list(classes)) if offer.stock_word != "shortage"]
+    chosen = next((name for name in classes if any(offer.machine_class == name for offer in found)), None)
+    return [offer for offer in found if offer.machine_class == chosen]
+
+
 def run_tags(pid, deadline):
     """The tags that say which process on which PC holds a machine, and when it must be gone (is_leftover)."""
     return [f"pid={pid}", f"host={socket.gethostname()}", f"deadline={deadline:.0f}"]
