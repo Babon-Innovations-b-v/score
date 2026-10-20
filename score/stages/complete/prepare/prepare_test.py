@@ -45,11 +45,12 @@ def test_a_size_that_is_not_three_positive_sides_has_no_ratio():
 
 def test_a_library_model_matches_by_kind_and_ratio_and_only_todays_route_or_locked_is_reused(tmp=None):
     root = pathlib.Path(tmp or tempfile.mkdtemp())
-    today = {"route": library.ROUTE, "accept": {"by": "runner"}}
+    today = {"route": "r-today", "accept": {"by": "runner"}}
+    older = {"route": "r-older", "accept": {"by": "runner"}}
     entries = [("chair_1", "prop", "hub", "chair", today, "draft"), ("rack_1", "piece", "hub", "rack", {}, "draft"),
-               ("lost_1", "prop", "x", "y", today, "draft"), ("lamp_1", "prop", "hub", "lamp", {}, "draft"),
+               ("lost_1", "prop", "x", "y", today, "draft"), ("lamp_1", "prop", "hub", "lamp", older, "draft"),
                ("bin_1", "piece", "hub", "bin", {}, "locked"),
-               ("box_1", "prop", "hub", "box", {"route": library.ROUTE}, "draft")]
+               ("box_1", "prop", "hub", "box", {"route": "r-today"}, "draft")]
     (root / "index").mkdir(parents=True)
     (root / "index" / "model.json").write_text(json.dumps({"schema": "score-lib-index/1", "entries": [
         {"address": f"model/{name}@1", "tags": {"model": [tag]}, "state": state}
@@ -63,7 +64,7 @@ def test_a_library_model_matches_by_kind_and_ratio_and_only_todays_route_or_lock
     sizes = {"chair": [0.6, 0.6, 0.9], "rack": [0.6, 0.6, 1.9], "lamp": [0.2, 0.2, 1.5], "bin": [0.4, 0.4, 0.6],
              "box": [0.5, 0.5, 0.5]}
     inventories = {"hub": {"rows": [a_row(name, size) for name, size in sizes.items()]}}
-    index = library.index(library.library_models(root), inventories)
+    index = library.index(library.library_models(root, "r-today"), inventories)
     others = [a_row(name, size) for name, size in sizes.items() if name != "chair"]
     lab = {"rows": [a_row("chair", [0.62, 0.6, 0.95])] + others}
     chair, rack, lamp, bin_group, box = groups.place_groups("lab", lab)

@@ -136,7 +136,9 @@ place's accepted assembly to a library entry, by content hash or by a recorded p
 cockpit lists what does not trace as the place's problems. **Reuse needs today's route** (owner, 2026-10-20,
 #21/#41): a library entry is reused only when it was made under today's route (the current prop pipeline and finish
 route, named in its provenance, and accepted there by today's gates) or the owner locked it; everything else is
-remade (prepare's library match, `score/stages/complete/prepare/library.py`).
+remade (prepare's library match, `score/stages/complete/prepare/library.py`). The route is derived, never named by
+hand: the hash of the route stages' code versions and contracts (`score/stages/library` `route`), a key part of the
+library rows, which hand it to the library's command (`--route`) to stamp into each entry's provenance.
 
 **The library handover** (`score/stages/library`, its overlay): two free rows at the end of the stage table hand every
 accepted output of an environment to the creator's library, so what is in an environment is in the library by construction.

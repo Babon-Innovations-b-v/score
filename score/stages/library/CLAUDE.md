@@ -9,6 +9,9 @@ is in an environment shows up in the library by construction, never by an agent'
   the template, the code or the data: every setting is an environment variable, else its default (the score_lib
   checkout beside score; the blob store the cloud backend's `object_store()`, its key from the secret store, handed
   to the command in its environment only, never a settings file: owner, 2026-10-20).
+- **The route** (`route`, `runner_route`): the route stages' code versions and contracts hashed, a callable param
+  the runner works out, so a new route re-keys these rows and the handover (`--route`) stamps it into every entry's
+  provenance; prepare's library match reads it. Never a hand-bumped constant.
 - **Drafts only.** The node never locks, withdraws or deletes an entry; locking is the owner's (the cockpit's library
   actions).
 - **The rows are read by nothing**, so a change here re-keys these two rows alone. Never make another row read them,

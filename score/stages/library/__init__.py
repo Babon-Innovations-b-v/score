@@ -9,6 +9,11 @@ world shows up in the library by construction, never by an agent's hand.
     rows = library.rows(table, data)                    # the two rows for a stage table whose world data is `data`
     library.world_completion(runner, places)            # [(node, why it does not stand)]: empty when the world is complete
 
+The route (`route`): the hash of the route stages' code versions (make and gates, Runner.code) and contracts, the
+prop pipeline and the finish route. It is a key part of both rows (a callable param the runner works out), handed to
+the library's command (`--route`), which stamps it into each entry's provenance; prepare reuses a library model only
+under today's route (score/stages/complete/prepare/library.py).
+
 The make (`make`) writes `reads.json`, every accepted output the node read as {node, output}, then runs the library's
 handover command once (backend.py: SCORE_LIB_* from the environment, else the checkout beside score), which writes
 `handover.json` (contract library-handover v1, handover.py) into the node's output folder. With no library configured
@@ -36,6 +41,21 @@ SHOWCASE = ("demo-film", "demo-film-extra", "demo-stills", "effects-look", "envi
 WORLD_RECORD, PLACE_RECORD = "world record", "place record"
 FREE, EXCEPTIONS = "library free", "exceptions"
 DECLARED = (WORLD_RECORD, PLACE_RECORD, FREE, EXCEPTIONS)
+# The route a library model is made under: the prop pipeline and the finish route (stage-name prefixes).
+ROUTE_STAGES = ("props-inputs", "closeup", "pixal", "finish-route-", "surfaces-", "likeness")
+
+
+def route(code_of, table):
+    """The route the table's route stages make under: the hash of each one's code version (`code_of(stage)`: its
+    make's and gates' code) and contract stamp. A change to any of them is a new route."""
+    found = {stage.name: [code_of(stage), stage.contract.stamp_of()] for stage in table
+             if stage.name.startswith(ROUTE_STAGES)}
+    return graph.text_hash(json.dumps(found, sort_keys=True))
+
+
+def runner_route(runner):
+    """The route under this runner's own code versions (the library rows' `route` param)."""
+    return route(runner.code, runner.stages.values())
 
 
 def declared_files(data):
@@ -80,18 +100,18 @@ def store_objects(out):
     return pathlib.Path(out).resolve().parents[2] / "objects"
 
 
-def run_of(inputs, out):
-    """What the handover command is told: {world, place, seed, commit, store, repo, out}."""
+def run_of(inputs, out, params):
+    """What the handover command is told: {world, place, seed, commit, route, store, repo, out}."""
     world = json.loads(pathlib.Path(inputs[WORLD_RECORD]).read_text())
     return {"world": world["name"], "place": place_of(inputs), "seed": world["seed"], "commit": score_commit(),
-            "store": str(store_objects(out)), "repo": str(REPO), "out": str(out)}
+            "route": params["route"], "store": str(store_objects(out)), "repo": str(REPO), "out": str(out)}
 
 
 def make(inputs, out, seed, params):
     """Write reads.json, then hand the node's outputs to the configured library, whose command writes handover.json;
     with none configured, a report saying so."""
     handover.write(out / handover.READS, reads_of(inputs))
-    run, values = run_of(inputs, out), backend.settings()
+    run, values = run_of(inputs, out, params), backend.settings()
     if backend.kind(values) == backend.NONE:
         handover.write(out / handover.REPORT, handover.none_report(run))
         return
@@ -102,8 +122,9 @@ def make(inputs, out, seed, params):
 
 def rows(table, data, identity=None):
     """(library, library-world) for a stage table: the place row reading every place row, the world row every world
-    row; their params the library's identity (backend.identity), so a new library re-keys these two alone."""
-    params = {"library": backend.identity() if identity is None else identity}
+    row; their params the library's identity (backend.identity), so a new library re-keys these two alone, and the
+    route (`runner_route`), so a new route hands every entry again under it."""
+    params = {"library": backend.identity() if identity is None else identity, "route": runner_route}
     place_rows = {row.name: (row.contract.schema, row.contract.version) for row in table if row.grain == "place"}
     world_rows = {row.name: (row.contract.schema, row.contract.version) for row in table if row.grain == "world"}
     files = declared_files(data)

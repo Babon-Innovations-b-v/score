@@ -22,8 +22,9 @@ the one figure the creator says yes to. Today it prepares the environment's rema
   best boot record in the ledgers, in stock when `--stock` read it; no class in stock is the layer's jobs as gaps.
 - **Library reuse only under today's route** (owner, 2026-10-20, #21/#41: "wouldn't lock anything"): a matching
   library model is reused only when the owner locked it, or when its provenance names today's route
-  (`library.ROUTE`) and the runner took it there; every other match is remade and priced (`library_old`,
-  `library_code_only`). Bump `ROUTE` when the prop pipeline, the finish route or their gates change.
+  (`library.todays_route()`, the route stages' code and gates hashed as the library rows' key hashes them; their
+  handover stamps it) and the runner took it there; every other match is remade and priced (`library_old`,
+  `library_code_only`). Never a hand-named route.
 - **Sharing a take across places is the owner's call** (a place's style may differ): `across_places` prices it
   beside the figure, never in it.
 - **Quality is never a cost lever** (owner, 2026-10-20): never lower a setting that ships (Pixal3D's steps, held at

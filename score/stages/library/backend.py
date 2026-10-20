@@ -34,7 +34,7 @@ VARIABLES = ("SCORE_LIB_BACKEND", "SCORE_LIB_ROOT", "SCORE_LIB_COMMAND", "SCORE_
 COMMAND, NONE = "command", "none"
 DEFAULT_COMMAND = "score-lib"
 DEFAULT_TEMPLATE = ("{command} --root {root} handover --world {world} --place {place} --seed {seed} --commit {commit} "
-                    "--store {store} --repo {repo} --out {out}")
+                    "--route {route} --store {store} --repo {repo} --out {out}")
 # One handover run may take this long before it counts as a dropped connection (graph.transient: tried again).
 TIMEOUT = 1800
 
@@ -78,7 +78,7 @@ def identity(values=None):
 
 def arguments(values, run):
     """The handover command's words from the template, each placeholder filled from `run` ({world, place, seed,
-    commit, store, repo, out}); an option whose value is a missing place (the world's own node) is left out."""
+    commit, route, store, repo, out}); an option whose value is a missing place (the world's own node) is left out."""
     if not values.get("SCORE_LIB_ROOT"):
         raise Misconfigured("the command backend needs SCORE_LIB_ROOT, the library's folder")
     filled = {**run, "root": values["SCORE_LIB_ROOT"]}

@@ -166,6 +166,8 @@ class Stage:
     files: {name: path pattern}, formatted with the environment's roots and {place}; or a function of the place giving that
     map, for a stage whose environment files differ by place (the surface stage's takes, listed in each place's data).
     after: {earlier stage: (schema, version) this one was written for}, the stages whose accepted output it reads.
+    params: {name: value} in the key and handed to make; a callable value is worked out from the runner when the node
+    is keyed (the library rows' route, from the runner's code versions).
     models: pinned image kinds whose record (image digest, model revisions) goes into the key (score.adapters.models).
     paid, euros: a stage that rents, and its run's estimate in euros, cleared against its stop.
     gatherers: {check name: (gather, euros or None)}, how the runner's drive makes a check's missing evidence:
@@ -317,6 +319,11 @@ def finish_record(node, keyed, output, stage_name, started, clock):
 
 def node_name(stage, place):
     return stage.name if stage.grain == "world" else f"{stage.name}@{place}"
+
+
+def stage_code(stage):
+    """A stage's code version: the hash of its make's, checks' and file map's source files and their imports."""
+    return listing_hash(_code.code_version(code_functions(stage), file_hash))
 
 
 def code_functions(stage):
@@ -547,7 +554,7 @@ class Runner:
     def code(self, stage):
         """The stage's computed code version: its make's and its checks' source files and their imports (once a run)."""
         if stage.name not in self.code_versions:
-            self.code_versions[stage.name] = listing_hash(_code.code_version(code_functions(stage), file_hash))
+            self.code_versions[stage.name] = stage_code(stage)
         return self.code_versions[stage.name]
 
     def files_of(self, stage, place):
@@ -624,10 +631,12 @@ class Runner:
                 "models": {kind: self.model_record(kind) for kind in stage.models}}
 
     def params_of(self, stage):
-        """The stage's params, with the object filter's sorted names as `objects` for a stage that selects."""
+        """The stage's params, a callable one worked out from this runner (the library rows' route), with the object
+        filter's sorted names as `objects` for a stage that selects."""
+        params = {name: value(self) if callable(value) else value for name, value in stage.params.items()}
         if self.objects and stage.selects:
-            return {**stage.params, "objects": sorted(self.objects)}
-        return stage.params
+            return {**params, "objects": sorted(self.objects)}
+        return params
 
     def worked_out_key(self, stage, place):
         """The node's key worked out from its inputs (`key`)."""
