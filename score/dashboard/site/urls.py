@@ -12,8 +12,10 @@ STEP_ROUTES = [("", views.step_page), ("request/", views.step_request), ("decide
                ("queue/", views.step_queue), ("advance/", views.step_advance), ("waive/", views.step_waive)]
 
 urlpatterns = [
-    path("", views.board),
+    path("", views.environment),
     path("place/<slug:place>/", views.place_page),
+    path("buy/", views.buy),
+    path("stats/", views.stats),
     *[path(f"place/<slug:place>/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
     *[path(f"world/step/<slug:stage>/{suffix}", view) for suffix, view in STEP_ROUTES],
     path("changes/", RedirectView.as_view(url="/basket/")),

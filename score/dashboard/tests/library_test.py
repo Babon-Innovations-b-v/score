@@ -156,7 +156,7 @@ def test_the_explorer_is_one_page_with_its_three_panes_and_one_mit_note(world, s
     for pane in ('id="lib-tree"', 'id="lib-grid"', 'id="lib-entry"', '"importmap"', "/static/pages/library.js"):
         assert pane in html
     assert html.count(">MIT<") == 1 and "commercial" not in html.lower()
-    assert "7 entries, 1 locked" in html
+    assert ">7 / 1<" in html  # entries, locked
 
 
 def test_the_tree_holds_each_kind_and_its_categories_with_counts(world, shelf):
@@ -264,13 +264,6 @@ def test_the_owner_adds_refine_items_to_the_basket_and_a_visitor_cannot(world, s
     assert api("guest").post("/api/library/refine", json={"addresses": ["model/crate@1"]}).status_code == 403
 
 
-def test_the_place_page_shows_its_library_strip(world, shelf):
-    html = signed_in().get("/place/alpha/").content.decode()
-    assert "In the library" in html and 'href="/library/?place=alpha"' in html
-    assert html.count("/library-files/thumbs/") == 5  # the lamp post, the wrench, the steel, the hum and the place
-    assert 'href="/library/?entry=model/lamp_post.alpha%401"' in html
-
-
 def test_the_owner_locks_a_selection_committed_and_pushed(world, shelf):
     answer = api().post("/api/library/ask", json={"action": "lock",
                                                   "addresses": ["model/lamp_post.alpha@1", "sound/hum.alpha@1"]})
@@ -325,3 +318,9 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
         assert steel["three_d"]["finish"]["metallic"] == 1.0
         assert client.get("/api/library/entry", params={"address": "character/walker@1"}).json()["three_d"] == {
             "waiting": True}  # its raw GLB is not sent
+
+
+def test_the_library_screen_shows_numbers_not_prose(world, shelf):
+    from score.dashboard.tests.pages_test import WORD_BUDGET, prose
+    words = prose(signed_in().get("/library/").content.decode())
+    assert len(words) <= WORD_BUDGET, (len(words), words)

@@ -14,11 +14,11 @@ from django.views.decorators.http import require_POST
 
 from score.dashboard import state
 from score.dashboard.launch import guard
-from score.dashboard.pages import actions, breakdown, library, present, seen
+from score.dashboard.pages import actions, cockpit, library, present, seen
 from score.dashboard.pages import basket as basket_items
 from score.dashboard.pages.models import BasketItem, ChangeRequest, Launch, Plan, RefineItem, SyncRequest, is_owner
 from score.dashboard.proposals import records
-from score.dashboard.state import costs, groups, holes, sliders
+from score.dashboard.state import costs, groups, holes
 from score.dashboard.state import money as month_money
 
 
@@ -48,58 +48,13 @@ def money_bar(spent, reserved, likely, high, ceiling):
             for name, value in parts]
 
 
-def basket_high():
-    plan = Plan.objects.filter(state="ready").first()
-    return plan.body["money"] if plan and plan.basket_hash == guard.basket_hash(BasketItem.objects.all()) else None
-
-
-def with_marks(layers):
-    """Set each step card's owner mark (pages/seen.py) in place; the layers."""
-    cards = [card for layer in layers for card in layer.steps]
-    found = seen.marks([(card.node, card.output) for card in cards])
-    for card in cards:
-        card.mark = found.get(card.node)
-    return layers
-
-
-def board(request):
-    source = state.source()
+def overview_of(source):
+    """{world, names, rows, view} every screen of the environment reads: the WorldState with the month's spend, the
+    places' titles, each place's row of holes (holes.per_place) and the month's MoneyView."""
     world = source.world_state(actions.spend())
-    for engine in world.engines:
-        for style in engine.styles:
-            for card in style.places:
-                with_marks(card.layers)
-    planned = basket_high() or {}
-    queued = {item.place for item in BasketItem.objects.all()}
-    shown = with_web3d(source, present.look_groups(world, queued))
-    items = basket_now()
-    money = present.money(month_money.view(world.spend), planned)
-    details = every_place_holes(source)
-    price = world.holes_price
-    names = present.place_names(shown)
-    with_world = {**details, holes.WORLD: world_holes(source)}
-    first = holes.buy_first(price, details, items)
-    buy = present.buy_lines(first, holes.code_first(price, details), names, holes.owner_work(with_world))
-    total = holes.environment(world.holes_total, price, items)
-    work = holes.work_groups((total or {}).get("unfillable", []), with_world, price)
-    places = present.overview(holes.per_place(price, details), names)
-    return render(request, "pages/board.html", {
-        "world": world, "environment_name": present.environment_name(world.world),
-        "groups": present.with_holes(shown, places), "holes_total": total,
-        "plan": holes.plan_of(price), "plan_said": holes.plan_said(price, world.world),
-        "headline": holes.headline(price) if total else None, "places": places,
-        "shared": holes.shared_money(price, details),
-        "not_priced_yet": holes.unpriced_work(price, with_world) if total else None,
-        "blockers": present.blockers(money, world.spend, holes.lost_inputs(with_world), names,
-                                     {entry["node"] for entry in first}),
-        "buy": buy, "buy_ready": buy["ready"][:SHOWN], "buy_ready_rest": buy["ready"][SHOWN:],
-        "work": work[:SHOWN], "work_rest": work[SHOWN:], "work_count": len(work),
-        "waiting_items": basket_items.unanswered(),
-        "money": money, "world_steps": [
-            present.step_tile(step, step_url(None, step.stage)) for step in world.world_line]})
-
-
-SHOWN = 10  # the lines of the buy-first list and of the code work shown before their "show all" folds
+    names = present.place_names(present.look_groups(world, set()))
+    rows = holes.per_place(world.holes_price, every_place_holes(source))
+    return {"world": world, "names": names, "rows": rows, "view": month_money.view(world.spend)}
 
 
 def every_place_holes(source):
@@ -109,51 +64,53 @@ def every_place_holes(source):
     return {place: source.place_detail(place).holes for place in source.places()}
 
 
-def world_holes(source):
-    """The environment's own nodes' lost inputs (the holes check's pseudo-place `world`); [] where not read."""
-    return source.holes(holes.WORLD) if hasattr(source, "holes") else []
+def every_node(world):
+    """Every node of the environment: its own line's, every place's steps' and the price record's."""
+    nodes = {step.node for step in world.world_line}
+    nodes |= {step.node for engine in world.engines for style in engine.styles for card in style.places
+              for layer in card.layers for step in layer.steps}
+    return nodes | set(world.holes_price.nodes if world.holes_price else ())
 
 
-def with_web3d(source, shown):
-    """Mark each board tile whose place has a 3D web copy, in place; the groups."""
-    for group in shown:
-        for tile in group["tiles"]:
-            tile["web3d"] = bool(source.web3d(tile["place"]))
-    return shown
+def environment(request):
+    """Screen 1: the month's spend against the stop, the remake's price and time, a tile per place."""
+    found = overview_of(state.source())
+    return render(request, "pages/environment.html", {
+        "money": cockpit.month_money(found["view"]), "remake": cockpit.remake(found["world"].holes_price),
+        "tiles": cockpit.tiles(found["world"], found["names"], found["rows"])})
 
 
-GROUND_STAGE = "terrain"  # the world's ground, made once for every place
+def stats(request):
+    """Screen 4: numbers only, no controls."""
+    found = overview_of(state.source())
+    world, view = found["world"], found["view"]
+    complete, of = cockpit.places_complete(found["rows"])
+    return render(request, "pages/stats.html", {
+        "money": cockpit.month_money(view), "measured": cockpit.measured_prices(world.holes_price),
+        "kinds": cockpit.gaps_by_kind(world.holes_total), "complete": complete, "of": of,
+        "timeline": None if actions.hosted() else cockpit.timeline(
+            guard.backend().ledgered(every_node(world), cockpit.month_start(view.month)), view.month)})
 
 
-def basket_now():
-    """The basket's items as its last make left them ([] before one), for the holes' links to them."""
-    return records.items(basket_items.basket_root())
+def buy(request):
+    """Screen 3, its layout (#42 step 2 fills the batch): the batch's lines, its total and ETA, the Buy button; the
+    owner's books buttons while paid work is refused."""
+    found = overview_of(state.source())
+    return render(request, "pages/buy.html", {"remake": cockpit.remake(found["world"].holes_price),
+                                             "money": found["view"]})
 
 
 def place_page(request, place):
+    """Screen 2, its layout (#42 step 2 fills the side panel): the place in 3D, its scene tree with each node's
+    gaps."""
     source = state.source()
     if place not in source.places():
         raise Http404(f"no place {place}")
     detail = source.place_detail(place)
-    with_marks(detail.layers)
-    world = source.world_state()
-    style = present.look_of_place(world, place)
-    items = basket_now()
-    price = world.holes_price
+    names = present.place_names(present.look_groups(source.world_state(), set()))
     return render(request, "pages/place.html", {
-        "detail": detail, "name": present.place_name(style, detail) if style else present.place_title(place),
-        "status": present.place_status(detail.status, detail.layers),
-        "breakdown": breakdown.breakdown(detail, style, step_url,
-                                         sliders.pairs(detail, lambda stage: source.step_detail(place, stage)),
-                                         source.step_detail(None, GROUND_STAGE)),
-        "problems": present.problems(detail),
-        "holes": present.hole_groups(detail, items, price, present.place_names(present.look_groups(world, set()))),
-        "tree": present.prim_tree(detail) if detail.holes else None,
-        "holes_3d": bool(present.hole_marks(detail)),
-        "place_money": holes.place_row(place, detail.holes, price),
-        "price_said": holes.said_of_price(price),
-        "requests": ChangeRequest.objects.filter(place=place)[:10], "snapshot": actions.snapshot_states(),
-        "library": library.strip_of(place)})
+        "detail": detail, "name": names.get(place, present.place_title(place)),
+        "tree": cockpit.scene_tree(present.prim_tree(detail)) if detail.holes else None})
 
 
 def step_page(request, stage, place=None):
@@ -262,11 +219,9 @@ def basket(request):
     current = guard.basket_hash(items)
     body = plan.body if plan and plan.state == "ready" else {}
     money = body.get("money", {})
-    world = state.source().world_state()
     return render(request, "pages/basket.html", {
-        **basket_items.basket_context(), "money": present.money(month_money.view(actions.spend()), None),
-        "holes_total": holes.environment(world.holes_total, world.holes_price, basket_now()),
-        "items": actions.basket_cards(items), "refine": library.refine_cards(RefineItem.objects.all()),
+        **basket_items.basket_context(), "items": actions.basket_cards(items),
+        "refine": library.refine_cards(RefineItem.objects.all()),
         "plan": plan, "plan_current": bool(plan and plan.basket_hash == current),
         "bar": money_bar(money.get("spent"), money.get("reserved"), money.get("likely"), money.get("high"),
                          money.get("ceiling")),

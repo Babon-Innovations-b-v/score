@@ -1,0 +1,14 @@
+{% extends "pages/base.html" %}
+{% block title %}Buy{% endblock %}
+{% block content %}
+<div class="buy-layout">
+  <section class="buy-list" aria-label="the batch">
+    {% include "pages/c/todo.html" with label="the batch: each item, its price" %}
+  </section>
+  <aside class="buy-side" aria-label="total">
+    {% include "pages/c/todo.html" with label="total, ETA" %}
+    <a class="button primary big wide" href="/basket/" title="checkout">Buy</a>
+    {% if owner and money.paid_refused %}<div class="books" title="{{ money.paid_refused }}">{% include "pages/c/dot.html" with tone="bad" tip=None %}{% include "pages/owner_forms.html" with form="books" %}</div>{% endif %}
+  </aside>
+</div>
+{% endblock %}

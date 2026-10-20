@@ -1,0 +1,7 @@
+{% comment %}The side panel, one a page: `id` (default "panel"). A click on any element with data-opens="<id>" fills it from that element's data-title, data-state, data-tone, data-price, data-action (a URL) and data-action-label, and opens it (dash.js); Escape or the close button shuts it.{% endcomment %}<aside class="side-panel" id="{{ id|default:'panel' }}" hidden>
+  <button type="button" class="quiet panel-close" data-panel-close aria-label="close" title="close">&times;</button>
+  <h3 data-slot="title" data-v></h3>
+  <div class="panel-row"><i class="dot" data-slot="tone"></i><span data-slot="state" data-v></span></div>
+  <div class="panel-price" data-slot="price" data-v></div>
+  <a class="button primary" data-slot="action" hidden></a>
+</aside>

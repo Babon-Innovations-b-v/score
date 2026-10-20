@@ -1,7 +1,10 @@
-"""Every page renders for the owner from the fixture world, with its pictures and words; a signed-out visitor is sent
-to the sign-in page; node ids stay inside the details fold; every POST needs its CSRF token."""
+"""Every page renders for the owner from the fixture world; a signed-out visitor is sent to the sign-in page; node ids
+stay inside the details fold; every POST needs its CSRF token; the five screens (#42) show numbers, not prose: at most
+WORD_BUDGET words outside data, hover text and scripts, and a number the runner does not give is a grey "unknown"."""
+import datetime
 import re
 from html import unescape
+from html.parser import HTMLParser
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -9,7 +12,7 @@ from django.test import Client
 
 pytestmark = pytest.mark.django_db
 PAGES = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/place/beta/step/assembly/",
-         "/world/step/terrain/", "/basket/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
+         "/world/step/terrain/", "/basket/", "/buy/", "/stats/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
 POSTS = ["/place/alpha/step/closeup/request/", "/place/alpha/step/closeup/decide/", "/place/alpha/step/closeup/queue/",
          "/basket/change/", "/refresh/", "/freshness/"]
 NODE = re.compile(r"\b[a-z][a-z-]+@(alpha|beta)\b")
@@ -41,35 +44,6 @@ def test_signed_out_is_sent_to_sign_in():
         answer = Client().get(page)
         assert answer.status_code == 302 and answer["Location"].startswith("/login/"), page
     assert Client().get("/login/").status_code == 200
-
-
-def test_the_board_shows_each_place_once_with_its_picture_and_one_status(world):
-    html = signed_in().get("/").content.decode()
-    text = outside_details(html)
-    assert "unassigned" not in text.lower() and "Not given a look yet" in text
-    assert html.count('class="tile"') == 2 and html.count("/thumbs/") >= 2  # each place's best picture
-    assert "complete apart from" not in text and "fault report" not in text
-    assert re.search(r'class="status (bad|review|new|done|idle)"', html)
-    assert "This month" in text and ("not known yet" in text or "EUR" in text)
-
-
-def test_the_board_shows_no_basket_bar_while_nothing_waits(world):
-    page = signed_in().get("/").content.decode()
-    assert 'class="basket-bar"' not in page and "wait for you" not in page
-
-
-def test_the_place_page_shows_the_usd_index_and_faults(world):
-    html = signed_in().get("/place/beta/").content.decode()
-    assert "beta.usda" in html and "light" in html and "assets" in html
-    assert "placeholders" in html and "beta: no lamp model" in html
-    assert "<video" in html and "/files/" in html
-
-
-def test_a_known_gap_shows_its_picture_and_opens_its_step(world):
-    html = signed_in().get("/place/beta/").content.decode()
-    problems = html[html.index('class="problems bd-problems"'):html.index("</article>", html.index('class="problems'))]
-    gap = next(chunk for chunk in problems.split('class="problem"') if "known gap" in chunk)
-    assert gap.startswith(' href="/place/beta/step/assembly/"') and "/thumbs/" in gap
 
 
 def test_the_step_page_shows_its_own_picture_large(world):
@@ -153,12 +127,6 @@ def test_the_step_page_shows_its_output_beside_what_it_read(world):
     assert 'data-fps="24"' in html  # the film's frame scrubber
 
 
-def test_the_place_page_says_what_is_not_done_and_scrubs_its_film(world):
-    html = signed_in().get("/place/beta/").content.decode()
-    assert "Not done for this place" in html and "beta: no lamp model" in html
-    assert 'data-fps="24"' in html
-
-
 def test_the_3d_viewer_without_a_copy_says_so(world):
     html = signed_in().get("/view/alpha").content.decode()
     assert "No 3D web copy of this place yet" in html and "view3d.js" not in html
@@ -182,7 +150,7 @@ def test_the_3d_viewer_loads_a_places_copy_with_its_layer_makers(world):
                                                                       "url": "/place/alpha/step/light/"}
     assert "edit" in given["order"] and "edit" not in given["layers"]  # the owner's own edits: no step made them
     assert NODE.search(outside_details(html)) is None
-    assert 'href="/view/alpha"' in client.get("/place/alpha/").content.decode()
+    assert 'src="/view/alpha?holes=1&amp;embed=1"' in client.get("/place/alpha/").content.decode()
 
 
 def a_check_finding(world, judged):
@@ -196,18 +164,6 @@ def a_check_finding(world, judged):
         "findings": [{"rule": "finish not from the library", "prim": "/beta/Objects/crate_1",
                       "sentence": "3 models (crate) finish not from the library: a picture's own texture",
                       "picture": "marks/beta-0.png"}]}))
-
-
-def test_the_place_page_lists_a_standalone_checks_findings_as_problems(world):
-    a_check_finding(world, world.outputs["assembly@beta"])
-    html = signed_in().get("/place/beta/").content.decode()
-    assert "3 models (crate) finish not from the library" in html and "library check" in html
-
-
-def test_a_check_finding_on_an_assembly_no_longer_accepted_is_not_listed(world):
-    a_check_finding(world, "0" * 64)
-    html = signed_in().get("/place/beta/").content.decode()
-    assert "finish not from the library" not in html
 
 
 MEASURED = {"likely_euros": 2.0, "high_euros": 3.0, "likely_minutes": 10.0, "high_minutes": 20.0, "runs": 4,
@@ -269,34 +225,6 @@ def a_holes_price(world, **more):
         "unfillable": [{"work": PLAN_WORK, "holes": 1}], "outside": [], "not_current": [], "not_checked": [], **more}))
 
 
-def test_the_place_page_lists_each_holes_chain_priced_by_the_runner(world, settings, tmp_path):
-    from score.dashboard.state import holes
-    items = a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world)
-    world.source.refresh()
-    html = signed_in().get("/place/alpha/").content.decode()
-    assert "A lamp should be in the alpha but nothing is made for it yet (2 of them)." in html
-    lamp = re.search(r"\(2 of them\)\.(.*?)</li>", html, re.S).group(1)
-    assert "/basket/item/alpha-pieces/" in lamp and "2 paid steps in its chain" in lamp
-    assert "likely EUR 2.00, high EUR 3.00 (1 step)" in lamp and "guessed, not a price: EUR 1.00 (1 step)" in lamp
-    plan = re.search(r"<li[^>]*>This place&#x27;s plan is not accepted\.(.*?)</li>", html, re.S).group(1)
-    assert "No stage can fill this yet: " + PLAN_WORK in plan and "EUR" not in plan
-    assert ("The sound step of The alpha look (sound@alpha): not measured yet, guess EUR 1.00 "
-            "(score/stages/__init__.py:243)") in unescape(html)  # each step in words, its id beside it in details
-    assert NODE.search(outside_details(html)) is None
-    total = holes.environment(world.source.holes_total(), world.source.holes_price())
-    assert total["holes"] == 4 and total["unfillable"] == [{"work": PLAN_WORK, "holes": 1}]
-    assert total["sums"]["bases"] == [{"basis": "per unit × forecast", "label": holes.BASES[2][1], "nodes": 1,
-                                       "likely": 2.0, "high": 3.0}]
-    assert total["sums"]["guessed"] == {"euros": 1.0, "nodes": 1, "sources": [
-        {"at": "score/stages/__init__.py:243", "euros": 1.0, "nodes": 1}]}
-    assert total["not_in_basket"] == 2  # the basket's file was not read: no items passed
-    assert holes.environment(world.source.holes_total(), world.source.holes_price(), items)["not_in_basket"] == 1
-    board = signed_in("other").get("/").content.decode()
-    assert "4 holes" in board and "likely EUR 2.00, high EUR 3.00 (1 step)" in board and PLAN_WORK + " (1 hole)" in board
-    assert "1 of these paid steps is in no basket item yet" in board  # the sound: the basket carries the close-up
-
-
 def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(world):
     """The holes check writes the environment's own lost inputs as the pseudo-place `world`; the total counts it, and
     one lost input read by alpha, beta and the world once."""
@@ -314,22 +242,6 @@ def test_a_lost_input_two_places_and_the_world_read_is_one_hole_of_the_total(wor
     total = world.source.holes_total()
     assert total.counts == {"lost": 2}, total
     assert total.unfillable == ["earth seed lost", "take lost"], total
-
-
-def test_a_stale_holes_price_shows_no_total(world, settings, tmp_path):
-    import os
-    import time
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world)
-    later = time.time() + 60
-    os.utime(world.root / "props/work/checks/holes/alpha/findings.json", (later, later))  # the check ran again
-    world.source.refresh()
-    board = signed_in().get("/").content.decode()
-    section = re.search(r'<section class="money-card holes-total".*?</section>', board, re.S).group(0)
-    assert "No total" in section and "stale" in section and "EUR 2.00" not in section
-    assert "the holes check ran again at 1 place since" in section  # one place, said as one
-    html = signed_in("other").get("/place/alpha/").content.decode()
-    assert "Its price is stale" in html and "paid steps in its chain" not in html
 
 
 BOOKS = "the month's books before any paid step: the month's spend is unknown"
@@ -364,51 +276,6 @@ def milestones():
         {"key": "approval", "title": "Your approval of the final video", "owner": ["you approve the final video"]}]
 
 
-def test_the_board_shows_the_runners_plan_in_its_order_with_subtotals_set_budgets_apart_and_the_owners_steps(
-        world, settings, tmp_path):
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world, milestones=milestones())
-    world.source.refresh()
-    board = signed_in().get("/").content.decode()
-    section = unescape(re.search(r'<section class="money-card remake-plan".*?</section>', board, re.S).group(0))
-    titles = re.findall(r'<li class="milestone"><b>(.*?)</b>', section)
-    assert titles == ["The ground", "What each place holds", "Shells split into inside places",
-                      "The environment's film", "Your approval of the final video"], titles
-    assert "EUR 2.00 to EUR 3.00 measured" in section and "so far EUR 2.00 to 3.00" in section
-    assert "Set, not measured</span>: EUR 6.00 for 1 step" in section and "in no figure" in section
-    assert ("After the code work, more: EUR 4.00 to 6.00, a measured price per unit times a count <span "
-            "class=\"unknown\">not measured</span> (one Pixal3D model a hole of this work line)") in section
-    assert "not priced</span>, no row of the stage table does this yet: shell-split" in section
-    assert "Waits on code work: no row of the stage table does" in section
-    assert "Time: <span class=\"unknown\">unknown</span>, this price record holds no ETA" in section
-    assert "Waits on code work: Lost Pixal3D takes made again (2 holes)" in section
-    assert "Only you can do this:</b> " + BOOKS + "; " + OWNERS in section  # the owner's own file, never code work
-    assert "not priced</span>, no row of the stage table cuts it" in section
-    assert "you approve the final video" in section
-    assert NODE.search(outside_details(section)) is None  # step ids only inside the details
-
-
-def test_the_plan_says_the_runners_eta_only_when_every_step_has_measured_minutes(world, settings, tmp_path):
-    a_holes_finding(world, settings, tmp_path)
-    timed = {"jobs": 8, "run_cap": 50, "likely_minutes": 95.0, "high_minutes": 130.0, "at_least_minutes": 95.0,
-             "path": [], "high_path": [], "unknown": []}
-    a_holes_price(world, milestones=milestones(), eta=timed)
-    world.source.refresh()
-    client = signed_in()
-    section = unescape(re.search(r'<section class="money-card remake-plan".*?</section>',
-                                 client.get("/").content.decode(), re.S).group(0))
-    assert "Time: 1 h 35 min to 2 h 10 min, the runner's ETA from measured run times, at most 8 steps" in section
-    untimed = {**timed, "likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0,
-               "unknown": [{"node": "sound@alpha", "paid": True, "why": "no run of sound in the cloud ledger"}]}
-    a_holes_price(world, milestones=milestones(), eta=untimed)
-    world.source.refresh()
-    section = unescape(re.search(r'<section class="money-card remake-plan".*?</section>',
-                                 client.get("/").content.decode(), re.S).group(0))
-    assert "Time: <span class=\"unknown\">unknown</span>, 1 step with no measured run time" in section
-    assert "at least 30 min" in section and "1 h" not in section
-    assert NODE.search(outside_details(section)) is None
-
-
 def test_the_plan_goes_through_the_export_whole(world, settings, tmp_path):
     from score.dashboard.state.exported import ExportedSource
     from score.dashboard.state.models import Spend
@@ -420,212 +287,9 @@ def test_the_plan_goes_through_the_export_whole(world, settings, tmp_path):
     assert ExportedSource(tmp_path / "export").world_state().holes_price.milestones == milestones()
 
 
-def test_a_stale_or_planless_price_shows_no_plan_and_says_why(world, settings, tmp_path):
-    from score.dashboard.state import holes
-    a_holes_finding(world, settings, tmp_path)
-    a_holes_price(world)
-    world.source.refresh()
-    price = world.source.holes_price()
-    assert holes.plan_of(price) is None
-    assert holes.plan_said(price, "world1") == ("the runner's last price holds no plan: run score price world1 "
-                                                "--holes again")
-    a_holes_price(world, milestones=milestones(), priced_on=None)
-    world.source.refresh()
-    price = world.source.holes_price()
-    assert holes.plan_of(price) is None and "before the price" in holes.plan_said(price, "world1")
-    section = re.search(r'<section class="money-card remake-plan".*?</section>', signed_in().get("/").content.decode(),
-                        re.S).group(0)
-    assert "No plan" in section and "EUR" not in section
-
-
-def test_a_holes_price_made_on_other_code_or_other_per_unit_prices_shows_no_total(world, settings, tmp_path):
-    from score.dashboard.state import holes, local
-    a_holes_finding(world, settings, tmp_path)
-    here = local.priced_here()
-    for priced_on, said in (({**here, "commit": "0" * 40, "uncommitted": False}, "the code moved"),
-                            ({**here, "per_unit_sha256": "0" * 64, "uncommitted": False}, "per-unit prices"),
-                            ({**here, "uncommitted": True}, "code not committed"), (None, "before the price")):
-        a_holes_price(world, priced_on=priced_on)
-        world.source.refresh()
-        total = holes.environment(world.source.holes_total(), world.source.holes_price())
-        assert total["sums"] is None and said in total["stale"] and said in total["words"], (said, total)
-
-
-def test_the_holes_total_names_what_it_could_not_price_and_sums_the_prop_route_after_its_work(world, settings,
-                                                                                               tmp_path):
-    from score.dashboard.state import holes
-    a_holes_finding(world, settings, tmp_path)
-    route = {"work": "prop data for beta: data/props/beta.json", "holes": 3, "models": 2, "in_chains": [],
-             "nodes": {"pixal@beta": {**FORECAST, "units": 2}, "closeup@beta": GUESSED}}
-    a_holes_price(world, after_work={"beta": route}, outside=[{"node": "ship_kit@beta", "holes": 4}],
-                  not_checked=["world"])
-    world.source.refresh()
-    total = holes.environment(world.source.holes_total(), world.source.holes_price())
-    assert total["outside"] == [{"node": "ship_kit@beta", "holes": 4}] and total["not_checked"] == ["world"]
-    assert total["after_work"]["sums"]["bases"] == [{"basis": "per unit × forecast", "label": holes.BASES[2][1],
-                                                     "nodes": 1, "likely": 2.0, "high": 3.0}]
-    assert total["after_work"]["sums"]["guessed"]["euros"] == 1.0
-    assert "1 node outside the stage table" in total["words"] and "1 place never checked" in total["words"]
-    board = signed_in("other").get("/").content.decode()
-    section = re.search(r'<section class="money-card holes-total".*?</section>', board, re.S).group(0)
-    assert "once each place's prop data is written" in section and "the holes check never ran: world" in section
-    assert "1 step outside every stage table" in section
-    assert NODE.search(outside_details(section)) is None  # the ship kit's node only inside the details
-
-
-def test_the_holes_total_keeps_each_basis_apart_and_a_shared_node_once():
-    from score.dashboard.state import holes
-    from score.dashboard.state.models import HolesPrice, HolesTotal
-    total = HolesTotal(counts={"missing": 2, "gate": 1})
-    price = HolesPrice(made_at="2026-10-19T20:00:00+00:00", nodes={
-        "pixal@alpha": {**MEASURED, "basis": "measured runs"},
-        "bake@alpha": {**MEASURED, "basis": "per unit × counted"},
-        "lists@alpha": {**FORECAST},
-        "sound@alpha": GUESSED, "sound@beta": {**GUESSED, "guess_euros": 1.5},
-        "film@alpha": {**GUESSED, "guess_euros": None, "guess_from": None}},
-        chains={"alpha": {"pixal@alpha": ["pixal@alpha", "lists@alpha"], "lists@alpha": ["lists@alpha"]}})
-    found = holes.environment(total, price)
-    assert [(entry["basis"], entry["likely"], entry["high"], entry["nodes"]) for entry in found["sums"]["bases"]] == [
-        ("measured runs", 2.0, 3.0, 1), ("per unit × counted", 2.0, 3.0, 1), ("per unit × forecast", 2.0, 3.0, 1)]
-    assert found["sums"]["guessed"]["euros"] == 2.5 and found["sums"]["guessed"]["nodes"] == 2
-    assert found["sums"]["unknown"] == ["film@alpha"]
-    # two holes whose chains share lists@alpha: each chain counts it, the environment once
-    pixal = holes.hole_chain(type("Hole", (), {"node": "pixal@alpha"}), price, "alpha")
-    lists = holes.hole_chain(type("Hole", (), {"node": "lists@alpha"}), price, "alpha")
-    assert "2 paid steps in its chain" in pixal["words"] and "1 paid step in its chain" in lists["words"]
-    assert all("lists@alpha" in [row["node"] for row in chain["rows"]] for chain in (pixal, lists))
-    forecast = next(entry for entry in found["sums"]["bases"] if entry["basis"] == "per unit × forecast")
-    assert (forecast["nodes"], forecast["likely"]) == (1, 2.0), forecast
-
-
-def test_the_whole_figure_and_the_code_work_before_the_first_purchase():
-    """One figure for completion (low: measured likely plus the guesses; high: measured high plus the guesses), the
-    measured share apart; the code work the places wait on ranked by the holes in paid chains there, then euros; the
-    shared ground step said as shared, its places left to the line."""
-    from types import SimpleNamespace
-
-    from score.dashboard.pages import present
-    from score.dashboard.state import holes
-    from score.dashboard.state.models import HolesPrice, HolesTotal
-    price = HolesPrice(made_at="2026-10-19T20:00:00+00:00",
-                       nodes={"pixal@alpha": {**MEASURED, "basis": "measured runs"}, "sound@alpha": GUESSED,
-                              "sound@beta": {**GUESSED, "guess_euros": 4.0}},
-                       chains={"alpha": {"pixal@alpha": ["pixal@alpha", "sound@alpha"]},
-                               "beta": {"sound@beta": ["sound@beta"]}})
-    whole = holes.environment(HolesTotal(counts={"missing": 3}), price)["whole"]
-    assert (whole["low"], whole["high"], whole["measured_likely"], whole["measured_high"], whole["guessed"],
-            whole["measured"], whole["paid"]) == (7.0, 8.0, 2.0, 3.0, 5.0, 1, 3), whole
-
-    def hole(ident, rule, node=None, work=None):
-        return SimpleNamespace(id=ident, rule=rule, node=node, work=work)
-    details = {"alpha": [hole("missing:a1", "missing", "pixal@alpha"), hole("missing:a2", "missing", "pixal@alpha"),
-                         hole("place:plan", "place", work=PLAN_WORK),
-                         hole("place:lost:earth-seed:usd-r3", "place", work="earth seed lost")],
-               "beta": [hole("missing:b1", "missing", "sound@beta"),
-                        hole("place:lost:earth-seed:usd-r3", "place", work="earth seed lost")]}
-    code = holes.code_first(price, details)
-    assert [(task["task"], task["places"], task["holes"]) for task in code] == [
-        ("Earth seed lost: a seed row that exports each place's base", 2, 3), ("Door kits: a concept view and a plan", 1, 2)], code
-    assert code[0]["money"]["guessed"] == 5.0 and code[0]["money"]["likely"] == 2.0
-    buy = present.buy_lines(holes.buy_first(price, details), code)
-    assert buy["all_wait"] and buy["ready"] == [] and len(buy["waiting"]) == buy["count"] == 3
-    assert buy["code"][0]["euros"] == "EUR 2.00 to 3.00 measured, EUR 5.00 guessed"
-    ready = present.buy_lines(holes.buy_first(price, {"beta": [hole("missing:b1", "missing", "sound@beta")]}), [])
-    assert not ready["all_wait"] and [line["node"] for line in ready["ready"]] == ["sound@beta"]
-    assert present.node_words("terrain") == "the shared ground step"
-
-
 PIXAL = ("Pixal3D take lost: pixal@<place>'s accepted output carries its takes and every reader reads them through an "
          "`after` on it; then each lost take is a pixal hole, priced")
-BETA_PLAN = "data/plans/beta.json with its leads"
 OWNERS = "the owner supplies cockpit.png, his own reference picture (kept off the public repository)"
-
-
-def ship_seed(node):
-    return f"ship seed lost: {node} (paid, the ship kits' own table) made again, then a free ship-seed row"
-
-
-def a_lost_takes_price():
-    """Alpha with a lost take its models step makes again, a lost take only code brings back (read by beta too), the
-    owner's own reference picture and the plan at both places; the models step measured, beta's ship kit
-    guessed."""
-    from types import SimpleNamespace
-
-    from score.dashboard.state.models import HolesPrice
-
-    def hole(ident, rule, node=None, work=None):
-        return SimpleNamespace(id=ident, rule=rule, node=node, work=work)
-    details = {"alpha": [hole("missing:a1", "missing", "pixal@alpha"),
-                         hole("place:lost:pixal:chair-b", "place", node="pixal@alpha"),
-                         hole("place:lost:pixal:lamp-s1", "place", work=PIXAL),
-                         hole("place:lost:reference:cockpit.png", "place", work=OWNERS),
-                         hole("place:plan", "place", work=PLAN_WORK)],
-               "beta": [hole("place:lost:pixal:lamp-s1", "place", work=PIXAL),
-                        hole("place:plan", "place", work=BETA_PLAN)]}
-    price = HolesPrice(made_at="2026-10-19T20:00:00+00:00",
-                       nodes={"pixal@alpha": {**MEASURED, "basis": "measured runs"}, "ship_kit@beta": GUESSED},
-                       chains={"alpha": {"pixal@alpha": ["pixal@alpha"]}},
-                       unfillable=[{"work": PIXAL, "holes": 1}, {"work": PLAN_WORK, "holes": 1}, {"work": BETA_PLAN, "holes": 1},
-                                   {"work": OWNERS, "holes": 1}, {"work": ship_seed("ship_kit@beta"), "holes": 1}])
-    return price, details
-
-
-def test_lost_takes_are_split_by_what_brings_them_back_and_the_owners_own_files_are_not_code():
-    from score.dashboard.pages import present
-    from score.dashboard.state import holes
-    price, details = a_lost_takes_price()
-    lost = {entry["kind"]: entry for entry in holes.lost_inputs(details)}
-    assert (lost["pixal"]["items"], lost["pixal"]["coded"], lost["pixal"]["bought"]) == (
-        2, 1, [{"node": "pixal@alpha", "inputs": 1}])
-    assert lost["reference"]["owner"] and lost["reference"]["files"] == ["cockpit.png"]
-    names = {"alpha": "Alpha", "beta": "Beta"}
-    found = {step["title"]: step for step in present.blockers(
-        {"stop": 5.0}, SimpleSpend(), holes.lost_inputs(details), names, {"pixal@alpha"})}
-    takes = found["Pixal3D takes are lost"]
-    assert takes["words"] == "Blocks 2 places (2 inputs). 1 needs code work: Lost Pixal3D takes made again."
-    assert (takes["bought"], takes["buys"]) == (1, [{"words": "the models step of Alpha", "inputs": 1,
-                                                     "anchor": "buy-pixal-alpha"}])
-    owners = found["Only you can do this: your reference pictures are missing"]
-    assert "cockpit.png" in owners["words"] and "code work" not in owners["words"] and owners["buys"] == []
-    assert "Your own reference pictures" not in [task["task"] for task in holes.work_groups(
-        price.unfillable, details, price)]
-    buy = present.buy_lines(holes.buy_first(price, details), holes.code_first(price, details), names,
-                            holes.owner_work(details))
-    assert [task["task"] for task in buy["owner"]] == ["Your own reference pictures"]
-    assert buy["owner"][0]["files"] == ["cockpit.png"]
-    assert "Your own reference pictures" not in [task["task"] for task in buy["code"]]
-    assert buy["waiting"][0]["anchor"] == "buy-pixal-alpha"
-    assert buy["waiting"][0]["words"] == "the models step of Alpha"  # the place's title, never its key
-
-
-def test_the_paid_work_the_code_work_brings_is_named_unpriced_and_both_figures_add_up():
-    from score.dashboard.state import holes
-    price, details = a_lost_takes_price()
-    # beta's ship kit is in the runner's price (a guess), so its seed's line adds nothing unpriced
-    assert holes.unpriced_work(price, details) == {
-        "lines": ["the lost Pixal3D takes made again (1)"], "holes": 3}
-    today = holes.whole_of(holes.summed(price.nodes))
-    after = holes.whole_of(holes.summed({"pixal@beta": {**FORECAST}}))
-    both = holes.whole_plus(today, after)
-    assert today["measured_by"] == ["measured runs"]
-    assert (both["low"], both["high"], both["measured"], both["paid"], both["guessed"]) == (5.0, 7.0, 2, 3, 1.0)
-    assert both["measured_by"] == ["measured runs", "per unit × forecast"]
-
-
-def test_the_pixal_code_work_the_record_prices_leaves_the_unpriced_lines_and_joins_the_after_figure():
-    """The runner priced the lost take at pixal's unit: no longer named unpriced, in the figure
-    after the code work, and in the total's words."""
-    from score.dashboard.state import holes
-    price, details = a_lost_takes_price()
-    price.code_work = {
-        PIXAL: {"holes": 1, "models": 1, "nodes": {"pixal: the lost Pixal3D takes made again": FORECAST}}}
-    assert holes.unpriced_work(price, details) is None
-    after = holes.after_work(price)
-    assert [entry["work"] for entry in after["code"]] == [PIXAL] and after["places"] == []
-    whole = holes.whole_of(after["sums"])
-    assert (whole["low"], whole["high"], whole["measured"]) == (2.0, 3.0, 1)
-    assert "after 1 Pixal3D code tasks: per unit" in holes.total_words(price, holes.summed(price.nodes), after)
-    assert "4 holes wait on code work" in holes.headline(price)  # 5 unfillable, 1 of them priced after the work
 
 
 def test_every_priced_step_and_place_has_plain_words():
@@ -637,15 +301,6 @@ def test_every_priced_step_and_place_has_plain_words():
     assert groups.label("people-dress-nev-work") == "dressed body of the nev-work look"
     assert plain.place_words("gdoor") == "the garage door" and present.place_title("hdoor") == "Hangar roof door"
     assert plain.lost_words("place:lost:earth-seed:gdoor") == "garage door"  # its seed folder, by the kit's title
-    assert present.node_words("closeup@engineroom", {"engineroom": "Engine room"}) == (
-        "the close-ups step of Engine room")
-
-
-class SimpleSpend:
-    """A spend read with the month's books known: nothing refused."""
-    as_of = "2026-10-19T08:00:00+00:00"
-    paid_refused = None
-    note = None
 
 
 def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):
@@ -656,7 +311,7 @@ def test_the_viewer_outlines_the_holes_when_asked(world, settings, tmp_path):
         "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
         "objects": [], "bytes": 10, "light_bytes": 5, "triangles": 12}))
     client = signed_in()
-    assert 'href="/view/alpha?holes=1"' in client.get("/place/alpha/").content.decode()
+    assert 'src="/view/alpha?holes=1&amp;embed=1"' in client.get("/place/alpha/").content.decode()
 
     def marks(page):
         html = client.get(page).content.decode()
@@ -673,3 +328,206 @@ def test_holes_are_not_repeated_among_the_check_findings(world, settings, tmp_pa
     a_holes_finding(world, settings, tmp_path)
     assert [finding.check for finding in world.source.check_findings("alpha")] == []
     assert [hole.id for hole in world.source.holes("alpha")][:1] == ["missing:lamp_1"]
+
+
+def test_a_standalone_checks_findings_stand_only_while_the_output_they_judged_is_accepted(world):
+    a_check_finding(world, world.outputs["assembly@beta"])
+    assert [finding.rule for finding in world.source.check_findings("beta")] == ["finish not from the library"]
+
+
+def test_a_check_finding_on_an_assembly_no_longer_accepted_is_not_read(world):
+    a_check_finding(world, "0" * 64)
+    assert world.source.check_findings("beta") == []
+
+
+def test_the_runners_prices_are_summed_each_basis_apart():
+    from score.dashboard.pages import cockpit
+    from score.dashboard.state import holes
+    from score.dashboard.state.models import HolesPrice
+    price = HolesPrice(made_at="2026-10-19T20:00:00+00:00", nodes={
+        "pixal@alpha": {**MEASURED, "basis": "measured runs"},
+        "bake@alpha": {**MEASURED, "basis": "per unit × counted"},
+        "lists@alpha": {**FORECAST},
+        "sound@alpha": GUESSED, "sound@beta": {**GUESSED, "guess_euros": 1.5},
+        "film@alpha": {**GUESSED, "guess_euros": None, "guess_from": None}})
+    sums = holes.summed(price.nodes)
+    assert [(entry["basis"], entry["likely"], entry["high"], entry["nodes"]) for entry in sums["bases"]] == [
+        ("measured runs", 2.0, 3.0, 1), ("per unit × counted", 2.0, 3.0, 1), ("per unit × forecast", 2.0, 3.0, 1)]
+    assert sums["guessed"]["euros"] == 2.5 and sums["guessed"]["nodes"] == 2 and sums["unknown"] == ["film@alpha"]
+    assert cockpit.measured_prices(price) == (3, 6)  # a guess is never a measured price
+
+
+# --- the cockpit's screens (#42): numbers, colours, pictures and buttons, not prose -------------------------------
+
+WORD_BUDGET = 40  # a screen's words outside data, hover text and scripts (owner, 2026-10-20: text down about 98%)
+SCREENS = ["/", "/place/alpha/", "/buy/", "/stats/", "/library/"]
+
+
+class Prose(HTMLParser):
+    """The words a page shows that are not data: its text outside script, style, title (hover text) and any element
+    marked data-v (a number, a name, a state)."""
+    SKIP = {"script", "style", "title"}
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+
+    def __init__(self):
+        super().__init__()
+        self.hidden, self.words = [], []
+
+    def handle_starttag(self, tag, attrs):
+        if tag not in self.VOID:
+            self.hidden.append(tag in self.SKIP or any(name == "data-v" for name, _ in attrs)
+                               or bool(self.hidden and self.hidden[-1]))
+
+    def handle_startendtag(self, tag, attrs):
+        """A self-closed element (an SVG circle) opens nothing."""
+
+    def handle_endtag(self, tag):
+        if tag not in self.VOID and self.hidden:
+            self.hidden.pop()
+
+    def handle_data(self, data):
+        if not (self.hidden and self.hidden[-1]):
+            self.words += re.findall(r"[A-Za-z][A-Za-z'-]*", data)
+
+
+def prose(html):
+    parser = Prose()
+    parser.feed(html)
+    return parser.words
+
+
+def test_the_word_count_skips_data_hover_text_and_scripts():
+    assert prose('<p>one two <b data-v>Alpha <i>beta</i></b><svg><circle r="1"/><title>a hover</title></svg>'
+                 '<span title="many words here">x</span><script>var y</script></p>') == ["one", "two", "x"]
+
+
+def a_month(monkeypatch, **more):
+    """The month's spend as the store's machine read it: the cloud bill known, the model bill only partly counted
+    (no figure), the environment's one stop line at EUR 250."""
+    from score.dashboard.pages import actions
+    from score.dashboard.state.models import CostLine, Spend
+    lines = [CostLine(source="cloud", label="Cloud compute", euros=12.5),
+             CostLine(source="models", label="Model calls", euros=0.0, partial=True)]
+    monkeypatch.setattr(actions, "spend", lambda: Spend(ceiling=250.0, month="2026-10", lines=lines, **more))
+
+
+def test_every_screen_shows_numbers_not_prose(world, settings, tmp_path, monkeypatch):
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world, milestones=milestones())
+    world.source.refresh()
+    a_month(monkeypatch, paid_refused="the month's books are lost")
+    client = signed_in()
+    for page in SCREENS:
+        html = client.get(page).content.decode()
+        words = prose(html)
+        assert len(words) <= WORD_BUDGET, (page, len(words), words)
+        assert "Traceback" not in html and "/api/money/stop" not in html and "/api/money/month" not in html, page
+
+
+def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, settings, tmp_path, monkeypatch):
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world, milestones=milestones(), eta={"likely_minutes": 95.0, "high_minutes": 130.0, "unknown": []})
+    world.source.refresh()
+    a_month(monkeypatch)
+    html = signed_in().get("/").content.decode()
+    tiles = dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', html, re.S))
+    assert set(tiles) == {"alpha", "beta"}
+    assert "tone-hole-route" in tiles["alpha"] and "<b data-v>4</b>" in tiles["alpha"]  # its worst kind: a route step
+    assert "tone-done" in tiles["beta"] and "<b data-v>0</b>" in tiles["beta"]
+    assert all(re.search(r"<text [^>]*data-v>\d+/\d+</text>", tile) for tile in tiles.values())  # made / needed
+    assert all("/thumbs/" in tile for tile in tiles.values())  # each place's best picture
+    top = html[html.index('<section class="topbar">'):html.index('<section class="ptiles"')]
+    assert '<span class="unknown" title="a bill is not known yet">unknown</span>' in top  # the model bill: no figure
+    assert "<small> / 250</small>" in top
+    assert "<small>EUR</small> 2&ndash;3<small>, about 1.6 h</small>" in top  # the runner's plan, its ETA
+    assert 'href="/buy/">Review and buy</a>' in top
+
+
+def test_the_remake_is_the_runners_plan_and_its_time_only_when_every_step_is_timed(world, settings, tmp_path):
+    from score.dashboard.pages import cockpit
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world, milestones=milestones())
+    world.source.refresh()
+    remake = cockpit.remake(world.source.holes_price())
+    assert (remake["low"], remake["high"], remake["hours"], remake["unknown"]) == (2.0, 3.0, None, 2), remake
+    untimed = {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0,
+               "unknown": [{"node": "sound@alpha", "paid": True, "why": "no run of sound in the cloud ledger"}]}
+    a_holes_price(world, milestones=milestones(), eta=untimed)
+    world.source.refresh()
+    assert cockpit.remake(world.source.holes_price())["hours"] is None
+
+
+def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, settings, tmp_path):
+    from score.dashboard.pages import cockpit
+    from score.dashboard.state import local
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world)
+    world.source.refresh()
+    assert cockpit.remake(world.source.holes_price())["why"] == "no plan in the runner's record"
+    here = local.priced_here()
+    for priced_on, said in (({**here, "commit": "0" * 40, "uncommitted": False}, "the code moved"),
+                            ({**here, "per_unit_sha256": "0" * 64, "uncommitted": False}, "per-unit prices"),
+                            ({**here, "uncommitted": True}, "code not committed"), (None, "before the price")):
+        a_holes_price(world, milestones=milestones(), priced_on=priced_on)
+        world.source.refresh()
+        price = world.source.holes_price()
+        remake = cockpit.remake(price)
+        assert remake["low"] is None and said in remake["why"], (said, remake)
+        assert cockpit.measured_prices(price) == (None, None)
+    assert said in unescape(signed_in().get("/").content.decode())  # the why is the hover text
+
+
+def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, settings, tmp_path, monkeypatch):
+    from score.dashboard.launch.backend import Billed
+    from score.dashboard.tests.fixture import FakeBackend
+    a_holes_finding(world, settings, tmp_path)
+    a_holes_price(world)
+    world.source.refresh()
+    a_month(monkeypatch)
+    monkeypatch.setattr(FakeBackend, "bill", [Billed("closeup@alpha", 2.5, 10.0, "2026-10-03T10:00:00"),
+                                              Billed("closeup@alpha", 1.0, 5.0, "2026-10-05T10:00:00"),
+                                              Billed("closeup@alpha", 9.0, 5.0, "2026-09-30T10:00:00")])
+    html = signed_in().get("/stats/").content.decode()
+    cards = dict(re.findall(r'<div class="num-label">(?:<i [^>]*></i>)?([^<]+)</div>\s*<div class="num-value[^"]*"'
+                            r"[^>]*>(.*?)</div>", html, re.S))
+    assert cards["Cloud compute"] == "<small>EUR</small> 12.50"  # each line by its own label
+    assert cards["Model calls"] == "unknown" and cards["Total / stop"] == "unknown"  # a partial count is no figure
+    assert cards["Measured prices"] == "1<small> / 2</small>"  # the close-up measured, the sound guessed
+    assert cards["Places complete"] == "1<small> / 2</small>"  # beta, checked with no gap
+    assert [cards[label] for label in ("lost", "route", "missing", "failing")] == ["0", "1", "2", "1"]
+    assert 'title="2026-10-03: EUR 2.50"' in html and 'title="2026-10-05: EUR 1.00"' in html
+    assert "2026-09-30" not in html  # last month's run is not this month's spend
+    main = html[html.index("<main>"):]
+    assert "<form" not in main and "<button" not in main  # numbers only, no controls
+
+
+def test_the_spend_timeline_is_every_day_of_the_month_so_far():
+    from score.dashboard.launch.backend import Billed
+    from score.dashboard.pages import cockpit
+    days = cockpit.timeline([Billed("a", 2.0, None, "2026-10-02T09:00:00"), Billed("b", 1.0, None, "2026-10-02T20:00"),
+                             Billed("c", 1.5, None, "2026-10-04T01:00:00")], "2026-10", datetime.date(2026, 10, 5))
+    assert [(day["day"][-2:], day["euros"], day["height"]) for day in days] == [
+        ("01", 0.0, 0), ("02", 3.0, 100), ("03", 0.0, 0), ("04", 1.5, 50), ("05", 0.0, 0)]
+    assert cockpit.timeline([], "2026-10") == []
+
+
+def test_the_place_screen_is_its_3d_view_its_scene_tree_and_a_side_panel(world, settings, tmp_path):
+    a_holes_finding(world, settings, tmp_path)
+    world.source.refresh()
+    html = signed_in().get("/place/alpha/").content.decode()
+    assert 'src="/view/alpha?holes=1&amp;embed=1"' in html and '<aside class="side-panel" id="panel" hidden>' in html
+    assert 'data-opens="panel" data-title="lamp" data-state="2 missing" data-tone="hole-missing"' in html
+    assert 'data-title="crate_1" data-state="1 failing" data-tone="hole-gate"' in html
+    assert re.search(r'<span class="node-label" data-v>Holes</span><span class="node-count" data-v>2</span>', html)
+    assert NODE.search(outside_details(html)) is None
+
+
+def test_the_buy_screen_has_no_stop_control_and_the_books_buttons_while_paid_work_is_refused(world, monkeypatch):
+    a_month(monkeypatch)
+    client = signed_in()
+    html = client.get("/buy/").content.decode()
+    assert "data-step2" in html and 'href="/basket/"' in html and "/api/money/read-back" not in html
+    a_month(monkeypatch, paid_refused="the month's books are lost")
+    html = client.get("/buy/").content.decode()
+    assert 'data-post="/api/money/read-back"' in html and 'data-post="/api/money/books-figure"' in html
+    assert "/api/money/read-back" not in signed_in("guest").get("/buy/").content.decode()  # the owner's own buttons

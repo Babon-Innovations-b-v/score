@@ -420,30 +420,6 @@ def places_of(entries):
     return sorted({entry.place for entry in entries if entry.place})
 
 
-def from_place(entries, place):
-    """The entries that came from one place, newest version of each id."""
-    newest = {}
-    for entry in entries:
-        if entry.place == place and entry.state != "withdrawn":
-            newest[(entry.kind, entry.entry_id)] = entry
-    return sorted(newest.values(), key=kind_order)
-
-
-def kinds_mixed(entries):
-    """Entries taken a kind at a time in turn, so a short row shows every kind the place has."""
-    by_kind = {}
-    for entry in entries:
-        by_kind.setdefault(entry.kind, []).append(entry)
-    rows = list(by_kind.values())
-    return [row[rank] for rank in range(max(map(len, rows), default=0)) for row in rows if rank < len(row)]
-
-
-def counted_kind(kind, count):
-    """"3 models", "1 model", "2 sound"."""
-    label = kind_label(kind).lower()
-    return f"{count} {label[:-1] if count == 1 and label.endswith('s') else label}"
-
-
 # --- into the state export (sync/building.py) ------------------------------------------------------------------
 
 def exported_rows(entries):

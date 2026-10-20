@@ -82,8 +82,8 @@ the current backend). No model runs on the coordinating machine.
   in the store. The owner keeps a reject, a button on the cockpit's step page: the accepted output moves back to
   the one accepted before, every later node that read it is stale, and the runner never takes it again. He also
   keeps his own accept, for a worse output with his reason; a waiver (one check, one key, with his reason); and an
-  override, his yes for a run outside the runner. None is needed for a run. His accept, reject and waiver, his stop
-  line, the month's stop and the books' figure are buttons in the cockpit: each his signed-in request, applied on his
+  override, his yes for a run outside the runner. None is needed for a run. His accept, reject and waiver and the
+  books' figure are buttons in the cockpit, and his Buy yes sets the batch's stop (#42): each his signed-in request, applied on his
   PC by the sync pass only when its user is that PC's `SCORE_OWNER`, through the same owner-only functions
   (`score.review.web`; #39). Agents are kept from giving those, and
   from writing accepts or clearances by hand, by a barrier, not a lock: the commands want his terminal, the store
@@ -145,10 +145,9 @@ out as links) in which every inventory row with nothing made for it is a guide b
 (unplaced when no data says where; never `score:row`, so the rows gate still counts it missing), every made object a
 written fault names carries the gates it fails, and the root carries the route's steps the place lacks (its concept,
 plan, rough model); and `findings.json`, one hole each, naming the node that fills it (a stage of the table that runs
-for the place) or the code work it needs. The cockpit lists them on the place page, outlines them in its 3D viewer
-(`?holes=1`) and prices them at read time from the basket (`score/dashboard/state/holes.py`: a node an item carries
-gets the runner's price; the environment's total prices every node of the items that fill a hole, each once, and
-counts the paid steps no item carries; work-only holes are listed with no price). A shown place's objects are never
+for the place) or the code work it needs. The cockpit counts them on each place's tile and on its stats, shows them
+in the place's scene tree, outlines them in its 3D viewer (`?holes=1`) and sums the runner's price of their chains
+(`score/dashboard/state/holes.py`, each paid node once; work-only holes carry no price). A shown place's objects are never
 the place's own: rows made only there stay missing (the completion gate's rows check reads them the same way). The
 sync pass writes them after the library sweep. The boxes stay out of the accepted assembly: putting them inside would
 move assembly's, complete's and every later paid row's key.

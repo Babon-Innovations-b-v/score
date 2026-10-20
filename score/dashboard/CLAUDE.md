@@ -17,51 +17,57 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`holes`, `holes_total`). Their price is the runner's (`score price world1 --holes`, its record
   `WORK/checks/holes-price/<world>.json` read as `HolesPrice`): `holes.py` only sums it, every paid node of any
   hole's chain once, each basis in its own bucket (measured runs, per unit × counted, per unit × forecast, the
-  guesses with the file and line each is written on, never a price; the nodes with neither are unknown), and lists
-  each hole's chain; no price is made and no unit counted here. The prop route of the rows waiting on their place's
-  prop data (`after_work`) is summed apart, after that code work; a node outside the table and a place never
-  checked are named, never read as nothing to pay. A record made on another commit, on code not committed or on
-  other per-unit prices than this checkout's (`priced_on`, `code_moved`), or older than any accept or reject or any
-  holes check shows no number (`price_stale`, the rule of `current_findings`); the holes, their total and their
-  price are read again as soon as a holes findings or the price record is written (`holes_written`, a stat each per
-  request), never after the 60 s index. A hole whose node a basket item
-  carries links that item, where it is bought; the total no longer reads the basket. The board is the environment's
-  overview from the same record and findings, judging nothing: a row a place (`per_place`: holes by kind, worst
-  first: lost input, route step, missing, gate; its chains' paid nodes once, so a step several places share is in
-  each of their rows and once in the total, which the table says above it; `own` the steps no other place's chain
-  has, `shared_money` the shared ones once), the steps that block every paid step
-  (no stop, the month's books `paid_refused`, each kind of lost input), then `buy_first` (each paid node by how many
-  holes have it in their chain, a count, and how many of those wait first on a lost input or a route step at their
-  place; when every one waits, `code_first` comes first: the code work the places wait on by the holes in paid
-  chains there, then euros, and the steps fold), the code work folded into tasks (`work_groups`, `WORK_TASKS`;
-  holes counted from the findings, a lost input once; a line the owner does himself, `OWNER`, is never code work:
-  `owner_work` and the blockers say it as "Only you can do this", with his files) and the money, led by one
-  figure of what the runner can price today (`whole_of`: low the measured likely plus the guesses, high the measured
-  high plus the guesses, the measured share in euros, steps and its bases; the prop route after its code work said
-  apart and added in, `whole_plus`), and the paid work the code work brings that no record prices yet named with
-  the holes it holds back (`unpriced_work`, `BRINGS`), then `headline`: only the holes no figure holds (outside
-  the table, waiting on code work), never the figures again. Under it the whole remake's plan (`plan_of`,
-  `pages/remake_plan.html`): the runner's milestones from the same record (`score/stages/complete/holes/
-  milestones.py`), in its order, each with its measured euros and the running subtotal, the stage table's set budgets
-  apart (set, never in a figure), its unknown steps with why in the details, its code work folded into tasks, the
-  owner's own steps, the rows the table lacks; a price after code work said as a measured price per unit times a count
-  not measured (each node's `unit_source`); the time from the record's `eta` (`eta_of`, the runner's
-  `holes/schedule.py`): a range only when every step has measured minutes, else unknown with why and the floor;
-  none while the record is stale or has none (`plan_said`). No plan is made or reordered here. A lost input kind's blocker splits its inputs by what brings
-  them back: code work, or a paid step (linked to its buy-first line). Places and steps are said by their titles
-  (`groups.place_title`, `groups.label`), never their keys, outside a details fold. Counts are by kind (lost input once, route step, missing, gate);
-  a board card carries its place's holes and worst kind beside its steps' status. A place page shows its holes layer as a tree
-  (`present.prim_tree`; no accepted assembly gives a whole scene tree yet), its holes by kind with each line's source
-  and a `/view/<place>?holes=1&hole=<id>` link the viewer frames (holes alone over a grid while no web copy exists).
+  guesses with the file and line each is written on, never a price; the nodes with neither are unknown); no price
+  is made and no unit counted here. A place never checked is named, never read as nothing to pay. A record made on
+  another commit, on code not committed or on other per-unit prices than this checkout's (`priced_on`,
+  `code_moved`), or older than any accept or reject or any holes check shows no number (`price_stale`, the rule of
+  `current_findings`); the holes, their total and their price are read again as soon as a holes findings or the
+  price record is written (`holes_written`, a stat each per request), never after the 60 s index. `per_place` gives
+  each place's row (holes by kind, worst first: lost input, route step, missing, gate; its chains' paid nodes once,
+  `own` the ones no other place's chain has); `plan_of` the runner's milestones (`score/stages/complete/holes/
+  milestones.py`) in its order with the remake's total, the set budgets apart (never in a figure); the time is the
+  record's `eta` (the runner's `holes/schedule.py`), shown only when every step has measured minutes. No plan is
+  made or reordered here. Places and steps are said by their titles (`groups.place_title`, `groups.label`), never
+  their keys. `present.prim_tree` gives a place's holes layer as a tree (no accepted assembly gives a whole scene
+  tree yet), `present.hole_marks` the boxes the viewer outlines (`/view/<place>?holes=1&hole=<id>`, holes alone over
+  a grid while no web copy exists).
   `files.py` serves only a sha a page listed, with cached JPEG thumbnails; `costs.py` only says minutes in words (the
-  cockpit prices nothing: every price is the runner's, ADR-0006); `gaps.py` gives each named gap its step and a picture of what it names (local source only), `plain.py`
-  says each problem in one plain sentence.
+  cockpit prices nothing: every price is the runner's, ADR-0006); `gaps.py` gives each named gap its step and a
+  picture of what it names (local source only), `plain.py` says each problem in one plain sentence (the step
+  pages' and the viewer's; the five screens show numbers).
 - **`auth/`** `proxy.py` the outermost guard (only a trusted proxy may send `Remote-User`/`Remote-Email`; an
   underscore spelling is refused from every peer), `backends.py` the allow-list, `owner.py` the local owner account
   (a terminal, a 12+ character password, loopback bind only without a proxy).
 - **`pages/`** the Django app (label `dashboard`): views, templates, static CSS/JS, its own SQLite records (change
   requests, basket, plans, launches, sync requests; never a mirror of the store). `actions.py` does what a request
   asks, one function each.
+- **The cockpit app (#42): five screens under one top nav** (`templates/pages/base.html`): **Environment** `/`
+  (`environment.html`: the month spent against the stop line, the remake's euros and hours, a Review and buy
+  button, a tile per place), **Place** `/place/<place>/` (`place.html`: the 3D view, the scene tree with gap dots, a
+  side panel), **Buy** `/buy/` (`buy.html`: the batch's list, total, ETA and the Buy button; the owner's books
+  buttons while paid work is refused; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
+  (`stats.html`: numbers only, no controls) and **Library** `/library/`. Step 1 built the shell, Environment and
+  Stats; Place, Buy and Library hold `c/todo.html` placeholders (`data-step2`) that step 2 fills. The numbers come
+  from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `scene_tree`, `gaps_by_kind`, `places_complete`,
+  `measured_prices`, `timeline`), each None where the runner gives none, shown as a grey "unknown", never 0; the
+  views are `views.environment`, `stats`, `buy`, `place_page` over `views.overview_of`. The components, each an
+  include of `templates/pages/c/` with these arguments (every one ends without a newline, so it sits inline):
+  - `dot.html` `tone` (done, idle, bad, review, hole-lost, hole-route, hole-missing, hole-gate: the `.tone-*`
+    classes of dash.css), `tip`.
+  - `ring.html` `done`, `total`, `tip`: a progress ring with done/total in it.
+  - `number.html` `label`, `value` (None: grey "unknown" with `unknown_tip`), `unit` ("EUR": to the cent), `of` a
+    denominator, `bar` a percent under it, `tone` a dot beside the label, `tip`. Pass every argument (None where
+    unused): an include inherits its caller's names.
+  - `tile.html` `href`, `picture`, `name`, `made`, `needed`, `gaps` (None: "?", not checked), `tone`, `tip`.
+  - `tree.html` `nodes` [{label, count, tone, tip, href, open, panel, children, children_url}]: `children` drawn now,
+    `children_url` fetched (GET, JSON [node] of the same fields) only when its branch first opens (dash.js); a
+    failed load turns its dot red and goes to the console. `panel` {title, state, tone, price, action,
+    action_label} opens the side panel on a click or Enter.
+  - `panel.html` `id` (default "panel"): one a page, filled by dash.js from the opener's data-title, data-state,
+    data-tone, data-price, data-action, data-action-label; Escape or its close button shuts it.
+  - `todo.html` `label`: a step-2 placeholder.
+  Hover text is the native `title` attribute: every component takes `tip`; an explanation goes there, never on
+  the page.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the
@@ -128,8 +134,12 @@ Rules:
 - **No provider here.** Nothing in this package imports `tools.*` or `score.adapters` or names a provider
   (`tests/no_provider_test.py`). Hosted mode never imports `score.stages`, `score.store`, numpy or usd-core
   (`tests/hosted_light_test.py`).
-- **Pages are visual first:** a picture per piece, labelled plans, few words; node ids only inside the
-  `details` fold (`tests/pages_test.py`). Money is the projected total against the stop, never per-piece prices alone.
+- **Numbers, not prose** (owner, 2026-10-20, #42): the runner gives numbers and states; a screen shows numbers,
+  colours, pictures, progress and buttons, at most one short line of text a block, explanations only as hover text,
+  never a raw error or traceback (a red state and a short label; the detail to the log). Mark data (a number, a
+  name, a state) with `data-v`: `tests/pages_test.py` (`prose`, `WORD_BUDGET`) fails a screen with more than 40
+  words of anything else. Node ids only inside a `details class="ids"` fold. Money is the total against the one stop
+  line, never per-piece prices alone; a provider is named only by its cost line's label (`no_provider_test.py`).
 - Tests: `make tests TESTS="score/dashboard/tests/*_test.py score/review/web_test.py"` (temp `PROPS_HOME` and
   dashboard home, `tests/conftest.py`). `tests/real_store_smoke.py` runs by hand against the real store, read-only.
   `tests/viewer_look.py` runs by hand too, free: the 3D viewer in headless Chromium from each film shot's and light
