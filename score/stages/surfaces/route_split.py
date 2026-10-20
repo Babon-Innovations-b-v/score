@@ -8,10 +8,15 @@ DISAGREE_MOST of the area are views that disagree. A face no view can see takes 
 the surface (finish_parts.walked); the finishes are then smoothed and crumbs joined (finish_parts.cleaned,
 merged_islands), each island one part.
 
+The colour check comes first, free, the moment the list's one answer is back and before any paid bake or recheck
+(owner, 2026-10-20): each region of every view, from every angle the views row cast, against the finish labelled
+there, its chosen surface's token colour (the list's settings) against the region's median texture colour in that
+view (`colour_faults`). A region over VIEW_DELTA_E makes its take a hole, named, so nothing of it is baked.
+
 Output per take: <take>/finish.npy (finish per face), <take>/parts.npy (part per face), <take>/finish-<view>.png (each
 finish in its label colour, finish_ask.LABELS); split.json per take: its fault (None when split), the shares of its
 area unassigned, disagreeing and unseen, its parts and each view's agreement with the vote.
-Gate "one finish a face": every listed take is split with no fault.
+Gate "one finish a face": every listed take is split with no fault (the colour check's holes included).
 """
 import json
 import pathlib
@@ -31,6 +36,11 @@ import surface_gates as gates  # noqa: E402
 # A take whose disagreeing faces hold over this share of its area is a hole. UNMEASURED: picked (2026-10-20), not
 # measured; the one-shot benchmark that would measure it (under EUR 3) is on #18. Keep it until that runs.
 DISAGREE_MOST = 0.01
+# A region's chosen surface (its token's colour, with the list's settings) may lie this far (CIE76) from the region's
+# texture colour in each view that shows it. UNMEASURED on the views: picked (2026-10-20) as finish_parts'
+# COLOUR_DELTA_E, which round 4's six close-ups measured (right surfaces up to 29.7, wrong from 33.2), not these
+# texture views; the same benchmark on #18 would measure it.
+VIEW_DELTA_E = 32.0
 
 
 def model_of(folder):
@@ -90,6 +100,49 @@ def split_fault(found):
     return None
 
 
+def own_colour(finish):
+    """True for a finish judged by its own colour, never its texture's (owner, #8): glass, screen glow, lamp light,
+    print, or a see-through finish."""
+    return (finish.get("family") in finish_parts.OWN_COLOUR
+            or finish_parts.see_through(finish, {finish["surface"]: {"family": finish.get("family")}}))
+
+
+def region_apart(colours, regions, region, finish):
+    """How far (CIE76) a finish's token colour lies from one region's median texture colour in one view."""
+    seen = np.median(cast.lab_of(colours[regions == region]), axis=0)
+    return float(np.linalg.norm(seen - finish_parts.library_lab(finish)))
+
+
+def colour_faults(folder, listed):
+    """(faults, worst dE): every region of every view against the finish labelled there, before anything is baked: a
+    finish with no token colour, or one over VIEW_DELTA_E from what a view shows, is named. Finishes judged by their
+    own colour are left out (own_colour)."""
+    colours, regions = np.load(folder / "colours.npz"), np.load(folder / "regions.npz")
+    faults, worst = [], 0.0
+    for view, labels in listed["labels"].items():
+        for region, number in labels.items():
+            finish = listed["finishes"][number]
+            if own_colour(finish):
+                continue
+            if finish.get("colour") is None:
+                faults.append(f"{finish['finish']}: no token colour to check")
+                continue
+            apart = region_apart(colours[view], regions[view], int(region), finish)
+            worst = max(worst, apart)
+            if apart > VIEW_DELTA_E:
+                faults.append(f"{finish['finish']} ({finish['surface']}, {finish['settings']['token']}) lies dE "
+                              f"{apart:.1f} from region {int(region) + 1} in the {view} view")
+    return faults, round(worst, 1)
+
+
+def colour_fault(faults):
+    """The hole a take's colour faults make, None without one."""
+    if not faults:
+        return None
+    return f"a chosen surface sits off what the views show (over dE {VIEW_DELTA_E:.0f}): {'; '.join(faults[:4])}" + (
+        f" and {len(faults) - 4} more" if len(faults) > 4 else "")
+
+
 def voted_finishes(mesh, votes, count):
     """(part per face, finish per face): each face's most voted finish, unseen faces walked, smoothed and crumbs
     joined."""
@@ -119,7 +172,8 @@ def split_take(folders, listed, record):
     per_map = finishes_only(labelled)
     votes = finish_parts.voted(per_map, count)
     found = shares(mesh, labelled, votes)
-    fault = split_fault(found)
+    off, found["colour_worst"] = colour_faults(folders["views"], listed)
+    fault = split_fault(found) or colour_fault(off)
     if fault is not None:
         return {"fault": fault, **found}
     part_of, finish_of = voted_finishes(mesh, votes, count)
@@ -143,8 +197,10 @@ def split_faults(folder):
 
 
 def judge_split(output, inputs, evidence):
-    """Every listed take split, every face one finish: an unassigned face or views that disagree is a hole, named."""
+    """Every listed take split, every face one finish: an unassigned face, views that disagree or a chosen surface
+    off what the views show is a hole, named."""
     found = json.loads((output / "split.json").read_text())
     failing = [f"{take}: {record['fault']}" for take, record in found.items() if record["fault"]]
     return gates.verdict("one finish a face", failing, len(found), "takes not split by finish",
-                         {"unseen_share_most": max((record["unseen"] for record in found.values()), default=0.0)})
+                         {"unseen_share_most": max((record["unseen"] for record in found.values()), default=0.0),
+                          "colour_worst": max((record["colour_worst"] for record in found.values()), default=0.0)})

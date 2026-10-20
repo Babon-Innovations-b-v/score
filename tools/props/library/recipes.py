@@ -516,8 +516,10 @@ WALKED = 1.0
 def arguments(spec, wear, dirt, seed, foot=None):
     """The recipe's keyword arguments from a resolved library entry (library.py), the place's wear and dirt and how
     high the piece's foot stands over its floor: its colours as ProcFunc colours, its picture (if it has one) loaded
-    into Blender, the wear scaled by its age."""
-    given = dict(spec, wear=min(1.0, wear * spec.get("wear_scale", 1.0)), dirt=dirt, seed=float(seed),
+    into Blender, the wear scaled by its age. A spec's own `wear` and `seed` (the finish route's settings,
+    route_settings.set_spec) stand over the place's wear and the job's seed."""
+    given = dict(spec, wear=min(1.0, spec.get("wear", wear) * spec.get("wear_scale", 1.0)), dirt=dirt,
+                 seed=float(spec.get("seed", seed)),
                  foot=NO_FOOT if foot is None else float(foot), kicks=float(spec.get("kicks", WALKED)))
     for name in COLOUR_ARGUMENTS:
         if name in spec:

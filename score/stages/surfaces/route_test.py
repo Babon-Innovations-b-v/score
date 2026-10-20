@@ -30,7 +30,7 @@ from score.stages.surfaces import (route_ask, route_bake, route_cast, route_chec
                                    route_list, route_paint, route_parts, route_recheck, route_settings, route_split,
                                    route_views)
 
-RED, BLUE = (200, 30, 30), (30, 40, 200)
+RED, BLUE = (200, 30, 30), (150, 120, 220)  # each near its finish's token (sign-red, bay-three): the colour check
 TAKE, OTHER = "two_boxes-t1", "other-t1"
 
 
@@ -73,9 +73,9 @@ def region_of(views, colour, take=TAKE):
     return next(entry["region"] for entry in regions if entry["srgb"] == list(colour))
 
 
-def finish_entry(words, surface="M1", token="sign-red"):
+def finish_entry(words, surface="M1", token="sign-red", **more):
     return {"parts": words, "finish": words, "surface": surface, "token": token, "roughness": 1.4, "metal": 0.0,
-            "fits": True}
+            "fits": True, **more}
 
 
 def labelled(views, finish_of_colour, take=TAKE):
@@ -93,7 +93,8 @@ def labelled(views, finish_of_colour, take=TAKE):
 
 
 def two_finish_answer(views, finish_of_colour=lambda view, colour: 1 if colour == RED else 2):
-    finishes = [finish_entry("red paint"), dict(finish_entry("blue paint", token="bay-three"), wear_wish="more worn")]
+    finishes = [finish_entry("red paint", wear="worn"),  # a level with no cause is not taken
+                dict(finish_entry("blue paint", token="bay-three"), wear="worn", wear_cause="walked path")]
     return {"finishes": finishes, "labels": labelled(views, finish_of_colour)}
 
 
@@ -183,10 +184,14 @@ def test_one_batch_lists_every_take_library_first_and_the_split_gives_every_face
         count = len(json.loads((rows["finish-route-views"] / "views.json").read_text())[TAKE]["views"])
         assert "serviceTier" not in body and len(body["contents"][0]["parts"]) == 2 * count + 2  # close-up, views, text
         found = json.loads((rows["finish-route-list"] / f"{TAKE}.json").read_text())
-        assert found["finishes"][0]["settings"] == {"token": "sign-red", "roughness": 1.0, "metal": 0.0, "seed": 7}
+        seed = route_list.take_seed(7, TAKE)
+        assert seed != route_list.take_seed(7, OTHER)  # each object's wear and dirt pattern its own
+        assert found["finishes"][0]["settings"] == {"token": "sign-red", "roughness": 1.0, "metal": 0.0, "seed": seed}
+        assert found["finishes"][1]["settings"]["wear"] == 0.8 and found["finishes"][1]["settings"]["seed"] == seed + 1
+        assert found["finishes"][1]["wear_cause"] == "walked path" and found["finishes"][0]["wear_level"] is None
         assert route_list.judge_list(rows["finish-route-list"], rows, {}).answer == "pass"
-        questions = json.loads((rows["finish-route-list"] / "questions.json").read_text())["wear_wishes"]
-        assert len(questions) == 2 and "more worn" in questions[0], questions
+        own = json.loads((rows["finish-route-list"] / "questions.json").read_text())["own_wear"]
+        assert len(own) == 2 and "worn (walked path" in own[0], own
         rows = split(folder, rows)
         record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
         assert record["fault"] is None and record["unassigned"] == record["disagree"] == 0, record
@@ -212,6 +217,22 @@ def test_an_unassigned_face_or_views_that_disagree_make_a_hole():
     found = route_split.shares(mesh, tied, route_split.finish_parts.voted(tied, 2))
     assert found == {"unassigned": 0.0, "disagree": 1.0, "unseen": 0.0}, found
     assert "disagree" in route_split.split_fault(found)
+
+
+def test_a_chosen_surface_off_what_any_view_shows_is_a_hole_before_the_bake():
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        far = lambda views, take: dict(two_finish_answer(views), finishes=[
+            finish_entry("red paint"), finish_entry("blue paint", token="sign-red")])  # the blue box in red
+        rows = parted(folder, split(folder, listed(folder, far)[0]))
+        record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
+        assert "blue paint (" in record["fault"] and "sign-red) lies dE" in record["fault"], record
+        assert record["colour_worst"] > route_split.VIEW_DELTA_E, record
+        assert route_split.judge_split(rows["finish-route-split"], rows, {}).answer == "fail"
+        found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())
+        assert TAKE not in found["takes"] and TAKE in found["left_out"], found  # nothing of it is baked
+    glass = {"finish": "window", "parts": "pane", "surface": "pane", "family": "glass"}
+    assert route_split.own_colour(glass) and not route_split.own_colour(dict(glass, family="painted"))
 
 
 def test_a_take_with_no_usable_answer_is_a_hole_named_by_the_list():
@@ -303,6 +324,9 @@ def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_sett
             assert spec["library"] == row["judge"] and spec["token"] == row["settings"]["token"], spec
             assert spec["colour"] == library.token_colours()[row["settings"]["token"]], spec
             assert spec["roughness"] == row["settings"]["roughness"] == 1.0, spec  # the list's 1.4, clipped
+            assert spec["seed"] == row["settings"]["seed"] and spec.get("wear") == row["settings"].get("wear"), spec
+        # the blue finish's own wear (a cause given) rides its spec; the red one's level without a cause is not taken
+        assert sorted(spec.get("wear", 0) for spec in head["specs"].values() if "settings" in spec) == [0, 0.8]
         assert json.loads((out / "specs.json").read_text()) == head["specs"]
         assert json.loads((out / "baked.json").read_text())["two_boxes"]["parts"] == TAKE
         assert not list(out.glob(".bake-*"))  # the jobs' files are gone
@@ -321,13 +345,20 @@ def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():
         (bake / "specs.json").write_text(json.dumps({"painted_panel__sign_red_r100_m000": {"colour": [1, 0, 0]}}))
         seen = {}
         original, by_library = route_check.bake_check.check_step, library.by_library
+        model = route_check.bake_check.check_model
         route_check.bake_check.check_step = lambda inputs, out: seen.update(library=library.by_library("cockpit"))
         try:
             route_check.check_step({"bake": bake}, bake)
         finally:
             route_check.bake_check.check_step, library.by_library = original, by_library
+            route_check.bake_check.check_model = model
         assert seen["library"]["painted_panel__sign_red_r100_m000"] == {"colour": [1, 0, 0]}
         assert "painted_panel" in seen["library"]  # the library's own surfaces stay
+    # a surface with its own wear is measured at it, the others at the place's
+    measured = lambda name, entry, labelled, made, materials, dirt=0.0, wear=0.0: {
+        "surfaces": {surface: {"wear": wear} for surface in materials}}
+    checked = route_check.own_wear_checked(measured)("m", {}, None, None, {"a": {}, "b": {"wear": 0.8}}, 0.2, 0.4)
+    assert checked["surfaces"] == {"a": {"wear": 0.4}, "b": {"wear": 0.8}}, checked
 
 
 def rechecked(folder, answer, wide=True):

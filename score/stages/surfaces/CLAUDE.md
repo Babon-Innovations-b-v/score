@@ -47,9 +47,15 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   measured, never painted. List (paid): one Gemini 3.1 Pro answer a take, all the place's takes in one batch through
   Google's Batch API at half price (`route_ask.py`, `tools/props/cloud/google_batch.py`), seeing the close-up, every
   view and every region view: the complete finish list, each finish matched FIRST to a library surface with settings
-  (a library token, roughness, metal, the node's seed), a new surface only when none fits with any settings; wear
-  stays the place's level, a wear wish goes to `questions.json` for the owner; and a label for each region in each
-  view. Split (free): the labels voted across views (`finish_parts.voted`, the front counting double); a seen face no
+  (a library token, roughness, metal, its own seed: `take_seed`, the node's moved by the take's name, so each
+  object's wear and dirt pattern is its own), a new surface only when none fits with any settings; its wear the
+  place's level, or its own library level where the views show a cause (walked paths, edges, round doors; owner,
+  2026-10-20), level and cause both or neither, listed in `questions.json`; and a label for each region in each
+  view. Split (free): first the colour check, before any paid bake or recheck (owner, 2026-10-20): each region of
+  every view from every angle against the finish labelled there, its token's colour against the region's median
+  texture colour in that view (`colour_faults`; glass, glow, light, print and see-through left out); one over
+  `VIEW_DELTA_E` (32, UNMEASURED on the views) makes the take a hole, so nothing of it is baked. Then the labels voted
+  across views (`finish_parts.voted`, the front counting double); a seen face no
   label reaches is unassigned, faces whose views disagree (no finish over half their votes) over `DISAGREE_MOST` of
   the area are views that disagree: either is a hole, named in "one finish a face"; the rest smoothed and crumbs
   joined (`cleaned`, `merged_islands`), each island a part. Parts (free): each finish checked against the median of
@@ -62,12 +68,14 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   by `place_line.paint_take` (as the rented paint), its models' make_chunky entries over the labelled take
   (`bake_job_step`), then make_chunky; priced at the bake's warm figure. Here first, free: the proposals into the
   registry, and the specs (a part with settings paints and bakes as `route_settings.settings_name`: its variant's
-  spec in the list's token colour, roughness and metal; specs.json in the output). The seed is recorded, not applied
-  (recipes take the job's one seed; a spec's own seed re-keys surface-tiles). Paint (free, after the bake): the
+  spec in the list's token colour, roughness, metal, seed and own wear; specs.json in the output). The bake applies
+  them: `recipes.arguments` takes a spec's own seed and wear over the job's (2026-10-20; that edit re-keyed
+  surface-tiles, nothing accepted there). Paint (free, after the bake): the
   bake's labelled takes and painted.json copied over, so every reader of the paint stays, with its gates (one
   surface a part, colour against the close-up, feet), which now judge after the bake: the parts' "off colour"
   measure names the colour faults before it. `place_line.make_paint` (rented) stays the crops' and people's. Check:
-  `route_check.py`, bake_check's against the bake's specs.json. Recheck (paid, one batch): a take the parts left off
+  `route_check.py`, bake_check's against the bake's specs.json, a surface with its own wear held at that wear
+  (`own_wear_checked`). Recheck (paid, one batch, the one-shot sort after the bake): a take the parts left off
   its colour is a hole with no ask; the rest are drawn from every view, each part flat in its library surface's
   colour (its token's where it has settings), and asked once against the close-up; all match passes, else "no
   library surface fits" names it (`gate:finish-route-recheck/library surface fits:<take>`), Gemini's token,
@@ -215,9 +223,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   through the middle (the square's guard hut, 2026-10-14: 14 cm across, it stood on a strip and tipped). Last, the face
   it rests on (`resting_base`: its convex hull's face under its weight) comes down level when it rises over 1% of its
   footprint's diagonal: the quadrants and cells miss a plinth rim under a level floor (the garage's control cabinet,
-  2026-10-15: 2.1 degrees over). Wear and dirt stay
-  the room's one setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
-  picture-derived look (tried 2026-10-13, reverted).
+  2026-10-15: 2.1 degrees over). Wear and dirt are
+  the room's setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
+  picture-derived look (tried 2026-10-13, reverted). The one exception is the finish route's own wear: a library
+  level the list gives a finish only with a cause the views show (owner, 2026-10-20).
 - **The paint levels a take's feet before its bake** (`place_line.levelled_feet`, `tools/props/library/feet.py`):
   a take a row stands on the floor or ground (`stands_on_feet`, from the inventory and the resting rules, declared
   in the table: never mounted on another object, fixed, hung, laid tilted on purpose (`leans`) or a pile of ground
