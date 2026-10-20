@@ -141,12 +141,14 @@ stage as each stage is built; nothing moves before.
   (experimental, its overlay) places each place's people from its cast record, read against `concept_people` (a
   environment node of the table) and measured on the seed's geometry (counted, standing, clear, made, drapes);
   `characters-layer` (`stages/cast/layer.py`) lays each person of the accepted cast in its own look's accepted dressed
-  body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `machines-layer` (experimental, `stages/machines`, its overlay) lays each place's machines
-  (`data/machines/<place>.json`: the garage's rover) on what holds them up, gated on outline, parts present and
-  resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
+  body (`people-dress-<look>`), unknown while one is missing, and the assembly takes its layer. `motion-models` (experimental, `stages/motion/models`, its overlay) lays each place's
+  rigid moving models (`data/motion/models/<place>.json`: the garage's rover) on what holds them up, gated on outline,
+  parts present and resting, and the assembly takes its layer. `physics-layer` and `physics-trial` (experimental, `stages/physics`, its
   overlay) write a place's UsdPhysics and run a trial of it on Bullet, for a place with `data/physics/<place>.json`
-  (the habitat). `motion` (experimental, places with a movers record) writes a place's motion layer from its game
-  motions and its movers in `data/movers/`, gated on clear, speeds, loops, grounded and covered (its overlay).
+  (the habitat). `motion` (experimental, places with a rigid record) writes a place's motion layer from its game
+  motions and its rigid moves in `data/motion/rigid/`, gated on clear, speeds, loops, grounded, covered and the motion
+  check (its overlay). These rows, settle, physics, the cast and people rows and the crops rows are the one motion
+  layer (CONTEXT.md "motion"; `stages.MOTION_LAYER` names them by module).
   `light-layer`, `light-passes` (paid) and `light` (experimental, `stages/light`, its overlay) make each place's
   light layer: today's sky and lamps over the seed, one render with a light group a lamp, the lamps' strengths
   swept on it against the concept; the assembly takes the accepted layer (`assembly.LAYERS`). A

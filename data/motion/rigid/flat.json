@@ -2,7 +2,7 @@
  "place": "flat",
  "about": "The flat: the balcony door slides open at the start of the balcony beat as the game runs it (data/motion/flat.json), and the ceiling fan turns.",
  "seconds": 60.0,
- "movers": [
+ "moves": [
   {
    "name": "ceiling_fan",
    "prim": "/flat/Objects/ceiling_fan_1",

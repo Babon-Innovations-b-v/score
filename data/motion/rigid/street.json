@@ -2,7 +2,7 @@
  "place": "street",
  "about": "The street's one moving kind is the car.",
  "seconds": 60.0,
- "movers": [],
+ "moves": [],
  "still": {
   "car": "Parked at the kerb, shut, its driver waiting beside it for the player (2099's earth_site.gd _park_the_car and _staff_the_launch): it drives off only when the player gets in, the next beat, not a loop of the street."
  }

@@ -82,12 +82,12 @@ SEED_REASONS = {
                              "item), 3.6 m from where the old record stood it off that middle",
     "launch:lights/spot": "the rocket's one floodlight is now the pad's four (inventory row far_pad_floodlight), each "
                           "lit at its lamp and aimed at the rocket's middle",
-    **{f"hangar:structure/{name}": "the ship is the inventory's row ship (the machines track's), not a hull the shell "
+    **{f"hangar:structure/{name}": "the ship is the inventory's row ship (the motion layer's models), not a hull the shell "
                                    "builds in code"
        for name in ("ship", "ship_legs")},
-    "workshop:objects":"the robot and the parts tray come from the machines track as rows, not from this record",
+    "workshop:objects":"the robot and the parts tray come from the motion layer's models as rows, not from this record",
     "workshop:structure/tray_tile_": "the workshop's parts tray (its tiles and the robot parts on them) comes from "
-                                     "the machines track as rows, not as plain plates of the shell",
+                                     "the motion layer's models as rows, not as plain plates of the shell",
     "hub:objects/lab_bench/children/status_lamp_1": "concept M3-east (inventory view v3) shows the lab bench with no "
                                                     "red status lamp on it; the inventory has no row for one",
     "hub:objects/screen_":"the console's screens are its monitors, laid on it by its composite, not loose objects",

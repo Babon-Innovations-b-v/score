@@ -83,7 +83,7 @@ def overlaps_and_nudge():
 
 def a_mounted_piece_is_judged_with_its_host():
     """The hangar ship's engines and thrusters (2026-10-15), set into the hull, read as loose and the hull lying in
-    them. A piece the machines layer marks mounted (score:mounted, score:on its host) lies in its host as part of
+    them. A piece the motion models layer marks mounted (score:mounted, score:on its host) lies in its host as part of
     it; in anything else it overlaps as a loose piece does."""
     from pxr import Sdf, Usd
     with tempfile.TemporaryDirectory() as temporary:

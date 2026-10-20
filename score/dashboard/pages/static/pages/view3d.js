@@ -525,7 +525,7 @@ function joined(meshes, into) {
 
 // The nodes the motion moves and the instancers' prototypes, and all under them: never joined.
 function keptApart(nodes) {
-  const names = [...(sidecar.motion ? sidecar.motion.movers.flatMap((mover) => mover.objects) : []),
+  const names = [...(sidecar.motion ? sidecar.motion.moves.flatMap((move) => move.objects) : []),
                  ...(sidecar.instancers || []).flatMap((each) => each.prototypes.flatMap((proto) => proto.objects))];
   const kept = new Set();
   for (const name of names) for (const node of nodes.get(name) || []) node.traverse((under) => kept.add(under));
@@ -573,7 +573,7 @@ function showLayers() {
   effects.children.forEach((points) => {
     points.visible = !hidden.has("effects") && !shownPlaceHidden(points.userData.layer);
   });
-  if (hidden.has("motion")) restMovers();
+  if (hidden.has("motion")) restMoving();
 }
 
 function layerCounts() {
@@ -586,7 +586,7 @@ function layerCounts() {
   return counts;
 }
 
-// What each layer holds, in words: its meshes, and the lamps, effects, movers and sounds the stage's own layers
+// What each layer holds, in words: its meshes, and the lamps, effects, moving things and sounds the stage's own layers
 // carry. {layer: [words]}; a layer with nothing to show or switch gets none.
 function layerHoldings() {
   const holds = new Map();
@@ -594,8 +594,8 @@ function layerHoldings() {
   for (const [layer, count] of layerCounts()) add(layer, `${count} meshes`);
   if (lamps.length) add("light", `${lamps.length} lamps`);
   if (effects.children.length) add("effects", `${effects.children.length} effects as points`);
-  const movers = sidecar.motion ? sidecar.motion.movers.length : 0;
-  if (movers) add("motion", `${movers} moving, played`);
+  const moved = sidecar.motion ? sidecar.motion.moves.length : 0;
+  if (moved) add("motion", `${moved} moving, played`);
   return holds;
 }
 
@@ -710,9 +710,9 @@ function addEffects(entries) {
   entries.forEach((entry) => effects.add(effectPoints(entry, sprite)));
 }
 
-const movers = [];  // {keys: [{code, at, turn, size}], nodes: [{node, rest}]}
+const moving = [];  // {keys: [{code, at, turn, size}], nodes: [{node, rest}]}
 
-function moverKeys(keys) {
+function moveKeys(keys) {
   return keys.map(([code, numbers]) => {
     const key = { code, at: new THREE.Vector3(), turn: new THREE.Quaternion(), size: new THREE.Vector3() };
     new THREE.Matrix4().fromArray(numbers).decompose(key.at, key.turn, key.size);
@@ -720,15 +720,15 @@ function moverKeys(keys) {
   });
 }
 
-// The movers' nodes in a copy just loaded, each with the matrix it stands at.
-function findMovers(nodes) {
-  movers.length = 0;
-  for (const mover of sidecar.motion ? sidecar.motion.movers : []) {
-    const found = mover.objects.flatMap((name) => nodes.get(name) || []);
+// The moving things' nodes in a copy just loaded, each with the matrix it stands at.
+function findMoving(nodes) {
+  moving.length = 0;
+  for (const move of sidecar.motion ? sidecar.motion.moves : []) {
+    const found = move.objects.flatMap((name) => nodes.get(name) || []);
     if (!found.length) continue;
-    mover.decoded = mover.decoded || moverKeys(mover.keys);
+    move.decoded = move.decoded || moveKeys(move.keys);
     found.forEach((node) => { node.userData.rest = node.userData.rest || node.matrix.clone(); });
-    movers.push({ keys: mover.decoded, nodes: found.map((node) => ({ node, rest: node.userData.rest })) });
+    moving.push({ keys: move.decoded, nodes: found.map((node) => ({ node, rest: node.userData.rest })) });
   }
 }
 
@@ -746,33 +746,33 @@ function keyAt(keys, code) {
 const moved = { at: new THREE.Vector3(), turn: new THREE.Quaternion(), size: new THREE.Vector3(),
                 matrix: new THREE.Matrix4() };
 
-function moveTo(mover, code) {
-  const [before, after, share] = keyAt(mover.keys, code);
+function moveTo(move, code) {
+  const [before, after, share] = keyAt(move.keys, code);
   moved.at.lerpVectors(before.at, after.at, share);
   moved.turn.slerpQuaternions(before.turn, after.turn, share);
   moved.size.lerpVectors(before.size, after.size, share);
   moved.matrix.compose(moved.at, moved.turn, moved.size);
-  for (const { node, rest } of mover.nodes) {
+  for (const { node, rest } of move.nodes) {
     node.matrixAutoUpdate = false;
     node.matrix.multiplyMatrices(moved.matrix, rest);
     node.matrixWorldNeedsUpdate = true;
   }
 }
 
-// A link's moment (#...&t=<time code>, a film frame's): the movers held there; else they play from the start.
+// A link's moment (#...&t=<time code>, a film frame's): the moving things held there; else they play from the start.
 const linkedTime = () => Number((location.hash.match(/[#&]t=([-0-9.e]+)/) || [])[1] ?? NaN);
 let heldAt = linkedTime();
 
-function playMovers(seconds) {
+function playMoving(seconds) {
   if (!sidecar || !sidecar.motion || hidden.has("motion")) return;
   const { start, end, codes_per_second: rate } = sidecar.motion;
   const code = Number.isFinite(heldAt) ? heldAt : start + (seconds * rate) % Math.max(end - start, 1);
-  movers.forEach((mover) => moveTo(mover, code));
+  moving.forEach((move) => moveTo(move, code));
 }
 
-function restMovers() {
-  for (const mover of movers) {
-    for (const { node, rest } of mover.nodes) { node.matrix.copy(rest); node.matrixWorldNeedsUpdate = true; }
+function restMoving() {
+  for (const move of moving) {
+    for (const { node, rest } of move.nodes) { node.matrix.copy(rest); node.matrixWorldNeedsUpdate = true; }
   }
 }
 
@@ -953,7 +953,7 @@ function frame(now) {
   const seconds = Math.min((now - last) / 1000, 0.1);
   last = now;
   if (move === "walk" && walk.isLocked) walkStep(seconds); else orbit.update();
-  playMovers((now - begun) / 1000);
+  playMoving((now - begun) / 1000);
   probeWhenResting();
   measureLabel();
   composer.render();
@@ -1173,7 +1173,7 @@ function swapIn(kind, loaded, shows = null) {
   const nodes = new Map(Object.values(copies).filter(Boolean).flatMap((copy) => [...copy.userData.nodes]));
   placeInstances(nodes);
   joinStill(loaded, nodes);
-  findMovers(nodes);
+  findMoving(nodes);
   castsAndTakes(loaded);
   showLayers();
   layerList();

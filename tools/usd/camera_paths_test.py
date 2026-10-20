@@ -3,7 +3,7 @@ doorway, and a path from a corner of one to the far corner of the other (the str
 wall) goes through the doorway and nowhere else, at eye height, clear of everything along every step; the same seed
 gives the same path; a loop through both rooms closes on itself; the views are in the review walk's format; a
 place's characters, one alone and a crowd's instances, stand in the way as boxes where they stand, and one who walks
-where they stand at each moment; a thing the stage moves (a mover) stands in the way where it is at each moment, its
+where they stand at each moment; a thing the stage moves (a moving thing) stands in the way where it is at each moment, its
 particles and its people aside; and an eye's clearance is its true distance from walls and people.
 
 Run: .venv/bin/python tools/usd/camera_paths_test.py   (make tests runs it with the framework's environment)
@@ -155,15 +155,15 @@ def a_walking_person_is_followed():
     return problems
 
 
-def add_mover(stage_path, name, size, at, later):
+def add_moving(stage_path, name, size, at, later):
     """A box the stage moves, its own transform keyed from `at` (time code 0) to `later` = (time code, spot), as the
-    motion layer keys a rover's drive (tools/usd/movers.py)."""
+    motion layer keys a rover's drive (tools/usd/motion_layer.py)."""
     from pxr import Gf, Usd, UsdGeom
     stage = Usd.Stage.Open(str(stage_path))
-    mover = UsdGeom.Xform.Define(stage, f"{stage.GetDefaultPrim().GetPath()}/Objects/{name}")
-    UsdGeom.Cube.Define(stage, mover.GetPath().AppendChild("body")).GetSizeAttr().Set(1.0)
-    UsdGeom.Xformable(mover.GetPrim().GetChild("body")).AddScaleOp().Set(Gf.Vec3f(*size))
-    move = mover.AddTranslateOp()
+    move = UsdGeom.Xform.Define(stage, f"{stage.GetDefaultPrim().GetPath()}/Objects/{name}")
+    UsdGeom.Cube.Define(stage, move.GetPath().AppendChild("body")).GetSizeAttr().Set(1.0)
+    UsdGeom.Xformable(move.GetPrim().GetChild("body")).AddScaleOp().Set(Gf.Vec3f(*size))
+    move = move.AddTranslateOp()
     move.Set(Gf.Vec3d(*at), 0.0)
     move.Set(Gf.Vec3d(*later[1]), later[0])
     stage.GetRootLayer().Save()
@@ -171,12 +171,12 @@ def add_mover(stage_path, name, size, at, later):
 
 def a_moving_thing_is_followed():
     """A thing the stage moves stands where it is at each moment asked for (the garage's rover drove through a film's
-    camera, 2026-10-18), its children with it, the people and the particles not among the movers; an eye clear of it
+    camera, 2026-10-18), its children with it, the people and the particles not among the moving things; an eye clear of it
     at rest is not clear where it drives."""
     from pxr import Gf, Usd, UsdGeom
     with tempfile.TemporaryDirectory() as temporary:
         stage = rooms_stage(pathlib.Path(temporary))
-        add_mover(stage, "rover", (1.0, 1.0, 1.0), (-3.0, 0.5, -2.0), (48.0, (-3.0, 0.5, 2.0)))
+        add_moving(stage, "rover", (1.0, 1.0, 1.0), (-3.0, 0.5, -2.0), (48.0, (-3.0, 0.5, 2.0)))
         add_person(stage, "walker", (0.6, 1.8, 0.6), (2.0, 0.9, 2.0), later=(48.0, (2.0, 0.9, -2.0)))
         opened = Usd.Stage.Open(str(stage))
         drift = UsdGeom.Xform.Define(opened, "/" + opened.GetDefaultPrim().GetName() + "/Effects/dust")
@@ -184,13 +184,13 @@ def a_moving_thing_is_followed():
         drift.GetPrim().GetAttribute("xformOp:translate").Set(Gf.Vec3d(0.0, 2.0, 0.0), 48.0)
         opened.GetRootLayer().Save()
         reopened = Usd.Stage.Open(str(stage))
-        moving = [prim.GetName() for prim in camera_paths.movers(reopened)]
-        found = camera_paths.mover_corners(stage, [0.0, 24.0, 48.0])
+        moving = [prim.GetName() for prim in camera_paths.moves(reopened)]
+        found = camera_paths.thing_corners(stage, [0.0, 24.0, 48.0])
         both = camera_paths.moving_corners(stage, [48.0])
         scenes = camera_paths.place_scenes(stage, [0.0, 24.0, 48.0])
         views = [{"eye": [-3.0, 1.0, 2.0], "frame": 0}, {"eye": [-3.0, 1.0, 2.0], "frame": 48}]
         walls, persons = camera_paths.frame_clearances(scenes, stage, views)
-    problems = [] if moving == ["rover"] else [f"the movers are {moving}, not the rover alone"]
+    problems = [] if moving == ["rover"] else [f"the moving things are {moving}, not the rover alone"]
     middles = [float(found[time][0].mean(axis=0)[2]) for time in (0.0, 24.0, 48.0)]
     if not np.allclose(middles, [-2.0, 0.0, 2.0]):
         problems.append(f"the rover stands at z = {middles}")

@@ -12,7 +12,7 @@ from score.dashboard.tests.pages_test import signed_in
 
 pytestmark = pytest.mark.django_db
 ORDER = ["reference", "plan", "pieces", "ground", "base", "settle", "light", "motion", "effects", "sound",
-         "characters", "machines", "crops", "result"]
+         "characters", "crops", "result"]
 
 
 def a_web_copy(world, place="alpha"):

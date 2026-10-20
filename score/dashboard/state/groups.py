@@ -11,9 +11,9 @@ STAGE_AND_FILMS = "stage and films"
 # The assembly input each layer is read through (score/stages/assembly/record.py ORDER, in words).
 LAYER_OF_INPUT = {"scene-record": "base", "terrain": "ground", "surfaces-bake": "pieces", "surfaces-paint": "pieces",
                   "sound": "sound", "effects-layer": "effects", "motion": "motion", "light": "light",
-                  "machines-layer": "machines", "crops-layer": "crops", "settle": "settle",
+                  "motion-models": "motion", "crops-layer": "crops", "settle": "settle",
                   "characters-layer": "characters"}
-LAYER_ORDER = ("base", "ground", "pieces", "settle", "machines", "light", "motion", "effects", "sound", "crops",
+LAYER_ORDER = ("base", "ground", "pieces", "settle", "light", "motion", "effects", "sound", "crops",
                "characters", STAGE_AND_FILMS)
 # Display words for a stage; any other stage shows its own name.
 LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop list", "closeup": "close-ups",
@@ -24,7 +24,7 @@ LABELS = {"plan": "plan", "scene-record": "scene record", "props-inputs": "prop 
           "surfaces-check": "surface check", "finish-route-views": "finish views", "finish-route-list": "finish lists",
           "finish-route-split": "finish split", "finish-route-recheck": "finish recheck", "light-layer": "lamps", "light-passes": "light renders",
           "light-haze": "haze", "light": "light sweep", "effects-layer": "effects", "effects-look": "effects renders",
-          "machines-layer": "machines", "machines-boxes": "machine boxes", "characters-layer": "people layer",
+          "motion-models": "motion models", "motion-models-boxes": "motion model boxes", "characters-layer": "people layer",
           "cast": "cast", "assembly": "OpenUSD stage", "neighbours": "with neighbours", "complete": "completion",
           "complete-boxes": "completion boxes", "demo-film": "film", "demo-film-extra": "extra film",
           "demo-stills": "stills", "terrain": "ground", "terrain-look": "ground renders", "settle": "settle",

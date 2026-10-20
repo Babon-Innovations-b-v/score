@@ -2,7 +2,7 @@
  "place": "greenhouse",
  "about": "The greenhouse: its sixteen irrigation booms travel the rig rails over the beds and back, and its three hatches open each in turn.",
  "seconds": 60.0,
- "movers": [
+ "moves": [
   {
    "name": "hatch_door_leaf_2",
    "prim": "/greenhouse/Objects/hatch_leaf_2",

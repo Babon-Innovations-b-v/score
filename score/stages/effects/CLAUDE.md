@@ -27,7 +27,7 @@ takes in place of the seed's. `__init__.py`'s docstring has the make and the gat
   steam of the airlock, garage, hangar, greenhouse and habitat; the flat's cigarette smoke;
   the camp's and its grounds' Mars drift and dust devils), and `look.LOOKED` the paid look (the launch only) until the
   owner has seen the launch's stills. Other places keep their seed's effects layer; a place gets the row only when
-  its record passes every gate, so a record waiting on a mover (wheel dust, a ship's exhaust) is not staged.
+  its record passes every gate, so a record waiting on a moving thing (wheel dust, a ship's exhaust) is not staged.
 - **Indoors stays indoors.** A record lists its `interiors` (upright cylinders, `[]` for none) whenever an emitter
   stands under the open sky; the bake lets no particle of such an emitter be inside one, and `outside` measures it
   off the composed stage for a minute (a devil wanders). A record where nothing rides or follows a prim says why

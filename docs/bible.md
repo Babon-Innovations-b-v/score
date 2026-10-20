@@ -368,20 +368,28 @@ is meant to fix, where it is marked, and what proves it.
   so its record went back to the content that made it, without the venting). A fourth gate, `outside`, keeps open-sky emitters out of a record's
   `interiors` (the camp's drift blew through its domes); `over_ground` measures over the planned ground, and
   reach and height are measured in the anchor emitter's own frame (a devil stands along the curved ground's up).
-  Waiting on movers: wheel dust (the rovers stand), the hangar ship's exhaust (it never lifts), boot dust (nobody walks
+  Waiting on moving things: wheel dust (the rovers stand), the hangar ship's exhaust (it never lifts), boot dust (nobody walks
   on regolith in any cast); none is staged until its motion exists, since a record that cannot pass would stop the
   place's assembly. The wreck's landing dust was measured on the Apollo landing papers and brought back, then taken
   out again: its concept shows no landing, and the concept decides (the captain, 2026-10-12; the veil is in e9e8cc8).
-- **The motion stage** (`score/stages/motion`, its overlay; `tools/usd/movers.py`; `data/movers/`,
+- **The motion layer** (CONTEXT.md "motion", the owner 2026-10-20, #26; `score/stages/motion`, its overlay). One
+  layer for everything in a place that moves, as connected modules; every model still comes from the prop pipeline and
+  each module is a layer adapter around it. Its rows in the stage table: `motion-models` and `motion-models-boxes`
+  (the models of rigid moving things laid on what holds them up), `motion` (rigid moves: joints and paths), `settle`,
+  `physics-layer` and `physics-trial` (physics simulation), `cast`, `characters-layer` and the `people-*` rows
+  (bodies: rigging, body reading, generated body motion, drapes) and the crops rows (growth); `stages.MOTION_LAYER`
+  names them by module. Motion sources: formula-driven paths for prescribed moves, generated motion for bodies,
+  simulation for physics; every job one shot in a batch.
+- **The motion stage** (the layer's rigid module; `tools/usd/motion_layer.py`; `data/motion/rigid/`,
   `data/checks/motion.json`). For the things that stood still only because the game never moved them (2026-10-12:
   motion on 4 of 18 places). `motion@<place>` writes one motion layer over the place's seed from the game's timed
-  motions (`data/motion`, unchanged) and its movers record: each mover a closed path (a ferry's harbour lane), a
+  motions (`data/motion`, unchanged) and its rigid record: each move a closed path (a ferry's harbour lane), a
   swing on a hinge (a hatch), a spin (a fan) or a slide on a rail (a boom, a crane trolley), its kind's speed range
   cited in `data/checks/motion.json`, and every prim of a moving kind that stays still says why (`still`). Gated on
-  `clear` (no mover reaches into a still thing or another mover over the layer, read off the composed stage),
-  `speeds`, `loops` (rounds join and fit the layer's seconds whole), `grounded` (on water or ground, on its rail, or
-  in the air) and `covered`. The assembly does not take the layer yet; the final assembly of each place does. Proven
-  when the owner has seen the launch's ferries and the greenhouse's booms and hatches move.
+  `clear` (no moving thing reaches into a still thing or another moving thing over the layer, read off the composed
+  stage), `speeds`, `loops` (rounds join and fit the layer's seconds whole), `grounded` (on water or ground, on its
+  rail, or in the air), `covered`, and the motion check (#23: `follows`, `steps`, `moving area`; free). The assembly
+  takes the layer. Proven when the owner has seen the launch's ferries and the greenhouse's booms and hatches move.
 - **The light stage** (`score/stages/light`, its overlay; 2026-10-12). For lamps at the game's numbers, the cartoon
   Earth, the flat Mars sky with no sun, the camp's night windows in the record's afternoon and the floodlight heads
   read as white grids (paper-vs-world-1 items 9 and 17). `light-layer@<place>` (free) writes `layers/light.usda` over
@@ -421,7 +429,7 @@ is meant to fix, where it is marked, and what proves it.
 - **The sound stage** (`score/stages/sound`, its overlay). For a sound layer no one had reviewed, carried from the
   game's table, with the camp silent, the launch with no loop, the square with no PA or speech, and no car, rover or
   ship heard. `sound@<place>` answers every source the place names (room tones, the suit, objects, inventory rows,
-  motions, the surface bank, and the sounds `data/sound/movers.json` gives movers and silent motions, timed off
+  motions, the surface bank, and the sounds `data/sound/moving.json` gives moving things and silent motions, timed off
   their moves) with a sound: the environment's picked file, or MOSS takes of its brief made in the moss image on
   one rented card (paid), chosen by the picker's rule; gated on `sources`, `level` (loudness and length, measured),
   `likeness` (CLAP to its prompt at least 0.30, the tenth percentile of the environment's MOSS picks) and `no freesound`
@@ -458,16 +466,16 @@ is meant to fix, where it is marked, and what proves it.
   his yes or no on the removals.
 - **The motion, sound and effects layers.** Built, not reviewed: nobody has heard the sound. Proven by the owner's
   review of one place per layer, render and audio.
-- **The machines stage** (`score/stages/machines`, its overlay; `data/machines/<place>.json`). For the machines that
-  were absent or stood in: no rover in the garage, a code cylinder for the hangar's ship, primitive shapes for the
-  workshop's robot. `machines-layer@<place>` (free) lays each machine's made model (the prop route's take, painted and
-  baked by the place's surface line) on what holds it up, as a layer the assembly takes, gated on `outline` (the
-  likeness gate's free half against its close-up), `parts present` (its close-up's finishes in its split) and
-  `resting` (resting.py on the composed stage). Its motion and effects are the motion and effects stages'. Only the
-  garage's rover has a record. Proven when the garage's rover ends accepted and the owner sees it; the ship and the
-  ship is the hangar's `ship` inventory row, grounded by `machines-boxes@hangar` (paid, SAM 3) and made by the prop
-  route on the hangar's own surface line (its take `ship-s1` in `data/surfaces/hangar.json`); the workshop has no robot row: its concept K10 shows none, and
-  the concept decides (captain, 2026-10-12).
+- **The motion layer's models step** (`score/stages/motion/models`, its overlay; `data/motion/models/<place>.json`).
+  For the moving things that were absent or stood in: no rover in the garage, a code cylinder for the hangar's ship,
+  primitive shapes for the workshop's robot. `motion-models@<place>` (free) lays each made model (the prop route's
+  take, painted and baked by the place's surface line) on what holds it up, as a layer the assembly takes, gated on
+  `outline` (the likeness gate's free half against its close-up), `parts present` (its close-up's finishes in its
+  split) and `resting` (resting.py on the composed stage). Its motion is the motion stage's, its effects the effects
+  stage's. Only the garage's rover has a record. Proven when the garage's rover ends accepted and the owner sees it;
+  the ship is the hangar's `ship` inventory row, grounded by `motion-models-boxes@hangar` (paid, SAM 3) and made by
+  the prop route on the hangar's own surface line (its take `ship-s1` in `data/surfaces/hangar.json`); the workshop
+  has no robot row: its concept K10 shows none, and the concept decides (captain, 2026-10-12).
 - **The crops stage** (`score/stages/crops`, its overlay; `data/crops/greenhouse*.json`). For the greenhouse's bare
   beds under a concept of planted ones. `crops-concept@greenhouse` (paid) measures each kind on the concept with SAM 3
   on 2x tiles: its patches' share of the plot and its spacing in plant widths (2026-10-12: lettuce 49 plants 1.06

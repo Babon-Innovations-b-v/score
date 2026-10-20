@@ -37,16 +37,16 @@ FILES = {"inventories": "{data}/inventory", "kits": "{data}/kit", "casts": "{dat
 
 
 def files(place):
-    """The world folders, the place's movers record when it has one, and the built body's report of every body the
+    """The world folders, the place's rigid record when it has one, and the built body's report of every body the
     place's cast draws."""
-    movers = {"movers": "{data}/movers/{place}.json"} if contents.record("movers", place) else {}
+    moves = {"moves": "{data}/motion/rigid/{place}.json"} if contents.record("motion/rigid", place) else {}
     cast = contents.record("characters", place) or {}
     bodies = {person["character"] for person in cast.get("people", [])}
     bodies |= {cast["crowd"]["character"]} if cast.get("crowd") else set()
     bodies |= {path.stem for path in contents.BODIES.glob("kit_*.json")} if cast.get("groups") else set()  # dealt mixes
     reports = {f"body {body}": str(contents.BODIES / f"{body}.json") for body in sorted(bodies)
                if (contents.BODIES / f"{body}.json").exists()}  # a missing one the people check fails by name
-    return {**FILES, **movers, **reports}
+    return {**FILES, **moves, **reports}
 
 
 def make_manifest(inputs, out, seed, params):

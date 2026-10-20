@@ -475,21 +475,21 @@ lens.
 
 \subsection{Motion, effects and sound}\label{motion-effects-and-sound}
 
-\textbf{Motion.} Each mover (a path, a hinge, a spin, a rail, a turn, a
-climb) has its kind's speed range cited from real machines, gated on
-\texttt{clear} (no mover within 3 cm of a still thing or another mover,
-read every quarter second), \texttt{speeds}, \texttt{loops},
-\texttt{grounded} and \texttt{covered} (every still prim of a moving
-kind says why). \textbf{Effects} are emitters measured against real
-footage (photographs of lift-offs, rover films of Martian dust devils),
-gated on \texttt{attached}, \texttt{footage}, \texttt{light} (the flame
-lights the pad at least twice as brightly as the place's lamps) and
-\texttt{outside} (no open-sky particle inside a room). \textbf{Sound:}
-every source a place names (room tones, objects, motions, each surface's
-steps) gets the environment's picked file or the best of eight
-MOSS-SoundEffect {[}34{]} takes of its brief, gated on \texttt{sources},
-\texttt{level}, \texttt{likeness} (CLAP {[}35{]} score at least 0.30,
-the tenth percentile of the environment's picks) and
+\textbf{Motion.} Each moving thing (a path, a hinge, a spin, a rail, a
+turn, a climb) has its kind's speed range cited from real machines,
+gated on \texttt{clear} (no moving thing within 3 cm of a still thing or
+another moving thing, read every quarter second), \texttt{speeds},
+\texttt{loops}, \texttt{grounded} and \texttt{covered} (every still prim
+of a moving kind says why). \textbf{Effects} are emitters measured
+against real footage (photographs of lift-offs, rover films of Martian
+dust devils), gated on \texttt{attached}, \texttt{footage},
+\texttt{light} (the flame lights the pad at least twice as brightly as
+the place's lamps) and \texttt{outside} (no open-sky particle inside a
+room). \textbf{Sound:} every source a place names (room tones, objects,
+motions, each surface's steps) gets the environment's picked file or the
+best of eight MOSS-SoundEffect {[}34{]} takes of its brief, gated on
+\texttt{sources}, \texttt{level}, \texttt{likeness} (CLAP {[}35{]} score
+at least 0.30, the tenth percentile of the environment's picks) and
 \texttt{no\ freesound}.
 
 \subsection{People}\label{people}
@@ -1284,9 +1284,9 @@ four, and 187 MB on disk, against 487 MB.
   white, and unlit when it gives less than 0.001 percent of every view's
   light.
 \item
-  \textbf{Motion:} no mover within 3 cm of a still thing or another
-  mover, read every 0.25 s; rounds join within 1 mm; speeds within each
-  kind's cited range.
+  \textbf{Motion:} no moving thing within 3 cm of a still thing or
+  another moving thing, read every 0.25 s; rounds join within 1 mm;
+  speeds within each kind's cited range.
 \item
   \textbf{Sound:} CLAP score against the brief at least 0.30, the tenth
   percentile of 55 of the environment's picks; a take no more than 0.5 s

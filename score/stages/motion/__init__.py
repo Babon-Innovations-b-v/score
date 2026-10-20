@@ -1,37 +1,38 @@
-"""The motion stage (experimental, PRD #6, until the owner reviews it): everything that moves in a place, moving in
-its OpenUSD motion layer. The game's own timed motions (`data/motion/<place>.json`: doors, lights, the launch's
-climb, the turntable) and the movers SCORE gives the things the game left standing (`data/movers/<place>.json`: a
+"""The motion stage (experimental, PRD #6, until the owner reviews it): the rigid module of the motion layer
+(CONTEXT.md "motion"; the overlay has the layer's modules), everything rigid that moves in a place, moving in its
+OpenUSD motion layer. The game's own timed motions (`data/motion/<place>.json`: doors, lights, the launch's climb, the
+turntable) and the rigid moves SCORE gives the things the game left standing (`data/motion/rigid/<place>.json`: a
 ferry's round of the harbour, a boom's travel on its rail, a hatch swung open on its hinge, each with its kind and the
 source of its numbers) are written into one layer over the place's stage: its seed with its accepted scene record
 written over the seed's record prims, as the assembly writes it (assembly.take_record), or the seed alone for a place
-with no scene-record row. A game motion's prim the new record names otherwise is the movers record's `renamed`
+with no scene-record row. A game motion's prim the new record names otherwise is the rigid record's `renamed`
 ({old prim: new prim}); a game motion whose prim the place no longer has is not written, and `covered` fails on it
-unless the movers record's `removed` ({motion: why}) says the concept took it out.
-The stage is the place itself (movers.place_only): the places it shows are left out, all but their prims that move,
-so two places that show each other never load each other round.
+unless the rigid record's `removed` ({motion: why}) says the concept took it out.
+The stage is the place itself (motion_layer.place_only): the places it shows are left out, all but their prims that
+move, so two places that show each other never load each other round.
 
-    make     tools/usd/movers.py's write_layer: layers/motion.usda (taking the place of the seed's) and movers.json
+    make     tools/usd/motion_layer.py's write_layer: layers/motion.usda (taking the place of the seed's) and moved.json
              (what it moved, the game motions whose prim is gone, and the layer's seconds)
-    gates    clear     no mover reaches into a still thing or another mover over its whole motion: sampled every
+    gates    clear     no moving thing reaches into a still thing or another moving thing over its whole motion: sampled every
                        STEP seconds over the layer's seconds, the points over each still surface near its sweep and
-                       over every other mover's surface lie no deeper than REACH_MOST in its hull. A thing it already
+                       over every other moving thing's surface lie no deeper than REACH_MOST in its hull. A thing it already
                        reaches into where it starts is what it is mounted on (a boom's rail, a hatch's frame), named in
-                       the findings and not judged; so is what the movers record's `through` says a motion passes
+                       the findings and not judged; so is what the rigid record's `through` says a motion passes
                        through by its design, with why (a door sunk through a floor the floor plate does not cut)
-             speeds    each mover of a kind with a cited speed range (data/checks/motion.json) keeps to it: its peak
+             speeds    each moving thing of a kind with a cited speed range (data/checks/motion.json) keeps to it: its peak
                        speed at most the top, its median moving speed at least the bottom (metres a second of its
                        middle, or degrees a second of its turn); a kind the game times is the game's
              loops     every looping motion stands at the end of each round exactly where it started (its hull within
                        SEAM_MOST), takes no bigger step at a seam than anywhere else in its round, and the layer's
-                       seconds hold a whole number of each mover's rounds, so the layer itself loops
-             grounded  each mover stays on what it moves on: on water or ground every corner of its footprint has
+                       seconds hold a whole number of each moving thing's rounds, so the layer itself loops
+             grounded  each moving thing stays on what it moves on: on water or ground every corner of its footprint has
                        that surface under it and it keeps its rest height over it (within HEIGHT_MOST); on a rail it
                        keeps touching what it is mounted on (within TOUCH); in the air it stays AIR_LEAST over all
              covered   every prim of a moving kind in the place (its objects, fixtures and structure) moves in the
-                       layer, or the movers record says why it stands still (`still`); and every game motion's prim is
+                       layer, or the rigid record says why it stands still (`still`); and every game motion's prim is
                        in the place
 
-Only places with a movers record have the row. The assembly does not take the layer yet: the final assembly of each
+Only places with a rigid record have the row. The assembly does not take the layer yet: the final assembly of each
 place picks it up in place of the seed's motion layer.
 """
 import contextlib
@@ -53,23 +54,23 @@ from score.store import PROPS_HOME
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import motion as game_motion  # noqa: E402
-import movers as mover_layer  # noqa: E402
+import motion_layer  # noqa: E402
 
 # How often the composed stage is read along the layer, seconds; a fast turn is read finer (TURN_STEP degrees a read).
 STEP = 0.25
 TURN_STEP = 30.0
-# How deep a point may lie in a mover's hull before it is a strike, metres: a hull is the mover's convex outline, so
+# How deep a point may lie in a moving thing's hull before it is a strike, metres: a hull is the moving thing's convex outline, so
 # a little reach is its own looseness, not a touch.
 REACH_MOST = 0.03
-# Points over a surface this share of a mover's thinnest size apart (within SPACING_RANGE), metres: a wall crossing a
+# Points over a surface this share of a moving thing's thinnest size apart (within SPACING_RANGE), metres: a wall crossing a
 # hatch's 12 cm leaf still leaves points inside it, and a rail under a 1 m trolley is read every 10 cm.
 SPACING_SHARE, SPACING_RANGE = 0.25, (0.02, 0.1)
 SEAM_MOST = 0.001
 HEIGHT_MOST = 0.05
-# How near a mover on a rail keeps to what it is mounted on, metres, past the spacing of the points it is read at.
+# How near a moving thing on a rail keeps to what it is mounted on, metres, past the spacing of the points it is read at.
 TOUCH = 0.02
 AIR_LEAST = 0.5
-# What a mover on the ground drives on is every still thing under it no higher than this over its underside, metres:
+# What a moving thing on the ground drives on is every still thing under it no higher than this over its underside, metres:
 # a floor, a sill, the yard past a door; the lift's beam over the rover is not.
 CLIMB_MOST = 0.3
 ON = ("water", "ground", "rail", "air")
@@ -77,9 +78,9 @@ MOVING_SCOPES = ("Objects", "Fixtures", "Structure")
 
 
 def files(place):
-    """What the stage reads: the place's movers record, the moving kinds and their speeds, its seed stage, and its
+    """What the stage reads: the place's rigid record, the moving kinds and their speeds, its seed stage, and its
     game motion record where it has one."""
-    found = {"movers": "{data}/movers/{place}.json", "kinds": "{data}/checks/motion.json",
+    found = {"moves": "{data}/motion/rigid/{place}.json", "kinds": "{data}/checks/motion.json",
              "seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json"}
     if (REPO / f"data/motion/{place}.json").exists():
         found["motion"] = "{data}/motion/{place}.json"
@@ -87,7 +88,7 @@ def files(place):
 
 
 def applies(place):
-    return (REPO / f"data/movers/{place}.json").exists()
+    return (REPO / f"data/motion/rigid/{place}.json").exists()
 
 
 def read_json(path):
@@ -111,10 +112,10 @@ SCRATCH = PROPS_HOME / "work/motion-scratch"
 def built(inputs):
     """The stage folder the layer is written over, for the length of a `with`: the seed, or for a place with an
     accepted scene record a copy of the seed with that record written over its record prims as the assembly writes it
-    (beside links to the seed's sibling places it references) and, when the movers record asks (`ground`: a mover
+    (beside links to the seed's sibling places it references) and, when the rigid record asks (`ground`: a moving thing
     drives out onto the yard), the made ground sublayered as the assembly sublayers it (assembly.take_ground). The
     copy is removed when the `with` ends, failed or not."""
-    if "scene-record" not in inputs and "machines-layer" not in inputs:
+    if "scene-record" not in inputs and "motion-models" not in inputs:
         yield pathlib.Path(inputs["seed"])
         return
     from score.stages import assembly
@@ -135,10 +136,10 @@ def built(inputs):
                 shutil.copy2(seed / part, folder / part)
         if "scene-record" in inputs:
             assembly.take_record(inputs, folder, seed.name)
-        if "machines-layer" in inputs:  # the machines the movers drive (the garage's rover), as the assembly takes them
-            layer, assets = assembly.LAYERS["machines-layer"][1:]
-            assembly.take_layer(pathlib.Path(inputs["machines-layer"]), folder / f"{seed.name}.usda", layer, assets)
-        if read_json(inputs["movers"]).get("ground") and "terrain" in inputs:
+        if "motion-models" in inputs:  # the models the moves drive (the garage's rover), as the assembly takes them
+            layer, assets = assembly.LAYERS["motion-models"][1:]
+            assembly.take_layer(pathlib.Path(inputs["motion-models"]), folder / f"{seed.name}.usda", layer, assets)
+        if read_json(inputs["moves"]).get("ground") and "terrain" in inputs:
             assembly.take_ground(inputs["terrain"], seed.name, folder / f"{seed.name}.usda")
         yield folder
 
@@ -158,7 +159,7 @@ def source_of(inputs):
 
 
 def renamed(entry, names):
-    """A game motion with its prims as the place's scene record names them (the movers record's `renamed`)."""
+    """A game motion with its prims as the place's scene record names them (the rigid record's `renamed`)."""
     entry = dict(entry, prim=names.get(entry["prim"], entry["prim"]))
     if "adds" in entry and "like" in entry["adds"]:
         entry["adds"] = dict(entry["adds"], like=names.get(entry["adds"]["like"], entry["adds"]["like"]))
@@ -167,7 +168,7 @@ def renamed(entry, names):
 
 def game_motions(inputs, stage):
     """(the game's motions whose prim the place has, renamed as its record names them; those whose prim is gone)."""
-    names = read_json(inputs["movers"]).get("renamed", {})
+    names = read_json(inputs["moves"]).get("renamed", {})
     motions = [renamed(entry, names) for entry in (game_record(inputs) or {}).get("motions", [])]
     present = [entry for entry in motions if stands(stage, entry)]
     return present, [entry for entry in motions if entry not in present]
@@ -184,31 +185,31 @@ def stands(stage, entry):
 
 
 def make(inputs, out, seed, params):
-    """The place's motion layer from its game motions and its movers, over its stage."""
+    """The place's motion layer from its game motions and its moving things, over its stage."""
     with built(inputs) as source:
         write_motion(inputs, out, source)
 
 
 def write_motion(inputs, out, source):
-    """The layer written over a built stage folder, and movers.json."""
+    """The layer written over a built stage folder, and moved.json."""
     from pxr import Sdf
     place = place_of(inputs)
-    names = read_json(inputs["movers"]).get("renamed", {})
+    names = read_json(inputs["moves"]).get("renamed", {})
     every = [renamed(entry, names) for entry in (game_record(inputs) or {}).get("motions", [])]
-    every += read_json(inputs["movers"]).get("movers", [])
-    stage = mover_layer.working_stage(place, source, Sdf.Layer.CreateAnonymous(".usda"),
-                                      mover_layer.moving_prims(every))
+    every += read_json(inputs["moves"]).get("moves", [])
+    stage = motion_layer.working_stage(place, source, Sdf.Layer.CreateAnonymous(".usda"),
+                                      motion_layer.moving_prims(every))
     present, gone = game_motions(inputs, stage)
-    moving = mover_layer.moving_prims(every)
-    written = mover_layer.write_layer(place, {"motions": present}, read_json(inputs["movers"]), source, out,
+    moving = motion_layer.moving_prims(every)
+    written = motion_layer.write_layer(place, {"motions": present}, read_json(inputs["moves"]), source, out,
                                       lambda working, entry: ground_under(working, place, entry["prim"], moving))
-    (out / "movers.json").write_text(json.dumps({"place": place, "moved": written["moved"],
+    (out / "moved.json").write_text(json.dumps({"place": place, "moved": written["moved"],
                                                  "gone": [f"{entry['name']}: {entry['prim']}" for entry in gone],
                                                  "seconds": written["seconds"]}, indent=1))
 
 
 def ground_under(stage, place, path, moving):
-    """What a mover on the ground drives on, as the gate reads it (surface_faults): the height of the highest still
+    """What a moving thing on the ground drives on, as the gate reads it (surface_faults): the height of the highest still
     thing under the corners of its footprint, no higher than CLIMB_MOST over its underside where it rests, with its
     rest spot carried to each [x, z] spot and turned by each turn (degrees from its rest heading)."""
     shape, boxes = shaped(stage, path), space.box_cache(0.0)
@@ -224,7 +225,7 @@ def ground_under(stage, place, path, moving):
         found = []
         for spot, turn in zip(spots, turns):
             key = (round(float(spot[0]), 4), round(float(spot[1]), 4), round(float(turn), 3))
-            if key not in known:  # a mover standing still asks the same spot again and again
+            if key not in known:  # a moving thing standing still asks the same spot again and again
                 sine, cosine = np.sin(np.radians(turn)), np.cos(np.radians(turn))  # rotateY's [x, z]
                 turned = np.stack([offsets[:, 0] * cosine + offsets[:, 1] * sine,
                                    -offsets[:, 0] * sine + offsets[:, 1] * cosine], axis=1)
@@ -241,20 +242,20 @@ def composed(output, inputs):
     """The motion layer over the place's stage (its edit, its other layers and base), opened as one stage."""
     from pxr import Sdf
     layer = Sdf.Layer.FindOrOpen(str(pathlib.Path(output) / game_motion.LAYER))
-    return mover_layer.working_stage(place_of(inputs), source_of(inputs), layer,
-                                     mover_layer.moving_prims(entries(inputs)))
+    return motion_layer.working_stage(place_of(inputs), source_of(inputs), layer,
+                                     motion_layer.moving_prims(entries(inputs)))
 
 
 def entries(inputs):
-    """Every motion the layer holds, the game's (as the place's record names their prims) and the movers', each marked
+    """Every motion the layer holds, the game's (as the place's record names their prims) and the moving things', each marked
     with whose it is."""
-    names = read_json(inputs["movers"]).get("renamed", {})
+    names = read_json(inputs["moves"]).get("renamed", {})
     game = [dict(renamed(entry, names), game=True) for entry in (game_record(inputs) or {}).get("motions", [])]
-    return game + [dict(entry, game=False) for entry in read_json(inputs["movers"]).get("movers", [])]
+    return game + [dict(entry, game=False) for entry in read_json(inputs["moves"]).get("moves", [])]
 
 
 def gone_of(output):
-    return read_json(pathlib.Path(output) / "movers.json").get("gone", [])
+    return read_json(pathlib.Path(output) / "moved.json").get("gone", [])
 
 
 def bodies(inputs, output):
@@ -264,7 +265,7 @@ def bodies(inputs, output):
 
 
 def seconds_of(output):
-    return float(read_json(pathlib.Path(output) / "movers.json")["seconds"])
+    return float(read_json(pathlib.Path(output) / "moved.json")["seconds"])
 
 
 def rate_of(stage):
@@ -276,7 +277,7 @@ def kinds_of(inputs):
 
 
 def named_kind(entry, kinds):
-    """A motion's kind: the mover's own, or for a game motion the kind whose prims its prim is one of."""
+    """A motion's kind: the moving thing's own, or for a game motion the kind whose prims its prim is one of."""
     if entry.get("kind"):
         return entry["kind"]
     name = entry["prim"].rsplit("/", 1)[-1]
@@ -302,7 +303,7 @@ def shapes(stage, moving):
 
 
 def shaped(stage, path):
-    """A mover's Shape with its surface points spaced for its size."""
+    """A moving thing's Shape with its surface points spaced for its size."""
     prim = stage.GetPrimAtPath(path)
     if not prim:
         raise ValueError(f"the stage has no prim {path}")
@@ -314,7 +315,7 @@ def shaped(stage, path):
 
 def still_reach(shape, near, codes):
     """(the still things it starts inside: {path: depth}, the deepest any other reaches over the codes and where);
-    at each code only the points within the mover's bounding ball are tested."""
+    at each code only the points within the moving thing's bounding ball are tested."""
     mounts = {}
     for path, points in near.items():
         start = float(shape.depth(points, codes[0]).max())
@@ -348,9 +349,9 @@ def designed(near, place, entry, through):
 
 
 def judge_clear(output, inputs, evidence):
-    """Pass when no mover reaches into a still thing or another mover over the layer's seconds."""
+    """Pass when no moving thing reaches into a still thing or another moving thing over the layer's seconds."""
     stage, place = composed(output, inputs), place_of(inputs)
-    through = read_json(inputs["movers"]).get("through", {})
+    through = read_json(inputs["moves"]).get("through", {})
     named = {entry["prim"]: entry for entry in bodies(inputs, output)}
     rate, seconds = rate_of(stage), seconds_of(output)
     codes = [moment * rate for moment in moments(seconds)]
@@ -403,7 +404,7 @@ def turn_between(first, second):
 
 
 def measured_speeds(shape, rule, rate, seconds):
-    """The mover's speed at each read: metres a second of its middle, or degrees a second of its turn."""
+    """The moving thing's speed at each read: metres a second of its middle, or degrees a second of its turn."""
     if "angular" in rule:
         step = min(STEP, TURN_STEP / float(rule["angular"][1]))
         times = np.arange(0.0, seconds + 1e-9, step)
@@ -415,7 +416,7 @@ def measured_speeds(shape, rule, rate, seconds):
 
 
 def judge_speeds(output, inputs, evidence):
-    """Pass when each mover of a kind with a cited range keeps to it."""
+    """Pass when each moving thing of a kind with a cited range keeps to it."""
     stage, kinds = composed(output, inputs), kinds_of(inputs)
     rate, seconds = rate_of(stage), seconds_of(output)
     faults, measures, game, judged = [], {}, [], 0
@@ -443,8 +444,8 @@ def judge_speeds(output, inputs, evidence):
         if peak > high * 1.001 or middle < low:
             faults.append(f"{entry['name']} ({kind}): peak {peak:.2f}, median {middle:.2f} {unit}; "
                           f"its kind keeps {low} to {high}")
-    reason = (f"{len(faults)} movers off their kind's speeds" if faults else
-              f"{judged} movers within their kind's cited speeds"
+    reason = (f"{len(faults)} moving things off their kind's speeds" if faults else
+              f"{judged} moving things within their kind's cited speeds"
               + (f"; {len(game)} at the game's own timing" if game else ""))
     if not bodies(inputs, output):
         return checks.Verdict("speeds", checks.PASS, "nothing moves in the place")
@@ -483,7 +484,7 @@ def judge_loops(output, inputs, evidence):
     stage = composed(output, inputs)
     rate, seconds = rate_of(stage), seconds_of(output)
     looping = [entry for entry in bodies(inputs, output) if entry.get("loop")]
-    faults = mover_layer.round_faults(looping, seconds)
+    faults = motion_layer.round_faults(looping, seconds)
     worst = 0.0
     for entry in looping:
         found, off = seam_faults(entry, shaped(stage, entry["prim"]), rate, seconds)
@@ -501,13 +502,13 @@ def judge_loops(output, inputs, evidence):
 # --- grounded -----------------------------------------------------------------------------------------------------
 
 def footprint(shape):
-    """The corners of the mover's own box at its lowest, in its own frame."""
+    """The corners of the moving thing's own box at its lowest, in its own frame."""
     low, high = shape.low, shape.high
     return np.array([[x, low[1], z] for x in (low[0], high[0]) for z in (low[2], high[2])])
 
 
 def surface_faults(entry, shape, meshes, rate, seconds):
-    """A mover on water or ground: where its footprint leaves that surface, or it leaves its rest height over it. On
+    """A moving thing on water or ground: where its footprint leaves that surface, or it leaves its rest height over it. On
     the ground the surface is what is under it no higher than CLIMB_MOST over its underside then."""
     faults, drift, rest = [], 0.0, None
     under = space.surface_corners(meshes, 0.0)  # still surfaces: read once
@@ -529,7 +530,7 @@ def surface_faults(entry, shape, meshes, rate, seconds):
 
 
 def rail_faults(entry, shape, stills, others, rate, seconds):
-    """A mover on a rail: the reads where it touches none of what it starts mounted on, still things or other movers
+    """A moving thing on a rail: the reads where it touches none of what it starts mounted on, still things or other moving things
     (a hatch's wheel rides its leaf)."""
     codes = [moment * rate for moment in moments(seconds)]
     spacing = spacing_of(shape)
@@ -558,18 +559,18 @@ def air_faults(entry, shape, meshes, rate, seconds):
 
 
 def judge_grounded(output, inputs, evidence):
-    """Pass when every mover stays on what it moves on."""
+    """Pass when every moving thing stays on what it moves on."""
     stage, place = composed(output, inputs), place_of(inputs)
     rate, seconds = rate_of(stage), seconds_of(output)
-    movers = [entry for entry in bodies(inputs, output) if not entry["game"]]
-    if not movers:
+    moves = [entry for entry in bodies(inputs, output) if not entry["game"]]
+    if not moves:
         return checks.Verdict("grounded", checks.PASS, "the place has only the game's timed motions")
     moving = sorted({entry["prim"] for entry in bodies(inputs, output)})
     stills = space.still_meshes(stage, place, moving)
     surfaces = {"water": space.surface_meshes(stage, place, "water"),
                 "ground": [*space.surface_meshes(stage, place, "ground"), *stills]}
     faults, measures = [], {}
-    for entry in movers:
+    for entry in moves:
         if entry.get("on") not in ON:
             faults.append(f"{entry['name']}: moves on {entry.get('on')!r}, none of {', '.join(ON)}")
             continue
@@ -583,8 +584,8 @@ def judge_grounded(output, inputs, evidence):
         else:
             found = air_faults(entry, shape, surfaces["ground"], rate, seconds)
         faults += found
-    reason = (f"{len(faults)} of {len(movers)} movers leave what they move on" if faults else
-              f"{len(movers)} movers stay on what they move on")
+    reason = (f"{len(faults)} of {len(moves)} moving things leave what they move on" if faults else
+              f"{len(moves)} moving things stay on what they move on")
     return checks.Verdict("grounded", checks.FAIL if faults else checks.PASS, reason, measures,
                           {name: "lower" for name in measures}, tuple(faults))
 
@@ -610,7 +611,7 @@ def judge_covered(output, inputs, evidence):
     """Pass when every prim of a moving kind moves in the layer or its standing still is written down."""
     stage, place = composed(output, inputs), place_of(inputs)
     moved = {entry["prim"] for entry in bodies(inputs, output)}
-    record = read_json(inputs["movers"])
+    record = read_json(inputs["moves"])
     still, removed = record.get("still", {}), record.get("removed", {})
     wanted = moving_kind_prims(stage, place, kinds_of(inputs))
     unmoved = [f"{path} ({kind})" for path, kind in sorted(wanted.items())
@@ -631,10 +632,10 @@ def judge_covered(output, inputs, evidence):
 
 def layer_faults(folder):
     folder = pathlib.Path(folder)
-    return [f"no {name}" for name in (game_motion.LAYER, "movers.json") if not (folder / name).exists()]
+    return [f"no {name}" for name in (game_motion.LAYER, "moved.json") if not (folder / name).exists()]
 
 
-LAYER = contracts.Contract("motion-layer", 1, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
+LAYER = contracts.Contract("motion-layer", 2, layer_faults, {"length": "metre", "up axis": "Y", "time": "second"})
 CHECKS = (checks.Check("clear", on_built(judge_clear)), checks.Check("speeds", on_built(judge_speeds)),
           checks.Check("loops", on_built(judge_loops)), checks.Check("grounded", on_built(judge_grounded)),
           checks.Check("covered", on_built(judge_covered)))

@@ -2,7 +2,7 @@
  "place": "airlock",
  "about": "The airlock moves only by the game's own cycle (data/motion/airlock.json); nothing else of a moving kind stands in it.",
  "seconds": 14.0,
- "movers": [],
+ "moves": [],
  "still": {},
  "through": {
   "inner_door": {

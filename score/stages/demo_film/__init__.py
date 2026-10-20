@@ -38,7 +38,7 @@ the gate, and a new film is a new batch and a new yes.
            film's files lie in the output's root, each extra film's in a folder of its name.
     gate   film    film_checks.video_checks on each film.mp4 (the size its views.json planned, a sound track that is not silent, no black or
                    frozen stretch after the title card, a length within LENGTH_SLACK of planned_seconds for its
-                   shots) and clearance_checks on the final stage (no eye nearer a mesh, a person or a mover than the
+                   shots) and clearance_checks on the final stage (no eye nearer a mesh, a person or a moving thing than the
                    planner's clearance)
 """
 import json

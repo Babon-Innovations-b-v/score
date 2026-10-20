@@ -19,7 +19,7 @@ CONCEPT, PLAN, ROUGH_MODEL, SHELL_SPLIT = "concept", "plan", "rough-model", "she
 FILLERS = {
     ROUTE: ("pixal", "prop data for {place}: data/props/{place}.json"),
     CROP: ("crops-layer", None),
-    MECHANIC: ("machines-layer", None),
+    MECHANIC: ("motion-models", None),
     CODE: (SHIP_KIT, "a code body (tools/props/library/body_parts.py) and the row in data/kit/{place}.json"),
     CONCEPT: ("concept-views", "a concept view request for {place}"),
     PLAN: ("plan", "data/plans/{place}.json with its leads"),

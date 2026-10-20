@@ -1,5 +1,5 @@
 """What the web copy's sidecar says about a place's stage beyond its meshes: the OpenUSD layer each prim comes from, the
-stage's layers in order, its lamps, its effects as points, its movers' motion, its sounds, and the film's cameras.
+stage's layers in order, its lamps, its effects as points, its moving things' motion, its sounds, and the film's cameras.
 Read with usd-core from the linked stage, nothing written."""
 import base64
 import json
@@ -12,14 +12,14 @@ import numpy as np
 NEIGHBOURS = "places"
 PLACE_LAYER = "place"
 # The layers of a place's stage that may define objects, by the file stem in layers/ (score/stages/assembly/record.py).
-LAYER_STEMS = ("edit", "characters", "sound", "light", "motion", "effects", "crops", "machines", "settle", "ground",
+LAYER_STEMS = ("edit", "characters", "sound", "light", "motion", "effects", "crops", "motion-models", "settle", "ground",
                "base")
 # An effect's points at most: a thicker cloud is thinned evenly (the launch's plume holds tens of thousands).
 EFFECT_POINTS = 20000
 # An effect's samples looked at for its fullest moment (the launch's flame holds 11,252: reading every one took
 # minutes).
 LOOKED_AT = 200
-# A mover's key is dropped where the keys either side, blended, put it within this much: metres of its move, and
+# A moving thing's key is dropped where the keys either side, blended, put it within this much: metres of its move, and
 # the change of its turn's matrix entries (about 0.3 degrees).
 MOTION_METRES = 0.01
 MOTION_TURN = 0.005
@@ -220,17 +220,17 @@ def moving_prims(stage):
             if prim.IsA(UsdGeom.Xformable) and UsdGeom.Xformable(prim).GetTimeSamples()]
 
 
-def nearest_mover(prim, movers):
+def nearest_moving(prim, moves):
     """The nearest prim up from `prim` (itself first) that moves, or None."""
     while prim and prim.IsValid():
-        if prim.GetPath() in movers:
+        if prim.GetPath() in moves:
             return prim.GetPath()
         prim = prim.GetParent()
     return None
 
 
-def moved_objects(export, stage, movers, time):
-    """{mover's path: the objects (as the viewer names them) of the drawn meshes it carries}; a skinned mesh is
+def moved_objects(export, stage, moves, time):
+    """{moving thing's path: the objects (as the viewer names them) of the drawn meshes it carries}; a skinned mesh is
     left standing (its pose is the first)."""
     from pxr import Usd
     skinned = export.skins(stage)
@@ -238,9 +238,9 @@ def moved_objects(export, stage, movers, time):
     for prim in Usd.PrimRange(stage.GetDefaultPrim()):
         if prim.GetPath() in skinned or not export.drawn(prim, time):
             continue
-        mover = nearest_mover(prim, movers)
-        if mover is not None:
-            found.setdefault(mover, set()).add(export.object_name(prim))
+        move = nearest_moving(prim, moves)
+        if move is not None:
+            found.setdefault(move, set()).add(export.object_name(prim))
     return found
 
 
@@ -255,7 +255,7 @@ def needed(before, here, after):
 
 
 def thinned(keys):
-    """A mover's keys, [(code, matrix)], with every key its neighbours already give dropped (the first and last
+    """A moving thing's keys, [(code, matrix)], with every key its neighbours already give dropped (the first and last
     kept)."""
     kept = [keys[0]]
     for number in range(1, len(keys) - 1):
@@ -265,25 +265,25 @@ def thinned(keys):
 
 
 def motion(export, stage, time):
-    """The stage's movers over its whole time, one key a time code thinned (thinned): {codes_per_second, start, end,
-    movers: [{name, objects, keys: [[code, 16 numbers: the move from where it stands at `time`, row by row]]}]};
+    """The stage's moving things over its whole time, one key a time code thinned (thinned): {codes_per_second, start, end,
+    moving things: [{name, objects, keys: [[code, 16 numbers: the move from where it stands at `time`, row by row]]}]};
     None when nothing moves."""
     from pxr import UsdGeom
-    movers = {prim.GetPath(): prim for prim in moving_prims(stage)}
-    carried = moved_objects(export, stage, movers, time)
+    moves = {prim.GetPath(): prim for prim in moving_prims(stage)}
+    carried = moved_objects(export, stage, moves, time)
     if not carried:
         return None
     start, end = stage.GetStartTimeCode(), stage.GetEndTimeCode()
     codes = np.arange(start, end + 1.0)
-    first = {path: np.linalg.inv(np.array(UsdGeom.XformCache(time).GetLocalToWorldTransform(movers[path])))
+    first = {path: np.linalg.inv(np.array(UsdGeom.XformCache(time).GetLocalToWorldTransform(moves[path])))
              for path in carried}
     tracks = {path: [] for path in carried}
     for code in codes:
         cache = UsdGeom.XformCache(float(code))
         for path in carried:
-            tracks[path].append((float(code), first[path] @ np.array(cache.GetLocalToWorldTransform(movers[path]))))
+            tracks[path].append((float(code), first[path] @ np.array(cache.GetLocalToWorldTransform(moves[path]))))
     return {"codes_per_second": stage.GetTimeCodesPerSecond(), "start": start, "end": end,
-            "movers": [{"name": export.object_name(movers[path]), "objects": sorted(carried[path]),
+            "moves": [{"name": export.object_name(moves[path]), "objects": sorted(carried[path]),
                         "keys": [[code, np.round(matrix, 5).ravel().tolist()] for code, matrix in thinned(tracks[path])]}
                        for path in sorted(carried)]}
 

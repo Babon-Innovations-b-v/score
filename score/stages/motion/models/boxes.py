@@ -1,9 +1,9 @@
-"""machines-boxes@<place> (paid, experimental): the box gate's SAM 3 grounding for a place's machine rows (inventory
-rows with `"machine": true` and a box) and the rows added after its partition's own run that name `"ground_box":
-true` (the airlock's suit), so the prop route may draw their close-ups (the close-up stage draws only a
+"""motion-models-boxes@<place> (paid, experimental): the box gate's SAM 3 grounding for a place's rows with a box that
+name `"ground_box": true` (added after its partition's own run: the airlock's suit; the hangar's ship), so the prop
+route may draw their close-ups (the close-up stage draws only a
 box the box gate passes, tools/props/scene/box_check.py).
 
-    make   box_check.mask_jobs on the machine rows only, SAM 3 on one rented card (box_masks_cloud.mask, as the
+    make   box_check.mask_jobs on those rows only, SAM 3 on one rented card (box_masks_cloud.mask, as the
            concept_people row runs it), each row's grounding (box_check.grounding) in grounding.json; a grounded box
            is recorded where the box gate reads it (box_check.record_results: WORK/partition/<place>/boxes.json, the
            partition's own record, written by box_check.py --masks the same way). A box SAM 3 does not ground, and
@@ -20,7 +20,7 @@ from PIL import Image
 
 from score import checks, contracts
 
-REPO = pathlib.Path(__file__).resolve().parents[3]
+REPO = pathlib.Path(__file__).resolve().parents[4]
 # SAM 3 on one L4 for one picture: about 5 minutes and its set-up (concept_people's estimate for every view is 3).
 EUROS = 1.0
 BOX_TOOLS = {"box check": "{repo}/tools/props/scene/box_check.py", "box masks": "{repo}/tools/props/scene/box_masks.py",
@@ -37,14 +37,13 @@ def box_tools():
     return box_check, box_masks_cloud
 
 
-def machine_rows(inventory):
-    """Every row this stage checks: a machine row, or one flagged `ground_box` (true: SAM 3 first; "judge": the judge
-    alone)."""
-    return [row for row in inventory["rows"] if (row.get("machine") or row.get("ground_box")) and row.get("box")]
+def boxed_rows(inventory):
+    """Every row this stage checks: one with a box flagged `ground_box` (true: SAM 3 first; "judge": the judge alone)."""
+    return [row for row in inventory["rows"] if row.get("ground_box") and row.get("box")]
 
 
 def sam_rows(inventory):
-    return [row for row in machine_rows(inventory) if row.get("ground_box") != "judge"]
+    return [row for row in boxed_rows(inventory) if row.get("ground_box") != "judge"]
 
 
 def judged(box_check, scene, inventory, rows, folder):
@@ -67,7 +66,7 @@ def judged(box_check, scene, inventory, rows, folder):
 
 def applies(place):
     path = REPO / "data/inventory" / f"{place}.json"
-    return path.exists() and bool(machine_rows(json.loads(path.read_text())))
+    return path.exists() and bool(boxed_rows(json.loads(path.read_text())))
 
 
 def files(place):
@@ -96,7 +95,7 @@ def make_boxes(inputs, out, seed, params):
         sizes = {row["key"]: Image.open(job["picture"]).size for job in jobs for row in job["rows"]}
         grounded = {key: box_check.grounding(instances, sizes[key]) for key, instances in measured.items()}
     (out / "grounding.json").write_text(json.dumps(grounded, indent=1))
-    rows = machine_rows(inventory)
+    rows = boxed_rows(inventory)
     left = [row for row in rows if grounded.get(f"{scene}.{row['id']}", {}).get("grounding") != "grounded"]
     verdicts = judged(box_check, scene, inventory, left, out / "judge") if left else {}
     (out / "judged.json").write_text(json.dumps(verdicts, indent=1))
@@ -120,5 +119,5 @@ def judge_grounded(output, inputs, evidence):
                           {"failing": len(failing)}, {"failing": "lower"}, tuple(failing))
 
 
-CONTRACT = contracts.Contract("machines-boxes", 1, boxes_faults)
+CONTRACT = contracts.Contract("motion-models-boxes", 1, boxes_faults)
 CHECKS = (checks.Check("grounded", judge_grounded),)

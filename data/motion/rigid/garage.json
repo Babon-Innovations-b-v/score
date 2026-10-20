@@ -3,7 +3,7 @@
  "about": "The garage moves by the game's own cycle (data/motion/garage.json): its round of 17 s written four times, so the layer loops whole; in its first round the rover drives out through the big door onto the yard.",
  "seconds": 68.0,
  "ground": "the made ground (the terrain stage's garage layer) stands in the stage, so the yard past the big door is real ground for the rover to drive out onto (demo F7)",
- "movers": [
+ "moves": [
   {
    "name": "rover_drive_out",
    "prim": "/garage/Objects/rover_1",
@@ -39,7 +39,7 @@
      1
     ]
    },
-   "from": "The rover drives out of the airlock room, SCORE's own (the game drives it only when the player does): from where the machines stage lays it in the lift's bay straight south through the big door and onto the yard, bearing a little east, 16.2 m in 6.5 s (2.5 m/s, data/checks/motion.json rover: the Lunar Roving Vehicle's 2.5 to 3.6). It sets off as the door starts opening (1 s into the room's 17 s round, data/motion/garage.json); its front reaches the door plane after the door stands open (2.04 s) and its back clears it at 4.3 s, before the leaves start shutting (5 s); then it stands on the yard. Its forward is taken as the model's own +z; its wheels on what is under them the whole way."
+   "from": "The rover drives out of the airlock room, SCORE's own (the game drives it only when the player does): from where the motion layer's models step lays it in the lift's bay straight south through the big door and onto the yard, bearing a little east, 16.2 m in 6.5 s (2.5 m/s, data/checks/motion.json rover: the Lunar Roving Vehicle's 2.5 to 3.6). It sets off as the door starts opening (1 s into the room's 17 s round, data/motion/garage.json); its front reaches the door plane after the door stands open (2.04 s) and its back clears it at 4.3 s, before the leaves start shutting (5 s); then it stands on the yard. Its forward is taken as the model's own +z; its wheels on what is under them the whole way."
   }
  ],
  "still": {

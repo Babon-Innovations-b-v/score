@@ -9,7 +9,7 @@ every look of its accepted light step (the scene record's cameras, in light-pass
 viewer page once a place (the dashboard's own template and view3d.js, the web copies in --web, default
 $SCORE_DASHBOARD_HOME/web3d; with --hosted, as the hosted site renders the page and serves the copies from that
 export) in headless Chromium with software WebGL (llvmpipe), moves it to each camera through its
-#view= link (the movers held at the picture's moment) at the picture's shape, and measures each pair on small copies
+#view= link (the moving things held at the picture's moment) at the picture's shape, and measures each pair on small copies
 of both pictures:
 
 - difference: the mean absolute difference of the two in sRGB, 0 to 255;
@@ -123,7 +123,7 @@ def page_html(client, place):
 
 
 def view_link(camera):
-    """The viewer's #view= link to a camera (view3d.js linkedView), its movers held at the picture's moment."""
+    """The viewer's #view= link to a camera (view3d.js linkedView), its moving things held at the picture's moment."""
     numbers = [*camera["eye"], *camera["aim"], camera["fov"]]
     moment = f"&t={float(camera['frame']):.3f}" if camera.get("frame") is not None else ""
     return "view=" + ",".join(f"{float(number):.6f}" for number in numbers) + moment

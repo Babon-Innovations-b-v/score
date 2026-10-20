@@ -2,7 +2,7 @@
  "place": "launch",
  "about": "What moves at the launch besides the rocket's climb (data/motion/launch.json): the three harbour ferries, each round its own lane of the harbour. The layer holds 240 s: two rounds of the short lane and one of each long one.",
  "seconds": 240.0,
- "movers": [
+ "moves": [
   {
    "name": "ferry_1",
    "prim": "/launch/Objects/far_ferry_1",

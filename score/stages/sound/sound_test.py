@@ -1,5 +1,5 @@
 """The sound stage's make and gates on places whose sounds are all picked already (no take is made, nothing rented):
-the hub passes every gate and the airlock all but `voices`; a silent mover fails `events` and people with no voice
+the hub passes every gate and the airlock all but `voices`; a silent moving thing fails `events` and people with no voice
 fail `voices`; a sound with no file fails `sources`, as does an object sound at a row
 the place does not hold; a file made too loud fails `level`; a MOSS sound under the CLAP floor fails `likeness`; a
 Freesound recording the owner did not choose fails `no freesound`.
@@ -79,7 +79,7 @@ def recorded(place, folder, drop_on=()):
     return inputs, out
 
 
-def test_a_silent_mover_fails_events_and_people_with_no_voice_fail_voices():
+def test_a_silent_moving_thing_fails_events_and_people_with_no_voice_fail_voices():
     """#29: the lab's hatch (leaf, wheel and window moving as one) and its crew's voice; the hatch's leaf silent fails
     events, Nev's voice left out fails voices."""
     with tempfile.TemporaryDirectory() as folder:
@@ -105,7 +105,7 @@ def test_needs_name_what_the_library_does_not_answer():
     assert holes["sound:voice:people"]["node"] == "sound@lab", holes
     workshop = {hole["id"]: hole for hole in needs.holes("workshop", REPO / "data")}
     assert workshop["sound:event:robot_turntable"]["node"] is None, workshop
-    assert "data/sound/movers.json" in workshop["sound:event:robot_turntable"]["work"], workshop
+    assert "data/sound/moving.json" in workshop["sound:event:robot_turntable"]["work"], workshop
 
 
 def test_a_missing_sound_and_a_lost_row_fail_sources():
@@ -146,7 +146,7 @@ def test_moving_things_sound_off_their_own_moves():
     """A hatch's latch plays as it starts to open (the lab's; the hub's stand shut, so make no sound) and its bolts as it is shut tight (its swing's angle over its speed
     later), in the stage's seconds; the garage's big doors, silent in the game's record, start and stop in their own
     round, at the leaves the place renamed them to, round by round; the rover's drive loops over its drive; the ship
-    rooms hear their own machines; and movers.py's rounds are the assembly's (tools/usd/sound.rounds_of)."""
+    rooms hear their own machines; and moving.py's rounds are the assembly's (tools/usd/sound.rounds_of)."""
     lab = sound.uses_of("lab", inputs_for("lab", None))
     hatch = [(use["sound"], use["at"]) for use in lab if use["on"] == "/lab/Objects/hatch_leaf_1"]
     assert hatch == [("hatch_open", 4.0), ("airlock_hatch_seal_clunk", 18.0)], hatch
@@ -158,12 +158,12 @@ def test_moving_things_sound_off_their_own_moves():
     drive = [(use["at"], use["loops_until"]) for use in garage if use["sound"] == "rover_motor"]
     assert drive == [(1.0, 7.5)], drive
     sys.path.insert(0, str(REPO / "tools/usd"))
-    import sound as layer  # noqa: E402  (tools/usd: the assembly's rounds, which movers.py repeats)
-    from score.stages.sound import movers
+    import sound as layer  # noqa: E402  (tools/usd: the assembly's rounds, which moving.py repeats)
+    from score.stages.sound import moving
     for motion in ({"start": 1.0}, {"start": 0.0, "length": 14.0, "loop": True},
                    {"start": 0.0, "length": 86.0, "loop": True}):
-        assert movers.rounds_of(motion) == layer.rounds_of(motion), motion
-    assert movers.SOUND_SPAN_SECONDS == layer.SOUND_SPAN_SECONDS
+        assert moving.rounds_of(motion) == layer.rounds_of(motion), motion
+    assert moving.SOUND_SPAN_SECONDS == layer.SOUND_SPAN_SECONDS
     rooms = {place: sorted(use["sound"] for use in sound.uses_of(place, inputs_for(place, None))
                            if use["role"] in ("room", "object"))
              for place in ("cockpit", "galley", "engineroom", "quarters")}

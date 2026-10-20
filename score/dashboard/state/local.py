@@ -86,7 +86,7 @@ def lost_once(holes):
 HISTORY = 6
 # Which stage makes each sublayer of a place's OpenUSD stage (score/stages/assembly/record.py ORDER).
 LAYER_MAKERS = {"edit": None, "characters": "characters-layer", "sound": "sound", "light": "light",
-                "motion": "motion", "effects": "effects-layer", "crops": "crops-layer", "machines": "machines-layer",
+                "motion": "motion", "effects": "effects-layer", "crops": "crops-layer", "motion-models": "motion-models",
                 "settle": "settle", "ground": "terrain", "base": "scene-record"}
 LAYER_FILES = tuple(LAYER_MAKERS)
 ACCEPTED, WAITING, STOPPED, NOT_RUN = "accepted", "waiting", "stopped", "not run"

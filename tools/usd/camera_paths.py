@@ -12,13 +12,13 @@ point more than STEP_RISE over or under that eye (a table top, a ledge, a pit) i
 under it somewhere along it (edges_floored). A start and goal joined by a walkable straight edge are that edge. An edge
 between two eyes is valid only when every point of it, its ends too, keeps the clearance (CLEARANCE) from every object,
 Structure or Fixtures mesh, the ground and every person (a ball of that radius swept along it meets none of them in
-FCL: the meshes as one bounding volume tree, the people and the movers as solid boxes, so an eye inside one counts), and
+FCL: the meshes as one bounding volume tree, the people and the moving things as solid boxes, so an eye inside one counts), and
 a ray along it and two along the walker's body under it (BODY: its knee and its waist, so it never steps over a railing
-or a table) meet nothing before its end. The people are the place's characters, and the movers what the stage's motion
-layer moves (tools/usd/movers.py: the garage's rover, a hatch's leaf, a crane's trolley), as boxes where they stand at
+or a table) meet nothing before its end. The people are the place's characters, and the moving things what the stage's motion
+layer moves (tools/usd/motion_layer.py: the garage's rover, a hatch's leaf, a crane's trolley), as boxes where they stand at
 the moments asked for (the stage's first when none is), so one who walks or drives is followed over them: the garage's
 rover once drove through a film's camera, its path planned on the stage at rest (2026-10-18). `clearances` measures
-how far an eye stands from the meshes and from the people and movers, as the demo's film checks measure every frame. The tree is grown by RRT* (Karaman and
+how far an eye stands from the meshes and from the people and moving things, as the demo's film checks measure every frame. The tree is grown by RRT* (Karaman and
 Frazzoli, 2011: each new point joined to the cheapest valid parent near it, then the near points rewired through it
 when that is shorter), seeded, so the same place and seed give the same path. The path found is cut short wherever a straight valid edge skips
 points, then laid out evenly as `--frames` views, each aimed LOOK_AHEAD metres further along it.
@@ -109,8 +109,8 @@ def people_corners(stage_path, times=None):
                                   single_corners(singles, Usd.TimeCode(time))]) for time in times}
 
 
-def movers(stage):
-    """The prims a stage moves over its time (its motion layer's: tools/usd/movers.py and motion.py), each the topmost
+def moves(stage):
+    """The prims a stage moves over its time (its motion layer's: tools/usd/motion_layer.py and motion.py), each the topmost
     whose own transform may change, so a moving prim's children move with it; the people (people_corners) and the
     particles (NOT_SOLID) aside."""
     from pxr import Usd, UsdGeom
@@ -124,20 +124,20 @@ def movers(stage):
     return found
 
 
-def mover_corners(stage_path, times=None):
-    """Each mover's box (Usd's bound of it, aligned with the stage's axes) at each time code (the stage's first moment
+def thing_corners(stage_path, times=None):
+    """Each moving thing's box (Usd's bound of it, aligned with the stage's axes) at each time code (the stage's first moment
     when none is given): {time: (count, 8, 3) corners}."""
     from pxr import Usd
     stage = Usd.Stage.Open(str(stage_path))
     times = [stage.GetStartTimeCode()] if times is None else sorted(set(times))
-    moving = movers(stage)
+    moving = moves(stage)
     return {time: single_corners(moving, Usd.TimeCode(time)) for time in times}
 
 
 def moving_corners(stage_path, times=None):
-    """The people's and the movers' boxes at each time code: {time: (count, 8, 3) corners}."""
-    people_found, movers_found = people_corners(stage_path, times), mover_corners(stage_path, times)
-    return {time: np.concatenate([people_found[time], movers_found[time]]) for time in people_found}
+    """The people's and the moving things' boxes at each time code: {time: (count, 8, 3) corners}."""
+    people_found, moves_found = people_corners(stage_path, times), thing_corners(stage_path, times)
+    return {time: np.concatenate([people_found[time], moves_found[time]]) for time in people_found}
 
 
 def moving_boxes(stage_path, times=None):
@@ -210,9 +210,9 @@ def box_distances(corners, point):
 
 def place_scenes(stage_path, times=None):
     """A place for the camera: one mesh of everything an edge must not cross and an eye may stand over (the ground, the
-    Structure and Fixtures meshes, the objects, and the people and movers at the time codes given, cast at by trimesh's rays:
+    Structure and Fixtures meshes, the objects, and the people and moving things at the time codes given, cast at by trimesh's rays:
     Embree's when embreex is installed, as the framework's environment has it), the same as solids for the clearance
-    (`solid`: the meshes as one tree and each person's and mover's box), the ground's height under any (x, z), and the
+    (`solid`: the meshes as one tree and each person's and moving thing's box), the ground's height under any (x, z), and the
     place's extent (x, z) without the ground."""
     laid = snap.read_place(stage_path)
     shown = {**laid["objects"], **laid["statics"]}
@@ -224,7 +224,7 @@ def place_scenes(stage_path, times=None):
 
 
 def with_people(scenes, boxes):
-    """The place with these people's and movers' boxes ((count, 8, 3) corners) standing in it: in the mesh the rays
+    """The place with these people's and moving things' boxes ((count, 8, 3) corners) standing in it: in the mesh the rays
     meet and among the solids."""
     solid = fcl.DynamicAABBTreeCollisionManager()
     solid.registerObjects([scenes["tree"], *(box_solid(corners) for corners in boxes)])
@@ -318,7 +318,7 @@ def turned_to(way):
 
 
 def frame_clearances(scenes, stage_path, views):
-    """Each view's eye's distance from the place's meshes and from the people's and movers' boxes at the view's own
+    """Each view's eye's distance from the place's meshes and from the people's and moving things' boxes at the view's own
     moment of the stage's time (its `frame`): two arrays, metres (clearances)."""
     boxes = moving_corners(stage_path, [view.get("frame", 0) for view in views])
     measured = [clearances(scenes, view["eye"], boxes[view.get("frame", 0)]) for view in views]
@@ -332,7 +332,7 @@ def stands_clear(walls, persons):
 
 
 def clearances(scenes, eyes, boxes=None):
-    """How far each eye stands from the nearest mesh of the place and from the nearest of the people's and movers' boxes
+    """How far each eye stands from the nearest mesh of the place and from the nearest of the people's and moving things' boxes
     ((count, 8, 3) corners; the scenes' own when not given; 0 inside one): two arrays, metres, inf where there is
     nothing."""
     boxes = scenes["boxes"] if boxes is None else boxes

@@ -1,4 +1,4 @@
-"""The machines stage's layout and gates on the garage's own seed, with a stand-in rover (four wheels and a body, at the
+"""The motion layer's models step's layout and gates on the garage's own seed, with a stand-in rover (four wheels and a body, at the
 rover's size): laid on the lift it rests; lifted it floats; pushed into a post it lies in it; the outline and parts
 gates fail by name. Needs the garage's seed ($PROPS_HOME/work/usd-r3/garage)."""
 import json
@@ -9,8 +9,8 @@ import sys
 import numpy as np
 import trimesh
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
-import score.stages.machines as machines  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
+import score.stages.motion.models as models  # noqa: E402
 from score import checks  # noqa: E402
 from score.store import PROPS_HOME  # noqa: E402
 
@@ -51,49 +51,49 @@ def output_with(folder, matrix, outline=0.8):
     shutil.rmtree(folder, ignore_errors=True)
     write_asset(stand_in(), folder)
     (folder / "layers").mkdir()
-    layer = Sdf.Layer.CreateNew(str(folder / machines.LAYER))
-    machines.lay(layer, "garage", "rover_1", ENTRY, matrix, "test")
+    layer = Sdf.Layer.CreateNew(str(folder / models.LAYER))
+    models.lay(layer, "garage", "rover_1", ENTRY, matrix, "test")
     layer.Save()
-    (folder / "placed.json").write_text(json.dumps({"machines": {"rover_1": {"take": ENTRY["take"],
+    (folder / "placed.json").write_text(json.dumps({"models": {"rover_1": {"take": ENTRY["take"],
                                                                              "outline": outline}}}))
     return folder
 
 
 def test_layout_and_gates(work):
-    stage = machines.seed_stage(SEED)
-    matrix, yaw, drop = machines.pose(np.asarray(stand_in().vertices), ENTRY, stage, "garage")
-    assert yaw == 0.0 and abs(drop - machines.DROP_FROM) < 0.02, (yaw, drop)  # across the posts, onto the floor
+    stage = models.seed_stage(SEED)
+    matrix, yaw, drop = models.pose(np.asarray(stand_in().vertices), ENTRY, stage, "garage")
+    assert yaw == 0.0 and abs(drop - models.DROP_FROM) < 0.02, (yaw, drop)  # across the posts, onto the floor
     inputs = {"seed": SEED}
-    laid = machines.judge_resting(output_with(work / "laid", matrix), inputs, None)
+    laid = models.judge_resting(output_with(work / "laid", matrix), inputs, None)
     assert laid.answer == checks.PASS, laid
     lifted = matrix.copy()
     lifted[3, 1] += 0.2
-    floats = machines.judge_resting(output_with(work / "lifted", lifted), inputs, None)
+    floats = models.judge_resting(output_with(work / "lifted", lifted), inputs, None)
     assert floats.answer == checks.FAIL and "floats" in floats.findings[0], floats
     pushed = matrix.copy()
     pushed[3, 0] += 1.2
-    inside = machines.judge_resting(output_with(work / "pushed", pushed), inputs, None)
+    inside = models.judge_resting(output_with(work / "pushed", pushed), inputs, None)
     assert inside.answer == checks.FAIL and "rover_lift_1" in " ".join(inside.findings), inside
-    unlike = machines.judge_outline(output_with(work / "unlike", matrix, outline=0.3), inputs, None)
+    unlike = models.judge_outline(output_with(work / "unlike", matrix, outline=0.3), inputs, None)
     assert unlike.answer == checks.FAIL and "rover_1" in unlike.findings[0], unlike
     parts = work / "parts"
     parts.mkdir()
     (parts / "parts.json").write_text(json.dumps({"takes": {"kit5-rover-3": {
         "parts": [{"words": "white mudguards"}], "finishes": [{"finish": "white mudguards"},
                                                               {"finish": "black tyres"}]}}}))
-    missing = machines.judge_parts(work / "laid", {"surfaces-parts": parts}, None)
+    missing = models.judge_parts(work / "laid", {"surfaces-parts": parts}, None)
     assert missing.answer == checks.FAIL and "black tyres" in missing.findings[0], missing
 
 
-def test_a_machine_stands_on_its_settled_support(work):
+def test_a_model_stands_on_its_settled_support(work):
     """assembly@garage (2026-10-15): the settle let the lift down 14 cm off its spot and the rover, laid on the seed's
     lift, lay 8.8 cm inside the settled one. Over a settle layer that moves the lift 1.2 m east the rover is laid 1.2 m
     east too, and the resting gate judges it on the settled lift: the rover laid on the seed's lift lies in it."""
     from pxr import Gf, Sdf, UsdGeom
     settled = work / "settled"
     (settled / "layers").mkdir(parents=True)
-    layer = Sdf.Layer.CreateNew(str(settled / machines.SETTLE_LAYER))
-    seed = machines.seed_stage(SEED)  # held: a prim of a stage nothing holds expires at once
+    layer = Sdf.Layer.CreateNew(str(settled / models.SETTLE_LAYER))
+    seed = models.seed_stage(SEED)  # held: a prim of a stage nothing holds expires at once
     lift = UsdGeom.Xformable(seed.GetPrimAtPath("/garage/Objects/rover_lift_1")).GetLocalTransformation()
     moved = lift * Gf.Matrix4d().SetTranslate(Gf.Vec3d(1.2, 0, 0))
     spec = Sdf.CreatePrimInLayer(layer, "/garage/Objects/rover_lift_1")
@@ -103,24 +103,24 @@ def test_a_machine_stands_on_its_settled_support(work):
     order.default = ["xformOp:transform"]
     layer.Save()
     points = np.asarray(stand_in().vertices)
-    before, _, _ = machines.pose(points, ENTRY, machines.seed_stage(SEED), "garage")
-    after, _, _ = machines.pose(points, ENTRY, machines.seed_stage(SEED, settled), "garage")
+    before, _, _ = models.pose(points, ENTRY, models.seed_stage(SEED), "garage")
+    after, _, _ = models.pose(points, ENTRY, models.seed_stage(SEED, settled), "garage")
     assert abs(after[3, 0] - before[3, 0] - 1.2) < 0.01, (before[3], after[3])
     inputs = {"seed": SEED, "settle": settled}
-    assert machines.judge_resting(output_with(work / "settled-laid", after), inputs, None).answer == checks.PASS
-    old = machines.judge_resting(output_with(work / "seed-laid", before), inputs, None)
+    assert models.judge_resting(output_with(work / "settled-laid", after), inputs, None).answer == checks.PASS
+    old = models.judge_resting(output_with(work / "seed-laid", before), inputs, None)
     assert old.answer == checks.FAIL and "rover_lift_1" in " ".join(old.findings), old
 
 
-def test_a_machine_lies_along_the_place_s_axis_its_record_names_and_off_its_support_s_middle():
+def test_a_model_lies_along_the_place_s_axis_its_record_names_and_off_its_support_s_middle():
     """The hangar's ship (2026-10-15): its 7.2 m pad is square, so "along" the pad laid the 31 m hull across the 26 m
     hangar. `turn` "x" or "z" lays its long side along the place's axis; `off` sets it off the support's middle."""
-    stage = machines.seed_stage(SEED)
+    stage = models.seed_stage(SEED)
     points = np.asarray(stand_in().vertices)  # 3.03 m long along z
-    along_z, yaw_z, _ = machines.pose(points, dict(ENTRY, turn="z"), stage, "garage")
-    _, yaw_x, _ = machines.pose(points, dict(ENTRY, turn="x"), stage, "garage")
+    along_z, yaw_z, _ = models.pose(points, dict(ENTRY, turn="z"), stage, "garage")
+    _, yaw_x, _ = models.pose(points, dict(ENTRY, turn="x"), stage, "garage")
     assert (yaw_z, yaw_x) == (0.0, 90.0), (yaw_z, yaw_x)
-    moved, _, _ = machines.pose(points, dict(ENTRY, turn="z", off=[0.0, -0.4]), stage, "garage")
+    moved, _, _ = models.pose(points, dict(ENTRY, turn="z", off=[0.0, -0.4]), stage, "garage")
     assert abs(moved[3, 2] - along_z[3, 2] + 0.4) < 1e-6 and abs(moved[3, 0] - along_z[3, 0]) < 1e-6, (moved, along_z)
 
 
@@ -128,26 +128,26 @@ def test_a_mounted_piece_goes_where_its_host_plan_puts_it():
     """A ship 31 m long laid along z with its nose at -z: a piece 2 m back from the tip, 1 m to starboard (+x when
     facing -z) and 0.5 m up sits there; a host with no nose refuses its pieces by name."""
     low, high = (-4.0, 0.2, -15.5), (4.0, 6.2, 15.5)
-    point = machines.mount_point(low, high, "-z", [1.0, 2.0, 0.5])
+    point = models.mount_point(low, high, "-z", [1.0, 2.0, 0.5])
     assert np.allclose(point, [1.0, 0.7, -13.5]), point
-    assert np.allclose(machines.mount_point(low, high, "+x", [1.0, 0.0, 0.0]), [4.0, 0.2, 1.0])  # facing +x, starboard is +z
+    assert np.allclose(models.mount_point(low, high, "+x", [1.0, 0.0, 0.0]), [4.0, 0.2, 1.0])  # facing +x, starboard is +z
     hull = trimesh.creation.box(bounds=(low, high))
     hosts = {"ship_1": (np.array(low), np.array(high), np.eye(3), 0.0, hull)}
     piece = {"mounted": {"on": "ship_1", "at": [1.0, 2.0, 0.5]}}
-    matrix = machines.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), piece, hosts,
-                                   {"machines": {"ship_1": {"nose": "-z"}}})
+    matrix = models.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), piece, hosts,
+                                   {"models": {"ship_1": {"nose": "-z"}}})
     assert np.allclose(matrix[3, :3], [1.0, 0.7, -13.5]), matrix
     # under the hull's floor (0.2 up), moved up onto it; out past its side (x 4.0), moved in onto it
     under = {"mounted": {"on": "ship_1", "at": [1.0, 2.0, -1.0], "onto": "up"}}
-    lifted = machines.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), under, hosts,
-                                   {"machines": {"ship_1": {"nose": "-z"}}})
-    assert abs(lifted[3, 1] + 0.5 - (0.2 - machines.MOUNT_CLEAR)) < 1e-6, lifted  # its top 2 mm under the floor
+    lifted = models.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), under, hosts,
+                                   {"models": {"ship_1": {"nose": "-z"}}})
+    assert abs(lifted[3, 1] + 0.5 - (0.2 - models.MOUNT_CLEAR)) < 1e-6, lifted  # its top 2 mm under the floor
     outside = {"mounted": {"on": "ship_1", "at": [5.0, 2.0, 1.0], "onto": "in"}}
-    pulled = machines.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), outside, hosts,
-                                   {"machines": {"ship_1": {"nose": "-z"}}})
-    assert abs(pulled[3, 0] - 0.5 - (4.0 + machines.MOUNT_CLEAR)) < 1e-6, pulled  # its inner side 2 mm off the side
+    pulled = models.mounted_pose(np.array([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]]), outside, hosts,
+                                   {"models": {"ship_1": {"nose": "-z"}}})
+    assert abs(pulled[3, 0] - 0.5 - (4.0 + models.MOUNT_CLEAR)) < 1e-6, pulled  # its inner side 2 mm off the side
     try:
-        machines.mounted_pose(np.zeros((2, 3)), piece, hosts, {"machines": {"ship_1": {}}})
+        models.mounted_pose(np.zeros((2, 3)), piece, hosts, {"models": {"ship_1": {}}})
     except ValueError as refused:
         assert "ship_1" in str(refused), refused
     else:
@@ -155,7 +155,7 @@ def test_a_mounted_piece_goes_where_its_host_plan_puts_it():
 
 
 def test_assembly_takes_it(work):
-    """The assembly holds the machines layer just over the base and carries the machine's asset; the machine stands
+    """The assembly holds the motion models layer just over the base and carries the model's asset; the model stands
     as its inventory row, where its sound plays (assembly@garage, 2026-10-15: laid as rover_1, rover_idle found
     nothing)."""
     from pxr import Sdf
@@ -169,10 +169,10 @@ def test_assembly_takes_it(work):
     root = Sdf.Layer.CreateNew(str(work / "place/garage.usda"))
     root.subLayerPaths = ["./layers/edit.usda", assembly.BASE_LAYER]
     root.Save()
-    assembly.take_layer(work / "laid", work / "place/garage.usda", *assembly.LAYERS["machines-layer"][1:])
+    assembly.take_layer(work / "laid", work / "place/garage.usda", *assembly.LAYERS["motion-models"][1:])
     layers = list(Sdf.Layer.FindOrOpen(str(work / "place/garage.usda")).subLayerPaths)
-    assert layers == ["./layers/edit.usda", "./layers/machines.usda", assembly.BASE_LAYER], layers
-    assert (work / "place/assets/rover_1.usdc").exists() and (work / "place" / machines.LAYER).exists()
+    assert layers == ["./layers/edit.usda", "./layers/motion-models.usda", assembly.BASE_LAYER], layers
+    assert (work / "place/assets/rover_1.usdc").exists() and (work / "place" / models.LAYER).exists()
     from pxr import Usd
     from score.stages.assembly import sounds
     stage = Usd.Stage.Open(str(work / "place/garage.usda"))
@@ -180,10 +180,10 @@ def test_assembly_takes_it(work):
     assert [prim.GetName() for prim in found.get("rover", [])] == ["rover_1"], sorted(found)  # its sound's row
 
 
-def test_boxes_grounds_the_machine_rows(work):
-    """machines-boxes asks SAM 3 for the hangar's ship and its ground_box row only, and its gate fails a box SAM 3
+def test_boxes_grounds_the_model_rows(work):
+    """motion-models-boxes asks SAM 3 for the hangar's ship and its ground_box row only, and its gate fails a box SAM 3
     found elsewhere (the cloud call, the box judge and the partition's record stood in for)."""
-    import score.stages.machines.boxes as boxes
+    import score.stages.motion.models.boxes as boxes
     box_check, box_masks_cloud = boxes.box_tools()
     recorded = []
     asked = []
@@ -209,7 +209,7 @@ def test_boxes_grounds_the_machine_rows(work):
         boxes.make_boxes(inputs, out, 0, {})
     finally:
         box_masks_cloud.mask, box_check.record_results, boxes.judged = kept
-    # the machine rows (the hull and its three thruster designs) and the ground_box one
+    # the model rows (the hull and its three thruster designs) and the ground_box one
     assert sorted(asked) == ["hangar.lattice_ring_rib", "hangar.lift_thruster", "hangar.main_engine",
                              "hangar.nose_thruster", "hangar.ship"], asked
     # each row measured on its own view's picture (2026-10-15: every job got the first row's, the cockpit's console
@@ -223,23 +223,23 @@ def test_boxes_grounds_the_machine_rows(work):
 
 
 def main():
-    work = PROPS_HOME / "store-tests/machines"
+    work = PROPS_HOME / "store-tests/models"
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     try:
         test_layout_and_gates(work)
-        test_a_machine_stands_on_its_settled_support(work)
-        test_a_machine_lies_along_the_place_s_axis_its_record_names_and_off_its_support_s_middle()
+        test_a_model_stands_on_its_settled_support(work)
+        test_a_model_lies_along_the_place_s_axis_its_record_names_and_off_its_support_s_middle()
         test_a_mounted_piece_goes_where_its_host_plan_puts_it()
         test_assembly_takes_it(work)
-        test_boxes_grounds_the_machine_rows(work)
+        test_boxes_grounds_the_model_rows(work)
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    print("machines_test: ok")
+    print("models_test: ok")
 
 
 if __name__ == "__main__":
     import pathlib
     import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
+    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[4] / "conftest.py"))["refuse_outside_sandbox"]()
     main()

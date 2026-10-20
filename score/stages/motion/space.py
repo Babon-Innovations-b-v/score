@@ -1,10 +1,10 @@
-"""The motion stage's measures of space, read off the composed stage: each mover's own shape (the convex hull of its
-meshes in its own frame) and where it stands at a moment, the still things round it as points on their surfaces, and
-how deep one thing reaches into a mover's hull."""
+"""The motion stage's measures of space, read off the composed stage: each moving thing's own shape (the convex hull
+of its meshes in its own frame) and where it stands at a moment, the still things round it as points on their surfaces, and
+how deep one thing reaches into a moving thing's hull."""
 import numpy as np
 from pxr import Usd, UsdGeom
 
-# Scopes of a place's stage that are not things a mover can strike: the sky, the lights, the sounds, the materials,
+# Scopes of a place's stage that are not things a moving thing can strike: the sky, the lights, the sounds, the materials,
 # and the ground and water, which the `grounded` gate judges instead.
 NOT_THINGS = ("Sky", "Lights", "Sound", "Library", "Environment", "Looks", "Water", "Terrain", "Ground", "Ground_look",
               "Effects")
@@ -13,9 +13,9 @@ WATERS = ("Water",)
 # What a code-built mesh says it plainly is (tools/usd/placeholders.py's `score:plain`) when it is a surface, not a
 # thing: a neighbour's harbour (the far city's) is water wherever it stands in the stage.
 PLAIN_SURFACES = {"water": "water", "ground": "ground", "sky": "sky"}
-# How many points a mover's hull is built from at most (a ferry's mesh is 54,000): a seeded pick of its vertices.
+# How many points a moving thing's hull is built from at most (a ferry's mesh is 54,000): a seeded pick of its vertices.
 HULL_POINTS = 20000
-# A still triangle meeting a mover's sweep is cut until no side is longer than this many sampling spacings.
+# A still triangle meeting a moving thing's sweep is cut until no side is longer than this many sampling spacings.
 SPLIT_LONGEST = 8
 
 
@@ -83,7 +83,7 @@ def thinned(points, spacing):
 
 
 class Shape:
-    """A mover's shape in its own frame: the convex hull of its drawn meshes where they stand at `code`, its points
+    """A moving thing's shape in its own frame: the convex hull of its drawn meshes where they stand at `code`, its points
     over their surfaces, its lowest corners."""
 
     def __init__(self, prim, code, spacing):
@@ -111,13 +111,13 @@ class Shape:
         self.poses = {}
 
     def placed(self, code):
-        """The mover's own-to-world transform at a time code (each read once)."""
+        """The moving thing's own-to-world transform at a time code (each read once)."""
         if code not in self.poses:
             self.poses[code] = world_matrix(self.prim, code)
         return self.poses[code]
 
     def depth(self, world_points, code):
-        """How deep each world point lies inside the mover's hull at a time code, metres (below zero outside)."""
+        """How deep each world point lies inside the moving thing's hull at a time code, metres (below zero outside)."""
         if not len(world_points):
             return np.zeros(0)
         to_own = np.linalg.inv(self.placed(code))
@@ -131,7 +131,7 @@ class Shape:
 
 
 def swept_box(shape, codes, margin):
-    """The world box the mover's hull passes through over the time codes, grown by a margin."""
+    """The world box the moving thing's hull passes through over the time codes, grown by a margin."""
     spots = np.concatenate([shape.in_world(shape.corners, code) for code in codes])
     return spots.min(axis=0) - margin, spots.max(axis=0) + margin
 
@@ -148,10 +148,10 @@ def plainly(mesh):
     return PLAIN_SURFACES.get(attribute.Get()) if attribute and attribute.HasValue() else None
 
 
-def still_meshes(stage, place, movers):
-    """Every drawn mesh of the place a mover could strike: not in a scope that is no thing, not a plain surface, not
-    part of a mover."""
-    moving = [str(path) for path in movers]
+def still_meshes(stage, place, moves):
+    """Every drawn mesh of the place a moving thing could strike: not in a scope that is no thing, not a plain surface, not
+    part of a moving thing."""
+    moving = [str(path) for path in moves]
     found = []
     for mesh in shown_meshes(stage.GetPrimAtPath(f"/{place}")):
         path = str(mesh.GetPath())
@@ -177,7 +177,7 @@ def overlaps(first, second):
 
 def corners_near(corners, box, spacing):
     """The triangles (corner triples) that meet the box, each cut in four until none meeting it is longer than
-    SPLIT_LONGEST spacings: a wall's one big quad is sampled only where the mover passes."""
+    SPLIT_LONGEST spacings: a wall's one big quad is sampled only where the moving thing passes."""
     while True:
         near = np.all(corners.max(axis=1) >= box[0], axis=1) & np.all(corners.min(axis=1) <= box[1], axis=1)
         corners = corners[near]

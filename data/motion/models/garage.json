@@ -1,6 +1,6 @@
 {
  "place": "garage",
- "machines": {
+ "models": {
   "rover_1": {
    "row": "rover",
    "take": "kit5-rover-3",
