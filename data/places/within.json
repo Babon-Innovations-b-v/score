@@ -1,9 +1,8 @@
 {
- "about": "Where each place sits, shapes first (CONTEXT.md \"outside shell\", \"inside place\"): `within` names the outside place or shell holding a place, `from` the data it was read from; a place not listed is an outside place of its own. `shells` are outside shells that are no place of their own yet (no plan): their inside places are. Derived by hand from the plans on 2026-10-20 (#42); no plan has a shell split yet (#16), which replaces this once it does. Read by the cockpit only (score/dashboard/state/local.py), never by a stage.",
+ "about": "Where each place sits, shapes first (CONTEXT.md \"outside shell\", \"inside place\"): `within` names the outside place or shell holding a place, `from` the data it was read from; a place not listed is an outside place of its own. `shells` are outside shells that are no place of their own yet (no plan): their inside places are. `parts` are parts of an outside place's own outside (`of`), drawn in its concept (`as`) and grouped under it, no place of their own to the creator; their stage rows still run as places until the route folds them in. Derived by hand from the plans on 2026-10-20 (#42); no plan has a shell split yet (#16), which replaces this once it does. Read by the cockpit (score/dashboard/state/local.py) and the concept review's wording (score/review/concepts.py: an outside place's or shell's first draw names the inside places listed under it), never by a stage.",
  "shells": {
   "base": {"name": "Base", "from": "data/definitions/base.json: the Moon base's modules round the hub"},
-  "ship": {"name": "Ship", "from": "data/definitions/ship_floor.json: the crew shuttle's rooms inside its hull"},
-  "block": {"name": "Block", "from": "data/plans/flat.json and stairwell.json `block`: the flat's block on the west of the street"}
+  "ship": {"name": "Ship", "from": "data/definitions/ship_floor.json: the crew shuttle's rooms inside its hull"}
  },
  "within": {
   "hub": {"within": "base", "from": "data/definitions/base.json seat_of: the base's middle"},
@@ -25,8 +24,11 @@
   "engineroom": {"within": "ship", "from": "data/definitions/ship_floor.json rooms"},
   "walkway": {"within": "ship", "from": "data/definitions/ship_floor.json walkway"},
   "camp": {"within": "campgrounds", "from": "data/plans/campgrounds.json notes: the habitat stands in the middle, its own place; data/plans/camp.json inside"},
-  "block": {"within": "street", "from": "data/plans/flat.json and stairwell.json `block`: on the west of the street (the street's plan)"},
-  "stairwell": {"within": "block", "from": "data/plans/stairwell.json block"},
-  "flat": {"within": "block", "from": "data/plans/flat.json block; leads E to the stairwell"}
+  "stairwell": {"within": "street", "from": "data/plans/stairwell.json block: the block on the west of the street, whose outside is the street's own (the owner, 2026-10-20: one place, no Block level)"},
+  "flat": {"within": "street", "from": "data/plans/flat.json block; leads E to the stairwell"}
+ },
+ "parts": {
+  "square": {"of": "street", "as": "below the flat's balcony, a crowd of people on the square on the Hong Kong shoreline, seen and never walked", "from": "the owner, 2026-10-20: the square is no place of its own, the Street's seen-not-walked area (data/plans/square.json: seen from the balcony, never walked)"},
+  "launch": {"of": "street", "as": "across the water in the distance, the rocket launch, the Street's far view", "from": "the owner, 2026-10-20: the launch view is no place of its own, the Street's far view (data/plans/launch.json: from the balcony across the harbour)"}
  }
 }

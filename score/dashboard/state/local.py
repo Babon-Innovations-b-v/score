@@ -542,11 +542,13 @@ class LocalSource:
         return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros()}
 
     def hierarchy(self):
-        """{within, shells} of data/places/within.json: what each place or shell sits within, and the shells that are
-        no place of their own with their short names; empty while the file is not there."""
+        """{within, shells} of data/places/within.json: what each place or shell sits within (a part of a place's
+        outside, `parts`, sits within that place), and the shells that are no place of their own with their short
+        names; empty while the file is not there."""
         path = self.data / "places" / "within.json"
         found = json.loads(path.read_text()) if path.is_file() else {}
-        return {"within": {name: entry["within"] for name, entry in found.get("within", {}).items()},
+        parts = {name: {"within": entry["of"]} for name, entry in found.get("parts", {}).items()}
+        return {"within": {name: entry["within"] for name, entry in {**found.get("within", {}), **parts}.items()},
                 "shells": {name: entry["name"] for name, entry in found.get("shells", {}).items()}}
 
     # --- one place ---------------------------------------------------------------------------------------------
