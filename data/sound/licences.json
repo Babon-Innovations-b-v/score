@@ -1,18 +1,18 @@
 [
 	{
-		"file": "sound/rocket_hull_roar.recordings@1/audio/recordings/vehicles/rocket_hull_roar.ogg",
+		"file": "sound/rocket_hull_roar@1/audio/recordings/vehicles/rocket_hull_roar.ogg",
 		"source": "https://freesound.org/people/klangfabrik/sounds/220127/",
 		"author": "klangfabrik (a remix of NASA public-domain Space Shuttle launch recordings)",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/base_hum.made@1/audio/made/base_hum.wav",
+		"file": "sound/base_hum@1/audio/made/base_hum.wav",
 		"source": "tools/sound/made.py (this repository)",
 		"author": "the 2099 project",
 		"licence": "made for the first world, the repository's own (MIT)"
 	},
 	{
-		"file": "sound/radio_squelch.made@1/audio/made/radio_squelch.wav",
+		"file": "sound/radio_squelch@1/audio/made/radio_squelch.wav",
 		"source": "tools/sound/made.py (this repository)",
 		"author": "the 2099 project",
 		"licence": "made for the first world, the repository's own (MIT)"
@@ -24,7 +24,7 @@
 		"licence": "made for the first world, the repository's own (MIT)"
 	},
 	{
-		"file": "sound/geiger_ticks.made@1/audio/made/geiger_ticks.wav",
+		"file": "sound/geiger_ticks@1/audio/made/geiger_ticks.wav",
 		"source": "tools/sound/made.py (this repository)",
 		"author": "the 2099 project",
 		"licence": "made for the first world, the repository's own (MIT)"
@@ -36,49 +36,49 @@
 		"licence": "made for the first world, the repository's own (MIT)"
 	},
 	{
-		"file": "sound/airlock_air_hiss.recordings@1/audio/recordings/doors/airlock_air_hiss.ogg",
+		"file": "sound/airlock_air_hiss@1/audio/recordings/doors/airlock_air_hiss.ogg",
 		"source": "https://freesound.org/people/mcpable/sounds/131934/",
 		"author": "mcpable",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/airlock_hatch_seal_clunk.recordings@1/audio/recordings/doors/airlock_hatch_seal_clunk.ogg",
+		"file": "sound/airlock_hatch_seal_clunk@1/audio/recordings/doors/airlock_hatch_seal_clunk.ogg",
 		"source": "https://freesound.org/people/AudioPapkin/sounds/814976/",
 		"author": "AudioPapkin",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/airlock_pressure_equalise.recordings@1/audio/recordings/doors/airlock_pressure_equalise.ogg",
+		"file": "sound/airlock_pressure_equalise@1/audio/recordings/doors/airlock_pressure_equalise.ogg",
 		"source": "https://freesound.org/people/alexmol/sounds/140578/",
 		"author": "alexmol",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/bench_tool.recordings@1/audio/recordings/machines/bench_tool.ogg",
+		"file": "sound/bench_tool@1/audio/recordings/machines/bench_tool.ogg",
 		"source": "https://freesound.org/people/cazalrenoux/sounds/849366/",
 		"author": "cazalrenoux",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/digger.recordings@1/audio/recordings/machines/digger.ogg",
+		"file": "sound/digger@1/audio/recordings/machines/digger.ogg",
 		"source": "https://freesound.org/people/Ohrwurm/sounds/68471/",
 		"author": "Ohrwurm",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/drone_thrust_burst.recordings@1/audio/recordings/vehicles/drone_thrust_burst.ogg",
+		"file": "sound/drone_thrust_burst@1/audio/recordings/vehicles/drone_thrust_burst.ogg",
 		"source": "https://kenney.nl/assets/sci-fi-sounds",
 		"author": "Kenney",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/earth_flat.recordings@1/audio/recordings/places/earth_flat.ogg",
+		"file": "sound/earth_flat@1/audio/recordings/places/earth_flat.ogg",
 		"source": "https://freesound.org/people/conleec/sounds/149428/",
 		"author": "conleec",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/footsteps_gravel.recordings@1/audio/recordings/footsteps/footsteps_boots_gravel.ogg",
+		"file": "sound/footsteps_gravel@1/audio/recordings/footsteps/footsteps_boots_gravel.ogg",
 		"source": "https://freesound.org/people/Nox_Sound/sounds/556002/",
 		"author": "Nox_Sound",
 		"licence": "CC0 1.0"
@@ -132,25 +132,25 @@
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/garage.recordings@1/audio/recordings/places/garage.ogg",
+		"file": "sound/garage@1/audio/recordings/places/garage.ogg",
 		"source": "https://freesound.org/people/Kinoton/sounds/353159/",
 		"author": "Kinoton",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/greenhouse.recordings@1/audio/recordings/places/greenhouse.ogg",
+		"file": "sound/greenhouse@1/audio/recordings/places/greenhouse.ogg",
 		"source": "https://freesound.org/people/kyles/sounds/637797/",
 		"author": "kyles",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/ground_thud.recordings@1/audio/recordings/vehicles/ground_thud.ogg",
+		"file": "sound/ground_thud@1/audio/recordings/vehicles/ground_thud.ogg",
 		"source": "https://freesound.org/people/NenadSimic/sounds/149966/",
 		"author": "NenadSimic",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/habitat.recordings@1/audio/recordings/places/habitat.ogg",
+		"file": "sound/habitat@1/audio/recordings/places/habitat.ogg",
 		"source": "https://freesound.org/people/Kinoton/sounds/670070/",
 		"author": "Kinoton",
 		"licence": "CC0 1.0"
@@ -168,79 +168,79 @@
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/lift_start.recordings@1/audio/recordings/doors/lift_start.ogg",
+		"file": "sound/lift_start@1/audio/recordings/doors/lift_start.ogg",
 		"source": "https://freesound.org/people/himura.kazuto/sounds/742725/",
 		"author": "himura.kazuto",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/lift_stop.recordings@1/audio/recordings/doors/lift_stop.ogg",
+		"file": "sound/lift_stop@1/audio/recordings/doors/lift_stop.ogg",
 		"source": "https://freesound.org/people/ValentinPetiteau/sounds/564409/",
 		"author": "ValentinPetiteau",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/lift_travel.recordings@1/audio/recordings/doors/lift_travel.ogg",
+		"file": "sound/lift_travel@1/audio/recordings/doors/lift_travel.ogg",
 		"source": "https://freesound.org/people/Yoyodaman234/sounds/341196/",
 		"author": "Yoyodaman234",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/link_tube.recordings@1/audio/recordings/places/link_tube.ogg",
+		"file": "sound/link_tube@1/audio/recordings/places/link_tube.ogg",
 		"source": "https://freesound.org/people/ecfike/sounds/474458/",
 		"author": "ecfike",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/mars_dust_storm_wind.recordings@1/audio/recordings/places/mars_dust_storm_wind.ogg",
+		"file": "sound/mars_dust_storm_wind@1/audio/recordings/places/mars_dust_storm_wind.ogg",
 		"source": "https://freesound.org/people/gbayles/sounds/632771/",
 		"author": "gbayles (loop of blackatomproductions' SandstormMix, also CC0: https://freesound.org/people/blackatomproductions/sounds/565015/)",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/mars_wind.recordings@1/audio/recordings/places/mars_wind.ogg",
+		"file": "sound/mars_wind@1/audio/recordings/places/mars_wind.ogg",
 		"source": "https://freesound.org/people/DarkShroom/sounds/645305/",
 		"author": "DarkShroom",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/radio_beep.recordings@1/audio/recordings/radio/radio_beep.ogg",
+		"file": "sound/radio_beep@1/audio/recordings/radio/radio_beep.ogg",
 		"source": "https://freesound.org/people/bruce965/sounds/321906/",
 		"author": "bruce965",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/robot_planting.recordings@1/audio/recordings/machines/robot_planting.ogg",
+		"file": "sound/robot_planting@1/audio/recordings/machines/robot_planting.ogg",
 		"source": "https://freesound.org/people/LiezelDippenaar/sounds/707538/",
 		"author": "LiezelDippenaar",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/robot_servo.recordings@1/audio/recordings/machines/robot_servo.ogg",
+		"file": "sound/robot_servo@1/audio/recordings/machines/robot_servo.ogg",
 		"source": "https://freesound.org/people/gpag1/sounds/520514/",
 		"author": "gpag1",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/rocket_launch.recordings@1/audio/recordings/vehicles/rocket_launch.ogg",
+		"file": "sound/rocket_launch@1/audio/recordings/vehicles/rocket_launch.ogg",
 		"source": "https://freesound.org/people/qubodup/sounds/211617/",
 		"author": "qubodup",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/rover_wheels_gravel.recordings@1/audio/recordings/vehicles/rover_wheels_gravel.ogg",
+		"file": "sound/rover_wheels_gravel@1/audio/recordings/vehicles/rover_wheels_gravel.ogg",
 		"source": "https://freesound.org/people/TRP/sounds/577504/",
 		"author": "TRP",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/ship_inside.recordings@1/audio/recordings/places/ship_inside.ogg",
+		"file": "sound/ship_inside@1/audio/recordings/places/ship_inside.ogg",
 		"source": "https://freesound.org/people/Suhuy/sounds/715175/",
 		"author": "Suhuy",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/airlock_pump_down.recordings@1/audio/recordings/doors/airlock_pump_down.ogg",
+		"file": "sound/airlock_pump_down@1/audio/recordings/doors/airlock_pump_down.ogg",
 		"source": "https://freesound.org/people/firanthir/sounds/338971/",
 		"author": "firanthir",
 		"licence": "CC0 1.0"
@@ -258,19 +258,19 @@
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/drone_hover.recordings@1/audio/recordings/vehicles/drone_hover.ogg",
+		"file": "sound/drone_hover@1/audio/recordings/vehicles/drone_hover.ogg",
 		"source": "https://freesound.org/people/TheLittleCrow/sounds/774270/",
 		"author": "TheLittleCrow",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/hatch_open.recordings@1/audio/recordings/doors/hatch_open.ogg",
+		"file": "sound/hatch_open@1/audio/recordings/doors/hatch_open.ogg",
 		"source": "https://freesound.org/people/ALEFF-ATMOS/sounds/452784/",
 		"author": "ALEFF-ATMOS",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/prologue_crowd.recordings@1/audio/recordings/places/prologue_crowd.ogg",
+		"file": "sound/prologue_crowd@1/audio/recordings/places/prologue_crowd.ogg",
 		"source": "https://freesound.org/people/itmightgetloud/sounds/829456/",
 		"author": "itmightgetloud",
 		"licence": "CC0 1.0"
@@ -282,31 +282,31 @@
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/rocket_landing_rumble.recordings@1/audio/recordings/vehicles/rocket_landing_rumble.ogg",
+		"file": "sound/rocket_landing_rumble@1/audio/recordings/vehicles/rocket_landing_rumble.ogg",
 		"source": "https://freesound.org/people/Sanderboah/sounds/803852/",
 		"author": "Sanderboah",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/rocket_touchdown.recordings@1/audio/recordings/vehicles/rocket_touchdown.ogg",
+		"file": "sound/rocket_touchdown@1/audio/recordings/vehicles/rocket_touchdown.ogg",
 		"source": "https://freesound.org/people/Mr_KeybOred/sounds/372086/",
 		"author": "Mr_KeybOred",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/rover_motor.recordings@1/audio/recordings/vehicles/rover_motor.ogg",
+		"file": "sound/rover_motor@1/audio/recordings/vehicles/rover_motor.ogg",
 		"source": "https://freesound.org/people/derjuli/sounds/824119/",
 		"author": "derjuli",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/suit_fans.recordings@1/audio/recordings/suit/suit_fans.ogg",
+		"file": "sound/suit_fans@1/audio/recordings/suit/suit_fans.ogg",
 		"source": "https://freesound.org/people/Kinoton/sounds/503255/",
 		"author": "Kinoton",
 		"licence": "CC0 1.0"
 	},
 	{
-		"file": "sound/workshop.recordings@1/audio/recordings/places/workshop.ogg",
+		"file": "sound/workshop@1/audio/recordings/places/workshop.ogg",
 		"source": "https://freesound.org/people/kyles/sounds/451064/",
 		"author": "kyles",
 		"licence": "CC0 1.0"
@@ -522,13 +522,13 @@
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/mars_wind.generated@1/audio/generated/places/mars_wind.wav",
+		"file": "sound/mars_wind@1/audio/generated/places/mars_wind.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Thin, distant wind on a cold barren desert plain, heard muffled from inside a helmet: a soft steady low whoosh with gentle gusts.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/mars_dust_storm_wind.generated@1/audio/generated/places/mars_dust_storm_wind.wav",
+		"file": "sound/mars_dust_storm_wind@1/audio/generated/places/mars_dust_storm_wind.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A howling dust storm heard muffled from inside a spacesuit helmet: strong steady roaring wind with fine sand hissing against glass.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
@@ -564,13 +564,13 @@
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/radio_beep.generated@1/audio/generated/doors/radio_beep.ogg",
+		"file": "sound/radio_beep@1/audio/generated/doors/radio_beep.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A single short clean electronic radio beep, a soft two-tone chirp of a headset, very short.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/radio_squelch.generated@1/audio/generated/doors/radio_squelch.ogg",
+		"file": "sound/radio_squelch@1/audio/generated/doors/radio_squelch.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A short burst of radio squelch static, a crackling hiss that cuts off abruptly, from a walkie-talkie.; seed 4",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
@@ -588,13 +588,13 @@
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/geiger_ticks.generated@1/audio/generated/machines/geiger_ticks.wav",
+		"file": "sound/geiger_ticks@1/audio/generated/machines/geiger_ticks.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A geiger counter ticking: irregular sharp clicks at a steady moderate rate, close, no other sounds.; seed 3",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/hatch_open.generated@1/audio/generated/doors/hatch_open.ogg",
+		"file": "sound/hatch_open@1/audio/generated/doors/hatch_open.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A spacecraft hatch unlatched and swung open: a heavy metal latch release clunk, a short air hiss and a hinge creak.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
@@ -618,73 +618,73 @@
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/lift_start.generated@1/audio/generated/doors/lift_start.ogg",
+		"file": "sound/lift_start@1/audio/generated/doors/lift_start.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy industrial freight lift starting: a motor whir spinning up with a mechanical clunk of the brake releasing.; seed 3",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/lift_travel.generated@1/audio/generated/machines/lift_travel.wav",
+		"file": "sound/lift_travel@1/audio/generated/machines/lift_travel.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy industrial freight platform lift moving steadily: a constant electric motor drone with a soft rattle of chains and rails.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/lift_stop.generated@1/audio/generated/doors/lift_stop.ogg",
+		"file": "sound/lift_stop@1/audio/generated/doors/lift_stop.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy industrial freight lift stopping: the motor winding down and a solid mechanical clunk of the brake.; seed 4",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/footsteps_gravel.generated@1/audio/generated/machines/footsteps_boots_gravel.wav",
+		"file": "sound/footsteps_gravel@1/audio/generated/machines/footsteps_boots_gravel.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Slow footsteps of heavy boots crunching on loose gravel and dust, muffled and dull as if heard through a thick suit, an even walking rhythm.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/bench_tool.generated@1/audio/generated/machines/bench_tool.wav",
+		"file": "sound/bench_tool@1/audio/generated/machines/bench_tool.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small electric screwdriver and a cordless drill working on a metal robot part at a workbench: short whirring bursts and light metal clinks, steady work.; seed 4",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/digger.generated@1/audio/generated/machines/digger.wav",
+		"file": "sound/digger@1/audio/generated/machines/digger.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small digging machine scraping and scooping gravel: a steady motor grind with rocks and grit pouring, constant work.; seed 3",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/robot_planting.generated@1/audio/generated/doors/robot_planting.ogg",
+		"file": "sound/robot_planting@1/audio/generated/doors/robot_planting.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small robot arm pushing a seedling into soft soil: a short servo whir and a soft scoop of earth, short.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/robot_servo.generated@1/audio/generated/machines/robot_servo.wav",
+		"file": "sound/robot_servo@1/audio/generated/machines/robot_servo.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Small electric servo motors of a robot moving: steady soft mechanical whirring rising and falling, constant.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/drone_hover.generated@1/audio/generated/machines/drone_hover.wav",
+		"file": "sound/drone_hover@1/audio/generated/machines/drone_hover.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small rocket-powered drone hovering: a steady soft hissing thrust of gas jets with a light electric whine, constant.; seed 4",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/drone_thrust_burst.generated@1/audio/generated/machines/drone_thrust_burst.wav",
+		"file": "sound/drone_thrust_burst@1/audio/generated/machines/drone_thrust_burst.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A small rocket thruster firing steadily: a strong roaring hiss of gas exhaust, constant, no ignition pop.; seed 4",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/rover_motor.generated@1/audio/generated/machines/rover_motor.wav",
+		"file": "sound/rover_motor@1/audio/generated/machines/rover_motor.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: An electric off-road vehicle driving at a steady speed: a smooth high electric motor whine with a low gear hum, constant.; seed 4",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/rover_wheels_gravel.generated@1/audio/generated/machines/rover_wheels_gravel.wav",
+		"file": "sound/rover_wheels_gravel@1/audio/generated/machines/rover_wheels_gravel.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: Big rubber wheels rolling steadily over loose gravel and rocks: a constant crunching and popping of stones, no engine.; seed 4",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
@@ -696,25 +696,25 @@
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/rocket_hull_roar.generated@1/audio/generated/doors/rocket_hull_roar.ogg",
+		"file": "sound/rocket_hull_roar@1/audio/generated/doors/rocket_hull_roar.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A rocket launch heard from inside the crew capsule: an overwhelming deep rumbling roar muffled by the hull, violent crackling vibration that builds and holds.; seed 3",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/rocket_landing_rumble.generated@1/audio/generated/machines/rocket_landing_rumble.wav",
+		"file": "sound/rocket_landing_rumble@1/audio/generated/machines/rocket_landing_rumble.wav",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A rocket engine firing steadily during a slow descent: a constant deep roaring rumble with crackle, no start and no end.; seed 2",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/rocket_touchdown.generated@1/audio/generated/doors/rocket_touchdown.ogg",
+		"file": "sound/rocket_touchdown@1/audio/generated/doors/rocket_touchdown.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A huge heavy machine landing hard on a concrete pad: a deep booming thud with metal creaking and the engine roar cutting off.; seed 1",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"
 	},
 	{
-		"file": "sound/ground_thud.generated@1/audio/generated/doors/ground_thud.ogg",
+		"file": "sound/ground_thud@1/audio/generated/doors/ground_thud.ogg",
 		"source": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0; prompt: A heavy metal object landing hard on packed dirt: one deep dull ground thud, short.; seed 3",
 		"author": "the 2099 project, generated with MOSS-SoundEffect v2.0 (OpenMOSS-Team/MOSS-SoundEffect-v2.0@e35df4d82fbe87fcd5d14e5d100e349c0c3c076d)",
 		"licence": "made for the first world with MOSS-SoundEffect v2.0 (Apache-2.0)"

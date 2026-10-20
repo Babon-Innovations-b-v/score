@@ -2,7 +2,7 @@
 model's or a sound's bytes.
 
 A record names a file of the library by a library reference, `<kind>/<id>@<version>/<file in the entry>`
-(`sound/habitat.recordings@1/audio/recordings/places/habitat.ogg`, `model/rover.gltf@1/gltf/rover.glb`), and a file
+(`sound/habitat@1/audio/recordings/places/habitat.ogg`, `model/rover.gltf@1/gltf/rover.glb`), and a file
 kept in git by its path from the repository's root (`data/ground/moon_plan_relief.png`). A name that is neither, or a
 reference to an entry or file the library does not hold, is a gap: `resolve` gives None and the caller leaves the
 thing out (the remake fills it, #19), never a crash.
@@ -124,7 +124,7 @@ def parsed(name):
 
 def stage_name(name):
     """The name a file takes in a stage's or an output's own folder: a reference's address as folders
-    (`sound/habitat.recordings/1/audio/...`), since an OpenUSD asset path holds no '@'; any other name as it is."""
+    (`sound/habitat/1/audio/...`), since an OpenUSD asset path holds no '@'; any other name as it is."""
     parts = parsed(name)
     return "/".join((parts["kind"], parts["id"], parts["version"], parts["file"])) if parts else name
 

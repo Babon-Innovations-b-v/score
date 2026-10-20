@@ -104,7 +104,7 @@ crowd from where they are seen, and short moving shots, rendered from the stage 
 
 An environment's made models and sounds are not in git: they are entries of the creator's library, score_lib, its
 bytes in the library's blob store. A record names a file by its library reference
-(`sound/habitat.recordings@1/audio/recordings/places/habitat.ogg`, `model/rover.gltf@1/gltf/rover.glb`);
+(`sound/habitat@1/audio/recordings/places/habitat.ogg`, `model/rover.gltf@1/gltf/rover.glb`);
 `tools/library/library_files.py` fetches it with the library's own command into a cache under `$PROPS_HOME` and
 checks it against the entry's sha256 (the library's settings: `SCORE_LIB_*`, else the score_lib checkout beside score and the cloud backend's object store, its key from the secret store; no settings file). A
 name the library does not hold is a gap, left out of the scene. The framework reads nothing from the game 2099's
