@@ -17,8 +17,10 @@ A draw runs as a process of its own, inside the owner's yes for exactly that cal
 redraws, None for a first draw)}. A redraw sends the base twice: once with the marked areas boxed and numbered, once
 clean. A first draw (no concept yet: all of environment 1's were lost) is worded from the place's data the way the
 concept-views row words its views: its view in data/definitions/concept_views.json when it has one (the newest), else
-its look (data/definitions/place.json) and its plan's size and elements; the reference picture goes with it only where
-it is still on disk. A draw's price is the measured Nano Banana Pro picture (data/costs/per-unit.json, stage closeup)
+its look (data/definitions/place.json) and its plan's size and elements, with the environment's one style wording
+(concept_views.json `style`, the owner's) after it; a view's reference picture (the owner's, kept in the private
+bucket's references/, never the public repository; read from its local copy under {home}/references) goes with it,
+and a draw whose reference is not on this machine is refused. A draw's price is the measured Nano Banana Pro picture (data/costs/per-unit.json, stage closeup)
 at the standard tier: a draw is one direct call, not a batch call.
 """
 import base64
@@ -123,8 +125,10 @@ def recorded(store, key, record):
 # --- the wording ----------------------------------------------------------------------------------------------
 
 def resolved(path):
-    """A data path with its {seeds} and {data} filled in."""
-    return pathlib.Path(path.replace("{seeds}", str(PROPS_HOME / "work")).replace("{data}", str(DATA)))
+    """A data path with its {home} (the prop tools' home: the private references' local copy is its references/),
+    {seeds} and {data} filled in."""
+    filled = path.replace("{home}", str(PROPS_HOME)).replace("{seeds}", str(PROPS_HOME / "work"))
+    return pathlib.Path(filled.replace("{data}", str(DATA)))
 
 
 def view_of(place):
@@ -162,21 +166,47 @@ def from_data(place):
     return " ".join(words)
 
 
-def without_reference(wording):
-    """A view's wording with its first sentence dropped when it speaks of the attached picture (not on disk)."""
-    first, _, rest = wording.partition(". ")
-    return rest if first.startswith("The attached picture") and rest else wording
+def style():
+    """The environment's one style wording (data/definitions/concept_views.json `style`, the owner's), every
+    place's draw shares, as a sentence; empty when none is set."""
+    found = json.loads((DATA / "definitions/concept_views.json").read_text()).get("style", "").strip()
+    return f"The whole environment's style: {found}" if found else ""
+
+
+def floor_wording(place, floor):
+    """A shell's first draw from its floor plan (data/definitions/<shell>_floor.json; the owner, 2026-10-20): its
+    whole outside at its true length, large enough for every room it holds, people and a vehicle beside it for scale;
+    its own views' reference (concept_views.json ids `<shell>_...`) for its look only, never its size: (wording,
+    that view or None)."""
+    plan = json.loads(floor.read_text())
+    rooms = [room["name"] for room in plan.get("rooms", [])]
+    words = [f"One concept painting of the whole {place} seen from outside, standing on the ground, a wide landscape "
+             f"view. It is {plan['length']:g} m long: large enough to hold, on one deck inside, {', '.join(rooms)}, "
+             "and a walkway joining them. Show its true size: people and a vehicle on the ground beside it, small "
+             "against it."]
+    views = json.loads((DATA / "definitions/concept_views.json").read_text())["views"]
+    own = [view for view in views if view["id"].startswith(f"{place}_")]
+    if own:
+        words.append("The attached picture gives its look only (its shape language, materials and landing legs), "
+                     "never its size or proportions: it shows a much smaller ship.")
+    return " ".join(words), (own[-1] if own else None)
 
 
 def first_wording(place):
-    """(wording, reference path or None) of a first draw."""
-    view = view_of(place)
+    """(wording, reference path or None) of a first draw: the place's own description (its view's, a shell's floor
+    plan's, else its data's) with the environment's style; Refused when its reference is not on this machine."""
+    view, floor = view_of(place), DATA / "definitions" / f"{place}_floor.json"
+    if view is None and floor.is_file():
+        wording, view = floor_wording(place, floor)
+    else:
+        wording = view["wording"] if view else from_data(place)
     if view is None:
-        return from_data(place), None
+        return " ".join(part for part in (wording, style()) if part), None
     reference = resolved(view["reference"])
-    if reference.is_file():
-        return view["wording"], reference
-    return without_reference(view["wording"]), None
+    if not reference.is_file():
+        raise Refused(f"its reference {view['reference']} is not on this machine (the private bucket's references/, "
+                      f"copied to {PROPS_HOME / 'references'})")
+    return " ".join(part for part in (wording, style()) if part), reference
 
 
 def redraw_wording(marks, note):

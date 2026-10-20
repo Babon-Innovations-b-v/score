@@ -1,127 +1,128 @@
 {
+ "style": "2099 space base, moon base, mars base, SpaceX-type rockets, Chinese and American mixed.",
  "views": [
   {
    "id": "ship_top_side",
-   "reference": "{seeds}/scene/ship/reference-shuttle.png",
+   "reference": "{home}/references/shuttle-screenshot.png",
    "shape": "landscape",
    "why": "the owner's correction (2026-10-14, about 10:50): the ship plan's hull outline read as a rocket; his shuttle is a long flat wedge narrowing gradually to a sharp nose, with swept wings growing out of the body toward the back and the engines set into the flat stern. Redrawn after the overseer's check of plan v3 (2026-10-14): the first drawing gave the body a blunt front about 4.4 m wide behind the spike and front fins nearly the size of wings; this request says the body itself tapers to a sharp point and the front fins are small. Its outline and engines are traced from this view. The reference is his shuttle picture cropped out of its screenshot.",
    "wording": "The attached picture is a concept painting of a spaceship: a long, flat, wedge-shaped shuttle with off-white armour panels over a dark grey lower hull. Draw this exact same ship as a clean technical drawing on a plain white background, two orthographic views in one picture, both at the same scale with the nose pointing left: in the upper half, the ship seen from directly above (plan view); in the lower half, the same ship seen exactly from its side (side elevation), its nose and stern lined up with the view above. Keep its shape exactly as painted. Seen from above the body itself is a flat wedge, an arrowhead: its sides run in long straight lines that close gradually to a sharp point at the nose, with no blunt or square front anywhere; the nose spike is only a thin needle at that point. Near the nose there are only two small fins, much smaller than the wings, as small as in the painting. Toward the back, swept wings grow out of the body. The engines are set into the flat stern, flush with it, not sticking out. The round docking ring is on its side and the small angular windows are on its top deck. Flat even light, thin dark outlines, its own colours, no perspective, no shadows, no text, no labels, no dimensions, nothing else in the picture."
   },
   {
    "id": "room_navigation",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "shape": "landscape",
    "why": "the navigation room's concept (the ship plan v7, the owner's ok of 2026-10-14): the room has no reference picture of its own; drawn in the style of his quarters reference from its plan's elements. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship. Draw one concept painting of another room inside the same spaceship, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. The room is the navigation room, about 2.8 m wide and 3 m long (ceiling 2.58 m at the front, 3.12 m at the back), seen from its doorway at standing eye height, the whole room in view. It holds: a star map table in the room's middle, glowing amber with a cyan route; two consoles along the front wall with a seat before them; two wall screens over the table: the route between the Moon and Mars; the door to the walkway in the ship's hexagonal frame; amber light strips at the wall tops, a white strip in the ceiling; grey panelled walls and ceiling, dark deck; a vent in the ceiling. No people, no text, no labels, nothing outside the room."
   },
   {
    "id": "room_galley",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "shape": "landscape",
    "why": "the galley's concept (the ship plan v7, the owner's ok of 2026-10-14): the room has no reference picture of its own; drawn in the style of his quarters reference from its plan's elements. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship. Draw one concept painting of another room inside the same spaceship, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. The room is the galley, about 3.1 m wide and 6 m long (ceiling 3.12 m at the front, 3.2 m at the back), seen from its doorway at standing eye height, the whole room in view. It holds: a counter along the hull wall with a cooker, a sink and cupboards; food stores beside the counter; a table with fold-down seats round it; a wall screen on the back wall; the door to the walkway in the ship's hexagonal frame; amber light strips at the wall tops, white strips in the ceiling; grey panelled walls and ceiling, dark deck; vents in the ceiling. No people, no text, no labels, nothing outside the room."
   },
   {
    "id": "room_storage",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "shape": "landscape",
    "why": "the storage's concept (the ship plan v7, the owner's ok of 2026-10-14): the room has no reference picture of its own; drawn in the style of his quarters reference from its plan's elements. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship. Draw one concept painting of another room inside the same spaceship, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. The room is the storage, about 3.1 m wide and 3 m long (ceiling 3.2 m at the front, 3.51 m at the back), seen from its doorway at standing eye height, the whole room in view. It holds: tall cargo racks with strapped supplies along the hull wall and the back wall; crates of the base's supplies and parts on the deck; equipment boxes and a vent in the ceiling; the door to the walkway in the ship's hexagonal frame; amber light strips at the wall tops, a white strip in the ceiling; grey panelled walls and ceiling, dark deck. No people, no text, no labels, nothing outside the room."
   },
   {
    "id": "room_engineroom",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "shape": "landscape",
    "why": "the engine and power room's concept (the ship plan v7, the owner's ok of 2026-10-14): the room has no reference picture of its own; drawn in the style of his quarters reference from its plan's elements. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship. Draw one concept painting of another room inside the same spaceship, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. The room is the engine and power room, about 6.02 m wide and 4.1 m long (ceiling 3.2 m at the front, falling to 2.52 m at the back), seen from its doorway at standing eye height, the whole room in view. It holds: the power core: an upright cylinder with amber-lit rings; fuel tanks either side of the aft door, against the engines' wall; engine consoles with screens along the starboard wall; pipes from the core and tanks into the aft wall, cables over the ceiling; junction boxes and a toolbox for repairs; the raised aft deck over the belly, one step up; the forward door to the walkway; the aft door to the airlock; orange lamps by the aft door, amber strips, white ceiling strips; equipment boxes and vents in the ceiling; grey panelled walls and ceiling, dark deck. No people, no text, no labels, nothing outside the room."
   },
   {
    "id": "room_shiplock",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "shape": "landscape",
    "why": "the airlock's concept (the ship plan v7, the owner's ok of 2026-10-14): the room has no reference picture of its own; drawn in the style of his quarters reference from its plan's elements. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship. Draw one concept painting of another room inside the same spaceship, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. The room is the airlock, about 3 m wide and 2.7 m long (ceiling 2.12 m at the front, falling to 1.95 m at the back), seen from its doorway at standing eye height, the whole room in view. It holds: the outer pressure hatch in the aft wall, the one way in and the dock; the inner door to the engine room in the ship's hexagonal frame; suit lockers along the port wall; the cycle panel by the outer hatch and two orange lamps; hand rails along the walls, a grated drain in the deck; a vent for the cycle's air, a white ceiling strip; grey panelled walls and ceiling, dark deck. No people, no text, no labels, nothing outside the room."
   },
   {
    "id": "cockpit_seat",
-   "reference": "{seeds}/scene/cockpit/views/cockpit.png",
+   "reference": "{home}/references/cockpit.png",
    "shape": "landscape",
    "why": "a pilot seat shown whole (the coordinator, 2026-10-14): his cockpit reference shows only the tops of the two seat backs at its lower edge, so the seat's close-up could not be drawn from it. Drawn in that reference's style; the reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of a spaceship cockpit. Draw one concept painting of one of its two pilot seats, in exactly the same style, materials and light: the whole seat in view from three quarters behind and to the side, standing on the cockpit's dark deck beside the throttle pedestal, a little of the consoles behind it. The seat: chunky and padded, a high back with a head pad, thick side bolsters and armrests, dark blue-grey covers, on a short steel pedestal. No people, no text, no labels."
   },
   {
    "id": "cockpit_stick",
-   "reference": "{seeds}/scene/cockpit/views/cockpit.png",
+   "reference": "{home}/references/cockpit.png",
    "shape": "landscape",
    "why": "the pilot's flight stick shown whole (the owner, 2026-10-14, via the coordinator: a normal flight stick matching the levers on his cockpit reference's centre pedestal; the Outer Wilds picture is the thrust indicator, not the stick). His cockpit reference shows the pedestal's levers only a few pixels tall. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of a spaceship cockpit. Draw one concept painting of the pilot's flight stick in this cockpit, in exactly the same style, materials and light, large in the picture: one upright ergonomic hand grip with a thumb button on top and a trigger at the front, on a black rubber boot set into the dark console, dark metal and black rubber with small orange accents, matching the throttle levers on the centre pedestal between the seats. A little of the console round it in view. No people, no hands, no text, no labels."
   },
   {
    "id": "room_walkway",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "shape": "landscape",
    "why": "the walkway's concept (the ship plan v7; the owner's 2026-10-14 'finish the whole ship'): the corridor has no reference picture of its own; drawn in the style of his quarters reference from its plan's elements. The reference is found artwork, kept in the work folder and off public pages.",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship. Draw one concept painting of the corridor inside the same spaceship, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, white light strips. The corridor is 1.2 m wide, 2.4 m high and about 10 m long, seen from one end at standing eye height, its whole length in view. It holds: steel frame ribs arching over it, white with an orange edge, between the doors; doors in hexagonal orange and white frames off both sides, two on each side, and one at the far end; a steel grating down the middle of the dark deck; white light strips down the ceiling and amber strips along the wall tops; grey panelled walls and ceiling. No people, no text, no labels, nothing outside the corridor."
   },
   {
    "id": "hangar_thrusters",
-   "reference": "{seeds}/scene/hangar/views/shuttle.png",
+   "reference": "{home}/references/shuttle-screenshot.png",
    "shape": "landscape",
    "why": "the ship's three thruster designs shown whole, as separate made pieces (the owner, 2026-10-14, via the coordinator): his shuttle reference shows the main engines only from the side and the nose thrusters small, and the belly's lift thrusters not at all. Drawn in that reference's style; the reference is found artwork (a shuttle concept by PAUL (zana), found online), kept in the work folder and off public pages, and so is this drawing.",
    "wording": "The attached picture is a concept drawing of a spaceship. Draw one concept sheet of three of its thruster parts, side by side with space between them on a plain light grey ground, in exactly the same style, colours and line: on the left, a main engine: a long ribbed dark grey tube with a round white nozzle housing at its back end; in the middle, a lift thruster: a round downward-facing nozzle with a louvred ring, set in a square dark grey belly plate, seen from below at an angle; on the right, a nose thruster: a small square port with three short copper nozzles in a dark grey plate. Each part whole and clearly apart from the others. No ship, no people, no text, no labels."
   },
   {
    "id": "ship46_cockpit",
-   "reference": "{seeds}/scene/cockpit/views/cockpit.png",
+   "reference": "{home}/references/cockpit.png",
    "wording": "The attached picture is a reference picture of the cockpit inside a spaceship: a flat wedge shuttle, white panels on a dark hull. Draw one concept painting of the cockpit, as wide as the ship: about 4.5 m long and 7.8 to 9.1 m wide (3.0 m clear at the front, 3.9 m at the back), seen from its doorway at standing eye height, the whole room in view, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. Its side walls are the hull's sides: they lean out up to 1.3 m over the floor, then in toward the ceiling. Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: walkway. It holds: two chunky dark padded pilot seats side by side, facing the windows, a flight stick for each; the throttle pedestal between the seats, levers and switch rows on its top; the main console across the front: three screens, the middle red-orange, two amber, a thrust indicator between them, a cyan light bar along its top; angled side consoles with screens and red-lit switches, and equipment racks filling the room's wide sides; the windows in the sloping roof over the seats, split by frame ribs, two cyan light panels at their top; the overhead console with two black vent boxes, black equipment boxes in the ceiling's corners; warm amber light strips along the ceiling's edges, small orange lamps in the upper front corners; dark grey panelled walls, dark deck with a grated step between the seats; the aft door to the walkway's hall in the ship's hexagonal frame. No people, no text, no labels, nothing outside the room.",
    "shape": "landscape",
    "why": "the cockpit's concept cut from the 46 m ship's floor plan (data/definitions/ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; the look the owner's own reference pictures set"
   },
   {
    "id": "ship46_navigation",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship: a flat wedge shuttle, white panels on a dark hull. Draw one concept painting of the navigation room, on the starboard side, off the walkway: about 4.0 m long and 3.9 m wide (2.6 m clear at the front, 2.6 m at the back), seen from its doorway at standing eye height, the whole room in view, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. Its outer wall is the hull's side: it leans out up to 1.7 m over the floor, then in toward the ceiling. Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: walkway. It holds: a star map table in the room's middle, glowing amber with a cyan route; two consoles along the front wall with a seat before them; two wall screens over the table: the route between the Moon and Mars; amber light strips at the wall tops, a white strip in the ceiling, a vent in the ceiling; grey panelled walls and ceiling, dark deck. No people, no text, no labels, nothing outside the room.",
    "shape": "landscape",
    "why": "the navigation room's concept cut from the 46 m ship's floor plan (data/definitions/ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; the look the owner's own reference pictures set"
   },
   {
    "id": "ship46_quarters",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship: a flat wedge shuttle, white panels on a dark hull. Draw one concept painting of the crew quarters, on the port side, off the walkway: about 6.0 m long and 3.9 m wide (2.6 m clear at the front, 2.6 m at the back), seen from its doorway at standing eye height, the whole room in view, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. Its outer wall is the hull's side: it leans out up to 1.8 m over the floor, then in toward the ceiling. Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: walkway. It holds: four bunks in two stacks with thick orange padded mattresses on dark frames; lockers for the crew's kit; dark grey wall desks with switch rows under wall screens with amber and white readouts, one a round glowing display; white light strips along the ceiling and the wall tops, black ceiling boxes and vents; grey panelled walls and ceiling, dark deck plates with lit inlays. No people, no text, no labels, nothing outside the room.",
    "shape": "landscape",
    "why": "the crew quarters's concept cut from the 46 m ship's floor plan (data/definitions/ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; the look the owner's own reference pictures set"
   },
   {
    "id": "ship46_storage",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship: a flat wedge shuttle, white panels on a dark hull. Draw one concept painting of the storage, on the starboard side, off the walkway: about 3.7 m long and 4.3 m wide (2.6 m clear at the front, 2.6 m at the back), seen from its doorway at standing eye height, the whole room in view, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. Its outer wall is the hull's side: it leans out up to 1.8 m over the floor, then in toward the ceiling. Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: walkway. It holds: tall cargo racks with strapped supplies along the hull wall and the back wall; crates of the base's supplies and parts on the deck; equipment boxes and a vent in the ceiling; amber light strips at the wall tops, a white strip in the ceiling; grey panelled walls and ceiling, dark deck. No people, no text, no labels, nothing outside the room.",
    "shape": "landscape",
    "why": "the storage's concept cut from the 46 m ship's floor plan (data/definitions/ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; the look the owner's own reference pictures set"
   },
   {
    "id": "ship46_galley",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship: a flat wedge shuttle, white panels on a dark hull. Draw one concept painting of the galley, on the port side, off the walkway: about 6.0 m long and 3.8 m wide (2.6 m clear at the front, 2.6 m at the back), seen from its doorway at standing eye height, the whole room in view, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. Its outer wall is the hull's side: it leans out up to 2.1 m over the floor, then in toward the ceiling. Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: walkway. It holds: a counter along the hull wall with a cooker, a sink and cupboards; food stores beside the counter; a table with fold-down seats round it; a wall screen on the back wall; amber light strips at the wall tops, white strips and vents in the ceiling; grey panelled walls and ceiling, dark deck. No people, no text, no labels, nothing outside the room.",
    "shape": "landscape",
    "why": "the galley's concept cut from the 46 m ship's floor plan (data/definitions/ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; the look the owner's own reference pictures set"
   },
   {
    "id": "ship46_shiplock",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship: a flat wedge shuttle, white panels on a dark hull. Draw one concept painting of the ship's lock, on the starboard side, off the walkway: about 4.3 m long and 3.8 m wide (2.6 m clear at the front, 2.6 m at the back), seen from its doorway at standing eye height, the whole room in view, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. Its outer wall is the hull's side: it leans out up to 2.1 m over the floor, then in toward the ceiling. Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: walkway. It holds: the side ring's round outer hatch in the hull wall, 1.9 m across in a heavy collar, the one way in and the dock; suit lockers along the back wall; the cycle panel by the outer hatch and two orange lamps; hand rails along the walls, a grated drain in the deck; a vent for the cycle's air, a white ceiling strip; grey panelled walls and ceiling, dark deck. No people, no text, no labels, nothing outside the room.",
    "shape": "landscape",
    "why": "the ship's lock's concept cut from the 46 m ship's floor plan (data/definitions/ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; the look the owner's own reference pictures set"
   },
   {
    "id": "ship46_engineroom",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship: a flat wedge shuttle, white panels on a dark hull. Draw one concept painting of the engine and power room, as wide as the ship: about 10.9 m long and 3.5 to 9.3 m wide (3.4 m clear at the front, 3.1 m at the back), seen from its doorway at standing eye height, the whole room in view, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. Its side walls are the hull's sides: they lean out up to 1.7 m over the floor, then in toward the ceiling. Its floor steps up toward the back, 2 steps of 0.6 m, as the hull's belly rises under the stern. Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: walkway. It holds: the power core: an upright cylinder with amber-lit rings; fuel tanks against the walls of the narrow stern bay at the back, between the two main engines; engine consoles with screens along the starboard wall; pipes from the core and tanks into the stern bay, cables over the ceiling; junction boxes and a toolbox for repairs; orange lamps, amber strips, white ceiling strips; equipment boxes and vents in the ceiling; grey panelled walls and ceiling, dark deck. No people, no text, no labels, nothing outside the room.",
    "shape": "landscape",
    "why": "the engine and power room's concept cut from the 46 m ship's floor plan (data/definitions/ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; the look the owner's own reference pictures set"
   },
   {
    "id": "ship46_walkway",
-   "reference": "{seeds}/scene/cockpit/views/quarters.png",
+   "reference": "{home}/references/quarters.png",
    "wording": "The attached picture is a concept painting of the crew quarters inside a spaceship: a flat wedge shuttle, white panels on a dark hull. Draw one concept painting of the walkway, the corridor down the ship's middle joining every room, 13.5 m long and 1.5 m wide, 2.4 m clear, a door on each side to the rooms, seen from its forward end at standing eye height, the whole length in view, in exactly the same style, materials and light: dark grey panelled walls, orange padded and white painted panels, hexagonal door frames in orange and white panels, warm amber screens and readouts, white light strips. Its doors, in the ship's hexagonal frames 0.9 m wide and 2.0 m tall, lead to: cockpit, crew quarters, engine and power room, galley, navigation room, ship's lock, storage. It holds: grey panelled walls and ceiling, dark deck, a steel grating down the middle of the deck; steel frame ribs arching over the corridor between the doors; white light strips down the ceiling, amber strips along the wall tops; the rooms' doors in hexagonal orange and white frames off both sides, a wider hall at its forward end before the cockpit's door. No people, no text, no labels, nothing outside the room.",
    "shape": "landscape",
    "why": "the walkway's concept cut from the 46 m ship's floor plan (data/definitions/ship_floor.json, the owner's loop of 2026-10-19): its size and section measured from the hull; the look the owner's own reference pictures set"

@@ -124,3 +124,25 @@ def test_an_agents_process_cannot_draw_or_pick_in_the_framework_store(store, mon
     with pytest.raises(PermissionError):
         concepts.pick(store, "airlock", drawn["sha"], "joey")
     assert concepts.picked(store, "airlock") is None
+
+
+def test_a_first_draw_carries_the_environments_style_and_its_reference_or_is_refused(tmp_path, monkeypatch):
+    monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
+    with pytest.raises(concepts.Refused, match="not on this machine"):
+        concepts.first_wording("galley")  # its view's reference, the owner's quarters picture, is not here
+    (tmp_path / "references").mkdir()
+    Image.new("RGB", (8, 8)).save(tmp_path / "references" / "quarters.png")
+    wording, reference = concepts.first_wording("galley")
+    assert reference == tmp_path / "references" / "quarters.png"
+    assert wording.endswith("The whole environment's style: 2099 space base, moon base, mars base, SpaceX-type "
+                            "rockets, Chinese and American mixed.")
+
+
+def test_the_ships_first_draw_is_its_true_length_holding_its_rooms_the_reference_its_look_only(tmp_path, monkeypatch):
+    monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
+    (tmp_path / "references").mkdir()
+    Image.new("RGB", (8, 8)).save(tmp_path / "references" / "shuttle-screenshot.png")
+    wording, reference = concepts.first_wording("ship")
+    assert reference.name == "shuttle-screenshot.png"
+    assert "46 m long" in wording and "galley" in wording and "people and a vehicle" in wording
+    assert "look only" in wording and "never its size or proportions" in wording
