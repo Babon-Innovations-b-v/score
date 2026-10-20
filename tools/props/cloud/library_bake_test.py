@@ -10,6 +10,24 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import library_bake  # noqa: E402
 
 
+def test_no_card_in_stock_is_a_hole_never_a_processor_machine(monkeypatch):
+    """A batch's class is fixed at price time (CONTEXT.md, owner 2026-10-20): --processor rented a 32-core processor
+    machine when no card was in stock, and the claims moved between classes as stock moved."""
+    import provider
+
+    def offers(classes):
+        return [provider.Offer(0.02, 0, f"{name}-type", "zone-a", 0.02, name, 0,
+                               "available" if name.startswith("cpu") else "shortage") for name in classes]
+    monkeypatch.setattr(library_bake.batch, "offers", offers)
+    try:
+        library_bake.price([{"materials": [1]}], "acct", ["gpu-24gb", "gpu-48gb"])
+    except SystemExit as refused:
+        assert "the jobs are holes" in str(refused)
+    else:
+        raise AssertionError("a bake with no card in stock was priced")
+    assert not hasattr(library_bake, "PROCESSORS")
+
+
 def test_a_bake_keeps_the_machines_paths(tmp_path):
     parts = tmp_path / "parts" / "crate"
     parts.mkdir(parents=True)

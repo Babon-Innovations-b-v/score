@@ -136,9 +136,10 @@ class Offer:
         self.machine_class, self.stock_word = machine_class, stock_word
 
 
-def no_card_in_stock_falls_back_to_the_cores():
-    """Card classes all short: a 32-core processor machine instead, its jobs planned three times longer; a card in
-    stock is taken as asked; processor classes asked never fall back (the stock is stubbed, nothing is rented)."""
+def one_class_is_fixed_at_price_time_and_no_stock_is_a_hole():
+    """A batch runs every job once on the class fixed before it (CONTEXT.md, owner 2026-10-20): card classes all short
+    rented a 32-core processor machine instead, and the call's claims moved between classes as stock moved. Now the
+    first class asked in stock is the only one rented, and none in stock rents nothing (the stock is stubbed)."""
     stock = {}
     saved = blender_cloud.batch.offers
     blender_cloud.batch.offers = lambda classes: [Offer(name, stock.get(name, "shortage")) for name in classes]
@@ -146,26 +147,22 @@ def no_card_in_stock_falls_back_to_the_cores():
     try:
         cards = ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
         stock.update({"cpu-32c-128gb": "available"})
-        found, fell_back = blender_cloud.offers_to_rent(cards)
-        if fell_back != "cpu-32c-128gb" or [offer.machine_class for offer in found] != ["cpu-32c-128gb"]:
-            problems.append(f"with no card in stock it rents {[offer.machine_class for offer in found]}, "
-                            f"fell back to {fell_back}")
-        stock.update({"gpu-48gb": "available"})
-        found, fell_back = blender_cloud.offers_to_rent(cards)
-        if fell_back or [offer.machine_class for offer in found] != ["gpu-48gb"]:
-            problems.append("a card in stock was not taken as asked")
-        found, fell_back = blender_cloud.offers_to_rent(["cpu-32c-64gb"])
-        if fell_back or found:
-            problems.append("processor classes asked fell back")
-        if blender_cloud.plan([{"minutes": 10}], 3)[1] != blender_cloud.plan([{"minutes": 30}])[1]:
-            problems.append("the fallback's jobs are not planned three times longer")
+        if blender_cloud.batch.one_class_in_stock(cards):
+            problems.append("with no card in stock it rents a processor machine")
+        stock.update({"gpu-48gb": "available", "gpu-80gb": "available"})
+        found = blender_cloud.batch.one_class_in_stock(cards)
+        if [offer.machine_class for offer in found] != ["gpu-48gb"]:
+            problems.append(f"the first class in stock was not the only one: {[o.machine_class for o in found]}")
+        if hasattr(blender_cloud, "PROCESSOR_FALLBACK"):
+            problems.append("the processor fallback is still there")
     finally:
         blender_cloud.batch.offers = saved
     return problems
 
 
 CHECKS = (paths_move_to_the_machine, the_scripts_folders_go_up, a_held_machine_runs_a_chain,
-          a_cluster_job_keeps_the_paths, the_runner_python_follows_props_home, no_card_in_stock_falls_back_to_the_cores)
+          a_cluster_job_keeps_the_paths, the_runner_python_follows_props_home,
+          one_class_is_fixed_at_price_time_and_no_stock_is_a_hole)
 
 
 if __name__ == "__main__":

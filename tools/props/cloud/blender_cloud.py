@@ -28,11 +28,14 @@ inside its input files (a review page's shots.json names the model files) need n
 directly, as is any input the store path fails to bring. The script's own
 folder and tools/blender/inside go up with it. The jobs of one call are spread over as many machines as finish them
 in about the setup and the longest job (spread.py, capacity.machines_for): one machine for a short list, one a job for
-a long one, each set up once and taking the next job as it ends one.
+a long one, each set up once and taking the next job as it ends one. Every job runs once (a batch, CONTEXT.md, owner
+2026-10-20): one that fails, or whose machine is lost, is a hole (spread.py).
 Classes: a processor machine for physics (settling: cpu-32c-128gb first,
 the default), a card for renders (`--classes gpu-24gb`, Cycles on the card; on a processor machine Cycles renders on
-its cores: FARM_CYCLES_GPU or FARM_CYCLES_CPU is set for the script). Blender is 5.0.1 from
-blender.org, set up by library_setup.sh. The owner's limits, the self-delete, the watchdog, the delete and the ledger
+its cores: FARM_CYCLES_GPU or FARM_CYCLES_CPU is set for the script). One class is fixed for the whole call by a stock
+read at price time, the first of those asked in stock (batch.one_class_in_stock); none in stock means the jobs are
+holes, never another class or a processor machine for a card job. Blender is 5.0.1 from blender.org, set up by
+library_setup.sh. The owner's limits, the self-delete, the watchdog, the delete and the ledger
 are batch.py's.
 
 Under SCORE_CLOUD=k8s the same calls run each job as a Kubernetes Job of the blender image on the cluster
@@ -65,14 +68,9 @@ from provider import cloud  # noqa: E402
 REMOTE = pathlib.PurePosixPath("/root/lib")
 SETUP_MINUTES = 8
 KIND = "blender"
-# Settling and other physics: the processor machines, tried in turn as their stock moves.
+# Settling and other physics: the processor machines, in the order the stock read at price time picks one class from.
 DEFAULT_CLASSES = ("cpu-32c-128gb", "cpu-32c-64gb", "cpu-32c-256gb", "cpu-16c-64gb")
 ALWAYS_SHIPPED = ("tools/blender/inside",)
-# When no card of the classes asked is in stock (2026-10-14 17:00: every L4, L40S and H100 short in every zone, the
-# 32-core processor machines in stock), a Cycles job renders on the cores of one of these, about three times slower
-# (measured on the library bake: library_bake.PROCESSOR_SLOWER).
-PROCESSOR_FALLBACK = "cpu-32c-128gb"
-PROCESSOR_SLOWER = 3
 # A held machine (--serve): the chain's expected minutes for the owner's limits, and how long it waits for the next job.
 SERVE_MINUTES = 60
 IDLE_MINUTES = 10
@@ -92,42 +90,23 @@ def shipped(jobs):
     return sorted({*ALWAYS_SHIPPED, *(str(pathlib.PurePosixPath(job["script"]).parent) for job in jobs)})
 
 
-def plan(jobs, slower=1):
-    """How many machines the jobs are spread over (capacity.machines_for), and how long they keep them, each job's
-    minutes `slower` times its estimate (on the cores, PROCESSOR_SLOWER)."""
-    minutes = [float(job.get("minutes", 10)) * slower for job in jobs]
+def plan(jobs):
+    """How many machines the jobs are spread over (capacity.machines_for), and how long they keep them."""
+    minutes = [float(job.get("minutes", 10)) for job in jobs]
     count = capacity.machines_for(len(jobs), sum(minutes) / len(minutes), SETUP_MINUTES)
     return count, SETUP_MINUTES + max(max(minutes), sum(minutes) / count)
 
 
-def in_stock(classes):
-    """The offers of `classes` in stock now."""
-    return [offer for offer in batch.offers(list(classes)) if offer.stock_word != "shortage"]
-
-
-def offers_to_rent(classes):
-    """(the offers to rent, the processor class it fell back to or None): those of `classes` in stock; when only
-    card classes were asked and none is in stock, a processor machine of PROCESSOR_FALLBACK, where Cycles renders on
-    the cores (run_line: the card is the machine's class), said in the run's log."""
-    found = in_stock(classes)
-    if found or not all(provider.cards(name) for name in classes):
-        return found, None
-    fallback = in_stock([PROCESSOR_FALLBACK])
-    if fallback:
-        batch.say(f"no card of {', '.join(classes)} is in stock: Cycles renders on the cores of a {PROCESSOR_FALLBACK} "
-                  f"machine instead, its jobs allowed {PROCESSOR_SLOWER} times their minutes")
-    return fallback, PROCESSOR_FALLBACK if fallback else None
-
-
 def price(jobs, account, classes):
-    """Print the estimate and refuse what passes the owner's limits; the offers, the machines, the minutes allowed
-    and the processor class it fell back to (None on the classes asked)."""
-    found, fell_back = offers_to_rent(classes)
+    """Print the estimate and refuse what passes the owner's limits; the offers of the one class in stock
+    (batch.one_class_in_stock), the machines and the minutes allowed."""
+    found = batch.one_class_in_stock(classes)
     if not found:
-        raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend")
-    count, minutes = plan(jobs, PROCESSOR_SLOWER if fell_back else 1)
+        raise SystemExit(f"no machine of {', '.join(classes)} is in stock at the {cloud.NAME} backend: the jobs are "
+                         "holes")
+    count, minutes = plan(jobs)
     what = f"{len(jobs)} Blender jobs on {count} machine{'s' if count > 1 else ''}"
-    return found, count, batch.priced(found, minutes, count, what, account), fell_back
+    return found, count, batch.priced(found, minutes, count, what, account)
 
 
 def send(log_folder, host, local):
@@ -406,7 +385,8 @@ def main():
     parser.add_argument("--minutes", type=float, default=SERVE_MINUTES, help="--serve: the chain's expected minutes")
     parser.add_argument("--who", required=True, help="the session asking")
     parser.add_argument("--dry-run", action="store_true", help="check and price, rent nothing")
-    parser.add_argument("--classes", help="capability classes in the order to try, comma separated")
+    parser.add_argument("--classes", help="capability classes in order, comma separated: the first in "
+                        "stock at price time is the one rented")
     parser.add_argument(detached.FLAG, action="store_true", help="progress to a log, one result line at the end")
     options = parser.parse_args()
     jobs = [json.loads(path.read_text()) for path in options.jobs] or [{"minutes": options.minutes}]
@@ -418,7 +398,7 @@ def main():
         return
     account = cloud.account()
     batch.sweep(account)
-    found, count, allowed_minutes, fell_back = price(jobs, account, classes)
+    found, count, allowed_minutes = price(jobs, account, classes)
     if options.dry_run:
         return
     cloud.allow_key(account, "farm-factory-batch", batch.ssh_key())
@@ -445,7 +425,7 @@ def main():
             batch.delete_machine(machine)
         entry = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)), "batch": run_folder.name,
                  "kind": KIND, "who": options.who, "jobs": [job.get("script", "a held machine") for job in jobs],
-                 "classes": list(classes), **({"fell_back_to": fell_back} if fell_back else {}),
+                 "classes": list(classes), "class": found[0].machine_class,
                  **ledger.machines_record(run.machines, run.attempts, started),
                  "wall_minutes": (time.time() - started) / 60}
         ledger.record(entry)
