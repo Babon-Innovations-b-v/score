@@ -15,7 +15,8 @@ since this boot, is never started twice; it holds a lock while it runs, so two r
 it removes the .partial files an earlier boot's writes left in the store. It starts a run only from the code that
 registered it: its worktree still there, at the entry's commit, with nothing uncommitted. And only a run alive shortly
 before this boot: a driving run touches its entry every HEARTBEAT seconds, and one silent for over RESUME_WINDOW
-before this boot began died some other way (an OOM kill, a SIGKILL) and is never started again unasked. The systemd
+before this boot began died some other way (an OOM kill, a SIGKILL) and is never started again unasked. A run's
+worktree is its frozen copy (graph/frozen.py), which it starts again in and owns again. The systemd
 user unit `.claude/scripts/score-resume.service` runs `score resume` at boot; installing it is the owner's step.
 
 One commit per store (C10), in the same folder: every `score run` claims the store (`claim`), recording its commit,
@@ -46,7 +47,7 @@ import sys
 import threading
 import time
 
-from score.graph import node_name
+from score.graph import frozen, node_name
 from score.store import PROPS_HOME, Store, locked
 from score.store.durable import write_whole
 
@@ -233,7 +234,7 @@ def restart(path, entry, say):
         say(f"skipped {describe(entry)}: {why}")
         return
     done = subprocess.run(restart_command(entry), cwd=entry["worktree"], stdin=subprocess.DEVNULL,
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, env=frozen.resumed_env(entry["worktree"]))
     if done.returncode != 0:
         why = f"its restart failed: exit={done.returncode} {done.stderr.strip()[-400:]}"
         mark(path, UNRESUMABLE, why)

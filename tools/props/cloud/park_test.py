@@ -2,8 +2,8 @@
 parked, how long (an hourly machine until its paid hour, a card for its kind's measured idle time), that the next run
 of the kind takes one and pays only what it adds, that a claim waiting on its kind's queue takes a card parked
 meanwhile, that taking one needs a cleared run, that the --expire process deletes one nobody took (a card's idle
-minutes charged in the ledger) and spares one that was taken, and that a sweep leaves a parked machine alone until
-its time.
+minutes charged in the ledger) and spares one that was taken, that a sweep leaves a parked machine alone until
+its time, and that an ended run releases its own parked machines at their time when their --expire process is gone.
 
 Run: .venv/bin/python tools/props/cloud/park_test.py   (make tests runs it)
 """
@@ -220,6 +220,33 @@ def test_a_card_nobody_took_is_deleted_at_its_time_and_its_idle_minutes_charged(
     idle = ledger.entries()[-1]
     assert idle["kind"] == KIND and idle["machines"][0]["parked_idle"] and idle["euros"] >= 0.0
     assert park.idle_minutes(KIND) == 4.0  # an idle row is not a cold start
+
+
+def test_an_ended_run_releases_its_parked_machines_at_their_time_when_their_expire_process_is_gone():
+    """#45: three L4s of an ended run stayed parked past their time until removed by hand. The run's releaser
+    (outlive) deletes each of its own still listed at its time, leaves another run's alone and returns once none is
+    listed; the --expire processes are faked here, so none ever runs."""
+    calls = fresh()
+    cold_card_runs(4.0)
+    os.environ["SCORE_RUN_ID"] = "ended-run"
+    try:
+        for server_id in ("e1", "e2"):
+            batch.delete_machine(machine(20, unit_minutes=1, server_id=server_id))
+        os.environ["SCORE_RUN_ID"] = "another-run"
+        batch.delete_machine(machine(20, unit_minutes=1, server_id="o1"))
+    finally:
+        os.environ.pop("SCORE_RUN_ID")
+    for server_id, seconds in (("e1", 0.2), ("e2", 0.4)):
+        path = park.PARKED / f"{server_id}.json"
+        path.write_text(park.json.dumps({**park.json.loads(path.read_text()), "until": time.time() + seconds}))
+    assert sorted(record["id"] for record in park.parked_by("ended-run")) == ["e1", "e2"]
+    started = time.time()
+    park.outlive("ended-run", poll=0.05)
+    assert sorted(calls.deleted) == ["e1", "e2"] and time.time() - started >= 0.4  # each at its time, not before
+    assert park.parked_by("ended-run") == [] and (park.PARKED / "o1.json").exists()
+    assert sum(1 for entry in ledger.entries() if entry.get("batch", "").startswith("parked-e")) == 2  # idle charged
+    park.outlive("ended-run", poll=0.05)  # nothing left: returns at once
+    assert sorted(calls.deleted) == ["e1", "e2"]
 
 
 def test_a_taken_card_skips_its_cold_start_and_pays_its_idle_and_work():

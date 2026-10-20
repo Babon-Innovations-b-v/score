@@ -76,6 +76,10 @@ it, its commit and its worktree), or one at the same commit would make some of t
 accepted: environment nodes already made do not count, so one run per place goes side by side), and refuses a
 worktree with tracked changes not committed that would buy a paid row unless given --uncommitted. A detached run
 registers itself: a run registering between its check and that is refused, `detached: refused: ...` its result line.
+
+Every `run` drives from a frozen copy of the code (score/graph/frozen.py, #45): it makes a git worktree of the
+working tree as it is under $PROPS_HOME/frozen and starts itself again inside it, so a pull or push in this checkout
+never changes a run's inputs mid-run; the copy goes once the run, and every machine it parked, has ended.
 """
 import argparse
 import atexit
@@ -94,7 +98,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from score import graph, stages  # noqa: E402
-from score.graph import _code, rebuy, runs, stopped  # noqa: E402
+from score.graph import _code, frozen, rebuy, runs, stopped  # noqa: E402
 from score.stages import moved  # noqa: E402
 from score.store import Store  # noqa: E402
 
@@ -181,9 +185,12 @@ def detach(argv):
     command = [sys.executable, stopped.__file__, "--log", str(log), "--outputs",
                str(Store.default().cache.parent / "faults"), "--", sys.executable,
                *[word for word in argv if word != DETACH]]
+    owned = frozen.OWNED["path"] is not None
     with open(log, "a") as result:  # detached.py prints its result line here, after the run's own output
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=result, stderr=subprocess.STDOUT,
-                                   start_new_session=True)
+                                   start_new_session=True, env=frozen.owner_env() if owned else None)
+    if owned:  # the detached run drives from this frozen copy and removes it when it ends
+        frozen.hand_on()
     print(f"detached: started pid={process.pid} (it registers on the store itself and may still be refused: its "
           f"result line says) log={log}", flush=True)
 
@@ -387,20 +394,20 @@ def release_run(runner, run_id, mark):
     machine counts for the run-wide cap and its stop mark (`mark`)."""
     from score.adapters import compute
     compute.release_run(compute.covering_store(runner.store).cache.parent / "reservations.json", run_id)
-    sys.path.insert(0, str(CLOUD_TOOLS))
-    import capacity
-    capacity.forget_run(run_id)
+    cloud_tool("capacity").forget_run(run_id)
     mark.unlink(missing_ok=True)
 
 
 def release_once_ended(runner, run_id, mark):
     """release_run now, or, when a stop left cloud tools still deleting and parking (STILL_ENDING), from a process of
     its own once they have all ended: their machines bill until then, and a release before them freed the run's
-    reservations and machine counts early (review of C7, 2026-10-17)."""
+    reservations and machine counts early (review of C7, 2026-10-17). That process then waits out every machine the
+    run parked, releasing one still listed at its time (park.outlive: 2026-10-20, three L4s parked past their time
+    until removed by hand), and only then removes the run's frozen copy, which their --expire processes run from."""
     ending = [pid for pid in STILL_ENDING if alive(pid)]
-    if not ending:
+    if not ending and not cloud_tool("park").parked_by(run_id):
         release_run(runner, run_id, mark)
-        return
+        return  # its frozen copy goes at exit (main): the closing lines still read it
     if os.fork() == 0:
         os.setsid()  # outside the run's group and session: what ends those does not end this
         code = 1
@@ -408,11 +415,21 @@ def release_once_ended(runner, run_id, mark):
             while any(map(alive, ending)):
                 time.sleep(RELEASE_POLL_SECONDS)
             release_run(runner, run_id, mark)
+            cloud_tool("park").outlive(run_id)
+            frozen.remove_owned()
             code = 0
         except Exception:  # noqa: BLE001 - said on the run's error output; this process has no caller to raise to
             traceback.print_exc()
         finally:
             os._exit(code)
+    frozen.hand_on()  # the releaser removes it
+
+
+def cloud_tool(name):
+    """A module of the cloud tools (tools/props/cloud), imported by name."""
+    if str(CLOUD_TOOLS) not in sys.path:
+        sys.path.insert(0, str(CLOUD_TOOLS))
+    return __import__(name)
 
 
 def alive(pid):
@@ -829,7 +846,7 @@ def driven(runner, places, whole, options, argv, gauges=None):
 def run_commit(runner, nodes, options):
     """The commit this run registers as; exit when the worktree has tracked changes not committed, the run would buy
     a paid row and no --uncommitted is given."""
-    dirty = runs.tracked_changes()
+    dirty = runs.tracked_changes() or frozen.had_changes()
     refused = runs.dirty_refusal(dirty, options.uncommitted, dirty and bool(rebuy.buys(runner, nodes)))
     if refused:
         sys.exit(refused)
@@ -877,6 +894,10 @@ def main(argv=None):
     if options.command == "resume":
         runs.resume(options.dry, say=lambda line: print(line, flush=True))
         return
+    if options.command == "run" and not frozen.inside():
+        frozen.enter(sys.argv[1:] if argv is None else argv, REPO)
+    if options.command == "run" and frozen.claim():
+        atexit.register(frozen.remove_owned)  # a run refused or raising before its drive ends here
     runner = stages.runner(world=stages.WORLDS[options.world]())
     runner.objects = frozenset(options.object) if options.object else None
     places, whole = options.place or stages.places(runner.world), not options.place
