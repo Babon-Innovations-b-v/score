@@ -102,6 +102,17 @@ def test_an_effect_traces_by_the_prim_its_entry_names_through_a_variant(tmp_path
     assert [(row["kind"], row["by"]) for row in rows] == [("effect", "effect/dust@1")]
 
 
+def test_an_effect_one_entry_holds_for_every_spot_traces_by_its_placements(tmp_path):
+    root = tmp_path / "lib"
+    entry(root, "effect", "drift", provenance={"place": "other", "prim": "/other/Effects/drift_0_0", "placements": [
+        {"place": "other", "prim": "/other/Effects/drift_0_0"},
+        {"place": "fixture", "prim": "/fixture/Effects{weather=calm}drift_1_1"}]})
+    stage = stage_with(tmp_path, 'def Xform "fixture"\n{\n    def Scope "Effects"\n    {\n        def Xform "drift_1_1"\n'
+                                 '        {\n            custom string score:effect:kind = "dust"\n        }\n    }\n}\n')
+    rows = trace.rows(stage, trace.Context(place="fixture", shelf=entries.read(root)))
+    assert [(row["kind"], row["by"]) for row in rows] == [("effect", "effect/drift@1")]
+
+
 def test_a_withdrawn_entry_traces_nothing(tmp_path):
     entry(tmp_path, "surface", "bare_steel", state="withdrawn")
     assert entries.read(tmp_path).surface("bare_steel", "fixture") is None
