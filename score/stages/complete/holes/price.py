@@ -55,6 +55,11 @@ MISSING = "missing"
 # at pixal's measured per unit after that work (code_work).
 PIXAL_WORK = ((r"^Pixal3D take lost", "pixal: the lost Pixal3D takes made again"),)
 ROUTE_END = "likeness"  # the prop route's last row (score/stages/props): a model's route runs up to its likeness gate
+# The provider's bill over the cloud ledger's sum for 2026-10 up to 2026-10-10 (EUR 627.74 against 547.31: disks,
+# addresses, storage and registry the ledger misses; paper/evidence/cloud/cost-tables-2026-10.txt): what a card or
+# processor layer's ledger euros come to on the bill (prepare's batch estimate; prop_batch.py prices its card steps
+# with the same figure).
+BILL_SHARE = 627.74 / 547.31
 
 
 def own_tables():
