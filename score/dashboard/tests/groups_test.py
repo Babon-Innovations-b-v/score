@@ -17,7 +17,6 @@ def test_the_style_rule():
     assert groups.look_of("alpha", LOOKS) == "camp_look"  # its scenes list it
     assert groups.look_of("beta", LOOKS) == "prologue_beta"  # prologue_<place>
     assert groups.look_of("gamma", LOOKS) == "gamma"  # its own name
-    assert groups.look_of("gdoor", LOOKS) == groups.DOORS
     assert groups.look_of("delta", LOOKS) == groups.UNASSIGNED
     found = groups.styles(["delta", "gamma", "alpha", "beta"], LOOKS)
     assert list(found) == ["camp_look", "prologue_beta", "gamma", groups.UNASSIGNED]
@@ -62,9 +61,10 @@ def test_a_place_is_said_by_its_short_name_once():
     from score.dashboard.state.models import PlaceCard, StyleGroup
     launch = StyleGroup(look="prologue_launch", label="the launch view across the harbour", short="Harbour",
                         places=[PlaceCard(place="launch", status="")])
-    doors = StyleGroup(look=groups.DOORS, label="doors", places=[PlaceCard(place="hdoor", status="")])
-    world = types.SimpleNamespace(engines=[types.SimpleNamespace(styles=[launch, doors])])
-    assert groups.short_names(world) == {"launch": "Harbour", "hdoor": "Hangar door"}
+    unassigned = StyleGroup(look=groups.UNASSIGNED, label="unassigned",
+                            places=[PlaceCard(place="old_station", status="")])
+    world = types.SimpleNamespace(engines=[types.SimpleNamespace(styles=[launch, unassigned])])
+    assert groups.short_names(world) == {"launch": "Harbour", "old_station": "Old station"}
     looks = json.loads((pathlib.Path(__file__).parents[3] / "data/definitions/place.json").read_text())
     places = [look for look, entry in looks.items() if isinstance(entry, dict) and "plan" in entry and look != "people"]
     assert places and all(looks[look].get("short") for look in places)  # every place's look has its short name

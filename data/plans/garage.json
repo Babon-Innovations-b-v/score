@@ -195,8 +195,7 @@
   },
   "S": {
    "to": "outside",
-   "leaves": "gdoor",
-   "why": "the big outer door onto the Moon's yard (the Moon ground plan's garage level and apron), shut by two leaves of the gdoor kit"
+   "why": "the big outer door onto the Moon's yard (the Moon ground plan's garage level and apron), shut by the two leaves of the garage's own row big_door_leaf (objects of the kit, slid by the motion layer)"
   }
  },
  "rows": {

@@ -29,8 +29,7 @@ def main():
                                                                  "  Reads wrong           an empty hall")
         assert store_page.audit_section(audit, "garage") == "  Close-ups             M"
         assert store_page.audit_section(audit, "hangar") is None
-    # A part of another place has no entry of its own in place.json (KeyError 'gdoor', 2026-10-13): named with its host.
-    assert store_page.place_name("gdoor") == "gdoor, part of the garage"
+    assert store_page.place_name("nowhere") == "nowhere"  # a key with no entry in place.json, never a KeyError
     assert store_page.place_name("garage") == "the garage"
     # The completion gate's status in done's words (CONTEXT.md), the gaps counted.
     assert ">complete<" in store_page.status_pill({"verdict": "pass", "status": "complete"})

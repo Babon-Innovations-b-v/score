@@ -61,9 +61,5 @@
    "Objects/wall_*": "The big door's leaves are wider than its doorway (the game's door kit): they slide apart in the wall's track along the south wall.",
    "Structure/shell_walls": "The big door's leaves are wider than its doorway (the game's door kit): they slide apart in the wall's track along the south wall."
   }
- },
- "renamed": {
-  "/garage/Places/big_door_west": "/garage/Places/south_door_leaf_1",
-  "/garage/Places/big_door_east": "/garage/Places/south_door_leaf_2"
  }
 }

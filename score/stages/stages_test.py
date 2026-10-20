@@ -1,6 +1,6 @@
 """The worked example on world 1's real round-three stages, with no spend: the hangar's seed fails on its code-built
-ship, the hangar door's has no drop run and answers unknown, neither place can complete, a second run makes nothing,
-and a change to the door's kit reruns the door's assembly alone. Skipped, and says so, on a machine without the seeds.
+ship, so the place cannot complete, a second run makes nothing, and a change to its kit reruns its assembly. Skipped,
+and says so, on a machine without the seeds.
 
 The store is a folder of its own under $PROPS_HOME (never /tmp, never the framework's own store), removed at the end.
 
@@ -25,7 +25,7 @@ from score import checks, contracts, graph, review, stages  # noqa: E402
 from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
 
 SEEDS = PROPS_HOME / "work"
-PLACES = ("hangar", "hdoor")
+PLACES = ("hangar",)
 DATA = ("kit", "inventory", "library", "checks", "effects", "scene", "motion", "ground",
         "sound/surfaces.json", "sound/places.json", "characters", "surfaces", "definitions/place.json",
         "people/bodies.json")
@@ -86,7 +86,7 @@ NO_GROUND = graph.Stage("terrain", "world", no_ground,
 
 def test_the_worked_example_on_world_1s_seeds():
     if not all((SEEDS / "usd-r3" / place / f"{place}.usda").exists() for place in PLACES):
-        print("skipped: no round-three stages of the hangar and its door on this machine")
+        print("skipped: no round-three stage of the hangar on this machine")
         return
     (PROPS_HOME / "store-tests").mkdir(parents=True, exist_ok=True)
     root = pathlib.Path(tempfile.mkdtemp(dir=PROPS_HOME / "store-tests"))
@@ -99,18 +99,15 @@ def test_the_worked_example_on_world_1s_seeds():
                                                    "(no accepted output "
                                                    "taken); took effects-layer; placeholders: 12 meshes stand in for "
                                                    "made pieces; resting: no evidence"), first
-        assert first["assembly@hdoor"] == "made: unknown", first
-        assert first["complete@hdoor"] == ("blocked: assembly@hdoor answered unknown: resting: no evidence: a drop "
-                                           "run (settle.py --dry-run) for this output is missing"), first
 
         assert set(runner().run(PLACES).values()) == {"fresh", *(first[f"complete@{place}"] for place in PLACES)}
 
-        kit = pathlib.Path(world.roots["data"]) / "kit/hdoor.json"
+        kit = pathlib.Path(world.roots["data"]) / "kit/hangar.json"
         kit.write_text(json.dumps({**json.loads(kit.read_text()), "note": "a creator's edit"}, indent=1))
-        assert runner().status(PLACES)["assembly@hdoor"] == "to run: kit changed"
+        assert runner().status(PLACES)["assembly@hangar"] == "to run: kit changed"
         third = runner().run(PLACES)
-        assert third["assembly@hdoor"] == "made: unknown" and third["assembly@hangar"] == "fresh", third
-        assert len(store.records("assembly@hdoor")) == 2 and len(store.records("assembly@hangar")) == 1
+        assert third["assembly@hangar"] == "made: fail", third
+        assert len(store.records("assembly@hangar")) == 2
 
         page = review.page(store, "assembly@hangar").read_text()
         assert "Unverified seed." in page and "/hangar/Structure/ship" in page and "It cannot be accepted" in page

@@ -16,9 +16,7 @@ and builders.py build it unchanged; it lands as record/<place>.json in the outpu
                  shut in its doorway (the airlock's outer door, which its cycle moves and copies for the inner door);
                  every object whose model the kit lists with `children` carries them (kit_children: the cases on the
                  camp's stores rack, the hub console's screens), each with its glow parts, its row the inventory's
-    places       each door's leaves (the plan's `leaves` kit, the inventory's leaf size, shut in the doorway), a flat
-                 roof's leaves (the layout's leaf that lies on the roof, shut over its opening); a door
-                 joined to another place's door by a walkway tube (the tube's stage stood from this doorway to that
+    places       a door joined to another place's door by a walkway tube (the tube's stage stood from this doorway to that
                  one, stretched along its run); and every other place seated on the same made ground, where its seat
                  stands it in this place's frame (the ball's curve turns it: `rotation`)
     lights       the room's fill at the sky record's height share, reaching the farthest floor corner (the lamps are
@@ -57,10 +55,8 @@ SLOPE = re.compile(r"(\d+(?:\.\d+)?) m at (\d+(?:\.\d+)?) deg")
 RAMP_THICK = 0.2
 RAMP_SURFACE = "deck"
 GLASS_SURFACE = "clear_glass"
-# A flat roof's slabs are this thick on the walls' top; its door leaves lie on them raised this far, so the sliding
-# leaves clear the wall tops and corner posts they reached 0.08 m into (the motion stage's clear gate, 2026-10-12).
+# A flat roof's slabs are this thick on the walls' top.
 ROOF_SLAB = 0.25
-LEAF_CLEAR = 0.15
 # A growing plot: its soil this deep, its curb (thick, high) round it.
 SOIL = 0.06
 SOIL_SURFACE = "potting_soil"
@@ -70,7 +66,6 @@ CURB_SURFACE = "painted_panel"
 VIEW_IN = 1.0
 VIEW_FOV = 80
 AIM_HEIGHT = 1.0
-NORMALS = {"north": (0.0, -1.0), "south": (0.0, 1.0), "east": (1.0, 0.0), "west": (-1.0, 0.0)}
 # A wall's leaves stand turned about up by this (degrees): north and south walls unturned.
 LEAF_YAW = {"north": 0.0, "south": 0.0, "east": 90.0, "west": 90.0}
 
@@ -208,27 +203,6 @@ def flat_shell(plan):
          "from": f"{said}; the flat roof {ROOF_SLAB} m thick on the walls' top ({walls['high']} m), its {side} slab "
                  f"round the {walls['opening'][0]:g} x {walls['opening'][1]:g} m door opening (inventory room layout)"}
         for side, ((across, along), (wide, deep)) in slabs.items()]
-
-
-def roof_leaves(plan):
-    """A flat roof's door leaves (the room layout's leaf that lies on the roof, its kit's stage), shut side by side
-    over the opening, each on its half; on the roof's top, raised LEAF_CLEAR so they slide clear of the walls' tops."""
-    leaf, walls = plan.get("leaf") or {}, plan["walls"]
-    if walls.get("shape") != "flat" or leaf.get("lies") != "roof":
-        return []
-    count = max(1, round(walls["opening"][0] / leaf["size"][0]))
-    high = round(walls["high"] + ROOF_SLAB + LEAF_CLEAR, 4)
-    found = []
-    for number in range(count):
-        across = round((number + 0.5) * walls["opening"][0] / count - walls["opening"][0] / 2, 4)
-        side = "west" if across < 0 else "east"
-        found.append({"name": f"roof_leaf_{side}" if count == 2 else f"roof_leaf_{number + 1}", "stage": leaf["kit"],
-                      "at": [across, high, 0.0], "yaw": 0.0, "door_leaf": "roof",
-                      "from": f"the room layout's roof leaf ({leaf['kit']} kit, {leaf['size'][0]:g} x "
-                              f"{leaf['size'][1]:g} m), {number + 1} of {count} shut over the plan's roof door "
-                              f"opening on its half, on the roof's top raised {LEAF_CLEAR} m clear of the walls' tops "
-                              "(the motion stage's clear gate)"})
-    return found
 
 
 def shell(plan):
@@ -371,25 +345,6 @@ def ramps(plan, inventory):
 
 # --- places -----------------------------------------------------------------------------------------------------
 
-def leaves(plan, door):
-    """A door's leaves (the plan's `leaves` kit), shut side by side across its doorway, each the inventory layout's
-    leaf wide."""
-    leaf = plan.get("leaf") or {}
-    wide = float(leaf.get("size", [door["wide"]])[0])
-    count = max(1, round(door["wide"] / wide))
-    middle = np.asarray(door["middle"], dtype=float)
-    along = np.array([abs(NORMALS[door["side"]][1]), 0.0, abs(NORMALS[door["side"]][0])])
-    found = []
-    for number in range(count):
-        offset = (number - (count - 1) / 2) * wide
-        found.append({"name": f"{door['side']}_door_leaf_{number + 1}", "stage": door["leaves"],
-                      "at": np.round(middle + along * offset, 4).tolist(), "yaw": LEAF_YAW[door["side"]],
-                      "door_leaf": door["plan_side"],
-                      "from": f"plan door {door['plan_side']} ({door['what']}): leaf {number + 1} of {count}, the "
-                              f"inventory room layout's {leaf.get('kit', door['leaves'])} leaf {wide} m wide, shut"})
-    return found
-
-
 class Seat(NamedTuple):
     """Where a place stands: its made ground's name and record, its seat entry, its stage and its laid Ground."""
     ground: str
@@ -487,14 +442,12 @@ def joined_tube(place, door, plans, grounds, tube_length):
 
 
 def places_of(place, plan, inputs, grounds):
-    """Every place this one shows: door leaves, joined tubes, seated neighbours, and what the plan shows."""
+    """Every place this one shows: joined tubes, seated neighbours, and what the plan shows."""
     found = []
     for door in plan["doors"]:
-        if door["cut"] and door.get("leaves"):
-            found += leaves(plan, door)
         if door["cut"] and door["joins"]:
             found.append(joined_tube(place, door, inputs["plans"], grounds, read(inputs["tube length"])["tube_length"]))
-    return found + roof_leaves(plan) + neighbours(place, grounds) + kit_shell.shown(plan, place, grounds, pose_in, quaternion)
+    return found + neighbours(place, grounds) + kit_shell.shown(plan, place, grounds, pose_in, quaternion)
 
 
 # --- light, sky, views ------------------------------------------------------------------------------------------
@@ -603,12 +556,11 @@ def ground_free(place, inputs):
 def ground_free_record(place, plan, inputs, grounds):
     """The scene record of a ground-free interior: no seat, so nothing outside it and no body's sky over it; its kit
     holds its walls and floors, its air and fill are the base's body's indoor ones (the body the base's modules
-    stand on, base.json `seat_of`), its views and door leaves its plan's, judged against its own walls."""
+    stand on, base.json `seat_of`), its views its plan's, judged against its own walls."""
     body = grounds[read(inputs["base"])["seat_of"]].ground
     indoor = read(inputs["sky"])[body]["indoor"]
     kit_path = pathlib.Path(inputs["kits"]) / f"{place}.json"
     eye = read(inputs["places"])["shared"]["scale"]["eye_height"]
-    found = [leaf for door in plan["doors"] if door["cut"] and door.get("leaves") for leaf in leaves(plan, door)]
     return {"place": place,
             "about": f"{plan['title']}, written by SCORE's scene-record stage from its plan (data/plans/{place}.json), "
                      f"a ground-free interior ({ground_free(place, inputs)}): no seat and nothing outside; its kit "
@@ -617,7 +569,7 @@ def ground_free_record(place, plan, inputs, grounds):
             "floor": plan["floor"], "inside": True, "ceiling": round(plan["floor_height"] + plan["walls"]["high"], 4),
             "structure": [], "objects": kit_shell.objects(plan, read(kit_path) if kit_path.exists() else None),
             "lights": [fill(plan, indoor)], "environment": environment(plan, indoor, body), "views": views(plan, eye),
-            "places": found + roof_leaves(plan)}
+            "places": []}
 
 
 def kit_record(place, plan, inputs, grounds):
@@ -708,12 +660,12 @@ def with_children(record, place, inputs, plan):
 
 def shown_only(place, plan, record, inputs):
     """The record with only the seated neighbours its own views see (seen.py); the nearest place of each stage a door
-    leads to (its doorway opens onto it), a joined tube, a door leaf and a place the plan shows are always kept."""
+    leads to (its doorway opens onto it), a joined tube and a place the plan shows are always kept."""
     from score.stages.scene_record import seen
     from score.stages.terrain import gates as ground_gates
     grounds = seats(inputs)
     seated = [entry for entry in record["places"] if entry["name"] in grounds and "joins" not in entry
-              and not entry.get("door_leaf") and entry["name"] not in plan.get("shows", {})]
+              and entry["name"] not in plan.get("shows", {})]
     opened = {id(min(those, key=lambda entry: np.linalg.norm(np.asarray(entry["at"]) - door_outside(door))))
               for door in plan["doors"] if door["cut"]
               for those in [[entry for entry in seated if entry["stage"] == door["leads"]]] if those}

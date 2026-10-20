@@ -85,7 +85,7 @@ def test_reading_pages_and_tests_stay_allowed():
                     "grep -n 'review.accept(' score/review/review_test.py",
                     ".venv/bin/python score/review/review_test.py",
                     "make check",
-                    ".venv/bin/python -m score.stages run hangar hdoor"):
+                    ".venv/bin/python -m score.stages run hangar garage"):
         assert _run(_bash(command))[0] == 0, command
     edit = {"tool_name": "Edit", "tool_input": {"file_path": "score/review/__init__.py"}}
     assert _run(edit)[0] == 0

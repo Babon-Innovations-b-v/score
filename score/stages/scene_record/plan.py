@@ -168,7 +168,7 @@ def doors_of(plan, inventory):
         found.append({"side": SIDES[side], "plan_side": side, "name": f"{side}@{level:g}" if level else side,
                       "middle": door_middle(plan, side, at, level), "normal": outward(plan, side), "level": level,
                       "at": at, "wide": float(wide), "tall": tall, "what": what, "leads": lead.get("to"),
-                      "joins": lead.get("joins"), "joins_door": lead.get("door"), "leaves": lead.get("leaves"),
+                      "joins": lead.get("joins"), "joins_door": lead.get("door"),
                       "leaf": lead.get("leaf"), "why": lead.get("why"), "cut": lead.get("to") not in (None, "sealed")})
     return found
 
@@ -191,7 +191,7 @@ def facet_doors_of(plan):
         found.append({"side": f"bearing {bearing}", "plan_side": side, "name": side, "level": 0.0, "bearing": float(bearing), "normal": normal,
                       "middle": [round(value * plan["apothem"], 4) for value in normal], "wide": float(wide),
                       "tall": float(sized.group(2)) if sized else None, "what": what, "leads": lead.get("to"),
-                      "joins": None, "joins_door": None, "leaves": None, "why": lead.get("why"),
+                      "joins": None, "joins_door": None, "why": lead.get("why"),
                       "cut": lead.get("to") not in (None, "sealed")})
     return found
 
@@ -222,7 +222,7 @@ def tube_doors_of(plan):
         found.append({"side": f"{end} end", "plan_side": end, "name": end, "level": 0.0, "normal": [0.0, 0.0, 1.0 if far else -1.0],
                       "middle": [0.0, 0.0, float(plan["length"]) if far else 0.0], "wide": float(wide),
                       "tall": float(sized.group(2)) if sized else None, "what": what, "leads": lead.get("to"),
-                      "joins": None, "joins_door": None, "leaves": None, "why": lead.get("why"),
+                      "joins": None, "joins_door": None, "why": lead.get("why"),
                       "cut": lead.get("to") not in (None, "sealed")})
     return found
 
@@ -300,7 +300,7 @@ def make(inputs, out, seed, params):
               **({key: plan.get(key, []) for key in ("lamps", "decals", "beams", "blocks")}
                  if shell == "outdoor" else {}),
               "concept": plan.get("concept", {}), "notes": plan.get("notes", []),
-              "open": layout.get("open", []), "big_door": layout.get("big_door"), "leaf": layout.get("leaf")}
+              "open": layout.get("open", []), "big_door": layout.get("big_door")}
     (out / "plan.json").write_text(json.dumps(record, indent=1))
 
 

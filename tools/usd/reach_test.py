@@ -148,28 +148,18 @@ def the_gate_runs_it():
 
 
 def a_place_s_own_door_leaves_are_walked_to_and_shown_places_not():
-    """The garage's big door leaves (kit gdoor, whose `place` is the garage) are its own pieces, so its rows there are
-    walked to, whatever the scene record names the leaf (south_door_leaf_1 since the scene record stage writes it,
-    big_door_west before); a tube it shows is another place, never walked to from the garage."""
+    """The garage's big door leaves are objects of its own (row big_door_leaf), so they are walked to; a tube it shows
+    under its Places is another place, never walked to from the garage."""
     from pxr import Sdf, Usd, UsdGeom
-    problems = []
-    if reach.own_kits("garage") != {"gdoor"}:
-        problems.append(f"the garage's own kits read {reach.own_kits('garage')}")
-    if reach.own_kits("tube"):
-        problems.append(f"the tube's shown places read as its own: {reach.own_kits('tube')}")
     with tempfile.TemporaryDirectory() as temporary:
         path = pathlib.Path(temporary) / "garage.usda"
         stage = Usd.Stage.CreateNew(str(path))
-        for shown, kit, row in (("south_door_leaf_1", "gdoor", "lattice_ring_rib"), ("north_tube", "tube", "hoop")):
-            place = stage.DefinePrim(f"/garage/Places/{shown}", "Xform")
-            place.CreateAttribute("score:place", Sdf.ValueTypeNames.String).Set(kit)
-            piece = UsdGeom.Cube.Define(stage, f"/garage/Places/{shown}/Objects/{row}_1").GetPrim()
+        for parent, row in (("Objects", "big_door_leaf"), ("Places/north_tube/Objects", "hoop")):
+            piece = UsdGeom.Cube.Define(stage, f"/garage/{parent}/{row}_1").GetPrim()
             piece.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(row)
         stage.Save()
         laid = set(reach.row_targets(path, "garage"))
-    if laid != {"lattice_ring_rib"}:
-        problems.append(f"the garage's rows on its own leaf and a tube it shows read {sorted(laid)}")
-    return problems
+    return [] if laid == {"big_door_leaf"} else [f"the garage's rows on its own leaf and a tube it shows read {sorted(laid)}"]
 
 
 CHECKS = (rooms_joined_by_a_doorway_are_both_reached, a_place_s_own_door_leaves_are_walked_to_and_shown_places_not, a_crate_shut_in_a_pen_fails,

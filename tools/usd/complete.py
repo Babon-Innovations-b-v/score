@@ -184,33 +184,9 @@ def rows_faults(stage_file, inventory, place):
     return unlaid_rows(inventory, contents.laid_rows(Usd.Stage.Open(str(stage_file)), place))
 
 
-def host_of(place):
-    """The place a part belongs to (contents.json `part_of`: the garage's and the hangar's door leaves), or None."""
-    return (contents.expected(place) or {}).get("part_of")
-
-
-def part_rows(place):
-    """The inventory rows a part's own kit lays (a kind's row, as export.kind_row names it: the kind without its
-    room's or the part's name), the only rows a part answers for; the rest are its host's."""
-    kit = json.loads((KITS / f"{place}.json").read_text())
-    prefixes = [f"{name}_" for name in (kit.get("room", ""), place) if name]
-    return {laid.get("row") or next((laid["kind"].removeprefix(prefix) for prefix in prefixes
-                                     if laid["kind"].startswith(prefix)), laid["kind"]) for laid in kit["pieces"]}
-
-
-def own_inventory(place, stage):
-    """The inventory the stage was laid from; for a part of another place, only the rows its own kit lays."""
-    inventory = json.loads(recorded_inventory(place, stage).read_text())
-    if not host_of(place):
-        return inventory
-    rows = part_rows(place)
-    return {**inventory, "rows": [row for row in inventory["rows"] if row["id"] in rows],
-            "held_back": [row for row in inventory.get("held_back", []) if row.get("id") in rows]}
-
-
 def rows_check(place, stage):
-    """Every inventory row made or dropped with a reason (a part's: its own kit's rows)."""
-    faults = rows_faults(stage, own_inventory(place, stage), place)
+    """Every inventory row made or dropped with a reason."""
+    faults = rows_faults(stage, json.loads(recorded_inventory(place, stage).read_text()), place)
     return result("rows", FAIL if faults else PASS, stage, faults)
 
 
@@ -265,7 +241,7 @@ def assembly_resting(place, stage):
 def picks_check(place, stage):
     """The pick lock (picks.py): every object of a picked row still the model the owner picked."""
     import picks
-    faults, locked = picks.check(stage, own_inventory(place, stage))
+    faults, locked = picks.check(stage, json.loads(recorded_inventory(place, stage).read_text()))
     return result("picks", FAIL if faults else PASS, stage, faults, f"{locked} rows locked to an owner's pick")
 
 
@@ -274,7 +250,7 @@ def boxes_check(place, stage):
     from SAM's proposals and checked on that box; a typed box fails, an unmeasured one is unknown."""
     sys.path.insert(0, str(REPO / "tools/props/scene"))
     import box_check
-    found = own_inventory(place, stage)
+    found = json.loads(recorded_inventory(place, stage).read_text())
     verdict = box_check.gate(found["scene"], found)
     faults = [{"row": row, "result": entry["result"], "why": entry["why"]}
               for row, entry in verdict["rows"].items() if entry["result"] != box_check.PASS]
@@ -288,8 +264,6 @@ def reach_check(place, stage):
     """The reach check (reach.py) on the inventory the stage was laid from: every row a walker on the floor cannot
     reach is a fault; a row with no object is unknown."""
     import reach
-    if host_of(place):  # a part's rows are walked to on its host's stage, where it stands
-        return result("reach", PASS, stage, note=f"a part of {host_of(place)}: judged on {host_of(place)}'s stage")
     overall, rows, note = reach.check(stage, place, json.loads(recorded_inventory(place, stage).read_text()))
     return result("reach", overall, stage, [row for row in rows if row["result"] != PASS], note)
 

@@ -2,7 +2,7 @@
 
     from score import stages
     runner = stages.runner()        # environment 1, the framework's store on this machine
-    runner.status(["hangar", "hdoor"])
+    runner.status(["hangar", "garage"])
     runner.drive(stages.places(runner.world))   # every line of the environment to its end (python -m score run world1)
 
 Step 0 holds the worked example: assembly (P5) on environment 1's round-three stages as unverified seeds, and complete

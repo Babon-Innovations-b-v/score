@@ -124,9 +124,9 @@ def test_a_box_in_a_bay_s_doorway_clashes_and_the_lining_lapping_to_its_edge_doe
                                          (3, "garage_wall_corner_post", "big door south")]
 
 
-def test_a_place_with_no_known_shell_or_a_kit_in_its_own_frame_is_not_judged():
+def test_a_place_with_no_known_shell_or_pieces_not_its_own_is_not_judged():
     for layout in ({"room": "street", "pieces": []},
-                   {"room": "garage", "pieces": [{"kind": "gdoor_wall_upper_plain"}]}):
+                   {"room": "garage", "pieces": [{"kind": "hub_wall_upper_plain"}]}):
         try:
             shell.walls(layout)
         except SystemExit:

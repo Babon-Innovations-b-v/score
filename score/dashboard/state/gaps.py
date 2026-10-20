@@ -181,7 +181,7 @@ WORK_TASKS = (
     (r"^a plain code piece against a concept", "Plain code pieces against a concept drawn before the plan"),
     (r"^no effect of the ", "Effects on the follow-up list"),
     (r"^the owner supplies ", "Your own reference pictures"),
-    (r"^a concept view request for |^data/plans/\w+\.json with its leads", "Door kits: a concept view and a plan"),
+    (r"^a concept view request for |^data/plans/\w+\.json with its leads", "A concept view and a plan"),
     (r"library surfaces", "Library surfaces held until next month"),
     (r"settle drops|paint level uses|^fix next week", "Settle and paint fixes"),
 )

@@ -4,7 +4,7 @@
  "motions": [
   {
    "name": "roof_leaf_west",
-   "prim": "/hangar/Places/roof_leaf_west",
+   "prim": "/hangar/Objects/roof_leaf_1",
    "start": 0.0, "length": 43.0, "loop": true,
    "slide": {"by": [-13.7, 0.0, 0.0], "speed": 3.0, "starts": "shut", "moves": [[1.0, "open"], [8.0, "shut"]]},
    "sounds": [],
@@ -12,7 +12,7 @@
   },
   {
    "name": "roof_leaf_east",
-   "prim": "/hangar/Places/roof_leaf_east",
+   "prim": "/hangar/Objects/roof_leaf_2",
    "start": 0.0, "length": 43.0, "loop": true,
    "slide": {"by": [13.7, 0.0, 0.0], "speed": 3.0, "starts": "shut", "moves": [[1.0, "open"], [8.0, "shut"]]},
    "sounds": [],

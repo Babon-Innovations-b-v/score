@@ -64,7 +64,7 @@
    ]
   },
   "sliding_door": {
-   "prims": ["sliding_glass_leaf", "big_door_west", "big_door_east", "south_door_leaf", "roof_leaf_west", "roof_leaf_east", "inner_door", "outer_door", "door_leaf"],
+   "prims": ["sliding_glass_leaf", "big_door_leaf", "roof_leaf", "inner_door", "outer_door", "door_leaf"],
    "game": true,
    "sources": ["the game's own door speeds (data/motion, each motion's `from`)"]
   },

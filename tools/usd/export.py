@@ -411,7 +411,7 @@ def kind_row(kind, prefixes):
 
 def kit_room_pieces(kit, models, tube_length=None, place=None):
     """A kit room's pieces as objects: each its kind's own name as its row (the kind without its room's name, or
-    without the kit's own `place` name: a door leaf's kit gdoor names its kinds gdoor_<row> for the garage's rows), or
+    without the place's name: a kit with no room, the wreck's, names its kinds wreck_<row>), or
     the row it names (`row`: a piece laid as another row's kind, the airlock's hose unit built as a hose reel), and its
     transform (`matrix`, the game's, package.kit_matrix) from its model's box; the layout's other fields as they are.
     A walkway tube's kit (its layout has a `bay`) is laid along a way `tube_length` long (tube_spots), as the game lays

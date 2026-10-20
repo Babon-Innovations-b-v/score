@@ -3,8 +3,8 @@
  "counted": {
   "how": "rows of data/inventory/*.json by their kind field, one per place and row id: 'code' is code-built; 'generate' and 'mechanic' are picture-made",
   "code_built": 479,
-  "picture_made": 314,
-  "picture_made_generate": 312,
+  "picture_made": 316,
+  "picture_made_generate": 314,
   "picture_made_mechanic": 2,
   "decisions": {
    "code body + picture details": 3,
