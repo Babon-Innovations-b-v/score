@@ -139,14 +139,16 @@ class HolesPrice(BaseModel):
     """The runner's price of every hole's chain (`score price <world> --holes`, its record read as written): each
     paid node priced once ({node: price with its basis}), each place's chains by the node a hole names, the free
     nodes in them, the work no stage does with its hole count, the prop route priced for the rows that wait on their
-    place's prop data (`after_work`), the nodes outside the runner's table, the places not current and not checked,
-    and why the record is stale (None while current)."""
+    place's prop data (`after_work`), the code work whose make is a Pixal3D one priced as if it had landed
+    (`code_work`), the nodes outside the runner's table, the places not current and not checked, and why the record
+    is stale (None while current)."""
     made_at: str
     nodes: dict[str, dict] = {}
     chains: dict[str, dict[str, list[str]]] = {}
     free: list[str] = []
     unfillable: list[dict] = []
     after_work: dict[str, dict] = {}
+    code_work: dict[str, dict] = {}
     outside: list[dict] = []
     not_current: list[str] = []
     not_checked: list[str] = []

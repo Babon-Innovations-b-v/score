@@ -8,6 +8,98 @@
  ],
  "high_quantile": 0.9,
  "stages": {
+  "surfaces-turntable": {
+   "stage": "surfaces-turntable",
+   "unit": "take turned (turntable render)",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.2,
+   "high_euros": 0.2,
+   "runs": 1,
+   "sources": {
+    "recorded runs": [
+     "paper/evidence/cloud/forecast-2026-10-15.txt line 47: the ship's six rooms, surface line to paint, 12 takes (2026-10-14), turntables EUR 2.4"
+    ]
+   },
+   "forecast": {
+    "rule": "models",
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
+   }
+  },
+  "surfaces-segvigen": {
+   "stage": "surfaces-segvigen",
+   "unit": "take split back (SegviGen)",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.0525,
+   "high_euros": 0.0525,
+   "runs": 1,
+   "sources": {
+    "recorded runs": [
+     "paper/evidence/cloud/forecast-2026-10-15.txt line 47: the ship's six rooms, surface line to paint, 12 takes (2026-10-14), SegviGen EUR 0.63"
+    ]
+   },
+   "forecast": {
+    "rule": "models",
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
+   }
+  },
+  "surfaces-paint": {
+   "stage": "surfaces-paint",
+   "unit": "take painted",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.26792,
+   "high_euros": 0.44225,
+   "runs": 2,
+   "sources": {
+    "recorded runs": [
+     "commit b11c282f (2026-10-12): the campgrounds' cloud paint, twelve takes, EUR 5.83",
+     "paper/evidence/cloud/forecast-2026-10-15.txt line 47: the ship's six rooms, surface line to paint, 12 takes (2026-10-14), paint EUR 0.6"
+    ]
+   },
+   "forecast": {
+    "rule": "models",
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
+   }
+  },
+  "ship_kit": {
+   "stage": "ship_kit",
+   "unit": "ship kit of a place baked",
+   "count": null,
+   "also": [],
+   "likely_euros": 0.1025,
+   "high_euros": 0.1245,
+   "runs": 2,
+   "sources": {
+    "recorded runs": [
+     "commit 1198efc8 (2026-10-15): the ship's eight shell kits baked by ship_kit@<place>, EUR 0.60",
+     "commit dc6851c4 (2026-10-15): ship_kit@engineroom, EUR 0.13"
+    ]
+   },
+   "forecast": {
+    "rule": "one",
+    "source": "one a place (one for an environment node)"
+   }
+  },
+  "concept_people": {
+   "stage": "concept_people",
+   "unit": "make of the environment's people concept",
+   "count": null,
+   "also": [],
+   "likely_euros": 2.41,
+   "high_euros": 2.41,
+   "runs": 1,
+   "sources": {
+    "recorded runs": [
+     "paper/evidence/cloud/stage-euros-2026-10-13.txt line 12 (world 1's ticketed run, 16 rows), its re-buy priced at it in paper/evidence/cloud/forecast-2026-10-15.txt line 55"
+    ]
+   },
+   "forecast": {
+    "rule": "one",
+    "source": "one a place (one for an environment node)"
+   }
+  },
   "pixal": {
    "stage": "pixal",
    "unit": "model",
@@ -102,8 +194,12 @@
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller pro, 135 finished calls, 2026-10-12 to 2026-10-16"
    },
-   "forecast": null,
-   "forecast_why": "no ledger line holds both a batch's units and its models: the Google ledger names only each call's caller"
+   "forecast": {
+    "rule": "prop_takes",
+    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node is this stage's there, by their take",
+    "per_model": 1.1905,
+    "per_model_from": "paper/evidence/cloud/forecast-2026-10-15.txt line 37: the ship's close-ups, 25 Pro pictures for 21 pieces (2026-10-14)"
+   }
   },
   "surfaces-maps": {
    "stage": "surfaces-maps",
@@ -121,8 +217,12 @@
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-map, 2065 finished calls, 2026-10-11 to 2026-10-16"
    },
-   "forecast": null,
-   "forecast_why": "no ledger line holds both a batch's units and its models: the Google ledger names only each call's caller"
+   "forecast": {
+    "rule": "models",
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)",
+    "per_model": 7.5091,
+    "per_model_from": "2065 finish map picture (Nano Banana Pro) calls over 275 take lists (surfaces-lists, one call a take) in the same Google ledger"
+   }
   },
   "surfaces-lists": {
    "stage": "surfaces-lists",
@@ -161,8 +261,12 @@
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-name, 697 finished calls, 2026-10-12 to 2026-10-16"
    },
-   "forecast": null,
-   "forecast_why": "no ledger line holds both a batch's units and its models: the Google ledger names only each call's caller"
+   "forecast": {
+    "rule": "models",
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)",
+    "per_model": 2.5345,
+    "per_model_from": "697 finish named again (Gemini 3.1 Pro) calls over 275 take lists (surfaces-lists, one call a take) in the same Google ledger"
+   }
   },
   "light-passes": {
    "stage": "light-passes",
@@ -212,7 +316,7 @@
    },
    "forecast": {
     "rule": "light_jobs",
-    "source": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job"
+    "source": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job (the views of the place's scene record, data/scene/<place>.json, while the demo's copy of them is lost)"
    }
   },
   "settle": {
@@ -343,7 +447,7 @@
    },
    "forecast": {
     "rule": "one",
-    "source": "one a place"
+    "source": "one a place (one for an environment node)"
    }
   },
   "surfaces-bake": {

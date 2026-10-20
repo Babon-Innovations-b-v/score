@@ -58,16 +58,37 @@ def test_the_file_holds_measured_stages_only_with_median_high_and_runs():
     assert found["pixal"]["likely_euros"] == 0.3 and found["pixal"]["runs"] == 2
     assert 0.3 < found["pixal"]["high_euros"] <= 0.5 and found["pixal"]["count"] == {"json_keys": "takes.json"}
     assert found["closeup"]["runs"] == 2 and "surfaces-maps" not in found and "surfaces-bake" not in found
-    assert found["pixal"]["forecast"]["rule"] == "prop_takes" and found["closeup"]["forecast"] is None
+    assert found["pixal"]["forecast"]["rule"] == "prop_takes" and "per_model" not in found["pixal"]["forecast"]
+    assert found["closeup"]["forecast"]["per_model"] == round(25 / 21, 4)  # pictures a model, as recorded
 
 
-def test_every_stage_has_a_forecast_rule_with_its_source_or_says_why_not():
-    for stage, spec in per_unit.SPECS.items():
-        found = per_unit.forecast(spec)
-        if found["forecast"] is None:
-            assert found["forecast_why"], stage
-        else:
-            assert found["forecast"]["source"] == per_unit.FORECASTS[spec["forecast"]], stage
+def test_a_recorded_stage_is_priced_from_its_runs_with_their_sources_and_no_count_rule():
+    """Each recorded run's euros over its units; likely their median; runs how many; the sources named."""
+    found = per_unit.measure([], [], "google-ledger.jsonl")["surfaces-paint"]
+    runs = per_unit.RECORDED["surfaces-paint"]["runs"]
+    each = sorted(run["euros"] / run["units"] for run in runs)
+    assert found["likely_euros"] == round((each[0] + each[1]) / 2, 5) and found["runs"] == len(runs)
+    assert found["sources"]["recorded runs"] == [run["source"] for run in runs] and found["count"] is None
+    assert found["forecast"]["rule"] == "models"
+
+
+def test_a_maps_units_a_model_are_its_calls_over_the_take_lists_calls():
+    stages = {"surfaces-maps": {"runs": 30}, "surfaces-lists": {"runs": 4}}
+    found = per_unit.forecast({**per_unit.SPECS["surfaces-maps"], "stage": "surfaces-maps"}, stages)
+    assert found["forecast"]["per_model"] == 7.5 and "30" in found["forecast"]["per_model_from"]
+    try:
+        per_unit.forecast({**per_unit.SPECS["surfaces-maps"], "stage": "surfaces-maps"}, {"surfaces-maps": {}})
+    except SystemExit:
+        pass
+    else:
+        raise AssertionError("a ratio over take lists no ledger measured must be refused, never one a model")
+
+
+def test_every_stage_has_a_forecast_rule_with_its_source():
+    stages = {"surfaces-maps": {"runs": 30}, "surfaces-names": {"runs": 8}, "surfaces-lists": {"runs": 4}}
+    for stage, spec in {**per_unit.SPECS, **per_unit.RECORDED}.items():
+        found = per_unit.forecast({**spec, "stage": stage}, stages)
+        assert found["forecast"]["source"] == per_unit.FORECASTS[spec["forecast"]], stage
 
 
 def test_rules_only_writes_the_rules_and_keeps_the_measured_numbers():
@@ -81,7 +102,8 @@ def test_rules_only_writes_the_rules_and_keeps_the_measured_numbers():
     found = json.loads(out.read_text())
     assert found["read"] == ["x"] and found["stages"]["pixal"]["likely_euros"] == 0.1
     assert found["stages"]["pixal"]["forecast"]["rule"] == "prop_takes"
-    assert found["stages"]["closeup"]["forecast"] is None and found["stages"]["closeup"]["forecast_why"]
+    assert found["stages"]["closeup"]["forecast"]["rule"] == "prop_takes"
+    assert set(per_unit.RECORDED) <= set(found["stages"])  # the recorded stages written again
 
 
 if __name__ == "__main__":

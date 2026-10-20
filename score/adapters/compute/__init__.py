@@ -179,9 +179,10 @@ def unit_price(node, store):
     """A paid node priced per unit: its stage's measured per-unit euros (PER_UNIT) times the units its accepted
     output made ({likely_euros, high_euros, unit, units, unit_likely_euros, unit_high_euros, runs}), or None when the
     stage has no measured unit, the node has no accepted output to count, or the count finds nothing. The units are
-    the last accepted make's: a fix that adds objects makes more."""
+    the last accepted make's: a fix that adds objects makes more. A stage priced from recorded runs has no count rule:
+    None."""
     entry = per_unit(node.partition("@")[0])
-    output = store.accepted(node) if entry and store is not None else None
+    output = store.accepted(node) if entry and entry["count"] and store is not None else None
     units = counted_units(store, output, entry["count"]) if output else None
     if units is None:
         return None
