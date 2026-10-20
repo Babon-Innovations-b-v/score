@@ -37,7 +37,6 @@ import route_list  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
 RECHECK_EUROS = 1.0  # a guess for the row's run (one ask a take at google_spend's EUR 0.05); never a price
-UNANSWERED = (OSError, ValueError, KeyError)  # a timeout, a dropped connection, a reply that does not parse
 QUESTION = """You check a painted 3D model of an object against its close-up. The object: {object}.
 The first picture is {close_up}. The next {count} pictures show the model from every side ({views}), each part
 drawn flat in its library surface's colour, shaded only by angle: no shine, wear or pattern is drawn, so judge
@@ -80,9 +79,9 @@ def ask(body):
     """One cleared, ledgered Gemini 3.1 Pro ask; its answers by finish (0-based)."""
     from score.adapters import compute
     compute.require_cleared("a Gemini finish recheck (finish route)")
-    route_cap.require_room(finish_ask.LIST_MODEL, body)
     response = finish_ask.generated(finish_ask.LIST_MODEL, body, finish_ask.secret_key(), finish_ask.FLEX_TIMEOUT,
-                                    caller="finish-route-recheck", cache=True)
+                                    caller="finish-route-recheck", cache=True,
+                                    room=lambda: route_cap.require_room(finish_ask.LIST_MODEL, body))
     return {int(entry["finish"]) - 1: entry for entry in json.loads(finish_ask.reply_text(response))["finishes"]}
 
 
@@ -162,7 +161,7 @@ def recheck_take(folders, entry, finishes, context):
     try:
         answers = ask(recheck_body(close_up, pictures, entry, finishes, context["surfaces"], context["tokens"],
                                    context["stand_in"]))
-    except UNANSWERED as error:
+    except finish_ask.UNANSWERED as error:
         return record | {"asked": True, "fault": f"no usable answer: {error!r}"[:300]}
     return record | {"asked": True, "gemini": {str(key + 1): value for key, value in answers.items()},
                      **sorted_answer(finishes, answers)}

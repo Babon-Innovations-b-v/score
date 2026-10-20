@@ -186,10 +186,6 @@
      "batch-20261011-195519-3854106"
     ]
    },
-   "forecast": {
-    "rule": "prop_takes",
-    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node is this stage's there, by their take"
-   },
    "time": {
     "unit_seconds": {
      "likely": 1077.038,
@@ -207,6 +203,10 @@
     "from": [
      "paper/evidence/cloud/ledger.jsonl"
     ]
+   },
+   "forecast": {
+    "rule": "prop_takes",
+    "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node is this stage's there, by their take"
    }
   },
   "closeup": {
@@ -227,14 +227,14 @@
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller pro, 135 finished calls, 2026-10-12 to 2026-10-16"
    },
+   "time": {
+    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
+   },
    "forecast": {
     "rule": "prop_takes",
     "source": "one a model, each once: the takes of the place's prop objects (data/props/<place>.json) not made in WORK/pixal, and the missing rows of the place's holes (score/stages/complete/holes) whose node is this stage's there, by their take",
     "per_model": 1.1905,
     "per_model_from": "paper/evidence/cloud/forecast-2026-10-15.txt line 37: the ship's close-ups, 25 Pro pictures for 21 pieces (2026-10-14)"
-   },
-   "time": {
-    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
    }
   },
   "surfaces-maps": {
@@ -253,14 +253,14 @@
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-map, 2065 finished calls, 2026-10-11 to 2026-10-16"
    },
+   "time": {
+    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
+   },
    "forecast": {
     "rule": "models",
     "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)",
-    "per_model": 7.5091,
-    "per_model_from": "2065 finish map picture (Nano Banana Pro) calls over 275 take lists (surfaces-lists, one call a take) in the same Google ledger"
-   },
-   "time": {
-    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
+    "per_model": 4.0,
+    "per_model_from": "a bound from the code, not a measurement: one draw of the close-up and one of each of three views a model (finish_rows.SEEDS, VIEW_SEEDS, turntable_views.MAP_VIEWS; #21), at most; a declared or one-finish take draws none. Runs made under #21 measured on the ledger replace it"
    }
   },
   "surfaces-lists": {
@@ -279,39 +279,14 @@
    "sources": {
     "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-list, 275 finished calls, 2026-10-11 to 2026-10-16"
    },
+   "time": {
+    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
+   },
    "forecast": {
     "rule": "models",
     "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
    },
-   "time": {
-    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
-   }
-  },
-  "surfaces-names": {
-   "stage": "surfaces-names",
-   "unit": "finish named again (Gemini 3.1 Pro)",
-   "count": {
-    "named_again": ".json"
-   },
-   "also": [
-    "crops-surfaces-names",
-    "people-names"
-   ],
-   "likely_euros": 0.00989,
-   "high_euros": 0.01895,
-   "runs": 697,
-   "sources": {
-    "google calls": "$PROPS/cloud/google-ledger.jsonl, caller finishmap-name, 697 finished calls, 2026-10-12 to 2026-10-16"
-   },
-   "forecast": {
-    "rule": "models",
-    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)",
-    "per_model": 2.5345,
-    "per_model_from": "697 finish named again (Gemini 3.1 Pro) calls over 275 take lists (surfaces-lists, one call a take) in the same Google ledger"
-   },
-   "time": {
-    "why": "no Google ledger read here (the one its euros were read from went with the old disk, 2026-10-19)"
-   }
+   "price_note": "measured at Google's standard tier (2026-10-11 to 16); the list asks on the flex tier at about half price since #21, so flex calls on the ledger replace it once measured"
   },
   "light-passes": {
    "stage": "light-passes",
@@ -359,12 +334,12 @@
      "blender-20261011-180614-3651590"
     ]
    },
+   "time": {
+    "why": "no ledger line read here timed a unit of {'kind': 'blender', 'who': 'score light stage'}"
+   },
    "forecast": {
     "rule": "light_jobs",
     "source": "score/stages/light/passes.py pass_jobs: the demo's views of each place shown, VIEWS_A_JOB a job (the views of the place's scene record, data/scene/<place>.json, while the demo's copy of them is lost)"
-   },
-   "time": {
-    "why": "no ledger line read here timed a unit of {'kind': 'blender', 'who': 'score light stage'}"
    }
   },
   "settle": {
@@ -493,10 +468,6 @@
      "blender-20261011-163525-3392152"
     ]
    },
-   "forecast": {
-    "rule": "one",
-    "source": "one a place (one for an environment node)"
-   },
    "time": {
     "unit_seconds": {
      "likely": 548.0,
@@ -514,6 +485,10 @@
     "from": [
      "paper/evidence/cloud/ledger.jsonl"
     ]
+   },
+   "forecast": {
+    "rule": "one",
+    "source": "one a place (one for an environment node)"
    }
   },
   "surfaces-bake": {
@@ -797,10 +772,6 @@
      "library-20261011-175559-3588569"
     ]
    },
-   "forecast": {
-    "rule": "models",
-    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
-   },
    "time": {
     "unit_seconds": {
      "likely": 65.89,
@@ -818,6 +789,10 @@
     "from": [
      "paper/evidence/cloud/ledger.jsonl"
     ]
+   },
+   "forecast": {
+    "rule": "models",
+    "source": "one a model, each once: the takes data/surfaces/<place>.json lists and the models pixal is forecast to make at the place (prop_takes)"
    }
   }
  },

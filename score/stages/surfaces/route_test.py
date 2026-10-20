@@ -229,6 +229,55 @@ def test_the_recheck_passes_on_one_matching_answer_and_makes_an_unanswered_ask_a
     assert verdict.answer == "fail", verdict
 
 
+def test_a_list_ask_with_no_answer_is_a_hole_the_other_takes_still_asked_and_a_set_up_fault_stops_the_row():
+    """One take's ask times out: that take gets no list and the gate names it with why, the next take is still asked
+    once. An HTTP status that is not a refusal (403, a bad key) is a set-up fault: it stops the row, never a hole."""
+    import io
+    import shutil
+    import urllib.error
+    with tempfile.TemporaryDirectory() as temporary:
+        inputs, views, split = cast_and_split(pathlib.Path(temporary))
+        for folder, name in ((views, "views.json"), (split, "groups.json")):
+            record = json.loads((folder / name).read_text())
+            record["other-t1"] = record[TAKE]
+            (folder / name).write_text(json.dumps(record))
+            shutil.copytree(folder / TAKE, folder / "other-t1")
+        groups = json.loads((split / "groups.json").read_text())[TAKE]["groups"]
+        rows = {**inputs, "finish-route-views": views, "finish-route-split": split}
+        asked = []
+
+        def first_lost(body):
+            asked.append(body)
+            if len(asked) == 1:
+                raise TimeoutError("The read operation timed out")
+            return json.dumps(answer_for(groups, "sign-red"))
+        original = route_list.ask
+        try:
+            route_list.ask = first_lost
+            out = pathlib.Path(temporary) / "list"
+            out.mkdir()
+            route_list.make_list(rows, out, 7, {"objects": [TAKE, "other-t1"]})
+            assert len(asked) == 2 and (out / "other-t1.json").exists() and not (out / f"{TAKE}.json").exists()
+            verdict = route_list.judge_list(out, rows, {})
+            assert verdict.answer == "fail", verdict
+            assert list(verdict.findings) == [f"{TAKE}: no finish list (no usable answer: TimeoutError('The read "
+                                              "operation timed out'))"], verdict.findings
+
+            def refused(body):
+                raise urllib.error.HTTPError("url", 403, "forbidden", {}, io.BytesIO())
+            route_list.ask = refused
+            again = pathlib.Path(temporary) / "again"
+            again.mkdir()
+            try:
+                route_list.make_list(rows, again, 7, {"objects": [TAKE, "other-t1"]})
+            except urllib.error.HTTPError:
+                pass
+            else:
+                raise AssertionError("a 403 is a set-up fault and stops the row")
+        finally:
+            route_list.ask = original
+
+
 def test_paid_rows_refuse_outside_a_cleared_run():
     from score.adapters import compute
     for ask in (route_list.ask, route_recheck.ask):

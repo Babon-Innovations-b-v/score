@@ -404,15 +404,15 @@ def test_a_stage_row_says_where_its_estimate_is_written():
 
 def test_each_count_rule_counts_the_units_an_output_made():
     """The count rules read the output as the stages write it: files by pattern, one file a take, a JSON's keys or
-    field, every map attempt of a take, every finish named again."""
+    field, every map attempt of a take."""
     take_map = {"front": {"attempts": [{}, {}]}, "views": {"t15-090": {"attempts": [{}]}, "t15-180": {"attempts": []}}}
-    names = {"finishes": [{"by": "the list"}, {"by": "named again (its colour)"}, {"by": "named again (its material)"}]}
+    names = {"finishes": [{"by": "the list"}]}
     outputs = Outputs({"out": {"contract.json": {}, "a-s1.json": names, "b-s1.json": names, "a-s1/map.json": take_map,
                                "passes/p-0.views.json": {}, "passes/p-1.views.json": {}, "passes/p-0/look.png": None,
                                "closeups.json": {"pro_pictures": 4}}})
     rules = [({"one": True}, 1), ({"files": "passes/*.views.json"}, 2), ({"take_files": ".json"}, 3),
              ({"json_field": ["closeups.json", "pro_pictures"]}, 4), ({"map_attempts": "map.json"}, 3),
-             ({"named_again": "-s1.json"}, 4), ({"json_keys": "missing.json"}, None)]
+             ({"json_keys": "missing.json"}, None)]
     for count, units in rules:
         assert compute.counted_units(outputs, "out", count) == units, (count, units)
 

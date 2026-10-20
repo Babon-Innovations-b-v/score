@@ -72,7 +72,7 @@ METHOD = (
         data.shape_files, ("surfaces-inputs", "surfaces-turntable", "surfaces-lists"), paid=True,
         euros=finish_rows.MAP_EUROS),
     row("surfaces-names", finish_rows.make_names, finish_rows.names_faults, "named", finish_rows.judge_names,
-        data.line_files, ("surfaces-inputs", "surfaces-maps"), paid=True, euros=finish_rows.LIST_EUROS),
+        data.line_files, ("surfaces-inputs", "surfaces-maps")),
     row("surfaces-segvigen", segvigen_row.make_segvigen, segvigen_row.segvigen_faults, "split back",
         segvigen_row.judge_segvigen, row_files.segvigen_files, ("surfaces-maps",), paid=True,
         euros=segvigen_row.SEGVIGEN_EUROS),

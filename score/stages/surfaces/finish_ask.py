@@ -3,8 +3,12 @@
 
 Each is asked once (the batch rule, #21): no second draw, no second naming, no ask again after a timeout. A call cut
 off mid-way is not free: google_spend counts it at its estimate. Only a refusal (HTTP 429 or 503: the API took no
-work, the flex tier full) is asked again, at most REFUSED_ASKS times; any other fault reaches the row, which makes the
-take a hole.
+work, the flex tier full) is asked again, at most REFUSED_ASKS times. An ask with no usable answer (UNANSWERED: a
+timeout, a lost connection, refused every time, a reply that does not parse) makes its take a hole; any other HTTP
+status (400 a body the API rejects, 401 or 403 a bad key, 404 a wrong model) is a set-up fault, not an output's, and
+stops the row once instead of making every take a hole. A refused send is written to the Google ledger as started
+then failed, and google_spend.month_euros and route_cap.route_euros count it at its estimate though Google billed
+nothing for it: the books lean high until Google's billing export (#13) reads the month.
 
 - finish_list: Gemini 3.1 Pro (temperature 0, structured output, thinking held low, on the flex tier at half price)
   looks at a model's close-up and lists its finishes (few, only finishes that truly differ), each mapped to one of the
@@ -87,21 +91,37 @@ no shading, no light, no texture, no gradients, no outlines, no lines, no text. 
 these colours; not one pixel of the photograph may remain. The background is plain pure white."""
 
 
-def generated(model, body, key, timeout, caller, cache):
+class NoAnswer(Exception):
+    """An ask that got no answer: refused REFUSED_ASKS times, or its connection lost before an HTTP status."""
+
+
+# What an ask that got no usable answer raises; each makes its take or draw a hole, never an ask again. An HTTPError
+# that is not a refusal is left out on purpose: a set-up fault stops the row (module docstring).
+UNANSWERED = (NoAnswer, TimeoutError, ConnectionError, ValueError, KeyError)
+
+
+def generated(model, body, key, timeout, caller, cache, room=None):
     """google_spend.generate, asked once. A refusal (HTTP REFUSED: rate, quota or a full flex tier) did no work and is
-    asked again after a wait, at most REFUSED_ASKS times in all; a timeout or a dropped connection reaches the
-    caller (the row makes its take a hole): Google may bill a call cut off mid-way, and google_spend counts it at its
-    estimate."""
+    asked again after a wait, at most REFUSED_ASKS times in all, `room` (a cap's check, when given) called before
+    every send; refused every time, or a connection lost before any status, raises NoAnswer. A timeout reaches the
+    caller as it is (the row makes its take a hole): Google may bill a call cut off mid-way, and google_spend counts
+    it at its estimate. Any other HTTP status reaches the caller unchanged."""
     import time
     import urllib.error
     import google_spend
     for attempt in range(REFUSED_ASKS):
+        if room is not None:
+            room()
         try:
             return google_spend.generate(model, body, key, timeout, caller=caller, cache=cache)
         except urllib.error.HTTPError as error:
-            if error.code not in REFUSED or attempt == REFUSED_ASKS - 1:
+            if error.code not in REFUSED:
                 raise
+            if attempt == REFUSED_ASKS - 1:
+                raise NoAnswer(f"refused {REFUSED_ASKS} times, last HTTP {error.code}") from error
             time.sleep(REFUSED_WAIT * 2 ** attempt)
+        except urllib.error.URLError as error:
+            raise NoAnswer(f"no connection: {error.reason!r}") from error
 
 
 def secret_key():

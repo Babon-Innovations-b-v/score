@@ -60,7 +60,7 @@ ROWS = (
     row("people-maps", finish_rows.make_maps, finish_rows.maps_faults, (("maps checked", finish_rows.judge_maps),),
         SHAPE, ("people-inputs", "people-turntable", "people-lists"), paid=True, euros=finish_rows.MAP_EUROS),
     row("people-names", finish_rows.make_names, finish_rows.names_faults, (("named", finish_rows.judge_names),),
-        NAMING, ("people-inputs", "people-maps"), paid=True, euros=finish_rows.LIST_EUROS),
+        NAMING, ("people-inputs", "people-maps")),
     row("people-segvigen", segvigen_row.make_segvigen, segvigen_row.segvigen_faults,
         (("split back", segvigen_row.judge_segvigen),), {**segvigen_row.FILES, **SHAPE}, ("people-maps",),
         paid=True, euros=segvigen_row.SEGVIGEN_EUROS),

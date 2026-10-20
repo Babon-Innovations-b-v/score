@@ -308,6 +308,25 @@ def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_ask
         except urllib.error.HTTPError:
             pass
         assert len(asked) == 1, asked
+        asked.clear()
+        rooms = []
+        google_spend.generate = answering(refusal(429), refusal(503), refusal(429))
+        try:
+            finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False, room=lambda: rooms.append(1))
+        except finish_ask.NoAnswer:
+            pass
+        else:
+            raise AssertionError("refused every time is no answer")
+        assert len(asked) == finish_ask.REFUSED_ASKS == len(rooms), (asked, rooms)
+        asked.clear()
+        google_spend.generate = answering(urllib.error.URLError(ConnectionRefusedError(111, "refused")))
+        try:
+            finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False)
+        except finish_ask.NoAnswer:
+            pass
+        else:
+            raise AssertionError("a lost connection is no answer")
+        assert len(asked) == 1, asked
     finally:
         google_spend.generate, finish_ask.REFUSED_WAIT = saved
 
@@ -339,7 +358,9 @@ def test_the_list_ask_holds_the_close_ups_colours_and_the_surfaces_near_them_wit
     assert plain.endswith("propose a new library surface for it."), plain
 
 
-def test_a_declared_piece_asks_nothing_and_a_list_with_no_answer_is_a_hole():
+def test_a_declared_piece_asks_nothing_a_list_with_no_answer_is_a_hole_and_a_set_up_fault_stops_the_row():
+    import io
+    import urllib.error
     import labels
     from score.stages.surfaces import finish_rows
     import finish_ask as asks
@@ -353,6 +374,9 @@ def test_a_declared_piece_asks_nothing_and_a_list_with_no_answer_is_a_hole():
 
     def lost(*arguments, **options):
         raise TimeoutError("The read operation timed out")
+
+    def forbidden(*arguments, **options):
+        raise urllib.error.HTTPError("url", 403, "forbidden", {}, io.BytesIO())
     finish_rows.close_up, asks.finish_list = never, never
     try:
         record = finish_rows.take_list({}, "wall_1", entry)
@@ -360,6 +384,13 @@ def test_a_declared_piece_asks_nothing_and_a_list_with_no_answer_is_a_hole():
         assert finish_rows.take_list({}, "wall_2", dict(entry, surface="gold_foil"))["hole"]
         finish_rows.close_up, asks.finish_list = (lambda inputs, take: two_colour_close_up()), lost
         hole = finish_rows.take_list({}, "crate", {key: value for key, value in entry.items() if key != "surface"})
+        asks.finish_list = forbidden
+        try:
+            finish_rows.take_list({}, "crate", {key: value for key, value in entry.items() if key != "surface"})
+        except urllib.error.HTTPError:
+            pass
+        else:
+            raise AssertionError("a 403 is a set-up fault and stops the row, never a hole")
     finally:
         labels.allowed_materials, finish_rows.close_up, asks.finish_list = saved
     assert hole["finishes"] == [] and "TimeoutError" in hole["hole"], hole
@@ -458,7 +489,7 @@ def test_a_finish_a_little_out_of_order_keeps_it_by_a_nearer_surface_of_either()
                                           every) == bright
 
 
-def test_a_finish_out_of_order_is_named_again_and_a_part_behind_a_see_through_cover_is_left_out():
+def test_a_finish_out_of_order_is_found_and_a_part_behind_a_see_through_cover_is_left_out():
     lightness = {"anodized_natural": 60.0, "dust_coated_paint": 70.0}
     white = {"surface": "anodized_natural", "measured_lab": [80.6, 1.0, 2.0]}  # the campgrounds' power unit
     dusty = {"surface": "dust_coated_paint", "measured_lab": [69.7, 0, 0]}

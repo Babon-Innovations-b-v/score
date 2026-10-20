@@ -56,9 +56,6 @@ REGION_COLOURS, REGION_LEAST, NEAR_MOST = 6, 0.05, 4
 LIST_EUROS, MAP_EUROS = 0.5, 7.0
 SEEDS = (1,)  # the close-up's one draw, asked strictly (finish_ask.STRICT)
 VIEW_SEEDS = (1,)
-# What an ask that got no usable answer raises: a timeout or dropped connection (OSError), an answer that does not
-# parse (ValueError, KeyError). Each makes its take or draw a hole, never an ask again.
-UNANSWERED = (OSError, ValueError, KeyError)
 
 
 def takes_of(inputs):
@@ -125,7 +122,7 @@ def take_list(inputs, take, entry):
     picture = close_up(inputs, take)
     try:
         finishes = finish_ask.finish_list(picture, entry["object"], surfaces, close_up_regions(picture, surfaces))
-    except UNANSWERED as error:
+    except finish_ask.UNANSWERED as error:
         return {"take": take, "finishes": [], "hole": f"no usable finish list: {error!r}"[:300]}
     return {"take": take, "finishes": finishes}
 
@@ -167,7 +164,7 @@ def drawn_attempts(draw, seeds, alpha, listed, every_label, folder, name):
     for map_seed in seeds:
         try:
             picture = draw(map_seed)
-        except UNANSWERED as error:
+        except finish_ask.UNANSWERED as error:
             records.append({"seed": map_seed, "passes": False, "why": f"no answer: {error!r}"[:300]})
             continue
         if picture is None:
