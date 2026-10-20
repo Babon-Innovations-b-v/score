@@ -10,6 +10,7 @@ applied in his process and never an agent's (the store and score.review.web refu
 """
 import time
 import urllib.error
+from concurrent.futures import ThreadPoolExecutor
 
 from score.dashboard.sync import applying, client
 
@@ -20,13 +21,12 @@ SHORTEST_ROUND = 2.0  # an empty answer sooner than this waits this long before 
 
 
 def round_once(remote, source):
-    """One held call: every waiting request of LISTENED answered; [(id, state)]."""
-    done = []
-    for item in remote.waiting(LISTENED, WAIT_SECONDS):
-        applied = client.answered(remote, item, source)
-        if applied is not None:
-            done.append((item["id"], applied.state))
-    return done
+    """One held call: every waiting request of LISTENED answered, side by side (a Draw all's draws are one direct
+    call each, made at once); [(id, state)]."""
+    items = remote.waiting(LISTENED, WAIT_SECONDS)
+    with ThreadPoolExecutor(max_workers=max(1, len(items))) as pool:
+        answers = list(pool.map(lambda item: (item["id"], client.answered(remote, item, source)), items))
+    return [(request_id, applied.state) for request_id, applied in answers if applied is not None]
 
 
 def listen(remote, source, rounds=None, log=print, pause=time.sleep):

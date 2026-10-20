@@ -205,7 +205,18 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `ExportedSource` beside the export's) and a pick since the export show at once; the cards follow at the next export.
   An outside place's or shell's page names the inside places its draw is asked to hold (`asked_to_hold`; the wording
   is `score/review/concepts.py` `shell_wording`: each at its plan's size, joined as laid out, recognisable from
-  outside, and its outside's parts). No batch: the batch rules start once the design is approved.
+  outside, and its outside's parts). No batch: the batch rules start once the design is approved. The
+  Environment's top bar carries **Draw all N, EUR X** for the owner (owner, 2026-10-20; `concepts.draw_all`, hidden
+  at N 0): every place or shell with no draw yet whose first draw can be made now (`WorldState.concept_undrawn`, read
+  on the store's machine by `score/review/concepts.undrawn`: one whose first wording is refused, its reference not on
+  the PC, waits, counted in the hover; an inside place is drawn from its own plan and view as a single draw is, not
+  held for its outside's pick) and none on its way, X = N times the per-draw price. Its click (`/concepts/draw-all/`,
+  refused when the list or the total moved) is his one spend yes for exactly those first draws: N `concept-draw`
+  requests at the per-draw price, each with the Draw all's count and total (`all`), each written as its own override
+  yes saying so and refused on the store's machine once the price moved or its place has a draw (`web.concept_draw`
+  `first`); local in a thread each, hosted the listener answers a held call's requests side by side. The cards show a
+  draw as it lands (`concepts.newest_pictures`, hosted with those answered since the export) and the screen reads
+  itself again every 15 s while a draw is on its way.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the

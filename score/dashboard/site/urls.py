@@ -18,6 +18,7 @@ urlpatterns = [
     path("buy/", views.buy),
     path("buy/yes/", basket.buy_yes),
     path("stats/", views.stats),
+    path("concepts/draw-all/", concepts.concept_draw_all),
     path("concept/<slug:place>/", concepts.concept_page),
     path("concept/<slug:place>/draw/", concepts.concept_draw),
     path("concept/<slug:place>/pick/", concepts.concept_pick),

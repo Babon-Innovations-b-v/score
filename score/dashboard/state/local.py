@@ -522,8 +522,9 @@ class LocalSource:
         return refs
 
     def concept_review(self):
-        """{concept_draws, concept_picked, concept_draw_euros} of the concept review (score/review/concepts.py): each
-        place's draws whose bytes stand in the store's blobs, oldest first, and its picked draw's sha."""
+        """{concept_draws, concept_picked, concept_draw_euros, concept_undrawn, concept_unready} of the concept review
+        (score/review/concepts.py): each place's draws whose bytes stand in the store's blobs, oldest first, its picked
+        draw's sha, and the places and shells with no draw yet that Draw all draws now, and why the others wait."""
         from score.review import concepts
         draws, picked = {}, {}
         for node in concepts.placed(self.store):
@@ -539,7 +540,9 @@ class LocalSource:
                 draws[node] = found
             if concepts.picked(self.store, node):
                 picked[node] = concepts.picked(self.store, node)
-        return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros()}
+        ready, waiting = concepts.undrawn(self.store, [*self.places(), *self.hierarchy()["shells"]])
+        return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros(),
+                "concept_undrawn": ready, "concept_unready": waiting}
 
     def hierarchy(self):
         """{within, shells} of data/places/within.json: what each place or shell sits within (a part of a place's

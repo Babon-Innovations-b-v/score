@@ -98,10 +98,12 @@ def stop_line(store, world):
     return guard.current(store, world)
 
 
-def concept_draw(store, place, request, euros, by, run=None):
+def concept_draw(store, place, request, euros, by, run=None, first=False, purpose=None):
     """His click on a concept review's Draw button: his yes for that one call at `euros` (the price the button
-    showed), then the draw as its own process inside it; the draw's record. review.Refused for an empty or the
-    runner's name, a price that moved, or a draw refused (its words); PermissionError in an agent's process."""
+    showed), then the draw as its own process inside it; the draw's record. `first` (his Draw all: one of the first
+    draws its total covered) refuses once the place has a draw; `purpose` says the click in the yes. review.Refused
+    for an empty or the runner's name, a price that moved, or a draw refused (its words); PermissionError in an
+    agent's process."""
     import json
     import os
     import subprocess
@@ -113,8 +115,10 @@ def concept_draw(store, place, request, euros, by, run=None):
         shown = "not measured" if price is None else f"EUR {price:.2f}"
         raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
                              "read the page again")
+    if first and concepts.draws(store, place):
+        raise review.Refused(f"{place} has a draw since the click: the places to draw changed; read the page again")
     key = concepts.yes_key(place, review.now())
-    review.spend(store, "override", key, price, name, purpose=f"concept review: one draw of {place}")
+    review.spend(store, "override", key, price, name, purpose=purpose or f"concept review: one draw of {place}")
     asked = store.cache / concepts.AREA / "asked" / f"{key}.json"
     asked.parent.mkdir(parents=True, exist_ok=True)
     asked.write_text(json.dumps(request))

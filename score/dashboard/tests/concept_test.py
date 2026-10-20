@@ -164,3 +164,61 @@ def test_the_listener_says_an_unreachable_hosted_side_and_asks_again(world):
     paused.clear()
     listen.listen(Old(), world.source, rounds=3, log=said.append, pause=paused.append)
     assert paused == [listen.SHORTEST_ROUND] * 3
+
+
+def test_draw_all_draws_every_undrawn_place_at_once_its_click_the_yes_for_that_total(world, stand_in):
+    owner = signed_in()
+    html = owner.get("/").content.decode()
+    assert "Draw all 2, EUR 0.30" in html and "/concepts/draw-all/" in html
+    shown = concepts.draw_all(concepts.light_world(world.source))
+    answer = owner.post("/concepts/draw-all/", json.dumps({"places": shown["places"], "euros": 0.30}),
+                        content_type="application/json")
+    assert answer.status_code == 200, answer.content
+    for place in ("alpha", "beta"):
+        found = drawing.draws(world.source.store, place)
+        assert len(found) == 1 and found[0]["base"] is None and found[0]["euros"] == PRICE
+        yes = world.source.store.spend_yes("override", found[0]["yes"])
+        assert yes["euros"] == PRICE and "Draw all, 2 first draws for EUR 0.30" in yes["purpose"]
+    assert "Draw all" not in owner.get("/").content.decode()  # nothing left undrawn: the button is gone
+
+
+def test_draw_all_is_refused_when_the_total_or_the_places_changed_or_for_anyone_else(world, stand_in):
+    owner = signed_in()
+    places = concepts.draw_all(concepts.light_world(world.source))["places"]
+    for body in ({"places": places, "euros": 0.15}, {"places": ["alpha"], "euros": 0.15}):
+        assert owner.post("/concepts/draw-all/", json.dumps(body), content_type="application/json").status_code == 409
+    assert signed_in("mallory").post("/concepts/draw-all/", json.dumps({"places": places, "euros": 0.30}),
+                                     content_type="application/json").status_code == 403
+    assert SyncRequest.objects.count() == 0
+    owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
+    with pytest.raises(web.review.Refused, match="changed"):  # on the store's machine: drawn since the click
+        web.concept_draw(world.source.store, "beta", {}, PRICE, by="joey", first=True)
+    assert len(drawing.draws(world.source.store, "beta")) == 1
+
+
+def test_draw_all_leaves_out_a_place_that_cannot_be_drawn_now_and_says_how_many(world, stand_in, monkeypatch):
+    wording = drawing.first_wording
+
+    def no_reference(place):
+        if place == "alpha":
+            raise drawing.Refused("its reference is not on this machine")
+        return wording(place)
+    monkeypatch.setattr(drawing, "first_wording", no_reference)
+    html = signed_in().get("/").content.decode()
+    assert "Draw all 1, EUR 0.15" in html and "1 more with none cannot be drawn now" in html
+
+
+def test_the_listener_answers_a_draw_alls_draws_side_by_side(world, stand_in, settings):
+    owner = signed_in()
+    places = concepts.draw_all(concepts.light_world(world.source))["places"]
+    settings.SCORE_MODE = settings.HOSTED
+    try:
+        owner.post("/concepts/draw-all/", json.dumps({"places": places, "euros": 0.30}),
+                   content_type="application/json")
+        assert concepts.draw_all(concepts.light_world(world.source)) is None  # on their way: not offered twice
+    finally:
+        settings.SCORE_MODE = settings.LOCAL
+    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
+        answered = listen.round_once(remote_of(hosted_client()), world.source)
+    assert sorted(state for _, state in answered) == ["done", "done"]
+    assert all(len(drawing.draws(world.source.store, place)) == 1 for place in places)
