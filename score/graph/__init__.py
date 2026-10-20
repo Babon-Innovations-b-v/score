@@ -172,6 +172,9 @@ class Stage:
     gapped: names in `after` the node also reads when their only blocking check is GAPPED, the place's named gaps
     (a dated decision): the output on its current key, which the runner never accepts as it fails, unless the owner
     rejected it; any other fault still stops the node (demo-film on complete, the overseer, 2026-10-15).
+    nested: its `beside` reads go up the places that hold this one (an inside place reads its outside shell's
+    split, CONTEXT.md "shapes first"), never back down, so a loop through them in the table is the same route one scale
+    down: the table's loop check leaves those reads out, and `neighbours` must refuse a place that holds itself.
     euros_from: where the row naming its estimate is written, `<file>:<line>` (set when the row is built: the line
     that builds it, through a helper of the same file that passes its `euros` on), so a guess says where it comes
     from. Never in a key.
@@ -193,6 +196,7 @@ class Stage:
     neighbours: Callable = None
     optional: tuple = ()
     gapped: tuple = ()
+    nested: bool = False
     euros_from: str = field(default=None, init=False, compare=False)
 
     def __post_init__(self):
@@ -472,14 +476,20 @@ class Runner:
         """Every stage a stage reads, after or beside, directly or through what those read. A stage graph without a
         loop has no node cycle: after is in one place, and a beside read is another place's node of a stage that
         never reads back to this one (the assembly reads the claiming place's bake beside it; neighbours reads the
-        assembly beside it)."""
-        found, todo = set(), list((*self.stages[name].after, *self.stages[name].beside))
+        assembly beside it). A nested stage's beside reads are left out: they go up to the place holding this one,
+        so its loop is the route one scale down, never a node cycle (`Stage.nested`)."""
+        found, todo = set(), list(self.read_stages(self.stages[name]))
         while todo:
             before = todo.pop()
             if before not in found:
                 found.add(before)
-                todo += [*self.stages[before].after, *self.stages[before].beside]
+                todo += self.read_stages(self.stages[before])
         return found
+
+    @staticmethod
+    def read_stages(stage):
+        """The stages one stage reads that can close a loop: its after, and its beside unless it is nested."""
+        return [*stage.after, *(() if stage.nested else stage.beside)]
 
     @contextlib.contextmanager
     def still(self):

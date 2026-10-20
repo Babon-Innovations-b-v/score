@@ -50,7 +50,8 @@ RULES = (MISSING, GATE, PLACE)
 SOURCES = ("neighbours", "assembly")  # the stage the holes stand over: the first accepted
 STEP_SENTENCES = {fill.CONCEPT: "no concept is picked for this place",
                   fill.PLAN: "this place's plan is not accepted",
-                  fill.ROUGH_MODEL: "this place's rough model is not accepted"}
+                  fill.ROUGH_MODEL: "this place's rough model is not accepted",
+                  fill.SHELL_SPLIT: "this outside shell's plan is not split into its inside places"}
 
 
 def accepted_stage(store, place):

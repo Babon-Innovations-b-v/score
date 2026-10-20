@@ -26,8 +26,8 @@ import pathlib
 from score import checks, contracts, graph
 from score.stages import (assembly, cast, complete, concept_people, concept_view, crops, demo_film, demo_turntable,
                           effects, gaps, images, library, light, machines, motion, people, people_takes, physics,
-                          props, proposals, rough_model, scene_record, settling, sound, surface_tiles, surfaces,
-                          terrain)
+                          props, proposals, rough_model, scene_record, settling, shell_split, sound, surface_tiles,
+                          surfaces, terrain)
 from score.stages.surfaces import bake_check, carry, library_reads
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
@@ -142,7 +142,13 @@ def plan_as_kit(function, position):
 PLAN = graph.Stage("plan", "place", plan_as_kit(scene_record.plan.make, 0), scene_record.plan.PLACE_PLAN,
                    tuple(dataclasses.replace(check, judge=plan_as_kit(check.judge, 1))
                          for check in scene_record.plan.CHECKS),
-                   files=kit_if_laid(scene_record.plan.files), applies=scene_record.written)
+                   files=kit_if_laid(scene_record.plan.files), applies=scene_record.written,
+                   beside={"shell-split": ("shell-split", 1)}, nested=True, neighbours=shell_split.shell_of)
+# Shapes first (CONTEXT.md "shell split"): an outside shell's plan split into the shapes of its inside places, free and
+# local, for a place whose plan has a `split`; each inside place's plan reads its shell's split beside it (PLAN's
+# `beside`, nested: up to the shell, never back down), so the runner makes the shell's split before its inside places.
+SHELL_SPLIT = graph.Stage("shell-split", "place", shell_split.make, shell_split.CONTRACT, shell_split.CHECKS,
+                          files=shell_split.files, after={"plan": ("place-plan", 2)}, applies=shell_split.applies)
 # The place's rough model (shapes first: the prop pipeline on its whole concept, the picture its plan names), after its
 # plan (score/stages/rough_model, its overlay); paid, for every place with a plan.
 ROUGH_MODEL = graph.Stage("rough-model", "place", rough_model.make, rough_model.CONTRACT, rough_model.CHECKS,
@@ -420,7 +426,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
           *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
           props.CALIBRATION, props.LIKENESS,
-          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, ROUGH_MODEL, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
+          *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, SHELL_SPLIT, ROUGH_MODEL, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MACHINES, MACHINE_BOXES, MOTION,
           *light.ROWS, *map(library_narrowed, map(crops_bake_checked, crops.ROWS)), COMPLETE_BOXES,
           surface_tiles.STAGE)
 

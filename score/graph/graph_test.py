@@ -500,6 +500,42 @@ def test_a_stage_reads_other_places_beside_without_a_cycle():
     a_runner(world, store, (CLEAN, COUNT, SHOW, shown_again))
 
 
+def make_outlined(inputs, out, seed, params):
+    """Its own clean text, after its shell's split where it has one."""
+    shells = [(inputs[name] / "split.txt").read_text() for name in sorted(inputs) if name.startswith("split@")]
+    (out / "outlined.txt").write_text(" ".join([*shells, (inputs["clean"] / "clean.txt").read_text()]))
+
+
+def make_split(inputs, out, seed, params):
+    (out / "split.txt").write_text("SPLIT " + (inputs["outlined"] / "outlined.txt").read_text())
+
+
+OUTLINED = graph.Stage("outlined", "place", make_outlined, TEXT, (checks.Check("counted", judge_count),),
+                       after={"clean": ("toy-text", 1)}, beside={"split": ("toy-text", 1)}, nested=True,
+                       neighbours=lambda place: ["station"] if place == "hangar" else [])
+SPLIT = graph.Stage("split", "place", make_split, TEXT, (checks.Check("counted", judge_count),),
+                    after={"outlined": ("toy-text", 1)})
+
+
+def test_an_inside_place_reads_its_shells_split_one_scale_down():
+    """Shapes first (CONTEXT.md): an inside place's stage reads its outside shell's split, which reads the shell's
+    own node of that stage. A loop in the table, none in the nodes: a nested stage's beside reads are left out of the
+    table's loop check, and the drive makes the shell's line first. The same stage not nested is refused."""
+    world, store, _ = ready_world()
+    runner = a_runner(world, store, (CLEAN, COUNT, OUTLINED, SPLIT))
+    found = runner.drive(["hangar"], say=lambda line: None, jobs=1, whole=False)
+    assert found["outlined@hangar"] == "made: pass, accepted automatically", found
+    assert runner.key(OUTLINED, "hangar")["beside"] == {"split@station": store.accepted("split@station")}
+    inside = store.checkout(store.accepted("outlined@hangar"))
+    assert (inside / "outlined.txt").read_text() == "SPLIT A HUB A SHIP IN A HALL"
+    try:
+        a_runner(world, store, (CLEAN, COUNT, dataclasses.replace(OUTLINED, nested=False), SPLIT))
+    except ValueError as refused:
+        assert "cycle" in str(refused)
+    else:
+        raise AssertionError("a loop through a beside read that is not nested was declared")
+
+
 def judge_seen(output, inputs, evidence):
     return checks.Verdict("seen", checks.PASS, "it was made")
 
