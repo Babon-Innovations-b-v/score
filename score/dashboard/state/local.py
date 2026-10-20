@@ -549,15 +549,12 @@ class LocalSource:
                 "concept_wordings": {node: self.concept_wording(node) for node in nodes}}
 
     def concept_wording(self, node):
-        """What `node`'s draws send (score/review/concepts.py): its generated first-draw wording, or why it cannot be
-        drawn now, the creator's own wording and what a redraw sends."""
+        """What `node`'s draws send (score/review/concepts.py): its generated first-draw wording, why it cannot be
+        drawn now, the creator's own wording, the pictures a first draw sends and what a redraw sends."""
         from score.review import concepts
-        try:
-            generated, refused = concepts.generated_now(self.store, node)[0], None
-        except concepts.Refused as why:
-            generated, refused = None, str(why)
-        return ConceptWording(generated=generated, own=concepts.own_wording(self.store, node), refused=refused,
-                              redraw=concepts.redraw_preview(node))
+        return ConceptWording(generated=concepts.generated(node), own=concepts.own_wording(self.store, node),
+                              refused=concepts.waits(self.store, node), redraw=concepts.redraw_preview(),
+                              pictures=[words for words, _ in concepts.sent_pictures(node)])
 
     def hierarchy(self):
         """{within, shells} of data/places/within.json: what each place or shell sits within (a part of a place's

@@ -4,7 +4,7 @@ one direct Nano Banana Pro call that his click paid for, and his pick that locks
 The store keeps them; in the framework's store an agent's process cannot write them (`recorded`: the store's own
 barrier for its owner areas, applied here, so score/store, which most stages' keys read, stays as it is):
 
-    concepts/<place>/draws/<time>.json   {place, sha, name, at, by, euros, yes, base, marks, note, wording}
+    concepts/<place>/draws/<time>.json   {place, sha, name, at, by, euros, yes, base, marks, note, wording, above}
     concepts/<place>/picks/<time>.json   {place, sha (None: unlocked again), by, at}
     concepts/<place>/wordings/<time>.json {place, wording (None: back to the generated), by, at}
     blobs/<sha>                          the drawn picture (PNG)
@@ -31,13 +31,16 @@ the place's wording now)}. A first draw sent with his edited wording sends exact
 as the place's own wording (`wordings/`, in his process only) from then on, for every first draw and Draw all and for
 which draw counts as current, until he takes it back to the generated one (`worded` with None; owner, 2026-10-20).
 A redraw sends the base twice: once with the marked areas boxed and numbered, once
-clean. A first draw (no concept yet: all of environment 1's were lost) is worded from the place's data the way the
-concept-views row words its views: its view in data/definitions/concept_views.json when it has one (the newest), else
-its look (data/definitions/place.json) and its plan's size and elements, with the environment's one style wording
-(concept_views.json `style`, the owner's) after it; a view's reference picture (the owner's, kept in the private
-bucket's references/, never the public repository; read from its local copy under {home}/references) goes with it,
-and a draw whose reference is not on this machine is refused. A draw's price is the measured Nano Banana Pro picture (data/costs/per-unit.json, stage closeup)
-at the standard tier: a draw is one direct call, not a batch call.
+clean. A first draw is worded by one rule for every place at every layer (`generated`; the owner, 2026-10-20): its
+look (data/definitions/place.json, no measures), the creator's says (data/places/concept_inputs.json), the places
+listed inside it (data/places/within.json) and how they join, the place it sits within as context, the pictures sent
+with it named in order, the fixed viewpoint and the environment's style (data/definitions/concept_views.json
+`style`). A place within another is sent that one's picked concept first, and cannot be drawn while it is not
+picked (`waits`); then its references (the owner's, kept in the private bucket's references/, never the public
+repository; read from the local copy under {home}/references; a draw whose reference is not here waits). A draw's
+record keeps the pick above it was sent (`above`), so a new pick there puts it out of date (`current_draw`). A draw's
+price is the measured Nano Banana Pro picture (data/costs/per-unit.json, stage closeup) at the standard tier: a draw
+is one direct call, not a batch call.
 """
 import base64
 import datetime
@@ -124,33 +127,26 @@ def picked(store, place):
 
 def undrawn(store, nodes):
     """The Environment's Draw all (owner, 2026-10-20): ([node] of `nodes`, none picked, with no first draw from its
-    current wording yet, whose first draw can be made now, {node: why not} for the others with none). A part of another place's outside (the square, the launch)
-    is never drawn on its own; an inside place waits for its outside's pick, so it is drawn to fit it (CONTEXT.md
-    "concept")."""
-    ready, waiting, found = [], {}, tree()
+    current wording yet, whose first draw can be made now, {node: why not} for the others with none): layer by layer,
+    a place within another waits for that one's pick, so it is drawn on it (CONTEXT.md "concept")."""
+    ready, waiting = [], {}
     for node in nodes:
-        if node in found["parts"] or picked(store, node):
+        if picked(store, node):
             continue
-        holder = found["within"].get(node)
-        if holder and not picked(store, holder):
-            waiting[node] = f"waits for {holder}'s concept to be picked"
-            continue
-        try:
-            wording = wording_now(store, node)[0]
-        except Refused as refused:
-            waiting[node] = str(refused)
-            continue
-        if not current_draw(store, node, wording):
+        if why := waits(store, node):
+            waiting[node] = why
+        elif not current_draw(store, node, wording_now(store, node)):
             ready.append(node)
     return ready, waiting
 
 
 def current_draw(store, place, wording):
     """Whether `place` has a first draw made from `wording`, its current first-draw wording (wording_now: the
-    creator's own when set); a draw from an older wording (its data, the draw rules or his wording changed since)
-    does not count, so Draw all draws it again."""
+    creator's own when set), on the pick of the layer above it now; a draw from an older wording or pick above (its
+    data, the draw rules, his wording or the pick above changed since) does not count, so Draw all draws it again."""
+    sent_above = above_sent(store, place)
     return any(draw.get("base") in (None, "None") and str(draw.get("wording", "")).startswith(wording)
-               for draw in draws(store, place))
+               and draw.get("above") == sent_above for draw in draws(store, place))
 
 
 def placed(store):
@@ -208,19 +204,26 @@ def recorded(store, key, record):
 
 
 # --- the wording ----------------------------------------------------------------------------------------------
+# One rule for every place at every layer (the owner, 2026-10-20: "just feed down the concept of the layer above"):
+# its own look and the creator's says, the places listed inside it and how they join, the place it sits within as
+# context, the pictures sent with it named in order (the layer above's picked concept first, then its references),
+# the fixed viewpoint and the environment's style. No measures but the creator's own says: the drawing finds the shape.
+
+OUTSIDE_VIEW = ("Viewpoint: a high three-quarter view from one corner, looking down about 35 to 45 degrees, so its "
+                "footprint, its roofs and two of its sides show; the whole place in frame with a small margin, its "
+                "surroundings only at the edges; a long lens with little perspective distortion, so sizes compare "
+                "honestly; clear, readable light within the place's own mood.")
+INSIDE_VIEW = ("Viewpoint: a cutaway, the roof and the near walls removed, seen from a high three-quarter view from one "
+               "corner looking down about 35 to 45 degrees, so the whole floor and every remaining wall can be read; "
+               "a long lens with little perspective distortion; clear, readable light within the place's own mood.")
+EVERY_DRAW = "One picture, 16:9, no text and no labels; people in view for scale."
+
 
 def resolved(path):
     """A data path with its {home} (the prop tools' home: the private references' local copy is its references/),
     {seeds} and {data} filled in."""
     filled = path.replace("{home}", str(PROPS_HOME)).replace("{seeds}", str(PROPS_HOME / "work"))
     return pathlib.Path(filled.replace("{data}", str(DATA)))
-
-
-def view_of(place):
-    """The newest concept view requested for `place` (data/definitions/concept_views.json), or None."""
-    views = json.loads((DATA / "definitions/concept_views.json").read_text())["views"]
-    found = [view for view in views if view["id"].split("_", 1)[-1] == place]
-    return found[-1] if found else None
 
 
 def look_of(place):
@@ -238,18 +241,9 @@ def plan_of(place):
     return json.loads(plan_path.read_text()) if plan_path.is_file() else {}
 
 
-def from_data(place):
-    """A first draw's wording from the place's look and plan."""
-    look = look_of(place) or {}
-    name = look.get("name") or plan_of(place).get("title", place).lower()
-    return " ".join([f"One concept painting of {name}.", *described(place)])
-
-
-def described(place):
-    """[sentence] of a place's look, as the creator's look says it. No sizes and no list of what it holds: the old
-    plans and inventories were read from earlier concepts, and the drawing finds the shape (the owner, 2026-10-20)."""
-    look = look_of(place) or {}
-    return [f"Its look: {look['style']['text']}"] if look.get("style", {}).get("text") else []
+def inputs_of(place):
+    """{says, references} the creator gave `place`'s draw (data/places/concept_inputs.json), {} when none."""
+    return json.loads((DATA / "places/concept_inputs.json").read_text())["places"].get(place, {})
 
 
 def style():
@@ -259,38 +253,16 @@ def style():
     return f"The whole environment's style: {found}" if found else ""
 
 
-def floor_wording(place, floor):
-    """A shell's first draw from its floor plan (data/definitions/<shell>_floor.json; the owner, 2026-10-20): its
-    whole outside at its true length, large enough for every room it holds, people and a vehicle beside it for scale;
-    its own views' reference (concept_views.json ids `<shell>_...`) for its look only, never its size: (wording,
-    that view or None)."""
-    plan = json.loads(floor.read_text())
-    rooms = [room["name"] for room in plan.get("rooms", [])]
-    words = [f"One concept painting of the whole {place} seen from outside. It is {plan['length']:g} m long: large enough to hold, on one deck inside, {', '.join(rooms)}, "
-             "and a walkway joining them. Show its true size: people and a vehicle on the ground beside it, small "
-             "against it."]
-    views = json.loads((DATA / "definitions/concept_views.json").read_text())["views"]
-    own = [view for view in views if view["id"].startswith(f"{place}_")]
-    if own:
-        words.append("The attached picture gives its look only (its shape language, materials and landing legs), "
-                     "never its size or proportions: it shows a much smaller ship.")
-    return " ".join(words), (own[-1] if own else None)
-
-
 def tree():
     """data/places/within.json: {within: {place: what holds it}, shells: {shell: its short name}}."""
     found = json.loads((DATA / "places/within.json").read_text())
     return {"within": {name: entry["within"] for name, entry in found["within"].items()},
-            "shells": {name: entry["name"] for name, entry in found["shells"].items()},
-            "parts": found.get("parts", {})}
+            "shells": {name: entry["name"] for name, entry in found["shells"].items()}}
 
 
-def parts_words(place):
-    """The parts of `place`'s own outside (within.json `parts`: seen, never walked, no place of their own), each as
-    its `as` words; "" when it has none."""
-    found = [entry["as"] for entry in tree()["parts"].values() if entry["of"] == place]
-    return (f"The view is wide enough to take in its whole outside, these parts in view as much as the place itself: "
-            f"{'; '.join(found)}.") if found else ""
+def above(place):
+    """The place or shell `place` sits within, None for an outside place of its own."""
+    return tree()["within"].get(place)
 
 
 def inside_of(place):
@@ -298,11 +270,9 @@ def inside_of(place):
     return [name for name, holder in tree()["within"].items() if holder == place]
 
 
-def holds_inside(place):
-    """Whether `place` is an outside shell (one of within.json's `shells`, or a place sitting within nothing) with
-    inside places listed under it; an inside place holding one (the hangar, the ship) is drawn from inside."""
-    found = tree()
-    return (place in found["shells"] or place not in found["within"]) and bool(inside_of(place))
+def name_of(place):
+    """A place's name as its look gives it, else "the <place>"."""
+    return (look_of(place) or {}).get("name") or f"the {place}"
 
 
 def no_sizes(words):
@@ -310,6 +280,17 @@ def no_sizes(words):
     it: the drawing finds the shape (the owner, 2026-10-20)."""
     words = re.sub(r",? ?(at |about )?\d+(\.\d+)?( ?x ?\d+(\.\d+)?)? ?m\b", "", words)
     return re.sub(r" ?\(\s*[,;:]?\s*\)", "", words).strip()
+
+
+def look_text(place):
+    """The words of `place`'s look (place.json `style.text`), no measures; "" when it has none."""
+    return no_sizes(((look_of(place) or {}).get("style") or {}).get("text") or "")
+
+
+def own_words(place):
+    """[sentence] of `place` itself: its look and the creator's says (as he set them)."""
+    look = look_text(place)
+    return [part for part in (f"Its look: {look}" if look else "", inputs_of(place).get("says", "")) if part]
 
 
 def door_label(plan, side):
@@ -342,101 +323,74 @@ def joins_of(place, inside):
 
 
 def holding_words(place):
-    """A shell's inside places as the creator listed them (within.json): each named with its size from its plan,
-    what it holds itself, how each joins the others and the outside, each recognisable from outside; "" when it
-    lists none."""
+    """The places the creator listed inside `place` (within.json), each by its name and says, and how they join;
+    "" when it lists none."""
     inside = inside_of(place)
     if not inside:
         return ""
-    names = tree()["shells"]
-    parts, joins, said = [], [], set()
+    parts = [name_of(name) + (f" ({says.rstrip('.')})" if (says := inputs_of(name).get("says")) else "")
+             for name in inside]
+    joins, said = [], set()
     for name in inside:
-        title = no_sizes(plan_of(name).get("title", name)).lower().removeprefix("the ")
-        held = [names.get(child, child).lower() for child in inside_of(name)]
-        parts.append(", ".join(filter(None, [f"the {title}", f"holding the {', the '.join(held)}" if held else ""])))
         for other, words in joins_of(name, inside):
             pair = frozenset((name, other)) if other else (name, words)
-            if pair in said:
-                continue
-            said.add(pair)
-            joins.append(f"the {name}: {words}")
-    return (f"Inside it, each its own part, are the places the creator has already laid out: "
-            f"{'; '.join(parts)}. They join as laid out: {'; '.join(joins)}. Each must be recognisable from outside "
-            "as what it is: its roof, dome or glazing, and its outer doors as described.")
+            if pair not in said:
+                said.add(pair)
+                joins.append(f"the {name}: {words}")
+    joined = f" They join as laid out: {'; '.join(joins)}." if joins else ""
+    return f"Inside it, each its own part, recognisable as what it is: {'; '.join(parts)}.{joined}"
 
 
-def shell_wording(place):
-    """An outside shell's first draw that holds the inside places the creator already listed (the owner, 2026-10-20):
-    its whole outside from a wide high view, its own look and plan where it has them, every inside place at its size
-    joined as laid out, the parts of its outside, people for scale."""
-    return " ".join(filter(None, [
-        f"One concept painting of the whole {place} seen from outside.", *described(place), holding_words(place), parts_words(place),
-        "People on the ground beside it for scale."]))
+def context_words(place):
+    """Where `place` sits: the layer above's name and the first sentence of its says, else of its look, short; ""
+    for an outside place."""
+    holder = above(place)
+    if not holder:
+        return ""
+    first = (inputs_of(holder).get("says") or look_text(holder)).split(". ")[0].rstrip(".")
+    return f"This place sits within {name_of(holder)}" + (f": {first}." if first else ".")
 
 
-OUTSIDE_VIEW = ("Viewpoint: a high three-quarter view from one corner, looking down about 35 to 45 degrees, so its "
-                "footprint, its roofs and two of its sides show; the whole place in frame with a small margin, its "
-                "surroundings only at the edges; a long lens with little perspective distortion, so sizes compare "
-                "honestly; clear, readable light within the place's own mood.")
-INSIDE_VIEW = ("Viewpoint: a cutaway, the roof and the near walls removed, seen from a high three-quarter view from one "
-               "corner looking down about 35 to 45 degrees, so the whole floor and every remaining wall can be read; "
-               "a long lens with little perspective distortion; clear, readable light within the place's own mood.")
-EVERY_DRAW = "One picture, 16:9, no text and no labels; people in view for scale."
+def sent_pictures(place):
+    """[(what it is, its source)] a first draw of `place` sends, in order: the layer above's picked concept (source:
+    that place's name) when it sits within one, then the creator's references (their paths)."""
+    holder = above(place)
+    found = [(f"the picked concept of {name_of(holder)} this place sits within: this place is {name_of(place)} as "
+              "it stands there, and its outer shape, size against the others, roof, windows and doors must match it",
+              holder)] if holder else []
+    return found + [(f"a reference for {ref['shows']}; never its size, layout or viewpoint", resolved(ref["picture"]))
+                    for ref in inputs_of(place).get("references", [])]
 
 
-def framing(place):
-    """The fixed viewpoint every concept of `place` is drawn from (the owner, 2026-10-20): an outside place (one that
-    sits in nothing, or holds inside places of its own) from a high three-quarter view, an inside place as a cutaway
-    from the same view; then what every draw shares."""
-    inside = place in tree()["within"] and not holds_inside(place) and plan_of(place).get("inside") is not False
-    return f"{INSIDE_VIEW if inside else OUTSIDE_VIEW} {EVERY_DRAW}"
+def indoors(place):
+    """Whether `place` is drawn as a cutaway: as its plan says (`inside`), else when it sits within another place
+    and is no shell of its own."""
+    said = plan_of(place).get("inside")
+    return said if said is not None else (above(place) is not None and place not in tree()["shells"])
 
 
-def held_shells(place):
-    """The shells with a floor plan the creator listed inside `place` (the hangar's ship): [(shell, its floor plan)]."""
-    return [(shell, json.loads(floor.read_text())) for shell in inside_of(place)
-            if (floor := DATA / "definitions" / f"{shell}_floor.json").is_file()]
+def generated(place):
+    """The first-draw wording of `place` by the one rule, every part from data."""
+    pictures = sent_pictures(place)
+    listed = "Attached pictures, in order: " + "; ".join(
+        f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "." if pictures else ""
+    return " ".join(part for part in (
+        f"One concept painting of {name_of(place)}.", *own_words(place), holding_words(place), context_words(place),
+        listed, f"{INSIDE_VIEW if indoors(place) else OUTSIDE_VIEW} {EVERY_DRAW}", style()) if part)
 
 
-def held_shell_words(place):
-    """What `place` must show of a shell it holds (owner, 2026-10-20: the hangar showed a small lander, not his ship):
-    the shell at its creator-set length, filling the place, people small against it; "" when it holds none."""
-    return " ".join(f"It holds the {shell}, {plan['length']:g} m long, as large as it truly is, filling most of the "
-                    f"floor: a large ship holding {', '.join(room['name'] for room in plan.get('rooms', []))} on one "
-                    "deck. People beside it, small against it." for shell, plan in held_shells(place))
-
-
-def held_shell_view(place):
-    """The reference view of the first shell `place` holds (its look only), or None."""
-    views = json.loads((DATA / "definitions/concept_views.json").read_text())["views"]
-    return next((view for shell, _ in held_shells(place) for view in views if view["id"].startswith(f"{shell}_")),
-                None)
-
-
-def first_wording(place):
-    """(wording, reference path or None) of a first draw: the place's own description (its view's, a shell's floor
-    plan's, a shell's listed inside places', else its data's) with the environment's style; Refused when its reference
-    is not on this machine."""
-    view, floor = view_of(place), DATA / "definitions" / f"{place}_floor.json"
-    if view is None and floor.is_file():
-        wording, view = floor_wording(place, floor)
-    elif view is None and holds_inside(place):
-        wording = shell_wording(place)
-    else:
-        wording = " ".join(filter(None, [from_data(place), held_shell_words(place)]))
-        if view:  # its old view's own wording is retired (the owner, 2026-10-20); its reference stays, for look only
-            wording += (" The last attached picture gives its look only (shapes, materials, fittings), never its size, "
-                        "layout or viewpoint.")
-        elif view := held_shell_view(place):
-            wording += (" The last attached picture gives the ship's look only (its shape language, materials and landing "
-                        "legs); it shows a much smaller ship: draw it at its true length.")
-    if view is None:
-        return " ".join(part for part in (wording, framing(place), style()) if part), None
-    reference = resolved(view["reference"])
-    if not reference.is_file():
-        raise Refused(f"its reference {view['reference']} is not on this machine (the private bucket's references/, "
-                      f"copied to {PROPS_HOME / 'references'})")
-    return " ".join(part for part in (wording, framing(place), style()) if part), reference
+def waits(store, place):
+    """Why a first draw of `place` cannot be made now (its layer above not picked, a reference not on this
+    machine), or None."""
+    holder = above(place)
+    if holder and not picked(store, holder):
+        return f"waits for {holder}'s concept to be picked"
+    missing = [ref["picture"] for ref in inputs_of(place).get("references", [])
+               if not resolved(ref["picture"]).is_file()]
+    if missing:
+        return (f"its reference {missing[0]} is not on this machine (the private bucket's references/, copied to "
+                f"{PROPS_HOME / 'references'})")
+    return None
 
 
 def own_wording(store, place):
@@ -445,32 +399,9 @@ def own_wording(store, place):
     return found[-1]["wording"] if found else None
 
 
-def outside_pick(store, place):
-    """(the place or shell `place` sits within, the sha of its picked draw), or None while it sits in nothing or that
-    one is not picked: an inside place is drawn to fit its picked outside (CONTEXT.md "concept")."""
-    holder = tree()["within"].get(place)
-    sha = picked(store, holder) if holder else None
-    return (holder, sha) if sha else None
-
-
-def generated_now(store, place):
-    """(wording, reference path or None) of `place`'s generated first draw today: first_wording, and for an inside
-    place the picture of its picked outside sent with it (the owner, 2026-10-20: the rooms did not match the base
-    he picked), so the room's shape, size against the others, roof, windows and doors follow it there."""
-    wording, reference = first_wording(place)
-    fit = outside_pick(store, place)
-    if fit:
-        wording += (f" The first attached picture is the picked concept of the {fit[0]} this place sits within: this "
-                    f"place is the {place} seen there, and its outer shape, roof or dome, size against the others, "
-                    "windows and doors must match how it stands in that picture.")
-    return wording, reference
-
-
 def wording_now(store, place):
-    """(wording, reference path or None) the next first draw of `place` sends: the creator's own wording when he set
-    one, else the generated (generated_now, which refuses a draw whose reference is not here either way)."""
-    generated, reference = generated_now(store, place)
-    return own_wording(store, place) or generated, reference
+    """The wording the next first draw of `place` sends: the creator's own when he set one, else the generated."""
+    return own_wording(store, place) or generated(place)
 
 
 def worded(store, place, wording, by):
@@ -494,7 +425,7 @@ def kept_as_own(store, place, request, by):
     asked = checked_wording(request.get("wording"))
     if request.get("base") or asked is None:
         return
-    own = None if asked == generated_now(store, place)[0] else asked
+    own = None if asked == generated(place) else asked
     if own != own_wording(store, place):
         worded(store, place, own, by)
 
@@ -558,25 +489,26 @@ def request_parts(store, place, request):
         if base not in {draw["sha"] for draw in draws(store, place)}:
             raise Refused(f"{base[:12]} is no draw of {place}")
         picture = Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{base}")))
-        return redraw_sent(place, marks, note), [boxed(picture, marks), picture]
+        return redraw_wording(marks, note), [boxed(picture, marks), picture]
     if marks:
         raise Refused("a first draw has no picture to mark")
-    wording, reference = wording_now(store, place)
-    sent = checked_wording(request.get("wording")) or wording
-    fit = outside_pick(store, place)
-    outside = [Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{fit[1]}")))] if fit else []
-    return with_note(sent, note), outside + ([Image.open(reference)] if reference else [])
+    if why := waits(store, place):
+        raise Refused(f"{place} {why}")
+    sent = checked_wording(request.get("wording")) or wording_now(store, place)
+    pictures = [Image.open(io.BytesIO(store.objects.read_bytes(f"blobs/{picked(store, source)}")))
+                if isinstance(source, str) else Image.open(source) for _, source in sent_pictures(place)]
+    return with_note(sent, note), pictures
 
 
-def redraw_sent(place, marks, note):
-    """A redraw's wording for `place`: redraw_wording, and an outside shell's inside places it must still hold."""
-    wording = redraw_wording(marks, note)
-    return f"{wording} It must still hold, as described: {holding_words(place)}" if holds_inside(place) else wording
+def above_sent(store, place):
+    """The sha of the layer above's pick a first draw of `place` sends now, None when it sits within nothing."""
+    holder = above(place)
+    return picked(store, holder) if holder else None
 
 
-def redraw_preview(place):
-    """What Redraw with notes sends for `place`, its notes as placeholders (the concept review page shows it)."""
-    return redraw_sent(place, [{"note": "<mark 1's note>"}, {"note": "<mark 2's note>"}], "<your note>")
+def redraw_preview():
+    """What Redraw with notes sends, its notes as placeholders (the concept review page shows it)."""
+    return redraw_wording([{"note": "<mark 1's note>"}, {"note": "<mark 2's note>"}], "<your note>")
 
 
 def call(wording, pictures):
@@ -646,7 +578,8 @@ def draw(store, place, request, by, caller=call, offsite=None):
     sha = kept(store, png)
     record = {"place": place, "sha": sha, "name": f"{place}-concept.png", "at": now(), "by": by,
               "euros": yes["euros"], "yes": yes["key"], "base": request.get("base") or None,
-              "marks": checked_marks(request.get("marks")), "note": str(request.get("note", "")), "wording": wording}
+              "marks": checked_marks(request.get("marks")), "note": str(request.get("note", "")), "wording": wording,
+              "above": None if request.get("base") else above_sent(store, place)}
     record = kept_offsite(png, record, offsite)
     recorded(store, f"{AREA}/{place}/draws/{stamp_key(record['at'])}.json", record)
     return record

@@ -5,6 +5,7 @@ its price and purpose, and refused when the price shown is not today's; the pric
 standard tier."""
 import io
 import json
+import re
 import subprocess
 
 import pytest
@@ -39,7 +40,7 @@ def stand_in(asked):
     return answer
 
 
-def said_yes(store, monkeypatch, place="airlock"):
+def said_yes(store, monkeypatch, place="campgrounds"):
     key = concepts.yes_key(place, review.now())
     review.spend(store, "override", key, 0.15, "joey", purpose="test")
     monkeypatch.setenv("SCORE_SPEND_TICKET", f"override {key}")
@@ -48,34 +49,34 @@ def said_yes(store, monkeypatch, place="airlock"):
 
 def test_a_draw_runs_only_inside_the_owners_yes(store, monkeypatch):
     with pytest.raises(compute.Refused):
-        concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
-    assert concepts.draws(store, "airlock") == []
+        concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in([]))
+    assert concepts.draws(store, "campgrounds") == []
 
 
 def test_a_first_draw_is_worded_from_the_places_data_and_kept(store, monkeypatch):
     key = said_yes(store, monkeypatch)
     asked = []
-    record = concepts.draw(store, "airlock", {"note": "more dust"}, "joey", caller=stand_in(asked))
+    record = concepts.draw(store, "campgrounds", {"note": "more dust"}, "joey", caller=stand_in(asked))
     assert record["yes"] == key and record["euros"] == 0.15 and record["base"] is None
     assert store.objects.exists(f"blobs/{record['sha']}")
-    assert concepts.draws(store, "airlock") == [record] and concepts.placed(store) == ["airlock"]
+    assert concepts.draws(store, "campgrounds") == [record] and concepts.placed(store) == ["campgrounds"]
     wording, sizes = asked[0]
-    assert "airlock" in wording and "The creator's note: more dust" in wording and sizes == []  # its reference is lost
+    assert "campgrounds" in wording and "The creator's note: more dust" in wording and sizes == []  # an outside place with no reference
 
 
 def test_a_redraw_sends_the_base_boxed_and_clean_with_each_marks_note(store, monkeypatch):
     said_yes(store, monkeypatch)
-    first = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    first = concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in([]))
     said_yes(store, monkeypatch)
     asked = []
     marks = [{"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.3, "note": "a red door"}]
-    second = concepts.draw(store, "airlock", {"marks": marks, "note": "warmer", "base": first["sha"]}, "joey",
+    second = concepts.draw(store, "campgrounds", {"marks": marks, "note": "warmer", "base": first["sha"]}, "joey",
                            caller=stand_in(asked))
     wording, sizes = asked[0]
     assert "Box 1: a red door." in wording and "Overall: warmer" in wording and sizes == [(64, 40), (64, 40)]
     assert second["base"] == first["sha"] and second["marks"][0]["note"] == "a red door"
     with pytest.raises(concepts.Refused, match="outside the picture"):
-        concepts.draw(store, "airlock", {"marks": [{"x": 0.9, "y": 0, "w": 0.5, "h": 0.1}], "base": first["sha"]},
+        concepts.draw(store, "campgrounds", {"marks": [{"x": 0.9, "y": 0, "w": 0.5, "h": 0.1}], "base": first["sha"]},
                       "joey", caller=stand_in([]))
     with pytest.raises(concepts.Refused, match="no draw of"):
         concepts.draw(store, "hub", {"base": first["sha"]}, "joey", caller=stand_in([]))
@@ -83,20 +84,20 @@ def test_a_redraw_sends_the_base_boxed_and_clean_with_each_marks_note(store, mon
 
 def test_a_pick_takes_only_a_draw_of_the_place_and_unlocks_again(store, monkeypatch):
     said_yes(store, monkeypatch)
-    drawn = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    drawn = concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in([]))
     with pytest.raises(concepts.Refused):
-        concepts.pick(store, "airlock", "0" * 64, "joey")
-    concepts.pick(store, "airlock", drawn["sha"], "joey")
-    assert concepts.picked(store, "airlock") == drawn["sha"]
-    concepts.pick(store, "airlock", None, "joey")
-    assert concepts.picked(store, "airlock") is None
-    assert web.concept_pick(store, "airlock", drawn["sha"], "joey")["library"] == "library: stand-in"
+        concepts.pick(store, "campgrounds", "0" * 64, "joey")
+    concepts.pick(store, "campgrounds", drawn["sha"], "joey")
+    assert concepts.picked(store, "campgrounds") == drawn["sha"]
+    concepts.pick(store, "campgrounds", None, "joey")
+    assert concepts.picked(store, "campgrounds") is None
+    assert web.concept_pick(store, "campgrounds", drawn["sha"], "joey")["library"] == "library: stand-in"
 
 
 def test_every_draw_is_copied_off_this_pc_by_its_sha_and_a_failed_copy_keeps_the_draw_and_says_why(
         store, monkeypatch, tmp_path):
     said_yes(store, monkeypatch)
-    record = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    record = concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in([]))
     bucket = runtime_store.FolderStore(tmp_path / "bucket")
     assert record["offsite"] == f"concept-draws/{record['sha']}.png"
     assert bucket.read_bytes(record["offsite"]) == store.objects.read_bytes(f"blobs/{record['sha']}")
@@ -106,9 +107,9 @@ def test_every_draw_is_copied_off_this_pc_by_its_sha_and_a_failed_copy_keeps_the
         def exists(self, key):
             raise ConnectionError("the bucket did not answer")
     said_yes(store, monkeypatch)
-    failed = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([1]), offsite=Down())
+    failed = concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in([1]), offsite=Down())
     assert failed["offsite"] is None and "did not answer" in failed["offsite_refused"]
-    assert concepts.draws(store, "airlock") == [record, failed]
+    assert concepts.draws(store, "campgrounds") == [record, failed]
 
 
 def test_a_pick_is_handed_to_the_library_by_its_own_concept_command(store, monkeypatch, tmp_path):
@@ -122,20 +123,20 @@ def test_a_pick_is_handed_to_the_library_by_its_own_concept_command(store, monke
 
     def run(words, **named):
         ran.append((words, named))
-        said = {"place": "airlock", "did": "locked", "address": "concept/airlock@1",
+        said = {"place": "campgrounds", "did": "locked", "address": "concept/campgrounds@1",
                 "saved": {"committed": "c" * 40, "pushed": True, "why": ""}}
         return subprocess.CompletedProcess(words, 0, json.dumps(said) + "\n", "")
-    assert concepts.handed_over(store, "airlock", run=run) == "library: locked concept/airlock@1"
+    assert concepts.handed_over(store, "campgrounds", run=run) == "library: locked concept/campgrounds@1"
     words, named = ran[0]
     assert words[:4] == ["score-lib", "--root", str(tmp_path / "lib"), "concept"]
-    assert words[words.index("--place") + 1] == "airlock" and words[words.index("--world") + 1] == "world1"
+    assert words[words.index("--place") + 1] == "campgrounds" and words[words.index("--world") + 1] == "world1"
     assert words[words.index("--store") + 1] == str(store.objects.root)
     assert named["env"]["SCORE_LIB_BLOBS_DIR"] == str(tmp_path / "blobs") and named["cwd"] == str(tmp_path / "lib")
 
     refused = lambda words, **named: subprocess.CompletedProcess(words, 1, "", "no SCORE store\n")  # noqa: E731
-    assert concepts.handed_over(store, "airlock", run=refused) == "not in the library: no SCORE store"
+    assert concepts.handed_over(store, "campgrounds", run=refused) == "not in the library: no SCORE store"
     monkeypatch.setattr(backend, "settings", lambda: {"SCORE_LIB_BACKEND": "none"})
-    assert concepts.handed_over(store, "airlock", run=run).startswith("not in the library: no library")
+    assert concepts.handed_over(store, "campgrounds", run=run).startswith("not in the library: no library")
 
 
 def test_the_price_is_the_measured_unit_at_the_standard_tier(tmp_path):
@@ -155,86 +156,98 @@ def test_the_click_writes_its_yes_at_the_price_shown_then_draws_inside_it(store,
         record = concepts.draw(store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1], caller=stand_in([]))
         return subprocess.CompletedProcess(argv, 0, json.dumps(record) + "\n", "")
 
-    record = web.concept_draw(store, "airlock", {"note": ""}, 0.15, "joey", run=run)
+    record = web.concept_draw(store, "campgrounds", {"note": ""}, 0.15, "joey", run=run)
     yes = store.spend_yes("override", record["yes"])
-    assert yes["by"] == "joey" and yes["euros"] == 0.15 and "airlock" in yes["purpose"]
+    assert yes["by"] == "joey" and yes["euros"] == 0.15 and "campgrounds" in yes["purpose"]
     with pytest.raises(review.Refused, match="not today's measured price"):
-        web.concept_draw(store, "airlock", {}, 0.10, "joey", run=run)
+        web.concept_draw(store, "campgrounds", {}, 0.10, "joey", run=run)
     with pytest.raises(review.Refused):
-        web.concept_draw(store, "airlock", {}, 0.15, "runner", run=run)
+        web.concept_draw(store, "campgrounds", {}, 0.15, "runner", run=run)
 
 
 def test_an_agents_process_cannot_draw_or_pick_in_the_framework_store(store, monkeypatch):
     said_yes(store, monkeypatch)
-    drawn = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    drawn = concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in([]))
     monkeypatch.setattr(store, "is_framework_store", lambda: True)
     monkeypatch.setattr(concepts, "running_under_agent", lambda: True)
     with pytest.raises(PermissionError):
-        concepts.pick(store, "airlock", drawn["sha"], "joey")
-    assert concepts.picked(store, "airlock") is None
+        concepts.pick(store, "campgrounds", drawn["sha"], "joey")
+    assert concepts.picked(store, "campgrounds") is None
 
 
-def test_a_first_draw_carries_the_environments_style_and_its_reference_or_is_refused(tmp_path, monkeypatch):
-    monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
-    with pytest.raises(concepts.Refused, match="not on this machine"):
-        concepts.first_wording("galley")  # its view's reference, the owner's quarters picture, is not here
-    (tmp_path / "references").mkdir()
-    Image.new("RGB", (8, 8)).save(tmp_path / "references" / "quarters.png")
-    wording, reference = concepts.first_wording("galley")
-    assert reference == tmp_path / "references" / "quarters.png"
-    assert wording.endswith("The whole environment's style: 2099 space base, moon base, mars base, SpaceX-type "
-                            "rockets, Chinese and American mixed.")
 
 
-def test_the_ships_first_draw_is_its_true_length_holding_its_rooms_the_reference_its_look_only(tmp_path, monkeypatch):
-    monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
-    (tmp_path / "references").mkdir()
-    Image.new("RGB", (8, 8)).save(tmp_path / "references" / "shuttle-screenshot.png")
-    wording, reference = concepts.first_wording("ship")
-    assert reference.name == "shuttle-screenshot.png"
-    assert "46 m long" in wording and "galley" in wording and "people and a vehicle" in wording
-    assert "look only" in wording and "never its size or proportions" in wording
+def picked_draw(store, monkeypatch, place, colour):
+    """A first draw of `place` made and picked; its sha."""
+    said_yes(store, monkeypatch, place)
+    sha = concepts.draw(store, place, {}, "joey", caller=lambda wording, pictures: a_picture(colour))["sha"]
+    concepts.pick(store, place, sha, "joey")
+    return sha
 
 
-def test_a_shells_first_draw_holds_every_inside_place_listed_joined_as_laid_out():
-    wording, reference = concepts.first_wording("base")
-    assert reference is None and "seen from outside" in wording
-    for inside in ("hub", "airlock", "habitat", "greenhouse", "garage", "hangar", "lab", "workshop", "walkway tube"):
-        assert f"the {inside}" in wording
-    assert " m " not in wording.split("Viewpoint")[0]  # no sizes: the drawing finds the shape
-    assert "holding the ship" in wording
-    assert "the hub: a walkway tube to the lab" in wording and "the hub: opens straight into the airlock" in wording
-    assert "the garage: its big door, outer opens onto the outside" in wording
-    assert "recognisable from outside" in wording and wording.endswith("Chinese and American mixed.")
-    square = concepts.first_wording("square")[0]
-    assert "the stairwell" in square and "the flat" in square
-    assert "waterfront state square in Hong Kong" in square  # its own look and plan stay
-    assert "the street (" in square and "the launch" in square  # the places within it
-    assert not concepts.holds_inside("hangar") and concepts.holds_inside("ship")  # an inside place is drawn inside
-
-
-def test_a_shells_redraw_still_holds_its_inside_places(store, monkeypatch):
-    said_yes(store, monkeypatch, "base")
-    first = concepts.draw(store, "base", {}, "joey", caller=stand_in([]))
-    said_yes(store, monkeypatch, "base")
+def test_a_place_within_another_is_sent_its_picked_picture_first_and_its_wording_as_context(store, monkeypatch):
+    base = picked_draw(store, monkeypatch, "base", (200, 10, 10))
+    said_yes(store, monkeypatch, "lab")
     asked = []
-    concepts.draw(store, "base", {"note": "bigger hangar", "base": first["sha"]}, "joey", caller=stand_in(asked))
-    assert "Overall: bigger hangar" in asked[0][0] and "It must still hold, as described:" in asked[0][0]
-    assert "the greenhouse" in asked[0][0]
+    record = concepts.draw(store, "lab", {}, "joey", caller=stand_in(asked))
+    wording, sizes = asked[0]
+    assert sizes == [(64, 40)] and record["above"] == base  # the base's picked draw, the only picture
+    assert "This place sits within the base." in wording
+    assert "1. the picked concept of the base this place sits within" in wording
+    assert concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
+    picked_draw(store, monkeypatch, "base", (10, 200, 10))  # a new pick above: the lab's draw is out of date
+    assert not concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
+    assert concepts.undrawn(store, ["base", "lab"])[0] == ["lab"]
+    assert ("This place sits within the ship: A crew shuttle 46 m long, drawn as large as it truly is, its rooms "
+            "along one deck inside; people beside it are small against it.") in concepts.generated("cockpit")
 
 
-def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway():
-    assert concepts.framing("base").startswith(concepts.OUTSIDE_VIEW)
-    assert concepts.framing("ship").startswith(concepts.OUTSIDE_VIEW)  # within the hangar, but holds rooms
-    assert concepts.framing("cockpit").startswith(concepts.INSIDE_VIEW)
-    assert concepts.EVERY_DRAW in concepts.first_wording("street")[0]
-
-
-def test_draw_all_holds_a_place_within_another_until_that_ones_pick(tmp_path):
-    store = Store.in_folder(tmp_path)
+def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
     ready, waiting = concepts.undrawn(store, ["base", "hub", "street"])
     assert ready == ["base"]
     assert waiting == {"hub": "waits for base's concept to be picked", "street": "waits for square's concept to be picked"}
+    said_yes(store, monkeypatch, "hub")
+    with pytest.raises(concepts.Refused, match="hub waits for base's concept to be picked"):
+        concepts.draw(store, "hub", {}, "joey", caller=stand_in([]))
+    assert concepts.draws(store, "hub") == []
+
+
+def test_a_reference_comes_from_the_places_data_and_waits_while_it_is_not_here(store, tmp_path, monkeypatch):
+    monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
+    monkeypatch.setattr(concepts, "picked", lambda _store, place: "abc" if place == "ship" else None)
+    assert "is not on this machine" in concepts.waits(store, "galley")  # its reference, the owner's quarters picture
+    (tmp_path / "references").mkdir()
+    Image.new("RGB", (8, 8)).save(tmp_path / "references" / "quarters.png")
+    assert concepts.waits(store, "galley") is None
+    assert [source for _, source in concepts.sent_pictures("galley")] == ["ship", tmp_path / "references/quarters.png"]
+    assert concepts.generated("galley").endswith("The whole environment's style: 2099 space base, moon base, mars "
+                                                 "base, SpaceX-type rockets, Chinese and American mixed.")
+
+
+def test_the_ships_length_and_reference_come_from_its_data_and_reach_the_hangar(monkeypatch):
+    assert "the ship (A crew shuttle 46 m long" in concepts.generated("hangar")
+    assert concepts.generated("ship").startswith("One concept painting of the ship. A crew shuttle 46 m long")
+    assert concepts.sent_pictures("ship")[-1][1].name == "shuttle-screenshot.png"
+    given = {"ship": {"says": "A barge 80 m long.", "references": []}}
+    monkeypatch.setattr(concepts, "inputs_of", lambda place: given.get(place, {}))
+    hangar = concepts.generated("hangar")
+    assert "the ship (A barge 80 m long)" in hangar and "46 m" not in hangar
+    assert len(concepts.sent_pictures("ship")) == 1  # the hangar's pick only: no reference in its data now
+
+
+def test_no_measure_is_generated_but_the_creators_own_says():
+    found = concepts.tree()
+    for place in [*found["within"], *found["shells"], "square", "campgrounds"]:
+        wording = concepts.generated(place)
+        for name in filter(None, [place, *concepts.inside_of(place), concepts.above(place)]):
+            wording = wording.replace(concepts.inputs_of(name).get("says", "").rstrip("."), "")
+        assert not re.search(r"\d+(\.\d+)? ?m\b", wording), (place, wording)
+
+
+def test_an_outside_place_is_drawn_from_above_and_an_inside_place_as_a_cutaway():
+    assert concepts.OUTSIDE_VIEW in concepts.generated("base") and concepts.OUTSIDE_VIEW in concepts.generated("ship")
+    assert concepts.INSIDE_VIEW in concepts.generated("cockpit") and concepts.INSIDE_VIEW in concepts.generated("hangar")
+    assert concepts.EVERY_DRAW in concepts.generated("street") and concepts.OUTSIDE_VIEW in concepts.generated("street")
 
 
 def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monkeypatch):
@@ -242,39 +255,39 @@ def test_a_draw_from_an_older_wording_does_not_count_for_draw_all(tmp_path, monk
     older = [{"base": None, "wording": "an older wording"}]
     monkeypatch.setattr(concepts, "draws", lambda _store, _place: older)
     assert concepts.undrawn(store, ["old_station"])[0] == ["old_station"]
-    older.append({"base": None, "wording": concepts.first_wording("old_station")[0]})
+    older.append({"base": None, "wording": concepts.generated("old_station")})
     assert concepts.undrawn(store, ["old_station"])[0] == []
 
 
 def test_an_edited_wording_is_sent_word_for_word_and_stays_the_places_own_until_back_to_generated(store, monkeypatch):
-    generated = concepts.first_wording("airlock")[0]
+    generated = concepts.generated("campgrounds")
     asked = []
     said_yes(store, monkeypatch)
-    first = concepts.draw(store, "airlock", {}, "joey", caller=stand_in(asked))
-    assert asked[-1][0] == generated and concepts.own_wording(store, "airlock") is None
+    first = concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in(asked))
+    assert asked[-1][0] == generated and concepts.own_wording(store, "campgrounds") is None
     said_yes(store, monkeypatch)
-    edited = "One concept painting of a small airlock, rusty."
-    concepts.draw(store, "airlock", {"wording": f"  {edited}\n"}, "joey", caller=stand_in(asked))
-    assert asked[-1][0] == edited and concepts.own_wording(store, "airlock") == edited
-    assert concepts.current_draw(store, "airlock", concepts.wording_now(store, "airlock")[0])
-    assert not concepts.current_draw(store, "airlock", "One concept painting of a small airlock, clean.")
+    edited = "One concept painting of the camp grounds, dusty."
+    concepts.draw(store, "campgrounds", {"wording": f"  {edited}\n"}, "joey", caller=stand_in(asked))
+    assert asked[-1][0] == edited and concepts.own_wording(store, "campgrounds") == edited
+    assert concepts.current_draw(store, "campgrounds", concepts.wording_now(store, "campgrounds"))
+    assert not concepts.current_draw(store, "campgrounds", "One concept painting of the camp grounds, clean.")
     said_yes(store, monkeypatch)
-    concepts.draw(store, "airlock", {"base": first["sha"], "wording": "ignored"}, "joey", caller=stand_in(asked))
-    assert "Image 1" in asked[-1][0] and concepts.own_wording(store, "airlock") == edited  # a redraw keeps it
+    concepts.draw(store, "campgrounds", {"base": first["sha"], "wording": "ignored"}, "joey", caller=stand_in(asked))
+    assert "Image 1" in asked[-1][0] and concepts.own_wording(store, "campgrounds") == edited  # a redraw keeps it
     said_yes(store, monkeypatch)
-    concepts.draw(store, "airlock", {}, "joey", caller=stand_in(asked))  # Draw all's request: no wording
+    concepts.draw(store, "campgrounds", {}, "joey", caller=stand_in(asked))  # Draw all's request: no wording
     assert asked[-1][0] == edited
     with pytest.raises(review.Refused, match="no wording of its own"):
         web.concept_generated(store, "galley", "joey")
-    web.concept_generated(store, "airlock", "joey")
-    assert concepts.wording_now(store, "airlock")[0] == generated
+    web.concept_generated(store, "campgrounds", "joey")
+    assert concepts.wording_now(store, "campgrounds") == generated
     with pytest.raises(concepts.Refused, match="at most"):
-        concepts.draw(store, "airlock", {"wording": "x" * 9000}, "joey", caller=stand_in(asked))
+        concepts.draw(store, "campgrounds", {"wording": "x" * 9000}, "joey", caller=stand_in(asked))
 
 
 def test_an_edited_wording_makes_the_draw_from_the_generated_one_out_of_date(tmp_path, monkeypatch):
     store = Store.in_folder(tmp_path)
-    drawn = [{"base": None, "wording": concepts.first_wording("old_station")[0]}]
+    drawn = [{"base": None, "wording": concepts.generated("old_station")}]
     monkeypatch.setattr(concepts, "draws", lambda _store, _place: drawn)
     assert concepts.undrawn(store, ["old_station"])[0] == []
     concepts.worded(store, "old_station", "One concept painting of the old station at night.", "joey")
@@ -287,21 +300,5 @@ def test_an_agents_process_cannot_keep_a_wording_in_the_framework_store(store, m
     monkeypatch.setattr(store, "is_framework_store", lambda: True)
     monkeypatch.setattr(concepts, "running_under_agent", lambda: True)
     with pytest.raises(PermissionError):
-        concepts.worded(store, "airlock", "my words", "joey")
-    assert concepts.own_wording(store, "airlock") is None
-
-
-def test_the_hangar_is_drawn_holding_the_ship_at_its_true_length_with_its_reference(tmp_path, monkeypatch):
-    shuttle = tmp_path / "shuttle-screenshot.png"
-    shuttle.write_bytes(b"png")
-    monkeypatch.setattr(concepts, "resolved", lambda _path: shuttle)
-    wording, reference = concepts.first_wording("hangar")
-    assert "It holds the ship, 46 m long" in wording and "draw it at its true length" in wording
-    assert reference is not None and reference.name.startswith("shuttle")
-
-
-def test_an_inside_place_is_drawn_to_fit_its_picked_outside(tmp_path, monkeypatch):
-    store = Store.in_folder(tmp_path)
-    assert "picked concept of the base" not in concepts.generated_now(store, "lab")[0]
-    monkeypatch.setattr(concepts, "picked", lambda _store, place: "abc" if place == "base" else None)
-    assert "picked concept of the base this place sits within" in concepts.generated_now(store, "lab")[0]
+        concepts.worded(store, "campgrounds", "my words", "joey")
+    assert concepts.own_wording(store, "campgrounds") is None

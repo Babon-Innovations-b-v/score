@@ -5,7 +5,7 @@
 <div class="concept-layout" id="concept" data-place="{{ place }}" data-base="{{ shown.picture.sha|default:'' }}" data-euros="{{ euros|default_if_none:'' }}"{% if pending %} data-pending="{{ pending }}"{% endif %}{% if can and not picked %} data-marking{% endif %}>
   <div class="concept-stage"><span class="draw-busy" id="concept-busy" title="a draw is on its way" hidden><i class="spinner" aria-hidden="true"></i> <b data-v>drawing</b></span>{% if shown %}<img id="concept-picture" src="{{ shown.picture.url }}" alt="{{ name }}, the concept" draggable="false"><div class="concept-marks" id="concept-marks" title="drag to mark an area to change"></div>{% else %}<div class="concept-none"><span class="ptile-missing" data-v>concept missing</span></div>{% endif %}</div>
   <aside class="concept-side" aria-label="what to change">
-    {% if holds %}<p class="soft small concept-holds" title="every draw is asked to hold these inside places, each at its size from its plan, joined as laid out"><span data-v>drawn to hold</span>: {% for held in holds %}<b data-v>{{ held }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    {% if holds %}<p class="soft small concept-holds" title="every first draw is asked to hold the places listed inside this one, joined as laid out"><span data-v>drawn to hold</span>: {% for held in holds %}<b data-v>{{ held }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
     {% if can and not picked %}
     <ol class="concept-notes" id="concept-notes"></ol>
     <label class="num-label" for="concept-note" data-v>note</label>
@@ -24,6 +24,7 @@
 {% if can and not picked %}<section class="concept-wording" aria-label="what a draw sends">
   <div class="concept-wording-head"><label class="num-label" for="concept-wording" data-v>{% if shown %}Draw fresh{% else %}Draw concept{% endif %} sends{% if wording.own %} (your wording){% endif %}</label>{% if wording.own %} <button type="button" class="button" id="concept-generated" title="drop your wording: this place's draws are worded from its data again" data-v>back to generated</button>{% endif %}</div>
   <textarea id="concept-wording" rows="8" title="word for word what a first draw of this place sends{% if not shown %}, your note after it{% endif %}; edit it and draw: your text is sent and stays this place's wording, for Draw all too">{{ wording.own|default:wording.generated|default:'' }}</textarea>
+  {% if wording.pictures %}<ol class="soft small concept-pictures" aria-label="pictures sent with it, in order" title="the pictures a first draw sends with this wording, in order">{% for words in wording.pictures %}<li data-v>{{ words }}</li>{% endfor %}</ol>{% endif %}
   {% if wording.refused %}<p class="soft small" data-v>{{ wording.refused }}</p>{% endif %}
   {% if shown %}<details class="concept-redraw"><summary class="soft small" data-v>Redraw with notes sends</summary><p class="soft small" title="your marks' notes and your note take the places in angle brackets; both pictures (this one boxed and numbered, and clean) go with it">{{ wording.redraw }}</p></details>{% endif %}
 </section>{% endif %}

@@ -203,11 +203,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `data/places/concepts.json`'s. The page asks `/concept/<place>/state/` until the draw is answered. Hosted, the
   answered draw (its record as the request's detail, its pictures in `SCORE_HOME/request-files`, served by
   `ExportedSource` beside the export's) and a pick since the export show at once; the cards follow at the next export.
-  An outside place's or shell's page names the inside places its draw is asked to hold (`asked_to_hold`; the wording
-  is `score/review/concepts.py` `shell_wording`: each at its plan's size, joined as laid out, recognisable from
-  outside, and its outside's parts). Under the picture the page shows, editable, word for word what Draw fresh or
-  Draw concept sends (`WorldState.concept_wordings`, `ConceptWording`: the generated first wording with framing and
-  style, or the creator's own; the owner, 2026-10-20), and, folded, what Redraw with notes sends (its notes as
+  A place's page names the places listed inside it that its draw is asked to hold (`asked_to_hold`). Under the
+  picture the page shows, editable, word for word what Draw fresh or Draw concept sends (`WorldState.concept_wordings`,
+  `ConceptWording`: the wording `score/review/concepts.py` `generated` makes by its one rule for every place, or the
+  creator's own; the owner, 2026-10-20), the pictures sent with it in order (`pictures`: the picked concept of the
+  place it sits within, then its references), why it waits (`refused`), and, folded, what Redraw with notes sends (its notes as
   placeholders). A first draw sent with the box edited sends exactly that text (his note after it) and the store's
   machine keeps it as the place's own wording (`concepts/<place>/wordings/`, his process only), used by every later
   first draw and Draw all and by the stale rule (`current_draw`), so his edit puts the old draw out of date on the
@@ -215,9 +215,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   wording since the export shows at once (`wording_of`). No batch: the batch rules start once the design is approved. The
   Environment's top bar carries **Draw all N, EUR X** for the owner (owner, 2026-10-20; `concepts.draw_all`, hidden
   at N 0): every place or shell with no draw from its current wording yet whose first draw can be made now (`WorldState.concept_undrawn`, read
-  on the store's machine by `score/review/concepts.undrawn`: one whose first wording is refused, its reference not on
-  the PC, waits, counted in the hover; an inside place is drawn from its own plan and view as a single draw is, not
-  held for its outside's pick) and none on its way, X = N times the per-draw price. Its click (`/concepts/draw-all/`,
+  on the store's machine by `score/review/concepts.undrawn`, layer by layer: one within a place not yet picked, or
+  whose reference is not on the PC, waits, counted in the hover) and none on its way, X = N times the per-draw price. Its click (`/concepts/draw-all/`,
   refused when the list or the total moved) is his one spend yes for exactly those first draws: N `concept-draw`
   requests at the per-draw price, each with the Draw all's count and total (`all`), each written as its own override
   yes saying so and refused on the store's machine once the price moved or its place has a draw from its current wording (`web.concept_draw`

@@ -205,13 +205,14 @@ class WorldState(BaseModel):
 
 
 class ConceptWording(BaseModel):
-    """What a place's draws send (score/review/concepts.py): its generated first-draw wording (None: it cannot be
-    drawn now, `refused` says why), the creator's own wording when he set one (sent instead), and what Redraw with
-    notes sends, its notes as placeholders."""
+    """What a place's draws send (score/review/concepts.py): its generated first-draw wording, why it cannot be drawn
+    now (`refused`, None when it can), the creator's own wording when he set one (sent instead), the pictures a
+    first draw sends with it, in order, and what Redraw with notes sends, its notes as placeholders."""
     generated: str | None = None
     own: str | None = None
     refused: str | None = None
     redraw: str = ""
+    pictures: list[str] = []
 
 
 class ConceptDraw(BaseModel):

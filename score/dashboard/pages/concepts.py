@@ -120,10 +120,8 @@ def review_href(world, place):
 
 
 def asked_to_hold(world, place, names):
-    """[short name] of the inside places a draw of `place` is asked to hold (score/review/concepts.py holds_inside:
-    an outside shell's, or an outside place's, inside places as within.json lists them); [] for any other place."""
-    if place in world.within and place not in world.shells:
-        return []
+    """[short name] of the places listed directly inside `place` (within.json), which its draw is asked to hold
+    (score/review/concepts.py holding_words, the same for every place)."""
     return [world.shells.get(child) or names.get(child, child) for child, holder in world.within.items()
             if holder == place]
 
