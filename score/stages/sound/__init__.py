@@ -202,12 +202,12 @@ def need_of(name, brief):
 
 
 def candidates(name, jobs, scored, weights):
-    """The picker's candidates of a brief's takes, each with its CLAP score."""
+    """The picker's candidates of a brief's takes that came back, each with its CLAP score."""
     return [picker_sources.Candidate(
         "moss", f"moss:{pathlib.Path(job['file']).stem}", f"Generated, seed {job['seed']}",
         f"generated with MOSS-SoundEffect v2.0 ({weights})", picker_sources.Moss.LICENCE, moss_takes.MODEL_PAGE,
         (moss_takes.TAKES / job["file"]).as_uri(), float(job["seconds"]), prompt=job["prompt"], seed=job["seed"],
-        clap=scored[job["file"]]) for job in jobs]
+        clap=scored[job["file"]]) for job in jobs if job["file"] in scored]
 
 
 def generated(name, brief, out, weights, scored):
