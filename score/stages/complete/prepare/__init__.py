@@ -18,6 +18,8 @@ one ETA on the fixed fleet and the predicted gaps beside them. Nothing here buys
 The record (`WORK/checks/prepare/remake.json` by default):
 
     {"made_at", "priced_on": {commit, uncommitted, per_unit_sha256},
+     "inventory": {read: [place], waiting: [place]},     (priced from each place's current scene inventory reading,
+                                                          groups.current; the rest wait on inventory, no euros)
      "counts": {rows, instances, groups, reused, shell_groups, crops, across_places, library, library_old,
                 library_code_only, bought, predicted_gaps, at_risk, inputs_missing},
                                          (library: reused, made under today's route or locked; library_old and

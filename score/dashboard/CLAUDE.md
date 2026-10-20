@@ -47,7 +47,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     made, library (from the library: only models made under today's route or locked, prepare's rule; an older match
     is remade and counted bought), predicted_gaps, blocked}, rest {likely, high, priced, unpriced}, unpriced, eta {likely_minutes,
     high_minutes (None unless every step is timed; all None until every design is approved: the runner times the
-    whole remake only), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
+    whole remake only), at_least_minutes, untimed}, made_at, stale [why], estimate (`screens.estimate`, owner
+    2026-10-21: prepare's whole figure from the places' current scene inventory readings, before any design is
+    approved; None before prepare read them) {likely, high (None while stale), unpriced [stage], places (read),
+    waiting (on inventory, no euros), eta, stale}}; the Environment's remake tile and the Buy screen's After design
+    show it (`c/estimate.html`: EUR likely to high, the ETA or its floor, "N of M places", "+ K unpriced") while no
+    design is approved, never buyable; `batch` carries it too; `gaps`
     {kind: count}; `places` [{place, title, status, picture (its concept's thumbnail link; None when its concept is
     lost, never a render instead: owner, 2026-10-20), picture_from (concept, None), design (`screens.design_state`:
     draw, review, read, or None once its scene inventory counts), progress {made, needed} (its line's steps accepted;
@@ -209,8 +214,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`inventory-readings/`, `WorldState.inventory_readings` and `inventory_spend`); the concept page shows the reading
   of the picked draw beside its picture (`concepts.reading_view`: rows numbered, each instance found boxed on the
   picture, the gaps listed, a dashed box for a thing no row names; a row and its boxes light together on hover), and
-  every reading's euros in sum show on the Environment's top bar under spent and on Stats. A reading feeds no count
-  yet: the gaps check and the plan still read `data/inventory/`.
+  every reading's euros in sum show on the Environment's top bar under spent and on Stats. Prepare's remake figure
+  reads the readings (its `estimate`); the gaps check and the plan still read `data/inventory/`.
 - **The environment concept** (CONTEXT.md "environment concept", owner 2026-10-21; `pages/environment.py`,
   `environment_concept.html`, `static/pages/environment.js`): `/environments/<world>/` shows its style line, physics
   rows (world, gravity, the bodies it moves, the places on it), reference pictures (what each is for, its place) and

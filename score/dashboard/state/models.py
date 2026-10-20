@@ -178,6 +178,9 @@ class Remake(BaseModel):
     places: dict[str, dict] = {}  # {place: {takes, bought, made, library, predicted_gaps, blocked}}
     layers: dict[str, dict] = {}  # {stage: {takes, likely, high, places: {place: takes}}}: prepare's per-unit × count
     design: dict = {}  # {places: {place: {concept, plan, output, hint}}, approved}: prepare/design.py
+    # {read: [place], waiting: [place]}: the places priced from their current scene inventory reading, and those
+    # waiting on one (no euros); {} in a record made before prepare read the readings.
+    inventory: dict = {}
     stale: str | None = None
 
 
