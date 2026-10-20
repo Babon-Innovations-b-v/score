@@ -532,14 +532,41 @@ def waits(store, place):
     return step_refusal(store, place, "draw")
 
 
+WINDOW_ROW = re.compile(r"\b(window|windows|porthole|portholes|pane|panes|glazing)$", re.IGNORECASE)
+WINDOW_LOOK = re.compile(r"\b(windows?|portholes?|glazing)\b", re.IGNORECASE)
+VIEW_SCALE = 2.5  # how much wider than what holds a place the view through its windows reaches, each way
+
+
+def looks_out(place):
+    """Whether `place` has windows or openings to the outside (the owner, 2026-10-21): a plan lead onto the outside,
+    a scene inventory row that is a window (its name, before any colon, ends in window, porthole, pane or glazing),
+    or its own look naming windows."""
+    leads = (plan_of(place).get("leads") or {}).values()
+    rows = (inventory_read(place) or {}).get("rows", [])
+    return (any(lead.get("to") == "outside" for lead in leads)
+            or any(WINDOW_ROW.search(row["name"].split(":")[0].strip()) for row in rows)
+            or bool(WINDOW_LOOK.search(look_text(place))))
+
+
+def view_box(box, size):
+    """The box around `box` (pixels) VIEW_SCALE times as wide and tall about its middle, inside a picture of `size`."""
+    wide, tall = (box[2] - box[0]) * VIEW_SCALE / 2, (box[3] - box[1]) * VIEW_SCALE / 2
+    middle = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+    return (max(0, middle[0] - wide), max(0, middle[1] - tall), min(size[0], middle[0] + wide),
+            min(size[1], middle[1] + tall))
+
+
 def sent_pictures(store, place):
     """[(what it is, its source)] a first draw of `place` sends, in order: a crop of the layer above's picked concept
-    showing only what holds it (source: ("crop", the place above, its box)), each joined place's picked concept
+    showing only what holds it (source: ("crop", the place above, its box)), for a place that looks out (looks_out) the
+    surroundings of that around it (("view", the place above, the same box)), each joined place's picked concept
     (source: that place's name), then the creator's references (their paths)."""
     holder = above(place)
     box = holding_box(store, place) if holder else None
     found = [(f"a crop of {short_name(holder)}'s picked concept: draw the inside of what this crop shows",
               ("crop", holder, box))] if box else []
+    found += [(f"{short_name(holder)}'s picked concept around it: through its windows, this view",
+               ("view", holder, box))] if box and looks_out(place) else []
     found += [(f"{short_name(other)}, picked: match the door they share", other)
               for other in joined(place) if picked(store, other)]
     return found + [(f"reference for {ref['shows']}, not its size", resolved(ref["picture"]))
@@ -729,8 +756,9 @@ def sent_picture(store, source):
     picked concept, or a file."""
     from PIL import Image
     if isinstance(source, tuple):
-        _, holder, box = source
-        return blob_picture(store, picked(store, holder)).crop(tuple(box))
+        kind, holder, box = source
+        picture = blob_picture(store, picked(store, holder))
+        return picture.crop(tuple(box) if kind == "crop" else view_box(box, picture.size))
     if isinstance(source, str):
         return blob_picture(store, picked(store, source))
     return Image.open(source)
