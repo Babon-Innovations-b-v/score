@@ -16,6 +16,16 @@ set -euo pipefail
 : "${SEGVIGEN:?}" "${SEGVIGEN_WEIGHTS:?}" "${TRELLIS_WEIGHTS:?}" "${DINOV3:?}" "${DINOV3_REVISION:?}" "${DINOV3_SHA256:?}"
 : "${GEOSAM2:?}" "${GEOSAM2_WEIGHTS:?}" "${WHEELS:?}" "${UTILS3D:?}" "${BLENDER_URL:?}"
 
+# A card parked after an earlier run of its kind (park.py) is set up already: this file wrote the mark last,
+# named for this file's text and its pins, so a changed set-up runs again.
+done_mark="/root/.meshparts-setup-$( (cat "$0"; env | grep -E "^(SEGVIGEN|SEGVIGEN_WEIGHTS|TRELLIS_WEIGHTS|DINOV3|DINOV3_REVISION|DINOV3_SHA256|GEOSAM2|GEOSAM2_WEIGHTS|WHEELS|UTILS3D|BLENDER_URL)=" | sort) | sha256sum | cut -c1-16)"
+if [ -f "$done_mark" ]; then
+  echo "set up already (a parked card)"
+  exit 0
+fi
+# Another kind's set-up may have run on a parked machine since: both environments start clean.
+rm -rf /root/sv /root/gs
+
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq build-essential git xvfb xauth libegl1 libgl1 libgl1-mesa-dri \
@@ -80,3 +90,4 @@ curl -fsSL "${BLENDER_URL}" | tar xJ --strip-components=1 -C /root/gs/blender
 # Its mode_ext C++ helper is compiled on first import; compile it now so the first take does not.
 cd /root/gs/GeoSAM2 && PATH=/root/gs/venv/bin:$PATH $GS -c "import utils.mode_ext; print('geosam2 helper built')"
 echo "setup done"
+touch "$done_mark"

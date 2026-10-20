@@ -107,13 +107,16 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
 - **A card is parked for its kind's measured cold start, at most 10 min** (`park.idle_minutes`, 2026-10-11): every
   cloud job waited for a fresh card to answer and set up (blender on cards: median 5.4 min outside its jobs, 40% of
   what its cards cost, October 2026). A healthy card of a kind in `park.CLEANUPS` (`blender`, `library`, `depth`,
-  `judge`) is parked as above for the median minutes its kind's last 30 fresh cards took from order to first job
+  `judge`, and since #20 `pixal`, `finish-masks`, `segment` and `meshparts`, so one card takes many jobs across a
+  batch; Pixal3D's fleet takes a parked card in `rent_fleet` before it orders one) is parked as above for the median minutes its kind's last 30 fresh cards took from order to first job
   (the ledger's `start_wait_minutes` + `setup_minutes`), so one nobody takes costs at most one cold start. Every
   claim of a cleared run waits on its kind's queue (`park.wanting`, `~/.farm-factory-props/cloud/wanted/<kind>/`) and
   takes a card parked meanwhile within 10 s; taking one needs a cleared run like `rent`. A card nobody took is
   deleted at its time and `--expire` writes its idle minutes and euros to the ledger (`parked-<id>`). A kind opts in
   with a clean-up in `park.CLEANUPS` and a set-up script that skips a machine it already set up (a mark named for the
-  script's text, written last).
+  script's text, written last). Pixal3D's and meshparts' clean-ups live in park.py (batch.py imports park; meshparts.py
+  is a declared input of the segvigen rows). A taken machine keeps only its newest set-up mark (`park.STALE_MARKS`):
+  most kinds share `/root/venv`, so an older kind's mark no longer says what is installed.
 - **A run's machines end with the run** (2026-10-17, after orphaned machines and boxes billed by the started hour):
   `score run` names itself SCORE_RUN_ID and leads a process group of its own (taking the terminal along and giving it
   back at its end); stopped by a signal it passes the stop on once (`stopped.PASS_ON` to its nodes, each sending

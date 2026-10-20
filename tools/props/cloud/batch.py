@@ -755,13 +755,16 @@ def rent_fleet(fleet, cards):
             offer = capacity.next_offer(fleet.offers, fleet.machines, "pixal")
             if offer is None:  # every class at its cap (capacity.max_machines, run_cap)
                 break
-            machine = rent(fleet, fleet.account, offer, len(fleet.machines) + 1)
+            machine = park_taken(fleet, fleet.offers, len(fleet.machines) + 1, "pixal", DISK_GB)  # on fleet.machines
             if machine is None:
-                fleet.offers.remove(offer)
-                continue
+                machine = rent(fleet, fleet.account, offer, len(fleet.machines) + 1)
+                if machine is None:
+                    fleet.offers.remove(offer)
+                    continue
+                machine["kind"] = "pixal"
+                with fleet.lock:
+                    fleet.machines.append(machine)
             added += machine["cards"]
-            with fleet.lock:
-                fleet.machines.append(machine)
             threading.Thread(target=tend, args=(fleet, machine), daemon=True).start()
         return added
 
@@ -802,7 +805,7 @@ def tend(fleet, machine):
     folder, sent, finished = machine["folder"], {}, set()
     try:
         try:
-            host = boot(machine)
+            host = machine["host"] if machine.get("adopted") else boot(machine)  # a parked card answered when taken
         except (TimeoutError, PermissionError) as error:
             say(f"{folder.name}: {machine['type']} in {machine['zone']} did not start ({error})")
             replace(fleet, machine)
@@ -830,6 +833,7 @@ def tend(fleet, machine):
             machine["status"] = status
             finished |= collect(fleet, folder, host, status, finished, sent)
             if status["finished"]:
+                machine["healthy"] = True  # its worker ended well: the card may be parked for the next run (park.py)
                 break
             time.sleep(POLL_SECONDS)
     except Exception as error:  # noqa: BLE001 - one machine failing must not stop the fleet

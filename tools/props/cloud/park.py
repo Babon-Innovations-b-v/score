@@ -67,8 +67,17 @@ CARD_LEAST_MINUTES = 1
 TAKE_MINUTES = 0.5
 # A record this long past its time lost its --expire process (the machine went by its self-delete and the sweeps).
 STALE_MINUTES = 10
-# kind -> function(machine) giving the shell command that removes the run's own files from the machine.
-CLEANUPS = {}
+# kind -> function(machine) giving the shell command that removes the run's own files from the machine. Pixal3D's
+# (batch.py imports this file) and meshparts' (meshparts.py is a declared input of the segvigen rows, so an edit there
+# re-keys them) live here; the other runners register their own.
+CLEANUPS = {
+    "pixal": lambda _machine: ("pkill -f '[m]achine_run[.]py' || true; cd /root/batch && "
+                               "rm -rf in out queue logs closed status.json run.log"),
+    "meshparts": lambda _machine: "rm -rf /root/mp/in /root/mp/out",
+}
+# Run on a taken machine: every set-up mark but the newest goes, so a kind whose environment a later set-up of another
+# kind replaced (most share /root/venv) sets up again, while the last set-up's own mark stays good.
+STALE_MARKS = "cd /root && ls -t .*-setup-* 2>/dev/null | tail -n +2 | xargs -r rm -f"
 # A card's idle time: the median cold start of its kind's last IDLE_SAMPLE fresh cards, at most IDLE_CAP_MINUTES
 # (short: a card waits minutes, never an hour), IDLE_DEFAULT_MINUTES for a kind never measured.
 IDLE_SAMPLE = 30
@@ -253,7 +262,8 @@ def adopt(run, offers, number, kind, disk_gb):
         try:
             deadline = run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60
             cloud.retag(machine["id"], machine["zone"], batch.run_tags(os.getpid(), deadline))
-            batch.remote(machine["folder"], machine["host"], "true", check=True, capture_output=True, timeout=60)
+            batch.remote(machine["folder"], machine["host"], STALE_MARKS, check=True, capture_output=True,
+                         timeout=60)
         except Exception as error:  # noqa: BLE001 - a parked machine that does not answer is deleted, the next tried
             batch.say(f"the parked {record['type']} in {record['zone']} did not answer ({error}); deleting it")
             batch.delete_machine(machine)
