@@ -3,8 +3,9 @@ through score.review.web.decide and the owner's advance into this machine's mark
 local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
 marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
 owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py), and the
-owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, picks and back to the generated wording (CONCEPT_KINDS), each
-through the local cockpit's own owner-only function."""
+owner's money figures and waivers (OWNER_FIGURES), and his concept review's draws, picks and back to the generated wording (CONCEPT_KINDS), and his
+environment concept's interview answers, versions and reference pictures (ENVIRONMENT_KINDS), each through the local
+cockpit's own owner-only function."""
 import dataclasses
 import json
 
@@ -17,6 +18,8 @@ from score.dashboard.pages.models import Launch, Plan
 from score.dashboard.state.files import HERO_SIDE, THUMB_SIDE, thumbnail
 
 CONCEPT_KINDS = ("concept-draw", "concept-pick", "concept-wording")
+# the environment concept's (CONTEXT.md "environment concept"): an interview answer, a new version, a reference picture
+ENVIRONMENT_KINDS = ("environment-ask", "environment-save", "environment-reference")
 DRAWN = ("sha", "name", "at", "by", "euros", "base", "marks", "note")  # a draw's fields its answer carries
 
 
@@ -190,6 +193,33 @@ def apply_concept_said(item, action):
     return Applied("refused" if said.startswith("refused") else "done", said)
 
 
+def apply_environment_ask(item):
+    """His interview answer (pages/actions.environment_ask); done: the detail {topic, proposed, euros} as JSON."""
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    said, record = actions.environment_ask(item["user"], item["payload"])
+    if record is None:
+        return Applied("refused", said)
+    return Applied("done", json.dumps({name: record[name] for name in ("topic", "proposed", "euros")}))
+
+
+def apply_environment_reference(item, source):
+    """His new reference picture (pages/actions.environment_reference); done: the detail {picture, sha} as JSON, its
+    picture small and large in `files` for the hosted page until the next export holds it."""
+    import hashlib
+    from score.review import concepts
+    if not from_owner(item):
+        return Applied("refused", f"{item['user']} is not this store's owner")
+    said, picture = actions.environment_reference(item["user"], item["payload"])
+    if picture is None:
+        return Applied("refused", said)
+    path = concepts.resolved(picture)
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    files = {f"{sha}-{side}.jpg": thumbnail(path, source.home / "thumbs" / f"{sha}-{side}.jpg", side)
+             for side in (THUMB_SIDE, HERO_SIDE)}
+    return Applied("done", json.dumps({"picture": picture, "sha": sha, "name": path.name}), files=files)
+
+
 def apply(item, source, chosen=None):
     """Apply one hosted request; Applied."""
     kind = item["kind"]
@@ -213,6 +243,12 @@ def apply(item, source, chosen=None):
         return apply_concept_said(item, actions.concept_pick)
     if kind == "concept-wording":
         return apply_concept_said(item, actions.concept_generated)
+    if kind == "environment-ask":
+        return apply_environment_ask(item)
+    if kind == "environment-save":
+        return apply_concept_said(item, actions.environment_save)
+    if kind == "environment-reference":
+        return apply_environment_reference(item, source)
     if kind in OWNER_FIGURES:
         return apply_owner_figure(item)
     return Applied("refused", f"unknown request kind {kind!r}")

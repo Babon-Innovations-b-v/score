@@ -95,13 +95,16 @@ grouped in `state/groups.py` from the stage table; no new framework level.
 - **`pages/`** the Django app (label `dashboard`): views, templates, static CSS/JS, its own SQLite records (change
   requests, basket, plans, launches, sync requests; never a mirror of the store). `actions.py` does what a request
   asks, one function each.
-- **The cockpit app (#42): five screens under one top nav** (`templates/pages/base.html`): **Environment** `/`
+- **The cockpit app (#42): five screens under one top nav** (`templates/pages/base.html`), under the home: **Home** `/`
+  (`pages/environment.py` `home`, `home.html`, owner 2026-10-21): the environments (environment 1 only today), each opening
+  its environment concept page, and the hub of what spans them (the month's spent, Stats, Library, Buy); **Environment
+  concept** `/environments/<world>/` (see below), its Places button opening **Environment** `/places/`
   (`environment.html`: the month spent (the lines read, "at least" while one is not, each line as hover text; no
   stop shown), the remake's euros and hours for the approved designs and how many places are in design (only that
   count before one is approved), a Review and buy
   button, a tile per outside place or shell (shapes first, `cockpit.tiles`: one holding places sums their progress
   and gaps, shows what sits directly inside that holds places itself over its concept ("Hangar, 8 rooms": a shell's or an inside place's places are its rooms) and "+N"
-  for the rest, and opens to them at `/?in=<place or shell>`, headed by that place or shell itself (`cockpit.head`: its concept, ring, gaps, Review or
+  for the rest, and opens to them at `/places/?in=<place or shell>`, headed by that place or shell itself (`cockpit.head`: its concept, ring, gaps, Review or
   Draw and, for a place, Open to its Place screen; CONTEXT.md "place": never an "Outside" card beside its inside
   places, owner 2026-10-20) over its inside places' tiles only, with a trail back up; the leaves open the Place screen), **Place** `/place/<place>/` (`place.html`: its concept as the header, the 3D view,
   the scene tree with gap dots, a side panel), **Buy** `/buy/` (`buy.html`, owner 2026-10-20, CONTEXT.md "design":
@@ -117,7 +120,7 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   remake's spend so far once a batch's stop line is written; a bar a day on one labelled scale, `cockpit.spend_by_day`:
   the bills' growth over a day read that day and the day before, else the ledgers' count when above 0 as a paler
   bar, else a gap, never 0, and the euros on no day), progress (places complete, the gaps by kind in plain words,
-  each opening the Environment at `/?kind=<kind>`: only the tiles holding that kind, counting it) and prices (paid
+  each opening the Environment at `/places/?kind=<kind>`: only the tiles holding that kind, counting it) and prices (paid
   steps measured, the remake's measured share)) and **Library** `/library/` (`pages/library.py`: every kind of
   `state/library.KINDS` with its count, a branch's children only when it opens (a withdrawn entry in none), `/api/library/children?node=&page=`,
   `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/` is the item on its own
@@ -208,6 +211,22 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   picture, the gaps listed, a dashed box for a thing no row names; a row and its boxes light together on hover), and
   every reading's euros in sum show on the Environment's top bar under spent and on Stats. A reading feeds no count
   yet: the gaps check and the plan still read `data/inventory/`.
+- **The environment concept** (CONTEXT.md "environment concept", owner 2026-10-21; `pages/environment.py`,
+  `environment_concept.html`, `static/pages/environment.js`): `/environments/<world>/` shows its style line, physics
+  rows (world, gravity, the bodies it moves, the places on it), reference pictures (what each is for, its place) and
+  places with what each may hold, editable only while unlocked, and the set interview beside it: the fixed questions
+  (`QUESTIONS`, the same as `score/review/environment_concept.QUESTIONS`) one at a time (`?q=<topic>`, links, so back
+  and forward step through them), his answers and each answer's proposed fields with its price and a Take. Send is his
+  spend yes for that one Gemini 3.1 Pro call at the price it shows (`WorldState.environment_ask_euros`, the measured
+  ask; `web.environment_ask`, refused when it moved), Save, Take, Lock and Unlock each a new version (`web.environment_saved`),
+  Add a reference picture into the private bucket's references/ and his local copy, never this repository
+  (`web.environment_reference`). Locked it is for looking at; Unlock opens a second, in-page ask (no `confirm()`:
+  the viewer has none) that every place's concept made from it goes out of date, and does exactly that (the store's
+  rule: every draw and pick records the version it was made under). Every click is a SyncRequest of
+  `applying.ENVIRONMENT_KINDS`, applied here at once locally (an ask or a picture in a thread) and by the listener when
+  hosted; hosted, his versions and pictures since the export show at once (`environment.shown`, `pictures`). Environment
+  1's is today's data shown locked until he keeps a version (`WorldState.environment_concept`, read by
+  `local.environment_concept`; its reference pictures in the export beside the concepts).
 - **The concept review** (CONTEXT.md "concept review", owner 2026-10-20; `pages/concepts.py`, `concept.html`,
   `static/pages/concept.js`): each Environment card whose concept is not locked carries a Review (Draw while it has
   none) button to `/concept/<place or shell>/`: the shown draw with areas marked by dragging, a note each and one for

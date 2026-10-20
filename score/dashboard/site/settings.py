@@ -107,6 +107,7 @@ MIDDLEWARE = [
 AUTHENTICATION_BACKENDS = (["score.dashboard.auth.backends.AllowListRemoteUserBackend"] if SCORE_PROXY_MODE
                            else ["django.contrib.auth.backends.ModelBackend"])
 ROOT_URLCONF = "score.dashboard.site.urls"
+DATA_UPLOAD_MAX_MEMORY_SIZE = 18 * 1024 * 1024  # a reference picture, base64 in its JSON (pages/environment.py)
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"

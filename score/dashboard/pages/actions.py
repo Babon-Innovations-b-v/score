@@ -416,3 +416,62 @@ def concept_pick(user, payload):
     source.refresh()
     return (f"picked {record['sha'][:12]}" if record["sha"] else "unlocked") + f"; {record['library']}"
 
+
+# --- the environment concept (CONTEXT.md "environment concept"): the owner's interview, versions and references ----
+
+def environment_ask(user, payload):
+    """One answer of the environment concept's set interview, his Send its spend yes (score.review.web.
+    environment_ask: his yes for that one call at the price his Send showed); (words, the ask's record or None)."""
+    why = owner_figure_off_why(user)
+    if why:
+        return why, None
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        asked = {"topic": str(payload["topic"]), "answer": str(payload["answer"]), "concept": payload["concept"]}
+        record = web.environment_ask(source.store, str(payload["world"]), asked, float(payload["euros"]), by=user)
+    except (review.Refused, PermissionError, FileExistsError, KeyError, TypeError, ValueError,
+            subprocess.TimeoutExpired) as refused:
+        return f"refused: {refused}", None
+    return f"answered for EUR {record['euros']:.2f}", record
+
+
+def environment_save(user, payload):
+    """His Save, Accept, Lock or Unlock of the environment concept: a new version (score.review.web.
+    environment_saved); in words."""
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        record = web.environment_saved(source.store, str(payload["world"]), payload["concept"],
+                                       bool(payload["locked"]), by=user)
+    except (review.Refused, PermissionError, FileExistsError, KeyError) as refused:
+        return f"refused: {refused}"
+    source.refresh()
+    return "locked" if record["locked"] else "saved"
+
+
+def environment_reference(user, payload):
+    """His new reference picture (score.review.web.environment_reference: the private bucket, its local copy, a new
+    version holding it); (words, the picture's path as the concept names it, or None)."""
+    why = owner_figure_off_why(user)
+    if why:
+        return why, None
+    import base64
+    import binascii
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        data = base64.b64decode(str(payload["data"]), validate=True)
+        record = web.environment_reference(source.store, str(payload["world"]), data, str(payload["name"]),
+                                           str(payload.get("shows") or ""), payload.get("place") or None, by=user)
+    except (review.Refused, PermissionError, FileExistsError, KeyError, binascii.Error) as refused:
+        return f"refused: {refused}", None
+    source.refresh()
+    return "added", record["concept"]["references"][-1]["picture"]
+

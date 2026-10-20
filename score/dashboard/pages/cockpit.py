@@ -6,6 +6,7 @@ import json
 
 from score.dashboard.state import gaps, screens
 
+PLACES = "/places/"  # the Places screen: the environment's places (today's one environment)
 # a gap kind's state colour (design/tokens/colours.css) and its short label
 KIND_TONES = {"lost": "gap-lost", "route": "gap-route", "missing": "gap-missing", "gate": "gap-gate"}
 KIND_LABELS = {"lost": "lost", "route": "route", "missing": "missing", "gate": "failing"}
@@ -144,7 +145,7 @@ def nested_tile(world, node, by_place, names):
     children = [child for child in [*by_place, *world.shells] if parent_of(world, child, by_place) == node]
     holds = [holder(world, child, by_place, names) for child in children if inside_of(world, child, by_place)]
     leaves = [names.get(child, child) for child in children if not inside_of(world, child, by_place)]
-    return {"place": node, "href": f"/?in={node}", "name": world.shells.get(node) or names.get(node, node),
+    return {"place": node, "href": f"{PLACES}?in={node}", "name": world.shells.get(node) or names.get(node, node),
             "about": ", ".join([f"{held['name']} ({held['count']} {held['unit']})" for held in holds] + leaves),
             "picture": screens.thumb(world.concepts.get(node)),
             "made": made, "needed": needed, "made_tip": f"made {made} of {needed}",
@@ -198,7 +199,7 @@ def trail(world, names, at):
         return None
     found, node = [], at
     while node:
-        found.insert(0, {"name": world.shells.get(node) or names.get(node, node), "href": f"/?in={node}"})
+        found.insert(0, {"name": world.shells.get(node) or names.get(node, node), "href": f"{PLACES}?in={node}"})
         node = parent_of(world, node, known)
     return found
 
@@ -289,7 +290,7 @@ def gaps_by_kind(total):
     """[{kind, label, tip, tone, href, count}] of the environment's gaps (a GapsTotal: a lost input once however
     many places read it) in KIND_WORDS' order, each opening the Environment filtered to it; each count None before
     any gaps check."""
-    return [{"kind": kind, "label": label, "tip": tip, "tone": KIND_TONES[kind], "href": f"/?kind={kind}",
+    return [{"kind": kind, "label": label, "tip": tip, "tone": KIND_TONES[kind], "href": f"{PLACES}?kind={kind}",
              "count": None if total is None else total.counts.get(kind, 0)} for kind, (label, tip) in KIND_WORDS.items()]
 
 

@@ -251,7 +251,7 @@ def test_a_place_shows_its_design_state_and_no_numbers_until_its_inventory_is_re
         return next(place for place in screens.environment(world.source, MONTH)["places"] if place["place"] == "alpha")
     shown = alpha()
     assert (shown["design"], shown["progress"], shown["gaps"]) == ("review", None, None)  # drawn, not picked
-    html = signed_in().get("/").content.decode()
+    html = signed_in().get("/places/").content.decode()
     assert "data-v>in review</span>" in html and "data-v>to draw</span>" in html and 'class="ring' not in html
     assert 'href="/place/alpha/"' not in html and 'class="ptile" href="/concept/alpha/"' in html  # no Place screen
     page = signed_in("joey2").get("/place/alpha/").content.decode()

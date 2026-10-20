@@ -26,8 +26,8 @@ from django.test import Client
 user = get_user_model().objects.create_user("joey", password="a long enough password")
 client = Client()
 client.force_login(user)
-pages = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/world/step/terrain/", "/basket/",
-         "/runs/", "/requests/", "/healthz"]
+pages = ["/", "/places/", "/environments/world1/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/",
+         "/world/step/terrain/", "/basket/", "/runs/", "/requests/", "/healthz"]
 codes = {page: client.get(page, HTTP_HOST="127.0.0.1").status_code for page in pages[:-1]}
 import score.dashboard.site.asgi  # what the hosted image serves
 heavy = [name for name in ("numpy", "pxr", "score.stages", "score.store", "score.dashboard.previews", "matplotlib")

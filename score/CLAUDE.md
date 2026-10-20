@@ -98,6 +98,10 @@ stage as each stage is built; nothing moves before.
   `.claude/hooks/accept_guard.py` blocks the other routes: a barrier, not a lock. `concepts.py` is the concept
   review's (CONTEXT.md): a place's concept draws, each one direct Nano Banana Pro call inside the owner's yes his cockpit
   click wrote (`web.concept_draw`), and his picks, kept in the store under `concepts/` (written only in the owner's process);
+  `environment_concept.py` is the environment concept's (CONTEXT.md): its versions (style line, physics, references,
+  places with what each may hold) and the set interview's asks, written only in the owner's process; environment 1's
+  is today's data until he keeps one; the locked one is what every draw reads, and a draw or pick made under another
+  version is out of date, and its places with what each may hold start within.json's proposal (`places_in_force`);
   each draw is copied to the private bucket as it is made (`concept-draws/<sha>.png` and `.json`; a failed copy is
   named in its record), and each pick or unlock is handed to score_lib through its own `score-lib concept` command.
   `reading.py` reads a picked concept into its scene inventory, started on its own by the pick (`web.reading_started`):

@@ -211,6 +211,12 @@ class WorldState(BaseModel):
     # gaps, euros, seconds) and what every reading cost in sum (None: not read).
     inventory_readings: dict[str, dict] = {}
     inventory_spend: float | None = None
+    # The environment concept (score/review/environment_concept.py): {concept {style, physics, references, places},
+    # locked, by, at, versions, prefilled} as its page shows it (today's data, locked, while no version is kept), the
+    # euros of one interview answer (None: not measured) and {reference's picture path: FileRef} of those here.
+    environment_concept: dict | None = None
+    environment_ask_euros: float | None = None
+    environment_pictures: dict[str, FileRef] = {}
 
 
 class ConceptWording(BaseModel):

@@ -217,6 +217,9 @@ def build(source, out, made_at, cap_mb, spend, repo):
         bundles.append(bundle)
     for concept in world.concepts.values():  # the tiles' pictures, small, before anything else
         filler.picture(source.file(concept.sha)[1], concept.sha, THUMB_SIDE, f"concept {concept.name}")
+    for picture in world.environment_pictures.values():  # the environment concept's references
+        for side in (THUMB_SIDE, HERO_SIDE):
+            filler.picture(source.file(picture.sha)[1], picture.sha, side, f"reference {picture.name}")
     drawn = [draw.picture for draws in world.concept_draws.values() for draw in reversed(draws)]
     for side in (THUMB_SIDE, HERO_SIDE):  # the concept review's draws, newest first, its history then its page
         for picture in drawn:

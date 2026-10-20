@@ -109,14 +109,14 @@ def test_a_lost_input_counts_once_and_marks_every_place_reading_it(cockpit, read
     a_gaps_price(cockpit, unfillable=[{"work": PLAN_WORK, "gaps": 1}, {"work": EARTH, "gaps": 1}])
     cockpit.source.refresh()
     client = signed_in()
-    tiles = dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', client.get("/").content.decode(), re.S))
+    tiles = dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', client.get("/places/").content.decode(), re.S))
     assert "tone-gap-lost" in tiles["alpha"] and "<b data-v>5</b>" in tiles["alpha"]  # the worst kind first
     assert "tone-gap-lost" in tiles["beta"] and "<b data-v>1</b>" in tiles["beta"]
     stats = client.get("/stats/").content.decode()
     lost = re.search(r'<div class="num-label"><i [^>]*></i><span data-v>inputs lost</span></div>\s*'
                      r'<div class="num-value"[^>]*>(\d+)</div>', stats)
     assert lost.group(1) == "1"  # one input, read by alpha, beta and the environment
-    only = client.get("/?kind=lost").content.decode()  # the Stats link: the places holding that kind, counting it
+    only = client.get("/places/?kind=lost").content.decode()  # the Stats link: the places holding that kind, counting it
     assert "<b data-v>inputs lost</b>" in only
     assert dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', only, re.S)).keys() == {"alpha", "beta"}
 
@@ -149,4 +149,4 @@ def test_a_gaps_check_run_again_shows_at_once_not_after_the_index(cockpit):
     os.utime(findings, (later, later))
     assert numbers.measured_prices(cockpit.source.gaps_price()) == (None, None)
     assert "the gaps check ran again at 1 place since the price was made" in unescape(
-        signed_in().get("/").content.decode())  # the remake's hover text
+        signed_in().get("/places/").content.decode())  # the remake's hover text

@@ -362,7 +362,7 @@ def test_the_runners_prices_are_summed_each_basis_apart():
 # --- the cockpit's screens (#42): numbers, colours, pictures and buttons, not prose -------------------------------
 
 WORD_BUDGET = 40  # a screen's words outside data, hover text and scripts (owner, 2026-10-20: text down about 98%)
-SCREENS = ["/", "/place/alpha/", "/buy/", "/stats/", "/library/"]
+SCREENS = ["/", "/places/", "/environments/world1/", "/place/alpha/", "/buy/", "/stats/", "/library/"]
 
 
 class Prose(HTMLParser):
@@ -434,7 +434,7 @@ def test_the_environment_is_the_month_the_remake_and_a_tile_per_place(world, set
     world.source.refresh()
     a_month(monkeypatch)
     client = signed_in()
-    html = client.get("/").content.decode()
+    html = client.get("/places/").content.decode()
     tiles = dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', html, re.S))
     assert set(tiles) == {"alpha", "beta"}
     assert "tone-gap-route" in tiles["alpha"] and "<b data-v>4</b>" in tiles["alpha"]  # its worst kind: a route step
@@ -465,21 +465,21 @@ def test_the_environment_shows_the_outside_places_and_opens_each_to_the_places_i
     def tiles(page):
         html = client.get(page).content.decode()
         return re.findall(r'<a class="ptile" href="([^"]+)"(.*?)</a>', html, re.S), html
-    found, _ = tiles("/")
-    assert [href for href, _ in found] == ["/?in=yard"]  # one outside shell; a shell holding no place shows not
+    found, _ = tiles("/places/")
+    assert [href for href, _ in found] == ["/places/?in=yard"]  # one outside shell; a shell holding no place shows not
     assert "<b data-v>Beta, 1 room</b>" in found[0][1] and "tone-gap-route" in found[0][1]  # alpha's gaps summed
     assert "concept missing" in found[0][1]  # the yard has no concept, and never takes one from inside
-    found, html = tiles("/?in=yard")
-    assert [href for href, _ in found] == ["/?in=beta"] and '<a href="/" data-v>Environment</a>' in html
+    found, html = tiles("/places/?in=yard")
+    assert [href for href, _ in found] == ["/places/?in=beta"] and '<a href="/places/" data-v>Places</a>' in html
     assert "<b data-v>+1</b>" in found[0][1]  # alpha sits in beta, a leaf
-    found, html = tiles("/?in=beta")
+    found, html = tiles("/places/?in=beta")
     assert [href for href, _ in found] == ["/place/alpha/"]  # only what it holds: beta is no card of its own
     assert "Outside" not in html
     head = html[html.index('<section class="phead"'):html.index('<section class="ptiles"')]
     assert '<h1 class="phead-name" data-v>Beta</h1>' in head and 'href="/place/beta/"' in head  # itself, on top
     assert 'href="/concept/beta/"' not in head and "tone-gap-route" in head  # picked: locked; its and alpha's gaps summed
-    assert '<a href="/?in=yard" data-v>Yard</a>' in html and "<b data-v>Beta</b>" in html
-    assert client.get("/?in=alpha").status_code == 404 and client.get("/?in=empty").status_code == 404
+    assert '<a href="/places/?in=yard" data-v>Yard</a>' in html and "<b data-v>Beta</b>" in html
+    assert client.get("/places/?in=alpha").status_code == 404 and client.get("/places/?in=empty").status_code == 404
 
 
 def test_the_remake_is_prepares_whole_figure_plus_the_rest_and_its_time_only_when_every_step_is_timed(
@@ -518,7 +518,7 @@ def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, set
         remake = cockpit.remake(world.source.world_state())
         assert remake["low"] is None and said in remake["why"], (said, remake)
         assert cockpit.measured_prices(price) == (None, None)
-    assert said in unescape(signed_in().get("/").content.decode())  # the why is the hover text
+    assert said in unescape(signed_in().get("/places/").content.decode())  # the why is the hover text
 
 
 def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, settings, tmp_path, monkeypatch, read):
@@ -538,7 +538,7 @@ def test_stats_are_numbers_against_the_one_stop_and_unknown_stays_grey(world, se
     assert cards["Places complete"] == "1<small> of 2</small>"  # beta, checked with no gap
     assert [cards[label] for label in ("not made yet", "failing a check", "steps of the route still to do",
                                        "inputs lost")] == ["2", "1", "1", "0"]
-    assert '<a class="num-card num-link" href="/?kind=missing"' in html
+    assert '<a class="num-card num-link" href="/places/?kind=missing"' in html
     assert "<title>2026-10-01: EUR 1.00, at least" in html and "<title>2026-10-03: EUR 1.50</title>" in html
     main = html[html.index("<main>"):]
     assert "<form" not in main and "<button" not in main  # numbers only, no controls

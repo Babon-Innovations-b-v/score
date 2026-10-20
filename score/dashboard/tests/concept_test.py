@@ -58,7 +58,7 @@ def stand_in(world, monkeypatch):
 
 
 def test_each_card_not_locked_opens_its_concept_review(world, stand_in):
-    html = signed_in().get("/").content.decode()
+    html = signed_in().get("/places/").content.decode()
     assert 'href="/concept/alpha/"' in html
     page = signed_in("joey2").get("/concept/alpha/")
     assert page.status_code == 200 and signed_in("joey3").get("/concept/nowhere/").status_code == 404
@@ -94,11 +94,11 @@ def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world
     assert drawing.own_wording(world.source.store, "beta") == "The corrected prompt."  # shown in the box
     newest = owner.get("/concept/beta/state/").json()["newest"]
     assert owner.post("/concept/beta/pick/", json.dumps({"sha": newest}), content_type="application/json").json()
-    assert 'ptile-review" href="/concept/beta/"' not in owner.get("/").content.decode()  # locked: no review button
+    assert 'ptile-review" href="/concept/beta/"' not in owner.get("/places/").content.decode()  # locked: no review button
     assert owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}),
                       content_type="application/json").status_code == 409
     owner.post("/concept/beta/pick/", json.dumps({"sha": None}), content_type="application/json")
-    assert 'href="/concept/beta/"' in owner.get("/").content.decode()
+    assert 'href="/concept/beta/"' in owner.get("/places/").content.decode()
 
 
 def test_with_no_mark_and_no_note_the_one_button_draws_fresh_from_the_places_wording(world, stand_in):
@@ -212,7 +212,7 @@ def test_the_listener_says_an_unreachable_hosted_side_and_asks_again(world):
 
 def test_draw_all_draws_every_undrawn_place_at_once_its_click_the_yes_for_that_total(world, stand_in):
     owner = signed_in()
-    html = owner.get("/").content.decode()
+    html = owner.get("/places/").content.decode()
     assert "Draw all 2, EUR 0.30" in html and "/concepts/draw-all/" in html
     shown = concepts.draw_all(concepts.light_world(world.source))
     answer = owner.post("/concepts/draw-all/", json.dumps({"places": shown["places"], "euros": 0.30}),
@@ -223,7 +223,7 @@ def test_draw_all_draws_every_undrawn_place_at_once_its_click_the_yes_for_that_t
         assert len(found) == 1 and found[0]["base"] is None and found[0]["euros"] == PRICE
         yes = world.source.store.spend_yes("override", found[0]["yes"])
         assert yes["euros"] == PRICE and "Draw all, 2 first draws for EUR 0.30" in yes["purpose"]
-    assert "Draw all" not in owner.get("/").content.decode()  # nothing left undrawn: the button is gone
+    assert "Draw all" not in owner.get("/places/").content.decode()  # nothing left undrawn: the button is gone
 
 
 def test_draw_all_is_refused_when_the_total_or_the_places_changed_or_for_anyone_else(world, stand_in):
@@ -254,7 +254,7 @@ def test_draw_all_leaves_out_a_place_that_cannot_be_drawn_now_and_says_how_many(
     waits = drawing.waits
     monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be picked"
                         if place == "alpha" else waits(store, place))
-    html = signed_in().get("/").content.decode()
+    html = signed_in().get("/places/").content.decode()
     assert "Draw all 1, EUR 0.15" in html and "1 more with none cannot be drawn now" in html
 
 
@@ -278,12 +278,12 @@ def test_draws_on_their_way_show_on_the_button_and_their_cards_until_they_land(w
     owner = signed_in()
     for place in ("alpha", "beta"):  # queued, not yet answered (hosted: the listener's to answer)
         SyncRequest.objects.create(kind=concepts.DRAW, user="joey", payload={"place": place, "euros": PRICE})
-    html = owner.get("/").content.decode()
+    html = owner.get("/places/").content.decode()
     assert "Drawing 2..." in html and "data-drawing" in html and html.count('class="draw-busy"') == 2
     assert "Draw all" not in html
     SyncRequest.objects.filter(payload__place="alpha").update(state="done")
     SyncRequest.objects.filter(payload__place="beta").update(state="refused", detail="refused: the price moved")
-    html = owner.get("/").content.decode()
+    html = owner.get("/places/").content.decode()
     assert "data-drawing" not in html and "draw-busy" not in html
     assert 'class="draw-refused" title="refused: the price moved"' in html
 
