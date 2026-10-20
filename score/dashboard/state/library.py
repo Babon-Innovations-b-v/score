@@ -31,6 +31,7 @@ WHAT = {"model": "a model", "surface": "a surface and the material a place write
 STATES = ("draft", "locked", "withdrawn")
 ADDRESS = re.compile(r"^(?P<kind>[a-z]+)/(?P<id>[a-z0-9_]+(\.[a-z0-9_]+)?)@(?P<version>[1-9][0-9]*)$")
 MAX_TAKES = 4  # a sound's takes sent to the hosted cockpit
+MAX_FILES = 8  # an entry's files listed in the export (its count and bytes always go)
 EXPORT_ROWS = "library/entries.json"
 CHOSEN = {}  # the library made for the current settings
 
@@ -38,6 +39,12 @@ CHOSEN = {}  # the library made for the current settings
 class FileOf(BaseModel):
     name: str
     sha: str
+    bytes: int = 0
+
+
+class Listed(BaseModel):
+    """One file of an entry as its page lists it."""
+    name: str
     bytes: int = 0
 
 
@@ -67,38 +74,18 @@ class LibraryEntry(BaseModel):
     score: int | float | None = None  # the entry's quality, 0 to 100 (or a fraction 0 to 1), its kind's own scoring
     score_parts: list[dict] = []  # what the score is made of: [{name, value (None: not measured), how}]
     refine_options: list[dict] = []  # [{id, label}] the ways it can be made better
+    files: list[Listed] = []  # its files by name (the export sends the first MAX_FILES)
+    file_count: int = 0
+    file_bytes: int = 0
 
 
 def kind_label(kind):
     return dict(KINDS).get(kind, kind.capitalize())
 
 
-def sentence(entry):
-    """What the entry is, in one sentence."""
-    said = WHAT.get(entry.kind, f"a {entry.kind}")
-    said = said[0].upper() + said[1:]
-    if entry.place:
-        said += f", made for {entry.place.replace('_', ' ')}"
-    others = [place for place in entry.seen_in if place != entry.place]
-    if others:
-        said += f", used in {len(others)} other place{'s' if len(others) > 1 else ''}"
-    return said + "."
-
-
-def step_of(node):
-    """(place or None, stage) of a step node `stage@place` or an environment stage."""
-    stage, _, place = node.partition("@")
-    return (place or None), stage
-
-
-def step_url(node):
-    place, stage = step_of(node)
-    return f"/place/{place}/step/{stage}/" if place else f"/world/step/{stage}/"
-
-
 def entry_url(entry):
-    """The explorer opened on this entry."""
-    return f"/library/?entry={quote(entry.address)}"
+    """The entry's own page."""
+    return f"/library/{entry.kind}/{quote(entry.entry_id)}/{entry.version}/"
 
 
 def viewer_url(entry):
@@ -185,6 +172,8 @@ def entry_of(record):
     provenance = record.get("provenance") or {}
     glbs = files_of_role(record, "gltf", (".glb",))
     score, parts, options = quality(record)
+    listed = [Listed(name=name, bytes=described.get("bytes", 0))
+              for name, described in sorted(record.get("files", {}).items())]
     return LibraryEntry(
         address=record["address"], kind=record["kind"], entry_id=record["id"], version=record["version"],
         title=record.get("title") or record["id"], state=record["state"], locked=record.get("locked"),
@@ -194,7 +183,7 @@ def entry_of(record):
         seen_in=record.get("seen_in") or [], tags=record.get("tags") or {}, requires=record.get("requires") or [],
         takes=files_of_role(record, "audio", (".ogg", ".wav", ".mp3", ".flac")), glb=glbs[0] if glbs else None,
         web3d=web_copy(record), finish=finish_print(record), score=score, score_parts=parts,
-        refine_options=options)
+        refine_options=options, files=listed, file_count=len(listed), file_bytes=sum(each.bytes for each in listed))
 
 
 # --- a surface's finish ----------------------------------------------------------------------------------------
@@ -250,7 +239,7 @@ class Library:
         return {entry.address: entry for entry in self.entries()}
 
     def folders(self):
-        """The explorer's folders of these entries (state/library_tree.py), made again when the entries change."""
+        """The Library's folders of these entries (state/library_tree.py), made again when the entries change."""
         from score.dashboard.state.library_tree import folders
         entries = self.entries()
         if self.kept.get("folders_of") is not entries:
@@ -424,29 +413,13 @@ def for_export():
     return shown if isinstance(shown, LocalLibrary) else local_library(settings)
 
 
-# --- finding entries -------------------------------------------------------------------------------------------
-
-def matches(entry, place, state, words):
-    """True when an entry passes the explorer's filters: the place it came from, its state, words in its name."""
-    if (place and entry.place != place) or (state and entry.state != state):
-        return False
-    return not words or all(word in f"{entry.title} {entry.entry_id}".lower() for word in words.lower().split())
-
-
-def filtered(entries, place="", state="", words=""):
-    return [entry for entry in entries if matches(entry, place, state, words)]
-
-
-def places_of(entries):
-    return sorted({entry.place for entry in entries if entry.place})
-
-
 # --- into the state export (sync/building.py) ------------------------------------------------------------------
 
 def exported_rows(entries):
-    """The rows the hosted cockpit reads: each entry with a sound's first takes and no raw GLB (too large to send);
+    """The rows the hosted cockpit reads: each entry with a sound's first takes, its first files and no raw GLB;
     the web copies and a surface's print go as files while they fit (export_three_d)."""
-    return [entry.model_copy(update={"takes": entry.takes[:MAX_TAKES], "glb": None}).model_dump() for entry in entries]
+    return [entry.model_copy(update={"takes": entry.takes[:MAX_TAKES], "glb": None, "files": entry.files[:MAX_FILES]})
+            .model_dump() for entry in entries]
 
 
 def export_rows(local, out, filler):

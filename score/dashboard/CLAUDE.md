@@ -73,8 +73,12 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   button, a tile per place), **Place** `/place/<place>/` (`place.html`: the 3D view, the scene tree with gap dots, a
   side panel), **Buy** `/buy/` (`buy.html`: the batch's list, total, ETA and the Buy button; the owner's books
   buttons while paid work is refused; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
-  (`stats.html`: numbers only, no controls) and **Library** `/library/`. Step 1 built the shell, Environment and
-  Stats; Place, Buy and Library hold `c/todo.html` placeholders (`data-step2`) that step 2 fills. The numbers come
+  (`stats.html`: numbers only, no controls) and **Library** `/library/` (`pages/library.py`: every kind of
+  `state/library.KINDS` with its count, a branch's children only when it opens, `/api/library/children?node=&page=`,
+  `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/`: its picture, version, score
+  and parts, files, takes, 3D link, the owner's lock, withdraw and refine; hosted, the same from the export's
+  `library/entries.json`, each entry's first `MAX_FILES` files with its file count and bytes). Step 1 built the shell,
+  Environment and Stats; Place and Buy hold `c/todo.html` placeholders (`data-step2`) that step 2 fills. The numbers come
   from `pages/cockpit.py` (`month_money`, `remake`, `tiles`, `scene_tree`, `gaps_by_kind`, `places_complete`,
   `measured_prices`, `timeline`), each None where the runner gives none, shown as a grey "unknown", never 0; the
   views are `views.environment`, `stats`, `buy`, `place_page` over `views.overview_of`. The components, each an

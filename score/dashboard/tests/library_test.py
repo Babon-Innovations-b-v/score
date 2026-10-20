@@ -1,10 +1,12 @@
-"""The Library explorer reads a tiny library folder (entries, an index, a blob folder): one page with the tree of kinds
-and categories, a folder's entries sorted and banded by score, an entry with its 3D view first (its web copy, a
-surface's finish, or "on its way"), the place page's strip, the owner's lock and withdraw (queued when hosted, applied
-with the library's own command, committed and pushed, refused for anyone else and in an agent's process), refine items
-into the basket, and the library in the state export, read back by a hosted cockpit."""
+"""The Library screen reads a tiny library folder (entries, an index, a blob folder): the tree of kinds with counts,
+a branch's children only when it opens, a page at a time, an item's page (picture, version, score, files, 3D), the
+owner's lock and withdraw (queued when hosted, applied with the library's own command, committed and pushed, refused
+for anyone else and in an agent's process), refine items into the basket, and the library in the state export, read
+back by a hosted cockpit that imports nothing its image lacks."""
 import hashlib
 import json
+import os
+import pathlib
 import struct
 import subprocess
 import sys
@@ -15,15 +17,18 @@ from django.test import Client, override_settings
 from fastapi.testclient import TestClient
 
 from score.dashboard.pages import actions, library_actions
+from score.dashboard.pages import library as pages_library
 from score.dashboard.pages.models import RefineItem, SyncRequest
 from score.dashboard.state import library as lib
 from score.dashboard.state.library_tree import folders
 from score.dashboard.state.models import Spend
 from score.dashboard.sync import applying, building
 from score.dashboard.tests import fixture
+from score.dashboard.tests.pages_test import WORD_BUDGET, prose
 
 pytestmark = pytest.mark.django_db(transaction=True)
 ORIGIN = "http://127.0.0.1:8780"
+REPO = pathlib.Path(__file__).resolve().parents[3]
 MATERIAL = b"""#usda 1.0
 def Material "steel" { def Shader "surface" {
     color3f inputs:diffuseColor = (0.5, 0.25, 0.125)
@@ -151,21 +156,29 @@ def node_of(tree, node_id):
     return None
 
 
-def test_the_explorer_is_one_page_with_its_three_panes_and_one_mit_note(world, shelf):
+def test_the_screen_is_the_tree_of_kinds_with_counts_and_no_entry_until_a_branch_opens(world, shelf):
     html = signed_in().get("/library/").content.decode()
-    for pane in ('id="lib-tree"', 'id="lib-grid"', 'id="lib-entry"', '"importmap"', "/static/pages/library.js"):
-        assert pane in html
-    assert html.count(">MIT<") == 1 and "commercial" not in html.lower()
-    assert ">7 / 1<" in html  # entries, locked
+    for kind, count in (("Models", 3), ("Surfaces", 1), ("Sound", 1), ("Characters", 1), ("Places", 1), ("Kits", 0),
+                        ("Algorithms", 0), ("Layers", 0), ("Effects", 0), ("Lights", 0), ("Ground", 0)):
+        assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
+    assert 'data-children="/api/library/children?node=model"' in html and "node=kit" not in html  # an empty kind
+    assert "Lamp post" not in html and "Wrench" not in html  # entries load only when their branch opens
+    assert html.count(">MIT<") == 1 and "library.js" not in html
 
 
-def test_the_tree_holds_each_kind_and_its_categories_with_counts(world, shelf):
-    found = api().get("/api/library/tree").json()
-    assert [node["label"] for node in found["tree"]] == ["Models", "Surfaces", "Sound", "Characters", "Places"]
-    models = node_of(found["tree"], "model")
-    assert models["count"] == 3 and [(node["label"], node["count"]) for node in models["children"]] == [
-        ("Pieces", 2), ("Props", 1)]
-    assert found["owner"] is True and found["places"] == ["alpha", "beta"] and found["total"] == 7
+def test_a_branch_answers_its_children_a_page_at_a_time(world, shelf, monkeypatch):
+    client = api()
+    models = client.get("/api/library/children", params={"node": "model"}).json()
+    assert [(node["label"], node["count"], node["children_url"]) for node in models] == [
+        ("Pieces", 2, "/api/library/children?node=model/piece"), ("Props", 1, "/api/library/children?node=model/prop")]
+    pieces = client.get("/api/library/children", params={"node": "model/piece"}).json()
+    assert [(node["label"], node["count"], node["tone"], node["href"]) for node in pieces] == [
+        ("Crate", 91, "done", "/library/model/crate/1/"), ("Lamp post", 42, "review", "/library/model/lamp_post.alpha/1/")]
+    monkeypatch.setattr(pages_library, "PAGE", 1)
+    first = client.get("/api/library/children", params={"node": "model/piece"}).json()
+    assert [node["label"] for node in first] == ["Crate", "more"] and first[1]["count"] == 1
+    assert [node["label"] for node in client.get(first[1]["children_url"]).json()] == ["Lamp post"]
+    assert client.get("/api/library/children", params={"node": "nowhere"}).status_code == 404
 
 
 def named(count, stem, place="alpha"):
@@ -186,51 +199,23 @@ def test_a_large_folder_is_split_by_name_words_then_by_place_and_small_groups_go
     assert len(made["members"]["model/wall/wall_upper/@beta"]) == 20
 
 
-def test_a_folder_lists_its_entries_sorted_and_banded_by_score(world, shelf):
-    client = api()
-    pieces = client.get("/api/library/list", params={"node": "model/piece", "sort": "score_low"}).json()
-    assert [row["title"] for row in pieces["entries"]] == ["Lamp post", "Crate"]
-    assert [row["score"] for row in pieces["entries"]] == [42, 91]
-    assert pieces["bands"] == {"low": 1, "mid": 0, "high": 1, "none": 0}
-    best = client.get("/api/library/list", params={"node": "model", "sort": "score_high"}).json()
-    assert [row["title"] for row in best["entries"]] == ["Crate", "Lamp post", "Wrench"]  # the unscored last
-    assert [row["title"] for row in client.get("/api/library/list", params={"node": "model", "band": "none"}
-                                               ).json()["entries"]] == ["Wrench"]
-    assert client.get("/api/library/list", params={"q": "lamp"}).json()["count"] == 1
-    assert client.get("/api/library/list", params={"node": "model", "place": "beta"}).json()["count"] == 1
-    assert client.get("/api/library/list", params={"node": "nowhere"}).status_code == 404
-
-
-def test_an_entry_opens_on_its_web_copy_or_says_the_copy_is_on_its_way(world, shelf):
-    client = api()
-    lamp = client.get("/api/library/entry", params={"address": "model/lamp_post.alpha@1"}).json()
-    copy = lib.library().entry("model/lamp_post.alpha@1").web3d
-    assert lamp["three_d"]["model"] == f"/library-files/files/{copy.sha}" and lamp["three_d"]["web_copy"] is True
-    assert lamp["quality"] == {"score": 42, "parts": [{"name": "shape", "score": 30, "how": "edges"},
-                                                      {"name": "likeness", "score": None, "how": "needs a paid judge"}],
-                               "refine": [{"id": "remesh", "label": "remesh"},
-                                          {"id": "repaint", "label": "paint it again"}]}
-    assert client.get(lamp["three_d"]["model"]).headers["content-type"] == "model/gltf-binary"
-    crate = client.get("/api/library/entry", params={"address": "model/crate@1"}).json()
-    assert crate["three_d"] == {"waiting": True}
-    assert crate["quality"]["score"] == 91 and crate["quality"]["parts"] == [{"name": "finish", "score": 60, "how": ""}]
-    rows = {row["title"]: row for row in client.get("/api/library/list", params={"node": "model"}).json()["entries"]}
-    assert rows["Lamp post"]["has3d"] and rows["Crate"]["waits3d"] and not rows["Crate"]["has3d"]
-    walker = client.get("/api/library/entry", params={"address": "character/walker@1"}).json()
-    assert walker["three_d"]["web_copy"] is False and walker["three_d"]["full"] == "/library/character/walker/1/3d/"
-
-
-def test_a_surface_shows_its_own_finish_and_a_sound_its_takes(world, shelf):
-    client = api()
-    steel = client.get("/api/library/entry", params={"address": "surface/brushed_steel.alpha@1"}).json()
-    assert steel["three_d"] == {"finish": {"colour": [0.5, 0.25, 0.125], "metallic": 1.0, "roughness": 0.35},
-                                "print": None}
-    hum = client.get("/api/library/entry", params={"address": "sound/hum.alpha@1"}).json()
-    assert len(hum["takes"]) == 2 and hum["three_d"] is None
-    place = client.get("/api/library/entry", params={"address": "place/alpha@1"}).json()
-    assert place["requires"] == [{"address": "model/lamp_post.alpha@1", "title": "Lamp post", "known": True}]
-    assert place["step"] == {"label": "assembly", "url": "/place/alpha/step/assembly/"}
-    assert client.get("/api/library/entry", params={"address": "model/nothing@1"}).status_code == 404
+def test_an_item_page_shows_its_picture_version_score_files_and_3d(world, shelf):
+    client = signed_in()
+    lamp = client.get("/library/model/lamp_post.alpha/1/").content.decode()
+    found = lib.library().entry("model/lamp_post.alpha@1")
+    assert f"/library-files/pictures/{found.picture}.jpg" in lamp and 'href="/library/model/lamp_post.alpha/1/3d/"' in lamp
+    for shown in (">42 <small>%</small>", ">30 <small>%</small>", "shape", "likeness", "web/lamp_post.glb",
+                  "preview.png", 'value="lock"', 'value="repaint"'):
+        assert shown in lamp, shown
+    crate = client.get("/library/model/crate/1/").content.decode()
+    assert ">91 <small>%</small>" in crate and 'value="withdraw"' in crate and "/3d/" not in crate
+    hum = client.get("/library/sound/hum.alpha/1/").content.decode()
+    assert hum.count("<audio") == 2
+    guest = signed_in("guest").get("/library/model/crate/1/").content.decode()
+    assert "data-post" not in guest  # only the owner decides
+    assert client.get("/library/model/nothing/1/").status_code == 404
+    words = prose(lamp)
+    assert len(words) <= WORD_BUDGET, (len(words), words)
 
 
 def test_the_full_screen_viewer_and_the_file_routes_serve_only_listed_files(world, shelf):
@@ -311,16 +296,50 @@ def test_the_export_carries_the_library_and_its_web_copies_to_a_hosted_cockpit(w
         assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 7
         assert hosted.picture_path(next(iter(pictures)), 360) is not None
         client = api("joey3")
-        assert len(client.get("/api/library/entry", params={"address": "sound/hum.alpha@1"}).json()["takes"]) == 2
-        lamp = client.get("/api/library/entry", params={"address": "model/lamp_post.alpha@1"}).json()
-        assert lamp["three_d"]["web_copy"] is True and client.get(lamp["three_d"]["model"]).status_code == 200
-        steel = client.get("/api/library/entry", params={"address": "surface/brushed_steel.alpha@1"}).json()
-        assert steel["three_d"]["finish"]["metallic"] == 1.0
-        assert client.get("/api/library/entry", params={"address": "character/walker@1"}).json()["three_d"] == {
-            "waiting": True}  # its raw GLB is not sent
+        assert [node["label"] for node in client.get("/api/library/children", params={"node": "model/piece"}).json()
+                ] == ["Crate", "Lamp post"]
+        pages = signed_in("joey4")
+        assert 'data-children="/api/library/children?node=model"' in pages.get("/library/").content.decode()
+        hum = pages.get("/library/sound/hum.alpha/1/").content.decode()
+        assert hum.count("<audio") == 2 and "audio/hum_1.ogg" in hum
+        lamp = pages.get("/library/model/lamp_post.alpha/1/").content.decode()
+        assert 'href="/library/model/lamp_post.alpha/1/3d/"' in lamp  # its web copy travelled
+        assert "/3d/" not in pages.get("/library/character/walker/1/").content.decode()  # its raw GLB is not sent
+
+
+HOSTED_CHILD = """
+import json, sys
+import django
+django.setup()
+from django.core.management import call_command
+call_command("migrate", interactive=False, verbosity=0)
+from django.contrib.auth import get_user_model
+from django.test import Client
+from score.dashboard.pages import library
+from score.dashboard.state import library as lib
+client = Client()
+client.force_login(get_user_model().objects.create_user("joey", password="a long enough password"))
+codes = [client.get(page, HTTP_HOST="127.0.0.1").status_code for page in ("/library/", "/library/model/crate/1/")]
+branch = [node["label"] for node in library.children(lib.library(), "model")]
+import score.dashboard.site.asgi  # what the hosted image serves
+heavy = [name for name in sys.modules if name.startswith("score.") and not name.startswith("score.dashboard")]
+print(json.dumps({"codes": codes, "branch": branch, "heavy": heavy}))
+"""
+
+
+def test_a_hosted_library_screen_imports_nothing_the_hosted_image_lacks(world, shelf, tmp_path):
+    home = tmp_path / "hosted"
+    building.build(world.source, home / "export" / "one", MADE, 50, Spend(spent=1.0, reserved=0.0, ceiling=250.0),
+                   world.root)
+    (home / "export" / "current").symlink_to("one")
+    env = {**os.environ, "SCORE_DASHBOARD_MODE": "hosted", "SCORE_DASHBOARD_HOME": str(home), "SCORE_LIB_ROOT": "",
+           "DJANGO_SETTINGS_MODULE": "score.dashboard.site.settings", "PYTHONPATH": str(REPO)}
+    done = subprocess.run([sys.executable, "-c", HOSTED_CHILD], env=env, cwd=tmp_path, capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr[-3000:]
+    found = json.loads(done.stdout.strip().splitlines()[-1])
+    assert found == {"codes": [200, 200], "branch": ["Pieces", "Props"], "heavy": []}, found
 
 
 def test_the_library_screen_shows_numbers_not_prose(world, shelf):
-    from score.dashboard.tests.pages_test import WORD_BUDGET, prose
     words = prose(signed_in().get("/library/").content.decode())
     assert len(words) <= WORD_BUDGET, (len(words), words)
