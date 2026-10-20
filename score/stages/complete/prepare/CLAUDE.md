@@ -23,7 +23,8 @@ the one figure the creator says yes to. Today it prepares the environment's rema
 - **Sharing a take across places is the owner's call** (a place's style may differ): `across_places` prices it
   beside the figure, never in it.
 - **Quality is never a cost lever** (owner, 2026-10-20): never lower a setting that ships (Pixal3D's steps, held at
-  the #55 lock in `tools/props/pixal.py`; film samples; resolutions), and never list a benchmark that would.
+  the #55 lock in `tools/props/pixal.py`; film samples; resolutions; the finish list's thinking), and never list a
+  benchmark that would.
 - **Benchmarks are listed, never launched here** (`benchmarks.py`, EUR 20 cap in all, counted on their highs): each
   through `score run --detach` once its track has landed, after `benchmarks.guard()` (the month's guard) has room.
 - Run: `.venv/bin/python -m score.stages.complete.prepare [--library DIR] [--stock] [--moved]`, writes
