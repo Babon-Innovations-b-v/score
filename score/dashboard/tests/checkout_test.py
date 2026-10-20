@@ -245,3 +245,62 @@ def test_the_local_backend_prices_through_score_price_and_reads_the_ledger_by_no
     settings.SCORE_LEDGER_FILES = [ledger]
     (line,) = localrun.LocalBackend(run=run).ledgered(["closeup@alpha"], "2026-10-18T00:00:00Z")
     assert (line.node, line.euros, line.minutes) == ("closeup@alpha", 3.0, 9)
+
+
+# --- the Benchmarks item (#21) -----------------------------------------------------------------------------------
+
+LISTED = [  # prepare's record as score/stages/complete/prepare/benchmarks.listed writes it
+    {"id": "pixal-l4", "what": "Pixal3D on one L4", "likely_euros": 1.5, "high_euros": 2.81, "guess_euros": None,
+     "likely_minutes": 91.3, "high_minutes": 183.3, "gap": None},
+    {"id": "film", "what": "the hub's film", "likely_euros": None, "high_euros": None, "guess_euros": 3.5,
+     "likely_minutes": 64.0, "high_minutes": 144.0, "gap": None},
+    {"id": "batch-direct", "what": "batch against direct", "gap": "no paid path asks a finish list direct"}]
+
+
+def a_prepare_record(settings, listed=LISTED):
+    import json
+    from score.dashboard.proposals import benchmarks
+    path = settings.SCORE_PROPS_HOME / benchmarks.RECORD
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"benchmarks": {"listed": listed}}))
+
+
+def test_the_benchmarks_are_one_item_on_the_buy_screen_and_one_batch_at_its_high_plus_ten_percent(shop, settings):
+    from score.dashboard.launch import localrun
+    from score.dashboard.proposals import benchmarks
+    a_prepare_record(settings)
+    said = benchmarks.put(settings.SCORE_HOME / "proposals", settings.SCORE_PROPS_HOME)
+    assert said == "benchmarks: EUR 1.50 to 6.31, 2 to run, 1 gaps", said
+    benchmarks.put(settings.SCORE_HOME / "proposals", settings.SCORE_PROPS_HOME)  # a second pass replaces it
+    item = records.item(settings.SCORE_HOME / "proposals", "benchmarks")
+    assert [each["id"] for each in records.items(settings.SCORE_HOME / "proposals")].count("benchmarks") == 1
+    assert item["title"] == "Benchmarks" and item["gaps"][0]["id"] == "batch-direct"
+    client = api()
+    row = next(each for each in client.get("/api/screens/buy").json()["items"] if each["id"] == "benchmarks")
+    assert (row["likely"], row["high"], row["guessed"], row["nodes"], row["blocked"]) == (1.5, 2.81, 3.5, 2, False)
+    BasketChoice.objects.create(item="benchmarks", version=item["version"], choice="buy", by="joey")
+    screen = client.get("/api/screens/buy").json()
+    assert screen["stop"] == round(6.31 * 1.1, 2) and screen["eta"]["likely_minutes"] == round(91.3 + 64.0, 1)
+    record = checked_out(client, "e")["checkout"]
+    assert record["state"] == "launched", record
+    assert stop_line(shop)["euros"] == round(100.0 + 10.0 + 6.31 * 1.1, 2)  # spent, in flight, its high plus 10%
+    assert not [call for call in FakeBackend.calls if call[0] == "plan"]  # its batch plans each benchmark itself
+    (launched,) = launches()
+    assert launched[1] == RunGroup((), (), benchmarks=True)
+    assert localrun.run_command(launched[1], 8, None)[1:] == ["-m", localrun.BENCHMARKS, "run", "--detach"]
+
+
+def test_the_google_figure_button_writes_the_owners_figure_into_the_books(shop, monkeypatch):
+    from score.review import web
+    written = []
+    monkeypatch.setattr(web, "google_month", lambda euros, by: written.append((euros, by)) or {"month": "2026-10"})
+    answer = api().post("/api/money/books-figure", json={"euros": 1030})
+    assert answer.status_code == 200 and "EUR 1030.00 entered by joey" in answer.json()["said"], answer.text
+    assert written == [(1030.0, "joey")]
+
+
+def test_no_benchmark_that_can_run_is_no_item(settings):
+    from score.dashboard.proposals import benchmarks
+    a_prepare_record(settings, LISTED[2:])
+    assert benchmarks.put(settings.SCORE_HOME / "proposals", settings.SCORE_PROPS_HOME) == "benchmarks: none listed"
+    assert records.item(settings.SCORE_HOME / "proposals", "benchmarks") is None

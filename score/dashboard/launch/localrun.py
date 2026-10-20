@@ -19,6 +19,7 @@ RESULT = re.compile(r"^detached: (ok|failed|stopped)\b")
 RESULT_STATES = {"ok": "done", "failed": "failed", "stopped": "stopped"}
 SECRETS = ("SCORE_DASHBOARD_SECRET_KEY", "SCORE_SYNC_TOKEN")
 TAIL_LINES = 40
+BENCHMARKS = "score.stages.complete.prepare.benchmarks"  # the Benchmarks item's batch, a subprocess like `score`
 
 
 def selection(group):
@@ -32,7 +33,9 @@ def selection(group):
 
 
 def run_command(group, jobs, rebuy_reason):
-    """The runner command that launches a group, detached."""
+    """The runner command that launches a group, detached: the benchmarks' own batch for the Benchmarks item."""
+    if group.benchmarks:
+        return [sys.executable, "-m", BENCHMARKS, "run", "--detach"]
     return [sys.executable, "-m", "score", "run", group.world, *selection(group), "--jobs", str(jobs), "--detach",
             *(["--rebuy-reason", rebuy_reason] if rebuy_reason else [])]
 

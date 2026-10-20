@@ -268,6 +268,13 @@ def remake_prepared():
     return step_line("score.stages.complete.prepare", "prepare failed")
 
 
+def basket_benchmarks():
+    """Prepare's benchmarks as the basket's one Benchmarks item (proposals/benchmarks.py), so the export carries this
+    pass's estimate; its line."""
+    from score.dashboard.proposals import benchmarks
+    return benchmarks.put(settings.SCORE_HOME / "proposals", settings.SCORE_PROPS_HOME)
+
+
 def library_pictures():
     """The library's place pictures fetched into the library cache (score.stages.library.pictures: one object read
     each the first time, then a hash check), so the tiles and the export have their bytes; its line."""
@@ -324,12 +331,12 @@ def sync_pass(remote, source, chosen=None):
     chosen = chosen or guard.backend()
     swept = library_sweep()
     holes = holes_sweep()
-    prepared, pictured = remake_prepared(), library_pictures()
+    prepared, benched, pictured = remake_prepared(), basket_benchmarks(), library_pictures()
     priced, failed = runner_price(settings.SCORE_REPO, source.world.name)
     if failed:
-        return refused_words(f"{failed}; {swept}; {holes}; {prepared}; {pictured}")
+        return refused_words(f"{failed}; {swept}; {holes}; {prepared}; {benched}; {pictured}")
     pushed = pushed_words(remote, source, chosen)
     applied = apply_waiting(remote, source, chosen)
     ended = report_launches(remote, chosen)
     return (f"{pushed}; applied {len(applied)} requests; {len(ended)} launches ended; {swept}; {holes}; {priced}; "
-            f"{prepared}; {pictured}")
+            f"{prepared}; {benched}; {pictured}")

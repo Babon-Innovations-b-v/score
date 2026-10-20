@@ -73,7 +73,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   stop shown), the remake's euros and hours, a Review and buy
   button, a tile per place), **Place** `/place/<place>/` (`place.html`: the 3D view, the scene tree with gap dots, a
   side panel), **Buy** `/buy/` (`buy.html`: the batch's list, total, ETA and the Buy button; the owner's books
-  buttons while paid work is refused; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
+  buttons while paid work is refused, the read-back and the model calls' month figure, its button named by their cost
+  line's label; no stop control: the Buy yes sets the batch's stop), **Stats** `/stats/`
   (`stats.html`: numbers only, no controls) and **Library** `/library/` (`pages/library.py`: every kind of
   `state/library.KINDS` with its count, a branch's children only when it opens, `/api/library/children?node=&page=`,
   `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/`: its picture, version, score
@@ -128,7 +129,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   Each pass first runs the library sweep (`score.stages.library.sweep`, the environment against its library), so its
   problems are in the export by construction; a failed sweep is said in the pass's words and the pass goes on.
   The holes (`score.stages.complete.holes`, in a process of its own: it reads OpenUSD) are written right after it,
-  the same way, then prepare's remake figure (`score.stages.complete.prepare`, `remake_prepared`) and the library's
+  the same way, then prepare's remake figure (`score.stages.complete.prepare`, `remake_prepared`), its benchmarks as
+  the basket's one Benchmarks item (`proposals/benchmarks.py`, `basket_benchmarks`) and the library's
   place pictures into the library cache (`score.stages.library.pictures`, `library_pictures`), each a line. A pass syncs nothing, and says why, from a checkout with tracked changes or a commit origin's main
   does not hold (`tree_refusal`), or when the runner's price after the holes (`score price <environment> --holes`,
   `runner_price`) fails, so no stale plan or price is ever sent. The owner's money buttons and his waiver

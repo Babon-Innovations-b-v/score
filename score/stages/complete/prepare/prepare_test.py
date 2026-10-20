@@ -133,12 +133,39 @@ def test_the_eta_walks_the_layers_in_the_routes_order_and_a_layer_of_no_units_ta
 
 
 def test_the_benchmarks_stay_under_their_cap_and_ask_the_months_guard():
-    assert benchmarks.total(benchmarks.listed(), "high_euros") <= benchmarks.CAP_EUROS
-    over = benchmarks.guard([{"euros": benchmarks.CAP_EUROS + 1}])
-    assert "cap" in over["refusal"]
-    high = benchmarks.guard([{"euros": 1.0, "high_euros": benchmarks.CAP_EUROS + 1}])  # the high is what counts
-    assert "cap" in high["refusal"] and high["total_euros"] == 1.0
-    assert all(each["command"].count("score run") == 1 for each in benchmarks.listed())
+    listed = benchmarks.listed()
+    assert len(listed) == 8 and benchmarks.high_with_guesses(listed) < benchmarks.CAP_EUROS
+    running = [each for each in listed if not each["gap"]]
+    assert [each["id"] for each in listed if each["gap"]] == ["gemini-batch-direct"]
+    assert all(each["command"].count("score run") == 1 for each in running)
+    assert all((each["high_euros"] is None) == (each["guess_euros"] is not None) for each in running)
+    assert all(each["likely_minutes"] and each["high_minutes"] >= each["likely_minutes"] for each in running)
+    over = benchmarks.guard([{"likely_euros": 1.0, "high_euros": 1.0, "guess_euros": benchmarks.CAP_EUROS}])
+    assert "cap" in over["refusal"] and over["total_euros"] == 1.0  # the guesses count against the cap
+
+
+def test_a_benchmark_whose_inputs_do_not_stand_is_a_gap_and_the_rest_run_once():
+    import types
+    pixal = benchmarks.BENCHMARKS[0]
+    plan = {"missing": [], "blocked": {}, "refusal": None, "buys": [{"node": "pixal@cockpit"}]}
+    assert benchmarks.plan_gap(pixal, plan) is None
+    assert "not standing" in benchmarks.plan_gap(pixal, {**plan, "missing": ["closeup@cockpit: no picture"]})
+    assert "also buy closeup@cockpit" in benchmarks.plan_gap(pixal, {**plan, "buys": [{"node": "closeup@cockpit"}]})
+    assert "buys nothing" in benchmarks.plan_gap(pixal, {**plan, "buys": []})
+    calls = []
+
+    def call(command, **_):
+        calls.append(command[3])
+        lost = command[3] == "plan" and "sound" in command
+        stood = {**plan, "missing": ["sound@square: lost"] if lost else [],
+                 "buys": [{"node": f"{word}@x"} for flag, word in zip(command, command[1:]) if flag == "--stage"]}
+        return types.SimpleNamespace(returncode=0, stdout=json.dumps(stood), stderr="")
+    records = pathlib.Path(tempfile.mkdtemp())
+    assert benchmarks.batch(call, records) == 0
+    (record,) = [json.loads(path.read_text()) for path in records.glob("*.json")]
+    found = {each["id"]: each for each in record["benchmarks"]}
+    assert "sound@square: lost" in found["sound"]["gap"] and found["gemini-batch-direct"]["gap"]
+    assert found["pixal-l4"]["exit"] == 0 and calls.count("run") == 6 and calls.count("plan") == 7
 
 
 def test_the_remake_record_counts_every_row_once_and_says_its_one_line():

@@ -49,7 +49,8 @@ def run_groups(items, world="world1"):
 
 
 def group_body(group, planned):
-    return {"places": list(group.places), "stages": list(group.stages), "missing": planned.missing,
+    return {"places": list(group.places), "stages": list(group.stages), "benchmarks": group.benchmarks,
+            "missing": planned.missing,
             "buys": planned.buys, "refusal": planned.refusal, "to_run": planned.to_run, "blocked": planned.blocked}
 
 
@@ -168,7 +169,8 @@ def launch(record, plan, chosen=None):
 
 
 def run_groups_of(body):
-    return [RunGroup(places=tuple(group["places"]), stages=tuple(group["stages"])) for group in body["groups"]]
+    return [RunGroup(places=tuple(group["places"]), stages=tuple(group["stages"]),
+                     benchmarks=group.get("benchmarks", False)) for group in body["groups"]]
 
 
 def launch_soon(record, plan):

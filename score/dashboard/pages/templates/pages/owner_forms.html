@@ -5,8 +5,8 @@
   <output class="small"></output>
 </form>
 <form class="cost-form" data-post="/api/money/books-figure">
-  <label class="wide" title="what the model calls cost this month before their ledger began again">EUR<input type="number" name="euros" min="0" step="0.01" required></label>
-  <button class="primary">Enter</button>
+  <label class="wide" title="what the model calls cost this month before their ledger began again, from their bill">EUR<input type="number" name="euros" min="0" step="0.01" required></label>
+  <button class="primary" title="write the model calls' month into the books">{% for line in money.lines %}{% if line.source == "models" %}{{ line.label }} {% endif %}{% endfor %}figure</button>
   <output class="small"></output>
 </form>
 {% endif %}

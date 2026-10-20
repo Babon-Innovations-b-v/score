@@ -14,7 +14,7 @@ from django.db import IntegrityError, transaction
 from score.dashboard import state
 from score.dashboard.checkout import WORLD, pricing
 from score.dashboard.launch import guard
-from score.dashboard.launch.backend import RunGroup
+from score.dashboard.launch.backend import GroupPlan, RunGroup
 from score.dashboard.pages import actions
 from score.dashboard.pages.basket import basket_root
 from score.dashboard.pages.models import Checkout, Launch, Plan, is_owner
@@ -93,9 +93,11 @@ def refusals(user, seen, items, changed, confirmed):
 # --- the checkout -------------------------------------------------------------------------------------------------
 
 def snapshot(items):
-    """The items as bought: id, version, place, layers, priced nodes and totals."""
+    """The items as bought: id, version, place, layers, priced nodes (and why: the Benchmarks item's plan) and
+    totals."""
     return [{"id": item["id"], "version": item["version"], "title": item.get("title"), "place": item["place"],
-             "places": item["places"], "layers": item["layers"], "nodes": item["nodes"],
+             "places": item["places"], "layers": item["layers"], "nodes": item["nodes"], "why": item.get("why", {}),
+             "benchmarks": bool(item.get("benchmarks")),
              "totals": pricing.totals(item["nodes"])} for item in items]
 
 
@@ -169,14 +171,25 @@ def accepted_before(record):
 
 
 def item_group(item):
-    """One item's runner command: its places (none for the environment's own rows) and its nodes' stages."""
+    """One item's runner command: its places (none for the environment's own rows) and its nodes' stages; the
+    Benchmarks item's own batch."""
+    if item.get("benchmarks"):
+        return RunGroup(places=(), stages=(), world=WORLD, benchmarks=True)
     return RunGroup(places=tuple(item["places"]), stages=tuple(sorted({node.split("@")[0] for node in item["nodes"]})),
                     world=WORLD)
 
 
+def benchmarks_plan(item):
+    """The Benchmarks item's plan: its benchmarks as he saw them priced (their batch plans each itself, free, and
+    names any whose inputs do not stand a gap: score/stages/complete/prepare/benchmarks.py)."""
+    buys = [{"node": node, "why": item["why"][node], "again": False} for node in item["nodes"]]
+    return GroupPlan(missing=[], buys=buys, refusal=None, to_run={}, blocked={})
+
+
 def planned_items(record, chosen):
-    """[(group, the runner's plan of it)] an item."""
-    return [(group, chosen.plan(group)) for group in (item_group(item) for item in record.items)]
+    """[(group, the runner's plan of it)] an item; the Benchmarks item's own plan."""
+    return [(item_group(item), benchmarks_plan(item) if item.get("benchmarks") else chosen.plan(item_group(item)))
+            for item in record.items]
 
 
 def plan_refusals(record, planned):
