@@ -163,6 +163,39 @@ def test_a_bodied_prop_at_an_outside_place_is_sized_over_its_accepted_labelled_t
             prop_makers.WORK, prop_makers.bake_inputs, prop_makers.accepted_labelled = kept
 
 
+def test_a_close_up_is_drawn_once_and_one_that_fails_is_a_hole():
+    """A batch runs every job once (CONTEXT.md, owner 2026-10-20): Pro drew a second, room take of what the crop alone
+    failed. Now each prop gets one take, its wording chosen free before it is drawn."""
+    from PIL import Image
+    import stage
+    drawn = []
+    with tempfile.TemporaryDirectory() as temp:
+        concept = pathlib.Path(temp) / "concept.png"
+        Image.new("RGB", (800, 600), (120, 120, 120)).save(concept)
+
+        def row(prop):
+            return {"id": prop["row"], "scene": prop["place"], "words": prop["row"], "size": [1.0, 1.0, 1.0],
+                    "concept": str(concept), "box": [100, 100, 200, 150]}
+
+        def draw(key, wording, crop, reference, path):
+            drawn.append((path.name, reference is not None))
+            Image.new("RGB", (64, 64), (200, 200, 200)).save(path)  # a plain picture: the shape check fails it
+            return True
+        kept = prop_makers.closeup_row, stage.pro.draw, sys.modules.get("secret_store")
+        prop_makers.closeup_row, stage.pro.draw = row, draw
+        sys.modules["secret_store"] = types.SimpleNamespace(secret=lambda name: "key")
+        try:
+            made = prop_makers.make_closeups(PROPS, temp)
+        finally:
+            prop_makers.closeup_row, stage.pro.draw = kept[:2]
+            if kept[2] is None:
+                del sys.modules["secret_store"]
+            else:
+                sys.modules["secret_store"] = kept[2]
+    assert sorted(drawn) == [("crane.png", True), ("ship.png", True)], drawn  # small crops take the room, once each
+    assert made == {}  # both failed their shape check: holes, not drawn again
+
+
 def test_run_is_refused_without_yes_after_its_price():
     with tempfile.TemporaryDirectory() as temp:
         props = pathlib.Path(temp) / "trial.json"
