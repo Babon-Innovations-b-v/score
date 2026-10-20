@@ -26,6 +26,7 @@ import numpy as np  # noqa: E402
 
 import finish_ask  # noqa: E402
 import finish_parts  # noqa: E402
+import route_cap  # noqa: E402
 import route_data  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
@@ -154,6 +155,7 @@ def ask(body):
     """One cleared, ledgered Gemini 3.1 Pro ask (finish_ask.generated: asked again on a dropped connection)."""
     from score.adapters import compute
     compute.require_cleared("a Gemini finish list (finish route)")
+    route_cap.require_room(finish_ask.LIST_MODEL, body)
     response = finish_ask.generated(finish_ask.LIST_MODEL, body, finish_ask.secret_key(), finish_ask.TIMEOUT,
                                     caller="finish-route-list", cache=True)
     return finish_ask.reply_text(response)
@@ -162,6 +164,7 @@ def ask(body):
 def make_list(inputs, out, seed, params):
     """Every split take's finish list, and the owner's questions."""
     import library
+    route_cap.require_filtered(params, "finish-route-list")
     views, split = pathlib.Path(inputs["finish-route-views"]), pathlib.Path(inputs["finish-route-split"])
     place, takes = route_data.takes_written(out, inputs, params)
     split_takes = json.loads((split / "groups.json").read_text())

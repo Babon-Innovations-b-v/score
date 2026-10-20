@@ -244,6 +244,16 @@ is meant to fix, where it is marked, and what proves it.
   two-way split fit, round five's 3D split, `--face-parts` and `finish_masks.py`, `split_spread.py`; 5c66c2e). For
   black, stripped and one-colour paint. No owner-accepted before and after on a model of the environment. Settled in step 1, the
   surface stage, on the hangar and the six named models, with numbers and his review.
+- **The finish route** (#18; rows `finish-route-views`, `-split`, `-list`, `-fill`, `-recheck` in
+  `score/stages/surfaces/route_*.py`, `ROUTE` marked experimental in its `__init__.py`, its overlay). For finishes
+  drawn from pictures: library first, each finish of a take matched to a library surface with settings (palette token,
+  roughness, metal, seed) from views on every side and the close-up, the model's own texture colours voted into parts
+  across views, each part filled from its surface, and a recheck by Gemini plus the free colour check, at most three
+  tweaks, else the named fault "no library surface fits". Off by default: its rows have a node only when a command
+  asks for one by name (`score run|plan|status --stage finish-route-*`, `graph.asked_for`), so no line, plan, hole or
+  price carries them; its paid rows refuse without `--object` and refuse each new ask once the route's asks on the
+  Google ledger would pass the trial's EUR 5 in total (`route_cap.py`). Proven when the EUR 5 test on named takes
+  passes `library surface fits` against their own close-ups, not stand-ins, and the owner moves the line onto it.
 - **The surface stage's method, the finish map** (`score/stages/surfaces`, its overlay; the six-model re-test rows
   `score/stages/finishmap/trial.py`). The owner chose it on 2026-10-12 ("finish map seed 1 looks great"); it replaced
   g-texture (its record: branch `surface-first` and main before 6266414). Gemini lists the close-up's finishes as

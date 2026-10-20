@@ -26,28 +26,50 @@ import surface_gates as gates  # noqa: E402
 SEEN_LEAST = 0.5  # a take whose views together see under this share of its area fails: the cast missed the model
 
 
-def view_take(model_file, close_up, folder):
-    """One take's views into `folder`; its record (faces, seen share, close-up source)."""
-    model = cast.loaded(model_file)
-    folder.mkdir(parents=True)
-    np.savez_compressed(folder / "model.npz", vertices=model.mesh.vertices.astype(np.float32),
-                        faces=model.mesh.faces.astype(np.int32))
+def cast_views(model):
+    """Each view's face under each pixel and the model's own texture colour there: ({view: faces}, {view: colours})."""
     faces, colours = {}, {}
     for view in cast.VIEWS:
         faces[view], points = cast.cast(model.mesh, view)
         colours[view] = cast.texture_colours(model, faces[view], points)
+    return faces, colours
+
+
+def views_saved(folder, model, faces, colours):
+    """model.npz, faces.npz, colours.npz and each view's picture, flat colour shaded by angle, into `folder`."""
+    folder.mkdir(parents=True)
+    np.savez_compressed(folder / "model.npz", vertices=model.mesh.vertices.astype(np.float32),
+                        faces=model.mesh.faces.astype(np.int32))
+    for view in faces:
         cast.picture(colours[view], faces[view], cast.shading(model.mesh, faces[view], view)).save(folder / f"{view}.png")
     np.savez_compressed(folder / "faces.npz", **{view: found.astype(np.int32) for view, found in faces.items()})
     np.savez_compressed(folder / "colours.npz", **colours)
+
+
+def close_up_written(folder, close_up, faces, colours):
+    """close-up.png: the take's own close-up copied, else the stand-in (its own texture from the front)."""
     if close_up is not None:
         shutil.copyfile(close_up, folder / "close-up.png")
     else:
         cast.picture(colours[cast.FRONT], faces[cast.FRONT]).save(folder / "close-up.png")
+
+
+def view_record(model, faces, close_up):
+    """A take's record: its faces, the share of its area some view sees, its empty views, its close-up's source."""
     seen = np.unique(np.concatenate([found[found >= 0] for found in faces.values()]))
     area = model.mesh.area_faces
     return {"faces": len(model.mesh.faces), "seen_share": round(float(area[seen].sum() / area.sum()), 3),
             "views_empty": [view for view, found in faces.items() if not (found >= 0).any()],
             "close_up": "own" if close_up is not None else route_data.STAND_IN}
+
+
+def view_take(model_file, close_up, folder):
+    """One take's views into `folder`; its record (faces, seen share, close-up source)."""
+    model = cast.loaded(model_file)
+    faces, colours = cast_views(model)
+    views_saved(folder, model, faces, colours)
+    close_up_written(folder, close_up, faces, colours)
+    return view_record(model, faces, close_up)
 
 
 def make_views(inputs, out, seed, params):
