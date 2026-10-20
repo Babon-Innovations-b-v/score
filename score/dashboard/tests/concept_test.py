@@ -79,7 +79,6 @@ def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world
     assert state["pending"] is False and state["refused"] is None and state["newest"]
     yes = world.source.store.spend_yes("override", drawing.draws(world.source.store, "beta")[0]["yes"])
     assert yes["by"] == "joey" and yes["euros"] == PRICE and "beta" in yes["purpose"]
-    assert "Redraw" in owner.get("/concept/beta/").content.decode()
     marks = [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "note": "a window"}]
     owner.post("/concept/beta/draw/", json.dumps({"marks": marks, "base": state["newest"], "euros": PRICE}),
                content_type="application/json")
@@ -93,16 +92,16 @@ def test_a_local_draw_is_drawn_at_the_price_shown_then_picked_and_unlocked(world
     assert 'href="/concept/beta/"' in owner.get("/").content.decode()
 
 
-def test_draw_fresh_makes_a_new_first_draw_from_the_places_wording_and_note_beside_the_others(world, stand_in):
+def test_with_no_mark_and_no_note_the_one_button_draws_fresh_from_the_places_wording(world, stand_in):
     owner = signed_in()
     owner.post("/concept/beta/draw/", json.dumps({"euros": PRICE}), content_type="application/json")
     page = owner.get("/concept/beta/").content.decode()
-    assert "Draw fresh" in page and "marked areas are left out" in page  # beside Redraw, at the same price
-    owner.post("/concept/beta/draw/", json.dumps({"marks": [], "note": "a dome", "base": None, "euros": PRICE}),
-               content_type="application/json")
+    assert page.count('id="concept-draw"') == 1 and "Draw fresh" in page and "Redraw" not in page
+    owner.post("/concept/beta/draw/", json.dumps({"marks": [], "note": "", "base": None, "euros": PRICE}),
+               content_type="application/json")  # what the button posts with nothing asked of the shown draw
     first, fresh = drawing.draws(world.source.store, "beta")
     assert fresh["base"] is None and fresh["marks"] == [] and fresh["sha"] != first["sha"]
-    assert stand_in[-1] == stand_in[0] + " The creator's note: a dome" and "Box" not in stand_in[-1]
+    assert stand_in[-1] == stand_in[0] and "Box" not in stand_in[-1]  # the place's own first-draw wording again
     assert fresh["yes"] != first["yes"] and fresh["euros"] == PRICE  # its own spend yes, one call
     assert world.source.store.cache.parent.joinpath("bucket", f"concept-draws/{fresh['sha']}.png").is_file()
 

@@ -1,7 +1,8 @@
-// The concept review page (pages/concepts.py): drag on the picture to mark an area, a note for each; Draw or Redraw
-// posts the marks, the note and the price the button shows (the owner's spend yes for that one call), then asks the
-// page's state until the draw is answered and shows it; Draw fresh posts only the note and the price (a new first
-// draw: no base, so no marks); Pick and Unlock post the shown draw (or none).
+// The concept review page (pages/concepts.py): drag on the picture to mark an area, a note for each. Its one draw
+// button posts the price it shows (the owner's spend yes for that one call): with no mark and no note it is Draw fresh
+// (a new first draw from the place's own wording: no base), else Redraw with notes (the marks, the note and the shown
+// draw as its base); then it asks the page's state until the draw is answered and shows it. Pick and Unlock post the
+// shown draw (or none).
 (() => {
   const page = document.getElementById("concept");
   if (!page) return;
@@ -9,7 +10,7 @@
   const layer = document.getElementById("concept-marks");
   const notes = document.getElementById("concept-notes");
   const draw = document.getElementById("concept-draw");
-  const fresh = document.getElementById("concept-fresh");
+  const note = document.getElementById("concept-note");
   const said = document.getElementById("concept-said");
   const marks = [];
   const ASK_EVERY = 1500;
@@ -41,10 +42,16 @@
     Object.assign(mark.box.style, { left: `${mark.x * 100}%`, top: `${mark.y * 100}%`,
                                     width: `${mark.w * 100}%`, height: `${mark.h * 100}%` });
   };
-  const renumber = () => marks.forEach((mark, index) => {
-    mark.box.dataset.n = index + 1;
-    mark.row.querySelector("b").textContent = index + 1;
-  });
+  const plain = () => !marks.length && !note.value.trim();  // nothing asked of the shown draw: draw fresh
+  const named = () => (!page.dataset.base ? "Draw concept" : plain() ? "Draw fresh" : "Redraw with notes");
+  const relabel = () => { if (draw && !draw.disabled) draw.querySelector('[data-slot="label"]').textContent = named(); };
+  const renumber = () => {
+    marks.forEach((mark, index) => {
+      mark.box.dataset.n = index + 1;
+      mark.row.querySelector("b").textContent = index + 1;
+    });
+    relabel();
+  };
   const dropped = (mark) => {
     marks.splice(marks.indexOf(mark), 1);
     mark.box.remove();
@@ -89,7 +96,6 @@
   // --- draw, then ask until it is answered ----------------------------------------------------------------------
   const waiting = (since) => {
     draw.disabled = true;
-    if (fresh) fresh.disabled = true;
     const label = draw.querySelector('[data-slot="label"]');
     const started = since ? Date.parse(since) : Date.now();
     const tick = () => { label.textContent = `drawing ${Math.round((Date.now() - started) / 1000)} s`; };
@@ -103,9 +109,8 @@
       if (found.refused) {
         tell("bad", found.refused);
         console.error("concept draw refused", found.refused);
-        label.textContent = page.dataset.base ? "Redraw" : "Draw concept";
         draw.disabled = false;
-        if (fresh) fresh.disabled = false;
+        relabel();
         return;
       }
       location.search = `?draw=${found.newest}`;
@@ -114,15 +119,15 @@
   };
   if (draw) {
     if (page.dataset.pending) waiting(page.dataset.pending);
-    const asked = async (button, anew) => {
-      button.disabled = true;
-      const note = document.getElementById("concept-note").value;
-      const body = anew
-        ? { marks: [], note, base: null, euros: Number(page.dataset.euros) }
+    if (note) note.addEventListener("input", relabel);
+    draw.addEventListener("click", async () => {
+      draw.disabled = true;
+      const body = plain()
+        ? { marks: [], note: "", base: null, euros: Number(page.dataset.euros) }
         : {
           marks: marks.map((mark) => ({ x: mark.x, y: mark.y, w: mark.w, h: mark.h,
                                         note: mark.row.querySelector("input").value })),
-          note, base: page.dataset.base || null, euros: Number(page.dataset.euros),
+          note: note.value, base: page.dataset.base || null, euros: Number(page.dataset.euros),
         };
       try {
         await post("draw", body);
@@ -131,11 +136,9 @@
       } catch (error) {
         tell("bad", error.message);
         console.error("concept draw refused", error);
-        button.disabled = false;
+        draw.disabled = false;
       }
-    };
-    draw.addEventListener("click", () => asked(draw, false));
-    if (fresh) fresh.addEventListener("click", () => asked(fresh, true));
+    });
   }
 
   // --- pick and unlock -----------------------------------------------------------------------------------------
