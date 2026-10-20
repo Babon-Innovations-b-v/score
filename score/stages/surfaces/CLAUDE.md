@@ -23,8 +23,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   whose record is branch `surface-first` and main before this change): `finish_parts.py` (inputs, parts),
   `turntable_row.py` (the raw model's texture unlit from the close-up's camera and the sides and back, with the face
   under each pixel; `inside/turntable.py`, `turntable_views.py`), `finish_rows.py` (Gemini 3.1 Pro's finish list of
-  the close-up; Nano Banana Pro's finish map of the close-up, drawn up to three times, the last more strictly, then
-  of each turntable view against it; `finish_ask.py`, `finish_maps.py`), `segvigen_row.py` (SegviGen guided by the
+  the close-up; Nano Banana Pro's finish map of the close-up, drawn once and asked strictly (`finish_ask.STRICT`), then
+  of each turntable view against it, once; `finish_ask.py`, `finish_maps.py`), `segvigen_row.py` (SegviGen guided by the
   close-up's map). Each paid row has a module of its own, so a free change never pays again; every Google ask is
   cached by its input's hash. The six-model re-test rows are `../finishmap/trial.py`.
 - **The finish route** (owner, 2026-10-20, #18; library first): rows `finish-route-views`, `-split`, `-list`, `-fill`,
@@ -56,6 +56,19 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   fails it by name, "no library surface fits", the holes' `gate:finish-route-recheck/library surface fits:<take>`.
   Settings and tweaks are row output, never a materials.json edit. Each row selects (`score run --object <take>`).
   Its rows run in the framework's Python (trimesh and Embree are in `.venv`), not through `prop_env.py`.
+- **Every paid ask runs once: the finishes layer is a batch** (CONTEXT.md, the owner, 2026-10-20; #21). One finish
+  list a take, one draw of each map (`SEEDS`, `VIEW_SEEDS` one seed each), no paid naming, no ask again after a
+  timeout or a dropped connection (`finish_ask.generated`): Google may bill a call cut off mid-way, and
+  `google_spend` counts it at its estimate. Only a refusal that did no work (HTTP 429 or 503) is asked again, at most
+  `REFUSED_ASKS` times. An ask with no usable answer (`finish_rows.UNANSWERED`) makes its take or draw a hole, named
+  in its row's gate (`judge_lists`, `judge_maps`); new spend on it is a new batch and a new ask. The risk work is free
+  and comes before: the close-up's measured colours (`close_up_regions`: k-means of its Lab colours, each region's
+  share and median and the library surfaces within `COLOUR_DELTA_E`) go into the list ask (`finish_ask.REGIONS`),
+  asked with thinking held low from the start and on the flex tier (`LIST_TIER`, half price, a 900 s timeout: the
+  request's own `serviceTier`, never set in `google_spend`, which is in the close-up, crops and boxes rows' code
+  versions; Nano Banana Pro has no flex tier on Google's page, 2026-10-20, so the maps stay standard). A kit or shell piece
+  whose surfaces data names its `surface` (its shell section's or kit's finish) is asked nothing: that one finish
+  (`declared_list`, a hole when the take may not take it), its map the close-up's mask.
 - **A library change re-keys only the rows that read the library** (lists, names, parts, paint, bake, check:
   `surface_data.line_files`); inputs, turntable, maps and SegviGen declare none (`shape_files`), the inputs'
   output names no folder of its run, and the turntable renders on the processor with a fixed seed
@@ -77,8 +90,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
 - **A map that does not settle blocks its model, never passes**: measured (`finish_maps.check`: overlap, share near
   a label colour, every finish used), filled from labelled neighbours only when its sole fault is a labelled share
   between `FILL_LEAST` and `NEAR_LEAST`; a one-finish model is not drawn (its map is the close-up's object mask:
-  asked to paint one colour, the picture model tinted the photo); a close-up whose draws all fail is split by its own
-  colours and each region named by the draws' labelled pixels (`finish_maps.colour_split`, owner-approved fallback
+  asked to paint one colour, the picture model tinted the photo); a close-up whose one draw fails is split by its own
+  colours and each region named by the draw's labelled pixels (`finish_maps.colour_split`, owner-approved fallback
   2026-10-12, old_station's lab module: colours only split, the paint stays the library's); one that still loses a
   finish counts as not settled. A model with no settled close-up map is named in `surfaces-maps`' fail and
   stops its place's line (once the owner waives it, later rows leave it out). A part whose voted faces mix two
@@ -88,12 +101,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   nearest of the listed one's family); a finish none fits gets a tinted proposal in the registry and fails the paint
   row's gate "colour against the close-up" by name. A finish is measured on its label's brighter half, a
   dark one (library L* under `DARK_L` 35) on all its pixels: the light lifts blacks' brighter half to L* 40 to 45.
-  A Gemini 3.1 Pro ask that times out is asked again with its thinking held low (`finish_ask.low_thinking`).
   Glass, screen glow, lamp light and print off the lit colour keep their surface (owner, #8: judged by their own
   colour), and so does a see-through finish of another family (`coloured_cover`: the garage beacon's red transparent
   dome, its pixels its highlights and what lies behind it). A finish the close-up shows over 10 L* lighter than another whose surface lies over 3 L* lighter in the
   library takes the nearest surface of its family that keeps the order, else the darker finish does, else fails the
-  gate by its order (`in_close_up_order`); a finish out of that order is also named again (`out_of_order`). Lighter
+  gate by its order (`in_close_up_order`). Lighter
   by 3 or less, the pair is reordered only by a surface nearer its finish's close-up colour (`reordered`): the bake
   moves L* on its own (the hangar's parts shelving: plastic_grey 1.5 under galvanized_steel baked 4.5 under it). A finish's close-up pixels
   whose first face from the camera is a see-through part (glass, light, screen, transparent or translucent words) are
@@ -101,12 +113,16 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   90% that cover, `seen_within`) is laid as the cover, in every map: the model is the cover's shell with nothing
   inside, so the maps drew what lies behind it on the cover's own faces (the garage beacon's reflector on its red
   dome). Paint-row gate changes go here, in the parts row: a paint check's file is in the paint
-  row's key, so an edit there repaints and rebakes every place. A strongly coloured finish named again (chroma over
-  40) is also asked whether it is lamp light (`finish_ask.GLOW_QUESTION`); other naming requests stay word for word.
-- **A finish is named again when its words or colour contradict its surface** (`surfaces-names`, paid, cached): its
-  words name a material its surface's family is not (`finish_parts.contradicts`: black rubber as bare_steel), or its
-  surface lies over `COLOUR_DELTA_E` from its close-up colour; Gemini is asked once with the close-up, the finish map
-  and every surface the take's library places allow. New library surfaces are made the library's own way (a variant
+  row's key, so an edit there repaints and rebakes every place.
+- **The names are decided by rule, free** (`surfaces-names`, `finish_rows.named_by_rule`; it asked Gemini again
+  until #21): a finish whose words say it gives off light (`GLOW_WORDS`) and whose close-up colour lies over
+  `GLOW_CHROMA` 40 takes the nearest light or screen surface by colour (the garage beacon's red light, chroma 57); a
+  finish whose words name a material its surface's family is not (`finish_parts.contradicts`: black rubber as
+  bare_steel) takes the nearest surface of a family its words allow within `COLOUR_DELTA_E`, else it is a hole and
+  fails the names gate by name. The paint's colour and order check (`finish_parts.checked_finishes`) runs ahead as a
+  prediction (`predicted_off`, a measure); the paint's gate still names those, where a named gap can move them. The
+  stage tables still declare the row paid at `LIST_EUROS` (`__init__.py`, `../crops/line.py`, `../people/line.py`,
+  `../finishmap/trial.py`): it spends nothing now. New library surfaces are made the library's own way (a variant
   in `data/library/materials.json` on a palette token, the place taking it in `place.json`), never a picture's colour.
 - **The bake takes today's library and the method's paint only**: every spec the library knows (painted, and the job's
   decals and screens) from the library, an old job's `regions` boxes dropped; a spec left naming a missing picture

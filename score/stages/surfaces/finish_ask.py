@@ -1,12 +1,19 @@
 """The surface stage's two paid Google asks (the finish-map method), both through google_spend.generate
 (tools/props/cloud; priced on the Google ledger, each request cached by its input's hash).
 
-- finish_list: Gemini 3.1 Pro (temperature 0, structured output) looks at a model's close-up and lists its finishes
-  (few, only finishes that truly differ), each mapped to one of the take's allowed library surfaces; where none fits
-  it gives the closest and proposes a new library surface (name, description, why), which the paint records in the
-  finish registry as proposed, never in the library.
+Each is asked once (the batch rule, #21): no second draw, no second naming, no ask again after a timeout. A call cut
+off mid-way is not free: google_spend counts it at its estimate. Only a refusal (HTTP 429 or 503: the API took no
+work, the flex tier full) is asked again, at most REFUSED_ASKS times; any other fault reaches the row, which makes the
+take a hole.
+
+- finish_list: Gemini 3.1 Pro (temperature 0, structured output, thinking held low, on the flex tier at half price)
+  looks at a model's close-up and lists its finishes (few, only finishes that truly differ), each mapped to one of the
+  take's allowed library surfaces, given the close-up's measured colours (CIELAB) and the library surfaces within
+  COLOUR_DELTA_E of each, measured free before the ask (finish_rows.close_up_regions). Where none fits it gives the
+  closest and proposes a new library surface (name, description, why), which the paint records in the finish
+  registry as proposed, never in the library.
 - draw_map: Nano Banana Pro redraws the close-up as a finish map, each finish one flat label colour (LABELS) on plain
-  white, with a seed so a failed map can be drawn again; the last draw is asked more strictly (STRICT).
+  white, asked strictly (STRICT) on its one draw. Nano Banana Pro has no flex tier (Google's flex page, 2026-10-20).
 - draw_view_map: the same for a turntable view of the raw model (its own texture, unlit), given the close-up and its
   finish map as the reference, so each finish keeps its label colour on the sides the close-up does not show.
 
@@ -29,7 +36,14 @@ LIST_MODEL = "gemini-3.1-pro-preview"
 MAP_MODEL = "gemini-3-pro-image"
 KEY_SECRET = "gemini-api-key"
 TIMEOUT = 300
-ASKS = 3
+# The list asks on Google's flex tier, half price: the request's own `serviceTier` (google_spend.TIER_PRICE prices the
+# tier the answer's usageMetadata names; one that names none is priced at standard, high, never low). Set here, not in
+# google_spend, which is in many rows' code versions (closeup, crops, boxes). The flex tier answers slower: Google's
+# flex page asks for client timeouts of 10 minutes or more (read 2026-10-20).
+LIST_TIER, FLEX_TIMEOUT = "flex", 900
+# A refused call (429: rate or quota, 503: no room, the flex tier full) did no work; it is asked again after
+# REFUSED_WAIT seconds, doubling, at most REFUSED_ASKS times in all.
+REFUSED, REFUSED_ASKS, REFUSED_WAIT = (429, 503), 3, 30
 # The label colours a finish map paints with, in order (finish 1 the first): saturated, far apart, none near the
 # white background or black.
 LABELS = ((230, 25, 25), (20, 170, 40), (30, 70, 235), (245, 215, 0), (215, 0, 215), (0, 200, 215), (255, 125, 0),
@@ -47,7 +61,13 @@ For each finish say which parts of the object in this picture have it, the finis
 these library surfaces it is:
 {surfaces}
 Choose by what the part is and how such a part is made, not only by its colour in the picture. If no surface on the
-list fits the finish, still give the closest code, set "fits" to false and propose a new library surface for it."""
+list fits the finish, still give the closest code, set "fits" to false and propose a new library surface for it.{regions}"""
+# Added to the list question when the close-up's colours were measured (finish_rows.close_up_regions).
+REGIONS = """
+The object's main colours in this picture, measured (CIELAB, as lit), each with the library surfaces whose colour lies
+within {delta:.0f} (CIE76) of it, nearest first. A finish whose colour is one of these should take a surface near it;
+glass, lamp light, screens and print are judged by what they are, not by this colour:
+{lines}"""
 MAP_WORDING = """Redraw this picture as a flat-colour finish map for a 3D painter.
 Keep exactly the same object, the same outline, pose, size and position in the frame; do not move, crop, add or
 remove anything. Paint every visible part of the object one solid flat colour by its finish:
@@ -68,27 +88,20 @@ these colours; not one pixel of the photograph may remain. The background is pla
 
 
 def generated(model, body, key, timeout, caller, cache):
-    """google_spend.generate, asked again up to ASKS times when the connection times out or drops (a request the API
-    lost answered nothing and cost nothing; the greenhouse's naming lost one, 2026-10-12). A Gemini 3.1 Pro ask that
-    timed out is asked again with its thinking held low (low_thinking): flat's, hangar's and lab's namings timed out
-    at 300 s on every try, the same request each time, while others answered in seconds (2026-10-12)."""
+    """google_spend.generate, asked once. A refusal (HTTP REFUSED: rate, quota or a full flex tier) did no work and is
+    asked again after a wait, at most REFUSED_ASKS times in all; a timeout or a dropped connection reaches the
+    caller (the row makes its take a hole): Google may bill a call cut off mid-way, and google_spend counts it at its
+    estimate."""
+    import time
     import urllib.error
     import google_spend
-    for attempt in range(ASKS):
+    for attempt in range(REFUSED_ASKS):
         try:
             return google_spend.generate(model, body, key, timeout, caller=caller, cache=cache)
-        except TimeoutError:
-            if model != LIST_MODEL or attempt == ASKS - 1:
+        except urllib.error.HTTPError as error:
+            if error.code not in REFUSED or attempt == REFUSED_ASKS - 1:
                 raise
-            body = low_thinking(body)
-        except (urllib.error.URLError, ConnectionError):
-            if attempt == ASKS - 1:
-                raise
-
-
-def low_thinking(body):
-    """The request with Gemini 3's thinking held low."""
-    return dict(body, generationConfig={**body.get("generationConfig", {}), "thinkingConfig": {"thinkingLevel": "low"}})
+            time.sleep(REFUSED_WAIT * 2 ** attempt)
 
 
 def secret_key():
@@ -114,11 +127,27 @@ def surface_codes(surfaces):
     return [part_judge.code(index) for index in range(len(surfaces))]
 
 
-def list_body(picture, object_words, surfaces):
+def region_lines(regions, surfaces):
+    """The REGIONS text: `regions` is {"within": the CIE76 distance a near surface lies within, "regions": [[share of
+    the object, L*a*b*, the names of the surfaces near it], ...]}; per region its share, colour and near surfaces by
+    their codes. Empty with no region."""
+    if not regions or not regions["regions"]:
+        return ""
+    codes = dict(zip(surfaces, surface_codes(surfaces)))
+    lines = [f"- {round(share * 100)}% of the object: L*a*b* ({', '.join(str(round(value)) for value in lab)}); near "
+             + (", ".join(codes[name] for name in near if name in codes) or "no surface")
+             for share, lab, near in regions["regions"]]
+    return REGIONS.format(delta=regions["within"], lines="\n".join(lines))
+
+
+def list_body(picture, object_words, surfaces, regions=None):
     """The finish-list request: the close-up, the question with the take's surfaces in part_judge's words (the same
-    words the round-4 judge read), and a schema whose surface is one of their codes."""
+    words the round-4 judge read) and its measured colours' regions (region_lines), a schema whose surface is one of
+    their codes, thinking held low from the start (flat's, hangar's and lab's namings timed out at 300 s on high,
+    2026-10-12)."""
     import part_judge
-    text = LIST_QUESTION.format(object=object_words, most=len(LABELS), surfaces=part_judge.material_lines(surfaces))
+    text = LIST_QUESTION.format(object=object_words, most=len(LABELS), surfaces=part_judge.material_lines(surfaces),
+                                regions=region_lines(regions, surfaces))
     proposal = {"type": "OBJECT", "properties": {"name": {"type": "STRING"}, "description": {"type": "STRING"},
                                                  "why": {"type": "STRING"}},
                 "required": ["name", "description", "why"]}
@@ -132,7 +161,8 @@ def list_body(picture, object_words, surfaces):
               "required": ["finishes"]}
     return {"contents": [{"role": "user", "parts": [picture_part(picture, 1600), {"text": text}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
-                                 "responseSchema": schema}}
+                                 "responseSchema": schema, "thinkingConfig": {"thinkingLevel": "low"}},
+            "serviceTier": LIST_TIER}
 
 
 def reply_text(response):
@@ -155,64 +185,14 @@ def parsed_list(text, surfaces):
     return found
 
 
-def finish_list(picture, object_words, surfaces):
-    """The take's finish list (parsed_list); the call is priced on the Google ledger, a cached ask is free."""
+def finish_list(picture, object_words, surfaces, regions=None):
+    """The take's finish list (parsed_list), asked once on the flex tier; the call is priced on the Google ledger, a
+    cached ask is free."""
     from score.adapters import compute
     compute.require_cleared("a Gemini finish list")
-    response = generated(LIST_MODEL, list_body(picture, object_words, surfaces), secret_key(), TIMEOUT,
+    response = generated(LIST_MODEL, list_body(picture, object_words, surfaces, regions), secret_key(), FLEX_TIMEOUT,
                          caller="finishmap-list", cache=True)
     return parsed_list(reply_text(response), surfaces)
-
-
-NAME_QUESTION = """You help paint a 3D model of an object made from the first picture. The object: {object}.
-The second picture is its finish map: each finish painted one flat colour. Look at the finish painted {label}: {finish},
-on {parts}. Which one of these library surfaces is it?
-{surfaces}
-Choose by what the part is made of and how such a part is made, then by its colour in the first picture."""
-# Asked besides, of a finish whose close-up colour is strongly coloured (finish_rows.GLOW_CHROMA): the garage's beacon,
-# its red lamp light named polished metal (2026-10-13).
-GLOW_QUESTION = """
-If the colour this part shows in the first picture is light it gives off (a lamp, a beacon, an indicator, a lit lens
-or a screen), choose the light or screen surface for it, not the material of its housing."""
-
-# Asked besides, of a finish whose surface lies over COLOUR_DELTA_E from its close-up colour: asked by its words alone,
-# Gemini named the same surface again (2026-10-14: the galley seat's dark grey bracket anodized_black again, dE 40;
-# the navigation hatch frame's orange padding, labelled "unpainted metal" in its map, perforated_steel again, dE 49).
-COLOUR_QUESTION = """
-It is asked again because its colour where the finish map paints it, L*a*b* {lab}, lies {delta:.0f} (CIE76) from
-{surface}, the surface first named for it. The finish map may have painted this label over another material, or the
-words may name the wrong one: choose the surface of what the first picture shows where the map paints this finish."""
-
-
-def name_body(picture, front_map, object_words, number, finish, surfaces, glow=False, off=None):
-    """The second naming of one finish: the close-up, its finish map and the take's surfaces, the answer one code;
-    with `glow`, also asked whether its colour is a lamp's own light (GLOW_QUESTION); with `off` (its measured
-    L*a*b* and its listed surface's distance from it), also told its colour is off (COLOUR_QUESTION)."""
-    import part_judge
-    text = NAME_QUESTION.format(object=object_words, label=LABEL_WORDS[number], finish=finish["finish"],
-                                parts=finish["parts"], surfaces=part_judge.material_lines(surfaces))
-    text += GLOW_QUESTION if glow else ""
-    if off is not None:
-        lab, delta = off
-        text += COLOUR_QUESTION.format(lab=[round(float(value), 1) for value in lab], delta=delta,
-                                       surface=finish["surface"])
-    schema = {"type": "OBJECT", "properties": {"surface": {"type": "STRING", "enum": surface_codes(surfaces)}},
-              "required": ["surface"]}
-    return {"contents": [{"role": "user", "parts": [picture_part(picture, 1600), picture_part(front_map, 1600),
-                                                    {"text": text}]}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
-                                 "responseSchema": schema}}
-
-
-def name_finish(picture, front_map, object_words, number, finish, surfaces, glow=False, off=None):
-    """The library surface Gemini 3.1 Pro names for one finish when asked again with its finish map (name_body)."""
-    from score.adapters import compute
-    compute.require_cleared("a Gemini finish naming")
-    response = generated(LIST_MODEL, name_body(picture, front_map, object_words, number, finish,
-                                    surfaces, glow, off), secret_key(), TIMEOUT,
-                         caller="finishmap-name", cache=True)
-    code = json.loads(reply_text(response))["surface"]
-    return list(surfaces)[surface_codes(surfaces).index(code)]
 
 
 def finish_lines(finishes):
@@ -228,9 +208,10 @@ def image_body(parts, seed):
                                  "imageConfig": {"imageSize": "2K", "aspectRatio": "1:1"}}}
 
 
-def map_body(picture, finishes, seed, strict=False):
-    """The finish-map request: each finish's label colour in words (STRICT added on the last draw), the close-up."""
-    text = MAP_WORDING.format(finishes=finish_lines(finishes)) + (STRICT if strict else "")
+def map_body(picture, finishes, seed):
+    """The finish-map request: each finish's label colour in words, asked strictly (STRICT) on its one draw, the
+    close-up."""
+    text = MAP_WORDING.format(finishes=finish_lines(finishes)) + STRICT
     return image_body([{"text": text}, picture_part(picture, 1600)], seed)
 
 
@@ -250,9 +231,9 @@ def drawn(body, what):
     return Image.open(io.BytesIO(base64.b64decode(found[-1]))).convert("RGB") if found else None
 
 
-def draw_map(picture, finishes, seed, strict=False):
+def draw_map(picture, finishes, seed):
     """The close-up's finish map, or None."""
-    return drawn(map_body(picture, finishes, seed, strict), "a Nano Banana Pro finish map")
+    return drawn(map_body(picture, finishes, seed), "a Nano Banana Pro finish map")
 
 
 def draw_view_map(picture, front_map, view, finishes, seed):
