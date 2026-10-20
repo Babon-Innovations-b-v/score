@@ -40,11 +40,14 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`state/screens.py`, routes in `api/routes.py`, signed in, GET):
   - `/api/screens/environment`: `money` {month, cloud, models (None: not read, never the call ledger alone), total,
     whole, stop (the last batch's: its high plus 10%; None before one), against_stop (spent since the first stop line
-    plus in flight), in_flight, refused}; `remake` {likely, high (prepare's whole prop route, takes waiting on lost
-    inputs counted, plus the gaps price of every paid step off it), route {likely, high, unpriced, takes, bought,
+    plus in flight), in_flight, refused}; `remake` {likely, high (only the places whose design is approved,
+    `screens.approved_parts`, owner 2026-10-20: "design decides inventory", so a price on the old inventories says
+    nothing; None before one is: prepare's prop route there, each stage's price shared by its takes, takes waiting on
+    lost inputs counted, plus the gaps price of every paid step off it there), approved, in_design, route {likely, high, unpriced, takes, bought,
     made, library (from the library: only models made under today's route or locked, prepare's rule; an older match
     is remade and counted bought), predicted_gaps, blocked}, rest {likely, high, priced, unpriced}, unpriced, eta {likely_minutes,
-    high_minutes (None unless every step is timed), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
+    high_minutes (None unless every step is timed; all None until every design is approved: the runner times the
+    whole remake only), at_least_minutes, untimed}, made_at, stale [why]}; `gaps`
     {kind: count}; `places` [{place, title, status, picture (its concept's thumbnail link; None when its concept is
     lost, never a render instead: owner, 2026-10-20), picture_from (concept, None), progress {made, needed}
     (its line's steps accepted), complete, gaps, worst (lost, route, missing, gate), takes (prepare's, by status),
@@ -93,7 +96,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   asks, one function each.
 - **The cockpit app (#42): five screens under one top nav** (`templates/pages/base.html`): **Environment** `/`
   (`environment.html`: the month spent (the lines read, "at least" while one is not, each line as hover text; no
-  stop shown), the remake's euros and hours, a Review and buy
+  stop shown), the remake's euros and hours for the approved designs and how many places are in design (only that
+  count before one is approved), a Review and buy
   button, a tile per outside place or shell (shapes first, `cockpit.tiles`: one holding places sums their progress
   and gaps, shows what sits directly inside that holds places itself over its concept ("Ship, 8 rooms") and "+N"
   for the rest, and opens to them at `/?in=<place or shell>`, a place's own tile first, with a
@@ -102,8 +106,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   design first: how many places' designs are approved and a row a place, its concept and plan state, "game layout"
   where its layout still takes the source game's numbers, its old pick as hover text, linking to the place, where
   the design is made (its concept review, outside any batch: no concept is bought here), and the owner's Approve
-  once its plan is made (his accept of `plan@<place>` through `/api/decisions`); then After design, the batch's
-  whole figure and a line a layer, how many it makes and its euros, no step's own name and no dropdown; its Buy only
+  once its plan is made (his accept of `plan@<place>` through `/api/decisions`); then After design: how many places await design while none is
+  approved (no euros, no layers), else the approved places' figure and a line a layer, how many it makes and its euros, no step's own name and no dropdown; its Buy only
   once a design is approved, buying only those places; the owner's books buttons only while needed: the read-back while paid work is refused, the model calls'
   month figure while it is not read, its button named by their cost line's label; no Basket link, no stop control:
   the Buy yes sets the batch's stop), **Stats** `/stats/`

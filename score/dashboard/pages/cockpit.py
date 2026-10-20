@@ -36,13 +36,15 @@ def month_money(view):
 
 
 def remake(world):
-    """{low, high, hours, at_least_hours, unknown, why} of the whole remake (state/screens.remake_money: prepare's
-    one-shot figure of the prop route, the takes waiting on lost inputs counted, plus the gaps price of every paid
-    step off it): its likely and high euros, its likely hours only when every step is timed, else the floor; the
-    steps and layers with no price; `why` the hover text while a part is missing or stale (no figure then)."""
+    """{low, high, hours, at_least_hours, unknown, why, approved, in_design} of the remake of the places whose design
+    is approved (state/screens.remake_money: prepare's one-shot figure of their prop route plus the gaps price of
+    every paid step off it there): its likely and high euros, its likely hours only when every step is timed, else
+    the floor; the steps and layers with no price; `why` the hover text while a part is missing or stale (no figure
+    then); how many places are approved and still in design (no figure before one is approved)."""
     found = screens.remake_money(world)
     eta = found["eta"]
-    return {"low": found["likely"], "high": found["high"],
+    return {"low": found["likely"], "high": found["high"], "approved": found["approved"],
+            "in_design": found["in_design"],
             "hours": round(eta["likely_minutes"] / 60, 1) if eta["likely_minutes"] is not None else None,
             "at_least_hours": round(eta["at_least_minutes"] / 60, 1) if eta["at_least_minutes"] else None,
             "unknown": found["unpriced"], "why": "; ".join(found["stale"]) or None}

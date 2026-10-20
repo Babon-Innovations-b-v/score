@@ -654,18 +654,21 @@ def test_the_buy_screen_shows_design_first_and_the_batch_after_it_bought_only_fo
     client = signed_in()
     html = client.get("/buy/").content.decode()
     top = html[html.index('<div class="topbar">'):html.index('<ul class="buy-layers buy-design">')]
-    assert "0 <small>of</small> 2 <small>approved</small>" in top and "<small>EUR</small> 12.00&ndash;15.00" in top
-    assert 'data-url="/buy/yes/"' not in html  # no design approved: nothing to buy
+    assert "0 <small>of</small> 2 <small>approved</small>" in top and "2 <small>places await design</small>" in top
+    assert "EUR" not in top and 'data-url="/buy/yes/"' not in html  # no design approved: no price, nothing to buy
     rows = re.findall(r'href="/place/(\w+)/" data-v>.*?</a><span class="buy-n" data-v>(\w+)</span>'
                       r'<span class="buy-n" data-v>([\w ]+)</span>', html)
     assert rows == [("alpha", "missing", "to remake"), ("beta", "missing", "to remake")]
+    assert ">after design<" not in html
+    a_remake(world, approved=("alpha",))  # alpha's design approved
+    world.source.refresh()
+    html = client.get("/buy/").content.decode()
+    top = html.split('<ul class="buy-layers buy-design">')[0]
+    assert "1 <small>of</small> 2 <small>approved</small>" in top and '"batch": "now"' in top
+    assert "<small>EUR</small> 4.00&ndash;6.00" in top  # alpha's part: the basket's close-up and settle
     layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>', html)
     assert layers == [("Models", "2"), ("Motion", "1"), ("Sound", "1")]
     assert not re.search(r"predicted to fail|calibration|earlier step|lost concept|<details", html)
-    a_remake(world)  # alpha's design approved
-    world.source.refresh()
-    top = client.get("/buy/").content.decode().split('<ul class="buy-layers buy-design">')[0]
-    assert "1 <small>of</small> 2 <small>approved</small>" in top and '"batch": "now"' in top
     assert "it stops at EUR 3.30" in top and re.search(r'<i class="dot" data-slot="said" hidden>', top)
     assert client.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
     refused = client.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")

@@ -38,7 +38,7 @@ def a_design(approved):
     return {"places": {place: one(place) for place in ("alpha", "beta")}, "approved": list(approved)}
 
 
-def a_remake(world, priced_on=None, approved=("alpha",)):
+def a_remake(world, priced_on=None, approved=("alpha", "beta")):
     """Prepare's record (WORK/checks/prepare/remake.json) as the real one is shaped: alpha's three takes, two bought
     waiting on a lost input and one a predicted gap, priced EUR 10 to 12 with the likeness calibration unpriced; the
     designs of `approved` approved."""
@@ -163,18 +163,26 @@ def test_the_batch_splits_into_what_buy_buys_now_and_what_waits_and_its_lines_ad
 
 
 def test_no_step_is_bought_at_a_place_whose_design_is_not_approved(cockpit):
-    """Before any design is approved the batch buys nothing (its figure stays whole, all after design); the design
-    names each place's concept and plan as prepare wrote them, and a place it does not name as None."""
+    """Before any design is approved the batch buys nothing and is priced at nothing (the old inventories' price says
+    nothing of the new designs); once alpha's is, only alpha's part is priced, with no ETA while beta is in design.
+    The design names each place's concept and plan as prepare wrote them, and a place it does not name as None."""
     a_remake(cockpit, approved=())
     cockpit.source.refresh()
     world = cockpit.source.world_state()
     found = screens.batch(world, cockpit.items)
-    assert found["now"]["steps"] == 0 and found["now"]["stop"] is None and found["total"]["high"] > 0
+    assert found["now"]["steps"] == 0 and found["now"]["stop"] is None and found["layers"] == []
+    money = screens.remake_money(world)
+    assert (money["likely"], money["approved"], money["in_design"]) == (None, 0, 2)
     assert screens.now_items(cockpit.items, ["beta"]) == []  # alpha's close-up waits on alpha's design
     design = screens.design(cockpit.source, world)
     assert design["approved"] == [] and [row["design"]["plan"] for row in design["places"]] == ["remake", "remake"]
     world.remake.design = {}
     assert screens.design(cockpit.source, world)["places"][0]["design"] is None
+    a_remake(cockpit, approved=("alpha",))
+    cockpit.source.refresh()
+    money = screens.remake_money(cockpit.source.world_state())
+    assert (money["likely"], money["high"], money["in_design"]) == (12.0, 15.0, 1)  # every take is alpha's
+    assert money["eta"]["at_least_minutes"] is None  # the runner times the whole remake only
 
 
 def test_the_buy_route_counts_a_choice_on_another_version_as_none(cockpit, month_read):
