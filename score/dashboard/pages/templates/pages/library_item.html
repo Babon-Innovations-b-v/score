@@ -26,7 +26,7 @@
     </div>{% endif %}
     {{ viewer|json_script:"item-data" }}
   </div>
-  {% if entry.kind == "model" and picture %}<figure class="item-pic" title="its picture">{% include "pages/pic.html" with src=picture name=entry.title bare=1 %}</figure>{% endif %}
+  {% if entry.kind == "model" and closeup %}<figure class="item-pic" title="the close-up it was made from">{% include "pages/pic.html" with src=closeup name=entry.title bare=1 %}</figure>{% elif entry.kind == "model" and picture %}<figure class="item-pic" title="its picture">{% include "pages/pic.html" with src=picture name=entry.title bare=1 %}</figure>{% endif %}
   {% elif view == "demo" %}
   <div class="item-view demo-view" id="demo"{% if entry.about %} title="{{ entry.about }}"{% endif %}>
     <output class="demo-tip" id="demo-tip" hidden></output>

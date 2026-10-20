@@ -10,7 +10,7 @@ picture is fetched once by the library's own command into `$PROPS_HOME/cache/lib
 cockpit's library reads that cache when it has no blob folder (score/dashboard/state/library.py). Read only on the
 library side; never a row, so nothing keys on it. A fetch costs one object read.
 
-The viewer files (`viewed`) are what an item page plays: a light web copy, a surface's material and print, a
+The viewer files (`viewed`) are what an item page plays: a light web copy, a model's close-up, a surface's material and print, a
 sound's first takes, an effect's settings, a sky's OpenUSD, a light layer's lamps.json. One the blob store answers 404 for is marked lost
 (`<file>.lost` beside it, holding the sha the entry records) and not asked for again until the entry names other bytes;
 the cockpit says such a file is missing. `FETCHES` fetches run side by side (each a process of the library's command
@@ -55,6 +55,8 @@ def viewer_files(record):
         named.append("settings.json")
     elif record["kind"] == "light":
         named += role_files(record, "usd", (".usda",))
+    elif record["kind"] == "model":
+        named += role_files(record, "closeup", (".png", ".jpg", ".jpeg", ".webp"))[:1]  # the close-up it came from
     elif record["kind"] == "layer" and record["id"].startswith("light."):
         named.append("lamps.json")  # a place's lamps: where each stands and its strength
     return [name for name in named if name in record.get("files", {})]

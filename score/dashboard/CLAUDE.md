@@ -117,7 +117,8 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   `PAGE` at a time with a "more" branch; an item's page `/library/<kind>/<id>/<version>/` is the item on its own
   (owner, 2026-10-20: "experiencing the item in isolation"), its kind's viewer first (`library.view_of`,
   `viewer_of`): a model, kit or character's web copy turned in `static/pages/item3d.js` (its light copy, then its
-  whole copy where this cockpit holds it; a kit's pieces side by side; a copy's clips on a time scrubber), a surface
+  whole copy where this cockpit holds it, a model's close-up, the picture it was made from, beside it (its `closeup`
+  file, owner 2026-10-20); a kit's pieces side by side; a copy's clips on a time scrubber), a surface
   on a lit sphere and tile with palette colour, shine, wear and seed sliders (a preview's variants, not its recipe's
   bake), an effect played from its settings with a scrubber, a sky (kind `light`, shown as Skies: a sky is no light,
   owner 2026-10-20) as its dome looked around in from inside or a planet's backdrop as its globe, a place's lamps (the

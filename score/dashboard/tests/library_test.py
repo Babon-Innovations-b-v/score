@@ -115,7 +115,8 @@ def shelf(tmp_path):
     """A tiny library in a git folder with a bare remote, and its blob folder."""
     root, blobs = tmp_path / "lib", tmp_path / "blobs"
     entry(root, blobs, "model", "lamp_post.alpha",
-          files={"web/lamp_post.glb": ("web3d", glb()), "web/lamp_light.glb": ("web3d", glb() + b" " * 4)},
+          files={"web/lamp_post.glb": ("web3d", glb()), "web/lamp_light.glb": ("web3d", glb() + b" " * 4),
+                 "closeup.png": ("closeup", fixture.picture((200, 60, 30)))},
           web3d={"file": "web/lamp_post.glb", "light": "web/lamp_light.glb", "objects": 3, "triangles": 1},
           score=42, score_parts=[{"name": "shape", "value": 30, "how": "edges"},
                                  {"name": "likeness", "value": None, "how": "needs a paid judge"}],
@@ -276,7 +277,9 @@ def test_a_model_turns_in_3d_from_its_light_copy_with_its_size_parts_and_score(w
     assert viewer["full"] == f"/library-files/files/{found.web3d.sha}"
     assert 'id="item3d"' in lamp and '<script type="module" src="/static/pages/item3d.js">' in lamp
     assert '"three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js"' in lamp
-    assert f"/library-files/pictures/{found.picture}.jpg" in lamp  # beside it, and under it while it loads
+    assert f"/library-files/pictures/{found.picture}.jpg" in lamp  # under it while it loads
+    assert f"/library-files/pictures/{found.closeup.sha}.jpg" in lamp  # beside it: the close-up it was made from
+    assert api("ann").get(f"/library-files/pictures/{found.closeup.sha}.jpg").status_code == 200
     assert number_shown(lamp, "parts", "3") and number_shown(lamp, "score", "42") and 'data-fact="size"' in lamp
     assert 'title="how sound its mesh is: holes, crowded edges, seams; shape 30, likeness not measured"' in lamp
     assert 'href="/library/model/lamp_post.alpha/1/3d/"' in lamp and 'value="lock"' in lamp and 'value="repaint"' in lamp
