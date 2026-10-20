@@ -1,10 +1,11 @@
 """The sound stage's gates, each read off the output's record and its files (measured again, never trusted from the
-record): sources, level, likeness and no freesound (the stage's docstring says what each passes on)."""
+record): sources, level, likeness, no freesound, events and voices (the stage's docstring says what each passes on)."""
 import json
 import pathlib
 import sys
 
 from score import checks
+from score.stages.sound import needs
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 for folder in ("tools/sound/picker", "tools/sound/loudness"):
@@ -37,13 +38,16 @@ def record_of(output):
 # --- sources --------------------------------------------------------------------------------------------------------
 
 def standing(inputs):
-    """What an object sound may play at: the inventory's row ids and the scene record's named objects."""
+    """What an object sound may play at: the inventory's row ids, the scene record's named objects and the cast's
+    people (a voice)."""
     names = set()
     if "inventory" in inputs:
         names |= {row["id"] for row in read_json(inputs["inventory"]).get("rows", [])}
     scene = read_json(inputs["scene"])
     for part in ("objects", "structure"):
         names |= {entry["name"] for entry in scene.get(part, []) if isinstance(entry, dict) and entry.get("name")}
+    if "cast" in inputs:
+        names |= set(needs.people(read_json(inputs["cast"])))
     return names
 
 
@@ -54,7 +58,7 @@ def judge_sources(output, inputs, evidence):
     there = standing(inputs)
     faults = [f"{use['sound']} ({use['role']}, {use['from']}): no sound" for use in record["uses"]
               if not record["sounds"].get(use["sound"], {}).get("files")]
-    faults += [f"{use['sound']} plays at {use['on']}, which the place's inventory and scene do not hold"
+    faults += [f"{use['sound']} plays at {use['on']}, which the place's inventory, scene and cast do not hold"
                for use in record["uses"] if use["role"] == "object" and use["on"] not in there]
     if not record["uses"]:
         return checks.Verdict("sources", checks.UNKNOWN, "the place names no source of sound")
@@ -64,6 +68,41 @@ def judge_sources(output, inputs, evidence):
     return checks.Verdict("sources", checks.FAIL if faults else checks.PASS, reason,
                           {"sources": len(record["uses"]), "without": len(faults)}, {"without": "lower"},
                           tuple(faults))
+
+
+# --- events and voices (#29) ----------------------------------------------------------------------------------------
+
+def judge_events(output, inputs, evidence):
+    """Pass when every thing that moves in the place (needs.events over its motion and movers records) plays a sound
+    at one of its prims; a place where nothing moves passes with nothing to judge."""
+    record = record_of(output)
+    movers = read_json(inputs["movers"]) if "movers" in inputs else {}
+    motions = read_json(inputs["motion"]).get("motions", []) if "motion" in inputs else []
+    found = needs.events(motions, movers.get("movers", []), movers.get("renamed", {}))
+    sounding = {use["on"] for use in record["uses"] if use["role"] == "motion"}
+    silent = [f"{event['name']} ({event['prims'][0]}) moves without a sound" for event in found
+              if not sounding & set(event["prims"])]
+    measures = {"events": len(found), "silent": len(silent)}
+    if silent:
+        return checks.Verdict("events", checks.FAIL, f"{len(silent)} of {len(found)} moving things play no sound",
+                              measures, {"silent": "lower"}, tuple(silent))
+    return checks.Verdict("events", checks.PASS, f"all {len(found)} moving things play a sound" if found else
+                          "nothing moves in the place", measures, {"silent": "lower"})
+
+
+def judge_voices(output, inputs, evidence):
+    """Pass when a place whose cast stands people plays a voice (a sound with files) on one of them; a place with no
+    one passes."""
+    cast = needs.people(read_json(inputs["cast"])) if "cast" in inputs else []
+    record = record_of(output)
+    voiced = sorted({use["on"] for use in record["uses"] if use["role"] == "object" and use["on"] in cast
+                     and record["sounds"].get(use["sound"], {}).get("files")})
+    measures = {"people": len(cast), "voiced": len(voiced)}
+    if cast and not voiced:
+        return checks.Verdict("voices", checks.FAIL, f"{len(cast)} people here and no voice: {cast}", measures,
+                              {"voiced": "higher"}, (f"no voice on any of {cast}",))
+    return checks.Verdict("voices", checks.PASS, f"voices on {voiced}" if cast else "no one in the place",
+                          measures, {"voiced": "higher"})
 
 
 # --- level ----------------------------------------------------------------------------------------------------------

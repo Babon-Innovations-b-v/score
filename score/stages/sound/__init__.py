@@ -3,19 +3,22 @@ place plays with its files, its level, where it plays and who made it, for the p
 OpenUSD stage (tools/usd/sound.py's layout: room tones, objects' sounds, motions' sounds, the surfaces' bank).
 
     make     every source the place names (data/sound/places.json: its room tones, what the suit lets through, its
-             `objects`; its inventory rows' `sound`; its motions' `sounds`; the sounds data/sound/movers.json gives its
-             movers and its silent motions, timed off their moves (movers.py); every surface's footstep, impact and
-             scrape in data/sound/surfaces.json) answered by one sound: the world's file of a sound already picked (a MOSS
-             take, a file tools/sound/made.py makes, or a recording the owner chose over the takes), else MOSS takes
-             of its brief made in the moss image on a rented card (PAID, takes.py), each brought to its category's
-             loudness and chosen by the picker's rule (its CLAP match to its prompt less its faults,
-             tools/sound/picker); `sound.json` and the files under `files/`
+             `objects` and its `voices`, each on a person of its cast; its inventory rows' `sound`; its motions'
+             `sounds`; the sounds data/sound/movers.json gives its movers and its silent motions, timed off their
+             moves (movers.py); every surface's footstep, impact and scrape in data/sound/surfaces.json) answered by
+             one sound: the world's file of a sound already picked (a MOSS take, a file tools/sound/made.py makes, or
+             a recording the owner chose over the takes), else one MOSS take of its brief (its first prompt, seed 1)
+             made in the moss image on a rented card (PAID, takes.py), brought to its category's loudness and judged
+             by the picker's rule (its CLAP match to its prompt less its faults, tools/sound/picker); `sound.json` and
+             the files under `files/`
     gates    sources   every source has a sound with its files, and every object it plays at stands in the place's
-                       inventory or scene record
+                       inventory, scene record or cast
              level     every file, measured: its true peak under the ceiling, its loudness within its category's
                        target (tools/sound/loudness), its length within its brief
              likeness  every MOSS-made sound's CLAP match to its prompt at least gates.CLAP_FLOOR
              no freesound  no file is a Freesound recording but those the owner chose over the generated takes
+             events    every thing that moves in the place (needs.events: its motion and movers records) plays a sound
+             voices    a place whose cast stands people plays a voice on one of them (#29: voices where people are)
 
 Only places with an entry in data/sound/places.json have the row.
 """
@@ -56,7 +59,7 @@ def applies(place):
 
 def files(place):
     """What the stage reads: the sound data (each file a versioned library reference), and the place's own scene,
-    inventory and motion records (where its sounds play)."""
+    inventory, motion and cast records (where its sounds play)."""
     found = {"sounds": "{data}/sound/sounds.json", "catalogue": "{data}/sound/catalogue.json",
              "places": "{data}/sound/places.json", "surfaces": "{data}/sound/surfaces.json",
              "licences": "{data}/sound/licences.json",
@@ -69,6 +72,8 @@ def files(place):
     if (REPO / f"data/movers/{place}.json").exists():
         found["movers"] = "{data}/movers/{place}.json"
     found["moving sounds"] = "{data}/sound/movers.json"
+    if (REPO / f"data/characters/{place}.json").exists():
+        found["cast"] = "{data}/characters/{place}.json"
     return found
 
 
@@ -85,6 +90,8 @@ def uses_of(place, inputs):
             for name in record.get("loops", []) + record.get("heard_through", [])]
     uses += [{"sound": entry["sound"], "role": "object", "on": entry["on"], "from": "data/sound/places.json objects"}
              for entry in record.get("objects", [])]
+    uses += [{"sound": entry["sound"], "role": "object", "on": entry["on"], "from": "data/sound/places.json voices"}
+             for entry in record.get("voices", [])]
     if "inventory" in inputs:
         uses += [{"sound": row["sound"], "role": "object", "on": row["id"],
                   "from": f"{pathlib.Path(inputs['inventory']).name} row {row['id']}"}
@@ -296,4 +303,5 @@ def layer_faults(folder):
 
 LAYER = contracts.Contract("sound-layer", 1, layer_faults, {"time": "second"})
 CHECKS = (checks.Check("sources", gates.judge_sources), checks.Check("level", gates.judge_level),
-          checks.Check("likeness", gates.judge_likeness), checks.Check("no freesound", gates.judge_no_freesound))
+          checks.Check("likeness", gates.judge_likeness), checks.Check("no freesound", gates.judge_no_freesound),
+          checks.Check("events", gates.judge_events), checks.Check("voices", gates.judge_voices))
