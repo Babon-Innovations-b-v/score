@@ -422,5 +422,10 @@
    "drop": "the crew are the characters stage's (#100), not rows"
   }
  ],
- "far_ground": {"reach": 130.0, "step": 2.0, "ball": "moon_regolith", "why": "the greenhouse's glass dome looks out on the Moon's ground to the horizon; reach and step the old record's (an unverified seed)"}
+ "far_ground": {"reach": 130.0, "step": 2.0, "ball": "moon_regolith", "why": "the greenhouse's glass dome looks out on the Moon's ground to the horizon; reach and step the old record's (an unverified seed)"},
+ "sections": [
+  {"name": "the glass dome on its ribs and hoops", "surface": "ceiling", "rows": ["lattice_hip_rib", "lattice_ring_rib", "lattice_node_plate"]},
+  {"name": "deck plates, a drain grating", "surface": "floor", "rows": ["ring_floor_plate", "under_floor_box"]},
+  {"name": "wall panels, patched and vented, the cornice under the glass", "surface": "walls", "rows": ["wall_lower_plain", "wall_upper_plain", "wall_upper_cables", "wall_lower_vent", "wall_lower_patched", "wall_upper_patched", "wall_skirting", "wall_cornice"]}
+ ]
 }

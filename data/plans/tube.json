@@ -272,5 +272,10 @@
     0.0
    ]
   }
- }
+ },
+ "sections": [
+  {"name": "curved hull plates, crown and feet, with seams and bolts", "surface": "walls", "rows": ["hull_plate"]},
+  {"name": "ring frames (hoops) every bay, carrying the glass mullions", "surface": "walls", "rows": ["hoop"]},
+  {"name": "deck plates", "surface": "floor", "rows": ["ring_floor_plate"]}
+ ]
 }

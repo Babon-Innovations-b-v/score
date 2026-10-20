@@ -375,5 +375,10 @@
    "element": "the outside of the shell and the Moon ground round it",
    "drop": "outside the room: the shell's outside is not this room's concept; the ground is the terrain stage's"
   }
+ ],
+ "sections": [
+  {"name": "wall panels, patched panels, cable and pipe runs high on the walls", "surface": "walls", "rows": ["wall_lower_plain", "wall_upper_plain", "wall_lower_patched", "wall_upper_cables", "wall_upper_pipes", "wall_skirting", "wall_cornice"]},
+  {"name": "deck plates on the floor", "surface": "floor", "rows": ["ring_floor_plate"]},
+  {"name": "the rounded rim of the walls", "surface": "ceiling", "rows": ["roof_face_panel"]}
  ]
 }

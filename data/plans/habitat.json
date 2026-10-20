@@ -498,5 +498,12 @@
    "element": "regolith bags, the cut-away shell and its insulation, the Moon outside",
    "drop": "outside the shell: the cutaway view's own, not the room's inside"
   }
+ ],
+ "sections": [
+  {"name": "dome shell: ribbed, bolted grey dome panels", "surface": "ceiling", "rows": ["roof_face_panel"]},
+  {"name": "walls: worn grey bolted panels, lower and upper bands, skirting and cornice", "surface": "walls", "rows": ["wall_lower_plain", "wall_upper_plain", "wall_skirting", "wall_cornice"]},
+  {"name": "patched lower panels", "surface": "walls", "rows": ["wall_lower_patched"]},
+  {"name": "deck plates with seams and bolt heads", "surface": "floor", "rows": ["ring_floor_plate"]},
+  {"name": "cable runs and a junction block high on the east wall", "surface": "walls", "rows": ["wall_upper_cables"]}
  ]
 }

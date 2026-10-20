@@ -77,5 +77,10 @@
   "Numbers from the game (earth_site.gd: street 8 x 20 m, the flat's block 24 m, the block across 20 m, barriers 2.4 x 0.8 m, a 4 m fence; car at (10, 0, 4), driver beside it, guard at the street door).",
   "Signs: notice 'street closed on launch night', poster stand celebrating the first crewed Moon flight, block name, shop signs (street_fittings.gd); signs in simplified Chinese on Earth.",
   "2026-10-12, the scene-record stage: the plan redrawn on the made kit, the street 36 m between its end walls (the drawing's 20 m is the closed stretch between the barriers), the street door 1.0 m wide where the stairwell and the facade cut it; the standing spots are the street's review cameras."
+ ],
+ "sections": [
+  {"name": "street surface with kerbs and pavements", "surface": "floor", "rows": ["ground_asphalt", "ground_paving", "kerb_stone", "road_line"]},
+  {"name": "tenement facade, the flat's block (24 m, west)", "surface": "walls", "rows": ["render_lower", "render_upper", "facade_band", "parapet", "block_roof"]},
+  {"name": "tenement facade across (20 m, east) with shopfronts", "surface": "walls", "rows": ["render_shop"]}
  ]
 }

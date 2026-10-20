@@ -378,5 +378,11 @@
    ]
   }
  ],
- "far_ground": {"reach": 130.0, "step": 2.0, "ball": "moon_regolith", "why": "the hub's portholes look out on the Moon's ground to the horizon; reach and step the old record's (an unverified seed)"}
+ "far_ground": {"reach": 130.0, "step": 2.0, "ball": "moon_regolith", "why": "the hub's portholes look out on the Moon's ground to the horizon; reach and step the old record's (an unverified seed)"},
+ "sections": [
+  {"name": "the roof's lattice of ribs, diamond struts and node plates over ribbed panels to an apex hub", "surface": "ceiling", "rows": ["lattice_hip_rib", "lattice_ring_rib", "lattice_diamond_strut", "lattice_node_plate", "roof_face_panel"]},
+  {"name": "the big wall display and a cluster of small screens", "surface": "walls", "rows": ["wall_upper_screen_recess"]},
+  {"name": "worn, patched and vented wall panels with pipe and cable runs, posts, cornice and skirting", "surface": "walls", "rows": ["wall_lower_plain", "wall_lower_vent", "wall_lower_patched", "wall_upper_plain", "wall_upper_pipes", "wall_upper_cables", "wall_upper_patched", "wall_corner_post", "wall_cornice", "wall_skirting"]},
+  {"name": "cracked deck plates round the pit, an access cover, a machine bay plate", "surface": "floor", "rows": ["ring_floor_plate"]}
+ ]
 }
