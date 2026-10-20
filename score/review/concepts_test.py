@@ -227,7 +227,7 @@ def test_a_place_within_another_is_sent_its_picked_picture_first_and_its_wording
     assert not concepts.current_draw(store, "lab", concepts.wording_now(store, "lab"))
     assert concepts.undrawn(store, ["base", "lab"])[0] == ["lab"]
     cockpit = concepts.generated(store, "cockpit")
-    assert "A room inside the ship in the hangar." in cockpit
+    assert "In the ship, for flying the ship: two pilot seats" in cockpit
     assert cockpit.startswith("Concept painting of the cockpit, inside the hangar.")
 
 
@@ -244,13 +244,13 @@ def test_a_place_waits_while_the_one_above_it_is_not_picked(store, monkeypatch):
 def test_a_reference_comes_from_the_places_data_and_waits_while_it_is_not_here(store, tmp_path, monkeypatch):
     monkeypatch.setattr(concepts, "PROPS_HOME", tmp_path)
     monkeypatch.setattr(concepts, "picked", lambda _store, place: "abc" if place == "hangar" else None)
-    assert "is not on this machine" in concepts.waits(store, "galley")  # its reference, the owner's quarters picture
+    assert "is not on this machine" in concepts.waits(store, "quarters")  # its reference, the owner's quarters picture
     (tmp_path / "references").mkdir()
     Image.new("RGB", (8, 8)).save(tmp_path / "references" / "quarters.png")
-    assert concepts.waits(store, "galley") is None
-    sources = [source for _, source in concepts.sent_pictures(store, "galley")]
+    assert concepts.waits(store, "quarters") is None
+    sources = [source for _, source in concepts.sent_pictures(store, "quarters")]
     assert sources == ["hangar", tmp_path / "references/quarters.png"]  # the ship is no layer: the hangar's pick
-    assert concepts.generated(store, "galley").endswith("Style: 2099 space base, moon base, mars "
+    assert concepts.generated(store, "quarters").endswith("Style: 2099 space base, moon base, mars "
                                                  "base, SpaceX-type rockets, Chinese and American mixed.")
 
 
@@ -409,3 +409,17 @@ def test_a_mark_on_the_picture_above_reaches_both_calls_with_that_picture_boxed(
     with pytest.raises(concepts.Refused, match="no picked concept"):
         concepts.draw(store, "lab", {"base": first["sha"], "context_marks": [{**above[0], "on": "square"}]}, "joey",
                       caller=stand_in([]), reviser=prompt_stand_in([]))
+
+
+SHIP_ROOMS = ("cockpit", "navigation", "quarters", "storage", "galley", "shiplock", "engineroom", "walkway")
+
+
+def test_no_two_ship_rooms_get_the_same_wording_or_references(store):
+    wordings = {room: concepts.generated(store, room) for room in SHIP_ROOMS}
+    assert len(set(wordings.values())) == len(SHIP_ROOMS)
+    assert "for food: eat and prepare meals (counter, food stores, a table with fold-down seats)" in wordings["galley"]
+    assert "pilot seats" in wordings["cockpit"] and "pilot seats" not in wordings["galley"]  # no copied look
+    assert "on the port side" in wordings["quarters"] and "four bunks in two stacks" in wordings["quarters"]
+    references = {room: [source.name for _, source in concepts.sent_pictures(store, room) if not isinstance(source, str)]
+                  for room in SHIP_ROOMS}
+    assert references == {**{room: [] for room in SHIP_ROOMS}, "cockpit": ["cockpit.png"], "quarters": ["quarters.png"]}

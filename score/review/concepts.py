@@ -249,6 +249,7 @@ EVERY_DRAW = "16:9, no text"
 WITH_PEOPLE = "people for scale"
 NO_PEOPLE = "no people"
 PEOPLE_WORDS = re.compile(r"\b(people|person|crowd|crew)\b", re.IGNORECASE)
+COPIED_STYLE = re.compile(r"\bin the ([\w' ]+?)'s style\b")  # a look that says it copies another place's style
 FACING = re.compile(r"^(over|facing|towards|toward|across|to the|onto the) ")  # a lead's last clause that faces
 LOOK_MOST = 160  # characters of a place's look a draw sends
 LONGEST_GENERATED = 1000  # characters of a generated wording, the test's cap (under a third of 2026-10-20's longest)
@@ -323,9 +324,30 @@ def no_sizes(words):
     return re.sub(r" ?\(\s*[,;:]?\s*\)", "", words).strip()
 
 
+def copied_from(text):
+    """The place whose style a look's words say they copy ("..., in the cockpit's style: ..."), None when none: such
+    a look is that place's, not its own (the owner, 2026-10-21: every ship room drew as the cockpit)."""
+    found = COPIED_STYLE.search(text)
+    return found.group(1) if found else None
+
+
 def look_text(place):
-    """The words of `place`'s look (place.json `style.text`), no measures; "" when it has none."""
-    return no_sizes(((look_of(place) or {}).get("style") or {}).get("text") or "")
+    """The words of `place`'s own look (place.json `style.text`), no measures; "" when it has none, or when its words
+    copy another place's style."""
+    text = ((look_of(place) or {}).get("style") or {}).get("text") or ""
+    return "" if copied_from(text) else no_sizes(text)
+
+
+def floor_words(place):
+    """What a floor plan the creator approved says `place` is for (data/definitions/<shell>_floor.json: a room's or
+    its walkway's `for`, with its side of the shell), as a sentence; "" when no floor plan names it."""
+    for path in sorted((DATA / "definitions").glob("*_floor.json")):
+        plan = json.loads(path.read_text())
+        for entry in [*plan.get("rooms", []), plan.get("walkway") or {}]:
+            if entry.get("place") == place and entry.get("for"):
+                side = f", on the {entry['side']} side" if entry.get("side") in ("port", "starboard") else ""
+                return f"In the {path.stem.removesuffix('_floor')}{side}, for {no_sizes(entry['for'])}."
+    return ""
 
 
 def short_look(place):
@@ -409,8 +431,8 @@ def size_words(place):
     words = []
     if others and own[0] > others[-1]:
         ratio = round(own[0] / others[-1])
-        words.append(f"the largest in {short_name(holder)}, floor "
-                     + (f"about {TIMES.get(ratio, 'many times')} any other's" if ratio >= 2 else "the largest"))
+        words.append(f"the largest in {short_name(holder)}"
+                     + (f", floor about {TIMES.get(ratio, 'many times')} any other's" if ratio >= 2 else ""))
     elif others and own[0] < others[0]:
         words.append(f"the smallest in {short_name(holder)}")
     elif others:
@@ -485,7 +507,8 @@ def generated(store, place):
     listed = "Pictures: " + "; ".join(f"{number}. {words}" for number, (words, _) in enumerate(pictures, 1)) + "."
     return " ".join(part for part in (
         f"Concept painting of {short_name(place)}" + (f", inside {short_name(holder)}." if holder else "."),
-        inputs_of(place).get("says", ""), f"Look: {look}" if look else "", holds_and_doors(place), size_words(place),
+        floor_words(place), inputs_of(place).get("says", ""), f"Look: {look}" if look else "", holds_and_doors(place),
+        size_words(place),
         listed if pictures else "", view_words(place), style()) if part)
 
 
