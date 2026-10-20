@@ -7,11 +7,13 @@ check the finish-map method ran): its colour here is the median CIELAB of the mo
 pixels in every view (route_views), never painted, only measured. A finish off its listed surface takes the nearest
 surface of its family that fits, or the room's own kit surface; one no surface fits is marked off its colour with a
 proposed surface, and the paint's gate "colour against the close-up" fails it by name. Each part takes its finish's
-checked surface (finish_parts.part_rows).
+checked surface (finish_parts.part_rows), and the list's settings where its finish kept the surface the list named
+(route_settings.applied: the bake paints and bakes the surface with them).
 
-Output: parts.json (per take its method, parts, finishes with the list's settings and the check's measure; the takes
-left out and why), <take>/parts.npy (one part per face of the raw take, the paint's face order), <take>/colours.npy
-(NaN: the paint joins parts on their surface alone). Gate "parts": every take the split split has its parts.
+Output: parts.json (per take its method, parts (each with its finish's `settings` or None), finishes with the list's
+settings and the check's measure; the takes left out and why), <take>/parts.npy (one part per face of the raw take,
+the paint's face order), <take>/colours.npy (NaN: the paint joins parts on their surface alone). Gate "parts": every
+take the split split has its parts.
 """
 import json
 import pathlib
@@ -26,6 +28,7 @@ import numpy as np  # noqa: E402
 import finish_parts  # noqa: E402
 import route_cast as cast  # noqa: E402
 import route_data  # noqa: E402
+import route_settings  # noqa: E402
 import route_split  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
@@ -45,6 +48,12 @@ def seen_colours(views, finish_of, count):
     return found
 
 
+def part_finish(mesh, part_of, finish_of, part):
+    """The finish a part takes, as finish_parts.part_rows chose it: the finish over most of its area."""
+    members = part_of == part
+    return int(np.bincount(finish_of[members], weights=mesh.area_faces[members]).argmax())
+
+
 def parts_take(folders, entry, finishes, kit):
     """One take's parts into folders["out"]: parts.npy and colours.npy; its parts.json record."""
     finish_of = np.load(folders["split"] / "finish.npy").astype(int)
@@ -56,6 +65,8 @@ def parts_take(folders, entry, finishes, kit):
     np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))
     np.save(folders["out"] / "colours.npy", np.full((len(mesh.faces), 3), np.nan, dtype=np.float32))
     rows = finish_parts.part_rows(mesh, part_of, finish_of, checked)
+    for row in rows:
+        row["settings"] = route_settings.applied(checked[part_finish(mesh, part_of, finish_of, row["part"])])
     return {"method": METHOD, "parts": rows, "judge_unknown": [], "finishes": checked,
             "measures": {"parts": len(rows), "off colour": sum(entry["by"] == "off its colour" for entry in checked)}}
 

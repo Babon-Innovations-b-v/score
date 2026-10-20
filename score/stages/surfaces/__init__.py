@@ -9,9 +9,11 @@ A line runs the finish route (owner, 2026-10-20, #18; route_*.py), then the fram
         colour regions), finish-route-list (Gemini 3.1 Pro, one batch: the finish list matched library first, a label
         for each region in each view), finish-route-split (free: the labels voted across views, every face one
         finish or its take a hole), surfaces-parts (free: each part its checked library surface)
-    framework: surfaces-paint (free, here: route_paint.py, proposals into the finish registry, registry.py),
-        surfaces-bake (place_line.py), finish-route-recheck (Gemini 3.1 Pro, one batch, and the free colour check:
-        pass or a named hole), surfaces-check
+    framework: surfaces-bake (paid: each take painted with its parts' library surfaces, the list's settings on
+        them, and baked, one job a take on the rented card, route_bake.py; proposals into the finish registry,
+        registry.py), surfaces-paint (free: the bake's painted takes and the paint's gates, route_paint.py),
+        finish-route-recheck (Gemini 3.1 Pro, one batch, and the free colour check: pass or a named hole),
+        surfaces-check (route_check.py: bake_check.py's against the bake's specs)
 
 The method's interface is one contract, PARTS (per model its parts, each with the library surface the method named
 for it, parts.json and <take>/parts.npy, <take>/colours.npy). The finish-map method's modules (finish_parts.py,
@@ -30,6 +32,7 @@ import surface_data as data  # noqa: E402
 import finish_parts  # noqa: E402
 import place_line  # noqa: E402
 import route_data  # noqa: E402
+import route_bake  # noqa: E402
 import route_list  # noqa: E402
 import route_paint  # noqa: E402
 import route_parts  # noqa: E402
@@ -68,12 +71,12 @@ ROUTE = (
                                                           "finish-route-split"),
                 applies=data.paints, selects=True))
 LINE = (
+    row("surfaces-bake", route_bake.make_bake, route_bake.bake_faults, "baked", route_bake.judge_baked,
+        data.bake_files, ("surfaces-parts",), paid=True, euros=place_line.BAKE_EUROS),
     graph.Stage("surfaces-paint", "place", route_paint.make_paint, contract("surfaces-paint", place_line.paint_faults),
                 (guarded("one surface a part", place_line.judge_one_surface),
                  guarded("colour against the close-up", place_line.judge_concept_colour)),
-                files=data.line_files, after=reads("surfaces-parts"), applies=data.paints),
-    row("surfaces-bake", place_line.make_bake, place_line.bake_faults, "baked", place_line.judge_baked,
-        data.bake_files, ("surfaces-paint",), paid=True, euros=place_line.BAKE_EUROS),
+                files=data.line_files, after=reads("surfaces-bake"), applies=data.paints),
     row("finish-route-recheck", route_recheck.make_recheck, route_recheck.recheck_faults, "library surface fits",
         route_recheck.judge_recheck, route_data.library_files, ("finish-route-views", "surfaces-parts"), paid=True,
         euros=route_recheck.RECHECK_EUROS, selects=True),

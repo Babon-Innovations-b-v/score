@@ -31,8 +31,9 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   library material carrying the look (palette colour, wear, shine, seed), so there is no paid paint step and no
   finish-map picture. Rows, in `ROWS` (`__init__.py`), on every painting place's line: `finish-route-views` (free,
   `route_views.py`), `finish-route-list` (paid, `route_list.py`), `finish-route-split` (free, `route_split.py`),
-  `surfaces-parts` (free, `route_parts.py`: the method's interface), `surfaces-paint` (free, `route_paint.py`),
-  `surfaces-bake` (paid), `finish-route-recheck` (paid, `route_recheck.py`; `surfaces-check` reads it, so a failed
+  `surfaces-parts` (free, `route_parts.py`: the method's interface), `surfaces-bake` (paid, `route_bake.py`: the
+  paint and the bake in one job), `surfaces-paint` (free, `route_paint.py`: the bake's painted takes, the paint's
+  gates), `finish-route-recheck` (paid, `route_recheck.py`; `surfaces-check` reads it, so a failed
   recheck stops the line before the check), `surfaces-check`. Each route row selects (`score run --object <take>`).
   A take's model is its raw take (`route_data.py`); one with none here, or whose faces the paint loads differently, is
   named by the views gate before anything is asked. Its close-up is its own, else a **stand-in close-up** (the model's
@@ -54,14 +55,24 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   joined (`cleaned`, `merged_islands`), each island a part. Parts (free): each finish checked against the median of
   its faces' texture colour (`finish_parts.checked_finishes`: the nearest surface of its family or the room's kit
   surface that fits, else off its colour with a proposal, which the paint's gate fails by name), then each part its
-  finish's surface (`part_rows`); the takes the split made holes are `left_out`. Paint (free, here): the rented
-  paint's `place_line.paint_take` run in the prop environment under `prop_env`'s 14 GB cap (crane-r1 peaked at 34.8 GB
-  on a rented machine, 2026-10-12: such a take fails the row by its error); `place_line.make_paint` (rented) stays
-  the crops' and people's. Recheck (paid, one batch): a take the parts left off its colour is a hole with no ask; the
-  rest are drawn from every view, each part flat in its library surface's colour, and asked once against the
-  close-up; all match passes, else "no library surface fits" names it (`gate:finish-route-recheck/library surface
-  fits:<take>`), Gemini's token, roughness and metal kept as the hole's `suggested`, never applied. The list's
-  settings are row output, never a materials.json edit; the bake still bakes each surface's library spec.
+  finish's surface (`part_rows`), with the list's settings where its finish kept the listed surface
+  (`route_settings.applied`); the takes the split made holes are `left_out`. Bake (paid, `route_bake.py`; #18,
+  2026-10-20: nothing heavy on this PC, whose prop environment is capped at 14 GB and crane-r1's paint peaked at 34.8
+  GB): one job a take on the bake's warm card through `blender_cloud.py` (`inside/paint_bake.py`): the take painted
+  by `place_line.paint_take` (as the rented paint), its models' make_chunky entries over the labelled take
+  (`bake_job_step`), then make_chunky; priced at the bake's warm figure. Here first, free: the proposals into the
+  registry, and the specs (a part with settings paints and bakes as `route_settings.settings_name`: its variant's
+  spec in the list's token colour, roughness and metal; specs.json in the output). The seed is recorded, not applied
+  (recipes take the job's one seed; a spec's own seed re-keys surface-tiles). Paint (free, after the bake): the
+  bake's labelled takes and painted.json copied over, so every reader of the paint stays, with its gates (one
+  surface a part, colour against the close-up, feet), which now judge after the bake: the parts' "off colour"
+  measure names the colour faults before it. `place_line.make_paint` (rented) stays the crops' and people's. Check:
+  `route_check.py`, bake_check's against the bake's specs.json. Recheck (paid, one batch): a take the parts left off
+  its colour is a hole with no ask; the rest are drawn from every view, each part flat in its library surface's
+  colour (its token's where it has settings), and asked once against the close-up; all match passes, else "no
+  library surface fits" names it (`gate:finish-route-recheck/library surface fits:<take>`), Gemini's token,
+  roughness and metal kept as the hole's `suggested`, never applied. The list's settings never edit
+  materials.json.
 - **Every paid ask runs once: the finishes layer is a batch** (CONTEXT.md, the owner, 2026-10-20; #21). The finish
   route's asks go as one Batch API job a row run (`google_batch.py`: a started line each before the send, the job's
   name kept so a run cut off mid-wait picks up the same job, never sends it again; a failed, cancelled or expired
@@ -155,8 +166,8 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   files. A model neither gives (`bake_job.refusal`, entry_of's own checks run without the take: the launch's far
   rocket) is declared as a file that is never there, naming it, so the run refuses before anything is cleared; the
   crops bake too.
-- **The crops' and people's paint runs on rented processor machines, a job a take** (the place lines' paints here,
-  `route_paint.py`; `make_paint`, `inside/paint_take.py` through
+- **The crops' and people's paint runs on rented processor machines, a job a take** (the place lines' paint runs in
+  their bake's card job, `route_bake.py`; `make_paint`, `inside/paint_take.py` through
   `blender_cloud.py`; paid, cleared like the bake): heavy steps run in the cloud (owner, 2026-10-12); measured up there,
   campgrounds' takes peak at 1.5 to 3.4 GB and crane-r1 at 34.8 GB (the PC's cap is 14 GB). Up there Blender's own
   Python runs `place_line.py paint-take` with the prop environment's pinned packages and says its peak memory and any

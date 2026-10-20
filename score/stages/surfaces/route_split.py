@@ -28,7 +28,9 @@ import finish_parts  # noqa: E402
 import route_cast as cast  # noqa: E402
 import surface_gates as gates  # noqa: E402
 
-DISAGREE_MOST = 0.01  # a take whose disagreeing faces hold over this share of its area is a hole (set, not measured)
+# A take whose disagreeing faces hold over this share of its area is a hole. UNMEASURED: picked (2026-10-20), not
+# measured; the one-shot benchmark that would measure it (under EUR 3) is on #18. Keep it until that runs.
+DISAGREE_MOST = 0.01
 
 
 def model_of(folder):

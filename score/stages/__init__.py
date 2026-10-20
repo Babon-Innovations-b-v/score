@@ -28,7 +28,7 @@ from score.stages import (assembly, cast, complete, concept_people, concept_view
                           effects, gaps, images, library, light, motion, people, people_takes, physics,
                           props, proposals, rough_model, scene_record, settling, shell_split, sound, surface_tiles,
                           surfaces, terrain)
-from score.stages.surfaces import bake_check, carry, library_reads
+from score.stages.surfaces import bake_check, carry, library_reads, route_check
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.stills as demo_stills
 from score.stages.surfaces.surface_gates import guarded
@@ -264,12 +264,13 @@ PHYSICS_TRIAL = graph.Stage("physics-trial", "place", physics.make_trial, physic
 
 def bake_checked(row):
     """surfaces-check on bake_check.py, the check's own module (a border triangle a blotch only when off every surface
-    within its reach). Set here, in the table, not in surfaces/__init__.py, which is in the turntable's and SegviGen's
-    code version: an edit there re-buys them. Moves into surfaces/__init__.py, and the old check leaves place_line.py,
-    once their fan-out of 2026-10-12 is done."""
+    within its reach), made through route_check.py (against the bake's specs: the finish list's settings, #18). Set
+    here, in the table, not in surfaces/__init__.py, which is in the turntable's and SegviGen's code version: an edit
+    there re-buys them. Moves into surfaces/__init__.py, and the old check leaves place_line.py, once their fan-out of
+    2026-10-12 is done."""
     if row.name != "surfaces-check":
         return row
-    return dataclasses.replace(row, make=bake_check.make_check,
+    return dataclasses.replace(row, make=route_check.make_check,
                                contract=contracts.Contract("surfaces-check", 1, bake_check.check_faults),
                                checks=(guarded("baked matches its surfaces", bake_check.judge_lit),
                                        guarded("triangles within budget", bake_check.judge_triangles),
@@ -300,6 +301,17 @@ def crops_check_files(place):
 def crops_bake_checked(row):
     """crops-surfaces-check with the stance rules among its files (crops_check_files)."""
     return dataclasses.replace(row, files=crops_check_files) if row.name == "crops-surfaces-check" else row
+
+
+def paint_baked(row):
+    """surfaces-bake with the paint's files beside its own (paint_files: the paint runs in its job on the rented card,
+    route_bake.py, #18) and the job's scripts (inside/, run up there, never imported; the folder's overlay left out)."""
+    if row.name != "surfaces-bake":
+        return row
+    own = row.files
+    return dataclasses.replace(row, files=lambda place: {
+        **paint_files(place), **own(place), **{f"paint bake {name}": "{repo}/score/stages/surfaces/inside/" + name
+                                               for name in ("paint_bake.py", "paint_take.py")}})
 
 
 def feet_checked(row):
@@ -437,7 +449,7 @@ STAGES = (TERRAIN, CONCEPT_VIEWS, PARTITION_PROPOSALS, DEMO_TURNTABLES, EFFECTS,
           GROUND_FIT, TERRAIN_LOOK, EFFECTS_LOOK, PHYSICS_LAYER,
           PHYSICS_TRIAL,
           dataclasses.replace(props.INPUTS, files=box_checked(scene_inventory_read(props.INPUTS.files))), props.CLOSEUP, props.PIXAL,
-          *map(library_narrowed, map(prop_fed, map(feet_checked, map(bake_checked, surfaces.ROWS)))),
+          *map(library_narrowed, map(prop_fed, map(paint_baked, map(feet_checked, map(bake_checked, surfaces.ROWS))))),
           props.CALIBRATION, props.LIKENESS,
           *(library_narrowed(far_judged(row)) for row in people.ROWS if row.name not in NOT_RUN), *people_takes.ROWS, PLAN, ROUGH_MODEL, SHELL_SPLIT, SCENE_RECORD, concept_people.STAGE, CAST, CHARACTERS, MOTION_MODELS, MOTION_MODEL_BOXES, MOTION,
           *light.ROWS, *map(library_narrowed, map(crops_bake_checked, crops.ROWS)), COMPLETE_BOXES,

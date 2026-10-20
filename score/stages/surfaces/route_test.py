@@ -1,9 +1,11 @@
-"""The finish route's own checks, with no spend (Google faked, the paint's prop environment step faked): a two-box
+"""The finish route's own checks, with no spend (Google faked, the bake's cloud call faked): a two-box
 model (one textured red, one blue by its colour factor) is rendered from its base views plus what the coverage check
 adds, its colours split into regions the views share; one batch answer a take lists its finishes library first and
 labels each region of each view; the split votes the labels into one finish a face, and an unassigned face or views
 that disagree make the take a hole; the parts row writes the method's interface with each finish checked against
-its colour; the paint hands the parts' records to its step; the recheck sorts one batch answer a take into pass or a
+its colour, keeping the list's settings; the bake paints and bakes each take in one card job, each part with
+settings as its settings' surface, and the paint takes its painted takes over; the check reads the bake's specs; the
+recheck sorts one batch answer a take into pass or a
 named hole, a take off its colour not asked at all. The route is the default line: its rows are on every painting
 place's line and the finish-map method's rows are not.
 
@@ -11,6 +13,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/stages/surfaces/route_test.p
 """
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 
@@ -23,8 +26,9 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from score.stages import surfaces  # noqa: E402
-from score.stages.surfaces import (route_ask, route_cast, route_data, route_list, route_paint,  # noqa: E402
-                                   route_parts, route_recheck, route_split, route_views)
+from score.stages.surfaces import (route_ask, route_bake, route_cast, route_check, route_data,  # noqa: E402
+                                   route_list, route_paint, route_parts, route_recheck, route_settings, route_split,
+                                   route_views)
 
 RED, BLUE = (200, 30, 30), (30, 40, 200)
 TAKE, OTHER = "two_boxes-t1", "other-t1"
@@ -237,28 +241,93 @@ def test_the_parts_row_writes_the_methods_interface_each_finish_checked_against_
         assert route_parts.judge_parts(rows["surfaces-parts"], rows, {}).answer == "pass"
 
 
-def test_the_paint_hands_each_takes_part_records_to_its_step_here():
+def baked(folder, rows):
+    """The bake made through the rows, the cloud call faked: each take's job writes back its labelled take, its
+    models' entries and a baked model. The bake's inputs, its output and the calls made (with the jobs' files)."""
+    data = json.loads(rows["surfaces"].read_text())
+    rows["surfaces"].write_text(json.dumps(dict(data, library="cockpit", bake={"models": {"two_boxes": TAKE}})))
+    inputs = {"surfaces": rows["surfaces"], "surfaces-parts": rows["surfaces-parts"],
+              "resting rules": REPO / "data/checks/resting.json"}
+    out = folder / "bake"
+    out.mkdir()
+    calls = []
+
+    def run(command, **_):
+        jobs = [json.loads(pathlib.Path(path).read_text()) for path in command if str(path).endswith("-job.json")]
+        calls.append({"command": command, "jobs": jobs,
+                      "files": {path.name: json.loads(path.read_text()) for path in out.glob(".bake-*.json")}})
+        for job in jobs:
+            take = json.loads(pathlib.Path(job["args"][0]).read_text())[route_bake.place_line.TAKE]
+            labelled = out / "labelled" / take
+            labelled.mkdir(parents=True)
+            (labelled / "labels.json").write_text(json.dumps({"take": take, "unnamed_parts": []}))
+            (out / "entries").mkdir(exist_ok=True)
+            (out / "entries" / f"{take}.json").write_text(json.dumps({"two_boxes": {"parts": str(labelled),
+                                                                                   "faces": 100}}))
+            (out / "made").mkdir(exist_ok=True)
+            (out / "made" / "two_boxes.gltf").write_text("{}")
+        return subprocess.CompletedProcess(command, 0, "", "")
+    original = route_bake.subprocess.run
+    route_bake.subprocess.run = run
+    try:
+        route_bake.make_bake(inputs, out, 7, {})
+    finally:
+        route_bake.subprocess.run = original
+    return inputs, out, calls
+
+
+def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over():
+    import library
+    finish_parts = route_parts.finish_parts
+    kept = finish_parts.COLOUR_DELTA_E
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
-        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
-        handed = {}
-
-        def handover(module, step, inputs, out):
-            handed.update(step=step, module=pathlib.Path(module).name,
-                          records=json.loads(pathlib.Path(inputs[route_paint.RECORDS]).read_text()))
-        original = route_paint.prop_env.handover
-        route_paint.prop_env.handover = handover
+        finish_parts.COLOUR_DELTA_E = 1000.0  # held wide: every finish keeps its listed surface, so its settings
         try:
-            out = folder / "paint"
-            out.mkdir()
-            route_paint.make_paint({"surfaces": rows["surfaces"], "surfaces-parts": rows["surfaces-parts"],
-                                    "resting rules": REPO / "data/checks/resting.json"}, out, 7, {})
+            rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
+            inputs, out, calls = baked(folder, rows)
         finally:
-            route_paint.prop_env.handover = original
-        assert handed["step"] == "paint" and handed["module"] == "route_paint.py", handed
-        assert {row["surface"] for row in handed["records"][TAKE]} <= set(
-            surfaces.finish_parts.take_surfaces(json.loads(rows["surfaces"].read_text())["takes"][TAKE]))
-        assert not list(out.glob(".*.json"))  # the step's listing files are gone
+            finish_parts.COLOUR_DELTA_E = kept
+        parts = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]["parts"]
+        assert all(row["settings"] for row in parts), parts
+        assert len(calls) == 1 and pathlib.Path(calls[0]["command"][1]).name == "blender_cloud.py", calls
+        assert calls[0]["command"][-1] == route_bake.place_line.CLASSES  # the bake's cards, one call
+        (job,) = calls[0]["jobs"]
+        assert job["script"] == route_bake.SCRIPT and str(out / "made") in job["outputs"], job
+        records = calls[0]["files"][f".bake-{TAKE}-records.json"]
+        head = calls[0]["files"][f".bake-{TAKE}-head.json"]
+        assert head["models"] == ["two_boxes"], head
+        for record, row in zip(records, parts):
+            assert record["surface"] == route_settings.settings_name(row["judge"], row["settings"]), record
+            spec = head["specs"][record["surface"]]
+            assert spec["library"] == row["judge"] and spec["token"] == row["settings"]["token"], spec
+            assert spec["colour"] == library.token_colours()[row["settings"]["token"]], spec
+            assert spec["roughness"] == row["settings"]["roughness"] == 1.0, spec  # the list's 1.4, clipped
+        assert json.loads((out / "specs.json").read_text()) == head["specs"]
+        assert json.loads((out / "baked.json").read_text())["two_boxes"]["parts"] == TAKE
+        assert not list(out.glob(".bake-*"))  # the jobs' files are gone
+        assert route_bake.bake_faults(out) == [] and route_bake.judge_baked(out, inputs, {}).answer == "pass"
+        paint = folder / "paint"
+        paint.mkdir()
+        route_paint.make_paint({"surfaces-bake": out}, paint, 7, {})
+        assert (paint / "painted.json").read_text() == (out / "painted.json").read_text()
+        assert (paint / "labelled" / TAKE / "labels.json").exists()
+
+
+def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():
+    import library
+    with tempfile.TemporaryDirectory() as temporary:
+        bake = pathlib.Path(temporary)
+        (bake / "specs.json").write_text(json.dumps({"painted_panel__sign_red_r100_m000": {"colour": [1, 0, 0]}}))
+        seen = {}
+        original, by_library = route_check.bake_check.check_step, library.by_library
+        route_check.bake_check.check_step = lambda inputs, out: seen.update(library=library.by_library("cockpit"))
+        try:
+            route_check.check_step({"bake": bake}, bake)
+        finally:
+            route_check.bake_check.check_step, library.by_library = original, by_library
+        assert seen["library"]["painted_panel__sign_red_r100_m000"] == {"colour": [1, 0, 0]}
+        assert "painted_panel" in seen["library"]  # the library's own surfaces stay
 
 
 def rechecked(folder, answer, wide=True):
@@ -338,8 +407,8 @@ def test_the_route_is_the_default_line():
     from score import graph, stages
     from score.store import Store
     assert [row.name for row in surfaces.ROWS] == [
-        "finish-route-views", "finish-route-list", "finish-route-split", "surfaces-parts", "surfaces-paint",
-        "surfaces-bake", "finish-route-recheck", "surfaces-check"]
+        "finish-route-views", "finish-route-list", "finish-route-split", "surfaces-parts", "surfaces-bake",
+        "surfaces-paint", "finish-route-recheck", "surfaces-check"]
     assert [row.name for row in surfaces.ROWS if row.paid] == ["finish-route-list", "surfaces-bake",
                                                                "finish-route-recheck"]
     with tempfile.TemporaryDirectory() as temporary:
