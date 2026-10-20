@@ -12,7 +12,15 @@ in place of the terminal check of `python -m score.review` (owner_at_terminal), 
 own barrier still refuses these writes in a process an agent started (Store.write_once), so a dashboard started from
 an agent's shell records nothing. His waiver (`waived`, one check of the output he saw) and his Google month
 (`google_month`, into the month's books, refused in an agent's process by compute itself) come the same way; the
-spend override (a yes for a run outside the runner) stays terminal-only.
+spend override (a yes for a run outside the runner) stays terminal-only, except his concept review's draw button.
+
+    web.concept_draw(store, "airlock", {"marks": [...], "note": "", "base": sha}, 0.15, by="joey")
+    web.concept_pick(store, "airlock", sha, by="joey")    # sha None: unlocked again
+
+`concept_draw` is his click on a concept review's Draw button (CONTEXT.md "concept review", owner 2026-10-20: the
+click is the spend yes): his yes for exactly that one call at the price the button showed (refused when the measured
+price moved since), written as an override (node `override`, key `concept-<place>-<time>`, its purpose said), then the
+one draw run as its own process inside it (score/review/concepts.py). The store refuses the yes in an agent's process.
 
 `stop` is his money yes from the cockpit's checkout: the signed-in owner on the trusted cockpit counts as the owner
 at his terminal (`python -m score.review stop`, C22), and the line is written by the same guard.set_line, which
@@ -88,3 +96,42 @@ def stop_line(store, world):
     """The environment's newest stop line, or None when it has none."""
     from score.adapters.compute import guard
     return guard.current(store, world)
+
+
+def concept_draw(store, place, request, euros, by, run=None):
+    """His click on a concept review's Draw button: his yes for that one call at `euros` (the price the button
+    showed), then the draw as its own process inside it; the draw's record. review.Refused for an empty or the
+    runner's name, a price that moved, or a draw refused (its words); PermissionError in an agent's process."""
+    import json
+    import os
+    import subprocess
+    import sys
+    from score.review import concepts
+    name = checked_by(by)
+    price = concepts.draw_euros()
+    if price is None or abs(float(euros) - price) > 0.005:
+        shown = "not measured" if price is None else f"EUR {price:.2f}"
+        raise review.Refused(f"the price shown, EUR {float(euros):.2f}, is not today's measured price ({shown}): "
+                             "read the page again")
+    key = concepts.yes_key(place, review.now())
+    review.spend(store, "override", key, price, name, purpose=f"concept review: one draw of {place}")
+    asked = store.cache / concepts.AREA / "asked" / f"{key}.json"
+    asked.parent.mkdir(parents=True, exist_ok=True)
+    asked.write_text(json.dumps(request))
+    env = {**os.environ, "SCORE_SPEND_TICKET": f"override {key}", "SCORE_SPEND_STORE": str(store.cache.parent)}
+    done = (run or subprocess.run)([sys.executable, "-m", "score.review.concepts", place, str(asked), name],
+                                   env=env, capture_output=True, text=True, timeout=concepts.TIMEOUT + 60)
+    if done.returncode != 0:
+        raise review.Refused((done.stderr.strip().splitlines() or ["the draw failed"])[-1].removeprefix("refused: "))
+    return json.loads(done.stdout.strip().splitlines()[-1])
+
+
+def concept_pick(store, place, sha, by):
+    """His Pick (or, with sha None, his unlock) of a place's concept; the record. review.Refused for an empty or the
+    runner's name or a sha that is no draw of the place; PermissionError in an agent's process."""
+    from score.review import concepts
+    name = checked_by(by)
+    try:
+        return concepts.pick(store, place, sha, name)
+    except concepts.Refused as refused:
+        raise review.Refused(str(refused)) from refused

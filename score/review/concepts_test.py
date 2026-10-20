@@ -1,0 +1,126 @@
+"""The concept review's draws and picks (score/review/concepts.py), with a stand-in for the model (no call is made,
+nothing is spent): a draw runs only inside the owner's yes for it and keeps its picture and record; a redraw sends
+the base boxed and clean with each mark's note; a pick takes only a draw of the place; the click's yes is written with
+its price and purpose, and refused when the price shown is not today's; the price is the measured unit at the
+standard tier."""
+import io
+import json
+import subprocess
+
+import pytest
+from PIL import Image
+
+from score import review
+from score.adapters import compute
+from score.review import concepts, web
+from score.store import Store
+
+
+@pytest.fixture
+def store(tmp_path, monkeypatch):
+    monkeypatch.setattr(compute, "require_books", lambda what: None)  # the books are the ledger's own test's
+    monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)
+    return Store.in_folder(tmp_path / "store")
+
+
+def a_picture(colour=(40, 90, 160)):
+    buffer = io.BytesIO()
+    Image.new("RGB", (64, 40), colour).save(buffer, "PNG")
+    return buffer.getvalue()
+
+
+def stand_in(asked):
+    """A model that keeps what it was asked and answers a picture."""
+    def answer(wording, pictures):
+        asked.append((wording, [picture.size for picture in pictures]))
+        return a_picture((len(asked) * 40, 80, 120))
+    return answer
+
+
+def said_yes(store, monkeypatch, place="airlock"):
+    key = concepts.yes_key(place, review.now())
+    review.spend(store, "override", key, 0.15, "joey", purpose="test")
+    monkeypatch.setenv("SCORE_SPEND_TICKET", f"override {key}")
+    return key
+
+
+def test_a_draw_runs_only_inside_the_owners_yes(store, monkeypatch):
+    with pytest.raises(compute.Refused):
+        concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    assert concepts.draws(store, "airlock") == []
+
+
+def test_a_first_draw_is_worded_from_the_places_data_and_kept(store, monkeypatch):
+    key = said_yes(store, monkeypatch)
+    asked = []
+    record = concepts.draw(store, "airlock", {"note": "more dust"}, "joey", caller=stand_in(asked))
+    assert record["yes"] == key and record["euros"] == 0.15 and record["base"] is None
+    assert store.objects.exists(f"blobs/{record['sha']}")
+    assert concepts.draws(store, "airlock") == [record] and concepts.placed(store) == ["airlock"]
+    wording, sizes = asked[0]
+    assert "airlock" in wording and "The creator's note: more dust" in wording and sizes == []  # its reference is lost
+
+
+def test_a_redraw_sends_the_base_boxed_and_clean_with_each_marks_note(store, monkeypatch):
+    said_yes(store, monkeypatch)
+    first = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    said_yes(store, monkeypatch)
+    asked = []
+    marks = [{"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.3, "note": "a red door"}]
+    second = concepts.draw(store, "airlock", {"marks": marks, "note": "warmer", "base": first["sha"]}, "joey",
+                           caller=stand_in(asked))
+    wording, sizes = asked[0]
+    assert "Box 1: a red door." in wording and "Overall: warmer" in wording and sizes == [(64, 40), (64, 40)]
+    assert second["base"] == first["sha"] and second["marks"][0]["note"] == "a red door"
+    with pytest.raises(concepts.Refused, match="outside the picture"):
+        concepts.draw(store, "airlock", {"marks": [{"x": 0.9, "y": 0, "w": 0.5, "h": 0.1}], "base": first["sha"]},
+                      "joey", caller=stand_in([]))
+    with pytest.raises(concepts.Refused, match="no draw of"):
+        concepts.draw(store, "hub", {"base": first["sha"]}, "joey", caller=stand_in([]))
+
+
+def test_a_pick_takes_only_a_draw_of_the_place_and_unlocks_again(store, monkeypatch):
+    said_yes(store, monkeypatch)
+    drawn = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    with pytest.raises(concepts.Refused):
+        concepts.pick(store, "airlock", "0" * 64, "joey")
+    concepts.pick(store, "airlock", drawn["sha"], "joey")
+    assert concepts.picked(store, "airlock") == drawn["sha"]
+    concepts.pick(store, "airlock", None, "joey")
+    assert concepts.picked(store, "airlock") is None
+
+
+def test_the_price_is_the_measured_unit_at_the_standard_tier(tmp_path):
+    per_unit = tmp_path / "per-unit.json"
+    measured = {"high_euros": 0.07048, "basis": "batch price of measured calls"}
+    per_unit.write_text(json.dumps({"stages": {"closeup": measured}}))
+    assert concepts.draw_euros(per_unit) == 0.15  # 0.07048 / 0.5 = 0.14096, up to the cent
+    per_unit.write_text(json.dumps({"stages": {}}))
+    assert concepts.draw_euros(per_unit) is None
+
+
+def test_the_click_writes_its_yes_at_the_price_shown_then_draws_inside_it(store, monkeypatch):
+    monkeypatch.setattr(concepts, "draw_euros", lambda: 0.15)
+
+    def run(argv, env, **kwargs):  # the draw's own process, here in-process with the stand-in model
+        monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
+        record = concepts.draw(store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1], caller=stand_in([]))
+        return subprocess.CompletedProcess(argv, 0, json.dumps(record) + "\n", "")
+
+    record = web.concept_draw(store, "airlock", {"note": ""}, 0.15, "joey", run=run)
+    yes = store.spend_yes("override", record["yes"])
+    assert yes["by"] == "joey" and yes["euros"] == 0.15 and "airlock" in yes["purpose"]
+    with pytest.raises(review.Refused, match="not today's measured price"):
+        web.concept_draw(store, "airlock", {}, 0.10, "joey", run=run)
+    with pytest.raises(review.Refused):
+        web.concept_draw(store, "airlock", {}, 0.15, "runner", run=run)
+
+
+def test_an_agents_process_cannot_draw_or_pick_in_the_framework_store(store, monkeypatch):
+    said_yes(store, monkeypatch)
+    drawn = concepts.draw(store, "airlock", {}, "joey", caller=stand_in([]))
+    monkeypatch.setattr(store, "is_framework_store", lambda: True)
+    monkeypatch.setattr(concepts, "running_under_agent", lambda: True)
+    with pytest.raises(PermissionError):
+        concepts.pick(store, "airlock", drawn["sha"], "joey")
+    assert concepts.picked(store, "airlock") is None

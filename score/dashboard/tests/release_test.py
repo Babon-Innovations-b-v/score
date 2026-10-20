@@ -121,7 +121,11 @@ def test_the_install_writes_both_units_filled_and_enables_the_timer(repositories
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     called = []
     said = timer.install(score, an_env_file(tmp_path), host, DOCKERFILE, systemctl=lambda *args: called.append(args))
-    assert called == [("daemon-reload",), ("enable", "--now", "score-sync.timer")] and "enabled" in said
+    assert called == [("daemon-reload",), ("enable", "--now", "score-sync.timer", "score-listen.service"),
+                      ("restart", "score-listen.service")] and "enabled" in said
+    listener = (tmp_path / "config/systemd/user/score-listen.service").read_text()
+    assert "<" not in "".join(line for line in listener.splitlines() if not line.startswith("#"))
+    assert "-m score.dashboard listen" in listener and "Restart=always" in listener
     service = (tmp_path / "config/systemd/user/score-sync.service").read_text()
     lines = [line for line in service.splitlines() if not line.startswith("#")]
     assert not any("<" in line for line in lines), lines  # every slot filled

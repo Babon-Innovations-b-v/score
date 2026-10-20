@@ -386,8 +386,15 @@ class Hosted:
     def commit(self, name, files):
         self.commits.append(files)
 
-    def waiting(self):
-        return self.waiting_items
+    def waiting(self, kinds=(), wait=0):
+        return [item for item in self.waiting_items if not kinds or item["kind"] in kinds]
+
+    def claim(self, request_id):
+        self.reports.append((request_id, "picked_up"))
+        return True
+
+    def put_request_file(self, name, data):
+        self.chunks.append(name)
 
     def report(self, request_id, state, detail="", log_tail=""):
         self.reports.append((request_id, state))

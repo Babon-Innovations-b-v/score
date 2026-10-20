@@ -11,6 +11,6 @@ def source():
     from django.conf import settings
     if settings.SCORE_MODE == settings.HOSTED:
         from score.dashboard.state.exported import ExportedSource
-        return ExportedSource(settings.SCORE_HOME / "export" / "current")
+        return ExportedSource(settings.SCORE_HOME / "export" / "current", settings.SCORE_HOME / "request-files")
     from score.dashboard.state.local import LocalSource
     return LocalSource(settings.SCORE_PROPS_HOME, settings.SCORE_HOME, settings.SCORE_WEB_COPIES)

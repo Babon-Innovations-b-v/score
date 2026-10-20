@@ -182,6 +182,20 @@ grouped in `state/groups.py` from the stage table; no new framework level.
     red dot, the answer as hover text, never on the page.
   Hover text is the native `title` attribute: every component takes `tip`; an explanation goes there, never on
   the page.
+- **The concept review** (CONTEXT.md "concept review", owner 2026-10-20; `pages/concepts.py`, `concept.html`,
+  `static/pages/concept.js`): each Environment card whose concept is not locked carries a Review (Draw while it has
+  none) button to `/concept/<place or shell>/`: the shown draw with areas marked by dragging, a note each and one for
+  the whole, Draw or Redraw with its price per click (`WorldState.concept_draw_euros`: the measured Nano Banana Pro
+  picture at the standard tier, `score/review/concepts.draw_euros`), the place's draws, Pick (locks it: the card loses
+  the button) and Unlock. A click is the owner's request (SyncRequest `concept-draw`, `concept-pick`), applied on the
+  store's machine through `actions.concept_draw` / `concept_pick` and `score.review.web` (his yes for that one call
+  at the price shown, refused when the price moved, then the call as its own process inside it; the store refuses
+  both in an agent's process): local at once (a draw in a thread), hosted by the listener. The store keeps the draws
+  and picks (`score/review/concepts.py`); a place's card shows its picked draw, else its newest, else
+  `data/places/concepts.json`'s. The page asks `/concept/<place>/state/` until the draw is answered. Hosted, the
+  answered draw (its record as the request's detail, its pictures in `SCORE_HOME/request-files`, served by
+  `ExportedSource` beside the export's) and a pick since the export show at once; the cards follow at the next export.
+  No batch: the batch rules start once the design is approved.
 - **`api/`** the routes and `deps.py` (the Django session read for FastAPI, CSRF on every write, owner-only routes).
 - **`launch/`** the compute backend interface (`backend.py`: plan, spend, price, launch, poll, ledgered; chosen by
   `SCORE_COMPUTE_BACKEND=module:Class`), the shipped `localrun.py` (the `score` CLI), and `guard.py` (groups, the plan priced by the
@@ -206,7 +220,11 @@ grouped in `state/groups.py` from the stage table; no new framework level.
   (`applying.OWNER_FIGURES`: the books' figure, the read-back, a waiver) are applied
   like his decisions: only when the request's user is this machine's `SCORE_OWNER`, through the same
   `pages/actions.py` function as the local cockpit, which refuses in an agent's process. Never tell the owner to
-  type a command: an owner-only action is a button (#39). The owner's timer (`timer.py`, `install-sync`, the
+  type a command: an owner-only action is a button (#39). Each request is claimed once (`/requests/<id>/claim`), so
+  the pass and the listener never both apply it. The listener (`listen.py`, `python -m score.dashboard listen`, the
+  owner's systemd service `score-listen.service` beside the timer, restarted hourly onto the pulled code) holds one
+  call open (`/requests?kind=...&wait=25`) and answers the concept review's requests within a second of the click,
+  sending a draw's pictures back (`/request-files/`) before its report. The owner's timer (`timer.py`, `install-sync`, the
   deploy templates) reads the token by name from his secret manager each pass, inline, through the reader his env
   file names; it installs only once the cockpit runs this checkout's dashboard. `release.py` (`release`) moves the
   hosting repository's pinned `SCORE_COMMIT` to a pushed commit, from a worktree of its own, in the host's commit
@@ -230,7 +248,7 @@ Rules:
 
 - **Read only, except the owner's own decisions.** The dashboard writes its SQLite and `$SCORE_DASHBOARD_HOME`
   (thumbs, inbox, plans, status snapshots, exports, `bill-days.json`: the month's bills as read each day). The store and the books are written only
-  through `score.review.web` (`decide`, `waived`, `stop`, `google_month`), which the store, the guard and the books
+  through `score.review.web` (`decide`, `waived`, `stop`, `google_month`, `concept_draw`, `concept_pick`), which the store, the guard and the books
   refuse in a process an agent started. Never call `Runner.drive`, `rebuy.buys`,
   `compute.clearance` or `rejudged_accepted` in the web process: plans, spend and freshness are subprocesses of the
   `score` command.

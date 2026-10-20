@@ -357,3 +357,41 @@ def command_words(group, jobs):
     from score.dashboard.launch.localrun import run_command
     return shlex.join(["python", *run_command(group, jobs, None)[1:]])
 
+
+# --- the concept review (CONTEXT.md "concept review"): the owner's draws and picks, on the store's machine ---------
+
+def concept_draw(user, payload):
+    """One draw of a place's concept, his click its spend yes (score.review.web.concept_draw: his yes for that call
+    at the price his button showed, then the call in a process of its own); (words, the draw's record or None)."""
+    why = owner_figure_off_why(user)
+    if why:
+        return why, None
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        asked = {"marks": payload.get("marks") or [], "note": str(payload.get("note") or ""),
+                 "base": payload.get("base") or None}
+        record = web.concept_draw(source.store, str(payload["place"]), asked, float(payload["euros"]), by=user)
+    except (review.Refused, PermissionError, FileExistsError, KeyError, TypeError, ValueError,
+            subprocess.TimeoutExpired) as refused:
+        return f"refused: {refused}", None
+    source.refresh()
+    return f"drawn: {record['sha'][:12]} for EUR {record['euros']:.2f}", record
+
+
+def concept_pick(user, payload):
+    """His Pick of a place's concept draw (`sha`), or his unlock (`sha` None); in words."""
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    source = state.source()
+    try:
+        record = web.concept_pick(source.store, str(payload["place"]), payload.get("sha") or None, by=user)
+    except (review.Refused, PermissionError, FileExistsError, KeyError) as refused:
+        return f"refused: {refused}"
+    source.refresh()
+    return f"picked {record['sha'][:12]}" if record["sha"] else "unlocked"
+

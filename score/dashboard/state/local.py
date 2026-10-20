@@ -18,9 +18,9 @@ from score.dashboard.state import accepted_gaps as named, groups, plain
 from score.dashboard.state.files import THUMB_SIDE, Known, file_ref, kind_of, packaged, thumbnail
 from score.dashboard.state.gaps import kind_of as gap_kind
 from score.dashboard.state.index import Fresh, answer_keys
-from score.dashboard.state.models import (CheckFinding, EngineGroup, GateCounts, GateVerdict, GapsPrice, GapsTotal,
-                                          InputPicture, LayerGroup, PlaceCard, PlaceDetail, Remake, Spend, StepCard,
-                                          StepDetail, StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
+from score.dashboard.state.models import (CheckFinding, ConceptDraw, EngineGroup, GateCounts, GateVerdict, GapsPrice,
+                                          GapsTotal, InputPicture, LayerGroup, PlaceCard, PlaceDetail, Remake, Spend,
+                                          StepCard, StepDetail, StoppedStep, StyleGroup, Taken, UsdIndex, UsdLayer, WorldState)
 from score.store import Store, stamp_key
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -500,11 +500,13 @@ class LocalSource:
                           engines=[EngineGroup(name=groups.ENGINE, styles=self.style_groups())],
                           world_line=self.world_line(), spend=spend or Spend(note="spend not read"),
                           gaps_total=self.gaps_total(), gaps_price=self.gaps_price(),
-                          remake=self.remake(), concepts=self.concepts(), **self.hierarchy())
+                          remake=self.remake(), concepts=self.concepts(), **self.concept_review(),
+                          **self.hierarchy())
 
     def concepts(self):
-        """{place or shell: FileRef} of the concept pictures data/places/concepts.json names whose bytes stand in
-        the store's blobs; a place it lists as lost, or whose blob is not here, has none."""
+        """{place or shell: FileRef} of each concept picture: the concept review's picked draw, else its newest draw,
+        else the one data/places/concepts.json names, where its bytes stand in the store's blobs; a place it lists
+        as lost with no draw, or whose blob is not here, has none."""
         path = self.data / "places" / "concepts.json"
         found = json.loads(path.read_text())["concepts"] if path.is_file() else {}
         refs = {}
@@ -513,7 +515,31 @@ class LocalSource:
             if blob.is_file():
                 self.known.add(concept["sha256"], concept["name"], blob)
                 refs[node] = file_ref(concept["sha256"], concept["name"], blob.stat().st_size)
+        review = self.concept_review()
+        for node, draws in review["concept_draws"].items():
+            chosen = review["concept_picked"].get(node)
+            refs[node] = next((draw.picture for draw in draws if draw.picture.sha == chosen), draws[-1].picture)
         return refs
+
+    def concept_review(self):
+        """{concept_draws, concept_picked, concept_draw_euros} of the concept review (score/review/concepts.py): each
+        place's draws whose bytes stand in the store's blobs, oldest first, and its picked draw's sha."""
+        from score.review import concepts
+        draws, picked = {}, {}
+        for node in concepts.placed(self.store):
+            found = []
+            for record in concepts.draws(self.store, node):
+                blob = self.blob_path(record["sha"])
+                if blob.is_file():
+                    self.known.add(record["sha"], record["name"], blob)
+                    found.append(ConceptDraw(picture=file_ref(record["sha"], record["name"], blob.stat().st_size),
+                                             **{name: record.get(name) for name in ("at", "by", "euros", "base")},
+                                             marks=record.get("marks") or [], note=record.get("note") or ""))
+            if found:
+                draws[node] = found
+            if concepts.picked(self.store, node):
+                picked[node] = concepts.picked(self.store, node)
+        return {"concept_draws": draws, "concept_picked": picked, "concept_draw_euros": concepts.draw_euros()}
 
     def hierarchy(self):
         """{within, shells} of data/places/within.json: what each place or shell sits within, and the shells that are

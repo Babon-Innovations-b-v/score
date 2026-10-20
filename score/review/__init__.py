@@ -348,9 +348,11 @@ def waive(store, node, key, check, by, reason):
     return waiver
 
 
-def spend(store, node, key, euros, by):
-    """The owner's override: his yes to one run at its estimate (node `override` for a run outside the runner)."""
-    yes = {"node": node, "key": key, "euros": euros, "by": by, "at": now()}
+def spend(store, node, key, euros, by, purpose=None):
+    """The owner's override: his yes to one run at its estimate (node `override` for a run outside the runner), with
+    what it is for when given."""
+    yes = {"node": node, "key": key, "euros": euros, "by": by, "at": now(),
+           **({"purpose": purpose} if purpose else {})}
     store.write_spend_yes(node, key, yes)
     return yes
 
